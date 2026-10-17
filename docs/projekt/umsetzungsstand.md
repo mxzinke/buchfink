@@ -16,7 +16,6 @@ einzelne Kriterien im [Anforderungskatalog](../anforderungen/README.md).
 | MCP-Server | Streamable HTTP auf `127.0.0.1:7465`, eigener Autorisierungsserver mit OAuth 2.1, PKCE und dynamischer Registrierung, Zustimmung nur im Fenster der App, Liste verbundener Apps mit Entzug, Idempotenzschlüssel für schreibende Werkzeuge | `internal/mcpserver`, `internal/mcpserver/oauth`, [MCP-Server](../entwicklung/mcp.md) |
 | Brücke für Claude Desktop | stdio-Programm ohne Wails, meldet sich selbst per OAuth an, als Erweiterung `.mcpb` | `cmd/buchfink-mcp`, `packaging/claude-desktop` |
 | Oberfläche | fünf Bereiche: Übersicht, Bücher, Abschlüsse, Unternehmen, Einstellungen; Zustimmungsdialog für Apps | `frontend/src`, [Gestaltung](../gestaltung/README.md) |
-| Skills und Plugin | Fachwissen mit Quellen für den Agenten, Plugin für Claude Code | `skills/`, `plugins/buchfink-buchhaltung/` |
 
 ## Fachfunktionen
 
@@ -49,13 +48,13 @@ einzelne Kriterien im [Anforderungskatalog](../anforderungen/README.md).
   in der App mit Transferticket.
 - Der Zeilenkatalog der Jahreserklärungen liegt für das Vordruckjahr 2025 vor.
   Für andere Jahre nimmt Buchfink den nächstälteren Katalog und meldet das.
-- Bei USt 2 A sind alle Zeilen am amtlichen Vordruck belegt. Bei KSt und GewSt
-  ist ein Teil der Zeilennummern nicht belegt; diese Zeilen haben
-  `am_vordruck_geprueft: false`.
+- Bei USt 2 A ist jede Zeile am amtlichen Vordruck geprüft. Bei KSt und GewSt
+  ist es keine, alle tragen `am_vordruck_geprueft: false`; bei mehr als der
+  Hälfte ist auch die Zeilennummer nicht belegt. Der Prüfvermerk jeder Zeile
+  nennt ihre Quelle.
 - Die E-Bilanz braucht zur Übermittlung ein Programm mit ERiC. Die Instanzen
-  lassen sich mit `task test:ebilanz-xsd` gegen die amtlichen Schemata prüfen;
-  die Schemata liegen nicht im Repository. Eine Annahme durch ERiC ist nicht
-  belegt.
+  prüft `task test:ebilanz-xsd` gegen die amtlichen Schemata 6.9 und 6.10.
+  Eine Annahme durch ERiC ist nicht belegt.
 - Offenlegung und Hinterlegung erfasst Buchfink als Stand mit Nachweis. Einen
   Datensatz für das Unternehmensregister erzeugt es nicht.
 

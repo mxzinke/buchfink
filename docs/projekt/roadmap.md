@@ -19,8 +19,7 @@ lässt. Was in Version 0.3 gebaut ist, steht im
 - **Signierte Releases.** Notarisierte Builds für macOS und signierte für
   Windows, damit die Warnungen beim ersten Start entfallen.
 - **Vordrucke je Jahr.** Zeilenkataloge der Jahreserklärungen für jedes neue
-  Vordruckjahr, die noch nicht belegten Zeilen von KSt und GewSt am amtlichen
-  Vordruck belegen.
+  Vordruckjahr, die Zeilen von KSt und GewSt am amtlichen Vordruck prüfen.
 - **E-Bilanz erproben.** Eine von Buchfink erzeugte Datei über ein Programm mit
   ERiC übermitteln und die Annahme belegen.
 - **Werkzeuge schärfen.** Welche Vorgänge der Agent direkt buchen darf und
