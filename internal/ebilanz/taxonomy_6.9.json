@@ -152,9 +152,19 @@
       "verified": false
     },
     {
+      "key": "aktiva.B.I.anzahlungen",
+      "element": "de-gaap-ci:bs.ass.currAss.inventory.advPaymReceived",
+      "verified": true
+    },
+    {
       "key": "aktiva.B.II",
       "element": "de-gaap-ci:bs.ass.currAss.receiv",
       "verified": false
+    },
+    {
+      "key": "aktiva.B.II.einlagen",
+      "element": "de-gaap-ci:bs.ass.currAss.receiv.other.unpaidCapital",
+      "verified": true
     },
     {
       "key": "aktiva.B.II.1",

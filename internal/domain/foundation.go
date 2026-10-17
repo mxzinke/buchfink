@@ -149,6 +149,18 @@ func (f *Foundation) PaidInCapital() Cents {
 	return sum
 }
 
+// UncalledCapital ist die Summe der nicht eingeforderten Einlagen.
+func (f *Foundation) UncalledCapital() Cents {
+	var sum Cents
+	for _, s := range f.Shareholders {
+		sum += s.Uncalled
+	}
+	return sum
+}
+
+// CalledIn ist der eingeforderte Teil des Geschäftsanteils.
+func (s Shareholder) CalledIn() Cents { return s.ShareCapital - s.Uncalled }
+
 // Shareholder is one Gesellschafter and the Geschäftsanteil they took over.
 type Shareholder struct {
 	ID           uint `gorm:"primaryKey" json:"id"`
@@ -160,6 +172,11 @@ type Shareholder struct {
 	// PaidIn das darauf tatsächlich Geleistete.
 	ShareCapital Cents `gorm:"not null" json:"shareCapital"`
 	PaidIn       Cents `json:"paidIn"`
+	// Uncalled ist der Teil des Nennbetrags, den der Gesellschaftsvertrag noch
+	// nicht einfordert, etwa beim Musterprotokoll „50 % sofort, im Übrigen
+	// nach Beschluss". Er wird vom gezeichneten Kapital offen abgesetzt
+	// (§ 272 Abs. 1 Satz 2 HGB).
+	Uncalled Cents `json:"uncalled"`
 
 	Kind ContributionKind `gorm:"size:10;not null;default:'cash'" json:"kind"`
 

@@ -111,53 +111,52 @@ func (s *FoundationService) OpeningBalance(ctx context.Context) (*OpeningBalance
 			germanDate(f.NotarizedOn)))
 	}
 
-	entries, err := s.journalRepo.FindByAccount(ctx, domain.AccountGezeichnetesKapital, 0)
+	subscribed, err := s.balanceUntil(ctx, domain.AccountGezeichnetesKapital, f.NotarizedOn)
 	if err != nil {
 		return nil, err
 	}
-	var capital domain.Cents
-	for _, entry := range entries {
-		if entry.BookingDate <= f.NotarizedOn {
-			for _, line := range entry.Lines {
-				if line.Account == domain.AccountGezeichnetesKapital {
-					if line.Side == domain.SideCredit {
-						capital += line.Amount
-					} else {
-						capital -= line.Amount
-					}
-				}
-			}
-		}
-	}
+	capital := -subscribed
 	if capital != f.ShareCapital {
 		out.Findings = append(out.Findings, fmt.Sprintf("Das gezeichnete Kapital zum Stichtag beträgt %s €; laut Gründung sind %s € zu buchen. Bitte die Gründungsbuchungen vervollständigen.", capital, f.ShareCapital))
 	}
-	// The contribution form records money already paid at the opening date.
-	// A balanced capital subscription alone must not hide a missing payment.
-	contributions, err := s.journalRepo.FindByAccount(ctx, domain.AccountAusstehendeEinlagenGeford, 0)
+	// Der nicht eingeforderte Teil wird vom gezeichneten Kapital offen
+	// abgesetzt (§ 272 Abs. 1 Satz 2 HGB). Die Einzahlung zählt hier nicht: sie
+	// bucht der Bankumsatz, meist nach der Beurkundung.
+	uncalled, err := s.balanceUntil(ctx, domain.AccountAusstehendeEinlagenOffen, f.NotarizedOn)
 	if err != nil {
 		return nil, err
 	}
-	contributed := capital
-	for _, entry := range contributions {
-		if entry.BookingDate > f.NotarizedOn {
+	if uncalled != f.UncalledCapital() {
+		out.Findings = append(out.Findings, fmt.Sprintf("Laut Gründung sind %s € nicht eingefordert; zum Stichtag stehen %s € auf %s. Bitte die Zeichnung vervollständigen.", f.UncalledCapital(), uncalled, domain.AccountAusstehendeEinlagenOffen))
+	}
+	return out, nil
+}
+
+// balanceUntil ist der Saldo eines Kontos in Soll-Richtung aus allen Buchungen
+// bis zum Tag. Über alle Geschäftsjahre: die Gründung liegt vor jedem
+// Saldenvortrag.
+func (s *FoundationService) balanceUntil(ctx context.Context, account, date string) (domain.Cents, error) {
+	entries, err := s.journalRepo.FindByAccount(ctx, account, 0)
+	if err != nil {
+		return 0, err
+	}
+	var balance domain.Cents
+	for _, entry := range entries {
+		if entry.BookingDate > date {
 			continue
 		}
 		for _, line := range entry.Lines {
-			if line.Account != domain.AccountAusstehendeEinlagenGeford {
+			if line.Account != account {
 				continue
 			}
-			if line.Side == domain.SideCredit {
-				contributed += line.Amount
+			if line.Side == domain.SideDebit {
+				balance += line.Amount
 			} else {
-				contributed -= line.Amount
+				balance -= line.Amount
 			}
 		}
 	}
-	if contributed < f.PaidInCapital() {
-		out.Findings = append(out.Findings, fmt.Sprintf("Laut Gründung wurden %s € eingezahlt; davon sind zum Stichtag nur %s € als Einlage gebucht. Bitte die Einzahlung vervollständigen.", f.PaidInCapital(), contributed))
-	}
-	return out, nil
+	return balance, nil
 }
 
 // sumStatement addiert die obersten Posten einer Seite.

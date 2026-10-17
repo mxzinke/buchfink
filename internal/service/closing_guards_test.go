@@ -308,7 +308,7 @@ func TestClosingModulesReturnEmptyListsNotNull(t *testing.T) {
 	}
 	assertNoNilSlices(t, "Umsatzsteuer-Verrechnung", settlement)
 
-	taxProvision, err := m.bookings.PreviewTaxProvision(ctx, 2026)
+	taxProvision, err := m.bookings.PreviewTaxProvision(ctx, 2026, TaxProvisionOptions{TradeTaxRatePercent: 400})
 	if err != nil {
 		t.Fatalf("Steuerrückstellung: %v", err)
 	}

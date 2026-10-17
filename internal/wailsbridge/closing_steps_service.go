@@ -229,7 +229,7 @@ func (b *BuchfinkBridge) BookVatSettlement(year int) (*domain.JournalEntry, erro
 func (b *BuchfinkBridge) PreviewTaxProvision(year int) (*service.TaxProvisionPreview, error) {
 	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*service.TaxProvisionPreview, error) {
-		return s.ClosingBookings.PreviewTaxProvision(ctx, year)
+		return s.ClosingBookings.PreviewTaxProvision(ctx, year, service.TaxProvisionOptions{})
 	})
 }
 

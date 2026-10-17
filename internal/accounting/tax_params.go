@@ -49,6 +49,15 @@ type TaxParameters struct {
 	// WithholdingTaxPermille ist der Kapitalertragsteuersatz auf eine
 	// Ausschüttung (250 = 25 %, § 43a Abs. 1 Satz 1 Nr. 1 EStG).
 	WithholdingTaxPermille int64
+	// LossDeductionExcessPermille ist der Anteil des eine Million Euro
+	// übersteigenden Einkommens, bis zu dem ein Verlustvortrag abgezogen wird
+	// (§ 10d Abs. 2 Satz 1 EStG, für die GmbH über § 8 Abs. 1 KStG). Maßgeblich
+	// ist der Veranlagungszeitraum, also das Kalenderjahr, in dem das
+	// Wirtschaftsjahr endet (§ 7 Abs. 4 Satz 2 KStG).
+	LossDeductionExcessPermille int64
+	// TradeTaxMinRatePercent ist der Hebesatz, unter dem keine Gemeinde liegen
+	// darf (§ 16 Abs. 4 Satz 2 GewStG).
+	TradeTaxMinRatePercent int64
 
 	// GiftDeductibleLimit ist die Freigrenze für Geschenke an Personen, die
 	// nicht Arbeitnehmer sind (§ 4 Abs. 5 Satz 1 Nr. 1 EStG), je Empfänger und
@@ -80,6 +89,23 @@ type TaxParameters struct {
 	// (§ 44 Abs. 3 UStDV: 6.000 €). Sie entfällt dadurch nicht — sie wandert nur
 	// aus dem Voranmeldungszeitraum ans Jahresende.
 	InputTaxCorrectionAnnualAmount domain.Cents
+
+	// LossDeductionBase ist der Betrag, bis zu dem ein Verlustvortrag das
+	// Einkommen und den Gewerbeertrag unbeschränkt mindert (§ 10d Abs. 2
+	// Satz 1 EStG, § 10a Satz 1 GewStG: 1 Mio. €).
+	LossDeductionBase domain.Cents
+	// TradeLossExcessPermille ist der Anteil des übersteigenden Gewerbeertrags,
+	// den Fehlbeträge aus Vorjahren kürzen (§ 10a Satz 2 GewStG: 60 %).
+	TradeLossExcessPermille int64
+	// ExemptIncomeNonDeductiblePermille ist der Teil der steuerfreien
+	// Beteiligungserträge, der als nicht abziehbare Betriebsausgabe gilt
+	// (§ 8b Abs. 3 Satz 1 und Abs. 5 Satz 1 KStG: 5 %).
+	ExemptIncomeNonDeductiblePermille int64
+	// DonationIncomePermille und DonationTurnoverPermille sind die beiden
+	// Höchstbeträge des Spendenabzugs (§ 9 Abs. 1 Satz 1 Nr. 2 KStG): 20 % des
+	// Einkommens oder 4 ‰ der Umsätze und Löhne; der höhere gilt.
+	DonationIncomePermille   int64
+	DonationTurnoverPermille int64
 }
 
 // taxParameterSets are ordered by ValidFrom, oldest first.
@@ -94,10 +120,12 @@ var taxParameterSets = []TaxParameters{
 		SmallAmountInvoiceLimit: 15000,
 		// Die Unternehmensteuerreform 2008 hat die Gewerbesteuer-Messzahl von
 		// 5 % auf 3,5 % vereinheitlicht.
-		SolidarityPermille:     55,
-		TradeTaxBasePermille:   50,
-		WithholdingTaxPermille: 200,
-		GiftDeductibleLimit:    3500,
+		SolidarityPermille:          55,
+		TradeTaxBasePermille:        50,
+		WithholdingTaxPermille:      200,
+		GiftDeductibleLimit:         3500,
+		LossDeductionExcessPermille: 600,
+		TradeTaxMinRatePercent:      200,
 	},
 	{
 		ValidFrom:                       "2008-01-01",
@@ -107,8 +135,10 @@ var taxParameterSets = []TaxParameters{
 		TradeTaxBasePermille:            35,
 		// Die Abgeltungsteuer von 25 % gilt seit dem 1. Januar 2009
 		// (§ 43a Abs. 1 Satz 1 Nr. 1 EStG i. d. F. des UntStRefG 2008).
-		WithholdingTaxPermille: 200,
-		GiftDeductibleLimit:    3500,
+		WithholdingTaxPermille:      200,
+		GiftDeductibleLimit:         3500,
+		LossDeductionExcessPermille: 600,
+		TradeTaxMinRatePercent:      200,
 	},
 	{
 		ValidFrom:                       "2009-01-01",
@@ -118,6 +148,8 @@ var taxParameterSets = []TaxParameters{
 		TradeTaxBasePermille:            35,
 		WithholdingTaxPermille:          250,
 		GiftDeductibleLimit:             3500,
+		LossDeductionExcessPermille:     600,
+		TradeTaxMinRatePercent:          200,
 	},
 	{
 		ValidFrom:                       "2017-01-01",
@@ -127,11 +159,15 @@ var taxParameterSets = []TaxParameters{
 		TradeTaxBasePermille:            35,
 		WithholdingTaxPermille:          250,
 		GiftDeductibleLimit:             3500,
+		LossDeductionExcessPermille:     600,
+		TradeTaxMinRatePercent:          200,
 	},
 	{
 		// Das Wachstumschancengesetz hat die Freigrenze des § 4 Abs. 5 Satz 1
 		// Nr. 1 EStG für Wirtschaftsjahre, die nach dem 31.12.2023 beginnen, von
-		// 35 € auf 50 € angehoben. Alles andere blieb, wie es war.
+		// 35 € auf 50 € angehoben und den Verlustvortrag über eine Million Euro
+		// hinaus für die Veranlagungszeiträume 2024 bis 2027 von 60 % auf 70 %
+		// erweitert (Art. 2 Nr. 4, § 52 Abs. 18b Satz 3 EStG).
 		ValidFrom:                       "2024-01-01",
 		EntertainmentDeductiblePermille: 700,
 		SmallAmountInvoiceLimit:         25000,
@@ -139,6 +175,36 @@ var taxParameterSets = []TaxParameters{
 		TradeTaxBasePermille:            35,
 		WithholdingTaxPermille:          250,
 		GiftDeductibleLimit:             5000,
+		LossDeductionExcessPermille:     700,
+		TradeTaxMinRatePercent:          200,
+	},
+	{
+		// § 16 Abs. 4 Satz 2 GewStG: mindestens 280 % ab dem Erhebungszeitraum
+		// 2027 (§ 36 Abs. 5b GewStG).
+		ValidFrom:                       "2027-01-01",
+		EntertainmentDeductiblePermille: 700,
+		SmallAmountInvoiceLimit:         25000,
+		SolidarityPermille:              55,
+		TradeTaxBasePermille:            35,
+		WithholdingTaxPermille:          250,
+		GiftDeductibleLimit:             5000,
+		LossDeductionExcessPermille:     700,
+		TradeTaxMinRatePercent:          280,
+	},
+	{
+		// Der Verlustvortrag über eine Million Euro hinaus fällt ab dem
+		// Veranlagungszeitraum 2028 auf 60 % zurück (Art. 6
+		// Wachstumschancengesetz, § 52 Abs. 18b EStG). Den ab 2028 sinkenden
+		// Körperschaftsteuersatz führt corporateTaxRates.
+		ValidFrom:                       "2028-01-01",
+		EntertainmentDeductiblePermille: 700,
+		SmallAmountInvoiceLimit:         25000,
+		SolidarityPermille:              55,
+		TradeTaxBasePermille:            35,
+		WithholdingTaxPermille:          250,
+		GiftDeductibleLimit:             5000,
+		LossDeductionExcessPermille:     600,
+		TradeTaxMinRatePercent:          280,
 	},
 }
 
@@ -156,6 +222,14 @@ func withStableParameters(sets []TaxParameters) []TaxParameters {
 		sets[i].InputTaxCorrectionMinorPoints = 10
 		sets[i].InputTaxCorrectionMinorAmount = 100_000
 		sets[i].InputTaxCorrectionAnnualAmount = 600_000
+		// § 10d Abs. 2 EStG und § 10a GewStG in der seit 2004 geltenden
+		// Fassung, § 8b Abs. 3 und 5 KStG seit 2004, § 9 Abs. 1 Nr. 2 KStG seit
+		// 2007.
+		sets[i].LossDeductionBase = 100_000_000
+		sets[i].TradeLossExcessPermille = 600
+		sets[i].ExemptIncomeNonDeductiblePermille = 50
+		sets[i].DonationIncomePermille = 200
+		sets[i].DonationTurnoverPermille = 4
 	}
 	return sets
 }

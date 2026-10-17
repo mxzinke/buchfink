@@ -2786,6 +2786,10 @@ export type ClosingStepKey =
   | 'write_up'
   /** Fremdwährungsbewertung zum Stichtag (§ 256a HGB). */
   | 'currency_valuation'
+  /** Wertberichtigung auf Forderungen (§ 253 Abs. 4 HGB). */
+  | 'receivable_allowance'
+  /** Unfertige Leistungen zu Herstellungskosten (§ 255 Abs. 2 HGB). */
+  | 'work_in_progress'
   | 'accruals'
   | 'provisions'
   | 'vat_settlement'

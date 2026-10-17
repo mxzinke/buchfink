@@ -148,6 +148,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 		provisionRepo, journalRepo, s.Journal, settingsRepo, auditRepo, s.Closing,
 	)
 	s.ClosingBookings.SetReceiptService(s.Receipts)
+	s.Closing.AddOpeningReverser(s.ClosingBookings.WorkInProgressReverser())
 
 	s.Appropriation = service.NewAppropriationService(
 		appropriationRepo, notesRepo, journalRepo, s.Journal,
@@ -190,7 +191,10 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Statement.SetRenderer(renderer)
 	s.Foundation.SetStatementSource(s.Statement)
 	s.Foundation.SetRenderer(renderer)
+	s.Foundation.SetReceiptService(s.Receipts)
 	s.Closing.SetStatementSource(s.Statement)
+	s.ClosingBookings.SetOpenItemSource(s.Payments)
+	s.ClosingBookings.SetRevenueSource(s.Statement)
 	s.Statement.SetNotesSources(service.NotesSources{
 		Provisions:     s.Provisions,
 		Reconciliation: s.TaxRegister,

@@ -283,6 +283,26 @@ func (s *ClosingStepsService) derive(
 		}
 		return domain.ClosingStepOpen, ""
 
+	case domain.ClosingStepReceivableAllowance:
+		standing, reversed := s.hasClosingReference(ctx, year, ReceivableAllowanceReference(year))
+		if standing {
+			return domain.ClosingStepDone, "Wertberichtigung gebucht"
+		}
+		if reversed {
+			return domain.ClosingStepOpen, "die Buchung der Wertberichtigung wurde storniert"
+		}
+		return domain.ClosingStepOpen, ""
+
+	case domain.ClosingStepWorkInProgress:
+		standing, reversed := s.hasClosingReference(ctx, year, WorkInProgressReference(year))
+		if standing {
+			return domain.ClosingStepDone, "unfertige Leistungen aktiviert"
+		}
+		if reversed {
+			return domain.ClosingStepOpen, "die Buchung der unfertigen Leistungen wurde storniert"
+		}
+		return domain.ClosingStepOpen, ""
+
 	case domain.ClosingStepInputTaxCorrection:
 		standing, reversed := s.hasClosingReference(ctx, year, inputTaxCorrectionDocument(year))
 		if standing {
@@ -355,6 +375,11 @@ func (s *ClosingStepsService) derive(
 		return domain.ClosingStepOpen, ""
 
 	case domain.ClosingStepTaxProvision:
+		// Ein Jahr mit Überzahlung bucht nur Erstattungsansprüche und keine
+		// Rückstellung; erledigt ist der Schritt mit der Buchung.
+		if standing, _ := s.hasClosingReference(ctx, year, TaxProvisionReference(year)); standing {
+			return domain.ClosingStepDone, "Steuerrückstellung und Erstattungsansprüche gebucht"
+		}
 		provisions, err := s.liveProvisions(ctx, year)
 		if err != nil {
 			return domain.ClosingStepOpen, ""
