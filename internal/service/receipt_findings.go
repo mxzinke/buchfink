@@ -274,15 +274,25 @@ func contentFindingsOf(receipt *domain.Receipt, check ReceiptCheckContext) []dom
 	if receipt.Direction != domain.DirectionIncoming || !receipt.Kind.RequiresBooking() {
 		return out
 	}
+	relief := reliefOf(receipt, 0)
+	normOr := func(general, nr string) string {
+		if relief != reliefNone {
+			return relief.norm(nr)
+		}
+		return general
+	}
+	if relief != reliefNone {
+		out = append(out, reliefFinding(relief))
+	}
 	if receipt.DocumentDate == "" {
 		out = append(out, content("content_document_date",
-			"Das Ausstellungsdatum der Rechnung fehlt.", "§ 14 Abs. 4 Nr. 3 UStG"))
+			"Das Ausstellungsdatum der Rechnung fehlt.", normOr("§ 14 Abs. 4 Nr. 3 UStG", "2")))
 	}
-	if strings.TrimSpace(receipt.IssuerName) == "" && receipt.Kind == domain.ReceiptKindInvoice {
+	if strings.TrimSpace(receipt.IssuerName) == "" && receipt.Kind.IsInvoice() {
 		out = append(out, content("content_issuer_name",
-			"Der vollständige Name des leistenden Unternehmers fehlt.", "§ 14 Abs. 4 Nr. 1 UStG"))
+			"Der vollständige Name des leistenden Unternehmers fehlt.", normOr("§ 14 Abs. 4 Nr. 1 UStG", "1")))
 	}
-	if receipt.GrossAmount != 0 && receipt.TaxAmount == 0 && receipt.Kind == domain.ReceiptKindInvoice {
+	if receipt.GrossAmount != 0 && receipt.TaxAmount == 0 && receipt.Kind.IsInvoice() {
 		// Kein blockierender Befund: eine Rechnung ohne Steuerausweis ist der
 		// Regelfall bei Kleinunternehmern, steuerfreien Umsätzen und § 13b.
 		// Gemeldet wird sie trotzdem, weil aus ihr keine Vorsteuer folgt und
@@ -300,8 +310,11 @@ func contentFindingsOf(receipt *domain.Receipt, check ReceiptCheckContext) []dom
 			Blocking: false,
 		})
 	}
+	// Kleinbetragsrechnung und Fahrausweis dürfen immer sonstige Rechnung sein
+	// (§ 33 Satz 4, § 34 Abs. 1 Satz 2 UStDV); der Hinweis auf 2028 gilt für
+	// sie nicht.
 	if _, hasStructured := receipt.FileByRole(domain.ReceiptRoleStructured); !hasStructured &&
-		receipt.Kind == domain.ReceiptKindInvoice {
+		receipt.Kind.IsInvoice() && relief == reliefNone {
 		out = append(out, domain.ValidationFinding{
 			Class: domain.ValidationClassFormat, Rule: "format_no_structured_part",
 			Severity: string(einvoice.SeverityInfo),
@@ -313,14 +326,35 @@ func contentFindingsOf(receipt *domain.Receipt, check ReceiptCheckContext) []dom
 			Blocking: false,
 		})
 	}
-	out = append(out, masterDataFindings(check)...)
-	out = append(out, recordContentFindings(check.Invoice)...)
+	out = append(out, masterDataFindings(check, relief)...)
+	out = append(out, recordContentFindings(check.Invoice, relief)...)
 	return out
+}
+
+// reliefFinding sagt, welche Erleichterung gilt und was deshalb nicht geprüft
+// wird. Ohne ihn sähe die kürzere Liste aus wie eine übersehene Prüfung.
+func reliefFinding(relief invoiceRelief) domain.ValidationFinding {
+	f := domain.ValidationFinding{
+		Class: domain.ValidationClassContent, Severity: string(einvoice.SeverityInfo), Blocking: false,
+		InputTaxEffect: "Für den Vorsteuerabzug genügen Name und Anschrift des Leistenden, das " +
+			"Ausstellungsdatum und Entgelt samt Steuer in einer Summe mit dem Steuersatz.",
+	}
+	switch relief {
+	case reliefTicket:
+		f.Rule, f.Norm = "content_relief_ticket", "§ 34 UStDV"
+		f.Message = "Fahrausweis: Steuernummer, Leistungsempfänger, Leistungsdatum und gesonderter " +
+			"Steuerausweis sind nicht verlangt; der Steuersatz nur, wenn er nicht 7 % ist."
+	default:
+		f.Rule, f.Norm = "content_relief_small_amount", "§ 33 UStDV"
+		f.Message = "Kleinbetragsrechnung bis 250 €: Steuernummer, Leistungsempfänger, " +
+			"Leistungsdatum und gesonderter Steuerausweis sind nicht verlangt."
+	}
+	return f
 }
 
 // masterDataFindings hält Aussteller und Leistungsempfänger gegen die
 // Stammdaten (§ 14 Abs. 4 Nr. 1 und 2 UStG).
-func masterDataFindings(check ReceiptCheckContext) []domain.ValidationFinding {
+func masterDataFindings(check ReceiptCheckContext, relief invoiceRelief) []domain.ValidationFinding {
 	out := make([]domain.ValidationFinding, 0, 4)
 	if check.Contact == nil {
 		// Ein fehlender Kontakt ist keine bestandene Prüfung. Ohne ihn sind
@@ -339,8 +373,10 @@ func masterDataFindings(check ReceiptCheckContext) []domain.ValidationFinding {
 			Blocking: false,
 		})
 	}
-	defects := issuerMasterDataDefects(check.Contact)
-	defects = append(defects, recipientMasterDataDefects(check.Company)...)
+	defects := issuerMasterDataDefects(check.Contact, relief)
+	if relief == reliefNone {
+		defects = append(defects, recipientMasterDataDefects(check.Company)...)
+	}
 	for _, d := range defects {
 		out = append(out, domain.ValidationFinding{
 			Class: domain.ValidationClassContent, Rule: d.Code,
@@ -359,10 +395,13 @@ func masterDataFindings(check ReceiptCheckContext) []domain.ValidationFinding {
 // eine Beanstandung „das Leistungsdatum fehlt" gegen ein Dokument, das niemand
 // gelesen hat, wäre eine Behauptung. Der Buchungsweg fragt das Leistungsdatum
 // ohnehin ab (domain.JournalEntry.ServiceDateFrom, Pflichtfeld).
-func recordContentFindings(inv *einvoice.Invoice) []domain.ValidationFinding {
+func recordContentFindings(inv *einvoice.Invoice, relief invoiceRelief) []domain.ValidationFinding {
 	out := make([]domain.ValidationFinding, 0, 2)
 	if inv == nil {
 		return out
+	}
+	if relief != reliefNone {
+		return reliefRecordFindings(inv, relief)
 	}
 	// Das Leistungsdatum (§ 14 Abs. 4 Nr. 6 UStG): das tatsächliche
 	// Lieferdatum (BT-72), ersatzweise der Rechnungszeitraum (BG-14) oder der
@@ -390,22 +429,48 @@ func recordContentFindings(inv *einvoice.Invoice) []domain.ValidationFinding {
 			Norm: "§ 14 Abs. 4 Nr. 7 und 8 UStG", InputTaxEffect: effectContent, Blocking: true,
 		})
 	}
-	if net, netOK := centsOf(inv.Totals.TaxBasisTotal); netOK {
-		tax, taxOK := centsOf(inv.Totals.TaxTotal)
-		gross, grossOK := centsOf(inv.Totals.GrandTotal)
-		if taxOK && grossOK && net+tax != gross {
-			out = append(out, domain.ValidationFinding{
-				Class: domain.ValidationClassContent, Rule: "content_amount_breakdown",
-				Severity: string(einvoice.SeverityFatal),
-				Message: fmt.Sprintf(
-					"Entgelt %s und Steuer %s ergeben nicht den Rechnungsbetrag %s.",
-					inv.Totals.TaxBasisTotal.String(), inv.Totals.TaxTotal.String(),
-					inv.Totals.GrandTotal.String()),
-				Norm: "§ 14 Abs. 4 Nr. 7 und 8 UStG", InputTaxEffect: effectContent, Blocking: true,
-			})
-		}
+	return append(out, amountBreakdownFindings(inv, "§ 14 Abs. 4 Nr. 7 und 8 UStG")...)
+}
+
+// amountBreakdownFindings hält Entgelt und Steuer des Datensatzes gegen den
+// Rechnungsbetrag.
+func amountBreakdownFindings(inv *einvoice.Invoice, norm string) []domain.ValidationFinding {
+	net, netOK := centsOf(inv.Totals.TaxBasisTotal)
+	tax, taxOK := centsOf(inv.Totals.TaxTotal)
+	gross, grossOK := centsOf(inv.Totals.GrandTotal)
+	if !netOK || !taxOK || !grossOK || net+tax == gross {
+		return nil
 	}
-	return out
+	return []domain.ValidationFinding{{
+		Class: domain.ValidationClassContent, Rule: "content_amount_breakdown",
+		Severity: string(einvoice.SeverityFatal),
+		Message: fmt.Sprintf(
+			"Entgelt %s und Steuer %s ergeben nicht den Rechnungsbetrag %s.",
+			inv.Totals.TaxBasisTotal.String(), inv.Totals.TaxTotal.String(),
+			inv.Totals.GrandTotal.String()),
+		Norm: norm, InputTaxEffect: effectContent, Blocking: true,
+	}}
+}
+
+// reliefRecordFindings prüft den Datensatz einer Kleinbetragsrechnung oder
+// eines Fahrausweises: Leistungsdatum und Aufschlüsselung sind nicht verlangt,
+// wohl aber der Steuersatz (beim Fahrausweis nur außerhalb von 7 %).
+func reliefRecordFindings(inv *einvoice.Invoice, relief invoiceRelief) []domain.ValidationFinding {
+	out := make([]domain.ValidationFinding, 0, 1)
+	if relief == reliefSmallAmount && len(inv.VATBreakdown) == 0 {
+		out = append(out, domain.ValidationFinding{
+			Class: domain.ValidationClassContent, Rule: "content_tax_rate",
+			Severity: string(einvoice.SeverityFatal),
+			Message:  "Der Rechnungsdatensatz nennt keinen Steuersatz.",
+			Norm:     relief.norm("4"), InputTaxEffect: effectContent, Blocking: true,
+		})
+	}
+	// Entgelt und Steuer in einer Summe: § 33 Satz 1 Nr. 4, § 34 Abs. 1 Nr. 3 UStDV.
+	amountNr := "4"
+	if relief == reliefTicket {
+		amountNr = "3"
+	}
+	return append(out, amountBreakdownFindings(inv, relief.norm(amountNr))...)
 }
 
 // centsOf liest einen Betrag des Datensatzes in Cent. Ein fehlender oder

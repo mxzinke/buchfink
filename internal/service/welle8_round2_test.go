@@ -78,7 +78,8 @@ func TestContentFindingsCheckMasterData(t *testing.T) {
 	receipt := &domain.Receipt{
 		ID: 11, ReceiptNumber: "ER-2026-0011", Direction: domain.DirectionIncoming,
 		Kind: domain.ReceiptKindInvoice, DocumentDate: "2026-03-01",
-		IssuerName: "Büromarkt GmbH", GrossAmount: 11900, TaxAmount: 1900,
+		// Über 250 €: eine Kleinbetragsrechnung (§ 33 UStDV) verlangt weniger.
+		IssuerName: "Büromarkt GmbH", GrossAmount: 119000, TaxAmount: 19000,
 	}
 	out := ClassifyReceiptFindings(receipt, ReceiptCheckContext{
 		Contact: &domain.Contact{Name: "Büromarkt GmbH"},
@@ -138,7 +139,8 @@ func TestContentFindingsCheckServiceDateAndBreakdown(t *testing.T) {
 	receipt := &domain.Receipt{
 		ID: 13, ReceiptNumber: "ER-2026-0013", Direction: domain.DirectionIncoming,
 		Kind: domain.ReceiptKindInvoice, DocumentDate: "2026-03-01",
-		IssuerName: "Büromarkt GmbH", GrossAmount: 11900, TaxAmount: 1900,
+		// Über 250 €: eine Kleinbetragsrechnung (§ 33 UStDV) verlangt weniger.
+		IssuerName: "Büromarkt GmbH", GrossAmount: 119000, TaxAmount: 19000,
 	}
 	broken := &einvoice.Invoice{}
 	broken.Totals.TaxBasisTotal = einvoice.NewAmount("100.00")
@@ -186,7 +188,7 @@ func TestFindingsResolveTheIssuerFromTheContacts(t *testing.T) {
 	receipt := env.fileIncoming(t, "rechnung.pdf")
 	if _, err := env.receipts.SaveHeader(ctx, receipt.ID, domain.ReceiptHeader{
 		Kind: domain.ReceiptKindInvoice, DocumentDate: "2026-03-01",
-		IssuerName: "büromarkt gmbh", GrossAmount: 11900, TaxAmount: 1900, Currency: "EUR",
+		IssuerName: "büromarkt gmbh", GrossAmount: 119000, TaxAmount: 19000, Currency: "EUR",
 	}); err != nil {
 		t.Fatalf("Kopfdaten: %v", err)
 	}

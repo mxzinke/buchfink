@@ -120,6 +120,7 @@ const ROLE_LABELS: Record<ReceiptFileRole, string> = {
  */
 const KIND_LABELS: Record<ReceiptKind, string> = {
   invoice: 'Rechnung',
+  ticket: 'Fahrausweis',
   statement: 'Kontoauszug',
   self_issued: 'Eigenbeleg',
   letter: 'Handelsbrief',
@@ -618,9 +619,9 @@ const ReceiptHeaderDialog: React.FC<{
 
   // Was die jeweilige Belegart zum Buchen braucht. Der Satz steht am Feld und
   // nicht erst in der Fehlermeldung des Buchungsformulars.
-  const needsIssuer = kind === 'invoice';
+  const needsIssuer = kind === 'invoice' || kind === 'ticket';
   const needsSubject = kind === 'self_issued' || kind === 'letter' || kind === 'other';
-  const needsAmount = kind === 'invoice' || kind === 'self_issued';
+  const needsAmount = kind === 'invoice' || kind === 'ticket' || kind === 'self_issued';
   // Kontoauszug und Handelsbrief werden nicht gebucht (requiresBooking). „Zum
   // Buchen nötig" verspräche ihnen einen Schritt, den es für sie nicht gibt;
   // Pflicht bleiben die Angaben trotzdem: der Betreff ist bei einem

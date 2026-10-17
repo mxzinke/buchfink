@@ -100,11 +100,14 @@ func (s *PostingService) inputTaxFindings(
 	if !deductsDomesticInputTax(lines) {
 		return out, nil
 	}
+	relief := reliefOf(receipt, bookedGross(lines))
 
 	// (a) Die E-Rechnung: Buchfink hat sie selbst geprüft und das Ergebnis am
 	// Beleg festgehalten. Es zu haben und nicht zu lesen wäre die schlechteste
-	// aller Möglichkeiten.
-	if _, ok := receipt.FileByRole(domain.ReceiptRoleStructured); ok {
+	// aller Möglichkeiten. Kleinbetragsrechnung und Fahrausweis dürfen immer
+	// sonstige Rechnung sein (§ 33 Satz 4, § 34 Abs. 1 Satz 2 UStDV); für sie
+	// entscheiden die Angaben unter (b).
+	if _, ok := receipt.FileByRole(domain.ReceiptRoleStructured); ok && relief == reliefNone {
 		switch {
 		case receipt.ValidationErrors > 0:
 			out = append(out, InputTaxFinding{
@@ -142,7 +145,7 @@ func (s *PostingService) inputTaxFindings(
 	// Kopfdaten des Belegs und in den Stammdaten des Ausstellers.
 	// Dieselbe Prüfung, die die Klärungsliste als Inhaltsfehler zeigt (siehe
 	// receipt_content_checks.go). Zwei Fassungen davon gingen auseinander.
-	for _, d := range issuerMasterDataDefects(contact) {
+	for _, d := range issuerMasterDataDefects(contact, relief) {
 		out = append(out, InputTaxFinding{
 			Code: d.Code, Title: d.Title, Detail: d.Detail, Fixable: d.Fixable,
 		})

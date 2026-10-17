@@ -488,7 +488,7 @@ export type ReceiptStatus = 'filed' | 'sealed' | 'discarded';
  * Die Belegart. `letter` ist der Handelsbrief: er hat keine Buchung und eine
  * kürzere Aufbewahrungsfrist als ein Buchungsbeleg (§ 257 Abs. 4 HGB).
  */
-export type ReceiptKind = 'invoice' | 'statement' | 'self_issued' | 'letter' | 'other';
+export type ReceiptKind = 'invoice' | 'ticket' | 'statement' | 'self_issued' | 'letter' | 'other';
 
 export interface ReceiptFile {
   id: number;
