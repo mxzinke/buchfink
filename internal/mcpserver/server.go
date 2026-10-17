@@ -14,7 +14,6 @@ import (
 	"os"
 	"strconv"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/actor"
@@ -180,7 +179,7 @@ func (s *Server) startOn(port int) error {
 	if err != nil {
 		msg := fmt.Sprintf("Der MCP-Server lässt sich auf Port %d nicht starten: %v. "+
 			"Bitte in den Einstellungen einen anderen Port wählen; verbundene Apps brauchen dann die neue Adresse.", port, err)
-		if errors.Is(err, syscall.EADDRINUSE) {
+		if addrInUse(err) {
 			msg = fmt.Sprintf("Port %d ist belegt, vermutlich von einem anderen Programm. Der MCP-Server bleibt aus. "+
 				"Bitte in den Einstellungen einen anderen Port wählen; verbundene Apps brauchen dann die neue Adresse.", port)
 		}

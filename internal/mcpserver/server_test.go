@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/mcpserver/oauth"
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/modelcontextprotocol/go-sdk/oauthex"
@@ -705,6 +706,61 @@ func TestToolsCarryAnnotationsAndSchemas(t *testing.T) {
 	if !strings.Contains(string(schema), `"required":["mandant_id","name"]`) {
 		t.Errorf("mandant_id ist keine Pflicht: %s", schema)
 	}
+}
+
+// Clients prüfen structuredContent gegen das Ausgabeschema (Claude Code
+// tut es). Jede Lage von status muss deshalb zu seinem Schema passen.
+func TestOutputsMatchTheirSchemas(t *testing.T) {
+	h := newHarness(t)
+	cs := h.mustSession(h.login("Claude Code", "").access)
+	listed, err := cs.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schemas := map[string]*jsonschema.Resolved{}
+	for _, tool := range listed.Tools {
+		raw, _ := json.Marshal(tool.OutputSchema)
+		var s jsonschema.Schema
+		if err := json.Unmarshal(raw, &s); err != nil {
+			t.Fatalf("%s: %v", tool.Name, err)
+		}
+		resolved, err := s.Resolve(nil)
+		if err != nil {
+			t.Fatalf("%s: %v", tool.Name, err)
+		}
+		schemas[tool.Name] = resolved
+	}
+	check := func(t *testing.T, situation, tool string, res *mcp.CallToolResult) {
+		t.Helper()
+		if res.IsError {
+			t.Fatalf("%s: %s", situation, resultText(res))
+		}
+		var instance any
+		raw, _ := json.Marshal(res.StructuredContent)
+		_ = json.Unmarshal(raw, &instance)
+		if err := schemas[tool].Validate(instance); err != nil {
+			t.Errorf("%s: Ausgabe passt nicht zum Schema: %v\n%s", situation, err, raw)
+		}
+	}
+
+	check(t, "bereit", "status", callTool(t, cs, "status", nil))
+	check(t, "geschrieben", "test_lieferant", callTool(t, cs, "test_lieferant",
+		map[string]any{"mandant_id": h.tenant.ID, "name": "Schema GmbH", "idempotenz_schluessel": "schema-0001"}))
+	check(t, "wiederholt", "test_lieferant", callTool(t, cs, "test_lieferant",
+		map[string]any{"mandant_id": h.tenant.ID, "name": "Schema GmbH", "idempotenz_schluessel": "schema-0001"}))
+	until := time.Now().AddDate(0, 0, 3).Format("2006-01-02")
+	if _, err := h.host.EnableExaminer(uiCtx, until, "Prüfung"); err != nil {
+		t.Fatal(err)
+	}
+	check(t, "Prüfermodus", "status", callTool(t, cs, "status", nil))
+	h.createTenant("Andere GmbH")
+	check(t, "nicht freigegeben", "status", callTool(t, cs, "status", nil))
+
+	t.Run("ohne Mandant", func(t *testing.T) {
+		empty := newHarness(t, withoutTenant())
+		ecs := empty.mustSession(empty.login("Claude Code", "").access)
+		check(t, "ohne Mandant", "status", callTool(t, ecs, "status", nil))
+	})
 }
 
 // In der Datei der verbundenen Apps steht kein Code und kein Token im
