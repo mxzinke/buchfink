@@ -93,6 +93,11 @@ Die Aufgaben bauen beziehungsweise paketieren für das aktuelle Betriebssystem.
 Die Ergebnisse liegen unter `bin/`. Konfiguration und Plattformaufgaben liegen
 unter [build/](../../build).
 
+## MCP-Server
+
+Werkzeuge, Freigabestufen, Fehlercodes und die Regeln für Routinebuchungen der
+verbundenen Apps stehen in [mcp.md](mcp.md).
+
 ## Abhängigkeiten und Projektseite
 
 Nach Änderungen an Abhängigkeiten aktualisiert `task notices` die
