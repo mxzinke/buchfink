@@ -1,203 +1,43 @@
 import React from 'react';
 import {
-  Archive,
   BookCheck,
   BookOpen,
   Building2,
-  Calendar,
-  ClipboardCheck,
-  FileSpreadsheet,
-  FileText,
-  HandCoins,
-  Landmark,
-  ListChecks,
-  ListOrdered,
-  ListTodo,
+  LayoutDashboard,
   Loader2,
-  Percent,
-  Receipt,
-  Scale,
-  ScrollText,
   Settings,
   ShieldAlert,
-  Users,
   X,
 } from 'lucide-react';
-import { CompanySettings, IntegrityCheckResult, TenantConfig } from '../types';
-import { TenantSwitcher } from './TenantSwitcher';
+import { IntegrityCheckResult } from '../types';
+import { AREA_LABELS, Area } from '../navigation';
+import { GermanFlag } from './GermanFlag';
 import { Button, cn } from './ui';
 import { formatTime } from '../utils/formatters';
 
-export type TabType =
-  | 'welcome'
-  | 'tasks'
-  | 'bank'
-  | 'receipts'
-  | 'invoices'
-  | 'advances'
-  | 'journal'
-  | 'assets'
-  | 'contacts'
-  | 'accounts'
-  | 'reports'
-  | 'closing'
-  | 'closingmodules'
-  | 'vat'
-  | 'obligations'
-  | 'deadlines'
-  | 'ebilanz'
-  | 'audit'
-  | 'backup'
-  | 'taxaudit'
-  | 'settings';
-
-/**
- * Ziel einer Navigation mit Parameter.
- *
- * Der Weg von der Bilanzzeile über das Konto zur Buchung (GOB-02) endet sonst
- * an der Seitengrenze: die Kontenübersicht wüsste nicht, welches Kontoblatt sie
- * öffnen soll, und das Journal nicht, auf welche Buchung es filtern soll.
- */
-export interface NavigationParams {
-  /** Kontonummer, deren Kontoblatt die Kontenübersicht öffnet. */
-  account?: string;
-  /** Buchungsnummer, auf die das Journal filtert. */
-  entryNumber?: string;
-  /**
-   * Konto, mit dem das Journal die Zeilenauswertung öffnet (PRF-01 K3).
-   *
-   * Getrennt von `entryNumber`: das eine sucht eine Buchung in der Liste, das
-   * andere öffnet den Reiter „Zeilen auswerten" mit vorbelegtem Konto — der
-   * Weg aus dem Kontoblatt in die Auswertung desselben Kontos.
-   */
-  filterAccount?: string;
-  /**
-   * Reiter, den die Seite „Nebenpflichten" öffnet. Aus der Schrittliste des
-   * Abschlusses führt sonst kein Weg zu der Arbeit, die die Zeile benennt: der
-   * Reiter wäre zu erraten.
-   */
-  obligationsTab?: string;
-  /** Belegfilter, mit dem die Belegseite öffnet, etwa „filed" für abgelegte. */
-  receiptStatus?: string;
-  /** Ansicht, mit der „Bank & Zahlungen" öffnet, etwa die Bankkonten. */
-  bankView?: string;
-  /**
-   * Baustein, den die Abschlussbausteine gleich aufschlagen. Aus dem geführten
-   * Weg des Jahresabschlusses wäre der Reiter sonst zu erraten.
-   */
-  closingTab?: string;
-
-  /**
-   * Beleg, den die Belegseite gleich aufschlägt. Er schließt den Weg von der
-   * Bilanzposition über Konto und Buchung bis zum Beleg (GOB-02): ohne ihn
-   * endete der Weg im Journal, und der Beleg wäre in der Belegliste erneut zu
-   * suchen.
-   */
-  receiptId?: number;
-  /**
-   * Das Geschäftsjahr, in dem das Ziel steht. Die Abschlussansichten folgen dem
-   * Jahr aus der Kopfzeile; eine Aufgabe zum Vorjahresabschluss führte ohne
-   * diesen Parameter auf die Abschlussseite des laufenden Jahres — also auf die
-   * falsche Auskunft.
-   */
-  year?: number;
-  /**
-   * Prüfregel, deren Befunde die Prüfübersicht hervorhebt. Ohne sie stünde die
-   * Aufgabe „Befunde klären" vor einer Liste von Prüfläufen ohne Anker.
-   */
-  auditRule?: string;
-  /** Frist, die die Fristenansicht hervorhebt. */
-  deadlineKey?: string;
-}
-
-export type NavigateFn = (tab: TabType, params?: NavigationParams) => void;
-
 interface SidebarProps {
-  currentTab: TabType;
-  onSelectTab: (tab: TabType) => void;
-  settings: CompanySettings | null;
+  currentArea: Area;
+  onSelectArea: (area: Area) => void;
   integrity: IntegrityCheckResult | null;
   isCheckingIntegrity: boolean;
-  /** Mandantenwahl am Kopf der Navigation, dort wo der Name des Mandanten steht. */
-  tenants: TenantConfig[];
-  activeTenant: TenantConfig | null;
-  onSwitchTenant: (tenantId: string) => void;
-  onAddTenant: () => void;
-  onShowTenants: () => void;
+  /** Der Zustandsanzeiger öffnet „Prüfung & GoBD" in den Einstellungen. */
+  onOpenAudit: () => void;
   isOpenMobile?: boolean;
   onCloseMobile?: () => void;
 }
 
-interface NavGroup {
-  label: string;
-  items: { id: TabType; label: string; icon: React.ReactNode }[];
-}
-
 const icon = 'w-4 h-4 shrink-0';
 
-const GROUPS: NavGroup[] = [
-  {
-    label: 'Übersicht',
-    // Die Aufgabenliste ist die Startseite und der einzige Eintrag dieser Gruppe
-    // (Architektur 6.1): wer keine Buchhalterin ist, weiß nach dem Start nicht,
-    // was heute dran ist — und ein Bankguthaben beantwortet das nicht. Die
-    // Kennzahlen und die zuletzt erfassten Vorgänge stehen auf derselben Seite
-    // unter der Liste; eine zweite Seite daneben beantwortete dieselbe Frage
-    // ein zweites Mal und wäre irgendwann die veraltete von beiden.
-    items: [{ id: 'tasks', label: 'Aufgaben', icon: <ListTodo className={icon} /> }],
-  },
-  {
-    label: 'Buchhaltung',
-    items: [
-      { id: 'bank', label: 'Bank & Zahlungen', icon: <Landmark className={icon} /> },
-      { id: 'receipts', label: 'Belege', icon: <Receipt className={icon} /> },
-      { id: 'invoices', label: 'Rechnungen', icon: <FileText className={icon} /> },
-      { id: 'advances', label: 'Anzahlungen', icon: <HandCoins className={icon} /> },
-      { id: 'journal', label: 'Journal', icon: <ListOrdered className={icon} /> },
-      { id: 'assets', label: 'Anlagevermögen', icon: <Building2 className={icon} /> },
-    ],
-  },
-  {
-    label: 'Stammdaten',
-    items: [
-      { id: 'contacts', label: 'Kontakte', icon: <Users className={icon} /> },
-      { id: 'accounts', label: 'Kontenübersicht', icon: <BookOpen className={icon} /> },
-    ],
-  },
-  {
-    label: 'Auswertungen',
-    items: [
-      { id: 'reports', label: 'GuV & Bilanz', icon: <Scale className={icon} /> },
-      { id: 'closing', label: 'Jahresabschluss', icon: <BookCheck className={icon} /> },
-      {
-        id: 'closingmodules',
-        label: 'Abschlussbausteine',
-        icon: <ListChecks className={icon} />,
-      },
-      { id: 'vat', label: 'Umsatzsteuer', icon: <Percent className={icon} /> },
-      // Die Nebenpflichten stehen neben der Umsatzsteuer, weil vier ihrer sechs
-      // Bausteine aus dem Umsatzsteuerrecht kommen — und weil man sie nur
-      // findet, wenn sie in der Navigation stehen.
-      { id: 'obligations', label: 'Nebenpflichten', icon: <ClipboardCheck className={icon} /> },
-      { id: 'deadlines', label: 'Steuerfristen', icon: <Calendar className={icon} /> },
-      { id: 'ebilanz', label: 'E-Bilanz', icon: <FileSpreadsheet className={icon} /> },
-    ],
-  },
-  {
-    label: 'Verwaltung',
-    // Drei Einträge nach dem, was der Anwender vorhat, und nicht nach der
-    // Herkunft der Daten: seine Daten sichern, eine Prüfung bedienen,
-    // einstellen. Was die Buchführung über sich selbst weiß — Kette,
-    // Protokoll, Prüfläufe, Systemhistorie — steht in der Prüfübersicht und
-    // hängt am Zustandsanzeiger in der Fußzeile: sie beantwortet die Frage
-    // „ist etwas nicht in Ordnung", und die stellt sich erst, wenn der
-    // Anzeiger etwas anderes sagt als „unverändert".
-    items: [
-      { id: 'backup', label: 'Datensicherung', icon: <Archive className={icon} /> },
-      { id: 'taxaudit', label: 'Betriebsprüfung', icon: <ScrollText className={icon} /> },
-      { id: 'settings', label: 'Einstellungen', icon: <Settings className={icon} /> },
-    ],
-  },
+/**
+ * Fünf Einträge. Die Arbeit erledigt der Agent; die Oberfläche zeigt den
+ * Stand, die Bücher und was nur der Mensch freigeben kann.
+ */
+const ITEMS: { id: Area; icon: React.ReactNode }[] = [
+  { id: 'overview', icon: <LayoutDashboard className={icon} strokeWidth={1.5} /> },
+  { id: 'books', icon: <BookOpen className={icon} strokeWidth={1.5} /> },
+  { id: 'closings', icon: <BookCheck className={icon} strokeWidth={1.5} /> },
+  { id: 'company', icon: <Building2 className={icon} strokeWidth={1.5} /> },
+  { id: 'settings', icon: <Settings className={icon} strokeWidth={1.5} /> },
 ];
 
 const NAV_ITEM =
@@ -205,10 +45,11 @@ const NAV_ITEM =
   'text-body text-left transition-colors duration-120 ease-quiet';
 
 const NavItem: React.FC<{
-  item: NavGroup['items'][number];
+  label: string;
+  icon: React.ReactNode;
   isActive: boolean;
   onSelect: () => void;
-}> = ({ item, isActive, onSelect }) => (
+}> = ({ label, icon: itemIcon, isActive, onSelect }) => (
   <button
     type="button"
     onClick={onSelect}
@@ -228,44 +69,29 @@ const NavItem: React.FC<{
         isActive ? 'bg-accent-light' : 'bg-transparent',
       )}
     />
-    <span className="shrink-0 ml-0.5">{item.icon}</span>
-    <span className="truncate">{item.label}</span>
+    <span className="shrink-0 ml-0.5">{itemIcon}</span>
+    <span className="truncate">{label}</span>
   </button>
 );
 
 /**
  * Der Integritätszustand steht dauerhaft hier und nie in einem Toast (§11.4).
- * Drei Zustände, drei Formulierungen.
- *
- * Er ist zugleich der Weg in die Prüfübersicht — Kette, Protokoll, Prüfläufe,
- * Systemhistorie —, die deshalb keinen eigenen Navigationseintrag hat: die
- * Frage „ist etwas nicht in Ordnung" wird hier beantwortet, und wer sie
- * genauer wissen will, klickt auf die Antwort. Nachgeprüft wird auf der Seite
- * selbst; ein Klick, der beides täte, machte aus einem Blick auf den Zustand
- * einen Lauf über die ganze Buchführung.
+ * Ein Klick führt zu „Prüfung & GoBD"; nachgeprüft wird dort.
  */
 const IntegrityStatus: React.FC<{
   integrity: IntegrityCheckResult | null;
   isChecking: boolean;
-  isActive: boolean;
   onOpen: () => void;
-}> = ({ integrity, isChecking, isActive, onOpen }) => {
+}> = ({ integrity, isChecking, onOpen }) => {
   const broken = integrity !== null && !integrity.isValid;
 
   return (
     <button
       type="button"
       onClick={onOpen}
-      aria-current={isActive ? 'page' : undefined}
-      title={integrity?.message || 'Prüfübersicht öffnen'}
-      className={cn(
-        `w-full flex items-start gap-2.5 px-2 py-1.5 rounded-control text-left
-         transition-colors duration-120 ease-quiet hover:bg-shell-raised`,
-        // Die geöffnete Prüfübersicht wird hier markiert und nicht in der
-        // Liste darüber: sonst stünde der Anwender auf einer Seite, die in
-        // der Navigation nirgends hervorgehoben ist.
-        isActive && 'bg-shell-raised',
-      )}
+      title={integrity?.message || 'Prüfung & GoBD öffnen'}
+      className="w-full flex items-start gap-2.5 px-2 py-1.5 rounded-control text-left
+                 transition-colors duration-120 ease-quiet hover:bg-shell-raised"
     >
       <span className="mt-1 shrink-0">
         {isChecking ? (
@@ -282,10 +108,6 @@ const IntegrityStatus: React.FC<{
         </span>
         {integrity?.checkedAt && !isChecking && (
           <span className="block text-caption text-shell-text-muted num">
-            {/* Die Uhrzeit mit Zeitzone und aus formatters.ts: eine eigene
-                Formatierung an dieser Stelle wäre die einzige Zeitangabe der
-                Anwendung ohne Zone (QUE-04, Entscheidung 8). Das Datum steht
-                im Zusammenhang des Arbeitstags. */}
             Geprüft um {formatTime(integrity.checkedAt)}
           </span>
         )}
@@ -295,100 +117,86 @@ const IntegrityStatus: React.FC<{
 };
 
 export const Sidebar: React.FC<SidebarProps> = ({
-  currentTab,
-  onSelectTab,
-  settings,
+  currentArea,
+  onSelectArea,
   integrity,
   isCheckingIntegrity,
-  tenants,
-  activeTenant,
-  onSwitchTenant,
-  onAddTenant,
-  onShowTenants,
+  onOpenAudit,
   isOpenMobile = false,
   onCloseMobile,
-}) => {
-  const handleItemClick = (id: TabType) => {
-    onSelectTab(id);
-    onCloseMobile?.();
-  };
+}) => (
+  <>
+    {isOpenMobile && (
+      <div
+        className="fixed inset-0 z-40 bg-ink/60 md:hidden transition-opacity duration-180 ease-quiet"
+        onClick={onCloseMobile}
+      />
+    )}
 
-  return (
-    <>
-      {isOpenMobile && (
-        <div
-          className="fixed inset-0 z-40 bg-ink/60 md:hidden transition-opacity duration-180 ease-quiet"
-          onClick={onCloseMobile}
-        />
+    <aside
+      className={cn(
+        'fixed md:static inset-y-0 left-0 z-50 w-60 shrink-0 select-none',
+        'flex flex-col justify-between bg-shell text-shell-text',
+        'border-r border-shell-line window-drag',
+        'transition-transform duration-180 ease-quiet',
+        isOpenMobile ? 'translate-x-0 shadow-dialog' : '-translate-x-full md:translate-x-0',
       )}
-
-      <aside
-        className={cn(
-          'fixed md:static inset-y-0 left-0 z-50 w-60 shrink-0 select-none',
-          'flex flex-col justify-between bg-shell text-shell-text',
-          'border-r border-shell-line window-drag',
-          'transition-transform duration-180 ease-quiet',
-          isOpenMobile ? 'translate-x-0 shadow-dialog' : '-translate-x-full md:translate-x-0',
-        )}
-      >
-        <div className="flex-1 flex flex-col min-h-0">
-          {/* Oben Platz für die Fensterknöpfe unter macOS */}
-          <div className="pt-8 md:pt-9 pb-3 px-3 border-b border-shell-line flex items-center gap-2">
-            <div className="flex-1 min-w-0">
-              <TenantSwitcher
-                tenants={tenants}
-                activeTenant={activeTenant}
-                settings={settings}
-                onSwitchTenant={(id) => {
-                  onSwitchTenant(id);
-                  onCloseMobile?.();
-                }}
-                onAddTenant={onAddTenant}
-                onShowAll={onShowTenants}
-              />
-            </div>
-
-            {onCloseMobile && (
-              <Button
-                variant="quiet"
-                size="sm"
-                iconOnly
-                onClick={onCloseMobile}
-                title="Menü schließen"
-                aria-label="Menü schließen"
-                className="md:hidden text-shell-text-muted hover:bg-shell-raised hover:text-white window-no-drag"
-              >
-                <X className={icon} strokeWidth={1.5} />
-              </Button>
-            )}
-          </div>
-
-          <nav className="flex-1 overflow-y-auto p-3 space-y-5 window-no-drag">
-            {GROUPS.map((group) => (
-              <div key={group.label} className="space-y-0.5">
-                <div className="px-2 pb-1 text-overline text-shell-text-muted">{group.label}</div>
-                {group.items.map((item) => (
-                  <NavItem
-                    key={item.id}
-                    item={item}
-                    isActive={currentTab === item.id}
-                    onSelect={() => handleItemClick(item.id)}
-                  />
-                ))}
-              </div>
-            ))}
-          </nav>
+    >
+      <div className="flex-1 flex flex-col min-h-0">
+        {/* Oben Platz für die Fensterknöpfe unter macOS */}
+        <div className="pt-8 md:pt-9 pb-3 px-3 border-b border-shell-line flex items-center gap-3">
+          <span className="relative shrink-0">
+            <img
+              src="/buchfink-logo.svg"
+              alt=""
+              className="w-8 h-8 rounded-control bg-white/10 p-0.5 border border-white/10"
+            />
+            <span className="absolute -bottom-1 -right-1">
+              <GermanFlag className="w-3.5 h-2.5 border border-shell" />
+            </span>
+          </span>
+          <span className="flex-1 min-w-0 text-body font-semibold text-white">Buchfink</span>
+          {onCloseMobile && (
+            <Button
+              variant="quiet"
+              size="sm"
+              iconOnly
+              onClick={onCloseMobile}
+              title="Menü schließen"
+              aria-label="Menü schließen"
+              className="md:hidden text-shell-text-muted hover:bg-shell-raised hover:text-white window-no-drag"
+            >
+              <X className={icon} strokeWidth={1.5} />
+            </Button>
+          )}
         </div>
 
-        <div className="p-3 border-t border-shell-line window-no-drag">
-          <IntegrityStatus
-            integrity={integrity}
-            isChecking={isCheckingIntegrity}
-            isActive={currentTab === 'audit'}
-            onOpen={() => handleItemClick('audit')}
-          />
-        </div>
-      </aside>
-    </>
-  );
-};
+        <nav className="flex-1 overflow-y-auto p-3 space-y-0.5 window-no-drag">
+          {ITEMS.map((item) => (
+            <NavItem
+              key={item.id}
+              label={AREA_LABELS[item.id]}
+              icon={item.icon}
+              isActive={currentArea === item.id}
+              onSelect={() => {
+                onSelectArea(item.id);
+                onCloseMobile?.();
+              }}
+            />
+          ))}
+        </nav>
+      </div>
+
+      <div className="p-3 border-t border-shell-line window-no-drag">
+        <IntegrityStatus
+          integrity={integrity}
+          isChecking={isCheckingIntegrity}
+          onOpen={() => {
+            onOpenAudit();
+            onCloseMobile?.();
+          }}
+        />
+      </div>
+    </aside>
+  </>
+);

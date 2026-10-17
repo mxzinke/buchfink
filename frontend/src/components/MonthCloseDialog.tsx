@@ -2,10 +2,10 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Api } from '../services/api';
 import { useWriteLock } from './WriteLock';
 import { downloadCSV } from '../utils/download';
-import { findingParams, findingTarget, targetLabel } from '../utils/findings';
+import { findingRoute, targetLabel } from '../utils/findings';
 import { formatCents, formatDate } from '../utils/formatters';
 import type { MonthCloseState, MonthCloseStep, VatReturn } from '../types';
-import type { NavigateFn } from './Sidebar';
+import type { NavigateFn, Route } from '../navigation';
 import {
   Button,
   Dialog,
@@ -248,11 +248,10 @@ export const MonthCloseDialog: React.FC<MonthCloseDialogProps> = ({
   }
 
   /** Führt zu der Stelle, an der ein Befund zu beheben ist, und schließt den Dialog. */
-  function jumpTo(objectType: string | undefined, params: ReturnType<typeof findingParams>) {
-    const target = findingTarget(objectType);
-    if (!target || !onNavigate) return;
+  function jumpTo(route: Route | null) {
+    if (!route || !onNavigate) return;
     onClose();
-    onNavigate(target, params);
+    onNavigate(route);
   }
 
   const steps = state?.steps ?? [];
@@ -362,14 +361,14 @@ export const MonthCloseDialog: React.FC<MonthCloseDialogProps> = ({
                         {finding.severity === 'blocking' ? 'Blockierend' : 'Hinweis'}
                       </span>
                       <span className="flex-1 text-body text-ink-muted">{finding.message}</span>
-                      {onNavigate && findingTarget(finding.objectType) && (
+                      {onNavigate && findingRoute(finding) && (
                         <Button
                           variant="quiet"
                           size="sm"
                           className="shrink-0 -my-1"
-                          onClick={() => jumpTo(finding.objectType, findingParams(finding))}
+                          onClick={() => jumpTo(findingRoute(finding))}
                         >
-                          {targetLabel(findingTarget(finding.objectType))}
+                          {targetLabel(findingRoute(finding))}
                         </Button>
                       )}
                     </li>
@@ -475,7 +474,7 @@ export const MonthCloseDialog: React.FC<MonthCloseDialogProps> = ({
                       size="sm"
                       onClick={() => {
                         onClose();
-                        onNavigate('vat');
+                        onNavigate({ area: 'closings', tab: 'month' });
                       }}
                     >
                       Zur Voranmeldung

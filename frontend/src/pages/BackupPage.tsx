@@ -216,7 +216,7 @@ export const BackupPage: React.FC<BackupPageProps> = ({
   const lastBackupAt = appConfig?.lastBackupAt ?? '';
 
   return (
-    <div className="max-w-[1200px] mx-auto px-8 py-8">
+    <div>
       <PageHeader
         title="Datensicherung"
         context="Kopien anlegen und prüfen"

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import type { NavigateFn } from './Sidebar';
+import type { NavigateFn } from '../navigation';
 import type {
   Cents,
   Deadline,
@@ -112,7 +112,9 @@ export const StatementView: React.FC<StatementViewProps> = ({
   const findings = [...stmt.assignment.unassigned, ...stmt.assignment.wrongSign];
   const priorYear = stmt.priorYear;
   const hasPrior = stmt.hasPrior;
-  const openAccount = onNavigate ? (account: string) => onNavigate('accounts', { account }) : undefined;
+  const openAccount = onNavigate
+    ? (account: string) => onNavigate({ area: 'books', tab: 'accounts', id: account })
+    : undefined;
 
   const depthSelect = (
     <Select<DepthChoice> items={DEPTH_ITEMS} value={depth} onValueChange={onDepthChange} className="w-72" />
@@ -129,7 +131,7 @@ export const StatementView: React.FC<StatementViewProps> = ({
       >
         <MaturityView rows={data.maturities.rows} />
         {(data.notes.belowBalance ?? []).map((text) => <div key={text.section} className="mt-5"><h3 className="text-label">{text.label}</h3><p className="text-body text-ink-muted whitespace-pre-wrap mt-2">{text.text}</p></div>)}
-        {(data.notes.missing?.length ?? 0) > 0 && <Notice tone="attention" className="mt-5" text={`Im Abschluss fehlen noch Angaben: ${data.notes.missing!.join('; ')}. Bitte unter Abschlussbausteine → Anhang ergänzen.`} />}
+        {(data.notes.missing?.length ?? 0) > 0 && <Notice tone="attention" className="mt-5" text={`Im Abschluss fehlen noch Angaben: ${data.notes.missing!.join('; ')}. Bitte unter Abschlüsse → Jahr → Abschlussbausteine → Anhang ergänzen.`} />}
       </Section>
     );
   }
@@ -142,7 +144,7 @@ export const StatementView: React.FC<StatementViewProps> = ({
     <>
       <HeaderFacts
         statement={data}
-        onOpenSettings={onNavigate && (() => onNavigate('settings'))}
+        onOpenSettings={onNavigate && (() => onNavigate({ area: 'settings', tab: 'advanced' }))}
       />
 
       {findings.length > 0 && (

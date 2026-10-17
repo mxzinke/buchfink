@@ -223,7 +223,7 @@ function list<T>(value: T[] | null | undefined): T[] {
  */
 function normalizeTask(task: Task): Task {
   if (!task) return task;
-  return { ...task, target: { ...task.target, params: task.target?.params ?? {} } };
+  return { ...task, target: task.target ?? { area: '' } };
 }
 
 /** Die Listen einer Voranmeldung: Kennziffern mit Drill-down und Nachträge. */

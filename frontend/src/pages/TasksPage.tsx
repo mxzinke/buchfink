@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { FileText, Landmark } from 'lucide-react';
 import { Api } from '../services/api';
 import { MonthCloseDialog } from '../components/MonthCloseDialog';
 import { formatCents, formatDate } from '../utils/formatters';
 import { monthOptions, previousMonth } from '../utils/months';
 import { targetLabel } from '../utils/findings';
+import { toRoute, type NavigateFn, type Route } from '../navigation';
 import type {
   FinancialSummary,
   JournalEntry,
@@ -12,7 +12,6 @@ import type {
   Task,
   TaskList,
 } from '../types';
-import type { NavigateFn, NavigationParams, TabType } from '../components/Sidebar';
 import {
   Button,
   EmptyState,
@@ -77,64 +76,13 @@ const GROUPS: TaskGroup[] = [
 ];
 
 /**
- * Die Seiten, die das Backend als Ziel nennt, sind die Reiter der Navigation.
- * Ein unbekannter Name führt nirgendwohin — dann steht die Aufgabe ohne Knopf
- * da, statt auf einer beliebigen Seite zu landen.
+ * Das Ziel einer Aufgabe. Ein Bereich, den die Oberfläche nicht kennt, führt
+ * nirgendwohin; dann steht die Aufgabe ohne Knopf da, statt auf einer
+ * beliebigen Seite zu landen.
  */
-const TARGET_TABS: TabType[] = [
-  'accounts',
-  'assets',
-  'audit',
-  'advances',
-  'backup',
-  'bank',
-  'closing',
-  'closingmodules',
-  'contacts',
-  'deadlines',
-  'ebilanz',
-  'invoices',
-  'journal',
-  'obligations',
-  'receipts',
-  'reports',
-  'settings',
-  'taxaudit',
-  'vat',
-];
-
-function targetTab(page: string): TabType | null {
-  return (TARGET_TABS as string[]).includes(page) ? (page as TabType) : null;
-}
-
-/**
- * Übersetzt die Parameter des Ziels in die der Navigation.
- *
- * Das Backend kennt den Router nicht und liefert Zeichenketten; welche davon
- * eine Ansicht versteht, steht hier. Ein Parameter, den keine Ansicht kennt,
- * bleibt weg: er würde stumm ignoriert und wäre dann nur ein Versprechen.
- *
- * Das Jahr ist der wichtigste davon: Abschluss und Abschlussbausteine folgen dem
- * Geschäftsjahr aus der Kopfzeile, und eine Aufgabe zum Vorjahresabschluss führte
- * ohne es auf die gleich aussehende Seite des laufenden Jahres.
- */
-function targetParams(task: Task): NavigationParams {
-  const params = task.target?.params ?? {};
-  const next: NavigationParams = {};
-  if (params.account) next.account = params.account;
-  if (params.entryNumber) next.entryNumber = params.entryNumber;
-  if (params.status) next.receiptStatus = params.status;
-  // Der Beleg, den die Aufgabe meint. Ohne ihn führte die Aufgabe
-  // „Leistungsnachweis erfassen" auf eine Liste, in der der gebuchte Beleg
-  // unter keinem Filter steht.
-  const receiptId = Number.parseInt(params.receiptId ?? '', 10);
-  if (Number.isFinite(receiptId) && receiptId > 0) next.receiptId = receiptId;
-  if (params.view) next.bankView = params.view;
-  if (params.rule) next.auditRule = params.rule;
-  if (params.key) next.deadlineKey = params.key;
-  const year = Number.parseInt(params.year ?? '', 10);
-  if (Number.isFinite(year) && year > 0) next.year = year;
-  return next;
+function taskRoute(task: Task): Route | null {
+  const target = task.target;
+  return target ? toRoute(target.area, target.tab, target.id) : null;
 }
 
 /**
@@ -218,32 +166,11 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
   const monthLabel = months.find((option) => option.value === month)?.label ?? month;
 
   return (
-    <div className="max-w-[1200px] mx-auto px-8 py-8">
+    <div>
       <PageHeader
         title="Aufgaben"
         context={
           tasks ? `Stand ${formatDate(tasks.today)} · ${total} offen` : 'Was heute zu tun ist'
-        }
-        action={
-          /* Genau eine Primäraktion je Ansicht (§10.4). Den Monatsabschluss
-             öffnet der Abschnitt weiter unten, der auch seinen Stand zeigt —
-             ein zweiter Knopf dafür stünde hier ohne den Monat, den er meint. */
-          <div className="flex gap-2">
-            <Button
-              variant="secondary"
-              icon={<Landmark className="w-4 h-4" strokeWidth={1.5} />}
-              onClick={() => onNavigate('bank')}
-            >
-              Bankumsätze abgleichen
-            </Button>
-            <Button
-              variant="primary"
-              icon={<FileText className="w-4 h-4" strokeWidth={1.5} />}
-              onClick={() => onNavigate('invoices')}
-            >
-              Neue Rechnung
-            </Button>
-          </div>
         }
       />
 
@@ -287,7 +214,7 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
               </Thead>
               <Tbody>
                 {(tasks?.[group.key] ?? []).map((task) => {
-                  const tab = targetTab(task.target?.page ?? '');
+                  const route = taskRoute(task);
                   return (
                     <Tr key={`${task.key}-${task.title}`}>
                       <Td className="max-w-[32rem]">
@@ -313,13 +240,9 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
                       </Td>
                       <Td className="text-ink-subtle text-caption num">{taskContext(task)}</Td>
                       <Td className="text-right pl-0">
-                        {tab && (
-                          <Button
-                            variant="quiet"
-                            size="sm"
-                            onClick={() => onNavigate(tab, targetParams(task))}
-                          >
-                            {targetLabel(tab)}
+                        {route && (
+                          <Button variant="quiet" size="sm" onClick={() => onNavigate(route)}>
+                            {targetLabel(route)}
                           </Button>
                         )}
                       </Td>
@@ -420,7 +343,7 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
           title="Zuletzt erfasst"
           context="Die acht zuletzt gebuchten Vorgänge"
           action={
-            <Button variant="quiet" onClick={() => onNavigate('journal')}>
+            <Button variant="quiet" onClick={() => onNavigate({ area: 'books', tab: 'journal' })}>
               Zum Journal
             </Button>
           }

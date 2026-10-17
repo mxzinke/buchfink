@@ -22,7 +22,7 @@ import {
 import { RETENTION_CLASS_LABELS } from '../types';
 import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
-import type { NavigateFn } from '../components/Sidebar';
+import type { NavigateFn } from '../navigation';
 import { formatCents, formatCentsPlain, formatDate, parseCents } from '../utils/formatters';
 import {
   Button,
@@ -173,11 +173,21 @@ const DEFAULT_CLOSING_SETTINGS: ClosingSettings = {
   accrualRelease: 'yearly',
 };
 
+/**
+ * Die Formularseite gibt es zweimal: die Stammdaten unter „Unternehmen" und
+ * die übrigen Einstellungen unter „Einstellungen → Erweitert". Beide laden und
+ * speichern denselben Datensatz.
+ */
+export type SettingsPart = 'company' | 'advanced';
+
 export const SettingsPage: React.FC<{
+  part: SettingsPart;
   year: number;
   onNavigate?: NavigateFn;
   onTenantDeleted: () => Promise<void>;
-}> = ({ year, onNavigate, onTenantDeleted }) => {
+  /** Nach dem Speichern, damit die Kopfzeile die geänderte Firma zeigt. */
+  onSaved?: () => void | Promise<void>;
+}> = ({ part, year, onNavigate, onTenantDeleted, onSaved }) => {
   // Die Stammdaten stehen in jeder Buchung und jeder Meldung: sie zu ändern ist
   // im Prüfermodus gesperrt (§10.4).
   const writeLock = useWriteLock();
@@ -403,6 +413,7 @@ export const SettingsPage: React.FC<{
         // Der Hinweis ist Beiwerk; das Speichern ist gelungen.
       }
       toast.success('Einstellungen gespeichert.');
+      await onSaved?.();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
@@ -412,7 +423,7 @@ export const SettingsPage: React.FC<{
 
   if (loading || !settings) {
     return (
-      <div className="max-w-[900px] mx-auto px-8 py-8">
+      <div className="max-w-[900px]">
         <SkeletonRows rows={8} />
       </div>
     );
@@ -450,10 +461,14 @@ export const SettingsPage: React.FC<{
   const organisationPreview = `${orgFilledCount} von ${organisationValues.length} Feldern · ${firstOrganisationText}`;
 
   return (
-    <form onSubmit={save} className="max-w-[900px] mx-auto px-8 py-8">
+    <form onSubmit={save} className="max-w-[900px]">
       <PageHeader
-        title="Einstellungen"
-        context="Stammdaten des Mandanten · gelten über alle Geschäftsjahre"
+        title={part === 'company' ? 'Stammdaten' : 'Weitere Einstellungen'}
+        context={
+          part === 'company'
+            ? 'Firma, Anschrift, Register, Steuern, Rechnungen'
+            : 'Fristen, Prüfläufe, Abschluss und Speicherort'
+        }
         action={
           <Button
             type="submit"
@@ -468,6 +483,8 @@ export const SettingsPage: React.FC<{
         }
       />
 
+      {part === 'company' && (
+      <>
       <Section title="Unternehmen" divider={false} className="mt-8">
         <FormGrid>
           <Field label="Firmen- oder Inhabername">
@@ -665,7 +682,7 @@ export const SettingsPage: React.FC<{
                 <Button
                   variant="quiet"
                   size="sm"
-                  onClick={() => onNavigate('bank', { bankView: 'accounts' })}
+                  onClick={() => onNavigate({ area: 'company', tab: 'profile', id: 'bankkonten' })}
                 >
                   Bankkonten
                 </Button>
@@ -957,7 +974,11 @@ export const SettingsPage: React.FC<{
           </FormGrid>
         )}
       </Section>
+      </>
+      )}
 
+      {part === 'advanced' && (
+      <>
       {/* Anzeige und keine Einstellung: eine Aufbewahrungsfrist ist keine Wahl
           des Anwenders (ARC-01 K4). Sie steht hier, weil die Einstellungen der
           Ort ist, an dem nachgesehen wird, was gilt. */}
@@ -1169,7 +1190,7 @@ export const SettingsPage: React.FC<{
           zuerst unter „Nebenpflichten" sucht. */}
       <Section helpSummary="Hier finden Sie die gespeicherten Umrechnungskurse und die Bestätigungsabfragen."
         title="Umrechnungskurse und Bestätigungsabfragen"
-        context="Auf der Seite „Nebenpflichten“: Kurshistorie, USt-Durchschnittskurse, USt-IdNr."
+        context="Unter Abschlüsse → Jahr → Nebenpflichten"
         explain={
           <>
             Die monatlichen Umsatzsteuer-Umrechnungskurse nach § 16 Abs. 6 UStG stehen bei der
@@ -1185,13 +1206,13 @@ export const SettingsPage: React.FC<{
           <div className="flex flex-wrap gap-2">
             <Button
               variant="secondary"
-              onClick={() => onNavigate('obligations', { obligationsTab: 'currency' })}
+              onClick={() => onNavigate({ area: 'closings', tab: 'year', id: 'currency' })}
             >
               Kurse
             </Button>
             <Button
               variant="secondary"
-              onClick={() => onNavigate('obligations', { obligationsTab: 'vatid' })}
+              onClick={() => onNavigate({ area: 'closings', tab: 'year', id: 'vatid' })}
             >
               Bestätigung der USt-IdNr.
             </Button>
@@ -1234,7 +1255,7 @@ export const SettingsPage: React.FC<{
                 {orgFilledCount > 0 ? organisationPreview : '—'}
               </FieldValue>
               {onNavigate && (
-                <Button variant="quiet" size="sm" onClick={() => onNavigate('taxaudit')}>
+                <Button variant="quiet" size="sm" onClick={() => onNavigate({ area: 'settings', tab: 'audit', id: 'betriebspruefung' })}>
                   Pflegen
                 </Button>
               )}
@@ -1408,6 +1429,8 @@ export const SettingsPage: React.FC<{
           </div>
         </details>
       </Section>
+      </>
+      )}
       <ConfirmDialog
         open={confirmDeleteTenant}
         onOpenChange={setConfirmDeleteTenant}

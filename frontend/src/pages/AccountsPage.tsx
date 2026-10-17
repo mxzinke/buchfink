@@ -9,7 +9,7 @@ import type {
   StatementPositionOption,
   SuSaOverview,
 } from '../types';
-import type { NavigateFn } from '../components/Sidebar';
+import type { NavigateFn } from '../navigation';
 import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
 import { BlockAccountDialog, CustomAccountDialog } from '../components/LedgerForms';
@@ -296,17 +296,15 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ initialAccount, onNa
         loading={loadingLedger}
         onBack={() => setLedger(null)}
         onOpenEntry={
-          onNavigate && ((entryNumber: string) => onNavigate('journal', { entryNumber }))
-        }
-        onFilterAccount={
-          onNavigate && ((account: string) => onNavigate('journal', { filterAccount: account }))
+          onNavigate &&
+          ((entryNumber: string) => onNavigate({ area: 'books', tab: 'journal', id: entryNumber }))
         }
       />
     );
   }
 
   return (
-    <div className="max-w-[1200px] mx-auto px-8 py-8">
+    <div>
       <PageHeader title="Konten" context="Kontenrahmen SKR04 der DATEV, Fassung 2026" />
 
       <Tabs
@@ -1034,7 +1032,7 @@ const LedgerView: React.FC<{
   const rows = ledger.rows ?? [];
 
   return (
-    <div className="max-w-[1200px] mx-auto px-8 py-8">
+    <div>
       <Button
         variant="quiet"
         size="sm"
@@ -1042,7 +1040,7 @@ const LedgerView: React.FC<{
         icon={<ArrowLeft className="w-4 h-4" strokeWidth={1.5} />}
         className="-ml-2.5 mb-4"
       >
-        Zurück zur Kontenübersicht
+        Zurück zu den Konten
       </Button>
 
       <PageHeader

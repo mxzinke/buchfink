@@ -182,7 +182,7 @@ export const AdvancesPage: React.FC = () => {
   const openGroups = groups.filter((g) => !g.closed);
 
   return (
-    <div className="max-w-[1200px] mx-auto px-8 py-8">
+    <div>
       <PageHeader helpSummary="Verwalten Sie Teilzahlungen vor der Lieferung und rechnen Sie sie am Ende gemeinsam ab."
         title="Anzahlungen"
         context={

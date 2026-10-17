@@ -43,6 +43,9 @@ machen gibt.
 | `Progress`, `Skeleton`, `SkeletonRows`, `toast` | `Feedback.tsx` | Base UI Progress, Sonner |
 | `FileDrop` | `FileDrop.tsx` | eigen |
 | `Section`, `PageHeader` | `Section.tsx` | eigen |
+| `PageFrame` | `PageFrame.tsx` | Base UI Tabs |
+| `DetailPanel`, `DetailList` | `DetailPanel.tsx` | Base UI Dialog |
+| `Disclosure` | `Disclosure.tsx` | Base UI Collapsible |
 | `StatRow`, `Stat` | `StatRow.tsx` | eigen |
 | `Table` und Zellen | `Table.tsx` | eigen |
 | `StatusBadge` | `StatusBadge.tsx` | eigen |
@@ -95,6 +98,13 @@ was man suchen muss. Der SKR04-Kontenrahmen ist immer eine Suche.
 **Bestätigung.** `ConfirmDialog` nur für unumkehrbare Schritte ([Abschnitt 8.2](interaktion.md#82-rückgängig-statt-rückfrage)). Er lässt
 sich nicht durch einen Klick daneben schließen. Was rückgängig gemacht werden
 kann, läuft ohne Rückfrage und bekommt `toast.undo`.
+
+**Einzelheiten.** Eine Liste zeigt Zustand und Kennzahl; was darüber hinaus
+zu einem Eintrag gehört, steht in der `DetailPanel` am rechten Rand oder in
+einer aufgeklappten `Disclosure`. Die Seitenleiste öffnet über die Kennung im
+Navigationsziel, damit ein Verweis aus einer anderen Ansicht auf dem Eintrag
+landet und Zurück sie schließt. `Disclosure` rendert ihren Inhalt erst beim
+Aufklappen.
 
 **Tabelle.** Die Fläche ersetzt nicht die Kopflinie: Der Kopf bleibt ohne
 Füllung. Die Überschrift des Abschnitts steht über der Fläche, nicht darin,
@@ -195,12 +205,10 @@ Der Zustand steht dauerhaft im Fuß der Navigation, nie als Toast.
 Ein Integritätsbruch ist der einzige Fall, in dem die Oberfläche laut werden darf:
 ein Balken in `negative-soft` über dem gesamten Inhalt, bis er quittiert ist.
 
-Die Zeile ist zugleich der Weg in die Prüfübersicht — Ketten, Belegdateien,
-Festschreibungen, Prüfläufe, Änderungsprotokoll, Systemhistorie —, die deshalb
-keinen eigenen Eintrag in der Navigation hat: die Frage „ist etwas nicht in
-Ordnung" wird hier beantwortet, und wer sie genauer wissen will, klickt auf die
-Antwort. Nachgeprüft wird auf der Seite selbst; ein Klick, der beides täte,
-machte aus einem Blick auf den Zustand einen Lauf über die ganze Buchführung.
+Die Zeile ist zugleich der Weg zu „Prüfung & GoBD" in den Einstellungen —
+Ketten, Belegdateien, Festschreibungen, Prüfläufe, Änderungsprotokoll,
+Systemhistorie. Nachgeprüft wird dort; ein Klick, der beides täte, machte aus
+einem Blick auf den Zustand einen Lauf über die ganze Buchführung.
 
 ### 11.5 Gesperrte Perioden
 
@@ -237,25 +245,26 @@ dargestellt.
 
 ```
 ┌──────────────┬─────────────────────────────────────────────┐
-│  Mandant ⌄   │  Kopfzeile 56 px, Geschäftsjahr             │
+│  Buchfink    │  Firma ⌄          Kopfzeile 56 px, Jahr     │
 │  Navigation  ├─────────────────────────────────────────────┤
-│  240 px      │  Seitentitel + Primäraktion                 │
-│  dunkel      │  ─────────────────────────────────────────  │
-│              │  Kennzahlen und Filter auf dem Papier,      │
-│  ──────────  │  die Tabelle in ihrer eigenen Fläche        │
+│  240 px      │  Bereichstitel + Primäraktion               │
+│  dunkel      │  Reiter · Reiter · Reiter                   │
+│              │  ─────────────────────────────────────────  │
+│  ──────────  │  Inhalt des Reiters                         │
 │  Integrität  │                                             │
 └──────────────┴─────────────────────────────────────────────┘
 ```
 
-**Navigation.** 240 px, fünf Gruppen: Übersicht, Buchhaltung, Stammdaten,
-Auswertungen, Verwaltung. Aktiver Eintrag `bg-shell-raised text-white` mit 2 px
-Leiste in `accent-light` links. Kein farbiger Hintergrund, ein dauerhaft
-sichtbarer Zustand darf nicht laut sein.
+**Navigation.** 240 px, fünf Einträge ohne Gruppen: Übersicht, Bücher,
+Abschlüsse, Unternehmen, Einstellungen. Aktiver Eintrag `bg-shell-raised
+text-white` mit 2 px Leiste in `accent-light` links. Kein farbiger Hintergrund,
+ein dauerhaft sichtbarer Zustand darf nicht laut sein. Ein Ziel besteht aus
+Bereich, Reiter und der Kennung eines Objekts (`frontend/src/navigation.ts`)
+und steht im Hash der Adresse.
 
-**Mandantenwahl.** Sie steht am Kopf der Navigation, dort wo der Name des
-Mandanten steht: ein Auslöser, der die Liste aufklappt, mit dem Weg zu einem
-neuen Mandanten und zur Übersicht darunter. Ein Wechsel ist eine Auswahl und
-keine Reise — bis Welle 9 führte er über den Startbildschirm und zurück.
+**Mandantenwahl.** Die Firma steht links in der Kopfzeile. Bei mehreren
+Mandanten ist sie ein Auslöser, der die Liste aufklappt; mit einem Mandanten
+steht dort nur der Name, und weitere legt man in den Einstellungen an.
 
 **Zeigefinger.** Was man drücken kann, zeigt ihn. Tailwind setzt seit Fassung 4
 `cursor: default` auf `button`; die Regel steht deshalb einmal in der
@@ -265,9 +274,12 @@ behalten `cursor-not-allowed`, Einträge in Menü und Auswahlliste `cursor-defau
 
 **Seitenkopf.** Titel in `text-display`, darunter eine Zeile Kontext in
 `text-caption text-ink-subtle`, rechts die Primäraktion, darunter eine Haarlinie
-über die volle Breite. Kein Icon neben dem Titel, kein Kasten um den Kopf.
+über die volle Breite. Kein Icon neben dem Titel, kein Kasten um den Kopf. Jeder
+Bereich beginnt mit `PageFrame`; hat er Reiter, ersetzt die Reiterleiste die
+Haarlinie. Ein `PageHeader` innerhalb des Rahmens wird zur Überschrift des
+Reiters in `text-heading`.
 
-**Vollbild-Schirme.** Start, Einrichtung und Wiederherstellung stehen vor dem
+**Vollbild-Schirme.** Einrichtung und Wiederherstellung stehen vor dem
 Arbeitsbereich und laufen ganz auf der dunklen Schale, mit denselben
 `shell`-Tokens wie die Navigation. Dort gibt es kein Papier, also drehen sich
 die Rollen um: Die Primäraktion hat die hellste Fläche (`bg-paper
@@ -277,10 +289,8 @@ Eigene Bausteine bekommen diese Schirme nicht: Auf jedem stehen ein bis zwei
 Bedienelemente, ein zweiter Bausteinsatz würde mehr kosten, als er einbringt.
 
 Ein Vollbild-Schirm steht *vor* dem Arbeitsbereich und trägt deshalb keine
-Navigation daneben. Der Startschirm beantwortet genau eine Frage — mit welchem
-Mandanten wird gearbeitet —, und die Zeile des Mandanten ist die Antwort: ein
-Klick öffnet ihn. Sprungmarken in einzelne Ansichten stehen dort nicht; sie
-wären eine zweite Navigation vor der ersten.
+Navigation daneben. Nach dem Start öffnet Buchfink den zuletzt geöffneten
+Mandanten direkt in der Übersicht.
 
 **Schmale Fenster.** Buchfink ist eine Desktop-Anwendung. Telefone sind kein
 Ziel, und es wird nichts dafür gebaut. Die Oberfläche muss lediglich ein kleines

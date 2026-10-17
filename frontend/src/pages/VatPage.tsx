@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Download, FileCheck2, Save } from 'lucide-react';
-import type { NavigateFn } from '../components/Sidebar';
+import type { NavigateFn } from '../navigation';
 import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
 import { downloadCSV } from '../utils/download';
@@ -402,27 +402,27 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
     (zmReturn?.findings?.length ?? 0) > 0
       ? 'Die Meldung ist unvollständig; das Portal nimmt sie so nicht an.'
       : !selectedZmPeriod?.committed
-        ? 'Der Meldezeitraum ist noch nicht festgeschrieben. Das geschieht unter Steuerfristen.'
+        ? 'Der Meldezeitraum ist noch nicht festgeschrieben. Das geschieht unter „Zeiträume festschreiben“.'
         : selectedZmPeriod?.status === 'submitted'
           ? 'Für diesen Meldezeitraum ist die Übermittlung bereits bestätigt.'
           : undefined;
 
   const confirmHint = !selectedPeriod?.committed
-    ? 'Der Zeitraum ist noch nicht festgeschrieben. Das geschieht unter Steuerfristen.'
+    ? 'Der Zeitraum ist noch nicht festgeschrieben. Das geschieht unter „Zeiträume festschreiben“.'
     : selectedPeriod?.status === 'submitted'
       ? 'Für diesen Zeitraum ist die Übermittlung bereits bestätigt.'
       : undefined;
 
   if (loading) {
     return (
-      <div className="max-w-[1200px] mx-auto px-8 py-8">
+      <div>
         <SkeletonRows rows={10} />
       </div>
     );
   }
 
   return (
-    <div className="max-w-[1200px] mx-auto px-8 py-8">
+    <div>
       <PageHeader
         title="Umsatzsteuer"
         context="Voranmeldung und Zusammenfassende Meldung"
@@ -484,9 +484,9 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
         <Notice
           className="mt-6"
           text={filingSchedule === 'unknown'
-            ? 'Die Umsatzsteuer-Meldepflicht ist noch nicht geklärt. Ergänzen Sie die Auswahl in den Einstellungen, sobald sie feststeht.'
+            ? 'Die Umsatzsteuer-Meldepflicht ist noch nicht geklärt. Ergänzen Sie die Auswahl unter Unternehmen → Stammdaten, sobald sie feststeht.'
             : 'Es sind keine regelmäßigen Umsatzsteuererklärungen eingeplant. Besondere Erklärungspflichten und die steuerliche Behandlung einzelner Buchungen bleiben gesondert zu prüfen.'}
-          action={onNavigate && <Button variant="secondary" size="sm" onClick={() => onNavigate('settings')}>Einstellungen öffnen</Button>}
+          action={onNavigate && <Button variant="secondary" size="sm" onClick={() => onNavigate({ area: 'company', tab: 'profile' })}>Einstellungen öffnen</Button>}
         />
       )}
 
@@ -528,7 +528,7 @@ export const VatPage: React.FC<VatPageProps> = ({ year, onNavigate }) => {
             <Stat
               label="Festschreibung"
               value={selectedPeriod.committed ? 'Erfolgt' : 'Offen'}
-              context={selectedPeriod.committed ? 'Stand unveränderlich' : 'unter Steuerfristen'}
+              context={selectedPeriod.committed ? 'Stand unveränderlich' : 'unter „Zeiträume festschreiben“'}
             />
             <Stat
               label="Stand"
@@ -1142,7 +1142,7 @@ const EntryLink: React.FC<{ entryNumber: string; onNavigate?: NavigateFn }> = ({
   onNavigate ? (
     <button
       type="button"
-      onClick={() => onNavigate('journal', { entryNumber })}
+      onClick={() => onNavigate({ area: 'books', tab: 'journal', id: entryNumber })}
       className="code-num text-accent-text hover:text-accent transition-colors duration-120 ease-quiet"
     >
       {entryNumber}

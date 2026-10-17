@@ -81,17 +81,7 @@ const BANK_VIEWS: { value: BankView; label: string }[] = [
   { value: 'konten', label: 'Bankkonten' },
 ];
 
-function viewFor(initialView?: string): BankView {
-  if (initialView === 'accounts') return 'konten';
-  return 'abgleich';
-}
-
-export interface BankImportPageProps {
-  /** Die Ansicht, mit der die Seite öffnet: „accounts" schlägt die Bankkonten auf. */
-  initialView?: string;
-}
-
-export const BankImportPage: React.FC<BankImportPageProps> = ({ initialView }) => {
+export const BankImportPage: React.FC = () => {
   // Einlesen und Zuordnen sind schreibende Schritte und im Prüfermodus
   // gesperrt; die Liste bleibt lesbar (§10.4).
   const writeLock = usePostingLock();
@@ -107,14 +97,7 @@ export const BankImportPage: React.FC<BankImportPageProps> = ({ initialView }) =
   const [writingOff, setWritingOff] = useState<OpenItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
-  const [view, setView] = useState<BankView>(viewFor(initialView));
-
-  // Ein zweiter Weg auf diese Seite bringt eine andere Ansicht mit, ohne dass
-  // die Seite neu entsteht; ohne diesen Abgleich bliebe die des ersten Besuchs
-  // stehen.
-  useEffect(() => {
-    if (initialView) setView(viewFor(initialView));
-  }, [initialView]);
+  const [view, setView] = useState<BankView>('abgleich');
 
   useEffect(() => {
     void load();
@@ -182,7 +165,7 @@ export const BankImportPage: React.FC<BankImportPageProps> = ({ initialView }) =
   const unmatched = transactions.filter((t) => t.matchStatus === 'unmatched');
 
   return (
-    <div className="max-w-[1200px] mx-auto px-8 py-8">
+    <div>
       <PageHeader
         title="Bank & Zahlungen"
         context="Kontoauszüge einlesen, Zahlungen offenen Posten zuordnen"

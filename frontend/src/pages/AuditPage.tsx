@@ -120,7 +120,7 @@ export const AuditPage: React.FC<AuditPageProps> = ({
   const broken = integrity !== null && !integrity.isValid;
 
   return (
-    <div className="max-w-[1200px] mx-auto px-8 py-8">
+    <div>
       <PageHeader
         title="Prüfübersicht"
         context="Ist an den Daten seit ihrer Erfassung etwas verändert worden?"
@@ -333,7 +333,7 @@ const ChecksPanel: React.FC<{
           <Stat
             label="Festgeschriebene Zeiträume"
             value={String(commitments.length)}
-            context="Abschluss über Steuerfristen"
+            context="Abschluss unter Abschlüsse → Monat"
           />
         </StatRow>
       )}
@@ -483,7 +483,7 @@ const ChecksPanel: React.FC<{
             Beim Festschreiben werden die Buchungen eines Zeitraums verbindlich abgeschlossen,
             spätere Änderungen sind nur noch per Storno möglich. Zusätzlich beglaubigt ein
             unabhängiger Zeitstempeldienst nach RFC 3161 den Stand. Festgeschrieben wird unter
-            Steuerfristen.
+            Abschlüsse → Monat.
           </>
         }
       >
@@ -491,7 +491,7 @@ const ChecksPanel: React.FC<{
           <EmptyState
             icon={<Lock className="w-6 h-6" strokeWidth={1.5} />}
             title="Noch kein Zeitraum festgeschrieben"
-            description="Nach der Umsatzsteuer-Voranmeldung lässt sich der jeweilige Zeitraum unter Steuerfristen abschließen."
+            description="Nach der Umsatzsteuer-Voranmeldung lässt sich der jeweilige Zeitraum unter Abschlüsse → Monat festschreiben."
           />
         ) : (
           <Table>
@@ -567,7 +567,7 @@ const ChecksPanel: React.FC<{
         {checkRuns.length === 0 ? (
           <EmptyState
             title="Noch kein Prüflauf"
-            description="Ein Lauf entsteht mit der Festschreibung eines Zeitraums unter Steuerfristen."
+            description="Ein Lauf entsteht mit der Festschreibung eines Zeitraums unter Abschlüsse → Monat."
           />
         ) : (
           <Table>

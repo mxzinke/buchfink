@@ -271,7 +271,7 @@ export const TaxAuditPage: React.FC<TaxAuditPageProps> = ({
   const years = availableYears.length > 0 ? availableYears : [year];
 
   return (
-    <div className="max-w-[1200px] mx-auto px-8 py-8">
+    <div>
       {/* Jeder Reiter hat seine eigene erste Handlung (§10.4): das Prüferpaket
           herausgeben oder die Verfahrensdokumentation neu erzeugen. Die zweite
           steht im Reiter selbst, weil sie von den Texten darunter abhängt. */}

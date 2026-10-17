@@ -3,7 +3,7 @@ import { Download } from 'lucide-react';
 import { Api } from '../services/api';
 import { channelNote, formatCents, formatDate, parseCents } from '../utils/formatters';
 import type { Account, JournalFilter, JournalFilterResult } from '../types';
-import type { NavigateFn } from './Sidebar';
+import type { NavigateFn } from '../navigation';
 import {
   Button,
   Combobox,
@@ -339,7 +339,7 @@ export const JournalFilterView: React.FC<JournalFilterViewProps> = ({
                           variant="quiet"
                           size="sm"
                           className="code-num"
-                          onClick={() => onNavigate('accounts', { account: row.account })}
+                          onClick={() => onNavigate({ area: 'books', tab: 'accounts', id: row.account })}
                         >
                           {row.account}
                         </Button>

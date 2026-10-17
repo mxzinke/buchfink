@@ -18,7 +18,7 @@ import type {
   Receipt,
   Side,
 } from '../types';
-import type { NavigateFn } from '../components/Sidebar';
+import type { NavigateFn } from '../navigation';
 import { Api } from '../services/api';
 import { usePostingLock } from '../components/WriteLock';
 import { ManualEntryDialog } from '../components/LedgerForms';
@@ -119,12 +119,6 @@ export interface JournalPageProps {
    */
   initialSearch?: string;
   /**
-   * Konto aus dem Navigationsziel: die Seite öffnet damit den Reiter „Zeilen
-   * auswerten" mit vorbelegtem Kontofilter. So führt der Weg aus dem
-   * Kontoblatt in die Auswertung desselben Kontos (PRF-01 K3).
-   */
-  initialFilterAccount?: string;
-  /**
    * Weg von der Buchung zu ihrem Beleg (GOB-02). Er schließt die Kette
    * Bilanzposition → Konto → Buchung → Beleg: ohne ihn endete der Weg hier, und
    * der Beleg wäre in der Belegliste erneut zu suchen.
@@ -134,7 +128,6 @@ export interface JournalPageProps {
 
 export const JournalPage: React.FC<JournalPageProps> = ({
   initialSearch,
-  initialFilterAccount,
   onNavigate,
 }) => {
   // Zwei Sperren mit demselben Ergebnis: das festgestellte Geschäftsjahr und
@@ -149,7 +142,7 @@ export const JournalPage: React.FC<JournalPageProps> = ({
   // Die beiden Sichten auf dasselbe Journal: die Liste der Buchungen und die
   // Auswertung über ihre Zeilen (PRF-01 K3). Getrennt, weil die eine Buchungen
   // zeigt und die andere Zeilen — eine Tabelle für beides zeigte keines gut.
-  const [tab, setTab] = useState<'entries' | 'filter'>(initialFilterAccount ? 'filter' : 'entries');
+  const [tab, setTab] = useState<'entries' | 'filter'>('entries');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [integrityError, setIntegrityError] = useState<string | null>(null);
@@ -185,12 +178,6 @@ export const JournalPage: React.FC<JournalPageProps> = ({
   useEffect(() => {
     setSearch(initialSearch ?? '');
   }, [initialSearch]);
-
-  // Kommt der Aufruf aus dem Kontoblatt, steht die Auswertung vorn: die Frage
-  // war „welche Zeilen dieses Kontos", und die beantwortet die Liste nicht.
-  useEffect(() => {
-    if (initialFilterAccount) setTab('filter');
-  }, [initialFilterAccount]);
 
   async function load() {
     setLoading(true);
@@ -322,7 +309,7 @@ export const JournalPage: React.FC<JournalPageProps> = ({
   const fiscalYear = entries[0]?.fiscalYear;
 
   return (
-    <div className="max-w-[1200px] mx-auto px-8 py-8">
+    <div>
       <PageHeader
         title="Journal"
         context={
@@ -524,7 +511,8 @@ export const JournalPage: React.FC<JournalPageProps> = ({
                     onReverse={() => setReversing(entry)}
                     onOpenReceipt={
                       onNavigate &&
-                      ((receiptId: number) => onNavigate('receipts', { receiptId }))
+                      ((receiptId: number) =>
+                        onNavigate({ area: 'books', tab: 'receipts', id: String(receiptId) }))
                     }
                   />
                 ))}
@@ -542,7 +530,6 @@ export const JournalPage: React.FC<JournalPageProps> = ({
             <JournalFilterView
               accounts={accounts}
               year={fiscalYear}
-              initialAccount={initialFilterAccount}
               onNavigate={onNavigate}
             />
           )}
