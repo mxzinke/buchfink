@@ -11,15 +11,9 @@ import (
 
 // --- Protokollkette und Transaktionen -------------------------------------
 
-// Ein Protokolleintrag innerhalb einer laufenden Transaktion darf nicht auf eine
-// Sperre warten, die ihrerseits auf diese Transaktion wartet.
-//
-// Der Fall: ein Weg außerhalb einer Transaktion hält die Anhänge-Sperre und
-// wartet auf die Schreibsperre der Datei, die eine laufende Buchungstransaktion
-// hält; die schreibt in sich noch ihren Protokolleintrag und wartet dafür auf
-// die Anhänge-Sperre. Beide kämen erst über den busy_timeout wieder frei — nach
-// fünf Sekunden, und einer der beiden Einträge ginge verloren, weil fast jede
-// Aufrufstelle den Fehler des Protokollierens verwirft.
+// Ein Protokolleintrag innerhalb einer laufenden Transaktion und einer von
+// draußen kommen beide an, ohne sich gegenseitig zu blockieren: der äußere
+// wartet im busy_timeout auf das Ende der Transaktion und kettet sich danach an.
 func TestAuditLogInsideATransactionDoesNotWaitForTheOutsideWriter(t *testing.T) {
 	// Eine Datei und kein Speicher: die Schreibsperre von SQLite ist der
 	// Gegenstand des Tests, und im Speicher gibt es sie so nicht.

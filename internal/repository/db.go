@@ -39,10 +39,7 @@ func InitTenantDB(dataDir string) (*gorm.DB, error) {
 
 	dbPath := filepath.Join(dataDir, "buchfink.sqlite")
 
-	// DSN with WAL mode and busy timeout for concurrent safety
-	dsn := fmt.Sprintf("%s?_pragma=journal_mode(wal)&_pragma=busy_timeout(5000)&_pragma=secure_delete(ON)", dbPath)
-
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{
+	db, err := gorm.Open(sqlite.Open(tenantDSN(dbPath)), &gorm.Config{
 		Logger:  logger.Default.LogMode(logger.Warn),
 		NowFunc: nowUTC,
 	})
@@ -64,6 +61,22 @@ func InitTenantDB(dataDir string) (*gorm.DB, error) {
 	}
 
 	return db, nil
+}
+
+// BusyTimeout ist die Wartezeit eines Schreibers auf die Schreibsperre der
+// Datei. Sie deckt auch lange Vorgänge wie das Erzeugen eines
+// Rechnungsdokuments in der Transaktion ab.
+const BusyTimeout = 15 * time.Second
+
+// tenantDSN öffnet die Mandantendatei im WAL-Modus. `_txlock=immediate` lässt
+// jede Transaktion mit BEGIN IMMEDIATE beginnen: die Schreibsperre entsteht beim
+// Beginn und nicht erst beim ersten Schreiben, ein zweiter Schreiber wartet
+// deshalb im busy_timeout, statt beim Hochstufen mit SQLITE_BUSY_SNAPSHOT
+// abgewiesen zu werden.
+func tenantDSN(dbPath string) string {
+	return fmt.Sprintf(
+		"%s?_pragma=journal_mode(wal)&_pragma=busy_timeout(%d)&_pragma=secure_delete(ON)&_txlock=immediate",
+		dbPath, BusyTimeout.Milliseconds())
 }
 
 // InitInMemoryDB initializes an ephemeral SQLite database for unit and integration testing.
