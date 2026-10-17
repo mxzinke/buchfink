@@ -9,6 +9,13 @@ vars:
   # by `wails3 build GOOS=...` (or the GOOS env var) for cross-compilation. The
   # tasks below dispatch to the matching platform Taskfile via this variable.
   GOOS: '{{.GOOS | default OS}}'
+  # Programmfassung für -ldflags (internal/buildinfo.Version, main.version der
+  # Brücke). Sie steht an jeder Buchung, in jedem Export, jeder Sicherung und
+  # jeder Voranmeldung. Auf einem sauberen Stand mit Tag vX.Y.Z ist sie X.Y.Z,
+  # sonst dev+<Commit>, bei ungesicherten Änderungen mit -dirty; ohne Git „dev“.
+  # Der Release-Workflow setzt sie ausdrücklich: task linux:build VERSION=0.3.0.
+  VERSION:
+    sh: v=$(git describe --tags --exact-match --match 'v[0-9]*.[0-9]*.[0-9]*' --dirty 2>/dev/null) || v=; case "$v" in v*-dirty|"") c=$(git describe --always --dirty --abbrev=12 --exclude='*' 2>/dev/null) && echo "dev+$c" || echo dev ;; *) echo "${v#v}" ;; esac
 
 includes:
   common: ./build/Taskfile.yml
@@ -54,15 +61,21 @@ tasks:
 
   test:ebilanz-xsd:
     summary: Validates the E-Bilanz instances against the official XBRL schemas
-    # The taxonomy schemas are not in the repository (only the extract the
-    # instances are built from), and validating against the full de-gaap-ci
-    # schema takes long. This task fails instead of skipping when the schemas
-    # are missing. Set EBILANZ_XSD_6_9 and EBILANZ_XSD_6_10 to wrapper schemas
-    # over a local copy of the taxonomy packages (www.esteuer.de, Taxonomien;
-    # see internal/ebilanz/xsd_test.go), optionally EBILANZ_XSD_VALIDATOR.
+    # Die Schemata der Taxonomie liegen nicht im Repository, nur der Auszug,
+    # aus dem die Instanzen entstehen. scripts/ebilanz_schemas.sh lädt die
+    # amtlichen Pakete 6.9 und 6.10 mit Prüfsumme nach .cache/ebilanz-xsd und
+    # legt Wrapper-Schemata und einen XML-Katalog an. Geprüft wird mit Java
+    # (scripts/XsdValidate.java, ab Java 11); xmllint braucht für das Schema von
+    # de-gaap-ci zu lange. Fehlt ein Schema, scheitert die Aufgabe, statt den
+    # Test zu überspringen. Braucht bash, curl, unzip und java.
     env:
       EBILANZ_XSD_REQUIRED: "1"
+      EBILANZ_XSD_6_9: '{{.ROOT_DIR}}/.cache/ebilanz-xsd/6.9.xsd'
+      EBILANZ_XSD_6_10: '{{.ROOT_DIR}}/.cache/ebilanz-xsd/6.10.xsd'
+      XML_CATALOG_FILES: '{{.ROOT_DIR}}/.cache/ebilanz-xsd/catalog.xml'
+      EBILANZ_XSD_VALIDATOR: 'java {{.ROOT_DIR}}/scripts/XsdValidate.java'
     cmds:
+      - bash scripts/ebilanz_schemas.sh .cache/ebilanz-xsd
       - go test -count=1 -run TestInstancesAreSchemaValid ./internal/ebilanz/ {{.CLI_ARGS}}
 
   check:design:
@@ -126,6 +139,17 @@ tasks:
     summary: Builds the application
     cmds:
       - task: "{{.GOOS}}:build"
+
+  build:mcp:
+    summary: Builds the stdio bridge cmd/buchfink-mcp for Claude Desktop
+    # Ohne CGO und ohne Wails: GOOS und GOARCH aus der Umgebung wählen das Ziel,
+    # gebaut wird von jedem Rechner aus.
+    cmds:
+      - go build -trimpath -buildvcs=false -ldflags="-s -w -X main.version={{.VERSION}}" -o "{{.OUTPUT}}" ./cmd/buchfink-mcp
+    vars:
+      OUTPUT: '{{.OUTPUT | default "bin/buchfink-mcp"}}'
+    env:
+      CGO_ENABLED: 0
 
   package:
     summary: Packages a production build of the application
