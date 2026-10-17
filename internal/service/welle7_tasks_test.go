@@ -209,8 +209,8 @@ func TestEverySourceProducesItsTask(t *testing.T) {
 		if task.Title == "" || task.Why == "" {
 			t.Errorf("%q hat keinen Titel oder keinen Grund: %+v", key, task)
 		}
-		if task.Target.Page == "" {
-			t.Errorf("%q hat kein Navigationsziel", key)
+		if !task.Target.Valid() {
+			t.Errorf("%q hat kein gültiges Navigationsziel: %+v", key, task.Target)
 		}
 		// Vorgangssprache: kein Paragraph im Titel (Architektur 6.4).
 		if strings.Contains(task.Title, "§") {
@@ -239,11 +239,9 @@ func TestEverySourceProducesItsTask(t *testing.T) {
 	// Das Ziel führt auf den Beleg und nicht auf den Zustandsfilter: die Regel
 	// trifft gerade auch den gebuchten Beleg, und die Liste „zu buchen" zeigt
 	// genau den nicht. Aufgeschlagen wird der älteste ohne Vermerk.
-	if got := tasks[domain.TaskKeyServiceProof]; got.Target.Params["receiptId"] != "2" {
-		t.Errorf("Ziel des Leistungsnachweises = %+v, erwartet den Beleg 2", got.Target.Params)
-	}
-	if got := tasks[domain.TaskKeyServiceProof]; got.Target.Params["status"] != "" {
-		t.Errorf("das Ziel darf nicht auf den Zustand abgelegt filtern: %+v", got.Target.Params)
+	want := domain.TaskTarget{Area: domain.AreaBooks, Tab: "receipts", ID: "2"}
+	if got := tasks[domain.TaskKeyServiceProof]; got.Target != want {
+		t.Errorf("Ziel des Leistungsnachweises = %+v, erwartet den Beleg 2", got.Target)
 	}
 	if got := tasks[domain.TaskKeyReceiptsUnbooked]; got.Count != 2 {
 		t.Errorf("ungebuchte Belege = %d, erwartet 2 — der gebuchte zählt nicht mit", got.Count)
@@ -487,7 +485,7 @@ func TestExemptionSourceProducesItsTask(t *testing.T) {
 	if !ok {
 		t.Fatal("die abgelaufene Bescheinigung erzeugt keine Aufgabe")
 	}
-	if expired.Group != domain.TaskGroupOverdue || expired.Count != 1 || expired.Target.Page != "contacts" {
+	if expired.Group != domain.TaskGroupOverdue || expired.Count != 1 || expired.Target.Tab != "contacts" {
 		t.Errorf("abgelaufene Bescheinigung: %+v", expired)
 	}
 	expiring, ok := tasks[domain.TaskKeyExemption]
@@ -525,7 +523,7 @@ func TestCarryForwardSourceProducesItsTask(t *testing.T) {
 	if !ok {
 		t.Fatal("die Vortragsdifferenz erzeugt keine Aufgabe")
 	}
-	if task.Group != domain.TaskGroupOverdue || task.Amount != 12345 || task.Target.Page != "closing" {
+	if task.Group != domain.TaskGroupOverdue || task.Amount != 12345 || task.Target.Tab != "year" {
 		t.Errorf("Vortragsdifferenz: %+v", task)
 	}
 
