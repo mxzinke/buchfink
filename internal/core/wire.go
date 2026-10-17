@@ -276,6 +276,9 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.MonthClose = service.NewMonthCloseService(s.Checks, s.VatReturns, festschreibungRepo)
 	s.MonthClose.SetFiscalYearSource(fiscalYearRepo)
 
+	s.Overdue = service.NewOverdueService(s.Payments, contactRepo)
+	s.Overdue.SetInvoiceSource(invoiceRepo)
+	s.Overdue.SetDunning(repository.NewDunningRepository(db), auditRepo)
 	s.Tasks = service.NewTaskService(settingsRepo)
 	s.Tasks.SetCheckSource(s.Checks)
 	s.Tasks.SetObligationSource(s.Obligations)

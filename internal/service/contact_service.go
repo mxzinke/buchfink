@@ -96,6 +96,7 @@ func (s *ContactService) SaveContact(ctx context.Context, c *domain.Contact) err
 			before = prev
 		}
 	}
+	keepPostingGroup(ctx, c, before)
 
 	if c.LedgerAccount == "" {
 		account, err := s.allocateLedgerAccount(ctx, c.Type)

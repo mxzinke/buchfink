@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/buchfink/buchfink/internal/bank"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -281,8 +282,24 @@ func (s *BankService) bookDirect(ctx context.Context, bankTxID uint, counterAcco
 	return created, nil
 }
 
+// Transaction liefert einen Bankumsatz.
+func (s *BankService) Transaction(ctx context.Context, bankTxID uint) (*domain.BankTransaction, error) {
+	tx, err := s.bankRepo.FindByID(ctx, bankTxID)
+	if err != nil {
+		return nil, fmt.Errorf("Bankumsatz %d wurde nicht gefunden: %w", bankTxID, err)
+	}
+	return tx, nil
+}
+
 // Ignore marks a bank transaction as deliberately not booked.
 func (s *BankService) Ignore(ctx context.Context, bankTxID uint) error {
+	return s.IgnoreBecause(ctx, bankTxID, "")
+}
+
+// IgnoreBecause markiert einen Bankumsatz als nicht zu buchen und hält den
+// Grund im Protokoll fest.
+func (s *BankService) IgnoreBecause(ctx context.Context, bankTxID uint, reason string) error {
+	reason = strings.TrimSpace(reason)
 	return s.journalSvc.InTx(ctx, func(ctx context.Context) error {
 		tx, err := s.bankRepo.FindByID(ctx, bankTxID)
 		if err != nil {
@@ -294,9 +311,12 @@ func (s *BankService) Ignore(ctx context.Context, bankTxID uint) error {
 		if err := s.bankRepo.SetMatchStatus(ctx, bankTxID, domain.MatchStatusIgnored); err != nil {
 			return err
 		}
-		return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "BANK_TX", fmt.Sprintf("%d", bankTxID),
-			fmt.Sprintf("Bankumsatz vom %s über %s € (%s) als nicht zu buchen markiert",
-				tx.BookingDate, tx.Amount, tx.CounterpartyName))
+		details := fmt.Sprintf("Bankumsatz vom %s über %s € (%s) als nicht zu buchen markiert",
+			tx.BookingDate, tx.Amount, tx.CounterpartyName)
+		if reason != "" {
+			details += ": " + reason
+		}
+		return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "BANK_TX", fmt.Sprintf("%d", bankTxID), details)
 	})
 }
 

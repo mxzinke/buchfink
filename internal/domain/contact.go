@@ -103,6 +103,20 @@ type Contact struct {
 	BlockedAt     string `gorm:"size:10" json:"blockedAt,omitempty"`
 	BlockedReason string `gorm:"size:500" json:"blockedReason,omitempty"`
 
+	// Die Standard-Buchungsgruppe: die Gruppe, mit der die Eingangsrechnungen
+	// dieses Lieferanten in der Regel gebucht werden. DefaultPostingGroup ist
+	// immer eine vom Menschen in der App bestätigte Gruppe; erst mit ihr darf
+	// ein verbundener Agent E-Rechnungen des Lieferanten ohne Rückfrage
+	// buchen. Ein Agent schlägt eine Gruppe nur vor (ProposedPostingGroup).
+	// SaveContact ändert keines dieser Felder; dafür gibt es
+	// ContactService.ConfirmDefaultPostingGroup und ProposeDefaultPostingGroup.
+	DefaultPostingGroup            string `gorm:"size:50" json:"defaultPostingGroup,omitempty"`
+	DefaultPostingGroupConfirmedAt string `gorm:"size:25" json:"defaultPostingGroupConfirmedAt,omitempty"`
+	DefaultPostingGroupConfirmedBy string `gorm:"size:120" json:"defaultPostingGroupConfirmedBy,omitempty"`
+	ProposedPostingGroup           string `gorm:"size:50" json:"proposedPostingGroup,omitempty"`
+	ProposedPostingGroupNote       string `gorm:"size:500" json:"proposedPostingGroupNote,omitempty"`
+	ProposedPostingGroupBy         string `gorm:"size:60" json:"proposedPostingGroupBy,omitempty"`
+
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 
