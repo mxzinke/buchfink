@@ -38,8 +38,12 @@ cp build/appicon.png packaging/claude-desktop/icon.png
 Windows-Schritt; `entry_point` im Manifest muss dann trotzdem auf eine
 vorhandene Datei zeigen.
 
-Unter macOS muss das Binary vor der Weitergabe signiert und notarisiert
-werden, sonst blockiert Gatekeeper den Start.
+Der Release signiert und notarisiert die Brücke nicht. Der arm64-Teil trägt
+nur die Ad-hoc-Signatur, die der Go-Linker für darwin/arm64 setzt; `lipo`
+lässt sie stehen. Ob Gatekeeper die Brücke in Claude Desktop blockiert, hängt
+an der Quarantäne-Markierung der entpackten Dateien und ist auf einem Mac
+nicht geprüft. Die Abhilfe für Nutzer steht in
+[Claude Desktop](../../docs/nutzung/ki-agenten/claude-desktop.md#wenn-es-nicht-geht).
 
 ## Prüfen und packen
 
