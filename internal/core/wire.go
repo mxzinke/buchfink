@@ -202,7 +202,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	})
 
 	s.EBilanz = service.NewEBilanzService(s.Statement, settingsRepo, auditRepo)
-	s.EBilanz.SetAnlagenspiegelSource(s.Assets)
+	s.EBilanz.SetAdjustmentSource(s.TaxRegister)
 
 	s.VatReturns = service.NewVatReturnService(
 		journalRepo, receiptRepo, contactRepo, allocationRepo, settingsRepo,

@@ -2421,9 +2421,19 @@ export interface MappingRow {
   positionKey: string;
   positionLabel: string;
   element: string;
-  verified: boolean;
+  /** Auffangposition der Gliederungsposition statt einer Kontenregel. */
+  fallback: boolean;
   /** Benennt, was fehlt, wenn etwas fehlt. */
   finding?: string;
+}
+
+/** Ein Befund der Prüfung vor dem E-Bilanz-Export. */
+export interface EBilanzFinding {
+  severity: 'blocking' | 'warning';
+  code: string;
+  message: string;
+  element?: string;
+  accounts?: string[];
 }
 
 /** Der Zuordnungsbericht vor dem E-Bilanz-Export. */
@@ -2432,12 +2442,13 @@ export interface MappingReport {
   taxonomyVersion: string;
   taxonomyDate: string;
   taxonomyNote: string;
+  /** HAOE: Einheitsbilanz; HGBM: Handelsbilanz mit Überleitungsrechnung. */
+  accountingStandard: string;
   rows: MappingRow[];
-  /** Konten ohne Gliederungsposition oder ohne Taxonomie-Element. */
+  /** Blockierende Befunde, je Zeile mit den betroffenen Konten. */
   blocking: MappingRow[];
   fallbacks: FallbackCount[];
-  /** Elemente, deren Name noch gegen die amtliche Taxonomie zu prüfen ist. */
-  unverified: number;
+  findings: EBilanzFinding[];
   canExport: boolean;
 }
 

@@ -644,22 +644,28 @@ func TestCustomAccountCarriesItsPositionIntoTheStatement(t *testing.T) {
 		t.Error("das eigene Konto steht in keiner Position der GuV")
 	}
 
-	// Und die E-Bilanz bildet es ab: der Kontennachweis nennt es.
-	xbrl, report, err := ebilanz.GenerateEBilanzXBRL(ebilanz.InstanceInput{
-		Settings:   companySettingsFor(t, env),
-		Statement:  stmt,
-		Accounts:   []domain.Account{*account, *bank},
-		FiscalYear: 2026, StartDate: "2026-01-01", EndDate: "2026-12-31",
-		PriorStartDate: "2025-01-01", PriorEndDate: "2025-12-31",
+	// Und die E-Bilanz bildet es ab: der Kontennachweis führt es unter einer
+	// Position der GuV.
+	res, err := ebilanz.Generate(ebilanz.Input{
+		Settings:  companySettingsFor(t, env),
+		Statement: stmt,
+		Accounts:  []domain.Account{*account, *bank},
+		Kind:      ebilanz.KindAnnual, FiscalYearBegin: "2026-01-01", FiscalYearEnd: "2026-12-31",
 	})
 	if err != nil {
 		t.Fatalf("E-Bilanz: %v", err)
 	}
-	if !strings.Contains(xbrl, "6011") {
-		t.Error("die E-Bilanz kennt das eigene Konto nicht")
-	}
-	for _, row := range report.Blocking {
+	placed := false
+	for _, row := range res.Report.Rows {
 		if row.Account == "6011" {
+			placed = row.Element != "" && row.Finding == ""
+		}
+	}
+	if !placed {
+		t.Error("die E-Bilanz ordnet das eigene Konto keiner Position zu")
+	}
+	for _, row := range res.Report.Blocking {
+		if strings.Contains(row.Account, "6011") {
 			t.Errorf("das eigene Konto gilt als nicht zuordenbar: %+v", row)
 		}
 	}

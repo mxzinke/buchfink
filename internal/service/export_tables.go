@@ -335,7 +335,7 @@ func accountsTable(d *exportData) (export.Table, error) {
 		alphaField("HGB_Position", "Posten der Bilanz oder GuV nach HGB, etwa „Aktiva.B.IV“."),
 		alphaField("Gliederungsposition", "Schlüssel der Gliederungsposition in Buchfink."),
 		alphaField("Posten", "Wortlaut des Postens der Gliederung."),
-		alphaField("Taxonomie_Element", "Element der HGB-Taxonomie, unter dem der Posten in die E-Bilanz geht; leer, wo die Gliederungsposition keinem Element zugeordnet ist."),
+		alphaField("Taxonomie_Element", "Position der HGB-Taxonomie, unter der das Konto in die E-Bilanz des Geschäftsjahres geht; leer, wo es keine gibt."),
 		alphaField("Bilanzseite", "Aktiva, Passiva, GuV oder Statistisch."),
 		alphaField("Abschlussart", "Bilanz, GuV oder Statistisch."),
 		numField("Steuersatz", "Hinterlegter Steuersatz in Prozent; 0.00, wo keiner hinterlegt ist."),
@@ -352,7 +352,7 @@ func accountsTable(d *exportData) (export.Table, error) {
 			a.Number, a.Name, string(a.Type),
 			export.Int(a.Kontenklasse), a.KontenklasseName,
 			a.Category, a.Subcategory,
-			a.HGBCode, a.PositionID, a.Posten, taxonomyElement(a),
+			a.HGBCode, a.PositionID, a.Posten, taxonomyElement(a, d.from, d.to),
 			a.BalanceSide, a.StatementType,
 			fmt.Sprintf("%.2f", a.TaxRate*100),
 			export.Bool(a.IsActive),
@@ -363,26 +363,11 @@ func accountsTable(d *exportData) (export.Table, error) {
 	return t, nil
 }
 
-// taxonomyElement liefert das Element der HGB-Taxonomie zu einem Konto.
-//
-// Der Weg geht über die Gliederungsposition und nicht unmittelbar über die
-// SKR04-Position: die Taxonomie kennt Schlüssel wie „aktiva.B.IV", die Konten
-// haben Schlüssel wie „bilanz.aktiva_b_iv.kassenbestand…". Dazwischen steht
-// dieselbe Übersetzung, die auch die E-Bilanz benutzt — zwei Wege zu demselben
-// Element wären zwei Gelegenheiten, verschiedene Auskünfte zu geben.
-//
-// Leer, wo es keine Zuordnung gibt: eine erfundene Angabe wäre schlimmer als
-// eine fehlende, denn der Prüfer sähe eine E-Bilanz-Zuordnung, die es nicht gibt.
-func taxonomyElement(account domain.Account) string {
-	key, ok := accounting.StatementKeyForAccount(account)
-	if !ok {
-		return ""
-	}
-	element, ok := ebilanz.ElementFor(key)
-	if !ok {
-		return ""
-	}
-	return element.Element
+// taxonomyElement liefert die Position der HGB-Taxonomie, unter der ein Konto
+// in die E-Bilanz des Geschäftsjahres geht — dieselbe Zuordnung wie im Export
+// der E-Bilanz. Leer, wo es keine gibt.
+func taxonomyElement(account domain.Account, from, to string) string {
+	return ebilanz.ElementForAccount(account, from, to)
 }
 
 // balancesTable ist die Summen- und Saldenliste zum Stichtag.

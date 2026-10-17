@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -324,12 +325,9 @@ func TestExportedAccountsCarryTheTaxonomyElement(t *testing.T) {
 
 	checked := 0
 	for _, row := range rows[1:] {
-		want := ""
-		if key, ok := accounting.StatementKeyForAccount(byNumber[row[number]]); ok {
-			if e, hasElement := ebilanz.ElementFor(key); hasElement {
-				want = e.Element
-			}
-		}
+		year := env.fiscalYear
+		want := ebilanz.ElementForAccount(byNumber[row[number]],
+			fmt.Sprintf("%d-01-01", year), fmt.Sprintf("%d-12-31", year))
 		if row[element] != want {
 			t.Errorf("Konto %s: Taxonomie_Element %q, erwartet %q", row[number], row[element], want)
 		}

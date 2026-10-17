@@ -623,6 +623,7 @@ func TestEBilanzMappingReportCoversTheBookedAccounts(t *testing.T) {
 	env.post(t, "2026-06-01", "1800", "4400", 1_000_000)
 	env.post(t, "2026-07-01", "6300", "1800", 200_000)
 
+	withElsterTaxNumber(t, env)
 	ebilanzSvc := NewEBilanzService(
 		env.statements(t), repository.NewSettingsRepository(env.db),
 		repository.NewAuditRepository(env.db))
@@ -653,7 +654,7 @@ func TestEBilanzMappingReportCoversTheBookedAccounts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("E-Bilanz: %v", err)
 	}
-	if !strings.Contains(xbrl, "de-gaap-ci:is.netSales") {
+	if !strings.Contains(xbrl, "de-gaap-ci:is.netIncome.regular.operatingTC.grossTradingProfit.totalOutput.netSales.grossSales.generalRateVAT") {
 		t.Error("die Instanz enthält die Umsatzerlöse nicht")
 	}
 }

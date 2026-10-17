@@ -100,12 +100,14 @@ nicht gelistet.
 | `validator-configuration-xrechnung (Pruefmaterial)` | internal/einvoice/xrechnung/testdata/kosit/ | Apache-2.0 | Koordinierungsstelle fuer IT-Standards (KoSIT) (https://github.com/itplr-kosit/validator-configuration-xrechnung) |
 | `Typst (WebAssembly-Kompilat)` | in github.com/varunbpatil/typst-go-wasm v0.3.0 | Apache-2.0 | Typst-Projekt (https://github.com/typst/typst) |
 | `Startbildschirm-Foto` | frontend/public/bg-startupscreen_unsplash-steven-kamenar.jpg | Unsplash License | Steven Kamenar (via Unsplash) |
+| `xbrl.de HGB-Taxonomie 6.9/6.10 (Auszug)` | internal/ebilanz/taxonomy/ | XBRL-Deutschland-Disclaimer | (c) XBRL Deutschland e.V. - see http://www.xbrl.de |
 
 - **Manrope (Schriftfamilie):** Zweimal eingebettet: in das Frontend-Bundle und in die Rechnungs-PDFs, weil ein erzeugtes PDF jede benutzte Glyphe enthalten muss. Lizenztexte liegen neben den Schriftdateien: `frontend/public/Manrope-OFL.txt` und `internal/invoice/fonts/LICENSE.txt`.
 - **eInvoicing-EN16931 (Pruefmaterial):** Beispielrechnungen und Regeldateien des Validierungsartefakts. Sie werden nur von Tests gelesen und landen nicht im Binary. Lizenztext: `internal/einvoice/testdata/en16931/LICENSE.txt`.
 - **validator-configuration-xrechnung (Pruefmaterial):** Testinstanzen mit den von KoSIT zugesicherten Urteilen. Sie werden nur von Tests gelesen und landen nicht im Binary. Lizenztext: `internal/einvoice/xrechnung/testdata/kosit/LICENSE`.
 - **Typst (WebAssembly-Kompilat):** Der Satz der Rechnungs- und Dokumenten-PDFs läuft als WebAssembly im eigenen Prozess: kein fremdes Programm, nichts zu installieren. Das Kompilat steckt als `typst_compiler.wasm` in dem Go-Modul, das es einbettet (oben gelistet, MIT für die Hülle), und wird darüber ausgeliefert. Es bringt keine eigene Lizenzdatei mit; es gilt der Apache-2.0-Text, der bei den übrigen Apache-Komponenten steht. Die Rubik-Schriften des Moduls bettet nur dessen eigener Test ein; sie landen nicht im Auslieferungsstand.
 - **Startbildschirm-Foto:** Die Unsplash-Lizenz erlaubt kostenlose kommerzielle Nutzung und Bearbeitung, untersagt aber den Weitervertrieb als eigenstaendiges Bildangebot. Sie ist keine Open-Source-Lizenz und deckt das Foto separat vom uebrigen Werk ab.
+- **xbrl.de HGB-Taxonomie 6.9/6.10 (Auszug):** Abgeleiteter Auszug, bearbeitet: maschinell gekuerzt auf die Positionen der E-Bilanz einer GmbH oder UG und in die Anwendung eingebettet. Erzeugt mit `scripts/gen_ebilanz_taxonomy.py`; Hinweis und Lizenztext: `internal/ebilanz/taxonomy/NOTICE` und `internal/ebilanz/taxonomy/LICENSE-XBRL-Deutschland.txt`.
 
 ---
 
@@ -2109,4 +2111,63 @@ Der europäische Standard zur elektronischen Rechnungsstellung (EN 16931) wird v
 Das Abkommen zwischen EK und CEN besagt, dass im Rahmen der geistigen Eigentumsrechte (IPR) am Standard das semantische Datenmodell der Kernelemente einer elektronischen Rechnung (EN 16931-1:2017) und den zwei mandatorischen Syntaxen (CEN/TS 16931-2:2017) unentgeltlich über das Deutsche Institut für Normung (DIN) in ihrer Rolle als nationale Standardisierungsorganisation zu beziehen sind.
 Der Standard XRechnung ist eine Implementierung dieses Datenmodelles und der zwei mandatorischen Syntaxen und die Vervielfältigung ist durch die Genehmigung von CEN und DIN als Urheberrechtsträger gestattet.
 CEN und DIN übernehmen keine Garantie für den Inhalt und die Implementierung dieser Derivate und im Zweifelsfalle ist immer auf die offiziell autorisierten Dokumente des semantischen Datenmodells und der zwei mandatorischen Syntaxen zurückzugreifen, welche durch das DIN zur Verfügung gestellt werden.
+```
+
+### 42. `xbrl.de HGB-Taxonomie 6.9/6.10 (Auszug) internal/ebilanz/taxonomy/`
+
+```text
+XBRL Deutschland e.V.
+
+Disclaimer
+
+Inhaber aller Rechte an dieser Taxonomie und der Begleitdokumentation ist der Verein
+XBRL Deutschland e.V., Düsseldorf. Weitere Rechte, insbesondere an der Marke „XBRL“
+und an der technischen Spezifikation von XBRL, liegen bei XBRL International, Inc., New
+York, USA – zu Einzelheiten siehe http://www.xbrl.org/legal.
+
+XBRL Deutschland e.V. gestattet die freie Verwendung der Taxonomie und der
+Begleitdokumentation zu gewerblichen und nicht-gewerblichen Zwecken.
+
+Die Taxonomie und die Begleitdokumente dürfen kopiert und an Dritte weitergeben
+werden. Jede Kopie muss jedoch den Copyright-Vermerk aus dem Original enthalten.
+
+Die Taxonomie darf von Nutzern ergänzt, verkürzt oder in sonstiger Weise geändert
+werden, um deren speziellen Anforderungen zu dienen. Bearbeitete Versionen müssen,
+wenn sie an Dritte weitergegeben oder in irgendeiner Weise in Verkehr gebracht werden,
+als solche bezeichnet sein. Auch in bearbeiteten Versionen darf der Original-Copyright-
+Vermerk nicht entfernt werden.
+
+Als authentisch gilt im Zweifelsfall nur die Fassung der Taxonomie, die auf den Websites
+http://www.xbrl.de und http://www.xbrl.org hinterlegt ist.
+
+Die Bereitstellung der Taxonomie und der Begleitdokumentation sowie deren
+Herunterladen und Verwendung führt nicht zu einem Vertrag zwischen XBRL Deutschland
+e.V. und dem Nutzer. Insbesondere stellt die Bereitstellung der Taxonomie und der
+Begleitdokumentation kein Vertragsangebot von XBRL Deutschland e.V. dar. XBRL
+Deutschland e.V. weist darauf hin, dass die Taxonomie zur Verfügung gestellt wird, „wie
+sie ist“. Die Informationen wurden mit großer Sorgfalt durch fachkundige Personen
+erarbeitet. Dennoch können Fehler nicht ausgeschlossen werden. Bei der Fülle des
+Materials musste außerdem eine Auswahl der gängigsten und wichtigsten
+Informationselemente getroffen werden, was in Einzelfällen den Eindruck der
+Unvollständigkeit erwecken könnte. Generell ist zu berücksichtigen, dass die Taxonomie
+stets nur die fachliche und technische Situation zum Zeitpunkt ihrer Erstellung abbilden
+kann. Die Verwendung der Taxonomie erfolgt in eigener Verantwortung des jeweiligen
+Nutzers. Weder XBRL Deutschland e.V. noch die an der Entwicklung beteiligten
+Unternehmen, Institutionen und Personen übernehmen eine Verantwortung für
+Vollständigkeit, Richtigkeit und Gebrauchsfähigkeit der Taxonomie und der
+Begleitdokumentation.
+
+Demzufolge ist die Haftung von XBRL Deutschland e.V. und der an der Entwicklung
+beteiligten Unternehmen, Institutionen und Personen für Schäden, die sich aus dem
+Herunterladen und der Nutzung der Taxonomie und der Begleitdokumentation ergeben
+soweit rechtlich zulässig ausgeschlossen. Insbesondere ist die Haftung für etwaige direkte
+oder indirekte Schäden jeder Art, die aus dem Gebrauch der Taxonomie und der
+Begleitdokumentation erwachsen können, ausgeschlossen.
+
+
+
+
+ XBRL Deutschland e.V.                                                Mail: info@xbrl.de
+ Erna-Scheffler-Straße 2                                              Web: www.xbrl.de
+ 40476 Düsseldorf
 ```
