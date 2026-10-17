@@ -254,15 +254,19 @@ type BankCandidate struct {
 
 // BankFacts ist, was über eine beabsichtigte Zuordnung bekannt ist.
 type BankFacts struct {
-	Open       bool
-	Currency   string
+	Open     bool
+	Currency string
+	// Trusted: der Mensch hat den Auszug eingelesen, oder seine Salden sind
+	// geprüft (domain.BankTransaction.StatementChecked).
+	Trusted    bool
 	Requested  uint
 	Candidates []BankCandidate
 }
 
 // ClassifyBankMatch entscheidet, ob ein Bankumsatz ohne Rückfrage einem
-// offenen Posten zugeordnet werden darf: nur bei genau einem offenen Posten,
-// der im Betrag centgenau übereinstimmt und dessen Nummer im
+// offenen Posten zugeordnet werden darf: nur aus einem Auszug, den der Mensch
+// eingelesen hat oder dessen Salden geprüft sind, nur bei genau einem offenen
+// Posten, der im Betrag centgenau übereinstimmt und dessen Nummer im
 // Verwendungszweck steht, und nur diesem.
 func ClassifyBankMatch(f BankFacts) Verdict {
 	var r []Reason
@@ -272,6 +276,10 @@ func ClassifyBankMatch(f BankFacts) Verdict {
 	}
 	if !isEuro(f.Currency) {
 		add("fremdwaehrung", "Der Bankumsatz lautet nicht auf Euro.")
+	}
+	if !f.Trusted {
+		add("auszug_ungeprueft", "Den Kontoauszug hat ein Agent eingelesen, und seine Salden schließen nicht an den "+
+			"letzten geprüften Auszug des Kontos an.")
 	}
 	var matches []BankCandidate
 	for _, c := range f.Candidates {

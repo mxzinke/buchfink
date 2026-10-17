@@ -68,14 +68,78 @@ type camtEntry struct {
 		Transactions []camtDetail `xml:"TxDtls"`
 	} `xml:"NtryDtls"`
 }
+type camtBalance struct {
+	Type struct {
+		Code struct {
+			Code string `xml:"Cd"`
+		} `xml:"CdOrPrtry"`
+	} `xml:"Tp"`
+	Amount struct {
+		Value    string `xml:",chardata"`
+		Currency string `xml:"Ccy,attr"`
+	} `xml:"Amt"`
+	Direction string   `xml:"CdtDbtInd"`
+	Date      camtDate `xml:"Dt"`
+}
+
 type Document struct {
 	XMLName    xml.Name `xml:"Document"`
 	Statements struct {
 		Items []struct {
-			Account camtAccount `xml:"Acct"`
-			Entries []camtEntry `xml:"Ntry"`
+			Account  camtAccount   `xml:"Acct"`
+			Balances []camtBalance `xml:"Bal"`
+			Entries  []camtEntry   `xml:"Ntry"`
 		} `xml:"Stmt"`
 	} `xml:"BkToCstmrStmt"`
+}
+
+// Statement ist ein Auszug eines Kontos: seine Umsätze und, wenn die Bank sie
+// mitschickt, Anfangs- und Endsaldo.
+type Statement struct {
+	IBAN         string
+	Opening      *domain.Cents
+	OpeningDate  string
+	Closing      *domain.Cents
+	ClosingDate  string
+	Transactions []domain.BankTransaction
+}
+
+// Consistent meldet, ob beide Salden im Auszug stehen und die Umsätze genau
+// ihre Differenz ergeben.
+func (s Statement) Consistent() bool {
+	if s.Opening == nil || s.Closing == nil {
+		return false
+	}
+	sum := *s.Opening
+	for _, tx := range s.Transactions {
+		sum += tx.Amount
+	}
+	return sum == *s.Closing
+}
+
+// read liest einen Saldo; der Code sagt, welcher es ist.
+func (b camtBalance) read() (code string, amount domain.Cents, date string, ok bool) {
+	code = strings.TrimSpace(b.Type.Code.Code)
+	value := strings.TrimSpace(b.Amount.Value)
+	if !camtAmount.MatchString(value) {
+		return code, 0, "", false
+	}
+	cents, err := domain.ParseCents(value)
+	if err != nil {
+		return code, 0, "", false
+	}
+	switch b.Direction {
+	case "DBIT":
+		cents = -cents
+	case "CRDT":
+	default:
+		return code, 0, "", false
+	}
+	date, err = readCAMTDate(b.Date)
+	if err != nil {
+		return code, 0, "", false
+	}
+	return code, cents, date, true
 }
 
 var camtAmount = regexp.MustCompile(`^[0-9]+(?:\.[0-9]{1,2})?$`)
@@ -101,6 +165,20 @@ func readCAMTDate(d camtDate) (string, error) {
 // ParseCAMT053 preserves each statement's account. Unsupported collective
 // bookings are rejected in full instead of silently taking their last detail.
 func ParseCAMT053(r io.Reader) ([]domain.BankTransaction, error) {
+	statements, err := ParseCAMT053Statements(r)
+	if err != nil {
+		return nil, err
+	}
+	transactions := make([]domain.BankTransaction, 0)
+	for _, s := range statements {
+		transactions = append(transactions, s.Transactions...)
+	}
+	return transactions, nil
+}
+
+// ParseCAMT053Statements liest die Auszüge einer CAMT.053-Datei mit ihren
+// Salden.
+func ParseCAMT053Statements(r io.Reader) ([]Statement, error) {
 	var doc Document
 	dec := xml.NewDecoder(r)
 	if err := dec.Decode(&doc); err != nil {
@@ -128,12 +206,28 @@ func ParseCAMT053(r io.Reader) ([]domain.BankTransaction, error) {
 		}
 		return nil, fmt.Errorf("unerwarteter Inhalt nach dem Kontoauszug")
 	}
-	transactions := make([]domain.BankTransaction, 0)
+	statements := make([]Statement, 0, len(doc.Statements.Items))
 	for s, stmt := range doc.Statements.Items {
 		iban := strings.ToUpper(strings.Join(strings.Fields(stmt.Account.ID.IBAN), ""))
 		if iban == "" {
 			return nil, fmt.Errorf("Auszug %d: IBAN des Geschäftskontos fehlt", s+1)
 		}
+		statement := Statement{IBAN: iban}
+		for _, b := range stmt.Balances {
+			code, amount, date, ok := b.read()
+			if !ok {
+				continue
+			}
+			switch code {
+			case "OPBD", "PRCD":
+				if statement.Opening == nil {
+					statement.Opening, statement.OpeningDate = &amount, date
+				}
+			case "CLBD":
+				statement.Closing, statement.ClosingDate = &amount, date
+			}
+		}
+		transactions := make([]domain.BankTransaction, 0, len(stmt.Entries))
 		for i, e := range stmt.Entries {
 			prefix := fmt.Sprintf("Auszug %d, Umsatz %d", s+1, i+1)
 			if !camtAmount.MatchString(e.Amount.Value) {
@@ -198,6 +292,8 @@ func ParseCAMT053(r io.Reader) ([]domain.BankTransaction, error) {
 			}
 			transactions = append(transactions, tx)
 		}
+		statement.Transactions = transactions
+		statements = append(statements, statement)
 	}
-	return transactions, nil
+	return statements, nil
 }

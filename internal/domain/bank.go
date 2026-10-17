@@ -45,6 +45,16 @@ type BankTransaction struct {
 	// Buchfink daraus gelesen hat.
 	StatementReceiptID *uint `gorm:"index" json:"statementReceiptId,omitempty"`
 
+	// ImportChannel ist der Erfassungsweg, über den der Umsatz eingelesen
+	// wurde. StatementChecked: der Auszug hatte beide Salden, die Umsätze
+	// ergaben ihre Differenz, und der Anfangssaldo schloss an den letzten
+	// geprüften Auszug des Kontos an. Ein Agent ordnet einen Umsatz nur dann
+	// ohne Rückfrage zu, wenn der Mensch den Auszug eingelesen hat oder er
+	// geprüft ist: eine selbst geschriebene CAMT-Datei glich sonst
+	// Forderungen aus, ohne dass Geld kam.
+	ImportChannel    string `gorm:"size:64" json:"importChannel,omitempty"`
+	StatementChecked bool   `gorm:"not null;default:false" json:"statementChecked"`
+
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 

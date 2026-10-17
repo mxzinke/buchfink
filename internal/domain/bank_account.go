@@ -17,6 +17,11 @@ type BankAccount struct {
 	// IsInvoiceAccount markiert das Konto, dessen Verbindung auf Rechnungen
 	// steht. Höchstens ein Konto trägt die Markierung.
 	IsInvoiceAccount bool `gorm:"not null;default:false" json:"isInvoiceAccount"`
+	// ClosingBalance und ClosingDate sind der Endsaldo des letzten Auszugs,
+	// den der Mensch eingelesen hat oder der an den vorigen anschloss. An ihn
+	// muss der nächste Auszug anschließen.
+	ClosingBalance Cents  `gorm:"not null;default:0" json:"closingBalance"`
+	ClosingDate    string `gorm:"size:10" json:"closingDate,omitempty"`
 }
 
 type BankAccountRepository interface {

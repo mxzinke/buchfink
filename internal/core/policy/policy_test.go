@@ -89,7 +89,7 @@ func TestReceiptRules(t *testing.T) {
 }
 
 func TestBankRules(t *testing.T) {
-	base := BankFacts{Open: true, Currency: "EUR", Requested: 4, Candidates: []BankCandidate{{EntryID: 4, Reference: "RE-2026-0004"}}}
+	base := BankFacts{Open: true, Currency: "EUR", Trusted: true, Requested: 4, Candidates: []BankCandidate{{EntryID: 4, Reference: "RE-2026-0004"}}}
 	if v := ClassifyBankMatch(base); !v.Direct() {
 		t.Fatalf("exakter Treffer: %v", v.Keys())
 	}
@@ -100,6 +100,7 @@ func TestBankRules(t *testing.T) {
 	}{
 		{"zugeordnet", func(f *BankFacts) { f.Open = false }, "umsatz_nicht_offen"},
 		{"Dollar", func(f *BankFacts) { f.Currency = "USD" }, "fremdwaehrung"},
+		{"ungeprüfter Auszug", func(f *BankFacts) { f.Trusted = false }, "auszug_ungeprueft"},
 		{"ohne Nummer", func(f *BankFacts) { f.Candidates[0].Reference = "" }, "kein_exakter_treffer"},
 		{"kein Betrag", func(f *BankFacts) { f.Candidates = nil }, "kein_exakter_treffer"},
 		{"zwei", func(f *BankFacts) {

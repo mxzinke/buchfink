@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/actor"
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/einvoice"
@@ -381,41 +382,75 @@ func bookedTo(ctx context.Context, s *core.Services, r *domain.Receipt, contactI
 
 // ClassifyBankRequest sammelt die Fakten einer Zuordnung und urteilt.
 func ClassifyBankRequest(ctx context.Context, s *core.Services, bankTxID, entryID uint) (Verdict, error) {
-	f, err := BankFactsFor(ctx, s, bankTxID, entryID)
+	tx, err := s.Bank.Transaction(ctx, bankTxID)
 	if err != nil {
 		return Verdict{}, err
 	}
-	return ClassifyBankMatch(f), nil
+	b, err := NewBankClassifier(ctx, s)
+	if err != nil {
+		return Verdict{}, err
+	}
+	return b.Classify(ctx, tx, entryID), nil
 }
 
-// BankFactsFor sammelt die Fakten einer Zuordnung: alle offenen Posten mit
-// genau dem Betrag des Umsatzes in derselben Richtung und die Nummer, die
-// der Verwendungszweck von ihnen nennt.
-func BankFactsFor(ctx context.Context, s *core.Services, bankTxID, entryID uint) (BankFacts, error) {
-	f := BankFacts{Requested: entryID}
-	tx, err := s.Bank.Transaction(ctx, bankTxID)
-	if err != nil {
-		return f, err
-	}
-	f.Open = tx.MatchStatus == "" || tx.MatchStatus == domain.MatchStatusUnmatched
-	f.Currency = strings.ToUpper(strings.TrimSpace(tx.Currency))
+// BankClassifier stuft die Zuordnungen eines Aufrufs ein. Die offenen Posten
+// liest er einmal, nicht je Umsatz.
+type BankClassifier struct {
+	s       *core.Services
+	items   []domain.OpenItem
+	numbers map[uint]string
+}
+
+// NewBankClassifier liest die offenen Posten.
+func NewBankClassifier(ctx context.Context, s *core.Services) (*BankClassifier, error) {
 	items, err := s.Payments.OpenItems(ctx)
 	if err != nil {
-		return f, err
+		return nil, err
 	}
-	for _, item := range items {
+	return &BankClassifier{s: s, items: items, numbers: map[uint]string{}}, nil
+}
+
+// OpenItems sind die offenen Posten, die der Klassifizierer kennt.
+func (b *BankClassifier) OpenItems() []domain.OpenItem { return b.items }
+
+// Classify stuft die Zuordnung eines Umsatzes zu einem offenen Posten ein.
+func (b *BankClassifier) Classify(ctx context.Context, tx *domain.BankTransaction, entryID uint) Verdict {
+	return ClassifyBankMatch(b.Facts(ctx, tx, entryID))
+}
+
+// Facts sind die Fakten einer Zuordnung: alle offenen Posten mit genau dem
+// Betrag des Umsatzes in derselben Richtung und die Nummer, die der
+// Verwendungszweck von ihnen nennt.
+func (b *BankClassifier) Facts(ctx context.Context, tx *domain.BankTransaction, entryID uint) BankFacts {
+	f := BankFacts{Requested: entryID, Open: tx.MatchStatus == "" || tx.MatchStatus == domain.MatchStatusUnmatched,
+		Currency: strings.ToUpper(strings.TrimSpace(tx.Currency)),
+		Trusted:  !actor.Channel(tx.ImportChannel).IsAgent() || tx.StatementChecked}
+	for _, item := range b.items {
 		if !sameDirection(tx.Amount, item) || item.OpenAmount != tx.Amount.Abs() {
 			continue
 		}
 		numbers := []string{item.DocumentNumber, item.EntryNumber}
-		if invoiceNo := supplierInvoiceNumber(ctx, s, item); invoiceNo != "" {
+		if invoiceNo := b.supplierInvoiceNumber(ctx, item); invoiceNo != "" {
 			numbers = append(numbers, invoiceNo)
 		}
 		f.Candidates = append(f.Candidates, BankCandidate{
 			EntryID: item.EntryID, Reference: accounting.MatchedReference(tx.RemittanceInfo, numbers...),
 		})
 	}
-	return f, nil
+	return f
+}
+
+// BankFactsFor sammelt die Fakten einer Zuordnung.
+func BankFactsFor(ctx context.Context, s *core.Services, bankTxID, entryID uint) (BankFacts, error) {
+	tx, err := s.Bank.Transaction(ctx, bankTxID)
+	if err != nil {
+		return BankFacts{Requested: entryID}, err
+	}
+	b, err := NewBankClassifier(ctx, s)
+	if err != nil {
+		return BankFacts{Requested: entryID}, err
+	}
+	return b.Facts(ctx, tx, entryID), nil
 }
 
 // SameDirection meldet, ob ein Bankumsatz einen offenen Posten ausgleichen
@@ -434,20 +469,32 @@ func sameDirection(amount domain.Cents, item domain.OpenItem) bool {
 }
 
 // supplierInvoiceNumber ist die Rechnungsnummer des Lieferanten zu einem
-// offenen Posten aus einem Eingangsbeleg; sie steht im Betreff des Belegs.
-func supplierInvoiceNumber(ctx context.Context, s *core.Services, item domain.OpenItem) string {
+// offenen Posten aus einem Eingangsbeleg: aus der E-Rechnung, sonst aus dem
+// Betreff des Belegs.
+func (b *BankClassifier) supplierInvoiceNumber(ctx context.Context, item domain.OpenItem) string {
 	if item.ContactType != domain.ContactTypeVendor {
 		return ""
 	}
-	entry, err := s.Repos.Journal.FindByID(ctx, item.EntryID)
-	if err != nil || entry.ReceiptID == nil {
-		return ""
+	if n, ok := b.numbers[item.EntryID]; ok {
+		return n
 	}
-	receipt, err := s.Receipts.Get(ctx, *entry.ReceiptID)
-	if err != nil {
-		return ""
+	n := ""
+	if entry, err := b.s.Repos.Journal.FindByID(ctx, item.EntryID); err == nil && entry.ReceiptID != nil {
+		if receipt, err := b.s.Receipts.Get(ctx, *entry.ReceiptID); err == nil {
+			n = firstNonEmpty(receipt.EInvoiceNumber, receipt.Subject)
+		}
 	}
-	return receipt.Subject
+	b.numbers[item.EntryID] = n
+	return n
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func normalizeName(s string) string {

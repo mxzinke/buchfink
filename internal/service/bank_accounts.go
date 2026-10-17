@@ -101,9 +101,11 @@ func (s *BankService) ConfigureAccounts(ctx context.Context, accounts []domain.B
 			return err
 		}
 		byIBAN, byLedger := map[string]domain.BankAccount{}, map[string]string{}
+		stored := map[string]domain.BankAccount{}
 		for _, k := range known {
 			byIBAN[k.IBAN] = k
 			byLedger[k.LedgerAccount] = k.IBAN
+			stored[k.IBAN] = k
 		}
 		historical, err := s.bankRepo.FindAll(ctx, 0)
 		if err != nil {
@@ -162,6 +164,8 @@ func (s *BankService) ConfigureAccounts(ctx context.Context, accounts []domain.B
 			// Das Rechnungskonto wechselt nur über SetInvoiceAccount. Ein
 			// Importdialog, der die Markierung nicht kennt, nimmt sie nicht weg.
 			input.IsInvoiceAccount = byIBAN[input.IBAN].IsInvoiceAccount
+			// Der Anschluss der Auszüge ist kein Eingabefeld der Einrichtung.
+			input.ClosingBalance, input.ClosingDate = stored[input.IBAN].ClosingBalance, stored[input.IBAN].ClosingDate
 			if !hasInvoiceAccount {
 				input.IsInvoiceAccount, hasInvoiceAccount = true, true
 			}
