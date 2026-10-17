@@ -171,25 +171,6 @@ type Shareholder struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-// FoundationTask records that a Gründungspflicht was fulfilled — with the day it
-// happened.
-//
-// Die Steuerfristen der laufenden Buchhaltung hakt Buchfink im `localStorage` ab;
-// das ist eine Merkhilfe und darf eine sein. Eine Gründungspflicht ist etwas
-// anderes: dass der Fragebogen zur steuerlichen Erfassung am 12. Oktober
-// übermittelt wurde, ist eine Tatsache über das Unternehmen und gehört in die
-// Datenbank — mit Datum, nicht als Haken, und nicht in den Browserspeicher.
-type FoundationTask struct {
-	ID           uint   `gorm:"primaryKey" json:"id"`
-	FoundationID uint   `gorm:"index;not null" json:"foundationId"`
-	Key          string `gorm:"size:40;not null;index" json:"key"`
-	DoneOn       string `gorm:"size:10;not null" json:"doneOn"` // YYYY-MM-DD
-	Note         string `gorm:"size:500;serializer:encrypted" json:"note,omitempty"`
-	Status       string `gorm:"size:20" json:"status,omitempty"`
-
-	CreatedAt time.Time `json:"createdAt"`
-}
-
 // -------------------------------------------------------------
 // Ergebnisse der Rechnung
 // -------------------------------------------------------------
@@ -259,88 +240,6 @@ type ShareholderCheck struct {
 	IsSatisfied    bool             `json:"isSatisfied"`
 }
 
-// FoundationAnchor ist das Ereignis, aus dem die Frist einer Gründungspflicht
-// läuft.
-//
-// Nicht alles hängt an der Eintragung. Die Vorgesellschaft ist mit der späteren
-// GmbH dasselbe Rechtssubjekt — sie ist bereits buchführungspflichtig und
-// bereits Körperschaftsteuersubjekt. Der Fragebogen zur steuerlichen Erfassung
-// und die Eröffnungsbilanz laufen deshalb ab der Beurkundung, die Meldung an das
-// Transparenzregister erst ab der Eintragung. Ein einheitlicher Anker wäre für
-// die eine Hälfte der Pflichten zu früh und für die andere zu spät.
-type FoundationAnchor string
-
-const (
-	// AnchorBeurkundung ist der Tag der notariellen Beurkundung (§ 2 GmbHG).
-	AnchorBeurkundung FoundationAnchor = "beurkundung"
-	// AnchorEintragung ist der Tag der Eintragung ins Handelsregister.
-	AnchorEintragung FoundationAnchor = "eintragung"
-	// AnchorAbschlussstichtag ist das Ende des Geschäftsjahres.
-	AnchorAbschlussstichtag FoundationAnchor = "abschlussstichtag"
-)
-
-// Label benennt das Ereignis für die Oberfläche.
-func (a FoundationAnchor) Label() string {
-	switch a {
-	case AnchorEintragung:
-		return "die Eintragung ins Handelsregister"
-	case AnchorAbschlussstichtag:
-		return "den Abschlussstichtag"
-	default:
-		return "die Beurkundung"
-	}
-}
-
-// FoundationDuty is one obligation arising from the founding, with the day it is
-// due and whether it has been fulfilled.
-type FoundationDuty struct {
-	Key   string `json:"key"`
-	Title string `json:"title"`
-	// DueDate ist leer, wo das Gesetz keine Frist in Tagen nennt, sondern
-	// „unverzüglich" sagt. Dann hat Deadline den Wortlaut. Eine erfundene
-	// Tagesfrist wäre bequemer und falsch.
-	DueDate  string `json:"dueDate"`
-	Deadline string `json:"deadline"`
-	// Anchor ist das Ereignis, aus dem die Frist läuft.
-	Anchor FoundationAnchor `json:"anchor"`
-	// Order legt die Reihenfolge in der Checkliste fest.
-	Order int `json:"order"`
-	// Where ist der Ort, an dem die Pflicht erfüllt wird — beim Notar, über Mein
-	// ELSTER, bei der Gemeinde. Wer zum ersten Mal gründet, weiß das nicht, und
-	// es steht in keinem Paragrafen.
-	Where           string   `json:"where"`
-	ActionURL       string   `json:"actionUrl,omitempty"`
-	ActionLabel     string   `json:"actionLabel,omitempty"`
-	Condition       string   `json:"condition,omitempty"`
-	IsNotApplicable bool     `json:"isNotApplicable,omitempty"`
-	WaitingFor      string   `json:"waitingFor,omitempty"`
-	ExcludedBy      string   `json:"excludedBy,omitempty"`
-	DependsOn       []string `json:"dependsOn,omitempty"`
-	MissingFields   []string `json:"missingFields,omitempty"`
-
-	// Todo sind die Handgriffe, in der Reihenfolge, in der sie zu tun sind.
-	// Jeder ein Satz.
-	Todo []string `json:"todo"`
-	// Provides sagt, was Buchfink dafür bereitstellt — leer, wo es nichts
-	// beisteuern kann. Es ist der Unterschied zwischen einer Anleitung und einer
-	// Hilfe.
-	Provides string `json:"provides,omitempty"`
-	// IsPending sagt, dass dieses Ereignis noch nicht eingetreten ist. Die
-	// Pflicht steht dann schon in der Liste — der Gründer soll wissen, was noch
-	// kommt —, hat aber kein Datum und kann nicht überfällig sein.
-	IsPending   bool   `json:"isPending"`
-	Reference   string `json:"reference"`
-	Description string `json:"description"`
-	DoneOn      string `json:"doneOn"`
-	IsDone      bool   `json:"isDone"`
-	// Proof sind die abgelegten Nachweise zu dieser Pflicht — der
-	// Registerauszug, der Gewerbeschein, die Bestätigung des
-	// Transparenzregisters. Sie liegen in der Dokumentenablage des Unternehmens
-	// und sind hier nur verknüpft.
-	Proof        []Document `json:"proof,omitempty"`
-	AcceptsProof bool       `json:"acceptsProof"`
-}
-
 // FoundationRepository persists the Gründung of a tenant.
 type FoundationRepository interface {
 	// Get returns the Gründung including shareholders, or nil when the tenant is
@@ -348,10 +247,4 @@ type FoundationRepository interface {
 	Get(ctx context.Context) (*Foundation, error)
 	// Save writes the Gründung and replaces its shareholder list.
 	Save(ctx context.Context, f *Foundation) error
-	Tasks(ctx context.Context, foundationID uint) ([]FoundationTask, error)
-	// CompleteTask records a fulfilled duty, replacing an earlier record of the
-	// same key.
-	CompleteTask(ctx context.Context, task *FoundationTask) error
-	// ClearTask takes a duty back to open.
-	ClearTask(ctx context.Context, foundationID uint, key string) error
 }

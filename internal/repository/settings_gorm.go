@@ -49,7 +49,6 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 	}
 
 	settings := &domain.CompanySettings{
-		Employees:            "unknown",
 		CountryCode:          domain.DefaultCountryCode,
 		FiscalYearStartMonth: 1,
 		Currency:             "EUR",
@@ -76,8 +75,6 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 
 	for _, it := range items {
 		switch it.Key {
-		case "employees":
-			settings.Employees = it.Value
 		case "managing_directors":
 			settings.ManagingDirectors = it.Value
 		case "supervisory_board_chair":
@@ -201,7 +198,7 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 
 // applyInvoiceAccount setzt die Zahlungsverbindung aus dem Bankkonto, das als
 // Konto für Rechnungen markiert ist. Wie InGruendung beim Lesen gesetzt, weil
-// Rechnung, E-Rechnung, Mahnschreiben und Fragebogen sie hier lesen. Ein
+// Rechnung, E-Rechnung und Mahnschreiben sie hier lesen. Ein
 // Lesefehler lässt die Verbindung leer: eine Rechnung ohne Zahlungsanweisung
 // ist gültig, eine mit falscher nicht.
 func (r *settingsRepositoryGorm) applyInvoiceAccount(ctx context.Context, settings *domain.CompanySettings) {
@@ -268,14 +265,6 @@ func receiptFormatOrDefault(format string) (string, error) {
 }
 
 func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *domain.CompanySettings) error {
-	employees := s.Employees
-	if employees == "" {
-		employees = "unknown"
-	}
-	if employees != "unknown" && employees != "none" && employees != "yes" {
-		return fmt.Errorf("ungültige Angabe zur Beschäftigung")
-	}
-
 	if err := s.ValidateProfile(); err != nil {
 		return err
 	}
@@ -331,7 +320,6 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 	}
 
 	kv := map[string]string{
-		"employees":               employees,
 		"managing_directors":      s.ManagingDirectors,
 		"supervisory_board_chair": s.SupervisoryBoardChair,
 		"seller_identifier":       s.SellerIdentifier,

@@ -27,8 +27,7 @@ const (
 	// KindZ3 ist die reine Datenüberlassung: Tabellen, Beschreibungsdatei,
 	// Feldbeschreibung.
 	KindZ3 Kind = "z3"
-	// KindArchive ist die Datenüberlassung samt Belegdateien und
-	// Anlagendokumenten.
+	// KindArchive ist die Datenüberlassung samt Belegdateien.
 	KindArchive Kind = "archive"
 	// KindAuditPackage ist das Prüferpaket: Archiv plus Integritätsnachweis und
 	// Verfahrensdokumentation.
@@ -76,9 +75,8 @@ type Result struct {
 	Tables []TableInfo `json:"tables"`
 	Files  []FileInfo  `json:"files"`
 
-	// ReceiptFiles und DocumentFiles zählen die mitgegebenen Originaldateien.
-	ReceiptFiles  int `json:"receiptFiles"`
-	DocumentFiles int `json:"documentFiles"`
+	// ReceiptFiles zählt die mitgegebenen Belegdateien.
+	ReceiptFiles int `json:"receiptFiles"`
 
 	// Notes sind Hinweise, die der Export nicht selbst beheben kann — eine
 	// fehlende Verfahrensdokumentation etwa. Sie stehen im Ergebnis und nicht
@@ -230,9 +228,8 @@ func (b *Builder) CopyFile(relPath, sourcePath string) (string, error) {
 	return sum, nil
 }
 
-// CountReceiptFile und CountDocumentFile zählen die mitgegebenen Originale.
-func (b *Builder) CountReceiptFile()  { b.result.ReceiptFiles++ }
-func (b *Builder) CountDocumentFile() { b.result.DocumentFiles++ }
+// CountReceiptFile zählt die mitgegebenen Belegdateien.
+func (b *Builder) CountReceiptFile() { b.result.ReceiptFiles++ }
 
 // Finish schreibt die Metadatei und liefert das Ergebnis.
 //

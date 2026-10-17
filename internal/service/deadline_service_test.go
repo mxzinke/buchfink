@@ -360,7 +360,6 @@ func TestMarkDoneOnlyAcceptsManualDeadlines(t *testing.T) {
 		"zm.2026-Q1",
 		"festschreibung.2026-01",
 		"abschluss.aufstellung",
-		"gruendung.handelsregister",
 	}
 	for _, key := range derived {
 		if err := svc.MarkDone(ctx, key, "2026-05-04"); err == nil {
@@ -377,92 +376,5 @@ func TestMarkDoneOnlyAcceptsManualDeadlines(t *testing.T) {
 		if err := svc.MarkDone(ctx, key, "2026-05-04"); err != nil {
 			t.Errorf("der Termin %q muss sich abhaken lassen: %v", key, err)
 		}
-	}
-}
-
-// Auch Pflichten ohne genaues Fälligkeitsdatum erscheinen in der Fristenliste.
-func TestFoundationDeadlinesIncludeDutiesWithoutADayLimit(t *testing.T) {
-	env := newTestEnv(t)
-	svc := env.deadlines(t)
-	foundations := env.foundations(t)
-	svc.SetFoundationSource(foundations)
-	ctx := context.Background()
-
-	f := gmbhFoundation()
-	f.NotarizedOn = "2026-03-15"
-	env.saveFoundation(t, foundations, f)
-
-	list, err := svc.Deadlines(ctx, 2026)
-	if err != nil {
-		t.Fatalf("Fristen: %v", err)
-	}
-
-	for _, key := range []string{"gewerbeanmeldung", "unfallversicherung"} {
-		duty, ok := deadlineByKey(list, "gruendung."+key)
-		if !ok || duty.DueDate != "" || duty.WaitingFor != "" {
-			t.Errorf("%s ist ohne Eintragung und ohne berechnetes Datum verfügbar: %+v", key, duty)
-		}
-	}
-	for _, key := range []string{"handelsregister", "offenlegung", "ruecklage"} {
-		if _, ok := deadlineByKey(list, "gruendung."+key); ok {
-			t.Errorf("%s gehört nicht in die Gründungscheckliste", key)
-		}
-	}
-
-	transparenz, ok := deadlineByKey(list, "gruendung.transparenzregister")
-	if !ok {
-		t.Fatal("die Meldung an das Transparenzregister fehlt in der Fristenliste")
-	}
-	if transparenz.WaitingFor == "" {
-		t.Error("vor der Eintragung wartet die Meldung an das Transparenzregister auf sie")
-	}
-	if transparenz.DueDate != "" {
-		t.Errorf("die Meldung hat das Datum %q; § 20 GwG nennt keine Tagesfrist", transparenz.DueDate)
-	}
-}
-
-// Die Eintragung gibt die davon abhängigen Aufgaben frei.
-func TestFoundationDeadlinesUnlockAfterRegistration(t *testing.T) {
-	env := newTestEnv(t)
-	svc := env.deadlines(t)
-	foundations := env.foundations(t)
-	svc.SetFoundationSource(foundations)
-	ctx := context.Background()
-
-	f := gmbhFoundation()
-	f.NotarizedOn = "2026-03-15"
-	env.saveFoundation(t, foundations, f)
-
-	env.completeFoundationMasterData(t)
-	if err := foundations.SetDutyStatus(ctx, "stammdaten", "done"); err != nil {
-		t.Fatal(err)
-	}
-
-	before, err := svc.Deadlines(ctx, 2026)
-	if err != nil {
-		t.Fatalf("Fristen: %v", err)
-	}
-	briefe, ok := deadlineByKey(before, "gruendung.geschaeftsbriefe")
-	if !ok || briefe.WaitingFor == "" || briefe.DueDate != "" {
-		t.Fatalf("vor der Eintragung wartet die Aufgabe zu Geschäftsbriefen ohne Datum, erhalten %+v", briefe)
-	}
-
-	if _, err := foundations.Register(ctx, "2026-05-04", "Amtsgericht München", "HRB 123456"); err != nil {
-		t.Fatalf("Eintragung: %v", err)
-	}
-
-	after, err := svc.Deadlines(ctx, 2026)
-	if err != nil {
-		t.Fatalf("Fristen nach der Eintragung: %v", err)
-	}
-	briefe, ok = deadlineByKey(after, "gruendung.geschaeftsbriefe")
-	if !ok {
-		t.Fatal("die Aufgabe zu Geschäftsbriefen fehlt nach der Eintragung")
-	}
-	if briefe.WaitingFor != "" {
-		t.Errorf("die Aufgabe zu Geschäftsbriefen wartet noch auf %q", briefe.WaitingFor)
-	}
-	if briefe.DueDate != "" {
-		t.Errorf("Geschäftsbriefe haben eine erfundene Tagesfrist: %q", briefe.DueDate)
 	}
 }

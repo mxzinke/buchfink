@@ -9,14 +9,13 @@ import (
 // Der Altbestand bekommt seine Aufbewahrungsfrist nachgetragen.
 //
 // Klasse und Löschdatum werden seit Welle 6 beim Ablegen gespeichert. Belege
-// und Anlagendokumente aus der Zeit davor hätten ohne diesen Lauf leere
-// Fristen, obwohl beide aus Belegart und Entstehungsjahr genauso zu rechnen
-// sind wie bei jedem neuen Objekt — und der Bericht über abgelaufene Objekte,
-// der über die Löschung entscheidet, sähe sie überhaupt nicht.
+// aus der Zeit davor hätten ohne diesen Lauf leere Fristen, obwohl sie aus
+// Belegart und Entstehungsjahr genauso zu rechnen sind wie bei jedem neuen
+// Beleg.
 func TestBackfillFillsRetentionOfLegacyObjects(t *testing.T) {
 	db := welle6DB(t)
 
-	// Zwei Belege und ein Anlagendokument, wie sie vor Welle 6 entstanden sind:
+	// Zwei Belege, wie sie vor Welle 6 entstanden sind:
 	// ohne Klasse und ohne Fristende. Geschrieben wird über die Spalten, weil
 	// genau dieser Zustand nachgestellt werden soll.
 	legacy := []domain.Receipt{
@@ -42,15 +41,6 @@ func TestBackfillFillsRetentionOfLegacyObjects(t *testing.T) {
 			t.Fatalf("Altzustand herstellen: %v", err)
 		}
 	}
-	document := domain.AssetDocument{
-		AssetID: 1, Kind: domain.AssetDocContract, FileName: "vertrag.pdf",
-		MimeType: "application/pdf", Size: 12, SHA256: "c", StoredPath: "dokumente/c",
-		DocumentDate: "2026-01-10",
-	}
-	if err := db.Create(&document).Error; err != nil {
-		t.Fatalf("Altdokument anlegen: %v", err)
-	}
-
 	if err := BackfillRetention(db); err != nil {
 		t.Fatalf("der Nachtrag ist fehlgeschlagen: %v", err)
 	}
@@ -74,15 +64,6 @@ func TestBackfillFillsRetentionOfLegacyObjects(t *testing.T) {
 	}
 	if second.RetentionUntil != "2032-12-31" {
 		t.Errorf("Beleg 2024: Fristende %q, erwartet 2032-12-31", second.RetentionUntil)
-	}
-
-	var stored domain.AssetDocument
-	if err := db.First(&stored, document.ID).Error; err != nil {
-		t.Fatalf("Dokument lesen: %v", err)
-	}
-	if stored.RetentionClass != domain.RetentionClassBooks || stored.RetentionUntil != "2036-12-31" {
-		t.Errorf("Anlagendokument: Klasse %q bis %q, erwartet %q bis 2036-12-31 (Organisationsunterlage)",
-			stored.RetentionClass, stored.RetentionUntil, domain.RetentionClassBooks)
 	}
 
 	// Ein zweiter Lauf lässt die gesetzten Fristen unangetastet: er sucht nur

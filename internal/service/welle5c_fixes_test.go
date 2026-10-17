@@ -561,7 +561,7 @@ func TestSupplyEvidenceReportUsesTheStoredTransportKind(t *testing.T) {
 }
 
 // -------------------------------------------------------------------------
-// Gebäudestichtag, Erhaltungsaufwand und Nutzungsdauer
+// Gebäudestichtag und Nutzungsdauer
 // -------------------------------------------------------------------------
 
 // Ohne Stichtag gibt es keinen Gebäudesatz. Der frühere Rückfall auf das
@@ -604,93 +604,6 @@ func TestBuildingNeedsItsReferenceDate(t *testing.T) {
 	if len(detail.Schedule) == 0 || detail.Schedule[0].Amount != 916_667 {
 		t.Errorf("AfA des Anschaffungsjahres %+v — erwartet 2 %% zeitanteilig (9.166,67 €), "+
 			"nicht 3 %%", detail.Schedule)
-	}
-}
-
-// Die 15-%-Prüfung kommt mit der Buchung zurück und nicht nur ins Protokoll.
-// Wer bucht, liest kein Protokoll.
-func TestMaintenanceReturnsTheNearAcquisitionCheck(t *testing.T) {
-	env := newTestEnv(t)
-	ctx := context.Background()
-	svc := env.assets(t)
-	vendor := env.vendor(t, "Bau GmbH", "DE", "")
-	building := env.building(t, svc)
-
-	first, err := svc.BookMaintenance(ctx, MaintenanceRequest{
-		AssetID: building.ID, Date: "2026-06-01", Amount: 2_000_000,
-		TaxTreatment: domain.TaxTreatmentDomestic, TaxRate: domain.TaxRateStandard,
-		Settlement: SettlementOpen, ContactID: vendor.ID,
-		Note: "Dachsanierung, Wiederherstellung des ursprünglichen Zustands",
-	})
-	if err != nil {
-		t.Fatalf("erster Erhaltungsaufwand: %v", err)
-	}
-	if first.NearAcquisition == nil || !first.NearAcquisition.Applicable {
-		t.Fatalf("die Prüfung gehört ins Ergebnis: %+v", first.NearAcquisition)
-	}
-	if first.NearAcquisition.Exceeded {
-		t.Errorf("20.000 € bleiben unter dem Rahmen von 30.000 €: %s", first.NearAcquisition.Note)
-	}
-
-	second, err := svc.BookMaintenance(ctx, MaintenanceRequest{
-		AssetID: building.ID, Date: "2027-03-01", Amount: 1_200_000,
-		TaxTreatment: domain.TaxTreatmentDomestic, TaxRate: domain.TaxRateStandard,
-		Settlement: SettlementOpen, ContactID: vendor.ID,
-		Note: "Innenausbau, Instandsetzung",
-	})
-	if err != nil {
-		t.Fatalf("zweiter Erhaltungsaufwand: %v", err)
-	}
-	if second.NearAcquisition == nil || !second.NearAcquisition.Exceeded {
-		t.Fatalf("mit 32.000 € ist der Rahmen gerissen: %+v", second.NearAcquisition)
-	}
-
-	// Und der Vorschlag lässt sich ausführen: die Aufwandsbuchungen werden auf
-	// das Gebäudekonto umgebucht.
-	updated, err := svc.CapitalizeNearAcquisitionCost(ctx, CapitalizeNearAcquisitionCostRequest{
-		AssetID: building.ID, Date: "2027-03-31",
-		Reason: "Instandsetzung übersteigt 15 % der Anschaffungskosten (§ 6 Abs. 1 Nr. 1a EStG)",
-	})
-	if err != nil {
-		t.Fatalf("Aktivierung: %v", err)
-	}
-	_ = updated
-	// Die Anschaffungskosten sind fortgeschrieben — sichtbar mit Blick auf das
-	// Jahr der Umbuchung, denn die Kartei rechnet je Geschäftsjahr.
-	svc.SetFiscalYear(2027)
-	detail, err := svc.Get(ctx, building.ID)
-	if err != nil {
-		t.Fatalf("Detailansicht: %v", err)
-	}
-	if detail.Asset.Cost != 20_000_000+3_200_000 {
-		t.Errorf("Anschaffungskosten %s € — erwartet 200.000 € zuzüglich 32.000 €",
-			detail.Asset.Cost)
-	}
-	svc.SetFiscalYear(2026)
-
-	entries, err := env.journalRepo.FindAll(ctx, 2027)
-	if err != nil {
-		t.Fatalf("Journal: %v", err)
-	}
-	var booking *domain.JournalEntry
-	for i := range entries {
-		if strings.Contains(entries[i].Description, "Anschaffungsnahe Herstellungskosten") {
-			booking = &entries[i]
-		}
-	}
-	if booking == nil {
-		t.Fatalf("die Umbuchung steht nicht im Journal")
-	}
-	if got := debitOn(booking, "0240"); got != 3_200_000 {
-		t.Errorf("SOLL Gebäude %s € — erwartet 32.000,00 €", got)
-	}
-
-	// Ein zweiter Lauf findet nichts mehr: die Bewegungen zählen nicht mehr
-	// gegen den Rahmen.
-	if _, err := svc.CapitalizeNearAcquisitionCost(ctx, CapitalizeNearAcquisitionCostRequest{
-		AssetID: building.ID, Reason: "Wiederholung",
-	}); err == nil {
-		t.Error("derselbe Aufwand darf nicht zweimal aktiviert werden")
 	}
 }
 

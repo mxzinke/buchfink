@@ -181,12 +181,9 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.FiscalYear{},
 		&domain.FixedAsset{},
 		&domain.AssetMovement{},
-		&domain.AssetDocument{},
-		&domain.Document{},
 		&domain.Foundation{},
 		&domain.Shareholder{},
 		&domain.CompanyShareholder{},
-		&domain.FoundationTask{},
 		&domain.VatReturn{},
 		&domain.ZMReturn{},
 		&domain.ZMLine{},
@@ -222,10 +219,8 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.VatIDCheck{},
 		&domain.SupplyEvidence{},
 		&domain.VatExchangeRate{},
-		// Welle 6: die Nachweise. Die Aussetzung der Aufbewahrungsfrist und die
-		// beiden Protokolle stehen am Ende — sie verweisen auf nichts und
-		// nichts verweist auf sie.
-		&domain.RetentionHold{},
+		// Welle 6: die Nachweise. Die beiden Protokolle stehen am Ende — sie
+		// verweisen auf nichts und nichts verweist auf sie.
 		&domain.SchemaMigration{},
 		&domain.MigrationRecord{},
 		&domain.ProcedureDocumentation{},
@@ -349,15 +344,13 @@ func BackfillReceiptKinds(db *gorm.DB) error {
 		Update("kind", domain.ReceiptKindInvoice).Error
 }
 
-// BackfillRetention trägt Aufbewahrungsklasse und Fristende an Belegen und
-// Anlagendokumenten nach, die vor Welle 6 abgelegt wurden.
+// BackfillRetention trägt Aufbewahrungsklasse und Fristende an Belegen nach,
+// die vor Welle 6 abgelegt wurden.
 //
 // Ohne den Lauf stünden in der Belegliste für den ganzen Altbestand leere
 // Fristen, obwohl sie aus Belegart und Entstehungsjahr genauso zu rechnen sind
-// wie bei jedem neu abgelegten Beleg — und der Bericht über abgelaufene
-// Objekte, der über die Löschung entscheidet, sähe die alten Belege überhaupt
-// nicht. Ein leeres Feld hieße dort „keine Frist", und das ist die falsche
-// Auskunft.
+// wie bei jedem neu abgelegten Beleg. Ein leeres Feld hieße dort „keine
+// Frist", und das ist die falsche Auskunft.
 //
 // Gelesen wird über eine schmale Auswahl und nicht über den Datensatz: die
 // Belegtabelle hat verschlüsselte Spalten (Aussteller, Betreff, Dateipfade),
@@ -385,33 +378,6 @@ func BackfillRetention(db *gorm.DB) error {
 			continue
 		}
 		if err := db.Model(&domain.Receipt{}).Where("id = ?", row.ID).
-			Updates(map[string]any{
-				"retention_class": info.Class,
-				"retention_until": info.RetentionEnd,
-			}).Error; err != nil {
-			return err
-		}
-	}
-
-	type documentRow struct {
-		ID           uint
-		DocumentDate string
-		CreatedAt    time.Time
-	}
-	var documents []documentRow
-	if err := db.Model(&domain.AssetDocument{}).
-		Select("id", "document_date", "created_at").
-		Where("retention_class IS NULL OR retention_class = ''").
-		Scan(&documents).Error; err != nil {
-		return err
-	}
-	for _, row := range documents {
-		info := accounting.RetentionFor(domain.RetentionKindAssetDocument,
-			retentionOriginYear(row.DocumentDate, row.CreatedAt.Year()))
-		if info.Class == domain.RetentionClassNone {
-			continue
-		}
-		if err := db.Model(&domain.AssetDocument{}).Where("id = ?", row.ID).
 			Updates(map[string]any{
 				"retention_class": info.Class,
 				"retention_until": info.RetentionEnd,

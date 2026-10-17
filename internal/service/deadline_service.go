@@ -30,8 +30,7 @@ type DeadlineService struct {
 	deadlineRepo       domain.DeadlineRepository
 	auditRepo          domain.AuditRepository
 
-	statements  StatementDeadlineSource
-	foundations FoundationDeadlineSource
+	statements StatementDeadlineSource
 	// exemptions liefert die ablaufenden Freistellungsbescheinigungen nach
 	// § 48b EStG. Sie sind Termine wie jeder andere: eine abgelaufene
 	// Bescheinigung fällt sonst erst auf, wenn die Haftung nach § 48 EStG schon
@@ -45,11 +44,6 @@ type DeadlineService struct {
 // StatementDeadlineSource liefert die Termine des Jahresabschlusses aus Welle 2.
 type StatementDeadlineSource interface {
 	Deadlines(ctx context.Context, year int) ([]domain.Deadline, error)
-}
-
-// FoundationDeadlineSource liefert die Pflichten aus der Gründung.
-type FoundationDeadlineSource interface {
-	GetState(ctx context.Context) (*FoundationState, error)
 }
 
 // ExemptionDeadlineSource liefert die ablaufenden Freistellungsbescheinigungen.
@@ -82,9 +76,6 @@ func NewDeadlineService(
 // SetStatementSource wires the Abschlusstermine.
 func (s *DeadlineService) SetStatementSource(src StatementDeadlineSource) { s.statements = src }
 
-// SetFoundationSource wires the Gründungspflichten.
-func (s *DeadlineService) SetFoundationSource(src FoundationDeadlineSource) { s.foundations = src }
-
 // SetExemptionSource wires die Freistellungsbescheinigungen.
 func (s *DeadlineService) SetExemptionSource(src ExemptionDeadlineSource) { s.exemptions = src }
 
@@ -101,7 +92,6 @@ const (
 	DeadlineKeyPrepayment = "sondervorauszahlung"
 	DeadlineKeyCommit     = "festschreibung"
 	DeadlineKeyAnnualVat  = "ust.jahreserklaerung"
-	DeadlineKeyFoundation = "gruendung"
 	DeadlineKeyExemption  = "freistellungsbescheinigung"
 )
 
@@ -128,9 +118,6 @@ func (s *DeadlineService) Deadlines(ctx context.Context, year int) ([]domain.Dea
 		if statementDeadlines, err := s.statements.Deadlines(ctx, year); err == nil {
 			out = append(out, statementDeadlines...)
 		}
-	}
-	if s.foundations != nil {
-		out = append(out, s.foundationDeadlines(ctx, year)...)
 	}
 	out = append(out, s.exemptionDeadlines(ctx, year)...)
 
@@ -164,8 +151,7 @@ func (s *DeadlineService) Deadlines(ctx context.Context, year int) ([]domain.Dea
 //
 // Bei allen anderen steht die Erledigung im Bestand: die übermittelte
 // Voranmeldung, die abgegebene Zusammenfassende Meldung, die Festschreibung des
-// Zeitraums, die Gründungspflicht mit ihrem Nachweis, die aufgestellte und die
-// offengelegte Bilanz. Ein Haken daneben wäre eine Selbstauskunft gegen den
+// Zeitraums, die aufgestellte und die offengelegte Bilanz. Ein Haken daneben wäre eine Selbstauskunft gegen den
 // eigenen Bestand — die Fristenliste ließe ihn ohnehin nicht durch (Deadlines
 // übernimmt den Haken nur an einem Termin, den die Daten als offen ausweisen),
 // und das Abhaken einer solchen Frist wäre damit eine Handlung ohne Wirkung.
@@ -413,36 +399,6 @@ func (s *DeadlineService) annualVatDeadline(year int) []domain.Deadline {
 		Description: "Die Jahreserklärung entsteht außerhalb von Buchfink. Sie ist deshalb der einzige " +
 			"Termin hier, der von Hand abgehakt wird.",
 	}}
-}
-
-func (s *DeadlineService) foundationDeadlines(ctx context.Context, year int) []domain.Deadline {
-	state, err := s.foundations.GetState(ctx)
-	if err != nil || state == nil || !state.HasFoundation {
-		return nil
-	}
-	out := make([]domain.Deadline, 0, len(state.Duties))
-	for _, duty := range state.Duties {
-		if duty.IsNotApplicable {
-			continue
-		}
-		waiting := duty.WaitingFor
-		if duty.IsPending && waiting == "" {
-			waiting = duty.Anchor.Label()
-		}
-		out = append(out, domain.Deadline{
-			Key:         fmt.Sprintf("%s.%s", DeadlineKeyFoundation, duty.Key),
-			Title:       duty.Title,
-			DueDate:     duty.DueDate,
-			Period:      duty.Deadline,
-			Reference:   duty.Reference,
-			Description: duty.Description,
-			FiscalYear:  year,
-			IsDone:      duty.IsDone,
-			DoneOn:      duty.DoneOn,
-			WaitingFor:  waiting,
-		})
-	}
-	return out
 }
 
 // periodType ist der Voranmeldungszeitraum des Mandanten. Gefragt wird der

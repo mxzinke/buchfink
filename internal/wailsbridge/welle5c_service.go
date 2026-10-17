@@ -420,39 +420,6 @@ func (b *BuchfinkBridge) GetPoolConsistencyReport(year int) (*service.PoolConsis
 	return b.assetSvc.PoolConsistency(context.Background(), year)
 }
 
-// CheckNearAcquisitionCost prüft den 15-%-Rahmen des § 6 Abs. 1 Nr. 1a EStG für
-// eine geplante Instandsetzung.
-func (b *BuchfinkBridge) CheckNearAcquisitionCost(
-	assetID uint, date string, amount domain.Cents,
-) (*service.NearAcquisitionCheck, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.assetSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.assetSvc.CheckNearAcquisitionCost(context.Background(), assetID, date, amount)
-}
-
-// CapitalizeNearAcquisitionCost bucht den Erhaltungsaufwand der ersten drei
-// Jahre als nachträgliche Herstellungskosten auf das Gebäudekonto um.
-//
-// Der Vorschlag, den CheckNearAcquisitionCost macht, wird hier ausgeführt: eine
-// Umbuchung SOLL Gebäude an HABEN Aufwandskonto samt Fortschreibung der
-// Anschaffungskosten in der Kartei.
-func (b *BuchfinkBridge) CapitalizeNearAcquisitionCost(
-	req service.CapitalizeNearAcquisitionCostRequest,
-) (*domain.FixedAsset, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.assetSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.assetSvc.CapitalizeNearAcquisitionCost(context.Background(), req)
-}
-
 // GetExemptionCertificateWarnings liefert die Freistellungsbescheinigungen nach
 // § 48b EStG, die in den nächsten 30 Tagen ablaufen oder abgelaufen sind.
 //

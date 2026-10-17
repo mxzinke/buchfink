@@ -325,13 +325,6 @@ func TestRegisterEndsTheVorgesellschaft(t *testing.T) {
 		t.Errorf("Haftung %s €, erwartet 3.000,00 — die Miete vom März zählt nicht mehr mit", u.Amount)
 	}
 
-	// Der Gründungshelfer beginnt nach der Anmeldung zum Handelsregister.
-	for _, d := range state.Duties {
-		if d.Key == "handelsregister" {
-			t.Error("die bereits vorausgesetzte Anmeldung erscheint in der Checkliste")
-		}
-	}
-
 	if _, err := svc.Register(context.Background(), "2026-03-01", "AG München", "HRB 2"); err == nil {
 		t.Error("eine zweite Eintragung muss abgelehnt werden")
 	}
@@ -491,64 +484,6 @@ func TestPostingsSkipSacheinlage(t *testing.T) {
 	// Zeichnung plus die eine Bareinlage.
 	if len(preview.Postings) != 2 {
 		t.Errorf("%d Buchungsvorschläge, erwartet 2", len(preview.Postings))
-	}
-}
-
-func TestCompleteDutyIsPersistedWithItsDate(t *testing.T) {
-	env := newTestEnv(t)
-	svc := env.foundations(t)
-	env.saveFoundation(t, svc, gmbhFoundation())
-
-	if err := svc.CompleteDuty(context.Background(), "fragebogen", "2026-02-01", "über Mein ELSTER"); err != nil {
-		t.Fatalf("CompleteDuty: %v", err)
-	}
-	state, err := svc.GetState(context.Background())
-	if err != nil {
-		t.Fatalf("GetState: %v", err)
-	}
-	found := false
-	for _, d := range state.Duties {
-		if d.Key == "fragebogen" {
-			found = true
-			if !d.IsDone || d.DoneOn != "2026-02-01" {
-				t.Errorf("der Fragebogen steht als %v am %q", d.IsDone, d.DoneOn)
-			}
-		}
-	}
-	if !found {
-		t.Fatal("der Fragebogen fehlt in der Fristenliste")
-	}
-
-	// Ein zweites Erledigen mit anderem Datum ersetzt das erste, statt eine
-	// zweite Antwort daneben zu legen.
-	if err := svc.CompleteDuty(context.Background(), "fragebogen", "2026-02-05", ""); err != nil {
-		t.Fatalf("CompleteDuty erneut: %v", err)
-	}
-	tasks, err := repository.NewFoundationRepository(env.db).Tasks(context.Background(), 1)
-	if err != nil {
-		t.Fatalf("Tasks: %v", err)
-	}
-	count := 0
-	for _, task := range tasks {
-		if task.Key == "fragebogen" {
-			count++
-			if task.DoneOn != "2026-02-05" {
-				t.Errorf("Datum %q, erwartet 2026-02-05", task.DoneOn)
-			}
-		}
-	}
-	if count != 1 {
-		t.Errorf("%d Einträge zum Fragebogen, erwartet 1", count)
-	}
-
-	if err := svc.CompleteDuty(context.Background(), "fragebogen", "", ""); err != nil {
-		t.Fatalf("CompleteDuty zurücknehmen: %v", err)
-	}
-	state, _ = svc.GetState(context.Background())
-	for _, d := range state.Duties {
-		if d.Key == "fragebogen" && d.IsDone {
-			t.Error("der zurückgenommene Fragebogen steht weiter als erledigt")
-		}
 	}
 }
 

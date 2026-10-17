@@ -66,7 +66,6 @@ type BuchfinkBridge struct {
 	receiptRepo        domain.ReceiptRepository
 	assetRepo          domain.AssetRepository
 	auditRepo          domain.AuditRepository
-	retentionRepo      domain.RetentionRepository
 	migrationRepo      domain.MigrationRepository
 	procDocRepo        domain.ProcedureDocumentationRepository
 	settingsRepo       domain.SettingsRepository
@@ -113,13 +112,10 @@ type BuchfinkBridge struct {
 	ebilanzSvc         *service.EBilanzService
 	assetSvc           *service.AssetService
 	auditSvc           *service.AuditService
-	retentionSvc       *service.RetentionService
 	procDocSvc         *service.ProcDocService
 	settingsSvc        *service.SettingsService
 	currencySvc        *service.CurrencyService
 	foundationSvc      *service.FoundationService
-	documentSvc        *service.DocumentService
-	documentRepo       domain.DocumentRepository
 	closingSvc         *service.ClosingService
 	closingSettingsSvc *service.ClosingSettingsService
 	statementSvc       *service.StatementService
@@ -288,7 +284,6 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.receiptRepo = repository.NewReceiptRepository(db)
 	b.assetRepo = repository.NewAssetRepository(db)
 	b.foundationRepo = repository.NewFoundationRepository(db)
-	b.documentRepo = repository.NewDocumentRepository(db)
 	b.fiscalYearRepo = repository.NewFiscalYearRepository(db)
 	b.vatReturnRepo = repository.NewVatReturnRepository(db)
 	b.zmReturnRepo = repository.NewZMReturnRepository(db)
@@ -310,7 +305,6 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.supplyEvidenceRepo = repository.NewSupplyEvidenceRepository(db)
 	b.exchangeRateRepo = repository.NewExchangeRateRepository(db)
 	// Welle 6: die Nachweise.
-	b.retentionRepo = repository.NewRetentionRepository(db)
 	b.migrationRepo = repository.NewMigrationRepository(db)
 	b.procDocRepo = repository.NewProcedureDocumentationRepository(db)
 	// Welle 7: die gelernten Bankregeln, die Mahnschreiben und die
@@ -424,21 +418,12 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// (§ 255 Abs. 1 Satz 3 HGB). Damit der Zahlungsflow das erkennen kann,
 	// braucht er die Kartei — mehr von ihr nicht.
 	b.paymentSvc.SetAssetRegister(b.assetSvc)
-	// Verträge, Gutachten und Zulassungen zum Anlagegut liegen im selben
-	// inhaltsadressierten Speicher wie die Belege, nur in einem anderen Zweig.
-	b.assetSvc.SetDocumentStore(receiptstore.New(t.DataDir))
 	// Die Geschäftsjahre als Entitäten: der Abschreibungsplan verteilt monatsgenau
 	// (§ 7 Abs. 1 Satz 4 EStG), und ein Rumpfjahr trägt weniger als zwölf Monate.
 	// Ohne diese Quelle rechnete er jedes Jahr als volles.
 	b.assetSvc.SetFiscalYearRepo(b.fiscalYearRepo)
-	// Der Belegprüflauf geht über Belegdateien und Anlagendokumente: beide sind
-	// aufbewahrungspflichtig, und beide liegen im selben Speicher.
-	b.receiptSvc.SetDocumentSource(b.assetSvc)
-	b.receiptSvc.SetCompanyDocuments(b.documentRepo)
 	b.auditSvc = service.NewAuditService(b.auditRepo)
 	b.settingsSvc = service.NewSettingsService(b.settingsRepo, b.auditRepo)
-	b.retentionSvc = service.NewRetentionService(
-		b.retentionRepo, b.settingsRepo, b.auditRepo, receiptstore.New(t.DataDir))
 	b.procDocSvc = service.NewProcDocService(
 		b.settingsRepo, b.numberRepo, b.procDocRepo, b.migrationRepo, b.auditRepo,
 		receiptstore.New(t.DataDir), fiscalYear)
@@ -458,12 +443,6 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 		b.exchangeRateRepo, &settingsCurrencyFetcher{bridge: b}, b.auditRepo)
 	b.currencySvc.SetJournalRepo(b.journalRepo)
 	b.currencySvc.SetJournalService(b.journalSvc)
-	// Die Dokumentenablage des Unternehmens: Gesellschaftsvertrag,
-	// Registerauszug, Gewerbeschein. Sie liegen im selben inhaltsadressierten
-	// Speicher wie die Belege, in einem eigenen Zweig.
-	b.documentSvc = service.NewDocumentService(
-		b.documentRepo, receiptstore.New(t.DataDir), b.auditRepo)
-
 	// Die Gründungsbegleitung liest das Journal und schreibt über den
 	// JournalService wie jeder andere Weg auch — eine Gründungsbuchung ist
 	// keine Buchung zweiter Klasse.
@@ -482,9 +461,6 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// Jahr als volles Kalenderjahr in den Büchern — der Einrichtungsassistent
 	// legt den Mandanten an, bevor er nach der Gründung fragt.
 	b.foundationSvc.SetFoundingYearAligner(b.closingSvc)
-	// Die Eröffnungsbilanz braucht die Ablage; die Gliederung dazu kommt weiter
-	// unten, sobald der Abschlussdienst steht.
-	b.foundationSvc.SetDocumentStore(b.documentSvc)
 	b.closingSettingsSvc = service.NewClosingSettingsService(b.settingsRepo, b.auditRepo)
 
 	// Die Abschlussbausteine der Welle 5a. Sie hängen allesamt am
@@ -664,7 +640,6 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	)
 	b.deadlineSvc.SetFiscalYearSource(b.fiscalYearRepo)
 	b.deadlineSvc.SetStatementSource(b.statementSvc)
-	b.deadlineSvc.SetFoundationSource(b.foundationSvc)
 	// Die Ablaufwarnung der Freistellungsbescheinigung gehört in dieselbe Liste
 	// wie jede andere Frist. Eine Warnung, die nur eine eigene Abfrage kennt,
 	// sieht niemand.
@@ -678,7 +653,6 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 		receiptstore.New(t.DataDir), t.DataDir, fiscalYear,
 	)
 	b.exportSvc.SetTenantName(t.Name)
-	b.exportSvc.SetCompanyDocuments(b.documentRepo)
 	b.exportSvc.SetOpenItemSource(b.paymentSvc)
 	b.exportSvc.SetIntegritySource(integrityChecks{journal: b.journalSvc, receipts: b.receiptSvc})
 	// Das Verzeichnis nach § 5 Abs. 1 Satz 2 EStG ist Bestandteil des
@@ -736,7 +710,6 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	b.taskSvc.SetBankSource(b.bankSvc)
 	b.taskSvc.SetReceiptSource(b.receiptSvc)
 	b.taskSvc.SetOpenItemSource(b.paymentSvc)
-	b.taskSvc.SetAssetDocumentSource(b.assetSvc)
 	b.taskSvc.SetExemptionSource(b.contactSvc)
 	b.taskSvc.SetBackupSource(b.backupSvc)
 	b.taskSvc.SetCarryForwardSource(b.closingSvc)
@@ -2377,38 +2350,11 @@ func (b *BuchfinkBridge) RegisterCompany(date, court, number string) (*domain.Fo
 	return b.foundationSvc.Register(context.Background(), date, court, number)
 }
 
-// CompleteFoundationDuty records a fulfilled Gründungspflicht with the day it
-// happened, or takes it back when the date is empty.
-func (b *BuchfinkBridge) CompleteFoundationDuty(key, doneOn, note string) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return err
-	}
-	if b.foundationSvc == nil {
-		return fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
-	}
-	return b.foundationSvc.CompleteDuty(context.Background(), key, doneOn, note)
-}
-
-func (b *BuchfinkBridge) SetFoundationDutyStatus(key, status string) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return err
-	}
-	if b.foundationSvc == nil {
-		return fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
-	}
-	return b.foundationSvc.SetDutyStatus(context.Background(), key, status)
-}
-
 // -------------------------------------------------------------
-// Gründungsweg: Eröffnungsbilanz, Datenblatt, Dokumentenablage
+// Eröffnungsbilanz der Gründung
 // -------------------------------------------------------------
 
-// GetOpeningBalance stellt die Eröffnungsbilanz auf den Beurkundungstag auf,
-// ohne sie abzulegen.
+// GetOpeningBalance stellt die Eröffnungsbilanz auf den Beurkundungstag auf.
 func (b *BuchfinkBridge) GetOpeningBalance() (*service.OpeningBalanceSheet, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
@@ -2418,18 +2364,39 @@ func (b *BuchfinkBridge) GetOpeningBalance() (*service.OpeningBalanceSheet, erro
 	return b.foundationSvc.OpeningBalance(context.Background())
 }
 
-// FileOpeningBalance setzt die Eröffnungsbilanz und legt sie in der
-// Dokumentenablage ab.
-func (b *BuchfinkBridge) FileOpeningBalance() (*domain.Document, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
+// SaveOpeningBalanceAs setzt die Eröffnungsbilanz als PDF und schreibt sie an
+// einen vom Anwender gewählten Ort. Der leere Rückgabewert heißt: der
+// Speichern-Dialog wurde abgebrochen.
+func (b *BuchfinkBridge) SaveOpeningBalanceAs() (string, error) {
+	// Gesetzt wird unter der Sperre, der Dialog steht ohne sie offen.
+	file, err := func() (*service.OpeningBalanceFile, error) {
+		b.mu.RLock()
+		defer b.mu.RUnlock()
+		if b.foundationSvc == nil {
+			return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+		}
+		return b.foundationSvc.OpeningBalancePDF(context.Background())
+	}()
+	if err != nil {
+		return "", err
 	}
-	if b.foundationSvc == nil {
-		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
+
+	path, err := b.saveFileDialog("Eröffnungsbilanz speichern", file.FileName)
+	if err != nil || path == "" {
+		return "", err
 	}
-	return b.foundationSvc.FileOpeningBalance(context.Background())
+	if err := os.WriteFile(path, file.Data, 0o600); err != nil {
+		return "", fmt.Errorf("%s konnte nicht geschrieben werden: %w", filepath.Base(path), err)
+	}
+
+	b.mu.RLock()
+	auditRepo := b.auditRepo
+	b.mu.RUnlock()
+	if auditRepo != nil {
+		_ = auditRepo.Log(context.Background(), domain.AuditActionExport, "GRUENDUNG", "EROEFFNUNGSBILANZ",
+			fmt.Sprintf("Eröffnungsbilanz %s nach %s herausgegeben", file.FileName, path))
+	}
+	return path, nil
 }
 
 // ExportOpeningBalanceXBRL erzeugt die E-Bilanz der Eröffnungsbilanz.
@@ -2444,132 +2411,6 @@ func (b *BuchfinkBridge) ExportOpeningBalanceXBRL() (string, error) {
 		return "", err
 	}
 	return b.ebilanzSvc.ExportOpeningXBRL(context.Background(), sheet.AsOf)
-}
-
-// GetFragebogenSheet stellt das Datenblatt zum Fragebogen zur steuerlichen
-// Erfassung zusammen.
-func (b *BuchfinkBridge) GetFragebogenSheet() (*service.FragebogenSheet, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.foundationSvc == nil {
-		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
-	}
-	return b.foundationSvc.Fragebogen(context.Background())
-}
-
-// FileFragebogenSheet setzt das Datenblatt und legt es ab.
-func (b *BuchfinkBridge) FileFragebogenSheet() (*domain.Document, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.foundationSvc == nil {
-		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
-	}
-	return b.foundationSvc.FileFragebogen(context.Background())
-}
-
-// GetDocuments liefert die Dokumentenablage des Unternehmens.
-func (b *BuchfinkBridge) GetDocuments() ([]domain.Document, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.documentSvc == nil {
-		return []domain.Document{}, nil
-	}
-	return emptyList(b.documentSvc.List(context.Background()))
-}
-
-// GetDocumentKinds liefert den Katalog der Dokumentarten.
-func (b *BuchfinkBridge) GetDocumentKinds() []DocumentKindOption {
-	out := make([]DocumentKindOption, 0)
-	for _, kind := range domain.AllDocumentKinds() {
-		out = append(out, DocumentKindOption{Value: string(kind), Label: kind.Label()})
-	}
-	return out
-}
-
-// DocumentKindOption ist eine Dokumentart für die Auswahl.
-type DocumentKindOption struct {
-	Value string `json:"value"`
-	Label string `json:"label"`
-}
-
-// SelectDocumentsDialog opens the native file picker for company documents.
-//
-// Derselbe Filter wie am Anlagegut: hier landen Urkunden als PDF, Scans als
-// Bild und gelegentlich ein Vertrag als Textdatei.
-func (b *BuchfinkBridge) SelectDocumentsDialog() ([]string, error) {
-	app := application.Get()
-	if app == nil || app.Dialog == nil {
-		return []string{}, nil
-	}
-	return emptyList(app.Dialog.OpenFile().
-		CanChooseFiles(true).
-		CanChooseDirectories(false).
-		AddFilter("Unterlagen", "*.pdf;*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.webp;*.xml;*.csv;*.txt").
-		SetTitle("Unterlage auswählen").
-		PromptForMultipleSelection())
-}
-
-// AttachDocument legt eine Unterlage in der Ablage des Unternehmens ab.
-func (b *BuchfinkBridge) AttachDocument(req service.DocumentRequest) (*domain.Document, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.documentSvc == nil {
-		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
-	}
-	if strings.TrimSpace(req.DutyKey) == "" {
-		return b.documentSvc.Attach(context.Background(), req)
-	}
-	if b.foundationSvc == nil {
-		return nil, fmt.Errorf("die Gründungsbegleitung ist nicht verfügbar")
-	}
-	var doc *domain.Document
-	err := repository.NewTxRunner(b.db).RunInTx(context.Background(), func(ctx context.Context) error {
-		var err error
-		doc, err = b.foundationSvc.AttachDutyProof(ctx, req)
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-	return doc, nil
-}
-
-// RemoveDocument entfernt eine Unterlage aus der Ablage.
-func (b *BuchfinkBridge) RemoveDocument(id uint) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return err
-	}
-	if b.documentSvc == nil {
-		return fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
-	}
-	return b.documentSvc.Remove(context.Background(), id)
-}
-
-// GetDocumentContent liefert eine Unterlage zur Anzeige — erst, nachdem die
-// Prüfsumme stimmt.
-func (b *BuchfinkBridge) GetDocumentContent(id uint) (*ReceiptPreview, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.documentSvc == nil {
-		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
-	}
-	doc, data, err := b.documentSvc.Content(context.Background(), id)
-	if err != nil {
-		return nil, err
-	}
-	return &ReceiptPreview{
-		FileName: doc.FileName,
-		MimeType: doc.MimeType,
-		DataURL:  "data:" + doc.MimeType + ";base64," + base64.StdEncoding.EncodeToString(data),
-	}, nil
 }
 
 // settingValue liest eine Einstellung, ohne bei einem Fehler zu stören. Die

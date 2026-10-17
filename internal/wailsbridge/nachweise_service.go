@@ -17,8 +17,8 @@ import (
 )
 
 // Die Nachweise der Welle 6: Änderungsprotokoll mit Kette, Versionshistorie,
-// Migrationsprotokoll, Aufbewahrungsfristen, Verfahrensdokumentation,
-// Eröffnungsbilanz des Umsteigers und die Altersstruktur der offenen Posten.
+// Migrationsprotokoll, Verfahrensdokumentation, Eröffnungsbilanz des
+// Umsteigers und die Altersstruktur der offenen Posten.
 //
 // Sie stehen in einer eigenen Datei, weil sie eine Sache sind: die Antwort auf
 // die Frage, woran ein Prüfer erkennt, dass die Buchführung ordnungsmäßig ist.
@@ -102,126 +102,6 @@ func (b *BuchfinkBridge) GetMigrationRecords() ([]domain.MigrationRecord, error)
 		return []domain.MigrationRecord{}, nil
 	}
 	return emptyList(b.migrationRepo.FindMigrationRecords(context.Background()))
-}
-
-// --- Aufbewahrung ---------------------------------------------------------
-
-// GetRetentionOverview liefert die Fristenübersicht.
-//
-// year schränkt auf ein Geschäftsjahr ein; 0 heißt: alle. Das Löschkonzept und
-// die Fünfjahresfrist der Systemumstellung stehen unabhängig davon dabei — sie
-// gelten nicht je Jahr.
-func (b *BuchfinkBridge) GetRetentionOverview(year int) (*service.RetentionOverview, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.retentionSvc == nil {
-		empty := &service.RetentionOverview{}
-		empty.EnsureLists()
-		return empty, nil
-	}
-	overview, err := b.retentionSvc.Overview(context.Background(), "")
-	if err != nil {
-		return nil, err
-	}
-	if year > 0 {
-		filtered := make([]service.RetentionYear, 0, 1)
-		for _, row := range overview.Years {
-			if row.FiscalYear == year {
-				filtered = append(filtered, row)
-			}
-		}
-		overview.Years = filtered
-	}
-	overview.EnsureLists()
-	return overview, nil
-}
-
-// SetRetentionHold setzt die Aufbewahrungsfrist eines Geschäftsjahres aus.
-//
-// reason ist einer der Gründe des § 147 Abs. 3 Satz 5 AO ("audit", "appeal",
-// "other"), description die Erläuterung — bei „other" Pflicht.
-func (b *BuchfinkBridge) SetRetentionHold(year int, reason string, description string) (*domain.RetentionHold, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.retentionSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.retentionSvc.SetHold(context.Background(), year, domain.RetentionHoldReason(reason), description)
-}
-
-// ReleaseRetentionHold hebt eine Aussetzung auf.
-func (b *BuchfinkBridge) ReleaseRetentionHold(id uint, reason string) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return err
-	}
-	if b.retentionSvc == nil {
-		return fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.retentionSvc.ReleaseHold(context.Background(), id, reason)
-}
-
-// GetRetentionHolds liefert alle Aussetzungen, die geltenden zuerst.
-func (b *BuchfinkBridge) GetRetentionHolds() ([]domain.RetentionHold, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.retentionSvc == nil {
-		return []domain.RetentionHold{}, nil
-	}
-	return emptyList(b.retentionSvc.Holds(context.Background()))
-}
-
-// GetExpiredObjects liefert die Geschäftsjahre, deren Aufbewahrungsfrist
-// abgelaufen ist.
-func (b *BuchfinkBridge) GetExpiredObjects() ([]service.RetentionYear, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.retentionSvc == nil {
-		return []service.RetentionYear{}, nil
-	}
-	return emptyList(b.retentionSvc.ExpiredYears(context.Background(), ""))
-}
-
-// ArchiveAndDeleteFiscalYear archiviert ein Geschäftsjahr und löscht es.
-//
-// Der Archivexport läuft hier und nicht beim Aufrufer: die Löschung ohne
-// vorheriges Archiv wäre ein Datenverlust, und ob archiviert wurde, darf nicht
-// davon abhängen, ob die Oberfläche zwei Aufrufe in der richtigen Reihenfolge
-// macht. Scheitert das Archiv, wird nicht gelöscht.
-func (b *BuchfinkBridge) ArchiveAndDeleteFiscalYear(year int, confirmation string) (*service.DeleteResult, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.retentionSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	ctx := context.Background()
-
-	// Erst Bestätigung und Fristprüfung, dann das Archiv: ein Archivexport für
-	// ein Jahr, das gar nicht gelöscht werden darf oder dessen Bestätigung
-	// falsch getippt ist, wäre vergeudete Zeit und eine Datei, die niemand
-	// angefordert hat — und zwar ein vollständiger Abzug der Buchführung eines
-	// Jahres, der ungefragt auf der Platte liegen bliebe.
-	if err := b.retentionSvc.EnsureDeleteAllowed(ctx, year, confirmation, ""); err != nil {
-		return nil, err
-	}
-
-	archivePath, err := b.archiveForDeletion(year)
-	if err != nil {
-		return nil, err
-	}
-
-	return b.retentionSvc.ArchiveAndDelete(ctx, service.DeleteRequest{
-		FiscalYear:   year,
-		Confirmation: confirmation,
-		ArchivePath:  archivePath,
-	})
 }
 
 // --- Verfahrensdokumentation ----------------------------------------------
@@ -412,10 +292,8 @@ func (b *BuchfinkBridge) GetComplianceHints() (*ComplianceHints, error) {
 			hints.SystemChangeDate = date
 		}
 	}
-	if hints.SystemChangeDate != "" && b.retentionSvc != nil {
-		if overview, err := b.retentionSvc.Overview(context.Background(), ""); err == nil {
-			hints.SystemChangeNote = overview.SystemChangeNote
-		}
+	if hints.SystemChangeDate != "" {
+		hints.SystemChangeNote = accounting.SystemChangeNote(hints.SystemChangeDate, "")
 	}
 	return hints, nil
 }
@@ -552,24 +430,6 @@ func (b *BuchfinkBridge) GetOpenItemsAging(cutoff string) (*domain.OpenItemsAgin
 }
 
 // --- Hilfen ---------------------------------------------------------------
-
-// archiveForDeletion schreibt den Archivexport, der der Löschung vorausgeht.
-//
-// In den Datenordner unter „archiv/<Jahr>" und nicht an einen vom Anwender
-// gewählten Ort: der Ordner wird mitgesichert, und ein Archiv, das nur auf
-// einem Wechseldatenträger liegt, ist beim nächsten Rechner weg. Wer es
-// woanders haben will, kopiert es dorthin — der Pfad steht im Protokoll.
-func (b *BuchfinkBridge) archiveForDeletion(year int) (string, error) {
-	if b.exportSvc == nil {
-		return "", fmt.Errorf("ohne Export lässt sich vor dem Löschen kein Archiv erstellen")
-	}
-	targetDir := filepath.Join(b.dataDir, "archiv", fmt.Sprintf("%d", year))
-	result, err := b.exportSvc.ExportArchive(context.Background(), year, targetDir)
-	if err != nil {
-		return "", fmt.Errorf("das Archiv des Geschäftsjahres %d konnte nicht erstellt werden, deshalb wurde nicht gelöscht: %w", year, err)
-	}
-	return result.Dir, nil
-}
 
 // backupRhythmLabel beschreibt den Sicherungsrhythmus für die
 // Verfahrensdokumentation.

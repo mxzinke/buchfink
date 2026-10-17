@@ -45,7 +45,6 @@ const (
 	TaskKeyReceiptsOverdue   = "receipts_overdue"
 	TaskKeyOverdueItems      = "overdue_receivables"
 	TaskKeyDeadline          = "deadline"
-	TaskKeyAssetDocument     = "asset_document_expiring"
 	TaskKeyExemption         = "exemption_certificate"
 	TaskKeyBackupMissing     = "backup_missing"
 	TaskKeyBackupFailed      = "backup_failed"

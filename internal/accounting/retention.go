@@ -2,6 +2,7 @@ package accounting
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -44,9 +45,8 @@ func legalBasisOf(class domain.RetentionClass) string {
 
 // classOf ordnet einer Objektart ihre Aufbewahrungsklasse zu.
 //
-// Die Zuordnung steht an einer Stelle, weil sie sonst zwischen Belegliste,
-// Löschbericht und Verfahrensdokumentation dreimal stünde und irgendwann
-// dreimal verschieden.
+// Die Zuordnung steht an einer Stelle, weil sie sonst zwischen Belegliste und
+// Verfahrensdokumentation doppelt stünde und irgendwann verschieden.
 func classOf(kind domain.RetentionKind) (domain.RetentionClass, string) {
 	rules, ok := classForKind(kind)
 	if !ok {
@@ -131,13 +131,11 @@ type DeletionConceptRow struct {
 }
 
 // DeletionConcept ist das Löschkonzept: welche Datenkategorie wie lange
-// aufbewahrt wird, aus welchem Rechtsgrund, und was danach geschieht.
+// aufbewahrt wird und aus welchem Rechtsgrund.
 //
-// Es steht im Code und nicht in einem Dokument daneben, weil es beides sein
-// muss: der Abschnitt der Verfahrensdokumentation, den ein Prüfer liest, und
-// die Regel, nach der die Löschfunktion tatsächlich entscheidet. Zwei Fassungen
-// desselben Konzepts laufen auseinander, und dann ist die geschriebene die,
-// die nicht gilt.
+// Es steht im Code, weil es dieselben Fristen nennen muss, nach denen
+// RetentionFor rechnet; die Verfahrensdokumentation übernimmt es von hier.
+// Buchfink löscht nichts von sich aus, auch nach Fristablauf nicht.
 func DeletionConcept() []DeletionConceptRow {
 	return []DeletionConceptRow{
 		{
@@ -145,8 +143,8 @@ func DeletionConcept() []DeletionConceptRow {
 			Class:      domain.RetentionClassBooks,
 			Years:      yearsOfClass(domain.RetentionClassBooks),
 			LegalBasis: legalBasisOf(domain.RetentionClassBooks),
-			Note: "Die Buchungen sind Handelsbücher. Sie werden nicht einzeln gelöscht, " +
-				"sondern nur mit dem ganzen Geschäftsjahr und erst nach Fristablauf.",
+			Note: "Die Buchungen sind Handelsbücher. Sie werden nicht gelöscht; eine " +
+				"Korrektur geschieht über die Generalumkehr.",
 		},
 		{
 			Category:   "Jahresabschlüsse, Eröffnungsbilanz, Inventare, Anhang",
@@ -179,7 +177,7 @@ func DeletionConcept() []DeletionConceptRow {
 			Note:       "Steuererklärungen und die Aufzeichnungen, aus denen sie abgeleitet sind.",
 		},
 		{
-			Category:   "Anlagenverzeichnis und Anlagendokumente",
+			Category:   "Anlagenverzeichnis",
 			Class:      domain.RetentionClassBooks,
 			Years:      yearsOfClass(domain.RetentionClassBooks),
 			LegalBasis: legalBasisOf(domain.RetentionClassBooks),
@@ -212,6 +210,27 @@ func DeletionConcept() []DeletionConceptRow {
 				"Vorgänge nicht mehr wählbar.",
 		},
 	}
+}
+
+// SystemChangeNote beschreibt die Fünfjahresfrist des § 147 Abs. 6 Satz 6 AO:
+// so lange ist ein Altsystem nach der Datenübernahme für den Datenzugriff
+// verfügbar zu halten. Leerer Stichtag heißt: heute.
+func SystemChangeNote(changeDate, today string) string {
+	end := AddYearsISO(changeDate, 5)
+	if end == "" {
+		return ""
+	}
+	if today == "" {
+		today = time.Now().UTC().Format("2006-01-02")
+	}
+	if today > end {
+		return fmt.Sprintf(
+			"Die Umstellung aus dem Altsystem war am %s. Die Fünfjahresfrist des § 147 Abs. 6 Satz 6 AO ist am %s abgelaufen; das Altsystem muss für den Datenzugriff nicht mehr verfügbar gehalten werden.",
+			changeDate, end)
+	}
+	return fmt.Sprintf(
+		"Die Umstellung aus dem Altsystem war am %s. Bis zum %s ist das Altsystem für den Datenzugriff verfügbar zu halten (§ 147 Abs. 6 Satz 6 AO).",
+		changeDate, end)
 }
 
 // BlockedContactAnswer ist die Antwort an eine betroffene Person, die die

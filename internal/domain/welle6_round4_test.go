@@ -77,12 +77,4 @@ func TestReceiptCarriesTheEarliestDeletionNextToTheRetentionEnd(t *testing.T) {
 		t.Errorf("die Belegnummer fehlt in der Ausgabe: %s", raw)
 	}
 
-	doc := AssetDocument{RetentionClass: RetentionClassBooks, RetentionUntil: "2035-12-31"}
-	rawDoc, err := json.Marshal(doc)
-	if err != nil {
-		t.Fatalf("Anlagendokument als JSON: %v", err)
-	}
-	if !strings.Contains(string(rawDoc), `"earliestDeletion":"2036-01-01"`) {
-		t.Errorf("das Anlagendokument nennt kein frühestes Löschdatum: %s", rawDoc)
-	}
 }

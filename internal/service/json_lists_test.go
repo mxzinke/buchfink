@@ -332,19 +332,12 @@ func TestExportResultMarshalsEmptyListsNotNull(t *testing.T) {
 	assertNoNullLists(t, "Export", result, "tables", "files", "notes")
 }
 
-// Die Anlagenseite des leeren Mandanten: keine Frist läuft ab, kein Zugang
-// wartet auf ein Anlagegut. Das ist der Regelfall — und genau er stand bisher
+// Die Anlagenseite des leeren Mandanten: kein Zugang wartet auf ein Anlagegut. Das ist der Regelfall — und genau er stand bisher
 // als `null` in der Ausgabe.
 func TestAssetListsAreEmptyNotNull(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	svc := env.assets(t)
-
-	expiring, err := svc.ExpiringDocuments(ctx, "2026-12-31")
-	if err != nil {
-		t.Fatalf("ablaufende Dokumente: %v", err)
-	}
-	assertNoNilSlices(t, "ablaufende Dokumente", expiring)
 
 	candidates, err := svc.AcquisitionCandidates(ctx)
 	if err != nil {

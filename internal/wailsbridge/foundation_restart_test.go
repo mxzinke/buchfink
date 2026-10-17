@@ -1,7 +1,6 @@
 package wailsbridge
 
 import (
-	"context"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -11,7 +10,7 @@ import (
 	"github.com/zalando/go-keyring"
 )
 
-func TestFoundationRestartKeepsProgressAndShortYearDeadlines(t *testing.T) {
+func TestFoundationRestartKeepsShortYearDeadlines(t *testing.T) {
 	keyring.MockInit()
 	t.Cleanup(func() { repository.SetActiveVault(nil) })
 	base := t.TempDir()
@@ -23,32 +22,10 @@ func TestFoundationRestartKeepsProgressAndShortYearDeadlines(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	foundation, err := b.SaveFoundation(domain.Foundation{
+	if _, err := b.SaveFoundation(domain.Foundation{
 		NotarizedOn: "2026-08-15", RegisteredOn: "2026-08-25", ShareCapital: 2500000,
 		Shareholders: []domain.Shareholder{{Name: "Anna", ShareCapital: 2500000, PaidIn: 1250000, Kind: domain.ContributionCash}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := b.CompleteFoundationDuty("fragebogen", "2026-08-28", "Übermittelt"); err != nil {
-		t.Fatal(err)
-	}
-	if err := b.CompleteFoundationDuty("betriebsnummer", "2026-08-28", "Nicht zutreffend"); err != nil {
-		t.Fatal(err)
-	}
-	settings, err := b.GetCompanySettings()
-	if err != nil {
-		t.Fatal(err)
-	}
-	settings.Employees = "none"
-	if err := b.UpdateCompanySettings(*settings); err != nil {
-		t.Fatal(err)
-	}
-	if err := repository.NewFoundationRepository(b.db).CompleteTask(context.Background(), &domain.FoundationTask{FoundationID: foundation.ID, Key: "ust_id", Status: "deferred", DoneOn: "2026-08-28"}); err != nil {
-		t.Fatal(err)
-	}
-	before, err := b.GetFoundationState()
-	if err != nil {
+	}); err != nil {
 		t.Fatal(err)
 	}
 	if err := repository.CloseDB(b.db); err != nil {
@@ -67,26 +44,8 @@ func TestFoundationRestartKeepsProgressAndShortYearDeadlines(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !state.HasFoundation || state.Guide != before.Guide || state.Guide.Done >= state.Guide.Total {
-		t.Fatalf("Gründungsfortschritt nach Neustart: %+v", state)
-	}
-	savedSettings, err := restarted.GetCompanySettings()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if savedSettings.Employees != "none" {
-		t.Error("Beschäftigtenangabe geht beim Neustart verloren")
-	}
-	for _, duty := range state.Duties {
-		if duty.Key == "ust_id" && (duty.IsDone || duty.IsNotApplicable || duty.IsPending) {
-			t.Error("zuvor zurückgestellte Aufgabe muss wieder offen sein")
-		}
-		if duty.Key == "betriebsnummer" && !duty.IsNotApplicable {
-			t.Error("Nicht zutreffend geht beim Neustart verloren")
-		}
-		if duty.Key == "handelsregister" || duty.Key == "offenlegung" || duty.Key == "ruecklage" {
-			t.Errorf("Aufgabe außerhalb der Gründungscheckliste: %s", duty.Key)
-		}
+	if !state.HasFoundation || state.Foundation.NotarizedOn != "2026-08-15" {
+		t.Fatalf("Gründung nach Neustart: %+v", state)
 	}
 	years, err := restarted.GetFiscalYears()
 	if err != nil {

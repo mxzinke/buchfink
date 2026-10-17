@@ -644,20 +644,6 @@ export const SettingsPage: React.FC<{
         )}
       </Section>
 
-      <Section title="Beschäftigte" context="Arbeitgeberpflichten">
-        <FormGrid>
-          <Field label="Beschäftigung" helpSummary="Ohne Beschäftigte entfallen die Arbeitgeberaufgaben im Gründungshelfer."
-            explain="Diese Angabe steuert die Aufgaben zu Betriebsnummer, Sozialversicherung, Lohnabrechnung und Arbeitsschutz. Ändern Sie sie, sobald Sie Beschäftigte einstellen oder eine Einstellung planen.">
-            <Select value={settings.employees || 'unknown'} disabled={writeLock.locked}
-              onValueChange={(value) => patch({ employees: value })} items={[
-                { value: 'unknown', label: 'Noch nicht geklärt' },
-                { value: 'none', label: 'Keine Beschäftigten' },
-                { value: 'yes', label: 'Beschäftigte vorhanden oder geplant' },
-              ]} />
-          </Field>
-        </FormGrid>
-      </Section>
-
       <Section
         helpSummary="Diese Anschrift steht auf Ihren Rechnungen und Unterlagen."
         title="Anschrift"
@@ -806,7 +792,7 @@ export const SettingsPage: React.FC<{
       </Section>
 
       {/* Ohne diese drei Angaben fehlt dem Jahresabschluss der Kopf, den
-          § 264 Abs. 1a HGB verlangt. Sie standen bisher nur im Gründungsweg. */}
+          § 264 Abs. 1a HGB verlangt. */}
       <Section helpSummary="Diese Registerangaben erscheinen im Kopf Ihres Jahresabschlusses."
         title="Registereintragung"
         explain={

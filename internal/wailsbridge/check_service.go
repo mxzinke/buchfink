@@ -53,7 +53,7 @@ func (b *BuchfinkBridge) GetCheckRuns(year int) ([]domain.CheckRun, error) {
 
 // GetDeadlines liefert alle Termine eines Jahres: Voranmeldungen,
 // Zusammenfassende Meldungen, Sondervorauszahlung, Festschreibungen, Aufstellung
-// und Offenlegung sowie die Gründungspflichten.
+// und Offenlegung.
 func (b *BuchfinkBridge) GetDeadlines(year int) ([]domain.Deadline, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()

@@ -26,23 +26,12 @@ type FoundationService struct {
 	// yearAligner zieht den Beginn des Gründungsjahres auf die Beurkundung nach.
 	// Optional: ohne ihn bleibt die Gründung erfasst und der Zeitraum, wie er war.
 	yearAligner FoundingYearAligner
-	// statements, documents und renderer tragen die Eröffnungsbilanz: die
-	// Gliederung auf den Beurkundungstag, ihre Ablage und ihren Satz. Jede darf
-	// fehlen; dann fehlt der Eröffnungsbilanz eine Stufe und sie sagt, welche.
+	// statements und renderer tragen die Eröffnungsbilanz: die Gliederung auf
+	// den Beurkundungstag und ihren Satz. Beide dürfen fehlen; dann fehlt der
+	// Eröffnungsbilanz eine Stufe und sie sagt, welche.
 	statements StatementAtSource
-	documents  *DocumentService
 	renderer   DocumentRenderer
 }
-
-// Die Schlüssel der Gründungspflichten, wie sie in der Ablage und in der
-// Fristenliste erscheinen. Sie stehen im Fachbereich (accounting.Duty…) und hier
-// als Kopie, weil der Dienst sie an die Dokumentenablage weitergibt und ein
-// Import des Fachbereichs an dieser Stelle nur diese eine Zeichenkette brächte.
-const (
-	DutyKeyEroeffnungsbilanz = "eroeffnungsbilanz"
-	DutyKeyHandelsregister   = "handelsregister"
-	DutyKeyFragebogen        = "fragebogen"
-)
 
 // NewFoundationService creates the Gründungsbegleitung.
 func NewFoundationService(
@@ -78,9 +67,8 @@ func (s *FoundationService) SetFoundingYearAligner(a FoundingYearAligner) { s.ye
 // FoundationState is everything the Gründungsansicht needs, in one call.
 //
 // Zusammen und nicht einzeln, weil die Teile voneinander abhängen: die Regeln
-// folgen aus der Rechtsform, die Fristen aus dem Beurkundungsdatum, die
-// Unterbilanz aus beidem und dem Journal. Vier Aufrufe könnten einen Stand
-// zeigen, den es so nie gab.
+// folgen aus der Rechtsform, die Unterbilanz aus ihr, dem Beurkundungsdatum und
+// dem Journal. Mehrere Aufrufe könnten einen Stand zeigen, den es so nie gab.
 type FoundationState struct {
 	// Applies ist falsch, wenn die Rechtsform des Mandanten keine
 	// Kapitalgesellschaft ist. Dann gibt es keinen Gründungsweg, und die
@@ -94,34 +82,11 @@ type FoundationState struct {
 	Foundation *domain.Foundation         `json:"foundation,omitempty"`
 	Stage      domain.FoundationStage     `json:"stage"`
 
-	Anmeldung   *domain.AnmeldungCheck  `json:"anmeldung,omitempty"`
-	Unterbilanz *domain.Unterbilanz     `json:"unterbilanz,omitempty"`
-	Duties      []domain.FoundationDuty `json:"duties"`
+	Anmeldung   *domain.AnmeldungCheck `json:"anmeldung,omitempty"`
+	Unterbilanz *domain.Unterbilanz    `json:"unterbilanz,omitempty"`
 
 	// PostingsBooked sagt, ob die Gründungsbuchungen schon im Journal stehen.
 	PostingsBooked bool `json:"postingsBooked"`
-
-	// Guide ist der Fortschritt durch die Gründung: wie viele Schritte erledigt
-	// sind und welcher als Nächstes ansteht.
-	Guide FoundationGuide `json:"guide"`
-}
-
-// FoundationGuide ist der Stand des Gründungswegs.
-//
-// Gerechnet und nicht von der Ansicht gezählt — derselbe Grund wie beim
-// geführten Weg des Jahresabschlusses: zwei Zählungen desselben Fortschritts
-// gehen auseinander, sobald eine Regel sich ändert.
-type FoundationGuide struct {
-	Total int `json:"total"`
-	Done  int `json:"done"`
-	// Waiting sind die Schritte, deren auslösendes Ereignis noch aussteht. Sie
-	// zählen nicht als offen: zu tun ist an ihnen gerade nichts.
-	Waiting int `json:"waiting"`
-	Open    int `json:"open"`
-	// NextKey ist der Schlüssel des Schrittes, der als Nächstes ansteht — der
-	// erste offene in der Reihenfolge des Weges. Leer heißt: nichts offen.
-	NextKey   string `json:"nextKey,omitempty"`
-	NextTitle string `json:"nextTitle,omitempty"`
 }
 
 // GetState assembles the Gründungsansicht.
@@ -136,7 +101,6 @@ func (s *FoundationService) GetState(ctx context.Context) (*FoundationState, err
 		Applies:   applies,
 		LegalForm: settings.LegalForm,
 		Rules:     rules,
-		Duties:    []domain.FoundationDuty{},
 	}
 	if !applies {
 		return state, nil
@@ -162,32 +126,6 @@ func (s *FoundationService) GetState(ctx context.Context) (*FoundationState, err
 		return nil, err
 	}
 	state.Unterbilanz = unterbilanz
-
-	tasks, err := s.foundationRepo.Tasks(ctx, f.ID)
-	if err != nil {
-		return nil, err
-	}
-	done := make(map[string]string, len(tasks))
-	for _, task := range tasks {
-		if task.Status != "deferred" {
-			done[task.Key] = task.DoneOn
-		}
-	}
-	state.Duties = accounting.FoundationDuties(f, rules, done)
-	for i := range state.Duties {
-		for _, task := range tasks {
-			if task.Key != state.Duties[i].Key {
-				continue
-			}
-			state.Duties[i].IsNotApplicable = task.Status == "skipped" || task.Note == foundationNotApplicable
-		}
-	}
-	applyFoundationMasterData(state.Duties, settings)
-	applyFoundationDependencies(state.Duties, settings.Employees)
-	if s.documents != nil {
-		attachDutyProof(ctx, s.documents, state.Duties)
-	}
-	state.Guide = summarizeGuide(state.Duties)
 
 	booked, err := s.postingsBooked(ctx)
 	if err != nil {
@@ -677,7 +615,7 @@ func (s *FoundationService) postingsBooked(ctx context.Context) (bool, error) {
 }
 
 // -------------------------------------------------------------
-// Eintragung und Pflichten
+// Eintragung
 // -------------------------------------------------------------
 
 // Register records the entry in the Handelsregister — the end of the
@@ -721,67 +659,9 @@ func (s *FoundationService) Register(ctx context.Context, date, court, number st
 	// wird nichts: was in den Einstellungen steht, hat jemand dort gewollt.
 	s.adoptRegisterSettings(ctx, f)
 
-	_ = s.foundationRepo.CompleteTask(ctx, &domain.FoundationTask{
-		FoundationID: f.ID,
-		Key:          accounting.DutyHandelsregister,
-		DoneOn:       date,
-		Note:         strings.TrimSpace(court + " " + number),
-	})
-
 	s.audit(ctx, domain.AuditActionUpdate, f.ID, fmt.Sprintf(
 		"Eintragung ins Handelsregister am %s: %s %s", date, f.RegisterCourt, f.RegisterNumber))
 	return f, nil
-}
-
-const foundationNotApplicable = "Nicht zutreffend"
-
-// CompleteDuty records a fulfilled Gründungspflicht, or takes it back when the
-// date is empty.
-func (s *FoundationService) CompleteDuty(ctx context.Context, key, doneOn, note string) error {
-	f, err := s.foundationRepo.Get(ctx)
-	if err != nil {
-		return err
-	}
-	if f == nil {
-		return fmt.Errorf("für diesen Mandanten ist keine Gründung erfasst")
-	}
-	if doneOn == "" {
-		return s.foundationRepo.ClearTask(ctx, f.ID, key)
-	}
-	if key == "stammdaten" {
-		settings, err := s.settingsRepo.GetCompanySettings(ctx)
-		if err != nil {
-			return err
-		}
-		if missing := foundationMasterDataMissing(settings); len(missing) > 0 {
-			return fmt.Errorf("bitte zuerst die Stammdaten ergänzen: %s", strings.Join(missing, ", "))
-		}
-	}
-	if note == foundationNotApplicable {
-		settings, err := s.settingsRepo.GetCompanySettings(ctx)
-		if err != nil {
-			return err
-		}
-		rules, _ := accounting.FoundationRulesFor(settings.LegalForm)
-		optional := false
-		for _, duty := range accounting.FoundationDuties(f, rules, nil) {
-			if duty.Key == key && duty.Condition != "" {
-				optional = true
-			}
-		}
-		if !optional {
-			return fmt.Errorf("diese Aufgabe kann nicht als nicht zutreffend markiert werden")
-		}
-	}
-	if len(doneOn) != 10 {
-		return fmt.Errorf("das Datum der Erledigung ist unvollständig (erwartet JJJJ-MM-TT)")
-	}
-	return s.foundationRepo.CompleteTask(ctx, &domain.FoundationTask{
-		FoundationID: f.ID,
-		Key:          key,
-		DoneOn:       doneOn,
-		Note:         note,
-	})
 }
 
 func (s *FoundationService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) {
@@ -901,38 +781,5 @@ func (s *FoundationService) adoptRegisterSettings(ctx context.Context, f *domain
 		_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "SETTINGS", "COMPANY", fmt.Sprintf(
 			"Aus der Handelsregistereintragung übernommen: Sitz %q, Registergericht %q, Registernummer %q",
 			settings.Seat, settings.RegisterCourt, settings.RegisterNumber))
-	}
-}
-
-// summarizeGuide zählt den Fortschritt durch die Gründung.
-func summarizeGuide(duties []domain.FoundationDuty) FoundationGuide {
-	guide := FoundationGuide{Total: len(duties)}
-	for _, duty := range duties {
-		switch {
-		case duty.IsDone:
-			guide.Done++
-		case duty.IsPending:
-			guide.Waiting++
-		default:
-			guide.Open++
-			// Der erste offene in der Reihenfolge des Weges. Die Liste kommt
-			// bereits geordnet aus dem Fachbereich.
-			if guide.NextKey == "" {
-				guide.NextKey = duty.Key
-				guide.NextTitle = duty.Title
-			}
-		}
-	}
-	return guide
-}
-
-// attachDutyProof hängt die abgelegten Nachweise an ihre Pflicht.
-func attachDutyProof(ctx context.Context, documents *DocumentService, duties []domain.FoundationDuty) {
-	for i := range duties {
-		proof, err := documents.ForDuty(ctx, duties[i].Key)
-		if err != nil {
-			continue
-		}
-		duties[i].Proof = proof
 	}
 }

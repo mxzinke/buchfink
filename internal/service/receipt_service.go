@@ -89,10 +89,6 @@ type ReceiptService struct {
 	store       *receiptstore.Store
 	auditRepo   domain.AuditRepository
 	fiscalYear  int
-	// documents ist die Anlagenkartei, soweit der Belegprüflauf sie braucht.
-	// Optional: ohne sie prüft er die Belege und sagt es.
-	documents        DocumentSource
-	companyDocuments domain.DocumentRepository
 	// Die drei Anschlüsse des Eigenbelegs (siehe self_issued_receipt.go). Alle
 	// drei sind freiwillig, weil der Belegdienst ohne sie vollständig arbeitet:
 	// er legt ab, gibt heraus und versiegelt. Nur den Eigenbeleg erzeugt er

@@ -1538,9 +1538,8 @@ func (s *PostingService) settlementLine(content []domain.JournalLine, kind Settl
 }
 
 // settlementLineFor is the same computation without a service around it. Die
-// Anlagenbuchhaltung bucht Erhaltungsaufwand und laufende Erträge nach derselben
-// Regel; eine zweite Fassung davon wäre die, die beim nächsten Steuerfall
-// vergessen wird.
+// Anlagenbuchhaltung bucht laufende Erträge nach derselben Regel; eine zweite
+// Fassung davon wäre die, die beim nächsten Steuerfall vergessen wird.
 func settlementLineFor(content []domain.JournalLine, kind SettlementKind, paymentAccount string, contact *domain.Contact) (domain.JournalLine, error) {
 	var debit, credit domain.Cents
 	for _, l := range content {

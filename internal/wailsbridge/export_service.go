@@ -244,8 +244,7 @@ func (b *BuchfinkBridge) writeReceiptFileTo(
 // INTEGRITÄT
 // -------------------------------------------------------------
 
-// VerifyReceiptFiles prüft jede Belegdatei und jedes Anlagendokument gegen
-// seine Prüfsumme.
+// VerifyReceiptFiles prüft jede Belegdatei gegen ihre Prüfsumme.
 func (b *BuchfinkBridge) VerifyReceiptFiles() (*domain.FileCheckResult, error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()

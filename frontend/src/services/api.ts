@@ -23,8 +23,6 @@ import type {
   AssetAccountInfo,
   AssetClass,
   AssetDetail,
-  AssetDocumentKind,
-  AssetDocumentKindInfo,
   AssetRules,
   AssetScheduleYear,
   AssetSummary,
@@ -41,7 +39,6 @@ import type {
   BankSuggestions,
   BankTransaction,
   BlockContactResult,
-  CapitalizeNearAcquisitionCostRequest,
   CarryForwardPreview,
   Cents,
   ChangelogEntry,
@@ -59,7 +56,6 @@ import type {
   DunningNotice,
   DunningProposal,
   DunningRunRequest,
-  DeleteResult,
   DepreciationMethod,
   DepreciationResult,
   DepreciationRun,
@@ -75,7 +71,6 @@ import type {
   EvidenceStatus,
   ExchangeRate,
   ExemptionCertificateWarning,
-  ExpiringAssetDocument,
   ExportResult,
   Festschreibung,
   FestschreibungVerification,
@@ -92,11 +87,6 @@ import type {
   FoundationPostingPreview,
   FoundationRules,
   FoundationState,
-  FragebogenSheet,
-  CompanyDocument,
-  DocumentKindOption,
-  DocumentRequest,
-  DocumentFileInfo,
   OpeningBalanceSheet,
   GiftRebooking,
   InputTaxCorrection,
@@ -118,12 +108,10 @@ import type {
   KeyDirectoryEntry,
   LegacySpecialDepreciationNotice,
   LegalFormInfo,
-  MaintenanceResult,
   ManualEntryRequest,
   MappingReport,
   MigrationRecord,
   MonthCloseState,
-  NearAcquisitionCheck,
   NonDeductibleCategory,
   NonDeductibleReport,
   NotesSection,
@@ -159,11 +147,7 @@ import type {
   Reconciliation,
   RefundAdvanceRequest,
   RegisterInputTaxRequest,
-  RetentionHold,
   RetentionClass,
-  RetentionHoldReason,
-  RetentionOverview,
-  RetentionYear,
   RetentionRules,
   SaveInputTaxUsageRequest,
   SchemaMigration,
@@ -183,7 +167,6 @@ import type {
   TaxElectionRegister,
   TaxProvisionPreview,
   TaxProvisionRequest,
-  TaxRate,
   Task,
   TaskList,
   TaxTreatment,
@@ -488,24 +471,6 @@ function normalizePostingPreview(preview: PostingPreview): PostingPreview {
     warnings: list(preview.warnings),
     inputTaxFindings: list(preview.inputTaxFindings),
   };
-}
-
-/**
- * Die Fristenübersicht: ein Geschäftsjahr ohne Daten hat keine Klassenzeile,
- * und ein Mandant ohne Buchung hat kein Jahr. Beides ist der Regelfall am ersten
- * Tag und darf die Ansicht nicht mitreißen.
- */
-function normalizeRetentionOverview(overview: RetentionOverview): RetentionOverview {
-  if (!overview) return overview;
-  return {
-    ...overview,
-    concept: list(overview.concept),
-    years: list(overview.years).map(normalizeRetentionYear),
-  };
-}
-
-function normalizeRetentionYear(year: RetentionYear): RetentionYear {
-  return { ...year, classes: list(year.classes) };
 }
 
 /** Altersstruktur und Restlaufzeiten: ohne offenen Posten sind beide leer. */
@@ -918,30 +883,6 @@ export const Api = {
     reason: string;
   }): Promise<JournalEntry> =>
     call(() => Bridge.BookAssetWriteUp(request as any) as Promise<JournalEntry>),
-  /**
-   * Erhaltungsaufwand: eine Buchung, die zum Anlagegut gehört, seinen Wert aber
-   * nicht ändert. Genau das unterscheidet sie von den nachträglichen
-   * Herstellungskosten (§ 255 Abs. 2 Satz 1 HGB).
-   */
-  bookAssetMaintenance: (request: {
-    assetId: number;
-    date: string;
-    amount: Cents;
-    account?: string;
-    taxTreatment?: TaxTreatment;
-    taxRate?: TaxRate;
-    settlement: Settlement;
-    paymentAccount?: string;
-    contactId?: number;
-    note: string;
-    /**
-     * Nimmt die Maßnahme aus dem 15-%-Rahmen des § 6 Abs. 1 Nr. 1a EStG heraus
-     * — für die jährlich üblicherweise anfallenden Erhaltungsarbeiten. Negativ
-     * formuliert, weil der Regelfall der Vorgabewert sein muss.
-     */
-    notModernisation?: boolean;
-  }): Promise<MaintenanceResult> =>
-    call(() => Bridge.BookAssetMaintenance(request as any) as Promise<MaintenanceResult>),
   /** Dividende, Ausschüttung oder Zins, verknüpft mit dem Anteil, aus dem sie stammt. */
   bookAssetIncome: (request: {
     assetId: number;
@@ -975,31 +916,6 @@ export const Api = {
     ratePerEuro: number;
   }): Promise<JournalEntry> =>
     call(() => Bridge.BookAssetCurrencyValuation(request as any) as Promise<JournalEntry>),
-
-  // --- Dokumente am Anlagegut -------------------------------------------
-
-  /** Öffnet den nativen Dateidialog. Dateien reisen als Pfad, nicht als Inhalt. */
-  selectAssetDocumentsDialog: (title = ''): Promise<string[]> =>
-    call(() => Bridge.SelectAssetDocumentsDialog(title) as Promise<string[]>),
-  attachAssetDocument: (request: {
-    assetId: number;
-    kind: AssetDocumentKind;
-    path: string;
-    title?: string;
-    documentDate?: string;
-    validUntil?: string;
-    note?: string;
-  }): Promise<FixedAsset> =>
-    call(() => Bridge.AttachAssetDocument(request as any) as Promise<FixedAsset>),
-  removeAssetDocument: (assetId: number, documentId: number): Promise<FixedAsset> =>
-    call(() => Bridge.RemoveAssetDocument(assetId, documentId) as Promise<FixedAsset>),
-  getAssetDocumentContent: (documentId: number): Promise<ReceiptPreview> =>
-    call(() => Bridge.GetAssetDocumentContent(documentId) as Promise<ReceiptPreview>),
-  getAssetDocumentKinds: (): Promise<AssetDocumentKindInfo[]> =>
-    call(() => Bridge.GetAssetDocumentKinds() as Promise<AssetDocumentKindInfo[]>),
-  /** Was bis zu einem Stichtag ausläuft. Leer heißt: bis zum Ende des Geschäftsjahres. */
-  getExpiringAssetDocuments: (until = ''): Promise<ExpiringAssetDocument[]> =>
-    call(() => Bridge.GetExpiringAssetDocuments(until) as Promise<ExpiringAssetDocument[]>),
 
   // --- Investmentanteile ------------------------------------------------
 
@@ -1485,7 +1401,7 @@ export const Api = {
     call(() => Bridge.GetFoundationState() as Promise<FoundationState>),
   saveFoundation: (foundation: Partial<Foundation>): Promise<Foundation> =>
     call(() => Bridge.SaveFoundation(foundation as any) as Promise<Foundation>),
-  /** Die Kapitalaufbringungsregeln der Rechtsformen, die der Gründungsweg abdeckt. */
+  /** Die Kapitalaufbringungsregeln der Kapitalgesellschaften. */
   getFoundationRules: (): Promise<FoundationRules[]> =>
     call(() => Bridge.GetFoundationRules() as Promise<FoundationRules[]>),
   /** Die Länder, die für die Geschäftsanschrift wählbar sind. */
@@ -1506,51 +1422,12 @@ export const Api = {
   /** Die Eintragung ins Handelsregister — sie beendet die Vorgesellschaft. */
   registerCompany: (date: string, court: string, number: string): Promise<Foundation> =>
     call(() => Bridge.RegisterCompany(date, court, number) as Promise<Foundation>),
-  /** Erledigte Gründungspflicht mit ihrem Datum; leeres Datum nimmt sie zurück. */
-  setFoundationDutyStatus: (key: string, status: string): Promise<void> => call(() => Bridge.SetFoundationDutyStatus(key, status)),
-
-  completeFoundationDuty: (key: string, doneOn: string, note = ''): Promise<void> =>
-    call(() => Bridge.CompleteFoundationDuty(key, doneOn, note)),
-
-  /** Die Eröffnungsbilanz auf den Beurkundungstag, ohne sie abzulegen. */
+  /** Die Eröffnungsbilanz auf den Beurkundungstag. */
   getOpeningBalance: (): Promise<OpeningBalanceSheet> =>
     call(() => Bridge.GetOpeningBalance() as Promise<OpeningBalanceSheet>),
-  /** Setzt die Eröffnungsbilanz und legt sie in der Dokumentenablage ab. */
-  fileOpeningBalance: (): Promise<CompanyDocument> =>
-    call(() => Bridge.FileOpeningBalance() as Promise<CompanyDocument>),
   /** Die E-Bilanz der Eröffnungsbilanz als XBRL-Instanz (§ 5b Abs. 1 EStG). */
   exportOpeningBalanceXBRL: (): Promise<string> =>
     call(() => Bridge.ExportOpeningBalanceXBRL()),
-  /** Das Datenblatt zum Fragebogen zur steuerlichen Erfassung. */
-  getFragebogenSheet: (): Promise<FragebogenSheet> =>
-    call(() => Bridge.GetFragebogenSheet() as Promise<FragebogenSheet>),
-  /** Setzt das Datenblatt und legt es ab. */
-  fileFragebogenSheet: (): Promise<CompanyDocument> =>
-    call(() => Bridge.FileFragebogenSheet() as Promise<CompanyDocument>),
-
-  // --- Dokumentenablage des Unternehmens ---------------------------------
-
-  /** Die Unterlagen des Unternehmens, das jüngste Dokument zuerst. */
-  getDocuments: (): Promise<CompanyDocument[]> =>
-    call(() => Bridge.GetDocuments() as Promise<CompanyDocument[]>).then((list) => list ?? []),
-  /** Der Katalog der Dokumentarten für die Auswahl. */
-  getDocumentKinds: (): Promise<DocumentKindOption[]> =>
-    call(() => Bridge.GetDocumentKinds() as Promise<DocumentKindOption[]>).then((l) => l ?? []),
-  /** Eine Unterlage zur Anzeige — erst, nachdem die Prüfsumme stimmt. */
-  getDocumentContent: (id: number): Promise<ReceiptPreview> =>
-    call(() => Bridge.GetDocumentContent(id) as Promise<ReceiptPreview>),
-  /** Dateiauswahl für eine Unterlage. Leere Liste heißt: abgebrochen. */
-  selectDocuments: (): Promise<string[]> =>
-    call(() => Bridge.SelectDocumentsDialog() as Promise<string[]>).then((l) => l ?? []),
-  /** Legt eine Unterlage in der Ablage des Unternehmens ab. */
-  getDocumentFileInfo: (path: string): Promise<DocumentFileInfo> =>
-    call(() => Bridge.GetDocumentFileInfo(path) as Promise<DocumentFileInfo>),
-
-  attachDocument: (request: DocumentRequest): Promise<CompanyDocument> =>
-    call(() => Bridge.AttachDocument(request) as Promise<CompanyDocument>),
-  /** Entfernt eine Unterlage aus der Ablage. */
-  removeDocument: (id: number): Promise<void> => call(() => Bridge.RemoveDocument(id)),
-
   // --- Datenüberlassung nach § 147 Abs. 6 AO -----------------------------
 
   /** Zielordner für einen Export. Leerer Pfad heißt: abgebrochen. */
@@ -1559,7 +1436,7 @@ export const Api = {
   /** Die Tabellen eines Geschäftsjahres (Z3): CSV, index.xml, Feldbeschreibung. */
   exportZ3: (year: number, targetDir: string): Promise<ExportResult> =>
     call(() => Bridge.ExportZ3(year, targetDir) as Promise<ExportResult>).then(normalizeExport),
-  /** Dasselbe samt Belegdateien und Anlagendokumenten. */
+  /** Dasselbe samt Belegdateien. */
   exportArchive: (year: number, targetDir: string): Promise<ExportResult> =>
     call(() => Bridge.ExportArchive(year, targetDir) as Promise<ExportResult>).then(normalizeExport),
   /** Das Prüferpaket: Archiv, Integritätsnachweis, Verfahrensdokumentation. */
@@ -1578,7 +1455,7 @@ export const Api = {
 
   // --- Prüfläufe über Kette und Dateien ---------------------------------
 
-  /** Prüft jede Belegdatei und jedes Anlagendokument gegen seine Prüfsumme. */
+  /** Prüft jede Belegdatei gegen ihre Prüfsumme. */
   verifyReceiptFiles: (): Promise<FileCheckResult> =>
     call(() => Bridge.VerifyReceiptFiles() as Promise<FileCheckResult>).then(normalizeFileCheck),
 
@@ -1769,20 +1646,6 @@ export const Api = {
           ? { ...report, pooled: list(report.pooled), immediate: list(report.immediate) }
           : report,
     ),
-  /** Der 15-%-Rahmen des § 6 Abs. 1 Nr. 1a EStG für eine geplante Instandsetzung. */
-  checkNearAcquisitionCost: (
-    assetId: number,
-    date: string,
-    amount: Cents,
-  ): Promise<NearAcquisitionCheck> =>
-    call(
-      () => Bridge.CheckNearAcquisitionCost(assetId, date, amount) as Promise<NearAcquisitionCheck>,
-    ),
-  /** Bucht den Erhaltungsaufwand als nachträgliche Herstellungskosten um. */
-  capitalizeNearAcquisitionCost: (
-    request: CapitalizeNearAcquisitionCostRequest,
-  ): Promise<FixedAsset> =>
-    call(() => Bridge.CapitalizeNearAcquisitionCost(request as any) as Promise<FixedAsset>),
   /** Freistellungsbescheinigungen § 48b EStG, die ablaufen oder abgelaufen sind. */
   getExemptionCertificateWarnings: (today = ''): Promise<ExemptionCertificateWarning[]> =>
     call(
@@ -1829,38 +1692,6 @@ export const Api = {
    */
   setSystemChangeDate: (date: string): Promise<void> =>
     call(() => Bridge.SetSystemChangeDate(date)),
-
-  // --- Aufbewahrung ------------------------------------------------------
-
-  /** Die Fristenübersicht; Jahr 0 heißt: alle Geschäftsjahre. */
-  getRetentionOverview: (year = 0): Promise<RetentionOverview> =>
-    call(() => Bridge.GetRetentionOverview(year) as Promise<RetentionOverview>).then(
-      normalizeRetentionOverview,
-    ),
-  /** Alle Aussetzungen, die geltenden zuerst. */
-  getRetentionHolds: (): Promise<RetentionHold[]> =>
-    call(() => Bridge.GetRetentionHolds() as Promise<RetentionHold[]>).then(list),
-  /** Setzt die Frist eines Geschäftsjahres aus; bei „other" ist der Text Pflicht. */
-  setRetentionHold: (
-    year: number,
-    reason: RetentionHoldReason,
-    description: string,
-  ): Promise<RetentionHold> =>
-    call(() => Bridge.SetRetentionHold(year, reason, description) as Promise<RetentionHold>),
-  /** Hebt eine Aussetzung auf. Sie bleibt danach im Protokoll stehen. */
-  releaseRetentionHold: (id: number, reason: string): Promise<void> =>
-    call(() => Bridge.ReleaseRetentionHold(id, reason)),
-  /** Die Geschäftsjahre, deren Aufbewahrungsfrist abgelaufen ist. */
-  getExpiredObjects: (): Promise<RetentionYear[]> =>
-    call(() => Bridge.GetExpiredObjects() as Promise<RetentionYear[]>).then((years) =>
-      list(years).map(normalizeRetentionYear),
-    ),
-  /**
-   * Archiviert ein Geschäftsjahr und löscht es. Unumkehrbar: die Bestätigung
-   * ist die ausgeschriebene Jahreszahl, das Archiv entsteht vorher im Backend.
-   */
-  archiveAndDeleteFiscalYear: (year: number, confirmation: string): Promise<DeleteResult> =>
-    call(() => Bridge.ArchiveAndDeleteFiscalYear(year, confirmation) as Promise<DeleteResult>),
 
   // --- Verfahrensdokumentation (PRF-03) ----------------------------------
 

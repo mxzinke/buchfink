@@ -18,8 +18,6 @@ import { ContactsPage } from './pages/ContactsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { ClosingPage } from './pages/ClosingPage';
 import { ClosingModulesPage } from './pages/ClosingModulesPage';
-import { GruendungPage } from './pages/GruendungPage';
-import { DokumentePage } from './pages/DokumentePage';
 import { VatPage } from './pages/VatPage';
 import { ObligationsPage } from './pages/ObligationsPage';
 import { DeadlinesPage } from './pages/DeadlinesPage';
@@ -234,20 +232,12 @@ export function App() {
     await loadActiveFiscalYearData();
   };
 
-  const openWorkspace = async () => {
-    try {
-      const foundation = await Api.getFoundationState();
-      setCurrentTab(foundation?.hasFoundation && foundation.duties.some((duty) => !duty.isDone) ? 'gruendung' : 'tasks');
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
-      setCurrentTab('tasks');
-    }
-  };
+  const openWorkspace = () => setCurrentTab('tasks');
 
-  const handleSetupCompleted = async (target: TabType = 'tasks') => {
+  const handleSetupCompleted = async () => {
     setIsAddingTenant(false);
     await bootstrapApp();
-    setCurrentTab(target);
+    setCurrentTab('tasks');
   };
 
   // Loading Screen while reading initial config
@@ -302,7 +292,7 @@ export function App() {
             onSwitchTenant={handleSwitchTenant}
             onRefreshTenants={refreshTenants}
             onAddTenant={() => setIsAddingTenant(true)}
-            onStartDashboard={() => void openWorkspace()}
+            onStartDashboard={openWorkspace}
           />
         );
       // Die Aufgabenliste ist die Startseite (Architektur 6.1); Kennzahlen und
@@ -364,14 +354,6 @@ export function App() {
             onNavigate={navigate}
           />
         );
-      case 'dokumente':
-        // Die Unterlagen des Unternehmens. Ohne Jahr: sie gehören zum
-        // Unternehmen und nicht zu einem Geschäftsjahr.
-        return <DokumentePage />;
-      case 'gruendung':
-        // Der Gründungsweg. Ohne Eintrag in der Navigation und ohne Jahr: er
-        // hängt an der Gründung und nicht am Geschäftsjahr der Kopfzeile.
-        return <GruendungPage onNavigate={navigate} />;
       case 'vat':
         // Voranmeldung und Zusammenfassende Meldung folgen dem Jahr aus der
         // Kopfzeile; die Kennziffern entstehen im Backend.
@@ -404,14 +386,10 @@ export function App() {
           />
         );
       case 'backup':
-        // Sicherung und Aufbewahrung. Die Fristenansicht folgt dem Jahr aus
-        // der Kopfzeile: es ist das Jahr, dessen Aufbewahrung gerade zur Frage
-        // steht. Nach einer Wiederherstellung wird die Anwendung neu
-        // aufgesetzt — der wiederhergestellte Mandant steht sonst in keiner
-        // Liste.
+        // Nach einer Wiederherstellung wird die Anwendung neu aufgesetzt — der
+        // wiederhergestellte Mandant steht sonst in keiner Liste.
         return (
           <BackupPage
-            year={currentYear}
             appConfig={appConfig}
             onAppConfigChange={setAppConfig}
             onRestored={bootstrapApp}

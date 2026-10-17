@@ -52,11 +52,6 @@ type TaskReceiptSource interface {
 	List(ctx context.Context, status domain.ReceiptStatus) ([]domain.Receipt, error)
 }
 
-// TaskAssetDocumentSource liefert die ablaufenden Dokumente am Anlagegut.
-type TaskAssetDocumentSource interface {
-	ExpiringDocuments(ctx context.Context, until string) ([]ExpiringDocument, error)
-}
-
 // TaskBackupSource liefert die letzte erfolgreiche Sicherung und die jüngsten
 // Läufe.
 //
@@ -106,7 +101,6 @@ type TaskService struct {
 	bank          TaskBankSource
 	receipts      TaskReceiptSource
 	openItems     LiveOpenItemSource
-	assetDocs     TaskAssetDocumentSource
 	exemptions    ExemptionDeadlineSource
 	backups       TaskBackupSource
 	carryForward  TaskCarryForwardSource
@@ -118,8 +112,8 @@ type TaskService struct {
 // NewTaskService baut die Aufgabenliste über den Einstellungen auf; die Quellen
 // werden einzeln angehängt.
 //
-// Einzeln, weil jede für sich fehlen darf: ein Mandant ohne Anlagenkartei hat
-// keine ablaufenden Dokumente, und eine Aufgabenliste, die deshalb gar nicht
+// Einzeln, weil jede für sich fehlen darf: ein Mandant ohne Bankkonto hat
+// keine offenen Umsätze, und eine Aufgabenliste, die deshalb gar nicht
 // entsteht, wäre der schlechteste Umgang damit.
 func NewTaskService(settingsRepo domain.SettingsRepository, fiscalYear int) *TaskService {
 	return &TaskService{settingsRepo: settingsRepo, fiscalYear: fiscalYear}
@@ -134,9 +128,6 @@ func (s *TaskService) SetStatementSource(src StatementDeadlineSource) { s.statem
 func (s *TaskService) SetBankSource(src TaskBankSource)               { s.bank = src }
 func (s *TaskService) SetReceiptSource(src TaskReceiptSource)         { s.receipts = src }
 func (s *TaskService) SetOpenItemSource(src LiveOpenItemSource)       { s.openItems = src }
-func (s *TaskService) SetAssetDocumentSource(src TaskAssetDocumentSource) {
-	s.assetDocs = src
-}
 func (s *TaskService) SetExemptionSource(src ExemptionDeadlineSource) { s.exemptions = src }
 func (s *TaskService) SetBackupSource(src TaskBackupSource)           { s.backups = src }
 func (s *TaskService) SetCarryForwardSource(src TaskCarryForwardSource) {
@@ -181,7 +172,6 @@ func (s *TaskService) Tasks(ctx context.Context, opts TaskOptions) (*domain.Task
 	s.addBank(ctx, list)
 	s.addReceipts(ctx, list, today, cfg)
 	s.addOverdueReceivables(ctx, list, today)
-	s.addAssetDocuments(ctx, list, today, horizon)
 	s.addExemptions(ctx, list, today)
 	s.addBackup(ctx, list, today)
 	s.addYearEnd(ctx, list, today)
@@ -655,49 +645,6 @@ func (s *TaskService) addOverdueReceivables(ctx context.Context, list *domain.Ta
 		Count:     count, Amount: amount, DueDate: oldest,
 		Target: domain.TaskTarget{Page: "bank", Params: map[string]string{"view": "dunning"}},
 	})
-}
-
-// addAssetDocuments meldet die ablaufenden Dokumente am Anlagegut.
-func (s *TaskService) addAssetDocuments(ctx context.Context, list *domain.TaskList, today, horizon string) {
-	if s.assetDocs == nil {
-		return
-	}
-	documents, err := s.assetDocs.ExpiringDocuments(ctx, horizon)
-	if err != nil || len(documents) == 0 {
-		return
-	}
-	expired, upcoming := 0, 0
-	first := ""
-	for _, document := range documents {
-		if document.ValidUntil < today {
-			expired++
-		} else {
-			upcoming++
-		}
-		if first == "" || document.ValidUntil < first {
-			first = document.ValidUntil
-		}
-	}
-	if expired > 0 {
-		list.Add(domain.Task{
-			Key: domain.TaskKeyAssetDocument + ".expired", Group: domain.TaskGroupOverdue,
-			Title:   "Abgelaufene Unterlagen am Anlagegut erneuern",
-			Why:     "Eine abgelaufene Police oder ein fälliges Darlehen am Anlagegut ist ein Vorgang, der nicht warten kann.",
-			Count:   expired,
-			DueDate: first,
-			Target:  domain.TaskTarget{Page: "assets"},
-		})
-	}
-	if upcoming > 0 {
-		list.Add(domain.Task{
-			Key: domain.TaskKeyAssetDocument, Group: domain.TaskGroupUpcoming,
-			Title:   "Unterlagen am Anlagegut laufen aus",
-			Why:     "Die Frist an einem hinterlegten Dokument endet in den nächsten dreißig Tagen.",
-			Count:   upcoming,
-			DueDate: first,
-			Target:  domain.TaskTarget{Page: "assets"},
-		})
-	}
 }
 
 // addExemptions meldet die ablaufenden Freistellungsbescheinigungen.

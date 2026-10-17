@@ -702,7 +702,7 @@ func TestCheckOverrideReasonOnlyWithBlockingFindings(t *testing.T) {
 // beschädigter Bestand, und der Anwender suchte nach einem Schaden, den es
 // nicht gibt.
 func TestReceiptFileCheckWithoutAStoreIsNoFinding(t *testing.T) {
-	result := checkReceiptFiles(nil, nil, nil)
+	result := checkReceiptFiles(nil, nil)
 	if !result.NoStore {
 		t.Error("der Lauf muss den Zustand „kein Belegspeicher“ melden")
 	}

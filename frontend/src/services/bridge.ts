@@ -168,19 +168,10 @@ export const bridge = {
   BookDepreciationRun: <T>(request: unknown) => invoke<T>('BookDepreciationRun', request),
   BookAssetImpairment: <T>(request: unknown) => invoke<T>('BookAssetImpairment', request),
   BookAssetWriteUp: <T>(request: unknown) => invoke<T>('BookAssetWriteUp', request),
-  BookAssetMaintenance: <T>(request: unknown) => invoke<T>('BookAssetMaintenance', request),
   BookAssetIncome: <T>(request: unknown) => invoke<T>('BookAssetIncome', request),
   ValuateAssetCurrency: <T>(request: unknown) => invoke<T>('ValuateAssetCurrency', request),
   BookAssetCurrencyValuation: <T>(request: unknown) =>
     invoke<T>('BookAssetCurrencyValuation', request),
-  SelectAssetDocumentsDialog: <T>(title: string) => invoke<T>('SelectAssetDocumentsDialog', title),
-  AttachAssetDocument: <T>(request: unknown) => invoke<T>('AttachAssetDocument', request),
-  RemoveAssetDocument: <T>(assetId: number, documentId: number) =>
-    invoke<T>('RemoveAssetDocument', assetId, documentId),
-  GetAssetDocumentContent: <T>(documentId: number) =>
-    invoke<T>('GetAssetDocumentContent', documentId),
-  GetAssetDocumentKinds: <T>() => invoke<T>('GetAssetDocumentKinds'),
-  GetExpiringAssetDocuments: <T>(until: string) => invoke<T>('GetExpiringAssetDocuments', until),
   GetLegalForms: <T>() => invoke<T>('GetLegalForms'),
   GetInvestmentRules: <T>() => invoke<T>('GetInvestmentRules'),
   ComputeVorabpauschale: <T>(request: unknown) => invoke<T>('ComputeVorabpauschale', request),
@@ -329,23 +320,8 @@ export const bridge = {
   BookFoundationPostings: <T>() => invoke<T>('BookFoundationPostings'),
   RegisterCompany: <T>(date: string, court: string, number: string) =>
     invoke<T>('RegisterCompany', date, court, number),
-  SetFoundationDutyStatus: (key: string, status: string) => invoke<void>('SetFoundationDutyStatus', key, status),
-  CompleteFoundationDuty: (key: string, doneOn: string, note: string) =>
-    invoke<void>('CompleteFoundationDuty', key, doneOn, note),
   GetOpeningBalance: <T>() => invoke<T>('GetOpeningBalance'),
-  FileOpeningBalance: <T>() => invoke<T>('FileOpeningBalance'),
   ExportOpeningBalanceXBRL: () => invoke<string>('ExportOpeningBalanceXBRL'),
-  GetFragebogenSheet: <T>() => invoke<T>('GetFragebogenSheet'),
-  FileFragebogenSheet: <T>() => invoke<T>('FileFragebogenSheet'),
-
-  // Dokumentenablage des Unternehmens
-  GetDocuments: <T>() => invoke<T>('GetDocuments'),
-  GetDocumentKinds: <T>() => invoke<T>('GetDocumentKinds'),
-  GetDocumentContent: <T>(id: number) => invoke<T>('GetDocumentContent', id),
-  SelectDocumentsDialog: <T>() => invoke<T>('SelectDocumentsDialog'),
-  GetDocumentFileInfo: (path: string) => invoke('GetDocumentFileInfo', path),
-  AttachDocument: <T>(request: unknown) => invoke<T>('AttachDocument', request),
-  RemoveDocument: (id: number) => invoke<void>('RemoveDocument', id),
 
   // Datenüberlassung nach § 147 Abs. 6 AO
   ExportZ3: <T>(year: number, targetDir: string) => invoke<T>('ExportZ3', year, targetDir),
@@ -431,16 +407,12 @@ export const bridge = {
   PreviewCurrencyValuation: <T>(year: number) => invoke<T>('PreviewCurrencyValuation', year),
   BookCurrencyValuation: <T>(year: number) => invoke<T>('BookCurrencyValuation', year),
 
-  // Anlagen: Regelsätze, Wertaufholung, Sammelposten, anschaffungsnahe Kosten
+  // Anlagen: Regelsätze, Wertaufholung, Sammelposten
   GetAfaRules: <T>() => invoke<T>('GetAfaRules'),
   GetWriteUpReport: <T>(year: number) => invoke<T>('GetWriteUpReport', year),
   ConfirmImpairmentPersists: <T>(assetId: number, year: number, note: string) =>
     invoke<T>('ConfirmImpairmentPersists', assetId, year, note),
   GetPoolConsistencyReport: <T>(year: number) => invoke<T>('GetPoolConsistencyReport', year),
-  CheckNearAcquisitionCost: <T>(assetId: number, date: string, amount: number) =>
-    invoke<T>('CheckNearAcquisitionCost', assetId, date, amount),
-  CapitalizeNearAcquisitionCost: <T>(request: unknown) =>
-    invoke<T>('CapitalizeNearAcquisitionCost', request),
   GetExemptionCertificateWarnings: <T>(today: string) =>
     invoke<T>('GetExemptionCertificateWarnings', today),
 
@@ -456,17 +428,6 @@ export const bridge = {
   GetSchemaMigrations: <T>() => invoke<T>('GetSchemaMigrations'),
   GetMigrationRecords: <T>() => invoke<T>('GetMigrationRecords'),
   SetSystemChangeDate: (date: string) => invoke<void>('SetSystemChangeDate', date),
-
-  // Aufbewahrung: Fristen, Aussetzung, Löschung
-  GetRetentionOverview: <T>(year: number) => invoke<T>('GetRetentionOverview', year),
-  GetRetentionHolds: <T>() => invoke<T>('GetRetentionHolds'),
-  SetRetentionHold: <T>(year: number, reason: string, description: string) =>
-    invoke<T>('SetRetentionHold', year, reason, description),
-  ReleaseRetentionHold: (id: number, reason: string) =>
-    invoke<void>('ReleaseRetentionHold', id, reason),
-  GetExpiredObjects: <T>() => invoke<T>('GetExpiredObjects'),
-  ArchiveAndDeleteFiscalYear: <T>(year: number, confirmation: string) =>
-    invoke<T>('ArchiveAndDeleteFiscalYear', year, confirmation),
 
   // Verfahrensdokumentation und Hinweise zum Funktionsumfang
   GenerateProcedureDocumentation: <T>() => invoke<T>('GenerateProcedureDocumentation'),

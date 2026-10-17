@@ -103,18 +103,13 @@ func TestDerivedAssetAccountsExistInSKR04(t *testing.T) {
 		}
 	}
 
-	// Die Konten, die sich aus dem Anlagekonto ableiten: Sonderabschreibung,
-	// Erhaltungsaufwand und laufender Ertrag. Jede dieser Ableitungen führt zu
+	// Die Konten, die sich aus dem Anlagekonto ableiten: Sonderabschreibung
+	// und laufender Ertrag. Jede dieser Ableitungen führt zu
 	// genau einer Nummer, und jede muss bebuchbar sein.
 	for _, entry := range AssetAccounts("") {
 		if account, err := SpecialDepreciationAccount(entry.Class, entry.Number); err == nil {
 			if err := chart.EnsurePostable(account); err != nil {
 				t.Errorf("Konto der Sonderabschreibung %s zu %s: %v", account, entry.Number, err)
-			}
-		}
-		if account, err := MaintenanceAccount(entry.Class, entry.Number); err == nil {
-			if err := chart.EnsurePostable(account); err != nil {
-				t.Errorf("Konto des Erhaltungsaufwands %s zu %s: %v", account, entry.Number, err)
 			}
 		}
 		if account, err := AssetIncomeAccount(entry.Class, entry.Number); err == nil {

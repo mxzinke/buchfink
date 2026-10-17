@@ -10,7 +10,6 @@ import (
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
-	"github.com/buchfink/buchfink/internal/receiptstore"
 )
 
 // AssetService is the Anlagenbuchhaltung: the Anlagenverzeichnis, the AfA and
@@ -31,10 +30,6 @@ type AssetService struct {
 	settingsRepo domain.SettingsRepository
 	auditRepo    domain.AuditRepository
 	taxResolver  domain.TaxResolver
-	// docStore hält die Dokumente am Anlagegut — Verträge, Gutachten,
-	// Zulassungen. Er ist derselbe inhaltsadressierte Speicher wie für die
-	// Belege, aber ein anderer Zweig darin; siehe asset_document_service.go.
-	docStore *receiptstore.Store
 	// inputTax ist das Verzeichnis nach § 15a UStG. Ohne es legt die Aktivierung
 	// keinen Eintrag an — mit ihm tut sie es von allein.
 	inputTax inputTaxRegistrar
@@ -1499,187 +1494,8 @@ func (s *AssetService) writeUpCeiling(
 }
 
 // -------------------------------------------------------------------------
-// Erhaltungsaufwand und laufende Erträge
+// Laufende Erträge
 // -------------------------------------------------------------------------
-
-// MaintenanceRequest bucht Erhaltungsaufwand zu einem Anlagegut.
-type MaintenanceRequest struct {
-	AssetID uint         `json:"assetId"`
-	Date    string       `json:"date"`
-	Amount  domain.Cents `json:"amount"` // netto
-	// Account überschreibt das aus dem Anlagekonto abgeleitete Aufwandskonto.
-	Account      string              `json:"account,omitempty"`
-	TaxTreatment domain.TaxTreatment `json:"taxTreatment"`
-	TaxRate      domain.TaxRate      `json:"taxRate"`
-	Settlement   SettlementKind      `json:"settlement"`
-	// PaymentAccount bei sofortiger Zahlung, ContactID beim offenen Posten.
-	PaymentAccount string `json:"paymentAccount,omitempty"`
-	ContactID      uint   `json:"contactId,omitempty"`
-	// Note ist Pflicht. Sie hält die Abgrenzung fest, um die es hier geht: was
-	// den Zustand nur erhält, ist sofort abziehbar; was erweitert oder wesentlich
-	// verbessert, ist zu aktivieren (§ 255 Abs. 2 Satz 1 HGB). Die Entscheidung
-	// ist eine Einschätzung, und ohne ihre Begründung ist sie später nicht mehr
-	// nachvollziehbar.
-	Note string `json:"note"`
-
-	// NotModernisation nimmt die Maßnahme aus dem Rahmen des § 6 Abs. 1 Nr. 1a
-	// EStG heraus — für die jährlich üblicherweise anfallenden Erhaltungsarbeiten
-	// und die Erweiterungen des Satzes 2. Negativ formuliert, weil der Regelfall
-	// das Gegenteil ist und der Regelfall der Vorgabewert sein muss.
-	NotModernisation bool `json:"notModernisation,omitempty"`
-}
-
-// MaintenanceResult ist das Ergebnis einer Erhaltungsaufwandsbuchung.
-//
-// Die Buchung allein wäre die halbe Antwort. Die Prüfung des 15-%-Rahmens
-// (§ 6 Abs. 1 Nr. 1a EStG) entscheidet darüber, ob der eben gebuchte Aufwand
-// überhaupt sofort abziehbar ist — sie stand vorher nur im Protokoll, und wer
-// bucht, liest kein Protokoll. Jetzt kommt sie mit der Buchung zurück.
-type MaintenanceResult struct {
-	Entry *domain.JournalEntry `json:"entry"`
-	// NearAcquisition ist die Prüfung des Rahmens, nil wo sie nicht einschlägig
-	// war (kein Gebäude, außerhalb der drei Jahre, ausdrücklich keine
-	// Modernisierung).
-	NearAcquisition *NearAcquisitionCheck `json:"nearAcquisition,omitempty"`
-}
-
-// BookMaintenance writes Erhaltungsaufwand and links it to the Anlagegut.
-//
-// Der Aufwand ändert den Buchwert nicht — das unterscheidet ihn von den
-// nachträglichen Herstellungskosten. Die Bewegung, die dabei entsteht, trägt
-// deshalb weder Anschaffungskosten noch Abschreibung: sie verbindet nur die
-// Buchung mit dem Wirtschaftsgut, an dem gearbeitet wurde. Wer später fragt,
-// was eine Maschine gekostet hat, bekommt beides zu sehen und kann es
-// auseinanderhalten.
-func (s *AssetService) BookMaintenance(ctx context.Context, req MaintenanceRequest) (*MaintenanceResult, error) {
-	asset, err := s.assetRepo.FindByID(ctx, req.AssetID)
-	if err != nil {
-		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", req.AssetID, err)
-	}
-	if asset.IsDisposed() {
-		return nil, fmt.Errorf("%s ist am %s abgegangen", asset.InventoryNumber, asset.DisposalDate)
-	}
-	if len(req.Date) != 10 {
-		return nil, fmt.Errorf("das Datum fehlt oder ist unvollständig (erwartet JJJJ-MM-TT)")
-	}
-	if req.Amount <= 0 {
-		return nil, fmt.Errorf("der Betrag muss größer als null sein")
-	}
-	if strings.TrimSpace(req.Note) == "" {
-		return nil, fmt.Errorf(
-			"halte fest, warum die Maßnahme den Zustand nur erhält. Was ein Wirtschaftsgut " +
-				"erweitert oder über seinen ursprünglichen Zustand hinaus wesentlich verbessert, ist " +
-				"zu aktivieren (§ 255 Abs. 2 Satz 1 HGB) — die Abgrenzung ist eine Einschätzung und " +
-				"gehört an die Buchung")
-	}
-
-	// Die 15-%-Prüfung des § 6 Abs. 1 Nr. 1a EStG läuft vor der Buchung. Sie
-	// hält nicht an: ob eine Maßnahme unter die Vorschrift fällt, ist eine
-	// Beurteilung, und Buchfink trifft sie nicht. Der Hinweis steht an der
-	// Bewegung, und der Bericht führt den Fall weiter.
-	var nearAcquisition *NearAcquisitionCheck
-	if !req.NotModernisation {
-		nearAcquisition, err = s.CheckNearAcquisitionCost(ctx, asset.ID, req.Date, req.Amount)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	expense := req.Account
-	if expense == "" {
-		expense, err = accounting.MaintenanceAccount(asset.Class, asset.Account)
-		if err != nil {
-			return nil, err
-		}
-	}
-	chart, err := s.journalSvc.Chart(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if err := chart.EnsurePostable(expense); err != nil {
-		return nil, fmt.Errorf("Aufwandskonto des Erhaltungsaufwands: %w", err)
-	}
-
-	treatment := req.TaxTreatment
-	if treatment == "" {
-		treatment = domain.TaxTreatmentDomestic
-	}
-	rate := req.TaxRate
-	if treatment == domain.TaxTreatmentDomestic && rate == domain.TaxRateNone {
-		// Der Regelsatz des Leistungstages und nicht die Konstante 19 %
-		// (UNV-03 K2): eine 2026 nacherfasste Erhaltungsmaßnahme vom August
-		// 2020 trägt 16 %, und ein Vorschlag von 19 % ergäbe eine Buchung, die
-		// weder zur Rechnung noch zur Voranmeldung passt.
-		rate, err = accounting.TaxRateFor(req.Date, false)
-		if err != nil {
-			return nil, err
-		}
-	}
-	legs, err := s.taxResolver.Resolve(domain.DirectionIncoming, treatment, rate, req.Amount)
-	if err != nil {
-		return nil, err
-	}
-
-	lines := []domain.JournalLine{
-		{Side: domain.SideDebit, Account: expense, Amount: req.Amount, Text: asset.InventoryNumber},
-	}
-	for _, leg := range legs {
-		if leg.Amount == 0 {
-			continue
-		}
-		lines = append(lines, taxLegLine(leg))
-	}
-	settlement, err := s.settlement(ctx, lines, req.Settlement, req.PaymentAccount, req.ContactID,
-		domain.ContactTypeVendor)
-	if err != nil {
-		return nil, err
-	}
-	lines = append(lines, settlement)
-
-	entry := &domain.JournalEntry{
-		BookingDate:        req.Date,
-		DocumentDate:       req.Date,
-		ServiceDateFrom:    req.Date,
-		ServiceDateTo:      req.Date,
-		Description:        fmt.Sprintf("Erhaltungsaufwand %s: %s", asset.Name, req.Note),
-		Source:             domain.EntrySourceManual,
-		DocumentNumber:     asset.InventoryNumber,
-		TaxTreatment:       treatment,
-		PostingRuleVersion: accounting.PostingRuleVersion,
-		Lines:              lines,
-	}
-	if req.ContactID != 0 {
-		contactID := req.ContactID
-		entry.ContactID = &contactID
-	}
-	created, err := s.journalSvc.Post(ctx, entry)
-	if err != nil {
-		return nil, err
-	}
-	out := &MaintenanceResult{Entry: created, NearAcquisition: nearAcquisition}
-
-	movement := &domain.AssetMovement{
-		AssetID: asset.ID, Kind: domain.AssetMovementMaintenance, Account: asset.Account,
-		Date: req.Date, FiscalYear: domain.GetFiscalYearForDate(req.Date, s.fiscalYearStartMonth(ctx)),
-		JournalEntryID:  &created.ID,
-		ExpenseAmount:   req.Amount,
-		ExpenseAccount:  expense,
-		IsModernisation: !req.NotModernisation,
-		Note:            fmt.Sprintf("%s € auf %s: %s", req.Amount, expense, req.Note),
-	}
-	if err := s.assetRepo.AddMovement(ctx, movement); err != nil {
-		return out, fmt.Errorf(
-			"die Buchung %s wurde geschrieben, die Bewegung im Anlagenverzeichnis aber nicht: %w",
-			created.EntryNumber, err)
-	}
-	if nearAcquisition != nil && nearAcquisition.Exceeded {
-		s.audit(ctx, domain.AuditActionUpdate, asset.ID, fmt.Sprintf(
-			"Anschaffungsnahe Herstellungskosten: %s", nearAcquisition.Note))
-	}
-	s.audit(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
-		"Erhaltungsaufwand zu %s: %s € am %s", asset.InventoryNumber, req.Amount, req.Date))
-	return out, nil
-}
 
 // AssetIncomeRequest bucht einen laufenden Ertrag aus einer Finanzanlage.
 type AssetIncomeRequest struct {
@@ -2848,11 +2664,11 @@ func (s *AssetService) Anlagenspiegel(ctx context.Context) (*domain.Anlagenspieg
 				case domain.AssetMovementDepreciation, domain.AssetMovementSpecialDepreciation,
 					domain.AssetMovementImpairment:
 					row.DepreciationYear += m.DepreciationAmount
-				case domain.AssetMovementMaintenance, domain.AssetMovementIncome,
-					domain.AssetMovementVorabpauschale:
-					// Erhaltungsaufwand und laufende Erträge gehören zum Anlagegut,
-					// aber nicht in den Anlagenspiegel: sie ändern weder die
-					// Anschaffungskosten noch die kumulierten Abschreibungen.
+				case domain.AssetMovementIncome, domain.AssetMovementVorabpauschale:
+					// Laufende Erträge und die Vorabpauschale gehören zum
+					// Anlagegut, aber nicht in den Anlagenspiegel: sie ändern
+					// weder die Anschaffungskosten noch die kumulierten
+					// Abschreibungen.
 				default:
 					row.Additions += m.CostAmount
 				}

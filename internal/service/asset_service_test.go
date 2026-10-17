@@ -2,15 +2,11 @@ package service
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
-	"github.com/buchfink/buchfink/internal/receiptstore"
 	"github.com/buchfink/buchfink/internal/repository"
 )
 
@@ -1563,91 +1559,6 @@ func TestBookedSpecialDepreciationCannotBeRedistributed(t *testing.T) {
 	}
 }
 
-// Erhaltungsaufwand gehört zum Anlagegut, ändert seinen Wert aber nicht. Genau
-// das unterscheidet ihn von den nachträglichen Herstellungskosten.
-func TestMaintenanceIsLinkedButDoesNotChangeTheBookValue(t *testing.T) {
-	env := newTestEnv(t)
-	svc := env.assets(t)
-	ctx := context.Background()
-	asset := env.machine(t, svc)
-	before := asset.BookValue
-
-	result, err := svc.BookMaintenance(ctx, MaintenanceRequest{
-		AssetID: asset.ID, Date: "2026-05-04", Amount: 90_000,
-		TaxRate: domain.TaxRateStandard, Settlement: SettlementPaid, PaymentAccount: "1800",
-		Note: "Lagerschaden behoben, kein Mehrwert gegenüber dem ursprünglichen Zustand",
-	})
-	if err != nil {
-		t.Fatalf("Erhaltungsaufwand: %v", err)
-	}
-	// Eine Maschine ist kein Gebäude: die Prüfung des 15-%-Rahmens ist nicht
-	// einschlägig, und das Ergebnis sagt es statt zu schweigen.
-	if result.NearAcquisition != nil && result.NearAcquisition.Applicable {
-		t.Errorf("§ 6 Abs. 1 Nr. 1a EStG gilt für Gebäude: %+v", result.NearAcquisition)
-	}
-	lines := map[string]domain.Cents{}
-	for _, l := range result.Entry.Lines {
-		lines[string(l.Side)+":"+l.Account] += l.Amount
-	}
-	// Eine Maschine: Reparaturen und Instandhaltung von technischen Anlagen.
-	if lines["S:6460"] != 90_000 {
-		t.Errorf("Aufwandskonto %+v — erwartet 6460 mit 900,00 €", lines)
-	}
-	if lines["H:1800"] != 107_100 {
-		t.Errorf("Zahlung %+v — erwartet 1.071,00 € brutto", lines)
-	}
-
-	detail, err := svc.Get(ctx, asset.ID)
-	if err != nil {
-		t.Fatalf("Detailansicht: %v", err)
-	}
-	if detail.Asset.BookValue != before {
-		t.Errorf("Buchwert %s € — Erhaltungsaufwand darf ihn nicht ändern (vorher %s €)",
-			detail.Asset.BookValue, before)
-	}
-	var found bool
-	for _, m := range detail.Movements {
-		if m.Kind == domain.AssetMovementMaintenance {
-			found = true
-			if m.CostAmount != 0 || m.DepreciationAmount != 0 {
-				t.Errorf("die Bewegung trägt %s €/%s € — erwartet null in beiden Spalten",
-					m.CostAmount, m.DepreciationAmount)
-			}
-			if m.JournalEntryID == nil {
-				t.Error("die Bewegung ist mit keiner Buchung verknüpft")
-			}
-		}
-	}
-	if !found {
-		t.Error("der Erhaltungsaufwand taucht beim Anlagegut nicht auf")
-	}
-
-	spiegel, err := svc.Anlagenspiegel(ctx)
-	if err != nil {
-		t.Fatalf("Anlagenspiegel: %v", err)
-	}
-	if spiegel.Totals.Additions != 1_200_000 {
-		t.Errorf("Zugänge im Anlagenspiegel %s € — erwartet allein den Zugang von 12.000,00 €; "+
-			"Erhaltungsaufwand gehört dort nicht hinein", spiegel.Totals.Additions)
-	}
-}
-
-// Ohne festgehaltene Abgrenzung entsteht kein Erhaltungsaufwand: die
-// Unterscheidung zur Erweiterung ist eine Einschätzung, keine Rechnung.
-func TestMaintenanceNeedsItsReasoning(t *testing.T) {
-	env := newTestEnv(t)
-	svc := env.assets(t)
-	asset := env.machine(t, svc)
-
-	_, err := svc.BookMaintenance(context.Background(), MaintenanceRequest{
-		AssetID: asset.ID, Date: "2026-05-04", Amount: 90_000,
-		Settlement: SettlementPaid, PaymentAccount: "1800",
-	})
-	if err == nil {
-		t.Fatal("ohne Begründung darf der Erhaltungsaufwand nicht gebucht werden")
-	}
-}
-
 // Eine Dividende ist Ertrag des Jahres und kein Rückfluss der
 // Anschaffungskosten: der Buchwert der Beteiligung bleibt unberührt. Die
 // einbehaltene Kapitalertragsteuer mindert den Zufluss, nicht den Ertrag.
@@ -2006,102 +1917,6 @@ func TestSkontoOnAnOrdinaryInvoiceIsUnchanged(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("ohne Anlagenbezug gehört das Skonto weiter auf 5736: %+v", entry.Lines)
-	}
-}
-
-// Ein Vertrag zum Anlagegut ist kein Beleg: er hat keine Belegnummer, gehört
-// zu keinem Geschäftsjahr und wird nicht gebucht. Abgelegt wird er trotzdem auf
-// demselben Weg — inhaltsadressiert und dedupliziert.
-func TestAssetDocumentsAreKeptAlongsideTheAsset(t *testing.T) {
-	env := newTestEnv(t)
-	svc := env.assets(t)
-	svc.SetDocumentStore(receiptstore.New(t.TempDir()))
-	ctx := context.Background()
-	asset := env.machine(t, svc)
-
-	path := filepath.Join(t.TempDir(), "kaufvertrag.pdf")
-	if err := os.WriteFile(path, []byte("%PDF-1.4 Kaufvertrag Fräsmaschine"), 0o600); err != nil {
-		t.Fatalf("Testdatei: %v", err)
-	}
-
-	updated, err := svc.AttachDocument(ctx, AttachDocumentRequest{
-		AssetID: asset.ID, Kind: domain.AssetDocContract, Path: path,
-		Title: "Kaufvertrag Maschinenbau Muster", DocumentDate: "2026-01-08",
-	})
-	if err != nil {
-		t.Fatalf("Dokument ablegen: %v", err)
-	}
-	if len(updated.Documents) != 1 {
-		t.Fatalf("erwartet ein Dokument, bekommen %d", len(updated.Documents))
-	}
-	document := updated.Documents[0]
-	if document.Kind != domain.AssetDocContract || document.MimeType != "application/pdf" {
-		t.Errorf("Dokument %+v — erwartet einen Vertrag als PDF", document)
-	}
-	if document.DisplayTitle() != "Kaufvertrag Maschinenbau Muster" {
-		t.Errorf("Titel %q", document.DisplayTitle())
-	}
-
-	content, err := svc.DocumentContent(ctx, document.ID)
-	if err != nil {
-		t.Fatalf("Inhalt lesen: %v", err)
-	}
-	if !content.Intact {
-		t.Error("die abgelegte Datei stimmt nicht mehr mit ihrer Prüfsumme überein")
-	}
-	if string(content.Data) != "%PDF-1.4 Kaufvertrag Fräsmaschine" {
-		t.Errorf("Inhalt %q — erwartet die abgelegte Datei", string(content.Data))
-	}
-
-	after, err := svc.RemoveDocument(ctx, asset.ID, document.ID)
-	if err != nil {
-		t.Fatalf("Dokument entfernen: %v", err)
-	}
-	if len(after.Documents) != 0 {
-		t.Errorf("nach dem Entfernen bleiben %d Dokumente", len(after.Documents))
-	}
-	if _, err := svc.DocumentContent(ctx, document.ID); err == nil {
-		t.Error("ein entferntes Dokument darf nicht mehr lesbar sein")
-	}
-}
-
-// Ein Ablaufdatum, das niemand wieder liest, ist keine Angabe. Die Kartei
-// beantwortet deshalb, was bis zu einem Stichtag ausläuft.
-func TestExpiringDocumentsAreFound(t *testing.T) {
-	env := newTestEnv(t)
-	svc := env.assets(t)
-	svc.SetDocumentStore(receiptstore.New(t.TempDir()))
-	ctx := context.Background()
-	asset := env.machine(t, svc)
-
-	dir := t.TempDir()
-	for i, c := range []struct {
-		name       string
-		validUntil string
-	}{
-		{"police.pdf", "2026-12-31"},
-		{"wartung.pdf", "2028-06-30"},
-	} {
-		path := filepath.Join(dir, c.name)
-		if err := os.WriteFile(path, []byte(fmt.Sprintf("%%PDF-1.4 Dokument %d", i)), 0o600); err != nil {
-			t.Fatalf("Testdatei: %v", err)
-		}
-		if _, err := svc.AttachDocument(ctx, AttachDocumentRequest{
-			AssetID: asset.ID, Kind: domain.AssetDocInsurance, Path: path, ValidUntil: c.validUntil,
-		}); err != nil {
-			t.Fatalf("Dokument ablegen: %v", err)
-		}
-	}
-
-	due, err := svc.ExpiringDocuments(ctx, "2026-12-31")
-	if err != nil {
-		t.Fatalf("Fristen: %v", err)
-	}
-	if len(due) != 1 || due[0].ValidUntil != "2026-12-31" {
-		t.Fatalf("erwartet genau die zum 31.12.2026 auslaufende Police, bekommen %+v", due)
-	}
-	if due[0].InventoryNumber != asset.InventoryNumber {
-		t.Errorf("die Frist zeigt auf %q statt auf %q", due[0].InventoryNumber, asset.InventoryNumber)
 	}
 }
 

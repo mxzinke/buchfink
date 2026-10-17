@@ -546,7 +546,7 @@ export const TaxAuditPage: React.FC<TaxAuditPageProps> = ({
                   <Stat
                     label="Dateien"
                     value={String(exportResult.files.length)}
-                    context={`${exportResult.receiptFiles} Belegdateien · ${exportResult.documentFiles} Dokumente`}
+                    context={`${exportResult.receiptFiles} Belegdateien`}
                   />
                   <Stat
                     label="Erzeugt"
