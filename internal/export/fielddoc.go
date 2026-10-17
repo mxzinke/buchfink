@@ -71,7 +71,8 @@ Tabelle ` + "`journal`" + `, aus der der Wert stammt):
 26. ` + "`channel`" + ` (Erfassungsweg)
 27. ` + "`legacy_ref`" + ` (Herkunft_Altsystem)
 28. ` + "`due_date`" + ` (Faelligkeit)
-29. ` + "`created_at`" + ` (Erfassungszeitpunkt_UTC, Format RFC 3339)
+29. ` + "`closing_period`" + ` (Abschlussperiode, 1 oder 0)
+30. ` + "`created_at`" + ` (Erfassungszeitpunkt_UTC, Format RFC 3339)
 
 Jedes Feld steht in jeder Buchung, auch wenn die Spalte leer ist.
 

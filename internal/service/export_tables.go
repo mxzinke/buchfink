@@ -95,6 +95,7 @@ func journalTable(d *exportData) (export.Table, error) {
 		alphaField("Buchungstext", "Beschreibung des Geschäftsvorfalls."),
 		alphaField("Quelle", "Teil des Systems, der die Buchung erzeugt hat; siehe Schlüsselverzeichnis, Kategorie „Quelle“."),
 		alphaField("Buchungsart", "normal oder reversal (Generalumkehr); siehe Schlüsselverzeichnis."),
+		intField("Abschlussperiode", "1, wenn die Buchung zur Abschlussperiode gehört: eine Abschlussbuchung zum Bilanzstichtag, die nach der Festschreibung des letzten Monats bis zur Jahresfestschreibung möglich bleibt; 0 sonst. Dieser Wert geht in die Hash-Chain ein."),
 		alphaField("Steuerfall", "Umsatzsteuerlicher Sachverhalt; siehe Schlüsselverzeichnis, Kategorie „Steuerfall“."),
 		intField("Storno_von_ID", "Kennung der Buchung, die diese Generalumkehr aufhebt; leer sonst."),
 		alphaField("Storno_Grund", "Begründung der Generalumkehr."),
@@ -153,6 +154,7 @@ func journalTable(d *exportData) (export.Table, error) {
 				e.Description,
 				string(e.Source),
 				string(e.Kind),
+				closingPeriodFlag(e),
 				string(e.TaxTreatment),
 				export.OptUint(e.ReversalOfID),
 				e.ReversalReason,
@@ -1128,4 +1130,13 @@ func auditTrailTable(d *exportData) (export.Table, error) {
 		}
 	}
 	return t, nil
+}
+
+// closingPeriodFlag schreibt die Abschlussperiode wie die kanonische Form: 1
+// oder 0.
+func closingPeriodFlag(e *domain.JournalEntry) string {
+	if e.ClosingPeriod {
+		return "1"
+	}
+	return "0"
 }

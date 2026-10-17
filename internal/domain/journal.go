@@ -255,6 +255,14 @@ type JournalEntry struct {
 	// Sie ist Inhalt und wird von der Hash-Kette gedeckt.
 	DueDate string `gorm:"size:10;index" json:"dueDate,omitempty"`
 
+	// ClosingPeriod kennzeichnet eine Buchung der Abschlussperiode („13.
+	// Monat"): eine Abschlussbuchung zum Bilanzstichtag. Sie bleibt nach der
+	// Festschreibung des letzten Monats bis zur Jahresfestschreibung möglich;
+	// eine gewöhnliche Buchung zu diesem Tag nicht. Abschlussbuchungen und AfA
+	// zum Stichtag tragen sie von selbst, eine Handbuchung auf Antrag. Sie ist
+	// Inhalt und wird von der Hash-Kette gedeckt.
+	ClosingPeriod bool `gorm:"not null;default:false" json:"closingPeriod"`
+
 	Lines []JournalLine `gorm:"foreignKey:EntryID;constraint:OnDelete:CASCADE" json:"lines"`
 
 	// Entertainment carries the Aufzeichnung § 4 Abs. 5 Satz 1 Nr. 2 EStG

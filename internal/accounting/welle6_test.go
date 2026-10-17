@@ -394,6 +394,7 @@ func TestCanonicalizeWritesEveryFieldForEveryEntry(t *testing.T) {
 
 	for _, field := range []string{
 		"app_version:0:\n", "actor:0:\n", "channel:0:\n", "legacy_ref:0:\n", "due_date:0:\n",
+		"closing_period:1:0\n",
 		"line_input_tax_share:1:0\n", "line_foreign_amount:1:0\n",
 		"entertainment:1:0\n", "gifts:1:0\n",
 	} {
@@ -414,6 +415,7 @@ func TestCanonicalizeCoversEveryField(t *testing.T) {
 		"Erfassungsweg":      func(e *domain.JournalEntry) { e.Channel = "agent:claude-desktop" },
 		"Herkunftskennung":   func(e *domain.JournalEntry) { e.LegacyRef = "ALT-4711" },
 		"Fälligkeit":         func(e *domain.JournalEntry) { e.DueDate = "2025-04-01" },
+		"Abschlussperiode":   func(e *domain.JournalEntry) { e.ClosingPeriod = true },
 		"Vorsteuerschlüssel": func(e *domain.JournalEntry) { e.Lines[0].InputTaxShare = 500 },
 		"Fremdbetrag":        func(e *domain.JournalEntry) { e.Lines[0].ForeignAmount = 10870 },
 		"Geschenk": func(e *domain.JournalEntry) {

@@ -151,6 +151,7 @@ func TestExportedReceiptsCarryTheirHeaderData(t *testing.T) {
 		"Die Kette des Änderungsprotokolls nachrechnen",
 		"entity_type",
 		"due_date",
+		"closing_period",
 	} {
 		if !strings.Contains(text, needle) {
 			t.Errorf("die Feldbeschreibung erklärt %q nicht", needle)

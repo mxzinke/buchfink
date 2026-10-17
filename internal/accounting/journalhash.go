@@ -67,6 +67,13 @@ func canonicalize(e *domain.JournalEntry, prevHash string) []byte {
 	// Die vereinbarte Fälligkeit trägt Altersstruktur und Restlaufzeitangabe
 	// (§ 268 Abs. 4 und 5 HGB); leer heißt „folgt aus dem Zahlungsziel".
 	put("due_date", e.DueDate)
+	// Die Abschlussperiode entscheidet, bis wann eine Buchung zum Stichtag
+	// möglich war; 1 heißt Abschlussperiode.
+	if e.ClosingPeriod {
+		putInt("closing_period", 1)
+	} else {
+		putInt("closing_period", 0)
+	}
 
 	put("created_at", e.CreatedAt.UTC().Format(time.RFC3339))
 

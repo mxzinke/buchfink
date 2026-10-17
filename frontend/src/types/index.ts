@@ -170,6 +170,8 @@ export interface JournalEntry {
   contactId?: number;
   bankTxId?: number;
   kind: EntryKind;
+  /** Abschlussperiode („13. Monat"): Abschlussbuchung zum Bilanzstichtag. */
+  closingPeriod?: boolean;
   reversalOfId?: number;
   reversalReason?: string;
   currency: string;

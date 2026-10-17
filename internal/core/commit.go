@@ -67,10 +67,34 @@ func (t *Tenant) CommitPeriod(ctx context.Context, r CommitRequest) (*domain.Fes
 }
 
 // commit ist der erste Schritt der Festschreibung.
+//
+// Die Jahresfestschreibung darf denselben Stichtag tragen wie die des letzten
+// Monats: dazwischen liegt die Abschlussperiode, in der die Abschlussbuchungen
+// zum Bilanzstichtag entstehen. Erst die Jahresfestschreibung schließt sie.
 func commit(ctx context.Context, s *Services, r CommitRequest) (*domain.Festschreibung, error) {
 	year := s.Journal.FiscalYearOf(ctx, r.CutoffDate)
-	if latest, err := s.Repos.Festschreibung.LatestCutoff(ctx, year); err != nil {
+	committed, err := s.Repos.Festschreibung.FindByFiscalYear(ctx, year)
+	if err != nil {
 		return nil, err
+	}
+	latest := ""
+	for _, rec := range committed {
+		if rec.PeriodType == domain.PeriodTypeYear {
+			return nil, fmt.Errorf("das Geschäftsjahr %d ist bereits festgeschrieben (bis %s)", year, rec.CutoffDate)
+		}
+		if rec.CutoffDate > latest {
+			latest = rec.CutoffDate
+		}
+	}
+	if r.PeriodType == domain.PeriodTypeYear {
+		fy, err := s.Closing.PeriodOf(ctx, year)
+		if err != nil {
+			return nil, err
+		}
+		if r.CutoffDate != fy.EndDate {
+			return nil, fmt.Errorf("die Jahresfestschreibung gilt bis zum Bilanzstichtag %s, nicht bis %s",
+				fy.EndDate, r.CutoffDate)
+		}
 	} else if latest != "" && r.CutoffDate <= latest {
 		return nil, fmt.Errorf("Zeitraum bis %s ist bereits festgeschrieben", latest)
 	}
@@ -136,7 +160,7 @@ func preCommitChecks(ctx context.Context, s *Services, year int, r CommitRequest
 	if err != nil {
 		return err
 	}
-	if r.PeriodType == "year" || r.CutoffDate >= fy.EndDate {
+	if r.PeriodType == domain.PeriodTypeYear || r.CutoffDate >= fy.EndDate {
 		if err := s.Closing.EnsureLegalReserve(ctx, year); err != nil {
 			return err
 		}

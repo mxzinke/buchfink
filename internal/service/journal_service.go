@@ -595,6 +595,9 @@ func (s *JournalService) prepare(ctx context.Context, e *domain.JournalEntry, mo
 				"Das Geschäftsjahr folgt aus dem Buchungsdatum", e.BookingDate, year, e.FiscalYear)
 	}
 	e.FiscalYear = year
+	if err := s.assignClosingPeriod(ctx, e); err != nil {
+		return err
+	}
 
 	e.ID = 0
 	e.EntryNumber = ""
@@ -938,13 +941,74 @@ func (s *JournalService) ensurePeriodOpen(ctx context.Context, e *domain.Journal
 	if err != nil {
 		return fmt.Errorf("Festschreibungsstand konnte nicht geprüft werden: %w", err)
 	}
-	if cutoff != "" && e.BookingDate <= cutoff {
+	if cutoff == "" || e.BookingDate > cutoff {
+		return nil
+	}
+	// Die Abschlussperiode bleibt nach der Festschreibung des letzten Monats
+	// offen, bis das ganze Jahr festgeschrieben ist: AfA, Abgrenzung,
+	// Rückstellungen und Steuern lassen sich erst rechnen, wenn das Jahr
+	// gebucht ist.
+	if e.ClosingPeriod {
+		closed, err := s.yearCommitted(ctx, e.FiscalYear)
+		if err != nil {
+			return err
+		}
+		if !closed {
+			return nil
+		}
 		return fmt.Errorf(
-			"Der Zeitraum bis %s ist festgeschrieben. Eine Buchung zum %s ist nicht mehr möglich – bitte über eine Stornierung korrigieren",
-			cutoff, e.BookingDate,
-		)
+			"Das Geschäftsjahr %d ist festgeschrieben, auch seine Abschlussperiode. Eine Buchung zum %s ist "+
+				"nicht mehr möglich – bitte über eine Stornierung korrigieren", e.FiscalYear, e.BookingDate)
+	}
+	message := fmt.Sprintf(
+		"Der Zeitraum bis %s ist festgeschrieben. Eine Buchung zum %s ist nicht mehr möglich – bitte über eine Stornierung korrigieren",
+		cutoff, e.BookingDate)
+	if e.BookingDate == s.fiscalYearEnd(ctx, e.FiscalYear) {
+		message += ". Eine Abschlussbuchung zum Bilanzstichtag ist bis zur Jahresfestschreibung als Buchung der Abschlussperiode möglich"
+	}
+	return errors.New(message)
+}
+
+// yearCommitted meldet, ob das ganze Geschäftsjahr festgeschrieben ist.
+func (s *JournalService) yearCommitted(ctx context.Context, year int) (bool, error) {
+	records, err := s.festschreibungRepo.FindByFiscalYear(ctx, year)
+	if err != nil {
+		return false, fmt.Errorf("Festschreibungsstand konnte nicht geprüft werden: %w", err)
+	}
+	for _, rec := range records {
+		if rec.PeriodType == domain.PeriodTypeYear {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// assignClosingPeriod ordnet eine Buchung der Abschlussperiode zu. Eine
+// Abschlussbuchung oder AfA zum Bilanzstichtag gehört von selbst dazu, eine
+// andere Buchung auf Antrag; jede trägt dann den Bilanzstichtag.
+func (s *JournalService) assignClosingPeriod(ctx context.Context, e *domain.JournalEntry) error {
+	end := s.fiscalYearEnd(ctx, e.FiscalYear)
+	if (e.Source == domain.EntrySourceClosing || e.Source == domain.EntrySourceDepreciation) && e.BookingDate == end {
+		e.ClosingPeriod = true
+	}
+	if e.ClosingPeriod && e.BookingDate != end {
+		return fmt.Errorf(
+			"eine Buchung der Abschlussperiode trägt den Bilanzstichtag des Geschäftsjahres %d (%s), nicht den %s",
+			e.FiscalYear, end, e.BookingDate)
 	}
 	return nil
+}
+
+// fiscalYearEnd ist der Bilanzstichtag eines Geschäftsjahres: das Ende des
+// angelegten Jahres, ein Rumpfjahr eingeschlossen, sonst das Ende nach dem
+// Beginnmonat.
+func (s *JournalService) fiscalYearEnd(ctx context.Context, year int) string {
+	if s.fiscalYearRepo != nil {
+		if fy, err := s.fiscalYearRepo.FindByYear(ctx, year); err == nil && fy != nil && fy.EndDate != "" {
+			return fy.EndDate
+		}
+	}
+	return fiscalYearEndDate(year, s.fiscalYearStartMonth(ctx))
 }
 
 // ensureYearNotAdopted blocks every booking into a fiscal year whose annual

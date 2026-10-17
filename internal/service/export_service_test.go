@@ -887,6 +887,7 @@ func recomputeEntryHash(entry exportedEntry, meals, gifts [][]string) string {
 	put("channel", h["Erfassungsweg"])
 	put("legacy_ref", h["Herkunft_Altsystem"])
 	put("due_date", h["Faelligkeit"])
+	put("closing_period", h["Abschlussperiode"])
 	put("created_at", h["Erfassungszeitpunkt_UTC"])
 
 	put("lines", strconv.Itoa(len(entry.lines)))

@@ -250,3 +250,68 @@ func TestCommitPeriodInTheCore(t *testing.T) {
 		t.Errorf("Prüfung nach dem Nachholen: %+v, %v", verification, err)
 	}
 }
+
+// Nach der Festschreibung des Dezembers bleibt die Abschlussperiode offen —
+// auch für einen Agenten, der eine Abschlussbuchung zum Stichtag erfasst. Die
+// Jahresfestschreibung mit demselben Stichtag schließt sie; sie bleibt der App
+// vorbehalten.
+func TestClosingPeriodBetweenDecemberAndYearCommitment(t *testing.T) {
+	h := newHost(t)
+	newTenant(t, h, "Pfennig Ventures GmbH")
+	tenant := openTenant(t, h)
+	december := CommitRequest{PeriodType: "month", PeriodLabel: "Dezember 2026", CutoffDate: "2026-12-31",
+		OverrideReason: "Testlauf ohne Belegprüfung"}
+	if _, err := tenant.CommitPeriod(uiCtx, december); err != nil {
+		t.Fatalf("Dezember festschreiben: %v", err)
+	}
+
+	book := func(ctx context.Context, closingPeriod bool) (*domain.JournalEntry, error) {
+		var created *domain.JournalEntry
+		err := tenant.Write(ctx, func(ctx context.Context, s *Services) error {
+			req, err := receiptAndEntry(ctx, s)
+			if err != nil {
+				return err
+			}
+			e := &req.Entry
+			e.BookingDate, e.DocumentDate, e.ServiceDateFrom, e.ServiceDateTo = "2026-12-31", "2026-12-31", "2026-12-31", "2026-12-31"
+			e.ClosingPeriod = closingPeriod
+			created, err = s.Posting.PostManualEntry(ctx, req)
+			return err
+		})
+		return created, err
+	}
+	if _, err := book(agentCtx(t), false); err == nil {
+		t.Error("ein Agent bucht gewöhnlich in den festgeschriebenen Dezember")
+	}
+	entry, err := book(agentCtx(t), true)
+	if err != nil {
+		t.Fatalf("Abschlussbuchung eines Agenten in der Abschlussperiode: %v", err)
+	}
+	if !entry.ClosingPeriod || entry.Channel != "agent:claude-desktop" {
+		t.Errorf("Buchung der Abschlussperiode: %+v", entry)
+	}
+
+	year := CommitRequest{PeriodType: domain.PeriodTypeYear, PeriodLabel: "Jahresabschluss 2026",
+		CutoffDate: "2026-12-31", OverrideReason: "Testlauf ohne Belegprüfung"}
+	if _, err := tenant.CommitPeriod(agentCtx(t), year); !errors.Is(err, ErrAppOnly) {
+		t.Errorf("ein Agent schreibt das Jahr fest: %v", err)
+	}
+	wrong := year
+	wrong.CutoffDate = "2026-12-30"
+	if _, err := tenant.CommitPeriod(uiCtx, wrong); err == nil {
+		t.Error("eine Jahresfestschreibung vor dem Bilanzstichtag")
+	}
+	rec, err := tenant.CommitPeriod(uiCtx, year)
+	if err != nil {
+		t.Fatalf("Jahresfestschreibung nach dem Dezember: %v", err)
+	}
+	if rec.EntriesStamped != 1 {
+		t.Errorf("die Jahresfestschreibung stellte %d Buchungen fest, erwartet die der Abschlussperiode", rec.EntriesStamped)
+	}
+	if _, err := book(uiCtx, true); err == nil {
+		t.Error("nach der Jahresfestschreibung nimmt die Abschlussperiode nichts mehr auf")
+	}
+	if _, err := tenant.CommitPeriod(uiCtx, year); err == nil {
+		t.Error("das Jahr ließ sich zweimal festschreiben")
+	}
+}

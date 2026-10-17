@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/repository"
@@ -249,9 +250,15 @@ func TestFailedClosingBookingLeavesNoOpenSelfIssuedReceipt(t *testing.T) {
 		t.Fatalf("Belege lesen: %v", err)
 	}
 
-	// Der Zeitraum ist festgeschrieben: die Buchung zum 31.12. geht nicht mehr
-	// durch, der Eigenbeleg ist zu diesem Zeitpunkt aber schon abgelegt.
-	env.commitUntil(t, "2026-12-31")
+	// Das Jahr ist festgeschrieben, auch seine Abschlussperiode: die Buchung
+	// zum 31.12. geht nicht mehr durch, der Eigenbeleg ist zu diesem Zeitpunkt
+	// aber schon abgelegt.
+	if err := repository.NewFestschreibungRepository(env.db).Create(ctx, &domain.Festschreibung{
+		FiscalYear: 2026, PeriodType: domain.PeriodTypeYear, PeriodLabel: "Jahresabschluss 2026",
+		CutoffDate: "2026-12-31", ChainHead: domain.GenesisHash, CreatedAt: time.Now(),
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	if _, err := m.provisions.BookFormation(ctx, ProvisionRequest{
 		FiscalYear: 2026, Kind: domain.ProvisionUncertainLiability,

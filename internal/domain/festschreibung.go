@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+// PeriodTypeYear ist die Festschreibung des ganzen Geschäftsjahres. Sie
+// schließt auch die Abschlussperiode (JournalEntry.ClosingPeriod).
+const PeriodTypeYear = "year"
+
 // Festschreibung records the GoBD "Festschreibung" (period commitment) of an
 // accounting period. Once a period is committed, no new bookings may be
 // backdated into it (corrections happen via Storno, dated at the correction
