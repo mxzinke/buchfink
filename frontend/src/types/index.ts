@@ -4487,3 +4487,318 @@ export interface AppConsentRequest {
   userCode: string;
   expiresAt: string;
 }
+
+// -------------------------------------------------------------------------
+// Pflichtenkalender (internal/domain/obligation.go)
+
+/** Der Stand einer Pflicht. */
+export type ObligationStatus = 'open' | 'prepared' | 'done' | 'overdue' | 'waived';
+
+/** Woher der Stand einer Pflichtart kommt: aus den Daten, vom Menschen oder aus beidem. */
+export type ObligationEvidenceSource = 'data' | 'human' | 'either';
+
+export type ObligationEvidenceKind =
+  | 'transfer_ticket'
+  | 'file_number'
+  | 'order_number'
+  | 'booking'
+  | 'commitment'
+  | 'resolution'
+  | 'status'
+  | 'confirmation';
+
+export interface ObligationEvidence {
+  date: string;
+  kind: ObligationEvidenceKind;
+  reference?: string;
+  note?: string;
+  /** Aus den Daten abgeleitet, nicht bestätigt. */
+  automatic: boolean;
+  channel?: string;
+  actor?: string;
+}
+
+export interface ObligationPreparation {
+  at: string;
+  note?: string;
+  channel: string;
+  actor: string;
+}
+
+/** Eine Pflicht für einen Zeitraum, etwa „ustva.2026-Q3". */
+export interface Obligation {
+  key: string;
+  kind: string;
+  title: string;
+  description: string;
+  basis: string;
+  channel: string;
+  responsibility: 'agent_prepares' | 'human_confirms' | 'tax_advisor';
+  evidenceSource: ObligationEvidenceSource;
+  skillRef: string;
+  periodKey: string;
+  periodLabel: string;
+  periodFrom?: string;
+  periodTo?: string;
+  fiscalYear: number;
+  /** Gesetzliches Fristende; `dueDate` ist das nach § 108 Abs. 3 AO verschobene. */
+  statutoryDate: string;
+  dueDate: string;
+  shiftReason?: string;
+  /** „Unverzüglich": die Frist beginnt am Fälligkeitstag. */
+  immediate?: boolean;
+  status: ObligationStatus;
+  proof?: ObligationEvidence;
+  preparation?: ObligationPreparation;
+  waivedReason?: string;
+  hints: string[];
+}
+
+export interface ObligationConfirmInput {
+  date: string;
+  kind: ObligationEvidenceKind;
+  reference?: string;
+  note?: string;
+}
+
+// -------------------------------------------------------------------------
+// Jahreserklärungen (internal/declaration). Die Schlüssel sind die des
+// JSON-Exports buchfink.erklaerung/1 und deshalb deutsch.
+
+export type DeclarationKind = 'ust_jahr' | 'kst' | 'gewst';
+
+export type DeclarationStatus = 'entwurf' | 'exportiert' | 'uebermittelt';
+
+export type DeclarationLineStatus = 'auto' | 'vorgeschlagen' | 'eingabe' | 'offen' | 'entfaellt';
+
+export type DeclarationOwner = 'buecher' | 'agent_rueckfrage' | 'mensch';
+
+export type DeclarationUnit =
+  | 'euro_voll'
+  | 'euro_cent'
+  | 'text'
+  | 'ja_nein'
+  | 'datum'
+  | 'prozent'
+  | 'schluessel';
+
+/** Ein Wert: Betrag in Cent, Text, ja/nein oder Datum. */
+export interface DeclarationValue {
+  cent?: Cents;
+  betrag?: string;
+  text?: string;
+  ja?: boolean;
+  datum?: string;
+}
+
+export interface DeclarationAccountPart {
+  konto: string;
+  bezeichnung: string;
+  saldo: Cents;
+  anteil_zaehler: number;
+  anteil_nenner: number;
+  beitrag: Cents;
+}
+
+export interface DeclarationOrigin {
+  art:
+    | 'konten'
+    | 'buchungen'
+    | 'rechnung'
+    | 'stammdaten'
+    | 'eingabe'
+    | 'voranmeldungen'
+    | 'anlagenkartei'
+    | 'abschluss'
+    | 'keine';
+  konten?: DeclarationAccountPart[];
+  buchungen?: number[];
+  aus_zeilen?: string[];
+  rechnung?: string;
+  eingabe?: string;
+  erlaeuterung?: string;
+}
+
+export interface DeclarationLine {
+  schluessel: string;
+  zeile?: string;
+  kz?: string;
+  bezeichnung: string;
+  wert: DeclarationValue;
+  einheit: DeclarationUnit;
+  rundung: string;
+  herkunft: DeclarationOrigin;
+  status: DeclarationLineStatus;
+  zustaendig: DeclarationOwner;
+  eingabe_moeglich: boolean;
+  pflicht: boolean;
+  vorlaeufig?: boolean;
+  rechtsgrundlage?: string[];
+  pruefvermerk: { am_vordruck_geprueft: boolean; quelle: string };
+  hinweise?: string[];
+}
+
+export interface DeclarationSummary {
+  zeilen: number;
+  mit_wert: number;
+  offen: number;
+  vorgeschlagen: number;
+  eingaben: number;
+}
+
+export interface DeclarationSection {
+  id: string;
+  titel: string;
+  zeilen: DeclarationLine[];
+  uebersicht: DeclarationSummary;
+}
+
+export type DeclarationRequirement = 'pflicht' | 'bei_bedarf' | 'entfaellt' | 'kontrolle';
+
+export interface DeclarationForm {
+  id: string;
+  titel: string;
+  erforderlich: DeclarationRequirement;
+  grund?: string;
+  abschnitte: DeclarationSection[];
+  uebersicht: DeclarationSummary;
+}
+
+export type DeclarationInputSource = 'bescheid' | 'beschluss' | 'beleg' | 'mensch' | 'buecher';
+
+export interface DeclarationInput {
+  schluessel: string;
+  wert: DeclarationValue;
+  quelle: DeclarationInputSource;
+  notiz?: string;
+  erfassungsweg: string;
+  erfasst_von: string;
+  erfasst_am: string;
+  bestaetigt: boolean;
+  bestaetigt_von?: string;
+  bestaetigt_am?: string;
+}
+
+export interface DeclarationFinding {
+  schwere: 'blockiert' | 'warnung' | 'hinweis';
+  code: string;
+  zeile?: string;
+  text: string;
+  rechtsgrundlage?: string;
+}
+
+export interface DeclarationSubmission {
+  am: string;
+  transferticket: string;
+  zahlen_hash: string;
+  bearbeiter: string;
+  begruendung?: string;
+}
+
+export interface DeclarationReconciliationRow {
+  kz_voranmeldung: string;
+  bezeichnung: string;
+  feld: string;
+  jahr: Cents;
+  voranmeldungen: Cents;
+  differenz: Cents;
+  grund?: string;
+}
+
+export interface Declaration {
+  art: DeclarationKind;
+  titel: string;
+  zeitraum: { jahr: number; von: string; bis: string };
+  vordruckjahr: number;
+  formulare: DeclarationForm[];
+  abstimmung?: DeclarationReconciliationRow[];
+  eingaben: DeclarationInput[];
+  befunde: DeclarationFinding[];
+  status: DeclarationStatus;
+  grundlage: {
+    abschlussstand: string;
+    buchungen: number;
+    zeilenkatalog: string;
+    gerechnet_am: string;
+  };
+  zahlen_hash: string;
+  uebermittlung?: DeclarationSubmission;
+}
+
+export interface DeclarationPendingLine {
+  schluessel: string;
+  formular: string;
+  bezeichnung: string;
+  status: DeclarationLineStatus;
+  zustaendig: DeclarationOwner;
+  wert: DeclarationValue;
+  hinweise?: string[];
+}
+
+export interface DeclarationOverview {
+  art: DeclarationKind;
+  titel: string;
+  jahr: number;
+  status: DeclarationStatus;
+  zahlen_hash: string;
+  abgabereif: boolean;
+  ergebnis: { schluessel: string; bezeichnung: string; wert: DeclarationValue }[];
+  formulare: {
+    id: string;
+    titel: string;
+    erforderlich: DeclarationRequirement;
+    grund?: string;
+    uebersicht: DeclarationSummary;
+  }[];
+  zu_klaeren: DeclarationPendingLine[];
+  befunde_blockierend: number;
+  befunde_warnung: number;
+  befunde_hinweis: number;
+  uebermittlung?: DeclarationSubmission;
+}
+
+/** Was GetDeclaration liefert: Übersicht und vollständige Erklärung. */
+export interface DeclarationView {
+  overview: DeclarationOverview;
+  declaration: Declaration;
+}
+
+export interface DeclarationInputRequest {
+  kind: DeclarationKind;
+  year: number;
+  key: string;
+  value: DeclarationValue;
+  source: DeclarationInputSource;
+  note?: string;
+}
+
+export interface DeclarationSubmissionRequest {
+  kind: DeclarationKind;
+  year: number;
+  submittedAt: string;
+  transferTicket: string;
+  figuresHash: string;
+  overrideReason?: string;
+}
+
+/** Eine geschriebene Exportdatei einer Erklärung. */
+export interface DeclarationExport {
+  pfad: string;
+  sha256: string;
+  zahlen_hash: string;
+  status: DeclarationStatus;
+  befunde_blockierend: number;
+  stand_id: number;
+}
+
+/** Eine festgehaltene Übermittlung oder ein Export. */
+export interface DeclarationRecord {
+  id: number;
+  kind: string;
+  year: number;
+  status: string;
+  figuresHash: string;
+  submittedAt?: string;
+  transferTicket?: string;
+  createdAt: string;
+}

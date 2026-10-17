@@ -12,13 +12,13 @@ try {
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto(`${ORIGIN}/#/closings/declarations`);
-  const mark = page.getByRole('button', { name: 'Erklärung zu E-Bilanz', exact: true });
+  await page.goto(`${ORIGIN}/#/closings/declarations/e-bilanz`);
+  const mark = page.getByRole('button', { name: 'Erklärung zur Übermittlung der E-Bilanz', exact: true });
   await mark.hover();
 
   const tip = page.getByRole('tooltip');
   await tip.waitFor();
-  assert.match(await tip.innerText(), /noch ungeprüft/);
+  assert.match(await tip.innerText(), /kein Formular/);
   assert.equal(await tip.locator('a, button').count(), 0);
   assert.equal(await page.getByRole('dialog').count(), 0);
   assert.doesNotMatch(await tip.innerText(), /§|XBRL/);
@@ -27,10 +27,10 @@ try {
   await mark.focus();
   await tip.waitFor();
   await page.keyboard.press('Escape');
-  const more = page.getByRole('button', { name: 'Mehr erfahren: Erklärung zu E-Bilanz', exact: true });
+  const more = page.getByRole('button', { name: 'Mehr erfahren: Erklärung zur Übermittlung der E-Bilanz', exact: true });
   await more.focus();
   await page.keyboard.press('Enter');
-  const dialog = page.getByRole('dialog', { name: 'Erklärung zu E-Bilanz', exact: true });
+  const dialog = page.getByRole('dialog', { name: 'Erklärung zur Übermittlung der E-Bilanz', exact: true });
   await dialog.waitFor();
   const source = dialog.getByRole('link', { name: '§ 5b EStG', exact: true });
   assert.equal(await source.getAttribute('href'), 'https://www.gesetze-im-internet.de/estg/__5b.html');
@@ -45,12 +45,12 @@ try {
   assert.equal(await more.evaluate(el => document.activeElement === el), true);
 
   // Auch ein Eingabedialog darf eine Hilfe öffnen, ohne die Eingabe zu verlieren.
-  await page.locator('nav').getByRole('button', { name: 'Übersicht', exact: true }).click();
-  await page.getByRole('button', { name: 'Monat öffnen' }).click();
+  await page.goto(`${ORIGIN}/#/closings/month/2026-07`);
+  await page.getByRole('button', { name: 'Juli festschreiben' }).click();
   const parent = page.getByRole('dialog').first();
   await parent.waitFor();
-  await parent.getByRole('button', { name: 'Mehr erfahren: Erklärung zum Monatsabschluss', exact: true }).click();
-  const nested = page.getByRole('dialog', { name: 'Erklärung zum Monatsabschluss', exact: true });
+  await parent.getByRole('button', { name: 'Mehr erfahren: Erklärung zur Festschreibung', exact: true }).click();
+  const nested = page.getByRole('dialog', { name: 'Erklärung zur Festschreibung', exact: true });
   await nested.waitFor();
   assert.equal(await page.getByRole('dialog', { includeHidden: true }).count(), 2);
   assert.ok(await nested.locator('a[href*="gesetze-im-internet.de"]').count());

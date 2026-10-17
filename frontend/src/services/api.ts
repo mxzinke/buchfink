@@ -52,6 +52,13 @@ import type {
   CustomAccountRequest,
   CurrencyValuation,
   Deadline,
+  DeclarationExport,
+  DeclarationInput,
+  DeclarationInputRequest,
+  DeclarationKind,
+  DeclarationRecord,
+  DeclarationSubmissionRequest,
+  DeclarationView,
   DepreciationMethod,
   DepreciationResult,
   DepreciationRun,
@@ -104,6 +111,8 @@ import type {
   NumberGapReason,
   NumberGapReasonOption,
   NumberGapReport,
+  Obligation,
+  ObligationConfirmInput,
   OpeningBalancePreview,
   OpeningBalanceRequest,
   OpenItem,
@@ -224,6 +233,33 @@ function list<T>(value: T[] | null | undefined): T[] {
 function normalizeTask(task: Task): Task {
   if (!task) return task;
   return { ...task, target: task.target ?? { area: '' } };
+}
+
+/** Die Listen einer Jahreserklärung bis hinunter zur Herkunft einer Zeile. */
+function normalizeDeclaration(view: DeclarationView): DeclarationView {
+  if (!view) return view;
+  const d = view.declaration;
+  return {
+    overview: {
+      ...view.overview,
+      ergebnis: list(view.overview.ergebnis),
+      formulare: list(view.overview.formulare),
+      zu_klaeren: list(view.overview.zu_klaeren),
+    },
+    declaration: {
+      ...d,
+      formulare: list(d.formulare).map((form) => ({
+        ...form,
+        abschnitte: list(form.abschnitte).map((section) => ({
+          ...section,
+          zeilen: list(section.zeilen),
+        })),
+      })),
+      abstimmung: list(d.abstimmung),
+      eingaben: list(d.eingaben),
+      befunde: list(d.befunde),
+    },
+  };
 }
 
 /** Die Listen einer Voranmeldung: Kennziffern mit Drill-down und Nachträge. */
@@ -924,7 +960,12 @@ export const Api = {
 
   // --- E-Bilanz, Audit & Festschreibung ---------------------------------
 
-  exportEBilanzXBRL: (): Promise<string> => call(() => Bridge.ExportEBilanzXBRL() as Promise<string>),
+  /**
+   * Erzeugt die E-Bilanz und schreibt sie an einen gewählten Ort. Leer heißt:
+   * der Dialog wurde abgebrochen.
+   */
+  saveEBilanzXBRLAs: (year: number): Promise<string> =>
+    call(() => Bridge.SaveEBilanzXBRLAs(year) as Promise<string>),
   /**
    * Welches Konto unter welcher Gliederungsposition und welchem
    * Taxonomie-Element erscheint — und was die Erzeugung verhindert.
@@ -1286,6 +1327,42 @@ export const Api = {
   /** Der Haken für das, was Buchfink nicht sieht. Leeres Datum nimmt ihn zurück. */
   markDeadlineDone: (key: string, date: string): Promise<void> =>
     call(() => Bridge.MarkDeadlineDone(key, date)),
+
+  // --- Pflichtenkalender und Jahreserklärungen ---------------------------
+
+  /** Die Pflichten eines Geschäftsjahres mit Stand und Nachweis, die früheste zuerst. */
+  getObligations: (year: number): Promise<Obligation[]> =>
+    call(() => Bridge.GetObligations(year) as Promise<Obligation[]>).then((items) =>
+      list(items).map((o) => ({ ...o, hints: list(o.hints) })),
+    ),
+  /** Bestätigt eine Pflicht mit Nachweis. Nur in der App. */
+  confirmObligation: (key: string, input: ObligationConfirmInput): Promise<Obligation> =>
+    call(() => Bridge.ConfirmObligation(key, input) as Promise<Obligation>),
+  /** Kennzeichnet eine Pflicht mit Grund als entfallen. Nur in der App. */
+  waiveObligation: (key: string, reason: string): Promise<Obligation> =>
+    call(() => Bridge.WaiveObligation(key, reason) as Promise<Obligation>),
+  /** Eine Jahreserklärung, gerechnet aus dem heutigen Stand der Bücher. */
+  getDeclaration: (kind: DeclarationKind, year: number): Promise<DeclarationView> =>
+    call(() => Bridge.GetDeclaration(kind, year) as Promise<DeclarationView>).then(
+      normalizeDeclaration,
+    ),
+  setDeclarationInput: (request: DeclarationInputRequest): Promise<DeclarationInput> =>
+    call(() => Bridge.SetDeclarationInput(request) as Promise<DeclarationInput>),
+  /** Bestätigt den Vorschlag eines Agenten. Nur in der App. */
+  confirmDeclarationInput: (
+    kind: DeclarationKind,
+    year: number,
+    key: string,
+  ): Promise<DeclarationInput> =>
+    call(() => Bridge.ConfirmDeclarationInput(kind, year, key) as Promise<DeclarationInput>),
+  deleteDeclarationInput: (kind: DeclarationKind, year: number, key: string): Promise<void> =>
+    call(() => Bridge.DeleteDeclarationInput(kind, year, key)),
+  /** Hält die Übermittlung in Mein ELSTER fest. Nur in der App. */
+  submitDeclaration: (request: DeclarationSubmissionRequest): Promise<DeclarationRecord> =>
+    call(() => Bridge.SubmitDeclaration(request) as Promise<DeclarationRecord>),
+  /** Schreibt die Erklärung als JSON in einen gewählten Ordner; null heißt abgebrochen. */
+  exportDeclarationJSON: (kind: DeclarationKind, year: number): Promise<DeclarationExport | null> =>
+    call(() => Bridge.ExportDeclarationJSON(kind, year) as Promise<DeclarationExport | null>),
 
   // --- Gründung ---------------------------------------------------------
 

@@ -171,7 +171,6 @@ var readOnlyAllowed = map[string]bool{
 	"ExportArchive":                true,
 	"ExportTaxElectionRegisterCSV": true,
 	"ExportAuditPackage":           true,
-	"ExportEBilanzXBRL":            true,
 	"SaveEBilanzXBRLAs":            true,
 	"ExportOpeningBalanceXBRL":     true,
 	"ExportJournalCSV":             true,

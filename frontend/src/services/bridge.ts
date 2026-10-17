@@ -177,7 +177,7 @@ export const bridge = {
     invoke<T>('SetPriorYearRevenue', year, amount),
 
   // E-Bilanz, Audit & Festschreibung
-  ExportEBilanzXBRL: () => invoke<string>('ExportEBilanzXBRL'),
+  SaveEBilanzXBRLAs: (year: number) => invoke<string>('SaveEBilanzXBRLAs', year),
   GetEBilanzMappingReport: <T>(year: number) => invoke<T>('GetEBilanzMappingReport', year),
   GetFestschreibungen: <T>() => invoke<T>('GetFestschreibungen'),
   CommitPeriod: <T>(
@@ -283,6 +283,20 @@ export const bridge = {
   GetCheckRuns: <T>(year: number) => invoke<T>('GetCheckRuns', year),
   GetDeadlines: <T>(year: number) => invoke<T>('GetDeadlines', year),
   MarkDeadlineDone: (key: string, date: string) => invoke<void>('MarkDeadlineDone', key, date),
+
+  // Pflichtenkalender und Jahreserklärungen (internal/wailsbridge/closings_service.go)
+  GetObligations: <T>(year: number) => invoke<T>('GetObligations', year),
+  ConfirmObligation: <T>(key: string, input: unknown) => invoke<T>('ConfirmObligation', key, input),
+  WaiveObligation: <T>(key: string, reason: string) => invoke<T>('WaiveObligation', key, reason),
+  GetDeclaration: <T>(kind: string, year: number) => invoke<T>('GetDeclaration', kind, year),
+  SetDeclarationInput: <T>(request: unknown) => invoke<T>('SetDeclarationInput', request),
+  ConfirmDeclarationInput: <T>(kind: string, year: number, key: string) =>
+    invoke<T>('ConfirmDeclarationInput', kind, year, key),
+  DeleteDeclarationInput: (kind: string, year: number, key: string) =>
+    invoke<void>('DeleteDeclarationInput', kind, year, key),
+  SubmitDeclaration: <T>(request: unknown) => invoke<T>('SubmitDeclaration', request),
+  ExportDeclarationJSON: <T>(kind: string, year: number) =>
+    invoke<T>('ExportDeclarationJSON', kind, year),
 
   // Gründung
   GetFoundationState: <T>() => invoke<T>('GetFoundationState'),

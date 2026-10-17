@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Api } from '../services/api';
-import { MonthCloseDialog } from '../components/MonthCloseDialog';
 import { formatCents, formatDate } from '../utils/formatters';
 import { monthOptions, previousMonth } from '../utils/months';
 import { targetLabel } from '../utils/findings';
@@ -102,11 +101,10 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
   const [recentEntries, setRecentEntries] = useState<JournalEntry[]>([]);
   const [monthState, setMonthState] = useState<MonthCloseState | null>(null);
-  const [month, setMonth] = useState(() => previousMonth(new Date()));
+  const [month] = useState(() => previousMonth(new Date()));
   // Warum es für den Monat keinen Stand gibt, sagt das Backend. Der Satz bleibt
   // stehen, bis ein anderer Monat gewählt ist (§10.4).
   const [monthError, setMonthError] = useState('');
-  const [monthOpen, setMonthOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const loadTasks = useCallback(async () => {
@@ -263,7 +261,10 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
             : 'Prüfbericht, Festschreibung, Voranmeldung'
         }
         action={
-          <Button variant="secondary" onClick={() => setMonthOpen(true)}>
+          <Button
+            variant="secondary"
+            onClick={() => onNavigate({ area: 'closings', tab: 'month', id: month })}
+          >
             Monat öffnen
           </Button>
         }
@@ -387,19 +388,6 @@ export const TasksPage: React.FC<TasksPageProps> = ({ onNavigate }) => {
         </Section>
       )}
 
-      <MonthCloseDialog
-        open={monthOpen}
-        month={month}
-        initialState={monthState}
-        onMonthChange={setMonth}
-        months={months}
-        onClose={() => setMonthOpen(false)}
-        onChanged={async () => {
-          await loadMonth();
-          await loadTasks();
-        }}
-        onNavigate={onNavigate}
-      />
     </div>
   );
 };
