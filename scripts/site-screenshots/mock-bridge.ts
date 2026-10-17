@@ -247,56 +247,59 @@ interface MockEntry {
   kind?: 'normal' | 'reversal';
   reversalOfId?: number;
   reversalReason?: string;
+  /** Erfassungsweg: die App (`ui`) oder eine verbundene App (`agent:<kurzname>`). */
+  channel?: string;
+  bankTxId?: number;
   lines: MockLine[];
 }
 
 const RAW_ENTRIES: MockEntry[] = [
   {
-    n: 41, number: 'B-2026-0041', date: '2026-08-03', documentDate: '2026-08-03',
+    n: 41, number: 'B-2026-0041', channel: 'agent:claude-code', date: '2026-08-03', documentDate: '2026-08-03',
     description: 'Rahmenvertrag Portalpflege, Rechnung RE-2026-0118',
     source: 'invoice', documentNumber: 'RE-2026-0118', contactId: 1,
     lines: [['S', '1200', 34510], ['H', '4400', 29000], ['H', '3806', 5510]],
   },
   {
-    n: 42, number: 'B-2026-0042', date: '2026-08-04', documentDate: '2026-08-01',
+    n: 42, number: 'B-2026-0042', channel: 'agent:claude-code', date: '2026-08-04', documentDate: '2026-08-01',
     description: 'Cloud-Hosting August 2026',
     source: 'receipt', documentNumber: 'ER-2026-0212', contactId: 11, receiptId: 4,
     lines: [['S', '5906', 1480], ['S', '1406', 281.2], ['H', '3300', 1761.2]],
   },
   {
-    n: 43, number: 'B-2026-0043', date: '2026-08-06', documentDate: '2026-07-31',
+    n: 43, number: 'B-2026-0043', channel: 'agent:claude-desktop', date: '2026-08-06', documentDate: '2026-07-31',
     description: 'Gehälter Juli 2026', source: 'manual',
     lines: [['S', '6020', 26700], ['H', '1800', 26700]],
   },
   {
-    n: 44, number: 'B-2026-0044', date: '2026-08-07', documentDate: '2026-08-07',
+    n: 44, number: 'B-2026-0044', channel: 'agent:claude-code', date: '2026-08-07', documentDate: '2026-08-07',
     description: 'Zahlungseingang zu RE-2026-0112', source: 'payment', contactId: 2,
     lines: [['S', '1800', 18921], ['H', '1200', 18921]],
   },
   {
-    n: 45, number: 'B-2026-0045', date: '2026-08-10', documentDate: '2026-08-01',
-    description: 'Büromiete August 2026', source: 'receipt', documentNumber: 'ER-2026-0218', contactId: 12,
+    n: 45, number: 'B-2026-0045', channel: 'agent:claude-code', date: '2026-08-10', documentDate: '2026-08-01',
+    description: 'Büromiete August 2026', source: 'receipt', documentNumber: 'ER-2026-0218', contactId: 12, receiptId: 5,
     lines: [['S', '6310', 3600], ['H', '1800', 3600]],
   },
   {
-    n: 46, number: 'B-2026-0046', date: '2026-08-11', documentDate: '2026-08-10',
+    n: 46, number: 'B-2026-0046', channel: 'ui', date: '2026-08-11', documentDate: '2026-08-10',
     description: 'Notebooks, 4 Stück (geringwertige Wirtschaftsgüter)',
-    source: 'receipt', documentNumber: 'ER-2026-0231', contactId: 13, receiptId: 1,
+    source: 'receipt', documentNumber: 'ER-2026-0231', contactId: 13,
     lines: [['S', '6260', 2716], ['S', '1406', 516.04], ['H', '3300', 3232.04]],
   },
   {
-    n: 47, number: 'B-2026-0047', date: '2026-08-12', documentDate: '2026-08-09',
+    n: 47, number: 'B-2026-0047', channel: 'ui', date: '2026-08-12', documentDate: '2026-08-09',
     description: 'Reisekosten Fachmesse Berlin', source: 'receipt', documentNumber: 'ER-2026-0233', contactId: 14,
     lines: [['S', '6650', 842], ['S', '1406', 159.98], ['H', '1800', 1001.98]],
   },
   {
-    n: 48, number: 'B-2026-0048', date: '2026-08-13', documentDate: '2026-08-12',
+    n: 48, number: 'B-2026-0048', channel: 'agent:claude-code', date: '2026-08-13', documentDate: '2026-08-12',
     description: 'Wartungsvertrag Datenbank, Q3 2026',
     source: 'receipt', documentNumber: 'ER-2026-0236', contactId: 11,
     lines: [['S', '6495', 1240], ['S', '1406', 235.6], ['H', '3300', 1475.6]],
   },
   {
-    n: 49, number: 'B-2026-0049', date: '2026-08-14', documentDate: '2026-08-12',
+    n: 49, number: 'B-2026-0049', channel: 'ui', date: '2026-08-14', documentDate: '2026-08-12',
     description: 'Generalumkehr zu B-2026-0048',
     source: 'receipt', documentNumber: 'ER-2026-0236', contactId: 11,
     kind: 'reversal', reversalOfId: 48,
@@ -304,35 +307,35 @@ const RAW_ENTRIES: MockEntry[] = [
     lines: [['S', '3300', 1475.6], ['H', '6495', 1240], ['H', '1406', 235.6]],
   },
   {
-    n: 50, number: 'B-2026-0050', date: '2026-08-14', documentDate: '2026-08-12',
+    n: 50, number: 'B-2026-0050', channel: 'ui', date: '2026-08-14', documentDate: '2026-08-12',
     description: 'Wartungsvertrag Datenbank, Q3 2026 (Neubuchung)',
     source: 'receipt', documentNumber: 'ER-2026-0236', contactId: 11,
     lines: [['S', '5906', 1240], ['S', '1406', 235.6], ['H', '3300', 1475.6]],
   },
   {
-    n: 51, number: 'B-2026-0051', date: '2026-08-17', documentDate: '2026-08-17',
+    n: 51, number: 'B-2026-0051', channel: 'ui', date: '2026-08-17', documentDate: '2026-08-17',
     description: 'Wartungspauschale Q3, Rechnung RE-2026-0119',
     source: 'invoice', documentNumber: 'RE-2026-0119', contactId: 1,
     lines: [['S', '1200', 8211], ['H', '4400', 6900], ['H', '3806', 1311]],
   },
   {
-    n: 52, number: 'B-2026-0052', date: '2026-08-18', documentDate: '2026-08-15',
+    n: 52, number: 'B-2026-0052', channel: 'agent:claude-code', bankTxId: 7, date: '2026-08-18', documentDate: '2026-08-15',
     description: 'Telefon und Internet August 2026',
     source: 'receipt', documentNumber: 'ER-2026-0238', contactId: 15, receiptId: 3,
     lines: [['S', '6805', 270], ['S', '1406', 51.3], ['H', '1800', 321.3]],
   },
   {
-    n: 53, number: 'B-2026-0053', date: '2026-08-20', documentDate: '2026-08-20',
+    n: 53, number: 'B-2026-0053', channel: 'agent:claude-code', bankTxId: 8, date: '2026-08-20', documentDate: '2026-08-20',
     description: 'Zahlung Lieferantenrechnung ER-2026-0212', source: 'payment', contactId: 11,
     lines: [['S', '3300', 1761.2], ['H', '1800', 1761.2]],
   },
   {
-    n: 54, number: 'B-2026-0054', date: '2026-08-21', documentDate: '2026-08-19',
+    n: 54, number: 'B-2026-0054', channel: 'agent:claude-desktop', date: '2026-08-21', documentDate: '2026-08-19',
     description: 'Werbekampagne Fachportal', source: 'receipt', documentNumber: 'ER-2026-0240', contactId: 16,
     lines: [['S', '6600', 1850], ['S', '1406', 351.5], ['H', '3300', 2201.5]],
   },
   {
-    n: 55, number: 'B-2026-0055', date: '2026-08-24', documentDate: '2026-08-24',
+    n: 55, number: 'B-2026-0055', channel: 'agent:claude-code', date: '2026-08-24', documentDate: '2026-08-24',
     description: 'Kontoführung August 2026', source: 'receipt', documentNumber: 'ER-2026-0241', contactId: 17,
     lines: [['S', '6855', 62], ['H', '1800', 62]],
   },
@@ -360,6 +363,9 @@ const ENTRIES = RAW_ENTRIES.map((e) => {
     kind: e.kind ?? 'normal',
     reversalOfId: e.reversalOfId,
     reversalReason: e.reversalReason,
+    actor: 'anna@nordlicht-mbp',
+    channel: e.channel ?? 'ui',
+    bankTxId: e.bankTxId,
     currency: EUR,
     exchangeRateMicros: 1_000_000,
     postingRuleVersion: '2026.1',
@@ -910,6 +916,9 @@ const XBRL = `<?xml version="1.0" encoding="UTF-8"?>
 </xbrli:xbrl>
 `;
 
+/** Die Buchung der Forderung je Rechnung, soweit sie im Journalauszug steht. */
+const INVOICE_ENTRIES: Record<string, number> = { 'RE-2026-0119': 51, 'RE-2026-0118': 41 };
+
 const INVOICES = [
   invoice(1, 'RE-2026-0119', '2026-08-17', '2026-08-31', 1, 'Nordwind Handels GmbH', 6900, 'issued', 0),
   invoice(2, 'RE-2026-0118', '2026-08-03', '2026-08-17', 1, 'Nordwind Handels GmbH', 29000, 'paid', 34510),
@@ -958,6 +967,11 @@ function invoice(
     grossAmount: net + tax,
     currency: EUR,
     status,
+    kind: 'invoice',
+    journalEntryId: INVOICE_ENTRIES[invoiceNumber],
+    terms: { dueDays: 14, discountPermille: 0, discountDays: 0 },
+    precedingRefs: [],
+    prepaidAmount: 0,
     receiptId: id + 20,
     paidAmount: c(paidEuro),
     createdAt: `${date}T10:00:00Z`,
@@ -1024,7 +1038,7 @@ const ASSETS = [
     '6220', '2024-06-01', c(9600), c(1169.23), 0, c(738.46), 'linear', 156),
   asset(2, 'AN-2025-0002', 'Pkw VW ID.4 · HH-NS 412', 'tangible', '0520', 'Pkw',
     '6222', '2025-03-15', c(42000), c(5833.33), 0, c(7000), 'linear', 72),
-  asset(3, 'AN-2026-0003', 'CNC-Fräse Haas VF-2', 'tangible', '0440', 'Maschinen',
+  asset(3, 'AN-2026-0003', 'Klimaanlage Serverraum', 'tangible', '0440', 'Maschinen',
     '6220', '2026-02-01', c(24000), 0, 0, c(2750), 'linear', 96),
   asset(4, 'AN-2026-0004', 'Notebook Entwicklung', 'tangible', '0670',
     'Geringwertige Wirtschaftsgüter', '6260', '2026-04-20', c(780), c(780), c(780), 0, 'immediate', 0),
@@ -1039,9 +1053,9 @@ const ASSETS = [
     { identifier: 'DE000A2LQ5H0' }),
   asset(8, 'AN-2025-0008', 'ERP-Lizenz Warenwirtschaft', 'intangible', '0135', 'EDV-Software',
     '6200', '2025-07-01', c(12000), c(2000), 0, c(4000), 'linear', 36),
-  asset(9, 'AN-2026-0009', 'Fertigungslinie (im Bau)', 'tangible', '0700',
+  asset(9, 'AN-2026-0009', 'Ausbau Serverraum (im Bau)', 'tangible', '0700',
     'Geleistete Anzahlungen und Anlagen im Bau', '', '2026-01-15', c(80000), 0, 0, 0, 'none', 0),
-  asset(10, 'AN-2026-0010', 'Fertigungsroboter KR-210', 'tangible', '0440', 'Maschinen',
+  asset(10, 'AN-2026-0010', 'USV- und Kühlanlage Rechenzentrum', 'tangible', '0440', 'Maschinen',
     '6220', '2026-01-05', c(100000), 0, 0, c(10000), 'linear', 120,
     {
       specialPermille: 400,
@@ -1120,12 +1134,12 @@ const DEPRECIATION_RUN = {
   due: [
     { assetId: 1, inventoryNumber: 'AN-2024-0001', name: 'Büroeinrichtung Konferenzraum', account: '0650', expenseAccount: '6220', method: 'linear', rateLabel: '7,7 %', months: 12, planned: c(738.46), booked: 0, due: c(738.46), bookValueBefore: c(8430.77), bookValueAfter: c(7692.31), specialPlanned: 0, specialBooked: 0, specialDue: 0 },
     { assetId: 2, inventoryNumber: 'AN-2025-0002', name: 'Pkw VW ID.4 · HH-NS 412', account: '0520', expenseAccount: '6222', method: 'linear', rateLabel: '16,7 %', months: 12, planned: c(7000), booked: 0, due: c(7000), bookValueBefore: c(36166.67), bookValueAfter: c(29166.67), specialPlanned: 0, specialBooked: 0, specialDue: 0 },
-    { assetId: 3, inventoryNumber: 'AN-2026-0003', name: 'CNC-Fräse Haas VF-2', account: '0440', expenseAccount: '6220', method: 'linear', rateLabel: '12,5 %', months: 11, planned: c(2750), booked: 0, due: c(2750), bookValueBefore: c(24000), bookValueAfter: c(21250), note: 'Zeitanteilig für 11 von 12 Monaten (§ 7 Abs. 1 Satz 4 EStG).', specialPlanned: 0, specialBooked: 0, specialDue: 0 },
+    { assetId: 3, inventoryNumber: 'AN-2026-0003', name: 'Klimaanlage Serverraum', account: '0440', expenseAccount: '6220', method: 'linear', rateLabel: '12,5 %', months: 11, planned: c(2750), booked: 0, due: c(2750), bookValueBefore: c(24000), bookValueAfter: c(21250), note: 'Zeitanteilig für 11 von 12 Monaten (§ 7 Abs. 1 Satz 4 EStG).', specialPlanned: 0, specialBooked: 0, specialDue: 0 },
     { assetId: 5, inventoryNumber: 'AN-2026-0005', name: 'Sammelposten 2026', account: '0675', expenseAccount: '6264', method: 'pool', rateLabel: '1/5', months: 12, planned: c(840), booked: 0, due: c(840), bookValueBefore: c(4200), bookValueAfter: c(3360), note: 'Auflösung des Sammelpostens 2026 mit einem Fünftel, ohne Zeitanteil (§ 6 Abs. 2a Satz 2 EStG).', specialPlanned: 0, specialBooked: 0, specialDue: 0 },
     { assetId: 8, inventoryNumber: 'AN-2025-0008', name: 'ERP-Lizenz Warenwirtschaft', account: '0135', expenseAccount: '6200', method: 'linear', rateLabel: '33,3 %', months: 12, planned: c(4000), booked: 0, due: c(4000), bookValueBefore: c(10000), bookValueAfter: c(6000), specialPlanned: 0, specialBooked: 0, specialDue: 0 },
     // Die Sonderabschreibung läuft neben der planmäßigen AfA und auf einem
     // eigenen Aufwandskonto (§ 7g Abs. 5 EStG, § 7a Abs. 4 EStG).
-    { assetId: 10, inventoryNumber: 'AN-2026-0010', name: 'Fertigungsroboter KR-210', account: '0440', expenseAccount: '6220', method: 'linear', rateLabel: '10 %', months: 12, planned: c(10000), booked: 0, due: c(10000), bookValueBefore: c(100000), bookValueAfter: c(82000), specialAccount: '6241', specialPlanned: c(8000), specialBooked: 0, specialDue: c(8000) },
+    { assetId: 10, inventoryNumber: 'AN-2026-0010', name: 'USV- und Kühlanlage Rechenzentrum', account: '0440', expenseAccount: '6220', method: 'linear', rateLabel: '10 %', months: 12, planned: c(10000), booked: 0, due: c(10000), bookValueBefore: c(100000), bookValueAfter: c(82000), specialAccount: '6241', specialPlanned: c(8000), specialBooked: 0, specialDue: c(8000) },
   ],
   total: c(33328.46),
 };
@@ -1236,7 +1250,7 @@ const ASSET_CANDIDATES = [
     entryId: 41,
     entryNumber: `${YEAR}-000041`,
     bookingDate: `${YEAR}-05-12`,
-    description: 'Hebebühne Werkstatt',
+    description: 'Netzwerkschrank Serverraum',
     account: '0440',
     accountName: 'Maschinen',
     amount: c(6800),
@@ -1255,7 +1269,7 @@ const ASSET_SCHEDULES: Record<number, unknown[]> = {
   ],
 };
 
-// Der Fertigungsroboter zeigt beide Phasen: den Begünstigungszeitraum mit der
+// Die USV- und Kühlanlage zeigt beide Phasen: den Begünstigungszeitraum mit der
 // Sonderabschreibung neben der planmäßigen AfA, und danach die
 // Restwertverteilung des § 7a Abs. 9 EStG.
 ASSET_SCHEDULES[10] = [
@@ -3231,7 +3245,7 @@ export const bridge = {
   ProposeFromEInvoice: (receiptId: number) => later(proposalFor(receiptId)),
   GetEInvoiceRules: () => later(['BR-1', 'BR-2', 'BR-CO-10', 'BR-DE-1', 'BR-DE-15']),
   PreviewIncomingReceipt: (request: any) => later(previewIncoming(request), 120),
-  PreviewOutgoingInvoice: unsupported('PreviewOutgoingInvoice'),
+  PreviewOutgoingInvoice: (invoice: any) => later(previewOutgoing(invoice), 120),
 
   // Bank & Zahlungen
   GetBankTransactions: () => later(BANK_TX),
@@ -3246,7 +3260,13 @@ export const bridge = {
   GetInvoices: () => later(INVOICES),
   IssueInvoice: unsupported('IssueInvoice'),
   GenerateInvoiceZUGFeRD: unsupported('GenerateInvoiceZUGFeRD'),
-  GetInvoiceDocument: unsupported('GetInvoiceDocument'),
+  GetInvoiceDocument: (invoiceId: number) =>
+    later({
+      dataUrl: receiptPreview(),
+      fileName: `${INVOICES.find((i) => i.id === invoiceId)?.invoiceNumber ?? 'Rechnung'}.pdf`,
+      mimeType: 'image/png',
+      intact: true,
+    }),
 
   // Anlagevermögen
   GetFixedAssets: (assetClass: string) =>
@@ -3610,6 +3630,27 @@ function proposalFor(receiptId: number) {
   };
 }
 
+/** Der Buchungssatz einer Ausgangsrechnung: Forderung an Erlöse und Umsatzsteuer. */
+function previewOutgoing(invoice: any) {
+  const contact = CONTACTS.find((x) => x.id === invoice.contactId);
+  const netOf = (item: any) => Math.round((item.quantityMilli * item.unitPrice) / 1000);
+  const items = invoice.items ?? [];
+  const net = items.reduce((sum: number, item: any) => sum + netOf(item), 0);
+  const tax = items.reduce(
+    (sum: number, item: any) => sum + Math.round((netOf(item) * item.taxRate) / 10000),
+    0,
+  );
+  const receivable = contact?.ledgerAccount ?? '1200';
+  const lines = [
+    { id: 1, entryId: 0, position: 1, side: 'S', amount: net + tax, account: receivable, accountName: contact?.name ?? accountName('1200') },
+    { id: 2, entryId: 0, position: 2, side: 'H', amount: net, account: '4400', accountName: accountName('4400') },
+    ...(tax > 0
+      ? [{ id: 3, entryId: 0, position: 3, side: 'H', amount: tax, account: '3806', accountName: accountName('3806'), taxKey: '3' }]
+      : []),
+  ];
+  return { lines, net, tax, gross: net + tax, balanced: true, warnings: [], inputTaxFindings: [], issuingFindings: [] };
+}
+
 /** Rechnet den Buchungssatz so, wie das Backend ihn liefern würde. */
 function previewIncoming(request: any) {
   const lines: any[] = [];
@@ -3682,7 +3723,7 @@ function previewIncoming(request: any) {
     });
   }
 
-  return { lines, net, tax, gross, balanced: true, warnings };
+  return { lines, net, tax, gross, balanced: true, warnings, inputTaxFindings: [] };
 }
 
 // -------------------------------------------------------------------------
