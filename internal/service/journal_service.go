@@ -35,6 +35,8 @@ type JournalService struct {
 	// receiptRepo ist der Beleg, auf den eine Buchung verweist. Optional:
 	// ohne ihn bucht der Dienst wie zuvor, nur ohne die Kopfdatenprüfung.
 	receiptRepo domain.ReceiptRepository
+	// bankRepo hält fest, welcher Bankumsatz gebucht ist (journal_bank.go).
+	bankRepo domain.BankRepository
 
 	// tx ist die Transaktionsklammer aller Vorgänge, die über das Journal
 	// schreiben (siehe InTx).
@@ -171,11 +173,18 @@ func (s *JournalService) post(ctx context.Context, entry *domain.JournalEntry, m
 		if err := s.check(ctx, entry); err != nil {
 			return nil, err
 		}
+		bankTx, err := s.claimBankTx(ctx, entry)
+		if err != nil {
+			return nil, err
+		}
 
 		entry.CreatedAt = time.Now().UTC()
 
 		if err := s.journalRepo.Append(ctx, entry, s.hashChain.CalculateHash); err != nil {
 			return nil, fmt.Errorf("Buchung konnte nicht gespeichert werden: %w", err)
+		}
+		if err := s.settleBankTx(ctx, entry, bankTx); err != nil {
+			return nil, err
 		}
 
 		if err := s.audit(ctx, domain.AuditActionCreate, entry.ID, fmt.Sprintf(

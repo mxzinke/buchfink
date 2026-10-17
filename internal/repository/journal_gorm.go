@@ -200,6 +200,11 @@ func (r *journalRepositoryGorm) FindReversalOf(ctx context.Context, entryID uint
 	return &entry, nil
 }
 
+// FindActiveByBankTx liefert die nicht stornierten Buchungen eines Bankumsatzes.
+func (r *journalRepositoryGorm) FindActiveByBankTx(ctx context.Context, bankTxID uint) ([]domain.JournalEntry, error) {
+	return findBatched(notReversed(r.preloaded(ctx), "journal_entries").Where("bank_tx_id = ?", bankTxID))
+}
+
 // FindCorrectionOf liefert die Buchung, die auf entryID als korrigierte zeigt.
 func (r *journalRepositoryGorm) FindCorrectionOf(ctx context.Context, entryID uint) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
