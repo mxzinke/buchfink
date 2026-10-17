@@ -47,6 +47,10 @@ func (b *BuchfinkBridge) GetAgentRules() (*AgentRules, error) {
 // Voreinstellung; eine leere Liste sperrt alle Belegordner.
 func (b *BuchfinkBridge) SaveAgentRules(in domain.AgentSettings) (*AgentRules, error) {
 	return write(b, func(ctx context.Context, s *core.Services) (*AgentRules, error) {
+		protected := policy.ProtectedDirs(b.host.Config(), s.Tenant.DataDir)
+		if err := policy.CheckReceiptFolders(in.ReceiptFolders, s.Tenant.DataDir, protected); err != nil {
+			return nil, err
+		}
 		stored, err := s.Settings.SaveAgentSettings(ctx, in)
 		if err != nil {
 			return nil, err

@@ -200,7 +200,13 @@ func TestReadFileStaysInsideTheReceiptFolders(t *testing.T) {
 		{"falscher Inhalt", write(filepath.Join(inbox, "fake.pdf"), "MZ\x90"), false},
 		{"leer", write(filepath.Join(inbox, "leer.pdf"), ""), false},
 		{"fehlt", filepath.Join(inbox, "nichtda.pdf"), false},
+		{"fehlt außerhalb", filepath.Join(outside, "nichtda.pdf"), true},
 		{"Ordner selbst", downloads, true},
+		{"Netzwerkpfad", "//server/freigabe/rechnung.pdf", true},
+		{"Netzwerkpfad Windows", `\\server\freigabe\rechnung.pdf`, true},
+		{"Hardlink hinaus", hardLink(t, secret, filepath.Join(inbox, "hart.pdf")), true},
+		{"Hardlink in den Datenordner", hardLink(t, write(filepath.Join(data, "intern.pdf"), pdf),
+			filepath.Join(inbox, "hart-daten.pdf")), true},
 	}
 	for _, tc := range refused {
 		_, err := ReadFile(tc.path, f)
@@ -223,11 +229,69 @@ func TestReadFileStaysInsideTheReceiptFolders(t *testing.T) {
 	}
 }
 
+func hardLink(t *testing.T, target, link string) string {
+	t.Helper()
+	if err := os.Link(target, link); err != nil {
+		t.Fatal(err)
+	}
+	return link
+}
+
+// Zwei Mandanten unter einem gemeinsamen Ordner: der Belegordner des einen
+// umschließt den Datenordner des anderen. Gelesen wird trotzdem nur aus dem
+// eigenen Eingang und aus Ordnern, die keinem Mandanten gehören.
+func TestReceiptFolderNeverReachesAnotherTenant(t *testing.T) {
+	parent := t.TempDir()
+	own := filepath.Join(parent, "Pfennig GmbH")
+	other := filepath.Join(parent, "Fremd GmbH")
+	backup := filepath.Join(parent, "Sicherung")
+	for _, d := range []string{filepath.Join(own, InboxDir), filepath.Join(other, InboxDir), backup, filepath.Join(parent, "Scans")} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	xml := []byte("<?xml version=\"1.0\"?><x/>")
+	for _, p := range []string{filepath.Join(other, InboxDir, "geheim.xml"), filepath.Join(other, "beleg.xml"),
+		filepath.Join(backup, "sicherung.xml"), filepath.Join(own, InboxDir, "eigen.xml"), filepath.Join(parent, "Scans", "scan.xml")} {
+		if err := os.WriteFile(p, xml, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cfg := domain.AppConfig{BackupDir: backup, Tenants: []domain.TenantConfig{
+		{ID: "a", DataDir: own, BackupDir: backup}, {ID: "b", DataDir: other},
+	}}
+	f := FoldersFrom(&domain.AgentSettings{ReceiptFolders: []string{parent, filepath.Join(own, InboxDir)}}, own,
+		ProtectedDirs(cfg, own)...)
+	for _, p := range []string{filepath.Join(other, InboxDir, "geheim.xml"), filepath.Join(other, "beleg.xml"),
+		filepath.Join(backup, "sicherung.xml")} {
+		var fe *FileError
+		if _, err := ReadFile(p, f); !errors.As(err, &fe) || !fe.NotAllowed {
+			t.Errorf("%s: %v", p, err)
+		}
+	}
+	for _, p := range []string{filepath.Join(own, InboxDir, "eigen.xml"), filepath.Join(parent, "Scans", "scan.xml")} {
+		if _, err := ReadFile(p, f); err != nil {
+			t.Errorf("%s: %v", p, err)
+		}
+	}
+
+	// Einstellen lässt sich ein solcher Ordner gar nicht erst.
+	protected := ProtectedDirs(cfg, own)
+	for _, folder := range []string{parent, other, filepath.Join(other, InboxDir), backup, own} {
+		if err := CheckReceiptFolders([]string{folder}, own, protected); err == nil {
+			t.Errorf("Belegordner %s angenommen", folder)
+		}
+	}
+	if err := CheckReceiptFolders([]string{filepath.Join(own, InboxDir), filepath.Join(parent, "Scans")}, own, protected); err != nil {
+		t.Errorf("eigener Eingang und fremder Ordner: %v", err)
+	}
+}
+
 func TestDefaultFolders(t *testing.T) {
 	data := t.TempDir()
 	f := FoldersFrom(nil, data)
-	if len(f.Receipt) < 1 || f.Receipt[0] != filepath.Join(data, InboxDir) {
-		t.Errorf("Voreinstellung Belegordner: %v", f.Receipt)
+	if len(f.Receipt) != 1 || f.Receipt[0] != filepath.Join(data, InboxDir) {
+		t.Errorf("Voreinstellung Belegordner ist allein der Eingang: %v", f.Receipt)
 	}
 	if f.Export != filepath.Join(data, ExportDir) {
 		t.Errorf("Voreinstellung Exportordner: %s", f.Export)

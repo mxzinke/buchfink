@@ -12,7 +12,7 @@ type AgentSettings struct {
 	// Voreinstellung.
 	DirectMinBookings int `json:"directMinBookings"`
 	// ReceiptFolders sind die Belegordner. Nil heißt Voreinstellung (Eingang
-	// im Datenordner und Downloads), eine leere Liste: kein Ordner.
+	// im Datenordner), eine leere Liste: kein Ordner.
 	ReceiptFolders []string `json:"receiptFolders"`
 	// ExportFolder ist der Exportordner; leer heißt Voreinstellung (Export im
 	// Datenordner).

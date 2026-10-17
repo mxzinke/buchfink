@@ -28,9 +28,11 @@ func richtungOf(d domain.Direction) string {
 	return "eingang"
 }
 
-// folders sind die Beleg- und Exportordner des geöffneten Mandanten.
+// folders sind die Beleg- und Exportordner des geöffneten Mandanten. Die
+// Datenordner der übrigen Mandanten und alle Sicherungen bleiben gesperrt,
+// auch wenn ein Belegordner sie umschließt.
 func folders(ctx context.Context, c *Call, s *core.Services) (policy.Folders, error) {
-	return policy.FoldersFor(ctx, s, c.Tenant.DataDir(), c.Host.Config().BackupDir)
+	return policy.FoldersFor(ctx, s, c.Tenant.DataDir(), policy.ProtectedDirs(c.Host.Config(), c.Tenant.DataDir())...)
 }
 
 // --- belege_suchen ----------------------------------------------------------

@@ -15,10 +15,12 @@ import (
 
 // Ein Agent übergibt Belege nur als Pfad. Buchfink liest sie aus den
 // Belegordnern, die der Mensch in der App freigibt, und schreibt Exporte nur
-// in den Exportordner. Die Voreinstellung ist der Eingang im Datenordner des
-// Mandanten und der Downloads-Ordner: dort landen Anhänge und Downloads aus
-// Portalen, und ein Agent ohne eigenen Dateizugriff (Claude Desktop) käme an
-// eine Rechnung sonst nur, wenn der Mensch sie vorher verschiebt.
+// in den Exportordner. Voreingestellt ist allein der Eingang im Datenordner
+// des Mandanten. Downloads gehört nicht dazu: dorthin schreibt jede Webseite
+// und jeder Mailanhang, eine dort abgelegte Datei bleibt als Beleg zehn Jahre
+// im Archiv, und eine gefälschte E-Rechnung oder ein gefälschter Kontoauszug
+// käme ohne Zutun des Menschen in Reichweite des Agenten. Wer Downloads will,
+// nimmt ihn in der App auf.
 
 const (
 	// InboxDir ist der Eingangsordner im Datenordner.
@@ -35,7 +37,8 @@ type Folders struct {
 	Export  string   `json:"exportordner"`
 	// DataDir ist gesperrt, bis auf den Eingang darin.
 	DataDir string `json:"-"`
-	// Denied sind weitere gesperrte Ordner (Sicherung).
+	// Denied sind weitere gesperrte Ordner: die Datenordner der übrigen
+	// Mandanten und alle Sicherungsordner.
 	Denied []string `json:"-"`
 }
 
@@ -65,10 +68,45 @@ func FoldersFrom(settings *domain.AgentSettings, dataDir string, denied ...strin
 		return f
 	}
 	f.Receipt = []string{filepath.Join(dataDir, InboxDir)}
-	if home, err := os.UserHomeDir(); err == nil && home != "" {
-		f.Receipt = append(f.Receipt, filepath.Join(home, "Downloads"))
-	}
 	return f
+}
+
+// ProtectedDirs sind die Ordner, aus denen kein Agent eines Mandanten liest:
+// die Datenordner aller anderen Mandanten und alle Sicherungsordner.
+func ProtectedDirs(cfg domain.AppConfig, ownDataDir string) []string {
+	out := []string{cfg.BackupDir}
+	for _, t := range cfg.Tenants {
+		out = append(out, t.BackupDir)
+		if t.DataDir != "" && filepath.Clean(t.DataDir) != filepath.Clean(ownDataDir) {
+			out = append(out, t.DataDir)
+		}
+	}
+	return out
+}
+
+// CheckReceiptFolders weist Belegordner ab, die einen geschützten Ordner
+// enthalten oder in einem liegen. Der eigene Eingang ist erlaubt, auch wenn er
+// im eigenen Datenordner liegt.
+func CheckReceiptFolders(folders []string, ownDataDir string, protected []string) error {
+	inbox := filepath.Join(ownDataDir, InboxDir)
+	guarded := append([]string{ownDataDir}, protected...)
+	for _, folder := range folders {
+		clean := filepath.Clean(folder)
+		if clean == inbox {
+			continue
+		}
+		for _, p := range guarded {
+			if strings.TrimSpace(p) == "" {
+				continue
+			}
+			p = filepath.Clean(p)
+			if clean == p || within(p, clean) || within(clean, p) {
+				return fmt.Errorf("der Belegordner %s überschneidet sich mit %s (Datenordner eines Mandanten "+
+					"oder Sicherung); er wäre für verbundene Apps lesbar", folder, p)
+			}
+		}
+	}
+	return nil
 }
 
 // FileError ist ein abgewiesener Pfad (NotAllowed) oder eine ungeeignete
@@ -111,21 +149,31 @@ var extensions = map[string]Kind{
 }
 
 // ReadFile prüft einen Pfad gegen die Belegordner und liest die Datei
-// einmal. Symlinks und „.." werden aufgelöst, bevor geprüft wird; gelesen
-// wird die aufgelöste Datei, und nur, wenn sie noch dieselbe ist.
+// einmal. Zuerst wird der Pfad ohne Zugriff auf das Dateisystem geprüft:
+// liegt er nicht in einem Belegordner, erfährt der Agent nicht einmal, ob es
+// die Datei gibt, und ein Netzwerkpfad wird nie berührt. Danach werden
+// Symlinks aufgelöst und erneut geprüft; gelesen wird nur eine gewöhnliche
+// Datei ohne weiteren harten Verweis, und nach dem Öffnen muss sie noch an
+// derselben Stelle liegen.
 func ReadFile(path string, f Folders, allowed ...Kind) (*File, error) {
 	path = strings.TrimSpace(path)
-	if path == "" || !filepath.IsAbs(path) {
-		return nil, notAllowed("%q ist kein absoluter Pfad", path)
+	refused := notAllowed("%s liegt in keinem freigegebenen Belegordner (%s)", path, strings.Join(f.Receipt, ", "))
+	if path == "" || !filepath.IsAbs(path) || remotePath(path) {
+		return nil, refused
 	}
-	resolved, err := filepath.EvalSymlinks(filepath.Clean(path))
+	clean := filepath.Clean(path)
+	if !f.lexicallyAllows(clean) {
+		return nil, refused
+	}
+	name := filepath.Base(clean)
+	resolved, err := filepath.EvalSymlinks(clean)
 	if err != nil {
-		return nil, invalidFile("die Datei %s ist nicht lesbar: %v", path, err)
+		return nil, invalidFile("die Datei %s gibt es nicht oder sie ist nicht lesbar", name)
 	}
-	if !f.allows(resolved) {
-		return nil, notAllowed("%s liegt in keinem freigegebenen Belegordner (%s)", path, strings.Join(f.Receipt, ", "))
+	if remotePath(resolved) || !f.allows(resolved) {
+		return nil, refused
 	}
-	name := filepath.Base(resolved)
+	name = filepath.Base(resolved)
 	if strings.HasPrefix(name, ".") {
 		return nil, notAllowed("versteckte Dateien werden nicht abgelegt: %s", name)
 	}
@@ -135,10 +183,10 @@ func ReadFile(path string, f Folders, allowed ...Kind) (*File, error) {
 	}
 	info, err := os.Lstat(resolved)
 	if err != nil {
-		return nil, invalidFile("die Datei %s ist nicht lesbar: %v", path, err)
+		return nil, invalidFile("die Datei %s ist nicht lesbar", name)
 	}
 	if !info.Mode().IsRegular() {
-		return nil, invalidFile("%s ist keine gewöhnliche Datei", path)
+		return nil, invalidFile("%s ist keine gewöhnliche Datei", name)
 	}
 	if info.Size() > MaxFileBytes {
 		return nil, invalidFile("%s ist %d MB groß; höchstens %d MB", name, info.Size()>>20, MaxFileBytes>>20)
@@ -146,18 +194,31 @@ func ReadFile(path string, f Folders, allowed ...Kind) (*File, error) {
 	if info.Size() == 0 {
 		return nil, invalidFile("%s ist leer", name)
 	}
-	file, err := os.Open(resolved)
+	file, err := openNoFollow(resolved)
 	if err != nil {
-		return nil, invalidFile("die Datei %s ist nicht lesbar: %v", path, err)
+		return nil, invalidFile("die Datei %s ist nicht lesbar", name)
 	}
 	defer file.Close()
 	opened, err := file.Stat()
 	if err != nil || !os.SameFile(info, opened) {
-		return nil, invalidFile("die Datei %s hat sich beim Öffnen geändert", path)
+		return nil, invalidFile("die Datei %s hat sich beim Öffnen geändert", name)
+	}
+	// Ein harter Verweis macht eine Datei außerhalb der Belegordner unter einem
+	// Namen darin lesbar; kein Beleg braucht einen.
+	if links, err := linkCount(file, opened); err != nil || links > 1 {
+		return nil, notAllowed("%s hat weitere harte Verweise im Dateisystem und wird nicht abgelegt", name)
+	}
+	// Nach dem Öffnen noch einmal: ein Ordner auf dem Weg könnte zwischen
+	// Prüfung und Öffnen gegen einen Symlink getauscht worden sein.
+	if again, err := filepath.EvalSymlinks(clean); err != nil || again != resolved || !f.allows(again) {
+		return nil, invalidFile("die Datei %s hat sich beim Öffnen geändert", name)
+	}
+	if actual, ok := openedPath(file); ok && (actual != resolved || !f.allows(actual)) {
+		return nil, invalidFile("die Datei %s hat sich beim Öffnen geändert", name)
 	}
 	data, err := io.ReadAll(io.LimitReader(file, MaxFileBytes+1))
 	if err != nil {
-		return nil, invalidFile("die Datei %s ist nicht lesbar: %v", path, err)
+		return nil, invalidFile("die Datei %s ist nicht lesbar", name)
 	}
 	if len(data) > MaxFileBytes {
 		return nil, invalidFile("%s ist größer als %d MB", name, MaxFileBytes>>20)
@@ -168,11 +229,41 @@ func ReadFile(path string, f Folders, allowed ...Kind) (*File, error) {
 	return &File{Path: resolved, Name: name, Kind: kind, Data: data}, nil
 }
 
+// remotePath erkennt UNC-, Geräte- und Netzwerkpfade (\\server\freigabe,
+// \\?\, \\.\, //server). Ein Zugriff darauf meldet sich unter Windows beim
+// fremden Rechner an; er unterbleibt deshalb vor jeder anderen Prüfung.
+func remotePath(path string) bool {
+	if strings.HasPrefix(path, `\\`) || strings.HasPrefix(path, "//") || strings.HasPrefix(path, `/\`) ||
+		strings.HasPrefix(path, `\/`) {
+		return true
+	}
+	return len(filepath.VolumeName(path)) > 2
+}
+
+// lexicallyAllows prüft den bereinigten Pfad, ohne das Dateisystem zu fragen:
+// er liegt in einem Belegordner, so wie er eingestellt ist oder aufgelöst.
+func (f Folders) lexicallyAllows(clean string) bool {
+	for _, folder := range f.Receipt {
+		if remotePath(folder) {
+			continue
+		}
+		raw := filepath.Clean(folder)
+		if within(raw, clean) || within(resolveDir(raw), clean) {
+			return true
+		}
+	}
+	return false
+}
+
 // allows meldet, ob ein aufgelöster Pfad in einem Belegordner liegt und in
-// keinem gesperrten. Im Datenordner ist nur der Eingang offen.
+// keinem gesperrten. Im eigenen Datenordner ist nur der Eingang offen; ein
+// gesperrter Ordner, der den eigenen Eingang umschließt, sperrt ihn nicht.
 func (f Folders) allows(resolved string) bool {
 	inFolder := false
 	for _, folder := range f.Receipt {
+		if remotePath(folder) {
+			continue
+		}
 		if within(resolveDir(folder), resolved) {
 			inFolder = true
 			break
@@ -181,16 +272,25 @@ func (f Folders) allows(resolved string) bool {
 	if !inFolder {
 		return false
 	}
+	inInbox := false
+	var inbox string
 	if f.DataDir != "" {
 		data := resolveDir(f.DataDir)
-		if within(data, resolved) && !within(filepath.Join(data, InboxDir), resolved) {
+		inbox = filepath.Join(data, InboxDir)
+		inInbox = within(inbox, resolved)
+		if within(data, resolved) && !inInbox {
 			return false
 		}
 	}
 	for _, d := range f.Denied {
-		if within(resolveDir(d), resolved) {
-			return false
+		dir := resolveDir(d)
+		if !within(dir, resolved) {
+			continue
 		}
+		if inInbox && within(dir, inbox) {
+			continue
+		}
+		return false
 	}
 	return true
 }
