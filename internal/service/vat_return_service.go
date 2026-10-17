@@ -418,6 +418,9 @@ func (s *VatReturnService) List(ctx context.Context, year int) ([]domain.VatRetu
 // weicht die nächste Auswertung von der Anmeldung ab. Und das Transferticket ist
 // der einzige Nachweis, dass die Anmeldung angekommen ist.
 func (s *VatReturnService) ConfirmSubmitted(ctx context.Context, id uint, date, ticket, note string) (*domain.VatReturn, error) {
+	if err := refuseAgent(ctx, "Die Bestätigung der Übermittlung"); err != nil {
+		return nil, err
+	}
 	rec, err := s.returnRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("die Voranmeldung %d wurde nicht gefunden: %w", id, err)

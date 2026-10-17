@@ -581,6 +581,9 @@ func (s *ClosingService) yearCommitment(ctx context.Context, year int) (bool, st
 func (s *ClosingService) SetFiscalYearStatus(
 	ctx context.Context, year int, status domain.FiscalYearStatus, date, note string,
 ) (*domain.FiscalYear, error) {
+	if err := refuseAgent(ctx, "Aufstellen, Feststellen und Offenlegen"); err != nil {
+		return nil, err
+	}
 	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.FiscalYear, error) {
 		return s.setFiscalYearStatus(ctx, year, status, date, note)
 	})
@@ -684,6 +687,9 @@ func (s *ClosingService) setFiscalYearStatus(
 // die Buchungen bis dahin unverändert vorlagen, und dieser Nachweis wird durch
 // eine spätere Entscheidung nicht falsch.
 func (s *ClosingService) ReopenFiscalYear(ctx context.Context, year int, reason string) (*domain.FiscalYear, error) {
+	if err := refuseAgent(ctx, "Das Zurücknehmen der Feststellung"); err != nil {
+		return nil, err
+	}
 	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.FiscalYear, error) {
 		return s.reopenFiscalYear(ctx, year, reason)
 	})

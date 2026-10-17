@@ -39,6 +39,9 @@ func (s *SettingsService) GetCompanySettings(ctx context.Context) (*domain.Compa
 }
 
 func (s *SettingsService) UpdateCompanySettings(ctx context.Context, settings *domain.CompanySettings) error {
+	if err := refuseAgent(ctx, "Die Änderung der Unternehmensdaten"); err != nil {
+		return err
+	}
 	// Der bisherige Stand wird vor dem Schreiben gelesen: danach gibt es ihn
 	// nicht mehr, und ohne ihn stünde im Protokoll „Stammdaten aktualisiert"
 	// ohne die Angabe, was sich geändert hat. Ein Fehler beim Lesen hält das
