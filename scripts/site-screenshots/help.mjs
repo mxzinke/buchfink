@@ -12,13 +12,13 @@ try {
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto(`${ORIGIN}/#/closings/declarations`);
-  const mark = page.getByRole('button', { name: 'Erklärung zu E-Bilanz', exact: true });
+  await page.goto(`${ORIGIN}/#/closings/declarations/e-bilanz`);
+  const mark = page.getByRole('button', { name: 'Erklärung zur Übermittlung der E-Bilanz', exact: true });
   await mark.hover();
 
   const tip = page.getByRole('tooltip');
   await tip.waitFor();
-  assert.match(await tip.innerText(), /noch ungeprüft/);
+  assert.match(await tip.innerText(), /kein Formular/);
   assert.equal(await tip.locator('a, button').count(), 0);
   assert.equal(await page.getByRole('dialog').count(), 0);
   assert.doesNotMatch(await tip.innerText(), /§|XBRL/);
@@ -27,10 +27,10 @@ try {
   await mark.focus();
   await tip.waitFor();
   await page.keyboard.press('Escape');
-  const more = page.getByRole('button', { name: 'Mehr erfahren: Erklärung zu E-Bilanz', exact: true });
+  const more = page.getByRole('button', { name: 'Mehr erfahren: Erklärung zur Übermittlung der E-Bilanz', exact: true });
   await more.focus();
   await page.keyboard.press('Enter');
-  const dialog = page.getByRole('dialog', { name: 'Erklärung zu E-Bilanz', exact: true });
+  const dialog = page.getByRole('dialog', { name: 'Erklärung zur Übermittlung der E-Bilanz', exact: true });
   await dialog.waitFor();
   const source = dialog.getByRole('link', { name: '§ 5b EStG', exact: true });
   assert.equal(await source.getAttribute('href'), 'https://www.gesetze-im-internet.de/estg/__5b.html');

@@ -655,12 +655,6 @@ func (b *BuchfinkBridge) GetLegalForms() []domain.LegalFormInfo {
 	return domain.LegalFormCatalog()
 }
 
-func (b *BuchfinkBridge) ExportEBilanzXBRL() (string, error) {
-	return read(b, func(ctx context.Context, s *core.Services) (string, error) {
-		return s.EBilanz.ExportXBRL(ctx, b.viewYear())
-	})
-}
-
 // -------------------------------------------------------------
 // OFFENE POSTEN & ZAHLUNGSZUORDNUNG
 // -------------------------------------------------------------

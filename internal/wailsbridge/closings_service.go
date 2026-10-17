@@ -1,0 +1,135 @@
+package wailsbridge
+
+import (
+	"context"
+	"fmt"
+	"strconv"
+
+	"github.com/buchfink/buchfink/internal/core"
+	"github.com/buchfink/buchfink/internal/declaration"
+	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/service"
+)
+
+// Die Abschlüsse: Pflichtenkalender, Jahreserklärungen und E-Bilanz.
+//
+// Bestätigen, Entfallen, Übermitteln und das Bestätigen eines Vorschlags sind
+// dem Menschen in der App vorbehalten (§ 146 Abs. 4 AO, § 42a GmbHG); der Kern
+// weist sie für jeden anderen Erfassungsweg ab.
+
+// GetObligations liefert die Pflichten eines Geschäftsjahres mit Stand,
+// Fälligkeit, Nachweis und Ziel in der Oberfläche, die früheste zuerst.
+// Bestätigen und Entfallen stehen in overview_service.go.
+func (b *BuchfinkBridge) GetObligations(year int) ([]ObligationView, error) {
+	year = b.yearOr(year)
+	return readList(b, func(ctx context.Context, s *core.Services) ([]ObligationView, error) {
+		list, err := s.Obligations.List(ctx, service.ObligationQuery{FiscalYear: year})
+		if err != nil {
+			return nil, err
+		}
+		out := make([]ObligationView, 0, len(list))
+		for i := range list {
+			if list[i].Hints == nil {
+				list[i].Hints = []string{}
+			}
+			out = append(out, *obligationView(&list[i]))
+		}
+		return out, nil
+	})
+}
+
+// DeclarationView ist eine Jahreserklärung, wie die Oberfläche sie zeigt:
+// zuerst die Übersicht mit Ergebnis und offenen Zeilen, darunter die Vordrucke
+// mit allen Zeilen und ihrer Herkunft.
+type DeclarationView struct {
+	Overview    declaration.Overview     `json:"overview"`
+	Declaration *declaration.Declaration `json:"declaration"`
+}
+
+// GetDeclaration rechnet eine Jahreserklärung (ust_jahr, kst, gewst) aus dem
+// heutigen Stand der Bücher.
+func (b *BuchfinkBridge) GetDeclaration(kind string, year int) (*DeclarationView, error) {
+	year = b.yearOr(year)
+	return read(b, func(ctx context.Context, s *core.Services) (*DeclarationView, error) {
+		d, err := s.Declarations.Build(ctx, declaration.Kind(kind), year)
+		if err != nil {
+			return nil, err
+		}
+		return &DeclarationView{Overview: d.Overview(), Declaration: d}, nil
+	})
+}
+
+// SetDeclarationInput legt eine Angabe zu einer Zeile ab, etwa einen
+// Verlustvortrag aus dem Bescheid. In der App gesetzt gilt sie sofort.
+func (b *BuchfinkBridge) SetDeclarationInput(req service.InputRequest) (*declaration.Input, error) {
+	return write(b, func(ctx context.Context, s *core.Services) (*declaration.Input, error) {
+		return s.Declarations.SetInput(ctx, req)
+	})
+}
+
+// ConfirmDeclarationInput bestätigt den Vorschlag eines Agenten zu einer
+// Zeile, die dem Menschen vorbehalten ist.
+func (b *BuchfinkBridge) ConfirmDeclarationInput(kind string, year int, key string) (*declaration.Input, error) {
+	return write(b, func(ctx context.Context, s *core.Services) (*declaration.Input, error) {
+		return s.Declarations.ConfirmInput(ctx, declaration.Kind(kind), year, key)
+	}, core.AppOnly())
+}
+
+// DeleteDeclarationInput nimmt eine Angabe zurück; die Zeile rechnet danach
+// wieder aus den Büchern oder bleibt offen.
+func (b *BuchfinkBridge) DeleteDeclarationInput(kind string, year int, key string) error {
+	return b.change(func(ctx context.Context, s *core.Services) error {
+		return s.Declarations.DeleteInput(ctx, declaration.Kind(kind), year, key)
+	})
+}
+
+// SubmitDeclaration hält die Übermittlung in Mein ELSTER mit Datum,
+// Transferticket und dem Zahlen-Hash des übermittelten Stands fest.
+func (b *BuchfinkBridge) SubmitDeclaration(req service.SubmissionRequest) (*domain.DeclarationRecord, error) {
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.DeclarationRecord, error) {
+		return s.Declarations.MarkSubmitted(ctx, req)
+	}, core.AppOnly())
+}
+
+// ExportDeclarationJSON schreibt die Erklärung als JSON in einen gewählten
+// Ordner und hält den Export fest. Leer heißt: der Dialog wurde abgebrochen.
+func (b *BuchfinkBridge) ExportDeclarationJSON(kind string, year int) (*core.DeclarationExport, error) {
+	year = b.yearOr(year)
+	dir, err := b.SelectExportDirectoryDialog("Ordner für die Erklärung wählen")
+	if err != nil || dir == "" {
+		return nil, err
+	}
+	return operate(b, func(ctx context.Context, t *core.Tenant) (*core.DeclarationExport, error) {
+		return t.ExportDeclaration(ctx, declaration.Kind(kind), year, dir)
+	})
+}
+
+// SaveEBilanzXBRLAs erzeugt die E-Bilanz eines Geschäftsjahres und schreibt
+// sie an einen gewählten Ort. Erzeugt wird vor dem Dialog: blockierende
+// Befunde melden sich, bevor jemand einen Speicherort sucht. Leer heißt: der
+// Dialog wurde abgebrochen.
+func (b *BuchfinkBridge) SaveEBilanzXBRLAs(year int) (string, error) {
+	year = b.yearOr(year)
+	instance, err := read(b, func(ctx context.Context, s *core.Services) ([]byte, error) {
+		res, err := s.EBilanz.Generate(ctx, year, service.EBilanzOptions{})
+		if err != nil {
+			return nil, err
+		}
+		if err := res.Report.BlockingError(); err != nil {
+			return nil, err
+		}
+		return res.Instance, nil
+	})
+	if err != nil {
+		return "", err
+	}
+	path, err := b.saveFileDialog("E-Bilanz speichern", fmt.Sprintf("e-bilanz-%d.xbrl", year))
+	if err != nil || path == "" {
+		return "", err
+	}
+	if err := b.handOut(path, instance, "EBILANZ", strconv.Itoa(year),
+		fmt.Sprintf("E-Bilanz %d als XBRL-Instanz nach %s herausgegeben", year, path)); err != nil {
+		return "", err
+	}
+	return path, nil
+}
