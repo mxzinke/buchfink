@@ -52,8 +52,10 @@ type Host struct {
 	renderer *invoice.Renderer
 	logger   *slog.Logger
 
-	// lifecycle ordnet Öffnen, Wechseln, Anlegen und Entfernen.
+	// lifecycle ordnet Öffnen, Wechseln, Anlegen und Entfernen. closed steht
+	// unter ihm: nach Close öffnet der Host keinen Mandanten mehr.
 	lifecycle sync.Mutex
+	closed    bool
 
 	mu      sync.RWMutex
 	cfg     domain.AppConfig
@@ -61,6 +63,10 @@ type Host struct {
 	gen     uint64
 
 	closing sync.WaitGroup
+	// closingDirs sind die Datenordner von Mandanten, die nach einem Wechsel
+	// noch schließen. Wer denselben Ordner öffnet, wartet, bis seine
+	// Sperrdatei frei ist.
+	closingDirs map[string]chan struct{}
 
 	backupLocksMu sync.Mutex
 	backupLocks   map[string]*sync.Mutex
@@ -145,6 +151,10 @@ func requireApp(ctx context.Context) error {
 func (h *Host) Close(ctx context.Context) error {
 	h.lifecycle.Lock()
 	defer h.lifecycle.Unlock()
+	if h.closed {
+		return nil
+	}
+	h.closed = true
 	if h.opts.Jobs {
 		if t, release, err := h.Acquire(ctx); err == nil {
 			h.runDueBackup(ctx, t, true)
@@ -320,11 +330,20 @@ func (h *Host) backupDirOf(id string) string {
 }
 
 // open öffnet einen Mandanten der Liste unter der nächsten Generation. Der
-// Aufrufer hält lifecycle.
+// Aufrufer hält lifecycle. Schließt derselbe Ordner noch nach einem Wechsel,
+// wartet es darauf.
 func (h *Host) open(ctx context.Context, tc domain.TenantConfig) (*Tenant, error) {
 	h.mu.RLock()
 	gen := h.gen + 1
+	closing := h.closingDirs[filepath.Clean(tc.DataDir)]
 	h.mu.RUnlock()
+	if closing != nil {
+		select {
+		case <-closing:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
 	id := tc.ID
 	return Open(ctx, tc.DataDir, Options{
 		TenantID: id, TenantName: tc.Name, Generation: gen,
@@ -354,12 +373,25 @@ func (h *Host) activate(t *Tenant) {
 		// läuft zu Ende. Seine Hintergrundläufe beginnen nichts Neues mehr.
 		previous.jobs.cancelOnly()
 		previous.leases.stop()
+		dir, done := filepath.Clean(previous.DataDir()), make(chan struct{})
+		h.mu.Lock()
+		if h.closingDirs == nil {
+			h.closingDirs = map[string]chan struct{}{}
+		}
+		h.closingDirs[dir] = done
+		h.mu.Unlock()
 		h.closing.Add(1)
 		go func() {
 			defer h.closing.Done()
 			if err := previous.Close(context.Background()); err != nil {
 				h.logger.Warn("Mandant ließ sich nicht sauber schließen", "mandant", previous.ID(), "fehler", err)
 			}
+			h.mu.Lock()
+			if h.closingDirs[dir] == done {
+				delete(h.closingDirs, dir)
+			}
+			h.mu.Unlock()
+			close(done)
 		}()
 	}
 }
@@ -371,6 +403,9 @@ func (h *Host) Switch(ctx context.Context, tenantID string) (*Tenant, error) {
 	}
 	h.lifecycle.Lock()
 	defer h.lifecycle.Unlock()
+	if h.closed {
+		return nil, ErrHostClosed
+	}
 	tc, ok := h.tenantConfig(tenantID)
 	if !ok {
 		return nil, fmt.Errorf("der Mandant %s steht nicht in der Mandantenliste", tenantID)
@@ -416,6 +451,9 @@ func (h *Host) CreateTenant(
 	}
 	h.lifecycle.Lock()
 	defer h.lifecycle.Unlock()
+	if h.closed {
+		return nil, ErrHostClosed
+	}
 
 	if name == "" {
 		name = settings.CompanyName
@@ -502,6 +540,9 @@ func (h *Host) RegisterTenant(
 	}
 	h.lifecycle.Lock()
 	defer h.lifecycle.Unlock()
+	if h.closed {
+		return nil, ErrHostClosed
+	}
 	tc, _, err := h.register(ctx, dbFile, name, kind)
 	return tc, err
 }
@@ -616,6 +657,9 @@ func (h *Host) RemoveTenant(ctx context.Context, tenantID string) error {
 	}
 	h.lifecycle.Lock()
 	defer h.lifecycle.Unlock()
+	if h.closed {
+		return ErrHostClosed
+	}
 
 	h.mu.RLock()
 	wasOpen := h.current != nil && h.current.ID() == tenantID

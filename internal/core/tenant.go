@@ -70,6 +70,7 @@ type Tenant struct {
 	write  writeLock
 	leases leases
 	jobs   jobs
+	lock   *dataLock
 
 	closeOnce sync.Once
 	closeErr  error
@@ -78,13 +79,19 @@ type Tenant struct {
 // Open öffnet die Mandantendatei im Datenordner, verdrahtet die Dienste und
 // legt fehlende Geschäftsjahre an.
 func Open(ctx context.Context, dataDir string, o Options) (*Tenant, error) {
+	lock, err := lockDataDir(dataDir)
+	if err != nil {
+		return nil, err
+	}
 	db, err := repository.InitTenantDB(dataDir)
 	if err != nil {
+		_ = lock.release()
 		return nil, fmt.Errorf("die Mandantendatenbank in %s ließ sich nicht öffnen: %w", dataDir, err)
 	}
 	reader, err := repository.OpenTenantReader(dataDir)
 	if err != nil {
 		_ = repository.CloseDB(db)
+		_ = lock.release()
 		return nil, err
 	}
 
@@ -102,7 +109,7 @@ func Open(ctx context.Context, dataDir string, o Options) (*Tenant, error) {
 		db: db, reader: reader, tx: repository.NewTxRunner(db),
 		renderer: renderer, ownRenderer: own,
 		backupDir: o.BackupDir, logger: logger,
-		write: newWriteLock(),
+		write: newWriteLock(), lock: lock,
 	}
 	o.Network = o.Network.guarded(func() bool { return t.Examiner().Active })
 	t.network = o.Network
@@ -156,6 +163,7 @@ func (t *Tenant) Close(ctx context.Context) error {
 		if t.ownRenderer {
 			errs = append(errs, t.renderer.Close(ctx))
 		}
+		errs = append(errs, t.lock.release())
 		t.closeErr = errors.Join(errs...)
 	})
 	return t.closeErr
@@ -182,7 +190,10 @@ func (t *Tenant) Read(ctx context.Context, fn func(context.Context, *Services) e
 	if _, err := channelOf(ctx); err != nil {
 		return err
 	}
-	if inWriteOf(ctx, t) || repository.IsReadOnly(ctx) {
+	if owned, err := t.ownsTx(ctx); owned || err != nil {
+		if err != nil {
+			return err
+		}
 		return fn(ctx, t.svc)
 	}
 	release, err := t.leases.acquire()
@@ -191,8 +202,24 @@ func (t *Tenant) Read(ctx context.Context, fn func(context.Context, *Services) e
 	}
 	defer release()
 	return repository.RunReadOnly(ctx, t.reader, func(ctx context.Context) error {
-		return fn(ctx, t.svc)
+		return fn(markTxOf(ctx, t), t.svc)
 	})
+}
+
+// ownsTx meldet, ob der Kontext schon eine Transaktion dieses Mandanten trägt.
+// Eine Transaktion eines anderen Mandanten oder eine fremde ist ein Fehler:
+// die Repositories nähmen sie, und der Vorgang liefe in der falschen Datei.
+func (t *Tenant) ownsTx(ctx context.Context) (bool, error) {
+	if owner := txOf(ctx); owner != nil {
+		if owner != t {
+			return false, ErrForeignTenant
+		}
+		return true, nil
+	}
+	if repository.InTx(ctx) {
+		return false, ErrForeignTenant
+	}
+	return false, nil
 }
 
 // Write führt fn als einen Vorgang aus: unter der Schreibsperre des
@@ -213,10 +240,11 @@ func (t *Tenant) Write(ctx context.Context, fn func(context.Context, *Services) 
 	if o.appOnly && channel != actor.ChannelUI {
 		return ErrAppOnly
 	}
-	if repository.IsReadOnly(ctx) {
+	if owned, err := t.ownsTx(ctx); err != nil {
+		return err
+	} else if owned && repository.IsReadOnly(ctx) {
 		return ErrWriteInRead
-	}
-	if inWriteOf(ctx, t) {
+	} else if owned {
 		return fn(ctx, t.svc)
 	}
 
@@ -230,7 +258,7 @@ func (t *Tenant) Write(ctx context.Context, fn func(context.Context, *Services) 
 	}
 	defer t.write.unlock()
 
-	ctx = markInWrite(ctx, t)
+	ctx = markTxOf(markInWrite(ctx, t), t)
 	err = t.tx.RunInTx(ctx, func(ctx context.Context) error {
 		if !o.examinerExempt {
 			if err := t.ensureWritable(ctx); err != nil {

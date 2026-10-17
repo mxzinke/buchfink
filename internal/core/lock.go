@@ -58,18 +58,24 @@ func channelOf(ctx context.Context) (actor.Channel, error) {
 	return channel, nil
 }
 
-type inWriteKey struct{}
+type txOwnerKey struct{}
 
-// markInWrite kennzeichnet den Kontext eines laufenden Schreibvorgangs dieses
-// Mandanten. Ein Write darin läuft in derselben Transaktion weiter, statt auf
-// die eigene Sperre zu warten.
-func markInWrite(ctx context.Context, t *Tenant) context.Context {
-	return context.WithValue(ctx, inWriteKey{}, t)
+// markTxOf kennzeichnet den Kontext einer Transaktion dieses Mandanten, ob
+// lesend oder schreibend.
+func markTxOf(ctx context.Context, t *Tenant) context.Context {
+	return context.WithValue(ctx, txOwnerKey{}, t)
 }
 
-func inWriteOf(ctx context.Context, t *Tenant) bool {
-	owner, _ := ctx.Value(inWriteKey{}).(*Tenant)
-	return owner == t
+func txOf(ctx context.Context) *Tenant {
+	owner, _ := ctx.Value(txOwnerKey{}).(*Tenant)
+	return owner
+}
+
+type inWriteKey struct{}
+
+// markInWrite kennzeichnet den Kontext eines laufenden Schreibvorgangs.
+func markInWrite(ctx context.Context, t *Tenant) context.Context {
+	return context.WithValue(ctx, inWriteKey{}, t)
 }
 
 // InWrite meldet, ob der Kontext in einem Schreibvorgang läuft. Netzaufrufe

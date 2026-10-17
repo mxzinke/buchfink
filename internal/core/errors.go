@@ -14,6 +14,11 @@ var (
 	ErrUnknownChannel = errors.New("unbekannter Erfassungsweg")
 	// ErrAppOnly: der Vorgang ist der Bedienung in der App vorbehalten.
 	ErrAppOnly = errors.New("dieser Vorgang ist der Bedienung in der App vorbehalten")
+	// ErrForeignTenant: ein Vorgang kam mit der Transaktion eines anderen
+	// Mandanten.
+	ErrForeignTenant = errors.New("der Vorgang gehört zu einem anderen Mandanten")
+	// ErrHostClosed: die App wird beendet.
+	ErrHostClosed = errors.New("Buchfink wird beendet")
 	// ErrWriteInRead: ein Lesevorgang wollte schreiben.
 	ErrWriteInRead = errors.New("ein Lesevorgang darf nicht schreiben")
 )

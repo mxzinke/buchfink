@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"log"
+	"sync/atomic"
 
 	"github.com/buchfink/buchfink/internal/wailsbridge"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -14,26 +15,36 @@ import (
 var assets embed.FS
 
 func main() {
-	bridge, err := wailsbridge.NewBuchfinkBridge()
-	if err != nil {
-		log.Fatalf("Fehler beim Initialisieren des Buchfink-Service: %v", err)
-	}
-
+	// Eine zweite Instanz holt die erste nach vorn und endet, bevor sie einen
+	// Mandanten öffnet: ein Mandant hat genau einen Schreiber.
+	var window atomic.Pointer[application.WebviewWindow]
 	app := application.New(application.Options{
 		Name:        "Buchfink",
 		Description: "Open-Source-Buchhaltung für GmbH und UG (SKR04, GoBD-konform, E-Bilanz)",
-		Services: []application.Service{
-			application.NewService(bridge),
-		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
 		},
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
+		SingleInstance: &application.SingleInstanceOptions{
+			UniqueID: "com.buchfink.app",
+			OnSecondInstanceLaunch: func(application.SecondInstanceData) {
+				if w := window.Load(); w != nil {
+					w.Show()
+					w.Focus()
+				}
+			},
+		},
 	})
 
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
+	bridge, err := wailsbridge.NewBuchfinkBridge()
+	if err != nil {
+		log.Fatalf("Fehler beim Initialisieren des Buchfink-Service: %v", err)
+	}
+	app.RegisterService(application.NewService(bridge))
+
+	window.Store(app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:  "Buchfink — Buchhaltung",
 		Width:  1280,
 		Height: 820,
@@ -44,7 +55,7 @@ func main() {
 		},
 		BackgroundColour: application.NewRGB(250, 249, 246),
 		URL:              "/",
-	})
+	}))
 
 	if err := app.Run(); err != nil {
 		log.Fatal(err)

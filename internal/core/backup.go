@@ -193,6 +193,9 @@ func (h *Host) RestoreBackup(ctx context.Context, zipPath, targetDir string) (*d
 	}
 	h.lifecycle.Lock()
 	defer h.lifecycle.Unlock()
+	if h.closed {
+		return nil, ErrHostClosed
+	}
 
 	meta, err := service.ReadBackupMeta(zipPath)
 	if err != nil {
