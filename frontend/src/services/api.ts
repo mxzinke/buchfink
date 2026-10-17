@@ -14,6 +14,7 @@ import type {
   AdvanceItem,
   AdvanceTargetOption,
   AfaRules,
+  AgentClient,
   Anlagenspiegel,
   AppConfig,
   AppConsentRequest,
@@ -138,6 +139,8 @@ import type {
   SchemaMigration,
   SelfIssuedReceiptRequest,
   SettleAdvanceRequest,
+  ShareholderLoanRequest,
+  ShareholderLoanView,
   Settlement,
   SizeClass,
   SpecialPrepaymentSuggestion,
@@ -1608,6 +1611,30 @@ export const Api = {
   /** Entscheidet eine Anfrage; die Nonce stammt aus der Anfrage und gilt einmal. */
   resolveAppRequest: (id: string, nonce: string, approve: boolean): Promise<void> =>
     call(() => Bridge.ResolveAppRequest(id, nonce, approve)),
+  /** Öffnet die Anleitung zu einer KI-App im Browser; ohne Angabe die Übersicht. */
+  openAgentGuide: (client: AgentClient | '' = ''): Promise<void> =>
+    call(() => Bridge.OpenAgentGuide(client)),
+
+  // --- Stammdaten: Gesellschafterdarlehen, Steuernummer -------------------
+
+  /** Die Darlehensverträge mit Gesellschaftern und ihrem gebuchten Stand von heute. */
+  getShareholderLoans: (): Promise<ShareholderLoanView[]> =>
+    call(() => Bridge.GetShareholderLoans() as Promise<ShareholderLoanView[]>).then((loans) =>
+      list(loans).map((view) => ({ ...view, findings: list(view.findings) })),
+    ),
+  /** Erfasst einen Darlehensvertrag; nur in der App, nie über eine KI-App. */
+  registerShareholderLoan: (request: ShareholderLoanRequest): Promise<ShareholderLoanView> =>
+    call(() => Bridge.RegisterShareholderLoan(request) as Promise<ShareholderLoanView>),
+  /** Berichtigt einen Darlehensvertrag; der Grund steht im Änderungsprotokoll. */
+  correctShareholderLoan: (
+    id: number,
+    request: ShareholderLoanRequest,
+    reason: string,
+  ): Promise<ShareholderLoanView> =>
+    call(() => Bridge.CorrectShareholderLoan(id, request, reason) as Promise<ShareholderLoanView>),
+  /** Die Steuernummer im 13-stelligen Bundesschema; leer, solange sie unvollständig ist. */
+  formatElsterTaxNumber: (taxNumber: string, federalState: string): Promise<string> =>
+    call(() => Bridge.FormatElsterTaxNumber(taxNumber, federalState)),
 
   // --- Die Bedienung: Aufgaben, Monatsabschluss, Prüfpfad ----------------
 

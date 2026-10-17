@@ -4487,3 +4487,62 @@ export interface AppConsentRequest {
   userCode: string;
   expiresAt: string;
 }
+
+/** Eine KI-App, zu der es eine Anleitung gibt (internal/wailsbridge/company_service.go). */
+export type AgentClient = 'claude-code' | 'claude-desktop' | 'opencode' | 'codex' | 'pi';
+
+// -------------------------------------------------------------
+// Gesellschafterdarlehen (internal/domain/shareholder.go,
+// internal/service/shareholder_service.go)
+// -------------------------------------------------------------
+
+/** Wer wem leiht: der Gesellschafter der GmbH oder die GmbH dem Gesellschafter. */
+export type LoanDirection = 'to_company' | 'to_shareholder';
+
+export type LoanDayCount = 'act/365' | 'act/360' | '30/360';
+
+/** Ein Darlehensvertrag zwischen der GmbH und einem Gesellschafter. */
+export interface ShareholderLoan {
+  id: number;
+  contactId: number;
+  direction: LoanDirection;
+  principal: Cents;
+  /** Zinssatz in Hundertstel Prozent: 350 = 3,50 %. */
+  interestRateBp: number;
+  dayCount: LoanDayCount;
+  contractDate: string;
+  startDate: string;
+  /** Leer: ohne bestimmte Laufzeit. */
+  maturityDate?: string;
+  account: string;
+  interestAccount: string;
+  collateral?: string;
+  /** Rangrücktritt vereinbart. */
+  subordinated: boolean;
+  note?: string;
+}
+
+/** Ein Darlehen mit gebuchtem Stand und den Befunden zum Fremdvergleich. */
+export interface ShareholderLoanView {
+  loan: ShareholderLoan;
+  contactName: string;
+  outstanding: Cents;
+  firstMovement?: string;
+  interestBookedThrough?: string;
+  findings: CheckFinding[];
+}
+
+/** Ein neuer oder berichtigter Vertrag; leere Konten leitet Buchfink ab. */
+export interface ShareholderLoanRequest {
+  contactId: number;
+  direction: LoanDirection;
+  principal: Cents;
+  interestRateBp: number;
+  dayCount?: LoanDayCount;
+  contractDate?: string;
+  startDate: string;
+  maturityDate?: string;
+  collateral?: string;
+  subordinated?: boolean;
+  note?: string;
+}

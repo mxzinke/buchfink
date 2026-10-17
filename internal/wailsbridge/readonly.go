@@ -274,6 +274,12 @@ var readOnlyAllowed = map[string]bool{
 	"RevokeConnectedApp":    true,
 	"GetPendingAppRequests": true,
 	"ResolveAppRequest":     true,
+	"OpenAgentGuide":        true,
+
+	// Stammdaten: der Stand der Gesellschafterdarlehen und die Umrechnung der
+	// Steuernummer lesen nur.
+	"GetShareholderLoans":   true,
+	"FormatElsterTaxNumber": true,
 }
 
 // EnableReadOnly schaltet den Prüfermodus bis zu einem Tag ein. Datum und
