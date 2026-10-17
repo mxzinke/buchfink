@@ -71,8 +71,9 @@ var ignoredAuditFields = []string{
 //
 // Lesen des Kettenkopfes und Schreiben liegen in einer Transaktion. Sie beginnt
 // mit BEGIN IMMEDIATE (siehe tenantDSN), zwei Schreiber lesen deshalb nie
-// denselben Kopf. Läuft schon eine Transaktion, etwa die einer Buchung, gehört
-// der Eintrag zu ihr und fällt mit ihr.
+// denselben Kopf. Läuft schon eine schreibende Transaktion, etwa die einer
+// Buchung, gehört der Eintrag zu ihr und fällt mit ihr. Aus einer lesenden
+// Transaktion heraus schreibt er über die eigene Verbindung (RunReadOnly).
 func (r *auditRepositoryGorm) append(
 	ctx context.Context,
 	action domain.AuditAction,
@@ -93,7 +94,7 @@ func (r *auditRepositoryGorm) append(
 		AppVersion: buildinfo.Version,
 	}
 
-	return dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+	return writer(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		var last domain.AuditLogEntry
 		prev := domain.GenesisHash
 		err := tx.Order("id desc").Limit(1).Take(&last).Error

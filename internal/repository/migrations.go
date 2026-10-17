@@ -150,7 +150,7 @@ func (r *migrationRepositoryGorm) FindMigrationRecords(ctx context.Context) ([]d
 // nicht mehr aufgeht (ARC-05).
 func CountForMigration(ctx context.Context, db *gorm.DB) (domain.MigrationCounts, error) {
 	var counts domain.MigrationCounts
-	tx := db.WithContext(ctx)
+	tx := dbFrom(ctx, db)
 
 	count := func(model any, into *int) error {
 		var n int64

@@ -189,7 +189,7 @@ func (r *exchangeRateRepositoryGorm) FindRates(ctx context.Context, currency, fr
 // SaveRate legt den Kurs an oder schreibt ihn fort. Als Upsert über Währung und
 // Tag: ein zweiter Abruf desselben Tages ist kein zweiter Kurs.
 func (r *exchangeRateRepositoryGorm) SaveRate(ctx context.Context, rate *domain.ExchangeRate) error {
-	return dbFrom(ctx, r.db).
+	return writer(ctx, r.db).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "currency"}, {Name: "date"}},
 			DoUpdates: clause.AssignmentColumns([]string{"rate_micros", "source", "manual"}),
