@@ -93,11 +93,16 @@ tasks:
     cmds:
       - python3 scripts/check_closing_steps.py
 
+  check:links:
+    summary: Checks relative links and heading anchors in the Markdown files
+    cmds:
+      - python3 scripts/check_doc_links.py
+
   check:clicks:
     summary: Walks the Prüfszenario from the Bilanz to the Beleg and counts the clicks
-    # GOB-02, Entscheidung 8 der Welle 7: „Keine Buchung ohne Beleg" ist erst
-    # dann eine Aussage über die Bedienung, wenn der Weg vom Abschluss zurück
-    # zum Papier begehbar ist. Der Lauf braucht einen Chromium für Playwright
+    # GOB-02: „Keine Buchung ohne Beleg" ist erst dann eine Aussage über die
+    # Bedienung, wenn der Weg vom Abschluss zurück zum Papier begehbar ist
+    # (docs/entwicklung/pruefszenarien.md). Der Lauf braucht einen Chromium für Playwright
     # und steht deshalb neben `check` und nicht darin.
     cmds:
       - node scripts/site-screenshots/four-clicks.mjs
@@ -115,6 +120,7 @@ tasks:
       - task: check:bridge
       - task: check:text
       - task: check:steps
+      - task: check:links
 
   build:
     summary: Builds the application
@@ -158,5 +164,8 @@ tasks:
     # Weist der Push zurück, weil gh-pages auseinandergelaufen ist, hilft die
     # ausdrückliche Form:
     #   git push origin $(git subtree split --prefix website HEAD):gh-pages --force
+    preconditions:
+      - sh: 'for f in $(grep -ho "assets/screenshots/[A-Za-z0-9_-]*\.png" website/*.html | sort -u); do test -f "website/$f" || exit 1; done'
+        msg: Ein Bild unter website/assets/screenshots/ fehlt, auf das eine Seite verweist (website/README.md, Screenshots).
     cmds:
       - git subtree push --prefix website origin gh-pages

@@ -1,67 +1,58 @@
-# Ziele und nächste Schritte
+# Roadmap
 
-[Dokumentation](../README.md) · [Erste Schritte](../nutzung/README.md)
+[Dokumentation](../README.md) · [Umsetzungsstand](umsetzungsstand.md)
 
-Stand: 13. September 2026. Diese Seite beschreibt geplante Arbeit.
-Was bereits implementiert ist, steht im [Umsetzungsstand](umsetzungsstand.md).
+Ziel: Eine GmbH oder UG führt ihre Bücher mit einem KI-Agenten vom Beleg bis zu
+Jahresabschluss und Erklärungen, mit oder ohne Steuerberater. Buchfink rechnet
+nach festen Regeln, der Mensch gibt frei, was sich nicht rückgängig machen
+lässt. Was in Version 0.3 gebaut ist, steht im
+[Umsetzungsstand](umsetzungsstand.md). Termine gibt es nicht.
 
-Buchfink soll kleinen Unternehmen, Gründern und Holdings ermöglichen, ihre
-Buchhaltung frei und selbstständig zu erledigen. Dazu entwickeln wir gemeinsam
-eine gesetzeskonforme Buchhaltungssoftware, die auch Menschen ohne fachliche
-Ausbildung bedienen können. Der Quellcode ist öffentlich; Beiträge sind auch
-als Rückmeldung, verständliche Erklärung oder fachliche Prüfung willkommen.
+## Bis Version 1
 
-## Einfache Jahresabschlüsse selbst erstellen
+- **Pilotbetrieb.** Ein Monat mit Festschreibung und ein Jahresabschluss mit
+  Erklärungen bei einer echten GmbH. Was dabei auffällt, geht in Regeln, Skills
+  und Werkzeuge.
+- **Clients Ende zu Ende prüfen.** Anmeldung, Zustimmung und Arbeit mit Claude
+  Code, Claude Desktop, OpenCode, Codex und Pi unter macOS, Windows und Linux,
+  einschließlich der Plugin-Installation unter Windows.
+- **Signierte Releases.** Notarisierte Builds für macOS und signierte für
+  Windows, damit die Warnungen beim ersten Start entfallen.
+- **Vordrucke je Jahr.** Zeilenkataloge der Jahreserklärungen für jedes neue
+  Vordruckjahr, die Zeilen von KSt und GewSt am amtlichen Vordruck prüfen.
+- **E-Bilanz erproben.** Eine von Buchfink erzeugte Datei über ein Programm mit
+  ERiC übermitteln und die Annahme belegen.
+- **Werkzeuge schärfen.** Welche Vorgänge der Agent direkt buchen darf und
+  welche er erfragt, nach den Erfahrungen aus dem Pilotbetrieb nachstellen.
 
-Langfristig soll Buchfink durch einen einfachen Jahresabschluss bis zu den
-nötigen Einreichungen führen. Viele kleine Unternehmen beauftragen damit heute
-eine Steuerkanzlei. Buchfink soll ihnen ermöglichen, diese Arbeit selbst zu
-erledigen und steuerliche Beratung gezielt für Gestaltung und konkrete Fragen
-in Anspruch zu nehmen.
+## Danach, ohne Zusage
 
-Dafür stehen insbesondere diese Arbeiten aus:
+- Istversteuerung nach § 20 UStG
+- Datensatz für die Offenlegung im Unternehmensregister
+- Zertifikatskette der Zeitstempel gegen eine Vertrauensliste prüfen
+- weitere Steuerfälle, etwa OSS
 
-- Die E-Bilanz-Zuordnung gegen die amtliche Taxonomie prüfen und die erzeugten
-  Dateien mit einem geeigneten Übermittlungsweg erproben.
-- Unterzeichneten Abschluss, Feststellungsbeschluss und Einreichungsnachweise
-  in den Abschlussablauf einbinden.
-- Offenlegung und gegebenenfalls Hinterlegung für die unterstützten
-  Unternehmensgrößen abbilden.
-- Den Umfang von Anhang und weiteren Abschlussangaben an die Größenklasse
-  anpassen. Die vorhandene Berechnung der Klasse allein reicht dafür nicht.
-- Vollständige Geschäftsjahre mit Menschen aus der Zielgruppe und fachkundigen
-  Prüfern erproben. Ein automatischer Test belegt keine rechtliche Vollständigkeit.
+## Nicht geplant
 
-## Verständliche Bedienung
+- eigene Übermittlung an die Finanzverwaltung über ERiC
+- Verschlüsselung in Buchfink; den Schutz am Rechner übernimmt das
+  Betriebssystem
+- Kassenbuch, Warenwirtschaft, Lohnabrechnung
+- andere Rechtsformen und die Einnahmen-Überschuss-Rechnung
 
-Fragezeichen erklären einen Begriff oder die nächste Handlung in einem kurzen
-Tooltip. Über „Mehr erfahren“ lassen sich verständliche Details mit verlinkten
-Rechtsgrundlagen öffnen. Rückmeldungen aus der Nutzung sollen zeigen, welche
-Begriffe und Schritte weiterhin unklar sind.
+## Prüfpunkte mit Datum
 
-## Dokumente und Sicherungen verschlüsseln
+Diese Termine stehen von außen fest und sind zu ihrem Zeitpunkt nachzuziehen.
 
-Die vorhandene Feldverschlüsselung soll um den Schutz von Originaldateien und
-Sicherungsarchiven ergänzt werden. Außerdem fehlt ein Verfahren zum Widerruf
-verlorener Wiederherstellungsschlüssel. Alte Sicherungen und
-Dateisystem-Snapshots werden durch eine Migration der aktuellen Datenbank nicht
-nachträglich geschützt. Den bestehenden Schutz beschreibt das
-[Sicherheitskonzept](../nutzung/datensicherheit.md).
+| Wann | Was | Wo im Code |
+|---|---|---|
+| jährlich | neuer Vordruck USt 1 A und neue Vordrucke der Jahreserklärungen | `accounting/ustva.go`, `internal/declaration/catalog/` |
+| jährlich | neue E-Bilanz-Taxonomie nach BMF-Schreiben | `internal/ebilanz/taxonomy/`, `scripts/gen_ebilanz_taxonomy.py` |
+| jährlich | Jahresstand des SKR04 | `internal/accounting/skr04_2026.json` |
+| 1. Januar und 1. Juli | Basiszinssatz nach § 247 BGB | `accounting/tax_params.go` |
+| 1. Januar 2027 und 2028 | Sendepflicht für E-Rechnungen ([§ 27 Abs. 38 UStG][ustg27]) | Rechnungsausgabe |
+| Wirtschaftsjahre ab 2028 | Anlagenspiegel und Anlagenverzeichnis in der E-Bilanz (§ 5b Abs. 1 EStG) | `internal/ebilanz` |
+| offen | Buchführungsdatenschnittstelle nach [§ 147b AO][ao147b], Verordnung noch nicht erlassen | `internal/export` |
 
-## Lokale Anbindung an Chatbots
-
-Geplant ist ein lokaler MCP-Server, damit sich Buchfink mit dem Chatbot der
-Wahl verbinden lässt. Eine solche Schnittstelle ist noch nicht implementiert.
-Funktionsumfang, Zugriffsrechte und Freigaben für Änderungen sind noch zu
-entwerfen. Die lokale Schnittstelle allein sagt nicht aus, wo ein angeschlossener
-Chatbot die von ihm abgerufenen Daten verarbeitet.
-
-## Einfach installieren
-
-Fertige, signierte Installationsdateien sollen die Einrichtung ohne
-Entwicklungswerkzeuge ermöglichen. Aktuell wird die Vorschau aus dem Quellcode
-gebaut. Es gibt noch keinen verbindlichen Termin für Version 1 oder MCP.
-
-Die fachlichen Einzelanforderungen stehen im
-[Anforderungskatalog](../anforderungen/README.md). Ein DATEV-Export bleibt ein
-[offener Entwurf](../fachkonzepte/datev-export.md), ohne Umsetzungszusage.
+[ustg27]: https://www.gesetze-im-internet.de/ustg_1980/__27.html
+[ao147b]: https://www.gesetze-im-internet.de/ao_1977/__147b.html

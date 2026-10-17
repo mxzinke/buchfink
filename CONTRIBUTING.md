@@ -2,111 +2,105 @@
 
 [Projektübersicht](README.md) · [Dokumentation](docs/README.md)
 
-Du kannst mit Fehlerberichten, Rückmeldungen zur Bedienung, verständlicheren
-Texten, fachlichen Prüfungen oder Code beitragen.
+Beiträge sind Fehlerberichte, Rückmeldungen zur Bedienung und zur Arbeit mit
+dem Agenten, verständlichere Texte, fachliche Prüfungen, Skills und Code.
 
 ## Fehler melden und Rückmeldung geben
 
-Öffne ein [Issue](https://github.com/mxzinke/buchfink/issues) und beschreibe,
-was du erreichen wolltest, welche Schritte du ausgeführt hast und was
-stattdessen passiert ist. Nenne Programmversion und Betriebssystem. Bei
-fachlichen Fragen hilft ein konkreter Geschäftsvorfall mit erwartetem Ergebnis.
-Verwende erfundene Daten und entferne persönliche oder geschäftliche Angaben
-aus Screenshots und Protokollen.
+Öffnen Sie ein [Issue](https://github.com/mxzinke/buchfink/issues) und
+beschreiben Sie, was Sie erreichen wollten, welche Schritte Sie ausgeführt
+haben und was stattdessen passiert ist. Nennen Sie Programmversion,
+Betriebssystem und, wenn ein Agent beteiligt war, den KI-Client. Bei fachlichen
+Fragen hilft ein konkreter Geschäftsvorfall mit erwartetem Ergebnis. Verwenden
+Sie erfundene Daten und entfernen Sie persönliche und geschäftliche Angaben aus
+Screenshots, Chatverläufen und Protokollen.
 
-## Bevor du loslegst
-
-Für alles, was größer ist als ein Tippfehler: öffne zuerst ein Issue und
-beschreibe das Problem. Das erspart dir die Arbeit an einem Pull Request, der
-inhaltlich in eine andere Richtung soll.
-
-Fehlerberichte, Reproduktionen und Diskussionsbeiträge sind ohne weitere
-Formalien willkommen. Die Vereinbarung im nächsten Abschnitt betrifft nur
-eingereichten Inhalt.
+Für alles, was größer ist als ein Tippfehler, öffnen Sie zuerst ein Issue. Das
+erspart einen Pull Request, der inhaltlich in eine andere Richtung soll.
 
 ## Lizenz und Rechte
 
 Buchfink steht unter der [EUPL-1.2](LICENSE); die Lizenzdatei enthält den
-deutschen und den englischen Wortlaut. Dein Beitrag wird unter derselben
-Lizenz veröffentlicht. Einzelne Quelldateien tragen keinen Lizenzkopf — es
-gilt die Lizenz des Projekts.
+deutschen und den englischen Wortlaut. Ihr Beitrag erscheint unter derselben
+Lizenz. Quelldateien tragen keinen Lizenzkopf; es gilt die Lizenz des Projekts.
 
-Zusätzlich brauchen wir deine Zustimmung zur
-[Vereinbarung über Beiträge (CLA)](CLA.md). Du behältst das Urheberrecht an
-deinem Beitrag; die Vereinbarung erlaubt dem Projektinhaber, das Projekt
-langfristig aus einer Hand zu lizenzieren. Schreibe dazu einmalig in deinen
-Pull Request:
+Für eingereichten Inhalt braucht es zusätzlich Ihre Zustimmung zur
+[Vereinbarung über Beiträge (CLA)](CLA.md). Sie behalten das Urheberrecht; die
+Vereinbarung erlaubt dem Projektinhaber, das Projekt aus einer Hand zu
+lizenzieren. Schreiben Sie dazu einmalig in Ihren Pull Request:
 
 ```text
 Ich habe die CLA gelesen und stimme ihr für diesen und alle meine
 künftigen Beiträge zu.
 ```
 
-Für alle weiteren Beiträge genügt diese eine Zustimmung.
+Fehlerberichte und Diskussionsbeiträge brauchen keine Zustimmung.
 
-**Fremdes Material:** Kopiere keinen Code, keine Texte, keine Grafiken und
-keine Daten aus fremden Quellen ins Repository, ohne die Lizenz zu prüfen und
-im Pull Request zu nennen. Das gilt auch für Auszüge aus Fachliteratur,
-Kontenrahmen-Veröffentlichungen und Formularen. Kommt neues Material dazu,
-gehört es in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
+**Fremdes Material.** Kopieren Sie keinen Code, keine Texte, Grafiken oder
+Daten aus fremden Quellen ins Repository, ohne die Lizenz zu prüfen und im Pull
+Request zu nennen. Das gilt auch für Fachliteratur, Kontenrahmen und Vordrucke.
+Neues Material gehört in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
-## Entwicklungsumgebung
+## Code
 
-Voraussetzungen, Start und Prüfungen stehen unter
-[Entwicklung](docs/entwicklung/README.md). Die [Orientierung im Code](docs/entwicklung/codebase.md)
-zeigt, wo du die betroffenen Module findest.
+Einrichtung, Build und Prüfungen stehen unter
+[Entwicklung](docs/entwicklung/README.md), der Aufbau unter
+[Orientierung im Code](docs/entwicklung/codebase.md). Vor dem Pull Request:
 
-## Vor dem Pull Request
-
-Führe die [Prüfungen für deine Änderung](docs/entwicklung/README.md#änderungen-prüfen)
-aus und behebe die Befunde. Nenne im Pull Request, was du geprüft hast und
-welche Prüfungen du nicht ausführen konntest.
-
-Nach Änderungen an Abhängigkeiten erzeuge die Hinweise zu Drittkomponenten neu:
-
-```bash
-task notices
+```sh
+task check
+npm --prefix frontend test
+npm --prefix frontend run build
 ```
 
-Neue Abhängigkeiten müssen mit der EUPL vereinbar sein. Permissive Lizenzen
-(MIT, BSD, ISC, Apache-2.0) sind unproblematisch. Alles mit Copyleft — GPL,
-AGPL, MPL — bitte vorher im Issue ansprechen: solche Abhängigkeiten können
-über die Kompatibilitätsklausel der EUPL die Lizenz des Gesamtwerks
-verschieben.
+Unter Linux mit GTK 3 brauchen Bridge-Tests und Build das Tag `gtk3`
+(`GOFLAGS=-tags=gtk3 task test:bridge`, `task build EXTRA_TAGS=gtk3`). Nennen
+Sie im Pull Request, was Sie geprüft haben und was nicht.
 
-## Tests
+Buchungslogik, Hash-Ketten, Steuerschlüssel, Parser, Exporte und die Regeln für
+Agenten im Kern brauchen Tests. Bei fachlichen Änderungen gehört in den Pull
+Request, worauf sie sich stützen: Paragraph, GoBD-Randziffer, BMF-Schreiben
+oder Taxonomie-Fassung.
 
-Buchungslogik, Hash-Chain, Steuerkennzeichen, Parser und Exportformate brauchen
-Tests. Orientiere dich an den vorhandenen Tests unter `internal/service/` und
-`internal/accounting/`. Bei fachlichen Änderungen gehört in den Pull Request,
-worauf sie sich stützt — Paragraph, GoBD-Randziffer oder Taxonomie-Version.
+Nach Änderungen an Abhängigkeiten erzeugt `task notices` die Hinweise zu
+Drittkomponenten neu. Neue Abhängigkeiten müssen mit der EUPL vereinbar sein.
+Permissive Lizenzen (MIT, BSD, ISC, Apache-2.0) sind unproblematisch;
+Copyleft-Lizenzen wie GPL, AGPL oder MPL sprechen Sie bitte vorher im Issue an.
 
-## Dokumentation und Texte
+## Skills
 
-Schreibe Dokumentation und Codekommentare auf Deutsch. Pflege Funktionen und
-Grenzen im [Umsetzungsstand](docs/projekt/umsetzungsstand.md), fachliche Details im
+Die Skills unter `skills/` geben dem Agenten Fachwissen und Arbeitsschritte.
+Jede fachliche Aussage darin nennt ihre Quelle, etwa Gesetz, BMF-Schreiben
+oder Vordruck. Was Buchfink selbst rechnet und prüft, steht im Code, nicht im
+Skill.
+
+## Dokumentation
+
+Dokumentation und Codekommentare sind deutsch und beschreiben nur den aktuellen
+Stand. Funktionen und Grenzen stehen im
+[Umsetzungsstand](docs/projekt/umsetzungsstand.md), fachliche Einzelheiten im
 [passenden Konzept](docs/fachkonzepte/README.md). Für Formulierungen gilt die
 [Schreibweise](docs/gestaltung/schreibweise.md), für Ablage und Verweise die
 [Dokumentationspflege](docs/entwicklung/dokumentation.md).
 
 ## Commits und Pull Requests
 
-- Commit-Betreff und PR-Titel folgen Conventional Commits, etwa
-  `docs(readme): Straffe den Projekteinstieg` oder
-  `fix(accounting): Korrigiere die Rundung`. Formuliere die Zusammenfassung
-  auf Deutsch und im Imperativ.
-- Halte jeden Commit auf eine zusammenhängende Änderung begrenzt.
-- Der Text erklärt das *Warum*; das *Was* steht im Diff.
-- Der Pull Request beschreibt Motivation, Lösungsweg und wie du geprüft hast,
-  dass es funktioniert.
-- Formatierung und inhaltliche Änderung nicht im selben Commit mischen.
+- Betreff und PR-Titel folgen Conventional Commits, etwa
+  `fix(accounting): Rundung der Skontokorrektur korrigieren`. Die
+  Zusammenfassung ist deutsch.
+- Ein Commit enthält eine zusammenhängende Änderung. Formatierung und Inhalt
+  stehen in getrennten Commits.
+- Der Text erklärt das *Warum*: Entscheidung, Begründung, Abwägung. Das *Was*
+  steht im Diff.
+- Der Pull Request beschreibt Motivation, Lösung und wie Sie geprüft haben, dass
+  es funktioniert.
 
-## Was besser nicht kommt
+## Was nicht in Buchfink gehört
 
-- Umstellungen auf andere Frameworks oder Bibliotheken ohne vorherige
-  Abstimmung.
-- Eine verpflichtende Cloud-Speicherung der Buchhaltung. Die Datenhaltung ist
-  lokal; bestehende externe Dienste sind im
-  [Sicherheitskonzept](docs/nutzung/datensicherheit.md) beschrieben.
-- Unterstützung für die Einnahmen-Überschuss-Rechnung (EÜR). Die ist bewusst
-  außerhalb des Anwendungsbereichs.
+- andere Rechtsformen und die Einnahmen-Überschuss-Rechnung
+- eine verpflichtende Cloud-Speicherung der Buchhaltung
+- eigene Übermittlung an die Finanzverwaltung
+- Umstellungen auf andere Frameworks ohne vorherige Abstimmung
+
+Was sonst außerhalb des Umfangs liegt, steht unter
+[Umfang](docs/nutzung/umfang.md).

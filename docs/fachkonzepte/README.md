@@ -1,33 +1,24 @@
-# Fachkonzepte und Anforderungen
+# Fachkonzepte
 
-[Dokumentation](../README.md) · [Orientierung im Code](../entwicklung/codebase.md)
+[Dokumentation](../README.md) · [Anforderungen](../anforderungen/README.md) ·
+[Umsetzungsstand](../projekt/umsetzungsstand.md)
 
-Der [Umsetzungsstand](../projekt/umsetzungsstand.md) beschreibt verfügbare Funktionen.
-Die Konzepte hier erklären fachliche Abläufe und enthalten auch Entwürfe;
-eine beschriebene Funktion ist damit noch nicht verfügbar.
+Die Konzepte erklären, wie Buchfink fachlich arbeitet und warum. Sie beschreiben
+den gebauten Stand. Fachwissen für den Agenten, mit Quellen und Arbeitsschritten,
+steht in den Skills unter `skills/`.
 
-## Einen Ablauf verstehen
+| Thema | Konzept |
+|---|---|
+| Beleg, Kontierung, Steuerfall, Zahlungszuordnung, Unveränderbarkeit | [Belege und Buchungen](beleg-buchungsflow.md) |
+| Buchungssätze an Beispielen | [Buchungsbeispiele](buchungsbeispiele.md) |
+| Bank, Firmenkreditkarte, Auslage, Gesellschafterdarlehen, Lohnjournal | [Zahlungswege](zahlungswege.md) |
+| E-Rechnung empfangen und ausstellen | [E-Rechnung](e-rechnung.md) |
+| Abschlag und Schlussrechnung | [Anzahlungen](anzahlungen.md) |
+| Anlagegut und Abschreibung | [Anlagen](anlagenverwaltung.md) |
+| Aufwand und Ertrag zeitlich zuordnen | [Rechnungsabgrenzung](rechnungsabgrenzung.md) |
+| Abschlussperiode, Bausteine, Steuerrückstellung, Feststellung | [Jahresabschluss](jahresabschluss.md) |
+| Pflichtenkalender, Jahreserklärungen, E-Bilanz | [Pflichten und Erklärungen](pflichten-und-erklaerungen.md) |
+| Kapitalaufbringung, Unterbilanz, Eröffnungsbilanz | [Gründung und Eröffnung](gruendung.md) |
 
-| Thema | Konzept | Ergänzung |
-|---|---|---|
-| Beleg erfassen, buchen und bezahlen | [Beleg- und Buchungsflow](beleg-buchungsflow.md) | [Architektur und Bedienkonzept](../entwicklung/architektur.md) |
-| Buchungssätze an Beispielen nachvollziehen | [Buchungsbeispiele](buchungsbeispiele.md) | [Prüfszenarien](../entwicklung/pruefszenarien.md) |
-| Belege und Dateien zuordnen | [Belegmodell](belege.md) | [Datensicherheit](../nutzung/datensicherheit.md) |
-| E-Rechnung empfangen oder ausstellen | [E-Rechnung](e-rechnung.md) | [Technischer Modulaufbau](../entwicklung/e-rechnung.md) |
-| Abschlag und Schlussrechnung | [Anzahlungen](anzahlungen.md) | [Beleg- und Buchungsflow](beleg-buchungsflow.md) |
-| Anlagegut und Abschreibung | [Anlagenverwaltung](anlagenverwaltung.md) | [Anforderungskatalog](../anforderungen/bewertung.md#g-bewertung-anlagen-fremdwährung) |
-| Aufwand und Ertrag zeitlich zuordnen | [Rechnungsabgrenzung](rechnungsabgrenzung.md) | [Anforderungskatalog](../anforderungen/bewertung.md#g-bewertung-anlagen-fremdwährung) |
-| Kapitalgesellschaft gründen | [Gründung](gruendung.md) | [Prüfszenarien](../entwicklung/pruefszenarien.md) |
-| DATEV-Export entwerfen | [DATEV-Export](datev-export.md) | Nicht implementiert; offene Entscheidungen im Entwurf |
-
-## Anforderungen prüfen
-
-Der [Anforderungskatalog](../anforderungen/README.md) enthält Kriterien,
-Rechtsquellen und Fundstellen im Code. Über sein Themenverzeichnis gelangst
-du direkt zum betreffenden Modul. Sein Geltungsbereich beschreibt das
-Prüfraster und geht über den aktuell unterstützten Funktionsumfang hinaus.
-
-Für eine fachliche Änderung prüfe das betroffene Kriterium gegen Code und
-Tests. Nenne im Beitrag die Fundstelle und den Geschäftsvorfall. Konkrete
-Beispiele und erwartete Ergebnisse stehen in den [Prüfszenarien](../entwicklung/pruefszenarien.md).
-Offene Entwicklungsziele stehen auf der [Roadmap](../projekt/roadmap.md).
+Alle Kontonummern beziehen sich auf den DATEV-Kontenrahmen SKR04 2026
+(`internal/accounting/skr04_2026.json`).

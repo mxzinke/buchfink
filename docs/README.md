@@ -1,22 +1,17 @@
 # Dokumentation
 
-[Zur Projektübersicht](../README.md)
+[Projektübersicht](../README.md)
 
-## Einstieg nach Thema
-
-| Bereich | Hier findest du … |
+| Bereich | Inhalt |
 |---|---|
-| [Nutzung](nutzung/README.md) | Erste Schritte, Testunternehmen, Datensicherheit und Sicherungen |
-| [Projektstand](projekt/README.md) | Verfügbare Funktionen, bekannte Grenzen und Roadmap |
-| [Entwicklung](entwicklung/README.md) | Einrichtung, Builds, Prüfungen und Orientierung im Code |
-| [Gestaltung](gestaltung/README.md) | Farben, Layout, Komponenten, Interaktion und Schreibweise |
-| [Fachkonzepte](fachkonzepte/README.md) | Buchungsabläufe, Beispiele und fachliche Entscheidungen |
-| [Anforderungen](anforderungen/README.md) | Prüfkriterien, Rechtsquellen und Fundstellen nach Modul |
+| [Nutzung](nutzung/README.md) | Installieren, Einrichten, [KI-Agent verbinden](nutzung/ki-agenten/README.md), [Datensicherheit](nutzung/datensicherheit.md), [Umfang](nutzung/umfang.md) |
+| [Projekt](projekt/README.md) | Umsetzungsstand, bekannte Grenzen, Roadmap |
+| [Fachkonzepte](fachkonzepte/README.md) | Wie Buchfink bucht, abschließt und Pflichten führt, mit Beispielen |
+| [Anforderungen](anforderungen/README.md) | Gesetzliche Anforderungen mit Prüfkriterien und Fundstellen im Code |
+| [Entwicklung](entwicklung/README.md) | Einrichtung, Build, Tests, Architektur, Orientierung im Code |
+| [Gestaltung](gestaltung/README.md) | Gestaltung der Oberfläche und Schreibweise |
 
-Die Fachkonzepte enthalten auch Entwürfe. Für den verfügbaren Funktionsumfang
-ist der [Umsetzungsstand](projekt/umsetzungsstand.md) maßgeblich.
-
-Wie du Fehler meldest oder Beiträge einreichst, steht unter
-[Mitwirken](../CONTRIBUTING.md). Die
-[Dokumentationsregeln](entwicklung/dokumentation.md) erklären, wo Inhalte
-gepflegt werden.
+Fachwissen für den Agenten mit Quellen und Arbeitsschritten steht in den Skills
+unter [`skills/`](../skills/). Wie Sie Fehler melden oder beitragen, steht unter
+[Mitwirken](../CONTRIBUTING.md); wo welcher Inhalt gepflegt wird, unter
+[Dokumentationsregeln](entwicklung/dokumentation.md).

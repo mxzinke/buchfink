@@ -53,7 +53,7 @@ wieder. Ergebnis: zwanzig PNG in `website/assets/screenshots/`, 2880 × 1800
   ruft, muss `mock-bridge.ts` kennen; sonst bricht sie hier mit einem
   TypeError ab, den es in der Anwendung nicht gibt. Was der Screenshot-Lauf
   nicht braucht, steht als `unsupported` dabei — das ist eine Antwort und kein
-  Loch. `mock-bridge.ts` deckt seit Welle 7 alle Methoden von
+  Loch. `mock-bridge.ts` deckt alle Methoden von
   `frontend/src/services/bridge.ts` ab: die lesenden mit Beispieldaten, die
   schreibenden als `unsupported`.
 

@@ -1,14 +1,11 @@
-# Buchfink – Aufbau der E-Rechnungs-Module
+# Aufbau der E-Rechnungs-Module
 
-[Dokumentation](../README.md) · [Entwicklung](README.md)
+[Dokumentation](../README.md) · [Entwicklung](README.md) ·
+[Fachkonzept E-Rechnung](../fachkonzepte/e-rechnung.md)
 
-Gesetzliche Grundlage: [Anforderungskatalog](../anforderungen/README.md), RECH-06, RECH-07
-
-Stand: 22.08.2026
-
-Dieses Dokument beschreibt den Modulschnitt, nicht das Recht: was beim Erzeugen und
-beim Empfang einer E-Rechnung zu prüfen ist, steht im Anforderungskatalog unter
-RECH-06 und RECH-07.
+Diese Seite beschreibt den Modulschnitt. Was beim Erzeugen und beim Empfang
+einer E-Rechnung rechtlich zu prüfen ist, steht im Anforderungskatalog unter
+[RECH-06 und RECH-07](../anforderungen/rechnungen.md).
 
 ## 1. Warum geschichtet
 
@@ -130,29 +127,23 @@ innergemeinschaftliche Lieferung und bei uns innergemeinschaftlicher Erwerb —
 wer den Code übernimmt, bucht den halben Vorgang. Das lässt sich jetzt prüfen,
 ohne dass irgendwo ein Parser läuft.
 
-### Was dabei behoben wurde
+### Was der Buchungspfad daraus macht
 
 - **Der Rechnungstyp wird ausgewertet.** Eine Gutschrift hat positive Beträge
-  und sagt nur in BT-3, was sie ist. Bisher wurde sie als Eingangsrechnung
-  vorgeschlagen — mit umgekehrtem Vorzeichen der Vorsteuer und einem neuen
-  offenen Posten, wo einer zu schließen wäre. Jetzt wird der Vorschlag
-  verweigert, und die Meldung nennt den Fall beim Namen. Dasselbe gilt für
-  Korrektur, Anzahlungs- und Abschlagsrechnung sowie das Gutschriftverfahren.
+  und sagt nur in BT-3, was sie ist. Für Gutschrift, Korrektur, Anzahlungs- und
+  Abschlagsrechnung sowie das Gutschriftverfahren schlägt
+  `service.EInvoiceService.Propose` keine Buchung vor und nennt den Fall.
 - **Mitgeschickte Unterlagen landen am Beleg.** Was im Datensatz eingebettet
-  ankommt (BG-24), wird als Belegdatei mit der Rolle `attachment` abgelegt. Ein
-  Stundenzettel zur Rechnung ist Aufbewahrungsgegenstand wie die Rechnung.
-- **Der Rechnungsbezug wird geführt.** BG-3 steht im Vorschlag und ist die
-  Klammer zwischen Korrektur und Original.
-- **Die Prüfung ist die aus dem Modul.** Der zweite, kleinere Prüfer in
-  `internal/invoice` ist gelöscht; ein empfangener Beleg wird gegen alle 223
-  Regeln der Norm gehalten, und bei einer XRechnung zusätzlich gegen die
-  deutsche Ausprägung.
+  ankommt (BG-24), wird als Belegdatei mit der Rolle `attachment` abgelegt.
+- **Der Rechnungsbezug wird geführt.** BG-3 steht im Vorschlag und verbindet
+  Korrektur und Original.
+- **Es gibt einen Prüfer.** Ein empfangener Beleg wird gegen alle 223 Regeln
+  der Norm geprüft, eine XRechnung zusätzlich gegen die deutsche Ausprägung.
 
 ### Was offen bleibt
 
 Gutschrift, Korrektur und Anzahlungsrechnung werden erkannt und benannt, aber
-nicht gebucht. Das ist kein Versehen: jede von ihnen ist ein anderer
-Geschäftsvorfall. Eine Gutschrift mindert Aufwand und Vorsteuer und verrechnet
+nicht gebucht. Jede von ihnen ist ein eigener Geschäftsvorfall. Eine Gutschrift mindert Aufwand und Vorsteuer und verrechnet
 sich gegen die ursprüngliche Rechnung; eine Anzahlungsrechnung wird erst mit
 der Zahlung steuerwirksam und in der Schlussrechnung wieder abgesetzt
 (§ 14 Abs. 5 UStG, siehe [Anzahlungen](../fachkonzepte/anzahlungen.md)). Sie brauchen einen
@@ -167,8 +158,7 @@ eigenen Buchungsweg, keinen Sonderfall im vorhandenen.
 | itplr-kosit/validator-configuration-xrechnung | Apache-2.0 | Testinstanzen und die zugesicherten Urteile, unter `internal/einvoice/xrechnung/testdata/` |
 | ZUGFeRD/mustangproject | Apache-2.0 | die Profiltabelle, maschinell aus dem Referenz-Schematron abgeleitet |
 
-Buchfink steht seit dem Wechsel selbst unter EUPL-1.2 – derselben Lizenz wie
-das Validierungsartefakt. Das Prüfmaterial liegt deshalb im Repository, und die
+Buchfink steht unter EUPL-1.2, derselben Lizenz wie das Validierungsartefakt. Das Prüfmaterial liegt deshalb im Repository, und die
 Prüfungen laufen ohne Netz und ohne Vorbereitung. Die Meldungstexte sind
 trotzdem durchgehend eigene: die Texte der Norm sind für einen Prüfbericht
 geschrieben, nicht für jemanden, der entscheiden muss, ob er die Rechnung

@@ -35,49 +35,29 @@ machen gibt.
 | `Select` | `Select.tsx` | Base UI Select |
 | `Combobox` | `Combobox.tsx` | Base UI Combobox |
 | `Checkbox`, `RadioGroup`, `Switch` | `Toggle.tsx` | Base UI |
-| `Field`, `FieldRow`, `FormGrid` | `Field.tsx` | Base UI Field |
+| `Field`, `FieldRow`, `FieldValue`, `FormGrid` | `Field.tsx` | Base UI Field |
 | `Dialog`, `ConfirmDialog` | `Dialog.tsx` | Base UI Dialog, AlertDialog |
 | `Menu` und Einträge | `Menu.tsx` | Base UI Menu |
 | `Help`, `InfoPopover` | `Help.tsx` | Base UI Tooltip, Dialog und Popover |
 | `Tabs`, `TabPanel`, `Separator` | `Tabs.tsx` | Base UI |
-| `Progress`, `Skeleton`, `SkeletonRows`, `toast` | `Feedback.tsx` | Base UI Progress, Sonner |
-| `FileDrop` | `FileDrop.tsx` | eigen |
+| `Notice`, `Progress`, `Skeleton`, `SkeletonRows`, `toast` | `Feedback.tsx` | Base UI Progress, Sonner |
+| `legalText`, `SourceLink` | `LegalText.tsx` | eigen; verlinkt Normverweise wie „§ 147 AO“ auf Gesetze im Internet |
 | `Section`, `PageHeader` | `Section.tsx` | eigen |
 | `StatRow`, `Stat` | `StatRow.tsx` | eigen |
 | `Table` und Zellen | `Table.tsx` | eigen |
 | `StatusBadge` | `StatusBadge.tsx` | eigen |
 | `EmptyState` | `EmptyState.tsx` | eigen |
 | `cn` | `cn.ts` | Klassen zusammenführen, letzte Angabe gewinnt |
+| `POPUP`, `POPUP_ITEM`, `BACKDROP` | `popup.ts` | Klassenbündel für alle Overlays ([Abschnitt 6.6](grundlagen.md#66-höhe), [Abschnitt 7](grundlagen.md#7-bewegung)) |
 | `SHELL_PANEL`, `SHELL_BUTTON`, `SHELL_CONTROL` | `shell.ts` | Klassenbündel für die Vollbild-Schirme ([Abschnitt 12](#12-layout)) |
 
 Bewusst gibt es keine `Card`. Wo eine Fläche nötig ist ([Abschnitt 6.2](grundlagen.md#62-wann-eine-fläche-erlaubt-ist)), steht sie an genau
 dieser Stelle im Code und nicht als Baustein, der sich unbemerkt vermehrt.
 
-### 10.3 Abdeckung
+### 10.3 Lücken
 
-Abgeglichen mit dem, was die zwölf Seiten heute benutzen:
-
-| Bedarf | Heute im Code | Baustein |
-|---|---|---|
-| Textfeld | 20 mal | `Input` |
-| Auswahlliste | 19 mal | `Select` |
-| Datum | 12 mal | `Input type="date"` |
-| Dialog | 8 mal | `Dialog`, `ConfirmDialog` |
-| Aufklappmenü | 9 mal | `Menu` |
-| Tabelle | 8 mal | `Table` |
-| Rückmeldung | 26 mal | `toast` |
-| Kästchen, Radio | 5 mal | `Checkbox`, `RadioGroup` |
-| Zahl, Betrag | 2 mal | `AmountInput` |
-| Mehrzeilig | 1 mal | `Textarea` |
-| Datei | 1 mal | `FileDrop` |
-| Kontosuche | fehlte | `Combobox` |
-| Schalter | fehlte | `Switch` |
-| Reiter | fehlte | `Tabs` |
-| Ladezustand | fehlte | `SkeletonRows` |
-| Fortschritt | fehlte | `Progress` |
-
-Ein echter Datumswähler mit Kalender fehlt noch. Bis dahin bleibt es beim
-nativen Feld, das im Desktop-WebView brauchbar ist.
+Ein Datumswähler mit Kalender fehlt. Datumsfelder nutzen `Input type="date"`,
+das native Feld ist im Desktop-WebView brauchbar.
 
 ### 10.4 Regeln, die der Code nicht zeigt
 
@@ -247,17 +227,28 @@ dargestellt.
 └──────────────┴─────────────────────────────────────────────┘
 ```
 
-**Navigation.** 240 px, fünf Gruppen: Übersicht, Buchhaltung, Stammdaten,
-Auswertungen, Verwaltung. Aktiver Eintrag `bg-shell-raised text-white` mit 2 px
-Leiste in `accent-light` links. Kein farbiger Hintergrund, ein dauerhaft
-sichtbarer Zustand darf nicht laut sein.
+**Navigation.** 240 px, fünf Einträge ohne Gruppen und ohne zweite Ebene:
+
+| Bereich | Frage, die er zuerst beantwortet | Darunter |
+|---|---|---|
+| Übersicht | Was ist zu tun, was ist fällig? | Aufgaben, Pflichtenkalender |
+| Bücher | Stimmt, was gebucht ist? | Belege, Bank, Rechnungen, Journal, Konten, Anlagen |
+| Abschlüsse | Welcher Monat, welches Jahr ist offen? | Monatsabschluss, Jahresabschluss, Erklärungen, E-Bilanz |
+| Unternehmen | Sind die Stammdaten vollständig? | Unternehmensdaten, Gesellschafter, Kontakte |
+| Einstellungen | Wer hat Zugriff, ist gesichert? | verbundene Apps, Sicherung, Prüfermodus |
+
+Was unter einem Bereich liegt, erreicht man innerhalb des Bereichs, nicht über
+die Navigation ([Abschnitt 2](grundlagen.md#2-leitidee-stilles-kontor),
+Grundsatz 6). Aktiver Eintrag `bg-shell-raised text-white` mit 2 px Leiste in
+`accent-light` links. Kein farbiger Hintergrund, ein dauerhaft sichtbarer
+Zustand darf nicht laut sein.
 
 **Mandantenwahl.** Sie steht am Kopf der Navigation, dort wo der Name des
 Mandanten steht: ein Auslöser, der die Liste aufklappt, mit dem Weg zu einem
 neuen Mandanten und zur Übersicht darunter. Ein Wechsel ist eine Auswahl und
-keine Reise — bis Welle 9 führte er über den Startbildschirm und zurück.
+keine Reise über den Startbildschirm.
 
-**Zeigefinger.** Was man drücken kann, zeigt ihn. Tailwind setzt seit Fassung 4
+**Zeigefinger.** Was man drücken kann, zeigt ihn. Tailwind 4 setzt
 `cursor: default` auf `button`; die Regel steht deshalb einmal in der
 Basisschicht von `index.css` und nicht in jedem Baustein. Gesperrte Knöpfe
 behalten `cursor-not-allowed`, Einträge in Menü und Auswahlliste `cursor-default`
@@ -267,8 +258,7 @@ behalten `cursor-not-allowed`, Einträge in Menü und Auswahlliste `cursor-defau
 `text-caption text-ink-subtle`, rechts die Primäraktion, darunter eine Haarlinie
 über die volle Breite. Kein Icon neben dem Titel, kein Kasten um den Kopf.
 
-**Vollbild-Schirme.** Start, Einrichtung und Wiederherstellung stehen vor dem
-Arbeitsbereich und laufen ganz auf der dunklen Schale, mit denselben
+**Vollbild-Schirme.** Start und Einrichtung stehen vor dem Arbeitsbereich und laufen ganz auf der dunklen Schale, mit denselben
 `shell`-Tokens wie die Navigation. Dort gibt es kein Papier, also drehen sich
 die Rollen um: Die Primäraktion hat die hellste Fläche (`bg-paper
 text-shell-deep`), nicht die dunkelste. Die Klassenbündel dafür stehen in
