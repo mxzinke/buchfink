@@ -231,20 +231,18 @@ func (t *Tenant) Write(ctx context.Context, fn func(context.Context, *Services) 
 	defer t.write.unlock()
 
 	ctx = markInWrite(ctx, t)
-	if err := t.tx.RunInTx(ctx, func(ctx context.Context) error {
+	err = t.tx.RunInTx(ctx, func(ctx context.Context) error {
 		if !o.examinerExempt {
 			if err := t.ensureWritable(ctx); err != nil {
 				return err
 			}
 		}
 		return fn(ctx, t.svc)
-	}); err != nil {
-		// Der Kontenplan im Speicher kann ein Konto aus der zurückgerollten
-		// Transaktion enthalten.
-		t.svc.Journal.InvalidateChart()
-		return err
-	}
-	return nil
+	})
+	// Noch unter der Schreibsperre: ein Kontenplan, den dieser Vorgang
+	// geändert hat, gilt erst nach dem Commit und wird neu aufgebaut.
+	t.svc.Journal.SettleChart()
+	return err
 }
 
 // germanDate macht aus 2026-06-30 den 30.06.2026.

@@ -14,6 +14,7 @@ import (
 	"github.com/buchfink/buchfink/internal/actor"
 	"github.com/buchfink/buchfink/internal/buildinfo"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/repository"
 	"gorm.io/gorm"
 )
 
@@ -42,11 +43,15 @@ type JournalService struct {
 	hashChain   *accounting.HashChain
 	taxResolver domain.TaxResolver
 
-	// chart ist der zwischengespeicherte Kontenplan. chartMu ordnet Aufbau und
-	// Verwerfen, damit ein Aufbau, der vor dem Verwerfen begann, den Cache
-	// nicht danach mit dem alten Stand füllt.
-	chart   atomic.Pointer[accounting.Chart]
-	chartMu sync.Mutex
+	// chart ist der zwischengespeicherte Kontenplan im festgeschriebenen
+	// Stand der Datenbank. Füllen dürfen ihn nur Schreibvorgänge ohne eigene
+	// Kontenänderung: ein Lesevorgang sieht womöglich einen älteren Stand, und
+	// ein Schreibvorgang, der Konten geändert hat (chartPending), einen noch
+	// nicht festgeschriebenen. Beide bauen sich den Plan selbst. chartMu ordnet
+	// Aufbau, Verwerfen und Abschluss.
+	chart        atomic.Pointer[accounting.Chart]
+	chartMu      sync.Mutex
+	chartPending bool
 }
 
 // NewJournalService wires the journal write path.
@@ -82,32 +87,60 @@ func (s *JournalService) SetFiscalYearRepo(r domain.FiscalYearRepository) { s.fi
 // Belegs, auf den eine Buchung verweist. Optional.
 func (s *JournalService) SetReceiptRepo(r domain.ReceiptRepository) { s.receiptRepo = r }
 
-// Chart returns the cached chart of accounts resolver.
+// Chart liefert den Kontenplan, aus dem Zwischenspeicher, wo er gilt.
 func (s *JournalService) Chart(ctx context.Context) (*accounting.Chart, error) {
 	if c := s.chart.Load(); c != nil {
 		return c, nil
 	}
+	if repository.IsReadOnly(ctx) {
+		return s.loadChart(ctx)
+	}
 	s.chartMu.Lock()
 	defer s.chartMu.Unlock()
 	if c := s.chart.Load(); c != nil {
 		return c, nil
 	}
+	c, err := s.loadChart(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !s.chartPending {
+		s.chart.Store(c)
+	}
+	return c, nil
+}
+
+func (s *JournalService) loadChart(ctx context.Context) (*accounting.Chart, error) {
 	accounts, err := s.accountRepo.FindAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("Kontenplan konnte nicht geladen werden: %w", err)
 	}
-	c := accounting.NewChart(accounts)
-	s.chart.Store(c)
-	return c, nil
+	return accounting.NewChart(accounts), nil
 }
 
-// InvalidateChart verwirft den zwischengespeicherten Kontenplan. Wer Konten
-// anlegt oder sperrt, ruft es auf, sonst greift die Änderung erst nach dem
-// Neustart.
-func (s *JournalService) InvalidateChart() {
+// InvalidateChart verwirft den Kontenplan nach einer Kontenänderung. In einer
+// Transaktion bleibt er verworfen, bis sie endet (SettleChart): bis dahin
+// gilt die Änderung nur in ihr.
+func (s *JournalService) InvalidateChart(ctx context.Context) {
 	s.chartMu.Lock()
 	defer s.chartMu.Unlock()
 	s.chart.Store(nil)
+	if repository.InTx(ctx) {
+		s.chartPending = true
+	}
+}
+
+// SettleChart schließt eine Transaktion für den Kontenplan ab, gleich ob sie
+// festgeschrieben oder zurückgerollt wurde. Hat sie Konten geändert, baut der
+// nächste Schreibvorgang den Plan neu auf. Der Kern ruft es, solange er die
+// Schreibsperre noch hält.
+func (s *JournalService) SettleChart() {
+	s.chartMu.Lock()
+	defer s.chartMu.Unlock()
+	if s.chartPending {
+		s.chart.Store(nil)
+		s.chartPending = false
+	}
 }
 
 // TaxResolver exposes the SKR04 tax resolution used by the posting rules.

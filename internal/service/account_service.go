@@ -31,7 +31,7 @@ import (
 // wäre ein neu angelegtes Konto für ihn nicht vorhanden und ein gesperrtes
 // weiterhin bebuchbar — die Kontenpflege bliebe bis zum Neustart wirkungslos.
 type ChartInvalidator interface {
-	InvalidateChart()
+	InvalidateChart(ctx context.Context)
 }
 
 // AccountService legt eigene Konten an und sperrt sie.
@@ -47,9 +47,9 @@ type AccountService struct {
 func (s *AccountService) SetChartInvalidator(c ChartInvalidator) { s.chart = c }
 
 // invalidateChart meldet die Änderung an den Buchungsweg.
-func (s *AccountService) invalidateChart() {
+func (s *AccountService) invalidateChart(ctx context.Context) {
 	if s.chart != nil {
-		s.chart.InvalidateChart()
+		s.chart.InvalidateChart(ctx)
 	}
 }
 
@@ -130,7 +130,7 @@ func (s *AccountService) CreateCustom(ctx context.Context, req CustomAccountRequ
 	if err := s.accountRepo.Create(ctx, account); err != nil {
 		return nil, fmt.Errorf("das Konto konnte nicht angelegt werden: %w", err)
 	}
-	s.invalidateChart()
+	s.invalidateChart(ctx)
 	if err := s.log(ctx, domain.AuditActionCreate, account, fmt.Sprintf(
 		"Eigenes Konto %s „%s\" angelegt, Gliederungsposition %s (%s)",
 		account.Number, account.Name, position.ID, position.Name)); err != nil {
@@ -170,7 +170,7 @@ func (s *AccountService) SetBlocked(ctx context.Context, number string, blocked 
 	if err := s.accountRepo.Update(ctx, account); err != nil {
 		return nil, err
 	}
-	s.invalidateChart()
+	s.invalidateChart(ctx)
 	action := "freigegeben"
 	if blocked {
 		action = "gesperrt: " + strings.TrimSpace(reason)

@@ -43,7 +43,7 @@ func TestChartCacheIsSafeForConcurrentUse(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < 20; j++ {
-				journal.InvalidateChart()
+				journal.InvalidateChart(ctx)
 			}
 		}()
 	}
@@ -57,7 +57,7 @@ func TestChartCacheIsSafeForConcurrentUse(t *testing.T) {
 	if err := accounts.Create(ctx, custom); err != nil {
 		t.Fatalf("Konto anlegen: %v", err)
 	}
-	journal.InvalidateChart()
+	journal.InvalidateChart(ctx)
 	chart, err := journal.Chart(ctx)
 	if err != nil {
 		t.Fatal(err)
