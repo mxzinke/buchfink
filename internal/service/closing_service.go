@@ -588,6 +588,9 @@ func (s *ClosingService) SetFiscalYearStatus(
 func (s *ClosingService) setFiscalYearStatus(
 	ctx context.Context, year int, status domain.FiscalYearStatus, date, note string,
 ) (*domain.FiscalYear, error) {
+	if err := ensureSupportedCompany(ctx, s.settingsRepo); err != nil {
+		return nil, err
+	}
 	fy, err := s.YearOf(ctx, year)
 	if err != nil {
 		return nil, err

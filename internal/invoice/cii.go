@@ -225,7 +225,7 @@ func sellerParty(seller *domain.CompanySettings) einvoice.Party {
 		VATIdentifier:   seller.VatID,
 		TaxRegistration: seller.TaxNumber,
 		Address: &einvoice.Address{
-			LineOne:     seller.Street,
+			LineOne:     seller.StreetLine(),
 			LineTwo:     seller.AddressAddition,
 			PostCode:    seller.PostalCode,
 			City:        seller.City,

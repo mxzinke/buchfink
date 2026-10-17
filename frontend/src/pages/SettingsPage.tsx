@@ -112,6 +112,27 @@ const MONTHS = [
   { value: 12, label: 'Dezember · 1. Dez bis 30. Nov' },
 ];
 
+/** Die Bundesländer als Kürzel; leer heißt: nur bundesweite Feiertage. */
+const FEDERAL_STATES = [
+  { value: '', label: 'Nicht angegeben' },
+  { value: 'BW', label: 'Baden-Württemberg' },
+  { value: 'BY', label: 'Bayern' },
+  { value: 'BE', label: 'Berlin' },
+  { value: 'BB', label: 'Brandenburg' },
+  { value: 'HB', label: 'Bremen' },
+  { value: 'HH', label: 'Hamburg' },
+  { value: 'HE', label: 'Hessen' },
+  { value: 'MV', label: 'Mecklenburg-Vorpommern' },
+  { value: 'NI', label: 'Niedersachsen' },
+  { value: 'NW', label: 'Nordrhein-Westfalen' },
+  { value: 'RP', label: 'Rheinland-Pfalz' },
+  { value: 'SL', label: 'Saarland' },
+  { value: 'SN', label: 'Sachsen' },
+  { value: 'ST', label: 'Sachsen-Anhalt' },
+  { value: 'SH', label: 'Schleswig-Holstein' },
+  { value: 'TH', label: 'Thüringen' },
+];
+
 const VAT_PERIODS = [
   { value: 'unknown', label: 'Noch nicht geklärt' },
   { value: 'none', label: 'Keine regelmäßigen Umsatzsteuererklärungen' },
@@ -545,11 +566,18 @@ export const SettingsPage: React.FC<{
         explain="§ 14 Abs. 4 Nr. 1 UStG verlangt die vollständige Anschrift des leistenden Unternehmers. Ein Postfach genügt als Anschrift. Die E-Rechnung führt Straße, Zusatz, Postleitzahl, Ort und Land in getrennten Feldern (BT-35 bis BT-40)."
       >
         <FormGrid>
-          <Field label="Straße und Hausnummer" hint="oder Postfach" className="md:col-span-2">
+          <Field label="Straße" hint="oder Postfach">
             <Input
-              placeholder="Musterstraße 12a"
+              placeholder="Musterstraße"
               value={settings.street}
               onChange={(e) => patch({ street: e.target.value })}
+            />
+          </Field>
+          <Field label="Hausnummer" optional>
+            <Input
+              placeholder="12a"
+              value={settings.houseNumber ?? ''}
+              onChange={(e) => patch({ houseNumber: e.target.value })}
             />
           </Field>
           <Field label="Adresszusatz" optional className="md:col-span-2">
@@ -574,6 +602,13 @@ export const SettingsPage: React.FC<{
               items={countries.map((country) => ({ value: country.code, label: country.name }))}
               value={settings.countryCode || 'DE'}
               onValueChange={(code) => patch({ countryCode: String(code) })}
+            />
+          </Field>
+          <Field label="Bundesland" hint="bestimmt die Feiertage im Fristende und die ELSTER-Steuernummer">
+            <Select
+              items={FEDERAL_STATES}
+              value={settings.federalState ?? ''}
+              onValueChange={(code) => patch({ federalState: String(code) })}
             />
           </Field>
         </FormGrid>

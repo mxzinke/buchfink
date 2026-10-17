@@ -134,7 +134,7 @@ func TestSettingsDoNotResetMaintainedValues(t *testing.T) {
 	if saved.InvoiceCheckThreshold != 500_000 {
 		t.Errorf("Nachweisgrenze = %s €, erwartet die gepflegten 5.000,00", saved.InvoiceCheckThreshold)
 	}
-	if saved.Street != "Hauptstraße 1" {
-		t.Errorf("die geänderte Anschrift fehlt: %q", saved.Street)
+	if saved.StreetLine() != "Hauptstraße 1" {
+		t.Errorf("die geänderte Anschrift fehlt: %q", saved.StreetLine())
 	}
 }

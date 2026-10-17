@@ -71,7 +71,7 @@ func (s *CompanySettings) PostalLine() string {
 // and — outside Germany — the country.
 func (s *CompanySettings) AddressLines() []string {
 	lines := []string{}
-	for _, line := range []string{s.Street, s.AddressAddition, s.PostalLine()} {
+	for _, line := range []string{s.StreetLine(), s.AddressAddition, s.PostalLine()} {
 		if trimmed := strings.TrimSpace(line); trimmed != "" {
 			lines = append(lines, trimmed)
 		}
@@ -117,6 +117,9 @@ func (s *CompanySettings) ValidateProfile() error {
 	}
 	if s.ShareCapital < 0 {
 		return fmt.Errorf("das Stammkapital kann nicht negativ sein")
+	}
+	if err := s.validateObligationProfile(); err != nil {
+		return err
 	}
 	var subscribed Cents
 	for i, sh := range s.Shareholders {

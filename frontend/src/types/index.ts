@@ -1204,8 +1204,20 @@ export interface CompanySettings {
   iban: string;
   bic: string;
   bankName: string;
-  /** Straße und Hausnummer oder Postfach. */
+  /** Straße oder Postfach. */
   street: string;
+  /** Hausnummer; leer bei einem Postfach. */
+  houseNumber?: string;
+  /** Bundesland am Sitz als Kürzel („BY"); bestimmt die Feiertage im Fristende. */
+  federalState?: string;
+  /** Steuernummer im 13-stelligen ELSTER-Format, abgeleitet; nur lesbar. */
+  taxNumberElster?: string;
+  /** Beauftragter Steuerberater; verlängert die Erklärungsfristen (§ 149 Abs. 3 AO). */
+  taxAdvisor?: TaxAdvisor;
+  /** Merkmale, für die Buchfink keinen Abschluss und keine Steuerrückstellung rechnet. */
+  nonProfit?: boolean;
+  inLiquidation?: boolean;
+  fiscalUnity?: boolean;
   /** Zusatz wie „c/o" oder „Gebäude B". */
   addressAddition: string;
   postalCode: string;
@@ -1276,6 +1288,15 @@ export interface CompanySettings {
    * Kreditinstitute mit Handelsbestand, Pensionsfonds.
    */
   investorOverride: InvestorType;
+}
+
+/** Die Beauftragung eines Steuerberaters mit Jahreserklärungen. */
+export interface TaxAdvisor {
+  engaged: boolean;
+  /** Erster Besteuerungszeitraum, den der Berater erstellt; 0 heißt alle. */
+  sinceYear: number;
+  /** Übernommene Erklärungen (kst, gewst, ust_jahr, ebilanz); leer heißt alle. */
+  declarations: string[];
 }
 
 /** Eine Rechtsform aus dem Katalog, mit dem, was sie steuerlich nach sich zieht. */

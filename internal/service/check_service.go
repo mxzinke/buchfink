@@ -990,7 +990,7 @@ func (s *CheckService) checkVatReturns(
 
 	var out []domain.CheckFinding
 	for _, p := range accounting.VatPeriodsOfYear(year, periodType) {
-		due := accounting.VatDueDate(p, cfg.PermanentExtension)
+		due := accounting.VatDueDateIn(p, cfg.PermanentExtension, cfg.FederalState)
 		if p.To > cutoff || submitted[p.Key] || due == "" || due >= reference {
 			continue
 		}
