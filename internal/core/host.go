@@ -31,7 +31,12 @@ type HostOptions struct {
 	// WarmRenderer übersetzt das Satzprogramm beim Start im Hintergrund, damit
 	// die erste Rechnung nicht darauf wartet.
 	WarmRenderer bool
-	Logger       *slog.Logger
+	// Jobs startet die Hintergrundläufe je offenem Mandanten (jobs.go) und
+	// sichert beim Schließen, wenn seit der letzten Sicherung gearbeitet wurde.
+	Jobs bool
+	// Clock ist die Uhr der Hintergrundläufe; ohne Angabe die echte.
+	Clock  Clock
+	Logger *slog.Logger
 }
 
 // Host hält die Mandantenliste und genau einen offenen Mandanten. Ein Prozess
@@ -42,6 +47,7 @@ type HostOptions struct {
 // nur kurz für Konfiguration und Zeiger gehalten.
 type Host struct {
 	opts     HostOptions
+	clock    Clock
 	cfgRepo  domain.AppConfigRepository
 	renderer *invoice.Renderer
 	logger   *slog.Logger
@@ -55,6 +61,24 @@ type Host struct {
 	gen     uint64
 
 	closing sync.WaitGroup
+
+	backupLocksMu sync.Mutex
+	backupLocks   map[string]*sync.Mutex
+}
+
+// backupLock ist die Sperre der Sicherung eines Datenordners.
+func (h *Host) backupLock(dataDir string) *sync.Mutex {
+	h.backupLocksMu.Lock()
+	defer h.backupLocksMu.Unlock()
+	if h.backupLocks == nil {
+		h.backupLocks = map[string]*sync.Mutex{}
+	}
+	lock, ok := h.backupLocks[dataDir]
+	if !ok {
+		lock = &sync.Mutex{}
+		h.backupLocks[dataDir] = lock
+	}
+	return lock
 }
 
 // NewHost lädt die Konfiguration und öffnet den aktiven Mandanten.
@@ -71,7 +95,11 @@ func NewHost(ctx context.Context, o HostOptions) (*Host, error) {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	h := &Host{opts: o, cfgRepo: o.Config, cfg: *cfg, renderer: invoice.NewRenderer(), logger: logger}
+	clock := o.Clock
+	if clock == nil {
+		clock = realClock{}
+	}
+	h := &Host{opts: o, clock: clock, cfgRepo: o.Config, cfg: *cfg, renderer: invoice.NewRenderer(), logger: logger}
 	if o.WarmRenderer {
 		go func(r *invoice.Renderer) { _ = r.Warm(context.Background()) }(h.renderer)
 	}
@@ -111,10 +139,18 @@ func requireApp(ctx context.Context) error {
 }
 
 // Close schließt den offenen Mandanten, wartet auf Mandanten, die nach einem
-// Wechsel noch schließen, und gibt das Satzprogramm frei.
+// Wechsel noch schließen, und gibt das Satzprogramm frei. Mit Hintergrundläufen
+// sichert es vorher, wenn seit der letzten Sicherung gearbeitet wurde: dann
+// steht der Bestand des Arbeitstages vollständig in den Büchern.
 func (h *Host) Close(ctx context.Context) error {
 	h.lifecycle.Lock()
 	defer h.lifecycle.Unlock()
+	if h.opts.Jobs {
+		if t, release, err := h.Acquire(ctx); err == nil {
+			h.runDueBackup(ctx, t, true)
+			release()
+		}
+	}
 	h.mu.Lock()
 	current := h.current
 	h.current = nil
@@ -299,9 +335,13 @@ func (h *Host) open(ctx context.Context, tc domain.TenantConfig) (*Tenant, error
 	})
 }
 
-// activate macht t zum offenen Mandanten und schließt den bisherigen im
-// Hintergrund, sobald dessen laufende Vorgänge fertig sind.
+// activate macht t zum offenen Mandanten, startet seine Hintergrundläufe und
+// schließt den bisherigen im Hintergrund, sobald dessen laufende Vorgänge
+// fertig sind.
 func (h *Host) activate(t *Tenant) {
+	if t != nil {
+		h.startJobs(t)
+	}
 	h.mu.Lock()
 	previous := h.current
 	h.current = t
@@ -311,7 +351,8 @@ func (h *Host) activate(t *Tenant) {
 	h.mu.Unlock()
 	if previous != nil && previous != t {
 		// Ab hier nimmt der vorige Mandant nichts Neues mehr an; was läuft,
-		// läuft zu Ende.
+		// läuft zu Ende. Seine Hintergrundläufe beginnen nichts Neues mehr.
+		previous.jobs.cancelOnly()
 		previous.leases.stop()
 		h.closing.Add(1)
 		go func() {

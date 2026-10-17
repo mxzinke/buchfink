@@ -90,22 +90,32 @@ func (h *Host) RunBackup(ctx context.Context, kind domain.BackupKind) (*domain.B
 		return nil, err
 	}
 	defer release()
+	return h.runBackup(ctx, t, kind)
+}
+
+// runBackup sichert einen bestimmten Mandanten, gleich ob er noch der offene
+// ist. Die Läufe im Hintergrund gehören zu ihrem Mandanten.
+func (h *Host) runBackup(ctx context.Context, t *Tenant, kind domain.BackupKind) (*domain.BackupRun, error) {
 	dir := h.backupDirOf(t.ID())
 	if dir == "" {
 		return nil, fmt.Errorf("es ist kein Sicherungsordner eingerichtet. Bitte in den Einstellungen einen wählen")
 	}
 
 	// Zwei Läufe gleichzeitig schrieben zwei Kopien desselben Bestands und
-	// stritten um den Arbeitsordner.
-	t.backupMu.Lock()
+	// stritten um den Zielordner — auch zwei Instanzen desselben Mandanten,
+	// wenn er nach einem Wechsel noch schließt, während er neu geöffnet ist.
+	lock := h.backupLock(t.DataDir())
+	lock.Lock()
+	defer lock.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	var run *domain.BackupRun
-	err = t.use(ctx, func(ctx context.Context, s *Services) error {
+	if err := t.use(ctx, func(ctx context.Context, s *Services) error {
 		var err error
 		run, err = s.Backup.CreateBackup(ctx, dir, kind)
 		return err
-	})
-	t.backupMu.Unlock()
-	if err != nil {
+	}); err != nil {
 		return run, err
 	}
 	if _, err := h.updateTenantConfig(t.ID(), func(tc *domain.TenantConfig) error {
@@ -117,16 +127,22 @@ func (h *Host) RunBackup(ctx context.Context, kind domain.BackupKind) (*domain.B
 	return run, nil
 }
 
-// RunDueBackup sichert, wenn eine Sicherung fällig ist: beim Start nach dem
-// Abstand von 24 Stunden, beim Beenden zusätzlich, wenn sich seit der letzten
-// Sicherung etwas geändert hat.
+// RunDueBackup sichert den offenen Mandanten, wenn eine Sicherung fällig ist
+// (siehe runDueBackup).
 func (h *Host) RunDueBackup(ctx context.Context, onShutdown bool) {
-	ctx = systemContext(ctx)
 	t, release, err := h.Acquire(ctx)
 	if err != nil {
 		return
 	}
 	defer release()
+	h.runDueBackup(ctx, t, onShutdown)
+}
+
+// runDueBackup sichert, wenn eine Sicherung fällig ist: nach dem Abstand von
+// 24 Stunden, beim Beenden zusätzlich, wenn sich seit der letzten Sicherung
+// etwas geändert hat. Ohne Sicherungsordner geschieht nichts.
+func (h *Host) runDueBackup(ctx context.Context, t *Tenant, onShutdown bool) {
+	ctx = systemContext(ctx)
 	if h.backupDirOf(t.ID()) == "" {
 		return
 	}
@@ -144,7 +160,7 @@ func (h *Host) RunDueBackup(ctx context.Context, onShutdown bool) {
 	}); err != nil || !due {
 		return
 	}
-	if _, err := h.RunBackup(ctx, domain.BackupKindAutomatic); err != nil {
+	if _, err := h.runBackup(ctx, t, domain.BackupKindAutomatic); err != nil {
 		h.logger.Warn("die automatische Sicherung ist fehlgeschlagen", "mandant", t.ID(), "fehler", err)
 	}
 }

@@ -37,16 +37,12 @@ func NewBuchfinkBridge() (*BuchfinkBridge, error) {
 		Config:       repository.NewAppConfigRepository(baseDir),
 		BaseDir:      baseDir,
 		WarmRenderer: true,
+		Jobs:         true,
 	})
 	if err != nil {
 		return nil, err
 	}
-	b := &BuchfinkBridge{host: host}
-	// Zeitstempel, die offline nicht zu bekommen waren, und die fällige
-	// Sicherung laufen im Hintergrund, während die Oberfläche schon da ist.
-	go func() { _, _ = host.RetryTimestamps(context.Background()) }()
-	go host.RunDueBackup(context.Background(), false)
-	return b, nil
+	return &BuchfinkBridge{host: host}, nil
 }
 
 // -------------------------------------------------------------

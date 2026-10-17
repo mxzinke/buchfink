@@ -318,5 +318,5 @@ func backupRhythmLabel(backupDir string) string {
 	if backupDir == "" {
 		return "nicht eingerichtet — es wird nicht gesichert"
 	}
-	return "täglich, ausgelöst beim Beenden und beim Start des Programms, wenn die letzte erfolgreiche Sicherung länger als einen Tag zurückliegt"
+	return "täglich: beim Öffnen des Mandanten und stündlich während der Arbeit, sobald die letzte erfolgreiche Sicherung länger als einen Tag zurückliegt, und beim Beenden, wenn seitdem gearbeitet wurde"
 }

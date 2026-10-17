@@ -565,3 +565,22 @@ func TestHasChangesSinceIgnoresTheBackupItself(t *testing.T) {
 		t.Error("die Buchung nach der Sicherung muss als Änderung gelten")
 	}
 }
+
+// Zwei Sicherungen in derselben Sekunde überschreiben einander nicht; die
+// zweite bekommt eine Nummer im Namen.
+func TestTwoBackupsInOneSecondKeepBothFiles(t *testing.T) {
+	env := newBackupEnv(t)
+	ctx := context.Background()
+	dir := t.TempDir()
+	first, err := env.backups.CreateBackup(ctx, dir, domain.BackupKindManual)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := env.backups.CreateBackup(ctx, dir, domain.BackupKindManual)
+	if err != nil {
+		t.Fatalf("zweite Sicherung derselben Sekunde: %v", err)
+	}
+	if first.Target == second.Target {
+		t.Errorf("beide Sicherungen liegen unter %s", first.Target)
+	}
+}

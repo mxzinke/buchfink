@@ -262,14 +262,3 @@ func (t *Tenant) VerifyCommitment(ctx context.Context, id uint) (*domain.Festsch
 	})
 	return v, err
 }
-
-// RetryTimestamps holt die ausstehenden Zeitstempel des offenen Mandanten nach.
-func (h *Host) RetryTimestamps(ctx context.Context) (int, error) {
-	ctx = systemContext(ctx)
-	t, release, err := h.Acquire(ctx)
-	if err != nil {
-		return 0, err
-	}
-	defer release()
-	return t.RetryTimestamps(ctx)
-}

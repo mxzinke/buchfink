@@ -213,6 +213,28 @@ func (s *BackupService) CreateBackup(ctx context.Context, targetDir string, kind
 	return run, nil
 }
 
+// createUnique legt base.zip im Ordner an, ohne Vorhandenes zu überschreiben.
+// Gibt es die Datei derselben Sekunde schon, bekommt die neue eine Nummer.
+func createUnique(dir, base string) (string, *os.File, error) {
+	var last error
+	for n := 1; n <= 99; n++ {
+		name := base + ".zip"
+		if n > 1 {
+			name = fmt.Sprintf("%s-%d.zip", base, n)
+		}
+		path := filepath.Join(dir, name)
+		out, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+		if err == nil {
+			return path, out, nil
+		}
+		if !os.IsExist(err) {
+			return path, nil, err
+		}
+		last = err
+	}
+	return filepath.Join(dir, base+".zip"), nil, last
+}
+
 // writeArchive baut die ZIP-Datei.
 func (s *BackupService) writeArchive(targetDir string) (string, *BackupMeta, error) {
 	if strings.TrimSpace(targetDir) == "" {
@@ -247,10 +269,8 @@ func (s *BackupService) writeArchive(targetDir string) (string, *BackupMeta, err
 	// „20260906-2130" hieße, fände er dort nicht. Verglichen und sortiert wird
 	// nach dem Zeitpunkt im Beipackzettel, und der ist eindeutig.
 	stamp := time.Now().Format("20060102-150405")
-	name := fmt.Sprintf("buchfink-%s-%s.zip", safeSlug(s.tenantName, s.tenantID), stamp)
-	zipPath := filepath.Join(targetDir, name)
-
-	out, err := os.OpenFile(zipPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	base := fmt.Sprintf("buchfink-%s-%s", safeSlug(s.tenantName, s.tenantID), stamp)
+	zipPath, out, err := createUnique(targetDir, base)
 	if err != nil {
 		return zipPath, nil, fmt.Errorf("die Sicherungsdatei konnte nicht angelegt werden: %w", err)
 	}

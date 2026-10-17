@@ -79,17 +79,11 @@ func (b *BuchfinkBridge) SelectBackupFileDialog(title string) (string, error) {
 		PromptForSingleSelection()
 }
 
-// ServiceShutdown ist der Haken, den die Wails-Laufzeit beim Beenden ruft.
-//
-// Die Sicherung beim Beenden ist der eigentliche Zeitpunkt: dann steht der
-// Bestand des Arbeitstages vollständig in den Büchern. Sie läuft synchron —
-// Wails wartet auf diesen Aufruf. Beim Beenden zählt, ob gearbeitet wurde,
-// nicht der Abstand: wer morgens sichert und den ganzen Tag bucht, verlöre
-// sonst den Tag.
+// ServiceShutdown ist der Haken, den die Wails-Laufzeit beim Beenden ruft. Der
+// Kern sichert dabei, wenn seit der letzten Sicherung gearbeitet wurde
+// (Host.Close); Wails wartet auf diesen Aufruf.
 func (b *BuchfinkBridge) ServiceShutdown() error {
-	ctx := actor.WithChannel(context.Background(), actor.ChannelSystem)
-	b.host.RunDueBackup(ctx, true)
-	return b.host.Close(ctx)
+	return b.host.Close(actor.WithChannel(context.Background(), actor.ChannelSystem))
 }
 
 // sameDir meldet, ob zwei Pfade denselben Ordner bezeichnen.

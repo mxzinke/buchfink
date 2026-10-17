@@ -66,9 +66,9 @@ type Tenant struct {
 	// beginnt. Die Dienste kennen es nicht.
 	startYear int
 
-	write    writeLock
-	leases   leases
-	backupMu sync.Mutex
+	write  writeLock
+	leases leases
+	jobs   jobs
 
 	closeOnce sync.Once
 	closeErr  error
@@ -147,6 +147,8 @@ func (t *Tenant) StartYear() int { return t.startYear }
 // liefert jeder Aufruf ErrTenantClosing.
 func (t *Tenant) Close(ctx context.Context) error {
 	t.closeOnce.Do(func() {
+		t.leases.stop()
+		t.jobs.stop()
 		if !t.leases.drain(closeTimeout) {
 			t.logger.Warn("Mandant wird mit laufenden Vorgängen geschlossen", "mandant", t.info.ID)
 		}
