@@ -20,5 +20,5 @@ func (b *BuchfinkBridge) GetClosingSettings() (*service.ClosingSettings, error) 
 func (b *BuchfinkBridge) SaveClosingSettings(in service.ClosingSettings) (*service.ClosingSettings, error) {
 	return write(b, func(ctx context.Context, s *core.Services) (*service.ClosingSettings, error) {
 		return s.ClosingSettings.Save(ctx, in)
-	})
+	}, core.AppOnly())
 }

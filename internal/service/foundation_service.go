@@ -142,6 +142,9 @@ func (s *FoundationService) GetState(ctx context.Context) (*FoundationState, err
 
 // Save writes the Gründung after checking what only this service can check.
 func (s *FoundationService) Save(ctx context.Context, f *domain.Foundation) (*domain.Foundation, error) {
+	if err := requireHuman(ctx, "Die Erfassung der Gründung"); err != nil {
+		return nil, err
+	}
 	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.Foundation, error) {
 		return s.save(ctx, f)
 	})
@@ -644,6 +647,9 @@ func (s *FoundationService) postingsBooked(ctx context.Context) (bool, error) {
 // die Handelndenhaftung des § 11 Abs. 2 GmbHG endet, und die Unterbilanz steht
 // auf diesen Tag fest.
 func (s *FoundationService) Register(ctx context.Context, date, court, number string) (*domain.Foundation, error) {
+	if err := requireHuman(ctx, "Die Eintragung ins Handelsregister"); err != nil {
+		return nil, err
+	}
 	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.Foundation, error) {
 		return s.register(ctx, date, court, number)
 	})

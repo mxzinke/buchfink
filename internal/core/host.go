@@ -128,9 +128,9 @@ func systemContext(ctx context.Context) context.Context {
 
 // requireApp behält die Mandantenverwaltung der Bedienung in der App vor.
 func requireApp(ctx context.Context) error {
-	channel, ok := actor.ChannelOf(ctx)
-	if !ok {
-		return ErrNoChannel
+	channel, err := channelOf(ctx)
+	if err != nil {
+		return err
 	}
 	if channel != actor.ChannelUI {
 		return ErrAppOnly
@@ -589,7 +589,7 @@ func (h *Host) recordMigration(ctx context.Context, t *Tenant, kind domain.Migra
 			rec.ChainValid = result.IsValid
 			rec.ChainMessage = result.Message
 		}
-		if err := s.Repos.Migrations.CreateMigrationRecord(ctx, rec); err != nil {
+		if err := t.repos.migrations.CreateMigrationRecord(ctx, rec); err != nil {
 			return err
 		}
 		balance := "Soll und Haben stimmen überein"

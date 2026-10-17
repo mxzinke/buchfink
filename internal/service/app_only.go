@@ -7,14 +7,22 @@ import (
 	"github.com/buchfink/buchfink/internal/actor"
 )
 
-// refuseAgent weist einen Vorgang ab, den nur ein Mensch in der App auslöst:
-// Übermittlungsbestätigung, Aufstellen/Feststellen/Offenlegen, Stammdaten des
-// Unternehmens und seine Bankkonten. Der Kern behält sie zusätzlich der App vor
-// (core.AppOnly); diese Prüfung hält auch dann, wenn ein Aufrufer das vergisst.
-func refuseAgent(ctx context.Context, what string) error {
-	if channel := actor.RecordedChannel(ctx); channel.IsAgent() {
+// requireHuman behält einen Vorgang dem Menschen in der App vor:
+// Festschreibung, Übermittlungsbestätigung, Aufstellen/Feststellen/Offenlegen,
+// Stammdaten des Unternehmens samt Gründung, Bankkonten und Organisation.
+//
+// Zugelassen ist nur der Erfassungsweg ui. Ohne Erfassungsweg läuft der Dienst
+// unterhalb des Kerns (Einrichtung eines Mandanten, Tests); der Kern lässt
+// keinen Vorgang ohne Weg herein. Der Kern behält dieselben Vorgänge
+// zusätzlich der App vor (core.AppOnly).
+func requireHuman(ctx context.Context, what string) error {
+	channel, ok := actor.ChannelOf(ctx)
+	if !ok || channel == actor.ChannelUI {
+		return nil
+	}
+	if channel.IsAgent() {
 		return fmt.Errorf("%s ist der Bedienung in der App vorbehalten; der verbundene Agent %q kann das nicht",
 			what, channel.AgentSlug())
 	}
-	return nil
+	return fmt.Errorf("%s ist der Bedienung in der App vorbehalten, nicht dem Erfassungsweg %q", what, channel)
 }

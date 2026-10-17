@@ -2,8 +2,11 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
+
+	"github.com/buchfink/buchfink/internal/actor"
 )
 
 // WriteOption ändert, was Tenant.Write vor dem Vorgang prüft.
@@ -40,6 +43,20 @@ func (l writeLock) lock(ctx context.Context) error {
 }
 
 func (l writeLock) unlock() { <-l }
+
+// channelOf liest den Erfassungsweg eines Einstiegs in den Kern. Fehlt er oder
+// ist er keiner der bekannten (ui, system, agent:<kurzname>), wird der Vorgang
+// abgewiesen: was hier hereinkommt, steht an Buchung und Protokoll.
+func channelOf(ctx context.Context) (actor.Channel, error) {
+	channel, ok := actor.ChannelOf(ctx)
+	if !ok {
+		return "", ErrNoChannel
+	}
+	if _, err := actor.ParseChannel(string(channel)); err != nil {
+		return "", fmt.Errorf("%w: %v", ErrUnknownChannel, err)
+	}
+	return channel, nil
+}
 
 type inWriteKey struct{}
 

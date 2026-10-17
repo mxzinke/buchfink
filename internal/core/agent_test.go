@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/service"
 )
 
 // Was nur ein Mensch in der App auslöst, weist der Kern jedem Agenten ab, über
@@ -63,6 +64,28 @@ func TestAgentsAreRefusedForHumanOnlyOperations(t *testing.T) {
 		"Rechnungskonto wählen": inService(func(ctx context.Context, s *Services) error {
 			return s.Bank.SetInvoiceAccount(ctx, "DE02120300000000202051")
 		}),
+		"Gründung erfassen": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.Foundation.Save(ctx, &domain.Foundation{NotarizedOn: "2026-01-10", ShareCapital: 2_500_000})
+			return err
+		}),
+		"Eintragung ins Handelsregister": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.Foundation.Register(ctx, "2026-02-01", "AG Köln", "HRB 4711")
+			return err
+		}),
+		"Hebesatz ändern": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.ClosingSettings.Save(ctx, service.ClosingSettings{
+				TradeTaxRatePercent: 250, AccrualMethod: "monthly", AccrualRelease: "yearly"})
+			return err
+		}),
+		"Organisationsanweisung ändern": inService(func(ctx context.Context, s *Services) error {
+			return s.ProcDoc.SaveOrganisationTexts(ctx, domain.OrganisationTexts{Responsibilities: "Agent"})
+		}),
+		"USt-Jahreserklärung als erledigt vermerken": inService(func(ctx context.Context, s *Services) error {
+			return s.Deadlines.MarkDone(ctx, "ust.jahreserklaerung.2025", "")
+		}),
+		"Sondervorauszahlung als erledigt vermerken": inService(func(ctx context.Context, s *Services) error {
+			return s.Deadlines.MarkDone(ctx, "sondervorauszahlung.2026", "")
+		}),
 		"Sicherungsordner setzen": func() error { _, err := h.SetBackupDir(agent, t.TempDir()); return err },
 		"Mandant wechseln":        func() error { _, err := h.Switch(agent, tc.ID); return err },
 		"Mandant anlegen": func() error {
@@ -84,6 +107,25 @@ func TestAgentsAreRefusedForHumanOnlyOperations(t *testing.T) {
 		if err == nil || !(errors.Is(err, ErrAppOnly) || strings.Contains(err.Error(), "vorbehalten")) {
 			t.Errorf("%s durch einen Agenten: %v", name, err)
 		}
+	}
+
+	// Die Unternehmensdaten gehen nur über UpdateCompanySettings; der einzelne
+	// Schlüssel nimmt sie nicht an, auch nicht von der App.
+	for _, key := range []string{"legal_form", "fiscal_year_start_month", "company_name", "vat_id", "invoice_number_format"} {
+		for _, ctx := range []context.Context{agent, uiCtx} {
+			if err := tenant.Write(ctx, func(ctx context.Context, s *Services) error {
+				return s.Settings.SetValue(ctx, key, "x", "")
+			}); err == nil {
+				t.Errorf("SetValue setzt %s", key)
+			}
+		}
+	}
+	var company *domain.CompanySettings
+	if err := tenant.Read(agent, func(ctx context.Context, s *Services) (err error) {
+		company, err = s.Settings.GetCompanySettings(ctx)
+		return err
+	}); err != nil || company.LegalForm != domain.LegalFormGmbH || company.CompanyName != "Pfennig Ventures GmbH" {
+		t.Errorf("Unternehmensdaten nach den Versuchen: %+v, %v", company, err)
 	}
 
 	// Gegenprobe: dieselben Wege stehen der App offen, und im Prüfermodus

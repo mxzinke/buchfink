@@ -179,7 +179,7 @@ func (b *BuchfinkBridge) GetOrganisationTextDefaults() (domain.OrganisationTexts
 func (b *BuchfinkBridge) SaveOrganisationTexts(texts domain.OrganisationTexts) error {
 	return b.change(func(ctx context.Context, s *core.Services) error {
 		return s.ProcDoc.SaveOrganisationTexts(ctx, texts)
-	})
+	}, core.AppOnly())
 }
 
 // SetSystemChangeDate hält den Umstellungszeitpunkt der Datenübernahme fest.

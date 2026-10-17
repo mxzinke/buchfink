@@ -50,7 +50,7 @@ func (s *SettingsService) GetCompanySettings(ctx context.Context) (*domain.Compa
 }
 
 func (s *SettingsService) UpdateCompanySettings(ctx context.Context, settings *domain.CompanySettings) error {
-	if err := refuseAgent(ctx, "Die Änderung der Unternehmensdaten"); err != nil {
+	if err := requireHuman(ctx, "Die Änderung der Unternehmensdaten"); err != nil {
 		return err
 	}
 	// Der bisherige Stand wird vor dem Schreiben gelesen: danach gibt es ihn

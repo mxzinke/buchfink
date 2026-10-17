@@ -105,6 +105,9 @@ func (s *ProcDocService) OrganisationTexts(ctx context.Context) domain.Organisat
 
 // SaveOrganisationTexts schreibt die Freitexte und protokolliert die Änderung.
 func (s *ProcDocService) SaveOrganisationTexts(ctx context.Context, texts domain.OrganisationTexts) error {
+	if err := requireHuman(ctx, "Die Organisationsanweisung"); err != nil {
+		return err
+	}
 	before := s.OrganisationTexts(ctx)
 	pairs := []struct {
 		key   string

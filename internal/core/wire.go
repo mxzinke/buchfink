@@ -14,7 +14,7 @@ import (
 // wire verdrahtet Repositories und Dienste eines Mandanten. Die Reihenfolge
 // zählt: ein Dienst, der einen anderen gesetzt bekommt, muss nach ihm
 // entstehen.
-func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) *Services {
+func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (*Services, stores) {
 	accountRepo := repository.NewAccountRepository(db)
 	journalRepo := repository.NewJournalRepository(db)
 	numberRepo := repository.NewNumberRangeRepository(db)
@@ -53,16 +53,14 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) *
 	txRunner := repository.NewTxRunner(db)
 	store := receiptstore.New(info.DataDir)
 
+	st := stores{
+		journal: journalRepo, audit: auditRepo, settings: settingsRepo,
+		festschreibung: festschreibungRepo, fiscalYears: fiscalYearRepo,
+		migrations: migrationRepo, examiner: repository.NewExaminerRepository(db),
+	}
 	s := &Services{
 		Tenant: info,
-		Repos: Repos{
-			Journal: journalRepo, Accounts: accountRepo, Contacts: contactRepo,
-			Invoices: invoiceRepo, Receipts: receiptRepo, Audit: auditRepo,
-			Settings: settingsRepo, Festschreibung: festschreibungRepo,
-			FiscalYears: fiscalYearRepo, Migrations: migrationRepo,
-			BackupRuns: backupRunRepo, ExchangeRates: exchangeRateRepo,
-			Examiner: repository.NewExaminerRepository(db),
-		},
+		Repos:  st.readers(contactRepo, invoiceRepo, backupRunRepo, exchangeRateRepo),
 	}
 
 	// Der Journaldienst ist der einzige Schreibweg ins Journal und hält die
@@ -272,7 +270,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) *
 	s.Tasks.SetCarryForwardSource(s.Closing)
 	s.Tasks.SetAppropriationSource(s.Appropriation)
 
-	return s
+	return s, st
 }
 
 // startMonthOf liest den Beginn des Geschäftsjahres aus den Unternehmensdaten.

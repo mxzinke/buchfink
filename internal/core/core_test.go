@@ -169,6 +169,37 @@ func TestEveryEntryNeedsAChannel(t *testing.T) {
 	if _, err := h.Switch(context.Background(), "x"); !errors.Is(err, ErrNoChannel) {
 		t.Errorf("Wechsel ohne Erfassungsweg: %v", err)
 	}
+
+	// Ein unbekannter Weg käme so an Buchung und Protokoll; er wird abgewiesen.
+	unknown := actor.WithChannel(context.Background(), actor.Channel("mcp:claude"))
+	if err := h.Write(unknown, noop); !errors.Is(err, ErrUnknownChannel) {
+		t.Errorf("Write mit unbekanntem Erfassungsweg: %v", err)
+	}
+	if err := h.Read(unknown, noop); !errors.Is(err, ErrUnknownChannel) {
+		t.Errorf("Read mit unbekanntem Erfassungsweg: %v", err)
+	}
+	if _, err := h.Switch(unknown, "x"); !errors.Is(err, ErrUnknownChannel) {
+		t.Errorf("Wechsel mit unbekanntem Erfassungsweg: %v", err)
+	}
+}
+
+// Die Repositories, die Bridge und MCP-Server in die Hand bekommen, lesen nur.
+// Festschreibung, Prüfermodus, Abschlussstand und Einstellungen ändern sich
+// allein über Kern und Dienste mit Prüfung und Protokoll.
+func TestReposOnlyRead(t *testing.T) {
+	writing := []string{"Save", "Create", "Update", "Set", "Delete", "Mark", "LogChange", "Append", "Upsert"}
+	repos := reflect.TypeOf(Repos{})
+	for i := 0; i < repos.NumField(); i++ {
+		field := repos.Field(i)
+		for m := 0; m < field.Type.NumMethod(); m++ {
+			name := field.Type.Method(m).Name
+			for _, prefix := range writing {
+				if strings.HasPrefix(name, prefix) {
+					t.Errorf("Repos.%s bietet %s an", field.Name, name)
+				}
+			}
+		}
+	}
 }
 
 // Ein Vorgang ist eine Transaktion: scheitert er nach der Buchung, steht sie
@@ -214,7 +245,7 @@ func TestReadCannotWrite(t *testing.T) {
 	tenant := openTenant(t, h)
 
 	err := tenant.Read(uiCtx, func(ctx context.Context, s *Services) error {
-		return s.Repos.Settings.Set(ctx, "company_name", "Geändert GmbH")
+		return tenant.repos.settings.Set(ctx, "company_name", "Geändert GmbH")
 	})
 	if err == nil || !strings.Contains(strings.ToLower(err.Error()), "readonly database") {
 		t.Fatalf("Schreiben im Lesevorgang: %v", err)
@@ -560,7 +591,7 @@ func TestExaminerModeExpires(t *testing.T) {
 		t.Fatalf("offen ist %s", tenant.ID())
 	}
 	if err := tenant.Write(uiCtx, func(ctx context.Context, s *Services) error {
-		return s.Repos.Examiner.Create(ctx, &domain.ExaminerPeriod{
+		return tenant.repos.examiner.Create(ctx, &domain.ExaminerPeriod{
 			From: time.Now().AddDate(0, 0, -10).Format("2006-01-02"), Until: yesterday,
 			Reason: "abgelaufene Prüfung",
 		})

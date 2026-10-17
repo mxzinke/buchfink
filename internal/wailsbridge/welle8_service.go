@@ -83,7 +83,7 @@ func (b *BuchfinkBridge) GetEntriesForReceipt(receiptID uint) ([]domain.JournalE
 // Datum seiner Erstellung. Wer nur das aktive Jahr durchsähe, zeigte am Beleg
 // „keine Buchung", während sie einen Klick weiter im Journal steht.
 func entriesForReceipt(
-	ctx context.Context, repo domain.JournalRepository, year int, receiptID uint,
+	ctx context.Context, repo core.JournalReader, year int, receiptID uint,
 ) ([]domain.JournalEntry, error) {
 	out := make([]domain.JournalEntry, 0, 2)
 	years := []int{year}

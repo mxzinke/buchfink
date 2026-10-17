@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/buchfink/buchfink/internal/actor"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/service"
 )
@@ -20,8 +19,8 @@ import (
 // use führt fn mit einer Lease aus, ohne Sperre und ohne Transaktion. Nur für
 // die langen Läufe dieser Datei, die ihre Vermerke selbst über Write schreiben.
 func (t *Tenant) use(ctx context.Context, fn func(context.Context, *Services) error) error {
-	if _, ok := actor.ChannelOf(ctx); !ok {
-		return ErrNoChannel
+	if _, err := channelOf(ctx); err != nil {
+		return err
 	}
 	release, err := t.leases.acquire()
 	if err != nil {
@@ -65,7 +64,7 @@ func (h *Host) SetBackupDir(ctx context.Context, dir string) (domain.AppConfig, 
 	previous := h.backupDirOf(t.ID())
 	var cfg domain.AppConfig
 	err = t.Write(ctx, func(ctx context.Context, s *Services) error {
-		if err := s.Repos.Audit.LogChange(ctx, domain.AuditActionUpdate, "BACKUP_DIR", t.ID(),
+		if err := t.repos.audit.LogChange(ctx, domain.AuditActionUpdate, "BACKUP_DIR", t.ID(),
 			fmt.Sprintf("Sicherungsordner gesetzt: %s", orDefault(dir, "(keiner)")),
 			map[string]string{"backupDir": previous}, map[string]string{"backupDir": dir}); err != nil {
 			return err

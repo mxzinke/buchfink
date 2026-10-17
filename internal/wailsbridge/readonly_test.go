@@ -373,10 +373,11 @@ func TestReadOnlyModeAnswersTheExchangeRateFromHistory(t *testing.T) {
 	// Fehler — und genau das soll im Prüfermodus nicht geschehen.
 	b := testBridge(t, func(o *core.HostOptions) { o.Network.Rates = currency.New("http://127.0.0.1:1") })
 	testWrite(t, b, func(ctx context.Context, s *core.Services) error {
-		return s.Repos.ExchangeRates.SaveRate(ctx, &domain.ExchangeRate{
+		_, err := s.Currency.SaveRate(ctx, domain.ExchangeRate{
 			Currency: "USD", Date: "2026-12-31", RateMicros: 1_085_000,
 			Source: "EZB-Referenzkurs",
 		})
+		return err
 	})
 
 	until := time.Now().AddDate(0, 0, 30).Format("2006-01-02")

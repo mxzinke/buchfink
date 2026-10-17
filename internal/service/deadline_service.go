@@ -162,17 +162,28 @@ var manualDeadlineKeys = []string{
 // („sondervorauszahlung.2026"), deshalb die Präfixprüfung.
 func isManualDeadlineKey(key string) bool {
 	for _, prefix := range manualDeadlineKeys {
-		if key == prefix || strings.HasPrefix(key, prefix+".") {
+		if hasDeadlinePrefix(key, prefix) {
 			return true
 		}
 	}
 	return false
 }
 
+func hasDeadlinePrefix(key, prefix string) bool {
+	return key == prefix || strings.HasPrefix(key, prefix+".")
+}
+
 // MarkDone setzt den Haken an einem Termin, der sich nicht aus den Daten ergibt.
+// Der Haken an einer Erklärung bestätigt ihre Übermittlung und bleibt deshalb
+// der App vorbehalten.
 func (s *DeadlineService) MarkDone(ctx context.Context, key, date string) error {
 	if key == "" {
 		return fmt.Errorf("zum Abhaken gehört der Termin")
+	}
+	if hasDeadlinePrefix(key, DeadlineKeyAnnualVat) || hasDeadlinePrefix(key, DeadlineKeyPrepayment) {
+		if err := requireHuman(ctx, "Die Bestätigung der Übermittlung"); err != nil {
+			return err
+		}
 	}
 	if !isManualDeadlineKey(key) {
 		return fmt.Errorf(

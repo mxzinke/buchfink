@@ -703,7 +703,7 @@ func (b *BuchfinkBridge) GetFoundationState() (*service.FoundationState, error) 
 func (b *BuchfinkBridge) SaveFoundation(f domain.Foundation) (*domain.Foundation, error) {
 	return write(b, func(ctx context.Context, s *core.Services) (*domain.Foundation, error) {
 		return s.Foundation.Save(ctx, &f)
-	})
+	}, core.AppOnly())
 }
 
 // GetFoundationRules returns the Kapitalaufbringungsregeln of every legal form
@@ -747,7 +747,7 @@ func (b *BuchfinkBridge) BookFoundationPostings() ([]domain.JournalEntry, error)
 func (b *BuchfinkBridge) RegisterCompany(date, court, number string) (*domain.Foundation, error) {
 	return write(b, func(ctx context.Context, s *core.Services) (*domain.Foundation, error) {
 		return s.Foundation.Register(ctx, date, court, number)
-	})
+	}, core.AppOnly())
 }
 
 // -------------------------------------------------------------

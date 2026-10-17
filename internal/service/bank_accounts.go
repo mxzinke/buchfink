@@ -89,7 +89,7 @@ func (s *BankService) PreviewFile(ctx context.Context, path string) (*BankImport
 // ConfigureAccounts keeps every IBAN on one ledger account. Reassigning booked
 // history requires an explicit accounting correction, not a settings edit.
 func (s *BankService) ConfigureAccounts(ctx context.Context, accounts []domain.BankAccount) error {
-	if err := refuseAgent(ctx, "Die Einrichtung der Bankkonten"); err != nil {
+	if err := requireHuman(ctx, "Die Einrichtung der Bankkonten"); err != nil {
 		return err
 	}
 	if s.accounts == nil || s.txRunner == nil {
@@ -180,7 +180,7 @@ func (s *BankService) ConfigureAccounts(ctx context.Context, accounts []domain.B
 // SetInvoiceAccount legt das Bankkonto fest, dessen Verbindung auf Rechnungen
 // steht, und nimmt die Markierung von jedem anderen.
 func (s *BankService) SetInvoiceAccount(ctx context.Context, iban string) error {
-	if err := refuseAgent(ctx, "Die Wahl des Rechnungskontos"); err != nil {
+	if err := requireHuman(ctx, "Die Wahl des Rechnungskontos"); err != nil {
 		return err
 	}
 	if s.accounts == nil || s.txRunner == nil {

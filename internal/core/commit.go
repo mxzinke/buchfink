@@ -47,7 +47,7 @@ func (t *Tenant) CommitPeriod(ctx context.Context, r CommitRequest) (*domain.Fes
 	var rec *domain.Festschreibung
 	if err := t.Write(ctx, func(ctx context.Context, s *Services) error {
 		var err error
-		rec, err = commit(ctx, s, r)
+		rec, err = commit(ctx, s, t.repos, r)
 		return err
 	}, AppOnly()); err != nil {
 		return nil, err
@@ -59,7 +59,7 @@ func (t *Tenant) CommitPeriod(ctx context.Context, r CommitRequest) (*domain.Fes
 		return rec, nil
 	}
 	if err := t.Write(ctx, func(ctx context.Context, s *Services) error {
-		return stampCommitment(ctx, s, rec, res, true)
+		return stampCommitment(ctx, t.repos, rec, res, true)
 	}, ExaminerExempt()); err != nil {
 		return nil, fmt.Errorf("die Festschreibung steht, der Zeitstempel ließ sich aber nicht speichern: %w", err)
 	}
@@ -71,7 +71,7 @@ func (t *Tenant) CommitPeriod(ctx context.Context, r CommitRequest) (*domain.Fes
 // Die Jahresfestschreibung darf denselben Stichtag tragen wie die des letzten
 // Monats: dazwischen liegt die Abschlussperiode, in der die Abschlussbuchungen
 // zum Bilanzstichtag entstehen. Erst die Jahresfestschreibung schließt sie.
-func commit(ctx context.Context, s *Services, r CommitRequest) (*domain.Festschreibung, error) {
+func commit(ctx context.Context, s *Services, st stores, r CommitRequest) (*domain.Festschreibung, error) {
 	year := s.Journal.FiscalYearOf(ctx, r.CutoffDate)
 	committed, err := s.Repos.Festschreibung.FindByFiscalYear(ctx, year)
 	if err != nil {
@@ -130,17 +130,17 @@ func commit(ctx context.Context, s *Services, r CommitRequest) (*domain.Festschr
 		Actor:           actor.Actor(),
 		CreatedAt:       now,
 	}
-	if err := s.Repos.Festschreibung.Create(ctx, rec); err != nil {
+	if err := st.festschreibung.Create(ctx, rec); err != nil {
 		return nil, fmt.Errorf("Festschreibung speichern: %w", err)
 	}
 	// Erst jetzt bekommen die Buchungen ihren Festschreibungszeitpunkt: er
 	// verweist auf die Festschreibung, und die hat vorher keine Kennung.
-	stamped, err := s.Repos.Journal.MarkCommitted(ctx, year, r.CutoffDate, rec.ID, now)
+	stamped, err := st.journal.MarkCommitted(ctx, year, r.CutoffDate, rec.ID, now)
 	if err != nil {
 		return nil, fmt.Errorf("Buchungen festschreiben: %w", err)
 	}
 	rec.EntriesStamped = int(stamped)
-	if err := s.Repos.Festschreibung.Update(ctx, rec); err != nil {
+	if err := st.festschreibung.Update(ctx, rec); err != nil {
 		return nil, err
 	}
 
@@ -181,7 +181,7 @@ func preCommitChecks(ctx context.Context, s *Services, year int, r CommitRequest
 // eigenen Protokolleintrag mit beiden Zeiten. Ein nachgeholter Stempel sagt
 // über die Uhr nichts, er ist um die Zeit ohne Netz später.
 func stampCommitment(
-	ctx context.Context, s *Services, rec *domain.Festschreibung, res *timestamp.Result, checkDrift bool,
+	ctx context.Context, st stores, rec *domain.Festschreibung, res *timestamp.Result, checkDrift bool,
 ) error {
 	gt := res.GenTime
 	rec.TimestampToken = res.Token
@@ -191,13 +191,13 @@ func stampCommitment(
 	if checkDrift {
 		rec.TimeDriftNote = service.TimeDriftNote(rec.CreatedAt, gt, res.TSAName)
 	}
-	if err := s.Repos.Festschreibung.Update(ctx, rec); err != nil {
+	if err := st.festschreibung.Update(ctx, rec); err != nil {
 		return err
 	}
 	if rec.TimeDriftNote == "" {
 		return nil
 	}
-	return s.Repos.Audit.Log(ctx, domain.AuditActionIntegrityCheck, "TIME_DRIFT",
+	return st.audit.Log(ctx, domain.AuditActionIntegrityCheck, "TIME_DRIFT",
 		fmt.Sprintf("%d", rec.ID),
 		fmt.Sprintf("%s Systemzeit %s, beglaubigte Zeit %s.",
 			rec.TimeDriftNote,
@@ -226,8 +226,8 @@ func (t *Tenant) RetryTimestamps(ctx context.Context) (int, error) {
 			// Weiter ohne Netz; beim nächsten Lauf.
 			continue
 		}
-		if err := t.Write(ctx, func(ctx context.Context, s *Services) error {
-			return stampCommitment(ctx, s, &rec, res, false)
+		if err := t.Write(ctx, func(ctx context.Context, _ *Services) error {
+			return stampCommitment(ctx, t.repos, &rec, res, false)
 		}, ExaminerExempt()); err != nil {
 			return stamped, err
 		}

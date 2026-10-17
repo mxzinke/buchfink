@@ -55,6 +55,7 @@ type Tenant struct {
 	reader      *gorm.DB
 	tx          domain.TxRunner
 	svc         *Services
+	repos       stores
 	renderer    *invoice.Renderer
 	ownRenderer bool
 	examiner    examinerCache
@@ -101,12 +102,12 @@ func Open(ctx context.Context, dataDir string, o Options) (*Tenant, error) {
 	t := &Tenant{
 		info: info, gen: o.Generation,
 		db: db, reader: reader, tx: repository.NewTxRunner(db),
-		svc:      wire(db, info, renderer, o),
 		renderer: renderer, ownRenderer: own,
 		backupDir: o.BackupDir, logger: logger,
 		network: o.Network,
 		write:   newWriteLock(),
 	}
+	t.svc, t.repos = wire(db, info, renderer, o)
 
 	t.svc.Backup.SetRecorder(t.recordInWrite)
 	t.startYear = startYear(ctx, repository.NewSettingsRepository(db), time.Now())
@@ -179,8 +180,8 @@ func (t *Tenant) Generation() uint64 { return t.gen }
 // scheitert an der Verbindung; einzig das Änderungsprotokoll schreibt, weil
 // ein Zugriff auf personenbezogene Daten auch beim Lesen protokolliert wird.
 func (t *Tenant) Read(ctx context.Context, fn func(context.Context, *Services) error) error {
-	if _, ok := actor.ChannelOf(ctx); !ok {
-		return ErrNoChannel
+	if _, err := channelOf(ctx); err != nil {
+		return err
 	}
 	if inWriteOf(ctx, t) || repository.IsReadOnly(ctx) {
 		return fn(ctx, t.svc)
@@ -206,9 +207,9 @@ func (t *Tenant) Write(ctx context.Context, fn func(context.Context, *Services) 
 	for _, opt := range opts {
 		opt(&o)
 	}
-	channel, ok := actor.ChannelOf(ctx)
-	if !ok {
-		return ErrNoChannel
+	channel, err := channelOf(ctx)
+	if err != nil {
+		return err
 	}
 	if o.appOnly && channel != actor.ChannelUI {
 		return ErrAppOnly

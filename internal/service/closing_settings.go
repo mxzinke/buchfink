@@ -67,6 +67,9 @@ func (s *ClosingSettingsService) Get(ctx context.Context) (*ClosingSettings, err
 // Save prüft und schreibt die Einstellungen und protokolliert die Änderung mit
 // Vorher- und Nachherwert.
 func (s *ClosingSettingsService) Save(ctx context.Context, in ClosingSettings) (*ClosingSettings, error) {
+	if err := requireHuman(ctx, "Die Änderung der Abschluss-Einstellungen"); err != nil {
+		return nil, err
+	}
 	if in.TradeTaxRatePercent < 200 || in.TradeTaxRatePercent > 1000 {
 		return nil, fmt.Errorf("der Gewerbesteuer-Hebesatz liegt zwischen 200 %% und 1000 %% (§ 16 Abs. 4 Satz 2 GewStG: mindestens 200 %%), angegeben sind %d %%", in.TradeTaxRatePercent)
 	}

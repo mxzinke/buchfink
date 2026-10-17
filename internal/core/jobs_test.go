@@ -100,7 +100,7 @@ func TestJobsRunOnTheClockOfTheCore(t *testing.T) {
 	}
 	until := time.Now().AddDate(0, 0, 5).Format("2006-01-02")
 	if err := tenant.Write(uiCtx, func(ctx context.Context, s *Services) error {
-		if err := s.Repos.Examiner.Create(ctx, &domain.ExaminerPeriod{
+		if err := tenant.repos.examiner.Create(ctx, &domain.ExaminerPeriod{
 			From: time.Now().Format("2006-01-02"), Until: until, Reason: "an der App vorbei",
 		}); err != nil {
 			return err

@@ -107,7 +107,7 @@ func (t *Tenant) EnableExaminer(ctx context.Context, until, reason string) (Exam
 		if previous.ActiveOn(day) {
 			previous.EndedOn = &day
 			previous.EndReason = fmt.Sprintf("abgelöst durch den Zeitraum bis %s", until)
-			if err := s.Repos.Examiner.Save(ctx, previous); err != nil {
+			if err := t.repos.examiner.Save(ctx, previous); err != nil {
 				return nil, "", err
 			}
 		}
@@ -115,7 +115,7 @@ func (t *Tenant) EnableExaminer(ctx context.Context, until, reason string) (Exam
 			From: day, Until: until, Reason: reason,
 			Actor: actor.Actor(), Channel: string(channel), CreatedAt: time.Now().UTC(),
 		}
-		if err := s.Repos.Examiner.Create(ctx, next); err != nil {
+		if err := t.repos.examiner.Create(ctx, next); err != nil {
 			return nil, "", err
 		}
 		return next, fmt.Sprintf("Prüfermodus eingeschaltet bis %s. Grund: %s", until, reason), nil
@@ -139,7 +139,7 @@ func (t *Tenant) DisableExaminer(ctx context.Context, reason string) (ExaminerSt
 		}
 		previous.EndedOn = &day
 		previous.EndReason = reason
-		if err := s.Repos.Examiner.Save(ctx, previous); err != nil {
+		if err := t.repos.examiner.Save(ctx, previous); err != nil {
 			return nil, "", err
 		}
 		return nil, fmt.Sprintf("Prüfermodus beendet (war bis %s). Grund: %s", previous.Until, reason), nil
@@ -162,7 +162,7 @@ func (t *Tenant) changeExaminer(
 		if err != nil {
 			return err
 		}
-		return s.Repos.Audit.LogChange(ctx, domain.AuditActionUpdate, domain.AuditEntityReadOnly, t.ID(),
+		return t.repos.audit.LogChange(ctx, domain.AuditActionUpdate, domain.AuditEntityReadOnly, t.ID(),
 			details, before, examinerFields(next, today()))
 	}, ExaminerExempt(), AppOnly())
 	if err != nil {

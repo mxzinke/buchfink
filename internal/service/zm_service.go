@@ -207,7 +207,7 @@ func (s *ZMService) List(ctx context.Context, year int) ([]domain.ZMReturn, erro
 
 // ConfirmSubmitted bestätigt die Übermittlung an das Bundeszentralamt.
 func (s *ZMService) ConfirmSubmitted(ctx context.Context, id uint, date, ticket, note string) (*domain.ZMReturn, error) {
-	if err := refuseAgent(ctx, "Die Bestätigung der Übermittlung"); err != nil {
+	if err := requireHuman(ctx, "Die Bestätigung der Übermittlung"); err != nil {
 		return nil, err
 	}
 	rec, err := s.zmRepo.FindByID(ctx, id)

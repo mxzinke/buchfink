@@ -163,7 +163,7 @@ func TestHangingTimestampAuthorityBlocksNobody(t *testing.T) {
 
 	start := time.Now()
 	if err := tenant.Write(uiCtx, func(ctx context.Context, s *Services) error {
-		return s.Repos.Settings.Set(ctx, "notiz", "während des Zeitstempels")
+		return tenant.repos.settings.Set(ctx, "notiz", "während des Zeitstempels")
 	}); err != nil {
 		t.Fatalf("Schreiben während des Zeitstempels: %v", err)
 	}

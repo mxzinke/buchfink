@@ -58,5 +58,5 @@ func (b *BuchfinkBridge) GetDeadlines(year int) ([]domain.Deadline, error) {
 func (b *BuchfinkBridge) MarkDeadlineDone(key, date string) error {
 	return b.change(func(ctx context.Context, s *core.Services) error {
 		return s.Deadlines.MarkDone(ctx, key, date)
-	})
+	}, core.AppOnly())
 }
