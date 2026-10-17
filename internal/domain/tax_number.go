@@ -44,11 +44,18 @@ var taxNumberSchemes = map[string]taxNumberScheme{
 
 // ElsterTaxNumber rechnet die Steuernummer eines Landes in das 13-stellige
 // Bundesschema um. Steht sie schon im Bundesschema, wird sie geprüft und
-// zurückgegeben. Leere Steuernummer oder leeres Land ergeben "" ohne Fehler.
+// zurückgegeben; dafür braucht es kein Land. Eine leere Steuernummer oder eine
+// Landesnummer ohne Land ergeben "" ohne Fehler.
 func ElsterTaxNumber(taxNumber, state string) (string, error) {
 	digits := onlyDigits(taxNumber)
 	state = strings.ToUpper(strings.TrimSpace(state))
-	if digits == "" || state == "" {
+	if digits == "" {
+		return "", nil
+	}
+	if state == "" {
+		if federalScheme(digits) {
+			return digits, nil
+		}
 		return "", nil
 	}
 	scheme, ok := taxNumberSchemes[state]
@@ -86,6 +93,20 @@ func ElsterTaxNumber(taxNumber, state string) (string, error) {
 		return "", fmt.Errorf("die Steuernummer %s ließ sich nicht umrechnen", strings.TrimSpace(taxNumber))
 	}
 	return out, nil
+}
+
+// federalScheme meldet, ob eine Ziffernfolge im Bundesschema steht: 13
+// Stellen, Präfix eines Landes und an fünfter Stelle die eingefügte 0.
+func federalScheme(digits string) bool {
+	if len(digits) != 13 || digits[4] != '0' {
+		return false
+	}
+	for _, scheme := range taxNumberSchemes {
+		if strings.HasPrefix(digits, scheme.prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // TaxOfficeNumber ist die vierstellige Bundesfinanzamtsnummer: die ersten vier

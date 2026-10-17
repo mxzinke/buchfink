@@ -75,4 +75,11 @@ func TestElsterTaxNumberRejectsWhatDoesNotFit(t *testing.T) {
 	if got, err := ElsterTaxNumber("181/815/08155", ""); got != "" || err != nil {
 		t.Errorf("ohne Land = %q, %v", got, err)
 	}
+	// Im Bundesschema braucht die Nummer kein Land.
+	if got, err := ElsterTaxNumber("9143081508151", ""); got != "9143081508151" || err != nil {
+		t.Errorf("Bundesschema ohne Land = %q, %v", got, err)
+	}
+	if got, err := ElsterTaxNumber("9143181508151", ""); got != "" || err != nil {
+		t.Errorf("13 Ziffern ohne 0 an fünfter Stelle = %q, %v", got, err)
+	}
 }

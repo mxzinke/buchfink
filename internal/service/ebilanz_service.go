@@ -3,8 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"strings"
-	"unicode"
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/ebilanz"
@@ -159,13 +157,6 @@ func (s *EBilanzService) settings(ctx context.Context) (*domain.CompanySettings,
 	if err != nil {
 		return nil, fmt.Errorf("die Unternehmensdaten konnten nicht gelesen werden: %w", err)
 	}
-	if settings.TaxNumberElster == "" {
-		// Eine Steuernummer, die schon im Bundesschema steht, braucht keine
-		// Umrechnung über das Bundesland.
-		if digits := onlyDigits(settings.TaxNumber); len(digits) == 13 {
-			settings.TaxNumberElster = digits
-		}
-	}
 	return settings, nil
 }
 
@@ -234,13 +225,4 @@ func (s *EBilanzService) input(ctx context.Context, year int, opts EBilanzOption
 		in.PriorEquity, in.PriorPaidIn = &equity, &paidIn
 	}
 	return in, nil
-}
-
-func onlyDigits(s string) string {
-	return strings.Map(func(r rune) rune {
-		if unicode.IsDigit(r) {
-			return r
-		}
-		return -1
-	}, s)
 }
