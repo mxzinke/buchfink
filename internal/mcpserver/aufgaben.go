@@ -205,7 +205,7 @@ type pflichtOut struct {
 func (o pflichtOut) Ref() string { return "pflicht:" + o.Pflicht.Schluessel }
 
 type anlassIn struct {
-	WriteArgs
+	KeyedWriteArgs
 	Art   string `json:"art" jsonschema:"gesellschafterwechsel, wirtschaftlich-berechtigte, vorauszahlungsbescheid-kst oder vorauszahlungsbescheid-gewst"`
 	Datum Datum  `json:"datum" jsonschema:"Tag des Anlasses (Wirksamwerden, Bescheiddatum)"`
 	Notiz string `json:"notiz,omitempty" jsonschema:"was geschehen ist, mit Fundstelle des Nachweises"`

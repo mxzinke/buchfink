@@ -87,6 +87,9 @@ type belegBuchenRueckfrageIn struct {
 	NurVorschau             bool                   `json:"nur_vorschau,omitempty"`
 }
 
+func (in belegBuchenIn) preview() bool           { return in.NurVorschau }
+func (in belegBuchenRueckfrageIn) preview() bool { return in.NurVorschau }
+
 var settlements = map[string]service.SettlementKind{
 	"offen": service.SettlementOpen, "bezahlt": service.SettlementPaid, "kreditkarte": service.SettlementCreditCard,
 	"auslage": service.SettlementShareholderExpense,
@@ -280,7 +283,7 @@ type eigenbelegIn struct {
 }
 
 type buchungErfassenIn struct {
-	WriteArgs
+	KeyedWriteArgs
 	Buchungsdatum    Datum         `json:"buchungsdatum"`
 	Belegdatum       Datum         `json:"belegdatum,omitempty" jsonschema:"Vorgabe Buchungsdatum"`
 	LeistungVon      Datum         `json:"leistung_von,omitempty"`
@@ -578,9 +581,10 @@ func registerBuchen(tb *Toolbox) {
 		Title: "Buchung erfassen",
 		Tier:  TierConfirm,
 		Description: "Handbuchung mit Soll- und Habenzeilen zu einem abgelegten Beleg (beleg_id) oder mit Eigenbeleg " +
-			"(grund, brutto). Für Umbuchungen, Gesellschafterdarlehen (Zugang, Tilgung), Kreditkartenabrechnung " +
-			"ohne Bankumsatz und Abschlussbuchungen im 13. Monat (abschlussperiode). Eingangsrechnungen über " +
-			"beleg_buchen, Bankumsätze über bankumsatz_buchen. Vorher im Chat bestätigen lassen.",
+			"(grund, brutto). Für Umbuchungen, Kreditkartenabrechnung ohne Bankumsatz und Abschlussbuchungen im " +
+			"13. Monat (abschlussperiode). Eingangsrechnungen über beleg_buchen, Bankumsätze über bankumsatz_buchen. " +
+			"Kapital, Rücklagen, Ergebnisvortrag, Ausschüttung und Gesellschafterdarlehen haben einen Fachweg und " +
+			"gehen hier nicht (nur_in_app). Vorher im Chat bestätigen lassen.",
 	}, func(ctx context.Context, c *Call, s *core.Services, in buchungErfassenIn) (buchungOut, error) {
 		req, err := in.request()
 		if err != nil {

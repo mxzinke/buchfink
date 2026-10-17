@@ -96,11 +96,32 @@ type WriteArgs struct {
 
 func (a WriteArgs) writeArgs() WriteArgs { return a }
 func (a WriteArgs) tenantID() string     { return a.MandantID }
+func (a WriteArgs) keyRequired() bool    { return false }
+
+// KeyedWriteArgs sind WriteArgs mit Pflichtschlüssel. Sie gehören in die
+// Eingabe eines Werkzeugs, dessen Vorgang keinen natürlichen Schlüssel hat:
+// ohne ihn buchte ein nach einem Abbruch wiederholter Aufruf ein zweites Mal.
+type KeyedWriteArgs struct {
+	MandantID            string `json:"mandant_id" jsonschema:"Kennung des Mandanten aus status. Ist inzwischen ein anderer geöffnet, wird nichts geschrieben."`
+	Idempotenzschluessel string `json:"idempotenz_schluessel" jsonschema:"Pflicht: frei gewählter Schlüssel je Vorgang (8 bis 100 Zeichen aus A-Z a-z 0-9 - _ . :). Derselbe Schlüssel mit derselben Eingabe liefert das erste Ergebnis, statt ein zweites Mal zu buchen. Eine Vorschau verbraucht ihn nicht."`
+}
+
+func (a KeyedWriteArgs) writeArgs() WriteArgs {
+	return WriteArgs{MandantID: a.MandantID, Idempotenzschluessel: a.Idempotenzschluessel}
+}
+func (a KeyedWriteArgs) tenantID() string  { return a.MandantID }
+func (a KeyedWriteArgs) keyRequired() bool { return true }
 
 type writeInput interface {
 	tenantInput
 	writeArgs() WriteArgs
+	keyRequired() bool
 }
+
+// previewInput ist eine Eingabe mit nur_vorschau. Eine Vorschau schreibt
+// nichts und geht deshalb am Idempotenzdienst vorbei: derselbe Schlüssel
+// gilt danach für den echten Aufruf.
+type previewInput interface{ preview() bool }
 
 // Wiederholung kennzeichnet die Ausgabe eines schreibenden Werkzeugs, die aus
 // einem früheren Aufruf mit demselben Schlüssel stammt.
@@ -184,10 +205,18 @@ func AddWritePrepared[In writeInput, Out any](
 			return out, err
 		}
 		args := in.writeArgs()
-		if args.Idempotenzschluessel != "" {
+		preview := false
+		if p, ok := any(in).(previewInput); ok {
+			preview = p.preview()
+		}
+		switch {
+		case args.Idempotenzschluessel != "":
 			if err := domain.ValidateIdempotencyKey(args.Idempotenzschluessel); err != nil {
 				return out, inputError("idempotenz_schluessel", "%v", err)
 			}
+		case in.keyRequired() && !preview:
+			return out, inputError("idempotenz_schluessel", "dieses Werkzeug bucht ohne natürlichen Schlüssel; "+
+				"ein eigener Schlüssel je Vorgang ist Pflicht, damit eine Wiederholung nicht doppelt bucht")
 		}
 		ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 		defer cancel()
@@ -197,7 +226,7 @@ func AddWritePrepared[In writeInput, Out any](
 			}
 		}
 		err := c.Tenant.Write(ctx, func(ctx context.Context, s *core.Services) error {
-			if args.Idempotenzschluessel == "" {
+			if args.Idempotenzschluessel == "" || preview {
 				var err error
 				out, err = fn(ctx, c, s, in)
 				return err

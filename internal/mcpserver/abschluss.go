@@ -182,7 +182,7 @@ type aktivierenIn struct {
 }
 
 type abschlussbuchungIn struct {
-	WriteArgs
+	KeyedWriteArgs
 	Art                 string                 `json:"art" jsonschema:"afa_lauf, abgrenzung, rueckstellung, ust_verrechnung, steuerrueckstellung, ug_ruecklage, wertberichtigung, unfertige_leistungen, fremdwaehrung oder anlage_aktivieren"`
 	Geschaeftsjahr      int                    `json:"geschaeftsjahr,omitempty"`
 	NurVorschau         bool                   `json:"nur_vorschau,omitempty" jsonschema:"rechnen, nicht buchen"`
@@ -195,6 +195,8 @@ type abschlussbuchungIn struct {
 	UnfertigeLeistungen *unfertigeIn           `json:"unfertige_leistungen,omitempty"`
 	Anlage              *aktivierenIn          `json:"anlage,omitempty"`
 }
+
+func (in abschlussbuchungIn) preview() bool { return in.NurVorschau }
 
 type abschlussbuchungOut struct {
 	Wiederholung

@@ -200,6 +200,11 @@ func (s *PaymentService) splitAccountLine(
 	if account == "" {
 		return domain.JournalLine{}, fmt.Errorf("es fehlt das Gegenkonto")
 	}
+	if line.LoanID == 0 {
+		if err := requireFachwegForPayment(ctx, account); err != nil {
+			return domain.JournalLine{}, err
+		}
+	}
 	if err := s.checkSplitAccount(ctx, tx, account); err != nil {
 		return domain.JournalLine{}, err
 	}

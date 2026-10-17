@@ -65,7 +65,7 @@ type offenePostenOut struct {
 }
 
 type mahnungIn struct {
-	WriteArgs
+	KeyedWriteArgs
 	BuchungID uint   `json:"buchung_id" jsonschema:"Buchung der offenen Forderung"`
 	Datum     Datum  `json:"datum" jsonschema:"Tag, an dem die Mahnung dem Kunden zugegangen ist"`
 	Stufe     int    `json:"stufe,omitempty" jsonschema:"1. Mahnung, 2. Mahnung …; Vorgabe 1"`

@@ -118,10 +118,17 @@ func TestManualEntryReversalAndReminder(t *testing.T) {
 	if booked.Buchung.ID == 0 || !replay.Wiederholt || replay.Buchung.ID != booked.Buchung.ID {
 		t.Fatalf("erfassen: %+v / %+v", booked, replay)
 	}
-	unbalanced := a.args(map[string]any{"buchungsdatum": "2026-03-10", "beschreibung": "geht nicht auf", "steuerfall": "not_taxable",
+	unbalanced := a.args(map[string]any{"idempotenz_schluessel": "geht-nicht-auf", "buchungsdatum": "2026-03-10", "beschreibung": "geht nicht auf", "steuerfall": "not_taxable",
 		"eigenbeleg": map[string]any{"grund": "Test", "brutto": "1.00"},
 		"zeilen":     []any{map[string]any{"konto": "1800", "seite": "S", "betrag": "1.00"}, map[string]any{"konto": "1360", "seite": "H", "betrag": "0.99"}}})
 	a.fail("buchung_erfassen", unbalanced, CodeRule)
+	// Ohne natürlichen Schlüssel ist der Idempotenzschlüssel Pflicht.
+	unkeyed := a.args(map[string]any{"buchungsdatum": "2026-03-10", "beschreibung": "ohne Schlüssel", "steuerfall": "not_taxable",
+		"eigenbeleg": map[string]any{"grund": "Test", "brutto": "1.00"}, "idempotenz_schluessel": "",
+		"zeilen": []any{map[string]any{"konto": "1800", "seite": "S", "betrag": "1.00"}, map[string]any{"konto": "1360", "seite": "H", "betrag": "1.00"}}})
+	if e := a.fail("buchung_erfassen", unkeyed, CodeInvalidInput); !strings.Contains(e.Nachricht, "idempotenz_schluessel") {
+		t.Errorf("ohne Schlüssel: %+v", e)
+	}
 
 	var read struct {
 		ID         uint   `json:"id"`
@@ -147,7 +154,8 @@ func TestManualEntryReversalAndReminder(t *testing.T) {
 			Offen         string `json:"offen"`
 		} `json:"posten"`
 	}
-	a.fail("mahnung_vermerken", a.args(map[string]any{"buchung_id": booked.Buchung.ID, "datum": time.Now().AddDate(0, 0, 3).Format("2006-01-02")}), CodeRule)
+	a.fail("mahnung_vermerken", a.args(map[string]any{"buchung_id": booked.Buchung.ID, "idempotenz_schluessel": "mahnung-zukunft",
+		"datum": time.Now().AddDate(0, 0, 3).Format("2006-01-02")}), CodeRule)
 	reminder := a.args(map[string]any{"buchung_id": booked.Buchung.ID, "datum": "2026-04-20", "notiz": "per E-Mail",
 		"idempotenz_schluessel": "mahnung-17-1"})
 	a.ok("mahnung_vermerken", reminder, &dunned)
@@ -247,10 +255,31 @@ func TestReportsAndClosing(t *testing.T) {
 	var statement ablageOut
 	a.ok("beleg_ablegen", a.args(map[string]any{"eingang_am": today(), "dateien": []any{map[string]any{"pfad": h.inboxFile("einzahlung.pdf", pdf("Kontoauszug"))}},
 		"belegdatum": "2026-02-03", "aussteller": "Hausbank", "brutto": "25000.00"}), &statement)
-	a.ok("buchung_erfassen", a.args(map[string]any{"buchungsdatum": "2026-02-03", "beschreibung": "Stammkapital eingezahlt",
+	// Kapital, Rücklagen, Ausschüttung und Gesellschafterdarlehen haben einen
+	// Fachweg; von Hand bucht sie ein Agent nicht.
+	capital := map[string]any{"idempotenz_schluessel": "kapital-2026", "buchungsdatum": "2026-02-03", "beschreibung": "Stammkapital eingezahlt",
 		"steuerfall": "not_taxable", "beleg_id": statement.Beleg.ID,
 		"zeilen": []any{map[string]any{"konto": "1800", "seite": "S", "betrag": "25000.00"},
-			map[string]any{"konto": "2900", "seite": "H", "betrag": "25000.00"}}}), nil)
+			map[string]any{"konto": "2900", "seite": "H", "betrag": "25000.00"}}}
+	a.fail("buchung_erfassen", a.args(capital), CodeAppOnly)
+	for _, lines := range [][2]string{{"2970", "3519"}, {"2970", "2930"}, {"2970", "2960"}, {"1800", "3640"}} {
+		e := a.fail("buchung_erfassen", a.args(map[string]any{"idempotenz_schluessel": "beschluss-" + lines[1], "buchungsdatum": "2026-06-30",
+			"beschreibung": "Gesellschafterbeschluss", "steuerfall": "not_taxable",
+			"eigenbeleg": map[string]any{"grund": "Gesellschafterbeschluss", "brutto": "1000.00"},
+			"zeilen": []any{map[string]any{"konto": lines[0], "seite": "S", "betrag": "1000.00"},
+				map[string]any{"konto": lines[1], "seite": "H", "betrag": "1000.00"}}}), CodeAppOnly)
+		if e.Werkzeug != "nur_app" {
+			t.Errorf("%v: %+v", lines, e)
+		}
+	}
+	h.ui(func(ctx context.Context, s *core.Services) error {
+		_, err := s.Posting.PostManualEntry(ctx, service.ManualEntryRequest{ReceiptID: statement.Beleg.ID,
+			Entry: domain.JournalEntry{BookingDate: "2026-02-03", DocumentDate: "2026-02-03", ServiceDateFrom: "2026-02-03",
+				ServiceDateTo: "2026-02-03", Description: "Stammkapital eingezahlt", TaxTreatment: domain.TaxTreatmentNotTaxable,
+				Lines: []domain.JournalLine{{Position: 1, Side: domain.SideDebit, Account: "1800", Amount: 2500000},
+					{Position: 2, Side: domain.SideCredit, Account: "2900", Amount: 2500000}}}})
+		return err
+	})
 
 	var report struct {
 		Susa []struct {
@@ -332,12 +361,12 @@ func TestReportsAndClosing(t *testing.T) {
 		Vorschau   bool   `json:"vorschau"`
 		BuchungIDs []uint `json:"buchung_ids"`
 	}
-	a.ok("abschlussbuchung", a.args(map[string]any{"art": "ust_verrechnung", "nur_vorschau": true}), &preview)
+	a.ok("abschlussbuchung", a.args(map[string]any{"art": "ust_verrechnung", "nur_vorschau": true, "idempotenz_schluessel": "ust-2026"}), &preview)
 	if !preview.Vorschau || len(preview.BuchungIDs) != 0 {
 		t.Errorf("Vorschau bucht nicht: %+v", preview)
 	}
-	a.fail("abschlussbuchung", a.args(map[string]any{"art": "festschreibung"}), CodeInvalidInput)
-	a.fail("abschlussbuchung", a.args(map[string]any{"art": "rueckstellung"}), CodeInvalidInput)
+	a.fail("abschlussbuchung", a.args(map[string]any{"art": "festschreibung", "idempotenz_schluessel": "abschluss-1"}), CodeInvalidInput)
+	a.fail("abschlussbuchung", a.args(map[string]any{"art": "rueckstellung", "idempotenz_schluessel": "abschluss-2"}), CodeInvalidInput)
 }
 
 func keys(rows []struct {
@@ -537,12 +566,12 @@ func TestObligationsAndStatus(t *testing.T) {
 		Art  string `json:"art"`
 		Hinw string `json:"hinweis"`
 	}
-	a.ok("anlass_erfassen", a.args(map[string]any{"art": "gesellschafterwechsel", "datum": "2026-06-01",
+	a.ok("anlass_erfassen", a.args(map[string]any{"art": "gesellschafterwechsel", "datum": "2026-06-01", "idempotenz_schluessel": "anlass-1",
 		"notiz": "Anteilsübertragung, Urkunde UR 123/2026"}), &event)
 	if event.ID == 0 || event.Art != "gesellschafterwechsel" {
 		t.Fatalf("Anlass: %+v", event)
 	}
-	a.fail("anlass_erfassen", a.args(map[string]any{"art": "kapitalerhoehung", "datum": "2026-06-01"}), CodeInvalidInput)
+	a.fail("anlass_erfassen", a.args(map[string]any{"art": "kapitalerhoehung", "datum": "2026-06-01", "idempotenz_schluessel": "anlass-2"}), CodeInvalidInput)
 	a.ok("fristen", map[string]any{"art": []any{"gesellschafterliste"}, "geschaeftsjahr": 2026}, &due)
 	if len(due.Pflichten) == 0 {
 		t.Errorf("der Anlass löst die Gesellschafterliste aus: %+v", due)

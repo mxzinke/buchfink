@@ -154,6 +154,8 @@ type zuordnenIn struct {
 	NurVorschau  bool `json:"nur_vorschau,omitempty" jsonschema:"nur einstufen, nicht buchen"`
 }
 
+func (in zuordnenIn) preview() bool { return in.NurVorschau }
+
 type differenzIn struct {
 	Art    string `json:"art" jsonschema:"skonto, gebuehr, rundung oder waehrung"`
 	Betrag Betrag `json:"betrag"`

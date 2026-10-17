@@ -47,17 +47,17 @@ var writeFixtures = map[string]map[string]any{
 	"standardgruppe_vorschlagen":  {"kontakt_id": 1, "buchungsgruppe": "software", "begruendung": "drei Rechnungen"},
 	"beleg_buchen_mit_rueckfrage": bookArgs(1, 1, "2026-05-04", "100.00"),
 	"bankumsatz_buchen":           {"bankumsatz_id": 1, "ignorieren": map[string]any{"grund": "privat"}},
-	"buchung_erfassen": {"buchungsdatum": "2026-05-04", "beschreibung": "Umbuchung", "steuerfall": "not_taxable",
+	"buchung_erfassen": {"idempotenz_schluessel": "matrix-erfassen", "buchungsdatum": "2026-05-04", "beschreibung": "Umbuchung", "steuerfall": "not_taxable",
 		"zeilen": []any{map[string]any{"konto": "1360", "seite": "S", "betrag": "1.00"},
 			map[string]any{"konto": "1800", "seite": "H", "betrag": "1.00"}}},
 	"buchung_stornieren":  {"buchung_id": 1, "grund": "Fehlbuchung"},
 	"lohnjournal_buchen":  {"monat": "2026-05", "beleg_id": 1, "netto": "1.00"},
-	"rechnung_ausstellen": {},
-	"mahnung_vermerken":   {"buchung_id": 1, "datum": "2026-05-04"},
-	"abschlussbuchung":    {"art": "ust_verrechnung", "nur_vorschau": true},
+	"rechnung_ausstellen": {"idempotenz_schluessel": "matrix-rechnung"},
+	"mahnung_vermerken":   {"buchung_id": 1, "datum": "2026-05-04", "idempotenz_schluessel": "matrix-mahnung"},
+	"abschlussbuchung":    {"art": "ust_verrechnung", "nur_vorschau": true, "idempotenz_schluessel": "matrix-abschluss"},
 	"erklaerung_eingabe":  {"art": "kst", "jahr": 2026, "schluessel": "kst.x", "wert": map[string]any{"text": "y"}},
 	"beleg_verwerfen":     {"beleg_id": 1, "grund": "Dublette"},
-	"anlass_erfassen":     {"art": "gesellschafterwechsel", "datum": "2026-05-04"},
+	"anlass_erfassen":     {"art": "gesellschafterwechsel", "datum": "2026-05-04", "idempotenz_schluessel": "matrix-anlass"},
 }
 
 // readFixtures sind gültige Mindesteingaben der lesenden Werkzeuge.
@@ -300,10 +300,14 @@ func TestAppOnlyOperationsHaveNoTool(t *testing.T) {
 
 // Jedes Werkzeug, das in einem Vorgang schreibt, nimmt einen
 // Idempotenzschlüssel; die Werkzeuge aus mehreren Schritten nehmen keinen.
+// Wer keinen natürlichen Schlüssel hat, verlangt ihn.
 func TestWriteToolsTakeAnIdempotencyKey(t *testing.T) {
 	h := newHarness(t)
 	tools := listTools(t, h.mustSession(h.login("Claude Code", "").access))
-	flows := map[string]bool{"kontoauszug_importieren": true, "erklaerung_exportieren": true, "ebilanz_exportieren": true}
+	flows := map[string]bool{"kontoauszug_importieren": true, "erklaerung_exportieren": true, "ebilanz_exportieren": true,
+		"beleg_datei_exportieren": true}
+	keyed := map[string]bool{"buchung_erfassen": true, "rechnung_ausstellen": true, "abschlussbuchung": true,
+		"mahnung_vermerken": true, "anlass_erfassen": true}
 	for name, tier := range catalog {
 		if tier == TierRead {
 			continue
@@ -311,6 +315,9 @@ func TestWriteToolsTakeAnIdempotencyKey(t *testing.T) {
 		schema, _ := json.Marshal(tools[name].InputSchema)
 		if has := strings.Contains(string(schema), `"idempotenz_schluessel"`); has == flows[name] {
 			t.Errorf("%s: Idempotenzschlüssel %v, mehrschrittig %v", name, has, flows[name])
+		}
+		if required := slices.Contains(requiredOf(tools[name]), "idempotenz_schluessel"); required != keyed[name] {
+			t.Errorf("%s: Schlüssel Pflicht %v, erwartet %v", name, required, keyed[name])
 		}
 	}
 }
