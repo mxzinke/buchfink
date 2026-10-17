@@ -55,8 +55,8 @@ MUSS* · §§ 33, 34, 34a UStDV
 | Erleichterung bis 250 Euro brutto, in den Ausnahmefällen gesperrt | erfüllt | `service.InvoiceService.Issue` prüft Grenze und Steuerfall; nur für den steuerpflichtigen Inlandsumsatz |
 | Grenze datiert und zum Rechnungsdatum gelesen | erfüllt | `accounting.TaxParametersFor` |
 | Reduzierte Mindestangaben | teilweise | Hinweis auf § 33 UStDV, keine Anschrift nötig, Ausgabe als PDF zulässig; ein Empfänger bleibt Pflicht, einen Barverkauf gibt es nicht |
-| Eingehende Kleinbetragsrechnungen und Fahrausweise geprüft | erfüllt | Belegprüfung nach §§ 33, 34 UStDV beim Buchen |
 | Kleinunternehmerrechnung | nicht im Umfang | Der eigene Mandant kann kein Kleinunternehmer sein; bei Lieferanten wird der Status geführt |
+| Eingehende Kleinbetragsrechnungen und Fahrausweise geprüft | erfüllt | Belegprüfung nach §§ 33, 34 UStDV beim Buchen |
 
 ## RECH-06 E-Rechnung erzeugen
 

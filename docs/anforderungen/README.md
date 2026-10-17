@@ -42,6 +42,10 @@ Im Katalog haben diese Kriterien den Stand „nicht im Umfang“.
 | offen | Fehlt. |
 | nicht im Umfang | Bewusst nicht gebaut, mit Grund. |
 
+Code und Tests verweisen auf ein Kriterium als `K<n>`, etwa `ARC-01 K2` für
+die zweite Zeile der Tabelle von ARC-01. Neue Kriterien kommen deshalb ans Ende
+einer Tabelle.
+
 Fundstellen sind Paket, Typ oder Funktion, etwa
 `service.JournalService.Post` für die Methode `Post` des Typs `JournalService`
 in `internal/service`. Prüfregeln stehen mit ihrem Code, etwa
