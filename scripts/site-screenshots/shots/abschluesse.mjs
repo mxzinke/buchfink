@@ -15,6 +15,8 @@ async function top(page) {
 export default [
   {
     file: 'abschluesse-monat.png',
+    // Auf der Projektseite als abschluesse.png (website/README.md).
+    site: 'abschluesse.png',
     go: async ({ page, nav }) => {
       await nav('Abschlüsse');
       await page.getByRole('heading', { name: 'Juli 2026' }).waitFor();
@@ -79,6 +81,8 @@ export default [
   },
   {
     file: 'abschluesse-kst.png',
+    // Auf der Projektseite als erklaerungen.png (website/README.md).
+    site: 'erklaerungen.png',
     go: async ({ page, open }) => {
       await open('#/closings/declarations/kst');
       await page.getByRole('heading', { name: 'Zu klären' }).waitFor();

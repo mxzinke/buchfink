@@ -15,7 +15,7 @@
  * und am Ende wieder beendet.
  */
 
-import { readFile, mkdir } from 'node:fs/promises';
+import { copyFile, readFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { chromium } from 'playwright';
@@ -96,6 +96,9 @@ async function main() {
       colorScheme: 'light',
       reducedMotion: 'reduce',
     });
+    // Die Beispieldaten stehen am 25.08.2026. Fälligkeiten und der laufende
+    // Monat rechnet die Oberfläche mit der Uhr des Browsers.
+    await context.clock.install({ time: new Date('2026-08-25T10:12:00+02:00') });
 
     const receiptImage = await renderReceipt(context);
     await context.addInitScript((dataUrl) => {
@@ -121,6 +124,7 @@ async function main() {
         await page.evaluate(() => document.fonts.ready);
         await page.waitForTimeout(250);
         await page.screenshot({ path: resolve(OUT, shot.file) });
+        if (shot.site) await copyFile(resolve(OUT, shot.file), resolve(OUT, shot.site));
         count++;
         if (shot.after) await shot.after(ctx);
       }

@@ -110,7 +110,7 @@ const SETTINGS = {
   skr: 'SKR04',
   vatPeriod: 'quarter',
   taxationType: 'SOLL',
-  permanentExtension: true,
+  permanentExtension: false,
   specialPrepayment: 0,
   receiptCaptureDays: 10,
   commitGraceDays: 0,
@@ -304,7 +304,7 @@ const RAW_ENTRIES: MockEntry[] = [
     lines: [['S', '5906', 1480], ['S', '1406', 281.2], ['H', '3300', 1761.2]],
   },
   {
-    n: 43, number: 'B-2026-0043', channel: 'agent:claude-desktop', date: '2026-08-06', documentDate: '2026-07-31',
+    n: 43, number: 'B-2026-0043', channel: 'agent:claude-code', date: '2026-08-06', documentDate: '2026-07-31',
     description: 'Gehälter Juli 2026', source: 'manual',
     lines: [['S', '6020', 26700], ['H', '1800', 26700]],
   },
@@ -319,10 +319,10 @@ const RAW_ENTRIES: MockEntry[] = [
     lines: [['S', '6310', 3600], ['H', '1800', 3600]],
   },
   {
-    n: 46, number: 'B-2026-0046', channel: 'agent:claude-code', date: '2026-08-11', documentDate: '2026-08-10',
-    description: 'Notebooks, 4 Stück (geringwertige Wirtschaftsgüter)',
-    source: 'receipt', documentNumber: 'ER-2026-0231', contactId: 13,
-    lines: [['S', '6260', 2716], ['S', '1406', 516.04], ['H', '3300', 3232.04]],
+    n: 46, number: 'B-2026-0046', channel: 'agent:claude-code', date: '2026-08-11', documentDate: '2026-08-03',
+    description: 'Monitore und Dockingstationen, 4 Stück (geringwertige Wirtschaftsgüter)',
+    source: 'receipt', documentNumber: 'ER-2026-0224', contactId: 13,
+    lines: [['S', '6260', 2380], ['S', '1406', 452.2], ['H', '3300', 2832.2]],
   },
   {
     n: 47, number: 'B-2026-0047', channel: 'agent:claude-code', date: '2026-08-12', documentDate: '2026-08-09',
@@ -367,7 +367,7 @@ const RAW_ENTRIES: MockEntry[] = [
     lines: [['S', '3300', 1761.2], ['H', '1800', 1761.2]],
   },
   {
-    n: 54, number: 'B-2026-0054', channel: 'agent:claude-desktop', date: '2026-08-21', documentDate: '2026-08-19',
+    n: 54, number: 'B-2026-0054', channel: 'agent:claude-code', date: '2026-08-21', documentDate: '2026-08-19',
     description: 'Werbekampagne Fachportal', source: 'receipt', documentNumber: 'ER-2026-0240', contactId: 16,
     lines: [['S', '6600', 1850], ['S', '1406', 351.5], ['H', '3300', 2201.5]],
   },
@@ -435,7 +435,7 @@ const CONTACTS = [
   contact(3, 'customer', '10003', 'Werft & Co. KG', 'Steinwerder 12, 20457 Hamburg', 'DE301447221', 3570, 14),
   contact(4, 'customer', '10004', 'Marschland Energie AG', 'Deichstraße 5, 25813 Husum', 'DE256330914', 0, 30),
   contact(11, 'vendor', '70011', 'Hanse Cloud Services GmbH', 'Kehrwieder 9, 20457 Hamburg', 'DE317744002', 0, 14),
-  contact(13, 'vendor', '70013', 'Techpartner Nord GmbH', 'Ruhrstraße 42, 22761 Hamburg', 'DE263558107', 3232.04, 14),
+  contact(13, 'vendor', '70013', 'Techpartner Nord GmbH', 'Ruhrstraße 42, 22761 Hamburg', 'DE263558107', 2832.2, 14),
   contact(16, 'vendor', '70016', 'Fachportal Media GmbH', 'Kaiser-Wilhelm-Straße 4, 20355 Hamburg', 'DE298001554', 2201.5, 21),
   { ...contact(20, 'vendor', '70020', 'Anna Bauer', 'Isestraße 61, 20149 Hamburg', '', 0, 0), company: '' },
 ];
@@ -482,7 +482,7 @@ const OPEN_ITEMS = [
   openItem(51, 'B-2026-0051', 1, 'Nordwind Handels GmbH', 'customer', '10001', 'RE-2026-0119', '2026-08-17', '2026-08-31', 8211, 0),
   openItem(38, 'B-2026-0038', 2, 'Elbtal Logistik KG', 'customer', '10002', 'RE-2026-0117', '2026-08-06', '2026-09-05', 24920, 0),
   openItem(36, 'B-2026-0036', 3, 'Werft & Co. KG', 'customer', '10003', 'RE-2026-0116', '2026-07-28', '2026-08-27', 7140, 3570),
-  openItem(46, 'B-2026-0046', 13, 'Techpartner Nord GmbH', 'vendor', '70013', 'ER-2026-0231', '2026-08-10', '2026-08-30', 3232.04, 0),
+  openItem(46, 'B-2026-0046', 13, 'Techpartner Nord GmbH', 'vendor', '70013', 'ER-2026-0224', '2026-08-03', '2026-08-17', 2832.2, 0),
   openItem(54, 'B-2026-0054', 16, 'Fachportal Media GmbH', 'vendor', '70016', 'ER-2026-0240', '2026-08-19', '2026-09-03', 2201.5, 0),
 ];
 
@@ -521,7 +521,7 @@ const BANK_TX = [
   tx(1, '2026-08-25', 8211, 'Nordwind Handels GmbH', 'DE44100500001234567890', 'RE-2026-0119 Wartungspauschale Q3', 'unmatched'),
   tx(2, '2026-08-25', -2201.5, 'Fachportal Media GmbH', 'DE18500105172345678901', 'Rechnung 2026-8814 Kampagne August', 'unmatched'),
   tx(3, '2026-08-24', 12460, 'Elbtal Logistik KG', 'DE72200400003456789012', 'RE-2026-0117 Teilzahlung', 'unmatched'),
-  tx(4, '2026-08-24', -3232.04, 'Techpartner Nord GmbH', 'DE93370400444567890123', 'ER-2026-0231 Notebooks, Zahlung nach Skontofrist', 'unmatched'),
+  tx(4, '2026-08-24', -2832.2, 'Techpartner Nord GmbH', 'DE93370400444567890123', 'ER-2026-0224 Monitore, Zahlung nach Skontofrist', 'unmatched'),
   tx(5, '2026-08-21', -890, 'Stadtwerke Nord AöR', 'DE29200505501122334455', 'Abschlag Strom 08/2026, Kundennummer 4471-92', 'unmatched'),
   tx(6, '2026-08-20', 3570, 'Werft & Co. KG', 'DE61200800005678901234', 'RE-2026-0116 Restzahlung', 'unmatched'),
   tx(7, '2026-08-18', -321.3, 'Telekommunikation Nord GmbH', 'DE05300606016789012345', 'ER-2026-0238 Telefon August', 'matched'),
@@ -2192,6 +2192,12 @@ function agentBookings(limit: number) {
   };
 }
 
+/** Die Belege, die die Aufgabe „Belege buchen“ zählt. */
+const UNBOOKED_RECEIPTS = RECEIPTS.filter((r) => r.status === 'filed');
+
+/** Die Bankumsätze, die die Aufgabe „Bankumsätze zuordnen“ zählt. */
+const UNMATCHED_TX = BANK_TX.filter((t) => t.matchStatus === 'unmatched');
+
 /** Die Aufgabenliste der Startseite in ihren drei Gruppen. */
 const TASKS = {
   today: TODAY,
@@ -2201,12 +2207,12 @@ const TASKS = {
     {
       key: 'bank_unmatched',
       group: 'open',
-      title: 'Bankumsätze ohne Zuordnung klären',
-      why: 'Ein Umsatz ohne Zuordnung steht in keiner Buchung und fehlt damit in jeder Auswertung.',
-      reference: 'GoBD Rz. 36',
+      title: 'Bankumsätze zuordnen',
+      why: 'Ein Umsatz ohne Zuordnung ist ein Geschäftsvorfall, der noch nicht gebucht ist.',
+      reference: '§ 146 Abs. 1 AO',
       target: { area: 'books', tab: 'bank' },
-      count: 4,
-      amount: c(12480.6),
+      count: UNMATCHED_TX.length,
+      amount: UNMATCHED_TX.reduce((sum, t) => sum + Math.abs(t.amount), 0),
     },
     {
       key: 'receipts_unbooked',
@@ -2214,18 +2220,8 @@ const TASKS = {
       title: 'Belege buchen',
       why: 'Abgelegte Belege sind erfasst, aber noch nicht gebucht.',
       target: { area: 'books', tab: 'receipts' },
-      count: 2,
-      amount: c(3630.94),
-    },
-    {
-      key: 'overdue_receivables',
-      group: 'open',
-      title: 'Überfällige Kundenrechnungen',
-      why: 'Zwei Kunden sind seit mehr als dreißig Tagen im Verzug.',
-      reference: '§ 286 Abs. 3 BGB',
-      target: { area: 'books', tab: 'invoices' },
-      count: 2,
-      amount: c(28311),
+      count: UNBOOKED_RECEIPTS.length,
+      amount: UNBOOKED_RECEIPTS.reduce((sum, r) => sum + r.grossAmount, 0),
     },
   ],
   upcoming: [

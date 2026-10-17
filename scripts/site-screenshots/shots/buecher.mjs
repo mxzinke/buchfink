@@ -9,6 +9,8 @@ const closeAll = async ({ escape }) => {
 export default [
   {
     file: 'buecher-belege.png',
+    // Auf der Projektseite als buecher.png (website/README.md).
+    site: 'buecher.png',
     go: async ({ page, open }) => {
       await open('#/books/receipts');
       await page.getByText('BE-2026-0231').first().waitFor();

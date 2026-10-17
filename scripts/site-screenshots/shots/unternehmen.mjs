@@ -12,6 +12,8 @@ export default [
   {
     // Der Block Steuern in der Seitenleiste.
     file: 'unternehmen-steuern.png',
+    // Auf der Projektseite als unternehmen.png (website/README.md).
+    site: 'unternehmen.png',
     go: async ({ page }) => {
       await page.locator('#steuern').getByRole('button', { name: 'Bearbeiten' }).click();
       await page.getByRole('dialog', { name: 'Steuern' }).waitFor();

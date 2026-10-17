@@ -21,7 +21,12 @@ node scripts/site-screenshots/peek.mjs '#/books/journal' /tmp/journal.png  # ein
 Das Skript startet den Vite-Server selbst, macht die Bilder und beendet ihn
 wieder. Ergebnis: PNG in `website/assets/screenshots/`, 2880 × 1800 (1440 × 900
 bei doppelter Pixeldichte), je Bereich der Navigation mit dessen Namen
-vorn (`buecher-journal.png`).
+vorn (`buecher-journal.png`). Eine Aufnahme mit `site` liegt zusätzlich unter
+dem Namen, den die Projektseite einbindet (`buecher.png`); die sieben Namen
+stehen in [`website/README.md`](../../website/README.md#screenshots).
+
+Die Uhr des Browsers steht auf dem 25.08.2026, dem Stand der Beispieldaten.
+Fälligkeiten und der laufende Monat passen so zu den Daten.
 
 | Variable | Wirkung |
 |---|---|
@@ -34,11 +39,12 @@ vorn (`buecher-journal.png`).
 | Datei | Aufgabe |
 |---|---|
 | `shoot.mjs` | Klickt sich mit Playwright durch die Ansichten, schreibt die Bilder |
-| `shots/*.mjs` | Die Aufnahmen je Bereich: Ziel, Wartebedingung, Dateiname |
+| `shots/*.mjs` | Die Aufnahmen je Bereich: Ziel, Wartebedingung, Dateiname, Name auf der Projektseite |
 | `peek.mjs` | Ein Ziel öffnen und ein Bild ablegen, mit den Fehlern des Browsers |
 | `four-clicks.mjs` | Der Klickweg des Prüfszenarios: Bilanz → Konto → Buchung → Beleg, mit Zähler |
 | `dev-server.mjs` | Startet und beendet den Vite-Server; beide Werkzeuge nutzen ihn |
 | `mock-bridge.ts` | Die Beispieldaten; tritt an die Stelle der Wails-Bridge |
+| `closings-mock.ts`, `declarations.json` | Pflichtenkalender, Karteien und Jahreserklärungen der Abschlüsse |
 | `demo-receipt.html` | Der Beispielbeleg, der als Bild in der Belegvorschau steht |
 | `../../frontend/vite.screenshots.config.ts` | Vite ohne Wails-Plugin, mit dem Alias auf `mock-bridge.ts` |
 

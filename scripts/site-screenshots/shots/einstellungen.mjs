@@ -2,6 +2,8 @@
 export default [
   {
     file: 'einstellungen.png',
+    // Auf der Projektseite als einstellungen-apps.png (website/README.md).
+    site: 'einstellungen-apps.png',
     go: async ({ page, nav }) => {
       await nav('Einstellungen');
       await page.getByText('Erreichbar unter', { exact: false }).waitFor();
