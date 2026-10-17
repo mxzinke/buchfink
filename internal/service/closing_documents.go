@@ -132,16 +132,9 @@ func postWithVoucher(
 }
 
 // ensureOuterVoucherHeader prüft die Kopfdaten eines vom Anwender abgelegten
-// Belegs, bevor die Buchung geschrieben wird, die er belegen soll.
-//
-// Der Grund ist die Reihenfolge: das Versiegeln — der Schritt, der Beleg und
-// Buchung verbindet — läuft naturgemäß hinter dem Journal-Commit, denn vorher
-// gibt es keine Buchungsnummer. Prüfte erst das Versiegeln die Kopfdaten, bliebe
-// bei einem Beleg ohne sie ein halber Vorgang zurück: die Buchung geschrieben,
-// der Nachweis unverbunden daneben, und der Prüflauf meldete das Dokument
-// dauerhaft als ungebucht. Das Beschlussdokument geht diesen Weg — es kommt
-// erst nach dem Commit an die Buchung, unabhängig von entry.ReceiptID, das
-// JournalService.Post ohnehin prüft.
+// Belegs, bevor die Buchung geschrieben wird, die er belegen soll. Das
+// Beschlussdokument kommt erst mit dem Siegel an die Buchung und nicht über
+// entry.ReceiptID, das JournalService.Post selbst prüft.
 //
 // Der Name des Belegs steht in der Meldung, weil der Anwender sonst nicht wüsste,
 // welches der beiden Dokumente des Vorgangs gemeint ist.

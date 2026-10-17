@@ -77,7 +77,7 @@ func newTestEnv(t *testing.T) *testEnv {
 	posting := NewPostingService(journal, contactRepo)
 	acc := NewAccountingService(accountRepo, journalRepo, contactRepo, settingsRepo, journal, 2026)
 	contacts := NewContactService(contactRepo, journalRepo, numberRepo, auditRepo, 2026)
-	receipts := NewReceiptService(receiptRepo, journalRepo, store, auditRepo, 2026)
+	receipts := NewReceiptService(receiptRepo, store, auditRepo, 2026)
 	// Wie in der Anwendung: die Klärungsliste hält die Pflichtangaben gegen die
 	// Stammdaten des Ausstellers und des eigenen Unternehmens (RECH-07 K2).
 	receipts.SetContactSource(contactRepo)

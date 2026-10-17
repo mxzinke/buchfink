@@ -85,7 +85,6 @@ type FileContent struct {
 // ReceiptService files Belege away, hands them out and seals them.
 type ReceiptService struct {
 	receiptRepo domain.ReceiptRepository
-	journalRepo domain.JournalRepository
 	store       *receiptstore.Store
 	auditRepo   domain.AuditRepository
 	fiscalYear  int
@@ -105,14 +104,12 @@ type ReceiptService struct {
 // NewReceiptService creates the Beleg service.
 func NewReceiptService(
 	receiptRepo domain.ReceiptRepository,
-	journalRepo domain.JournalRepository,
 	store *receiptstore.Store,
 	auditRepo domain.AuditRepository,
 	fiscalYear int,
 ) *ReceiptService {
 	return &ReceiptService{
 		receiptRepo: receiptRepo,
-		journalRepo: journalRepo,
 		store:       store,
 		auditRepo:   auditRepo,
 		fiscalYear:  fiscalYear,
@@ -356,30 +353,12 @@ func (s *ReceiptService) replaceFiles(ctx context.Context, receipt *domain.Recei
 	return s.Get(ctx, receipt.ID)
 }
 
-// Get returns a Beleg with its files in hash order, repairing a missing seal on
-// the way.
-//
-// The seal is a second write, after the journal transaction has committed. If
-// the process dies in between, a booked Beleg still looks open — and would then
-// accept another file, which would change its hash and break the chain of an
-// entry that is already written. Reading is the natural place to notice and fix
-// that, because nothing can be booked without reading the Beleg first.
+// Get returns a Beleg with its files in hash order. Buchung und Siegel stehen
+// in einer Transaktion; ein gebuchter, aber offener Beleg kann nicht entstehen.
 func (s *ReceiptService) Get(ctx context.Context, id uint) (*domain.Receipt, error) {
 	receipt, err := s.receiptRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("Beleg konnte nicht geladen werden: %w", err)
-	}
-	if receipt.Status == domain.ReceiptStatusFiled && s.journalRepo != nil {
-		entry, lookupErr := s.journalRepo.FindByReceipt(ctx, receipt.ID)
-		if lookupErr == nil && entry != nil {
-			if sealErr := s.receiptRepo.Seal(ctx, receipt.ID, entry.ID); sealErr == nil {
-				if err := s.log(ctx, domain.AuditActionUpdate, receipt, fmt.Sprintf(
-					"Beleg %s nachträglich mit Buchung %s versiegelt", receipt.ReceiptNumber, entry.EntryNumber)); err != nil {
-					return nil, err
-				}
-				return s.receiptRepo.FindByID(ctx, id)
-			}
-		}
 	}
 	return receipt, nil
 }

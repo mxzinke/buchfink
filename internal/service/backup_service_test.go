@@ -78,8 +78,7 @@ func (e *backupEnv) receiptFile(t *testing.T, name, content string) *domain.Rece
 	t.Helper()
 	store := receiptstore.New(e.dataDir)
 	svc := NewReceiptService(
-		repository.NewReceiptRepository(e.db), repository.NewJournalRepository(e.db),
-		store, repository.NewAuditRepository(e.db), 2026,
+		repository.NewReceiptRepository(e.db), store, repository.NewAuditRepository(e.db), 2026,
 	)
 	path := filepath.Join(t.TempDir(), name)
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {

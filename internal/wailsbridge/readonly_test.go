@@ -64,7 +64,7 @@ func testBridge(t *testing.T) *BuchfinkBridge {
 	b.receiptRepo = repository.NewReceiptRepository(db)
 	b.numberRepo = repository.NewNumberRangeRepository(db)
 	b.receiptSvc = service.NewReceiptService(
-		b.receiptRepo, b.journalRepo, receiptstore.New(dataDir), b.auditRepo, 2026)
+		b.receiptRepo, receiptstore.New(dataDir), b.auditRepo, 2026)
 	b.journalSvc.SetReceiptRepo(b.receiptRepo)
 	b.postingSvc = service.NewPostingService(b.journalSvc, b.contactRepo)
 	b.postingSvc.SetReceiptService(b.receiptSvc)

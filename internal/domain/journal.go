@@ -525,11 +525,6 @@ type JournalRepository interface {
 	// FindCorrectionOf liefert die Neubuchung, die eine stornierte Buchung
 	// ersetzt, oder nil. Die Gegenrichtung zu CorrectsEntryID.
 	FindCorrectionOf(ctx context.Context, entryID uint) (*JournalEntry, error)
-	// FindByReceipt returns the original booking that references a Beleg, or nil.
-	// It is what lets an unsealed Beleg be repaired: the seal is written after
-	// the journal transaction commits, so a crash in between leaves a booked
-	// Beleg that still looks open.
-	FindByReceipt(ctx context.Context, receiptID uint) (*JournalEntry, error)
 	GetLastEntry(ctx context.Context, fiscalYear int) (*JournalEntry, error)
 	// Append allocates the entry number, links the hash chain and persists the
 	// entry in a single transaction. Doing all three atomically is what keeps

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -145,35 +146,46 @@ func TestFailedBookingLeavesTheReceiptOpen(t *testing.T) {
 	}
 }
 
-// Bricht der Prozess zwischen Buchung und Siegel ab, repariert das nächste Lesen
-// den Zustand — sonst nähme ein gebuchter Beleg noch Dateien an.
-func TestUnsealedButBookedReceiptIsRepairedOnRead(t *testing.T) {
+// Buchung und Siegel sind ein Vorgang: scheitert das Siegel, gibt es auch die
+// Buchung nicht, und der Beleg bleibt offen und buchbar.
+func TestBookingAndSealFailTogether(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	vendor := env.vendor(t, "Lieferant", "DE", "")
-
 	req := env.receipt(t, vendor.ID, "buerobedarf", 5000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
+
+	failing := NewReceiptService(failingSeal{env.receiptRepo}, env.store,
+		repository.NewAuditRepository(env.db), env.fiscalYear)
+	failing.SetContactSource(env.contactRepo)
+	failing.SetSettingsSource(repository.NewSettingsRepository(env.db))
+	env.posting.SetReceiptService(failing)
+	if _, err := env.posting.PostIncomingReceipt(ctx, req); err == nil {
+		t.Fatal("ohne Siegel darf die Buchung nicht stehen")
+	}
+	if n := env.entryCount(t); n != 0 {
+		t.Errorf("%d Buchungen ohne Siegel im Journal", n)
+	}
+
+	env.posting.SetReceiptService(env.receipts)
 	entry, err := env.posting.PostIncomingReceipt(ctx, req)
 	if err != nil {
-		t.Fatalf("Beleg buchen: %v", err)
+		t.Fatalf("der offene Beleg muss buchbar bleiben: %v", err)
 	}
-
-	// Den Abbruch nachstellen: die Buchung steht, das Siegel fehlt.
-	if err := env.db.Model(&domain.Receipt{}).Where("id = ?", req.ReceiptID).
-		Updates(map[string]any{"status": domain.ReceiptStatusFiled, "journal_entry_id": nil}).Error; err != nil {
-		t.Fatalf("Testmanipulation fehlgeschlagen: %v", err)
-	}
-
-	repaired, err := env.receipts.Get(ctx, req.ReceiptID)
+	sealed, err := env.receipts.Get(ctx, req.ReceiptID)
 	if err != nil {
-		t.Fatalf("Beleg laden: %v", err)
+		t.Fatal(err)
 	}
-	if repaired.Status != domain.ReceiptStatusSealed {
-		t.Fatalf("der Beleg muss beim Lesen nachversiegelt werden, ist aber %q", repaired.Status)
+	if sealed.Status != domain.ReceiptStatusSealed || sealed.JournalEntryID == nil || *sealed.JournalEntryID != entry.ID {
+		t.Errorf("der Beleg muss auf die Buchung versiegelt sein: %q, %v", sealed.Status, sealed.JournalEntryID)
 	}
-	if repaired.JournalEntryID == nil || *repaired.JournalEntryID != entry.ID {
-		t.Errorf("das nachgeholte Siegel muss auf die Buchung zeigen, zeigt aber auf %v", repaired.JournalEntryID)
-	}
+}
+
+type failingSeal struct {
+	domain.ReceiptRepository
+}
+
+func (failingSeal) Seal(context.Context, uint, uint) error {
+	return errors.New("Siegel nicht schreibbar")
 }
 
 // Die Generalumkehr zeigt auf denselben Beleg: sie korrigiert die Buchung, nicht

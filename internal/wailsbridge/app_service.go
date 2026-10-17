@@ -285,7 +285,7 @@ func (b *BuchfinkBridge) initTenant(t *domain.TenantConfig) error {
 	// Dialog „Beleg buchen".
 	b.journalSvc.SetReceiptRepo(b.receiptRepo)
 	b.postingSvc = service.NewPostingService(b.journalSvc, b.contactRepo)
-	b.receiptSvc = service.NewReceiptService(b.receiptRepo, b.journalRepo, receiptstore.New(t.DataDir), b.auditRepo, fiscalYear)
+	b.receiptSvc = service.NewReceiptService(b.receiptRepo, receiptstore.New(t.DataDir), b.auditRepo, fiscalYear)
 	b.postingSvc.SetReceiptService(b.receiptSvc)
 	// Der Eigenbeleg entsteht als PDF über denselben Satzweg wie Rechnung und
 	// Abschluss, mit dem eigenen Unternehmen als Aussteller und der Belegnummer

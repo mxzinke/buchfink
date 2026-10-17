@@ -429,14 +429,8 @@ func dropForeignKindFields(inv *domain.Invoice) {
 const placeholderInvoiceNumber = "ENTWURF"
 
 // validateRuleset prüft die Rechnung gegen EN 16931 und, bei einer XRechnung,
-// gegen die deutsche Ausprägung — bevor eine Nummer verbraucht ist.
-//
-// Vorher lief die Prüfung erst beim Erzeugen des Dokuments, also hinter der
-// Transaktion aus Nummernvergabe und Buchung. Ein Regelverstoß — eine
-// XRechnung ohne Ansprechpartner (BR-DE-2 ff.), eine Rechnung ohne
-// Bankverbindung (BG-16) — hinterließ dann eine gebuchte Rechnung mit
-// verbrauchter Nummer im Zustand „Dokument fehlt". War der Verstoß nicht durch
-// Stammdaten heilbar, blieb nur das Storno mit einer zweiten Nummer.
+// gegen die deutsche Ausprägung — bevor eine Nummer vergeben wird, damit ein
+// Regelverstoß ohne Transaktion und ohne Rendern auffällt.
 //
 // Geprüft wird derselbe Datensatz, der später hinausgeht: gebaut, geschrieben,
 // wieder gelesen und gegen das Regelwerk gehalten. Nur die Nummer ist eine

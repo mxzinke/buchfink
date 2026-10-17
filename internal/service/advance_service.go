@@ -168,14 +168,10 @@ func (s *InvoiceService) IssueAdvanceInvoice(ctx context.Context, req AdvanceInv
 			TaxRate:       group.TaxRate,
 		}},
 	}
-	// Der offene Posten entsteht innerhalb der Nummernklammer und nicht hinter
-	// der Dokumenterzeugung.
-	//
-	// Scheitert das Dokument, bleibt die Abschlagsrechnung mit Nummer im Zustand
-	// „Dokument fehlt" stehen und lässt sich nachholen — der offene Posten muss
-	// dann schon da sein. Stünde er dahinter, gäbe es die Rechnung ohne ihn:
-	// sie fehlte in der OP-Liste, ließe sich nicht vereinnahmen und zählte
-	// weder gegen den Gesamtbetrag noch in die Verrechnung der Schlussrechnung.
+	// Der offene Posten entsteht in derselben Transaktion wie die Rechnung:
+	// ohne ihn fehlte sie in der OP-Liste, ließe sich nicht vereinnahmen und
+	// zählte weder gegen den Gesamtbetrag noch in die Verrechnung der
+	// Schlussrechnung.
 	advance := &domain.AdvanceItem{
 		GroupID:   group.ID,
 		ContactID: group.ContactID,
