@@ -12,49 +12,52 @@ zugleich der Text ihrer Veröffentlichung.
 
 ## v0.3.0 — 2026-10-17
 
-Buchfink arbeitet mit einem KI-Agenten. Claude Code, Claude Desktop, OpenCode,
-Codex und Pi verbinden sich über MCP mit der laufenden App. Die App zeigt den
-Stand der Bücher; Stammdaten und unumkehrbare Schritte bleiben dem Menschen in
-der App vorbehalten. Diese Fassung ist ein harter Schnitt: Mandanten aus v0.1
-und v0.2 öffnet sie nicht, auch nicht aus einer Sicherung.
+Ab dieser Fassung führt ein KI-Agent die Bücher über MCP; die App zeigt den
+Stand und nimmt die Freigaben an. Claude Code, Claude Desktop, OpenCode, Codex
+und Pi verbinden sich mit der laufenden App. Buchfink führt nur noch GmbH und
+UG. Mandanten aus v0.1 und v0.2 öffnet diese Fassung nicht, auch nicht aus
+einer Sicherung; ein Unternehmen wird neu angelegt.
 
-- Buchfink führt nur noch die Bücher einer GmbH oder UG. Entfallen sind
-  Verschlüsselung, Warenverkehr und Lager, Kasse, Mahnwesen,
-  Dokumentenverwaltung und die Gründungsoberfläche; die buchhalterischen
-  Gründungsschritte bleiben. Den Schutz der Daten am Rechner übernimmt die
-  Festplattenverschlüsselung des Betriebssystems. Hash-Ketten und Zeitstempel
-  nach RFC 3161 machen nachträgliche Änderungen erkennbar.
-- Oberfläche und Agent schreiben über denselben Kern. Jeder Schreibvorgang
-  läuft mit seinem Protokolleintrag in einer Transaktion; mit einem
-  Idempotenzschlüssel bucht eine Wiederholung nicht doppelt. Das Geschäftsjahr
-  folgt aus dem Buchungsdatum. Buchfink prüft jeden Steuerschlüssel gegen den
-  Katalog und sperrt Konten anderer Rechtsformen. Jede Buchung speichert, wer
-  sie erfasst hat: die Bedienung in der App, ein Agent oder das Programm.
-- Der MCP-Server läuft in der App auf 127.0.0.1, Port 7465. Apps melden sich
+- Der MCP-Server läuft mit der App auf 127.0.0.1, Port 7465. Apps melden sich
   über den OAuth-Server von Buchfink an und werden im Fenster von Buchfink je
-  Mandant zugelassen. Festschreibung, Übermittlungsvermerk, Aufstellung,
-  Feststellung und Offenlegung, Stammdaten und Prüfermodus nimmt Buchfink nur
-  aus der App an. Für Claude Desktop gibt es die Brücke buchfink-mcp als
-  Erweiterung (.mcpb).
-- Der Pflichtenkalender führt Voranmeldungen, Vorauszahlungen,
-  Jahreserklärungen und Abschlusspflichten mit Fristen und Feiertagen je
-  Bundesland. Das Stammdatum zur steuerlichen Beratung (mit oder ohne
-  Steuerberater, ab welchem Jahr, für welche Erklärungen) bestimmt die
-  Erklärungsfristen.
-- Körperschaft-, Gewerbe- und Umsatzsteuererklärung (KSt 1, GewSt 1 A,
-  USt 2 A) stellt Buchfink zeilengenau wie im Vordruck zusammen, als
-  Eingabehilfe für Mein ELSTER und als JSON. Die E-Bilanz entsteht als XBRL
-  nach der amtlichen Taxonomie 6.9 oder 6.10; übermittelt wird sie über einen
-  Dienst wie ebilanzonline.de oder ebilanzplus.de.
-- Neue Buchungswege: Bankumsatz aufteilen, Firmenkreditkarte mit
-  Monatsabrechnung, Auslagen von Gesellschaftern und Geschäftsführern,
-  Gesellschafterdarlehen mit Zinsbuchung und gesondertem Ausweis, Lohnjournal
-  als Summenbuchung. Bei Zahlung vor der Leistung rechnet Buchfink die
-  Umsatzsteuer dem Zeitraum der Zahlung zu (Mindest-Istversteuerung). Der
-  Abschluss kennt Wertberichtigungen auf Forderungen und unfertige Leistungen.
+  Mandant zugelassen, mit den Rechten Lesen oder Buchen. Zulassung und Entzug
+  stehen im Änderungsprotokoll. Für Claude Desktop gibt es die Brücke
+  buchfink-mcp als Erweiterung (.mcpb).
+- App und Agent schreiben über denselben Kern. Jeder Schreibvorgang läuft mit
+  seinem Protokolleintrag in einer Transaktion; mit einem Idempotenzschlüssel
+  bucht eine Wiederholung nicht doppelt. Jede Buchung speichert den
+  Erfassungsweg: App, Hintergrundlauf oder verbundene App. Festschreibung,
+  Übermittlungsvermerk, Aufstellung, Feststellung, Offenlegung,
+  Pflichtbestätigungen, Unternehmensdaten und Prüfermodus nimmt Buchfink nur in
+  der App an.
+- Der Pflichtenkalender führt 21 Pflichtarten einer GmbH mit Frist und
+  Nachweis. Die Fristen richten sich nach Bundesland, Dauerfristverlängerung
+  und steuerlicher Beratung.
+- KSt 1, GewSt 1 A und USt 2 A stellt Buchfink formularnah als Eingabehilfe für
+  Mein ELSTER zusammen, mit Herkunft je Wert und Export als JSON. Der
+  Zeilenkatalog gilt für das Vordruckjahr 2025. Die Zeilen von USt 2 A sind am
+  amtlichen Vordruck geprüft, die von KSt und GewSt nicht.
+- Die E-Bilanz entsteht als XBRL nach der amtlichen Taxonomie 6.9 oder 6.10,
+  mit Kontennachweis und Überleitung. Übermittelt wird sie über einen Dienst
+  wie ebilanzonline.de oder ebilanzplus.de.
+- Neue Buchungswege: Bankumsatz aufteilen, Firmenkreditkarte, Auslagen,
+  Gesellschafterdarlehen mit Zinsen, Lohnjournal als Summenbuchung. Bei Zahlung
+  vor der Leistung rechnet Buchfink die Umsatzsteuer dem Zeitraum der Zahlung
+  zu (Mindest-Istversteuerung). Die Voranmeldung folgt dem Vordruck 2026.
+- Neue Abschlussbausteine: Wertberichtigung auf Forderungen, unfertige
+  Leistungen und eine Steuerrückstellung mit dem Körperschaftsteuersatz des
+  Jahres. Abschlussbuchungen gehören zu einer Abschlussperiode zwischen
+  Dezember- und Jahresfestschreibung.
+- Entfallen sind Verschlüsselung, Warenlieferungen ins Ausland samt
+  Belegnachweis, Vorräte, Kasse, Mahnschreiben, Dokumentenablage, die
+  Gründungsoberfläche und andere Rechtsformen; die buchhalterischen
+  Gründungsschritte bleiben. Den Schutz am Rechner übernimmt die
+  Festplattenverschlüsselung des Betriebssystems.
 - Die Veröffentlichung enthält die App für macOS, Windows und Linux, die Brücke
-  buchfink-mcp und Prüfsummen. Die Dateien sind nicht signiert. Die
-  Programmfassung kommt aus dem Git-Tag; Builds ohne Tag heißen „dev“.
+  buchfink-mcp, die Erweiterung für Claude Desktop, die Skill-Pakete und
+  Prüfsummen. Nichts davon ist signiert. Buchfink übermittelt nichts selbst an
+  die Finanzverwaltung. Diese Vorschau ist keine Freigabe für den produktiven
+  Einsatz.
 
 ## v0.2 — 2026-09-13
 
