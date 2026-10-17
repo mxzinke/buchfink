@@ -299,6 +299,23 @@ func TestBridgeLogsInAgainAfterRevocation(t *testing.T) {
 	}
 }
 
+// Eine Fehlerantwort der App ist keine abgerissene Verbindung: sie kommt als
+// solche beim Client an und nicht als „Buchfink ist nicht geöffnet".
+func TestBridgePassesProtocolErrorsThrough(t *testing.T) {
+	app := startApp(t)
+	var opened atomic.Int32
+	cs, b := connect(t, config{Endpoint: app.endpoint, StateDir: t.TempDir(),
+		OpenBrowser: browser(t, &opened), LoginWait: 20 * time.Second})
+	if res := call(t, cs, "status"); res.IsError {
+		t.Fatalf("status: %s", text(res))
+	}
+	b.applyTools([]*mcp.Tool{placeholderStatus(), {Name: "gibt_es_nicht", InputSchema: map[string]any{"type": "object"}}})
+	_, err := cs.CallTool(context.Background(), &mcp.CallToolParams{Name: "gibt_es_nicht", Arguments: map[string]any{}})
+	if err == nil || strings.Contains(err.Error(), "app_nicht_geoeffnet") {
+		t.Errorf("unbekanntes Werkzeug: %v", err)
+	}
+}
+
 func TestEndpointMustBeThisComputer(t *testing.T) {
 	for raw, ok := range map[string]bool{
 		"http://127.0.0.1:7465/mcp":   true,

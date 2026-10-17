@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -268,6 +269,9 @@ func (b *bridge) forward(ctx context.Context, req *mcp.CallToolRequest) (*mcp.Ca
 		if err == nil {
 			return res, nil
 		}
+		if rpcErr, ok := appAnswer(err); ok {
+			return nil, rpcErr
+		}
 		b.dropSession(cs)
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
@@ -281,6 +285,21 @@ func (b *bridge) forward(ctx context.Context, req *mcp.CallToolRequest) (*mcp.Ca
 		b.cfg.Logger.Info("Aufruf an Buchfink gescheitert, neuer Versuch", "werkzeug", params.Name, "fehler", err)
 	}
 	return b.offline(errors.New("keine Verbindung")), nil
+}
+
+// appAnswer erkennt eine Fehlerantwort der App, etwa auf ein Werkzeug, das
+// es nicht mehr gibt. Sie geht als solche zurück; nur eine abgerissene oder
+// abgewiesene Verbindung heißt „nicht geöffnet". Die Codes -32001 bis -32005
+// setzt der Transport des SDK selbst.
+func appAnswer(err error) (*jsonrpc.Error, bool) {
+	var rpcErr *jsonrpc.Error
+	if !errors.As(err, &rpcErr) {
+		return nil, false
+	}
+	if rpcErr.Code <= -32001 && rpcErr.Code >= -32005 {
+		return nil, false
+	}
+	return rpcErr, true
 }
 
 // awaitLogin startet die Anmeldung, falls keine läuft, und wartet eine
