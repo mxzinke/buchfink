@@ -66,7 +66,8 @@ einzelne Kriterien im [Anforderungskatalog](../anforderungen/README.md).
 - XRechnungen stellt Buchfink im CII-Format aus. UBL liest es, schreibt es aber
   nicht.
 - Gutschrift, Korrektur und Anzahlungsrechnung eines Lieferanten erkennt
-  Buchfink beim Empfang, schlägt dafür aber keine Buchung vor.
+  Buchfink beim Empfang einer E-Rechnung. Einen Buchungsvorschlag aus dem
+  Datensatz macht es nur für gewöhnliche Rechnungen.
 - Die Grenzen bei Rechtsform, Steuerfällen, Warenverkehr, Kasse und Lohn
   stehen unter [Umfang und Grenzen](../nutzung/umfang.md).
 
