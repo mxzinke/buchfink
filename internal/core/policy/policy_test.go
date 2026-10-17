@@ -15,7 +15,7 @@ func routine() ReceiptFacts {
 	net := map[domain.TaxRate]domain.Cents{domain.TaxRateStandard: 10000}
 	return ReceiptFacts{
 		Open: true, Incoming: true, Invoice: true, Structured: true, Checked: true,
-		ProposalContactID: 7, ProposalTreatment: domain.TaxTreatmentDomestic, ProposalCurrency: "EUR",
+		ProposalContactID: 7, ProposalMatchedBy: "ust_id", ProposalTreatment: domain.TaxTreatmentDomestic, ProposalCurrency: "EUR",
 		ProposalNet: net, ProposalGross: 11900,
 		ContactID: 7, ConfirmedGroup: "software", BookingsWithGroup: 3,
 		Treatment: domain.TaxTreatmentDomestic, Currency: "EUR",
@@ -44,6 +44,10 @@ func TestReceiptRules(t *testing.T) {
 		{"Befund", func(f *ReceiptFacts) { f.Findings = 1 }, "e_rechnung_mit_befund"},
 		{"kein Vorschlag", func(f *ReceiptFacts) { f.ProposalError = "Gutschrift" }, "kein_vorschlag"},
 		{"anderer Aussteller", func(f *ReceiptFacts) { f.ProposalContactID = 8 }, "kontakt_nicht_erkannt"},
+		{"nur der Name", func(f *ReceiptFacts) { f.ProposalMatchedBy = "name" }, "kontakt_nicht_erkannt"},
+		{"Kopfdaten", func(f *ReceiptFacts) { f.HeaderMismatch = []string{"belegdatum"} }, "kopf_weicht_ab"},
+		{"Stammdaten", func(f *ReceiptFacts) { f.MasterDataMismatch = []string{"anschrift"} }, "stammdaten_weichen_ab"},
+		{"anderes Konto", func(f *ReceiptFacts) { f.IBANMismatch = true }, "iban_weicht_ab"},
 		{"gesperrt", func(f *ReceiptFacts) { f.ContactBlocked = true }, "kontakt_gesperrt"},
 		{"nur Vorschlag", func(f *ReceiptFacts) { f.ConfirmedGroup = "" }, "keine_bestaetigte_standardgruppe"},
 		{"andere Gruppe", func(f *ReceiptFacts) { f.Groups = []string{"software", "werbung"} }, "gruppe_weicht_ab"},

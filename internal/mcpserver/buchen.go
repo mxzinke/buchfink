@@ -82,6 +82,7 @@ type belegBuchenRueckfrageIn struct {
 	Leistungsnachweis       string                 `json:"leistungsnachweis,omitempty"`
 	LeistungsnachweisAm     Datum                  `json:"leistungsnachweis_am,omitempty"`
 	UebersteuerungGrund     string                 `json:"uebersteuerung_grund,omitempty" jsonschema:"Begründung, mit der ein blockierender Befund der Rechnungsprüfung übergangen wird"`
+	EingangAm               Datum                  `json:"eingang_am,omitempty" jsonschema:"berichtigt den Eingangstag des Belegs; er bestimmt den Voranmeldungszeitraum der Vorsteuer"`
 	Beschreibung            string                 `json:"beschreibung,omitempty"`
 	NurVorschau             bool                   `json:"nur_vorschau,omitempty"`
 }
@@ -202,6 +203,53 @@ func receiptHead(receiptID, contactID uint, docDate, bookDate, from, to Datum, t
 		req.ServiceDateTo = req.ServiceDateFrom
 	}
 	return req, nil
+}
+
+// receiptReady prüft, ob ein Beleg gebucht werden kann, und nennt sonst den
+// Ausweg.
+func receiptReady(ctx context.Context, s *core.Services, id uint) (*domain.Receipt, error) {
+	r, err := s.Receipts.Get(ctx, id)
+	if err != nil {
+		return nil, notFound("beleg_id", id, err)
+	}
+	if r.IsOpen() && !r.IsDisplayable() {
+		return nil, &ToolError{Code: CodeRule,
+			Nachricht:        fmt.Sprintf("Beleg %s hat keine ansehbare Darstellung; eine reine XRechnung braucht vor dem Buchen ein PDF.", r.ReceiptNumber),
+			NaechsterSchritt: "Dieselbe XML noch einmal mit beleg_ablegen senden, dazu das PDF mit rolle=darstellung.",
+			Werkzeug:         "beleg_ablegen"}
+	}
+	return r, nil
+}
+
+// completeHeader ergänzt fehlende Kopfdaten eines Belegs ohne E-Rechnung aus
+// der Buchung, der der Mensch zugestimmt hat. Vorhandene Angaben bleiben.
+func completeHeader(ctx context.Context, s *core.Services, r *domain.Receipt, req service.ReceiptRequest,
+	preview *service.PostingPreview) error {
+	if _, structured := r.FileByRole(domain.ReceiptRoleStructured); structured ||
+		(r.DocumentDate != "" && r.IssuerName != "" && r.GrossAmount != 0) {
+		return nil
+	}
+	h := domain.ReceiptHeader{Kind: r.Kind, DocumentDate: r.DocumentDate, IssuerName: r.IssuerName,
+		GrossAmount: r.GrossAmount, TaxAmount: r.TaxAmount, Currency: r.Currency, Subject: r.Subject}
+	if h.DocumentDate == "" {
+		h.DocumentDate = req.DocumentDate
+	}
+	if h.IssuerName == "" {
+		if c, err := s.Contacts.Contact(ctx, req.ContactID); err == nil {
+			h.IssuerName = c.LegalName()
+		}
+	}
+	foreign := req.Currency != "" && req.Currency != "EUR"
+	if h.GrossAmount == 0 {
+		switch {
+		case foreign:
+			h.GrossAmount, h.Currency = req.ForeignAmount, req.Currency
+		default:
+			h.GrossAmount, h.TaxAmount = preview.Gross, preview.Tax
+		}
+	}
+	_, err := s.Receipts.SaveHeader(ctx, r.ID, h)
+	return err
 }
 
 // prefetchRate holt bei Fremdwährung den Kurs vor der Schreibsperre.
@@ -450,6 +498,9 @@ func registerBuchen(tb *Toolbox) {
 		if err != nil {
 			return buchungOut{}, err
 		}
+		if _, err := receiptReady(ctx, s, req.ReceiptID); err != nil {
+			return buchungOut{}, err
+		}
 		verdict, err := policy.ClassifyReceiptRequest(ctx, s, req, today())
 		if err != nil {
 			return buchungOut{}, err
@@ -460,7 +511,7 @@ func registerBuchen(tb *Toolbox) {
 				return buchungOut{}, err
 			}
 			v := vorschauOf(preview)
-			return buchungOut{Vorschau: &v, Einstufung: string(verdict.Level)}, nil
+			return buchungOut{Vorschau: &v, Einstufung: string(verdict.Level), Gruende: verdict.Reasons}, nil
 		}
 		if !verdict.Direct() {
 			return buchungOut{}, errApproval(verdict, "beleg_buchen_mit_rueckfrage")
@@ -491,13 +542,29 @@ func registerBuchen(tb *Toolbox) {
 		if err != nil {
 			return buchungOut{}, err
 		}
+		receipt, err := receiptReady(ctx, s, req.ReceiptID)
+		if err != nil {
+			return buchungOut{}, err
+		}
+		receivedAt, err := in.EingangAm.check("eingang_am")
+		if err != nil {
+			return buchungOut{}, err
+		}
+		preview, err := s.Posting.PreviewIncomingReceipt(ctx, req)
+		if err != nil {
+			return buchungOut{}, err
+		}
 		if in.NurVorschau {
-			preview, err := s.Posting.PreviewIncomingReceipt(ctx, req)
-			if err != nil {
-				return buchungOut{}, err
-			}
 			v := vorschauOf(preview)
 			return buchungOut{Vorschau: &v, Einstufung: string(policy.Confirm)}, nil
+		}
+		if receivedAt != "" {
+			if _, err := s.Receipts.SaveReceivedAt(ctx, receipt.ID, receivedAt); err != nil {
+				return buchungOut{}, err
+			}
+		}
+		if err := completeHeader(ctx, s, receipt, req, preview); err != nil {
+			return buchungOut{}, err
 		}
 		entry, err := s.Posting.PostIncomingReceipt(ctx, req)
 		if err != nil {

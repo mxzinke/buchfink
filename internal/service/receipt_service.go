@@ -559,3 +559,43 @@ func (s *ReceiptService) log(ctx context.Context, action domain.AuditAction, rec
 func (s *ReceiptService) FindByOriginalHash(ctx context.Context, sha256 string) (*domain.Receipt, error) {
 	return s.receiptRepo.FindByOriginalHash(ctx, sha256)
 }
+
+// SaveReceivedAt berichtigt den Eingangstag eines noch nicht gebuchten
+// Eingangsbelegs. Er entscheidet über den Voranmeldungszeitraum der Vorsteuer
+// (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 2 UStG) und gehört deshalb mit beiden
+// Ständen ins Protokoll.
+func (s *ReceiptService) SaveReceivedAt(ctx context.Context, receiptID uint, date string) (*domain.Receipt, error) {
+	if err := domain.CheckDate("Eingangsdatum", date); err != nil {
+		return nil, err
+	}
+	receipt, err := s.Get(ctx, receiptID)
+	if err != nil {
+		return nil, err
+	}
+	if receipt.Direction != domain.DirectionIncoming || !receipt.IsOpen() {
+		return nil, fmt.Errorf("das Eingangsdatum lässt sich nur an einem offenen Eingangsbeleg berichtigen, nicht an %s",
+			receipt.ReceiptNumber)
+	}
+	if receipt.ReceivedAt == date {
+		return receipt, nil
+	}
+	if err := s.receiptRepo.SaveReceivedAt(ctx, receiptID, date); err != nil {
+		return nil, err
+	}
+	updated, err := s.Get(ctx, receiptID)
+	if err != nil {
+		return nil, err
+	}
+	if err := logAuditChange(ctx, s.auditRepo, domain.AuditActionUpdate, "RECEIPT", fmt.Sprintf("%d", receiptID),
+		fmt.Sprintf("Eingangsdatum von Beleg %s von %s auf %s berichtigt", receipt.ReceiptNumber, receipt.ReceivedAt, date),
+		receipt, updated); err != nil {
+		return nil, err
+	}
+	return updated, nil
+}
+
+// FindByEInvoiceNumber liefert die Belege, deren E-Rechnung diese
+// Rechnungsnummer trägt, aus allen Geschäftsjahren.
+func (s *ReceiptService) FindByEInvoiceNumber(ctx context.Context, number string) ([]domain.Receipt, error) {
+	return s.receiptRepo.FindByEInvoiceNumber(ctx, number)
+}

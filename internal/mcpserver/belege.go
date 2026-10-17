@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/core/policy"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -127,6 +128,8 @@ type vorschlagPosition struct {
 type belegVorschlag struct {
 	KontaktID      uint                `json:"kontakt_id,omitempty"`
 	KontaktErkannt bool                `json:"kontakt_erkannt"`
+	ErkanntAn      string              `json:"erkannt_an,omitempty" jsonschema:"ust_id, steuernummer oder name (name allein reicht nicht für direkt)"`
+	Standardgruppe string              `json:"standardgruppe,omitempty" jsonschema:"vom Menschen bestätigte Standard-Buchungsgruppe des Lieferanten"`
 	Steuerfall     string              `json:"steuerfall,omitempty"`
 	Belegdatum     string              `json:"belegdatum,omitempty"`
 	LeistungVon    string              `json:"leistung_von,omitempty"`
@@ -181,12 +184,12 @@ type belegDateiIn struct {
 type belegAblegenIn struct {
 	WriteArgs
 	Dateien      []belegDateiIn `json:"dateien" jsonschema:"1 bis 10 Dateien; die erste ist das Original"`
-	EingangAm    Datum          `json:"eingang_am,omitempty" jsonschema:"Tag des Eingangs; Vorgabe heute"`
+	EingangAm    Datum          `json:"eingang_am" jsonschema:"Tag, an dem der Beleg ankam (Datum der E-Mail, des Downloads, des Briefs). Er bestimmt den Voranmeldungszeitraum der Vorsteuer; heute nur, wenn er wirklich heute kam"`
 	EingangUeber string         `json:"eingang_ueber,omitempty" jsonschema:"email, scan oder upload"`
-	Belegdatum   Datum          `json:"belegdatum,omitempty" jsonschema:"nur für Belege ohne E-Rechnung"`
-	Aussteller   string         `json:"aussteller,omitempty" jsonschema:"nur für Belege ohne E-Rechnung"`
-	Brutto       Betrag         `json:"brutto,omitempty" jsonschema:"nur für Belege ohne E-Rechnung"`
-	Betreff      string         `json:"betreff,omitempty"`
+	Belegdatum   Datum          `json:"belegdatum,omitempty" jsonschema:"bei Fotos und PDF ohne E-Rechnung Pflicht; bei einer E-Rechnung gilt ihr Datum"`
+	Aussteller   string         `json:"aussteller,omitempty" jsonschema:"bei Fotos und PDF ohne E-Rechnung Pflicht"`
+	Brutto       Betrag         `json:"brutto,omitempty" jsonschema:"bei Fotos und PDF ohne E-Rechnung Pflicht"`
+	Betreff      string         `json:"betreff,omitempty" jsonschema:"nur ohne E-Rechnung; dort ist es die Rechnungsnummer"`
 }
 
 type belegAblegenOut struct {
@@ -303,7 +306,7 @@ func registerBelege(tb *Toolbox) {
 			return out, nil
 		}
 		req := proposal.Request
-		v := &belegVorschlag{KontaktID: req.ContactID, KontaktErkannt: proposal.MatchedContact,
+		v := &belegVorschlag{KontaktID: req.ContactID, KontaktErkannt: proposal.MatchedContact, ErkanntAn: proposal.MatchedBy,
 			Steuerfall: string(req.TaxTreatment), Belegdatum: req.DocumentDate, LeistungVon: req.ServiceDateFrom,
 			LeistungBis: req.ServiceDateTo, Brutto: betrag(proposal.GrossAmount), Waehrung: req.Currency,
 			Art: proposal.KindLabel, Positionen: []vorschlagPosition{}, Hinweise: orEmpty(proposal.Notes)}
@@ -312,6 +315,11 @@ func registerBelege(tb *Toolbox) {
 			v.Positionen = append(v.Positionen, vorschlagPosition{Netto: betrag(p.Net), Satz: satzOf(p.TaxRate)})
 			if p.Text != "" {
 				texts = append(texts, p.Text)
+			}
+		}
+		if req.ContactID != 0 {
+			if contact, err := s.Contacts.Contact(ctx, req.ContactID); err == nil && contact.DefaultPostingGroupConfirmedAt != "" {
+				v.Standardgruppe = contact.DefaultPostingGroup
 			}
 		}
 		out.Vorschlag = v
@@ -328,8 +336,12 @@ func registerBelege(tb *Toolbox) {
 		Title: "Beleg ablegen",
 		Tier:  TierDirect, Idempotent: true,
 		Description: "Legt Dateien aus einem Belegordner als Eingangsbeleg ab (absoluter Pfad; PDF, Bild oder XML " +
-			"bis 50 MB; kein Dateiinhalt im Aufruf). Eine E-Rechnung wird ausgelesen und geprüft. Dieselbe " +
-			"Originaldatei ein zweites Mal liefert den vorhandenen Beleg. Danach beleg_lesen.",
+			"bis 50 MB; kein Dateiinhalt im Aufruf). Nur Dateien ablegen, die der Mensch als Beleg benannt hat: die " +
+			"Ablage ist endgültig, auch ein verworfener Beleg bleibt im Archiv. Eine E-Rechnung wird ausgelesen und " +
+			"geprüft; Belegdatum, Aussteller, Brutto und Rechnungsnummer kommen dann aus ihr. Bei Fotos und PDF ohne " +
+			"E-Rechnung gehören belegdatum, aussteller und brutto dazu. eingang_am bestimmt den " +
+			"Voranmeldungszeitraum der Vorsteuer. Dieselbe Originaldatei ein zweites Mal liefert den vorhandenen " +
+			"Beleg und ergänzt fehlende Dateien, etwa die PDF-Darstellung einer reinen XRechnung. Danach beleg_lesen.",
 	}, func(ctx context.Context, c *Call, s *core.Services, in belegAblegenIn) (belegAblegenOut, error) {
 		out := belegAblegenOut{Befunde: belegBefunde{Liste: []befundEintrag{}}, Hinweise: []string{}}
 		if len(in.Dateien) == 0 || len(in.Dateien) > 10 {
@@ -339,12 +351,14 @@ func registerBelege(tb *Toolbox) {
 		if err != nil {
 			return out, err
 		}
-		docDate, err := in.Belegdatum.check("belegdatum")
-		if err != nil {
+		if receivedAt == "" {
+			return out, inputError("eingang_am", "der Tag des Eingangs fehlt; er bestimmt den Voranmeldungszeitraum der Vorsteuer")
+		}
+		header := domain.ReceiptHeader{IssuerName: strings.TrimSpace(in.Aussteller), Subject: strings.TrimSpace(in.Betreff)}
+		if header.DocumentDate, err = in.Belegdatum.check("belegdatum"); err != nil {
 			return out, err
 		}
-		gross, err := in.Brutto.cents("brutto")
-		if err != nil {
+		if header.GrossAmount, err = in.Brutto.cents("brutto"); err != nil {
 			return out, err
 		}
 		via := in.EingangUeber
@@ -391,22 +405,30 @@ func registerBelege(tb *Toolbox) {
 		}
 		sum := sha256.Sum256(original.Data)
 		if existing, err := s.Receipts.FindByOriginalHash(ctx, hex.EncodeToString(sum[:])); err == nil && existing != nil {
-			out.Beleg, out.BereitsVorhanden = belegZeileOf(*existing), true
-			_, out.ERechnung = existing.FileByRole(domain.ReceiptRoleStructured)
-			out.NaechsterSchritt = "beleg_lesen mit beleg_id " + fmt.Sprint(existing.ID)
-			return out, nil
+			return refile(ctx, s, existing, files)
 		}
-		receipt, err := s.Receipts.File(ctx, service.FileReceiptRequest{
-			Direction: domain.DirectionIncoming, ReceivedAt: receivedAt, ReceivedVia: via,
-			DocumentDate: docDate, IssuerName: strings.TrimSpace(in.Aussteller), GrossAmount: gross,
-			Subject: strings.TrimSpace(in.Betreff), Files: files,
-		})
+
+		// Ein Foto trägt keine Daten; ohne Kopfdaten wäre es nicht buchbar.
+		if original.Kind == policy.KindImage && (header.DocumentDate == "" || header.IssuerName == "" || header.GrossAmount == 0) {
+			return out, inputError("belegdatum", "bei einem Foto oder Scan gehören belegdatum, aussteller und brutto dazu")
+		}
+		// Bei XML und PDF entscheidet erst das Auslesen, ob eine E-Rechnung
+		// vorliegt. Bis dahin bleiben die Kopfdaten leer: die einer E-Rechnung
+		// kommen aus ihr, nicht aus dem Aufruf.
+		maybeStructured := original.Kind == policy.KindXML || original.Kind == policy.KindPDF
+		req := service.FileReceiptRequest{Direction: domain.DirectionIncoming, ReceivedAt: receivedAt, ReceivedVia: via, Files: files}
+		if !maybeStructured {
+			req.DocumentDate, req.IssuerName, req.GrossAmount, req.Subject = header.DocumentDate, header.IssuerName,
+				header.GrossAmount, header.Subject
+		}
+		receipt, err := s.Receipts.File(ctx, req)
 		if err != nil {
 			return out, err
 		}
-		if original.Kind == policy.KindXML || original.Kind == policy.KindPDF {
+		if maybeStructured {
 			if extracted, err := s.EInvoice.ExtractStructuredPart(ctx, receipt.ID); err == nil {
 				receipt = extracted
+				out.Hinweise = append(out.Hinweise, ignoredHeader(header, receipt)...)
 			} else {
 				again, getErr := s.Receipts.Get(ctx, receipt.ID)
 				if getErr != nil {
@@ -418,6 +440,14 @@ func registerBelege(tb *Toolbox) {
 				if original.Kind == policy.KindXML {
 					out.Hinweise = append(out.Hinweise, "Die XML-Datei ließ sich nicht als E-Rechnung lesen: "+err.Error())
 				}
+				if header != (domain.ReceiptHeader{}) {
+					header.Kind = again.Kind
+					if receipt, err = s.Receipts.SaveHeader(ctx, receipt.ID, header); err != nil {
+						return out, err
+					}
+				} else {
+					receipt = again
+				}
 			}
 		}
 		out.Beleg = belegZeileOf(*receipt)
@@ -426,13 +456,7 @@ func registerBelege(tb *Toolbox) {
 			out.Befunde = befundeOf(findings)
 		}
 		out.NaechsterSchritt = "beleg_lesen mit beleg_id " + fmt.Sprint(receipt.ID)
-		if !out.ERechnung {
-			out.Hinweise = append(out.Hinweise, "Ohne E-Rechnung bucht Buchfink diesen Beleg nur mit Rückfrage.")
-		}
-		if !receipt.IsDisplayable() {
-			out.Hinweise = append(out.Hinweise, "Der Beleg hat keine ansehbare Darstellung und lässt sich so nicht buchen. "+
-				"Eine reine XRechnung braucht ein PDF mit rolle=darstellung; der Mensch kann es auch in der App ergänzen.")
-		}
+		out.Hinweise = append(out.Hinweise, receiptHints(ctx, s, receipt)...)
 		return out, nil
 	})
 
@@ -462,4 +486,119 @@ func registerBelege(tb *Toolbox) {
 func suggestedVerdict(ctx context.Context, s *core.Services, req service.ReceiptRequest) *policy.Verdict {
 	v := policy.ClassifyProposal(ctx, s, req, today())
 	return &v
+}
+
+// refile beantwortet das zweite Ablegen derselben Originaldatei: der Beleg
+// besteht schon; Dateien, die ihm noch fehlen, kommen dazu, solange er offen
+// ist. So bekommt eine reine XRechnung ihre Darstellung nachgereicht.
+func refile(ctx context.Context, s *core.Services, existing *domain.Receipt, files []service.NewFile) (belegAblegenOut, error) {
+	out := belegAblegenOut{BereitsVorhanden: true, Befunde: belegBefunde{Liste: []befundEintrag{}}, Hinweise: []string{}}
+	have := map[string]bool{}
+	for _, f := range existing.Files {
+		have[f.SHA256] = true
+	}
+	receipt := existing
+	added, refused := 0, 0
+	for _, f := range files {
+		sum := sha256.Sum256(f.Content)
+		if f.Role == domain.ReceiptRoleOriginal || have[hex.EncodeToString(sum[:])] {
+			continue
+		}
+		if !receipt.IsOpen() {
+			refused++
+			continue
+		}
+		next, err := s.Receipts.AddFile(ctx, receipt.ID, f)
+		if err != nil {
+			return out, err
+		}
+		receipt, added = next, added+1
+	}
+	if added > 0 {
+		out.Hinweise = append(out.Hinweise, fmt.Sprintf("%d Datei(en) am vorhandenen Beleg ergänzt.", added))
+	}
+	if refused > 0 {
+		out.Hinweise = append(out.Hinweise, fmt.Sprintf("%d Datei(en) nicht übernommen: Beleg %s ist gebucht oder verworfen.",
+			refused, receipt.ReceiptNumber))
+	}
+	if receipt.Status == domain.ReceiptStatusDiscarded {
+		out.Hinweise = append(out.Hinweise, fmt.Sprintf("Beleg %s ist verworfen (%s); dieselbe Datei legt Buchfink nicht ein "+
+			"zweites Mal ab.", receipt.ReceiptNumber, receipt.DiscardReason))
+	}
+	out.Beleg = belegZeileOf(*receipt)
+	_, out.ERechnung = receipt.FileByRole(domain.ReceiptRoleStructured)
+	if findings, err := s.Receipts.Findings(ctx, receipt.ID); err == nil {
+		out.Befunde = befundeOf(findings)
+	}
+	out.Hinweise = append(out.Hinweise, receiptHints(ctx, s, receipt)...)
+	out.NaechsterSchritt = "beleg_lesen mit beleg_id " + fmt.Sprint(receipt.ID)
+	return out, nil
+}
+
+// ignoredHeader nennt Kopfdaten aus dem Aufruf, die der E-Rechnung
+// widersprechen und deshalb nicht gelten.
+func ignoredHeader(given domain.ReceiptHeader, r *domain.Receipt) []string {
+	var fields []string
+	if given.DocumentDate != "" && given.DocumentDate != r.DocumentDate {
+		fields = append(fields, "belegdatum")
+	}
+	if given.IssuerName != "" && given.IssuerName != r.IssuerName {
+		fields = append(fields, "aussteller")
+	}
+	if given.GrossAmount != 0 && given.GrossAmount != r.GrossAmount {
+		fields = append(fields, "brutto")
+	}
+	if given.Subject != "" && given.Subject != r.Subject {
+		fields = append(fields, "betreff")
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+	return []string{fmt.Sprintf("Die Angaben %s kommen aus der E-Rechnung; die abweichenden Werte des Aufrufs gelten nicht.",
+		strings.Join(fields, ", "))}
+}
+
+// receiptHints sind die Hinweise zu einem abgelegten Beleg: was zum Buchen
+// fehlt und wohin die Vorsteuer fällt.
+func receiptHints(ctx context.Context, s *core.Services, r *domain.Receipt) []string {
+	var out []string
+	if !r.IsOpen() {
+		return out
+	}
+	_, structured := r.FileByRole(domain.ReceiptRoleStructured)
+	if !structured {
+		out = append(out, "Ohne E-Rechnung bucht Buchfink diesen Beleg nur mit Rückfrage.")
+		if r.DocumentDate == "" || r.IssuerName == "" || r.GrossAmount == 0 {
+			out = append(out, "Belegdatum, Aussteller oder Brutto fehlen; beleg_buchen_mit_rueckfrage ergänzt sie aus der Buchung.")
+		}
+	}
+	if !r.IsDisplayable() {
+		out = append(out, "Der Beleg hat keine ansehbare Darstellung und lässt sich so nicht buchen. Eine reine "+
+			"XRechnung braucht ein PDF: dieselbe XML noch einmal mit beleg_ablegen und dem PDF als rolle=darstellung senden.")
+	}
+	if hint := inputTaxPeriodHint(ctx, s, r); hint != "" {
+		out = append(out, hint)
+	}
+	return out
+}
+
+// inputTaxPeriodHint sagt, wenn der Eingang in einem späteren
+// Voranmeldungszeitraum liegt als das Belegdatum: die Vorsteuer fällt dann
+// erst in den Zeitraum des Eingangs.
+func inputTaxPeriodHint(ctx context.Context, s *core.Services, r *domain.Receipt) string {
+	if r.DocumentDate == "" || r.ReceivedAt == "" || r.ReceivedAt <= r.DocumentDate {
+		return ""
+	}
+	cfg, err := s.Settings.GetCompanySettings(ctx)
+	if err != nil || cfg == nil {
+		return ""
+	}
+	kind := domain.VatPeriodType(cfg.VatPeriod)
+	doc, err1 := accounting.VatPeriodOf(r.DocumentDate, kind)
+	got, err2 := accounting.VatPeriodOf(r.ReceivedAt, kind)
+	if err1 != nil || err2 != nil || doc.Key == got.Key {
+		return ""
+	}
+	return fmt.Sprintf("Eingang am %s: die Vorsteuer fällt in den Voranmeldungszeitraum %s, nicht in %s des Belegdatums. "+
+		"Kam der Beleg früher an, eingang_am beim Buchen mit beleg_buchen_mit_rueckfrage berichtigen.", r.ReceivedAt, got.Key, doc.Key)
 }

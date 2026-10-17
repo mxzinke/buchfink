@@ -99,7 +99,7 @@ func TestManualEntryReversalAndReminder(t *testing.T) {
 	var customer kontaktOut
 	a.ok("kontakt_anlegen", a.args(map[string]any{"typ": "kunde", "name": "Kunde AG", "plz": "10115", "ort": "Berlin"}), &customer)
 	var receipt ablageOut
-	a.ok("beleg_ablegen", a.args(map[string]any{"dateien": []any{map[string]any{"pfad": h.inboxFile("ar-17.pdf", pdf("Rechnung 17"))}},
+	a.ok("beleg_ablegen", a.args(map[string]any{"eingang_am": today(), "dateien": []any{map[string]any{"pfad": h.inboxFile("ar-17.pdf", pdf("Rechnung 17"))}},
 		"belegdatum": "2026-03-10", "aussteller": "Pfennig Ventures GmbH", "brutto": "119.00"}), &receipt)
 
 	revenue := func(net, tax, gross string) []any {
@@ -205,7 +205,7 @@ func TestPayrollJournal(t *testing.T) {
 	h.completeCompany()
 	a := h.agent("")
 	var journal ablageOut
-	a.ok("beleg_ablegen", a.args(map[string]any{"dateien": []any{map[string]any{"pfad": h.inboxFile("lohn-2026-04.pdf", pdf("Lohnjournal April"))}},
+	a.ok("beleg_ablegen", a.args(map[string]any{"eingang_am": today(), "dateien": []any{map[string]any{"pfad": h.inboxFile("lohn-2026-04.pdf", pdf("Lohnjournal April"))}},
 		"belegdatum": "2026-04-30", "aussteller": "Lohnbüro Muster", "brutto": "3600.00"}), &journal)
 	in := a.args(map[string]any{"monat": "2026-04", "beleg_id": journal.Beleg.ID, "gehaelter": "3000.00",
 		"an_sozialversicherung": "600.00", "lohnsteuer": "400.00", "netto": "2000.00", "ag_sozialversicherung": "600.00"})
@@ -245,7 +245,7 @@ func TestReportsAndClosing(t *testing.T) {
 	h.completeCompany()
 	a := h.agent("")
 	var statement ablageOut
-	a.ok("beleg_ablegen", a.args(map[string]any{"dateien": []any{map[string]any{"pfad": h.inboxFile("einzahlung.pdf", pdf("Kontoauszug"))}},
+	a.ok("beleg_ablegen", a.args(map[string]any{"eingang_am": today(), "dateien": []any{map[string]any{"pfad": h.inboxFile("einzahlung.pdf", pdf("Kontoauszug"))}},
 		"belegdatum": "2026-02-03", "aussteller": "Hausbank", "brutto": "25000.00"}), &statement)
 	a.ok("buchung_erfassen", a.args(map[string]any{"buchungsdatum": "2026-02-03", "beschreibung": "Stammkapital eingezahlt",
 		"steuerfall": "not_taxable", "beleg_id": statement.Beleg.ID,

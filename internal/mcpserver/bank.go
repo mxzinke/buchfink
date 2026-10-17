@@ -366,7 +366,7 @@ func registerBank(tb *Toolbox) {
 			return buchungOut{}, err
 		}
 		if in.NurVorschau {
-			return buchungOut{Einstufung: string(verdict.Level)}, nil
+			return buchungOut{Einstufung: string(verdict.Level), Gruende: verdict.Reasons}, nil
 		}
 		if !verdict.Direct() {
 			return buchungOut{}, errApproval(verdict, "bankumsatz_buchen")

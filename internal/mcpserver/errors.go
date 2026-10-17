@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/core/policy"
@@ -117,6 +118,23 @@ func errApproval(v policy.Verdict, confirmTool string) *ToolError {
 		Nachricht:        "Kein Routinefall; es wurde nichts geschrieben.",
 		NaechsterSchritt: "Dem Menschen Vorgang und Gründe vorlegen; nach seinem Ja dieselben Angaben mit " + confirmTool + " senden.",
 		Werkzeug:         confirmTool, Gruende: v.Reasons}
+}
+
+// searchTool nennt das Werkzeug, mit dem sich eine Kennung neu ermitteln lässt.
+var searchTool = map[string]string{
+	"beleg_id": "belege_suchen", "kontakt_id": "kontakte_suchen", "buchung_id": "buchungen_suchen",
+	"bankumsatz_id": "bankumsaetze", "anlage_id": "anlagen",
+}
+
+// notFound benennt bei einer unbekannten Kennung das Feld; andere Fehler
+// gehen unverändert durch.
+func notFound(field string, id uint, err error) error {
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+	tool := searchTool[field]
+	return &ToolError{Code: CodeNotFound, Nachricht: fmt.Sprintf("%s %d gibt es nicht", field, id),
+		NaechsterSchritt: "Die Kennung mit " + tool + " neu ermitteln.", Werkzeug: tool}
 }
 
 // errorResult ist das Ergebnis eines gescheiterten Aufrufs. Der Fehler steht

@@ -153,17 +153,23 @@ func (h *harness) vendor() uint {
 // eInvoice schreibt eine E-Rechnung (CII) des Lieferanten in den Eingang.
 func (h *harness) eInvoice(number, date string, net domain.Cents) string {
 	h.t.Helper()
+	return h.inboxFile(number+".xml", []byte(h.eInvoiceXML(supplier, number, date, net)))
+}
+
+// eInvoiceXML ist eine E-Rechnung (CII) eines Ausstellers an den Mandanten.
+func (h *harness) eInvoiceXML(seller *domain.CompanySettings, number, date string, net domain.Cents) string {
+	h.t.Helper()
 	inv := &domain.Invoice{FiscalYear: 2026, ContactID: 1, InvoiceNumber: number, Date: date,
 		ServiceDateFrom: date, ServiceDateTo: date, DueDate: date, ContactName: "Pfennig Ventures GmbH",
 		TaxTreatment: domain.TaxTreatmentDomestic, Currency: "EUR",
 		Items: []domain.InvoiceItem{{Position: 1, Description: "Wartung Server", QuantityMilli: 1000, Unit: "C62",
 			UnitPrice: net, TaxRate: domain.TaxRateStandard}}}
 	inv.Recalculate()
-	xml, err := invoice.GenerateZUGFeRDXML(inv, supplier, buyer())
+	xml, err := invoice.GenerateZUGFeRDXML(inv, seller, buyer())
 	if err != nil {
 		h.t.Fatalf("E-Rechnung: %v", err)
 	}
-	return h.inboxFile(number+".xml", []byte(xml))
+	return xml
 }
 
 // inboxFile legt eine Datei in den Belegeingang.

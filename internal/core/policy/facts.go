@@ -2,6 +2,8 @@ package policy
 
 import (
 	"context"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/buchfink/buchfink/internal/accounting"
@@ -36,23 +38,37 @@ func ClassifyReceiptRequest(ctx context.Context, s *core.Services, req service.R
 }
 
 // ClassifyProposal stuft die Buchung ein, die ein Vorschlag aus der
-// E-Rechnung mit der bestätigten Standardgruppe des Lieferanten ergäbe.
+// E-Rechnung mit der bestätigten Standardgruppe des Lieferanten ergäbe. Ohne
+// bestätigte Gruppe lässt sich die Buchung nicht durchrechnen; die übrigen
+// Regeln gelten trotzdem, und der Brutto kommt aus der E-Rechnung.
 func ClassifyProposal(ctx context.Context, s *core.Services, req service.ReceiptRequest, today string) Verdict {
 	req.Positions = append([]service.ReceiptPosition(nil), req.Positions...)
+	grouped := false
 	if contact, err := s.Repos.Contacts.FindByID(ctx, req.ContactID); err == nil && contact.DefaultPostingGroupConfirmedAt != "" {
 		for i := range req.Positions {
 			req.Positions[i].PostingGroup = contact.DefaultPostingGroup
 		}
+		grouped = true
 	}
-	v, err := ClassifyReceiptRequest(ctx, s, req, today)
+	limits, err := LimitsFor(ctx, s)
 	if err != nil {
 		return Verdict{Level: Confirm, Reasons: []Reason{{Key: "vorschau", Text: err.Error()}}}
 	}
-	return v
+	f, err := receiptFacts(ctx, s, req, today, grouped)
+	if err != nil {
+		return Verdict{Level: Confirm, Reasons: []Reason{{Key: "vorschau", Text: err.Error()}}}
+	}
+	return ClassifyReceipt(f, limits)
 }
 
 // ReceiptFactsFor sammelt die Fakten einer Belegbuchung.
 func ReceiptFactsFor(ctx context.Context, s *core.Services, req service.ReceiptRequest, today string) (ReceiptFacts, error) {
+	return receiptFacts(ctx, s, req, today, true)
+}
+
+// receiptFacts sammelt die Fakten; ohne preview wird nicht durchgerechnet und
+// der Brutto der E-Rechnung genommen.
+func receiptFacts(ctx context.Context, s *core.Services, req service.ReceiptRequest, today string, preview bool) (ReceiptFacts, error) {
 	f := ReceiptFacts{
 		Treatment: req.TaxTreatment, Currency: strings.ToUpper(strings.TrimSpace(req.Currency)),
 		Settlement: string(req.Settlement), BookingDate: req.BookingDate, DocumentDate: req.DocumentDate,
@@ -79,14 +95,17 @@ func ReceiptFactsFor(ctx context.Context, s *core.Services, req service.ReceiptR
 			}
 		}
 	}
+	var proposal *service.EInvoiceProposal
 	if f.Structured {
-		proposal, err := s.EInvoice.Propose(ctx, receipt.ID)
+		proposal, err = s.EInvoice.Propose(ctx, receipt.ID)
 		if err != nil {
-			f.ProposalError = err.Error()
+			f.ProposalError, proposal = err.Error(), nil
 		} else {
 			if proposal.MatchedContact {
 				f.ProposalContactID = proposal.Request.ContactID
+				f.ProposalMatchedBy = proposal.MatchedBy
 			}
+			f.HeaderMismatch = headerMismatch(receipt, proposal)
 			f.ProposalTreatment = proposal.Request.TaxTreatment
 			f.ProposalCurrency = strings.ToUpper(strings.TrimSpace(proposal.Request.Currency))
 			f.ProposalGross = proposal.GrossAmount
@@ -102,6 +121,9 @@ func ReceiptFactsFor(ctx context.Context, s *core.Services, req service.ReceiptR
 		return f, err
 	}
 	f.ContactBlocked = contact.Blocked
+	if proposal != nil {
+		f.MasterDataMismatch, f.IBANMismatch = masterDataMismatch(contact, proposal)
+	}
 	if contact.DefaultPostingGroup != "" && contact.DefaultPostingGroupConfirmedAt != "" {
 		f.ConfirmedGroup = contact.DefaultPostingGroup
 		if f.BookingsWithGroup, err = bookingsWithGroup(ctx, s, contact.ID, f.ConfirmedGroup); err != nil {
@@ -120,7 +142,10 @@ func ReceiptFactsFor(ctx context.Context, s *core.Services, req service.ReceiptR
 
 	// Eine Fremdwährung ist ohnehin Rückfrage; ihre Vorschau holte einen Kurs
 	// aus dem Netz, und das gehört nicht unter die Schreibsperre.
-	if isEuro(f.Currency) {
+	switch {
+	case !preview:
+		f.Gross = f.ProposalGross
+	case isEuro(f.Currency):
 		preview, err := s.Posting.PreviewIncomingReceipt(ctx, req)
 		if err != nil {
 			return f, err
@@ -130,8 +155,58 @@ func ReceiptFactsFor(ctx context.Context, s *core.Services, req service.ReceiptR
 			f.Special = append(f.Special, "befund_vorsteuer")
 		}
 	}
-	f.DuplicateOf, err = duplicateOf(ctx, s, receipt, contact)
+	f.DuplicateOf, err = duplicateOf(ctx, s, receipt, contact, proposal)
 	return f, err
+}
+
+// headerMismatch nennt die Kopfdaten, die nicht aus der E-Rechnung stammen.
+// Wer sie anders setzt, als die E-Rechnung sagt, umginge sonst die
+// Dublettenprüfung oder verschöbe den Beleg in ein anderes Jahr.
+func headerMismatch(r *domain.Receipt, p *service.EInvoiceProposal) []string {
+	var out []string
+	if r.DocumentDate != p.Request.DocumentDate {
+		out = append(out, "belegdatum")
+	}
+	if r.GrossAmount != p.GrossAmount {
+		out = append(out, "brutto")
+	}
+	if normalizeName(r.IssuerName) != normalizeName(p.SupplierName) {
+		out = append(out, "aussteller")
+	}
+	if subject := strings.TrimSpace(r.Subject); subject != "" && !strings.EqualFold(subject, strings.TrimSpace(p.InvoiceNumber)) {
+		out = append(out, "betreff")
+	}
+	return out
+}
+
+// masterDataMismatch vergleicht den Aussteller der E-Rechnung mit den
+// Stammdaten des Kontakts. Was beim Kontakt fehlt, widerspricht nicht.
+func masterDataMismatch(c *domain.Contact, p *service.EInvoiceProposal) ([]string, bool) {
+	var out []string
+	differs := func(a, b string) bool {
+		a, b = domain.NormalizeTaxIdentifier(a), domain.NormalizeTaxIdentifier(b)
+		return a != "" && b != "" && a != b
+	}
+	if differs(c.VatID, p.SupplierVatID) {
+		out = append(out, "ust_id")
+	}
+	if differs(c.TaxID, p.SupplierTaxID) {
+		out = append(out, "steuernummer")
+	}
+	if differs(c.PostalCode, p.SupplierPostCode) ||
+		(c.City != "" && p.SupplierCity != "" && normalizeName(c.City) != normalizeName(p.SupplierCity)) {
+		out = append(out, "anschrift")
+	}
+	iban := domain.NormalizeIBAN(c.IBAN)
+	if iban == "" || len(p.PaymentAccounts) == 0 {
+		return out, false
+	}
+	for _, a := range p.PaymentAccounts {
+		if domain.NormalizeIBAN(a) == iban {
+			return out, false
+		}
+	}
+	return out, true
 }
 
 func positionSpecials(p service.ReceiptPosition) []string {
@@ -220,12 +295,57 @@ func bookingsWithGroup(ctx context.Context, s *core.Services, contactID uint, ke
 }
 
 // duplicateOf sucht einen anderen Eingangsbeleg desselben Ausstellers mit
-// derselben Rechnungsnummer oder demselben Betrag am selben Tag.
-func duplicateOf(ctx context.Context, s *core.Services, receipt *domain.Receipt, contact *domain.Contact) (string, error) {
+// derselben Rechnungsnummer oder demselben Betrag am selben Tag. Bei einer
+// E-Rechnung zählen Nummer, Betrag und Datum aus dem strukturierten Teil,
+// nicht die Kopfdaten: die lassen sich beim Ablegen frei setzen. Die Nummer
+// wird über alle Geschäftsjahre gesucht.
+func duplicateOf(ctx context.Context, s *core.Services, receipt *domain.Receipt, contact *domain.Contact,
+	proposal *service.EInvoiceProposal) (string, error) {
+	number, gross, date := receipt.Subject, receipt.GrossAmount, receipt.DocumentDate
+	ids := map[string]bool{domain.NormalizeTaxIdentifier(contact.VatID): true, domain.NormalizeTaxIdentifier(contact.TaxID): true}
 	issuers := map[string]bool{normalizeName(receipt.IssuerName): true, normalizeName(contact.Name): true,
 		normalizeName(contact.Company): true}
+	if proposal != nil {
+		number, gross, date = proposal.InvoiceNumber, proposal.GrossAmount, proposal.Request.DocumentDate
+		ids[domain.NormalizeTaxIdentifier(proposal.SupplierVatID)] = true
+		ids[domain.NormalizeTaxIdentifier(proposal.SupplierTaxID)] = true
+		issuers[normalizeName(proposal.SupplierName)] = true
+	}
+	delete(ids, "")
 	delete(issuers, "")
-	for _, year := range []int{receipt.FiscalYear, receipt.FiscalYear - 1} {
+	other := func(o *domain.Receipt) bool {
+		return o.ID != receipt.ID && o.Status != domain.ReceiptStatusDiscarded && o.Direction == domain.DirectionIncoming
+	}
+
+	if strings.TrimSpace(number) != "" {
+		same, err := s.Receipts.FindByEInvoiceNumber(ctx, number)
+		if err != nil {
+			return "", err
+		}
+		for i := range same {
+			o := &same[i]
+			if !other(o) {
+				continue
+			}
+			if ids[o.EInvoiceIssuer] || (o.EInvoiceIssuer == "" && issuers[normalizeName(o.IssuerName)]) ||
+				bookedTo(ctx, s, o, contact.ID) {
+				return o.ReceiptNumber, nil
+			}
+		}
+	}
+
+	years := map[int]bool{receipt.FiscalYear: true}
+	if len(date) >= 4 {
+		if y, err := strconv.Atoi(date[:4]); err == nil {
+			years[y-1], years[y], years[y+1] = true, true, true
+		}
+	}
+	ordered := make([]int, 0, len(years))
+	for year := range years {
+		ordered = append(ordered, year)
+	}
+	sort.Ints(ordered)
+	for _, year := range ordered {
 		if year <= 0 {
 			continue
 		}
@@ -233,21 +353,30 @@ func duplicateOf(ctx context.Context, s *core.Services, receipt *domain.Receipt,
 		if err != nil {
 			return "", err
 		}
-		for _, o := range others {
-			if o.ID == receipt.ID || o.Status == domain.ReceiptStatusDiscarded || o.Direction != domain.DirectionIncoming {
+		for i := range others {
+			o := &others[i]
+			if !other(o) || (!issuers[normalizeName(o.IssuerName)] && !ids[o.EInvoiceIssuer]) {
 				continue
 			}
-			if !issuers[normalizeName(o.IssuerName)] {
-				continue
-			}
-			sameNumber := receipt.Subject != "" && strings.EqualFold(strings.TrimSpace(o.Subject), strings.TrimSpace(receipt.Subject))
-			sameAmount := receipt.GrossAmount != 0 && o.GrossAmount == receipt.GrossAmount && o.DocumentDate == receipt.DocumentDate
+			sameNumber := strings.TrimSpace(number) != "" &&
+				(strings.EqualFold(strings.TrimSpace(o.Subject), strings.TrimSpace(number)) ||
+					strings.EqualFold(strings.TrimSpace(o.EInvoiceNumber), strings.TrimSpace(number)))
+			sameAmount := gross != 0 && o.GrossAmount == gross && o.DocumentDate == date
 			if sameNumber || sameAmount {
 				return o.ReceiptNumber, nil
 			}
 		}
 	}
 	return "", nil
+}
+
+// bookedTo meldet, ob ein Beleg schon auf diesen Kontakt gebucht ist.
+func bookedTo(ctx context.Context, s *core.Services, r *domain.Receipt, contactID uint) bool {
+	if r.JournalEntryID == nil {
+		return false
+	}
+	entry, err := s.Repos.Journal.FindByID(ctx, *r.JournalEntryID)
+	return err == nil && entry.ContactID != nil && *entry.ContactID == contactID
 }
 
 // ClassifyBankRequest sammelt die Fakten einer Zuordnung und urteilt.

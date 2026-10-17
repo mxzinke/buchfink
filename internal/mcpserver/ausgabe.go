@@ -3,6 +3,7 @@ package mcpserver
 import (
 	"fmt"
 
+	"github.com/buchfink/buchfink/internal/core/policy"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/service"
 )
@@ -79,9 +80,10 @@ func vorschauOf(p *service.PostingPreview) vorschau {
 // buchungOut ist die Ausgabe der buchenden Werkzeuge.
 type buchungOut struct {
 	Wiederholung
-	Buchung    *buchungKurz `json:"buchung,omitempty"`
-	Vorschau   *vorschau    `json:"vorschau,omitempty" jsonschema:"nur mit nur_vorschau: so würde gebucht"`
-	Einstufung string       `json:"einstufung,omitempty" jsonschema:"direkt oder rueckfrage"`
+	Buchung    *buchungKurz    `json:"buchung,omitempty"`
+	Vorschau   *vorschau       `json:"vorschau,omitempty" jsonschema:"nur mit nur_vorschau: so würde gebucht"`
+	Einstufung string          `json:"einstufung,omitempty" jsonschema:"direkt oder rueckfrage"`
+	Gruende    []policy.Reason `json:"gruende,omitempty" jsonschema:"bei rueckfrage: welche Regel für direkt nicht erfüllt ist"`
 }
 
 func (o buchungOut) Ref() string {

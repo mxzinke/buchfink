@@ -6,6 +6,7 @@ package policy
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -87,10 +88,22 @@ type ReceiptFacts struct {
 	// wenn sich keiner bilden ließ.
 	ProposalError     string
 	ProposalContactID uint
+	// ProposalMatchedBy ist das Merkmal, an dem der Aussteller erkannt wurde:
+	// "ust_id" oder "steuernummer"; "name" allein genügt nicht.
+	ProposalMatchedBy string
 	ProposalTreatment domain.TaxTreatment
 	ProposalCurrency  string
 	ProposalNet       map[domain.TaxRate]domain.Cents
 	ProposalGross     domain.Cents
+	// HeaderMismatch nennt die Kopfdaten des Belegs, die von der E-Rechnung
+	// abweichen (belegdatum, brutto, aussteller, betreff).
+	HeaderMismatch []string
+	// MasterDataMismatch nennt Angaben der E-Rechnung, die den Stammdaten des
+	// Kontakts widersprechen (ust_id, steuernummer, anschrift).
+	MasterDataMismatch []string
+	// IBANMismatch: der Kontakt hat eine IBAN, die E-Rechnung verlangt Zahlung
+	// auf ein anderes Konto.
+	IBANMismatch bool
 
 	// Der Lieferant.
 	ContactID         uint
@@ -141,8 +154,22 @@ func ClassifyReceipt(f ReceiptFacts, l Limits) Verdict {
 	if f.Structured && f.ProposalError != "" {
 		add("kein_vorschlag", "Aus der E-Rechnung lässt sich kein Buchungsvorschlag bilden: %s", f.ProposalError)
 	}
-	if f.Structured && f.ProposalError == "" && (f.ProposalContactID == 0 || f.ProposalContactID != f.ContactID) {
-		add("kontakt_nicht_erkannt", "Der Aussteller der E-Rechnung ist nicht eindeutig dieser Kontakt.")
+	if f.Structured && f.ProposalError == "" {
+		switch {
+		case f.ProposalContactID == 0 || f.ProposalContactID != f.ContactID:
+			add("kontakt_nicht_erkannt", "Der Aussteller der E-Rechnung ist nicht eindeutig dieser Kontakt.")
+		case f.ProposalMatchedBy != "ust_id" && f.ProposalMatchedBy != "steuernummer":
+			add("kontakt_nicht_erkannt", "Der Aussteller der E-Rechnung passt nur dem Namen nach; USt-IdNr. oder Steuernummer stimmen nicht mit dem Kontakt überein.")
+		}
+		if len(f.HeaderMismatch) > 0 {
+			add("kopf_weicht_ab", "Die Kopfdaten des Belegs weichen von der E-Rechnung ab: %s.", strings.Join(f.HeaderMismatch, ", "))
+		}
+		if len(f.MasterDataMismatch) > 0 {
+			add("stammdaten_weichen_ab", "Die E-Rechnung widerspricht den Stammdaten des Kontakts: %s.", strings.Join(f.MasterDataMismatch, ", "))
+		}
+		if f.IBANMismatch {
+			add("iban_weicht_ab", "Die E-Rechnung nennt ein anderes Zahlungskonto als die IBAN des Kontakts.")
+		}
 	}
 	if f.ContactBlocked {
 		add("kontakt_gesperrt", "Der Kontakt ist gesperrt.")

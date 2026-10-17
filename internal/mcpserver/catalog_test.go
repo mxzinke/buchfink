@@ -36,7 +36,7 @@ var catalog = map[string]Tier{
 // mandant_id. Gültig heißt: sie bestehen das Eingabeschema; was danach
 // fachlich passiert, prüfen die Szenarien.
 var writeFixtures = map[string]map[string]any{
-	"beleg_ablegen":               {"dateien": []any{map[string]any{"pfad": "/nicht/da.pdf"}}},
+	"beleg_ablegen":               {"eingang_am": "2026-05-04", "dateien": []any{map[string]any{"pfad": "/nicht/da.pdf"}}},
 	"kontakt_anlegen":             {"typ": "lieferant", "name": "Matrix GmbH"},
 	"kontoauszug_importieren":     {"pfad": "/nicht/da.xml"},
 	"beleg_buchen":                bookArgs(1, 1, "2026-05-04", "100.00"),

@@ -63,7 +63,7 @@ func (a *agent) file(path string) ablageOut {
 	a.t.Helper()
 	view := a.h.inboxFile(filepath.Base(path)+".pdf", pdf("Darstellung "+filepath.Base(path)))
 	var out ablageOut
-	a.ok("beleg_ablegen", a.args(map[string]any{"dateien": []any{
+	a.ok("beleg_ablegen", a.args(map[string]any{"eingang_am": today(), "dateien": []any{
 		map[string]any{"pfad": path}, map[string]any{"pfad": view, "rolle": "darstellung"},
 	}, "eingang_ueber": "email"}), &out)
 	return out
@@ -188,7 +188,7 @@ func TestReceiptFromInboxToDirectBooking(t *testing.T) {
 		t.Errorf("über der Direktgrenze: %+v", e)
 	}
 	var photo ablageOut
-	a.ok("beleg_ablegen", a.args(map[string]any{"dateien": []any{map[string]any{"pfad": h.inboxFile("foto.pdf", pdf("Quittung"))}},
+	a.ok("beleg_ablegen", a.args(map[string]any{"eingang_am": today(), "dateien": []any{map[string]any{"pfad": h.inboxFile("foto.pdf", pdf("Quittung"))}},
 		"belegdatum": "2026-05-07", "aussteller": supplier.CompanyName, "brutto": "11.90"}), &photo)
 	if photo.ERechnung {
 		t.Fatalf("ein PDF ohne Datensatz ist keine E-Rechnung: %+v", photo)
