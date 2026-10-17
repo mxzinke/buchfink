@@ -280,12 +280,10 @@ func (s *ClosingService) candidate(ctx context.Context, fy *domain.FiscalYear) F
 			return c
 		}
 	}
-	if s.foundationRepo != nil {
-		if f, err := s.foundationRepo.Get(ctx); err == nil && f != nil && len(f.NotarizedOn) == 10 && fy.EndDate < f.NotarizedOn {
-			c.Blocked = fmt.Sprintf(
-				"Das Unternehmen wurde am %s gegründet. Ein Geschäftsjahr, das vorher endet, gibt es nicht.",
-				germanDate(f.NotarizedOn))
-		}
+	if founded := s.foundingDate(ctx); founded != "" && fy.EndDate < founded {
+		c.Blocked = fmt.Sprintf(
+			"Das Unternehmen wurde am %s gegründet. Ein Geschäftsjahr, das vorher endet, gibt es nicht.",
+			germanDate(founded))
 	}
 	return c
 }
@@ -434,14 +432,27 @@ func (s *ClosingService) derive(ctx context.Context, year int) *domain.FiscalYea
 	// Das Gründungsjahr beginnt mit der Beurkundung, nicht am Kalenderanfang:
 	// vorher gab es die Gesellschaft nicht, und ein Jahr, das vor ihrer
 	// Entstehung beginnt, hätte einen Zeitraum ohne Bücher.
-	if s.foundationRepo != nil {
-		if f, err := s.foundationRepo.Get(ctx); err == nil && f != nil && len(f.NotarizedOn) == 10 {
-			if f.NotarizedOn > startDate && f.NotarizedOn <= endDate {
-				startDate = f.NotarizedOn
-			}
-		}
+	if founded := s.foundingDate(ctx); founded > startDate && founded <= endDate {
+		startDate = founded
 	}
 	return domain.NewFiscalYear(year, startDate, endDate)
+}
+
+// foundingDate ist der Tag der Beurkundung: aus der erfassten Gründung, sonst
+// das Gründungsdatum der Unternehmensdaten. Die Einrichtung setzt es bei einer
+// Gründung als Starttag der Bücher, bevor die Gründung selbst erfasst ist.
+func (s *ClosingService) foundingDate(ctx context.Context) string {
+	if s.foundationRepo != nil {
+		if f, err := s.foundationRepo.Get(ctx); err == nil && f != nil && len(f.NotarizedOn) == 10 {
+			return f.NotarizedOn
+		}
+	}
+	if s.settingsRepo != nil {
+		if cfg, err := s.settingsRepo.GetCompanySettings(ctx); err == nil && cfg != nil && len(cfg.FoundedOn) == 10 {
+			return cfg.FoundedOn
+		}
+	}
+	return ""
 }
 
 func (s *ClosingService) fiscalYearStartMonth(ctx context.Context) int {
