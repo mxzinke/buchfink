@@ -58,15 +58,10 @@ async function main() {
       steps.push(what);
     };
 
-    await page.goto(ORIGIN, { waitUntil: 'networkidle' });
-    // Die Mandantenwahl steht vor dem Arbeitsbereich und hat keine Navigation
-    // daneben. Der Klick zählt nicht mit: das Szenario beginnt in den Büchern.
-    await page.getByRole('button', { name: /öffnen$/i }).first().click();
+    // Vorlauf: die Bilanz aufschlagen. Das zählt nicht mit — das Szenario
+    // beginnt bei der Bilanzposition, vor der die Anwenderin sitzt.
+    await page.goto(`${ORIGIN}/#/books/statements`, { waitUntil: 'networkidle' });
     await page.waitForSelector('nav', { timeout: 30_000 });
-
-    // Vorlauf: die Bilanz aufschlagen. Diese Klicks zählen nicht mit — das
-    // Szenario beginnt bei der Bilanzposition, vor der die Anwenderin sitzt.
-    await page.getByRole('button', { name: 'GuV & Bilanz', exact: true }).first().click();
     await page.getByText('Bilanz zum', { exact: false }).first().waitFor({ timeout: 20_000 });
 
     // 1. Die Position aufklappen — darunter stehen ihre Konten.

@@ -1969,7 +1969,7 @@ const TASKS = {
       title: 'Voranmeldung Juli 2026 übermitteln',
       why: 'Die Voranmeldung ist bis zum zehnten Tag nach Ablauf des Zeitraums zu übermitteln.',
       reference: '§ 18 Abs. 1 UStG',
-      target: { page: 'vat', params: {} },
+      target: { area: 'closings', tab: 'month', id: 'ustva.2026-07' },
       count: 0,
       amount: c(4318.4),
       dueDate: `${YEAR}-08-10`,
@@ -1982,7 +1982,7 @@ const TASKS = {
       title: 'Bankumsätze ohne Zuordnung klären',
       why: 'Ein Umsatz ohne Zuordnung steht in keiner Buchung und fehlt damit in jeder Auswertung.',
       reference: 'GoBD Rz. 36',
-      target: { page: 'bank', params: {} },
+      target: { area: 'books', tab: 'bank' },
       count: 4,
       amount: c(12480.6),
     },
@@ -1991,7 +1991,7 @@ const TASKS = {
       group: 'open',
       title: 'Belege buchen',
       why: 'Abgelegte Belege sind erfasst, aber noch nicht gebucht.',
-      target: { page: 'receipts', params: { status: 'filed' } },
+      target: { area: 'books', tab: 'receipts' },
       count: 2,
       amount: c(3630.94),
     },
@@ -2001,7 +2001,7 @@ const TASKS = {
       title: 'Überfällige Kundenrechnungen',
       why: 'Zwei Kunden sind seit mehr als dreißig Tagen im Verzug.',
       reference: '§ 286 Abs. 3 BGB',
-      target: { page: 'accounts', params: {} },
+      target: { area: 'books', tab: 'invoices' },
       count: 2,
       amount: c(28311),
     },
@@ -2013,7 +2013,7 @@ const TASKS = {
       title: 'Voranmeldung August 2026 vorbereiten',
       why: 'Der Zeitraum endet am Monatsende; die Meldung ist zehn Tage später fällig.',
       reference: '§ 18 Abs. 1 UStG',
-      target: { page: 'deadlines', params: { key: 'ustva-2026-08' } },
+      target: { area: 'closings', tab: 'month', id: 'ustva.2026-08' },
       count: 0,
       amount: 0,
       dueDate: `${YEAR}-09-10`,
@@ -3031,6 +3031,116 @@ const FOUNDATION_STATE = {
   postingsBooked: true,
 };
 
+// -------------------------------------------------------------------------
+// Bankkonten, verbundene Apps, Länder
+
+const BANK_ACCOUNTS = [
+  {
+    iban: SETTINGS.iban,
+    name: 'Geschäftskonto',
+    ledgerAccount: '1800',
+    currency: EUR,
+    bic: SETTINGS.bic,
+    bankName: SETTINGS.bankName,
+    isInvoiceAccount: true,
+  },
+];
+
+const MCP_STATUS = {
+  running: true,
+  port: 7465,
+  url: 'http://127.0.0.1:7465/mcp',
+  error: '',
+};
+
+/** Zwei zugelassene Apps: Claude Code bucht, Claude Desktop liest nur. */
+const CONNECTED_APPS = [
+  {
+    clientId: 'c7f1e2a0-claude-code',
+    name: 'Claude Code',
+    channel: 'agent:claude-code',
+    approvedAt: `${YEAR}-08-03T09:14:00Z`,
+    lastUsedAt: `${YEAR}-08-25T08:52:00Z`,
+    tenants: [
+      {
+        id: TENANTS[0].id,
+        name: TENANTS[0].name,
+        scopes: ['buchfink:lesen', 'buchfink:buchen'],
+        grantedAt: `${YEAR}-08-03T09:14:00Z`,
+      },
+    ],
+    revoked: false,
+  },
+  {
+    clientId: '41b9d3c5-claude-desktop',
+    name: 'Claude Desktop',
+    channel: 'agent:claude-desktop',
+    approvedAt: `${YEAR}-08-11T16:40:00Z`,
+    lastUsedAt: `${YEAR}-08-22T17:05:00Z`,
+    tenants: [
+      {
+        id: TENANTS[0].id,
+        name: TENANTS[0].name,
+        scopes: ['buchfink:lesen'],
+        grantedAt: `${YEAR}-08-11T16:40:00Z`,
+      },
+    ],
+    revoked: false,
+  },
+];
+
+const COUNTRIES = [
+  { code: 'DE', name: 'Deutschland' },
+  { code: 'AT', name: 'Österreich' },
+  { code: 'CH', name: 'Schweiz' },
+  { code: 'NL', name: 'Niederlande' },
+  { code: 'FR', name: 'Frankreich' },
+];
+
+/** Kapitalregeln der beiden Rechtsformen, die Buchfink führt. */
+const FOUNDATION_RULES = [
+  {
+    legalForm: 'GmbH',
+    minShareCapital: c(25000),
+    paidInPerShareQuota: 0.25,
+    paidInFloor: c(12500),
+    paidInFloorIsFullCapital: false,
+    cashOnly: false,
+    legalReserve: false,
+    reference: '§ 5 Abs. 1, § 7 Abs. 2 GmbHG',
+    note: '',
+  },
+  {
+    legalForm: 'UG (haftungsbeschränkt)',
+    minShareCapital: c(1),
+    paidInPerShareQuota: 1,
+    paidInFloor: 0,
+    paidInFloorIsFullCapital: true,
+    cashOnly: true,
+    legalReserve: true,
+    reference: '§ 5a GmbHG',
+    note: 'Ein Viertel des Jahresüberschusses fließt in die gesetzliche Rücklage.',
+  },
+];
+
+/** Hebesatz Hamburg und die Vorgaben der Abgrenzung. */
+const CLOSING_SETTINGS = {
+  tradeTaxRatePercent: 470,
+  accrualMethod: 'monthly',
+  accrualThreshold: c(800),
+  accrualRelease: 'yearly',
+};
+
+const FISCAL_YEAR_CANDIDATES = {
+  next: { year: YEAR + 1, startDate: `${YEAR + 1}-01-01`, endDate: `${YEAR + 1}-12-31` },
+  previous: {
+    year: 2023,
+    startDate: '2023-01-01',
+    endDate: '2023-12-31',
+    blocked: 'Die Bücher beginnen am 01.01.2024.',
+  },
+};
+
 const unsupported = (name: string) => () =>
   Promise.reject(new Error(`${name} ist in der Screenshot-Vorschau nicht verfügbar.`));
 
@@ -3040,6 +3150,22 @@ export const bridge = {
   GetActiveTenant: () => later(TENANTS[0]),
   SwitchTenant: () => later(undefined),
   DeleteTenant: unsupported('DeleteTenant'),
+
+  GetBankAccounts: () => later(BANK_ACCOUNTS),
+  PreviewBankStatement: unsupported('PreviewBankStatement'),
+  ConfigureBankAccounts: unsupported('ConfigureBankAccounts'),
+  SetInvoiceBankAccount: unsupported('SetInvoiceBankAccount'),
+
+  // Verbundene Apps
+  GetMCPServerStatus: () => later(MCP_STATUS),
+  SetMCPPort: unsupported('SetMCPPort'),
+  GetConnectedApps: () => later(CONNECTED_APPS),
+  RevokeConnectedApp: unsupported('RevokeConnectedApp'),
+  GetPendingAppRequests: () => later([]),
+  ResolveAppRequest: unsupported('ResolveAppRequest'),
+  GetCountries: () => later(COUNTRIES),
+  GetFiscalYearCandidates: () => later(FISCAL_YEAR_CANDIDATES),
+  BookLegalReserve: unsupported('BookLegalReserve'),
 
   // Einrichtung
   GetAppConfig: () =>
@@ -3054,6 +3180,7 @@ export const bridge = {
       backupDir: '/Users/anna/Sicherungen',
       lastBackupAt: '2026-08-25T18:40:00Z',
     }),
+  ValidateTenantDirectory: unsupported('ValidateTenantDirectory'),
   SetupApplication: unsupported('SetupApplication'),
   LoadExistingDatabase: unsupported('LoadExistingDatabase'),
   SelectDirectoryDialog: unsupported('SelectDirectoryDialog'),
@@ -3292,7 +3419,7 @@ export const bridge = {
   GetAppropriation: unsupported('GetAppropriation'),
   GetNotesTexts: unsupported('GetNotesTexts'),
   SaveNotesText: unsupported('SaveNotesText'),
-  GetClosingSettings: unsupported('GetClosingSettings'),
+  GetClosingSettings: () => later(CLOSING_SETTINGS),
   SaveClosingSettings: unsupported('SaveClosingSettings'),
   GetTaxElectionRegister: unsupported('GetTaxElectionRegister'),
   ExportTaxElectionRegisterCSV: unsupported('ExportTaxElectionRegisterCSV'),
@@ -3306,7 +3433,7 @@ export const bridge = {
   RunChecks: unsupported('RunChecks'),
   MarkDeadlineDone: unsupported('MarkDeadlineDone'),
   SaveFoundation: unsupported('SaveFoundation'),
-  GetFoundationRules: unsupported('GetFoundationRules'),
+  GetFoundationRules: () => later(FOUNDATION_RULES),
   GetRecommendedVatPeriod: unsupported('GetRecommendedVatPeriod'),
   ExportZ3: unsupported('ExportZ3'),
   ExportArchive: unsupported('ExportArchive'),

@@ -15,17 +15,27 @@ npm --prefix scripts/site-screenshots install
 node scripts/site-screenshots/shoot.mjs        # die Bilder
 node scripts/site-screenshots/four-clicks.mjs  # der Klickweg (task check:clicks)
 node scripts/site-screenshots/help.mjs         # Tooltips, Dialoge, Quellenlinks
+node scripts/site-screenshots/peek.mjs '#/books/journal' /tmp/journal.png  # ein Ziel ansehen
 ```
 
 Das Skript startet den Vite-Server selbst, macht die Bilder und beendet ihn
-wieder. Ergebnis: zwanzig PNG in `website/assets/screenshots/`, 2880 × 1800
-(1440 × 900 bei doppelter Pixeldichte).
+wieder. Ergebnis: PNG in `website/assets/screenshots/`, 2880 × 1800 (1440 × 900
+bei doppelter Pixeldichte), je Bereich der Navigation mit dessen Namen
+vorn (`buecher-journal.png`).
+
+| Variable | Wirkung |
+|---|---|
+| `SHOTS=buecher,einstellungen` | nur diese Bereiche aus `shots/` |
+| `SCREENSHOT_DIR=/tmp/bilder` | anderer Zielordner |
+| `SCREENSHOT_PORT=9300` | anderer Port, damit zwei Arbeitskopien gleichzeitig aufnehmen |
 
 ## Was hier liegt
 
 | Datei | Aufgabe |
 |---|---|
 | `shoot.mjs` | Klickt sich mit Playwright durch die Ansichten, schreibt die Bilder |
+| `shots/*.mjs` | Die Aufnahmen je Bereich: Ziel, Wartebedingung, Dateiname |
+| `peek.mjs` | Ein Ziel öffnen und ein Bild ablegen, mit den Fehlern des Browsers |
 | `four-clicks.mjs` | Der Klickweg des Prüfszenarios: Bilanz → Konto → Buchung → Beleg, mit Zähler |
 | `dev-server.mjs` | Startet und beendet den Vite-Server; beide Werkzeuge nutzen ihn |
 | `mock-bridge.ts` | Die Beispieldaten; tritt an die Stelle der Wails-Bridge |
@@ -47,8 +57,10 @@ wieder. Ergebnis: zwanzig PNG in `website/assets/screenshots/`, 2880 × 1800
   Locale des Browserprozesses, nicht der Seitensprache und auch nicht `--lang`.
   Ohne `LANG=de_DE.UTF-8` steht im Feld `08/10/2026` statt `10.08.2026`.
 - **Neue Ansicht, neuer Eintrag.** Ein Screenshot besteht aus einem Eintrag in
-  `shots` (Navigation, Wartebedingung, Dateiname) und den Daten, die die Ansicht
-  dafür braucht.
+  der Datei seines Bereichs unter `shots/` (Ziel, Wartebedingung, Dateiname)
+  und den Daten, die die Ansicht dafür braucht. `open('#/books/journal')` setzt
+  das Ziel wie ein Verweis in der Anwendung, `nav` und `tab` klicken Navigation
+  und Reiter.
 - **Neue Bridge-Methode, neue Beispielantwort.** Was eine Ansicht beim Öffnen
   ruft, muss `mock-bridge.ts` kennen; sonst bricht sie hier mit einem
   TypeError ab, den es in der Anwendung nicht gibt. Was der Screenshot-Lauf
