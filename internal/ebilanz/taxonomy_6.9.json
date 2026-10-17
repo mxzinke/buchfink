@@ -117,6 +117,11 @@
       "verified": false
     },
     {
+      "key": "aktiva.A.III.gesellschafter",
+      "element": "de-gaap-ci:bs.ass.fixAss.fin.loansToSharehold",
+      "verified": true
+    },
+    {
       "key": "aktiva.B",
       "element": "de-gaap-ci:bs.ass.currAss",
       "verified": false
@@ -170,6 +175,11 @@
       "key": "aktiva.B.II.4",
       "element": "de-gaap-ci:bs.ass.currAss.receiv.other",
       "verified": false
+    },
+    {
+      "key": "aktiva.B.II.gesellschafter",
+      "element": "de-gaap-ci:bs.ass.currAss.receiv.shareholders",
+      "verified": true
     },
     {
       "key": "aktiva.B.III",
@@ -330,6 +340,11 @@
       "key": "passiva.C.8",
       "element": "de-gaap-ci:bs.eqLiab.liab.other",
       "verified": false
+    },
+    {
+      "key": "passiva.C.gesellschafter",
+      "element": "de-gaap-ci:bs.eqLiab.liab.shareholders",
+      "verified": true
     },
     {
       "key": "passiva.D",

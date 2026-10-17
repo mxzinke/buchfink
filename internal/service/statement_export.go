@@ -57,6 +57,10 @@ func (s *StatementService) ExportCSV(ctx context.Context, year int, depth domain
 			writeRow(&b, string(line.Section), line.Key, line.Ordinal, line.Label,
 				fmt.Sprintf("%d", line.Level), germanAmount(line.Amount), germanAmount(line.PriorAmount),
 				omittedMark(line.Omitted))
+			for _, remark := range line.Remarks {
+				writeRow(&b, string(line.Section), remark.Key, "", remark.Label,
+					fmt.Sprintf("%d", line.Level+1), germanAmount(remark.Amount), germanAmount(remark.PriorAmount), "")
+			}
 		}
 	}
 
@@ -403,6 +407,14 @@ func writeTypstTable(
 			fmt.Fprintf(b, ", [%s]", typstText(line.PriorAmount.String()))
 		}
 		b.WriteString(",\n")
+		for _, remark := range line.Remarks {
+			fmt.Fprintf(b, "  [%s_%s_], [_%s_]", strings.Repeat("#h(1em)", line.Level),
+				typstText(remark.Label), typstText(remark.Amount.String()))
+			if hasPrior {
+				fmt.Fprintf(b, ", [_%s_]", typstText(remark.PriorAmount.String()))
+			}
+			b.WriteString(",\n")
+		}
 	}
 
 	if totalLabel != "" {
