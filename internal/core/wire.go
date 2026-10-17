@@ -265,6 +265,13 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Tasks.SetCarryForwardSource(s.Closing)
 	s.Tasks.SetAppropriationSource(s.Appropriation)
 
+	s.Declarations = service.NewDeclarationService(repository.NewDeclarationRepository(db), auditRepo,
+		service.DeclarationSources{
+			Journal: journalRepo, Settings: settingsRepo, FiscalYears: fiscalYearRepo,
+			Appropriations: appropriationRepo, Assets: assetRepo, InputTax: inputTaxRepo,
+			VatReturns: s.VatReturns, ZM: s.ZM, Statement: s.Statement, TaxRegister: s.TaxRegister,
+		})
+
 	return s, st
 }
 

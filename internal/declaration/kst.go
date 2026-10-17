@@ -31,6 +31,8 @@ type CorporateData struct {
 	TaxBalanceEffect      domain.Cents
 	PriorTaxBalanceEffect domain.Cents
 	TaxBalanceNotes       []string
+	// TaxBalanceUnknown nennt den Grund, wenn die Überleitung fehlt.
+	TaxBalanceUnknown string
 	// Distributions sind die Gewinnverwendungsbeschlüsse mit Ausschüttung.
 	Distributions []Distribution
 	// Holdings sind die Anteile an Kapitalgesellschaften aus der Anlagenkartei.
@@ -60,7 +62,11 @@ type Holding struct {
 	QuotaPermille int
 	AcquiredOn    string
 	DisposedOn    string
+	// Dividends sind alle über die Kartei verknüpften Bezüge des Jahres,
+	// OtherAccounts der Teil davon, der nicht auf einem §-8b-Konto gebucht ist
+	// (etwa 7000).
 	Dividends     domain.Cents
+	OtherAccounts domain.Cents
 	EntryIDs      []uint
 }
 
@@ -193,9 +199,16 @@ func (c *calc) corporateIncome(common Common, data CorporateData) *corporate {
 	stbOrigin := Origin{Kind: OriginComputation,
 		Formula: "Unterschied Steuer- zu Handelsbilanz am Schluss des Jahres abzüglich des Unterschieds am Schluss des Vorjahres",
 		Text:    strings.Join(data.TaxBalanceNotes, " ")}
-	if stb == 0 {
+	switch {
+	case data.TaxBalanceUnknown != "":
+		f := c.resolve("kst.gk.stb", figure{status: StatusOpen, origin: Origin{Kind: OriginNone},
+			notes: []string{data.TaxBalanceUnknown}})
+		if f.status == StatusOpen {
+			c.finding(SeverityBlocking, "ueberleitung_fehlt", "kst.gk.stb", data.TaxBalanceUnknown, "§ 60 Abs. 2 EStDV")
+		}
+	case stb == 0:
 		c.books("kst.gk.stb", Cents(0), stbOrigin, "Die Überleitung zeigt keine Abweichung, die sich im Jahr auswirkt.")
-	} else {
+	default:
 		c.propose("kst.gk.stb", Cents(stb), stbOrigin,
 			"Abweichungen der Steuerbilanz sind eine Wertungsfrage; im Zweifel mit einem Steuerberater klären.")
 	}
@@ -314,6 +327,24 @@ func (c *calc) corporateIncome(common Common, data CorporateData) *corporate {
 func (c *calc) participations(common Common, data CorporateData, out *corporate) {
 	l := data.Ledger
 	dividends, divOrigin := l.income(full(accountsDividends...)...)
+	var other domain.Cents
+	names := []string{}
+	for _, h := range data.Holdings {
+		if h.OtherAccounts == 0 {
+			continue
+		}
+		other += h.OtherAccounts
+		names = append(names, h.Name)
+		divOrigin.EntryIDs = append(divOrigin.EntryIDs, h.EntryIDs...)
+	}
+	if other != 0 {
+		dividends += other
+		divOrigin.Text = fmt.Sprintf("Davon %s € aus Anteilen der Anlagenkartei auf anderen Ertragskonten (%s).",
+			other, strings.Join(names, ", "))
+		c.finding(SeverityHint, "bezuege_ohne_8b_konto", "kst.gk.8b_bezuege",
+			fmt.Sprintf("Bezüge aus %s sind nicht auf einem Konto nach § 8b KStG (7005, 7006, 7014, 7015, 7103, 7104) gebucht; sie sind trotzdem berücksichtigt.",
+				strings.Join(names, ", ")), "§ 8b Abs. 1 KStG")
+	}
 	c.books("kst.gk.8b_bezuege", Cents(dividends), divOrigin)
 
 	streubesitz, known, note, trade, tradeKnown, tradeNote := classifyHoldings(common.Year, common.Period, dividends, data.Holdings)

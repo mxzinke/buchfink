@@ -327,6 +327,32 @@ func TestCorporateTaxChecks(t *testing.T) {
 	}
 }
 
+// Die Abweichung der Steuerbilanz wirkt mit der Veränderung des Unterschieds
+// im Jahr; sie ist eine Wertungsfrage und bleibt vorgeschlagen. Fehlt die
+// Überleitung, bleibt die Zeile offen.
+func TestCorporateTaxTaxBalanceDifference(t *testing.T) {
+	data := CorporateData{Ledger: Ledger{}, NetIncome: eur(10000), BalanceResult: eur(10000), PriorKnown: true,
+		TaxBalanceEffect: eur(3000), PriorTaxBalanceEffect: eur(1000), TaxBalanceNotes: []string{"Drohverlustrückstellung"}}
+	d, err := BuildCorporateTax(common(2025, settled()...), data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if l := line(t, d, "kst.gk.stb"); l.Status != StatusProposed || l.Value.Amount() != eur(2000) {
+		t.Errorf("Abweichung der Steuerbilanz: %+v", l)
+	}
+	wantAmount(t, d, "kst.gk.summe", eur(12000))
+	wantAmount(t, d, "kst.f.ek_vorjahr", eur(1000))
+
+	data.TaxBalanceUnknown = "Überleitung nicht gerechnet"
+	d, err = BuildCorporateTax(common(2025, settled()...), data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if l := line(t, d, "kst.gk.stb"); l.Status != StatusOpen || !hasFinding(d, "ueberleitung_fehlt") {
+		t.Errorf("fehlende Überleitung: %+v", l)
+	}
+}
+
 func findForm(d *Declaration, id string) *Form {
 	for i := range d.Forms {
 		if d.Forms[i].ID == id {
