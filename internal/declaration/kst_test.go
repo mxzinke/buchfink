@@ -213,7 +213,7 @@ func TestCorporateTaxDonationCap(t *testing.T) {
 	}
 }
 
-// § 10d Abs. 2 EStG: bis 1 Mio. € voll, darüber 70 % (ab 2024).
+// § 10d Abs. 2 EStG: bis 1 Mio. € voll, darüber 70 % (VZ 2024 bis 2027).
 func TestCorporateTaxLossCarryForward(t *testing.T) {
 	data := CorporateData{Ledger: Ledger{}, NetIncome: eur(2000000), BalanceResult: eur(2000000), PriorKnown: true}
 	in := settled()
@@ -228,6 +228,21 @@ func TestCorporateTaxLossCarryForward(t *testing.T) {
 	if f := findForm(d, "Verluste"); f == nil || f.Required != RequirementMandatory {
 		t.Errorf("Anlage Verluste bei Verlustvortrag nicht verlangt")
 	}
+}
+
+// Ab dem Veranlagungszeitraum 2028 wieder 60 % über 1 Mio. € (Art. 6
+// Wachstumschancengesetz): 1.000.000 € + 60 % von 1.000.000 € = 1.600.000 €.
+func TestCorporateTaxLossCarryForwardFrom2028(t *testing.T) {
+	data := CorporateData{Ledger: Ledger{}, NetIncome: eur(2000000), BalanceResult: eur(2000000), PriorKnown: true}
+	in := settled()
+	in[3] = confirmed("kst.v.z14", Cents(eur(3000000)))
+	d, err := BuildCorporateTax(common(2028, in...), data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantAmount(t, d, "kst.zve.verlustabzug", eur(1600000))
+	wantAmount(t, d, "kst.zve.zve", eur(400000))
+	wantAmount(t, d, "kst.v.ende", eur(1400000))
 }
 
 func TestCorporateTaxLossOfTheYear(t *testing.T) {

@@ -135,7 +135,12 @@ func BuildCorporateTax(common Common, data CorporateData) (*Declaration, error) 
 	if err != nil {
 		return nil, err
 	}
+	params, err := taxParams(common.Year)
+	if err != nil {
+		return nil, err
+	}
 	c := newCalc(cat, common.Inputs)
+	c.params = params
 	c.corporateHeader(common)
 	c.corporateIncome(common, data)
 	c.contributionAccount(common, data)
@@ -543,9 +548,9 @@ func (c *calc) donations(common Common, data CorporateData, income domain.Cents)
 	c.books("kst.z.z11", Cents(data.Wages), Origin{Kind: OriginStatement, Formula: "Löhne und Gehälter (§ 275 Abs. 2 Nr. 6 Buchst. a HGB)"})
 	capIncome := domain.Cents(0)
 	if income > 0 {
-		capIncome = domain.MulRound(income, donationPercent, 100)
+		capIncome = domain.MulRound(income, c.params.DonationIncomePermille, 1000)
 	}
-	capTurnover := domain.MulRound(c.amount("kst.z.z10")+c.amount("kst.z.z11"), donationPermille, 1000)
+	capTurnover := domain.MulRound(c.amount("kst.z.z10")+c.amount("kst.z.z11"), c.params.DonationTurnoverPermille, 1000)
 	limit := capIncome
 	if capTurnover > limit {
 		limit = capTurnover
@@ -588,8 +593,8 @@ func (c *calc) losses(common Common, data CorporateData, income domain.Cents) {
 			notes: []string{"Verbleibenden Verlustvortrag aus dem Feststellungsbescheid des Vorjahres übernehmen; ohne Verlust null."}})
 	}
 	carried := c.amount("kst.v.z14")
-	permille := corporateLossPermille(common.Year)
-	deduction := lossDeduction(carried, income, permille)
+	permille := c.params.LossDeductionExcessPermille
+	deduction := lossDeduction(carried, income, c.params.LossDeductionBase, permille)
 	c.books("kst.zve.verlustabzug", Cents(deduction), fromLines(
 		fmt.Sprintf("Verlustvortrag bis 1 Mio. € voll, darüber %s des übersteigenden Gesamtbetrags", percentText(permille)),
 		"kst.v.z14", "kst.zve.gesamtbetrag"))
@@ -724,7 +729,7 @@ func (c *calc) contributionAccount(common Common, data CorporateData) {
 // corporateControl rechnet die Steuer zur Kontrolle des Bescheids und der
 // Rückstellung.
 func (c *calc) corporateControl(common Common, data CorporateData) {
-	rate := corporateTaxPermille(common.Year)
+	rate := c.params.CorporateTaxPermille
 	c.books("kst.k.satz", Text(percentText(rate)), Origin{Kind: OriginComputation, Text: "§ 23 Abs. 1 KStG"})
 	zve := c.amount("kst.zve.zve")
 	tax := domain.Cents(0)
@@ -732,7 +737,7 @@ func (c *calc) corporateControl(common Common, data CorporateData) {
 		tax = truncEuro(domain.Cents(int64(zve) * rate / 1000))
 	}
 	c.books("kst.k.kst", Cents(tax), fromLines(fmt.Sprintf("%s des zu versteuernden Einkommens, Cent abgeschnitten", percentText(rate)), "kst.zve.zve"))
-	solz := domain.Cents(int64(tax) * solidarityPermille / 1000)
+	solz := domain.Cents(int64(tax) * c.params.SolidarityPermille / 1000)
 	c.books("kst.k.solz", Cents(solz), fromLines("5,5 % der Körperschaftsteuer, Bruchteile eines Cents abgeschnitten", "kst.k.kst"))
 	prepaid, o := data.Ledger.sum(full("7600"), true, AccountTotals.NetBeforeClosing)
 	c.books("kst.k.vz_kst", Cents(prepaid), o)

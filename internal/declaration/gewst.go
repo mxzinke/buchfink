@@ -38,10 +38,16 @@ func BuildTradeTax(common TradeCommon, data CorporateData) (*Declaration, error)
 	if err != nil {
 		return nil, err
 	}
+	params, err := taxParams(common.Year)
+	if err != nil {
+		return nil, err
+	}
 	kc := newCalc(kstCat, common.CorporateInputs)
+	kc.params = params
 	corp := kc.corporateIncome(common.Common, data)
 
 	c := newCalc(cat, common.Inputs)
+	c.params = params
 	s := subjectOf(common.Settings)
 	c.textLine("gewst.name", firmName(common.Settings), "Der Firmenname fehlt in den Unternehmensdaten.")
 	c.taxNumberLine("gewst.steuernummer", s)
@@ -98,9 +104,9 @@ func BuildTradeTax(common TradeCommon, data CorporateData) (*Declaration, error)
 	base := corp.income + c.amount("gewst.8_9")
 	capIncome := domain.Cents(0)
 	if base > 0 {
-		capIncome = domain.MulRound(base, donationPercent, 100)
+		capIncome = domain.MulRound(base, c.params.DonationIncomePermille, 1000)
 	}
-	capTurnover := domain.MulRound(kc.amount("kst.z.z10")+kc.amount("kst.z.z11"), donationPermille, 1000)
+	capTurnover := domain.MulRound(kc.amount("kst.z.z10")+kc.amount("kst.z.z11"), c.params.DonationTurnoverPermille, 1000)
 	limit := capIncome
 	if capTurnover > limit {
 		limit = capTurnover
@@ -126,10 +132,10 @@ func BuildTradeTax(common TradeCommon, data CorporateData) (*Declaration, error)
 			notes: []string{"Vortragsfähigen Gewerbeverlust aus dem Feststellungsbescheid des Vorjahres übernehmen; ohne Verlust null."}})
 	}
 	carried := c.amount("gewst.verlust_vorjahr")
-	deduction := lossDeduction(carried, before, tradeLossPermille)
+	deduction := lossDeduction(carried, before, c.params.LossDeductionBase, c.params.TradeLossExcessPermille)
 	beforeKeys := []string{"gewst.gewinn", "gewst.8_1", "gewst.8_5", "gewst.8_9", "gewst.8_10", "gewst.9_1", "gewst.9_2a", "gewst.9_5", "gewst.z48"}
 	c.books("gewst.verlust_abzug", Cents(deduction), fromLines(
-		fmt.Sprintf("Gewerbeverlust bis 1 Mio. € voll, darüber %s des übersteigenden Gewerbeertrags", percentText(tradeLossPermille)),
+		fmt.Sprintf("Gewerbeverlust bis 1 Mio. € voll, darüber %s des übersteigenden Gewerbeertrags", percentText(c.params.TradeLossExcessPermille)),
 		append([]string{"gewst.verlust_vorjahr"}, beforeKeys...)...))
 	loss := domain.Cents(0)
 	if before < 0 {
@@ -250,7 +256,7 @@ func (c *calc) tradeControl(common Common, data CorporateData, before, deduction
 		rounded = ertrag - ertrag%10000
 	}
 	c.books("gewst.k.ertrag_gerundet", Cents(rounded), fromLines("auf volle 100 € abgerundet", "gewst.k.ertrag"))
-	base := domain.MulRound(rounded, tradeTaxBasePermille, 1000)
+	base := domain.MulRound(rounded, c.params.TradeTaxBasePermille, 1000)
 	c.books("gewst.k.messbetrag", Cents(base), fromLines("3,5 % des abgerundeten Gewerbeertrags", "gewst.k.ertrag_gerundet"))
 	if data.TradeTaxRate <= 0 {
 		c.open("gewst.k.hebesatz", "Der Hebesatz der Gemeinde fehlt in den Einstellungen.")
@@ -258,7 +264,7 @@ func (c *calc) tradeControl(common Common, data CorporateData, before, deduction
 			"Ohne Hebesatz rechnet Buchfink keine Gewerbesteuer; er steht im Bescheid der Gemeinde.", "§ 16 GewStG")
 	} else {
 		c.books("gewst.k.hebesatz", Text(fmt.Sprintf("%d %%", data.TradeTaxRate)), Origin{Kind: OriginSettings, Text: "Einstellungen zum Abschluss"})
-		if min := minimumMultiplier(common.Year); data.TradeTaxRate < min {
+		if min := c.params.TradeTaxMinRatePercent; data.TradeTaxRate < min {
 			c.finding(SeverityWarning, "hebesatz_unter_minimum", "gewst.k.hebesatz",
 				fmt.Sprintf("Der Hebesatz von %d %% liegt unter dem Mindesthebesatz von %d %%.", data.TradeTaxRate, min),
 				"§ 16 Abs. 4 Satz 2 GewStG")

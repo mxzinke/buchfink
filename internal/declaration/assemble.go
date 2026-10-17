@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -29,6 +30,8 @@ type calc struct {
 	sheet    map[string]figure
 	forms    map[string]formState
 	findings []Finding
+	// params sind die gesetzlichen Werte des Jahres (KSt und GewSt).
+	params accounting.TaxParameters
 }
 
 func newCalc(cat *Catalog, inputs []Input) *calc {
