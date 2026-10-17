@@ -300,17 +300,24 @@ func NewPostingService(journalSvc *JournalService, contactRepo domain.ContactRep
 // Rückstellung, Grund der Übersteuerung und Siegel stehen in einer
 // Transaktion. Scheitert ein Schritt, bleibt der Beleg offen und lässt sich
 // berichtigen und erneut buchen.
+//
+// Die Buchungszeilen entstehen vor der Transaktion: bei einem Beleg in
+// Fremdwährung holt buildIncomingLines den Kurs, notfalls übers Netz, und das
+// soll keine Schreibsperre halten. Die Regeln der Buchung prüft Post in der
+// Transaktion; ein inzwischen gebuchter Beleg scheitert dort am Siegel.
 func (s *PostingService) PostIncomingReceipt(ctx context.Context, req ReceiptRequest) (*domain.JournalEntry, error) {
-	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.JournalEntry, error) {
-		return s.postIncomingReceipt(ctx, req)
-	})
-}
-
-func (s *PostingService) postIncomingReceipt(ctx context.Context, req ReceiptRequest) (*domain.JournalEntry, error) {
 	built, err := s.buildIncomingLines(ctx, req)
 	if err != nil {
 		return nil, err
 	}
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.JournalEntry, error) {
+		return s.postIncomingReceipt(ctx, req, built)
+	})
+}
+
+func (s *PostingService) postIncomingReceipt(
+	ctx context.Context, req ReceiptRequest, built *incomingLines,
+) (*domain.JournalEntry, error) {
 	if err := built.blockingError(req); err != nil {
 		return nil, err
 	}
