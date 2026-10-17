@@ -23,7 +23,9 @@ const SCOPE_LABELS: Record<string, string> = {
  */
 export function AppConsentDialog() {
   const [requests, setRequests] = useState<AppConsentRequest[]>([]);
-  const [armed, setArmed] = useState(false);
+  // Die Anfrage, für die „Zulassen" scharf ist. An die Kennung gebunden,
+  // damit eine nachrückende Anfrage nicht schon im ersten Bild klickbar ist.
+  const [armedFor, setArmedFor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -50,16 +52,17 @@ export function AppConsentDialog() {
   }, []);
 
   const current = requests[0];
+  const currentId = current?.id;
+  const armed = currentId !== undefined && armedFor === currentId;
 
   useEffect(() => {
-    setArmed(false);
-    if (!current) return;
-    const timer = window.setTimeout(() => setArmed(true), ARM_DELAY_MS);
+    if (currentId === undefined) return;
+    const timer = window.setTimeout(() => setArmedFor(currentId), ARM_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [current?.id]);
+  }, [currentId]);
 
   const decide = async (approve: boolean) => {
-    if (!current || busy) return;
+    if (!current || busy || (approve && !armed)) return;
     setBusy(true);
     try {
       await Api.resolveAppRequest(current.id, current.nonce, approve);
