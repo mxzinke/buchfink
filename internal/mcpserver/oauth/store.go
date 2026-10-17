@@ -515,7 +515,9 @@ func (s *Store) CountConnected(ctx context.Context) (int, error) {
 }
 
 // prune räumt Abgelaufenes ab: Codes und Tokens einen Tag nach Ablauf,
-// Registrierungen ohne Zustimmung nach einem Tag.
+// Registrierungen ohne Zustimmung nach 30 Tagen. Eine App, die ihre
+// Registrierung länger aufhebt, ohne je zugelassen worden zu sein, muss sich
+// danach neu registrieren.
 func (s *Store) prune(ctx context.Context, now time.Time) error {
 	cutoff := now.Add(-24 * time.Hour)
 	return s.write(ctx, func(tx *gorm.DB) error {
@@ -525,6 +527,6 @@ func (s *Store) prune(ctx context.Context, now time.Time) error {
 		if err := tx.Where("expires_at < ?", cutoff).Delete(&Token{}).Error; err != nil {
 			return err
 		}
-		return tx.Where("first_approved_at IS NULL AND created_at < ?", cutoff).Delete(&Client{}).Error
+		return tx.Where("first_approved_at IS NULL AND created_at < ?", now.AddDate(0, 0, -30)).Delete(&Client{}).Error
 	})
 }

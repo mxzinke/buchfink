@@ -425,8 +425,14 @@ func (s *Server) Authorize(w http.ResponseWriter, r *http.Request) {
 		redirectURI: redirectURI, state: state, challenge: challenge, resource: resource,
 		done: make(chan struct{}), created: now,
 	}
+	item.timer = time.AfterFunc(s.cfg.ConsentTTL, func() {
+		if s.pending.finish(item, false, "", "nicht rechtzeitig bestätigt", false) && s.cfg.Broker != nil {
+			s.cfg.Broker.Withdraw(item.req.ID)
+		}
+	})
 	superseded, err := s.pending.add(item, now)
 	if errors.Is(err, ErrTooManyRequests) {
+		item.timer.Stop()
 		errorPage(w, http.StatusTooManyRequests, "Zu viele offene Anmeldungen",
 			"In Buchfink warten schon mehrere Anmeldungen auf Ihre Entscheidung. Bitte entscheiden Sie diese zuerst und versuchen Sie es dann erneut.")
 		return
@@ -436,11 +442,6 @@ func (s *Server) Authorize(w http.ResponseWriter, r *http.Request) {
 			s.cfg.Broker.Withdraw(old.req.ID)
 		}
 	}
-	item.timer = time.AfterFunc(s.cfg.ConsentTTL, func() {
-		if s.pending.finish(item, false, "", "nicht rechtzeitig bestätigt", false) && s.cfg.Broker != nil {
-			s.cfg.Broker.Withdraw(item.req.ID)
-		}
-	})
 	if s.cfg.Broker != nil {
 		s.cfg.Broker.Present(item.req)
 	}
