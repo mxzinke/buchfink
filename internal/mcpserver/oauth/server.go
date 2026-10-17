@@ -52,11 +52,15 @@ const (
 	defaultRefreshTTL = 30 * 24 * time.Hour
 	defaultFamilyTTL  = 180 * 24 * time.Hour
 	defaultCodeTTL    = 60 * time.Second
-	defaultConsentTTL = 5 * time.Minute
-	defaultLongPoll   = 25 * time.Second
-	defaultMaxPending = 3
-	registerPerMinute = 10
-	maxBodyBytes      = 64 << 10
+	// defaultRefreshGrace: so lange nach der Ersetzung gilt ein zweites
+	// Einlösen desselben Refresh-Tokens als gleichzeitige Erneuerung, nicht
+	// als Diebstahl.
+	defaultRefreshGrace = 10 * time.Second
+	defaultConsentTTL   = 5 * time.Minute
+	defaultLongPoll     = 25 * time.Second
+	defaultMaxPending   = 3
+	registerPerMinute   = 10
+	maxBodyBytes        = 64 << 10
 )
 
 // Config beschreibt den Autorisierungsserver an einem Port.
@@ -73,8 +77,8 @@ type Config struct {
 	Clock     func() time.Time
 	Logger    *slog.Logger
 
-	AccessTTL, RefreshTTL, FamilyTTL, CodeTTL, ConsentTTL, LongPoll time.Duration
-	MaxPending                                                      int
+	AccessTTL, RefreshTTL, FamilyTTL, CodeTTL, ConsentTTL, LongPoll, RefreshGrace time.Duration
+	MaxPending                                                                    int
 }
 
 // Approved beschreibt eine erteilte Zustimmung.
@@ -114,6 +118,7 @@ func NewServer(cfg Config) *Server {
 	setDefault(&cfg.CodeTTL, defaultCodeTTL)
 	setDefault(&cfg.ConsentTTL, defaultConsentTTL)
 	setDefault(&cfg.LongPoll, defaultLongPoll)
+	setDefault(&cfg.RefreshGrace, defaultRefreshGrace)
 	if cfg.MaxPending <= 0 {
 		cfg.MaxPending = defaultMaxPending
 	}
@@ -719,6 +724,16 @@ func (s *Server) refresh(ctx context.Context, form url.Values) (*tokenResponse, 
 	if clientID == "" {
 		return nil, errInvalidClient("client_id fehlt")
 	}
+	// Eine unbekannte App heißt invalid_client, nicht invalid_grant: dann
+	// verwirft der Client seine Registrierung und meldet sich neu an, statt
+	// mit der alten Kennung auf der Fehlerseite von /authorize zu landen.
+	client, err := s.cfg.Store.Client(ctx, clientID)
+	if err != nil {
+		return nil, err
+	}
+	if client == nil {
+		return nil, errInvalidClient("unbekannte App; bitte neu registrieren")
+	}
 	refresh := form.Get("refresh_token")
 	if refresh == "" {
 		return nil, errInvalidRequest("refresh_token fehlt")
@@ -727,7 +742,7 @@ func (s *Server) refresh(ctx context.Context, form url.Values) (*tokenResponse, 
 	resourceParam := form.Get("resource")
 	now := s.now()
 	var resp *tokenResponse
-	err := s.cfg.Store.rotateRefresh(ctx, hashSecret(refresh), now, func(t *Token, f *Family) error {
+	err = s.cfg.Store.rotateRefresh(ctx, hashSecret(refresh), now, s.cfg.RefreshGrace, func(t *Token, f *Family) error {
 		if t.ClientID != clientID {
 			return errInvalidGrant("das Refresh-Token gehört zu einer anderen App")
 		}

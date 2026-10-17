@@ -172,8 +172,9 @@ func TestSDKAuthorizationHandlerGetsThrough(t *testing.T) {
 	}
 }
 
-// Jede Erneuerung ersetzt das Refresh-Token. Wer ein ersetztes noch einmal
-// einlöst, hat es gestohlen oder kopiert: die ganze Kette fällt.
+// Jede Erneuerung ersetzt das Refresh-Token. Wer ein ersetztes nach der
+// Gnadenfrist noch einmal einlöst, hat es gestohlen oder kopiert: die ganze
+// Kette fällt.
 func TestRefreshRotatesAndReuseRevokesTheChain(t *testing.T) {
 	h := newHarness(t)
 	tok := h.login("OpenCode", "")
@@ -188,6 +189,7 @@ func TestRefreshRotatesAndReuseRevokesTheChain(t *testing.T) {
 		t.Fatalf("neues Access-Token: %v", err)
 	}
 
+	h.clock.Advance(11 * time.Second)
 	status, body := h.postForm(oauth.PathToken, url.Values{
 		"grant_type": {"refresh_token"}, "refresh_token": {tok.refresh}, "client_id": {tok.clientID},
 	})
@@ -202,6 +204,69 @@ func TestRefreshRotatesAndReuseRevokesTheChain(t *testing.T) {
 	}
 	if _, err := h.session(next["access_token"].(string), ""); err == nil {
 		t.Error("das Access-Token der widerrufenen Kette gilt noch")
+	}
+}
+
+// Zwei Prozesse derselben App erneuern gleichzeitig mit demselben Token.
+// Beide bekommen ein gültiges Paar; erst nach der Gnadenfrist ist ein
+// zweites Einlösen Diebstahl.
+func TestParallelRefreshWithinGraceKeepsTheChain(t *testing.T) {
+	h := newHarness(t)
+	tok := h.login("Codex", "")
+	form := url.Values{"grant_type": {"refresh_token"}, "refresh_token": {tok.refresh}, "client_id": {tok.clientID}}
+
+	var wg sync.WaitGroup
+	pairs := make([]map[string]any, 2)
+	for i := range pairs {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			resp, err := http.PostForm(h.base+oauth.PathToken, form)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			defer resp.Body.Close()
+			var body map[string]any
+			_ = json.NewDecoder(resp.Body).Decode(&body)
+			if resp.StatusCode != http.StatusOK {
+				t.Errorf("Erneuerung %d: %d %v", i, resp.StatusCode, body)
+				return
+			}
+			pairs[i] = body
+		}()
+	}
+	wg.Wait()
+	if t.Failed() {
+		return
+	}
+	for i, pair := range pairs {
+		if _, err := h.session(pair["access_token"].(string), ""); err != nil {
+			t.Errorf("Access-Token %d gilt nicht: %v", i, err)
+		}
+	}
+
+	h.clock.Advance(11 * time.Second)
+	status, body := h.postForm(oauth.PathToken, form)
+	if status != http.StatusBadRequest || body["error"] != "invalid_grant" {
+		t.Fatalf("Einlösen nach der Gnadenfrist: %d %v", status, body)
+	}
+	for i, pair := range pairs {
+		if _, err := h.session(pair["access_token"].(string), ""); err == nil {
+			t.Errorf("Access-Token %d gilt nach dem Diebstahlverdacht weiter", i)
+		}
+	}
+}
+
+// Kennt Buchfink die App nicht mehr, heißt die Antwort invalid_client: dann
+// verwirft der Client seine Registrierung und meldet sich neu an.
+func TestRefreshOfUnknownAppIsInvalidClient(t *testing.T) {
+	h := newHarness(t)
+	status, body := h.postForm(oauth.PathToken, url.Values{
+		"grant_type": {"refresh_token"}, "refresh_token": {"bfr_aus-einem-alten-speicher"}, "client_id": {"vergessen"},
+	})
+	if status != http.StatusUnauthorized || body["error"] != "invalid_client" {
+		t.Errorf("unbekannte App: %d %v", status, body)
 	}
 }
 

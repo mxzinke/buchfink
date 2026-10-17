@@ -290,8 +290,10 @@ func (s *Store) redeemCode(ctx context.Context, hash string, now time.Time, chec
 
 // rotateRefresh löst ein Refresh-Token ein und ersetzt es. Ein schon
 // ersetztes Token ist ein Zeichen für Diebstahl: die ganze Kette fällt.
-func (s *Store) rotateRefresh(ctx context.Context, hash string, now time.Time, check func(*Token, *Family) error,
-	issue func(tx *gorm.DB, family *Family, old *Token) error) error {
+// Ausgenommen ist eine Einlösung binnen grace nach der Ersetzung: zwei
+// Prozesse derselben App, die gleichzeitig erneuern, bekommen je ein Paar.
+func (s *Store) rotateRefresh(ctx context.Context, hash string, now time.Time, grace time.Duration,
+	check func(*Token, *Family) error, issue func(tx *gorm.DB, family *Family, old *Token) error) error {
 	var refused error
 	err := s.write(ctx, func(tx *gorm.DB) error {
 		var token Token
@@ -308,7 +310,8 @@ func (s *Store) rotateRefresh(ctx context.Context, hash string, now time.Time, c
 		if token.RevokedAt != nil || family.RevokedAt != nil {
 			return errInvalidGrant("die Anmeldung wurde widerrufen")
 		}
-		if token.RotatedAt != nil {
+		inGrace := token.RotatedAt != nil && now.Sub(*token.RotatedAt) < grace
+		if token.RotatedAt != nil && !inGrace {
 			refused = errInvalidGrant("das Refresh-Token wurde schon eingelöst; die Anmeldung ist widerrufen")
 			return revokeFamily(tx, token.FamilyID, now, "Refresh-Token ein zweites Mal eingelöst")
 		}
@@ -317,6 +320,9 @@ func (s *Store) rotateRefresh(ctx context.Context, hash string, now time.Time, c
 		}
 		if err := check(&token, &family); err != nil {
 			return err
+		}
+		if inGrace {
+			return issue(tx, &family, &token)
 		}
 		res := tx.Model(&Token{}).Where("hash = ? AND rotated_at IS NULL", hash).Update("rotated_at", now)
 		if res.Error != nil {
