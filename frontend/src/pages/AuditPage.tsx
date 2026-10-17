@@ -24,6 +24,7 @@ import {
 } from '../types';
 import { Api } from '../services/api';
 import {
+  channelNote,
   formatCents,
   formatDate,
   formatDateTime,
@@ -990,7 +991,12 @@ const ProtocolPanel: React.FC = () => {
                       </Td>
                       <Td className="text-ink-muted">{entry.entityType}</Td>
                       <Td className="whitespace-normal">{entry.details}</Td>
-                      <Td className="text-ink-subtle">{entry.actor || '—'}</Td>
+                      <Td className="text-ink-subtle">
+                        {entry.actor || '—'}
+                        {channelNote(entry.channel) && (
+                          <span className="block text-caption">{channelNote(entry.channel)}</span>
+                        )}
+                      </Td>
                       <Td className="text-ink-subtle num">{entry.appVersion || '—'}</Td>
                     </Tr>
 

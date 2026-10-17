@@ -83,7 +83,7 @@ func TestJournalFilterNarrowsAndSums(t *testing.T) {
 		},
 		{
 			ID: 2, EntryNumber: "2026-000002", BookingDate: "2026-02-10",
-			Description: "Miete", Actor: "bernd",
+			Description: "Miete", Actor: "bernd", Channel: "agent:claude-desktop",
 			Lines: []domain.JournalLine{
 				{Position: 1, Side: domain.SideDebit, Account: "6310", Amount: 100_000},
 				{Position: 2, Side: domain.SideCredit, Account: domain.AccountBank, Amount: 100_000},
@@ -120,6 +120,12 @@ func TestJournalFilterNarrowsAndSums(t *testing.T) {
 	byActor := FilterJournal(entries, JournalFilter{Actor: "bernd"}, nil)
 	if byActor.EntryCount != 1 || byActor.TotalDebit != 100_000 {
 		t.Errorf("Bearbeiter bernd: %d Buchungen, Summe %s €", byActor.EntryCount, byActor.TotalDebit)
+	}
+
+	// Nach Erfassungsweg.
+	byChannel := FilterJournal(entries, JournalFilter{Channel: "agent:claude-desktop"}, nil)
+	if byChannel.EntryCount != 1 || byChannel.Rows[0].Channel != "agent:claude-desktop" {
+		t.Errorf("Erfassungsweg Agent: %d Buchungen, Zeilen %+v", byChannel.EntryCount, byChannel.Rows)
 	}
 
 	// Nach Betrag.

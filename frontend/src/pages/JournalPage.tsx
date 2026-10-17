@@ -24,6 +24,7 @@ import { usePostingLock } from '../components/WriteLock';
 import { ManualEntryDialog } from '../components/LedgerForms';
 import { JournalFilterView } from '../components/JournalFilterView';
 import {
+  channelNote,
   formatCents,
   formatCentsPlain,
   formatDate,
@@ -687,6 +688,9 @@ const EntryRows: React.FC<{
         {proofColumns.includes('actor') && (
           <Td className="text-ink-subtle truncate" title={entry.actor}>
             {entry.actor || '—'}
+            {channelNote(entry.channel) && (
+              <span className="block text-caption">{channelNote(entry.channel)}</span>
+            )}
           </Td>
         )}
         {proofColumns.includes('appVersion') && (

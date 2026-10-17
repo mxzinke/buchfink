@@ -89,6 +89,7 @@ func (r *auditRepositoryGorm) append(
 		Before:     before,
 		After:      after,
 		Actor:      actor.Actor(),
+		Channel:    string(actor.RecordedChannel(ctx)),
 		AppVersion: buildinfo.Version,
 	}
 
@@ -130,6 +131,9 @@ func (r *auditRepositoryGorm) FindFiltered(ctx context.Context, limit int, filte
 	}
 	if filter.Actor != "" {
 		query = query.Where("actor = ?", filter.Actor)
+	}
+	if filter.Channel != "" {
+		query = query.Where("channel = ?", filter.Channel)
 	}
 	// „Zugriffe" ist eine Kategorie und keine Aktion: die Herausgabe von Daten
 	// steht als EXPORT, der Prüfermodus als Änderung an der Entität READ_ONLY.

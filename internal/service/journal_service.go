@@ -132,8 +132,8 @@ type postMode struct {
 
 // Post validates and appends a journal entry.
 //
-// Kennung, Nummer, Hashes, Bearbeiter, Programmfassung, Regelstand und
-// Festschreibungsstempel setzt der Dienst; was der Aufrufer dort mitgibt, wird
+// Kennung, Nummer, Hashes, Bearbeiter, Erfassungsweg, Programmfassung,
+// Regelstand und Festschreibungsstempel setzt der Dienst; was der Aufrufer dort mitgibt, wird
 // verworfen. Das Geschäftsjahr folgt aus dem Buchungsdatum, eine abweichende
 // Angabe wird abgewiesen. Eine Generalumkehr entsteht nur über Reverse.
 func (s *JournalService) Post(ctx context.Context, entry *domain.JournalEntry) (*domain.JournalEntry, error) {
@@ -620,6 +620,7 @@ func (s *JournalService) prepare(ctx context.Context, e *domain.JournalEntry, mo
 	e.PostingRuleVersion = accounting.PostingRuleVersion
 	e.AppVersion = buildinfo.Version
 	e.Actor = actor.Actor()
+	e.Channel = string(actor.RecordedChannel(ctx))
 
 	if err := s.stampReceiptHash(ctx, e, mode); err != nil {
 		return err

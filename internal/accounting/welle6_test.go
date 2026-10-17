@@ -228,6 +228,7 @@ func auditEntry(id uint, action domain.AuditAction, details string) domain.Audit
 		EntityID:   "7",
 		Details:    details,
 		Actor:      "buchhalterin@arbeitsplatz",
+		Channel:    "ui",
 		AppVersion: "1.2.3",
 	}
 }
@@ -339,6 +340,12 @@ func TestAuditChainCoversActorAndVersion(t *testing.T) {
 	}
 
 	tampered = base[0]
+	tampered.Channel = "agent:claude-desktop"
+	if NewAuditChain().CalculateHash(&tampered, tampered.PreviousHash) == base[0].EntryHash {
+		t.Error("ein geänderter Erfassungsweg muss den Hash ändern")
+	}
+
+	tampered = base[0]
 	tampered.AppVersion = "9.9.9"
 	if NewAuditChain().CalculateHash(&tampered, tampered.PreviousHash) == base[0].EntryHash {
 		t.Error("eine geänderte Programmfassung muss den Hash ändern")
@@ -367,6 +374,7 @@ func sampleEntry() *domain.JournalEntry {
 		Currency:        "EUR",
 		AppVersion:      "1.2.3",
 		Actor:           "buchhalterin@arbeitsplatz",
+		Channel:         "ui",
 		CreatedAt:       time.Date(2025, 3, 1, 10, 0, 0, 0, time.UTC),
 		Lines: []domain.JournalLine{
 			{Position: 1, Side: domain.SideDebit, Account: "6815", Amount: 10000},
@@ -381,10 +389,11 @@ func TestCanonicalizeWritesEveryFieldForEveryEntry(t *testing.T) {
 	entry := sampleEntry()
 	entry.AppVersion = ""
 	entry.Actor = ""
+	entry.Channel = ""
 	form := string(canonicalize(entry, domain.GenesisHash))
 
 	for _, field := range []string{
-		"app_version:0:\n", "actor:0:\n", "legacy_ref:0:\n", "due_date:0:\n",
+		"app_version:0:\n", "actor:0:\n", "channel:0:\n", "legacy_ref:0:\n", "due_date:0:\n",
 		"line_input_tax_share:1:0\n", "line_foreign_amount:1:0\n",
 		"entertainment:1:0\n", "gifts:1:0\n",
 	} {
@@ -402,6 +411,7 @@ func TestCanonicalizeCoversEveryField(t *testing.T) {
 	changes := map[string]func(e *domain.JournalEntry){
 		"Programmfassung":    func(e *domain.JournalEntry) { e.AppVersion = "9.9.9" },
 		"Bearbeiter":         func(e *domain.JournalEntry) { e.Actor = "jemand.anderes@rechner" },
+		"Erfassungsweg":      func(e *domain.JournalEntry) { e.Channel = "agent:claude-desktop" },
 		"Herkunftskennung":   func(e *domain.JournalEntry) { e.LegacyRef = "ALT-4711" },
 		"Fälligkeit":         func(e *domain.JournalEntry) { e.DueDate = "2025-04-01" },
 		"Vorsteuerschlüssel": func(e *domain.JournalEntry) { e.Lines[0].InputTaxShare = 500 },

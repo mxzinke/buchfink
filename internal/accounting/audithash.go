@@ -39,6 +39,7 @@ func canonicalizeAudit(e *domain.AuditLogEntry, prevHash string) []byte {
 	w.put("before", e.Before)
 	w.put("after", e.After)
 	w.put("actor", e.Actor)
+	w.put("channel", e.Channel)
 	w.put("app_version", e.AppVersion)
 	return w.bytes()
 }

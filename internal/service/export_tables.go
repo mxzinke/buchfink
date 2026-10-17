@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/actor"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/ebilanz"
 	"github.com/buchfink/buchfink/internal/export"
@@ -108,6 +109,7 @@ func journalTable(d *exportData) (export.Table, error) {
 		alphaField("Regelversion", "Fassung der Kontierungsregeln, nach der gebucht wurde."),
 		alphaField("Programmfassung", "Fassung des Programms, die die Buchung erzeugt hat."),
 		alphaField("Bearbeiter", "Bearbeiterkennung aus Benutzerkonto und Rechnername."),
+		alphaField("Erfassungsweg", "Weg, auf dem die Buchung entstand; siehe Schlüsselverzeichnis, Kategorie „Erfassungsweg“."),
 		alphaField("Herkunft_Altsystem", "Kennung, unter der der Vorgang im Altsystem geführt wurde; nur bei übernommenen Eröffnungswerten belegt."),
 		intField("Korrigierte_Buchung_ID", "Kennung der Buchung, die diese Buchung nach einem Storno ersetzt; leer sonst."),
 		alphaField("Erfassungszeitpunkt_UTC", "Zeitpunkt der Erfassung nach RFC 3339 in UTC; Bestandteil der Hash-Chain."),
@@ -165,6 +167,7 @@ func journalTable(d *exportData) (export.Table, error) {
 				e.PostingRuleVersion,
 				e.AppVersion,
 				e.Actor,
+				e.Channel,
 				e.LegacyRef,
 				export.OptUint(e.CorrectsEntryID),
 				e.CreatedAt.UTC().Format(time.RFC3339),
@@ -780,6 +783,15 @@ func keyDirectoryTable() (export.Table, error) {
 		}
 	}
 	for _, s := range []struct{ key, label, hint string }{
+		{string(actor.ChannelUI), "Bedienung in der App", ""},
+		{string(actor.ChannelSystem), "Lauf des Programms ohne Bedienung", "Sicherung, nachgeholter Zeitstempel, Einrichtung eines Mandanten."},
+		{"agent:<kurzname>", "Verbundener Agent", "Der Kurzname bezeichnet die in der App zugelassene Anwendung; verantwortlich bleibt der Bearbeiter."},
+	} {
+		if err := add("Erfassungsweg", s.key, s.label, s.hint); err != nil {
+			return t, err
+		}
+	}
+	for _, s := range []struct{ key, label, hint string }{
 		{string(domain.CheckBlocking), "Blockierender Befund", "Verhindert die Festschreibung, solange er nicht behoben oder mit Begründung übergangen wird."},
 		{string(domain.CheckWarning), "Hinweis", "Die Festschreibung geht durch."},
 	} {
@@ -804,6 +816,7 @@ func auditLogTable(d *exportData) (export.Table, error) {
 		alphaField("Vorher", "Die geänderten Felder in ihrem bisherigen Stand als JSON-Objekt; leer, wenn der Vorgang nichts geändert hat oder das Objekt neu ist."),
 		alphaField("Nachher", "Dieselben Felder in ihrem neuen Stand als JSON-Objekt."),
 		alphaField("Bearbeiter", "Bearbeiterkennung aus Benutzerkonto und Rechnername."),
+		alphaField("Erfassungsweg", "Weg, auf dem der Vorgang ausgelöst wurde; siehe Schlüsselverzeichnis, Kategorie „Erfassungsweg“."),
 		alphaField("Programmfassung", "Fassung des Programms, die den Vorgang ausgeführt hat."),
 		alphaField("Vorgaengerhash", "Eigenhash des vorhergehenden Protokolleintrags."),
 		alphaField("Eigenhash", "SHA-256 über die kanonische Form des Eintrags."),
@@ -817,7 +830,7 @@ func auditLogTable(d *exportData) (export.Table, error) {
 			// unnachrechenbar — und damit die Kette zu einer Behauptung.
 			export.Uint(a.ID), a.Timestamp.UTC().Format(time.RFC3339Nano),
 			string(a.Action), a.EntityType, a.EntityID, a.Details,
-			a.Before, a.After, a.Actor, a.AppVersion,
+			a.Before, a.After, a.Actor, a.Channel, a.AppVersion,
 			a.PreviousHash, a.EntryHash,
 		); err != nil {
 			return t, err

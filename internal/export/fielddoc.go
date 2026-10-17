@@ -68,9 +68,10 @@ Tabelle ` + "`journal`" + `, aus der der Wert stammt):
 23. ` + "`rule_version`" + ` (Regelversion)
 24. ` + "`app_version`" + ` (Programmfassung)
 25. ` + "`actor`" + ` (Bearbeiter)
-26. ` + "`legacy_ref`" + ` (Herkunft_Altsystem)
-27. ` + "`due_date`" + ` (Faelligkeit)
-28. ` + "`created_at`" + ` (Erfassungszeitpunkt_UTC, Format RFC 3339)
+26. ` + "`channel`" + ` (Erfassungsweg)
+27. ` + "`legacy_ref`" + ` (Herkunft_Altsystem)
+28. ` + "`due_date`" + ` (Faelligkeit)
+29. ` + "`created_at`" + ` (Erfassungszeitpunkt_UTC, Format RFC 3339)
 
 Jedes Feld steht in jeder Buchung, auch wenn die Spalte leer ist.
 
@@ -189,7 +190,8 @@ genau dieser Reihenfolge (in Klammern die Spalte):
  7. ` + "`before`" + ` (Vorher)
  8. ` + "`after`" + ` (Nachher)
  9. ` + "`actor`" + ` (Bearbeiter)
-10. ` + "`app_version`" + ` (Programmfassung)
+10. ` + "`channel`" + ` (Erfassungsweg)
+11. ` + "`app_version`" + ` (Programmfassung)
 
 Vorher und Nachher gehen als Klartext ein, genau so, wie sie in der Spalte
 stehen: als JSON-Objekt der geänderten Felder.

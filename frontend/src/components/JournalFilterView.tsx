@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Download } from 'lucide-react';
 import { Api } from '../services/api';
-import { formatCents, formatDate, parseCents } from '../utils/formatters';
+import { channelNote, formatCents, formatDate, parseCents } from '../utils/formatters';
 import type { Account, JournalFilter, JournalFilterResult } from '../types';
 import type { NavigateFn } from './Sidebar';
 import {
@@ -352,7 +352,12 @@ export const JournalFilterView: React.FC<JournalFilterViewProps> = ({
                     </div>
                   </Td>
                   <Td className="text-ink-subtle code-num">{row.taxKey ?? '—'}</Td>
-                  <Td className="text-ink-subtle">{row.actor ?? '—'}</Td>
+                  <Td className="text-ink-subtle">
+                    {row.actor ?? '—'}
+                    {channelNote(row.channel) && (
+                      <span className="block text-caption">{channelNote(row.channel)}</span>
+                    )}
+                  </Td>
                   <Td numeric>{row.side === 'S' ? formatCents(row.amount) : ''}</Td>
                   <Td numeric>{row.side === 'H' ? formatCents(row.amount) : ''}</Td>
                 </Tr>

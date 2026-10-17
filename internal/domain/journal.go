@@ -198,10 +198,11 @@ type JournalEntry struct {
 	PostingRuleVersion string `gorm:"size:20" json:"postingRuleVersion,omitempty"`
 
 	// AppVersion ist die Fassung des Programms, die gebucht hat, Actor die
-	// Bearbeiterkennung (internal/actor). Beide sind Teil der kanonischen Form
-	// und damit der Hash-Kette.
+	// Bearbeiterkennung und Channel der Erfassungsweg (internal/actor). Alle
+	// drei sind Teil der kanonischen Form und damit der Hash-Kette.
 	AppVersion string `gorm:"size:60;index" json:"appVersion,omitempty"`
 	Actor      string `gorm:"size:120;index" json:"actor,omitempty"`
+	Channel    string `gorm:"size:60;index" json:"channel,omitempty"`
 
 	// CommittedAt und FestschreibungID halten fest, wann und womit diese
 	// Buchung festgeschrieben wurde.

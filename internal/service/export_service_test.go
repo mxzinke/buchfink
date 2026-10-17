@@ -885,6 +885,7 @@ func recomputeEntryHash(entry exportedEntry, meals, gifts [][]string) string {
 	put("rule_version", h["Regelversion"])
 	put("app_version", h["Programmfassung"])
 	put("actor", h["Bearbeiter"])
+	put("channel", h["Erfassungsweg"])
 	put("legacy_ref", h["Herkunft_Altsystem"])
 	put("due_date", h["Faelligkeit"])
 	put("created_at", h["Erfassungszeitpunkt_UTC"])

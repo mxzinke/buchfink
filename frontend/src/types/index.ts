@@ -180,9 +180,11 @@ export interface JournalEntry {
   exchangeRateSource?: string;
   exchangeRateDate?: string;
   postingRuleVersion?: string;
-  /** Programmfassung und Bearbeiterkennung der Buchung (UNV-04, UNV-06). */
+  /** Programmfassung, Bearbeiterkennung und Erfassungsweg der Buchung (UNV-04, UNV-06). */
   appVersion?: string;
   actor?: string;
+  /** `ui`, `system` oder `agent:<kurzname>`. */
+  channel?: string;
   /**
    * Wann und mit welcher Festschreibung diese Buchung festgeschrieben wurde.
    * Leer heißt: noch nicht festgeschrieben.
@@ -1299,8 +1301,9 @@ export interface AuditLogEntry {
    */
   before?: string;
   after?: string;
-  /** Bearbeiterkennung und Programmfassung des Vorgangs (UNV-04, UNV-06). */
+  /** Bearbeiterkennung, Erfassungsweg und Programmfassung des Vorgangs (UNV-04, UNV-06). */
   actor?: string;
+  channel?: string;
   appVersion?: string;
   previousHash?: string;
   entryHash?: string;
@@ -1312,6 +1315,7 @@ export interface AuditFilter {
   entityType?: string;
   entityId?: string;
   actor?: string;
+  channel?: string;
   /** Tagesgrenzen im Format JJJJ-MM-TT, beide einschließlich. */
   from?: string;
   to?: string;
@@ -4306,6 +4310,8 @@ export interface JournalFilter {
   amountTo?: Cents;
   taxKey?: string;
   actor?: string;
+  /** Erfassungsweg: `ui`, `system` oder `agent:<kurzname>`. */
+  channel?: string;
   hasReceipt?: boolean;
   text?: string;
 }
@@ -4320,6 +4326,7 @@ export interface JournalFilterRow {
   description: string;
   kind: EntryKind;
   actor?: string;
+  channel?: string;
   receiptId?: number;
   position: number;
   account: string;

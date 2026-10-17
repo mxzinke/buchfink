@@ -73,6 +73,7 @@ func TestPostSetsServiceStampsRegardlessOfInput(t *testing.T) {
 	forged.ID = 999
 	forged.EntryNumber = "2026-999999"
 	forged.Actor = "eve@elsewhere"
+	forged.Channel = "agent:eve"
 	forged.AppVersion = "0.0.1-fake"
 	forged.PostingRuleVersion = "1999-01"
 	forged.CommittedAt = &committed
@@ -98,6 +99,9 @@ func TestPostSetsServiceStampsRegardlessOfInput(t *testing.T) {
 	}
 	if stored.Actor != actor.Actor() || stored.AppVersion != buildinfo.Version {
 		t.Errorf("Bearbeiter/Programmfassung aus der Eingabe übernommen: %q / %q", stored.Actor, stored.AppVersion)
+	}
+	if stored.Channel != string(actor.ChannelSystem) {
+		t.Errorf("Erfassungsweg %q aus der Eingabe übernommen; ohne Angabe im Kontext gilt system", stored.Channel)
 	}
 	if stored.PostingRuleVersion != accounting.PostingRuleVersion {
 		t.Errorf("Regelstand %q, erwartet %q", stored.PostingRuleVersion, accounting.PostingRuleVersion)
@@ -274,4 +278,57 @@ func TestIntegrityCheckComparesTheReceiptHash(t *testing.T) {
 	if !found {
 		t.Errorf("kein Belegbruch zur Buchung %s gemeldet: %+v", booked.EntryNumber, result.Breaks)
 	}
+}
+
+// Der Erfassungsweg kommt aus dem Kontext des Aufrufers und steht an Buchung,
+// Generalumkehr und Protokolleintrag.
+func TestPostRecordsTheChannelOfTheCaller(t *testing.T) {
+	env := newTestEnv(t)
+	agent, err := actor.Agent("claude-desktop")
+	if err != nil {
+		t.Fatal(err)
+	}
+	byAgent := actor.WithChannel(context.Background(), agent)
+	inApp := actor.WithChannel(context.Background(), actor.ChannelUI)
+
+	created, err := env.journal.Post(byAgent, simpleEntry("6815", "1800", 10000))
+	if err != nil {
+		t.Fatalf("Buchung: %v", err)
+	}
+	if created.Channel != string(agent) {
+		t.Errorf("Buchung trägt %q, erwartet %q", created.Channel, agent)
+	}
+	reversal, err := env.journal.Reverse(inApp, created.ID, "Fehlbuchung")
+	if err != nil {
+		t.Fatalf("Storno: %v", err)
+	}
+	if reversal.Channel != string(actor.ChannelUI) {
+		t.Errorf("die Generalumkehr trägt %q; sie entstand in der App", reversal.Channel)
+	}
+
+	logs, err := repositoryAuditEntries(env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	channels := map[string]bool{}
+	for _, entry := range logs {
+		channels[entry.Channel] = true
+	}
+	if !channels[string(agent)] || !channels[string(actor.ChannelUI)] {
+		t.Errorf("die Protokolleinträge tragen die Wege %v, erwartet Agent und App", channels)
+	}
+
+	result, err := env.journal.VerifyIntegrity(inApp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.IsValid {
+		t.Errorf("Kette nach Buchungen mit Erfassungsweg gebrochen: %s", result.Message)
+	}
+}
+
+func repositoryAuditEntries(env *testEnv) ([]domain.AuditLogEntry, error) {
+	var out []domain.AuditLogEntry
+	err := env.db.Order("id").Find(&out).Error
+	return out, err
 }

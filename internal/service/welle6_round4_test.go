@@ -232,6 +232,7 @@ func TestExportedAuditLogLetsAnOutsiderRecomputeTheChain(t *testing.T) {
 		put(&b, "before", row[index["Vorher"]])
 		put(&b, "after", row[index["Nachher"]])
 		put(&b, "actor", row[index["Bearbeiter"]])
+		put(&b, "channel", row[index["Erfassungsweg"]])
 		put(&b, "app_version", row[index["Programmfassung"]])
 		sum := sha256.Sum256([]byte(b.String()))
 		computed := hex.EncodeToString(sum[:])

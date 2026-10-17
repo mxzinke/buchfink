@@ -45,10 +45,12 @@ type AuditLogEntry struct {
 	Before string `gorm:"type:text" json:"before,omitempty"`
 	After  string `gorm:"type:text" json:"after,omitempty"`
 
-	// Actor ist die Bearbeiterkennung (internal/actor), AppVersion die Fassung
-	// des Programms, die gehandelt hat. Beide beantworten die Fragen „wer" und
-	// „womit", die die Nachvollziehbarkeit neben „was" und „wann" stellt.
+	// Actor ist die Bearbeiterkennung, Channel der Erfassungsweg
+	// (internal/actor), AppVersion die Fassung des Programms, die gehandelt
+	// hat. Sie beantworten die Fragen „wer", „auf welchem Weg" und „womit",
+	// die die Nachvollziehbarkeit neben „was" und „wann" stellt.
 	Actor      string `gorm:"size:120;index" json:"actor,omitempty"`
+	Channel    string `gorm:"size:60;index" json:"channel,omitempty"`
 	AppVersion string `gorm:"size:60" json:"appVersion,omitempty"`
 
 	PreviousHash string `gorm:"size:64" json:"previousHash,omitempty"`
@@ -67,6 +69,7 @@ type AuditFilter struct {
 	EntityType string      `json:"entityType,omitempty"`
 	EntityID   string      `json:"entityId,omitempty"`
 	Actor      string      `json:"actor,omitempty"`
+	Channel    string      `json:"channel,omitempty"`
 	// Access schränkt auf die Lesezugriffe auf personenbezogene Daten ein
 	// (QUE-02 K2): Datenüberlassung, Prüferpaket, Herausgabe einzelner Dateien
 	// — sie stehen als EXPORT — und das Ein- und Ausschalten des Prüfermodus,
@@ -84,7 +87,7 @@ type AuditFilter struct {
 // IsEmpty meldet, ob der Filter nichts einschränkt.
 func (f AuditFilter) IsEmpty() bool {
 	return f.Action == "" && f.EntityType == "" && f.EntityID == "" &&
-		f.Actor == "" && f.From == "" && f.To == "" && !f.Access
+		f.Actor == "" && f.Channel == "" && f.From == "" && f.To == "" && !f.Access
 }
 
 // AuditEntryHashFunc verkettet einen Protokolleintrag mit seinem Vorgänger.

@@ -28,7 +28,7 @@ func JournalFilterCSV(result *accounting.JournalFilterResult) string {
 	_ = w.Write([]string{
 		"Buchungsnummer", "Buchungsdatum", "Belegdatum", "Belegnummer", "Buchungstext",
 		"Position", "Konto", "Kontobezeichnung", "Soll", "Haben",
-		"Steuerschlüssel", "Bemessungsgrundlage", "Zeilentext", "Bearbeiter", "Beleg",
+		"Steuerschlüssel", "Bemessungsgrundlage", "Zeilentext", "Bearbeiter", "Erfassungsweg", "Beleg",
 	})
 	if result != nil {
 		for _, row := range result.Rows {
@@ -49,12 +49,12 @@ func JournalFilterCSV(result *accounting.JournalFilterResult) string {
 			_ = w.Write([]string{
 				row.EntryNumber, row.BookingDate, row.DocumentDate, row.DocumentNumber,
 				row.Description, strconv.Itoa(row.Position), row.Account, row.AccountName,
-				debit, credit, row.TaxKey, taxBase, row.Text, row.Actor, receipt,
+				debit, credit, row.TaxKey, taxBase, row.Text, row.Actor, row.Channel, receipt,
 			})
 		}
 		_ = w.Write([]string{
 			"Summe", "", "", "", "", "", "", "",
-			result.TotalDebit.String(), result.TotalCredit.String(), "", "", "", "", "",
+			result.TotalDebit.String(), result.TotalCredit.String(), "", "", "", "", "", "",
 		})
 	}
 	w.Flush()
@@ -119,6 +119,7 @@ func JournalFilterLabel(filter accounting.JournalFilter) string {
 	}
 	add("Steuerschlüssel", filter.TaxKey)
 	add("Bearbeiter", filter.Actor)
+	add("Erfassungsweg", filter.Channel)
 	add("Suchtext", strings.TrimSpace(filter.Text))
 	if filter.HasReceipt != nil {
 		if *filter.HasReceipt {

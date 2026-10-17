@@ -20,3 +20,11 @@ test('preserves cents and accepts a copied formatted amount', () => {
   }
   assert.equal(parseCents(formatCents(-4250)), -4250);
 });
+
+test('names the channel only when it is not the app itself', async () => {
+  const { channelNote } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
+  assert.equal(channelNote('ui'), null);
+  assert.equal(channelNote(undefined), null);
+  assert.equal(channelNote('system'), 'Programmlauf');
+  assert.equal(channelNote('agent:claude-desktop'), 'über claude-desktop');
+});

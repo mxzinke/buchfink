@@ -57,11 +57,12 @@ func canonicalize(e *domain.JournalEntry, prevHash string) []byte {
 	put("rate_date", e.ExchangeRateDate)
 	put("rule_version", e.PostingRuleVersion)
 
-	// Programmfassung und Bearbeiterkennung (UNV-04, UNV-06) sowie die
-	// Herkunftskennung aus einem Altsystem sind Inhalt der Buchung und so zu
-	// decken wie der Buchungstext.
+	// Programmfassung, Bearbeiterkennung und Erfassungsweg (UNV-04, UNV-06)
+	// sowie die Herkunftskennung aus einem Altsystem sind Inhalt der Buchung
+	// und so zu decken wie der Buchungstext.
 	put("app_version", e.AppVersion)
 	put("actor", e.Actor)
+	put("channel", e.Channel)
 	put("legacy_ref", e.LegacyRef)
 	// Die vereinbarte Fälligkeit trägt Altersstruktur und Restlaufzeitangabe
 	// (§ 268 Abs. 4 und 5 HGB); leer heißt „folgt aus dem Zahlungsziel".

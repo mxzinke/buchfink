@@ -286,3 +286,17 @@ export function formatShortHash(hash: string): string {
 export function formatSide(side: 'S' | 'H'): string {
   return side === 'S' ? 'Soll' : 'Haben';
 }
+
+/**
+ * Benennt den Erfassungsweg einer Buchung oder eines Protokolleintrags.
+ *
+ * Die Bedienung in der App ist der Regelfall und bekommt keinen Vermerk; nur
+ * ein Programmlauf oder ein verbundener Agent wird klein neben dem Bearbeiter
+ * genannt.
+ */
+export function channelNote(channel?: string): string | null {
+  if (!channel || channel === 'ui') return null;
+  if (channel === 'system') return 'Programmlauf';
+  if (channel.startsWith('agent:')) return `über ${channel.slice('agent:'.length)}`;
+  return channel;
+}
