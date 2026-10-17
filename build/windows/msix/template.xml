@@ -10,24 +10,24 @@
     <Installer
         Path="buchfink"
         Arguments=""
-        InstallLocation="C:\Program Files\My Company\My Product">
+        InstallLocation="C:\Program Files\Buchfink">
     </Installer>
     <PackageInformation
-        PackageName="My Product"
-        PackageDisplayName="My Product"
-        PublisherName="CN=My Company"
-        PublisherDisplayName="My Company"
+        PackageName="Buchfink"
+        PackageDisplayName="Buchfink"
+        PublisherName="CN=Buchfink Open Source"
+        PublisherDisplayName="Buchfink Open Source"
         Version="0.3.0.0"
-        PackageDescription="A buchfink application">
+        PackageDescription="Open-Source-Buchhaltung für GmbH und UG">
         <Capabilities>
             <Capability Name="runFullTrust" />
             
         </Capabilities>
         <Applications>
             <Application
-                Id="com.example.buchfink"
-                Description="A buchfink application"
-                DisplayName="My Product"
+                Id="com.buchfink.app"
+                Description="Open-Source-Buchhaltung für GmbH und UG"
+                DisplayName="Buchfink"
                 ExecutableName="buchfink"
                 EntryPoint="Windows.FullTrustApplication">
                 
@@ -41,9 +41,9 @@
         </Dependencies>
         <Properties>
             <Framework>false</Framework>
-            <DisplayName>My Product</DisplayName>
-            <PublisherDisplayName>My Company</PublisherDisplayName>
-            <Description>A buchfink application</Description>
+            <DisplayName>Buchfink</DisplayName>
+            <PublisherDisplayName>Buchfink Open Source</PublisherDisplayName>
+            <Description>Open-Source-Buchhaltung für GmbH und UG</Description>
             <Logo>Assets\AppIcon.png</Logo>
         </Properties>
     </PackageInformation>
