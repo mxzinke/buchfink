@@ -48,7 +48,7 @@ type statusExaminer struct {
 type statusConnection struct {
 	App                string   `json:"app" jsonschema:"Name der App, wie sie sich angemeldet hat"`
 	Erfassungsweg      string   `json:"erfassungsweg" jsonschema:"steht an jeder Buchung dieser App"`
-	Rechte             []string `json:"rechte"`
+	Rechte             []string `json:"rechte" jsonschema:"Rechte im geöffneten Mandanten; leer, wenn er für diese App nicht freigegeben ist"`
 	MandantFreigegeben bool     `json:"mandant_freigegeben"`
 }
 

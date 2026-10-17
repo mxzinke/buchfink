@@ -34,7 +34,10 @@ type Call struct {
 	ClientID string
 	App      string
 	Channel  actor.Channel
-	Scopes   []string
+	// Scopes sind die Rechte im geöffneten Mandanten: was die Anmeldung trägt
+	// und die Zulassung für diesen Mandanten erlaubt. Ohne zugelassenen
+	// Mandanten leer.
+	Scopes []string
 	// Tenant ist der geöffnete Mandant, solange der Aufruf läuft; nil, wenn
 	// keiner geöffnet ist.
 	Tenant *core.Tenant
@@ -42,7 +45,7 @@ type Call struct {
 	Granted bool
 }
 
-// Can meldet, ob die Anmeldung einen Scope trägt.
+// Can meldet, ob die App im geöffneten Mandanten einen Scope hat.
 func (c *Call) Can(scope string) bool { return slices.Contains(c.Scopes, scope) }
 
 // Spec beschreibt ein Werkzeug.
@@ -103,11 +106,11 @@ func AddInfo[In, Out any](tb *Toolbox, spec Spec, fn func(ctx context.Context, c
 func AddRead[In, Out any](tb *Toolbox, spec Spec, fn func(ctx context.Context, c *Call, s *core.Services, in In) (Out, error)) {
 	add(tb, spec, true, func(ctx context.Context, c *Call, in In) (Out, error) {
 		var out Out
-		if !c.Can(oauth.ScopeRead) {
-			return out, errScope(oauth.ScopeRead)
-		}
 		if err := c.ensureTenant(); err != nil {
 			return out, err
+		}
+		if !c.Can(oauth.ScopeRead) {
+			return out, errScope(oauth.ScopeRead)
 		}
 		err := c.Tenant.Read(ctx, func(ctx context.Context, s *core.Services) error {
 			var err error
@@ -124,9 +127,6 @@ func AddRead[In, Out any](tb *Toolbox, spec Spec, fn func(ctx context.Context, c
 func AddWrite[In writeInput, Out any](tb *Toolbox, spec Spec, fn func(ctx context.Context, c *Call, s *core.Services, in In) (Out, error)) {
 	add(tb, spec, false, func(ctx context.Context, c *Call, in In) (Out, error) {
 		var out Out
-		if !c.Can(oauth.ScopeWrite) {
-			return out, errScope(oauth.ScopeWrite)
-		}
 		if c.Tenant == nil {
 			return out, errNoTenant()
 		}
@@ -136,6 +136,9 @@ func AddWrite[In writeInput, Out any](tb *Toolbox, spec Spec, fn func(ctx contex
 		}
 		if !c.Granted {
 			return out, errNotGranted()
+		}
+		if !c.Can(oauth.ScopeWrite) {
+			return out, errScope(oauth.ScopeWrite)
 		}
 		ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 		defer cancel()
@@ -244,8 +247,9 @@ func add[In, Out any](tb *Toolbox, spec Spec, readOnly bool, run func(ctx contex
 	tb.names = append(tb.names, spec.Name)
 }
 
-// newCall liest Anmeldung und offenen Mandanten. release gibt die Lease
-// zurück.
+// newCall liest Anmeldung und offenen Mandanten. Die Rechte gelten je
+// Mandant: ein Token hängt an der App, nicht am Mandanten, für den sie
+// zugelassen wurde. release gibt die Lease zurück.
 func (tb *Toolbox) newCall(ctx context.Context, req *mcp.CallToolRequest, tool string) (*Call, func(), error) {
 	info := req.Extra.TokenInfo
 	if info == nil {
@@ -257,7 +261,7 @@ func (tb *Toolbox) newCall(ctx context.Context, req *mcp.CallToolRequest, tool s
 		return nil, nil, &ToolError{Code: CodeInternal, Nachricht: "die Anmeldung nennt keinen gültigen Kurznamen: " + err.Error()}
 	}
 	name, _ := info.Extra["name"].(string)
-	c := &Call{Tool: tool, ClientID: info.UserID, App: name, Channel: channel, Scopes: info.Scopes}
+	c := &Call{Tool: tool, ClientID: info.UserID, App: name, Channel: channel}
 	t, release, err := tb.host.Acquire(ctx)
 	switch {
 	case errors.Is(err, core.ErrNoTenant), errors.Is(err, core.ErrTenantClosing):
@@ -271,7 +275,15 @@ func (tb *Toolbox) newCall(ctx context.Context, req *mcp.CallToolRequest, tool s
 		release()
 		return nil, nil, err
 	}
-	c.Granted = grant != nil
+	if grant != nil {
+		c.Granted = true
+		allowed := strings.Fields(grant.Scopes)
+		for _, sc := range info.Scopes {
+			if slices.Contains(allowed, sc) {
+				c.Scopes = append(c.Scopes, sc)
+			}
+		}
+	}
 	return c, release, nil
 }
 

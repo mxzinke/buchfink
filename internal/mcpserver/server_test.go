@@ -614,6 +614,41 @@ func TestTenantSwitchIsDetected(t *testing.T) {
 	}
 }
 
+// Die Rechte gelten je Mandant. Ein Token hängt an der App; schreibt es in
+// einem Mandanten, für den die App nur lesen darf, wird nichts geschrieben.
+// Eine neue Zulassung mit weniger Rechten gilt auch für ältere Tokens.
+func TestScopesFollowTheGrantOfTheOpenTenant(t *testing.T) {
+	h := newHarness(t)
+	clientID := h.registerClient("Claude Code")
+	writer := h.authorize(clientID, "buchfink:lesen buchfink:buchen")
+
+	second := h.createTenant("Nur-Lesen GmbH")
+	h.authorize(clientID, "buchfink:lesen")
+	cs := h.mustSession(writer.access)
+	write := func(name string) *mcp.CallToolResult {
+		return callTool(t, cs, "test_lieferant", map[string]any{"mandant_id": second.ID, "name": name})
+	}
+	if e := toolErrorOf(t, write("Fremd GmbH")); e.Code != CodeMissingScope {
+		t.Errorf("Token aus dem ersten Mandanten schreibt im zweiten: %+v", e)
+	}
+	if n := h.countVendors("Fremd GmbH"); n != 0 {
+		t.Errorf("%d Lieferanten trotz Nur-Lesen angelegt", n)
+	}
+	out := statusResult(t, callTool(t, cs, "status", nil))
+	if !out.Bereit || !slices.Equal(out.Verbindung.Rechte, []string{"buchfink:lesen"}) {
+		t.Errorf("status nennt nicht die Rechte des Mandanten: %+v", out.Verbindung)
+	}
+
+	h.authorize(clientID, "buchfink:lesen buchfink:buchen")
+	if res := write("Erlaubt GmbH"); res.IsError {
+		t.Fatalf("nach der Zulassung zum Buchen: %s", resultText(res))
+	}
+	h.authorize(clientID, "buchfink:lesen")
+	if e := toolErrorOf(t, write("Zurückgenommen GmbH")); e.Code != CodeMissingScope {
+		t.Errorf("ältere Kette behält das Buchen nach neuer Zulassung zum Lesen: %+v", e)
+	}
+}
+
 func TestExaminerModeBlocksAgentWrites(t *testing.T) {
 	h := newHarness(t)
 	tok := h.login("Claude Code", "")

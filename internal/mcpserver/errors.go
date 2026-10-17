@@ -88,8 +88,8 @@ func errSwitched(expected, open string) *ToolError {
 
 func errScope(scope string) *ToolError {
 	return &ToolError{Code: CodeMissingScope,
-		Nachricht:        "Die Anmeldung dieser App erlaubt das nicht (fehlender Scope " + scope + ").",
-		NaechsterSchritt: "Die Anmeldung im Client mit dem Scope " + scope + " wiederholen und in Buchfink zustimmen."}
+		Nachricht:        "Diese App hat im geöffneten Mandanten das Recht " + scope + " nicht (Anmeldung oder Zulassung).",
+		NaechsterSchritt: "Die Anmeldung im Client mit dem Scope " + scope + " wiederholen und in Buchfink für diesen Mandanten zustimmen."}
 }
 
 // errorResult ist das Ergebnis eines gescheiterten Aufrufs. Der Fehler steht

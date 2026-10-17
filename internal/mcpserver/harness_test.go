@@ -333,7 +333,12 @@ type tokens struct {
 // der App zustimmen lassen, Code einlösen.
 func (h *harness) login(name, scope string) tokens {
 	h.t.Helper()
-	clientID := h.registerClient(name)
+	return h.authorize(h.registerClient(name), scope)
+}
+
+// authorize meldet eine registrierte App für den geöffneten Mandanten an.
+func (h *harness) authorize(clientID, scope string) tokens {
+	h.t.Helper()
 	p := newPKCE()
 	redirect := "http://127.0.0.1:53682/callback"
 	q := h.authorizeQuery(clientID, redirect, p)
