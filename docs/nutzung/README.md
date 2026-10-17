@@ -71,16 +71,15 @@ Beim ersten Start führt Buchfink in zwei Schritten durch die Einrichtung.
 **1. Unternehmen.** Sie geben Firma und Rechtsform an (GmbH oder UG), ob Sie
 gerade gründen oder mit bestehenden Büchern umsteigen, den ersten Tag der
 Bücher und einen leeren Ordner für die Daten. Anschrift, Register,
-Steuernummer und Bankkonto tragen Sie ein, soweit Sie sie schon haben. Drei
-Fragen klären, ob die Gesellschaft gemeinnützig ist, sich in Liquidation
-befindet oder Organgesellschaft ist. Für solche Gesellschaften rechnet Buchfink
-weder Abschluss noch Steuerrückstellung, siehe [Umfang](umfang.md).
+Steuernummer und Bankkonto tragen Sie ein, soweit Sie sie schon haben. Ist die
+Gesellschaft gemeinnützig, in Liquidation oder Organgesellschaft, rechnet
+Buchfink weder Abschluss noch Steuerrückstellung, siehe [Umfang](umfang.md).
 
 **2. KI-Agent verbinden.** Sie wählen Ihren Client, richten ihn nach der
 [Anleitung](ki-agenten/README.md) ein und lassen die Anmeldung im Fenster von
-Buchfink zu. Dabei sehen Sie, welche Daten an den Anbieter des Sprachmodells
-gehen. Verbinden können Sie auch später: Der Zugang für KI-Apps läuft, solange
-Buchfink geöffnet ist.
+Buchfink zu. Was dann an den Anbieter des Sprachmodells geht, steht unter
+[KI-Anbieter](datensicherheit.md#ki-anbieter). Verbinden können Sie auch
+später: Der Zugang für KI-Apps läuft, solange Buchfink geöffnet ist.
 
 Danach:
 
