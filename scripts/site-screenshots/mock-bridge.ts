@@ -69,18 +69,53 @@ const SETTINGS = {
   fiscalYear: YEAR,
   fiscalYearStartMonth: 1,
   taxNumber: '27/123/45678',
+  // Abgeleitet aus Steuernummer und Bundesland, wie GetCompanySettings sie liefert.
+  taxNumberElster: '2227012345678',
+  federalState: 'HH',
   vatId: 'DE312345678',
   taxOffice: 'Finanzamt Hamburg-Nord',
   iban: 'DE02120300000000202051',
   bic: 'BYLADEM1001',
   bankName: 'Deutsche Kreditbank',
-  street: 'Hafenstraße 14',
-  zipCity: '20359 Hamburg',
-  country: 'DE',
+  street: 'Hafenstraße',
+  houseNumber: '14',
+  addressAddition: '',
+  postalCode: '20359',
+  city: 'Hamburg',
+  countryCode: 'DE',
+  // Gegründet 2019, seit 2024 in Buchfink: ein Umstieg zum Beginn eines Geschäftsjahres.
+  foundedOn: '2019-05-14',
+  seat: 'Hamburg',
+  registerCourt: 'Amtsgericht Hamburg',
+  registerNumber: 'HRB 148223',
+  registeredOn: '2019-06-03',
+  managingDirectors: 'Anna Bauer',
+  supervisoryBoardChair: '',
+  sellerIdentifier: '',
+  notary: 'Dr. Helene Voss, Hamburg',
+  deedNumber: 'UR-Nr. 812/2019',
+  shareCapital: c(25000),
+  shareholders: [
+    { name: 'Anna Bauer', shareCapital: c(15000) },
+    { name: 'Jonas Peters', shareCapital: c(10000) },
+  ],
+  contactName: 'Anna Bauer',
+  contactPhone: '040 3290 1180',
+  contactEmail: 'rechnung@nordlicht-systeme.example',
+  invoiceNumberFormat: '',
+  receiptNumberFormat: '',
   currency: EUR,
   skr: 'SKR04',
   vatPeriod: 'quarter',
-  taxationType: 'Soll',
+  taxationType: 'SOLL',
+  permanentExtension: true,
+  specialPrepayment: 0,
+  receiptCaptureDays: 10,
+  commitGraceDays: 0,
+  taxAdvisor: { engaged: false, sinceYear: 0, declarations: [] as string[] },
+  nonProfit: false,
+  inLiquidation: false,
+  fiscalUnity: false,
   // Leer: die Anlegerstellung für § 20 InvStG folgt aus der Rechtsform.
   investorOverride: '',
   // Ab diesem Bruttobetrag verlangt der Belegweg den Leistungsnachweis
@@ -394,6 +429,7 @@ const CONTACTS = [
   contact(11, 'vendor', '70011', 'Hanse Cloud Services GmbH', 'Kehrwieder 9, 20457 Hamburg', 'DE317744002', 0, 14),
   contact(13, 'vendor', '70013', 'Techpartner Nord GmbH', 'Ruhrstraße 42, 22761 Hamburg', 'DE263558107', 3232.04, 14),
   contact(16, 'vendor', '70016', 'Fachportal Media GmbH', 'Kaiser-Wilhelm-Straße 4, 20355 Hamburg', 'DE298001554', 2201.5, 21),
+  { ...contact(20, 'vendor', '70020', 'Anna Bauer', 'Isestraße 61, 20149 Hamburg', '', 0, 0), company: '' },
 ];
 
 /** Zerlegt „Straße 1, 12345 Ort" in die Felder des Kontakts. */
@@ -1876,7 +1912,7 @@ const STATEMENT = {
     // Zusatz „i. G." — die Gesellschaft ist eingetragen.
     firmName: SETTINGS.companyName,
     legalForm: SETTINGS.legalForm,
-    seat: SETTINGS.zipCity,
+    seat: SETTINGS.seat,
     registerCourt: 'Amtsgericht Hamburg',
     registerNumber: 'HRB 148223',
     fiscalYear: YEAR,
@@ -3141,6 +3177,91 @@ const FISCAL_YEAR_CANDIDATES = {
   },
 };
 
+// -------------------------------------------------------------------------
+// Unternehmen, Einrichtung und Zustimmung
+
+/** Ein Darlehen der Mehrheitsgesellschafterin an die GmbH. */
+const SHAREHOLDER_LOANS = [
+  {
+    loan: {
+      id: 1,
+      contactId: 20,
+      direction: 'to_company',
+      principal: c(20000),
+      interestRateBp: 350,
+      dayCount: 'act/365',
+      contractDate: '2025-02-20',
+      startDate: '2025-03-01',
+      maturityDate: '2028-02-29',
+      account: '3642',
+      interestAccount: '7317',
+      collateral: '',
+      subordinated: true,
+    },
+    contactName: 'Anna Bauer',
+    outstanding: c(20000),
+    firstMovement: '2025-03-03',
+    interestBookedThrough: '2025-12-31',
+    findings: [],
+  },
+];
+
+/** Die Pflichten aus den Stammdaten: der Eintritt von Jonas Peters 2026. */
+const COMPANY_DEADLINES = [
+  {
+    ...deadline('gesellschafterliste.2026-03', 'Gesellschafterliste einreichen (Eintritt Jonas Peters)',
+      `${YEAR}-03-31`, 'März 2026', '§ 40 Abs. 2 GmbHG', true),
+    doneOn: `${YEAR}-03-12`,
+    description: 'Der Notar reicht die neue Liste beim Handelsregister ein.',
+  },
+  {
+    ...deadline('transparenzregister.2026-03', 'Transparenzregister: wirtschaftlich Berechtigte melden',
+      `${YEAR}-11-15`, 'März 2026', '§ 20 Abs. 1 GwG', false),
+    description: 'Ändern sich die wirtschaftlich Berechtigten, ist das Transparenzregister zu aktualisieren.',
+    confirmable: true,
+  },
+];
+
+/** Steht `mock:consent` im lokalen Speicher, meldet sich Claude Code an. */
+const CONSENT_REQUEST = {
+  id: 'anfrage-1',
+  nonce: 'nonce-1',
+  clientName: 'Claude Code',
+  clientId: 'c7f1e2a0-claude-code',
+  clientRegisteredAt: `${YEAR}-08-25T08:50:00Z`,
+  knownSince: null,
+  redirectUri: 'http://127.0.0.1:53712/callback',
+  redirectTo: '',
+  scopes: ['buchfink:lesen', 'buchfink:buchen'],
+  tenantId: TENANTS[0].id,
+  tenantName: TENANTS[0].name,
+  userCode: 'KXRT7M2Q',
+  expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+};
+
+/** Schalter für die Aufnahmen der Einrichtung und der Zustimmung. */
+function mockFlag(name: string): string | null {
+  try {
+    return window.localStorage.getItem(`mock:${name}`);
+  } catch {
+    return null;
+  }
+}
+
+const SCHEMA_MIGRATIONS = [
+  { id: 2, runAt: `${YEAR}-08-01T07:58:00Z`, appVersion: '0.3.0', fromVersion: 41, toVersion: 44, result: 'ok', tables: 'shareholder_loans, obligation_records', message: '' },
+  { id: 1, runAt: '2024-01-08T09:12:00Z', appVersion: '0.2.0', fromVersion: 0, toVersion: 41, result: 'ok', tables: 'Ersteinrichtung', message: '' },
+];
+
+const VAT_ID_STATUS = {
+  contactId: 1,
+  vatId: 'DE289512347',
+  confirmed: true,
+  latest: { checkedAt: `${YEAR}-07-02T10:14:00Z`, resultCode: '200', requestId: 'BZST-2026-07-02-4711' },
+  validityDays: 365,
+  note: 'Gültig bestätigt.',
+};
+
 const unsupported = (name: string) => () =>
   Promise.reject(new Error(`${name} ist in der Screenshot-Vorschau nicht verfügbar.`));
 
@@ -3159,10 +3280,27 @@ export const bridge = {
   // Verbundene Apps
   GetMCPServerStatus: () => later(MCP_STATUS),
   SetMCPPort: unsupported('SetMCPPort'),
-  GetConnectedApps: () => later(CONNECTED_APPS),
+  GetConnectedApps: () => later(mockFlag('setup') ? [] : CONNECTED_APPS),
   RevokeConnectedApp: unsupported('RevokeConnectedApp'),
-  GetPendingAppRequests: () => later([]),
-  ResolveAppRequest: unsupported('ResolveAppRequest'),
+  GetPendingAppRequests: () => later(mockFlag('consent') ? [CONSENT_REQUEST] : []),
+  ResolveAppRequest: () => {
+    window.localStorage.removeItem('mock:consent');
+    return later(undefined);
+  },
+  OpenAgentGuide: unsupported('OpenAgentGuide'),
+
+  // Stammdaten: Darlehen, Eintragung, Steuernummer
+  GetShareholderLoans: () => later(SHAREHOLDER_LOANS),
+  RegisterShareholderLoan: unsupported('RegisterShareholderLoan'),
+  CorrectShareholderLoan: unsupported('CorrectShareholderLoan'),
+  RegisterCompany: unsupported('RegisterCompany'),
+  FormatElsterTaxNumber: (taxNumber: string, state: string) => {
+    const digits = taxNumber.replace(/\D/g, '');
+    if (!digits || !state) return later('');
+    // Hamburg: zehn Ziffern, Länderpräfix 22, eingefügte 0 an fünfter Stelle.
+    if (state === 'HH' && digits.length === 10) return later(`22${digits.slice(0, 2)}0${digits.slice(2)}`);
+    return Promise.reject(new Error(`Eine Steuernummer aus ${state} hat in der Vorschau zehn Ziffern.`));
+  },
   GetCountries: () => later(COUNTRIES),
   GetFiscalYearCandidates: () => later(FISCAL_YEAR_CANDIDATES),
   BookLegalReserve: unsupported('BookLegalReserve'),
@@ -3179,9 +3317,14 @@ export const bridge = {
       // „Noch keine Sicherung gelaufen" über einer Liste gelaufener Sicherungen.
       backupDir: '/Users/anna/Sicherungen',
       lastBackupAt: '2026-08-25T18:40:00Z',
+      // Mit `mock:setup` startet die Vorschau in der Einrichtung.
+      ...(mockFlag('setup') === '1' ? { isConfigured: false, tenants: [], activeTenantId: '' } : {}),
     }),
-  ValidateTenantDirectory: unsupported('ValidateTenantDirectory'),
-  SetupApplication: unsupported('SetupApplication'),
+  ValidateTenantDirectory: () => later(undefined, 80),
+  SetupApplication: () => {
+    window.localStorage.setItem('mock:setup', 'angelegt');
+    return later(undefined, 300);
+  },
   LoadExistingDatabase: unsupported('LoadExistingDatabase'),
   SelectDirectoryDialog: unsupported('SelectDirectoryDialog'),
   SelectDatabaseFileDialog: unsupported('SelectDatabaseFileDialog'),
@@ -3355,7 +3498,7 @@ export const bridge = {
   GetCarryForwardPreview: (toYear: number) => later(carryForwardPreview(toYear), 60),
   GetInvoiceGroups: () => later(INVOICE_GROUPS),
   GetInputTaxCorrections: (year: number) => later(inputTaxCorrections(year), 60),
-  GetDeadlines: () => later(DEADLINES, 60),
+  GetDeadlines: () => later([...DEADLINES, ...COMPANY_DEADLINES], 60),
   GetFoundationState: () => later(FOUNDATION_STATE),
 
   // Nachweise, Sicherung und Datenüberlassung
@@ -3455,7 +3598,7 @@ export const bridge = {
   SaveInputTaxUsage: unsupported('SaveInputTaxUsage'),
   BookInputTaxCorrection: unsupported('BookInputTaxCorrection'),
   GetVatIDChecks: unsupported('GetVatIDChecks'),
-  GetVatIDStatus: unsupported('GetVatIDStatus'),
+  GetVatIDStatus: (contactId: number) => later({ ...VAT_ID_STATUS, contactId }),
   CheckVatID: unsupported('CheckVatID'),
   GetNonDeductibleReport: unsupported('GetNonDeductibleReport'),
   RebookGiftsForRecipient: unsupported('RebookGiftsForRecipient'),
@@ -3471,8 +3614,8 @@ export const bridge = {
   ConfirmImpairmentPersists: unsupported('ConfirmImpairmentPersists'),
   GetPoolConsistencyReport: unsupported('GetPoolConsistencyReport'),
   GetExemptionCertificateWarnings: unsupported('GetExemptionCertificateWarnings'),
-  GetSchemaMigrations: unsupported('GetSchemaMigrations'),
-  GetMigrationRecords: unsupported('GetMigrationRecords'),
+  GetSchemaMigrations: () => later(SCHEMA_MIGRATIONS),
+  GetMigrationRecords: () => later([]),
   SetSystemChangeDate: unsupported('SetSystemChangeDate'),
   GenerateProcedureDocumentation: unsupported('GenerateProcedureDocumentation'),
   SaveOrganisationTexts: unsupported('SaveOrganisationTexts'),
