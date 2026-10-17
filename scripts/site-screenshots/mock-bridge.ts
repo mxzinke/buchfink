@@ -12,6 +12,8 @@
  * Screenshots keine Zahlen zeigen, die es so nicht geben kann.
  */
 
+import * as closings from './closings-mock';
+
 // Die Oberfläche prüft die Laufzeit über `window._wails`, bevor sie einen
 // Bridge-Aufruf zulässt (siehe services/api.ts). Für den Screenshot-Lauf wird
 // die Prüfung erfüllt, der Aufruf selbst läuft hier weiter.
@@ -849,66 +851,6 @@ const FESTSCHREIBUNGEN = [
     createdAt: '2026-02-28T10:04:00Z',
   },
 ];
-
-/**
- * Ein Auszug der erzeugten E-Bilanz. Für den Screenshot reicht der Kopf mit
- * Kontexten, Einheiten und den ersten Positionen — die Gestalt der Datei ist
- * das, was die Seite zeigen soll.
- */
-const XBRL = `<?xml version="1.0" encoding="UTF-8"?>
-<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
-            xmlns:de-gaap-ci="http://www.xbrl.de/taxonomies/de-gaap-ci-2026-04-01"
-            xmlns:de-gcd="http://www.xbrl.de/taxonomies/de-gcd-2026-04-01"
-            xmlns:iso4217="http://www.xbrl.org/2003/iso4217"
-            xmlns:link="http://www.xbrl.org/2003/linkbase"
-            xmlns:xlink="http://www.w3.org/1999/xlink">
-  <link:schemaRef xlink:type="simple"
-                  xlink:href="http://www.xbrl.de/taxonomies/de-gaap-ci-2026-04-01-shell-fiscal.xsd"/>
-
-  <xbrli:context id="D-2026">
-    <xbrli:entity>
-      <xbrli:identifier scheme="http://www.rzf-nrw.de/">27/123/45678</xbrli:identifier>
-    </xbrli:entity>
-    <xbrli:period>
-      <xbrli:startDate>2026-01-01</xbrli:startDate>
-      <xbrli:endDate>2026-12-31</xbrli:endDate>
-    </xbrli:period>
-  </xbrli:context>
-  <xbrli:context id="I-2026-12-31">
-    <xbrli:entity>
-      <xbrli:identifier scheme="http://www.rzf-nrw.de/">27/123/45678</xbrli:identifier>
-    </xbrli:entity>
-    <xbrli:period><xbrli:instant>2026-12-31</xbrli:instant></xbrli:period>
-  </xbrli:context>
-
-  <xbrli:unit id="EUR">
-    <xbrli:measure>iso4217:EUR</xbrli:measure>
-  </xbrli:unit>
-
-  <de-gcd:genInfo.company.name contextRef="D-2026">Nordlicht Systeme GmbH</de-gcd:genInfo.company.name>
-  <de-gcd:genInfo.company.location.city contextRef="D-2026">Hamburg</de-gcd:genInfo.company.location.city>
-  <de-gcd:genInfo.report.id.type contextRef="D-2026">Bilanz</de-gcd:genInfo.report.id.type>
-  <de-gcd:genInfo.report.accountingStandard contextRef="D-2026">HGB</de-gcd:genInfo.report.accountingStandard>
-  <de-gcd:genInfo.report.balSheetType contextRef="D-2026">Kontoform</de-gcd:genInfo.report.balSheetType>
-
-  <!-- Bilanz, Aktiva -->
-  <de-gaap-ci:bs.ass.fixAss.tan.othEquip contextRef="I-2026-12-31" unitRef="EUR" decimals="2">24500.00</de-gaap-ci:bs.ass.fixAss.tan.othEquip>
-  <de-gaap-ci:bs.ass.currAss.receiv.trade contextRef="I-2026-12-31" unitRef="EUR" decimals="2">36701.00</de-gaap-ci:bs.ass.currAss.receiv.trade>
-  <de-gaap-ci:bs.ass.currAss.cashEquiv contextRef="I-2026-12-31" unitRef="EUR" decimals="2">173298.74</de-gaap-ci:bs.ass.currAss.cashEquiv>
-  <de-gaap-ci:bs.ass.deferralItem contextRef="I-2026-12-31" unitRef="EUR" decimals="2">2400.00</de-gaap-ci:bs.ass.deferralItem>
-
-  <!-- Gewinn- und Verlustrechnung -->
-  <de-gaap-ci:is.netIncome.regular.operatingTrade.sales contextRef="D-2026" unitRef="EUR" decimals="2">486200.00</de-gaap-ci:is.netIncome.regular.operatingTrade.sales>
-  <de-gaap-ci:is.netIncome.regular.operatingTrade.otherOpInc contextRef="D-2026" unitRef="EUR" decimals="2">3750.00</de-gaap-ci:is.netIncome.regular.operatingTrade.otherOpInc>
-  <de-gaap-ci:is.netIncome.regular.operatingTrade.staff.wages contextRef="D-2026" unitRef="EUR" decimals="2">213600.00</de-gaap-ci:is.netIncome.regular.operatingTrade.staff.wages>
-  <de-gaap-ci:is.netIncome.regular.operatingTrade.otherOpExp contextRef="D-2026" unitRef="EUR" decimals="2">149806.00</de-gaap-ci:is.netIncome.regular.operatingTrade.otherOpExp>
-
-  <!-- Kontennachweis, Auszug -->
-  <de-gaap-ci:accountBalance.account.number contextRef="D-2026">4400</de-gaap-ci:accountBalance.account.number>
-  <de-gaap-ci:accountBalance.account.name contextRef="D-2026">Erlöse 19 % USt</de-gaap-ci:accountBalance.account.name>
-  <de-gaap-ci:accountBalance.account.balance contextRef="D-2026" unitRef="EUR" decimals="2">486200.00</de-gaap-ci:accountBalance.account.balance>
-</xbrli:xbrl>
-`;
 
 const INVOICES = [
   invoice(1, 'RE-2026-0119', '2026-08-17', '2026-08-31', 1, 'Nordwind Handels GmbH', 6900, 'issued', 0),
@@ -2039,6 +1981,36 @@ function monthCloseState(month: string) {
   // Das Quartal endet im März, Juni, September und Dezember; nur dort steht die
   // Voranmeldung an (der Mandant meldet vierteljährlich).
   const quarterEnd = index % 3 === 0;
+  const to = `${month}-${String(last).padStart(2, '0')}`;
+  const committed = to <= `${YEAR}-06-30`;
+  const quarterDue = `${year}-${String(index + 1).padStart(2, '0')}-10`;
+  if (committed) {
+    return {
+      month,
+      label,
+      from: `${month}-01`,
+      to,
+      fiscalYear: YEAR,
+      steps: [
+        { number: 1, key: 'check', title: 'Prüfbericht', state: 'done', note: 'Der Monat ist festgeschrieben; der Prüfbericht lief davor.' },
+        { number: 2, key: 'commit', title: 'Festschreiben', state: 'done', note: `Festgeschrieben bis zum ${quarterEnd ? to : `${YEAR}-${index <= 3 ? '03-31' : '06-30'}`}.` },
+        quarterEnd
+          ? { number: 3, key: 'vat', title: `Voranmeldung ${index / 3}. Quartal ${year} bestätigen`, state: 'done', note: `Am ${quarterDue} übermittelt.` }
+          : { number: 3, key: 'vat', title: 'Voranmeldung bestätigen', state: 'not_applicable', note: 'In diesem Monat ist keine Voranmeldung abzugeben.' },
+      ],
+      findings: [],
+      blocking: 0,
+      committed: true,
+      committedTo: index <= 3 ? `${YEAR}-03-31` : `${YEAR}-06-30`,
+      vatApplies: quarterEnd,
+      vatPeriodKey: quarterEnd ? `${year}-Q${index / 3}` : undefined,
+      vatPeriodLabel: quarterEnd ? `${index / 3}. Quartal ${year}` : undefined,
+      vatStatus: quarterEnd ? 'submitted' : undefined,
+      vatDueDate: quarterEnd ? quarterDue : undefined,
+      vatSubmittedAt: quarterEnd ? quarterDue : undefined,
+      vatReturnId: quarterEnd ? index / 3 : undefined,
+    };
+  }
   return {
     month,
     label,
@@ -2593,27 +2565,35 @@ function mappingReport(year: number) {
   };
 }
 
-/** Der Abschlussstand des laufenden Geschäftsjahres. */
+/**
+ * Der Abschlussstand je Geschäftsjahr: 2025 ist aufgestellt, festgeschrieben,
+ * festgestellt und vorgetragen, die Offenlegung steht aus; 2026 läuft noch.
+ */
 function closingState(year: number) {
+  const y = year || YEAR;
+  const base = FISCAL_YEARS.find((entry) => entry.year === y) ?? FISCAL_YEARS[1];
+  const previous = y === YEAR - 1;
   const fiscalYear = {
-    ...(FISCAL_YEARS.find((y) => y.year === (year || YEAR)) ?? FISCAL_YEARS[1]),
+    ...base,
+    ...(previous
+      ? { preparedOn: `${YEAR}-03-20`, adoptionNote: 'Gesellschafterbeschluss vom 14.05.2026' }
+      : {}),
     averageEmployees: 6,
     priorYearRevenue: c(412800),
-    createdAt: `${YEAR}-01-02T08:00:00Z`,
+    createdAt: `${y}-01-02T08:00:00Z`,
   };
   return {
-    year: fiscalYear.year,
+    year: y,
     fiscalYear,
-    netIncome: SUMMARY.netIncome,
-    hasYearCommitment: false,
-    committedUntil: `${YEAR}-06-30`,
-    nextYear: fiscalYear.year + 1,
-    carriedForward: false,
-    carryForwardCurrent: false,
-    nextStatus: 'prepared',
-    canAdopt: false,
-    blocker:
-      'Aufgestellt wird erst, wenn das Geschäftsjahr festgeschrieben ist (§ 146 Abs. 4 AO).',
+    netIncome: previous ? c(61230) : SUMMARY.netIncome,
+    hasYearCommitment: previous,
+    committedUntil: previous ? `${y}-12-31` : `${YEAR}-06-30`,
+    nextYear: y + 1,
+    carriedForward: previous,
+    carryForwardCurrent: previous,
+    carriedForwardAt: previous ? `${YEAR}-01-08T09:30:00Z` : undefined,
+    nextStatus: previous ? 'disclosed' : 'prepared',
+    canAdopt: true,
   };
 }
 
@@ -2669,9 +2649,35 @@ const CLOSING_STEP_STATE: Record<string, { state: string; detail?: string; reaso
   appropriation: { state: 'open' },
 };
 
+/** Was im festgestellten Vorjahr an den Bausteinen steht. */
+const CLOSED_YEAR_DETAIL: Record<string, string> = {
+  vat_settlement: 'Zahllast 2025 verrechnet',
+  input_tax_correction: 'Keine Berichtigung nötig',
+  tax_provision: 'Körperschaft- und Gewerbesteuer zurückgestellt',
+  check_run: 'Lauf zum 31.12.2025 ohne Befund',
+  statement: 'Kleine Kapitalgesellschaft, verkürzte Bilanz',
+  adoption: 'Festgestellt am 14.05.2026',
+  appropriation: 'Gewinnvortrag auf neue Rechnung',
+};
+
+/** Im laufenden Jahr steht jeder Baustein noch offen. */
+const OPEN_YEAR_DETAIL: Record<string, string> = {
+  depreciation: 'AfA für 5 Anlagegüter zum 31.12.2026',
+  accruals: '2 Verträge reichen über den Stichtag',
+  tax_provision: 'Schätzung auf den heutigen Stand',
+  vat_settlement: 'Zahllast von vier Quartalen',
+};
+
 function closingSteps(year: number) {
+  const previous = (year || YEAR) === YEAR - 1;
   const steps = CLOSING_STEP_DEFS.map(([key, label, hint, automatic], index) => {
-    const status = CLOSING_STEP_STATE[key] ?? { state: 'open' };
+    const status = previous
+      ? key === 'disclosure'
+        ? { state: 'open', detail: 'Offenlegung bis 31.12.2026' }
+        : CLOSING_STEP_STATE[key]?.state === 'skipped'
+          ? CLOSING_STEP_STATE[key]
+          : { state: 'done', detail: CLOSED_YEAR_DETAIL[key] ?? CLOSING_STEP_STATE[key]?.detail }
+      : { state: 'open', detail: OPEN_YEAR_DETAIL[key] };
     return {
       key,
       order: index + 1,
@@ -2680,13 +2686,13 @@ function closingSteps(year: number) {
       automatic,
       state: status.state,
       reason: status.reason,
-      changedOn: status.state === 'open' ? undefined : `${YEAR}-08-20`,
+      changedOn: status.state === 'open' ? undefined : `${YEAR}-03-12`,
       detail: status.detail,
     };
   });
   return {
     fiscalYear: year || YEAR,
-    cutoff: `${YEAR}-12-31`,
+    cutoff: `${year || YEAR}-12-31`,
     steps,
     openCount: steps.filter((s) => s.state === 'open').length,
     doneCount: steps.filter((s) => s.state === 'done').length,
@@ -3141,6 +3147,9 @@ const FISCAL_YEAR_CANDIDATES = {
   },
 };
 
+/** Das in der Kopfzeile gewählte Geschäftsjahr. */
+let viewYear = YEAR;
+
 const unsupported = (name: string) => () =>
   Promise.reject(new Error(`${name} ist in der Screenshot-Vorschau nicht verfügbar.`));
 
@@ -3187,8 +3196,13 @@ export const bridge = {
   SelectDatabaseFileDialog: unsupported('SelectDatabaseFileDialog'),
 
   // Geschäftsjahr & Stammdaten
-  GetFiscalYear: () => later(YEAR),
-  SetFiscalYear: () => later(undefined),
+  // Die Kopfzeile schaltet das Geschäftsjahr um; die Vorschau merkt es sich,
+  // damit die Ansicht nach dem Umschalten das gewählte Jahr behält.
+  GetFiscalYear: () => later(viewYear),
+  SetFiscalYear: (year: number) => {
+    viewYear = year;
+    return later(undefined);
+  },
   GetAvailableFiscalYears: () => later([2024, 2025, 2026]),
   GetCompanySettings: () => later(SETTINGS),
   UpdateCompanySettings: () => later(undefined),
@@ -3286,7 +3300,7 @@ export const bridge = {
   GetSuSaOverviewAt: () => later(susa()),
   GetOpenItemsAging: unsupported('GetOpenItemsAging'),
   GetPaymentAllocations: () => later([]),
-  GetProvisions: () => later([]),
+  GetProvisions: (year: number) => later(closings.provisions(year || YEAR)),
   GetAdvanceTargets: () => later([]),
   GetOpenAdvances: () => later([]),
   GetOpenVendorAdvances: () => later([]),
@@ -3327,7 +3341,7 @@ export const bridge = {
   GetPaymentTermNotice: (dueDays: number) => later(paymentTermNotice(dueDays)),
 
   // E-Bilanz, Audit & Festschreibung
-  ExportEBilanzXBRL: () => later(XBRL, 400),
+  SaveEBilanzXBRLAs: (year: number) => later(`/Users/anna/Documents/e-bilanz-${year || YEAR}.xbrl`, 400),
   GetFestschreibungen: () => later(FESTSCHREIBUNGEN),
   CommitPeriod: unsupported('CommitPeriod'),
   VerifyFestschreibung: (id: number) =>
@@ -3356,6 +3370,17 @@ export const bridge = {
   GetInvoiceGroups: () => later(INVOICE_GROUPS),
   GetInputTaxCorrections: (year: number) => later(inputTaxCorrections(year), 60),
   GetDeadlines: () => later(DEADLINES, 60),
+  GetObligations: (year: number) => later(closings.obligations(year || YEAR), 60),
+  GetDeclaration: (kind: string, year: number) =>
+    new Promise((resolve, reject) =>
+      setTimeout(() => {
+        try {
+          resolve(closings.declaration(kind, year || YEAR));
+        } catch (e) {
+          reject(e);
+        }
+      }, 80),
+    ),
   GetFoundationState: () => later(FOUNDATION_STATE),
 
   // Nachweise, Sicherung und Datenüberlassung
@@ -3395,7 +3420,7 @@ export const bridge = {
   ProposeAccruals: unsupported('ProposeAccruals'),
   PreviewAccrual: unsupported('PreviewAccrual'),
   BookAccrual: unsupported('BookAccrual'),
-  GetAccruals: unsupported('GetAccruals'),
+  GetAccruals: (year: number) => later(closings.accruals(year || YEAR)),
   GetAccrualReport: unsupported('GetAccrualReport'),
   PreviewProvision: unsupported('PreviewProvision'),
   BookProvisionFormation: unsupported('BookProvisionFormation'),
@@ -3404,33 +3429,40 @@ export const bridge = {
   BookProvisionConsumption: unsupported('BookProvisionConsumption'),
   BookProvisionUnwinding: unsupported('BookProvisionUnwinding'),
   SettleProvision: unsupported('SettleProvision'),
-  GetProvisionMirror: unsupported('GetProvisionMirror'),
+  GetProvisionMirror: (year: number) => later(closings.provisionMirror(year || YEAR)),
   GetDiscountRates: unsupported('GetDiscountRates'),
   GetDiscountRateMonths: unsupported('GetDiscountRateMonths'),
   SaveDiscountRates: unsupported('SaveDiscountRates'),
   ImportDiscountRatesCSV: unsupported('ImportDiscountRatesCSV'),
 
-  PreviewVatSettlement: unsupported('PreviewVatSettlement'),
+  PreviewVatSettlement: (year: number) => later(closings.vatSettlement(year || YEAR)),
   BookVatSettlement: unsupported('BookVatSettlement'),
-  PreviewTaxProvision: unsupported('PreviewTaxProvision'),
+  PreviewTaxProvision: (year: number) => later(closings.taxProvision(year || YEAR)),
   BookTaxProvision: unsupported('BookTaxProvision'),
   PreviewAppropriation: unsupported('PreviewAppropriation'),
   BookAppropriation: unsupported('BookAppropriation'),
-  GetAppropriation: unsupported('GetAppropriation'),
-  GetNotesTexts: unsupported('GetNotesTexts'),
+  GetAppropriation: (year: number) => later(closings.appropriation(year || YEAR - 1)),
+  GetNotesTexts: () => later(closings.notesTexts()),
   SaveNotesText: unsupported('SaveNotesText'),
   GetClosingSettings: () => later(CLOSING_SETTINGS),
   SaveClosingSettings: unsupported('SaveClosingSettings'),
-  GetTaxElectionRegister: unsupported('GetTaxElectionRegister'),
+  GetTaxElectionRegister: (year: number) => later(closings.taxElectionRegister(year || YEAR)),
   ExportTaxElectionRegisterCSV: unsupported('ExportTaxElectionRegisterCSV'),
-  GetReconciliation: unsupported('GetReconciliation'),
+  GetReconciliation: (year: number) => later(closings.reconciliation(year || YEAR)),
   CreateVatCorrection: unsupported('CreateVatCorrection'),
   GetSpecialPrepaymentSuggestion: unsupported('GetSpecialPrepaymentSuggestion'),
   SaveZMReturn: unsupported('SaveZMReturn'),
   ConfirmZMSubmitted: unsupported('ConfirmZMSubmitted'),
   CreateZMCorrection: unsupported('CreateZMCorrection'),
   ExportZMCSV: unsupported('ExportZMCSV'),
-  RunChecks: unsupported('RunChecks'),
+  RunChecks: (cutoff: string, periodType: string) => later(closings.checkRun(cutoff, periodType), 120),
+  ConfirmObligation: unsupported('ConfirmObligation'),
+  WaiveObligation: unsupported('WaiveObligation'),
+  SetDeclarationInput: unsupported('SetDeclarationInput'),
+  ConfirmDeclarationInput: unsupported('ConfirmDeclarationInput'),
+  DeleteDeclarationInput: unsupported('DeleteDeclarationInput'),
+  SubmitDeclaration: unsupported('SubmitDeclaration'),
+  ExportDeclarationJSON: unsupported('ExportDeclarationJSON'),
   MarkDeadlineDone: unsupported('MarkDeadlineDone'),
   SaveFoundation: unsupported('SaveFoundation'),
   GetFoundationRules: () => later(FOUNDATION_RULES),
@@ -3457,17 +3489,17 @@ export const bridge = {
   GetVatIDChecks: unsupported('GetVatIDChecks'),
   GetVatIDStatus: unsupported('GetVatIDStatus'),
   CheckVatID: unsupported('CheckVatID'),
-  GetNonDeductibleReport: unsupported('GetNonDeductibleReport'),
+  GetNonDeductibleReport: (year: number) => later(closings.nonDeductibleReport(year || YEAR)),
   RebookGiftsForRecipient: unsupported('RebookGiftsForRecipient'),
   GetExchangeRate: unsupported('GetExchangeRate'),
   GetExchangeRates: unsupported('GetExchangeRates'),
   SaveExchangeRate: unsupported('SaveExchangeRate'),
   GetVatExchangeRates: unsupported('GetVatExchangeRates'),
   ImportVatExchangeRatesCSV: unsupported('ImportVatExchangeRatesCSV'),
-  PreviewCurrencyValuation: unsupported('PreviewCurrencyValuation'),
+  PreviewCurrencyValuation: (year: number) => later(closings.currencyValuation(year || YEAR)),
   BookCurrencyValuation: unsupported('BookCurrencyValuation'),
   GetAfaRules: unsupported('GetAfaRules'),
-  GetWriteUpReport: unsupported('GetWriteUpReport'),
+  GetWriteUpReport: (year: number) => later(closings.writeUpReport(year || YEAR)),
   ConfirmImpairmentPersists: unsupported('ConfirmImpairmentPersists'),
   GetPoolConsistencyReport: unsupported('GetPoolConsistencyReport'),
   GetExemptionCertificateWarnings: unsupported('GetExemptionCertificateWarnings'),
