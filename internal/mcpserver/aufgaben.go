@@ -3,6 +3,7 @@ package mcpserver
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/core"
@@ -99,12 +100,12 @@ func registerAufgaben(tb *Toolbox) {
 // --- fristen ---------------------------------------------------------------
 
 type fristenIn struct {
-	Schluessel     string   `json:"schluessel,omitempty" jsonschema:"eine Pflicht, z. B. ustva.2026-Q1; die übrigen Filter entfallen dann"`
-	Von            Datum    `json:"von,omitempty" jsonschema:"Fälligkeit ab"`
-	Bis            Datum    `json:"bis,omitempty" jsonschema:"Fälligkeit bis; ohne Angabe heute plus 180 Tage"`
-	Geschaeftsjahr int      `json:"geschaeftsjahr,omitempty"`
-	Status         []string `json:"status,omitempty" jsonschema:"offen, vorbereitet, ueberfaellig, erledigt, entfaellt; ohne Angabe alles noch nicht Erledigte"`
-	Art            []string `json:"art,omitempty" jsonschema:"Pflichtarten, z. B. ustva, zm, kst-erklaerung"`
+	Schluessel     string          `json:"schluessel,omitempty" jsonschema:"eine Pflicht, z. B. ustva.2026-Q1; die übrigen Filter entfallen dann"`
+	Von            Datum           `json:"von,omitempty" jsonschema:"Fälligkeit ab"`
+	Bis            Datum           `json:"bis,omitempty" jsonschema:"Fälligkeit bis; ohne Angabe heute plus 180 Tage"`
+	Geschaeftsjahr int             `json:"geschaeftsjahr,omitempty"`
+	Status         []PflichtStatus `json:"status,omitempty" jsonschema:"ohne Angabe alles noch nicht Erledigte"`
+	Art            []PflichtArt    `json:"art,omitempty"`
 	Seite
 }
 
@@ -137,6 +138,7 @@ type pflicht struct {
 	NachweisAus      string              `json:"nachweis_aus" jsonschema:"daten, mensch oder daten_oder_mensch"`
 	Grundlage        string              `json:"grundlage,omitempty"`
 	Verweis          string              `json:"verweis" jsonschema:"Abschnitt in der Skill-Referenz"`
+	Anker            string              `json:"anker" jsonschema:"Anker des Abschnitts in pflichten.md; weicht bei einigen Arten von art ab"`
 	Vorbereitet      *pflichtVorbereitet `json:"vorbereitet,omitempty"`
 	Nachweis         *pflichtNachweis    `json:"nachweis,omitempty"`
 	EntfaelltGrund   string              `json:"entfaellt_grund,omitempty"`
@@ -168,7 +170,7 @@ func pflichtOf(o domain.Obligation) pflicht {
 		Schluessel: o.Key, Art: string(o.Kind), Titel: o.Title, Zeitraum: o.PeriodLabel, Geschaeftsjahr: o.FiscalYear,
 		Faellig: o.DueDate, Verschoben: o.ShiftReason, Unverzueglich: o.Immediate,
 		Status: obligationStatus[o.Status], Kanal: string(o.Channel), Zustaendig: responsibility[o.Responsibility],
-		NachweisAus: evidenceSource[o.Evidence], Grundlage: o.Basis, Verweis: o.SkillRef,
+		NachweisAus: evidenceSource[o.Evidence], Grundlage: o.Basis, Verweis: o.SkillRef, Anker: o.Kind.Anchor(),
 		EntfaelltGrund: o.WaivedReason, Hinweise: orEmpty(o.Hints),
 	}
 	if o.StatutoryDate != o.DueDate {
@@ -206,9 +208,9 @@ func (o pflichtOut) Ref() string { return "pflicht:" + o.Pflicht.Schluessel }
 
 type anlassIn struct {
 	KeyedWriteArgs
-	Art   string `json:"art" jsonschema:"gesellschafterwechsel, wirtschaftlich-berechtigte, vorauszahlungsbescheid-kst oder vorauszahlungsbescheid-gewst"`
-	Datum Datum  `json:"datum" jsonschema:"Tag des Anlasses (Wirksamwerden, Bescheiddatum)"`
-	Notiz string `json:"notiz,omitempty" jsonschema:"was geschehen ist, mit Fundstelle des Nachweises"`
+	Art   AnlassArt `json:"art"`
+	Datum Datum     `json:"datum" jsonschema:"Tag des Anlasses (Wirksamwerden, Bescheiddatum)"`
+	Notiz string    `json:"notiz,omitempty" jsonschema:"was geschehen ist, mit Fundstelle des Nachweises"`
 }
 
 type anlassOut struct {
@@ -221,6 +223,19 @@ type anlassOut struct {
 
 func (o anlassOut) Ref() string { return fmt.Sprintf("anlass:%d", o.ID) }
 
+// obligationKey nimmt den Schlüssel einer Pflicht auch mit dem Anker statt
+// der Art an („ebilanz.2026" für „e-bilanz.2026").
+func obligationKey(key string) string {
+	kind, rest, ok := strings.Cut(key, ".")
+	if !ok {
+		return key
+	}
+	if k, found := domain.ObligationKindOf(kind); found {
+		return string(k) + "." + rest
+	}
+	return key
+}
+
 func registerFristen(tb *Toolbox) {
 	AddRead(tb, Spec{
 		Name:  "fristen",
@@ -232,7 +247,7 @@ func registerFristen(tb *Toolbox) {
 	}, func(ctx context.Context, c *Call, s *core.Services, in fristenIn) (fristenOut, error) {
 		out := fristenOut{Stichtag: today(), Pflichten: []pflicht{}}
 		if in.Schluessel != "" {
-			o, err := s.Obligations.Get(ctx, in.Schluessel, "")
+			o, err := s.Obligations.Get(ctx, obligationKey(in.Schluessel), "")
 			if err != nil {
 				return out, err
 			}
@@ -252,7 +267,7 @@ func registerFristen(tb *Toolbox) {
 			q.To = time.Now().AddDate(0, 0, 180).Format("2006-01-02")
 		}
 		for _, st := range in.Status {
-			status, ok := statusFromLabel[st]
+			status, ok := statusFromLabel[string(st)]
 			if !ok {
 				return out, inputError("status", "unbekannter Stand %q", st)
 			}
@@ -262,7 +277,11 @@ func registerFristen(tb *Toolbox) {
 			q.Statuses = []domain.ObligationStatus{domain.ObligationOpen, domain.ObligationPrepared, domain.ObligationOverdue}
 		}
 		for _, k := range in.Art {
-			q.Kinds = append(q.Kinds, domain.ObligationKind(k))
+			kind, ok := domain.ObligationKindOf(string(k))
+			if !ok {
+				return out, inputError("art", "unbekannte Pflichtart %q", k)
+			}
+			q.Kinds = append(q.Kinds, kind)
 		}
 		list, err := s.Obligations.List(ctx, q)
 		if err != nil {
@@ -287,7 +306,7 @@ func registerFristen(tb *Toolbox) {
 		if in.Schluessel == "" {
 			return pflichtOut{}, inputError("schluessel", "der Schlüssel der Pflicht fehlt")
 		}
-		o, err := s.Obligations.MarkPrepared(ctx, in.Schluessel, in.Notiz)
+		o, err := s.Obligations.MarkPrepared(ctx, obligationKey(in.Schluessel), in.Notiz)
 		if err != nil {
 			return pflichtOut{}, err
 		}

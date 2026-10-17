@@ -69,7 +69,7 @@ func TestContactsAreNotDuplicated(t *testing.T) {
 	if vendor.BereitsVorhanden || vendor.Kontakt.Standardgruppe.Vorschlag != "software" || vendor.Kontakt.Standardgruppe.Gruppe != "" {
 		t.Errorf("Lieferant gleichen Namens mit Vorschlag: %+v", vendor)
 	}
-	a.fail("kontakt_anlegen", a.args(map[string]any{"typ": "partner", "name": "X"}), CodeInvalidInput)
+	a.rejected("kontakt_anlegen", a.args(map[string]any{"typ": "partner", "name": "X"}))
 	a.fail("kontakt_anlegen", a.args(map[string]any{"typ": "kunde", "name": "Kurz GmbH", "idempotenz_schluessel": "kurz"}), CodeInvalidInput)
 
 	var found struct {
@@ -302,7 +302,11 @@ func TestReportsAndClosing(t *testing.T) {
 		t.Errorf("Kontoblatt: %+v", report.Kontoblatt)
 	}
 	a.fail("auswertung", map[string]any{"art": "kontoblatt"}, CodeInvalidInput)
-	a.ok("auswertung", map[string]any{"art": "bilanz", "tiefe": "short"}, &report)
+	a.ok("auswertung", map[string]any{"art": "bilanz", "tiefe": "kurz"}, &report)
+	a.rejected("auswertung", map[string]any{"art": "bilanz", "tiefe": "short"})
+	if e := a.fail("auswertung", map[string]any{"art": "kontoblatt", "konto": customerLedger(t, a)}, CodeInvalidInput); e.Werkzeug != "buchungen_suchen" {
+		t.Errorf("Kontoblatt eines Personenkontos: %+v", e)
+	}
 	if len(report.Aktiva) == 0 || report.Bilanzsumme == nil || *report.Bilanzsumme != "25000.00" {
 		t.Errorf("Bilanz: %+v", report)
 	}
@@ -365,7 +369,7 @@ func TestReportsAndClosing(t *testing.T) {
 	if !preview.Vorschau || len(preview.BuchungIDs) != 0 {
 		t.Errorf("Vorschau bucht nicht: %+v", preview)
 	}
-	a.fail("abschlussbuchung", a.args(map[string]any{"art": "festschreibung", "idempotenz_schluessel": "abschluss-1"}), CodeInvalidInput)
+	a.rejected("abschlussbuchung", a.args(map[string]any{"art": "festschreibung", "idempotenz_schluessel": "abschluss-1"}))
 	a.fail("abschlussbuchung", a.args(map[string]any{"art": "rueckstellung", "idempotenz_schluessel": "abschluss-2"}), CodeInvalidInput)
 }
 
@@ -386,6 +390,11 @@ func TestDeclarationsInputsAndExports(t *testing.T) {
 	h := newHarness(t)
 	h.completeCompany()
 	a := h.agent("")
+	// Ohne Buchung hat die Bilanz keine Summe; die E-Bilanz blockiert.
+	if e := a.fail("ebilanz_exportieren", a.args(map[string]any{"jahr": 2026}), CodeRule); e.NaechsterSchritt == "" {
+		t.Errorf("E-Bilanz ohne Bilanzsumme: %+v", e)
+	}
+	h.capital()
 
 	var ustva struct {
 		Zeitraum   string `json:"zeitraum"`
@@ -398,7 +407,8 @@ func TestDeclarationsInputsAndExports(t *testing.T) {
 	if ustva.Zeitraum != "2026-Q2" || ustva.NaechsterSchritt == "" {
 		t.Errorf("UStVA: %+v", ustva)
 	}
-	a.fail("erklaerung", map[string]any{"art": "kst", "zeitraum": "Q1"}, CodeInvalidInput)
+	a.rejected("erklaerung", map[string]any{"art": "kst", "zeitraum": "Q1"})
+	a.fail("erklaerung", map[string]any{"art": "kst", "zeitraum": "2026-Q1"}, CodeInvalidInput)
 	var kst struct {
 		Formulare []struct {
 			Abschnitte []struct {
@@ -468,22 +478,19 @@ func TestDeclarationsInputsAndExports(t *testing.T) {
 	if data, err := os.ReadFile(exp.Pfad); err != nil || !strings.Contains(string(data), agentLine) {
 		t.Errorf("Exportdatei: %v", err)
 	}
-	a.fail("erklaerung_exportieren", a.args(map[string]any{"art": "ustva", "jahr": 2026}), CodeInvalidInput)
+	a.rejected("erklaerung_exportieren", a.args(map[string]any{"art": "ustva", "jahr": 2026}))
 
-	res := callTool(t, a.cs, "ebilanz_exportieren", a.args(map[string]any{"jahr": 2026}))
-	if res.IsError {
-		if e := toolErrorOf(t, res); e.Code != CodeRule {
-			t.Errorf("E-Bilanz: %+v", e)
-		}
-	} else {
-		var eb struct {
-			Pfad   string `json:"pfad"`
-			Format string `json:"format"`
-		}
-		a.ok("ebilanz_exportieren", a.args(map[string]any{"jahr": 2026}), &eb)
-		if filepath.Dir(eb.Pfad) != exportDir || eb.Format != "xbrl" {
-			t.Errorf("E-Bilanz: %+v", eb)
-		}
+	var eb struct {
+		Pfad   string `json:"pfad"`
+		Format string `json:"format"`
+		SHA256 string `json:"sha256"`
+	}
+	a.ok("ebilanz_exportieren", a.args(map[string]any{"jahr": 2026}), &eb)
+	if filepath.Dir(eb.Pfad) != exportDir || eb.Format != "xbrl" || len(eb.SHA256) != 64 {
+		t.Fatalf("E-Bilanz: %+v", eb)
+	}
+	if data, err := os.ReadFile(eb.Pfad); err != nil || !strings.Contains(string(data), "xbrl") {
+		t.Errorf("XBRL-Datei: %v", err)
 	}
 }
 
@@ -571,7 +578,7 @@ func TestObligationsAndStatus(t *testing.T) {
 	if event.ID == 0 || event.Art != "gesellschafterwechsel" {
 		t.Fatalf("Anlass: %+v", event)
 	}
-	a.fail("anlass_erfassen", a.args(map[string]any{"art": "kapitalerhoehung", "datum": "2026-06-01", "idempotenz_schluessel": "anlass-2"}), CodeInvalidInput)
+	a.rejected("anlass_erfassen", a.args(map[string]any{"art": "kapitalerhoehung", "datum": "2026-06-01", "idempotenz_schluessel": "anlass-2"}))
 	a.ok("fristen", map[string]any{"art": []any{"gesellschafterliste"}, "geschaeftsjahr": 2026}, &due)
 	if len(due.Pflichten) == 0 {
 		t.Errorf("der Anlass löst die Gesellschafterliste aus: %+v", due)
@@ -600,9 +607,6 @@ func TestInvoicePreviewAndIssue(t *testing.T) {
 	}
 	a.fail("rechnung_vorschau", map[string]any{"kontakt_id": customer.Kontakt.ID, "leistung_von": "2026-04-01",
 		"positionen": []any{map[string]any{"text": "x", "menge": "1.2345", "einzelpreis": "1.00", "satz": "19"}}}, CodeInvalidInput)
-	if testing.Short() {
-		t.Skip("das Ausstellen setzt das PDF")
-	}
 	h.warmRenderer()
 	var issued struct {
 		RechnungID uint   `json:"rechnung_id"`
@@ -624,4 +628,12 @@ func TestInvoicePreviewAndIssue(t *testing.T) {
 	if !replay.Wiederholt || replay.RechnungID != issued.RechnungID {
 		t.Errorf("Wiederholung: %+v", replay)
 	}
+}
+
+// customerLedger legt einen Kunden an und liefert sein Personenkonto.
+func customerLedger(t *testing.T, a *agent) string {
+	t.Helper()
+	var c kontaktOut
+	a.ok("kontakt_anlegen", a.args(map[string]any{"typ": "kunde", "name": "Kontoblatt KG", "plz": "50667"}), &c)
+	return c.Kontakt.Personenkonto
 }

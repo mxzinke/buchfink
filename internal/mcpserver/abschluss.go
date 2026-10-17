@@ -14,8 +14,8 @@ import (
 // --- anlagen ----------------------------------------------------------------
 
 type anlagenIn struct {
-	Geschaeftsjahr int    `json:"geschaeftsjahr,omitempty"`
-	Klasse         string `json:"klasse,omitempty" jsonschema:"tangible (Sachanlagen), intangible oder financial; ohne Angabe alle"`
+	Geschaeftsjahr int          `json:"geschaeftsjahr,omitempty"`
+	Klasse         AnlageKlasse `json:"klasse,omitempty" jsonschema:"ohne Angabe alle"`
 	Seite
 }
 
@@ -32,7 +32,7 @@ type anlage struct {
 	AfAFaellig    Betrag `json:"afa_faellig" jsonschema:"im Geschäftsjahr noch zu buchen"`
 	Methode       string `json:"methode"`
 	Nutzungsdauer int    `json:"nutzungsdauer_monate,omitempty"`
-	Status        string `json:"status"`
+	Status        string `json:"status" jsonschema:"im_bestand, abgeschrieben, abgegangen, ohne_zugangsbuchung oder afa_faellig"`
 }
 
 type kandidat struct {
@@ -111,23 +111,23 @@ var stepState = map[domain.ClosingStepState]string{
 // --- abschlussbuchung -------------------------------------------------------
 
 type abgrenzungIn struct {
-	Art            string `json:"art" jsonschema:"active (aktiver RAP), passive (passiver RAP) oder disagio"`
-	Text           string `json:"text"`
-	Gesamtbetrag   Betrag `json:"gesamtbetrag"`
-	Von            Datum  `json:"von" jsonschema:"Beginn des Leistungszeitraums"`
-	Bis            Datum  `json:"bis" jsonschema:"Ende des Leistungszeitraums"`
-	Konto          Konto  `json:"konto" jsonschema:"Aufwands- oder Ertragskonto der ursprünglichen Buchung"`
-	QuellBuchungID uint   `json:"quell_buchung_id,omitempty"`
-	Abzugrenzen    Betrag `json:"abzugrenzen,omitempty" jsonschema:"abweichender Betrag; ohne Angabe zeitanteilig"`
+	Art            AbgrenzungArt `json:"art"`
+	Text           string        `json:"text"`
+	Gesamtbetrag   Betrag        `json:"gesamtbetrag"`
+	Von            Datum         `json:"von" jsonschema:"Beginn des Leistungszeitraums"`
+	Bis            Datum         `json:"bis" jsonschema:"Ende des Leistungszeitraums"`
+	Konto          Konto         `json:"konto" jsonschema:"Aufwands- oder Ertragskonto der ursprünglichen Buchung"`
+	QuellBuchungID uint          `json:"quell_buchung_id,omitempty"`
+	Abzugrenzen    Betrag        `json:"abzugrenzen,omitempty" jsonschema:"abweichender Betrag; ohne Angabe zeitanteilig"`
 }
 
 type rueckstellungIn struct {
-	Art           string `json:"art" jsonschema:"uncertain_liability, pending_loss, deferred_maintenance, warranty_without_obligation, closing_costs, retention_costs oder personnel"`
-	Text          string `json:"text"`
-	Betrag        Betrag `json:"betrag" jsonschema:"Erfüllungsbetrag"`
-	ErwartetAm    Datum  `json:"erwartet_am" jsonschema:"voraussichtliche Inanspruchnahme"`
-	Grund         string `json:"grund" jsonschema:"Rechtsgrund und Schätzgrundlage"`
-	Aufwandskonto Konto  `json:"aufwandskonto,omitempty"`
+	Art           RueckstellungArt `json:"art"`
+	Text          string           `json:"text"`
+	Betrag        Betrag           `json:"betrag" jsonschema:"Erfüllungsbetrag"`
+	ErwartetAm    Datum            `json:"erwartet_am" jsonschema:"voraussichtliche Inanspruchnahme"`
+	Grund         string           `json:"grund" jsonschema:"Rechtsgrund und Schätzgrundlage"`
+	Aufwandskonto Konto            `json:"aufwandskonto,omitempty"`
 }
 
 type steuerrueckstellungIn struct {
@@ -172,18 +172,18 @@ type unfertigeIn struct {
 }
 
 type aktivierenIn struct {
-	BuchungID           uint   `json:"buchung_id" jsonschema:"Buchung aus aktivierungskandidaten (anlagen)"`
-	Bezeichnung         string `json:"bezeichnung"`
-	Klasse              string `json:"klasse,omitempty" jsonschema:"tangible (Vorgabe), intangible oder financial"`
-	Methode             string `json:"methode,omitempty" jsonschema:"linear (Vorgabe), degressive, pool, immediate oder none"`
-	NutzungsdauerMonate int    `json:"nutzungsdauer_monate,omitempty" jsonschema:"nach AfA-Tabelle"`
-	NutzungsdauerGrund  string `json:"nutzungsdauer_grund,omitempty" jsonschema:"bei Abweichung von der AfA-Tabelle"`
-	InBetrieb           Datum  `json:"in_betrieb,omitempty"`
+	BuchungID           uint         `json:"buchung_id" jsonschema:"Buchung aus aktivierungskandidaten (anlagen)"`
+	Bezeichnung         string       `json:"bezeichnung"`
+	Klasse              AnlageKlasse `json:"klasse,omitempty" jsonschema:"Vorgabe aus dem Anlagekonto"`
+	Methode             AfaMethode   `json:"methode,omitempty" jsonschema:"Vorgabe linear, bei nicht abnutzbaren Konten keine"`
+	NutzungsdauerMonate int          `json:"nutzungsdauer_monate,omitempty" jsonschema:"nach AfA-Tabelle"`
+	NutzungsdauerGrund  string       `json:"nutzungsdauer_grund,omitempty" jsonschema:"bei Abweichung von der AfA-Tabelle"`
+	InBetrieb           Datum        `json:"in_betrieb,omitempty"`
 }
 
 type abschlussbuchungIn struct {
 	KeyedWriteArgs
-	Art                 string                 `json:"art" jsonschema:"afa_lauf, abgrenzung, rueckstellung, ust_verrechnung, steuerrueckstellung, ug_ruecklage, wertberichtigung, unfertige_leistungen, fremdwaehrung oder anlage_aktivieren"`
+	Art                 AbschlussArt           `json:"art"`
 	Geschaeftsjahr      int                    `json:"geschaeftsjahr,omitempty"`
 	NurVorschau         bool                   `json:"nur_vorschau,omitempty" jsonschema:"rechnen, nicht buchen"`
 	Buchungsdatum       Datum                  `json:"buchungsdatum,omitempty" jsonschema:"afa_lauf: Vorgabe Bilanzstichtag"`
@@ -227,7 +227,11 @@ func registerAbschluss(tb *Toolbox) {
 		if err != nil {
 			return out, err
 		}
-		assets, err := s.Assets.List(ctx, year, domain.AssetClass(in.Klasse))
+		class, err := pick("klasse", in.Klasse, assetClasses)
+		if err != nil {
+			return out, err
+		}
+		assets, err := s.Assets.List(ctx, year, class)
 		if err != nil {
 			return out, err
 		}
@@ -235,10 +239,11 @@ func registerAbschluss(tb *Toolbox) {
 		var due domain.Cents
 		for _, a := range assets {
 			due += a.DueAmount
-			rows = append(rows, anlage{ID: a.ID, Inventarnr: a.InventoryNumber, Bezeichnung: a.Name, Klasse: string(a.Class),
-				Konto: a.Account, Angeschafft: a.AcquisitionDate, AK: betrag(a.Cost), Buchwert: betrag(a.BookValue),
-				AfAJahr: betrag(a.YearAmount), AfAFaellig: betrag(a.DueAmount), Methode: string(a.Method),
-				Nutzungsdauer: a.UsefulLifeMonths, Status: string(a.Status)})
+			rows = append(rows, anlage{ID: a.ID, Inventarnr: a.InventoryNumber, Bezeichnung: a.Name,
+				Klasse: label(assetClasses, a.Class), Konto: a.Account, Angeschafft: a.AcquisitionDate, AK: betrag(a.Cost),
+				Buchwert: betrag(a.BookValue), AfAJahr: betrag(a.YearAmount), AfAFaellig: betrag(a.DueAmount),
+				Methode: label(depreciationMethods, a.Method), Nutzungsdauer: a.UsefulLifeMonths,
+				Status: label(assetStatus, a.Status)})
 		}
 		out.AfAFaellig = betrag(due)
 		candidates, err := s.Assets.AcquisitionCandidates(ctx, year)
@@ -322,9 +327,9 @@ func registerAbschluss(tb *Toolbox) {
 		if err != nil {
 			return abschlussbuchungOut{}, err
 		}
-		out := abschlussbuchungOut{Art: in.Art, Vorschau: in.NurVorschau, BuchungIDs: []uint{}, Zeilen: []buchungsZeile{},
+		out := abschlussbuchungOut{Art: string(in.Art), Vorschau: in.NurVorschau, BuchungIDs: []uint{}, Zeilen: []buchungsZeile{},
 			Hinweise: []string{}}
-		run, ok := closingRuns[in.Art]
+		run, ok := closingRuns[string(in.Art)]
 		if !ok {
 			return out, inputError("art", "unbekannte Art %q", in.Art)
 		}
@@ -402,8 +407,20 @@ func runAccrual(ctx context.Context, s *core.Services, year int, in abschlussbuc
 	if err != nil {
 		return err
 	}
-	req := service.AccrualRequest{FiscalYear: year, Kind: domain.AccrualKind(a.Art), SourceEntryID: a.QuellBuchungID,
-		Text: a.Text, TotalAmount: total, StartDate: string(a.Von), EndDate: string(a.Bis), Account: string(a.Konto),
+	kind, err := pick("abgrenzung.art", a.Art, accrualKinds)
+	if err != nil {
+		return err
+	}
+	from, err := a.Von.check("abgrenzung.von")
+	if err != nil {
+		return err
+	}
+	to, err := a.Bis.check("abgrenzung.bis")
+	if err != nil {
+		return err
+	}
+	req := service.AccrualRequest{FiscalYear: year, Kind: kind, SourceEntryID: a.QuellBuchungID,
+		Text: a.Text, TotalAmount: total, StartDate: from, EndDate: to, Account: string(a.Konto),
 		DeferredAmount: deferred}
 	preview, err := s.Accruals.Preview(ctx, req)
 	if err != nil {
@@ -434,8 +451,16 @@ func runProvision(ctx context.Context, s *core.Services, year int, in abschlussb
 	if err != nil {
 		return err
 	}
-	req := service.ProvisionRequest{FiscalYear: year, Kind: domain.ProvisionKind(p.Art), Text: p.Text, Amount: amount,
-		ExpectedOn: string(p.ErwartetAm), Reason: p.Grund, ExpenseAccount: string(p.Aufwandskonto)}
+	kind, err := pick("rueckstellung.art", p.Art, provisionKinds)
+	if err != nil {
+		return err
+	}
+	expected, err := p.ErwartetAm.check("rueckstellung.erwartet_am")
+	if err != nil {
+		return err
+	}
+	req := service.ProvisionRequest{FiscalYear: year, Kind: kind, Text: p.Text, Amount: amount,
+		ExpectedOn: expected, Reason: p.Grund, ExpenseAccount: string(p.Aufwandskonto)}
 	preview, err := s.Provisions.Preview(ctx, req)
 	if err != nil {
 		return err
@@ -637,8 +662,9 @@ func runCurrency(ctx context.Context, s *core.Services, year int, in abschlussbu
 	}
 	out.Betrag = optBetrag(v.TotalGain - v.TotalLoss)
 	out.Erlaeuterung = v.Note
-	if v.EntryNumber != "" {
-		out.Hinweise = append(out.Hinweise, "Bewertung gebucht als "+v.EntryNumber+", Auflösung als "+v.ReversalEntryNumber)
+	if v.EntryID != 0 {
+		out.BuchungIDs = append(out.BuchungIDs, v.EntryID)
+		out.Hinweise = append(out.Hinweise, "Bewertung gebucht als "+v.EntryNumber+"; die Auflösung kommt mit dem Saldenvortrag.")
 	}
 	return nil
 }
@@ -671,14 +697,33 @@ func runActivate(ctx context.Context, s *core.Services, year int, in abschlussbu
 	if err != nil {
 		return err
 	}
-	class := domain.AssetClass(a.Klasse)
+	// Klasse, Aufwandskonto und ob das Gut abnutzbar ist, sagt das Anlagekonto.
+	account, known := accounting.LookupAssetAccount(found.Account)
+	class, err := pick("anlage.klasse", a.Klasse, assetClasses)
+	if err != nil {
+		return err
+	}
+	if class == "" {
+		class = account.Class
+	}
 	if class == "" {
 		class = domain.AssetClassTangible
 	}
+	method, err := pick("anlage.methode", a.Methode, depreciationMethods)
+	if err != nil {
+		return err
+	}
+	if method == "" {
+		method = domain.DepreciationLinear
+		if known && !account.Depreciable {
+			method = domain.DepreciationNone
+		}
+	}
 	entryID := found.EntryID
 	asset := &domain.FixedAsset{Name: a.Bezeichnung, Class: class, Account: found.Account, AcquisitionDate: found.BookingDate,
-		AcquisitionCost: found.Amount, InServiceDate: inService, Method: domain.DepreciationMethod(a.Methode),
-		UsefulLifeMonths: a.NutzungsdauerMonate, UsefulLifeReason: a.NutzungsdauerGrund, ContactID: found.ContactID,
+		AcquisitionCost: found.Amount, InServiceDate: inService, Method: method,
+		DepreciationAccount: account.DepreciationAccount,
+		UsefulLifeMonths:    a.NutzungsdauerMonate, UsefulLifeReason: a.NutzungsdauerGrund, ContactID: found.ContactID,
 		AcquisitionEntryID: &entryID, InputTaxAmount: found.InputTaxAmount, InputTaxPermille: found.InputTaxPermille}
 	saved, err := s.Assets.Save(ctx, asset)
 	if err != nil {

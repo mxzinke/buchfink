@@ -18,11 +18,11 @@ var receiptStatus = map[domain.ReceiptStatus]string{
 	domain.ReceiptStatusFiled: "abgelegt", domain.ReceiptStatusSealed: "gebucht", domain.ReceiptStatusDiscarded: "verworfen",
 }
 
-var receiptStatusFromLabel = map[string]domain.ReceiptStatus{
+var receiptStatusFromLabel = map[BelegStatus]domain.ReceiptStatus{
 	"abgelegt": domain.ReceiptStatusFiled, "gebucht": domain.ReceiptStatusSealed, "verworfen": domain.ReceiptStatusDiscarded,
 }
 
-func richtungOf(d domain.Direction) string {
+func richtungOf(d domain.Direction) Richtung {
 	if d == domain.DirectionOutgoing {
 		return "ausgang"
 	}
@@ -39,12 +39,13 @@ func folders(ctx context.Context, c *Call, s *core.Services) (policy.Folders, er
 // --- belege_suchen ----------------------------------------------------------
 
 type belegeIn struct {
-	Geschaeftsjahr int    `json:"geschaeftsjahr,omitempty"`
-	Status         string `json:"status,omitempty" jsonschema:"abgelegt (noch nicht gebucht), gebucht oder verworfen; ohne Angabe alle"`
-	Richtung       string `json:"richtung,omitempty" jsonschema:"eingang oder ausgang"`
-	Von            Datum  `json:"von,omitempty" jsonschema:"Belegdatum ab"`
-	Bis            Datum  `json:"bis,omitempty" jsonschema:"Belegdatum bis"`
-	Text           string `json:"text,omitempty" jsonschema:"Teil von Belegnummer, Aussteller oder Betreff"`
+	Geschaeftsjahr int         `json:"geschaeftsjahr,omitempty"`
+	Status         BelegStatus `json:"status,omitempty" jsonschema:"abgelegt (noch nicht gebucht; ohne Kontoauszüge, die nie gebucht werden), gebucht oder verworfen; ohne Angabe alle"`
+	Art            BelegArt    `json:"art,omitempty"`
+	Richtung       Richtung    `json:"richtung,omitempty"`
+	Von            Datum       `json:"von,omitempty" jsonschema:"Belegdatum ab"`
+	Bis            Datum       `json:"bis,omitempty" jsonschema:"Belegdatum bis"`
+	Text           string      `json:"text,omitempty" jsonschema:"Teil von Belegnummer, Aussteller oder Betreff"`
 	Seite
 }
 
@@ -53,7 +54,7 @@ type belegZeile struct {
 	Nummer     string  `json:"nummer"`
 	Status     string  `json:"status"`
 	Richtung   string  `json:"richtung"`
-	Art        string  `json:"art"`
+	Art        string  `json:"art" jsonschema:"rechnung, quittung, kontoauszug, eigenbeleg, brief oder sonstiges"`
 	EingangAm  string  `json:"eingang_am,omitempty"`
 	Belegdatum string  `json:"belegdatum,omitempty"`
 	Aussteller string  `json:"aussteller,omitempty"`
@@ -68,8 +69,12 @@ type belegeOut struct {
 }
 
 func belegZeileOf(r domain.Receipt) belegZeile {
-	z := belegZeile{ID: r.ID, Nummer: r.ReceiptNumber, Status: receiptStatus[r.Status], Richtung: richtungOf(r.Direction),
-		Art: string(r.Kind), EingangAm: r.ReceivedAt, Belegdatum: r.DocumentDate, Aussteller: r.IssuerName,
+	kind := r.Kind
+	if kind == "" {
+		kind = domain.ReceiptKindInvoice
+	}
+	z := belegZeile{ID: r.ID, Nummer: r.ReceiptNumber, Status: receiptStatus[r.Status], Richtung: string(richtungOf(r.Direction)),
+		Art: label(receiptKinds, kind), EingangAm: r.ReceivedAt, Belegdatum: r.DocumentDate, Aussteller: r.IssuerName,
 		BuchungID: r.JournalEntryID}
 	if r.GrossAmount != 0 {
 		z.Brutto = optBetrag(r.GrossAmount)
@@ -177,15 +182,15 @@ func befundeOf(f *domain.ReceiptFindings) belegBefunde {
 // --- beleg_ablegen ----------------------------------------------------------
 
 type belegDateiIn struct {
-	Pfad  string `json:"pfad" jsonschema:"absoluter Pfad in einem Belegordner (status nennt sie)"`
-	Rolle string `json:"rolle,omitempty" jsonschema:"original (Vorgabe für die erste Datei), anhang oder darstellung (PDF-Ansicht einer reinen XRechnung; ohne sie lässt sich eine XRechnung nicht buchen)"`
+	Pfad  string     `json:"pfad" jsonschema:"absoluter Pfad in einem Belegordner (status nennt sie)"`
+	Rolle DateiRolle `json:"rolle,omitempty" jsonschema:"original (Vorgabe für die erste Datei), anhang oder darstellung (PDF-Ansicht einer reinen XRechnung; ohne sie lässt sich eine XRechnung nicht buchen)"`
 }
 
 type belegAblegenIn struct {
 	WriteArgs
 	Dateien      []belegDateiIn `json:"dateien" jsonschema:"1 bis 10 Dateien; die erste ist das Original"`
 	EingangAm    Datum          `json:"eingang_am" jsonschema:"Tag, an dem der Beleg ankam (Datum der E-Mail, des Downloads, des Briefs). Er bestimmt den Voranmeldungszeitraum der Vorsteuer; heute nur, wenn er wirklich heute kam"`
-	EingangUeber string         `json:"eingang_ueber,omitempty" jsonschema:"email, scan oder upload"`
+	EingangUeber EingangWeg     `json:"eingang_ueber,omitempty"`
 	Belegdatum   Datum          `json:"belegdatum,omitempty" jsonschema:"bei Fotos und PDF ohne E-Rechnung Pflicht; bei einer E-Rechnung gilt ihr Datum"`
 	Aussteller   string         `json:"aussteller,omitempty" jsonschema:"bei Fotos und PDF ohne E-Rechnung Pflicht"`
 	Brutto       Betrag         `json:"brutto,omitempty" jsonschema:"bei Fotos und PDF ohne E-Rechnung Pflicht"`
@@ -231,12 +236,13 @@ func registerBelege(tb *Toolbox) {
 		if err != nil {
 			return out, err
 		}
-		var status domain.ReceiptStatus
-		if in.Status != "" {
-			var ok bool
-			if status, ok = receiptStatusFromLabel[in.Status]; !ok {
-				return out, inputError("status", "abgelegt, gebucht oder verworfen, nicht %q", in.Status)
-			}
+		status, err := pick("status", in.Status, receiptStatusFromLabel)
+		if err != nil {
+			return out, err
+		}
+		kind, err := pick("art", in.Art, receiptKinds)
+		if err != nil {
+			return out, err
 		}
 		from, err := in.Von.check("von")
 		if err != nil {
@@ -253,8 +259,14 @@ func registerBelege(tb *Toolbox) {
 		text := strings.ToLower(strings.TrimSpace(in.Text))
 		rows := []belegZeile{}
 		for _, r := range receipts {
+			rkind := r.Kind
+			if rkind == "" {
+				rkind = domain.ReceiptKindInvoice
+			}
 			switch {
 			case in.Richtung != "" && richtungOf(r.Direction) != in.Richtung,
+				kind != "" && rkind != kind,
+				in.Status == "abgelegt" && kind == "" && rkind == domain.ReceiptKindStatement,
 				from != "" && r.DocumentDate < from,
 				to != "" && (r.DocumentDate == "" || r.DocumentDate > to),
 				text != "" && !strings.Contains(strings.ToLower(r.ReceiptNumber+" "+r.IssuerName+" "+r.Subject), text):
@@ -361,12 +373,7 @@ func registerBelege(tb *Toolbox) {
 		if header.GrossAmount, err = in.Brutto.cents("brutto"); err != nil {
 			return out, err
 		}
-		via := in.EingangUeber
-		switch via {
-		case "", domain.ReceivedViaEmail, domain.ReceivedViaScan, domain.ReceivedViaUpload:
-		default:
-			return out, inputError("eingang_ueber", "email, scan oder upload, nicht %q", via)
-		}
+		via := string(in.EingangUeber)
 		dirs, err := folders(ctx, c, s)
 		if err != nil {
 			return out, err

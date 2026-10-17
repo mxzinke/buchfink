@@ -12,11 +12,11 @@ import (
 )
 
 type offenePostenIn struct {
-	Richtung          string `json:"richtung,omitempty" jsonschema:"forderung, verbindlichkeit oder alle (Vorgabe)"`
-	KontaktID         uint   `json:"kontakt_id,omitempty"`
-	NurUeberfaellig   bool   `json:"nur_ueberfaellig,omitempty"`
-	Stichtag          Datum  `json:"stichtag,omitempty" jsonschema:"Stand zu diesem Tag; Vorgabe heute"`
-	MitAltersstruktur bool   `json:"mit_altersstruktur,omitempty" jsonschema:"Summen nach Überfälligkeit und Restlaufzeit"`
+	Richtung          PostenRichtung `json:"richtung,omitempty"`
+	KontaktID         uint           `json:"kontakt_id,omitempty"`
+	NurUeberfaellig   bool           `json:"nur_ueberfaellig,omitempty"`
+	Stichtag          Datum          `json:"stichtag,omitempty" jsonschema:"Stand zu diesem Tag; Vorgabe heute"`
+	MitAltersstruktur bool           `json:"mit_altersstruktur,omitempty" jsonschema:"Summen nach Überfälligkeit und Restlaufzeit"`
 	Seite
 }
 
@@ -156,11 +156,7 @@ func registerPosten(tb *Toolbox) {
 			cutoff = today()
 		}
 		out.Stichtag = cutoff
-		switch in.Richtung {
-		case "", "alle", "forderung", "verbindlichkeit":
-		default:
-			return out, inputError("richtung", "forderung, verbindlichkeit oder alle, nicht %q", in.Richtung)
-		}
+
 		items, err := s.Payments.OpenItemsAt(ctx, cutoff)
 		if err != nil {
 			return out, err
@@ -177,7 +173,7 @@ func registerPosten(tb *Toolbox) {
 				continue
 			}
 			switch {
-			case in.Richtung != "" && in.Richtung != "alle" && richtungOfItem(item) != in.Richtung,
+			case in.Richtung != "" && in.Richtung != "alle" && richtungOfItem(item) != string(in.Richtung),
 				in.KontaktID != 0 && item.ContactID != in.KontaktID,
 				in.NurUeberfaellig && (item.DueDate == "" || item.DueDate >= cutoff):
 				continue

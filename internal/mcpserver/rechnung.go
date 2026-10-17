@@ -123,7 +123,7 @@ type abschlagIn struct {
 
 type rechnungAusstellenIn struct {
 	KeyedWriteArgs
-	Art       string      `json:"art,omitempty" jsonschema:"rechnung (Vorgabe), abschlag (Anzahlungsrechnung) oder schlussrechnung"`
+	Art       RechnungArt `json:"art,omitempty" jsonschema:"rechnung (Vorgabe), abschlag (Anzahlungsrechnung) oder schlussrechnung"`
 	Rechnung  *Rechnung   `json:"rechnung,omitempty" jsonschema:"bei rechnung und schlussrechnung"`
 	VerbundID uint        `json:"verbund_id,omitempty" jsonschema:"Rechnungsverbund aus einer früheren Abschlagsrechnung"`
 	Verbund   *verbundIn  `json:"verbund,omitempty" jsonschema:"neuer Verbund für die erste Abschlagsrechnung"`

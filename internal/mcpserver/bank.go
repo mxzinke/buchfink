@@ -22,13 +22,13 @@ var bankStatus = map[domain.MatchStatus]string{
 // --- bankumsaetze -----------------------------------------------------------
 
 type bankumsaetzeIn struct {
-	BankumsatzID    uint   `json:"bankumsatz_id,omitempty" jsonschema:"genau dieser Umsatz mit allen Vorschlägen; die übrigen Filter entfallen"`
-	Geschaeftsjahr  int    `json:"geschaeftsjahr,omitempty"`
-	Status          string `json:"status,omitempty" jsonschema:"offen (Vorgabe), zugeordnet, ignoriert oder alle"`
-	Konto           Konto  `json:"konto,omitempty" jsonschema:"Bankkonto im SKR04, z. B. 1800"`
-	Von             Datum  `json:"von,omitempty"`
-	Bis             Datum  `json:"bis,omitempty"`
-	OhneVorschlaege bool   `json:"ohne_vorschlaege,omitempty" jsonschema:"keine Zuordnungsvorschläge rechnen"`
+	BankumsatzID    uint       `json:"bankumsatz_id,omitempty" jsonschema:"genau dieser Umsatz mit allen Vorschlägen; die übrigen Filter entfallen"`
+	Geschaeftsjahr  int        `json:"geschaeftsjahr,omitempty"`
+	Status          BankStatus `json:"status,omitempty"`
+	Konto           Konto      `json:"konto,omitempty" jsonschema:"Bankkonto im SKR04, z. B. 1800"`
+	Von             Datum      `json:"von,omitempty"`
+	Bis             Datum      `json:"bis,omitempty"`
+	OhneVorschlaege bool       `json:"ohne_vorschlaege,omitempty" jsonschema:"keine Zuordnungsvorschläge rechnen"`
 	Seite
 }
 
@@ -40,7 +40,7 @@ type vorschlagPosten struct {
 }
 
 type bankVorschlag struct {
-	Art        string            `json:"art" jsonschema:"open_item, collective, rule oder credit_card"`
+	Art        string            `json:"art" jsonschema:"offener_posten, sammelzahlung, regel oder kreditkarte"`
 	Punkte     int               `json:"punkte"`
 	Gruende    []string          `json:"gruende"`
 	Text       string            `json:"text"`
@@ -100,7 +100,7 @@ func suggestionsFor(ctx context.Context, s *core.Services, tx *domain.BankTransa
 	}
 	out := make([]bankVorschlag, 0, len(kept))
 	for _, sg := range kept {
-		v := bankVorschlag{Art: string(sg.Kind), Punkte: sg.Score, Gruende: orEmpty(sg.Reasons), Text: sg.Label,
+		v := bankVorschlag{Art: label(suggestionKinds, sg.Kind), Punkte: sg.Score, Gruende: orEmpty(sg.Reasons), Text: sg.Label,
 			KontaktID: sg.ContactID, Kontakt: sg.ContactName, Betrag: betrag(sg.Amount), Posten: []vorschlagPosten{},
 			Gegenkonto: sg.CounterAccount, Stichtag: sg.StatementDate, Einstufung: string(policy.Confirm)}
 		for _, item := range sg.Items {
@@ -157,8 +157,8 @@ type zuordnenIn struct {
 func (in zuordnenIn) preview() bool { return in.NurVorschau }
 
 type differenzIn struct {
-	Art    string `json:"art" jsonschema:"skonto, gebuehr, rundung oder waehrung"`
-	Betrag Betrag `json:"betrag"`
+	Art    DifferenzArt `json:"art"`
+	Betrag Betrag       `json:"betrag"`
 }
 
 type aufteilungIn struct {
@@ -202,7 +202,7 @@ func (o bankBuchenOut) Ref() string {
 	return fmt.Sprintf("buchung:%d", o.Buchung.ID)
 }
 
-var differenceKinds = map[string]domain.DifferenceKind{
+var differenceKinds = map[DifferenzArt]domain.DifferenceKind{
 	"skonto": domain.DifferenceSkonto, "gebuehr": domain.DifferenceBankFee, "rundung": domain.DifferenceRounding,
 	"waehrung": domain.DifferenceCurrency,
 }
@@ -222,11 +222,9 @@ func (in bankBuchenIn) split() (service.BankSplitRequest, error) {
 				return req, err
 			}
 			if a.Differenz != nil {
-				kind, ok := differenceKinds[a.Differenz.Art]
-				if !ok {
-					return req, inputError(field+".differenz.art", "skonto, gebuehr, rundung oder waehrung, nicht %q", a.Differenz.Art)
+				if line.DifferenceKind, err = pick(field+".differenz.art", a.Differenz.Art, differenceKinds); err != nil {
+					return req, err
 				}
-				line.DifferenceKind = kind
 				if line.DifferenceAmount, err = a.Differenz.Betrag.required(field + ".differenz.betrag"); err != nil {
 					return req, err
 				}
@@ -291,12 +289,9 @@ func registerBank(tb *Toolbox) {
 		if err != nil {
 			return out, err
 		}
-		status := in.Status
+		status := string(in.Status)
 		if status == "" {
 			status = "offen"
-		}
-		if status != "alle" && status != "offen" && status != "zugeordnet" && status != "ignoriert" {
-			return out, inputError("status", "offen, zugeordnet, ignoriert oder alle, nicht %q", in.Status)
 		}
 		txs, err := s.Bank.GetTransactions(ctx, year)
 		if err != nil {

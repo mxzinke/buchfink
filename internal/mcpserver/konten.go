@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -14,11 +15,11 @@ import (
 // --- konten -----------------------------------------------------------------
 
 type kontenIn struct {
-	Art            string `json:"art" jsonschema:"suche (Konten des SKR04), buchungsgruppen oder steuerfaelle"`
-	Suche          string `json:"suche,omitempty" jsonschema:"Teil von Nummer oder Bezeichnung (art=suche)"`
-	NurBebucht     bool   `json:"nur_bebucht,omitempty" jsonschema:"nur Konten mit Buchungen im Geschäftsjahr"`
-	Geschaeftsjahr int    `json:"geschaeftsjahr,omitempty"`
-	Richtung       string `json:"richtung,omitempty" jsonschema:"eingang oder ausgang (art=buchungsgruppen, steuerfaelle); Vorgabe eingang"`
+	Art            KontenArt `json:"art"`
+	Suche          string    `json:"suche,omitempty" jsonschema:"Teil von Nummer oder Bezeichnung (art=suche)"`
+	NurBebucht     bool      `json:"nur_bebucht,omitempty" jsonschema:"nur Konten mit Buchungen im Geschäftsjahr"`
+	Geschaeftsjahr int       `json:"geschaeftsjahr,omitempty"`
+	Richtung       Richtung  `json:"richtung,omitempty" jsonschema:"für Buchungsgruppen und Steuerfälle: eingang (Vorgabe) oder ausgang"`
 	Seite
 }
 
@@ -58,7 +59,7 @@ type kontenOut struct {
 	Seitenende
 }
 
-func direction(s string) domain.Direction {
+func direction(s Richtung) domain.Direction {
 	if s == "ausgang" {
 		return domain.DirectionOutgoing
 	}
@@ -68,12 +69,12 @@ func direction(s string) domain.Direction {
 // --- auswertung -------------------------------------------------------------
 
 type auswertungIn struct {
-	Art            string `json:"art" jsonschema:"susa (Summen und Salden), kontoblatt, bilanz, guv, ust (Umsatzsteuer-Übersicht) oder pruefbericht"`
-	Geschaeftsjahr int    `json:"geschaeftsjahr,omitempty"`
-	Konto          Konto  `json:"konto,omitempty" jsonschema:"Konto für art=kontoblatt"`
-	Von            Datum  `json:"von,omitempty" jsonschema:"kontoblatt, ust: Beginn; Vorgabe Beginn des Geschäftsjahres"`
-	Bis            Datum  `json:"bis,omitempty" jsonschema:"kontoblatt, ust, pruefbericht: Ende oder Stichtag; Vorgabe Ende des Geschäftsjahres bzw. heute"`
-	Tiefe          string `json:"tiefe,omitempty" jsonschema:"bilanz, guv: full, short oder letters; Vorgabe full"`
+	Art            AuswertungArt `json:"art" jsonschema:"susa (Summen und Salden), kontoblatt, bilanz, guv, ust (Umsatzsteuer-Übersicht) oder pruefbericht"`
+	Geschaeftsjahr int           `json:"geschaeftsjahr,omitempty"`
+	Konto          Konto         `json:"konto,omitempty" jsonschema:"Sachkonto des SKR04 für art=kontoblatt; Buchungen eines Personenkontos liefert buchungen_suchen mit kontakt_id"`
+	Von            Datum         `json:"von,omitempty" jsonschema:"kontoblatt, ust: Beginn; Vorgabe Beginn des Geschäftsjahres"`
+	Bis            Datum         `json:"bis,omitempty" jsonschema:"kontoblatt, ust, pruefbericht: Ende oder Stichtag; Vorgabe Ende des Geschäftsjahres bzw. heute"`
+	Tiefe          Gliederung    `json:"tiefe,omitempty" jsonschema:"bilanz, guv"`
 	Seite
 }
 
@@ -239,7 +240,7 @@ func registerKonten(tb *Toolbox) {
 		if err != nil {
 			return auswertungOut{}, err
 		}
-		out := emptyAuswertung(in.Art, year)
+		out := emptyAuswertung(string(in.Art), year)
 		from, err := in.Von.check("von")
 		if err != nil {
 			return out, err
@@ -266,6 +267,12 @@ func registerKonten(tb *Toolbox) {
 		case "kontoblatt":
 			if in.Konto == "" {
 				return out, inputError("konto", "für das Kontoblatt fehlt das Konto")
+			}
+			if domain.IsLedgerAccount(string(in.Konto)) {
+				return out, &ToolError{Code: CodeInvalidInput,
+					Nachricht:        fmt.Sprintf("konto: %s ist ein Personenkonto; das Kontoblatt gibt es für Sachkonten", in.Konto),
+					NaechsterSchritt: "Die Buchungen eines Kunden oder Lieferanten liefert buchungen_suchen mit kontakt_id.",
+					Werkzeug:         "buchungen_suchen"}
 			}
 			if from == "" || to == "" {
 				fy, err := s.Closing.PeriodOf(ctx, year)
@@ -303,9 +310,12 @@ func registerKonten(tb *Toolbox) {
 			out.Seitenende = end
 			return out, nil
 		case "bilanz", "guv":
-			depth, err := domain.ParseStatementDepth(in.Tiefe)
+			depth, err := pick("tiefe", in.Tiefe, depths)
 			if err != nil {
-				return out, inputError("tiefe", "%v", err)
+				return out, err
+			}
+			if depth == "" {
+				depth = domain.DepthFull
 			}
 			st, err := s.Statement.Statement(ctx, year, depth)
 			if err != nil {

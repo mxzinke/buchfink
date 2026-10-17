@@ -8,7 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/declaration"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -59,17 +61,29 @@ func (w wert) value(field string) (declaration.Value, error) {
 	return v, nil
 }
 
-var declarationKinds = map[string]declaration.Kind{
+var declarationKinds = map[JahrArt]declaration.Kind{
 	"ust_jahr": declaration.KindVatYear, "kst": declaration.KindCorporateTax, "gewst": declaration.KindTradeTax,
 }
 
 // --- erklaerung -------------------------------------------------------------
 
 type erklaerungIn struct {
-	Art      string `json:"art" jsonschema:"ustva, zm, ust_jahr, kst oder gewst"`
-	Zeitraum string `json:"zeitraum" jsonschema:"ustva und zm: 2026-03 oder 2026-Q1; Jahreserklärungen: 2026"`
-	NurOffen bool   `json:"nur_offen,omitempty" jsonschema:"Jahreserklärungen: nur Zeilen, die noch eine Angabe brauchen"`
-	Formular string `json:"formular,omitempty" jsonschema:"Jahreserklärungen: nur dieses Formular, z. B. kst1"`
+	Art            ErklaerungArt `json:"art"`
+	Zeitraum       Zeitraum      `json:"zeitraum"`
+	NurOffen       bool          `json:"nur_offen,omitempty" jsonschema:"Jahreserklärungen: nur Zeilen, die noch eine Angabe brauchen"`
+	Formular       string        `json:"formular,omitempty" jsonschema:"Jahreserklärungen: nur dieses Formular, z. B. kst1"`
+	AlleKennzahlen bool          `json:"alle_kennzahlen,omitempty" jsonschema:"ustva: auch Kennzahlen ohne Betrag"`
+}
+
+// returnStatus bringt die Stände von UStVA und ZM auf die Wörter der
+// Jahreserklärungen.
+var returnStatus = map[string]string{"draft": "entwurf", "submitted": "uebermittelt"}
+
+func statusLabel(s string) string {
+	if l, ok := returnStatus[s]; ok {
+		return l
+	}
+	return s
 }
 
 type kennzahl struct {
@@ -139,7 +153,7 @@ type erklaerungBefund struct {
 type erklaerungOut struct {
 	Art              string               `json:"art"`
 	Zeitraum         string               `json:"zeitraum"`
-	Status           string               `json:"status"`
+	Status           string               `json:"status" jsonschema:"entwurf, exportiert oder uebermittelt"`
 	Faellig          string               `json:"faellig,omitempty"`
 	Zahllast         *Betrag              `json:"zahllast,omitempty" jsonschema:"positiv Zahlung, negativ Erstattung"`
 	Kennzahlen       []kennzahl           `json:"kennzahlen" jsonschema:"UStVA: Kennziffern wie in Mein ELSTER"`
@@ -211,13 +225,13 @@ func declarationOut(art string, d *declaration.Declaration, opts declaration.Vie
 
 type erklaerungEingabeIn struct {
 	WriteArgs
-	Art        string `json:"art" jsonschema:"ust_jahr, kst oder gewst"`
-	Jahr       int    `json:"jahr"`
-	Schluessel string `json:"schluessel" jsonschema:"Schlüssel der Zeile aus erklaerung"`
-	Wert       wert   `json:"wert" jsonschema:"genau eines von betrag, text, ja, datum"`
-	Quelle     string `json:"quelle,omitempty" jsonschema:"bescheid, beschluss, beleg, mensch oder buecher; Vorgabe mensch"`
-	BelegID    uint   `json:"beleg_id,omitempty"`
-	Notiz      string `json:"notiz,omitempty"`
+	Art        JahrArt `json:"art"`
+	Jahr       int     `json:"jahr"`
+	Schluessel string  `json:"schluessel" jsonschema:"Schlüssel der Zeile aus erklaerung"`
+	Wert       wert    `json:"wert" jsonschema:"genau eines von betrag, text, ja, datum"`
+	Quelle     Quelle  `json:"quelle,omitempty"`
+	BelegID    uint    `json:"beleg_id,omitempty"`
+	Notiz      string  `json:"notiz,omitempty"`
 }
 
 type erklaerungEingabeOut struct {
@@ -234,8 +248,8 @@ func (o erklaerungEingabeOut) Ref() string { return "eingabe:" + o.Schluessel }
 
 type erklaerungExportIn struct {
 	TenantArgs
-	Art  string `json:"art" jsonschema:"ust_jahr, kst oder gewst"`
-	Jahr int    `json:"jahr"`
+	Art  JahrArt `json:"art"`
+	Jahr int     `json:"jahr"`
 }
 
 type exportOut struct {
@@ -264,17 +278,24 @@ func registerErklaerung(tb *Toolbox) {
 			"Status, Zuständigkeit und Herkunft (Konten, Rechnung). nur_offen zeigt, was noch eine Angabe braucht. " +
 			"Danach erklaerung_eingabe und erklaerung_exportieren. Übermitteln kann nur der Mensch.",
 	}, func(ctx context.Context, c *Call, s *core.Services, in erklaerungIn) (erklaerungOut, error) {
-		out := emptyErklaerung(in.Art, in.Zeitraum)
+		period := strings.TrimPrefix(strings.TrimPrefix(string(in.Zeitraum), "ustva."), "zm.")
+		out := emptyErklaerung(string(in.Art), period)
 		switch in.Art {
 		case "ustva":
-			ret, err := s.VatReturns.Draft(ctx, in.Zeitraum)
+			ret, err := s.VatReturns.Draft(ctx, period)
 			if err != nil {
 				return out, err
 			}
-			out.Zeitraum, out.Status, out.Faellig = ret.PeriodKey, string(ret.Status), ret.DueDate
+			out.Zeitraum, out.Status, out.Faellig = ret.PeriodKey, statusLabel(string(ret.Status)), ret.DueDate
 			out.Zahllast = optBetrag(ret.Payable)
 			out.Uebermittelt, out.Transferticket = ret.SubmittedAt, ret.TransferTicket
+			if note := periodMismatch(ctx, s, period); note != "" {
+				out.Befunde = append(out.Befunde, erklaerungBefund{Schwere: "warnung", Code: "zeitraum_passt_nicht", Text: note})
+			}
 			for _, f := range ret.Figures {
+				if !in.AlleKennzahlen && (!f.HasBase || f.Base == 0) && (!f.HasTax || f.Tax == 0) {
+					continue
+				}
 				k := kennzahl{Kz: f.Code, Bezeichnung: f.Label}
 				if f.HasBase {
 					k.Bemessung = optBetrag(f.Base)
@@ -287,15 +308,15 @@ func registerErklaerung(tb *Toolbox) {
 			for _, f := range ret.Findings {
 				out.Befunde = append(out.Befunde, erklaerungBefund{Schwere: "hinweis", Text: f})
 			}
-			out.Abgabereif = len(ret.Findings) == 0
+			out.Abgabereif = len(ret.Findings) == 0 && len(out.Befunde) == 0
 			out.NaechsterSchritt = "Kennzahlen in Mein ELSTER übertragen lassen; Festschreibung und Transferticket erfasst nur der Mensch in der App. Danach pflicht_vorbereitet."
 			return out, nil
 		case "zm":
-			ret, err := s.ZM.Draft(ctx, in.Zeitraum)
+			ret, err := s.ZM.Draft(ctx, period)
 			if err != nil {
 				return out, err
 			}
-			out.Zeitraum, out.Status, out.Faellig = ret.PeriodKey, string(ret.Status), ret.DueDate
+			out.Zeitraum, out.Status, out.Faellig = ret.PeriodKey, statusLabel(string(ret.Status)), ret.DueDate
 			out.Uebermittelt, out.Transferticket = ret.SubmittedAt, ret.TransferTicket
 			for _, l := range ret.Lines {
 				out.ZM = append(out.ZM, zmZeile{Land: l.CountryCode, UstID: l.VatID, Art: string(l.Kind), Betrag: betrag(l.Amount),
@@ -308,11 +329,11 @@ func registerErklaerung(tb *Toolbox) {
 			out.NaechsterSchritt = "Zeilen im BZSt-Online-Portal erfassen lassen; das Transferticket erfasst nur der Mensch in der App."
 			return out, nil
 		}
-		kind, ok := declarationKinds[in.Art]
+		kind, ok := declarationKinds[JahrArt(in.Art)]
 		if !ok {
 			return out, inputError("art", "ustva, zm, ust_jahr, kst oder gewst, nicht %q", in.Art)
 		}
-		year, err := strconv.Atoi(in.Zeitraum)
+		year, err := strconv.Atoi(period)
 		if err != nil || year < 2000 {
 			return out, inputError("zeitraum", "für %s ein Jahr wie 2026, nicht %q", in.Art, in.Zeitraum)
 		}
@@ -320,7 +341,7 @@ func registerErklaerung(tb *Toolbox) {
 		if err != nil {
 			return out, err
 		}
-		return declarationOut(in.Art, d, declaration.ViewOptions{Form: in.Formular, Pending: in.NurOffen, Applicable: true}), nil
+		return declarationOut(string(in.Art), d, declaration.ViewOptions{Form: in.Formular, Pending: in.NurOffen, Applicable: true}), nil
 	})
 
 	AddWrite(tb, Spec{
@@ -340,8 +361,11 @@ func registerErklaerung(tb *Toolbox) {
 		if err != nil {
 			return erklaerungEingabeOut{}, err
 		}
-		req := service.InputRequest{Kind: kind, Year: in.Jahr, Key: in.Schluessel, Value: v,
-			Source: declaration.InputSource(in.Quelle), Note: in.Notiz}
+		source, err := pick("quelle", in.Quelle, inputSources)
+		if err != nil {
+			return erklaerungEingabeOut{}, err
+		}
+		req := service.InputRequest{Kind: kind, Year: in.Jahr, Key: in.Schluessel, Value: v, Source: source, Note: in.Notiz}
 		if in.BelegID != 0 {
 			id := in.BelegID
 			req.ReceiptID = &id
@@ -444,6 +468,29 @@ func registerErklaerung(tb *Toolbox) {
 		out.NaechsterSchritt = "Die Datei übermittelt der Mensch (myebilanz, ERiC); danach in der App den Nachweis erfassen."
 		return out, nil
 	})
+}
+
+// periodMismatch meldet, wenn ein Voranmeldungszeitraum nicht zur
+// eingestellten Zeitraumart des Mandanten passt.
+func periodMismatch(ctx context.Context, s *core.Services, period string) string {
+	cfg, err := s.Settings.GetCompanySettings(ctx)
+	if err != nil || cfg == nil {
+		return ""
+	}
+	p, err := accounting.ParseVatPeriodKey(period)
+	if err != nil {
+		return ""
+	}
+	want := domain.VatPeriodType(cfg.VatPeriod)
+	if !want.Valid() || p.Type == want {
+		return ""
+	}
+	return fmt.Sprintf("Der Mandant meldet %s, %s ist ein anderer Zeitraum. Den passenden Schlüssel nennt fristen.",
+		vatPeriodWord[want], period)
+}
+
+var vatPeriodWord = map[domain.VatPeriodType]string{
+	domain.VatPeriodMonth: "monatlich", domain.VatPeriodQuarter: "vierteljährlich", domain.VatPeriodYear: "jährlich",
 }
 
 // writeExport legt eine Exportdatei über eine Zwischendatei ab, damit kein

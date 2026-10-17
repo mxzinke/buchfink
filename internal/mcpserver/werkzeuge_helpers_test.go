@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/buchfink/buchfink/internal/core"
@@ -90,6 +91,16 @@ func (a *agent) fail(tool string, in map[string]any, code string) ToolError {
 		a.t.Fatalf("%s: Fehler %s (%s), erwartet %s", tool, e.Code, e.Nachricht, code)
 	}
 	return e
+}
+
+// rejected ruft ein Werkzeug mit einer Eingabe, die schon die Schemaprüfung
+// des SDK abweist.
+func (a *agent) rejected(tool string, in map[string]any) {
+	a.t.Helper()
+	res := callTool(a.t, a.cs, tool, in)
+	if !res.IsError || !strings.Contains(resultText(res), "validating") {
+		a.t.Fatalf("%s: erwartet eine Abweisung durch das Schema, bekam %s", tool, resultText(res))
+	}
 }
 
 // ui führt einen Vorgang in der App aus.
@@ -184,6 +195,26 @@ func (h *harness) inboxFile(name string, data []byte) string {
 		h.t.Fatal(err)
 	}
 	return path
+}
+
+// capital bucht in der App die Einzahlung des Stammkapitals: 25.000 € auf
+// 1800 an 2900. Danach hat die Bilanz eine Summe.
+func (h *harness) capital() {
+	h.t.Helper()
+	h.ui(func(ctx context.Context, s *core.Services) error {
+		r, err := s.Receipts.File(ctx, service.FileReceiptRequest{Direction: domain.DirectionIncoming, ReceivedAt: "2026-02-03",
+			DocumentDate: "2026-02-03", IssuerName: "Hausbank", GrossAmount: 2500000,
+			Files: []service.NewFile{{Role: domain.ReceiptRoleOriginal, FileName: "einzahlung.pdf", Content: pdf("Einzahlung")}}})
+		if err != nil {
+			return err
+		}
+		_, err = s.Posting.PostManualEntry(ctx, service.ManualEntryRequest{ReceiptID: r.ID,
+			Entry: domain.JournalEntry{BookingDate: "2026-02-03", DocumentDate: "2026-02-03", ServiceDateFrom: "2026-02-03",
+				ServiceDateTo: "2026-02-03", Description: "Stammkapital eingezahlt", TaxTreatment: domain.TaxTreatmentNotTaxable,
+				Lines: []domain.JournalLine{{Position: 1, Side: domain.SideDebit, Account: "1800", Amount: 2500000},
+					{Position: 2, Side: domain.SideCredit, Account: "2900", Amount: 2500000}}}})
+		return err
+	})
 }
 
 // warmRenderer übersetzt das Satzprogramm vorab in der App, damit die

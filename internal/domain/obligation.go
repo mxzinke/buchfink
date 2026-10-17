@@ -51,6 +51,27 @@ var obligationAnchors = map[ObligationKind]string{
 	ObligationTaxRegistration: "fragebogen-steuerliche-erfassung",
 }
 
+// ObligationKinds sind alle Pflichtarten.
+func ObligationKinds() []ObligationKind {
+	return []ObligationKind{ObligationVatReturn, ObligationSpecialPrepayment, ObligationECSalesList,
+		ObligationCorporatePrepay, ObligationTradePrepay, ObligationPayrollTax, ObligationMonthCommit,
+		ObligationClosingBookings, ObligationStatementPrep, ObligationAdoption, ObligationAppropriation,
+		ObligationEBilanz, ObligationCorporateTaxReturn, ObligationTradeTaxReturn, ObligationAnnualVatReturn,
+		ObligationDisclosure, ObligationTransparency, ObligationShareholderList, ObligationTaxRegistration,
+		ObligationTradeRegistration, ObligationWithholdingTax}
+}
+
+// ObligationKindOf liest eine Pflichtart, auch unter dem Anker ihres
+// Abschnitts in der Skill-Referenz („ebilanz" für „e-bilanz").
+func ObligationKindOf(s string) (ObligationKind, bool) {
+	for _, k := range ObligationKinds() {
+		if string(k) == s || k.Anchor() == s {
+			return k, true
+		}
+	}
+	return "", false
+}
+
 // Anchor ist der Anker des Abschnitts in der Skill-Referenz.
 func (k ObligationKind) Anchor() string {
 	if a, ok := obligationAnchors[k]; ok {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/core/policy"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -23,17 +22,17 @@ type positionIn struct {
 
 type belegBuchenIn struct {
 	WriteArgs
-	BelegID       uint         `json:"beleg_id"`
-	KontaktID     uint         `json:"kontakt_id" jsonschema:"Lieferant"`
-	Belegdatum    Datum        `json:"belegdatum"`
-	Buchungsdatum Datum        `json:"buchungsdatum,omitempty" jsonschema:"Vorgabe Belegdatum"`
-	LeistungVon   Datum        `json:"leistung_von"`
-	LeistungBis   Datum        `json:"leistung_bis,omitempty" jsonschema:"Vorgabe leistung_von"`
-	Steuerfall    Steuerfall   `json:"steuerfall"`
-	Positionen    []positionIn `json:"positionen" jsonschema:"Netto je Steuersatz und Buchungsgruppe, 1 bis 20"`
-	Bezahlung     string       `json:"bezahlung" jsonschema:"offen (Verbindlichkeit) oder kreditkarte (Firmenkreditkarte 3610)"`
-	Beschreibung  string       `json:"beschreibung,omitempty"`
-	NurVorschau   bool         `json:"nur_vorschau,omitempty" jsonschema:"rechnen und einstufen, nicht buchen"`
+	BelegID       uint            `json:"beleg_id"`
+	KontaktID     uint            `json:"kontakt_id" jsonschema:"Lieferant"`
+	Belegdatum    Datum           `json:"belegdatum"`
+	Buchungsdatum Datum           `json:"buchungsdatum,omitempty" jsonschema:"Vorgabe Belegdatum"`
+	LeistungVon   Datum           `json:"leistung_von"`
+	LeistungBis   Datum           `json:"leistung_bis,omitempty" jsonschema:"Vorgabe leistung_von"`
+	Steuerfall    Steuerfall      `json:"steuerfall"`
+	Positionen    []positionIn    `json:"positionen" jsonschema:"Netto je Steuersatz und Buchungsgruppe, 1 bis 20"`
+	Bezahlung     BezahlungDirekt `json:"bezahlung"`
+	Beschreibung  string          `json:"beschreibung,omitempty"`
+	NurVorschau   bool            `json:"nur_vorschau,omitempty" jsonschema:"rechnen und einstufen, nicht buchen"`
 }
 
 type geschenkIn struct {
@@ -70,14 +69,14 @@ type belegBuchenRueckfrageIn struct {
 	LeistungBis             Datum                  `json:"leistung_bis,omitempty"`
 	Steuerfall              Steuerfall             `json:"steuerfall"`
 	Positionen              []positionRueckfrageIn `json:"positionen"`
-	Bezahlung               string                 `json:"bezahlung" jsonschema:"offen, bezahlt (mit zahlungskonto), kreditkarte oder auslage (ein Gesellschafter hat privat bezahlt)"`
+	Bezahlung               Bezahlung              `json:"bezahlung"`
 	Zahlungskonto           Konto                  `json:"zahlungskonto,omitempty" jsonschema:"Bank oder Kasse bei bezahlt"`
 	GesellschafterKontaktID uint                   `json:"gesellschafter_kontakt_id,omitempty" jsonschema:"bei auslage: wem erstattet wird"`
 	Waehrung                string                 `json:"waehrung,omitempty" jsonschema:"ISO-Code, Vorgabe EUR"`
 	Fremdbetrag             Betrag                 `json:"fremdbetrag,omitempty" jsonschema:"Endsumme in der Fremdwährung als Kontrolle"`
 	Bewirtung               *bewirtungIn           `json:"bewirtung,omitempty"`
 	RueckstellungID         uint                   `json:"rueckstellung_id,omitempty"`
-	AnzahlungFuer           string                 `json:"anzahlung_fuer,omitempty" jsonschema:"inventory, tangible oder intangible: der Beleg ist eine geleistete Anzahlung"`
+	AnzahlungFuer           AnzahlungZiel          `json:"anzahlung_fuer,omitempty"`
 	VerrechneteAnzahlungen  []uint                 `json:"verrechnete_anzahlungen,omitempty"`
 	Leistungsnachweis       string                 `json:"leistungsnachweis,omitempty"`
 	LeistungsnachweisAm     Datum                  `json:"leistungsnachweis_am,omitempty"`
@@ -90,7 +89,7 @@ type belegBuchenRueckfrageIn struct {
 func (in belegBuchenIn) preview() bool           { return in.NurVorschau }
 func (in belegBuchenRueckfrageIn) preview() bool { return in.NurVorschau }
 
-var settlements = map[string]service.SettlementKind{
+var settlements = map[Bezahlung]service.SettlementKind{
 	"offen": service.SettlementOpen, "bezahlt": service.SettlementPaid, "kreditkarte": service.SettlementCreditCard,
 	"auslage": service.SettlementShareholderExpense,
 }
@@ -103,7 +102,7 @@ func (in belegBuchenIn) request() (service.ReceiptRequest, error) {
 	}
 	switch in.Bezahlung {
 	case "offen", "kreditkarte":
-		req.Settlement = settlements[in.Bezahlung]
+		req.Settlement = settlements[Bezahlung(in.Bezahlung)]
 	default:
 		return req, inputError("bezahlung", "direkt nur offen oder kreditkarte, nicht %q; sonst beleg_buchen_mit_rueckfrage", in.Bezahlung)
 	}
@@ -167,7 +166,9 @@ func (in belegBuchenRueckfrageIn) request() (service.ReceiptRequest, error) {
 			Participants: in.Bewirtung.Teilnehmer, Occasion: in.Bewirtung.Anlass}
 	}
 	req.ProvisionID = in.RueckstellungID
-	req.AdvanceTarget = accounting.AdvanceTarget(in.AnzahlungFuer)
+	if req.AdvanceTarget, err = pick("anzahlung_fuer", in.AnzahlungFuer, advanceTargets); err != nil {
+		return req, err
+	}
 	req.SettledAdvanceIDs = in.VerrechneteAnzahlungen
 	req.ServiceProof = in.Leistungsnachweis
 	if req.ServiceProofAt, err = in.LeistungsnachweisAm.check("leistungsnachweis_am"); err != nil {
@@ -266,13 +267,13 @@ func prefetchRate(ctx context.Context, t *core.Tenant, currency, date string) er
 // --- buchung_erfassen -------------------------------------------------------
 
 type zeileIn struct {
-	Konto            Konto  `json:"konto"`
-	Seite            string `json:"seite" jsonschema:"S (Soll) oder H (Haben)"`
-	Betrag           Betrag `json:"betrag"`
-	Steuerschluessel string `json:"steuerschluessel,omitempty" jsonschema:"an Steuerzeilen, z. B. VST19"`
-	Steuerbasis      Betrag `json:"steuerbasis,omitempty" jsonschema:"Bemessungsgrundlage an Steuerzeilen"`
-	KontaktID        uint   `json:"kontakt_id,omitempty" jsonschema:"an Personenkonten"`
-	Text             string `json:"text,omitempty"`
+	Konto            Konto         `json:"konto"`
+	Seite            Buchungsseite `json:"seite"`
+	Betrag           Betrag        `json:"betrag"`
+	Steuerschluessel string        `json:"steuerschluessel,omitempty" jsonschema:"an Steuerzeilen, z. B. VST19"`
+	Steuerbasis      Betrag        `json:"steuerbasis,omitempty" jsonschema:"Bemessungsgrundlage an Steuerzeilen"`
+	KontaktID        uint          `json:"kontakt_id,omitempty" jsonschema:"an Personenkonten"`
+	Text             string        `json:"text,omitempty"`
 }
 
 type eigenbelegIn struct {
@@ -424,9 +425,9 @@ func (o stornierenOut) Ref() string { return fmt.Sprintf("buchung:%d", o.Storno.
 
 type lohnjournalIn struct {
 	WriteArgs
-	Monat         string `json:"monat" jsonschema:"Abrechnungsmonat JJJJ-MM"`
-	BelegID       uint   `json:"beleg_id" jsonschema:"das abgelegte Lohnjournal des Lohnbüros"`
-	Buchungsdatum Datum  `json:"buchungsdatum,omitempty" jsonschema:"Vorgabe letzter Tag des Monats"`
+	Monat         Monat `json:"monat" jsonschema:"Abrechnungsmonat JJJJ-MM"`
+	BelegID       uint  `json:"beleg_id" jsonschema:"das abgelegte Lohnjournal des Lohnbüros"`
+	Buchungsdatum Datum `json:"buchungsdatum,omitempty" jsonschema:"Vorgabe letzter Tag des Monats"`
 
 	Gehaelter                 Betrag `json:"gehaelter,omitempty" jsonschema:"6020"`
 	GfGehaelterGesellschafter Betrag `json:"gf_gehaelter_gesellschafter,omitempty" jsonschema:"6024"`
@@ -450,7 +451,7 @@ type lohnjournalIn struct {
 }
 
 func (in lohnjournalIn) request() (service.PayrollRequest, error) {
-	req := service.PayrollRequest{Month: in.Monat, ReceiptID: in.BelegID, NetToClearing: in.NettoAufVerrechnungskonto,
+	req := service.PayrollRequest{Month: string(in.Monat), ReceiptID: in.BelegID, NetToClearing: in.NettoAufVerrechnungskonto,
 		ClosingPeriod: in.Abschlussperiode}
 	var err error
 	if req.BookingDate, err = in.Buchungsdatum.check("buchungsdatum"); err != nil {

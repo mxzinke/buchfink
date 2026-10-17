@@ -260,7 +260,7 @@ func (s *CurrencyService) bookCurrencyValuation(ctx context.Context, year int) (
 	if err != nil {
 		return nil, err
 	}
-	valuation.EntryNumber = posted.EntryNumber
+	valuation.EntryNumber, valuation.EntryID = posted.EntryNumber, posted.ID
 	valuation.Note = fmt.Sprintf(
 		"Die Auflösung zum %s wird mit dem Saldenvortrag in das Geschäftsjahr %d gebucht — wie die "+
 			"Auflösung der Rechnungsabgrenzung. ", germanDay(valuation.ReversalDate), year+1) +

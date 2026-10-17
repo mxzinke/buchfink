@@ -11,13 +11,13 @@ import (
 )
 
 type kontakteIn struct {
-	ID             uint   `json:"id,omitempty" jsonschema:"genau ein Kontakt"`
-	Text           string `json:"text,omitempty" jsonschema:"Teil von Name, Firma, Ort oder Personenkonto"`
-	Typ            string `json:"typ,omitempty" jsonschema:"kunde oder lieferant"`
-	UstID          string `json:"ust_id,omitempty"`
-	IBAN           string `json:"iban,omitempty" jsonschema:"sucht nach IBAN; die Ausgabe nennt sie dann"`
-	MitIBAN        bool   `json:"mit_iban,omitempty" jsonschema:"IBAN und BIC ausgeben, etwa zum Abgleich mit einem Bankumsatz"`
-	Geschaeftsjahr int    `json:"geschaeftsjahr,omitempty" jsonschema:"Jahr des offenen Saldos; Vorgabe das aktuelle"`
+	ID             uint       `json:"id,omitempty" jsonschema:"genau ein Kontakt"`
+	Text           string     `json:"text,omitempty" jsonschema:"Teil von Name, Firma, Ort oder Personenkonto"`
+	Typ            KontaktTyp `json:"typ,omitempty"`
+	UstID          string     `json:"ust_id,omitempty"`
+	IBAN           string     `json:"iban,omitempty" jsonschema:"sucht nach IBAN; die Ausgabe nennt sie dann"`
+	MitIBAN        bool       `json:"mit_iban,omitempty" jsonschema:"IBAN und BIC ausgeben, etwa zum Abgleich mit einem Bankumsatz"`
+	Geschaeftsjahr int        `json:"geschaeftsjahr,omitempty" jsonschema:"Jahr des offenen Saldos; Vorgabe das aktuelle"`
 	Seite
 }
 
@@ -57,7 +57,7 @@ func typOf(t domain.ContactType) string {
 	return "lieferant"
 }
 
-func contactType(typ string) (domain.ContactType, error) {
+func contactType(typ KontaktTyp) (domain.ContactType, error) {
 	switch typ {
 	case "kunde":
 		return domain.ContactTypeCustomer, nil
@@ -90,7 +90,7 @@ type kontakteOut struct {
 
 type kontaktAnlegenIn struct {
 	WriteArgs
-	Typ                     string         `json:"typ" jsonschema:"kunde oder lieferant"`
+	Typ                     KontaktTyp     `json:"typ"`
 	Name                    string         `json:"name" jsonschema:"Name oder Ansprechpartner"`
 	Firma                   string         `json:"firma,omitempty" jsonschema:"rechtlicher Name, falls abweichend"`
 	Strasse                 string         `json:"strasse,omitempty"`
