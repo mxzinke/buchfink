@@ -93,6 +93,8 @@ var balanceLines = []lineDef{
 	{Key: "aktiva.B.I.2", Ordinal: "2.", Label: "unfertige Erzeugnisse, unfertige Leistungen", Level: 3, Parent: "aktiva.B.I", Section: domain.SectionAssets},
 	{Key: "aktiva.B.I.3", Ordinal: "3.", Label: "fertige Erzeugnisse und Waren", Level: 3, Parent: "aktiva.B.I", Section: domain.SectionAssets},
 	{Key: "aktiva.B.I.4", Ordinal: "4.", Label: "geleistete Anzahlungen", Level: 3, Parent: "aktiva.B.I", Section: domain.SectionAssets},
+	{Key: "aktiva.B.I.anzahlungen", Label: "erhaltene Anzahlungen auf Bestellungen", Level: 3, Parent: "aktiva.B.I", Section: domain.SectionAssets,
+		Note: "Von den Vorräten offen abgesetzt (§ 268 Abs. 5 Satz 2 HGB)."},
 	{Key: "aktiva.B.II", Ordinal: "II.", Label: "Forderungen und sonstige Vermögensgegenstände", Level: 2, Parent: "aktiva.B", Section: domain.SectionAssets},
 	{Key: "aktiva.B.II.einlagen", Label: "eingeforderte, noch nicht eingezahlte Einlagen auf das gezeichnete Kapital", Level: 3, Parent: "aktiva.B.II", Section: domain.SectionAssets,
 		Note: "Unter den Forderungen gesondert auszuweisen (§ 272 Abs. 1 Satz 2 HGB)."},

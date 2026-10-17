@@ -14,6 +14,20 @@ import (
 func standingClosingEntries(
 	ctx context.Context, repo domain.JournalRepository, year int, reference string,
 ) ([]domain.JournalEntry, error) {
+	return standingEntries(ctx, repo, year, domain.EntrySourceClosing, reference)
+}
+
+// standingOpeningEntries sind die nicht stornierten Auflösungen eines
+// Abschlussbausteins am Beginn des Jahres.
+func standingOpeningEntries(
+	ctx context.Context, repo domain.JournalRepository, year int, reference string,
+) ([]domain.JournalEntry, error) {
+	return standingEntries(ctx, repo, year, domain.EntrySourceOpening, reference)
+}
+
+func standingEntries(
+	ctx context.Context, repo domain.JournalRepository, year int, source domain.EntrySource, reference string,
+) ([]domain.JournalEntry, error) {
 	entries, err := repo.FindAll(ctx, year)
 	if err != nil {
 		return nil, fmt.Errorf("die Buchungen des Geschäftsjahres %d konnten nicht gelesen werden: %w", year, err)
@@ -22,8 +36,7 @@ func standingClosingEntries(
 	out := make([]domain.JournalEntry, 0, 1)
 	for i := range entries {
 		e := &entries[i]
-		if e.Source != domain.EntrySourceClosing || e.DocumentNumber != reference ||
-			e.Kind == domain.EntryKindReversal {
+		if e.Source != source || e.DocumentNumber != reference || e.Kind == domain.EntryKindReversal {
 			continue
 		}
 		voided, err := index.reversed(ctx, &e.ID)

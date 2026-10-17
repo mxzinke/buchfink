@@ -293,6 +293,16 @@ func (s *ClosingStepsService) derive(
 		}
 		return domain.ClosingStepOpen, ""
 
+	case domain.ClosingStepWorkInProgress:
+		standing, reversed := s.hasClosingReference(ctx, year, WorkInProgressReference(year))
+		if standing {
+			return domain.ClosingStepDone, "unfertige Leistungen aktiviert"
+		}
+		if reversed {
+			return domain.ClosingStepOpen, "die Buchung der unfertigen Leistungen wurde storniert"
+		}
+		return domain.ClosingStepOpen, ""
+
 	case domain.ClosingStepInputTaxCorrection:
 		standing, reversed := s.hasClosingReference(ctx, year, inputTaxCorrectionDocument(year))
 		if standing {

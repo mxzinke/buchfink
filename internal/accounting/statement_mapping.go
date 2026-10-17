@@ -54,7 +54,7 @@ var positionTargets = map[string]positionTarget{
 	"bilanz.aktiva_b_i.in_arbeit_befindliche_auftraege":                                         {Key: "aktiva.B.I.2"},
 	"bilanz.aktiva_b_i.fertige_erzeugnisse_und_waren":                                           {Key: "aktiva.B.I.3"},
 	"bilanz.aktiva_b_i.geleistete_anzahlungen":                                                  {Key: "aktiva.B.I.4"},
-	"bilanz.aktiva_b_i.erhaltene_anzahlungen_auf_bestellungen_v":                                {Key: "passiva.C.3", Note: "Erhaltene Anzahlungen auf Bestellungen; § 268 Abs. 5 Satz 2 HGB lässt den offenen Absatz von den Vorräten zu, Buchfink weist sie unter den Verbindlichkeiten aus."},
+	"bilanz.aktiva_b_i.erhaltene_anzahlungen_auf_bestellungen_v":                                {Key: "aktiva.B.I.anzahlungen", Deduction: true, Note: "Erhaltene Anzahlungen, die der Abschlussbaustein „Unfertige Leistungen“ von den Vorräten offen absetzt (§ 268 Abs. 5 Satz 2 HGB); die übrigen stehen unter den Verbindlichkeiten."},
 	"bilanz.aktiva_b_ii.forderungen_aus_lieferungen_und_leistung":                               {Key: "aktiva.B.II.1", AltKey: "passiva.C.8"},
 	"bilanz.aktiva_b_ii.forderungen_und_sonstige_vermoegensgegen":                               {Key: "aktiva.B.II.4", AltKey: "passiva.C.8"},
 	"bilanz.aktiva_b_ii.andere_forderungen_gegen_gesellschafter":                                {Key: "aktiva.B.II.4", AltKey: "passiva.C.8"},

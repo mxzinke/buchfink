@@ -147,6 +147,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 		provisionRepo, journalRepo, s.Journal, settingsRepo, auditRepo, s.Closing,
 	)
 	s.ClosingBookings.SetReceiptService(s.Receipts)
+	s.Closing.AddOpeningReverser(s.ClosingBookings.WorkInProgressReverser())
 
 	s.Appropriation = service.NewAppropriationService(
 		appropriationRepo, notesRepo, journalRepo, s.Journal,

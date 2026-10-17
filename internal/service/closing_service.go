@@ -44,6 +44,9 @@ type ClosingService struct {
 	// currency ist die Fremdwährungsbewertung. Ihre Auflösung gehört wie die der
 	// Abgrenzung in das Folgejahr und wird vom Saldenvortrag gebucht.
 	currency CurrencyReverser
+	// openingReversers lösen weitere Abschlussbuchungen des Vorjahres am
+	// ersten Tag auf, etwa die unfertigen Leistungen.
+	openingReversers []OpeningReverser
 	// revenue ist die GuV des Vorjahres. Sie belegt den Vorjahresumsatz vor,
 	// nach dem sich die Übergangsfrist des § 27 Abs. 38 UStG richtet.
 	revenue RevenueSource
@@ -114,6 +117,18 @@ type CurrencyReverser interface {
 
 // SetCurrencyReverser koppelt die Fremdwährungsbewertung an den Saldenvortrag.
 func (s *ClosingService) SetCurrencyReverser(c CurrencyReverser) { s.currency = c }
+
+// OpeningReverser löst eine Abschlussbuchung des Vorjahres am ersten Tag des
+// Zieljahres auf. Wie die Fremdwährungsbewertung fragt er das Journal; ein
+// erneuter Vortrag holt nach, was fehlt.
+type OpeningReverser interface {
+	ReverseInto(ctx context.Context, toYear int) ([]domain.JournalEntry, error)
+}
+
+// AddOpeningReverser koppelt eine weitere Auflösung an den Saldenvortrag.
+func (s *ClosingService) AddOpeningReverser(r OpeningReverser) {
+	s.openingReversers = append(s.openingReversers, r)
+}
 
 // NotesCopier übernimmt die Anhangtexte des Vorjahres in ein neu angelegtes
 // Geschäftsjahr.
@@ -1392,6 +1407,14 @@ func (s *ClosingService) carryForward(ctx context.Context, toYear int) ([]domain
 		if err != nil {
 			return nil, fmt.Errorf("die Auflösung der Fremdwährungsbewertung ist gescheitert, deshalb "+
 				"wurde auch nicht vorgetragen: %w", err)
+		}
+		created = append(created, reversals...)
+	}
+	for _, reverser := range s.openingReversers {
+		reversals, err := reverser.ReverseInto(ctx, toYear)
+		if err != nil {
+			return nil, fmt.Errorf("eine Auflösung zum Jahresbeginn ist gescheitert, deshalb wurde auch "+
+				"nicht vorgetragen: %w", err)
 		}
 		created = append(created, reversals...)
 	}
