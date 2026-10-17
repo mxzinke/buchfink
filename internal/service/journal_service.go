@@ -179,6 +179,9 @@ func (s *JournalService) check(ctx context.Context, entry *domain.JournalEntry) 
 	if err := s.ensureLawfulTaxDisclosure(entry); err != nil {
 		return err
 	}
+	if err := validateTaxLines(entry); err != nil {
+		return err
+	}
 	// Steuerfall, Steuerschlüssel und Bemessungsgrundlage sind an einer
 	// Handbuchung Pflicht, gleich über welchen Weg sie hereinkommt.
 	if entry.Source == domain.EntrySourceManual {
@@ -750,6 +753,20 @@ func (s *JournalService) validateAccounts(ctx context.Context, e *domain.Journal
 		}
 	}
 
+	return nil
+}
+
+// validateTaxLines hält jeden Steuerschlüssel gegen den Katalog. Die
+// Generalumkehr übernimmt die Zeilen der stornierten Buchung und läuft durch.
+func validateTaxLines(e *domain.JournalEntry) error {
+	if e.Kind == domain.EntryKindReversal {
+		return nil
+	}
+	for i, l := range e.Lines {
+		if err := accounting.CheckTaxLine(l); err != nil {
+			return fmt.Errorf("Zeile %d: %w", i+1, err)
+		}
+	}
 	return nil
 }
 
