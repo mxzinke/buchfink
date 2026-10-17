@@ -79,12 +79,15 @@ func LimitsFrom(s *domain.AgentSettings) Limits {
 // ReceiptFacts ist, was über eine beabsichtigte Belegbuchung bekannt ist.
 type ReceiptFacts struct {
 	// Der Beleg.
-	Open       bool
-	Incoming   bool
-	Invoice    bool
-	Structured bool
-	Checked    bool
-	Findings   int
+	Open bool
+	// Displayable: der Beleg hat eine ansehbare Datei; einer reinen
+	// XRechnung fehlt sie, bis ein PDF dazukommt.
+	Displayable bool
+	Incoming    bool
+	Invoice     bool
+	Structured  bool
+	Checked     bool
+	Findings    int
 	// Der Vorschlag aus dem strukturierten Teil; ProposalError ist gesetzt,
 	// wenn sich keiner bilden ließ.
 	ProposalError     string
@@ -140,6 +143,9 @@ func ClassifyReceipt(f ReceiptFacts, l Limits) Verdict {
 
 	if !f.Open {
 		add("beleg_nicht_offen", "Der Beleg ist nicht offen (gebucht oder verworfen).")
+	} else if !f.Displayable {
+		add("keine_darstellung", "Der Beleg hat keine ansehbare Darstellung; eine reine XRechnung braucht ein PDF "+
+			"(dieselbe XML mit beleg_ablegen und dem PDF als rolle=darstellung).")
 	}
 	if !f.Incoming || !f.Invoice {
 		add("keine_eingangsrechnung", "Der Beleg ist keine Eingangsrechnung.")

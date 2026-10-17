@@ -161,6 +161,7 @@ Sonst nennt `gruende` jeden verletzten Schlüssel. Die Vorschau
 | Schlüssel | Regel |
 |---|---|
 | `beleg_nicht_offen`, `keine_eingangsrechnung` | abgelegte Eingangsrechnung |
+| `keine_darstellung` | der Beleg hat eine ansehbare Datei; eine reine XRechnung bekommt sie mit `beleg_ablegen` und `rolle: darstellung` |
 | `keine_e_rechnung`, `e_rechnung_ungeprueft`, `e_rechnung_mit_befund`, `kein_vorschlag` | E-Rechnung mit strukturiertem Teil, geprüft, ohne Befund; Fotos und PDF ohne Datensatz nie |
 | `kontakt_nicht_erkannt`, `kontakt_gesperrt` | der Aussteller ist über USt-IdNr. oder Steuernummer dieser Kontakt, nicht nur dem Namen nach; nicht gesperrt |
 | `stammdaten_weichen_ab` | USt-IdNr., Steuernummer und Anschrift der E-Rechnung widersprechen den Stammdaten nicht |

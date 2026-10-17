@@ -79,7 +79,7 @@ func receiptFacts(ctx context.Context, s *core.Services, req service.ReceiptRequ
 	if err != nil {
 		return f, err
 	}
-	f.Open = receipt.IsOpen()
+	f.Open, f.Displayable = receipt.IsOpen(), receipt.IsDisplayable()
 	f.Incoming = receipt.Direction == domain.DirectionIncoming
 	f.Invoice = receipt.Kind == "" || receipt.Kind == domain.ReceiptKindInvoice
 	_, f.Structured = receipt.FileByRole(domain.ReceiptRoleStructured)

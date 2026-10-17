@@ -238,7 +238,7 @@ func TestBridgeLogsInOnceAndForwards(t *testing.T) {
 
 	tools, err := cs.ListTools(context.Background(), nil)
 	if err != nil || len(tools.Tools) == 0 || tools.Tools[0].Annotations == nil || !tools.Tools[0].Annotations.ReadOnlyHint ||
-		tools.Tools[0].OutputSchema == nil {
+		tools.Tools[0].InputSchema == nil || tools.Tools[0].Title == "" {
 		t.Errorf("Werkzeuge kommen nicht unverändert durch: %+v %v", tools, err)
 	}
 

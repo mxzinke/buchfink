@@ -14,7 +14,7 @@ import (
 func routine() ReceiptFacts {
 	net := map[domain.TaxRate]domain.Cents{domain.TaxRateStandard: 10000}
 	return ReceiptFacts{
-		Open: true, Incoming: true, Invoice: true, Structured: true, Checked: true,
+		Open: true, Displayable: true, Incoming: true, Invoice: true, Structured: true, Checked: true,
 		ProposalContactID: 7, ProposalMatchedBy: "ust_id", ProposalTreatment: domain.TaxTreatmentDomestic, ProposalCurrency: "EUR",
 		ProposalNet: net, ProposalGross: 11900,
 		ContactID: 7, ConfirmedGroup: "software", BookingsWithGroup: 3,
@@ -39,6 +39,7 @@ func TestReceiptRules(t *testing.T) {
 		reason string
 	}{
 		{"gebucht", func(f *ReceiptFacts) { f.Open = false }, "beleg_nicht_offen"},
+		{"ohne Darstellung", func(f *ReceiptFacts) { f.Displayable = false }, "keine_darstellung"},
 		{"Foto", func(f *ReceiptFacts) { f.Structured = false }, "keine_e_rechnung"},
 		{"ungeprüft", func(f *ReceiptFacts) { f.Checked = false }, "e_rechnung_ungeprueft"},
 		{"Befund", func(f *ReceiptFacts) { f.Findings = 1 }, "e_rechnung_mit_befund"},

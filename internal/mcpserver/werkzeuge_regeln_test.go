@@ -176,3 +176,29 @@ func TestReceiptFolderSkipsOtherTenants(t *testing.T) {
 	a.fail("beleg_ablegen", a.args(map[string]any{"eingang_am": "2026-05-04", "dateien": []any{map[string]any{"pfad": secret}}}),
 		CodePathNotAllowed)
 }
+
+// Eine reine XRechnung bekommt ihre Darstellung, wenn dieselbe XML mit dem
+// PDF noch einmal abgelegt wird; vorher nennt das Buchen den Weg.
+func TestPureXRechnungGetsItsRendering(t *testing.T) {
+	h := newHarness(t)
+	h.completeCompany()
+	vendorID := h.vendor()
+	a := h.agent("")
+	xml := h.eInvoice("RE-XR-1", "2026-05-04", 10000)
+	var filed ablageOut
+	a.ok("beleg_ablegen", a.args(map[string]any{"eingang_am": "2026-05-05", "dateien": []any{map[string]any{"pfad": xml}}}), &filed)
+	if !filed.ERechnung {
+		t.Fatalf("XRechnung: %+v", filed)
+	}
+	e := a.fail("beleg_buchen_mit_rueckfrage", a.args(bookArgs(filed.Beleg.ID, vendorID, "2026-05-04", "100.00")), CodeRule)
+	if e.Werkzeug != "beleg_ablegen" {
+		t.Errorf("ohne Darstellung: %+v", e)
+	}
+	var again ablageOut
+	a.ok("beleg_ablegen", a.args(map[string]any{"eingang_am": "2026-05-05", "dateien": []any{map[string]any{"pfad": xml},
+		map[string]any{"pfad": h.inboxFile("RE-XR-1.pdf", pdf("Darstellung")), "rolle": "darstellung"}}}), &again)
+	if !again.BereitsVorhanden || again.Beleg.ID != filed.Beleg.ID || !again.Befunde.Geprueft {
+		t.Fatalf("Darstellung nachgereicht: %+v", again)
+	}
+	a.ok("beleg_buchen_mit_rueckfrage", a.args(bookArgs(filed.Beleg.ID, vendorID, "2026-05-04", "100.00")), nil)
+}
