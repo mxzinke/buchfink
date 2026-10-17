@@ -1,0 +1,326 @@
+package core
+
+import (
+	"context"
+
+	"github.com/buchfink/buchfink/internal/currency"
+	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/invoice"
+	"github.com/buchfink/buchfink/internal/receiptstore"
+	"github.com/buchfink/buchfink/internal/repository"
+	"github.com/buchfink/buchfink/internal/service"
+	"gorm.io/gorm"
+)
+
+// wire verdrahtet Repositories und Dienste eines Mandanten. Die Reihenfolge
+// zählt: ein Dienst, der einen anderen gesetzt bekommt, muss nach ihm
+// entstehen.
+func wire(db *gorm.DB, info TenantInfo, year int, renderer *invoice.Renderer, o Options) *Services {
+	accountRepo := repository.NewAccountRepository(db)
+	journalRepo := repository.NewJournalRepository(db)
+	numberRepo := repository.NewNumberRangeRepository(db)
+	bankRepo := repository.NewBankRepository(db)
+	contactRepo := repository.NewContactRepository(db)
+	invoiceRepo := repository.NewInvoiceRepository(db)
+	auditRepo := repository.NewAuditRepository(db)
+	settingsRepo := repository.NewSettingsRepository(db)
+	festschreibungRepo := repository.NewFestschreibungRepository(db)
+	allocationRepo := repository.NewPaymentAllocationRepository(db)
+	receiptRepo := repository.NewReceiptRepository(db)
+	assetRepo := repository.NewAssetRepository(db)
+	foundationRepo := repository.NewFoundationRepository(db)
+	fiscalYearRepo := repository.NewFiscalYearRepository(db)
+	vatReturnRepo := repository.NewVatReturnRepository(db)
+	zmReturnRepo := repository.NewZMReturnRepository(db)
+	checkRunRepo := repository.NewCheckRunRepository(db)
+	deadlineRepo := repository.NewDeadlineRepository(db)
+	backupRunRepo := repository.NewBackupRunRepository(db)
+	closingStepRepo := repository.NewClosingStepRepository(db)
+	accrualRepo := repository.NewAccrualRepository(db)
+	provisionRepo := repository.NewProvisionRepository(db)
+	discountRateRepo := repository.NewDiscountRateRepository(db)
+	notesRepo := repository.NewNotesTextRepository(db)
+	appropriationRepo := repository.NewAppropriationRepository(db)
+	numberGapRepo := repository.NewNumberGapRepository(db)
+	invoiceGroupRepo := repository.NewInvoiceGroupRepository(db)
+	vendorAdvanceRepo := repository.NewVendorAdvanceRepository(db)
+	inputTaxRepo := repository.NewInputTaxCorrectionRepository(db)
+	vatIDCheckRepo := repository.NewVatIDCheckRepository(db)
+	exchangeRateRepo := repository.NewExchangeRateRepository(db)
+	migrationRepo := repository.NewMigrationRepository(db)
+	procDocRepo := repository.NewProcedureDocumentationRepository(db)
+	bankRuleRepo := repository.NewBankRuleRepository(db)
+	idempotencyRepo := repository.NewIdempotencyRepository(db)
+	txRunner := repository.NewTxRunner(db)
+	store := receiptstore.New(info.DataDir)
+
+	s := &Services{
+		Tenant: info,
+		Repos: Repos{
+			Journal: journalRepo, Accounts: accountRepo, Contacts: contactRepo,
+			Invoices: invoiceRepo, Receipts: receiptRepo, Audit: auditRepo,
+			Settings: settingsRepo, Festschreibung: festschreibungRepo,
+			FiscalYears: fiscalYearRepo, Migrations: migrationRepo,
+			BackupRuns: backupRunRepo, ExchangeRates: exchangeRateRepo,
+		},
+		fiscalYear: year,
+	}
+
+	// Der Journaldienst ist der einzige Schreibweg ins Journal und hält die
+	// Transaktion aller Vorgänge, die über ihn buchen.
+	s.Journal = service.NewJournalService(journalRepo, accountRepo, contactRepo, auditRepo, settingsRepo, txRunner, year)
+	s.Journal.SetFestschreibungRepo(festschreibungRepo)
+	s.Journal.SetFiscalYearRepo(fiscalYearRepo)
+	s.Journal.SetReceiptRepo(receiptRepo)
+	s.Idempotency = service.NewIdempotencyService(idempotencyRepo, txRunner)
+
+	s.Posting = service.NewPostingService(s.Journal, contactRepo)
+	s.Receipts = service.NewReceiptService(receiptRepo, store, auditRepo, year)
+	s.Posting.SetReceiptService(s.Receipts)
+	s.Receipts.SetSettingsSource(settingsRepo)
+	s.Receipts.SetNumberRepo(numberRepo)
+	s.Receipts.SetContactSource(contactRepo)
+	s.EInvoice = service.NewEInvoiceService(s.Receipts, contactRepo, invoice.NewReader(), year)
+	s.Accounting = service.NewAccountingService(accountRepo, journalRepo, contactRepo, settingsRepo, s.Journal, year)
+	s.Accounting.SetAuditRepo(auditRepo)
+	s.Accounts = service.NewAccountService(accountRepo, auditRepo)
+	s.Accounts.SetChartInvalidator(s.Journal)
+	s.Bank = service.NewBankService(bankRepo, s.Journal, auditRepo)
+	s.Bank.SetReceiptService(s.Receipts)
+	s.Bank.SetAccountRegistry(repository.NewBankAccountRepository(db), settingsRepo, txRunner)
+	s.Payments = service.NewPaymentService(s.Journal, journalRepo, allocationRepo, contactRepo, bankRepo, year)
+	s.Payments.SetAuditRepo(auditRepo)
+	s.Posting.SetVendorAdvances(vendorAdvanceRepo)
+	s.Posting.SetSettingsSource(settingsRepo)
+	s.Vat = service.NewVatService(journalRepo, year)
+	s.Invoices = service.NewInvoiceService(invoiceRepo, contactRepo, settingsRepo, numberRepo, s.Posting, auditRepo)
+	s.Invoices.SetDocumentPipeline(s.Receipts, renderer)
+	s.Receipts.SetRenderer(renderer)
+	s.Invoices.SetRegistry(service.InvoiceRegistry{
+		Gaps:        numberGapRepo,
+		Groups:      invoiceGroupRepo,
+		FiscalYears: fiscalYearRepo,
+		Bank:        bankRepo,
+	})
+	s.Contacts = service.NewContactService(contactRepo, journalRepo, numberRepo, auditRepo, year)
+	s.Assets = service.NewAssetService(
+		assetRepo, journalRepo, s.Journal, numberRepo,
+		contactRepo, settingsRepo, auditRepo, year,
+	)
+	s.Payments.SetAssetRegister(s.Assets)
+	s.Assets.SetFiscalYearRepo(fiscalYearRepo)
+	s.Audit = service.NewAuditService(auditRepo)
+	s.Settings = service.NewSettingsService(settingsRepo, auditRepo)
+	s.ProcDoc = service.NewProcDocService(
+		settingsRepo, numberRepo, procDocRepo, migrationRepo, auditRepo, store, year)
+	s.ProcDoc.SetRenderer(renderer)
+	s.ProcDoc.SetEnvironment(ProcDocEnvironment(info.DataDir, o.backupDir()))
+
+	rates := o.Rates
+	if rates == nil {
+		rates = currency.New(currency.DefaultEndpoint)
+	}
+	s.Currency = service.NewCurrencyService(exchangeRateRepo, rates, auditRepo)
+	s.Currency.SetJournalRepo(journalRepo)
+	s.Currency.SetJournalService(s.Journal)
+
+	s.Foundation = service.NewFoundationService(
+		foundationRepo, accountRepo, journalRepo, settingsRepo, s.Journal, auditRepo,
+	)
+	s.Settings.SetFoundationRegistrar(s.Foundation)
+
+	s.Closing = service.NewClosingService(
+		fiscalYearRepo, journalRepo, accountRepo, contactRepo, allocationRepo,
+		settingsRepo, festschreibungRepo, auditRepo, s.Journal, year,
+	)
+	s.Closing.SetFoundationRepo(foundationRepo)
+	s.Foundation.SetFoundingYearAligner(s.Closing)
+	s.ClosingSettings = service.NewClosingSettingsService(settingsRepo, auditRepo)
+
+	s.Accruals = service.NewAccrualService(
+		accrualRepo, journalRepo, s.Journal, settingsRepo, auditRepo, s.Closing, year,
+	)
+	s.Accruals.SetReceiptService(s.Receipts)
+	s.Closing.SetAccrualCarrier(s.Accruals)
+
+	s.Provisions = service.NewProvisionService(
+		provisionRepo, discountRateRepo, journalRepo, s.Journal,
+		settingsRepo, auditRepo, s.Closing, year,
+	)
+	s.Provisions.SetReceiptService(s.Receipts)
+	s.Posting.SetProvisionConsumer(s.Provisions)
+
+	s.ClosingBookings = service.NewClosingBookingService(
+		provisionRepo, journalRepo, s.Journal, settingsRepo, auditRepo, s.Closing, year,
+	)
+	s.ClosingBookings.SetReceiptService(s.Receipts)
+
+	s.Appropriation = service.NewAppropriationService(
+		appropriationRepo, notesRepo, journalRepo, s.Journal,
+		settingsRepo, auditRepo, s.Closing, year,
+	)
+	s.Appropriation.SetReceiptService(s.Receipts)
+	s.Closing.SetReservePosting(s.Receipts)
+	s.Closing.SetNotesCopier(s.Appropriation)
+
+	s.InputTax = service.NewInputTaxService(
+		inputTaxRepo, s.Journal, journalRepo, settingsRepo, s.Closing, auditRepo, year)
+	s.VatIDs = service.NewVatIDService(vatIDCheckRepo, contactRepo, settingsRepo, auditRepo)
+	s.Invoices.SetVatIDConfirmer(s.VatIDs)
+	s.Contacts.SetVatIDStatusSource(s.VatIDs)
+
+	s.Gifts = service.NewGiftService(journalRepo, s.Journal, settingsRepo, auditRepo, year)
+	s.Posting.SetGiftRegister(s.Gifts)
+	// Der Beginn des Geschäftsjahres wird je Aufruf gelesen: ändert der
+	// Anwender ihn, rechnete die Freigrenze für Geschenke sonst bis zum
+	// Neuöffnen mit dem alten Wirtschaftsjahr.
+	s.Posting.SetFiscalYearStartReader(func() int { return startMonthOf(settingsRepo) })
+	s.Posting.SetCurrencyConverter(s.Currency)
+	s.Assets.SetInputTaxRegister(s.InputTax)
+
+	s.Currency.SetOpenItemSource(s.Payments)
+	s.Currency.SetClosingService(s.Closing)
+	s.Closing.SetCurrencyReverser(s.Currency)
+
+	s.TaxRegister = service.NewTaxRegisterService(
+		assetRepo, provisionRepo, journalRepo, settingsRepo, s.Closing, year)
+
+	s.ClosingSteps = service.NewClosingStepsService(
+		closingStepRepo, accrualRepo, provisionRepo,
+		appropriationRepo, checkRunRepo, journalRepo, auditRepo, s.Closing, year,
+	)
+	s.ClosingSteps.SetDepreciationSource(s.Assets)
+	s.ClosingSteps.SetWriteUpSource(s.Assets)
+	s.ClosingSteps.SetInputTaxSource(s.InputTax)
+
+	s.Statement = service.NewStatementService(s.Accounting, s.Closing, settingsRepo, auditRepo, year)
+	s.Statement.SetOpenItemSource(s.Payments)
+	s.Closing.SetRevenueSource(s.Statement)
+	s.Statement.SetRenderer(renderer)
+	s.Foundation.SetStatementSource(s.Statement)
+	s.Foundation.SetRenderer(renderer)
+	s.Closing.SetStatementSource(s.Statement)
+	s.Statement.SetNotesSources(service.NotesSources{
+		Provisions:     s.Provisions,
+		Reconciliation: s.TaxRegister,
+		Texts:          s.Appropriation,
+	})
+
+	s.EBilanz = service.NewEBilanzService(s.Statement, settingsRepo, auditRepo, year)
+	s.EBilanz.SetAnlagenspiegelSource(s.Assets)
+
+	s.VatReturns = service.NewVatReturnService(
+		journalRepo, receiptRepo, contactRepo, settingsRepo,
+		festschreibungRepo, vatReturnRepo, auditRepo, year,
+	)
+	s.ZM = service.NewZMService(
+		journalRepo, contactRepo, settingsRepo, festschreibungRepo,
+		zmReturnRepo, vatReturnRepo, auditRepo, year,
+	)
+
+	s.Checks = service.NewCheckService(
+		journalRepo, receiptRepo, bankRepo, invoiceRepo, numberRepo,
+		settingsRepo, festschreibungRepo, vatReturnRepo, checkRunRepo,
+		auditRepo, year,
+	)
+	s.Checks.SetFiscalYearSource(fiscalYearRepo)
+	s.Checks.SetAccountSource(s.Accounting)
+	s.Checks.SetOpenItemSource(s.Payments)
+	s.Checks.SetDepreciationSource(s.Assets)
+	s.Checks.SetProvisionSource(s.Provisions)
+	s.Checks.SetClosingStepSource(s.ClosingSteps)
+	s.Checks.SetSizeClassSource(s.Statement)
+	s.Checks.SetVatIDStatusSource(s.VatIDs)
+
+	s.Deadlines = service.NewDeadlineService(
+		s.VatReturns, s.ZM, settingsRepo, festschreibungRepo,
+		deadlineRepo, auditRepo, year,
+	)
+	s.Deadlines.SetFiscalYearSource(fiscalYearRepo)
+	s.Deadlines.SetStatementSource(s.Statement)
+	s.Deadlines.SetExemptionSource(s.Contacts)
+
+	s.Export = service.NewExportService(
+		journalRepo, accountRepo, contactRepo, receiptRepo, assetRepo,
+		allocationRepo, auditRepo, settingsRepo, festschreibungRepo,
+		vatReturnRepo, checkRunRepo, fiscalYearRepo,
+		store, info.DataDir, year,
+	)
+	s.Export.SetTenantName(info.Name)
+	s.Export.SetOpenItemSource(s.Payments)
+	s.Export.SetIntegritySource(integrityChecks{journal: s.Journal, receipts: s.Receipts})
+	s.Export.SetTaxRegisterSource(s.TaxRegister)
+	s.Export.SetProcDocRepo(procDocRepo)
+
+	s.Backup = service.NewBackupService(backupRunRepo, auditRepo, db, info.DataDir, info.ID, info.Name)
+
+	s.Bank.SetOpenItemSource(s.Payments)
+	s.Bank.SetRuleRepo(bankRuleRepo)
+
+	s.AuditTrail = service.NewAuditTrailService(receiptRepo, journalRepo, allocationRepo, bankRepo, auditRepo)
+	s.AuditTrail.SetRenderer(renderer)
+
+	s.MonthClose = service.NewMonthCloseService(s.Checks, s.VatReturns, festschreibungRepo, year)
+	s.MonthClose.SetFiscalYearSource(fiscalYearRepo)
+
+	s.Tasks = service.NewTaskService(settingsRepo, year)
+	s.Tasks.SetCheckSource(s.Checks)
+	s.Tasks.SetDeadlineSource(s.Deadlines)
+	s.Tasks.SetStatementSource(s.Statement)
+	s.Tasks.SetBankSource(s.Bank)
+	s.Tasks.SetReceiptSource(s.Receipts)
+	s.Tasks.SetOpenItemSource(s.Payments)
+	s.Tasks.SetExemptionSource(s.Contacts)
+	s.Tasks.SetBackupSource(s.Backup)
+	s.Tasks.SetCarryForwardSource(s.Closing)
+	s.Tasks.SetAppropriationSource(s.Appropriation)
+
+	return s
+}
+
+// startMonthOf liest den Beginn des Geschäftsjahres aus den Unternehmensdaten.
+func startMonthOf(repo domain.SettingsRepository) int {
+	settings, err := repo.GetCompanySettings(context.Background())
+	if err != nil || settings == nil {
+		return 1
+	}
+	if settings.FiscalYearStartMonth < 1 || settings.FiscalYearStartMonth > 12 {
+		return 1
+	}
+	return settings.FiscalYearStartMonth
+}
+
+// integrityChecks bündelt die beiden Prüfläufe für den Export, der weder den
+// Journaldienst noch die Belegablage kennen soll.
+type integrityChecks struct {
+	journal  *service.JournalService
+	receipts *service.ReceiptService
+}
+
+func (c integrityChecks) VerifyIntegrity(ctx context.Context) (domain.IntegrityCheckResult, error) {
+	return c.journal.VerifyIntegrity(ctx)
+}
+
+func (c integrityChecks) VerifyReceiptFiles(ctx context.Context) (*domain.FileCheckResult, error) {
+	return c.receipts.VerifyReceiptFiles(ctx)
+}
+
+// ProcDocEnvironment beschreibt Ablage und Sicherung für die
+// Verfahrensdokumentation.
+func ProcDocEnvironment(dataDir, backupDir string) service.ProcDocEnvironment {
+	return service.ProcDocEnvironment{
+		DataDir:      dataDir,
+		BackupDir:    backupDir,
+		BackupRhythm: backupRhythmLabel(backupDir),
+	}
+}
+
+// backupRhythmLabel beschreibt den Sicherungsrhythmus als Satz: die
+// Verfahrensdokumentation muss ihn beschreiben und kann auf keine
+// Einstellung verweisen.
+func backupRhythmLabel(backupDir string) string {
+	if backupDir == "" {
+		return "nicht eingerichtet — es wird nicht gesichert"
+	}
+	return "täglich, ausgelöst beim Beenden und beim Start des Programms, wenn die letzte erfolgreiche Sicherung länger als einen Tag zurückliegt"
+}

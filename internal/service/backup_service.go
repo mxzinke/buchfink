@@ -79,6 +79,16 @@ type BackupService struct {
 	dataDir    string
 	tenantID   string
 	tenantName string
+
+	// recorder klammert den Vermerk eines Laufs. Der Kern setzt hier seinen
+	// Schreibvorgang ein: der Lauf selbst dauert lange und läuft ohne
+	// Schreibsperre, nur der Vermerk braucht sie.
+	recorder func(ctx context.Context, fn func(ctx context.Context) error) error
+}
+
+// SetRecorder setzt die Klammer, in der Läufe vermerkt werden.
+func (s *BackupService) SetRecorder(recorder func(ctx context.Context, fn func(ctx context.Context) error) error) {
+	s.recorder = recorder
 }
 
 // NewBackupService verdrahtet die Sicherung.
@@ -723,6 +733,13 @@ func (s *BackupService) RecordRun(ctx context.Context, run *domain.BackupRun) er
 
 // record hält den Lauf in der Datenbank und im Änderungsprotokoll fest.
 func (s *BackupService) record(ctx context.Context, run *domain.BackupRun) error {
+	if s.recorder != nil {
+		return s.recorder(ctx, func(ctx context.Context) error { return s.writeRecord(ctx, run) })
+	}
+	return s.writeRecord(ctx, run)
+}
+
+func (s *BackupService) writeRecord(ctx context.Context, run *domain.BackupRun) error {
 	if s.runRepo != nil {
 		if err := s.runRepo.Create(ctx, run); err != nil {
 			return fmt.Errorf("der Sicherungslauf ließ sich nicht vermerken: %w", err)

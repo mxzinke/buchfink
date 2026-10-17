@@ -32,7 +32,7 @@ tasks:
         ./internal/ebilanz/... ./internal/einvoice/... ./internal/export/... ./internal/invoice/...
         ./internal/receiptstore/... ./internal/repository/...
         ./internal/service/... ./internal/timestamp/... ./internal/vatid/... ./internal/actor/...
-        ./internal/procdoc/... ./internal/changelog/... {{.CLI_ARGS}}
+        ./internal/procdoc/... ./internal/changelog/... ./internal/core/... {{.CLI_ARGS}}
 
   vet:
     summary: Runs go vet over the same packages as the test suite
@@ -41,14 +41,15 @@ tasks:
         ./internal/ebilanz/... ./internal/einvoice/... ./internal/export/... ./internal/invoice/...
         ./internal/receiptstore/... ./internal/repository/...
         ./internal/service/... ./internal/timestamp/... ./internal/vatid/... ./internal/actor/...
-        ./internal/procdoc/... ./internal/changelog/...
+        ./internal/procdoc/... ./internal/changelog/... ./internal/core/...
 
   test:bridge:
     summary: Runs vet and the tests of the Wails bridge (needs the GTK/WebKit headers)
-    # The read-only audit mode lives in the bridge, and a source-level test holds
-    # every bridge method to a classification of "reads" or "writes". A test that
-    # never runs holds nothing — so run this task wherever the app can be built,
-    # which is anywhere `task build` works.
+    # A source-level test holds every bridge method to a classification of
+    # "reads" or "writes" — the read-only audit mode in internal/core only sees
+    # what the bridge routes through Tenant.Write. A test that never runs holds
+    # nothing — so run this task wherever the app can be built, which is
+    # anywhere `task build` works.
     cmds:
       - go vet ./internal/wailsbridge/...
       - go test ./internal/wailsbridge/... {{.CLI_ARGS}}
