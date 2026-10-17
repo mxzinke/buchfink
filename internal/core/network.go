@@ -118,7 +118,7 @@ func (t *Tenant) PrefetchValuationRates(ctx context.Context, year int) error {
 // CheckVatID fragt die USt-IdNr. eines Geschäftspartners beim
 // Bundeszentralamt ab: vorbereitet im Lesen, gefragt ohne Sperre, abgelegt in
 // einem kurzen Schreibvorgang. Auch eine ausgebliebene Antwort steht danach im
-// Protokoll.
+// Protokoll; ihr Fehler kommt erst nach dem Abschluss zurück.
 func (t *Tenant) CheckVatID(ctx context.Context, contactID uint) (*domain.VatIDCheck, error) {
 	if err := examinerError(t.Examiner()); err != nil {
 		return nil, err
@@ -133,12 +133,17 @@ func (t *Tenant) CheckVatID(ctx context.Context, contactID uint) (*domain.VatIDC
 	}
 	result, runErr := query.Run(ctx)
 	var check *domain.VatIDCheck
-	err := t.Write(ctx, func(ctx context.Context, s *Services) error {
+	if err := t.Write(ctx, func(ctx context.Context, s *Services) error {
 		var err error
 		check, err = s.VatIDs.RecordCheck(ctx, query, result, runErr)
 		return err
-	})
-	return check, err
+	}); err != nil {
+		return nil, err
+	}
+	if runErr != nil {
+		return nil, runErr
+	}
+	return check, nil
 }
 
 // PrepareInvoice holt vor dem Ausstellen ohne Schreibsperre, was eine Rechnung

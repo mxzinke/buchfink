@@ -374,19 +374,31 @@ func medianAndMax(values []int) (median, max int) {
 // es gibt Fälle, in denen ein Beleg nie kommt —, aber nur mit Begründung, und
 // die steht am Lauf und im Protokoll. Ein Knopf „trotzdem" ohne Begründung wäre
 // kein internes Kontrollsystem, sondern seine Umgehung.
+//
+// Ein Lauf mit blockierenden Befunden ist gespeichert und protokolliert; der
+// Fehler ist dann ein *CommitBlocked, damit der Aufrufer den Lauf stehen
+// lassen kann, statt ihn mit seinem Vorgang zurückzurollen.
 func (s *CheckService) EnsureCommittable(ctx context.Context, req CheckRequest) (*domain.CheckRun, error) {
 	run, err := s.Run(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 	if run.HasBlocking() && strings.TrimSpace(req.OverrideReason) == "" {
-		return run, fmt.Errorf(
+		return run, &CommitBlocked{Run: run, message: fmt.Sprintf(
 			"der Prüfbericht zum %s hat %d blockierende Befunde: %s. "+
 				"Behebe sie oder schreibe mit einer Begründung fest — die Begründung wird im Protokoll festgehalten",
-			req.CutoffDate, len(run.Blocking()), run.BlockingSummary())
+			req.CutoffDate, len(run.Blocking()), run.BlockingSummary())}
 	}
 	return run, nil
 }
+
+// CommitBlocked sind blockierende Befunde vor einer Festschreibung.
+type CommitBlocked struct {
+	Run     *domain.CheckRun
+	message string
+}
+
+func (e *CommitBlocked) Error() string { return e.message }
 
 // Runs liefert die gespeicherten Läufe eines Jahres, der jüngste zuerst.
 func (s *CheckService) Runs(ctx context.Context, year int) ([]domain.CheckRun, error) {

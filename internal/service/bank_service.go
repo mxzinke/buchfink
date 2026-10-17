@@ -79,26 +79,47 @@ func (s *BankService) ImportCAMT053(ctx context.Context, r io.Reader, ledgerAcco
 // Scheitert das Parsen, liegt die empfangene Datei trotzdem im Archiv — und
 // das verlangt die Belegsicherung. Der Auszug bekommt die Belegart
 // „Kontoauszug" und wird deshalb vom Prüflauf nicht als ungebucht gemeldet.
+// Beide Schritte sind eigene Transaktionen; in einer äußeren gehörten sie zu
+// ihr, deshalb ruft der Kern sie als zwei Vorgänge
+// (core.Tenant.ImportBankStatement).
 func (s *BankService) ImportCAMT053File(ctx context.Context, path, ledgerAccount string) (int, error) {
-	if path == "" {
-		return 0, fmt.Errorf("kein Pfad zur Kontoauszugsdatei angegeben")
-	}
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return 0, fmt.Errorf("Kontoauszug lesen: %w", err)
-	}
-	return s.importCAMTBytes(ctx, data, filepath.Base(path), ledgerAccount)
-}
-
-// importCAMTBytes legt den Auszug als Beleg ab und importiert danach die
-// Umsätze in einer eigenen Transaktion: scheitert das Parsen, bleibt der
-// empfangene Beleg abgelegt.
-func (s *BankService) importCAMTBytes(ctx context.Context, data []byte, filename, ledgerAccount string) (int, error) {
-	statementID, err := s.fileStatement(ctx, data, filename)
+	data, filename, err := ReadStatementFile(path)
 	if err != nil {
 		return 0, err
 	}
+	return s.importCAMTBytes(ctx, data, filename, ledgerAccount)
+}
+
+// ReadStatementFile liest eine Kontoauszugsdatei.
+func ReadStatementFile(path string) ([]byte, string, error) {
+	if path == "" {
+		return nil, "", fmt.Errorf("kein Pfad zur Kontoauszugsdatei angegeben")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, "", fmt.Errorf("Kontoauszug lesen: %w", err)
+	}
+	return data, filepath.Base(path), nil
+}
+
+func (s *BankService) importCAMTBytes(ctx context.Context, data []byte, filename, ledgerAccount string) (int, error) {
+	statementID, err := s.FileStatement(ctx, data, filename)
+	if err != nil {
+		return 0, err
+	}
+	return s.ImportStatement(ctx, data, ledgerAccount, statementID)
+}
+
+// FileStatement legt einen Kontoauszug als Beleg ab, einmal je Datei, und
+// liefert dessen Kennung (nil ohne Belegablage).
+func (s *BankService) FileStatement(ctx context.Context, data []byte, filename string) (*uint, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*uint, error) {
+		return s.fileStatement(ctx, data, filename)
+	})
+}
+
+// ImportStatement importiert die Umsätze eines abgelegten Kontoauszugs.
+func (s *BankService) ImportStatement(ctx context.Context, data []byte, ledgerAccount string, statementID *uint) (int, error) {
 	return atomically(ctx, s.journalSvc, func(ctx context.Context) (int, error) {
 		return s.importCAMT053(ctx, bytes.NewReader(data), ledgerAccount, statementID)
 	})

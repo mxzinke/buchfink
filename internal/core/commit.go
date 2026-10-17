@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -36,7 +37,9 @@ type CommitRequest struct {
 //
 // Vor der Festschreibung läuft der Prüfbericht. Blockierende Befunde
 // verhindern sie, es sei denn, der Anwender übergeht sie mit einer Begründung;
-// die steht dann am Prüflauf und im Protokoll.
+// die steht dann am Prüflauf und im Protokoll. Ein Lauf mit blockierenden
+// Befunden bleibt gespeichert: der Vorgang endet dann ohne Festschreibung,
+// statt zurückzurollen.
 func (t *Tenant) CommitPeriod(ctx context.Context, r CommitRequest) (*domain.Festschreibung, error) {
 	if err := requireApp(ctx); err != nil {
 		return nil, err
@@ -45,12 +48,15 @@ func (t *Tenant) CommitPeriod(ctx context.Context, r CommitRequest) (*domain.Fes
 		return nil, err
 	}
 	var rec *domain.Festschreibung
-	if err := t.Write(ctx, func(ctx context.Context, s *Services) error {
-		var err error
-		rec, err = commit(ctx, s, t.repos, r)
+	var blocked error
+	if err := t.Write(ctx, func(ctx context.Context, s *Services) (err error) {
+		rec, blocked, err = commit(ctx, s, t.repos, r)
 		return err
 	}, AppOnly()); err != nil {
 		return nil, err
+	}
+	if blocked != nil {
+		return nil, blocked
 	}
 
 	res, err := t.network.Timestamp(ctx, timestamp.DefaultTSA, rec.ChainHead)
@@ -80,16 +86,16 @@ func (t *Tenant) CommitPeriod(ctx context.Context, r CommitRequest) (*domain.Fes
 // Die Jahresfestschreibung darf denselben Stichtag tragen wie die des letzten
 // Monats: dazwischen liegt die Abschlussperiode, in der die Abschlussbuchungen
 // zum Bilanzstichtag entstehen. Erst die Jahresfestschreibung schließt sie.
-func commit(ctx context.Context, s *Services, st stores, r CommitRequest) (*domain.Festschreibung, error) {
+func commit(ctx context.Context, s *Services, st stores, r CommitRequest) (*domain.Festschreibung, error, error) {
 	year := s.Journal.FiscalYearOf(ctx, r.CutoffDate)
 	committed, err := s.Repos.Festschreibung.FindByFiscalYear(ctx, year)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	latest := ""
 	for _, rec := range committed {
 		if rec.PeriodType == domain.PeriodTypeYear {
-			return nil, fmt.Errorf("das Geschäftsjahr %d ist bereits festgeschrieben (bis %s)", year, rec.CutoffDate)
+			return nil, nil, fmt.Errorf("das Geschäftsjahr %d ist bereits festgeschrieben (bis %s)", year, rec.CutoffDate)
 		}
 		if rec.CutoffDate > latest {
 			latest = rec.CutoffDate
@@ -98,30 +104,34 @@ func commit(ctx context.Context, s *Services, st stores, r CommitRequest) (*doma
 	if r.PeriodType == domain.PeriodTypeYear {
 		fy, err := s.Closing.PeriodOf(ctx, year)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if r.CutoffDate != fy.EndDate {
-			return nil, fmt.Errorf("die Jahresfestschreibung gilt bis zum Bilanzstichtag %s, nicht bis %s",
+			return nil, nil, fmt.Errorf("die Jahresfestschreibung gilt bis zum Bilanzstichtag %s, nicht bis %s",
 				fy.EndDate, r.CutoffDate)
 		}
 	} else if latest != "" && r.CutoffDate <= latest {
-		return nil, fmt.Errorf("Zeitraum bis %s ist bereits festgeschrieben", latest)
+		return nil, nil, fmt.Errorf("Zeitraum bis %s ist bereits festgeschrieben", latest)
 	}
 	if err := preCommitChecks(ctx, s, year, r); err != nil {
-		return nil, err
+		var blocked *service.CommitBlocked
+		if errors.As(err, &blocked) {
+			return nil, blocked, nil
+		}
+		return nil, nil, err
 	}
 
 	chainHead := domain.GenesisHash
 	last, err := s.Repos.Journal.GetLastEntry(ctx, year)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if last != nil {
 		chainHead = last.EntryHash
 	}
 	count, err := s.Repos.Journal.Count(ctx, year)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Die Systemzeit wird einmal genommen: Festschreibungszeitpunkt an den
@@ -140,17 +150,17 @@ func commit(ctx context.Context, s *Services, st stores, r CommitRequest) (*doma
 		CreatedAt:       now,
 	}
 	if err := st.festschreibung.Create(ctx, rec); err != nil {
-		return nil, fmt.Errorf("Festschreibung speichern: %w", err)
+		return nil, nil, fmt.Errorf("Festschreibung speichern: %w", err)
 	}
 	// Erst jetzt bekommen die Buchungen ihren Festschreibungszeitpunkt: er
 	// verweist auf die Festschreibung, und die hat vorher keine Kennung.
 	stamped, err := st.journal.MarkCommitted(ctx, year, r.CutoffDate, rec.ID, now)
 	if err != nil {
-		return nil, fmt.Errorf("Buchungen festschreiben: %w", err)
+		return nil, nil, fmt.Errorf("Buchungen festschreiben: %w", err)
 	}
 	rec.EntriesStamped = int(stamped)
 	if err := st.festschreibung.Update(ctx, rec); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	details := fmt.Sprintf("Festschreibung %s (bis %s, %d Buchungen, davon %d neu festgeschrieben)",
@@ -158,7 +168,7 @@ func commit(ctx context.Context, s *Services, st stores, r CommitRequest) (*doma
 	if reason := strings.TrimSpace(r.OverrideReason); reason != "" {
 		details += fmt.Sprintf(". Blockierende Befunde übergangen mit der Begründung: %s", reason)
 	}
-	return rec, s.Repos.Audit.Log(ctx, domain.AuditActionCommit, "FESTSCHREIBUNG", fmt.Sprintf("%d", rec.ID), details)
+	return rec, nil, s.Repos.Audit.Log(ctx, domain.AuditActionCommit, "FESTSCHREIBUNG", fmt.Sprintf("%d", rec.ID), details)
 }
 
 // preCommitChecks führt den Prüflauf aus und entscheidet, ob festgeschrieben

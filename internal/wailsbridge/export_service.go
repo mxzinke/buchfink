@@ -203,8 +203,8 @@ func (b *BuchfinkBridge) GetPaymentAllocations(entryID uint) ([]domain.PaymentAl
 // Umsätze daraus. Sie bekommt den Pfad und nicht den Inhalt, damit die Datei
 // selbst archiviert wird.
 func (b *BuchfinkBridge) ImportCAMT053File(path, ledgerAccount string) (int, error) {
-	return write(b, func(ctx context.Context, s *core.Services) (int, error) {
-		return s.Bank.ImportCAMT053File(ctx, path, ledgerAccount)
+	return operate(b, func(ctx context.Context, t *core.Tenant) (int, error) {
+		return t.ImportBankStatement(ctx, path, ledgerAccount)
 	})
 }
 

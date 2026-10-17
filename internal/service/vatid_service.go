@@ -120,25 +120,30 @@ func (s *VatIDService) Check(ctx context.Context, contactID uint) (*domain.VatID
 		return nil, err
 	}
 	result, runErr := query.Run(ctx)
-	return s.RecordCheck(ctx, query, result, runErr)
+	check, err := s.RecordCheck(ctx, query, result, runErr)
+	if err != nil {
+		return nil, err
+	}
+	if runErr != nil {
+		return nil, runErr
+	}
+	return check, nil
 }
 
 // RecordCheck hebt das Ergebnis einer Anfrage auf.
 //
 // Auch das negative: gerade es ist der Nachweis, dass geprüft wurde. Nur wo gar
 // keine Auskunft kam, wird nichts gespeichert — eine nicht beantwortete Anfrage
-// ist kein Ergebnis über den Geschäftspartner. Sie steht im Protokoll, und
-// runErr kommt zurück.
+// ist kein Ergebnis über den Geschäftspartner. Sie steht nur im Protokoll, und
+// RecordCheck gibt (nil, nil) zurück: der Eintrag soll bleiben, den
+// ausgebliebenen Bescheid meldet der Aufrufer nach dem Abschluss.
 func (s *VatIDService) RecordCheck(
 	ctx context.Context, query *VatIDQuery, result *vatid.Result, runErr error,
 ) (*domain.VatIDCheck, error) {
 	contact := query.Contact
 	if runErr != nil {
-		if err := s.audit(ctx, contact.ID, fmt.Sprintf(
-			"Bestätigungsanfrage für %s ohne Ergebnis: %v", contact.Name, runErr)); err != nil {
-			return nil, err
-		}
-		return nil, runErr
+		return nil, s.audit(ctx, contact.ID, fmt.Sprintf(
+			"Bestätigungsanfrage für %s ohne Ergebnis: %v", contact.Name, runErr))
 	}
 
 	check := &domain.VatIDCheck{
