@@ -65,6 +65,39 @@ func write[T any](b *BuchfinkBridge, fn serviceFn[T], opts ...core.WriteOption) 
 	return out, err
 }
 
+// operate ruft einen Vorgang des Kerns, der selbst über Tenant.Write schreibt
+// und dabei Netz und Schreibsperre trennt (Festschreibung, Bestätigungsanfrage,
+// Vorabruf von Kursen). Für die Einordnung der Bridge-Methoden zählt er wie
+// write.
+func operate[T any](b *BuchfinkBridge, fn func(ctx context.Context, t *core.Tenant) (T, error)) (T, error) {
+	var out T
+	ctx := uiContext()
+	t, release, err := b.host.Acquire(ctx)
+	if err != nil {
+		return out, err
+	}
+	defer release()
+	return fn(ctx, t)
+}
+
+// prefetch holt vor einem Schreibvorgang, was er aus dem Netz braucht, ohne
+// Schreibsperre. Ohne offenen Mandanten ist nichts zu holen; der
+// Schreibvorgang meldet das.
+func (b *BuchfinkBridge) prefetch(fn func(ctx context.Context, t *core.Tenant) error) error {
+	_, err := operate(b, func(ctx context.Context, t *core.Tenant) (struct{}, error) {
+		return struct{}{}, fn(ctx, t)
+	})
+	if errors.Is(err, core.ErrNoTenant) {
+		return nil
+	}
+	return err
+}
+
+// inspect ruft einen lesenden Vorgang des Kerns.
+func inspect[T any](b *BuchfinkBridge, fn func(ctx context.Context, t *core.Tenant) (T, error)) (T, error) {
+	return operate(b, fn)
+}
+
 // change schreibt ohne Ergebnis.
 func (b *BuchfinkBridge) change(fn func(ctx context.Context, s *core.Services) error, opts ...core.WriteOption) error {
 	return b.host.Write(uiContext(), fn, opts...)

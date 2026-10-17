@@ -777,6 +777,7 @@ func keyDirectoryTable() (export.Table, error) {
 		{string(domain.AuditActionImport), "Import"},
 		{string(domain.AuditActionIntegrityCheck), "Integritätsprüfung"},
 		{string(domain.AuditActionExport), "Export"},
+		{string(domain.AuditActionCommit), "Festschreibung"},
 	} {
 		if err := add("Protokollart", s.key, s.label, ""); err != nil {
 			return t, err

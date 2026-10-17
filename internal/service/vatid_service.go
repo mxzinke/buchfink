@@ -28,8 +28,14 @@ type VatIDService struct {
 	contactRepo  domain.ContactRepository
 	settingsRepo domain.SettingsRepository
 	auditRepo    domain.AuditRepository
-	newClient    func() *vatid.Client
+	newClient    func() VatIDClient
 	now          func() time.Time
+}
+
+// VatIDClient ist die Bestätigungsanfrage beim Bundeszentralamt für Steuern.
+type VatIDClient interface {
+	Check(ctx context.Context, req vatid.Request) (*vatid.Result, error)
+	Endpoint() string
 }
 
 // NewVatIDService wires die Bestätigungsanfrage.
@@ -41,14 +47,14 @@ func NewVatIDService(
 ) *VatIDService {
 	return &VatIDService{
 		repo: repo, contactRepo: contactRepo, settingsRepo: settingsRepo, auditRepo: auditRepo,
-		newClient: func() *vatid.Client { return vatid.New(vatid.DefaultEndpoint) },
+		newClient: func() VatIDClient { return vatid.New(vatid.DefaultEndpoint) },
 		now:       time.Now,
 	}
 }
 
-// SetClientFactory ersetzt den Erzeuger des Clients. Nur für Tests: sie legen
-// einen httptest-Server vor die Schnittstelle.
-func (s *VatIDService) SetClientFactory(f func() *vatid.Client) { s.newClient = f }
+// SetClientFactory ersetzt den Erzeuger des Clients: der Kern legt seinen
+// Netzwächter davor, Tests einen httptest-Server.
+func (s *VatIDService) SetClientFactory(f func() VatIDClient) { s.newClient = f }
 
 // SetClock ersetzt die Uhr. Nur für Tests — die Frist von 90 Tagen richtet sich nach ihr.
 func (s *VatIDService) SetClock(now func() time.Time) { s.now = now }
@@ -61,13 +67,18 @@ func (s *VatIDService) Checks(ctx context.Context, contactID uint) ([]domain.Vat
 	return s.repo.FindByContact(ctx, contactID)
 }
 
-// Check führt die qualifizierte Bestätigungsanfrage aus und hebt das Ergebnis
-// auf.
-//
-// Auch das negative: gerade es ist der Nachweis, dass geprüft wurde. Nur wo gar
-// keine Auskunft kam, wird nichts gespeichert — eine nicht beantwortete Anfrage
-// ist kein Ergebnis über den Geschäftspartner.
-func (s *VatIDService) Check(ctx context.Context, contactID uint) (*domain.VatIDCheck, error) {
+// VatIDQuery ist eine vorbereitete Bestätigungsanfrage. Sie trennt das Netz
+// vom Schreiben: vorbereitet und abgelegt wird in der Datenbank, gefragt wird
+// dazwischen ohne Schreibsperre.
+type VatIDQuery struct {
+	Contact  *domain.Contact
+	Request  vatid.Request
+	client   VatIDClient
+	endpoint string
+}
+
+// PrepareCheck liest, was die Anfrage braucht. Es schreibt nichts.
+func (s *VatIDService) PrepareCheck(ctx context.Context, contactID uint) (*VatIDQuery, error) {
 	if s.repo == nil {
 		return nil, fmt.Errorf("die Bestätigungsabfrage ist nicht eingerichtet")
 	}
@@ -78,31 +89,62 @@ func (s *VatIDService) Check(ctx context.Context, contactID uint) (*domain.VatID
 	if strings.TrimSpace(contact.VatID) == "" {
 		return nil, fmt.Errorf("%s hat keine USt-IdNr., die zu bestätigen wäre", contact.Name)
 	}
-	own := s.ownVatID(ctx)
-
 	street, postalCode, city := contact.PostalAddress()
 	client := s.newClient()
-	endpoint := client.Endpoint()
-	result, err := client.Check(ctx, vatid.Request{
-		OwnVatID:    strings.TrimSpace(own),
-		VatID:       strings.TrimSpace(contact.VatID),
-		CompanyName: contactCompanyName(contact),
-		City:        city,
-		PostalCode:  postalCode,
-		Street:      street,
-	})
+	return &VatIDQuery{
+		Contact: contact,
+		Request: vatid.Request{
+			OwnVatID:    strings.TrimSpace(s.ownVatID(ctx)),
+			VatID:       strings.TrimSpace(contact.VatID),
+			CompanyName: contactCompanyName(contact),
+			City:        city,
+			PostalCode:  postalCode,
+			Street:      street,
+		},
+		client: client, endpoint: client.Endpoint(),
+	}, nil
+}
+
+// Run fragt beim Bundeszentralamt an. Es ist der einzige Netzaufruf der
+// Anfrage und gehört nicht in einen Schreibvorgang.
+func (q *VatIDQuery) Run(ctx context.Context) (*vatid.Result, error) {
+	return q.client.Check(ctx, q.Request)
+}
+
+// Check führt die qualifizierte Bestätigungsanfrage aus und hebt das Ergebnis
+// auf. Der Kern teilt sie in PrepareCheck, Run und RecordCheck, damit das Netz
+// keine Schreibsperre hält.
+func (s *VatIDService) Check(ctx context.Context, contactID uint) (*domain.VatIDCheck, error) {
+	query, err := s.PrepareCheck(ctx, contactID)
 	if err != nil {
-		if err := s.audit(ctx, contactID, fmt.Sprintf(
-			"Bestätigungsanfrage für %s ohne Ergebnis: %v", contact.Name, err)); err != nil {
+		return nil, err
+	}
+	result, runErr := query.Run(ctx)
+	return s.RecordCheck(ctx, query, result, runErr)
+}
+
+// RecordCheck hebt das Ergebnis einer Anfrage auf.
+//
+// Auch das negative: gerade es ist der Nachweis, dass geprüft wurde. Nur wo gar
+// keine Auskunft kam, wird nichts gespeichert — eine nicht beantwortete Anfrage
+// ist kein Ergebnis über den Geschäftspartner. Sie steht im Protokoll, und
+// runErr kommt zurück.
+func (s *VatIDService) RecordCheck(
+	ctx context.Context, query *VatIDQuery, result *vatid.Result, runErr error,
+) (*domain.VatIDCheck, error) {
+	contact := query.Contact
+	if runErr != nil {
+		if err := s.audit(ctx, contact.ID, fmt.Sprintf(
+			"Bestätigungsanfrage für %s ohne Ergebnis: %v", contact.Name, runErr)); err != nil {
 			return nil, err
 		}
-		return nil, err
+		return nil, runErr
 	}
 
 	check := &domain.VatIDCheck{
-		ContactID: contactID,
-		VatID:     strings.TrimSpace(contact.VatID),
-		OwnVatID:  strings.TrimSpace(own),
+		ContactID: contact.ID,
+		VatID:     query.Request.VatID,
+		OwnVatID:  query.Request.OwnVatID,
 		CheckedAt: result.CheckedAt.Format(time.RFC3339),
 		Status:    result.Status,
 		// Der Ergebniscode und der rohe Datensatz sind der Nachweis. Sie werden
@@ -116,12 +158,12 @@ func (s *VatIDService) Check(ctx context.Context, contactID uint) (*domain.VatID
 		PostalCodeResult: result.PostalCode,
 		StreetResult:     result.Street,
 		RawResponse:      result.Raw,
-		Endpoint:         endpoint,
+		Endpoint:         query.endpoint,
 	}
 	if err := s.repo.Save(ctx, check); err != nil {
 		return nil, fmt.Errorf("das Ergebnis der Bestätigungsanfrage ließ sich nicht speichern: %w", err)
 	}
-	if err := s.audit(ctx, contactID, fmt.Sprintf(
+	if err := s.audit(ctx, contact.ID, fmt.Sprintf(
 		"Bestätigungsanfrage für %s (%s): %s", contact.Name, check.VatID, check.Summary())); err != nil {
 		return nil, err
 	}
@@ -225,6 +267,10 @@ func (s *VatIDService) StatusForContact(ctx context.Context, contactID uint) (*V
 // EnsureConfirmed ist die Prüfung vor dem Ausstellen einer Leistung an einen
 // Unternehmer im übrigen Gemeinschaftsgebiet.
 //
+// Sie fragt nicht selbst beim Bundeszentralamt an: das Ausstellen ist ein
+// Schreibvorgang, und ein Netzaufruf darin hielte die Schreibsperre. Gefragt
+// wird vorher (core.Tenant.CheckVatID); hier zählt das abgelegte Ergebnis.
+//
 // Sie gibt einen Fehler zurück, wo die Ausstellung zu unterbleiben hat, und nil,
 // wo sie laufen darf. Die drei Fälle sind bewusst verschieden behandelt: eine
 // frische Bestätigung genügt, eine negative Antwort hält die Rechnung an, und
@@ -259,32 +305,64 @@ func (s *VatIDService) EnsureConfirmed(
 				"fehlgeschlagen, sie ist noch nicht möglich", contact.Name)
 	}
 
-	check, err := s.Check(ctx, contact.ID)
-	if err != nil {
-		// Keine Auskunft. Das ist kein negatives Ergebnis, und es darf nicht wie
-		// eines wirken — aber es ist auch kein Nachweis.
-		if strings.TrimSpace(overrideReason) != "" {
-			if err := s.audit(ctx, contact.ID, fmt.Sprintf(
-				"Rechnung an %s ohne Bestätigung der USt-IdNr. ausgestellt: %s (Fehler: %v)",
-				contact.Name, strings.TrimSpace(overrideReason), err)); err != nil {
-				return err
-			}
-			return nil
-		}
+	if check, err := s.latestAnswer(ctx, contact.ID, status.VatID); err != nil {
+		return err
+	} else if check != nil && check.Status != domain.VatIDValid {
 		return fmt.Errorf(
-			"die USt-IdNr. von %s ließ sich nicht bestätigen: %w. Ohne Bestätigung ist der "+
-				"Leistungsort im Ausland nicht belegt. Stelle die Rechnung mit einem festgehaltenen Grund aus "+
-				"oder wiederhole die Abfrage später — der nächste Prüflauf führt sie als offen",
-			contact.Name, err)
+			"das Bundeszentralamt für Steuern hat die USt-IdNr. %s von %s nicht bestätigt. %s. Die "+
+				"Steuerschuld geht nur auf einen Empfänger über, der als Unternehmer ausgewiesen ist "+
+				"(§ 3a Abs. 2, § 13b Abs. 1 UStG)",
+			check.VatID, contact.Name, check.Summary())
 	}
-	if check.Status == domain.VatIDValid {
-		return nil
+
+	// Keine Auskunft. Das ist kein negatives Ergebnis, und es darf nicht wie
+	// eines wirken — aber es ist auch kein Nachweis.
+	if strings.TrimSpace(overrideReason) != "" {
+		return s.audit(ctx, contact.ID, fmt.Sprintf(
+			"Rechnung an %s ohne Bestätigung der USt-IdNr. ausgestellt: %s",
+			contact.Name, strings.TrimSpace(overrideReason)))
 	}
 	return fmt.Errorf(
-		"das Bundeszentralamt für Steuern hat die USt-IdNr. %s von %s nicht bestätigt. %s. Die "+
-			"Steuerschuld geht nur auf einen Empfänger über, der als Unternehmer ausgewiesen ist "+
-			"(§ 3a Abs. 2, § 13b Abs. 1 UStG)",
-		check.VatID, contact.Name, check.Summary())
+		"für die USt-IdNr. von %s liegt keine Bestätigung vor: aus den letzten %d Tagen fehlt eine Auskunft des "+
+			"Bundeszentralamts. Ohne Bestätigung ist der Leistungsort im Ausland nicht belegt. "+
+			"Wiederhole die Abfrage, sobald das Netz erreichbar ist, oder stelle die Rechnung mit einem "+
+			"festgehaltenen Grund aus — der nächste Prüflauf führt sie dann als offen",
+		contact.Name, domain.VatIDCheckValidityDays)
+}
+
+// NeedsCheck meldet, ob vor einer Leistung an den Geschäftspartner beim
+// Bundeszentralamt anzufragen ist: er hat eine USt-IdNr., die eigene ist
+// erfasst, und eine frische Bestätigung fehlt.
+func (s *VatIDService) NeedsCheck(ctx context.Context, contact *domain.Contact) (bool, error) {
+	status, err := s.Status(ctx, contact)
+	if err != nil {
+		return false, err
+	}
+	return status.VatID != "" && !status.Confirmed && s.ownVatID(ctx) != "", nil
+}
+
+// latestAnswer ist die jüngste Antwort zur Nummer aus der Frist, gleich wie sie
+// ausfiel, oder nil.
+func (s *VatIDService) latestAnswer(ctx context.Context, contactID uint, vatID string) (*domain.VatIDCheck, error) {
+	if s.repo == nil {
+		return nil, nil
+	}
+	checks, err := s.repo.FindByContact(ctx, contactID)
+	if err != nil {
+		return nil, err
+	}
+	horizon := s.now().Add(-domain.VatIDCheckValidityDays * 24 * time.Hour)
+	for i := range checks {
+		if checks[i].VatID != vatID {
+			continue
+		}
+		checked, err := time.Parse(time.RFC3339, checks[i].CheckedAt)
+		if err != nil || checked.Before(horizon) {
+			return nil, nil
+		}
+		return &checks[i], nil
+	}
+	return nil, nil
 }
 
 // germanTimestamp rendert einen RFC3339-Zeitpunkt als deutsches Datum.

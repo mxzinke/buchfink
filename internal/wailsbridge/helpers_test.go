@@ -19,6 +19,7 @@ func newBridge(t *testing.T, opts ...func(*core.HostOptions)) *BuchfinkBridge {
 	o := core.HostOptions{
 		Config:  repository.NewAppConfigRepository(filepath.Join(base, "config")),
 		BaseDir: base,
+		Network: core.OfflineNetwork(),
 	}
 	for _, opt := range opts {
 		opt(&o)

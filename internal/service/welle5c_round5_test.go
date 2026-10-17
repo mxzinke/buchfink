@@ -227,6 +227,12 @@ func TestMissingOwnVatIDIsNotAnOverridableOutage(t *testing.T) {
 
 	// Mit der eigenen Nummer läuft die Abfrage wieder.
 	env.setSettings(t, func(c *domain.CompanySettings) { c.VatID = "DE123456789" })
+	if needed, err := svc.NeedsCheck(ctx, customer); err != nil || !needed {
+		t.Fatalf("mit eigener USt-IdNr. ist die Anfrage fällig: %v, %v", needed, err)
+	}
+	if _, err := svc.Check(ctx, customer.ID); err != nil {
+		t.Fatal(err)
+	}
 	if err := svc.EnsureConfirmed(ctx, customer, ""); err != nil {
 		t.Errorf("mit eigener USt-IdNr. muss die Bestätigung durchgehen: %v", err)
 	}

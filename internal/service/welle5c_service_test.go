@@ -225,7 +225,7 @@ func (e *testEnv) vatIDs(t *testing.T, endpoint string) *VatIDService {
 		repository.NewVatIDCheckRepository(e.db), e.contactRepo,
 		repository.NewSettingsRepository(e.db), repository.NewAuditRepository(e.db),
 	)
-	svc.SetClientFactory(func() *vatid.Client { return vatid.New(endpoint) })
+	svc.SetClientFactory(func() VatIDClient { return vatid.New(endpoint) })
 	return svc
 }
 
@@ -265,10 +265,33 @@ func TestVatIDConfirmationIsStoredAndCachedForNinetyDays(t *testing.T) {
 		t.Errorf("%d Aufrufe — innerhalb von 90 Tagen wird nicht erneut gefragt", *calls)
 	}
 
-	// Nach 91 Tagen wird erneut gefragt.
-	svc.SetClock(func() time.Time { return time.Now().AddDate(0, 0, 91) })
+	if needed, err := svc.NeedsCheck(ctx, customer); err != nil || needed {
+		t.Errorf("innerhalb der Frist ist keine neue Anfrage nötig: %v, %v", needed, err)
+	}
+
+	// Nach 91 Tagen genügt die alte Bestätigung nicht mehr; die Prüfung vor
+	// dem Ausstellen fragt nicht selbst, sondern verlangt eine neue Anfrage.
+	later := func() time.Time { return time.Now().AddDate(0, 0, 91) }
+	svc.SetClock(later)
+	svc.SetClientFactory(func() VatIDClient {
+		client := vatid.New(server.URL)
+		client.SetClock(later)
+		return client
+	})
+	if needed, err := svc.NeedsCheck(ctx, customer); err != nil || !needed {
+		t.Fatalf("nach Ablauf der Frist ist eine neue Anfrage nötig: %v, %v", needed, err)
+	}
+	if err := svc.EnsureConfirmed(ctx, customer, ""); err == nil {
+		t.Fatal("eine abgelaufene Bestätigung darf nicht genügen")
+	}
+	if *calls != 1 {
+		t.Errorf("%d Aufrufe — die Prüfung vor dem Ausstellen ruft das Netz nicht", *calls)
+	}
+	if _, err := svc.Check(ctx, customer.ID); err != nil {
+		t.Fatal(err)
+	}
 	if err := svc.EnsureConfirmed(ctx, customer, ""); err != nil {
-		t.Fatalf("die erneute Abfrage muss durchgehen: %v", err)
+		t.Fatalf("nach der neuen Anfrage muss die Bestätigung genügen: %v", err)
 	}
 	if *calls != 2 {
 		t.Errorf("%d Aufrufe — nach Ablauf der Frist wird erneut gefragt", *calls)
@@ -283,6 +306,9 @@ func TestVatIDRejectionBlocksTheEUService(t *testing.T) {
 	server, _ := bzstServer(t, "201", nil)
 	svc := env.vatIDs(t, server.URL)
 	customer := env.customer(t, "Client SARL", "FR", "FR99999999999")
+	if _, err := svc.Check(ctx, customer.ID); err != nil {
+		t.Fatalf("eine negative Antwort ist eine Antwort: %v", err)
+	}
 
 	err := svc.EnsureConfirmed(ctx, customer, "")
 	if err == nil {
@@ -318,6 +344,9 @@ func TestVatIDUnavailableNeedsAnOverride(t *testing.T) {
 
 	svc := env.vatIDs(t, url)
 	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
+	if _, err := svc.Check(ctx, customer.ID); err == nil {
+		t.Fatal("ein nicht erreichbares Amt liefert kein Ergebnis")
+	}
 
 	err := svc.EnsureConfirmed(ctx, customer, "")
 	if err == nil {

@@ -32,13 +32,21 @@ func agentCtx(t *testing.T) context.Context {
 	return actor.WithChannel(context.Background(), c)
 }
 
-// newHost legt einen Host mit eigener Konfiguration im Testordner an.
+// newHost legt einen Host mit eigener Konfiguration im Testordner an. Er
+// erreicht kein Netz.
 func newHost(t *testing.T) *Host {
+	t.Helper()
+	return newHostWith(t, OfflineNetwork())
+}
+
+// newHostWith legt einen Host mit eigenen Netzwegen an.
+func newHostWith(t *testing.T, network Network) *Host {
 	t.Helper()
 	base := t.TempDir()
 	h, err := NewHost(context.Background(), HostOptions{
 		Config:  repository.NewAppConfigRepository(filepath.Join(base, "config")),
 		BaseDir: base,
+		Network: network,
 	})
 	if err != nil {
 		t.Fatalf("Host: %v", err)

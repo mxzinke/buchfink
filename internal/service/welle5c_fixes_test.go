@@ -720,7 +720,7 @@ func TestIssuingAnEUServiceGoesThroughTheConfirmation(t *testing.T) {
 	// Der Ausfall wird über einen Server geprüft, der nicht antwortet. Mit der
 	// Voreinstellung von zehn Sekunden wartete der Test genau so lange real;
 	// geprüft wird aber die Behandlung der Frist und nicht ihre Länge.
-	vatIDs.SetClientFactory(func() *vatid.Client {
+	vatIDs.SetClientFactory(func() VatIDClient {
 		client := vatid.New(server.URL)
 		client.SetTimeout(200 * time.Millisecond)
 		return client
@@ -733,6 +733,12 @@ func TestIssuingAnEUServiceGoesThroughTheConfirmation(t *testing.T) {
 		inv.TaxTreatment = domain.TaxTreatmentReverseChargeSupply
 		inv.Items[0].TaxRate = domain.TaxRateNone
 		inv.VatIDOverrideReason = reason
+		// Wie im Kern: gefragt wird vor dem Ausstellen, nicht darin.
+		if id, err := invoices.VatIDToConfirm(ctx, inv); err != nil {
+			return inv, err
+		} else if id != 0 {
+			_, _ = vatIDs.Check(ctx, id)
+		}
 		return inv, invoices.Issue(ctx, inv)
 	}
 

@@ -804,6 +804,7 @@ func ensureNoUnlawfulTax(inv *domain.Invoice) error {
 // Rechnungsweg braucht.
 type vatIDConfirmer interface {
 	EnsureConfirmed(ctx context.Context, contact *domain.Contact, overrideReason string) error
+	NeedsCheck(ctx context.Context, contact *domain.Contact) (bool, error)
 }
 
 // SetVatIDConfirmer koppelt die Bestätigungsabfrage an den Rechnungsweg. Ohne
@@ -821,11 +822,36 @@ func (s *InvoiceService) SetVatIDConfirmer(c vatIDConfirmer) { s.vatIDs = c }
 func (s *InvoiceService) ensureVatIDConfirmed(
 	ctx context.Context, inv *domain.Invoice, contact *domain.Contact,
 ) error {
-	if s.vatIDs == nil || inv.TaxTreatment != domain.TaxTreatmentReverseChargeSupply ||
-		!contact.IsEUCounterparty() {
+	if !s.needsVatIDConfirmation(inv, contact) {
 		return nil
 	}
 	return s.vatIDs.EnsureConfirmed(ctx, contact, inv.VatIDOverrideReason)
+}
+
+func (s *InvoiceService) needsVatIDConfirmation(inv *domain.Invoice, contact *domain.Contact) bool {
+	return s.vatIDs != nil && inv.TaxTreatment == domain.TaxTreatmentReverseChargeSupply &&
+		contact.IsEUCounterparty()
+}
+
+// VatIDToConfirm nennt den Geschäftspartner, dessen USt-IdNr. vor dem
+// Ausstellen beim Bundeszentralamt anzufragen ist, oder 0. Gefragt wird vor dem
+// Schreibvorgang; das Ausstellen liest nur das abgelegte Ergebnis.
+func (s *InvoiceService) VatIDToConfirm(ctx context.Context, inv *domain.Invoice) (uint, error) {
+	if s.vatIDs == nil || inv == nil || inv.ContactID == 0 {
+		return 0, nil
+	}
+	contact, err := s.contactRepo.FindByID(ctx, inv.ContactID)
+	if err != nil {
+		return 0, nil
+	}
+	if !s.needsVatIDConfirmation(inv, contact) {
+		return 0, nil
+	}
+	needed, err := s.vatIDs.NeedsCheck(ctx, contact)
+	if err != nil || !needed {
+		return 0, err
+	}
+	return contact.ID, nil
 }
 
 // validateTaxTreatment blocks the combinations that would produce a formally

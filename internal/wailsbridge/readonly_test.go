@@ -158,14 +158,15 @@ func TestEveryBridgeMethodIsClassified(t *testing.T) {
 	}
 }
 
-// Festschreibung, Übermittlungsbestätigung, Aufstellen/Feststellen/Offenlegen
-// und die Stammdaten des Unternehmens sind der App vorbehalten. Der Kern weist
-// sie für jeden anderen Erfassungsweg ab, aber nur, wenn die Bridge sie als
-// solche kennzeichnet.
+// Übermittlungsbestätigung, Aufstellen/Feststellen/Offenlegen und die
+// Stammdaten des Unternehmens sind der App vorbehalten. Der Kern weist sie für
+// jeden anderen Erfassungsweg ab, wenn die Bridge sie als solche kennzeichnet;
+// die Dienste tun es zusätzlich selbst. Die Festschreibung ist ein Vorgang des
+// Kerns und prüft den Erfassungsweg dort (core.Tenant.CommitPeriod).
 func TestAppOnlyOperationsAreMarked(t *testing.T) {
 	methods := bridgeMethods(t)
 	for _, name := range []string{
-		"CommitPeriod", "ConfirmVatReturnSubmitted", "ConfirmZMSubmitted",
+		"ConfirmVatReturnSubmitted", "ConfirmZMSubmitted",
 		"SetFiscalYearStatus", "ReopenFiscalYear", "UpdateCompanySettings",
 		"ConfigureBankAccounts", "SetInvoiceBankAccount",
 	} {
@@ -236,8 +237,9 @@ func isBridgeReceiver(recv *ast.FieldList) bool {
 	return ok && ident.Name == "BuchfinkBridge"
 }
 
-// writeCalls sucht die Aufrufe von write und change im Rumpf. guarded ist ein
-// Aufruf ohne core.ExaminerExempt(), appOnly einer mit core.AppOnly().
+// writeCalls sucht die Aufrufe von write, change und operate im Rumpf. guarded
+// ist ein Aufruf ohne core.ExaminerExempt(), appOnly einer mit core.AppOnly().
+// operate ruft einen Vorgang des Kerns, der selbst über Tenant.Write schreibt.
 func writeCalls(fn *ast.FuncDecl) (guarded, appOnly bool) {
 	ast.Inspect(fn, func(n ast.Node) bool {
 		call, ok := n.(*ast.CallExpr)
@@ -264,7 +266,7 @@ func writeCalls(fn *ast.FuncDecl) (guarded, appOnly bool) {
 func isWriteHelper(fun ast.Expr) bool {
 	switch f := fun.(type) {
 	case *ast.Ident:
-		return f.Name == "write"
+		return f.Name == "write" || f.Name == "operate"
 	case *ast.IndexExpr:
 		return isWriteHelper(f.X)
 	case *ast.SelectorExpr:
@@ -369,7 +371,7 @@ func TestDeleteTenantKeepsTheExaminerModeInTheData(t *testing.T) {
 func TestReadOnlyModeAnswersTheExchangeRateFromHistory(t *testing.T) {
 	// Ein Kursdienst, dessen Adresse ins Leere zeigt: würde geholt, käme ein
 	// Fehler — und genau das soll im Prüfermodus nicht geschehen.
-	b := testBridge(t, func(o *core.HostOptions) { o.Rates = currency.New("http://127.0.0.1:1") })
+	b := testBridge(t, func(o *core.HostOptions) { o.Network.Rates = currency.New("http://127.0.0.1:1") })
 	testWrite(t, b, func(ctx context.Context, s *core.Services) error {
 		return s.Repos.ExchangeRates.SaveRate(ctx, &domain.ExchangeRate{
 			Currency: "USD", Date: "2026-12-31", RateMicros: 1_085_000,
@@ -402,7 +404,7 @@ func TestReadOnlyModeAnswersTheExchangeRateFromHistory(t *testing.T) {
 // Ein Lesevorgang darf einen geholten Kurs ablegen: er ist kein
 // Buchungsinhalt und muss beim nächsten Mal derselbe sein.
 func TestReadingAnExchangeRateKeepsTheFetchedRate(t *testing.T) {
-	b := testBridge(t, func(o *core.HostOptions) { o.Rates = fixedRate{micros: 1_100_000} })
+	b := testBridge(t, func(o *core.HostOptions) { o.Network.Rates = fixedRate{micros: 1_100_000} })
 	rate, err := b.GetExchangeRate("USD", "2026-06-30")
 	if err != nil {
 		t.Fatalf("Kurs holen: %v", err)

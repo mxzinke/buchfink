@@ -15,9 +15,9 @@ import (
 )
 
 // wiredBridge ist eine Bridge mit vollständig verdrahtetem Mandanten.
-func wiredBridge(t *testing.T) *BuchfinkBridge {
+func wiredBridge(t *testing.T, opts ...func(*core.HostOptions)) *BuchfinkBridge {
 	t.Helper()
-	return testBridge(t)
+	return testBridge(t, opts...)
 }
 
 // postSimpleEntry schreibt eine ausgeglichene Buchung über den Journaldienst.
@@ -42,23 +42,18 @@ func postSimpleEntry(t *testing.T, b *BuchfinkBridge, bookingDate, description s
 	return created
 }
 
-// fakeTSA setzt für die Dauer eines Tests eine Zeitstempelstelle ein, die eine
-// feste beglaubigte Zeit liefert.
+// withTSA setzt eine Zeitstempelstelle ein, die eine feste beglaubigte Zeit
+// liefert.
 //
 // Ohne diesen Austausch ließe sich der Abgleich der Systemzeit mit der
 // beglaubigten Zeit nicht prüfen: der Test müsste entweder die Uhr des Rechners
 // verstellen oder eine Stelle im Netz erreichen.
-func fakeTSA(t *testing.T, genTime time.Time, name string) {
-	t.Helper()
-	previous := requestTimestamp
-	requestTimestamp = func(ctx context.Context, tsaURL, sha256Hex string) (*timestamp.Result, error) {
-		return &timestamp.Result{
-			Token:   []byte("test-token"),
-			GenTime: genTime,
-			TSAName: name,
-		}, nil
+func withTSA(genTime time.Time, name string) func(*core.HostOptions) {
+	return func(o *core.HostOptions) {
+		o.Network.Timestamp = func(ctx context.Context, tsaURL, sha256Hex string) (*timestamp.Result, error) {
+			return &timestamp.Result{Token: []byte("test-token"), GenTime: genTime, TSAName: name}, nil
+		}
 	}
-	t.Cleanup(func() { requestTimestamp = previous })
 }
 
 // Weicht die beglaubigte Zeit über die Toleranz von der Systemzeit ab, entsteht
@@ -68,13 +63,12 @@ func fakeTSA(t *testing.T, genTime time.Time, name string) {
 // Der Hinweis allein genügt nicht: er steht dort, wo ohnehin schon jemand
 // hinsieht. Als eigener Vorgang im Protokoll fällt die Abweichung auf.
 func TestCommitPeriodLogsTimeDriftBeyondTolerance(t *testing.T) {
-	b := wiredBridge(t)
+	b := wiredBridge(t, withTSA(time.Now().UTC().Add(90*time.Minute), "Test-TSA"))
 
 	postSimpleEntry(t, b, "2026-01-15", "Wareneingang Januar")
 
 	// Neunzig Minuten Rückstand der Systemzeit gegenüber der beglaubigten Zeit:
 	// weit über der Toleranz von fünf Minuten.
-	fakeTSA(t, time.Now().UTC().Add(90*time.Minute), "Test-TSA")
 
 	rec, err := b.CommitPeriod("month", "Januar 2026", "2026-01-31",
 		"Testlauf ohne Belege — die Belegprüfung wird bewusst übergangen")
@@ -107,9 +101,8 @@ func TestCommitPeriodLogsTimeDriftBeyondTolerance(t *testing.T) {
 // Liegt die beglaubigte Zeit innerhalb der Toleranz, entsteht kein Eintrag. Eine
 // Meldung über jede Sekunde Abweichung wäre Rauschen und niemand läse sie.
 func TestCommitPeriodStaysSilentWithinTolerance(t *testing.T) {
-	b := wiredBridge(t)
+	b := wiredBridge(t, withTSA(time.Now().UTC().Add(time.Minute), "Test-TSA"))
 	postSimpleEntry(t, b, "2026-01-15", "Wareneingang Januar")
-	fakeTSA(t, time.Now().UTC().Add(time.Minute), "Test-TSA")
 
 	rec, err := b.CommitPeriod("month", "Januar 2026", "2026-01-31", "Testlauf ohne Belege")
 	if err != nil {
@@ -128,12 +121,11 @@ func TestCommitPeriodStaysSilentWithinTolerance(t *testing.T) {
 // Festschreibungszeitpunkt und den Verweis auf die Festschreibung; die
 // Buchungen danach nicht.
 func TestCommitPeriodStampsEntriesUpToTheCutoff(t *testing.T) {
-	b := wiredBridge(t)
+	b := wiredBridge(t, withTSA(time.Now().UTC(), "Test-TSA"))
 
 	inPeriod := postSimpleEntry(t, b, "2026-01-15", "Wareneingang Januar")
 	afterPeriod := postSimpleEntry(t, b, "2026-02-03", "Wareneingang Februar")
 
-	fakeTSA(t, time.Now().UTC(), "Test-TSA")
 	rec, err := b.CommitPeriod("month", "Januar 2026", "2026-01-31", "Testlauf ohne Belege")
 	if err != nil {
 		t.Fatalf("Festschreibung: %v", err)

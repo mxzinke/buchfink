@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 
-	"github.com/buchfink/buchfink/internal/currency"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/invoice"
 	"github.com/buchfink/buchfink/internal/receiptstore"
@@ -116,11 +115,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) *
 	s.ProcDoc.SetRenderer(renderer)
 	s.ProcDoc.SetEnvironment(ProcDocEnvironment(info.DataDir, o.backupDir()))
 
-	rates := o.Rates
-	if rates == nil {
-		rates = currency.New(currency.DefaultEndpoint)
-	}
-	s.Currency = service.NewCurrencyService(exchangeRateRepo, rates, auditRepo)
+	s.Currency = service.NewCurrencyService(exchangeRateRepo, o.Network.Rates, auditRepo)
 	s.Currency.SetJournalRepo(journalRepo)
 	s.Currency.SetJournalService(s.Journal)
 
@@ -166,6 +161,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) *
 	s.InputTax = service.NewInputTaxService(
 		inputTaxRepo, s.Journal, journalRepo, settingsRepo, s.Closing, auditRepo)
 	s.VatIDs = service.NewVatIDService(vatIDCheckRepo, contactRepo, settingsRepo, auditRepo)
+	s.VatIDs.SetClientFactory(o.Network.VatID)
 	s.Invoices.SetVatIDConfirmer(s.VatIDs)
 	s.Contacts.SetVatIDStatusSource(s.VatIDs)
 

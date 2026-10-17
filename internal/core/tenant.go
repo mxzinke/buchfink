@@ -35,9 +35,9 @@ type Options struct {
 	Renderer *invoice.Renderer
 	// BackupDir liefert den eingerichteten Sicherungsordner.
 	BackupDir func() string
-	// Rates holt Referenzkurse. Ohne Angabe die EZB.
-	Rates  domain.CurrencyFetcher
-	Logger *slog.Logger
+	// Network sind die Wege ins Netz; leere Felder nehmen die echten Dienste.
+	Network Network
+	Logger  *slog.Logger
 }
 
 func (o Options) backupDir() string {
@@ -58,6 +58,7 @@ type Tenant struct {
 	renderer    *invoice.Renderer
 	ownRenderer bool
 	examiner    examinerCache
+	network     Network
 	backupDir   func() string
 	logger      *slog.Logger
 
@@ -95,6 +96,7 @@ func Open(ctx context.Context, dataDir string, o Options) (*Tenant, error) {
 		renderer, own = invoice.NewRenderer(), true
 	}
 	info := TenantInfo{ID: o.TenantID, Name: o.TenantName, DataDir: dataDir}
+	o.Network = o.Network.guarded()
 
 	t := &Tenant{
 		info: info, gen: o.Generation,
@@ -102,7 +104,8 @@ func Open(ctx context.Context, dataDir string, o Options) (*Tenant, error) {
 		svc:      wire(db, info, renderer, o),
 		renderer: renderer, ownRenderer: own,
 		backupDir: o.BackupDir, logger: logger,
-		write: newWriteLock(),
+		network: o.Network,
+		write:   newWriteLock(),
 	}
 
 	t.svc.Backup.SetRecorder(t.recordInWrite)

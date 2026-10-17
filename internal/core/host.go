@@ -26,8 +26,8 @@ type HostOptions struct {
 	// BaseDir nimmt neue Mandanten ohne eigene Ordnerangabe auf
 	// (BaseDir/tenants/<kennung>/data).
 	BaseDir string
-	// Rates holt Referenzkurse; ohne Angabe die EZB.
-	Rates domain.CurrencyFetcher
+	// Network sind die Wege ins Netz; leere Felder nehmen die echten Dienste.
+	Network Network
 	// WarmRenderer übersetzt das Satzprogramm beim Start im Hintergrund, damit
 	// die erste Rechnung nicht darauf wartet.
 	WarmRenderer bool
@@ -294,7 +294,7 @@ func (h *Host) open(ctx context.Context, tc domain.TenantConfig) (*Tenant, error
 		TenantID: id, TenantName: tc.Name, Generation: gen,
 		Renderer:  h.renderer,
 		BackupDir: func() string { return h.backupDirOf(id) },
-		Rates:     h.opts.Rates,
+		Network:   h.opts.Network,
 		Logger:    h.logger,
 	})
 }

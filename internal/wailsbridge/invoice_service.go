@@ -34,6 +34,11 @@ func (b *BuchfinkBridge) CancelInvoiceWithDocument(invoiceID uint, reason string
 
 // CorrectInvoice storniert eine Rechnung und stellt die berichtigte aus.
 func (b *BuchfinkBridge) CorrectInvoice(invoiceID uint, reason string, replacement domain.Invoice) (*domain.Invoice, error) {
+	if err := b.prefetch(func(ctx context.Context, t *core.Tenant) error {
+		return t.PrepareInvoice(ctx, &replacement)
+	}); err != nil {
+		return nil, err
+	}
 	return write(b, func(ctx context.Context, s *core.Services) (*domain.Invoice, error) {
 		return s.Invoices.CorrectInvoice(ctx, invoiceID, reason, &replacement)
 	})

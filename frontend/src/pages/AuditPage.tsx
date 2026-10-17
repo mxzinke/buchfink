@@ -698,6 +698,7 @@ const ACTION_LABELS: Record<string, string> = {
   IMPORT: 'Übernommen',
   INTEGRITY_CHECK: 'Geprüft',
   EXPORT: 'Ausgegeben',
+  COMMIT: 'Festgeschrieben',
 };
 
 function actionLabel(action: string): string {

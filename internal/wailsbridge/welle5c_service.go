@@ -93,8 +93,8 @@ func (b *BuchfinkBridge) GetVatIDStatus(contactID uint) (*service.VatIDStatus, e
 // CheckVatID führt die qualifizierte Bestätigungsanfrage aus und hebt das
 // Ergebnis auf.
 func (b *BuchfinkBridge) CheckVatID(contactID uint) (*domain.VatIDCheck, error) {
-	return write(b, func(ctx context.Context, s *core.Services) (*domain.VatIDCheck, error) {
-		return s.VatIDs.Check(ctx, contactID)
+	return operate(b, func(ctx context.Context, t *core.Tenant) (*domain.VatIDCheck, error) {
+		return t.CheckVatID(ctx, contactID)
 	})
 }
 
@@ -185,6 +185,11 @@ func (b *BuchfinkBridge) PreviewCurrencyValuation(year int) (*service.ForeignCur
 // BookCurrencyValuation bucht die Stichtagsbewertung und ihre Auflösung.
 func (b *BuchfinkBridge) BookCurrencyValuation(year int) (*service.ForeignCurrencyValuation, error) {
 	year = b.yearOr(year)
+	if err := b.prefetch(func(ctx context.Context, t *core.Tenant) error {
+		return t.PrefetchValuationRates(ctx, year)
+	}); err != nil {
+		return nil, err
+	}
 	return write(b, func(ctx context.Context, s *core.Services) (*service.ForeignCurrencyValuation, error) {
 		return s.Currency.BookCurrencyValuation(ctx, year)
 	})

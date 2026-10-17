@@ -15,6 +15,10 @@ const (
 	AuditActionImport         AuditAction = "IMPORT"
 	AuditActionIntegrityCheck AuditAction = "INTEGRITY_CHECK"
 	AuditActionExport         AuditAction = "EXPORT"
+	// AuditActionCommit ist die Festschreibung eines Zeitraums. Sie ist kein
+	// Zugriff und keine Ausgabe, sondern der Schritt, nach dem der Zeitraum
+	// keine Buchung mehr aufnimmt.
+	AuditActionCommit AuditAction = "COMMIT"
 )
 
 // AuditEntityReadOnly ist die Entität der Prüfermodus-Einträge. Sie steht als
