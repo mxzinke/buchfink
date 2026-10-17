@@ -40,6 +40,11 @@ type AppConfig struct {
 	// ProgramVersion ist die Fassung des laufenden Programms. Sie steht in den
 	// Einstellungen und in jedem Export.
 	ProgramVersion string `json:"programVersion"`
+
+	// MCPPort ist der Port des MCP-Servers für verbundene Apps; 0 heißt
+	// Vorgabe (7465). Die Apps tragen die Adresse fest ein, deshalb weicht
+	// Buchfink bei belegtem Port nicht aus.
+	MCPPort int `json:"mcpPort,omitempty"`
 }
 
 // EnsureLists belegt die Listen, die als JSON an die Oberfläche gehen.

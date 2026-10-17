@@ -1,0 +1,322 @@
+package mcpserver
+
+import (
+	"context"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/buchfink/buchfink/internal/actor"
+	"github.com/buchfink/buchfink/internal/core"
+	"github.com/buchfink/buchfink/internal/mcpserver/oauth"
+	"github.com/buchfink/buchfink/internal/service"
+	"github.com/google/jsonschema-go/jsonschema"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+)
+
+// Jedes Werkzeug läuft über denselben Rahmen: Anmeldung lesen, Mandant mit
+// Lease holen, Zulassung prüfen, Erfassungsweg agent:<kurzname> setzen und
+// über Tenant.Read oder Tenant.Write in den Kern. Schreibende Werkzeuge
+// verlangen mandant_id und nehmen einen Idempotenzschlüssel an.
+
+// writeTimeout begrenzt das Warten eines Agenten auf die Schreibsperre samt
+// Vorgang. Danach antwortet das Werkzeug mit „beschaeftigt".
+const writeTimeout = 30 * time.Second
+
+// Call ist der Zusammenhang eines Werkzeugaufrufs.
+type Call struct {
+	Tool     string
+	ClientID string
+	App      string
+	Channel  actor.Channel
+	Scopes   []string
+	// Tenant ist der geöffnete Mandant, solange der Aufruf läuft; nil, wenn
+	// keiner geöffnet ist.
+	Tenant *core.Tenant
+	// Granted: die App ist für diesen Mandanten zugelassen.
+	Granted bool
+}
+
+// Can meldet, ob die Anmeldung einen Scope trägt.
+func (c *Call) Can(scope string) bool { return slices.Contains(c.Scopes, scope) }
+
+// Spec beschreibt ein Werkzeug.
+type Spec struct {
+	Name        string
+	Title       string
+	Description string
+	// Idempotent: derselbe Aufruf ein zweites Mal ändert nichts mehr.
+	Idempotent bool
+	// Destructive: der Client soll vor jedem Aufruf beim Menschen nachfragen.
+	Destructive bool
+}
+
+// WriteArgs gehören in die Eingabe jedes schreibenden Werkzeugs.
+type WriteArgs struct {
+	MandantID            string `json:"mandant_id" jsonschema:"Kennung des Mandanten aus status. Ist inzwischen ein anderer geöffnet, wird nichts geschrieben."`
+	Idempotenzschluessel string `json:"idempotenz_schluessel,omitempty" jsonschema:"Frei gewählter Schlüssel (8 bis 100 Zeichen aus A-Z a-z 0-9 - _ . :). Derselbe Schlüssel mit derselben Eingabe liefert das erste Ergebnis, statt ein zweites Mal zu schreiben."`
+}
+
+func (a WriteArgs) writeArgs() WriteArgs { return a }
+
+type writeInput interface{ writeArgs() WriteArgs }
+
+// Wiederholung kennzeichnet die Ausgabe eines schreibenden Werkzeugs, die aus
+// einem früheren Aufruf mit demselben Schlüssel stammt.
+type Wiederholung struct {
+	Wiederholt bool `json:"wiederholt,omitempty" jsonschema:"true, wenn dieser Vorgang unter dem Schlüssel schon lief; die Ausgabe ist die des ersten Laufs"`
+}
+
+func (w *Wiederholung) markReplayed() { w.Wiederholt = true }
+
+type replayMarker interface{ markReplayed() }
+
+// Referenced ist eine Ausgabe, die auf ein geschriebenes Objekt zeigt
+// (z. B. „buchung:812"); sie steht am Idempotenzschlüssel.
+type Referenced interface{ Ref() string }
+
+// Toolbox registriert die Werkzeuge am MCP-Server.
+type Toolbox struct {
+	host  *core.Host
+	store *oauth.Store
+	srv   *mcp.Server
+	names []string
+}
+
+// Names sind die registrierten Werkzeuge.
+func (tb *Toolbox) Names() []string { return slices.Clone(tb.names) }
+
+// AddInfo registriert ein lesendes Werkzeug, das auch ohne geöffneten oder
+// freigegebenen Mandanten antwortet.
+func AddInfo[In, Out any](tb *Toolbox, spec Spec, fn func(ctx context.Context, c *Call, in In) (Out, error)) {
+	add(tb, spec, true, func(ctx context.Context, c *Call, in In) (Out, error) {
+		return fn(ctx, c, in)
+	})
+}
+
+// AddRead registriert ein lesendes Werkzeug im geöffneten Mandanten.
+func AddRead[In, Out any](tb *Toolbox, spec Spec, fn func(ctx context.Context, c *Call, s *core.Services, in In) (Out, error)) {
+	add(tb, spec, true, func(ctx context.Context, c *Call, in In) (Out, error) {
+		var out Out
+		if !c.Can(oauth.ScopeRead) {
+			return out, errScope(oauth.ScopeRead)
+		}
+		if err := c.ensureTenant(); err != nil {
+			return out, err
+		}
+		err := c.Tenant.Read(ctx, func(ctx context.Context, s *core.Services) error {
+			var err error
+			out, err = fn(ctx, c, s, in)
+			return err
+		})
+		return out, err
+	})
+}
+
+// AddWrite registriert ein schreibendes Werkzeug. Es läuft als ein Vorgang
+// über Tenant.Write und damit unter Schreibsperre, Prüfermodus und einer
+// Transaktion; der Idempotenzschlüssel steht in derselben Transaktion.
+func AddWrite[In writeInput, Out any](tb *Toolbox, spec Spec, fn func(ctx context.Context, c *Call, s *core.Services, in In) (Out, error)) {
+	add(tb, spec, false, func(ctx context.Context, c *Call, in In) (Out, error) {
+		var out Out
+		if !c.Can(oauth.ScopeWrite) {
+			return out, errScope(oauth.ScopeWrite)
+		}
+		if c.Tenant == nil {
+			return out, errNoTenant()
+		}
+		args := in.writeArgs()
+		if args.MandantID != c.Tenant.ID() {
+			return out, errSwitched(args.MandantID, c.Tenant.ID())
+		}
+		if !c.Granted {
+			return out, errNotGranted()
+		}
+		ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+		defer cancel()
+		err := c.Tenant.Write(ctx, func(ctx context.Context, s *core.Services) error {
+			if args.Idempotenzschluessel == "" {
+				var err error
+				out, err = fn(ctx, c, s, in)
+				return err
+			}
+			request, err := withoutKey(in)
+			if err != nil {
+				return err
+			}
+			outcome, err := s.Idempotency.Run(ctx, service.IdempotentCall{
+				ClientID: c.ClientID, Key: args.Idempotenzschluessel, Operation: spec.Name, Request: request,
+			}, func(ctx context.Context) (string, any, error) {
+				result, err := fn(ctx, c, s, in)
+				ref := ""
+				if r, ok := any(result).(Referenced); ok {
+					ref = r.Ref()
+				}
+				return ref, result, err
+			})
+			if err != nil {
+				return err
+			}
+			if err := json.Unmarshal(outcome.Response, &out); err != nil {
+				return fmt.Errorf("das gespeicherte Ergebnis ließ sich nicht lesen: %w", err)
+			}
+			if outcome.Replayed {
+				if m, ok := any(&out).(replayMarker); ok {
+					m.markReplayed()
+				}
+			}
+			return nil
+		})
+		return out, err
+	})
+}
+
+// withoutKey ist die Eingabe ohne den Schlüssel: der Schlüssel benennt den
+// Vorgang, er gehört nicht zu dem, was verglichen wird.
+func withoutKey(in any) (map[string]any, error) {
+	raw, err := json.Marshal(in)
+	if err != nil {
+		return nil, err
+	}
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return nil, err
+	}
+	delete(m, "idempotenz_schluessel")
+	return m, nil
+}
+
+func (c *Call) ensureTenant() error {
+	if c.Tenant == nil {
+		return errNoTenant()
+	}
+	if !c.Granted {
+		return errNotGranted()
+	}
+	return nil
+}
+
+func add[In, Out any](tb *Toolbox, spec Spec, readOnly bool, run func(ctx context.Context, c *Call, in In) (Out, error)) {
+	outSchema, err := jsonschema.For[Out](nil)
+	if err != nil {
+		panic(fmt.Sprintf("Werkzeug %s: Ausgabeschema: %v", spec.Name, err))
+	}
+	closed := false
+	annotations := &mcp.ToolAnnotations{Title: spec.Title, ReadOnlyHint: readOnly, OpenWorldHint: &closed}
+	if readOnly {
+		annotations.IdempotentHint = true
+	} else {
+		destructive := spec.Destructive
+		annotations.DestructiveHint = &destructive
+		annotations.IdempotentHint = spec.Idempotent
+	}
+	tool := &mcp.Tool{
+		Name: spec.Name, Title: spec.Title, Description: spec.Description,
+		Annotations: annotations, OutputSchema: outSchema,
+	}
+	if spec.Destructive {
+		tool.Meta = mcp.Meta{"anthropic/requiresUserInteraction": true}
+	}
+	mcp.AddTool(tb.srv, tool, func(ctx context.Context, req *mcp.CallToolRequest, in In) (*mcp.CallToolResult, any, error) {
+		c, release, err := tb.newCall(ctx, req, spec.Name)
+		if err != nil {
+			return errorResult(toolError(err)), nil, nil
+		}
+		defer release()
+		out, err := run(actor.WithChannel(ctx, c.Channel), c, in)
+		if err != nil {
+			return errorResult(toolError(err)), nil, nil
+		}
+		body, err := json.Marshal(out)
+		if err != nil {
+			return errorResult(&ToolError{Code: CodeInternal, Nachricht: "die Antwort ließ sich nicht aufbereiten"}), nil, nil
+		}
+		return &mcp.CallToolResult{
+			Content:           []mcp.Content{&mcp.TextContent{Text: string(body)}},
+			StructuredContent: json.RawMessage(body),
+		}, nil, nil
+	})
+	tb.names = append(tb.names, spec.Name)
+}
+
+// newCall liest Anmeldung und offenen Mandanten. release gibt die Lease
+// zurück.
+func (tb *Toolbox) newCall(ctx context.Context, req *mcp.CallToolRequest, tool string) (*Call, func(), error) {
+	info := req.Extra.TokenInfo
+	if info == nil {
+		return nil, nil, &ToolError{Code: CodeMissingScope, Nachricht: "der Aufruf trägt keine Anmeldung"}
+	}
+	slug, _ := info.Extra["slug"].(string)
+	channel, err := actor.Agent(slug)
+	if err != nil {
+		return nil, nil, &ToolError{Code: CodeInternal, Nachricht: "die Anmeldung nennt keinen gültigen Kurznamen: " + err.Error()}
+	}
+	name, _ := info.Extra["name"].(string)
+	c := &Call{Tool: tool, ClientID: info.UserID, App: name, Channel: channel, Scopes: info.Scopes}
+	t, release, err := tb.host.Acquire(ctx)
+	switch {
+	case errors.Is(err, core.ErrNoTenant), errors.Is(err, core.ErrTenantClosing):
+		return c, func() {}, nil
+	case err != nil:
+		return nil, nil, err
+	}
+	c.Tenant = t
+	grant, err := tb.store.ActiveGrant(ctx, c.ClientID, t.ID())
+	if err != nil {
+		release()
+		return nil, nil, err
+	}
+	c.Granted = grant != nil
+	return c, release, nil
+}
+
+// Seite ist die Eingabe eines seitenweise antwortenden Werkzeugs.
+type Seite struct {
+	Limit  int    `json:"limit,omitempty" jsonschema:"Einträge je Seite, 1 bis 100; Vorgabe 25"`
+	Cursor string `json:"cursor,omitempty" jsonschema:"naechste_seite aus der vorigen Antwort; leer für die erste Seite"`
+}
+
+// Seitenende gehört in die Ausgabe eines seitenweise antwortenden Werkzeugs.
+type Seitenende struct {
+	NaechsteSeite *string `json:"naechste_seite" jsonschema:"Cursor für die nächste Seite; null, wenn dies die letzte ist"`
+}
+
+const (
+	defaultPageSize = 25
+	maxPageSize     = 100
+)
+
+// Paginate schneidet eine Seite aus einer Liste. Der Cursor ist
+// undurchsichtig; ein fremder oder verbogener Cursor ist ein Eingabefehler.
+func Paginate[T any](items []T, p Seite) ([]T, Seitenende, error) {
+	limit := p.Limit
+	if limit == 0 {
+		limit = defaultPageSize
+	}
+	if limit < 1 || limit > maxPageSize {
+		return nil, Seitenende{}, &ToolError{Code: CodeInvalidInput,
+			Nachricht: fmt.Sprintf("limit muss zwischen 1 und %d liegen, nicht %d", maxPageSize, p.Limit)}
+	}
+	offset := 0
+	if p.Cursor != "" {
+		raw, err := base64.RawURLEncoding.DecodeString(p.Cursor)
+		n, convErr := strconv.Atoi(strings.TrimPrefix(string(raw), "ab:"))
+		if err != nil || convErr != nil || !strings.HasPrefix(string(raw), "ab:") || n < 0 || n > len(items) {
+			return nil, Seitenende{}, &ToolError{Code: CodeInvalidInput, Nachricht: "der Cursor ist ungültig",
+				NaechsterSchritt: "Ohne cursor mit der ersten Seite neu beginnen."}
+		}
+		offset = n
+	}
+	end := min(offset+limit, len(items))
+	page := items[offset:end]
+	if end < len(items) {
+		next := base64.RawURLEncoding.EncodeToString([]byte("ab:" + strconv.Itoa(end)))
+		return page, Seitenende{NaechsteSeite: &next}, nil
+	}
+	return page, Seitenende{}, nil
+}

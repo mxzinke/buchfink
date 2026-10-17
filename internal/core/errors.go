@@ -19,6 +19,8 @@ var (
 	ErrForeignTenant = errors.New("der Vorgang gehört zu einem anderen Mandanten")
 	// ErrHostClosed: die App wird beendet.
 	ErrHostClosed = errors.New("Buchfink wird beendet")
+	// ErrExaminerActive: der Prüfermodus weist den Schreibvorgang ab.
+	ErrExaminerActive = errors.New("der Prüfermodus ist aktiv")
 	// ErrWriteInRead: ein Lesevorgang wollte schreiben.
 	ErrWriteInRead = errors.New("ein Lesevorgang darf nicht schreiben")
 )

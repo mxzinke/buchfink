@@ -82,8 +82,15 @@ func examinerError(state ExaminerState) error {
 	if strings.TrimSpace(state.Reason) != "" {
 		message += fmt.Sprintf(" (Grund: %s)", state.Reason)
 	}
-	return errors.New(message + ".")
+	return &examinerActiveError{message: message + "."}
 }
+
+// examinerActiveError trägt die Meldung für den Menschen und ist
+// ErrExaminerActive für Aufrufer, die den Grund unterscheiden.
+type examinerActiveError struct{ message string }
+
+func (e *examinerActiveError) Error() string        { return e.message }
+func (e *examinerActiveError) Is(target error) bool { return target == ErrExaminerActive }
 
 // EnableExaminer schaltet den Prüfermodus bis einschließlich until ein. Datum
 // und Grund sind Pflicht: ohne Ende bliebe der Modus liegen, ohne Grund ließe
