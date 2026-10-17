@@ -14,6 +14,7 @@ import type {
   AdvanceItem,
   AdvanceTargetOption,
   AfaRules,
+  AgentBookings,
   Anlagenspiegel,
   AppConfig,
   AppConsentRequest,
@@ -104,6 +105,8 @@ import type {
   NumberGapReason,
   NumberGapReasonOption,
   NumberGapReport,
+  Obligation,
+  ObligationConfirmation,
   OpeningBalancePreview,
   OpeningBalanceRequest,
   OpenItem,
@@ -224,6 +227,12 @@ function list<T>(value: T[] | null | undefined): T[] {
 function normalizeTask(task: Task): Task {
   if (!task) return task;
   return { ...task, target: task.target ?? { area: '' } };
+}
+
+/** Die Hinweise einer Pflicht und ihr Ziel kommen auch leer als Liste und Ziel an. */
+function normalizeObligation(o: Obligation): Obligation {
+  if (!o) return o;
+  return { ...o, hints: list(o.hints), target: o.target ?? { area: '' } };
 }
 
 /** Die Listen einer Voranmeldung: Kennziffern mit Drill-down und Nachträge. */
@@ -1675,6 +1684,39 @@ export const Api = {
    */
   getPaymentTermNotice: (dueDays: number): Promise<string> =>
     call(() => Bridge.GetPaymentTermNotice(dueDays)),
+
+  // --- Übersicht: Pflichten und Buchungen der Apps -----------------------
+
+  /** Die Pflichten, die noch etwas verlangen, nach Fälligkeit; 0 heißt alle. */
+  getNextObligations: (limit = 0): Promise<Obligation[]> =>
+    call(() => Bridge.GetNextObligations(limit) as Promise<Obligation[]>).then((items) =>
+      list(items).map(normalizeObligation),
+    ),
+  /** Eine Pflicht mit Stand, Vorbereitung und Nachweis. */
+  getObligation: (key: string): Promise<Obligation> =>
+    call(() => Bridge.GetObligation(key) as Promise<Obligation>).then(normalizeObligation),
+  /** Bestätigt eine Pflicht mit Nachweis. Nur in der App. */
+  confirmObligation: (key: string, evidence: ObligationConfirmation): Promise<Obligation> =>
+    call(() => Bridge.ConfirmObligation(key, evidence) as Promise<Obligation>).then(
+      normalizeObligation,
+    ),
+  /** Kennzeichnet eine Pflicht mit Grund als entfallen. */
+  waiveObligation: (key: string, reason: string): Promise<Obligation> =>
+    call(() => Bridge.WaiveObligation(key, reason) as Promise<Obligation>).then(
+      normalizeObligation,
+    ),
+  /** Nimmt Bestätigung oder Entfallen mit Grund zurück. */
+  reopenObligation: (key: string, reason: string): Promise<Obligation> =>
+    call(() => Bridge.ReopenObligation(key, reason) as Promise<Obligation>).then(
+      normalizeObligation,
+    ),
+  /** Was verbundene Apps seit der letzten Festschreibung gebucht haben, die jüngste zuerst. */
+  getAgentBookings: (limit = 0): Promise<AgentBookings> =>
+    call(() => Bridge.GetAgentBookings(limit) as Promise<AgentBookings>).then((result) => ({
+      total: result?.total ?? 0,
+      lastCommit: result?.lastCommit,
+      entries: list(result?.entries).map((entry) => ({ ...entry, lines: list(entry.lines) })),
+    })),
 
   // --- Welle 8: keine Buchung ohne Beleg ---------------------------------
 

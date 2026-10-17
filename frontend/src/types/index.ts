@@ -4487,3 +4487,104 @@ export interface AppConsentRequest {
   userCode: string;
   expiresAt: string;
 }
+
+// --- Übersicht: Pflichtenkalender und Buchungen der Apps ------------------
+
+/** Stand einer Pflicht im Pflichtenkalender (`domain.ObligationStatus`). */
+export type ObligationStatus = 'open' | 'prepared' | 'done' | 'overdue' | 'waived';
+
+/** Woher der Stand kommt: aus den Daten, aus einer Bestätigung oder aus beidem. */
+export type ObligationEvidenceSource = 'data' | 'human' | 'either';
+
+/** Wer die Pflicht trägt (`domain.ObligationResponsibility`). */
+export type ObligationResponsibility = 'agent_prepares' | 'human_confirms' | 'tax_advisor';
+
+/** Art eines Nachweises (`domain.EvidenceKind`). */
+export type EvidenceKind =
+  | 'transfer_ticket'
+  | 'file_number'
+  | 'order_number'
+  | 'booking'
+  | 'commitment'
+  | 'resolution'
+  | 'status'
+  | 'confirmation';
+
+/** Der Nachweis einer erledigten Pflicht. */
+export interface ObligationEvidence {
+  date: string;
+  kind: EvidenceKind;
+  reference?: string;
+  note?: string;
+  /** Aus den Daten abgeleitet, nicht bestätigt. */
+  automatic: boolean;
+  channel?: string;
+  actor?: string;
+}
+
+/** Die Meldung eines Agenten oder Menschen, dass die Pflicht vorbereitet ist. */
+export interface ObligationPreparation {
+  at: string;
+  note?: string;
+  /** `ui` oder `agent:<kurzname>`. */
+  channel: string;
+  actor: string;
+}
+
+/**
+ * Eine Pflicht aus dem Pflichtenkalender mit der Stelle der Oberfläche, an der
+ * sie bearbeitet wird (`wailsbridge.ObligationView`).
+ */
+export interface Obligation {
+  /** Pflichtart und Zeitraum, etwa „ustva.2026-Q1“. */
+  key: string;
+  kind: string;
+  title: string;
+  description: string;
+  /** Die Rechtsgrundlage, nur für die Erklärstufe. */
+  basis: string;
+  channel: string;
+  responsibility: ObligationResponsibility;
+  evidenceSource: ObligationEvidenceSource;
+  skillRef: string;
+  periodKey: string;
+  periodLabel: string;
+  periodFrom?: string;
+  periodTo?: string;
+  fiscalYear: number;
+  /** Gesetzliches Fristende; `dueDate` ist das nach Wochenende und Feiertag verschobene. */
+  statutoryDate: string;
+  dueDate: string;
+  shiftReason?: string;
+  /** „Unverzüglich“: die Frist beginnt am Fälligkeitstag. */
+  immediate?: boolean;
+  status: ObligationStatus;
+  proof?: ObligationEvidence;
+  preparation?: ObligationPreparation;
+  waivedReason?: string;
+  hints: string[];
+  target: TaskTarget;
+}
+
+/** Der Nachweis, mit dem der Mensch eine Pflicht bestätigt (`service.ConfirmInput`). */
+export interface ObligationConfirmation {
+  date: string;
+  kind: EvidenceKind;
+  reference: string;
+  note: string;
+}
+
+/** Eine Buchung einer verbundenen App (`wailsbridge.AgentBooking`). */
+export interface AgentBooking extends JournalEntry {
+  /** Eine Generalumkehr hebt die Buchung auf. */
+  reversed: boolean;
+}
+
+/** Die Buchungen der Apps, die noch nicht festgeschrieben sind. */
+export interface AgentBookings {
+  /** Die Festschreibung mit dem jüngsten Stichtag; fehlt ohne Festschreibung. */
+  lastCommit?: Festschreibung;
+  /** Alle solchen Buchungen; `entries` enthält die jüngsten. */
+  total: number;
+  entries: AgentBooking[];
+}
