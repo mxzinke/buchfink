@@ -21,8 +21,14 @@ func requireHuman(ctx context.Context, what string) error {
 		return nil
 	}
 	if channel.IsAgent() {
-		return fmt.Errorf("%s ist der Bedienung in der App vorbehalten; der verbundene Agent %q kann das nicht",
-			what, channel.AgentSlug())
+		return appOnlyError(fmt.Sprintf("%s ist der Bedienung in der App vorbehalten; der verbundene Agent %q kann das nicht",
+			what, channel.AgentSlug()))
 	}
-	return fmt.Errorf("%s ist der Bedienung in der App vorbehalten, nicht dem Erfassungsweg %q", what, channel)
+	return appOnlyError(fmt.Sprintf("%s ist der Bedienung in der App vorbehalten, nicht dem Erfassungsweg %q", what, channel))
 }
+
+// appOnlyError nennt den Vorgang und ist zugleich actor.ErrAppOnly.
+type appOnlyError string
+
+func (e appOnlyError) Error() string { return string(e) }
+func (e appOnlyError) Unwrap() error { return actor.ErrAppOnly }

@@ -2,9 +2,15 @@ package actor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 )
+
+// ErrAppOnly: der Vorgang ist der Bedienung in der App (Erfassungsweg ui)
+// vorbehalten. Kern und Dienste melden ihn unter diesem Fehler, damit der
+// MCP-Server ihn als solchen erkennt.
+var ErrAppOnly = errors.New("dieser Vorgang ist der Bedienung in der App vorbehalten")
 
 // Channel ist der Erfassungsweg: über welche Bedienung ein Vorgang in die
 // Bücher kam. Der Bearbeiter (Actor) sagt, wer verantwortet; der Erfassungsweg,

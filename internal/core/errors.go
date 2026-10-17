@@ -1,6 +1,10 @@
 package core
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/buchfink/buchfink/internal/actor"
+)
 
 var (
 	// ErrNoTenant: es ist kein Mandant geöffnet.
@@ -13,7 +17,7 @@ var (
 	// ErrUnknownChannel: der Erfassungsweg ist keiner der bekannten.
 	ErrUnknownChannel = errors.New("unbekannter Erfassungsweg")
 	// ErrAppOnly: der Vorgang ist der Bedienung in der App vorbehalten.
-	ErrAppOnly = errors.New("dieser Vorgang ist der Bedienung in der App vorbehalten")
+	ErrAppOnly = actor.ErrAppOnly
 	// ErrForeignTenant: ein Vorgang kam mit der Transaktion eines anderen
 	// Mandanten.
 	ErrForeignTenant = errors.New("der Vorgang gehört zu einem anderen Mandanten")

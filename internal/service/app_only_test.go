@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -84,8 +85,8 @@ func refusesAppOnlyOperations(t *testing.T, ctx context.Context) {
 		},
 	} {
 		err := call()
-		if err == nil || !strings.Contains(err.Error(), "App vorbehalten") {
-			t.Errorf("%s über %q wurde nicht abgewiesen: %v", name, channel, err)
+		if err == nil || !strings.Contains(err.Error(), "App vorbehalten") || !errors.Is(err, actor.ErrAppOnly) {
+			t.Errorf("%s über %q wurde nicht als App-vorbehalten abgewiesen: %v", name, channel, err)
 		}
 	}
 }
