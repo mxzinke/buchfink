@@ -41,7 +41,8 @@ func newMCPServer(b *BuchfinkBridge) {
 	b.mcp = srv
 }
 
-// windowConsent zeigt Anfragen im Fenster und holt es nach vorn.
+// windowConsent zeigt Anfragen im Fenster und holt es nach vorn, außer wenn
+// eine Anfrage nur die offene derselben App ablöst.
 type windowConsent struct{}
 
 func (windowConsent) Present(r oauth.ConsentRequest) {
@@ -50,6 +51,9 @@ func (windowConsent) Present(r oauth.ConsentRequest) {
 		return
 	}
 	app.Event.Emit(EventAppRequest, r)
+	if r.Replacing {
+		return
+	}
 	for _, w := range app.Window.GetAll() {
 		w.UnMinimise()
 		w.Show()

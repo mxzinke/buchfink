@@ -32,6 +32,9 @@ type ConsentRequest struct {
 	TenantName string    `json:"tenantName"`
 	UserCode   string    `json:"userCode"`
 	ExpiresAt  time.Time `json:"expiresAt"`
+	// Replacing: die Anfrage löst eine offene derselben App ab. Der Broker
+	// holt das Fenster dafür nicht erneut nach vorn.
+	Replacing bool `json:"-"`
 }
 
 // ConsentBroker bringt Anfragen in die App. Present darf nicht blockieren;
@@ -48,6 +51,17 @@ var (
 	ErrExpiredRequest  = errors.New("die Anfrage ist abgelaufen")
 	ErrInvalidNonce    = errors.New("die Bestätigung passt nicht zur Anfrage")
 	ErrTooManyRequests = errors.New("es warten schon zu viele Anmeldungen auf Bestätigung")
+	ErrTooSoon         = errors.New("diese App hat gerade erst angefragt")
+)
+
+// Grenzen der offenen Anfragen. Jede Anfrage holt das Fenster nach vorn und
+// belegt Speicher; /authorize erreicht jeder Prozess auf diesem Rechner.
+const (
+	// clientInterval ist der Mindestabstand zweier Anfragen derselben App.
+	// Nach einer Zustimmung darf sie sofort wieder anfragen.
+	clientInterval = 10 * time.Second
+	// maxEntries deckelt alle Einträge, auch erledigte, nicht abgeholte.
+	maxEntries = 32
 )
 
 // pending ist eine offene Anfrage mit ihrem Ausgang.
@@ -64,6 +78,7 @@ type pending struct {
 	approved bool
 	code     string
 	reason   string
+	doneAt   time.Time
 	// claimed: die Zustimmung ist angenommen, der Code entsteht gerade.
 	claimed bool
 	// delivered: der Browser hat den Rücksprung abgeholt.
@@ -72,43 +87,66 @@ type pending struct {
 	timer     *time.Timer
 }
 
-// pendingSet hält die offenen Anfragen im Speicher. Sie überleben keinen
-// Neustart; der Browser zeigt dann „abgelaufen".
+// pendingSet hält die Anfragen im Speicher. Sie überleben keinen Neustart;
+// der Browser zeigt dann „abgelaufen". Ein erledigter Ausgang bleibt nur so
+// lange, bis der Browser ihn abholt, höchstens keep.
 type pendingSet struct {
 	mu    sync.Mutex
 	items map[string]*pending
+	// last ist je App die jüngste Anfrage der letzten clientInterval.
+	last  map[string]*pending
 	max   int
+	keep  time.Duration
+	clock func() time.Time
 }
 
-func newPendingSet(max int) *pendingSet {
-	return &pendingSet{items: map[string]*pending{}, max: max}
+func newPendingSet(max int, keep time.Duration, clock func() time.Time) *pendingSet {
+	return &pendingSet{items: map[string]*pending{}, last: map[string]*pending{}, max: max, keep: keep, clock: clock}
 }
 
-// add nimmt eine Anfrage auf. Eine noch offene Anfrage derselben App wird
-// abgelöst; mehr als max offene gibt es nicht.
-func (p *pendingSet) add(item *pending, now time.Time) (superseded []*pending, err error) {
+// add nimmt eine Anfrage auf und löst eine offene derselben App ab; die
+// abgelöste ist danach entschieden und entfernt. Mehr als max offene, mehr
+// als maxEntries Einträge oder eine zweite Anfrage derselben App binnen
+// clientInterval (außer nach einer Zustimmung) gibt es nicht.
+func (p *pendingSet) add(item *pending) (superseded []string, err error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	now := item.created
 	for id, other := range p.items {
-		if isDone(other) && (other.delivered || now.Sub(other.created) > 2*time.Hour) {
+		if isDone(other) && (other.delivered || now.Sub(other.doneAt) > p.keep) {
 			delete(p.items, id)
 		}
 	}
+	for id, other := range p.last {
+		if now.Sub(other.created) >= clientInterval {
+			delete(p.last, id)
+		}
+	}
+	if prev := p.last[item.req.ClientID]; prev != nil && !(isDone(prev) && prev.approved) {
+		return nil, ErrTooSoon
+	}
+	var replace []*pending
 	open := 0
 	for _, other := range p.items {
-		if isDone(other) {
-			continue
+		switch {
+		case isDone(other):
+		case other.req.ClientID == item.req.ClientID && !other.claimed:
+			replace = append(replace, other)
+		default:
+			open++
 		}
-		if other.req.ClientID == item.req.ClientID {
-			superseded = append(superseded, other)
-			continue
-		}
-		open++
 	}
-	if open >= p.max {
+	if open >= p.max || len(p.items)-len(replace) >= maxEntries {
 		return nil, ErrTooManyRequests
 	}
+	for _, old := range replace {
+		p.decide(old, false, "", "durch eine neue Anmeldung derselben App ersetzt")
+		delete(p.items, old.req.ID)
+		superseded = append(superseded, old.req.ID)
+	}
+	item.req.Replacing = len(replace) > 0
 	p.items[item.req.ID] = item
+	p.last[item.req.ClientID] = item
 	return superseded, nil
 }
 
@@ -151,12 +189,18 @@ func (p *pendingSet) finish(item *pending, approved bool, code, reason string, c
 	if isDone(item) || (item.claimed && !claimer) {
 		return false
 	}
+	p.decide(item, approved, code, reason)
+	return true
+}
+
+// decide setzt den Ausgang; p.mu ist gehalten.
+func (p *pendingSet) decide(item *pending, approved bool, code, reason string) {
 	item.approved, item.code, item.reason = approved, code, reason
+	item.doneAt = p.clock()
 	if item.timer != nil {
 		item.timer.Stop()
 	}
 	close(item.done)
-	return true
 }
 
 // take holt den Ausgang für den Rücksprung ab, genau einmal.

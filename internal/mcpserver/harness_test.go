@@ -91,6 +91,12 @@ func (b *fakeBroker) setDecision(approve *bool) {
 	b.decide = func(oauth.ConsentRequest) *bool { return &value }
 }
 
+func (b *fakeBroker) count() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return len(b.presented)
+}
+
 func (b *fakeBroker) last() oauth.ConsentRequest {
 	b.mu.Lock()
 	defer b.mu.Unlock()

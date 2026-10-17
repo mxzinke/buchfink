@@ -544,6 +544,97 @@ func TestOpenRequestsAreLimited(t *testing.T) {
 	}
 }
 
+// /authorize erreicht jeder Prozess auf diesem Rechner. Eine App, die es in
+// einer Schleife ruft, legt höchstens alle zehn Sekunden eine Anfrage vor;
+// die abgelöste ist sofort weg und holt das Fenster nicht erneut nach vorn.
+func TestAuthorizeLoopOfOneAppIsBounded(t *testing.T) {
+	h := newHarness(t)
+	h.broker.setDecision(nil)
+	clientID := h.registerClient("Schleife")
+	path := oauth.PathAuthorize + "?" + h.authorizeQuery(clientID, "http://127.0.0.1:5000/callback", newPKCE()).Encode()
+
+	if resp := h.do(http.MethodGet, path, nil, nil); resp.StatusCode != http.StatusOK {
+		t.Fatalf("erste Anfrage: %d", resp.StatusCode)
+	}
+	first := h.broker.last()
+	for i := range 50 {
+		if resp := h.do(http.MethodGet, path, nil, nil); resp.StatusCode != http.StatusTooManyRequests {
+			t.Fatalf("Wiederholung %d: %d, erwartet 429", i, resp.StatusCode)
+		}
+	}
+	if n := h.broker.count(); n != 1 {
+		t.Errorf("%d Anfragen vorgelegt, erwartet eine", n)
+	}
+
+	h.clock.Advance(11 * time.Second)
+	if resp := h.do(http.MethodGet, path, nil, nil); resp.StatusCode != http.StatusOK {
+		t.Fatalf("Anfrage nach zehn Sekunden: %d", resp.StatusCode)
+	}
+	second := h.broker.last()
+	if h.broker.count() != 2 || !second.Replacing || first.Replacing {
+		t.Errorf("die Ablösung ist nicht als solche vorgelegt: %+v", second)
+	}
+	if !slices.Contains(h.broker.withdrawn, first.ID) {
+		t.Error("die abgelöste Anfrage bleibt in der App stehen")
+	}
+	if pending := h.srv.PendingRequests(); len(pending) != 1 || pending[0].ID != second.ID {
+		t.Errorf("offene Anfragen: %+v", pending)
+	}
+	resp := h.do(http.MethodGet, oauth.PathAuthorizeWait+"?anfrage="+first.ID, nil, nil)
+	if body := readBody(t, resp); !strings.Contains(body, "abgelaufen") {
+		t.Errorf("die abgelöste Anfrage ist noch abrufbar: %d", resp.StatusCode)
+	}
+
+	// Nach einer Zustimmung darf die App sofort wieder anfragen, etwa
+	// nachdem der Mensch den Zugriff entzogen hat.
+	if err := h.srv.Resolve(context.Background(), second.ID, second.Nonce, true); err != nil {
+		t.Fatal(err)
+	}
+	if resp := h.do(http.MethodGet, path, nil, nil); resp.StatusCode != http.StatusOK {
+		t.Errorf("Anfrage nach der Zustimmung: %d", resp.StatusCode)
+	}
+}
+
+// HEAD läuft im ServeMux über die GET-Route. Auf den Browser-Seiten legte es
+// eine Anfrage vor oder holte den Ausgang ab.
+func TestHeadOnBrowserPagesIsRefused(t *testing.T) {
+	h := newHarness(t)
+	h.broker.setDecision(nil)
+	clientID := h.registerClient("Claude Code")
+	query := h.authorizeQuery(clientID, "http://127.0.0.1:5000/callback", newPKCE()).Encode()
+	if resp := h.do(http.MethodHead, oauth.PathAuthorize+"?"+query, nil, nil); resp.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf("HEAD /authorize: %d", resp.StatusCode)
+	}
+	if n := h.broker.count(); n != 0 {
+		t.Errorf("HEAD hat %d Anfragen vorgelegt", n)
+	}
+	if resp := h.do(http.MethodGet, oauth.PathAuthorize+"?"+query, nil, nil); resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET /authorize: %d", resp.StatusCode)
+	}
+	if resp := h.do(http.MethodHead, oauth.PathAuthorizeWait+"?anfrage="+h.broker.last().ID, nil, nil); resp.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf("HEAD /authorize/warten: %d", resp.StatusCode)
+	}
+}
+
+// Die Warteseite im Browser nennt App und Abgleichcode, nicht den Mandanten:
+// registrieren und /authorize aufrufen kann jeder Prozess.
+func TestWaitingPageDoesNotNameTheTenant(t *testing.T) {
+	h := newHarness(t)
+	h.broker.setDecision(nil)
+	clientID := h.registerClient("Neugierig")
+	resp := h.do(http.MethodGet, oauth.PathAuthorize+"?"+h.authorizeQuery(clientID, "http://127.0.0.1:5000/callback", newPKCE()).Encode(), nil, nil)
+	body := readBody(t, resp)
+	if resp.StatusCode != http.StatusOK || !strings.Contains(body, h.broker.last().UserCode) {
+		t.Fatalf("Warteseite: %d %s", resp.StatusCode, body)
+	}
+	if strings.Contains(body, "Pfennig") || strings.Contains(body, "Mandant") {
+		t.Errorf("die Warteseite verrät den Mandanten: %s", body)
+	}
+	if h.broker.last().TenantName != "Pfennig Ventures GmbH" {
+		t.Errorf("der Dialog in der App nennt den Mandanten nicht: %+v", h.broker.last())
+	}
+}
+
 // Wer den Zugriff entzieht, sperrt die App sofort aus, auch mit gültigem Token.
 func TestRevokedAppIsLockedOut(t *testing.T) {
 	h := newHarness(t)

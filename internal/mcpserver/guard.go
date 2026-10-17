@@ -47,6 +47,20 @@ func sameOrigin(as *oauth.Server, origin string) bool {
 	return ok && as.HostAllowed(host)
 }
 
+// getOnly lässt nur GET durch. Der ServeMux bedient HEAD über die GET-Route;
+// ein HEAD auf /authorize legte sonst eine Anfrage vor, eines auf
+// /authorize/warten holte den Ausgang ab.
+func getOnly(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
+			http.Error(w, "Methode nicht erlaubt", http.StatusMethodNotAllowed)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // public sind die Metadaten: öffentlich und für jede Seite lesbar
 // (RFC 9728 §3.1, RFC 8414 §3).
 func public(next http.Handler) http.Handler {

@@ -54,24 +54,22 @@ func writePage(w http.ResponseWriter, status int, p page) {
 	_ = pageTemplate.Execute(w, p)
 }
 
+// waitingPage nennt nur App und Abgleichcode. Den Mandanten zeigt erst der
+// Dialog in der App: /authorize erreicht jeder Prozess auf diesem Rechner.
 func waitingPage(item *pending, waitURL string) page {
-	tenant := "Kein Mandant ist geöffnet."
-	if item.req.TenantName != "" {
-		tenant = "Mandant: " + item.req.TenantName
-	}
 	return page{
 		Title: "Bitte in Buchfink bestätigen",
 		Lines: []string{
 			"„" + item.req.ClientName + "“ möchte auf Buchfink zugreifen. Wechseln Sie in das Fenster von Buchfink und vergleichen Sie dort diesen Code:",
 		},
 		Code:         item.req.UserCode,
-		Footer:       tenant + " Diese Seite wartet auf Ihre Entscheidung und leitet danach selbst weiter.",
+		Footer:       "Diese Seite wartet auf Ihre Entscheidung und leitet danach selbst weiter.",
 		Refresh:      waitURL,
 		RefreshAfter: 0,
 	}
 }
 
-func errorPage(w http.ResponseWriter, status int, title, line string) {
-	writePage(w, status, page{Title: title, Lines: []string{line},
+func errorPage(w http.ResponseWriter, status int, title string, lines ...string) {
+	writePage(w, status, page{Title: title, Lines: lines,
 		Footer: "Sie können dieses Fenster schließen."})
 }

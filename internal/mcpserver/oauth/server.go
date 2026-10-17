@@ -120,9 +120,10 @@ func NewServer(cfg Config) *Server {
 	s := &Server{
 		cfg:     cfg,
 		issuer:  fmt.Sprintf("http://127.0.0.1:%d", cfg.Port),
-		pending: newPendingSet(cfg.MaxPending),
 		touched: map[string]time.Time{},
 	}
+	// Ein erledigter Ausgang bleibt so lange wie ein Code gilt.
+	s.pending = newPendingSet(cfg.MaxPending, cfg.CodeTTL, s.now)
 	if err := cfg.Store.prune(context.Background(), s.now()); err != nil {
 		cfg.Logger.Warn("verbundene Apps: Aufräumen gescheitert", "fehler", err)
 	}
@@ -370,7 +371,11 @@ func (s *Server) Authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if client == nil {
-		errorPage(w, http.StatusBadRequest, "Unbekannte App", "Diese App ist bei Buchfink nicht registriert. Bitte die Anmeldung in der App neu beginnen.")
+		errorPage(w, http.StatusBadRequest, "Unbekannte App",
+			"Diese App ist bei Buchfink nicht (mehr) registriert, etwa weil die Liste der verbundenen Apps zurückgesetzt wurde oder die App nie zugelassen war. "+
+				"Eine neue Anmeldung mit derselben Kennung führt immer hierher.",
+			"Bitte die gespeicherte Anmeldung in der App verwerfen und neu beginnen: in Claude Code mit „claude mcp logout <name>“, in anderen Apps über deren Abmelden.",
+			"Für die Buchfink-Brücke in Claude Desktop die Dateien im Ordner „Buchfink/mcp-bruecke“ des Benutzer-Konfigurationsordners löschen.")
 		return
 	}
 	var registered []string
@@ -430,19 +435,23 @@ func (s *Server) Authorize(w http.ResponseWriter, r *http.Request) {
 			s.cfg.Broker.Withdraw(item.req.ID)
 		}
 	})
-	superseded, err := s.pending.add(item, now)
-	if errors.Is(err, ErrTooManyRequests) {
+	superseded, err := s.pending.add(item)
+	switch {
+	case errors.Is(err, ErrTooSoon):
+		item.timer.Stop()
+		errorPage(w, http.StatusTooManyRequests, "Bitte einen Moment warten",
+			"Diese App hat gerade erst um Zugriff gebeten. Bitte einige Sekunden warten und die Anmeldung dann in der App neu beginnen.")
+		return
+	case err != nil:
 		item.timer.Stop()
 		errorPage(w, http.StatusTooManyRequests, "Zu viele offene Anmeldungen",
 			"In Buchfink warten schon mehrere Anmeldungen auf Ihre Entscheidung. Bitte entscheiden Sie diese zuerst und versuchen Sie es dann erneut.")
 		return
 	}
-	for _, old := range superseded {
-		if s.pending.finish(old, false, "", "durch eine neue Anmeldung derselben App ersetzt", false) && s.cfg.Broker != nil {
-			s.cfg.Broker.Withdraw(old.req.ID)
-		}
-	}
 	if s.cfg.Broker != nil {
+		for _, id := range superseded {
+			s.cfg.Broker.Withdraw(id)
+		}
 		s.cfg.Broker.Present(item.req)
 	}
 	writePage(w, http.StatusOK, waitingPage(item, s.waitURL(item)))
