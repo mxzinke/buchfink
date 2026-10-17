@@ -185,3 +185,21 @@ func TestCorrectEntryRefusesOpeningSource(t *testing.T) {
 		t.Error("die Neubuchung muss auf die ersetzte Buchung verweisen")
 	}
 }
+
+func TestPostRefusesPartnershipAccountsForCorporations(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+
+	_, err := env.journal.Post(ctx, simpleEntry("2100", "1800", 50000))
+	if err == nil {
+		t.Fatal("eine GmbH hat keine Privatentnahmen")
+	}
+	for _, hint := range []string{"1307", "3640", "verdeckte Gewinnausschüttung"} {
+		if !strings.Contains(err.Error(), hint) {
+			t.Errorf("die Meldung sollte den richtigen Weg nennen (%s): %v", hint, err)
+		}
+	}
+	if _, err := env.journal.Post(ctx, simpleEntry("1307", "1800", 50000)); err != nil {
+		t.Errorf("die Forderung gegen den Gesellschafter ist der richtige Weg: %v", err)
+	}
+}

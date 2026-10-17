@@ -617,6 +617,17 @@ func (s *JournalService) fiscalYearStartMonth(ctx context.Context) int {
 	return cfg.FiscalYearStartMonth
 }
 
+func (s *JournalService) legalForm(ctx context.Context) string {
+	if s.settingsRepo == nil {
+		return ""
+	}
+	cfg, err := s.settingsRepo.GetCompanySettings(ctx)
+	if err != nil || cfg == nil {
+		return ""
+	}
+	return cfg.LegalForm
+}
+
 // validateAccounts rejects bookings that reference accounts which cannot carry
 // them. Without this check the journal accepts numbers that exist nowhere in the
 // chart of accounts, and the resulting balances silently omit them.
@@ -695,6 +706,7 @@ func (s *JournalService) validateAccounts(ctx context.Context, e *domain.Journal
 	if err != nil {
 		return err
 	}
+	legalForm := s.legalForm(ctx)
 
 	for i, l := range e.Lines {
 		if domain.IsLedgerAccount(l.Account) {
@@ -704,7 +716,7 @@ func (s *JournalService) validateAccounts(ctx context.Context, e *domain.Journal
 			continue
 		}
 
-		if err := chart.EnsurePostable(l.Account); err != nil {
+		if err := chart.EnsurePostableFor(l.Account, legalForm); err != nil {
 			return fmt.Errorf("Zeile %d: %w", i+1, err)
 		}
 

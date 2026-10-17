@@ -204,7 +204,7 @@ func openingRequest(t *testing.T, env *testEnv, customerID uint, receiptID uint)
 		LegacySystem: "Vorgängerprogramm",
 		Accounts: []OpeningBalanceLine{
 			{Account: "1800", Side: domain.SideDebit, Amount: 500000, LegacyRef: "ALT-1800"},
-			{Account: "2000", Side: domain.SideCredit, Amount: 500000, LegacyRef: "ALT-2000"},
+			{Account: "2900", Side: domain.SideCredit, Amount: 500000, LegacyRef: "ALT-2900"},
 		},
 		Receivables: []OpenOpeningItem{{
 			ContactID: customerID, Amount: 119000,
