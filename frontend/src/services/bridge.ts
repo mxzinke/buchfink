@@ -451,6 +451,8 @@ export const bridge = {
     invoke<void>('ResolveAppRequest', id, nonce, approve),
 
   // Stammdaten des Unternehmens (internal/wailsbridge/company_service.go)
+  RegisterCompany: <T>(date: string, court: string, number: string) =>
+    invoke<T>('RegisterCompany', date, court, number),
   GetShareholderLoans: <T>() => invoke<T>('GetShareholderLoans'),
   RegisterShareholderLoan: <T>(request: unknown) => invoke<T>('RegisterShareholderLoan', request),
   CorrectShareholderLoan: <T>(id: number, request: unknown, reason: string) =>

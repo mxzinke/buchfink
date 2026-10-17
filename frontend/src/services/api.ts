@@ -1617,6 +1617,9 @@ export const Api = {
 
   // --- Stammdaten: Gesellschafterdarlehen, Steuernummer -------------------
 
+  /** Hält die Eintragung ins Handelsregister fest; damit endet die Vorgesellschaft. */
+  registerCompany: (date: string, court: string, number: string): Promise<Foundation> =>
+    call(() => Bridge.RegisterCompany(date, court, number) as Promise<Foundation>),
   /** Die Darlehensverträge mit Gesellschaftern und ihrem gebuchten Stand von heute. */
   getShareholderLoans: (): Promise<ShareholderLoanView[]> =>
     call(() => Bridge.GetShareholderLoans() as Promise<ShareholderLoanView[]>).then((loans) =>
