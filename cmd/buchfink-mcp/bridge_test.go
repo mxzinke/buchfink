@@ -11,11 +11,13 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -46,9 +48,14 @@ type testApp struct {
 	endpoint string
 	srv      *mcpserver.Server
 	broker   *autoBroker
+	// close beendet die App vor dem Ende des Tests.
+	close func()
 }
 
-func startApp(t *testing.T) *testApp {
+func startApp(t *testing.T) *testApp { return startAppAt(t, "127.0.0.1:0") }
+
+// startAppAt startet eine App mit leerem Speicher an einer Adresse.
+func startAppAt(t *testing.T, addr string) *testApp {
 	t.Helper()
 	base := t.TempDir()
 	host, err := core.NewHost(context.Background(), core.HostOptions{
@@ -72,7 +79,7 @@ func startApp(t *testing.T) *testApp {
 		t.Fatal(err)
 	}
 	broker.srv.Store(srv)
-	l, err := net.Listen("tcp", "127.0.0.1:0")
+	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,11 +88,15 @@ func startApp(t *testing.T) *testApp {
 	_ = ts.Listener.Close()
 	ts.Listener = l
 	ts.Start()
-	t.Cleanup(func() {
-		ts.Close()
-		_ = srv.Close(context.Background())
-	})
-	return &testApp{endpoint: fmt.Sprintf("http://127.0.0.1:%d/mcp", port), srv: srv, broker: broker}
+	var once sync.Once
+	stop := func() {
+		once.Do(func() {
+			ts.Close()
+			_ = srv.Close(context.Background())
+		})
+	}
+	t.Cleanup(stop)
+	return &testApp{endpoint: fmt.Sprintf("http://127.0.0.1:%d/mcp", port), srv: srv, broker: broker, close: stop}
 }
 
 var refreshLink = regexp.MustCompile(`url=(/authorize/warten\?anfrage=[^"]+)"`)
@@ -297,6 +308,186 @@ func TestBridgeLogsInAgainAfterRevocation(t *testing.T) {
 	if opened.Load() != 2 {
 		t.Errorf("Browser %d-mal geöffnet, erwartet zweimal", opened.Load())
 	}
+}
+
+// Vergisst Buchfink die Registrierung (Speicher zurückgesetzt), meldet die
+// Brücke sich neu an, statt mit der alten Kennung festzuhängen.
+func TestBridgeRegistersAgainWhenBuchfinkForgotIt(t *testing.T) {
+	app := startApp(t)
+	dir := t.TempDir()
+	var opened atomic.Int32
+	cs, b := connect(t, config{Endpoint: app.endpoint, StateDir: dir,
+		OpenBrowser: browser(t, &opened), LoginWait: 20 * time.Second})
+	if res := call(t, cs, "status"); res.IsError {
+		t.Fatalf("erste Anmeldung: %s", text(res))
+	}
+	before, err := b.store.load(app.endpoint)
+	if err != nil || before.ClientID == "" || !before.ClientApproved {
+		t.Fatalf("Anmeldung: %+v %v", before, err)
+	}
+
+	app.close()
+	u, _ := url.Parse(app.endpoint)
+	startAppAt(t, u.Host)
+	if res := call(t, cs, "status"); res.IsError {
+		t.Fatalf("nach dem Zurücksetzen: %s", text(res))
+	}
+	after, _ := b.store.load(app.endpoint)
+	if after.ClientID == before.ClientID || opened.Load() != 2 {
+		t.Errorf("Registrierung %s → %s, Browser %d-mal", before.ClientID, after.ClientID, opened.Load())
+	}
+}
+
+// Eine Registrierung, mit der nie ein Token kam, verwendet die Brücke nicht
+// wieder: Buchfink räumt sie ab, und die alte Kennung führte auf die
+// Fehlerseite von /authorize.
+func TestBridgeDropsRegistrationThatWasNeverApproved(t *testing.T) {
+	app := startApp(t)
+	app.broker.approve.Store(false)
+	dir := t.TempDir()
+	var opened atomic.Int32
+	cs, b := connect(t, config{Endpoint: app.endpoint, StateDir: dir,
+		OpenBrowser: browser(t, &opened), LoginWait: 20 * time.Second})
+	if code := errorCode(t, call(t, cs, "status")); code != "anmeldung_abgelehnt" {
+		t.Fatalf("Code %s", code)
+	}
+	denied, _ := b.store.load(app.endpoint)
+	if denied.ClientID == "" || denied.ClientApproved {
+		t.Fatalf("nach der Ablehnung: %+v", denied)
+	}
+	app.broker.approve.Store(true)
+	if res := call(t, cs, "status"); res.IsError {
+		t.Fatalf("zweiter Versuch: %s", text(res))
+	}
+	approved, _ := b.store.load(app.endpoint)
+	if approved.ClientID == denied.ClientID || !approved.ClientApproved {
+		t.Errorf("Registrierung %s → %s", denied.ClientID, approved.ClientID)
+	}
+}
+
+// Belegt ein fremder Prozess den Port, während Buchfink zu ist, nennt er
+// beliebige Anmeldeadressen. Die Brücke folgt nur Adressen auf demselben
+// Server und öffnet nie etwas anderes als eine Webadresse.
+func TestBridgeFollowsOnlyItsOwnServer(t *testing.T) {
+	cases := map[string]func(base string, meta map[string]any){
+		"Programm über file:": func(_ string, m map[string]any) {
+			m["authorization_endpoint"] = "file://localhost/C:/Windows/System32/calc.exe"
+		},
+		"fremde Seite": func(_ string, m map[string]any) {
+			m["authorization_endpoint"] = "https://anmeldung.example/authorize"
+		},
+		"Token-Endpunkt woanders": func(_ string, m map[string]any) {
+			m["token_endpoint"] = "http://127.0.0.1:1/token"
+		},
+		"Registrierung woanders": func(_ string, m map[string]any) {
+			m["registration_endpoint"] = "https://anmeldung.example/register"
+		},
+		"Anmeldeserver woanders": func(_ string, m map[string]any) {
+			m["prm_authorization_server"] = "http://127.0.0.1:1"
+		},
+	}
+	for name, mutate := range cases {
+		t.Run(name, func(t *testing.T) {
+			endpoint := foreignServer(t, mutate)
+			var opened []string
+			o := foreignClient(t, endpoint, &opened)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			err := o.login(ctx)
+			if err == nil || !strings.Contains(err.Error(), "fremde Adresse") {
+				t.Errorf("Anmeldung: %v", err)
+			}
+			if len(opened) != 0 {
+				t.Errorf("Browser geöffnet mit %v", opened)
+			}
+		})
+	}
+
+	// Gegenprobe: derselbe Server mit eigenen Adressen kommt bis zum Browser.
+	endpoint := foreignServer(t, func(string, map[string]any) {})
+	var opened []string
+	o := foreignClient(t, endpoint, &opened)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	err := o.login(ctx)
+	if len(opened) != 1 || !strings.HasPrefix(opened[0], strings.TrimSuffix(endpoint, "/mcp")+"/authorize?") {
+		t.Errorf("Gegenprobe: %v %v", opened, err)
+	}
+}
+
+func TestBrowserOpensOnlyWebAddresses(t *testing.T) {
+	for _, raw := range []string{"file:///etc/passwd", "file://localhost/C:/Windows/System32/calc.exe",
+		"ms-settings:", "javascript:alert(1)", "/authorize"} {
+		if err := openBrowser(raw); err == nil {
+			t.Errorf("%s wurde geöffnet", raw)
+		}
+	}
+}
+
+// foreignServer spielt einen Prozess, der den Port von Buchfink belegt hat.
+// mutate ändert die Anmeldedaten, die er nennt.
+func foreignServer(t *testing.T, mutate func(base string, meta map[string]any)) string {
+	t.Helper()
+	var base string
+	meta := map[string]any{}
+	writeJSON := func(w http.ResponseWriter, status int, body any) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		_ = json.NewEncoder(w).Encode(body)
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/mcp", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("WWW-Authenticate", `Bearer resource_metadata="`+base+`/.well-known/oauth-protected-resource/mcp"`)
+		w.WriteHeader(http.StatusUnauthorized)
+	})
+	mux.HandleFunc("/.well-known/oauth-protected-resource/mcp", func(w http.ResponseWriter, r *http.Request) {
+		as := base
+		if v, ok := meta["prm_authorization_server"].(string); ok {
+			as = v
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"resource": base + "/mcp", "authorization_servers": []string{as}})
+	})
+	mux.HandleFunc("/.well-known/oauth-authorization-server", func(w http.ResponseWriter, r *http.Request) {
+		out := map[string]any{}
+		for k, v := range meta {
+			if k != "prm_authorization_server" {
+				out[k] = v
+			}
+		}
+		writeJSON(w, http.StatusOK, out)
+	})
+	mux.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusCreated, map[string]any{"client_id": "fremd", "redirect_uris": []string{"http://127.0.0.1/callback"}})
+	})
+	ts := httptest.NewServer(mux)
+	t.Cleanup(ts.Close)
+	base = ts.URL
+	for k, v := range map[string]any{
+		"issuer": base, "authorization_endpoint": base + "/authorize", "token_endpoint": base + "/token",
+		"registration_endpoint": base + "/register", "response_types_supported": []string{"code"},
+		"code_challenge_methods_supported": []string{"S256"},
+	} {
+		meta[k] = v
+	}
+	mutate(base, meta)
+	return base + "/mcp"
+}
+
+func foreignClient(t *testing.T, endpoint string, opened *[]string) *oauthClient {
+	t.Helper()
+	store, err := newStateStore(t.TempDir(), endpoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o := &oauthClient{endpoint: endpoint, clientName: "Test", store: store, http: &http.Client{Timeout: 5 * time.Second},
+		open: func(u string) error { *opened = append(*opened, u); return nil }, logger: quietLogger()}
+	resp, err := http.Post(endpoint, "application/json", strings.NewReader("{}"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	o.challenge = resp.Header.Values("WWW-Authenticate")
+	return o
 }
 
 // Eine Fehlerantwort der App ist keine abgerissene Verbindung: sie kommt als

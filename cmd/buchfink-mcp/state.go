@@ -18,12 +18,15 @@ import (
 
 // state ist der Inhalt der Anmeldedatei.
 type state struct {
-	Endpoint      string     `json:"endpoint"`
-	Issuer        string     `json:"issuer,omitempty"`
-	ClientID      string     `json:"client_id,omitempty"`
-	TokenEndpoint string     `json:"token_endpoint,omitempty"`
-	Token         *tokenData `json:"token,omitempty"`
-	Updated       time.Time  `json:"aktualisiert"`
+	Endpoint string `json:"endpoint"`
+	Issuer   string `json:"issuer,omitempty"`
+	ClientID string `json:"client_id,omitempty"`
+	// ClientApproved: mit dieser Registrierung kam schon einmal ein Token.
+	// Erst dann hat sie in Buchfink einen Kurznamen und lohnt das Behalten.
+	ClientApproved bool       `json:"client_zugelassen,omitempty"`
+	TokenEndpoint  string     `json:"token_endpoint,omitempty"`
+	Token          *tokenData `json:"token,omitempty"`
+	Updated        time.Time  `json:"aktualisiert"`
 }
 
 type tokenData struct {

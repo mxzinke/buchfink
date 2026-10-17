@@ -121,7 +121,7 @@ func (o *oauthClient) refresh(ctx context.Context, sent string, force bool) (*oa
 	if tokenValid(st.Token, now) && (!force || st.Token.AccessToken != sent) {
 		return oauthToken(st.Token), nil
 	}
-	if st.Token.RefreshToken == "" || st.TokenEndpoint == "" || st.ClientID == "" {
+	if st.Token.RefreshToken == "" || st.ClientID == "" || o.onServer(st.TokenEndpoint) != nil {
 		return nil, errLoginRequired
 	}
 	tok, err := o.tokenRequest(ctx, st.TokenEndpoint, url.Values{
@@ -130,10 +130,20 @@ func (o *oauthClient) refresh(ctx context.Context, sent string, force bool) (*oa
 	})
 	if err != nil {
 		var re *oauth2.RetrieveError
-		if errors.As(err, &re) && re.ErrorCode == "invalid_grant" {
-			st.Token = nil
-			_ = o.store.save(st)
-			return nil, errLoginRequired
+		if errors.As(err, &re) {
+			switch re.ErrorCode {
+			case "invalid_grant":
+				st.Token = nil
+				_ = o.store.save(st)
+				return nil, errLoginRequired
+			case "invalid_client":
+				// Buchfink kennt die Registrierung nicht mehr, etwa nach
+				// einem Zurücksetzen: neu registrieren statt mit der alten
+				// Kennung an /authorize zu scheitern.
+				st.Issuer, st.ClientID, st.ClientApproved, st.TokenEndpoint, st.Token = "", "", false, "", nil
+				_ = o.store.save(st)
+				return nil, errLoginRequired
+			}
 		}
 		return nil, err
 	}
@@ -199,9 +209,17 @@ func (o *oauthClient) login(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if err := o.onServer(prm.AuthorizationServers[0]); err != nil {
+		return fmt.Errorf("die Ressourcen-Metadaten nennen eine fremde Adresse: %w", err)
+	}
 	asm, err := auth.GetAuthServerMetadata(ctx, prm.AuthorizationServers[0], o.http)
 	if err != nil || asm == nil {
 		return fmt.Errorf("die Anmeldedaten von Buchfink ließen sich nicht lesen: %v", err)
+	}
+	for _, endpoint := range []string{asm.Issuer, asm.AuthorizationEndpoint, asm.TokenEndpoint} {
+		if err := o.onServer(endpoint); err != nil {
+			return fmt.Errorf("die Anmeldedaten nennen eine fremde Adresse: %w", err)
+		}
 	}
 	st, err := o.ensureClient(ctx, asm)
 	if err != nil {
@@ -263,6 +281,7 @@ func (o *oauthClient) login(ctx context.Context) error {
 		return err
 	}
 	current.Issuer, current.ClientID, current.TokenEndpoint, current.Token = asm.Issuer, st.ClientID, asm.TokenEndpoint, tok
+	current.ClientApproved = true
 	if err := o.store.save(current); err != nil {
 		return err
 	}
@@ -278,7 +297,7 @@ func (o *oauthClient) resourceMetadata(ctx context.Context) (*oauthex.ProtectedR
 	challenges, _ := oauthex.ParseWWWAuthenticate(o.challenge)
 	o.mu.Unlock()
 	for _, c := range challenges {
-		if u := c.Params["resource_metadata"]; u != "" {
+		if u := c.Params["resource_metadata"]; u != "" && o.onServer(u) == nil {
 			candidates = append(candidates, u)
 		}
 	}
@@ -310,11 +329,17 @@ func (o *oauthClient) ensureClient(ctx context.Context, asm *oauthex.AuthServerM
 	if err != nil {
 		return nil, err
 	}
-	if st.ClientID != "" && st.Issuer == asm.Issuer {
+	// Eine nie zugelassene Registrierung räumt Buchfink nach 30 Tagen ab;
+	// eine neue kostet nichts, weil der Kurzname erst bei der Zustimmung
+	// entsteht.
+	if st.ClientID != "" && st.Issuer == asm.Issuer && (st.ClientApproved || st.Token != nil) {
 		return st, nil
 	}
 	if asm.RegistrationEndpoint == "" {
 		return nil, fmt.Errorf("Buchfink nimmt keine Registrierung an")
+	}
+	if err := o.onServer(asm.RegistrationEndpoint); err != nil {
+		return nil, fmt.Errorf("die Anmeldedaten nennen eine fremde Adresse: %w", err)
 	}
 	reg, err := oauthex.RegisterClient(ctx, asm.RegistrationEndpoint, &oauthex.ClientRegistrationMetadata{
 		ClientName: o.clientName, RedirectURIs: []string{"http://127.0.0.1/callback"},
@@ -325,11 +350,33 @@ func (o *oauthClient) ensureClient(ctx context.Context, asm *oauthex.AuthServerM
 	if err != nil {
 		return nil, fmt.Errorf("die Brücke ließ sich bei Buchfink nicht registrieren: %w", err)
 	}
-	st.Issuer, st.ClientID, st.TokenEndpoint, st.Token = asm.Issuer, reg.ClientID, asm.TokenEndpoint, nil
+	st.Issuer, st.ClientID, st.ClientApproved, st.TokenEndpoint, st.Token = asm.Issuer, reg.ClientID, false, asm.TokenEndpoint, nil
 	if err := o.store.save(st); err != nil {
 		return nil, err
 	}
 	return st, nil
+}
+
+// onServer prüft eine Adresse aus WWW-Authenticate oder den Metadaten: http
+// auf diesem Rechner, derselbe Port wie die Buchfink-Adresse, Host wie dort
+// oder 127.0.0.1 (der Aussteller von Buchfink). Belegt ein fremder Prozess
+// den Port, während Buchfink zu ist, könnte er sonst jede Adresse nennen,
+// und die Brücke öffnete sie (file:, fremde Seiten) oder schickte ihr Tokens.
+func (o *oauthClient) onServer(raw string) error {
+	endpoint, err := url.Parse(o.endpoint)
+	if err != nil {
+		return err
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return err
+	}
+	host := strings.ToLower(u.Hostname())
+	if u.Scheme != "http" || u.User != nil || u.Port() != endpoint.Port() ||
+		(host != strings.ToLower(endpoint.Hostname()) && host != "127.0.0.1") {
+		return fmt.Errorf("%q liegt nicht auf %s", raw, endpoint.Host)
+	}
+	return nil
 }
 
 type callbackResult struct {
