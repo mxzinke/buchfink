@@ -331,6 +331,12 @@ export const STEP_OBLIGATIONS: Partial<Record<ClosingStepKey, string>> = {
   input_tax_correction: 'inputtax',
 };
 
+/**
+ * Bausteine ohne eigene Ansicht: Vorschau und Buchung laufen über den Kern,
+ * die Schrittliste zeigt Zustand, Abhaken und Überspringen.
+ */
+export const STEP_CORE_ONLY: readonly ClosingStepKey[] = ['receivable_allowance', 'work_in_progress'];
+
 const StepsTab: React.FC<
   TabProps & { onOpenTab: (tab: ModuleTab) => void; onNavigate?: NavigateFn }
 > = ({ year, onOpenTab, onNavigate }) => {

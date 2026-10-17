@@ -191,6 +191,8 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Foundation.SetRenderer(renderer)
 	s.Foundation.SetReceiptService(s.Receipts)
 	s.Closing.SetStatementSource(s.Statement)
+	s.ClosingBookings.SetOpenItemSource(s.Payments)
+	s.ClosingBookings.SetRevenueSource(s.Statement)
 	s.Statement.SetNotesSources(service.NotesSources{
 		Provisions:     s.Provisions,
 		Reconciliation: s.TaxRegister,

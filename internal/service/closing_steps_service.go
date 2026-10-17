@@ -283,6 +283,16 @@ func (s *ClosingStepsService) derive(
 		}
 		return domain.ClosingStepOpen, ""
 
+	case domain.ClosingStepReceivableAllowance:
+		standing, reversed := s.hasClosingReference(ctx, year, ReceivableAllowanceReference(year))
+		if standing {
+			return domain.ClosingStepDone, "Wertberichtigung gebucht"
+		}
+		if reversed {
+			return domain.ClosingStepOpen, "die Buchung der Wertberichtigung wurde storniert"
+		}
+		return domain.ClosingStepOpen, ""
+
 	case domain.ClosingStepInputTaxCorrection:
 		standing, reversed := s.hasClosingReference(ctx, year, inputTaxCorrectionDocument(year))
 		if standing {

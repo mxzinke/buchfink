@@ -27,9 +27,17 @@ const (
 	// Fremdwährungsposten (§ 256a HGB). Sie steht vor der Abgrenzung, weil sie
 	// den Wert der offenen Posten ändert, auf denen alles Weitere aufsetzt.
 	ClosingStepCurrencyValuation ClosingStepKey = "currency_valuation"
-	ClosingStepAccruals          ClosingStepKey = "accruals"       // Rechnungsabgrenzung
-	ClosingStepProvisions        ClosingStepKey = "provisions"     // Rückstellungen
-	ClosingStepVatSettlement     ClosingStepKey = "vat_settlement" // Umsatzsteuer-Verrechnung
+	// ClosingStepReceivableAllowance ist die Wertberichtigung auf Forderungen
+	// (§ 253 Abs. 4 HGB). Sie folgt der Fremdwährungsbewertung, weil sie auf
+	// den Eurobeträgen der offenen Posten aufsetzt.
+	ClosingStepReceivableAllowance ClosingStepKey = "receivable_allowance"
+	// ClosingStepWorkInProgress sind die unfertigen Leistungen: am Stichtag
+	// begonnene, nicht abgerechnete Projekte zu Herstellungskosten (§ 255
+	// Abs. 2 HGB).
+	ClosingStepWorkInProgress ClosingStepKey = "work_in_progress"
+	ClosingStepAccruals       ClosingStepKey = "accruals"       // Rechnungsabgrenzung
+	ClosingStepProvisions     ClosingStepKey = "provisions"     // Rückstellungen
+	ClosingStepVatSettlement  ClosingStepKey = "vat_settlement" // Umsatzsteuer-Verrechnung
 	// ClosingStepInputTaxCorrection ist die Vorsteuerberichtigung nach § 15a
 	// UStG. Sie steht hinter der Umsatzsteuer-Verrechnung, weil sie eine weitere
 	// Zeile in dieselbe Voranmeldung schreibt.
@@ -83,26 +91,36 @@ func AllClosingSteps() []ClosingStepDefinition {
 		{ClosingStepCurrencyValuation, 3, "Fremdwährungsbewertung",
 			"Offene Posten in Fremdwährung werden zum Stichtagskurs bewertet (§ 256a HGB). Bei einer " +
 				"Restlaufzeit über einem Jahr wird nur der Verlust erfasst.", true},
-		{ClosingStepAccruals, 4, "Rechnungsabgrenzung",
+		{ClosingStepReceivableAllowance, 4, "Wertberichtigung auf Forderungen",
+			"Forderungen mit Ausfallrisiko werden einzeln, die übrigen pauschal auf den niedrigeren Wert " +
+				"berichtigt (§ 253 Abs. 4 Satz 2 HGB), netto: die Umsatzsteuer folgt erst der " +
+				"Uneinbringlichkeit (§ 17 Abs. 2 Nr. 1 UStG).", false},
+		{ClosingStepWorkInProgress, 5, "Unfertige Leistungen",
+			"Begonnene, am Stichtag nicht abgerechnete Projekte werden zu Herstellungskosten aktiviert " +
+				"(§ 255 Abs. 2 HGB) und im Folgejahr aufgelöst; erhaltene Anzahlungen bleiben unter den " +
+				"Verbindlichkeiten oder werden offen abgesetzt (§ 268 Abs. 5 Satz 2 HGB).", false},
+		{ClosingStepAccruals, 6, "Rechnungsabgrenzung",
 			"Ausgaben und Einnahmen, die wirtschaftlich ins nächste Jahr gehören (§ 250 HGB).", false},
-		{ClosingStepProvisions, 5, "Rückstellungen",
+		{ClosingStepProvisions, 7, "Rückstellungen",
 			"Verpflichtungen, deren Höhe oder Fälligkeit noch offen ist (§ 249 HGB).", false},
-		{ClosingStepVatSettlement, 6, "Umsatzsteuer-Verrechnung",
+		{ClosingStepVatSettlement, 8, "Umsatzsteuer-Verrechnung",
 			"Vorsteuer, Umsatzsteuer und Vorauszahlungen werden zu einem Saldo verrechnet.", false},
-		{ClosingStepInputTaxCorrection, 7, "Vorsteuerberichtigung § 15a",
+		{ClosingStepInputTaxCorrection, 9, "Vorsteuerberichtigung § 15a",
 			"Hat sich die Verwendung eines Wirtschaftsguts im Berichtigungszeitraum geändert, ist der " +
 				"Vorsteuerabzug anteilig zu berichtigen. Der Betrag geht in die Kennziffer 64.", true},
-		{ClosingStepTaxProvision, 8, "Steuerrückstellung",
-			"Körperschaftsteuer, Solidaritätszuschlag und Gewerbesteuer auf das Ergebnis des Jahres.", false},
-		{ClosingStepCheckRun, 9, "Prüfbericht",
+		{ClosingStepTaxProvision, 10, "Steuerrückstellung",
+			"Körperschaftsteuer, Solidaritätszuschlag und Gewerbesteuer auf das Ergebnis des Jahres, " +
+				"abzüglich Vorauszahlungen und anrechenbarer Kapitalertragsteuer; eine Überzahlung ist ein " +
+				"Erstattungsanspruch.", false},
+		{ClosingStepCheckRun, 11, "Prüfbericht",
 			"Der Prüflauf über Buchungen, Belege und Fristen vor der Festschreibung.", true},
-		{ClosingStepStatement, 10, "Bilanz und GuV",
+		{ClosingStepStatement, 12, "Bilanz und GuV",
 			"Die Gliederung nach §§ 266 und 275 HGB samt Anhang.", true},
-		{ClosingStepAdoption, 11, "Aufstellen und Feststellen",
+		{ClosingStepAdoption, 13, "Aufstellen und Feststellen",
 			"Die Aufstellung durch die Geschäftsführung und der Beschluss der Gesellschafter.", true},
-		{ClosingStepDisclosure, 12, "E-Bilanz und Offenlegung",
+		{ClosingStepDisclosure, 14, "E-Bilanz und Offenlegung",
 			"Die Übermittlung nach § 5b EStG und die Offenlegung nach § 325 HGB.", true},
-		{ClosingStepAppropriation, 13, "Vortrag und Ergebnisverwendung",
+		{ClosingStepAppropriation, 15, "Vortrag und Ergebnisverwendung",
 			"Der Saldenvortrag ins Folgejahr und der Beschluss über das Ergebnis.", false},
 	}
 }
