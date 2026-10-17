@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Archive, CheckCircle2, CircleAlert, Download, Plus, RefreshCw } from 'lucide-react';
 import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
-import type { NavigateFn } from '../components/Sidebar';
+import type { NavigateFn } from '../navigation';
 import type {
   AfaRules,
   Contact,
@@ -99,7 +99,7 @@ const TAB_KEYS: TabKey[] = [
   'assets',
 ];
 
-function isTabKey(value: string | undefined): value is TabKey {
+export function isObligationTab(value: string | undefined): value is TabKey {
   return value !== undefined && (TAB_KEYS as string[]).includes(value);
 }
 
@@ -117,16 +117,16 @@ export const ObligationsPage: React.FC<ObligationsPageProps> = ({
   initialTab,
   onNavigate,
 }) => {
-  const [tab, setTab] = useState<TabKey>(isTabKey(initialTab) ? initialTab : 'inputtax');
+  const [tab, setTab] = useState<TabKey>(isObligationTab(initialTab) ? initialTab : 'inputtax');
 
   // Ein zweiter Verweis auf dieselbe Seite soll den Reiter wechseln und nicht
   // ins Leere gehen: die Seite bleibt montiert, wenn nur der Parameter wechselt.
   useEffect(() => {
-    if (isTabKey(initialTab)) setTab(initialTab);
+    if (isObligationTab(initialTab)) setTab(initialTab);
   }, [initialTab]);
 
   return (
-    <div className="max-w-[1200px] mx-auto px-8 py-8">
+    <div>
       <PageHeader
         title="Steuerliche Nebenpflichten"
         context={`Geschäftsjahr ${year} · Verzeichnisse, Nachweise und Kurse`}
@@ -751,7 +751,7 @@ const VatIDPanel: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate }) => {
             description="Abgefragt wird die Nummer, die am Geschäftspartner steht."
             action={
               onNavigate && (
-                <Button variant="secondary" onClick={() => onNavigate('contacts')}>
+                <Button variant="secondary" onClick={() => onNavigate({ area: 'company', tab: 'contacts' })}>
                   Zu den Kontakten
                 </Button>
               )

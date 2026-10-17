@@ -12,9 +12,7 @@ try {
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto(ORIGIN);
-  await page.getByRole('button', { name: /öffnen$/i }).first().click();
-  await page.getByRole('button', { name: 'E-Bilanz', exact: true }).first().click();
+  await page.goto(`${ORIGIN}/#/closings/declarations`);
   const mark = page.getByRole('button', { name: 'Erklärung zu E-Bilanz', exact: true });
   await mark.hover();
 
@@ -47,7 +45,7 @@ try {
   assert.equal(await more.evaluate(el => document.activeElement === el), true);
 
   // Auch ein Eingabedialog darf eine Hilfe öffnen, ohne die Eingabe zu verlieren.
-  await page.getByRole('button', { name: 'Aufgaben', exact: true }).first().click();
+  await page.locator('nav').getByRole('button', { name: 'Übersicht', exact: true }).click();
   await page.getByRole('button', { name: 'Monat öffnen' }).click();
   const parent = page.getByRole('dialog').first();
   await parent.waitFor();

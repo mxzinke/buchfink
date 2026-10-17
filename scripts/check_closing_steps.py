@@ -7,11 +7,13 @@ beginnt, stünde ausgerechnet beim ersten Schritt vor einer Zeile ohne Ausgang.
 
 Die Schlüssel stehen im Backend (internal/domain/closing_step.go); die Ziele
 stehen in der Oberfläche, verteilt auf drei Zuordnungen: STEP_TABS (Reiter der
-Abschlussbausteine), STEP_OBLIGATIONS (Reiter der Nebenpflichten) und STEP_PAGES
-(eigene Seiten). Die Feststellung liegt auf der Abschlussseite selbst und springt
-in den Abschnitt darunter; sie wird über ihren Anker erkannt. Bausteine ohne
-eigene Ansicht, deren Vorschau und Buchung über den Kern laufen, stehen
-ausdrücklich in STEP_CORE_ONLY; auch sie sind damit benannt und nicht vergessen.
+Abschlussbausteine) und STEP_OBLIGATIONS (Reiter der Nebenpflichten), beide
+unter „Abschlüsse → Jahr" und dort über die Kennung des Schritts aufgeklappt,
+sowie STEP_PAGES (Ziele in anderen Reitern, etwa „Bücher → Anlagen").
+Feststellung und Offenlegung stehen im Abschnitt „Schritte" des Jahresabschlusses
+und werden über ihren Anker erkannt. Bausteine ohne eigene Ansicht, deren
+Vorschau und Buchung über den Kern laufen, stehen ausdrücklich in
+STEP_CORE_ONLY; auch sie sind damit benannt und nicht vergessen.
 
 Die Prüfung läuft gegen den Go-Quelltext und nicht gegen eine Liste in diesem
 Skript: eine zweite Liste liefe auseinander, sobald ein Baustein dazukommt — und
@@ -93,7 +95,7 @@ def main() -> int:
             print(f"  {key}", file=sys.stderr)
         print(
             "Ein Ziel gehört in STEP_TABS, STEP_OBLIGATIONS oder STEP_PAGES, "
-            "als Anker auf die Abschlussseite selbst oder, ohne eigene Ansicht, "
+            "als Anker in den Abschnitt „Schritte“ oder, ohne eigene Ansicht, "
             "in STEP_CORE_ONLY.",
             file=sys.stderr,
         )

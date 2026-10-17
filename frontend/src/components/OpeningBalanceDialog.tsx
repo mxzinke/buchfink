@@ -12,7 +12,7 @@ import type {
 } from '../types';
 import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
-import type { NavigateFn } from './Sidebar';
+import type { NavigateFn } from '../navigation';
 import { formatCents, parseCents } from '../utils/formatters';
 import {
   Button,
@@ -325,7 +325,7 @@ export const OpeningBalanceDialog: React.FC<OpeningBalanceDialogProps> = ({
                 size="sm"
                 onClick={() => {
                   onOpenChange(false);
-                  onNavigate('receipts');
+                  onNavigate({ area: 'books', tab: 'receipts' });
                 }}
               >
                 Zur Belegablage

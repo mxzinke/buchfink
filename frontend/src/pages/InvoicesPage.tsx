@@ -19,7 +19,7 @@ import type {
 import { TAX_RATE_NONE, TAX_RATE_REDUCED, TAX_RATE_STANDARD } from '../types';
 import { Api } from '../services/api';
 import { usePostingLock } from '../components/WriteLock';
-import type { NavigateFn } from '../components/Sidebar';
+import type { NavigateFn } from '../navigation';
 import { formatCents, formatDate, formatDateTime, formatTaxRate, parseCents } from '../utils/formatters';
 import {
   Button,
@@ -302,7 +302,7 @@ export const InvoicesPage: React.FC<{ onNavigate?: NavigateFn }> = () => {
   const pendingDocument = invoices.filter((i) => i.status === 'issued_pending_document');
 
   return (
-    <div className="max-w-[1200px] mx-auto px-8 py-8">
+    <div>
       <PageHeader helpSummary="Buchfink erstellt Ihre Rechnung und erfasst zugleich den offenen Kundenbetrag."
         title="Ausgangsrechnungen"
         context={
@@ -947,8 +947,8 @@ const InvoiceForm: React.FC<{
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Field helpSummary="Wählen Sie, ob Sie eine Rechnung, eine Anzahlung oder eine Schlussabrechnung erstellen."
           label="Art"
-          hint="Abschlag und Schlussrechnung: Seite „Anzahlungen&quot;"
-          explain="Abschlags- und Schlussrechnung gehören in einen Rechnungsverbund: er hält den vereinbarten Gesamtbetrag, die gestellten Abschläge und die Verrechnung zusammen. Beim Abschlag entsteht die Steuer außerdem erst mit der Vereinnahmung (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG), es gibt also zwei Buchungszeitpunkte. Beides steht auf der Seite „Anzahlungen&quot;; hier entsteht die gewöhnliche Rechnung."
+          hint="Abschlag und Schlussrechnung: unter „Anzahlungen“"
+          explain="Abschlags- und Schlussrechnung gehören in einen Rechnungsverbund: er hält den vereinbarten Gesamtbetrag, die gestellten Abschläge und die Verrechnung zusammen. Beim Abschlag entsteht die Steuer außerdem erst mit der Vereinnahmung (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG), es gibt also zwei Buchungszeitpunkte. Beides steht im Abschnitt „Anzahlungen“ unter den Rechnungen; hier entsteht die gewöhnliche Rechnung."
         >
           {/* Die Art ist hier keine Auswahl, sondern die Auskunft, welche
               gerade entsteht: eine Abschlagsrechnung ohne Verbund wäre eine

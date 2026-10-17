@@ -203,7 +203,7 @@ func (s *TaskService) addReadOnly(list *domain.TaskList, opts TaskOptions) {
 		Why:       why + " Der Zugriff des Prüfers wird protokolliert (§ 147 Abs. 6 AO).",
 		Reference: "§ 147 Abs. 6 AO",
 		DueDate:   opts.ReadOnlyUntil,
-		Target:    domain.TaskTarget{Page: "taxaudit"},
+		Target:    domain.TaskTarget{Area: domain.AreaSettings, Tab: "audit", ID: "betriebspruefung"},
 	})
 }
 
@@ -258,7 +258,7 @@ func (s *TaskService) addCheckFindings(ctx context.Context, year int, list *doma
 			Key: domain.TaskKeyCheckFindings + "." + rule, Group: group,
 			Title: title, Why: why, Reference: reference,
 			Count:  counts[rule],
-			Target: domain.TaskTarget{Page: "audit", Params: map[string]string{"rule": rule}},
+			Target: domain.TaskTarget{Area: domain.AreaSettings, Tab: "audit", ID: rule},
 		})
 	}
 }
@@ -408,11 +408,30 @@ func (s *TaskService) addObligations(
 			Why:       why,
 			Reference: o.Basis,
 			DueDate:   o.DueDate,
-			Target: domain.TaskTarget{
-				Page: "deadlines", Params: map[string]string{"key": o.Key},
-			},
+			Target:    obligationTarget(o),
 		})
 	}
+}
+
+// obligationTarget führt zu der Stelle, an der eine Pflicht vorbereitet oder
+// bestätigt wird: Monatsabschluss, Jahresabschluss, Erklärungen oder die
+// Stammdaten.
+func obligationTarget(o domain.Obligation) domain.TaskTarget {
+	target := domain.TaskTarget{Area: domain.AreaClosings, Tab: "month", ID: o.Key}
+	switch o.Kind {
+	case domain.ObligationCorporateTaxReturn, domain.ObligationTradeTaxReturn,
+		domain.ObligationAnnualVatReturn, domain.ObligationEBilanz,
+		domain.ObligationCorporatePrepay, domain.ObligationTradePrepay:
+		target.Tab = "declarations"
+	case domain.ObligationClosingBookings, domain.ObligationStatementPrep,
+		domain.ObligationAdoption, domain.ObligationAppropriation,
+		domain.ObligationDisclosure, domain.ObligationWithholdingTax:
+		target.Tab = "year"
+	case domain.ObligationTransparency, domain.ObligationShareholderList,
+		domain.ObligationTaxRegistration, domain.ObligationTradeRegistration:
+		target.Area, target.Tab = domain.AreaCompany, "profile"
+	}
+	return target
 }
 
 // commitOpenFrom ist der Tag, ab dem die Festschreibung eines Monats als offene
@@ -453,7 +472,7 @@ func (s *TaskService) addBank(ctx context.Context, year int, list *domain.TaskLi
 		Why:       "Ein Umsatz ohne Zuordnung ist ein Geschäftsvorfall, der noch nicht gebucht ist.",
 		Reference: "§ 146 Abs. 1 AO",
 		Count:     count, Amount: amount,
-		Target: domain.TaskTarget{Page: "bank"},
+		Target: domain.TaskTarget{Area: domain.AreaBooks, Tab: "bank"},
 	})
 }
 
@@ -538,7 +557,7 @@ func (s *TaskService) addReceipts(
 			Why:       "Ein abgelegter Beleg ohne Buchung ist ein Geschäftsvorfall, den die Buchführung noch nicht kennt.",
 			Reference: "§ 146 Abs. 1 AO",
 			Count:     open, Amount: openAmount,
-			Target: domain.TaskTarget{Page: "receipts", Params: map[string]string{"status": "filed"}},
+			Target: domain.TaskTarget{Area: domain.AreaBooks, Tab: "receipts"},
 		})
 	}
 	if late > 0 {
@@ -550,7 +569,7 @@ func (s *TaskService) addReceipts(
 				limit, oldest),
 			Reference: "GoBD Rz. 47",
 			Count:     late, Amount: lateAmount, DueDate: oldest,
-			Target: domain.TaskTarget{Page: "receipts", Params: map[string]string{"status": "filed"}},
+			Target: domain.TaskTarget{Area: domain.AreaBooks, Tab: "receipts"},
 		})
 	}
 	if missingProof > 0 {
@@ -563,8 +582,7 @@ func (s *TaskService) addReceipts(
 			Reference: "§ 15 UStG",
 			Count:     missingProof, Amount: proofAmount,
 			Target: domain.TaskTarget{
-				Page:   "receipts",
-				Params: map[string]string{"receiptId": fmt.Sprintf("%d", proofReceipt.ID)},
+				Area: domain.AreaBooks, Tab: "receipts", ID: fmt.Sprintf("%d", proofReceipt.ID),
 			},
 		})
 	}
@@ -611,7 +629,7 @@ func (s *TaskService) addOverdueReceivables(ctx context.Context, list *domain.Ta
 		Why:       "Nach Ablauf von dreißig Tagen ab Fälligkeit kommt der Kunde auch ohne Mahnung in Verzug; ab dann laufen Verzugszinsen.",
 		Reference: "§§ 286, 288 BGB",
 		Count:     count, Amount: amount, DueDate: oldest,
-		Target: domain.TaskTarget{Page: "accounts"},
+		Target: domain.TaskTarget{Area: domain.AreaBooks, Tab: "invoices"},
 	})
 }
 
@@ -643,7 +661,7 @@ func (s *TaskService) addExemptions(ctx context.Context, list *domain.TaskList, 
 			Why:       "Ohne gültige Bescheinigung sind bei einer Bauleistung 15 % der Gegenleistung einzubehalten und abzuführen.",
 			Reference: "§§ 48, 48b EStG",
 			Count:     expired, DueDate: first,
-			Target: domain.TaskTarget{Page: "contacts"},
+			Target: domain.TaskTarget{Area: domain.AreaCompany, Tab: "contacts"},
 		})
 	}
 	if expiring > 0 {
@@ -653,7 +671,7 @@ func (s *TaskService) addExemptions(ctx context.Context, list *domain.TaskList, 
 			Why:       "Die Bescheinigung eines Geschäftspartners endet in den nächsten dreißig Tagen.",
 			Reference: "§ 48b EStG",
 			Count:     expiring, DueDate: first,
-			Target: domain.TaskTarget{Page: "contacts"},
+			Target: domain.TaskTarget{Area: domain.AreaCompany, Tab: "contacts"},
 		})
 	}
 }
@@ -674,7 +692,7 @@ func (s *TaskService) addBackup(ctx context.Context, list *domain.TaskList, toda
 			Title:     "Sicherung einrichten",
 			Why:       "Es gibt keine erfolgreiche Sicherung. Aufzeichnungen müssen über die Aufbewahrungsfrist lesbar bleiben.",
 			Reference: "§ 147 Abs. 2 AO, GoBD Rz. 103 ff.",
-			Target:    domain.TaskTarget{Page: "backup"},
+			Target:    domain.TaskTarget{Area: domain.AreaSettings, Tab: "backup"},
 		})
 		return
 	}
@@ -690,7 +708,7 @@ func (s *TaskService) addBackup(ctx context.Context, list *domain.TaskList, toda
 			lastDay),
 		Reference: "§ 147 Abs. 2 AO",
 		DueDate:   lastDay,
-		Target:    domain.TaskTarget{Page: "backup"},
+		Target:    domain.TaskTarget{Area: domain.AreaSettings, Tab: "backup"},
 	})
 }
 
@@ -730,7 +748,7 @@ func (s *TaskService) addFailedBackup(ctx context.Context, list *domain.TaskList
 			"ein Zielordner, der nicht mehr beschreibbar ist, fällt sonst erst auf, wenn die Sicherung gebraucht wird.",
 		Reference: "§ 147 Abs. 2 AO, GoBD Rz. 103 ff.",
 		DueDate:   last.StartedAt.Format("2006-01-02"),
-		Target:    domain.TaskTarget{Page: "backup"},
+		Target:    domain.TaskTarget{Area: domain.AreaSettings, Tab: "backup"},
 	})
 }
 
@@ -756,7 +774,7 @@ func (s *TaskService) addCarryForward(ctx context.Context, year int, list *domai
 				priorYear, preview.BalanceDifference),
 			Reference: "§ 252 Abs. 1 Nr. 1 HGB",
 			Amount:    preview.BalanceDifference,
-			Target:    domain.TaskTarget{Page: "closing"},
+			Target:    domain.TaskTarget{Area: domain.AreaClosings, Tab: "year"},
 		})
 	case !preview.AlreadyCarried && len(preview.Rows) > 0:
 		list.Add(domain.Task{
@@ -765,7 +783,7 @@ func (s *TaskService) addCarryForward(ctx context.Context, year int, list *domai
 			Why:       "Die Schlussbilanzwerte des Vorjahres sind als Eröffnungsbilanzwerte zu übernehmen (Bilanzidentität).",
 			Reference: "§ 252 Abs. 1 Nr. 1 HGB",
 			Count:     len(preview.Rows),
-			Target:    domain.TaskTarget{Page: "closing"},
+			Target:    domain.TaskTarget{Area: domain.AreaClosings, Tab: "year"},
 		})
 	case preview.NeedsCorrection:
 		list.Add(domain.Task{
@@ -773,7 +791,7 @@ func (s *TaskService) addCarryForward(ctx context.Context, year int, list *domai
 			Title:     "Saldenvortrag berichtigen",
 			Why:       "Im Vorjahr wurde nach dem Vortrag noch gebucht; die vorgetragenen Werte sind überholt.",
 			Reference: "§ 252 Abs. 1 Nr. 1 HGB",
-			Target:    domain.TaskTarget{Page: "closing"},
+			Target:    domain.TaskTarget{Area: domain.AreaClosings, Tab: "year"},
 		})
 	}
 }

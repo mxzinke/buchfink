@@ -6,9 +6,10 @@ import (
 	"testing"
 )
 
-// Die Aufgabenliste geht als JSON an die Oberfläche. Ihre drei Gruppen und die
-// Parameter jedes Ziels müssen belegt sein — `null.map` nimmt im Render den
-// ganzen Baum mit, und die Aufgabenliste ist der erste Bildschirm.
+// Die Aufgabenliste geht als JSON an die Oberfläche. Ihre drei Gruppen müssen
+// belegt sein — `null.map` nimmt im Render den ganzen Baum mit, und die
+// Aufgabenliste ist der erste Bildschirm. Das Ziel ist ein Objekt, auch ohne
+// Bereich.
 func TestTaskListMarshalsEmptyListsNotNull(t *testing.T) {
 	list := &TaskList{Today: "2026-03-10"}
 	list.EnsureLists()
@@ -28,8 +29,8 @@ func TestTaskListMarshalsEmptyListsNotNull(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Aufgabenliste als JSON: %v", err)
 	}
-	if !strings.Contains(string(raw), `"params":{}`) {
-		t.Errorf("die Parameter des Ziels sind `null`:\n%s", raw)
+	if !strings.Contains(string(raw), `"target":{"area":""}`) {
+		t.Errorf("das Ziel fehlt als Objekt:\n%s", raw)
 	}
 }
 

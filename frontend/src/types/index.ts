@@ -4035,14 +4035,13 @@ export interface OpenItemsAging {
 export type TaskGroup = 'overdue' | 'open' | 'upcoming';
 
 /**
- * Das Navigationsziel einer Aufgabe (`domain.TaskTarget`).
- *
- * Seite und Parameter getrennt: das Backend kennt den Router der Oberfläche
- * nicht und liefert deshalb seine Bestandteile statt eines fertigen Wegs.
+ * Das Navigationsziel einer Aufgabe (`domain.TaskTarget`): Bereich, Reiter und
+ * Kennung des Objekts, wie in `navigation.ts`.
  */
 export interface TaskTarget {
-  page: string;
-  params: Record<string, string>;
+  area: string;
+  tab?: string;
+  id?: string;
 }
 
 /** Eine Zeile der Aufgabenliste (`domain.Task`). */

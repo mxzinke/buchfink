@@ -5,11 +5,11 @@ import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
 // Wohin ein Befund führt, steht an einer Stelle: Fristenliste, Monatsabschluss
 // und Aufgabenliste brauchen dieselbe Zuordnung.
-import { findingParams, findingTarget, targetLabel } from '../utils/findings';
+import { findingRoute, targetLabel } from '../utils/findings';
 import { monthOptions, previousMonth } from '../utils/months';
 import { MonthCloseDialog } from '../components/MonthCloseDialog';
 import { formatDate } from '../utils/formatters';
-import type { NavigateFn } from '../components/Sidebar';
+import type { NavigateFn } from '../navigation';
 import {
   Button,
   Dialog,
@@ -328,9 +328,9 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
   const warnings = findings.filter((f) => f.severity === 'warning');
 
   return (
-    <div className="max-w-[1200px] mx-auto px-8 py-8">
+    <div>
       <PageHeader helpSummary="Hier sehen Sie, wann Ihre Steueranmeldungen und Zahlungen fällig sind."
-        title={`Steuerfristen ${currentYear}`}
+        title={`Festschreibung und Fristen ${currentYear}`}
         context="Voranmeldungen, Meldungen und Festschreibung"
         explain={
           <>
@@ -617,19 +617,19 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
                       {finding.severity === 'blocking' ? 'Blockierend' : 'Hinweis'}
                     </span>
                     <span className="flex-1 text-body text-ink-muted">{finding.message}</span>
-                    {onNavigate && findingTarget(finding.objectType) && (
+                    {onNavigate && findingRoute(finding) && (
                       <Button
                         variant="quiet"
                         size="sm"
                         className="shrink-0 -my-1"
                         onClick={() => {
-                          const target = findingTarget(finding.objectType);
-                          if (!target) return;
+                          const route = findingRoute(finding);
+                          if (!route) return;
                           setCommitDialog(null);
-                          onNavigate(target, findingParams(finding));
+                          onNavigate(route);
                         }}
                       >
-                        {targetLabel(findingTarget(finding.objectType))}
+                        {targetLabel(findingRoute(finding))}
                       </Button>
                     )}
                   </li>

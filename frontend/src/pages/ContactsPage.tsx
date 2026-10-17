@@ -3,7 +3,7 @@ import { AlertCircle, Lock, Plus } from 'lucide-react';
 import { Contact, ContactType, EInvoiceProfileInfo, TaxTreatmentInfo, VatIDStatus } from '../types';
 import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
-import type { NavigateFn } from '../components/Sidebar';
+import type { NavigateFn } from '../navigation';
 import { formatCents, formatDate, formatDateTime } from '../utils/formatters';
 import {
   Button,
@@ -106,7 +106,7 @@ export const ContactsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
   const openTotal = contacts.reduce((sum, c) => sum + c.openAmount, 0);
 
   return (
-    <div className="max-w-[1200px] mx-auto px-8 py-8">
+    <div>
       <PageHeader
         title="Kunden & Lieferanten"
         context={`${contacts.length} Kontakte · ${formatCents(openTotal)} offen`}
@@ -133,7 +133,7 @@ export const ContactsPage: React.FC<{ onNavigate?: NavigateFn }> = ({ onNavigate
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => onNavigate('obligations', { obligationsTab: 'vatid' })}
+                  onClick={() => onNavigate({ area: 'closings', tab: 'year', id: 'vatid' })}
                 >
                   Zur Bestätigungsabfrage
                 </Button>
@@ -666,7 +666,7 @@ const ContactForm: React.FC<{
                 size="sm"
                 onClick={() => {
                   onClose();
-                  onNavigate('obligations', { obligationsTab: 'vatid' });
+                  onNavigate({ area: 'closings', tab: 'year', id: 'vatid' });
                 }}
               >
                 Verlauf und alle Nummern

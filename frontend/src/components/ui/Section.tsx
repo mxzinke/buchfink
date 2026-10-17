@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from './cn';
 import { Help } from './Help';
+import { useInFrame } from './PageFrame';
 
 /**
  * Erklärzeichen an einer Überschrift.
@@ -40,7 +41,11 @@ export interface PageHeaderProps {
 }
 
 /** Jede Ansicht beginnt gleich: Titel, eine Zeile Kontext, rechts die
- *  Primäraktion, darunter eine Haarlinie. Kein Icon, kein Kasten (§12). */
+ *  Primäraktion, darunter eine Haarlinie. Kein Icon, kein Kasten (§12).
+ *
+ *  Im Seitenrahmen trägt der Rahmen den Seitentitel; der Kopf wird dort zur
+ *  Überschrift des Reiters, ohne Haarlinie, weil die Reiterleiste darüber
+ *  schon trennt. */
 export const PageHeader: React.FC<PageHeaderProps> = ({
   title,
   context,
@@ -49,20 +54,31 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   onMore,
   action,
   className,
-}) => (
-  <header
-    className={cn('flex items-start justify-between gap-4 pb-4 border-b border-line', className)}
-  >
-    <div className="min-w-0">
-      <h1 aria-label={title} className="flex flex-wrap items-center text-display text-ink">
-        {title}
-        <TitleHelp title={title} explain={explain} helpSummary={helpSummary} onMore={onMore} />
-      </h1>
-      {context && <p className="text-caption text-ink-subtle mt-1 truncate">{context}</p>}
-    </div>
-    {action && <div className="shrink-0">{action}</div>}
-  </header>
-);
+}) => {
+  const inFrame = useInFrame();
+  const Heading = inFrame ? 'h2' : 'h1';
+  return (
+    <header
+      className={cn(
+        'flex items-start justify-between gap-4',
+        !inFrame && 'pb-4 border-b border-line',
+        className,
+      )}
+    >
+      <div className="min-w-0">
+        <Heading
+          aria-label={title}
+          className={cn('flex flex-wrap items-center text-ink', inFrame ? 'text-heading' : 'text-display')}
+        >
+          {title}
+          <TitleHelp title={title} explain={explain} helpSummary={helpSummary} onMore={onMore} />
+        </Heading>
+        {context && <p className="text-caption text-ink-subtle mt-1 truncate">{context}</p>}
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
+    </header>
+  );
+};
 
 export interface SectionProps {
   /** Anker, über den ein Verweis auf derselben Seite den Abschnitt anspringt. */

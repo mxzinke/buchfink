@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useMemo } from 'react';
+import { Lock } from 'lucide-react';
 import { formatDate } from '../utils/formatters';
 
 /**
@@ -115,3 +116,20 @@ export function usePostingLock(): WriteLock {
     };
   }, [writeLock, closedYear]);
 }
+
+/**
+ * Der Hinweisstreifen über einer Buchungsansicht im festgestellten
+ * Geschäftsjahr (§11.5). Ohne gesperrtes Jahr rendert er nichts.
+ */
+export const ClosedYearNotice: React.FC = () => {
+  const closedYear = useContext(PostingLockContext);
+  if (closedYear === undefined) return null;
+  return (
+    <div className="flex items-start gap-2.5 rounded-control border border-line bg-surface px-4 py-3">
+      <Lock className="w-4 h-4 mt-0.5 shrink-0 text-ink-faint" strokeWidth={1.5} />
+      <p className="text-body text-ink-muted">
+        {`Geschäftsjahr ${closedYear} ist abgeschlossen. Buchungen sind nur im laufenden Jahr möglich.`}
+      </p>
+    </div>
+  );
+};

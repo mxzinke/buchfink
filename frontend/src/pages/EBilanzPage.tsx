@@ -81,7 +81,7 @@ export const EBilanzPage: React.FC<EBilanzPageProps> = ({ year }) => {
   }
 
   return (
-    <div className="max-w-[1200px] mx-auto px-8 py-8">
+    <div>
       <PageHeader helpSummary="Die E-Bilanz ist die elektronische Bilanz fürs Finanzamt. Buchfinks Export ist noch ungeprüft."
         title="E-Bilanz"
         context={`Geschäftsjahr ${year} · Export noch ungeprüft`}

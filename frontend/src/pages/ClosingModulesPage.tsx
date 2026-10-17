@@ -30,7 +30,7 @@ import type {
 } from '../types';
 import { Api } from '../services/api';
 import { useWriteLock } from '../components/WriteLock';
-import type { NavigateFn } from '../components/Sidebar';
+import type { NavigateFn } from '../navigation';
 import { downloadCSV } from '../utils/download';
 import {
   formatCents,
@@ -500,11 +500,7 @@ const StepsTab: React.FC<
                       <Button
                         variant="quiet"
                         size="sm"
-                        onClick={() =>
-                          onNavigate('obligations', {
-                            obligationsTab: STEP_OBLIGATIONS[step.key],
-                          })
-                        }
+                        onClick={() => onNavigate({ area: 'closings', tab: 'year', id: step.key })}
                       >
                         Bearbeiten
                       </Button>
@@ -3188,6 +3184,11 @@ const TABS: { value: ModuleTab; label: string }[] = [
   { value: 'anhang', label: 'Anhang' },
 ];
 
+/** Ob eine Kennung ein Reiter dieser Seite ist. */
+export function isModuleTab(value: string | undefined): boolean {
+  return TABS.some((item) => item.value === value);
+}
+
 export interface ClosingModulesPageProps {
   /** Das Geschäftsjahr aus der Kopfzeile; die Ansicht folgt ihm. */
   year: number;
@@ -3243,7 +3244,7 @@ export const ClosingModulesPage: React.FC<ClosingModulesPageProps> = ({
   }, [year, tab]);
 
   return (
-    <div className="max-w-[1200px] mx-auto px-8 py-8">
+    <div>
       <PageHeader
         title="Abschlussbausteine"
         context={

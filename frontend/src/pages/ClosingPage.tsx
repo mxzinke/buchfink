@@ -11,7 +11,7 @@ import {
   SizeClass,
 } from '../types';
 import { Api } from '../services/api';
-import type { NavigateFn, NavigationParams, TabType } from '../components/Sidebar';
+import type { NavigateFn, Route } from '../navigation';
 import { useWriteLock } from '../components/WriteLock';
 import { OpeningBalanceDialog } from '../components/OpeningBalanceDialog';
 // Die Zuordnung Baustein → Reiter steht dort, wo die Reiter stehen. Eine zweite
@@ -515,7 +515,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
 
   if (loading) {
     return (
-      <div className="max-w-[1200px] mx-auto px-8 py-8">
+      <div>
         <PageHeader title="Jahresabschluss" context={`Geschäftsjahr ${year}`} />
         <div className="mt-8">
           <SkeletonRows rows={6} />
@@ -526,7 +526,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
 
   if (!state) {
     return (
-      <div className="max-w-[1200px] mx-auto px-8 py-8">
+      <div>
         <PageHeader title="Jahresabschluss" context={`Geschäftsjahr ${year}`} />
         <div className="mt-8">
           <EmptyState
@@ -569,7 +569,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
       document.getElementById(target.anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
-    onNavigate?.(target.tab, target.params);
+    onNavigate?.(target.route);
   };
 
   /** Ob der Knopf überhaupt etwas tut: ohne Navigation führt kein Seitenziel. */
@@ -586,7 +586,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
       status: state.hasYearCommitment ? 'festgeschrieben' : 'offen',
       date: state.hasYearCommitment ? state.committedUntil ?? '' : '',
       note: '',
-      action: !state.hasYearCommitment && onNavigate ? <Button variant="secondary" size="sm" onClick={() => onNavigate('deadlines')}>Zur Festschreibung</Button> : undefined,
+      action: !state.hasYearCommitment && onNavigate ? <Button variant="secondary" size="sm" onClick={() => onNavigate({ area: 'closings', tab: 'month' })}>Zur Festschreibung</Button> : undefined,
     },
     {
       key: 'prepared',
@@ -663,7 +663,7 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
     : undefined;
 
   return (
-    <div className="max-w-[1200px] mx-auto px-8 py-8">
+    <div>
       <PageHeader
         title="Jahresabschluss"
         context={`Geschäftsjahr ${fy.year} · ${formatDate(fy.startDate)} – ${formatDate(fy.endDate)}`}
@@ -838,7 +838,10 @@ export const ClosingPage: React.FC<ClosingPageProps> = ({
         }
         action={
           onNavigate && (
-            <Button variant="secondary" onClick={() => onNavigate('closingmodules')}>
+            <Button
+              variant="secondary"
+              onClick={() => onNavigate({ area: 'closings', tab: 'year', id: 'schritte' })}
+            >
               Bausteine bearbeiten
             </Button>
           )
@@ -1500,22 +1503,16 @@ function progressPercent(steps: ClosingSteps | null): number | null {
 }
 
 /**
- * Wohin ein Baustein führt.
- *
- * Der geführte Weg (Architektur 6.3) verlangt, dass jeder Schritt zu seiner
- * Arbeit führt. Sechs Bausteine wohnen auf den Abschlussbausteinen, drei auf
- * den Nebenpflichten — und die übrigen auf eigenen Seiten: die Abschreibungen
- * im Anlagenverzeichnis, der Prüfbericht bei den Steuerfristen (dort läuft er
- * vor der Festschreibung; die Seite „Sicherheit & Protokoll" zeigt nur die
- * Läufe von gestern), Bilanz und GuV in den Auswertungen, die Offenlegung in
- * der E-Bilanz. Die Feststellung bleibt auf dieser Seite und springt in den
- * Abschnitt darunter.
+ * Wohin ein Baustein führt, der nicht unter „Abschlussbausteine" oder
+ * „Nebenpflichten" liegt: die Abschreibungen zu den Anlagen, der Prüfbericht
+ * zum Monatsabschluss (dort läuft er vor der Festschreibung), Bilanz und GuV zu
+ * den Büchern. Feststellung und Offenlegung stehen auf dieser Seite und
+ * springen in den Abschnitt „Schritte".
  */
-const STEP_PAGES: Partial<Record<ClosingStepKey, TabType>> = {
-  depreciation: 'assets',
-  check_run: 'deadlines',
-  statement: 'reports',
-  disclosure: 'ebilanz',
+const STEP_PAGES: Partial<Record<ClosingStepKey, Route>> = {
+  depreciation: { area: 'books', tab: 'assets' },
+  check_run: { area: 'closings', tab: 'month' },
+  statement: { area: 'books', tab: 'statements' },
 };
 
 /**
@@ -1531,18 +1528,17 @@ const STEP_PAGES: Partial<Record<ClosingStepKey, TabType>> = {
  * Fortschritt („n von total"), die Reihenfolge und das Zurücknehmen; die
  * Buchung selbst bleibt beim Baustein.
  */
-type StepTarget =
-  | { kind: 'page'; tab: TabType; params: NavigationParams }
-  | { kind: 'anchor'; anchor: string };
+type StepTarget = { kind: 'page'; route: Route } | { kind: 'anchor'; anchor: string };
 
 function stepTarget(key: ClosingStepKey): StepTarget | null {
-  const moduleTab = STEP_TABS[key];
-  if (moduleTab) return { kind: 'page', tab: 'closingmodules', params: { closingTab: moduleTab } };
-  const obligation = STEP_OBLIGATIONS[key];
-  if (obligation) return { kind: 'page', tab: 'obligations', params: { obligationsTab: obligation } };
+  // Bausteine und Nebenpflichten hängen unter demselben Reiter; die Kennung
+  // des Schritts klappt dort den richtigen Abschnitt auf.
+  if (STEP_TABS[key] || STEP_OBLIGATIONS[key]) {
+    return { kind: 'page', route: { area: 'closings', tab: 'year', id: key } };
+  }
   const page = STEP_PAGES[key];
-  if (page) return { kind: 'page', tab: page, params: {} };
-  if (key === 'adoption') return { kind: 'anchor', anchor: STEPS_ANCHOR };
+  if (page) return { kind: 'page', route: page };
+  if (key === 'adoption' || key === 'disclosure') return { kind: 'anchor', anchor: STEPS_ANCHOR };
   return null;
 }
 

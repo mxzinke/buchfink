@@ -49,7 +49,7 @@ import {
   TAX_RATE_REDUCED,
   TAX_RATE_STANDARD,
 } from '../types';
-import type { NavigateFn } from '../components/Sidebar';
+import type { NavigateFn } from '../navigation';
 import { Api } from '../services/api';
 import { usePostingLock, useWriteLock } from '../components/WriteLock';
 import { RetentionDialog, SelfIssuedDialog } from '../components/LedgerForms';
@@ -447,7 +447,7 @@ export const ReceiptsPage: React.FC<ReceiptsPageProps> = ({
   const writeLock = usePostingLock();
 
   return (
-    <div className="max-w-[1440px] mx-auto px-8 py-8">
+    <div>
       <PageHeader helpSummary="Legen Sie Rechnungen und andere Belege ab, prüfen Sie die Angaben und buchen Sie den Vorgang."
         title="Belege"
         context={
@@ -1216,7 +1216,7 @@ const ReceiptEntriesPanel: React.FC<{
                               size="sm"
                               className="code-num"
                               title={`${formatSide(line.side)} ${line.account}`}
-                              onClick={() => onNavigate('accounts', { account: line.account })}
+                              onClick={() => onNavigate({ area: 'books', tab: 'accounts', id: line.account })}
                             >
                               {line.account}
                             </Button>
@@ -1238,7 +1238,7 @@ const ReceiptEntriesPanel: React.FC<{
                       <Button
                         variant="quiet"
                         size="sm"
-                        onClick={() => onNavigate('journal', { entryNumber: entry.entryNumber })}
+                        onClick={() => onNavigate({ area: 'books', tab: 'journal', id: entry.entryNumber })}
                       >
                         Im Journal
                       </Button>

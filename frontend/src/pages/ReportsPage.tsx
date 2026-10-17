@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Download, Table2 } from 'lucide-react';
 import { FinancialStatement, StatementNotes } from '../types';
 import { Api } from '../services/api';
-import type { NavigateFn } from '../components/Sidebar';
+import type { NavigateFn } from '../navigation';
 import { downloadBlob } from '../utils/download';
 import { formatCents, formatDate } from '../utils/formatters';
 import {
@@ -328,7 +328,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ year, onNavigate }) =>
   };
 
   return (
-    <div className="max-w-[1200px] mx-auto px-8 py-8">
+    <div>
       <PageHeader
         title="Auswertungen"
         context={`Geschäftsjahr ${year} · berechnet aus den erfassten Buchungen`}
@@ -400,14 +400,14 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ year, onNavigate }) =>
 
       </Tabs>
 
-      {/* Die Auswertung der nicht abziehbaren Betriebsausgaben steht auf der
-          Seite „Nebenpflichten", weil sie zu dem Verzeichnis gehört, das dort
-          geführt wird. Der Verweis steht hier, weil man einen Bericht unter
-          „Auswertungen" sucht. */}
+      {/* Die Auswertung der nicht abziehbaren Betriebsausgaben steht bei den
+          Nebenpflichten, weil sie zu dem Verzeichnis gehört, das dort geführt
+          wird. Der Verweis steht hier, weil man einen Bericht bei Bilanz und GuV
+          sucht. */}
       {onNavigate && (
         <Section helpSummary="Weitere steuerliche Auswertungen finden Sie bei den zugehörigen Aufzeichnungen."
           title="Weitere Auswertungen"
-          context="Auf der Seite „Nebenpflichten“"
+          context="Unter Abschlüsse → Jahr → Nebenpflichten"
           className="mt-8"
           explain={
             <>
@@ -421,7 +421,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ year, onNavigate }) =>
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => onNavigate('obligations', { obligationsTab: 'nondeductible' })}
+              onClick={() => onNavigate({ area: 'closings', tab: 'year', id: 'nondeductible' })}
             >
               Nicht abziehbare Betriebsausgaben
             </Button>

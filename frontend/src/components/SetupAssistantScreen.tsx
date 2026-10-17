@@ -833,7 +833,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                   <div className="flex flex-col gap-4">
                     {isNewCompany ? (
                       <p className="text-body text-shell-text-muted">
-                        Steuernummer und USt-IdNr. können Sie später in den Einstellungen ergänzen.
+                        Steuernummer und USt-IdNr. können Sie später unter Unternehmen ergänzen.
                       </p>
                     ) : (
                       <>
@@ -874,7 +874,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                       <label htmlFor="setup-vat-period">Umsatzsteuererklärungen</label>
                       <Help
                         label="Erklärung zu Umsatzsteuererklärungen"
-                        summary="Wenn Ihre Meldepflicht noch nicht geklärt ist, können Sie die Auswahl später in den Einstellungen ergänzen."
+                        summary="Wenn Ihre Meldepflicht noch nicht geklärt ist, können Sie die Auswahl später unter Unternehmen ergänzen."
                       >
                         <p>Eine reine Finanzholding, die nur Beteiligungen hält und keine entgeltlichen Leistungen erbringt, kann umsatzsteuerlich außerhalb des Unternehmensbereichs liegen. Eine Holding mit entgeltlichen Leistungen ist anders zu beurteilen.</p>
                         <p>„Keine regelmäßigen Umsatzsteuererklärungen“ steuert die Terminplanung. Die Auswahl legt weder Steuerbefreiungen noch den Vorsteuerabzug fest. Besondere Erklärungspflichten, etwa bei Reverse Charge, müssen gesondert geprüft werden.</p>

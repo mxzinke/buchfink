@@ -466,7 +466,7 @@ export const AssetsPage: React.FC = () => {
   const explain = useMemo(() => explanations(rules, year), [rules, year]);
 
   return (
-    <div className="max-w-[1200px] mx-auto px-8 py-8">
+    <div>
       <PageHeader
         title="Anlagevermögen"
         context={`Geschäftsjahr ${year} · Verzeichnis, Abschreibungen und Anlagenspiegel`}
