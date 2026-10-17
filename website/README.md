@@ -15,7 +15,7 @@ website/
     ├── site.js            # Menü schließen, Dialoge öffnen
     ├── buchfink-logo.svg
     ├── fonts/             # Manrope, selbst ausgeliefert (OFL, Lizenz liegt bei)
-    └── screenshots/       # von shoot.mjs erzeugt, siehe unten
+    └── screenshots/       # Bilder der Oberfläche, siehe unten
 ```
 
 Alle vier Seiten haben dieselbe Kopfleiste: Start, So funktioniert’s,
@@ -53,8 +53,8 @@ Die Seite liegt unter `mxzinke.github.io/buchfink/`. Eine eigene Domain lässt
 sich unter **Settings → Pages → Custom domain** eintragen und landet dann als
 `CNAME` in diesem Verzeichnis.
 
-Vor dem nächsten Veröffentlichen müssen die Bilder unten erzeugt sein; die
-Seiten verweisen schon auf sie.
+`pages:publish` bricht ab, solange ein Bild fehlt, auf das eine Seite
+verweist.
 
 ## Screenshots
 
@@ -71,8 +71,8 @@ Die Seiten zeigen sieben Bilder, alle 2880 × 1800 Pixel:
 | `unternehmen.png` | So funktioniert’s | Unternehmensdaten mit steuerlicher Beratung |
 
 Sie entstehen aus der echten Oberfläche in `frontend/`; nur die Wails-Bridge ist
-durch Beispieldaten ersetzt. Der Ablauf liegt in
-[`scripts/site-screenshots/`](../scripts/site-screenshots/):
+durch Beispieldaten ersetzt. Ablauf und Dateinamen beschreibt
+[`scripts/site-screenshots/`](../scripts/site-screenshots/README.md):
 
 ```bash
 npm --prefix frontend install
@@ -80,8 +80,8 @@ npm --prefix scripts/site-screenshots install
 node scripts/site-screenshots/shoot.mjs
 ```
 
-Die Dateinamen stehen in der Liste `shots` in `shoot.mjs`. Ein Bild, das keine
-Seite zeigt, wird gelöscht. Alle Firmen, Namen und Beträge sind erfunden.
+Jeder Dateiname aus der Tabelle muss dort erzeugt werden. Alle Firmen, Namen
+und Beträge sind erfunden.
 
 Über jedem Bild steht eine Leiste mit drei Punkten (`.shot__chrome`); sie ist
 Markup und gehört in jede `<figure class="shot">`.
