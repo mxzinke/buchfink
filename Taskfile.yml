@@ -93,6 +93,14 @@ tasks:
     cmds:
       - python3 scripts/check_closing_steps.py
 
+  check:links:
+    summary: Checks relative links and heading anchors in the Markdown files
+    # Die Dokumentation verweist auf die Beschreibung des MCP-Servers, die Skills,
+    # das Plugin und die Marketplace-Datei. Solange sie nicht im Repository
+    # liegen, dürfen diese Pfade fehlen.
+    cmds:
+      - python3 scripts/check_doc_links.py docs/entwicklung/mcp.md skills plugins .claude-plugin
+
   check:clicks:
     summary: Walks the Prüfszenario from the Bilanz to the Beleg and counts the clicks
     # GOB-02: „Keine Buchung ohne Beleg" ist erst dann eine Aussage über die
@@ -115,6 +123,7 @@ tasks:
       - task: check:bridge
       - task: check:text
       - task: check:steps
+      - task: check:links
 
   build:
     summary: Builds the application

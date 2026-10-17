@@ -43,4 +43,5 @@ Regeln zu kopieren. Die README im Wurzelordner bleibt ein kurzer Einstieg.
 Mit einer Funktion ändern sich Umsetzungsstand, betroffene Anforderungen und
 gegebenenfalls Webseite und Skills im selben Pull Request. Beim Verschieben
 oder Löschen einer Seite werden relative Links im ganzen Repository angepasst,
-auch in Webseite, Codekommentaren und Skripten.
+auch in Webseite, Codekommentaren und Skripten. `task check:links` prüft die
+Links und Überschriftenanker in allen Markdown-Dateien.
