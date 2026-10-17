@@ -312,12 +312,12 @@ func (b *BuchfinkBridge) GetAllJournalEntries() ([]domain.JournalEntry, error) {
 // PostIncomingReceipt books an Eingangsbeleg from the fachliche Gruppe, the
 // Steuerfall and the payment state.
 func (b *BuchfinkBridge) PostIncomingReceipt(req service.ReceiptRequest) (*domain.JournalEntry, error) {
-	if err := b.prefetch(func(ctx context.Context, t *core.Tenant) error {
-		return t.PrefetchRate(ctx, req.Currency, req.DocumentDate)
-	}); err != nil {
-		return nil, fmt.Errorf("für den Beleg in %s vom %s: %w", req.Currency, req.DocumentDate, err)
-	}
-	return write(b, func(ctx context.Context, s *core.Services) (*domain.JournalEntry, error) {
+	return prepared(b, func(ctx context.Context, t *core.Tenant) error {
+		if err := t.PrefetchRate(ctx, req.Currency, req.DocumentDate); err != nil {
+			return fmt.Errorf("für den Beleg in %s vom %s: %w", req.Currency, req.DocumentDate, err)
+		}
+		return nil
+	}, func(ctx context.Context, s *core.Services) (*domain.JournalEntry, error) {
 		return s.Posting.PostIncomingReceipt(ctx, req)
 	})
 }
@@ -403,12 +403,9 @@ func (b *BuchfinkBridge) GetInvoices() ([]domain.Invoice, error) {
 // IssueInvoice assigns the consecutive invoice number and books the receivable
 // in one step — an invoice never exists on paper without being in the journal.
 func (b *BuchfinkBridge) IssueInvoice(inv domain.Invoice) (*domain.Invoice, error) {
-	if err := b.prefetch(func(ctx context.Context, t *core.Tenant) error {
+	return prepared(b, func(ctx context.Context, t *core.Tenant) error {
 		return t.PrepareInvoice(ctx, &inv)
-	}); err != nil {
-		return nil, err
-	}
-	return write(b, func(ctx context.Context, s *core.Services) (*domain.Invoice, error) {
+	}, func(ctx context.Context, s *core.Services) (*domain.Invoice, error) {
 		if err := s.Invoices.Issue(ctx, &inv); err != nil {
 			return nil, err
 		}

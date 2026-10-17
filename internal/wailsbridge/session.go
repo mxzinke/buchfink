@@ -80,17 +80,25 @@ func operate[T any](b *BuchfinkBridge, fn func(ctx context.Context, t *core.Tena
 	return fn(ctx, t)
 }
 
-// prefetch holt vor einem Schreibvorgang, was er aus dem Netz braucht, ohne
-// Schreibsperre. Ohne offenen Mandanten ist nichts zu holen; der
-// Schreibvorgang meldet das.
-func (b *BuchfinkBridge) prefetch(fn func(ctx context.Context, t *core.Tenant) error) error {
-	_, err := operate(b, func(ctx context.Context, t *core.Tenant) (struct{}, error) {
-		return struct{}{}, fn(ctx, t)
+// prepared schreibt nach einem Vorabruf: prepare holt ohne Schreibsperre, was
+// der Vorgang aus dem Netz braucht, danach schreibt fn auf demselben
+// Mandanten. Wechselt die App dazwischen den Mandanten, endet der Vorgang mit
+// core.ErrTenantClosing, statt im neuen Mandanten mit Angaben aus dem alten zu
+// schreiben.
+func prepared[T any](
+	b *BuchfinkBridge, prepare func(ctx context.Context, t *core.Tenant) error, fn serviceFn[T],
+) (T, error) {
+	return operate(b, func(ctx context.Context, t *core.Tenant) (T, error) {
+		var out T
+		if err := prepare(ctx, t); err != nil {
+			return out, err
+		}
+		err := t.Write(ctx, func(ctx context.Context, s *core.Services) (err error) {
+			out, err = fn(ctx, s)
+			return err
+		})
+		return out, err
 	})
-	if errors.Is(err, core.ErrNoTenant) {
-		return nil
-	}
-	return err
 }
 
 // inspect ruft einen lesenden Vorgang des Kerns.

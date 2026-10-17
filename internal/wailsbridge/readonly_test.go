@@ -237,9 +237,10 @@ func isBridgeReceiver(recv *ast.FieldList) bool {
 	return ok && ident.Name == "BuchfinkBridge"
 }
 
-// writeCalls sucht die Aufrufe von write, change und operate im Rumpf. guarded
-// ist ein Aufruf ohne core.ExaminerExempt(), appOnly einer mit core.AppOnly().
-// operate ruft einen Vorgang des Kerns, der selbst über Tenant.Write schreibt.
+// writeCalls sucht die Aufrufe von write, change, prepared und operate im
+// Rumpf. guarded ist ein Aufruf ohne core.ExaminerExempt(), appOnly einer mit
+// core.AppOnly(). operate ruft einen Vorgang des Kerns, der selbst über
+// Tenant.Write schreibt.
 func writeCalls(fn *ast.FuncDecl) (guarded, appOnly bool) {
 	ast.Inspect(fn, func(n ast.Node) bool {
 		call, ok := n.(*ast.CallExpr)
@@ -266,7 +267,7 @@ func writeCalls(fn *ast.FuncDecl) (guarded, appOnly bool) {
 func isWriteHelper(fun ast.Expr) bool {
 	switch f := fun.(type) {
 	case *ast.Ident:
-		return f.Name == "write" || f.Name == "operate"
+		return f.Name == "write" || f.Name == "operate" || f.Name == "prepared"
 	case *ast.IndexExpr:
 		return isWriteHelper(f.X)
 	case *ast.SelectorExpr:

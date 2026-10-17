@@ -185,12 +185,9 @@ func (b *BuchfinkBridge) PreviewCurrencyValuation(year int) (*service.ForeignCur
 // BookCurrencyValuation bucht die Stichtagsbewertung und ihre Auflösung.
 func (b *BuchfinkBridge) BookCurrencyValuation(year int) (*service.ForeignCurrencyValuation, error) {
 	year = b.yearOr(year)
-	if err := b.prefetch(func(ctx context.Context, t *core.Tenant) error {
+	return prepared(b, func(ctx context.Context, t *core.Tenant) error {
 		return t.PrefetchValuationRates(ctx, year)
-	}); err != nil {
-		return nil, err
-	}
-	return write(b, func(ctx context.Context, s *core.Services) (*service.ForeignCurrencyValuation, error) {
+	}, func(ctx context.Context, s *core.Services) (*service.ForeignCurrencyValuation, error) {
 		return s.Currency.BookCurrencyValuation(ctx, year)
 	})
 }
