@@ -28,7 +28,7 @@ werden nicht unterstützt; ein Kleinunternehmer als Lieferant ist erfassbar.
 
 | Vorgang | Aktuelles Verhalten | Code |
 |---|---|---|
-| Unternehmen einrichten | Gründung oder Übernahme bestehender Buchhaltung, Auswahl des ersten Geschäftsjahres und Aufforderung zur Schlüsselsicherung. Bankkonten werden beim ersten Import eingerichtet. | `frontend/src/components/SetupAssistantScreen.tsx`, `internal/wailsbridge/recovery_onboarding_test.go` |
+| Unternehmen einrichten | Zwei Schritte: Firma, Rechtsform, Gründung oder Umstieg mit dem Starttag der Bücher, Bundesland und die drei Ausschlussmerkmale; danach die Verbindung zu einer KI-App. Alle übrigen Stammdaten stehen unter Unternehmen → Stammdaten. | `frontend/src/components/SetupAssistantScreen.tsx`, `frontend/src/pages/company/` |
 | Belege und Unterlagen ablegen | Originaldateien bleiben erhalten. E-Rechnungen werden ausgelesen und geprüft; andere Belege brauchen manuell erfasste Angaben. | `internal/service/receipt_service.go`, `internal/service/document_service.go`, `internal/einvoice/` |
 | Buchen und korrigieren | Der Buchungskern prüft ausgeglichene Buchungen. Belegbuchung und Handbuchung sind vorhanden; eine Handbuchung verlangt einen Beleg oder Eigenbeleg. Korrekturen erfolgen durch Storno und Neubuchung. | `internal/service/journal_service.go`, `manual_entry.go`, `self_issued_receipt.go` |
 | Bank und offene Rechnungen | CAMT.053-Import mit Originalnachweis und mehreren Euro-Bankkonten, Kontoeinrichtung beim ersten Import, Zuordnungsvorschläge, Teilzahlungen, Sammelzahlungen, Skonto und Zahlungsausfälle. CAMT-Sammeleinträge mit mehreren Einzeltransaktionen werden abgewiesen. Skonto korrigiert auch die Beträge der Voranmeldung. | `internal/bank/`, `internal/service/bank_service.go`, `payment_service.go`, `internal/accounting/ustva.go` |
@@ -46,7 +46,7 @@ werden nicht unterstützt; ein Kleinunternehmer als Lieferant ist erfassbar.
 | Änderungen nachvollziehen | Verkettete Prüfwerte für Journal und Änderungsprotokoll, Prüfläufe und Festschreibung mit externem Zeitstempel. | `internal/accounting/journalhash.go`, `audithash.go`, `internal/service/check_service.go`, `internal/timestamp/` |
 | Sichern und herausgeben | Sicherung, Wiederherstellung, Belegarchiv, Datenexport für Prüfungen und Verfahrensdokumentation. | `internal/service/backup_service.go`, `export_service.go`, `internal/export/`, `internal/procdoc/` |
 | Hilfe lesen | Kurzer Tooltip am Fragezeichen. „Mehr erfahren“ öffnet einen Detaildialog; erkannte Gesetzesverweise sind verlinkt. | `frontend/src/components/ui/Help.tsx`, `LegalText.tsx` |
-| Nummernkreise verwalten | Rechnungs- und Belegnummernformat sowie Lückenprüfung mit Begründungen stehen unter Einstellungen → Rechnungsstellung → Nummernkreise, standardmäßig eingeklappt. | `frontend/src/pages/SettingsPage.tsx`, `frontend/src/components/InvoiceNumberRange.tsx` |
+| Nummernkreise verwalten | Rechnungs- und Belegnummernformat stehen unter Unternehmen → Stammdaten → Bankkonten & Rechnungen, die Lückenprüfung mit Begründungen unter Einstellungen → Prüfung & GoBD → Nummernkreise. | `frontend/src/pages/company/BankBlock.tsx`, `frontend/src/components/InvoiceNumberRange.tsx` |
 
 Dateinamen ohne Verzeichnis in einer Tabellenzelle beziehen sich auf das zuletzt
 genannte Verzeichnis derselben Zelle.
