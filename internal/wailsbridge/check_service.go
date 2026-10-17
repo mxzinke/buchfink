@@ -43,20 +43,22 @@ func (b *BuchfinkBridge) GetCheckRuns(year int) ([]domain.CheckRun, error) {
 	})
 }
 
-// GetDeadlines liefert alle Termine eines Jahres: Voranmeldungen,
-// Zusammenfassende Meldungen, Sondervorauszahlung, Festschreibungen, Aufstellung
-// und Offenlegung.
+// GetDeadlines liefert die Pflichten eines Geschäftsjahres aus dem
+// Pflichtenkalender in der Form der Fristenseite.
 func (b *BuchfinkBridge) GetDeadlines(year int) ([]domain.Deadline, error) {
 	year = b.yearOr(year)
 	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.Deadline, error) {
-		return s.Deadlines.Deadlines(ctx, year)
+		return s.Obligations.Deadlines(ctx, year)
 	})
 }
 
-// MarkDeadlineDone hakt einen Termin ab, der sich nicht aus den Daten ergibt —
-// die Umsatzsteuer-Jahreserklärung etwa.
+// MarkDeadlineDone bestätigt eine Pflicht, die sich nicht aus den Daten ergibt,
+// mit dem Tag als Nachweis.
 func (b *BuchfinkBridge) MarkDeadlineDone(key, date string) error {
 	return b.change(func(ctx context.Context, s *core.Services) error {
-		return s.Deadlines.MarkDone(ctx, key, date)
+		_, err := s.Obligations.Confirm(ctx, key, service.ConfirmInput{
+			Date: date, Kind: domain.EvidenceConfirmation, Note: "in der App als erledigt bestätigt",
+		})
+		return err
 	}, core.AppOnly())
 }

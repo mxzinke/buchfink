@@ -44,7 +44,7 @@ type Services struct {
 	VatReturns      *service.VatReturnService
 	ZM              *service.ZMService
 	Checks          *service.CheckService
-	Deadlines       *service.DeadlineService
+	Obligations     *service.ObligationService
 	Export          *service.ExportService
 	Backup          *service.BackupService
 	ClosingSteps    *service.ClosingStepsService

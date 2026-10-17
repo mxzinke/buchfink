@@ -215,9 +215,10 @@ func storedFiles(t *testing.T, dataDir string) []string {
 func TestCommitTaskAppearsOnlyOnce(t *testing.T) {
 	env := newTestEnv(t)
 	svc := NewTaskService(repository.NewSettingsRepository(env.db))
-	svc.SetDeadlineSource(stubDeadlineSource{deadlines: []domain.Deadline{{
-		Key: DeadlineKeyCommit + ".2026-01", Title: "Januar 2026 festschreiben",
-		DueDate: "2026-02-28", Reference: "GoBD Rz. 107",
+	svc.SetObligationSource(stubObligationSource{obligations: []domain.Obligation{{
+		Key: string(domain.ObligationMonthCommit) + ".2026-01", Kind: domain.ObligationMonthCommit,
+		Title: "Festschreibung Januar 2026", DueDate: "2026-02-28", Basis: "GoBD Rz. 107",
+		PeriodFrom: "2026-01-01", PeriodTo: "2026-01-31", Status: domain.ObligationOverdue,
 		Description: "Nach der Festschreibung nimmt der Monat keine Buchung mehr auf.",
 	}}})
 	svc.SetCheckSource(stubCheckSource{run: &domain.CheckRun{Findings: []domain.CheckFinding{{
@@ -233,7 +234,7 @@ func TestCommitTaskAppearsOnlyOnce(t *testing.T) {
 	commit := 0
 	for _, group := range [][]domain.Task{list.Overdue, list.Open, list.Upcoming} {
 		for _, task := range group {
-			if strings.Contains(task.Title, "festschreiben") {
+			if strings.Contains(task.Title, "Festschreibung") || strings.Contains(task.Title, "festschreiben") {
 				commit++
 			}
 		}

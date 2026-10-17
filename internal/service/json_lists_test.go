@@ -123,7 +123,7 @@ func TestCheckRunMarshalsEmptyFindingsNotNull(t *testing.T) {
 // darüber laufen kann.
 func TestDeadlineListMarshalsEmptyNotNull(t *testing.T) {
 	env := newTestEnv(t)
-	deadlines, err := env.deadlines(t).Deadlines(context.Background(), 2026)
+	deadlines, err := env.obligations(t).Deadlines(context.Background(), 2026)
 	if err != nil {
 		t.Fatalf("Termine: %v", err)
 	}

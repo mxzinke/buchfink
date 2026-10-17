@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"gorm.io/gorm"
@@ -16,7 +17,17 @@ type SettingsService struct {
 	registrar          FoundationRegistrar
 	journalRepo        domain.JournalRepository
 	festschreibungRepo domain.FestschreibungRepository
+	events             ObligationEventRecorder
 }
+
+// ObligationEventRecorder erfasst Anlässe für den Pflichtenkalender.
+type ObligationEventRecorder interface {
+	RecordEvent(ctx context.Context, kind domain.ObligationEventKind, date, note string) (*domain.ObligationEvent, error)
+}
+
+// SetEventRecorder meldet geänderte Gesellschafter an den Pflichtenkalender:
+// daraus folgen Gesellschafterliste und Transparenzregister.
+func (s *SettingsService) SetEventRecorder(r ObligationEventRecorder) { s.events = r }
 
 // FoundationRegistrar trägt den Tag der Eintragung ins Handelsregister an der
 // Gründung nach. Erst damit endet die Vorgesellschaft und mit ihr der Zusatz
@@ -91,6 +102,12 @@ func (s *SettingsService) UpdateCompanySettings(ctx context.Context, settings *d
 	if err := s.settingsRepo.UpdateCompanySettings(ctx, settings); err != nil {
 		return err
 	}
+	if s.events != nil && shareholdersChanged(before, settings) {
+		if _, err := s.events.RecordEvent(ctx, domain.EventShareholderChange, todayLocal(),
+			"Gesellschafterliste in den Unternehmensdaten geändert"); err != nil {
+			return err
+		}
+	}
 
 	if err := logAuditChange(ctx, s.auditRepo, domain.AuditActionUpdate,
 		"SETTINGS",
@@ -102,6 +119,28 @@ func (s *SettingsService) UpdateCompanySettings(ctx context.Context, settings *d
 	}
 
 	return nil
+}
+
+// shareholdersChanged meldet eine Veränderung in den Personen der
+// Gesellschafter oder im Umfang ihrer Beteiligung (§ 40 Abs. 1 GmbHG). Die
+// erste Erfassung ist keine Veränderung, ein Formular ohne Liste auch nicht.
+func shareholdersChanged(before, after *domain.CompanySettings) bool {
+	if before == nil || len(before.Shareholders) == 0 || after.Shareholders == nil {
+		return false
+	}
+	count := map[string]int{}
+	for _, sh := range before.Shareholders {
+		count[fmt.Sprintf("%s|%d", strings.TrimSpace(sh.Name), sh.ShareCapital)]++
+	}
+	for _, sh := range after.Shareholders {
+		count[fmt.Sprintf("%s|%d", strings.TrimSpace(sh.Name), sh.ShareCapital)]--
+	}
+	for _, n := range count {
+		if n != 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // ensureStartMonthKept weist einen neuen Beginn des Geschäftsjahres ab, sobald

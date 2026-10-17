@@ -264,6 +264,10 @@ type Deadline struct {
 	FiscalYear  int    `json:"fiscalYear"`
 	IsDone      bool   `json:"isDone"`
 	DoneOn      string `json:"doneOn,omitempty"`
+	// Status ist der Stand im Pflichtenkalender, Confirmable sagt, ob der
+	// Mensch die Pflicht in der App bestätigen kann.
+	Status      string `json:"status,omitempty"`
+	Confirmable bool   `json:"confirmable,omitempty"`
 }
 
 // StatementHeader sind die Pflichtangaben des § 264 Abs. 1a HGB im Kopf des

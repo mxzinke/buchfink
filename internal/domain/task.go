@@ -38,20 +38,18 @@ const TaskLookaheadDays = 30
 // Bestätigung der USt-IdNr. ihre eigene Zeile, ohne dass die Aufgabenliste die
 // Prüfregeln ein zweites Mal aufzählt.
 const (
-	TaskKeyCheckFindings     = "check_findings"
-	TaskKeyBankUnmatched     = "bank_unmatched"
-	TaskKeyReceiptsUnbooked  = "receipts_unbooked"
-	TaskKeyReceiptsOverdue   = "receipts_overdue"
-	TaskKeyOverdueItems      = "overdue_receivables"
-	TaskKeyDeadline          = "deadline"
-	TaskKeyExemption         = "exemption_certificate"
-	TaskKeyBackupMissing     = "backup_missing"
-	TaskKeyBackupFailed      = "backup_failed"
-	TaskKeyReadOnly          = "read_only_active"
-	TaskKeyServiceProof      = "service_proof_missing"
-	TaskKeyCarryForward      = "carry_forward_difference"
-	TaskKeyPriorYearOpen     = "prior_year_not_established"
-	TaskKeyAppropriationOpen = "appropriation_open"
+	TaskKeyCheckFindings    = "check_findings"
+	TaskKeyBankUnmatched    = "bank_unmatched"
+	TaskKeyReceiptsUnbooked = "receipts_unbooked"
+	TaskKeyReceiptsOverdue  = "receipts_overdue"
+	TaskKeyOverdueItems     = "overdue_receivables"
+	TaskKeyObligation       = "pflicht"
+	TaskKeyExemption        = "exemption_certificate"
+	TaskKeyBackupMissing    = "backup_missing"
+	TaskKeyBackupFailed     = "backup_failed"
+	TaskKeyReadOnly         = "read_only_active"
+	TaskKeyServiceProof     = "service_proof_missing"
+	TaskKeyCarryForward     = "carry_forward_difference"
 )
 
 // TaskTarget ist das Navigationsziel einer Aufgabe.

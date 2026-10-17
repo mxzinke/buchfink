@@ -55,9 +55,24 @@ const CATEGORY_BY_PREFIX: [string, string][] = [
   ['ustva.', 'Voranmeldung'],
   ['zm.', 'Zusammenfassende Meldung'],
   ['sondervorauszahlung.', 'Sondervorauszahlung'],
+  ['kst-vorauszahlung.', 'Vorauszahlung'],
+  ['gewst-vorauszahlung.', 'Vorauszahlung'],
+  ['lohnsteuer-anmeldung.', 'Lohnsteuer'],
   ['festschreibung.', 'Festschreibung'],
-  ['ust.jahreserklaerung', 'Jahreserklärung'],
-  ['abschluss.', 'Jahresabschluss'],
+  ['ust-erklaerung.', 'Jahreserklärung'],
+  ['kst-erklaerung.', 'Jahreserklärung'],
+  ['gewst-erklaerung.', 'Jahreserklärung'],
+  ['e-bilanz.', 'Jahreserklärung'],
+  ['abschlussbuchungen.', 'Jahresabschluss'],
+  ['aufstellung.', 'Jahresabschluss'],
+  ['feststellung.', 'Jahresabschluss'],
+  ['ergebnisverwendung.', 'Jahresabschluss'],
+  ['offenlegung.', 'Jahresabschluss'],
+  ['kapitalertragsteuer.', 'Ausschüttung'],
+  ['transparenzregister.', 'Register'],
+  ['gesellschafterliste.', 'Register'],
+  ['steuerliche-erfassung.', 'Gründung'],
+  ['gewerbeanmeldung.', 'Gründung'],
 ];
 
 function categoryOf(key: string): string {
@@ -68,12 +83,11 @@ function categoryOf(key: string): string {
 }
 
 /**
- * Von Hand abgehakt wird nur, was Buchfink nicht sieht: die
- * Umsatzsteuer-Jahreserklärung entsteht außerhalb. Alles andere ergibt sich aus
- * den Daten, und ein Haken daneben könnte ihnen nur widersprechen.
+ * Von Hand bestätigt wird nur, was Buchfink nicht aus den Daten sieht; der
+ * Pflichtenkalender sagt es je Pflicht.
  */
-function isManual(key: string): boolean {
-  return key.startsWith('ust.jahreserklaerung');
+function isManual(item: Deadline): boolean {
+  return item.confirmable === true;
 }
 
 type Filter = 'all' | 'open' | 'overdue' | 'done';
@@ -505,7 +519,7 @@ export const DeadlinesPage: React.FC<DeadlinesPageProps> = ({ onNavigate, initia
                       )}
                     </Td>
                     <Td className="text-right">
-                      {isManual(item.key) && !item.isDone ? (
+                      {isManual(item) && !item.isDone ? (
                         <Button
                           variant="quiet"
                           size="sm"

@@ -218,16 +218,17 @@ func TestCommitTaskIsOpenFromTheTenthOfTheNextMonth(t *testing.T) {
 	// Die Frist der Januarfestschreibung mit Dauerfristverlängerung: Ende März.
 	// Sie liegt damit weiter als der Vorlauf von dreißig Tagen entfernt, und
 	// die Aufgabe muss trotzdem erscheinen.
-	deadline := domain.Deadline{
-		Key: DeadlineKeyCommit + ".2026-01", Title: "Januar 2026 festschreiben",
-		DueDate: "2026-03-31", Reference: "GoBD Rz. 107",
+	deadline := domain.Obligation{
+		Key: string(domain.ObligationMonthCommit) + ".2026-01", Kind: domain.ObligationMonthCommit,
+		Title: "Festschreibung Januar 2026", DueDate: "2026-03-31", Basis: "GoBD Rz. 107",
+		PeriodFrom: "2026-01-01", PeriodTo: "2026-01-31", Status: domain.ObligationOpen,
 		Description: "Nach der Festschreibung nimmt der Monat keine Buchung mehr auf.",
 	}
 
 	groupOf := func(today string) (domain.TaskGroup, bool) {
 		t.Helper()
 		svc := NewTaskService(repository.NewSettingsRepository(env.db))
-		svc.SetDeadlineSource(stubDeadlineSource{deadlines: []domain.Deadline{deadline}})
+		svc.SetObligationSource(stubObligationSource{obligations: []domain.Obligation{deadline}})
 		list, err := svc.Tasks(context.Background(), TaskOptions{Today: today})
 		if err != nil {
 			t.Fatalf("Aufgabenliste zum %s: %v", today, err)
@@ -256,7 +257,7 @@ func TestCommitTaskIsOpenFromTheTenthOfTheNextMonth(t *testing.T) {
 		t.Error("vor dem 10. des Folgemonats ist die Festschreibung noch nicht offen")
 	}
 	if group, ok := groupOf("2026-02-10"); !ok || group != domain.TaskGroupOpen {
-		t.Errorf("am 10. des Folgemonats gehört „Januar 2026 festschreiben\" in die offenen "+
+		t.Errorf("am 10. des Folgemonats gehört die Festschreibung des Januars in die offenen "+
 			"Aufgaben, erhalten %q (gefunden: %v)", group, ok)
 	}
 	if group, ok := groupOf("2026-04-01"); !ok || group != domain.TaskGroupOverdue {
@@ -336,7 +337,7 @@ func TestPostRejectsAManualEntryWithoutATaxCase(t *testing.T) {
 }
 
 // Mit Dauerfristverlängerung und Nachfrist meldet der Prüflauf einen Monat
-// nicht vor dem Tag, an dem die Fristenliste ihn führt.
+// nicht vor dem Tag, an dem der Pflichtenkalender ihn führt.
 //
 // Sonst widersprächen sich beide: period_not_committed meldete den Januar ab
 // dem 31. März, während CommitDueDate ihn erst zum 10. April fällig stellt —

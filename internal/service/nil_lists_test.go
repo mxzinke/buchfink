@@ -102,7 +102,7 @@ func TestServiceResultsHaveNoNilLists(t *testing.T) {
 	}
 	assertNoNilSlices(t, "Meldezeiträume", zmPeriods)
 
-	deadlines, err := env.deadlines(t).Deadlines(ctx, 2026)
+	deadlines, err := env.obligations(t).Deadlines(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Fristen: %v", err)
 	}

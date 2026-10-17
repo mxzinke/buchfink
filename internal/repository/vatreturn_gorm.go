@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -201,33 +200,4 @@ func (r *zmReturnRepositoryGorm) FindByPeriod(ctx context.Context, periodKey str
 
 func (r *zmReturnRepositoryGorm) Delete(ctx context.Context, id uint) error {
 	return dbFrom(ctx, r.db).Select("Lines").Delete(&domain.ZMReturn{ID: id}).Error
-}
-
-// -------------------------------------------------------------
-// Manuelle Haken an Terminen
-// -------------------------------------------------------------
-
-type deadlineRepositoryGorm struct {
-	db *gorm.DB
-}
-
-// NewDeadlineRepository creates a GORM-backed DeadlineRepository.
-func NewDeadlineRepository(db *gorm.DB) domain.DeadlineRepository {
-	return &deadlineRepositoryGorm{db: db}
-}
-
-func (r *deadlineRepositoryGorm) FindAll(ctx context.Context) ([]domain.DeadlineDone, error) {
-	var recs []domain.DeadlineDone
-	err := dbFrom(ctx, r.db).Find(&recs).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil
-	}
-	return recs, err
-}
-
-func (r *deadlineRepositoryGorm) Mark(ctx context.Context, key, doneOn string) error {
-	rec := domain.DeadlineDone{Key: key, DoneOn: doneOn, UpdatedAt: time.Now().UTC()}
-	return dbFrom(ctx, r.db).
-		Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "key"}}, UpdateAll: true}).
-		Create(&rec).Error
 }

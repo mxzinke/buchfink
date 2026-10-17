@@ -2290,6 +2290,10 @@ export interface Deadline {
   fiscalYear: number;
   isDone: boolean;
   doneOn?: string;
+  /** Stand im Pflichtenkalender: open, prepared, done, overdue, waived. */
+  status?: string;
+  /** Der Mensch kann die Pflicht in der App bestätigen. */
+  confirmable?: boolean;
 }
 
 /** Die Pflichtangaben des § 264 Abs. 1a HGB im Kopf des Abschlusses. */

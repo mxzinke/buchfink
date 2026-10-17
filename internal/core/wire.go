@@ -32,7 +32,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	vatReturnRepo := repository.NewVatReturnRepository(db)
 	zmReturnRepo := repository.NewZMReturnRepository(db)
 	checkRunRepo := repository.NewCheckRunRepository(db)
-	deadlineRepo := repository.NewDeadlineRepository(db)
+	obligationRepo := repository.NewObligationRepository(db)
 	backupRunRepo := repository.NewBackupRunRepository(db)
 	closingStepRepo := repository.NewClosingStepRepository(db)
 	accrualRepo := repository.NewAccrualRepository(db)
@@ -222,13 +222,15 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Checks.SetSizeClassSource(s.Statement)
 	s.Checks.SetVatIDStatusSource(s.VatIDs)
 
-	s.Deadlines = service.NewDeadlineService(
-		s.VatReturns, s.ZM, settingsRepo, festschreibungRepo,
-		deadlineRepo, auditRepo,
-	)
-	s.Deadlines.SetFiscalYearSource(fiscalYearRepo)
-	s.Deadlines.SetStatementSource(s.Statement)
-	s.Deadlines.SetExemptionSource(s.Contacts)
+	s.Obligations = service.NewObligationService(settingsRepo, obligationRepo, auditRepo)
+	s.Obligations.SetVatSources(s.VatReturns, vatReturnRepo)
+	s.Obligations.SetZMSources(s.ZM, zmReturnRepo)
+	s.Obligations.SetCommitments(festschreibungRepo)
+	s.Obligations.SetFiscalYearSource(fiscalYearRepo)
+	s.Obligations.SetSizeSource(s.Statement)
+	s.Obligations.SetAppropriationSource(s.Appropriation)
+	s.Obligations.SetJournalSource(journalRepo)
+	s.Settings.SetEventRecorder(s.Obligations)
 
 	s.Export = service.NewExportService(
 		journalRepo, accountRepo, contactRepo, receiptRepo, assetRepo,
@@ -255,15 +257,13 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 
 	s.Tasks = service.NewTaskService(settingsRepo)
 	s.Tasks.SetCheckSource(s.Checks)
-	s.Tasks.SetDeadlineSource(s.Deadlines)
-	s.Tasks.SetStatementSource(s.Statement)
+	s.Tasks.SetObligationSource(s.Obligations)
 	s.Tasks.SetBankSource(s.Bank)
 	s.Tasks.SetReceiptSource(s.Receipts)
 	s.Tasks.SetOpenItemSource(s.Payments)
 	s.Tasks.SetExemptionSource(s.Contacts)
 	s.Tasks.SetBackupSource(s.Backup)
 	s.Tasks.SetCarryForwardSource(s.Closing)
-	s.Tasks.SetAppropriationSource(s.Appropriation)
 
 	return s, st
 }
