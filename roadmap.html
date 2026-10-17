@@ -4,40 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Roadmap — Buchfink</title>
-    <meta name="description" content="Was Buchfink bereits kann und was geplant ist: selbstständige Buchhaltung, einfache Jahresabschlüsse, lokale Chatbot-Anbindung und gemeinschaftliche Entwicklung." />
+    <meta name="description" content="Was in Buchfink 0.3 gebaut ist und was bis Version 1 fehlt." />
     <meta name="color-scheme" content="light" />
     <link rel="icon" type="image/svg+xml" href="assets/buchfink-logo.svg" />
-    <link rel="stylesheet" href="assets/site.css?v=5f2c7f4ea0d8" />
-    <noscript>
-      <!-- Ohne Skript öffnet kein Dialog. Dann steht sein Inhalt am Ende der
-           Seite, mit Überschrift, statt zu fehlen. -->
-      <style>
-        .reveal,
-        .modal__close {
-          display: none;
-        }
-        dialog.modal {
-          display: block;
-          position: static;
-          width: auto;
-          max-width: var(--page);
-          max-height: none;
-          margin: 24px auto 0;
-          padding-inline: 16px;
-          box-shadow: none;
-          border: 0;
-          border-top: 1px solid var(--line);
-          border-radius: 0;
-        }
-        .modal__head {
-          border-bottom: 0;
-          padding: 20px 8px 0;
-        }
-        .modal__body {
-          padding: 12px 8px 0;
-        }
-      </style>
-    </noscript>
+    <link rel="stylesheet" href="assets/site.css?v=87ee239bcae4" />
+    <meta property="og:title" content="Roadmap — Buchfink" />
+    <meta property="og:description" content="Was in Buchfink 0.3 gebaut ist und was bis Version 1 fehlt." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="assets/screenshots/uebersicht.png" />
   </head>
 
   <body>
@@ -52,34 +26,9 @@
 
         <nav class="topnav" aria-label="Hauptnavigation">
           <a href="index.html">Start</a>
-          <details class="dropdown">
-            <summary>
-              Funktionen
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <path d="m6 9 6 6 6-6" />
-              </svg>
-            </summary>
-            <div class="menu">
-              <a href="buchhaltung.html">
-                <span class="menu__name">Laufende Buchhaltung</span>
-                <span class="menu__hint">Bank, Belege, Journal, Rechnungen</span>
-              </a>
-              <a href="umsatzsteuer.html">
-                <span class="menu__name">Umsatzsteuer</span>
-                <span class="menu__hint">Voranmeldung, Meldungen, Fristen</span>
-              </a>
-              <a href="abschluss.html">
-                <span class="menu__name">Abschluss</span>
-                <span class="menu__hint">Monatsabschluss, Bilanz, GuV, E-Bilanz</span>
-              </a>
-              <a href="nachweise.html">
-                <span class="menu__name">Nachweise</span>
-                <span class="menu__hint">Protokoll, Aufbewahrung, Betriebsprüfung</span>
-              </a>
-            </div>
-          </details>
-          <a href="roadmap.html" aria-current="page">Roadmap</a>
+          <a href="so-funktionierts.html">So funktioniert’s</a>
           <a href="installation.html">Installation</a>
+          <a href="roadmap.html" aria-current="page">Roadmap</a>
         </nav>
 
         <div class="topbar__end">
@@ -102,31 +51,17 @@
               <a href="index.html">
                 <span class="menu__name">Start</span>
               </a>
-              <p class="menu__group">Funktionen</p>
-              <a href="buchhaltung.html">
-                <span class="menu__name">Laufende Buchhaltung</span>
-                <span class="menu__hint">Bank, Belege, Journal, Rechnungen</span>
-              </a>
-              <a href="umsatzsteuer.html">
-                <span class="menu__name">Umsatzsteuer</span>
-                <span class="menu__hint">Voranmeldung, Meldungen, Fristen</span>
-              </a>
-              <a href="abschluss.html">
-                <span class="menu__name">Abschluss</span>
-                <span class="menu__hint">Monatsabschluss, Bilanz, GuV, E-Bilanz</span>
-              </a>
-              <a href="nachweise.html">
-                <span class="menu__name">Nachweise</span>
-                <span class="menu__hint">Protokoll, Aufbewahrung, Betriebsprüfung</span>
-              </a>
-              <p class="menu__group">Projekt</p>
-              <a href="roadmap.html" aria-current="page">
-                <span class="menu__name">Roadmap</span>
-                <span class="menu__hint">Was steht, was bis zur Version 1 fehlt</span>
+              <a href="so-funktionierts.html">
+                <span class="menu__name">So funktioniert’s</span>
+                <span class="menu__hint">Vom Beleg bis zur Erklärung</span>
               </a>
               <a href="installation.html">
                 <span class="menu__name">Installation</span>
-                <span class="menu__hint">Buchfink auf dem eigenen Rechner bauen</span>
+                <span class="menu__hint">App und KI-Agent einrichten</span>
+              </a>
+              <a href="roadmap.html" aria-current="page">
+                <span class="menu__name">Roadmap</span>
+                <span class="menu__hint">Was steht, was bis Version 1 fehlt</span>
               </a>
             </div>
           </details>
@@ -138,57 +73,80 @@
       <section class="pagehead">
         <div class="wrap wrap--wide">
           <p class="overline">Roadmap</p>
-          <h1 class="pagehead__title">Gemeinsam zur selbstständigen Buchhaltung</h1>
-          <p class="pagehead__lead">Buchfink soll kleinen Unternehmen ermöglichen, ihre Buchhaltung und einfache Jahresabschlüsse selbst zu erledigen. Wir entwickeln die Software offen und mit dem Ziel, die gesetzlichen Anforderungen für die unterstützten Fälle zu erfüllen.</p>
-          <p class="pagehead__lead">Die aktuelle Vorschau enthält bereits viele Abläufe. Vollständige fachliche Prüfung, Erprobung und Teile der Einreichung stehen noch aus. Es gibt keinen verbindlichen Termin für Version 1.</p>
+          <h1 class="pagehead__title">Bis Version 1</h1>
+          <p class="pagehead__lead">
+            Ziel: Eine GmbH oder UG führt ihre Bücher mit einem KI-Agenten vom Beleg bis zu
+            Jahresabschluss und Erklärungen, mit oder ohne Steuerberatung. Buchfink rechnet nach
+            festen Regeln, der Mensch gibt frei, was sich nicht rückgängig machen lässt.
+          </p>
+          <p class="pagehead__lead">Termine gibt es nicht.</p>
         </div>
       </section>
+
       <section class="band">
         <div class="wrap wrap--wide">
           <div class="timeline">
             <div class="timeline__item timeline__item--done">
-              <p class="timeline__stage">In der Vorschau</p>
-              <h2 class="timeline__title">Den Buchhaltungsalltag bearbeiten</h2>
-              <p class="timeline__body">Belege erfassen, Bankzahlungen zuordnen, Rechnungen schreiben und offene Beträge verfolgen. Auch Umsatzsteuer-Voranmeldung und Abschlussvorbereitung sind implementiert.</p>
-              <p class="timeline__body">Welche Fälle unterstützt werden und wo Grenzen bestehen, beschreibt der <a href="https://github.com/mxzinke/buchfink/blob/master/docs/projekt/umsetzungsstand.md">aktuelle Umsetzungsstand</a>.</p>
+              <p class="timeline__stage">Version 0.3, Vorschau</p>
+              <h2 class="timeline__title">Gebaut</h2>
+              <p class="timeline__body">
+                Laufende Buchhaltung mit Belegen, Bank, Rechnungen und E-Rechnung; Voranmeldung
+                und Zusammenfassende Meldung; Jahresabschluss mit Abschlussbausteinen;
+                Erklärungen zu KSt, GewSt und USt; E-Bilanz; Pflichtenkalender; MCP-Server mit
+                Zustimmung in der App; Anleitungen für fünf KI-Clients.
+              </p>
+              <p class="timeline__body">
+                Was im Einzelnen gebaut ist und wo die Grenzen liegen, steht im
+                <a href="https://github.com/mxzinke/buchfink/blob/master/docs/projekt/umsetzungsstand.md">Umsetzungsstand</a>.
+              </p>
             </div>
             <div class="timeline__item">
-              <p class="timeline__stage">Offen</p>
-              <h2 class="timeline__title">Einfache Jahresabschlüsse vollständig begleiten</h2>
-              <p class="timeline__body">Bilanz und Gewinn- und Verlustrechnung sind vorhanden. Als Nächstes braucht es einen vollständigen Ablauf für den bestätigten Abschluss und seine Einreichung.</p>
+              <p class="timeline__stage">Bis Version 1</p>
+              <h2 class="timeline__title">Erproben und absichern</h2>
               <ul class="checklist">
-                <li>Die E-Bilanz-Datei gegen das amtliche Format prüfen und den Übermittlungsweg erproben</li>
-                <li>Unterzeichneten Abschluss, Gesellschafterbeschluss und Nachweise zusammenhalten</li>
-                <li>Offenlegung und Hinterlegung mit dem passenden Umfang vorbereiten</li>
-                <li>Abschlussangaben an die Größe des Unternehmens anpassen</li>
+                <li>Pilotbetrieb: ein Monat mit Festschreibung und ein Jahresabschluss mit Erklärungen bei einer echten GmbH</li>
+                <li>Anmeldung und Arbeit mit allen fünf Clients unter macOS, Windows und Linux prüfen</li>
+                <li>Notarisierte Builds für macOS und signierte für Windows</li>
+                <li>Zeilenkataloge der Jahreserklärungen für jedes neue Vordruckjahr; offene Zeilen von KSt und GewSt am Vordruck belegen</li>
+                <li>Eine erzeugte E-Bilanz über einen Dienst mit ERiC übermitteln und die Annahme belegen</li>
+                <li>Nach dem Pilotbetrieb festlegen, was der Agent direkt buchen darf und was er erfragt</li>
               </ul>
             </div>
             <div class="timeline__item">
-              <p class="timeline__stage">Fortlaufend</p>
-              <h2 class="timeline__title">Mit kleinen Unternehmen erproben</h2>
-              <p class="timeline__body">Menschen ohne Buchhaltungsausbildung sollen mit Buchfink zurechtkommen. Dafür brauchen wir Rückmeldungen aus dem Alltag und fachliche Prüfungen vollständiger Geschäftsjahre.</p>
-              <p class="timeline__body">Die Hilfe erklärt kurz am Fragezeichen. Über „Mehr erfahren“ öffnen sich die Hintergründe und Quellen. Wo das noch nicht verständlich genug ist, hilft eine konkrete Rückmeldung.</p>
+              <p class="timeline__stage">Danach, ohne Zusage</p>
+              <h2 class="timeline__title">Erweitern</h2>
+              <ul class="checklist">
+                <li>Istversteuerung nach § 20 UStG</li>
+                <li>Datensatz für die Offenlegung im Unternehmensregister</li>
+                <li>Zertifikatskette der Zeitstempel gegen eine Vertrauensliste prüfen</li>
+                <li>weitere Steuerfälle, etwa OSS</li>
+              </ul>
             </div>
             <div class="timeline__item">
-              <p class="timeline__stage">Geplant</p>
-              <h2 class="timeline__title">Den Chatbot Ihrer Wahl anbinden</h2>
-              <p class="timeline__body">Ein lokaler MCP-Server soll die Verbindung zu einem selbst gewählten Chatbot ermöglichen. Diese Schnittstelle ist noch nicht vorhanden. Welche Funktionen sie anbietet und wie Zugriffe freigegeben werden, ist noch zu entwerfen.</p>
-            </div>
-            <div class="timeline__item">
-              <p class="timeline__stage">Geplant</p>
-              <h2 class="timeline__title">Ohne Entwicklungswerkzeuge installieren</h2>
-              <p class="timeline__body">Fertige, signierte Installationsdateien sollen den Einstieg erleichtern. Derzeit wird die Vorschau aus dem Quellcode gebaut.</p>
+              <p class="timeline__stage">Nicht geplant</p>
+              <h2 class="timeline__title">Bewusst außen vor</h2>
+              <ul class="checklist">
+                <li>eigene Übermittlung an die Finanzverwaltung über ERiC</li>
+                <li>Verschlüsselung in Buchfink; den Schutz am Rechner übernimmt das Betriebssystem</li>
+                <li>Kassenbuch, Warenwirtschaft, Lohnabrechnung</li>
+                <li>andere Rechtsformen und die Einnahmen-Überschuss-Rechnung</li>
+              </ul>
             </div>
           </div>
         </div>
       </section>
+
       <section class="band band--sunken">
         <div class="wrap wrap--wide">
-          <h2 class="section__title">Jeder kann mitwirken</h2>
-          <p class="section__lead">Melden Sie unverständliche Stellen, beschreiben Sie fehlende Geschäftsvorgänge oder prüfen Sie die Ergebnisse anhand eigener Beispiele. Auch verständliche Texte und fachliche Erfahrung bringen das Projekt weiter.</p>
+          <h2 class="section__title">Mitwirken</h2>
+          <p class="section__lead">
+            Melden Sie unverständliche Stellen, beschreiben Sie fehlende Geschäftsvorfälle oder
+            prüfen Sie Ergebnisse an eigenen Beispielen. Fachliche Erfahrung aus Buchhaltung und
+            Steuerberatung bringt das Projekt besonders weiter.
+          </p>
           <div class="section__actions">
             <a class="btn btn--primary" href="https://github.com/mxzinke/buchfink/blob/master/CONTRIBUTING.md">Mitwirken</a>
-            <a class="btn btn--secondary" href="https://github.com/mxzinke/buchfink/blob/master/docs/projekt/roadmap.md">Technische und fachliche Planung</a>
+            <a class="btn btn--secondary" href="https://github.com/mxzinke/buchfink/blob/master/docs/projekt/roadmap.md">Roadmap im Detail</a>
           </div>
         </div>
       </section>
@@ -200,28 +158,27 @@
           <div>
             <p class="foot__title">Buchfink</p>
             <p>
-              Kostenlose und quelloffene Buchhaltung für kleine bilanzierende Unternehmen in
-              Deutschland. Läuft auf dem eigenen Rechner, ohne Cloud.
+              Quelloffene Buchhaltung für GmbH und UG in Deutschland. Läuft auf dem eigenen
+              Rechner; ein KI-Agent arbeitet über MCP mit.
             </p>
           </div>
           <div>
             <p class="foot__title">Seiten</p>
             <ul>
-              <li><a href="buchhaltung.html">Laufende Buchhaltung</a></li>
-              <li><a href="umsatzsteuer.html">Umsatzsteuer und Meldungen</a></li>
-              <li><a href="abschluss.html">Abschluss</a></li>
-              <li><a href="nachweise.html">Nachweise und Sicherheit</a></li>
-              <li><a href="roadmap.html">Roadmap</a></li>
+              <li><a href="index.html">Start</a></li>
+              <li><a href="so-funktionierts.html">So funktioniert’s</a></li>
               <li><a href="installation.html">Installation</a></li>
+              <li><a href="roadmap.html">Roadmap</a></li>
             </ul>
           </div>
           <div>
             <p class="foot__title">Projekt</p>
             <ul>
               <li><a href="https://github.com/mxzinke/buchfink">Quellcode</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/releases">Releases</a></li>
               <li><a href="https://github.com/mxzinke/buchfink/issues">Fehler melden</a></li>
               <li><a href="https://github.com/mxzinke/buchfink/blob/master/CONTRIBUTING.md">Mitwirken</a></li>
-              <li><a href="https://github.com/mxzinke/buchfink/tree/master/docs">Fachkonzepte</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/tree/master/docs">Dokumentation</a></li>
             </ul>
           </div>
           <div>
@@ -240,7 +197,7 @@
         <div class="foot__bottom">
           <span>© 2026 Maximilian Pfennig</span>
           <span>
-            Alle Zahlen, Firmen und Belege in den Screenshots sind erfunden. „SKR04“ und „DATEV“
+            Alle Zahlen, Firmen und Belege in den Bildern sind erfunden. „SKR04“ und „DATEV“
             sind Kennzeichen der DATEV eG.
           </span>
         </div>
