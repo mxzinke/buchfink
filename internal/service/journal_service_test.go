@@ -67,17 +67,17 @@ func newTestEnv(t *testing.T) *testEnv {
 	dataDir := t.TempDir()
 	store := receiptstore.New(dataDir)
 
-	journal := NewJournalService(journalRepo, accountRepo, contactRepo, auditRepo, settingsRepo, repository.NewTxRunner(db), 2026)
-	// Wie in der Anwendung (wailsbridge.initTenant): der Journaldienst kennt die
+	journal := NewJournalService(journalRepo, accountRepo, contactRepo, auditRepo, settingsRepo, repository.NewTxRunner(db))
+	// Wie in der Anwendung (core/wire.go): der Journaldienst kennt die
 	// Belegablage und prüft die Kopfdaten jedes Belegs, auf den eine Buchung
 	// zeigt. Ohne diese Verdrahtung prüften die Tests eine Verkabelung, die es
 	// im Betrieb nicht gibt — und eine Regel, die nur dort gilt, fiele hier nie
 	// auf.
 	journal.SetReceiptRepo(receiptRepo)
 	posting := NewPostingService(journal, contactRepo)
-	acc := NewAccountingService(accountRepo, journalRepo, contactRepo, settingsRepo, journal, 2026)
-	contacts := NewContactService(contactRepo, journalRepo, numberRepo, auditRepo, 2026)
-	receipts := NewReceiptService(receiptRepo, store, auditRepo, 2026)
+	acc := NewAccountingService(accountRepo, journalRepo, contactRepo, settingsRepo, journal)
+	contacts := NewContactService(contactRepo, journalRepo, numberRepo, auditRepo)
+	receipts := NewReceiptService(receiptRepo, store, auditRepo)
 	// Wie in der Anwendung: die Klärungsliste hält die Pflichtangaben gegen die
 	// Stammdaten des Ausstellers und des eigenen Unternehmens (RECH-07 K2).
 	receipts.SetContactSource(contactRepo)
@@ -353,7 +353,7 @@ func TestReverseIsGeneralumkehrAndClearsTurnover(t *testing.T) {
 			expense.Debit, expense.Credit)
 	}
 
-	accounts, err := env.accounting.GetAccounts(ctx)
+	accounts, err := env.accounting.GetAccounts(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Konten: %v", err)
 	}
@@ -585,7 +585,7 @@ func TestCollectiveAccountReportsItsSources(t *testing.T) {
 		}
 	}
 
-	accounts, err := env.accounting.GetAccounts(ctx)
+	accounts, err := env.accounting.GetAccounts(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Konten: %v", err)
 	}

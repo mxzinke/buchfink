@@ -17,7 +17,6 @@ func (e *testEnv) deadlines(t *testing.T) *DeadlineService {
 		repository.NewFestschreibungRepository(e.db),
 		repository.NewDeadlineRepository(e.db),
 		repository.NewAuditRepository(e.db),
-		e.fiscalYear,
 	)
 }
 

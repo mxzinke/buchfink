@@ -20,7 +20,6 @@ type AccountingService struct {
 	contactRepo  domain.ContactRepository
 	settingsRepo domain.SettingsRepository
 	journalSvc   *JournalService
-	fiscalYear   int
 	// auditRepo protokolliert die Herausgabe von Daten (QUE-02 K2). Freiwillig
 	// wie überall: ohne ihn rechnet der Dienst weiter, nur schreibt er nichts.
 	auditRepo domain.AuditRepository
@@ -37,7 +36,6 @@ func NewAccountingService(
 	contactRepo domain.ContactRepository,
 	settingsRepo domain.SettingsRepository,
 	journalSvc *JournalService,
-	fiscalYear int,
 ) *AccountingService {
 	return &AccountingService{
 		accountRepo:  accountRepo,
@@ -45,25 +43,16 @@ func NewAccountingService(
 		contactRepo:  contactRepo,
 		settingsRepo: settingsRepo,
 		journalSvc:   journalSvc,
-		fiscalYear:   fiscalYear,
 	}
 }
-
-// SetFiscalYear updates the active fiscal year.
-func (s *AccountingService) SetFiscalYear(year int) {
-	s.fiscalYear = year
-	if s.journalSvc != nil {
-		s.journalSvc.SetFiscalYear(year)
-	}
-}
-
-// GetFiscalYear returns the active fiscal year.
-func (s *AccountingService) GetFiscalYear() int { return s.fiscalYear }
 
 // GetAccounts returns the chart of accounts with the turnover booked in the
-// active fiscal year folded in.
-func (s *AccountingService) GetAccounts(ctx context.Context) ([]domain.Account, error) {
-	return s.AccountsForYear(ctx, s.fiscalYear)
+// fiscal year folded in.
+func (s *AccountingService) GetAccounts(ctx context.Context, year int) ([]domain.Account, error) {
+	if err := requireYear(year); err != nil {
+		return nil, err
+	}
+	return s.AccountsForYear(ctx, year)
 }
 
 // AccountsForYear liefert denselben Kontenplan mit den Salden eines beliebigen
@@ -113,12 +102,7 @@ func (s *AccountingService) AccountsForYearAt(ctx context.Context, year int, cut
 // but those accounts are not part of the chart of accounts. Without folding them
 // into 1200 and 3300 they would be missing from the balance sheet and from the
 // Summen- und Saldenliste — which would then no longer add up.
-func (s *AccountingService) collectedTurnovers(ctx context.Context) (map[string]domain.AccountTurnover, error) {
-	return s.collectedTurnoversFor(ctx, s.fiscalYear)
-}
-
-// collectedTurnoversFor tut dasselbe für ein bestimmtes Geschäftsjahr.
-func (s *AccountingService) collectedTurnoversFor(ctx context.Context, year int) (map[string]domain.AccountTurnover, error) {
+func (s *AccountingService) collectedTurnovers(ctx context.Context, year int) (map[string]domain.AccountTurnover, error) {
 	return s.collectedTurnoversAt(ctx, year, "")
 }
 
@@ -169,7 +153,10 @@ func applyTurnover(acc *domain.Account, t domain.AccountTurnover) {
 }
 
 // GetAccountByNumber returns one account including its turnover.
-func (s *AccountingService) GetAccountByNumber(ctx context.Context, number string) (*domain.Account, error) {
+func (s *AccountingService) GetAccountByNumber(ctx context.Context, year int, number string) (*domain.Account, error) {
+	if err := requireYear(year); err != nil {
+		return nil, err
+	}
 	chart, err := s.chart(ctx)
 	if err != nil {
 		return nil, err
@@ -179,7 +166,7 @@ func (s *AccountingService) GetAccountByNumber(ctx context.Context, number strin
 		return nil, fmt.Errorf("Konto %s ist im SKR04 nicht vorhanden", number)
 	}
 
-	turnovers, err := s.collectedTurnovers(ctx)
+	turnovers, err := s.collectedTurnovers(ctx, year)
 	if err != nil {
 		return nil, err
 	}
@@ -187,10 +174,13 @@ func (s *AccountingService) GetAccountByNumber(ctx context.Context, number strin
 	return &acc, nil
 }
 
-// GetAccountLedger builds the Kontoblatt: every line touching the account, with
-// its counter accounts and a running balance.
-func (s *AccountingService) GetAccountLedger(ctx context.Context, accountNumber string) (*domain.AccountLedger, error) {
-	return s.accountLedger(ctx, accountNumber, "", "", false)
+// GetAccountLedger builds the Kontoblatt of a fiscal year: every line touching
+// the account, with its counter accounts and a running balance.
+func (s *AccountingService) GetAccountLedger(ctx context.Context, year int, accountNumber string) (*domain.AccountLedger, error) {
+	if err := requireYear(year); err != nil {
+		return nil, err
+	}
+	return s.accountLedger(ctx, year, accountNumber, "", "", false)
 }
 
 // GetAccountLedgerRange ist dasselbe Kontoblatt für ein Datumsfenster über alle
@@ -200,11 +190,11 @@ func (s *AccountingService) GetAccountLedger(ctx context.Context, accountNumber 
 // Bankkonto von Oktober bis März" liegt über einem Jahreswechsel, und ein
 // Kontoblatt, das an Silvester aufhört, beantwortet die Frage nicht.
 func (s *AccountingService) GetAccountLedgerRange(ctx context.Context, accountNumber, from, to string) (*domain.AccountLedger, error) {
-	return s.accountLedger(ctx, accountNumber, from, to, true)
+	return s.accountLedger(ctx, 0, accountNumber, from, to, true)
 }
 
 func (s *AccountingService) accountLedger(
-	ctx context.Context, accountNumber, from, to string, byRange bool,
+	ctx context.Context, year int, accountNumber, from, to string, byRange bool,
 ) (*domain.AccountLedger, error) {
 	chart, err := s.chart(ctx)
 	if err != nil {
@@ -220,7 +210,7 @@ func (s *AccountingService) accountLedger(
 	if byRange {
 		entries, err = s.journalRepo.FindByAccountRange(ctx, accountNumber, from, to)
 	} else {
-		entries, err = s.journalRepo.FindByAccount(ctx, accountNumber, s.fiscalYear)
+		entries, err = s.journalRepo.FindByAccount(ctx, accountNumber, year)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("Buchungen für Konto %s konnten nicht geladen werden: %w", accountNumber, err)
@@ -280,7 +270,7 @@ func (s *AccountingService) accountLedger(
 
 	return &domain.AccountLedger{
 		Account:        acc,
-		FiscalYear:     s.fiscalYear,
+		FiscalYear:     year,
 		From:           from,
 		To:             to,
 		OpeningBalance: 0,
@@ -320,8 +310,8 @@ func counterAccounts(entry *domain.JournalEntry, account string, chart *accounti
 }
 
 // GetSuSaOverview builds the Summen- und Saldenliste grouped by Kontenklasse.
-func (s *AccountingService) GetSuSaOverview(ctx context.Context) (*domain.SuSaOverview, error) {
-	return s.GetSuSaOverviewAt(ctx, "")
+func (s *AccountingService) GetSuSaOverview(ctx context.Context, year int) (*domain.SuSaOverview, error) {
+	return s.GetSuSaOverviewAt(ctx, year, "")
 }
 
 // GetSuSaOverviewAt ist dieselbe Liste zu einem Stichtag.
@@ -330,8 +320,11 @@ func (s *AccountingService) GetSuSaOverview(ctx context.Context) (*domain.SuSaOv
 // ganze Jahr summiert und danach Zeilen ausblendet, zeigte Salden, die es zum
 // Stichtag nie gab. Ein Prüfer fragt aber nach dem Stand an einem Tag —
 // zum 30.06., zum Tag einer Übernahme, zum Ende eines Voranmeldungszeitraums.
-func (s *AccountingService) GetSuSaOverviewAt(ctx context.Context, cutoff string) (*domain.SuSaOverview, error) {
-	accounts, err := s.AccountsForYearAt(ctx, s.fiscalYear, cutoff)
+func (s *AccountingService) GetSuSaOverviewAt(ctx context.Context, year int, cutoff string) (*domain.SuSaOverview, error) {
+	if err := requireYear(year); err != nil {
+		return nil, err
+	}
+	accounts, err := s.AccountsForYearAt(ctx, year, cutoff)
 	if err != nil {
 		return nil, err
 	}
@@ -398,7 +391,7 @@ func (s *AccountingService) GetSuSaOverviewAt(ctx context.Context, cutoff string
 	difference := totalDebit - totalCredit
 
 	return &domain.SuSaOverview{
-		FiscalYear:       s.fiscalYear,
+		FiscalYear:       year,
 		Cutoff:           cutoff,
 		TotalDebit:       totalDebit,
 		TotalCredit:      totalCredit,
@@ -417,8 +410,11 @@ func (s *AccountingService) GetSKR04Catalog(ctx context.Context) (*accounting.SK
 
 // GetEntries returns the journal of the active fiscal year, with account names
 // resolved for display.
-func (s *AccountingService) GetEntries(ctx context.Context) ([]domain.JournalEntry, error) {
-	entries, err := s.journalRepo.FindAll(ctx, s.fiscalYear)
+func (s *AccountingService) GetEntries(ctx context.Context, year int) ([]domain.JournalEntry, error) {
+	if err := requireYear(year); err != nil {
+		return nil, err
+	}
+	entries, err := s.journalRepo.FindAll(ctx, year)
 	if err != nil {
 		return nil, err
 	}
@@ -468,8 +464,8 @@ func (s *AccountingService) decorate(ctx context.Context, entries []domain.Journ
 }
 
 // GetFinancialSummary aggregates the dashboard KPIs.
-func (s *AccountingService) GetFinancialSummary(ctx context.Context) (*domain.FinancialSummary, error) {
-	accounts, err := s.GetAccounts(ctx)
+func (s *AccountingService) GetFinancialSummary(ctx context.Context, year int) (*domain.FinancialSummary, error) {
+	accounts, err := s.GetAccounts(ctx, year)
 	if err != nil {
 		return nil, err
 	}
@@ -487,7 +483,7 @@ func (s *AccountingService) GetFinancialSummary(ctx context.Context) (*domain.Fi
 		}
 	}
 
-	turnovers, err := s.collectedTurnovers(ctx)
+	turnovers, err := s.collectedTurnovers(ctx, year)
 	if err != nil {
 		return nil, err
 	}
@@ -503,7 +499,7 @@ func (s *AccountingService) GetFinancialSummary(ctx context.Context) (*domain.Fi
 	receivables := receivable.Debit - receivable.Credit
 	payables := payable.Credit - payable.Debit
 
-	cashflow, err := s.journalRepo.MonthlyCashflow(ctx, s.fiscalYear, domain.LiquidAccounts())
+	cashflow, err := s.journalRepo.MonthlyCashflow(ctx, year, domain.LiquidAccounts())
 	if err != nil {
 		return nil, err
 	}
@@ -524,7 +520,7 @@ func (s *AccountingService) GetFinancialSummary(ctx context.Context) (*domain.Fi
 }
 
 // GetAvailableFiscalYears lists the years that hold bookings, plus the current
-// and the active one.
+// one.
 func (s *AccountingService) GetAvailableFiscalYears(ctx context.Context) []int {
 	startMonth := 1
 	if s.settingsRepo != nil {
@@ -535,9 +531,6 @@ func (s *AccountingService) GetAvailableFiscalYears(ctx context.Context) []int {
 
 	years := map[int]bool{
 		domain.GetFiscalYearForDate(todayLocal(), startMonth): true,
-	}
-	if s.fiscalYear > 0 {
-		years[s.fiscalYear] = true
 	}
 	if dbYears, err := s.journalRepo.GetAvailableFiscalYears(ctx); err == nil {
 		for _, y := range dbYears {

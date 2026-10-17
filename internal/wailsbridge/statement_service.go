@@ -22,6 +22,7 @@ import (
 // depth darf leer bleiben; dann gilt die Gliederungstiefe der Größenklasse
 // (§ 266 Abs. 1 Sätze 3 und 4 HGB).
 func (b *BuchfinkBridge) GetStatement(year int, depth string) (*domain.FinancialStatement, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*domain.FinancialStatement, error) {
 		// Leer heißt hier „die Tiefe der Größenklasse" und nicht „volle
 		// Gliederung": den Unterschied kennt der Dienst, nicht die Umwandlung.
@@ -39,6 +40,7 @@ func (b *BuchfinkBridge) GetStatement(year int, depth string) (*domain.Financial
 // GetSizeClass beurteilt die Größenklasse eines Geschäftsjahres nach den
 // §§ 267, 267a HGB samt Begründung und Folgen.
 func (b *BuchfinkBridge) GetSizeClass(year int) (*accounting.SizeClass, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*accounting.SizeClass, error) {
 		return s.Statement.SizeClassFor(ctx, year)
 	})
@@ -51,6 +53,7 @@ func (b *BuchfinkBridge) GetSizeClass(year int) (*accounting.SizeClass, error) {
 // Abschluss offenzulegen ist. Eine Datei, die tiefer gliedert als der
 // offengelegte Abschluss, wäre ein zweites Dokument mit demselben Anspruch.
 func (b *BuchfinkBridge) ExportStatementPDF(year int) (string, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (string, error) {
 		pdf, err := s.Statement.ExportPDF(ctx, year, "")
 		if err != nil {
@@ -62,6 +65,7 @@ func (b *BuchfinkBridge) ExportStatementPDF(year int) (string, error) {
 
 // ExportStatementCSV liefert die Gliederung als CSV-Text (UTF-8, Semikolon).
 func (b *BuchfinkBridge) ExportStatementCSV(year int) (string, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (string, error) {
 		return s.Statement.ExportCSV(ctx, year, "")
 	})
@@ -71,6 +75,7 @@ func (b *BuchfinkBridge) ExportStatementCSV(year int) (string, error) {
 // Gliederungsposition und welchem Taxonomie-Element erscheint — und was die
 // Erzeugung verhindert.
 func (b *BuchfinkBridge) GetEBilanzMappingReport(year int) (*ebilanz.MappingReport, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*ebilanz.MappingReport, error) {
 		return s.EBilanz.MappingReport(ctx, year)
 	})

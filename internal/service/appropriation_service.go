@@ -25,7 +25,6 @@ type AppropriationService struct {
 	auditRepo         domain.AuditRepository
 	closingSvc        *ClosingService
 	receipts          closingReceiptFiler
-	fiscalYear        int
 }
 
 // NewAppropriationService wires die Ergebnisverwendung.
@@ -37,17 +36,13 @@ func NewAppropriationService(
 	settingsRepo domain.SettingsRepository,
 	auditRepo domain.AuditRepository,
 	closingSvc *ClosingService,
-	fiscalYear int,
 ) *AppropriationService {
 	return &AppropriationService{
 		appropriationRepo: appropriationRepo, notesRepo: notesRepo, journalRepo: journalRepo,
 		journalSvc: journalSvc, settingsRepo: settingsRepo, auditRepo: auditRepo,
-		closingSvc: closingSvc, fiscalYear: fiscalYear,
+		closingSvc: closingSvc,
 	}
 }
-
-// SetFiscalYear schaltet das aktive Geschäftsjahr um.
-func (s *AppropriationService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // SetReceiptService gibt dem Dienst den Belegspeicher für den Eigenbeleg der
 // Ergebnisverwendung und für das Beschlussdokument.
@@ -92,8 +87,8 @@ type AppropriationPreview struct {
 func (s *AppropriationService) PreviewAppropriation(
 	ctx context.Context, year int, req AppropriationRequest,
 ) (*AppropriationPreview, error) {
-	if year == 0 {
-		year = s.fiscalYear - 1
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	bookingYear := year + 1
 	fy, err := s.closingSvc.PeriodOf(ctx, bookingYear)
@@ -363,8 +358,8 @@ func (s *AppropriationService) bookAppropriation(
 
 // Appropriation liefert den gespeicherten Beschluss eines Jahres, oder nil.
 func (s *AppropriationService) Appropriation(ctx context.Context, year int) (*domain.Appropriation, error) {
-	if year == 0 {
-		year = s.fiscalYear - 1
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	return s.appropriationRepo.FindByYear(ctx, year)
 }
@@ -381,8 +376,8 @@ type NotesTextView = domain.NotesSectionText
 // ist eine Gliederung, und ein Abschnitt, der nur erscheint, wenn er gefüllt
 // ist, wird nie gefüllt.
 func (s *AppropriationService) NotesTexts(ctx context.Context, year int) ([]NotesTextView, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	stored, err := s.notesRepo.FindByYear(ctx, year)
 	if err != nil {
@@ -411,8 +406,8 @@ func (s *AppropriationService) SaveNotesText(
 func (s *AppropriationService) saveNotesText(
 	ctx context.Context, year int, section domain.NotesSection, text string,
 ) ([]NotesTextView, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	fy, err := s.closingSvc.YearOf(ctx, year)
 	if err != nil {

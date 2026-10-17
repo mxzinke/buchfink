@@ -22,7 +22,6 @@ type GiftService struct {
 	journalSvc   *JournalService
 	settingsRepo domain.SettingsRepository
 	auditRepo    domain.AuditRepository
-	fiscalYear   int
 }
 
 // NewGiftService wires die Auswertung der nicht abziehbaren Betriebsausgaben.
@@ -31,16 +30,12 @@ func NewGiftService(
 	journalSvc *JournalService,
 	settingsRepo domain.SettingsRepository,
 	auditRepo domain.AuditRepository,
-	fiscalYear int,
 ) *GiftService {
 	return &GiftService{
 		journalRepo: journalRepo, journalSvc: journalSvc,
-		settingsRepo: settingsRepo, auditRepo: auditRepo, fiscalYear: fiscalYear,
+		settingsRepo: settingsRepo, auditRepo: auditRepo,
 	}
 }
-
-// SetFiscalYear schaltet das aktive Geschäftsjahr um.
-func (s *GiftService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 func (s *GiftService) runInTx(ctx context.Context, fn func(context.Context) error) error {
 	return s.journalSvc.InTx(ctx, fn)
@@ -182,8 +177,8 @@ func (r *NonDeductibleReport) EnsureLists() {
 // zur Steuerbilanz geht. Die Empfänger beantworten „wo ist die Freigrenze
 // gerissen" — die Frage, aus der eine Umbuchung folgt.
 func (s *GiftService) NonDeductibleReport(ctx context.Context, year int) (*NonDeductibleReport, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	out := &NonDeductibleReport{FiscalYear: year}
 	out.EnsureLists()
@@ -383,8 +378,8 @@ func (s *GiftService) rebookGiftsForRecipient(
 			"zur Umbuchung gehört ihr Grund. Er steht später als einzige Erklärung im Journal")
 	}
 	year := req.FiscalYear
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 
 	gifts, err := s.giftEntries(ctx, year)

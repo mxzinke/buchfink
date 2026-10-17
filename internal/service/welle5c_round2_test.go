@@ -163,7 +163,7 @@ func TestCurrencyValuationCanBeBookedAgainAfterAReversal(t *testing.T) {
 	svc.SetOpenItemSource(NewPaymentService(
 		env.journal, env.journalRepo,
 		repository.NewPaymentAllocationRepository(env.db),
-		env.contactRepo, repository.NewBankRepository(env.db), env.fiscalYear))
+		env.contactRepo, repository.NewBankRepository(env.db)))
 
 	customer := env.customer(t, "Client Inc.", "US", "")
 	customer.PaymentTermsDays = 30

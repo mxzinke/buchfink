@@ -37,7 +37,6 @@ func (e *testEnv) exports(t *testing.T) *ExportService {
 		repository.NewFiscalYearRepository(e.db),
 		receiptstore.New(e.dataDir),
 		e.dataDir,
-		e.fiscalYear,
 	)
 	svc.SetTenantName("Pfennig Ventures GmbH")
 	svc.SetOpenItemSource(e.payments(t))
@@ -646,7 +645,7 @@ func TestExportAuditPackageCarriesTheTaxElectionRegister(t *testing.T) {
 	svc.SetTaxRegisterSource(NewTaxRegisterService(
 		repository.NewAssetRepository(env.db), repository.NewProvisionRepository(env.db),
 		env.journalRepo, repository.NewSettingsRepository(env.db),
-		env.closing(t), env.fiscalYear))
+		env.closing(t)))
 
 	dir := filepath.Join(t.TempDir(), "pruefer")
 	result, err := svc.ExportAuditPackage(ctx, env.fiscalYear, dir)

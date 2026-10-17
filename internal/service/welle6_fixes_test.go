@@ -28,7 +28,7 @@ func TestAuditPackageCarriesAuditChainChangelogAndProcedureDoc(t *testing.T) {
 	// Eine erzeugte Fassung der Verfahrensdokumentation liegt im Belegspeicher
 	// und nicht als Datei im Datenordner — genau dort holt der Export sie.
 	procDocs := newProcDocService(t, env)
-	generated, err := procDocs.Generate(ctx, time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC))
+	generated, err := procDocs.Generate(ctx, 2026, time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("die Verfahrensdokumentation ließ sich nicht erzeugen: %v", err)
 	}

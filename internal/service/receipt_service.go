@@ -87,7 +87,6 @@ type ReceiptService struct {
 	receiptRepo domain.ReceiptRepository
 	store       *receiptstore.Store
 	auditRepo   domain.AuditRepository
-	fiscalYear  int
 	// Die drei Anschlüsse des Eigenbelegs (siehe self_issued_receipt.go). Alle
 	// drei sind freiwillig, weil der Belegdienst ohne sie vollständig arbeitet:
 	// er legt ab, gibt heraus und versiegelt. Nur den Eigenbeleg erzeugt er
@@ -101,23 +100,40 @@ type ReceiptService struct {
 	contacts domain.ContactRepository
 }
 
+// filingYear ist das Geschäftsjahr eines Belegs ohne ausdrückliche Angabe: das
+// seines Belegdatums, sonst das seines Eingangs, sonst das des heutigen Tages.
+func (s *ReceiptService) filingYear(ctx context.Context, req FileReceiptRequest) (int, error) {
+	field, date := "Belegdatum", req.DocumentDate
+	if date == "" {
+		field, date = "Eingangsdatum", req.ReceivedAt
+	}
+	if date == "" {
+		date = todayLocal()
+	}
+	if err := domain.CheckDate(field, date); err != nil {
+		return 0, err
+	}
+	startMonth := 1
+	if s.settingsRepo != nil {
+		if settings, err := s.settingsRepo.GetCompanySettings(ctx); err == nil && settings != nil {
+			startMonth = settings.FiscalYearStartMonth
+		}
+	}
+	return domain.GetFiscalYearForDate(date, startMonth), nil
+}
+
 // NewReceiptService creates the Beleg service.
 func NewReceiptService(
 	receiptRepo domain.ReceiptRepository,
 	store *receiptstore.Store,
 	auditRepo domain.AuditRepository,
-	fiscalYear int,
 ) *ReceiptService {
 	return &ReceiptService{
 		receiptRepo: receiptRepo,
 		store:       store,
 		auditRepo:   auditRepo,
-		fiscalYear:  fiscalYear,
 	}
 }
-
-// SetFiscalYear updates the year new Belege are filed under.
-func (s *ReceiptService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // File stores the files on disk and inserts the Beleg.
 //
@@ -131,10 +147,10 @@ func (s *ReceiptService) File(ctx context.Context, req FileReceiptRequest) (*dom
 	}
 	fiscalYear := req.FiscalYear
 	if fiscalYear == 0 {
-		fiscalYear = s.fiscalYear
-	}
-	if fiscalYear == 0 {
-		return nil, fmt.Errorf("kein Geschäftsjahr gesetzt")
+		var err error
+		if fiscalYear, err = s.filingYear(ctx, req); err != nil {
+			return nil, err
+		}
 	}
 
 	kind := req.Kind
@@ -363,13 +379,16 @@ func (s *ReceiptService) Get(ctx context.Context, id uint) (*domain.Receipt, err
 	return receipt, nil
 }
 
-// List returns the Belege of the current fiscal year, newest first. An empty
-// status returns all of them.
-func (s *ReceiptService) List(ctx context.Context, status domain.ReceiptStatus) ([]domain.Receipt, error) {
-	if status == "" {
-		return s.receiptRepo.FindAll(ctx, s.fiscalYear)
+// List returns the Belege of a fiscal year, newest first. An empty status
+// returns all of them.
+func (s *ReceiptService) List(ctx context.Context, year int, status domain.ReceiptStatus) ([]domain.Receipt, error) {
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
-	return s.receiptRepo.FindByStatus(ctx, s.fiscalYear, status)
+	if status == "" {
+		return s.receiptRepo.FindAll(ctx, year)
+	}
+	return s.receiptRepo.FindByStatus(ctx, year, status)
 }
 
 // Content returns a stored file for display or for parsing, together with

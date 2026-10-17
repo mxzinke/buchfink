@@ -413,7 +413,7 @@ func TestInvoiceCancellationClearsReceivableAndRevenue(t *testing.T) {
 		}
 	}
 
-	contacts, err := env.contacts.GetContacts(ctx)
+	contacts, err := env.contacts.GetContacts(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Kontakte: %v", err)
 	}
@@ -454,7 +454,7 @@ func TestSuSaIsExactlyBalanced(t *testing.T) {
 		t.Fatalf("Rechnung: %v", err)
 	}
 
-	susa, err := env.accounting.GetSuSaOverview(ctx)
+	susa, err := env.accounting.GetSuSaOverview(ctx, 2026)
 	if err != nil {
 		t.Fatalf("SuSa: %v", err)
 	}

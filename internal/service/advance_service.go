@@ -24,6 +24,9 @@ import (
 
 // AdvanceGroupRequest legt einen Rechnungsverbund an.
 type AdvanceGroupRequest struct {
+	// Date ist der Tag des Auftrags; er bestimmt das Geschäftsjahr des
+	// Verbunds. Leer heißt heute.
+	Date      string         `json:"date,omitempty"`
 	ContactID uint           `json:"contactId"`
 	Title     string         `json:"title"`
 	TotalNet  domain.Cents   `json:"totalNet"`
@@ -105,9 +108,16 @@ func (s *InvoiceService) CreateInvoiceGroup(ctx context.Context, req AdvanceGrou
 	if _, err := accounting.AdvanceAccountFor(req.TaxRate); err != nil {
 		return nil, err
 	}
+	date := req.Date
+	if date == "" {
+		date = todayLocal()
+	}
+	if err := domain.CheckDate("Auftragsdatum", date); err != nil {
+		return nil, err
+	}
 
 	group := &domain.InvoiceGroup{
-		FiscalYear: s.postingSvc.journalSvc.FiscalYear(),
+		FiscalYear: s.postingSvc.journalSvc.FiscalYearOf(ctx, date),
 		ContactID:  req.ContactID,
 		Title:      req.Title,
 		TotalNet:   req.TotalNet,

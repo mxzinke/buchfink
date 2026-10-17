@@ -48,7 +48,7 @@ func newBackupEnv(t *testing.T) *backupEnv {
 	journalRepo := repository.NewJournalRepository(db)
 	journal := NewJournalService(
 		journalRepo, repository.NewAccountRepository(db), repository.NewContactRepository(db),
-		repository.NewAuditRepository(db), settingsRepo, repository.NewTxRunner(db), 2026,
+		repository.NewAuditRepository(db), settingsRepo, repository.NewTxRunner(db),
 	)
 
 	backups := NewBackupService(
@@ -78,7 +78,7 @@ func (e *backupEnv) receiptFile(t *testing.T, name, content string) *domain.Rece
 	t.Helper()
 	store := receiptstore.New(e.dataDir)
 	svc := NewReceiptService(
-		repository.NewReceiptRepository(e.db), store, repository.NewAuditRepository(e.db), 2026,
+		repository.NewReceiptRepository(e.db), store, repository.NewAuditRepository(e.db),
 	)
 	path := filepath.Join(t.TempDir(), name)
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {

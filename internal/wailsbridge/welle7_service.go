@@ -26,7 +26,7 @@ import (
 // die Bridge führt.
 func (b *BuchfinkBridge) GetTasks() (*domain.TaskList, error) {
 	cfg := b.host.Config()
-	opts := service.TaskOptions{}
+	opts := service.TaskOptions{FiscalYear: b.viewYear()}
 	if cfg.ReadOnly {
 		opts.ReadOnlyUntil, opts.ReadOnlyReason = cfg.ReadOnlyUntil, cfg.ReadOnlyReason
 	}

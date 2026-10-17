@@ -124,8 +124,8 @@ func (r *PoolConsistencyReport) EnsureLists() {
 // stellt, liegt zwischen der Sammelposten-Untergrenze und der GWG-Grenze; unter
 // ihr gibt es keinen Sammelposten, über ihr keinen Sofortabzug.
 func (s *AssetService) PoolConsistency(ctx context.Context, year int) (*PoolConsistencyReport, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	out := &PoolConsistencyReport{FiscalYear: year, Consistent: true}
 	out.EnsureLists()
@@ -280,8 +280,8 @@ func (r *WriteUpReport) EnsureLists() {
 // ein Mensch, und sie wird festgehalten, damit sie im nächsten Jahr erneut
 // gestellt werden kann und nicht in diesem zweimal.
 func (s *AssetService) WriteUpReport(ctx context.Context, year int) (*WriteUpReport, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	out := &WriteUpReport{FiscalYear: year}
 	out.EnsureLists()
@@ -380,8 +380,8 @@ func (s *AssetService) confirmImpairmentPersists(
 				"Zuschreibung ist ein Gebot; sie zu unterlassen ist eine Aussage und braucht eine " +
 				"Begründung")
 	}
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	asset, err := s.assetRepo.FindByID(ctx, assetID)
 	if err != nil {

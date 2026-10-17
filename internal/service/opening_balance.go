@@ -184,9 +184,6 @@ func (s *JournalService) buildOpeningBalance(
 	ctx context.Context, req OpeningBalanceRequest,
 ) ([]*domain.JournalEntry, *OpeningBalancePreview, error) {
 	if req.FiscalYear == 0 {
-		req.FiscalYear = s.fiscalYear
-	}
-	if req.FiscalYear == 0 {
 		return nil, nil, fmt.Errorf("ohne Geschäftsjahr lässt sich keine Eröffnungsbilanz erfassen")
 	}
 	date := req.Date

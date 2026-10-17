@@ -42,34 +42,34 @@ func (e *testEnv) closingModules(t *testing.T) *closingModules {
 
 	m := &closingModules{closing: closing, provisionRepo: provisionRepo}
 	m.accruals = NewAccrualService(
-		accrualRepo, e.journalRepo, e.journal, settingsRepo, auditRepo, closing, e.fiscalYear)
+		accrualRepo, e.journalRepo, e.journal, settingsRepo, auditRepo, closing)
 	m.accruals.SetReceiptService(e.receipts)
 	closing.SetAccrualCarrier(m.accruals)
 
 	m.provisions = NewProvisionService(
 		provisionRepo, rateRepo, e.journalRepo, e.journal, settingsRepo, auditRepo,
-		closing, e.fiscalYear)
+		closing)
 	m.provisions.SetReceiptService(e.receipts)
 	e.posting.SetProvisionConsumer(m.provisions)
 
 	m.bookings = NewClosingBookingService(
 		provisionRepo, e.journalRepo, e.journal, settingsRepo, auditRepo,
-		closing, e.fiscalYear)
+		closing)
 	m.bookings.SetReceiptService(e.receipts)
 
 	m.appropriation = NewAppropriationService(
 		appropriationRepo, notesRepo, e.journalRepo, e.journal, settingsRepo, auditRepo,
-		closing, e.fiscalYear)
+		closing)
 	m.appropriation.SetReceiptService(e.receipts)
 	closing.SetNotesCopier(m.appropriation)
 
 	m.register = NewTaxRegisterService(
 		repository.NewAssetRepository(e.db), provisionRepo, e.journalRepo, settingsRepo,
-		closing, e.fiscalYear)
+		closing)
 
 	m.steps = NewClosingStepsService(
 		stepRepo, accrualRepo, provisionRepo, appropriationRepo,
-		repository.NewCheckRunRepository(e.db), e.journalRepo, auditRepo, closing, e.fiscalYear)
+		repository.NewCheckRunRepository(e.db), e.journalRepo, auditRepo, closing)
 	return m
 }
 
@@ -1497,13 +1497,11 @@ func TestTaxElectionRegisterCarriesEveryYear(t *testing.T) {
 		t.Fatalf("Anlagegut: %v", err)
 	}
 	for year := 2026; year <= 2031; year++ {
-		assets.SetFiscalYear(year)
 		if _, err := assets.BookDepreciation(ctx, BookDepreciationRequest{FiscalYear: year}); err != nil {
 			t.Fatalf("Abschreibungslauf %d: %v", year, err)
 		}
 	}
 
-	m.register.SetFiscalYear(2031)
 	register, err := m.register.Register(ctx, 2031)
 	if err != nil {
 		t.Fatalf("Verzeichnis: %v", err)

@@ -35,7 +35,6 @@ type ProvisionService struct {
 	auditRepo     domain.AuditRepository
 	closingSvc    *ClosingService
 	receipts      closingReceiptFiler
-	fiscalYear    int
 }
 
 // NewProvisionService wires die Rückstellungen.
@@ -47,7 +46,6 @@ func NewProvisionService(
 	settingsRepo domain.SettingsRepository,
 	auditRepo domain.AuditRepository,
 	closingSvc *ClosingService,
-	fiscalYear int,
 ) *ProvisionService {
 	return &ProvisionService{
 		provisionRepo: provisionRepo,
@@ -57,12 +55,8 @@ func NewProvisionService(
 		settingsRepo:  settingsRepo,
 		auditRepo:     auditRepo,
 		closingSvc:    closingSvc,
-		fiscalYear:    fiscalYear,
 	}
 }
-
-// SetFiscalYear schaltet das aktive Geschäftsjahr um.
-func (s *ProvisionService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // SetReceiptService gibt dem Dienst den Belegspeicher für die Eigenbelege.
 func (s *ProvisionService) SetReceiptService(r closingReceiptFiler) { s.receipts = r }
@@ -74,8 +68,8 @@ func (s *ProvisionService) SetReceiptService(r closingReceiptFiler) { s.receipts
 // List liefert die Rückstellungen, die ein Geschäftsjahr betreffen: die in ihm
 // gebildeten und die aus früheren Jahren, die noch bestehen.
 func (s *ProvisionService) List(ctx context.Context, year int) ([]domain.Provision, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	all, err := s.liveProvisions(ctx)
 	if err != nil {
@@ -124,8 +118,8 @@ func (s *ProvisionService) liveProvisions(ctx context.Context) ([]domain.Provisi
 // Mirror ist der Rückstellungsspiegel eines Geschäftsjahres — Bestandteil des
 // Anhangs.
 func (s *ProvisionService) Mirror(ctx context.Context, year int) (*accounting.ProvisionMirror, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	all, err := s.liveProvisions(ctx)
 	if err != nil {
@@ -197,8 +191,8 @@ const TaxDiscountPermille = 55
 // Preview rechnet eine Bildung oder Zuführung, ohne sie zu buchen.
 func (s *ProvisionService) Preview(ctx context.Context, req ProvisionRequest) (*ProvisionPreview, error) {
 	year := req.FiscalYear
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	fy, err := s.closingSvc.PeriodOf(ctx, year)
 	if err != nil {
@@ -516,7 +510,10 @@ func (s *ProvisionService) bookRelease(ctx context.Context, req ProvisionChangeR
 		return nil, fmt.Errorf("die Rückstellung %q steht mit %s € zu Buche; mehr lässt sich nicht auflösen",
 			provision.Text, provision.Balance())
 	}
-	date := s.dateOr(ctx, req.Date)
+	date := req.Date
+	if err := domain.CheckDate("Buchungsdatum", date); err != nil {
+		return nil, err
+	}
 
 	lines := []domain.JournalLine{
 		{Side: domain.SideDebit, Account: provision.BalanceAccount, Amount: amount, Text: provision.Text},
@@ -558,7 +555,10 @@ func (s *ProvisionService) bookConsumption(ctx context.Context, req ProvisionCha
 		return nil, fmt.Errorf("der verbrauchte Betrag muss größer als null sein")
 	}
 	balance := provision.Balance()
-	date := s.dateOr(ctx, req.Date)
+	date := req.Date
+	if err := domain.CheckDate("Buchungsdatum", date); err != nil {
+		return nil, err
+	}
 
 	lines := make([]domain.JournalLine, 0, 3)
 	covered := amount
@@ -606,7 +606,10 @@ func (s *ProvisionService) bookUnwinding(ctx context.Context, req ProvisionChang
 	if err != nil {
 		return nil, err
 	}
-	date := s.dateOr(ctx, req.Date)
+	date := req.Date
+	if err := domain.CheckDate("Buchungsdatum", date); err != nil {
+		return nil, err
+	}
 	amount := req.Amount
 	if amount <= 0 {
 		// Ohne Vorgabe rechnet Buchfink die Aufzinsung selbst: der Barwert zum
@@ -788,7 +791,10 @@ func (s *ProvisionService) settle(
 				"festgehaltenen Grund ist von einer Ergebnisglättung nicht zu unterscheiden " +
 				"(§ 249 Abs. 2 Satz 2 HGB)")
 	}
-	when := s.dateOr(ctx, date)
+	when := date
+	if err := domain.CheckDate("Buchungsdatum", when); err != nil {
+		return nil, err
+	}
 	if rest := provision.Balance(); rest > 0 {
 		return s.BookRelease(ctx, ProvisionChangeRequest{
 			ProvisionID: provisionID, Amount: rest, Date: when, Reason: reason,
@@ -816,8 +822,8 @@ func (s *ProvisionService) settle(
 func (s *ProvisionService) DiscountFindings(
 	ctx context.Context, year int,
 ) ([]domain.CheckFinding, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	fy, err := s.closingSvc.PeriodOf(ctx, year)
 	if err != nil {
@@ -1072,16 +1078,6 @@ func (s *ProvisionService) load(ctx context.Context, id uint) (*domain.Provision
 				"Bilde sie neu, wenn sie weiter gebraucht wird", provision.Text)
 	}
 	return &live[0], nil
-}
-
-func (s *ProvisionService) dateOr(ctx context.Context, date string) string {
-	if date != "" {
-		return date
-	}
-	if fy, err := s.closingSvc.PeriodOf(ctx, s.fiscalYear); err == nil {
-		return fy.EndDate
-	}
-	return todayLocal()
 }
 
 func (s *ProvisionService) fiscalYearStartMonth(ctx context.Context) int {

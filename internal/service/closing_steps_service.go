@@ -31,7 +31,6 @@ type ClosingStepsService struct {
 	auditRepo         domain.AuditRepository
 	closingSvc        *ClosingService
 	depreciation      PendingDepreciationSource
-	fiscalYear        int
 	// Welle 5c: die beiden Bausteine, deren Zustand aus einer eigenen Kartei
 	// folgt. Beide sind optional — ohne sie bleibt ihr Schritt schlicht offen.
 	writeUps WriteUpSource
@@ -48,18 +47,14 @@ func NewClosingStepsService(
 	journalRepo domain.JournalRepository,
 	auditRepo domain.AuditRepository,
 	closingSvc *ClosingService,
-	fiscalYear int,
 ) *ClosingStepsService {
 	return &ClosingStepsService{
 		stepRepo: stepRepo, accrualRepo: accrualRepo, provisionRepo: provisionRepo,
 		appropriationRepo: appropriationRepo,
 		checkRunRepo:      checkRunRepo, journalRepo: journalRepo, auditRepo: auditRepo,
-		closingSvc: closingSvc, fiscalYear: fiscalYear,
+		closingSvc: closingSvc,
 	}
 }
-
-// SetFiscalYear schaltet das aktive Geschäftsjahr um.
-func (s *ClosingStepsService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // SetDepreciationSource gibt dem Assistenten die Anlagenkartei, soweit er sie
 // braucht: er will nur wissen, ob die AfA des Jahres noch offen ist.
@@ -137,8 +132,8 @@ func (s *ClosingSteps) EnsureLists() {
 
 // Steps stellt die Schrittliste eines Geschäftsjahres zusammen.
 func (s *ClosingStepsService) Steps(ctx context.Context, year int) (*ClosingSteps, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	fy, err := s.closingSvc.PeriodOf(ctx, year)
 	if err != nil {
@@ -498,8 +493,8 @@ func (s *ClosingStepsService) hasClosingReference(
 func (s *ClosingStepsService) SetStep(
 	ctx context.Context, year int, key domain.ClosingStepKey, state domain.ClosingStepState, reason string,
 ) (*ClosingSteps, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	step := &domain.ClosingStep{
 		Year: year, Key: key, State: state, Reason: reason,
@@ -533,8 +528,8 @@ type SkippedClosingStep struct {
 // Auskunft, die sonst nirgends steht — an einem Jahr ohne Rückstellungen ist
 // nicht zu sehen, ob niemand welche brauchte oder niemand hinsah.
 func (s *ClosingStepsService) SkippedSteps(ctx context.Context, year int) ([]SkippedClosingStep, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	stored, err := s.stepRepo.FindByYear(ctx, year)
 	if err != nil {
@@ -586,8 +581,8 @@ func (s *ClosingStepsService) SkipStep(
 func (s *ClosingStepsService) ReopenStep(
 	ctx context.Context, year int, key domain.ClosingStepKey, reason string,
 ) (*ClosingSteps, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	if strings.TrimSpace(reason) == "" {
 		return nil, fmt.Errorf(

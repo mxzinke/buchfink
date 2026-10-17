@@ -228,6 +228,18 @@ func (h *Host) updateTenantConfig(id string, change func(t *domain.TenantConfig)
 	})
 }
 
+// ViewYear ist das Geschäftsjahr, das die Oberfläche gerade ansieht. Es ist
+// Ansichtszustand und erreicht die Dienste nur als Angabe eines Aufrufs. Ein
+// Wechsel des Mandanten setzt es auf dessen Startjahr.
+func (h *Host) ViewYear() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	if h.cfg.LastFiscalYear > 0 {
+		return h.cfg.LastFiscalYear
+	}
+	return time.Now().Year()
+}
+
 // SetLastFiscalYear merkt sich das zuletzt angesehene Geschäftsjahr.
 func (h *Host) SetLastFiscalYear(year int) error {
 	_, err := h.updateConfig(func(cfg *domain.AppConfig) error {
@@ -276,16 +288,13 @@ func (h *Host) backupDirOf(id string) string {
 
 // open öffnet einen Mandanten der Liste unter der nächsten Generation. Der
 // Aufrufer hält lifecycle.
-func (h *Host) open(ctx context.Context, tc domain.TenantConfig, initialYear int) (*Tenant, error) {
+func (h *Host) open(ctx context.Context, tc domain.TenantConfig) (*Tenant, error) {
 	h.mu.RLock()
 	gen := h.gen + 1
-	if initialYear == 0 {
-		initialYear = h.cfg.LastFiscalYear
-	}
 	h.mu.RUnlock()
 	id := tc.ID
 	return Open(ctx, tc.DataDir, Options{
-		TenantID: id, TenantName: tc.Name, Generation: gen, InitialYear: initialYear,
+		TenantID: id, TenantName: tc.Name, Generation: gen,
 		Renderer:  h.renderer,
 		Examiner:  func() ExaminerState { return h.examinerOf(id) },
 		BackupDir: func() string { return h.backupDirOf(id) },
@@ -341,14 +350,14 @@ func (h *Host) switchTo(ctx context.Context, tc domain.TenantConfig) (*Tenant, e
 	if current != nil && current.ID() == tc.ID {
 		return current, nil
 	}
-	t, err := h.open(ctx, tc, 0)
+	t, err := h.open(ctx, tc)
 	if err != nil {
 		return nil, err
 	}
 	if _, err := h.updateConfig(func(cfg *domain.AppConfig) error {
 		cfg.ActiveTenantID = tc.ID
 		cfg.DataDir = tc.DataDir
-		cfg.LastFiscalYear = t.FiscalYear()
+		cfg.LastFiscalYear = t.StartYear()
 		return nil
 	}); err != nil {
 		// Der Wechsel gilt trotzdem; beim nächsten Start öffnet der vorige
@@ -424,7 +433,7 @@ func (h *Host) CreateTenant(
 	}
 
 	tc := domain.TenantConfig{ID: id, Name: name, DataDir: dataDir, CreatedAt: time.Now().UTC().Format(time.RFC3339)}
-	t, err := h.open(ctx, tc, year)
+	t, err := h.open(ctx, tc)
 	if err != nil {
 		return nil, fmt.Errorf("Buchhaltung einrichten: %w", err)
 	}
@@ -486,7 +495,7 @@ func (h *Host) register(
 		ID: newTenantID(), Name: name, DataDir: dataDir,
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
 	}
-	t, err := h.open(ctx, tc, 0)
+	t, err := h.open(ctx, tc)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -495,7 +504,7 @@ func (h *Host) register(
 		cfg.ActiveTenantID = tc.ID
 		cfg.DataDir = dataDir
 		cfg.IsConfigured = true
-		cfg.LastFiscalYear = t.FiscalYear()
+		cfg.LastFiscalYear = t.StartYear()
 		return nil
 	}); err != nil {
 		_ = t.Close(ctx)
@@ -604,7 +613,7 @@ func (h *Host) RemoveTenant(ctx context.Context, tenantID string) error {
 		return nil
 	}
 	if next := cfg.ActiveTenant(); next != nil {
-		if t, err := h.open(ctx, *next, 0); err == nil {
+		if t, err := h.open(ctx, *next); err == nil {
 			h.activate(t)
 			return nil
 		} else {

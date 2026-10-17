@@ -37,15 +37,16 @@ var requestTimestamp = timestamp.RequestToken
 // verhindern sie, es sei denn, der Anwender übergeht sie mit einer Begründung
 // — die steht dann am Prüflauf und im Protokoll. Nur in der App.
 func (b *BuchfinkBridge) CommitPeriod(periodType, periodLabel, cutoffDate, overrideReason string) (*domain.Festschreibung, error) {
-	if len(cutoffDate) != 10 {
-		return nil, fmt.Errorf("ungültiges Stichtagsdatum (erwartet YYYY-MM-DD)")
+	if err := domain.CheckDate("Stichtag", cutoffDate); err != nil {
+		return nil, err
 	}
 	rec, err := write(b, func(ctx context.Context, s *core.Services) (*domain.Festschreibung, error) {
-		year := s.FiscalYear()
+		// Das Jahr folgt aus dem Stichtag, nicht aus der Ansicht.
+		year := s.Journal.FiscalYearOf(ctx, cutoffDate)
 		if latest, err := s.Repos.Festschreibung.LatestCutoff(ctx, year); err == nil && latest != "" && cutoffDate <= latest {
 			return nil, fmt.Errorf("Zeitraum bis %s ist bereits festgeschrieben", latest)
 		}
-		if err := runPreCommitChecks(ctx, s, periodType, cutoffDate, overrideReason); err != nil {
+		if err := runPreCommitChecks(ctx, s, year, periodType, cutoffDate, overrideReason); err != nil {
 			return nil, err
 		}
 
@@ -143,8 +144,7 @@ func stampCommitment(
 // runPreCommitChecks führt den Prüflauf aus und entscheidet, ob
 // festgeschrieben werden darf. Vor der Jahresfestschreibung muss die
 // gesetzliche Rücklage gebucht sein.
-func runPreCommitChecks(ctx context.Context, s *core.Services, periodType, cutoffDate, overrideReason string) error {
-	year := s.FiscalYear()
+func runPreCommitChecks(ctx context.Context, s *core.Services, year int, periodType, cutoffDate, overrideReason string) error {
 	fy, err := s.Closing.PeriodOf(ctx, year)
 	if err != nil {
 		return err
@@ -155,6 +155,7 @@ func runPreCommitChecks(ctx context.Context, s *core.Services, periodType, cutof
 		}
 	}
 	_, err = s.Checks.EnsureCommittable(ctx, service.CheckRequest{
+		FiscalYear:     year,
 		CutoffDate:     cutoffDate,
 		PeriodType:     periodType,
 		OverrideReason: overrideReason,
@@ -165,7 +166,7 @@ func runPreCommitChecks(ctx context.Context, s *core.Services, periodType, cutof
 // GetFestschreibungen returns the period commitments of the active fiscal year.
 func (b *BuchfinkBridge) GetFestschreibungen() ([]domain.Festschreibung, error) {
 	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.Festschreibung, error) {
-		return s.Repos.Festschreibung.FindByFiscalYear(ctx, s.FiscalYear())
+		return s.Repos.Festschreibung.FindByFiscalYear(ctx, b.viewYear())
 	})
 }
 

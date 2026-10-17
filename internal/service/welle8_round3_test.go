@@ -83,7 +83,7 @@ func TestProcDocShowsTheConfiguredReceiptNumberFormat(t *testing.T) {
 	}
 
 	result, err := newProcDocService(t, env).
-		Generate(ctx, time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC))
+		Generate(ctx, 2026, time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("Verfahrensdokumentation: %v", err)
 	}
@@ -151,7 +151,6 @@ func TestFailedJournalWriteRollsBackTheSelfIssuedReceipt(t *testing.T) {
 		repository.NewAuditRepository(env.db),
 		repository.NewSettingsRepository(env.db),
 		repository.NewTxRunner(env.db),
-		env.fiscalYear,
 	)
 	failing.SetReceiptRepo(env.receiptRepo)
 	posting := NewPostingService(failing, env.contactRepo)
@@ -164,7 +163,7 @@ func TestFailedJournalWriteRollsBackTheSelfIssuedReceipt(t *testing.T) {
 		t.Fatal("scheitert das Schreiben der Buchung, darf kein Vorgang entstehen")
 	}
 
-	receipts, err := env.receipts.List(ctx, "")
+	receipts, err := env.receipts.List(ctx, 2026, "")
 	if err != nil {
 		t.Fatalf("Belege lesen: %v", err)
 	}
@@ -215,7 +214,7 @@ func storedFiles(t *testing.T, dataDir string) []string {
 // Fristzeile mit ihrem Monat und nicht zusätzlich als Regelzeile des Prüflaufs.
 func TestCommitTaskAppearsOnlyOnce(t *testing.T) {
 	env := newTestEnv(t)
-	svc := NewTaskService(repository.NewSettingsRepository(env.db), 2026)
+	svc := NewTaskService(repository.NewSettingsRepository(env.db))
 	svc.SetDeadlineSource(stubDeadlineSource{deadlines: []domain.Deadline{{
 		Key: DeadlineKeyCommit + ".2026-01", Title: "Januar 2026 festschreiben",
 		DueDate: "2026-02-28", Reference: "GoBD Rz. 107",

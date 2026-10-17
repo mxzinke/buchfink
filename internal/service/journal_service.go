@@ -47,8 +47,6 @@ type JournalService struct {
 	// nicht danach mit dem alten Stand füllt.
 	chart   atomic.Pointer[accounting.Chart]
 	chartMu sync.Mutex
-
-	fiscalYear int
 }
 
 // NewJournalService wires the journal write path.
@@ -59,7 +57,6 @@ func NewJournalService(
 	auditRepo domain.AuditRepository,
 	settingsRepo domain.SettingsRepository,
 	tx domain.TxRunner,
-	fiscalYear int,
 ) *JournalService {
 	return &JournalService{
 		journalRepo:  journalRepo,
@@ -70,7 +67,6 @@ func NewJournalService(
 		tx:           tx,
 		hashChain:    accounting.NewHashChain(),
 		taxResolver:  accounting.NewSKR04TaxResolver(),
-		fiscalYear:   fiscalYear,
 	}
 }
 
@@ -85,12 +81,6 @@ func (s *JournalService) SetFiscalYearRepo(r domain.FiscalYearRepository) { s.fi
 // SetReceiptRepo hängt die Belegablage an. Mit ihr prüft Post die Kopfdaten des
 // Belegs, auf den eine Buchung verweist. Optional.
 func (s *JournalService) SetReceiptRepo(r domain.ReceiptRepository) { s.receiptRepo = r }
-
-// SetFiscalYear updates the active fiscal year filter.
-func (s *JournalService) SetFiscalYear(year int) { s.fiscalYear = year }
-
-// FiscalYear returns the active fiscal year.
-func (s *JournalService) FiscalYear() int { return s.fiscalYear }
 
 // Chart returns the cached chart of accounts resolver.
 func (s *JournalService) Chart(ctx context.Context) (*accounting.Chart, error) {
@@ -450,9 +440,6 @@ func (s *JournalService) VerifyIntegrity(ctx context.Context) (domain.IntegrityC
 	years, err := s.journalRepo.GetAvailableFiscalYears(ctx)
 	if err != nil {
 		return domain.IntegrityCheckResult{}, err
-	}
-	if len(years) == 0 && s.fiscalYear > 0 {
-		years = []int{s.fiscalYear}
 	}
 
 	byYear := make(map[int][]domain.JournalEntry, len(years))

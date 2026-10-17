@@ -205,7 +205,7 @@ func TestCurrencyValuationCoversForeignBankAccounts(t *testing.T) {
 	svc.SetOpenItemSource(NewPaymentService(
 		env.journal, env.journalRepo,
 		repository.NewPaymentAllocationRepository(env.db),
-		env.contactRepo, repository.NewBankRepository(env.db), env.fiscalYear))
+		env.contactRepo, repository.NewBankRepository(env.db)))
 
 	// 11.000 USD zum Buchkurs 1,10 sind 10.000 € auf dem Dollarkonto. Zum
 	// Stichtagskurs 1,00 sind sie 11.000 € wert: 1.000 € Kursgewinn.
@@ -262,7 +262,7 @@ func TestCurrencyValuationIsReversedByTheCarryForward(t *testing.T) {
 	svc.SetOpenItemSource(NewPaymentService(
 		env.journal, env.journalRepo,
 		repository.NewPaymentAllocationRepository(env.db),
-		env.contactRepo, repository.NewBankRepository(env.db), env.fiscalYear))
+		env.contactRepo, repository.NewBankRepository(env.db)))
 	closing.SetCurrencyReverser(svc)
 
 	customer := env.customer(t, "Client Inc.", "US", "")
@@ -505,7 +505,7 @@ func TestBuildingNeedsItsReferenceDate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Gebäude mit Stichtag: %v", err)
 	}
-	detail, err := svc.Get(context.Background(), asset.ID)
+	detail, err := svc.Get(context.Background(), 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}

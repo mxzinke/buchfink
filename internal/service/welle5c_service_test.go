@@ -26,7 +26,6 @@ func (e *testEnv) inputTax(t *testing.T) *InputTaxService {
 		repository.NewSettingsRepository(e.db),
 		nil,
 		repository.NewAuditRepository(e.db),
-		e.fiscalYear,
 	)
 }
 

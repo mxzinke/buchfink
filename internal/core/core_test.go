@@ -133,8 +133,8 @@ func TestOpenWiresEveryService(t *testing.T) {
 			t.Errorf("Repository %s ist nicht verdrahtet", repos.Type().Field(i).Name)
 		}
 	}
-	if tenant.FiscalYear() != 2026 {
-		t.Errorf("Geschäftsjahr %d, erwartet 2026 aus den Unternehmensdaten", tenant.FiscalYear())
+	if tenant.StartYear() != 2026 {
+		t.Errorf("Startjahr %d, erwartet 2026 aus den Unternehmensdaten", tenant.StartYear())
 	}
 	if err := tenant.Read(uiCtx, func(ctx context.Context, s *Services) error {
 		years, err := s.Closing.FiscalYears(ctx)
@@ -329,9 +329,11 @@ func TestWritersQueueAndReadersDoNot(t *testing.T) {
 	}
 }
 
-// Viele Leser und Schreiber zugleich, mit Jahreswechsel dazwischen. Unter
-// `go test -race` belegt der Test, dass Dienste und Kontenplan das aushalten.
-func TestConcurrentReadersWritersAndYearSwitch(t *testing.T) {
+// Viele Leser und Schreiber zugleich, die Leser in verschiedenen
+// Geschäftsjahren. Unter `go test -race` belegt der Test, dass Dienste und
+// Kontenplan das aushalten; das Jahr des einen Lesers verschiebt nichts beim
+// anderen, weil kein Dienst ein Jahr hält.
+func TestConcurrentReadersWritersInDifferentYears(t *testing.T) {
 	h := newHost(t)
 	newTenant(t, h, "Pfennig Ventures GmbH")
 	tenant := openTenant(t, h)
@@ -350,14 +352,20 @@ func TestConcurrentReadersWritersAndYearSwitch(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			errs <- tenant.Read(uiCtx, func(ctx context.Context, s *Services) error {
-				_, err := s.Accounting.GetSuSaOverview(ctx)
+				_, err := s.Accounting.GetSuSaOverview(ctx, 2026)
 				return err
 			})
 		}()
-		go func(year int) {
+		go func() {
 			defer wg.Done()
-			errs <- tenant.SetFiscalYear(year)
-		}(2025 + i%2)
+			errs <- tenant.Read(uiCtx, func(ctx context.Context, s *Services) error {
+				susa, err := s.Accounting.GetSuSaOverview(ctx, 2025)
+				if err == nil && (susa.FiscalYear != 2025 || susa.TotalDebit != 0) {
+					return fmt.Errorf("SuSa 2025 zeigt Buchungen aus 2026: %+v", susa)
+				}
+				return err
+			})
+		}()
 	}
 	wg.Wait()
 	close(errs)

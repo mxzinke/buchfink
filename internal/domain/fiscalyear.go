@@ -2,9 +2,14 @@ package domain
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 )
+
+// ErrFiscalYearRequired: ein Vorgang nennt kein Geschäftsjahr. Die Dienste
+// rechnen nie mit einem Jahr, das gerade jemand ansieht.
+var ErrFiscalYearRequired = errors.New("der Vorgang nennt kein Geschäftsjahr")
 
 // FiscalYearStatus ist der Stand des Jahresabschlusses.
 //

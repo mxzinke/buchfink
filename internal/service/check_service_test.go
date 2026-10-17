@@ -34,7 +34,6 @@ func (e *testEnv) checksOn(t *testing.T, today string) *CheckService {
 		repository.NewVatReturnRepository(e.db),
 		repository.NewCheckRunRepository(e.db),
 		repository.NewAuditRepository(e.db),
-		e.fiscalYear,
 	)
 	day, err := time.Parse("2006-01-02", today)
 	if err != nil {
@@ -555,7 +554,7 @@ func TestCheckRunsArePersisted(t *testing.T) {
 	if len(runs) != 2 {
 		t.Fatalf("erwartet zwei Läufe, erhalten %d", len(runs))
 	}
-	latest, err := svc.Latest(ctx)
+	latest, err := svc.Latest(ctx, 2026)
 	if err != nil || latest == nil {
 		t.Fatalf("jüngster Lauf: %v", err)
 	}

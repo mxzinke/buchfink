@@ -18,6 +18,7 @@ import (
 
 // GetClosingSteps liefert die Bausteine des Jahresabschlusses mit ihrem Zustand.
 func (b *BuchfinkBridge) GetClosingSteps(year int) (*service.ClosingSteps, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*service.ClosingSteps, error) {
 		return s.ClosingSteps.Steps(ctx, year)
 	})
@@ -25,6 +26,7 @@ func (b *BuchfinkBridge) GetClosingSteps(year int) (*service.ClosingSteps, error
 
 // SkipClosingStep übergeht einen Baustein mit Grund.
 func (b *BuchfinkBridge) SkipClosingStep(year int, key, reason string) (*service.ClosingSteps, error) {
+	year = b.yearOr(year)
 	return write(b, func(ctx context.Context, s *core.Services) (*service.ClosingSteps, error) {
 		return s.ClosingSteps.SkipStep(ctx, year, domain.ClosingStepKey(key), reason)
 	})
@@ -34,6 +36,7 @@ func (b *BuchfinkBridge) SkipClosingStep(year int, key, reason string) (*service
 // wieder offen. Möglich, solange das Jahr weder festgeschrieben noch
 // festgestellt ist — danach führt der Weg zurück über den Storno.
 func (b *BuchfinkBridge) ReopenClosingStep(year int, key, reason string) (*service.ClosingSteps, error) {
+	year = b.yearOr(year)
 	return write(b, func(ctx context.Context, s *core.Services) (*service.ClosingSteps, error) {
 		return s.ClosingSteps.ReopenStep(ctx, year, domain.ClosingStepKey(key), reason)
 	})
@@ -41,6 +44,7 @@ func (b *BuchfinkBridge) ReopenClosingStep(year int, key, reason string) (*servi
 
 // MarkClosingStepDone hakt einen Baustein ausdrücklich ab.
 func (b *BuchfinkBridge) MarkClosingStepDone(year int, key string) (*service.ClosingSteps, error) {
+	year = b.yearOr(year)
 	return write(b, func(ctx context.Context, s *core.Services) (*service.ClosingSteps, error) {
 		return s.ClosingSteps.SetStep(
 			ctx, year, domain.ClosingStepKey(key), domain.ClosingStepDone, "")
@@ -54,6 +58,7 @@ func (b *BuchfinkBridge) MarkClosingStepDone(year int, key string) (*service.Clo
 // ProposeAccruals sucht die Buchungen, deren Leistung über den Stichtag
 // hinausreicht.
 func (b *BuchfinkBridge) ProposeAccruals(year int) (*service.AccrualProposal, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*service.AccrualProposal, error) {
 		return s.Accruals.Propose(ctx, year)
 	})
@@ -61,6 +66,7 @@ func (b *BuchfinkBridge) ProposeAccruals(year int) (*service.AccrualProposal, er
 
 // PreviewAccrual rechnet einen Abgrenzungsposten, ohne ihn zu buchen.
 func (b *BuchfinkBridge) PreviewAccrual(req service.AccrualRequest) (*service.AccrualPreview, error) {
+	req.FiscalYear = b.yearOr(req.FiscalYear)
 	return read(b, func(ctx context.Context, s *core.Services) (*service.AccrualPreview, error) {
 		return s.Accruals.Preview(ctx, req)
 	})
@@ -68,6 +74,7 @@ func (b *BuchfinkBridge) PreviewAccrual(req service.AccrualRequest) (*service.Ac
 
 // BookAccrual legt den Posten an und bucht seine Bildung.
 func (b *BuchfinkBridge) BookAccrual(req service.AccrualRequest) (*domain.Accrual, error) {
+	req.FiscalYear = b.yearOr(req.FiscalYear)
 	return write(b, func(ctx context.Context, s *core.Services) (*domain.Accrual, error) {
 		return s.Accruals.Book(ctx, req)
 	})
@@ -75,6 +82,7 @@ func (b *BuchfinkBridge) BookAccrual(req service.AccrualRequest) (*domain.Accrua
 
 // GetAccruals liefert die im Geschäftsjahr gebildeten Abgrenzungsposten.
 func (b *BuchfinkBridge) GetAccruals(year int) ([]domain.Accrual, error) {
+	year = b.yearOr(year)
 	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.Accrual, error) {
 		return s.Accruals.List(ctx, year)
 	})
@@ -93,6 +101,7 @@ func (b *BuchfinkBridge) GetAccrualReport(cutoff string) (*service.AccrualReport
 
 // GetProvisions liefert die Rückstellungen, die ein Geschäftsjahr betreffen.
 func (b *BuchfinkBridge) GetProvisions(year int) ([]domain.Provision, error) {
+	year = b.yearOr(year)
 	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.Provision, error) {
 		return s.Provisions.List(ctx, year)
 	})
@@ -100,6 +109,7 @@ func (b *BuchfinkBridge) GetProvisions(year int) ([]domain.Provision, error) {
 
 // PreviewProvision rechnet eine Rückstellung samt Abzinsung, ohne zu buchen.
 func (b *BuchfinkBridge) PreviewProvision(req service.ProvisionRequest) (*service.ProvisionPreview, error) {
+	req.FiscalYear = b.yearOr(req.FiscalYear)
 	return read(b, func(ctx context.Context, s *core.Services) (*service.ProvisionPreview, error) {
 		return s.Provisions.Preview(ctx, req)
 	})
@@ -107,6 +117,7 @@ func (b *BuchfinkBridge) PreviewProvision(req service.ProvisionRequest) (*servic
 
 // BookProvisionFormation bildet eine Rückstellung.
 func (b *BuchfinkBridge) BookProvisionFormation(req service.ProvisionRequest) (*domain.Provision, error) {
+	req.FiscalYear = b.yearOr(req.FiscalYear)
 	return write(b, func(ctx context.Context, s *core.Services) (*domain.Provision, error) {
 		return s.Provisions.BookFormation(ctx, req)
 	})
@@ -114,6 +125,7 @@ func (b *BuchfinkBridge) BookProvisionFormation(req service.ProvisionRequest) (*
 
 // BookProvisionIncrease führt einer bestehenden Rückstellung Betrag zu.
 func (b *BuchfinkBridge) BookProvisionIncrease(req service.ProvisionRequest) (*domain.Provision, error) {
+	req.FiscalYear = b.yearOr(req.FiscalYear)
 	return write(b, func(ctx context.Context, s *core.Services) (*domain.Provision, error) {
 		return s.Provisions.BookIncrease(ctx, req)
 	})
@@ -151,6 +163,7 @@ func (b *BuchfinkBridge) SettleProvision(provisionID uint, date, reason string) 
 
 // GetProvisionMirror ist der Rückstellungsspiegel des Anhangs.
 func (b *BuchfinkBridge) GetProvisionMirror(year int) (*accounting.ProvisionMirror, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*accounting.ProvisionMirror, error) {
 		return s.Provisions.Mirror(ctx, year)
 	})
@@ -198,6 +211,7 @@ func (b *BuchfinkBridge) ImportDiscountRatesCSV(path, month string, average int)
 
 // PreviewVatSettlement zeigt die Salden der Steuerkonten und den Jahressaldo.
 func (b *BuchfinkBridge) PreviewVatSettlement(year int) (*service.VatSettlement, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*service.VatSettlement, error) {
 		return s.ClosingBookings.PreviewVatSettlement(ctx, year)
 	})
@@ -205,6 +219,7 @@ func (b *BuchfinkBridge) PreviewVatSettlement(year int) (*service.VatSettlement,
 
 // BookVatSettlement bucht die Jahresverrechnung der Umsatzsteuer.
 func (b *BuchfinkBridge) BookVatSettlement(year int) (*domain.JournalEntry, error) {
+	year = b.yearOr(year)
 	return write(b, func(ctx context.Context, s *core.Services) (*domain.JournalEntry, error) {
 		return s.ClosingBookings.BookVatSettlement(ctx, year)
 	})
@@ -212,6 +227,7 @@ func (b *BuchfinkBridge) BookVatSettlement(year int) (*domain.JournalEntry, erro
 
 // PreviewTaxProvision rechnet den Vorschlag für die Steuerrückstellung.
 func (b *BuchfinkBridge) PreviewTaxProvision(year int) (*service.TaxProvisionPreview, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*service.TaxProvisionPreview, error) {
 		return s.ClosingBookings.PreviewTaxProvision(ctx, year)
 	})
@@ -219,6 +235,7 @@ func (b *BuchfinkBridge) PreviewTaxProvision(year int) (*service.TaxProvisionPre
 
 // BookTaxProvision bildet die Steuerrückstellungen und bucht sie.
 func (b *BuchfinkBridge) BookTaxProvision(req service.TaxProvisionRequest) ([]domain.Provision, error) {
+	req.FiscalYear = b.yearOr(req.FiscalYear)
 	return emptyList(write(b, func(ctx context.Context, s *core.Services) ([]domain.Provision, error) {
 		return s.ClosingBookings.BookTaxProvision(ctx, req)
 	}))
@@ -232,6 +249,10 @@ func (b *BuchfinkBridge) BookTaxProvision(req service.TaxProvisionRequest) ([]do
 func (b *BuchfinkBridge) PreviewAppropriation(
 	year int, req service.AppropriationRequest,
 ) (*service.AppropriationPreview, error) {
+	if year == 0 {
+		// Verwendet wird das Ergebnis des Vorjahres der Ansicht.
+		year = b.viewYear() - 1
+	}
 	return read(b, func(ctx context.Context, s *core.Services) (*service.AppropriationPreview, error) {
 		return s.Appropriation.PreviewAppropriation(ctx, year, req)
 	})
@@ -241,6 +262,10 @@ func (b *BuchfinkBridge) PreviewAppropriation(
 func (b *BuchfinkBridge) BookAppropriation(
 	year int, req service.AppropriationRequest,
 ) (*domain.Appropriation, error) {
+	if year == 0 {
+		// Verwendet wird das Ergebnis des Vorjahres der Ansicht.
+		year = b.viewYear() - 1
+	}
 	return write(b, func(ctx context.Context, s *core.Services) (*domain.Appropriation, error) {
 		return s.Appropriation.BookAppropriation(ctx, year, req)
 	})
@@ -248,6 +273,10 @@ func (b *BuchfinkBridge) BookAppropriation(
 
 // GetAppropriation liefert den gespeicherten Beschluss eines Jahres.
 func (b *BuchfinkBridge) GetAppropriation(year int) (*domain.Appropriation, error) {
+	if year == 0 {
+		// Verwendet wird das Ergebnis des Vorjahres der Ansicht.
+		year = b.viewYear() - 1
+	}
 	return read(b, func(ctx context.Context, s *core.Services) (*domain.Appropriation, error) {
 		return s.Appropriation.Appropriation(ctx, year)
 	})
@@ -255,6 +284,7 @@ func (b *BuchfinkBridge) GetAppropriation(year int) (*domain.Appropriation, erro
 
 // GetNotesTexts liefert die Abschnitte des Anhangs mit ihrem Text.
 func (b *BuchfinkBridge) GetNotesTexts(year int) ([]service.NotesTextView, error) {
+	year = b.yearOr(year)
 	return readList(b, func(ctx context.Context, s *core.Services) ([]service.NotesTextView, error) {
 		return s.Appropriation.NotesTexts(ctx, year)
 	})
@@ -262,6 +292,7 @@ func (b *BuchfinkBridge) GetNotesTexts(year int) ([]service.NotesTextView, error
 
 // SaveNotesText schreibt einen Anhangabschnitt fort.
 func (b *BuchfinkBridge) SaveNotesText(year int, section, text string) ([]service.NotesTextView, error) {
+	year = b.yearOr(year)
 	return emptyList(write(b, func(ctx context.Context, s *core.Services) ([]service.NotesTextView, error) {
 		return s.Appropriation.SaveNotesText(ctx, year, domain.NotesSection(section), text)
 	}))
@@ -273,6 +304,7 @@ func (b *BuchfinkBridge) SaveNotesText(year int, section, text string) ([]servic
 
 // GetTaxElectionRegister liefert das Verzeichnis der steuerlichen Wahlrechte.
 func (b *BuchfinkBridge) GetTaxElectionRegister(year int) (*service.TaxElectionRegister, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*service.TaxElectionRegister, error) {
 		return s.TaxRegister.Register(ctx, year)
 	})
@@ -284,6 +316,7 @@ func (b *BuchfinkBridge) GetTaxElectionRegister(year int) (*service.TaxElectionR
 // Anwender im Speichern-Dialog, und ein Pfad, den das Backend wählt, wäre auf
 // jedem Betriebssystem ein anderer falscher.
 func (b *BuchfinkBridge) ExportTaxElectionRegisterCSV(year int) (string, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (string, error) {
 		return s.TaxRegister.RegisterCSV(ctx, year)
 	})
@@ -291,6 +324,7 @@ func (b *BuchfinkBridge) ExportTaxElectionRegisterCSV(year int) (string, error) 
 
 // GetReconciliation ist die Überleitung Handelsbilanz → Steuerbilanz.
 func (b *BuchfinkBridge) GetReconciliation(year int) (*service.Reconciliation, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*service.Reconciliation, error) {
 		return s.TaxRegister.Reconcile(ctx, year)
 	})

@@ -31,6 +31,7 @@ func programVersion() string { return buildinfo.Version }
 
 // ExportZ3 schreibt die Datenüberlassung eines Geschäftsjahres in einen Ordner.
 func (b *BuchfinkBridge) ExportZ3(year int, targetDir string) (*export.Result, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*export.Result, error) {
 		return s.Export.ExportZ3(ctx, year, targetDir)
 	})
@@ -38,6 +39,7 @@ func (b *BuchfinkBridge) ExportZ3(year int, targetDir string) (*export.Result, e
 
 // ExportArchive schreibt die Datenüberlassung samt Belegdateien.
 func (b *BuchfinkBridge) ExportArchive(year int, targetDir string) (*export.Result, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*export.Result, error) {
 		return s.Export.ExportArchive(ctx, year, targetDir)
 	})
@@ -46,6 +48,7 @@ func (b *BuchfinkBridge) ExportArchive(year int, targetDir string) (*export.Resu
 // ExportAuditPackage schreibt das Prüferpaket: Archiv, Integritätsnachweis und
 // Verfahrensdokumentation in einem Ordner.
 func (b *BuchfinkBridge) ExportAuditPackage(year int, targetDir string) (*export.Result, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*export.Result, error) {
 		return s.Export.ExportAuditPackage(ctx, year, targetDir)
 	})
@@ -174,7 +177,7 @@ func (b *BuchfinkBridge) VerifyReceiptFiles() (*domain.FileCheckResult, error) {
 // Leerer Stichtag heißt: das ganze Geschäftsjahr.
 func (b *BuchfinkBridge) GetSuSaOverviewAt(cutoff string) (*domain.SuSaOverview, error) {
 	return read(b, func(ctx context.Context, s *core.Services) (*domain.SuSaOverview, error) {
-		return s.Accounting.GetSuSaOverviewAt(ctx, cutoff)
+		return s.Accounting.GetSuSaOverviewAt(ctx, b.viewYear(), cutoff)
 	})
 }
 

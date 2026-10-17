@@ -55,6 +55,7 @@ func (b *BuchfinkBridge) CarryForward(toYear int) ([]domain.JournalEntry, error)
 // Frage, ob die Jahres-Festschreibung vorliegt und der Vortrag ins Folgejahr
 // aktuell ist.
 func (b *BuchfinkBridge) GetClosingState(year int) (*service.ClosingState, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*service.ClosingState, error) {
 		return s.Closing.ClosingStateFor(ctx, year)
 	})

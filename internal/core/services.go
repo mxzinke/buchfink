@@ -58,10 +58,6 @@ type Services struct {
 	MonthClose      *service.MonthCloseService
 	AuditTrail      *service.AuditTrailService
 	Idempotency     *service.IdempotencyService
-
-	// fiscalYear ist das Geschäftsjahr, nach dem die Dienste filtern, wenn ein
-	// Aufruf keines nennt. Geändert wird es nur unter Tenant.stateMu.
-	fiscalYear int
 }
 
 // Repos sind die Repositories, die Aufrufer ohne Dienst lesen.
@@ -78,21 +74,4 @@ type Repos struct {
 	Migrations     domain.MigrationRepository
 	BackupRuns     domain.BackupRunRepository
 	ExchangeRates  domain.ExchangeRateRepository
-}
-
-// FiscalYear ist das Geschäftsjahr, das die Dienste ohne Angabe annehmen.
-func (s *Services) FiscalYear() int { return s.fiscalYear }
-
-// setFiscalYear stellt jeden Dienst mit Jahreszustand auf ein Jahr um.
-func (s *Services) setFiscalYear(year int) {
-	s.fiscalYear = year
-	for _, svc := range []interface{ SetFiscalYear(int) }{
-		s.Journal, s.Receipts, s.EInvoice, s.Payments, s.Vat, s.Accounting,
-		s.Contacts, s.EBilanz, s.Assets, s.ProcDoc, s.Closing, s.Statement,
-		s.VatReturns, s.ZM, s.Checks, s.Deadlines, s.Export, s.ClosingSteps,
-		s.Accruals, s.Provisions, s.ClosingBookings, s.Appropriation,
-		s.TaxRegister, s.InputTax, s.Gifts, s.Tasks, s.MonthClose,
-	} {
-		svc.SetFiscalYear(year)
-	}
 }

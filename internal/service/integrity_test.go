@@ -130,12 +130,10 @@ func TestIntegrityChecksEveryFiscalYear(t *testing.T) {
 	old := simpleEntry("6815", "1800", 5000)
 	old.BookingDate, old.DocumentDate = "2025-06-01", "2025-06-01"
 	old.ServiceDateFrom, old.ServiceDateTo = "2025-06-01", "2025-06-01"
-	env.journal.SetFiscalYear(2025)
 	oldEntry, err := env.journal.Post(ctx, old)
 	if err != nil {
 		t.Fatalf("Buchung im Vorjahr: %v", err)
 	}
-	env.journal.SetFiscalYear(2026)
 	if _, err := env.journal.Post(ctx, simpleEntry("6815", "1800", 7000)); err != nil {
 		t.Fatalf("Buchung im laufenden Jahr: %v", err)
 	}
@@ -179,11 +177,9 @@ func TestIntegrityCheckLogsReadableFiscalYears(t *testing.T) {
 	old := simpleEntry("6815", "1800", 5000)
 	old.BookingDate, old.DocumentDate = "2025-06-01", "2025-06-01"
 	old.ServiceDateFrom, old.ServiceDateTo = "2025-06-01", "2025-06-01"
-	env.journal.SetFiscalYear(2025)
 	if _, err := env.journal.Post(ctx, old); err != nil {
 		t.Fatalf("Buchung im Vorjahr: %v", err)
 	}
-	env.journal.SetFiscalYear(2026)
 	if _, err := env.journal.Post(ctx, simpleEntry("6815", "1800", 7000)); err != nil {
 		t.Fatalf("Buchung im laufenden Jahr: %v", err)
 	}
@@ -217,7 +213,7 @@ func TestIntegrityCheckLogsNamedObjectWithoutFiscalYears(t *testing.T) {
 	empty := NewJournalService(
 		repository.NewJournalRepository(env.db), repository.NewAccountRepository(env.db),
 		repository.NewContactRepository(env.db), repository.NewAuditRepository(env.db),
-		repository.NewSettingsRepository(env.db), repository.NewTxRunner(env.db), 0)
+		repository.NewSettingsRepository(env.db), repository.NewTxRunner(env.db))
 
 	result, err := empty.VerifyIntegrity(ctx)
 	if err != nil {

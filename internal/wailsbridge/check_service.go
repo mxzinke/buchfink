@@ -37,6 +37,7 @@ func (b *BuchfinkBridge) RunChecks(cutoffDate, periodType string) (*domain.Check
 // GetCheckRuns liefert die gespeicherten Prüfläufe eines Jahres, der jüngste
 // zuerst.
 func (b *BuchfinkBridge) GetCheckRuns(year int) ([]domain.CheckRun, error) {
+	year = b.yearOr(year)
 	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.CheckRun, error) {
 		return s.Checks.Runs(ctx, year)
 	})
@@ -46,6 +47,7 @@ func (b *BuchfinkBridge) GetCheckRuns(year int) ([]domain.CheckRun, error) {
 // Zusammenfassende Meldungen, Sondervorauszahlung, Festschreibungen, Aufstellung
 // und Offenlegung.
 func (b *BuchfinkBridge) GetDeadlines(year int) ([]domain.Deadline, error) {
+	year = b.yearOr(year)
 	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.Deadline, error) {
 		return s.Deadlines.Deadlines(ctx, year)
 	})

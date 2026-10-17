@@ -24,7 +24,6 @@ type ClosingBookingService struct {
 	auditRepo     domain.AuditRepository
 	closingSvc    *ClosingService
 	receipts      closingReceiptFiler
-	fiscalYear    int
 }
 
 // NewClosingBookingService wires die beiden Bausteine.
@@ -35,17 +34,13 @@ func NewClosingBookingService(
 	settingsRepo domain.SettingsRepository,
 	auditRepo domain.AuditRepository,
 	closingSvc *ClosingService,
-	fiscalYear int,
 ) *ClosingBookingService {
 	return &ClosingBookingService{
 		provisionRepo: provisionRepo, journalRepo: journalRepo,
 		journalSvc: journalSvc, settingsRepo: settingsRepo, auditRepo: auditRepo,
-		closingSvc: closingSvc, fiscalYear: fiscalYear,
+		closingSvc: closingSvc,
 	}
 }
-
-// SetFiscalYear schaltet das aktive Geschäftsjahr um.
-func (s *ClosingBookingService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // SetReceiptService gibt dem Dienst den Belegspeicher für die Eigenbelege.
 func (s *ClosingBookingService) SetReceiptService(r closingReceiptFiler) { s.receipts = r }
@@ -107,8 +102,8 @@ func settlementAccounts() []string {
 // die Erstattung der Jahreserklärung — und genau sie gehört in die Bilanz, nicht
 // die drei Salden nebeneinander.
 func (s *ClosingBookingService) PreviewVatSettlement(ctx context.Context, year int) (*VatSettlement, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	fy, err := s.closingSvc.PeriodOf(ctx, year)
 	if err != nil {
@@ -269,8 +264,8 @@ type TaxProvisionPreview struct {
 func (s *ClosingBookingService) PreviewTaxProvision(
 	ctx context.Context, year int,
 ) (*TaxProvisionPreview, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	fy, err := s.closingSvc.PeriodOf(ctx, year)
 	if err != nil {

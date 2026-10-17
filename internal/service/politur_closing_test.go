@@ -244,7 +244,7 @@ func TestFailedClosingBookingLeavesNoOpenSelfIssuedReceipt(t *testing.T) {
 	ctx := context.Background()
 	m.rate(t, "2026-12", 3, 15_000)
 
-	before, err := env.receipts.List(ctx, "")
+	before, err := env.receipts.List(ctx, 2026, "")
 	if err != nil {
 		t.Fatalf("Belege lesen: %v", err)
 	}
@@ -261,7 +261,7 @@ func TestFailedClosingBookingLeavesNoOpenSelfIssuedReceipt(t *testing.T) {
 		t.Fatal("in einen festgeschriebenen Zeitraum darf nicht gebucht werden")
 	}
 
-	after, err := env.receipts.List(ctx, "")
+	after, err := env.receipts.List(ctx, 2026, "")
 	if err != nil {
 		t.Fatalf("Belege lesen: %v", err)
 	}

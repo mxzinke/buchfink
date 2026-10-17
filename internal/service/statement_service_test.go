@@ -20,7 +20,6 @@ func (e *testEnv) statements(t *testing.T) *StatementService {
 		e.closing(t),
 		repository.NewSettingsRepository(e.db),
 		repository.NewAuditRepository(e.db),
-		e.fiscalYear,
 	)
 }
 
@@ -273,7 +272,7 @@ func TestSizeClassUsesTheStatementAndTheRecordedHeadcount(t *testing.T) {
 
 	closing := env.closing(t)
 	svc := NewStatementService(env.accounting, closing,
-		repository.NewSettingsRepository(env.db), repository.NewAuditRepository(env.db), 2026)
+		repository.NewSettingsRepository(env.db), repository.NewAuditRepository(env.db))
 
 	sizeClass, err := svc.SizeClassFor(ctx, 2026)
 	if err != nil {
@@ -339,7 +338,7 @@ func TestSizeClassKeepsTheEffectiveClassOverThreeClosingDates(t *testing.T) {
 			}
 		}
 		svc := NewStatementService(env.accounting, closing,
-			repository.NewSettingsRepository(env.db), repository.NewAuditRepository(env.db), 2026)
+			repository.NewSettingsRepository(env.db), repository.NewAuditRepository(env.db))
 		sizeClass, err := svc.SizeClassFor(ctx, 2026)
 		if err != nil {
 			t.Fatalf("Größenklasse: %v", err)
@@ -626,7 +625,7 @@ func TestEBilanzMappingReportCoversTheBookedAccounts(t *testing.T) {
 
 	ebilanzSvc := NewEBilanzService(
 		env.statements(t), repository.NewSettingsRepository(env.db),
-		repository.NewAuditRepository(env.db), 2026)
+		repository.NewAuditRepository(env.db))
 
 	report, err := ebilanzSvc.MappingReport(ctx, 2026)
 	if err != nil {

@@ -37,8 +37,7 @@ type DeadlineService struct {
 	// entstanden ist — und eine Warnung, die keine Liste zeigt, ist keine.
 	exemptions ExemptionDeadlineSource
 
-	fiscalYear int
-	years      MonthFiscalYearSource
+	years MonthFiscalYearSource
 }
 
 // StatementDeadlineSource liefert die Termine des Jahresabschlusses aus Welle 2.
@@ -60,7 +59,6 @@ func NewDeadlineService(
 	festschreibungRepo domain.FestschreibungRepository,
 	deadlineRepo domain.DeadlineRepository,
 	auditRepo domain.AuditRepository,
-	fiscalYear int,
 ) *DeadlineService {
 	return &DeadlineService{
 		vatSvc:             vatSvc,
@@ -69,7 +67,6 @@ func NewDeadlineService(
 		festschreibungRepo: festschreibungRepo,
 		deadlineRepo:       deadlineRepo,
 		auditRepo:          auditRepo,
-		fiscalYear:         fiscalYear,
 	}
 }
 
@@ -79,10 +76,9 @@ func (s *DeadlineService) SetStatementSource(src StatementDeadlineSource) { s.st
 // SetExemptionSource wires die Freistellungsbescheinigungen.
 func (s *DeadlineService) SetExemptionSource(src ExemptionDeadlineSource) { s.exemptions = src }
 
-// SetFiscalYear updates the active fiscal year.
+// SetFiscalYearSource hängt die angelegten Geschäftsjahre an; ein Rumpfjahr hat
+// andere Monate als das Kalenderjahr.
 func (s *DeadlineService) SetFiscalYearSource(src MonthFiscalYearSource) { s.years = src }
-
-func (s *DeadlineService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // Die Schlüssel der Termine. Sie landen in der Datenbank, sobald ein Termin von
 // Hand abgehakt wird, und dürfen sich deshalb nicht mehr ändern.
@@ -97,8 +93,8 @@ const (
 
 // Deadlines liefert alle Termine eines Jahres, nach Datum sortiert.
 func (s *DeadlineService) Deadlines(ctx context.Context, year int) ([]domain.Deadline, error) {
-	if year <= 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	cfg, err := s.settingsRepo.GetCompanySettings(ctx)
 	if err != nil {

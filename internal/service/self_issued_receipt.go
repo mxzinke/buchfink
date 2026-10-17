@@ -85,9 +85,16 @@ func (s *ReceiptService) CreateSelfIssued(
 			"der PDF-Satz ist nicht eingerichtet; ohne ihn entsteht kein Eigenbeleg")
 	}
 
+	year := req.FiscalYear
+	if year == 0 {
+		var err error
+		if year, err = s.filingYear(ctx, FileReceiptRequest{DocumentDate: req.DocumentDate}); err != nil {
+			return nil, err
+		}
+	}
 	issuer := s.issuerName(ctx)
 	created := actor.Actor()
-	number := s.nextSelfIssuedLabel(ctx)
+	number := s.nextSelfIssuedLabel(ctx, year)
 
 	markdown := selfIssuedMarkdown(req, issuer, created, number, reason)
 	// Der Ident macht zwei Läufe desselben Belegs byteweise vergleichbar; er
@@ -110,7 +117,7 @@ func (s *ReceiptService) CreateSelfIssued(
 
 	return s.File(ctx, FileReceiptRequest{
 		Direction:    direction,
-		FiscalYear:   req.FiscalYear,
+		FiscalYear:   year,
 		Kind:         domain.ReceiptKindSelfIssued,
 		ReceivedVia:  domain.ReceivedViaSelfIssued,
 		ReceivedAt:   todayLocal(),
@@ -182,11 +189,11 @@ func (s *ReceiptService) issuerName(ctx context.Context) string {
 // Eigenbelege im selben Augenblick —, steht im PDF eine Nummer daneben, und das
 // ist der kleinere Fehler: eine verbrauchte Nummer ohne Beleg wäre eine Lücke im
 // Nummernkreis, die erklärt werden müsste.
-func (s *ReceiptService) nextSelfIssuedLabel(ctx context.Context) string {
+func (s *ReceiptService) nextSelfIssuedLabel(ctx context.Context, year int) string {
 	if s.numberRepo == nil {
 		return ""
 	}
-	seq, err := s.numberRepo.Peek(ctx, domain.NumberRangeReceipt, s.fiscalYear)
+	seq, err := s.numberRepo.Peek(ctx, domain.NumberRangeReceipt, year)
 	if err != nil || seq <= 0 {
 		return ""
 	}
@@ -196,7 +203,7 @@ func (s *ReceiptService) nextSelfIssuedLabel(ctx context.Context) string {
 			format = receiptNumberFormatOf(cfg)
 		}
 	}
-	return domain.FormatReceiptNumberWith(format, s.fiscalYear, seq)
+	return domain.FormatReceiptNumberWith(format, year, seq)
 }
 
 // SetNumberRepo hängt den Nummernkreis an, damit die Belegnummer schon im PDF

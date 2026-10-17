@@ -225,7 +225,7 @@ func TestServiceOutputsHaveNoNilLists(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 
-	entries, err := env.accounting.GetEntries(ctx)
+	entries, err := env.accounting.GetEntries(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Journal: %v", err)
 	}
@@ -237,13 +237,13 @@ func TestServiceOutputsHaveNoNilLists(t *testing.T) {
 	}
 	assertNoNilSlices(t, "Journal über alle Jahre", all)
 
-	susa, err := env.accounting.GetSuSaOverview(ctx)
+	susa, err := env.accounting.GetSuSaOverview(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Summen- und Saldenliste: %v", err)
 	}
 	assertNoNilSlices(t, "Summen- und Saldenliste", susa)
 
-	ledger, err := env.accounting.GetAccountLedger(ctx, domain.AccountBank)
+	ledger, err := env.accounting.GetAccountLedger(ctx, 2026, domain.AccountBank)
 	if err != nil {
 		t.Fatalf("Kontoblatt: %v", err)
 	}
@@ -262,19 +262,19 @@ func TestServiceOutputsHaveNoNilLists(t *testing.T) {
 	assertNoNilSlices(t, "Bilanz und GuV", statement)
 
 	assets := env.assets(t)
-	list, err := assets.List(ctx, "")
+	list, err := assets.List(ctx, 2026, "")
 	if err != nil {
 		t.Fatalf("Anlagenverzeichnis: %v", err)
 	}
 	assertNoNilSlices(t, "Anlagenverzeichnis", list)
 
-	spiegel, err := assets.Anlagenspiegel(ctx)
+	spiegel, err := assets.Anlagenspiegel(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Anlagenspiegel: %v", err)
 	}
 	assertNoNilSlices(t, "Anlagenspiegel", spiegel)
 
-	run, err := assets.Run(ctx)
+	run, err := assets.Run(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Abschreibungslauf: %v", err)
 	}
@@ -339,7 +339,7 @@ func TestAssetListsAreEmptyNotNull(t *testing.T) {
 	ctx := context.Background()
 	svc := env.assets(t)
 
-	candidates, err := svc.AcquisitionCandidates(ctx)
+	candidates, err := svc.AcquisitionCandidates(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Zugangskandidaten: %v", err)
 	}
@@ -359,7 +359,7 @@ func TestAssetListsAreEmptyNotNull(t *testing.T) {
 	// Ein Anlagegut, dessen Klasse keine Erläuterung hat, liefert trotzdem
 	// eine Liste — die Ansicht läuft über sie.
 	asset := env.machine(t, svc)
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Anlagegut lesen: %v", err)
 	}
@@ -375,7 +375,7 @@ func TestAccountLedgerCounterAccountsAreEmptyNotNull(t *testing.T) {
 	if _, err := env.journal.Post(ctx, simpleEntry("6815", "1800", 25_000)); err != nil {
 		t.Fatalf("Buchung: %v", err)
 	}
-	ledger, err := env.accounting.GetAccountLedger(ctx, "6815")
+	ledger, err := env.accounting.GetAccountLedger(ctx, 2026, "6815")
 	if err != nil {
 		t.Fatalf("Kontoblatt: %v", err)
 	}

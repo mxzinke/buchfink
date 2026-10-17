@@ -41,7 +41,6 @@ type TaxRegisterService struct {
 	journalRepo  domain.JournalRepository
 	settingsRepo domain.SettingsRepository
 	closingSvc   *ClosingService
-	fiscalYear   int
 }
 
 // NewTaxRegisterService wires das Verzeichnis und die Überleitung.
@@ -51,16 +50,12 @@ func NewTaxRegisterService(
 	journalRepo domain.JournalRepository,
 	settingsRepo domain.SettingsRepository,
 	closingSvc *ClosingService,
-	fiscalYear int,
 ) *TaxRegisterService {
 	return &TaxRegisterService{
 		assetRepo: assetRepo, provisionRepo: provisionRepo, journalRepo: journalRepo,
-		settingsRepo: settingsRepo, closingSvc: closingSvc, fiscalYear: fiscalYear,
+		settingsRepo: settingsRepo, closingSvc: closingSvc,
 	}
 }
-
-// SetFiscalYear schaltet das aktive Geschäftsjahr um.
-func (s *TaxRegisterService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // TaxElectionYear ist ein Jahr im Verzeichnis: handelsrechtliche und
 // steuerliche Abschreibung nebeneinander.
@@ -109,8 +104,8 @@ type TaxElectionRegister struct {
 
 // Register stellt das Verzeichnis bis zum Ende eines Geschäftsjahres zusammen.
 func (s *TaxRegisterService) Register(ctx context.Context, year int) (*TaxElectionRegister, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	assets, err := s.assetRepo.FindAll(ctx)
 	if err != nil {
@@ -266,8 +261,8 @@ type (
 
 // Reconcile stellt die Überleitungsrechnung zusammen.
 func (s *TaxRegisterService) Reconcile(ctx context.Context, year int) (*Reconciliation, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	fy, err := s.closingSvc.PeriodOf(ctx, year)
 	if err != nil {

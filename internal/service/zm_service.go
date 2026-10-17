@@ -28,7 +28,6 @@ type ZMService struct {
 	zmRepo             domain.ZMReturnRepository
 	vatReturnRepo      domain.VatReturnRepository
 	auditRepo          domain.AuditRepository
-	fiscalYear         int
 }
 
 // NewZMService wires the Zusammenfassende Meldung.
@@ -40,7 +39,6 @@ func NewZMService(
 	zmRepo domain.ZMReturnRepository,
 	vatReturnRepo domain.VatReturnRepository,
 	auditRepo domain.AuditRepository,
-	fiscalYear int,
 ) *ZMService {
 	return &ZMService{
 		journalRepo:        journalRepo,
@@ -50,12 +48,8 @@ func NewZMService(
 		zmRepo:             zmRepo,
 		vatReturnRepo:      vatReturnRepo,
 		auditRepo:          auditRepo,
-		fiscalYear:         fiscalYear,
 	}
 }
-
-// SetFiscalYear updates the active fiscal year.
-func (s *ZMService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // ZMPeriodStatus ist ein Meldezeitraum mit Fälligkeit und Stand.
 type ZMPeriodStatus struct {
@@ -74,8 +68,8 @@ type ZMPeriodStatus struct {
 
 // Periods liefert die Meldezeiträume eines Jahres (§ 18a Abs. 1 UStG).
 func (s *ZMService) Periods(ctx context.Context, year int) ([]ZMPeriodStatus, error) {
-	if year <= 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	movements, err := s.movements(ctx, year)
 	if err != nil {
@@ -205,8 +199,8 @@ func (s *ZMService) Save(ctx context.Context, periodKey string) (*domain.ZMRetur
 
 // List liefert die gespeicherten Meldungen eines Jahres.
 func (s *ZMService) List(ctx context.Context, year int) ([]domain.ZMReturn, error) {
-	if year <= 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	return s.zmRepo.FindByFiscalYear(ctx, year)
 }

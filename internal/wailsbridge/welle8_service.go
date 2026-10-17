@@ -71,7 +71,7 @@ func (b *BuchfinkBridge) GetRetentionRules() accounting.RetentionRules {
 // übliche Weg —, kam damit nicht ins Journal (GOB-02 K2, BEL-01 K3).
 func (b *BuchfinkBridge) GetEntriesForReceipt(receiptID uint) ([]domain.JournalEntry, error) {
 	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.JournalEntry, error) {
-		return entriesForReceipt(ctx, s.Repos.Journal, s.FiscalYear(), receiptID)
+		return entriesForReceipt(ctx, s.Repos.Journal, b.viewYear(), receiptID)
 	})
 }
 
@@ -162,6 +162,7 @@ func (b *BuchfinkBridge) GetStatementPositions() ([]domain.StatementPositionOpti
 // GetVatPeriodProposal liefert den Voranmeldungszeitraum, der sich aus der
 // Steuer des Vorjahres ergibt (§ 18 Abs. 2 UStG).
 func (b *BuchfinkBridge) GetVatPeriodProposal(year int) (*service.VatPeriodProposal, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*service.VatPeriodProposal, error) {
 		return s.VatReturns.SuggestPeriodType(ctx, year)
 	})

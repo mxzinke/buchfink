@@ -25,6 +25,7 @@ import (
 // GetInputTaxCorrections liefert das Verzeichnis mit Blick auf ein
 // Geschäftsjahr.
 func (b *BuchfinkBridge) GetInputTaxCorrections(year int) (*service.InputTaxCorrectionYear, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*service.InputTaxCorrectionYear, error) {
 		return s.InputTax.Year(ctx, year)
 	})
@@ -52,6 +53,7 @@ func (b *BuchfinkBridge) CloseInputTaxCorrection(
 func (b *BuchfinkBridge) SaveInputTaxUsage(
 	req service.SaveInputTaxUsageRequest,
 ) (*service.InputTaxCorrectionYear, error) {
+	req.FiscalYear = b.yearOr(req.FiscalYear)
 	return write(b, func(ctx context.Context, s *core.Services) (*service.InputTaxCorrectionYear, error) {
 		return s.InputTax.SaveUsage(ctx, req)
 	})
@@ -59,6 +61,7 @@ func (b *BuchfinkBridge) SaveInputTaxUsage(
 
 // BookInputTaxCorrection bucht die Berichtigungen eines Geschäftsjahres.
 func (b *BuchfinkBridge) BookInputTaxCorrection(year int) (*service.InputTaxCorrectionYear, error) {
+	year = b.yearOr(year)
 	return write(b, func(ctx context.Context, s *core.Services) (*service.InputTaxCorrectionYear, error) {
 		return s.InputTax.BookYear(ctx, year)
 	})
@@ -101,6 +104,7 @@ func (b *BuchfinkBridge) CheckVatID(contactID uint) (*domain.VatIDCheck, error) 
 
 // GetNonDeductibleReport ist der Bericht eines Geschäftsjahres.
 func (b *BuchfinkBridge) GetNonDeductibleReport(year int) (*service.NonDeductibleReport, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*service.NonDeductibleReport, error) {
 		return s.Gifts.NonDeductibleReport(ctx, year)
 	})
@@ -109,6 +113,7 @@ func (b *BuchfinkBridge) GetNonDeductibleReport(year int) (*service.NonDeductibl
 // RebookGiftsForRecipient bucht die noch abziehbar stehenden Geschenke eines
 // Empfängers auf das nicht abziehbare Konto um.
 func (b *BuchfinkBridge) RebookGiftsForRecipient(req service.RebookGiftsRequest) (*service.GiftRebooking, error) {
+	req.FiscalYear = b.yearOr(req.FiscalYear)
 	return write(b, func(ctx context.Context, s *core.Services) (*service.GiftRebooking, error) {
 		return s.Gifts.RebookGiftsForRecipient(ctx, req)
 	})
@@ -171,6 +176,7 @@ func (b *BuchfinkBridge) ImportVatExchangeRatesCSV(path string) (*service.VatRat
 // Antwort gewesen — sie ist eine Auswertung, und der Prüfermodus ist der Modus,
 // in dem ausgewertet wird.
 func (b *BuchfinkBridge) PreviewCurrencyValuation(year int) (*service.ForeignCurrencyValuation, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*service.ForeignCurrencyValuation, error) {
 		return b.currencyService(s).PreviewCurrencyValuation(ctx, year)
 	})
@@ -178,6 +184,7 @@ func (b *BuchfinkBridge) PreviewCurrencyValuation(year int) (*service.ForeignCur
 
 // BookCurrencyValuation bucht die Stichtagsbewertung und ihre Auflösung.
 func (b *BuchfinkBridge) BookCurrencyValuation(year int) (*service.ForeignCurrencyValuation, error) {
+	year = b.yearOr(year)
 	return write(b, func(ctx context.Context, s *core.Services) (*service.ForeignCurrencyValuation, error) {
 		return s.Currency.BookCurrencyValuation(ctx, year)
 	})
@@ -196,6 +203,7 @@ func (b *BuchfinkBridge) GetAfaRules() accounting.AfARules {
 // GetWriteUpReport listet die Anlagegüter, bei denen die Wertaufholung zu prüfen
 // ist.
 func (b *BuchfinkBridge) GetWriteUpReport(year int) (*service.WriteUpReport, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*service.WriteUpReport, error) {
 		return s.Assets.WriteUpReport(ctx, year)
 	})
@@ -204,6 +212,7 @@ func (b *BuchfinkBridge) GetWriteUpReport(year int) (*service.WriteUpReport, err
 // ConfirmImpairmentPersists hält fest, dass der Grund einer außerplanmäßigen
 // Abschreibung fortbesteht.
 func (b *BuchfinkBridge) ConfirmImpairmentPersists(assetID uint, year int, note string) (*service.WriteUpReport, error) {
+	year = b.yearOr(year)
 	return write(b, func(ctx context.Context, s *core.Services) (*service.WriteUpReport, error) {
 		return s.Assets.ConfirmImpairmentPersists(ctx, assetID, year, note)
 	})
@@ -212,6 +221,7 @@ func (b *BuchfinkBridge) ConfirmImpairmentPersists(assetID uint, year int, note 
 // GetPoolConsistencyReport prüft die Einheitlichkeit des Wahlrechts nach
 // § 6 Abs. 2a Satz 5 EStG.
 func (b *BuchfinkBridge) GetPoolConsistencyReport(year int) (*service.PoolConsistencyReport, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*service.PoolConsistencyReport, error) {
 		return s.Assets.PoolConsistency(ctx, year)
 	})

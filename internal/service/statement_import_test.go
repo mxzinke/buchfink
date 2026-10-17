@@ -238,7 +238,7 @@ func TestImportingTheSameStatementTwiceKeepsOneReceipt(t *testing.T) {
 	if inserted != 0 {
 		t.Errorf("der zweite Import hat %d Umsätze eingefügt, erwartet 0", inserted)
 	}
-	receipts, err := env.receipts.List(ctx, "")
+	receipts, err := env.receipts.List(ctx, 2026, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,7 +265,7 @@ func TestUnreadableStatementStaysArchived(t *testing.T) {
 	if _, err := env.banking(t).ImportCAMT053File(ctx, path, "1800"); err == nil {
 		t.Fatal("eine unlesbare Datei muss gemeldet werden")
 	}
-	receipts, err := env.receipts.List(ctx, "")
+	receipts, err := env.receipts.List(ctx, 2026, "")
 	if err != nil {
 		t.Fatal(err)
 	}

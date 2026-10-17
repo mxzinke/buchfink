@@ -342,7 +342,7 @@ func TestAcquisitionCandidateCarriesTheInputTaxIntoTheRegister(t *testing.T) {
 		t.Fatalf("Vorsteuer %s € — erwartet 7.600,00 €", debitOn(entry, domain.AccountVorsteuer19))
 	}
 
-	candidates, err := assets.AcquisitionCandidates(ctx)
+	candidates, err := assets.AcquisitionCandidates(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Zugangskandidaten: %v", err)
 	}
@@ -410,7 +410,7 @@ func TestAcquisitionCandidateCarriesTheInputTaxShare(t *testing.T) {
 		t.Fatalf("Zugangsbeleg: %v", err)
 	}
 
-	candidates, err := assets.AcquisitionCandidates(ctx)
+	candidates, err := assets.AcquisitionCandidates(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Zugangskandidaten: %v", err)
 	}

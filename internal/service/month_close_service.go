@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -106,7 +105,6 @@ type MonthCloseService struct {
 	vat                MonthVatSource
 	festschreibungRepo domain.FestschreibungRepository
 	years              MonthFiscalYearSource
-	fiscalYear         int
 }
 
 // NewMonthCloseService wires the three steps.
@@ -114,16 +112,12 @@ func NewMonthCloseService(
 	checks TaskCheckSource,
 	vat MonthVatSource,
 	festschreibungRepo domain.FestschreibungRepository,
-	fiscalYear int,
 ) *MonthCloseService {
 	return &MonthCloseService{
 		checks: checks, vat: vat,
-		festschreibungRepo: festschreibungRepo, fiscalYear: fiscalYear,
+		festschreibungRepo: festschreibungRepo,
 	}
 }
-
-// SetFiscalYear updates the active fiscal year.
-func (s *MonthCloseService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // SetFiscalYearSource hängt die Geschäftsjahre an. Ohne sie gilt ein Monat als
 // zum Geschäftsjahr gehörig, wenn sein Kalenderjahr das des Geschäftsjahres ist.
@@ -135,19 +129,10 @@ func (s *MonthCloseService) State(ctx context.Context, month string) (*MonthClos
 	if err != nil {
 		return nil, err
 	}
-	// Der Monat muss zum aktiven Geschäftsjahr gehören.
-	//
-	// Am Jahreswechsel ist das der Regelfall und nicht die Ausnahme: die
-	// Voranmeldung für Dezember ist am 10. Januar fällig und steht dann als
-	// Frist in der Aufgabenliste. Wer sie im Geschäftsjahr 2026 anklickte, bekam
-	// bisher den Dezember 2025 gegen die Bücher von 2026 gerechnet — eine leere
-	// Festschreibungstabelle („nicht festgeschrieben"), einen Prüfbericht über
-	// die Buchungen des falschen Jahres und „keine Voranmeldung abzugeben",
-	// weil die Zeiträume 2026 den Dezember 2025 nicht enthalten. Drei Haken,
-	// alle drei falsch. Da sich der Prüfbericht (CheckService) nach dem aktiven
-	// Geschäftsjahr richtet, ist die ehrliche Antwort die Abweisung mit dem
-	// Hinweis, das Geschäftsjahr zu wechseln.
-	if err := s.requireActiveYear(ctx, month, label, from); err != nil {
+	// Festschreibung und Prüfbericht sind je Geschäftsjahr geführt; der Monat
+	// zählt zu dem, in dem er liegt, gleich welches Jahr gerade angesehen wird.
+	year, err := s.fiscalYearOf(ctx, from, to)
+	if err != nil {
 		return nil, err
 	}
 	// Das Kalenderjahr des Monats bestimmt die Voranmeldung: die Zeiträume des
@@ -157,7 +142,7 @@ func (s *MonthCloseService) State(ctx context.Context, month string) (*MonthClos
 	periodYear := yearOfDate(from)
 
 	state := &MonthCloseState{
-		Month: month, Label: label, From: from, To: to, FiscalYear: s.fiscalYear,
+		Month: month, Label: label, From: from, To: to, FiscalYear: year,
 	}
 	state.EnsureLists()
 
@@ -166,7 +151,7 @@ func (s *MonthCloseService) State(ctx context.Context, month string) (*MonthClos
 	if s.festschreibungRepo != nil {
 		// Nach dem Geschäftsjahr und nicht nach dem Kalenderjahr: die
 		// Festschreibungen sind je Geschäftsjahr geführt.
-		cutoff, err := s.festschreibungRepo.LatestCutoff(ctx, s.fiscalYear)
+		cutoff, err := s.festschreibungRepo.LatestCutoff(ctx, year)
 		if err != nil {
 			return nil, fmt.Errorf("der Stand der Festschreibung ließ sich nicht lesen: %w", err)
 		}
@@ -176,7 +161,7 @@ func (s *MonthCloseService) State(ctx context.Context, month string) (*MonthClos
 
 	checkState, checkNote := MonthStepOpen, "Der Prüfbericht wurde für diesen Monat noch nicht gerechnet."
 	if s.checks != nil {
-		run, err := s.checks.Preview(ctx, CheckRequest{CutoffDate: to, PeriodType: "month"})
+		run, err := s.checks.Preview(ctx, CheckRequest{FiscalYear: year, CutoffDate: to, PeriodType: "month"})
 		if err != nil {
 			return nil, fmt.Errorf("der Prüfbericht ließ sich nicht rechnen: %w", err)
 		}
@@ -287,33 +272,30 @@ func (s *MonthCloseService) vatStep(
 	return step
 }
 
-// requireActiveYear weist einen Monat ab, der nicht zum aktiven Geschäftsjahr
-// gehört.
-//
-// Gefragt wird zuerst das Geschäftsjahr selbst: es kann vom Kalenderjahr
-// abweichen, und dann liegt sein Januar im Folgejahr. Ist es nicht hinterlegt —
-// in einer gewachsenen Datenbank der Normalfall —, gilt das Kalenderjahr.
-func (s *MonthCloseService) requireActiveYear(ctx context.Context, month, label, from string) error {
-	if s.years != nil {
-		fy, err := s.years.FindByYear(ctx, s.fiscalYear)
-		if err == nil && fy != nil && fy.StartDate != "" && fy.EndDate != "" {
-			period, periodErr := accounting.ParseVatPeriodKey(month)
-			if periodErr == nil && period.To >= fy.StartDate && from <= fy.EndDate {
-				return nil
-			}
-			return fmt.Errorf(
-				"%s (%s) gehört nicht zum Geschäftsjahr %d (%s bis %s) — wechsle zuerst das "+
-					"Geschäftsjahr, sonst stünde der Monat gegen die Bücher eines anderen Jahres",
-				label, month, s.fiscalYear, fy.StartDate, fy.EndDate)
+// fiscalYearOf ist das Geschäftsjahr, in dem der Monat from–to liegt: nach den
+// angelegten Geschäftsjahren, die vom Kalenderjahr abweichen oder ein
+// Rumpfjahr sein können; ist keines angelegt, das Kalenderjahr. Der
+// angefangene erste Monat eines Rumpfjahres zählt dazu.
+func (s *MonthCloseService) fiscalYearOf(ctx context.Context, from, to string) (int, error) {
+	calendar := yearOfDate(from)
+	if s.years == nil {
+		return calendar, nil
+	}
+	known := false
+	for _, candidate := range []int{calendar, calendar - 1, calendar + 1} {
+		fy, err := s.years.FindByYear(ctx, candidate)
+		if err != nil || fy == nil || fy.StartDate == "" {
+			continue
+		}
+		known = true
+		if fy.StartDate <= to && from <= fy.EndDate {
+			return candidate, nil
 		}
 	}
-	if year := yearOfDate(from); year != s.fiscalYear {
-		return fmt.Errorf(
-			"%s (%s) gehört zum Geschäftsjahr %d — wechsle zuerst das Geschäftsjahr, sonst "+
-				"stünde der Monat gegen die Bücher des Jahres %d",
-			label, month, year, s.fiscalYear)
+	if known {
+		return 0, fmt.Errorf("der Monat ab %s liegt in keinem angelegten Geschäftsjahr", germanDay(from))
 	}
-	return nil
+	return calendar, nil
 }
 
 // yearOfDate liest das Jahr aus einem Datum "JJJJ-MM-TT" oder "JJJJ-MM".

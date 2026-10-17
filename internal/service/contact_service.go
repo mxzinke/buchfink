@@ -19,8 +19,7 @@ type ContactService struct {
 	auditRepo   domain.AuditRepository
 	// vatIDs ist die Bestätigungsabfrage. Sie ist optional: ohne sie bleibt der
 	// Hinweis beim Speichern allgemein.
-	vatIDs     vatIDStatusSource
-	fiscalYear int
+	vatIDs vatIDStatusSource
 }
 
 // NewContactService creates the master data service.
@@ -29,23 +28,21 @@ func NewContactService(
 	journalRepo domain.JournalRepository,
 	numberRepo domain.NumberRangeRepository,
 	auditRepo domain.AuditRepository,
-	fiscalYear int,
 ) *ContactService {
 	return &ContactService{
 		contactRepo: contactRepo,
 		journalRepo: journalRepo,
 		numberRepo:  numberRepo,
 		auditRepo:   auditRepo,
-		fiscalYear:  fiscalYear,
 	}
 }
 
-// SetFiscalYear updates the year the open item balances are computed for.
-func (s *ContactService) SetFiscalYear(year int) { s.fiscalYear = year }
-
-// GetContacts returns all business partners with the balance of their
-// Personenkonto (the open item total) filled in.
-func (s *ContactService) GetContacts(ctx context.Context) ([]domain.Contact, error) {
+// GetContacts returns all business partners with the balance their
+// Personenkonto shows in the fiscal year (the open item total) filled in.
+func (s *ContactService) GetContacts(ctx context.Context, year int) ([]domain.Contact, error) {
+	if err := requireYear(year); err != nil {
+		return nil, err
+	}
 	contacts, err := s.contactRepo.FindAll(ctx)
 	if err != nil {
 		return nil, err
@@ -54,7 +51,7 @@ func (s *ContactService) GetContacts(ctx context.Context) ([]domain.Contact, err
 		return contacts, nil
 	}
 
-	turnovers, err := s.journalRepo.AccountTurnovers(ctx, s.fiscalYear)
+	turnovers, err := s.journalRepo.AccountTurnovers(ctx, year)
 	if err != nil {
 		return contacts, nil
 	}
@@ -259,8 +256,8 @@ func (s *ContactService) BlockContact(ctx context.Context, id uint, reason strin
 // nicht — wer die Sperre aufheben oder die Antwort noch einmal lesen will, muss
 // sie finden können —, aber in einer Rechnung oder einer Buchung dürfen sie
 // nicht mehr auftauchen.
-func (s *ContactService) SelectableContacts(ctx context.Context) ([]domain.Contact, error) {
-	contacts, err := s.GetContacts(ctx)
+func (s *ContactService) SelectableContacts(ctx context.Context, year int) ([]domain.Contact, error) {
+	contacts, err := s.GetContacts(ctx, year)
 	if err != nil {
 		return nil, err
 	}

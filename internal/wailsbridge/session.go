@@ -70,6 +70,18 @@ func (b *BuchfinkBridge) change(fn func(ctx context.Context, s *core.Services) e
 	return b.host.Write(uiContext(), fn, opts...)
 }
 
+// viewYear ist das in der Kopfzeile gewählte Geschäftsjahr. Die Bridge reicht
+// es an Ansichten durch; die Dienste kennen kein Jahr der Ansicht.
+func (b *BuchfinkBridge) viewYear() int { return b.host.ViewYear() }
+
+// yearOr nimmt das Jahr des Aufrufs, ohne Angabe das der Ansicht.
+func (b *BuchfinkBridge) yearOr(year int) int {
+	if year > 0 {
+		return year
+	}
+	return b.viewYear()
+}
+
 // logAccess protokolliert die Herausgabe von Daten (QUE-02). Sie ist ein
 // Lesevorgang; der Protokolleintrag ist der eine Schreibweg, den er hat.
 func (b *BuchfinkBridge) logAccess(entityType, entityID, details string) error {

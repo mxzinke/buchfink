@@ -37,7 +37,6 @@ type AssetService struct {
 	// Abschreibungsplan braucht sie, weil ein Rumpfjahr weniger als zwölf Monate
 	// trägt; ohne die Quelle rechnet er mit dem abgeleiteten vollen Jahr.
 	fiscalYearRepo domain.FiscalYearRepository
-	fiscalYear     int
 }
 
 // SetFiscalYearRepo koppelt die Geschäftsjahre an den Abschreibungsplan.
@@ -77,7 +76,6 @@ func NewAssetService(
 	contactRepo domain.ContactRepository,
 	settingsRepo domain.SettingsRepository,
 	auditRepo domain.AuditRepository,
-	fiscalYear int,
 ) *AssetService {
 	return &AssetService{
 		assetRepo:    assetRepo,
@@ -88,15 +86,8 @@ func NewAssetService(
 		settingsRepo: settingsRepo,
 		auditRepo:    auditRepo,
 		taxResolver:  journalSvc.TaxResolver(),
-		fiscalYear:   fiscalYear,
 	}
 }
-
-// SetFiscalYear updates the year every derived figure is computed for.
-func (s *AssetService) SetFiscalYear(year int) { s.fiscalYear = year }
-
-// FiscalYear returns the active fiscal year.
-func (s *AssetService) FiscalYear() int { return s.fiscalYear }
 
 // AssetSummary aggregates the register for the head of the view.
 type AssetSummary struct {
@@ -344,8 +335,11 @@ type AcquisitionCandidate struct {
 // -------------------------------------------------------------------------
 
 // List returns the register of one class — or all of it — with every derived
-// figure computed for the active fiscal year.
-func (s *AssetService) List(ctx context.Context, class domain.AssetClass) ([]domain.FixedAsset, error) {
+// figure computed for the fiscal year.
+func (s *AssetService) List(ctx context.Context, year int, class domain.AssetClass) ([]domain.FixedAsset, error) {
+	if err := requireYear(year); err != nil {
+		return nil, err
+	}
 	var (
 		assets []domain.FixedAsset
 		err    error
@@ -365,7 +359,7 @@ func (s *AssetService) List(ctx context.Context, class domain.AssetClass) ([]dom
 	periods := s.fiscalPeriods(ctx)
 	chart, _ := s.journalSvc.Chart(ctx)
 	for i := range assets {
-		s.enrich(&assets[i], s.fiscalYear, startMonth, periods)
+		s.enrich(&assets[i], year, startMonth, periods)
 		if chart != nil {
 			assets[i].AccountName = chart.Name(assets[i].Account)
 		}
@@ -377,25 +371,25 @@ func (s *AssetService) List(ctx context.Context, class domain.AssetClass) ([]dom
 // § 6 Abs. 2a EStG allows exactly one per Wirtschaftsjahr, and further items of
 // that year are added to it rather than to a second one.
 func (s *AssetService) Pool(ctx context.Context, fiscalYear int) (*domain.FixedAsset, error) {
-	if fiscalYear == 0 {
-		fiscalYear = s.fiscalYear
+	if err := requireYear(fiscalYear); err != nil {
+		return nil, err
 	}
 	pool, err := s.assetRepo.FindPool(ctx, fiscalYear)
 	if err != nil || pool == nil {
 		return nil, err
 	}
 	startMonth := s.fiscalYearStartMonth(ctx)
-	s.enrich(pool, s.fiscalYear, startMonth, s.fiscalPeriods(ctx))
+	s.enrich(pool, fiscalYear, startMonth, s.fiscalPeriods(ctx))
 	return pool, nil
 }
 
 // Summary aggregates the register for one class.
-func (s *AssetService) Summary(ctx context.Context, class domain.AssetClass) (AssetSummary, error) {
-	assets, err := s.List(ctx, class)
+func (s *AssetService) Summary(ctx context.Context, year int, class domain.AssetClass) (AssetSummary, error) {
+	assets, err := s.List(ctx, year, class)
 	if err != nil {
 		return AssetSummary{}, err
 	}
-	sum := AssetSummary{FiscalYear: s.fiscalYear}
+	sum := AssetSummary{FiscalYear: year}
 	for _, a := range assets {
 		if a.IsDisposed() && a.BookValue == 0 && a.Cost == 0 {
 			// Ein vollständig ausgebuchter Abgang steht noch im Verzeichnis, aber
@@ -417,14 +411,17 @@ func (s *AssetService) Summary(ctx context.Context, class domain.AssetClass) (As
 }
 
 // Get returns one Anlagegut with its plan, its movements and the notes that
-// apply to it.
-func (s *AssetService) Get(ctx context.Context, id uint) (*AssetDetail, error) {
+// apply to it, the derived figures computed for the fiscal year.
+func (s *AssetService) Get(ctx context.Context, year int, id uint) (*AssetDetail, error) {
+	if err := requireYear(year); err != nil {
+		return nil, err
+	}
 	asset, err := s.assetRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", id, err)
 	}
 	startMonth := s.fiscalYearStartMonth(ctx)
-	s.enrich(asset, s.fiscalYear, startMonth, s.fiscalPeriods(ctx))
+	s.enrich(asset, year, startMonth, s.fiscalPeriods(ctx))
 	if chart, err := s.journalSvc.Chart(ctx); err == nil {
 		asset.AccountName = chart.Name(asset.Account)
 	}
@@ -454,7 +451,7 @@ func (s *AssetService) Get(ctx context.Context, id uint) (*AssetDetail, error) {
 			row.SpecialDue = 0
 		}
 		switch {
-		case row.Booked+row.SpecialBooked == 0 && r.FiscalYear > s.fiscalYear:
+		case row.Booked+row.SpecialBooked == 0 && r.FiscalYear > year:
 			row.Status = "geplant"
 		case row.Booked+row.SpecialBooked == 0:
 			row.Status = "offen"
@@ -469,7 +466,7 @@ func (s *AssetService) Get(ctx context.Context, id uint) (*AssetDetail, error) {
 	movements := append([]domain.AssetMovement(nil), asset.Movements...)
 	s.fillEntryNumbers(ctx, movements)
 
-	ceiling, err := s.writeUpCeiling(ctx, asset, s.fiscalYear, startMonth)
+	ceiling, err := s.writeUpCeiling(ctx, asset, year, startMonth)
 	if err != nil {
 		// Ein nicht rechenbarer Plan darf die Detailansicht nicht blockieren; die
 		// Obergrenze bleibt dann ungenannt und wird beim Buchen geprüft.
@@ -725,7 +722,7 @@ func (s *AssetService) save(ctx context.Context, asset *domain.FixedAsset) (*dom
 			"Anlagegut %s geändert: %s", asset.InventoryNumber, asset.Name), existing, asset); err != nil {
 			return nil, err
 		}
-		return s.reload(ctx, asset.ID)
+		return s.reload(ctx, asset.ID, "")
 	}
 
 	if asset.Method == domain.DepreciationPool {
@@ -789,7 +786,7 @@ func (s *AssetService) save(ctx context.Context, asset *domain.FixedAsset) (*dom
 		return nil, err
 	}
 
-	return s.reload(ctx, asset.ID)
+	return s.reload(ctx, asset.ID, "")
 }
 
 // AssetForEntry returns the Anlagegut a booking is the Zugang of, oder nichts.
@@ -921,7 +918,7 @@ func (s *AssetService) recordCostAdjustment(ctx context.Context, req CostAdjustm
 		return nil, err
 	}
 
-	return s.reload(ctx, asset.ID)
+	return s.reload(ctx, asset.ID, date)
 }
 
 // Delete removes an Anlagegut that never carried a booking. Once a movement
@@ -960,8 +957,11 @@ func (s *AssetService) delete(ctx context.Context, id uint) error {
 // Abschreibungslauf
 // -------------------------------------------------------------------------
 
-// Run computes the AfA of the active fiscal year without writing anything.
-func (s *AssetService) Run(ctx context.Context) (*DepreciationRun, error) {
+// Run computes the AfA of a fiscal year without writing anything.
+func (s *AssetService) Run(ctx context.Context, year int) (*DepreciationRun, error) {
+	if err := requireYear(year); err != nil {
+		return nil, err
+	}
 	assets, err := s.assetRepo.FindAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("das Anlagenverzeichnis konnte nicht gelesen werden: %w", err)
@@ -971,8 +971,8 @@ func (s *AssetService) Run(ctx context.Context) (*DepreciationRun, error) {
 	// Leer statt nil: der Lauf ohne offene Abschreibung ist der Regelfall eines
 	// bereits gebuchten Jahres, und `due.length` liest die Ansicht ohne Umweg.
 	run := &DepreciationRun{
-		FiscalYear:        s.fiscalYear,
-		BookingDate:       fiscalYearEndDate(s.fiscalYear, startMonth),
+		FiscalYear:        year,
+		BookingDate:       fiscalYearEndDate(year, startMonth),
 		Due:               make([]DepreciationDue, 0),
 		MissingPriorYears: make([]int, 0),
 	}
@@ -996,7 +996,7 @@ func (s *AssetService) Run(ctx context.Context) (*DepreciationRun, error) {
 		booked := bookedByYear(asset.Movements)
 		specialBooked := specialBookedByYear(asset.Movements)
 		for _, r := range rows {
-			if r.FiscalYear >= s.fiscalYear {
+			if r.FiscalYear >= year {
 				continue
 			}
 			if r.Amount > booked[r.FiscalYear] || r.SpecialAmount > specialBooked[r.FiscalYear] {
@@ -1006,7 +1006,7 @@ func (s *AssetService) Run(ctx context.Context) (*DepreciationRun, error) {
 
 		var row *accounting.AfAYear
 		for i := range rows {
-			if rows[i].FiscalYear == s.fiscalYear {
+			if rows[i].FiscalYear == year {
 				row = &rows[i]
 				break
 			}
@@ -1014,11 +1014,11 @@ func (s *AssetService) Run(ctx context.Context) (*DepreciationRun, error) {
 		if row == nil {
 			continue
 		}
-		due := row.Amount - booked[s.fiscalYear]
+		due := row.Amount - booked[year]
 		if due < 0 {
 			due = 0
 		}
-		specialDue := row.SpecialAmount - specialBooked[s.fiscalYear]
+		specialDue := row.SpecialAmount - specialBooked[year]
 		if specialDue < 0 {
 			specialDue = 0
 		}
@@ -1035,15 +1035,15 @@ func (s *AssetService) Run(ctx context.Context) (*DepreciationRun, error) {
 			RateLabel:       row.RateLabel,
 			Months:          row.Months,
 			Planned:         row.Amount,
-			Booked:          booked[s.fiscalYear],
+			Booked:          booked[year],
 			Due:             due,
 			SpecialAccount:  asset.SpecialAccount,
 			SpecialPlanned:  row.SpecialAmount,
-			SpecialBooked:   specialBooked[s.fiscalYear],
+			SpecialBooked:   specialBooked[year],
 			SpecialDue:      specialDue,
 			// Der Buchwert ist der handelsrechtliche: die Sonderabschreibung
 			// mindert ihn nicht mehr, sie steht daneben als steuerlicher Wert.
-			BookValueBefore: row.OpeningBookValue - booked[s.fiscalYear],
+			BookValueBefore: row.OpeningBookValue - booked[year],
 			BookValueAfter:  row.ClosingBookValue,
 			Note:            row.Note,
 		})
@@ -1073,15 +1073,7 @@ func (s *AssetService) BookDepreciation(ctx context.Context, req BookDepreciatio
 
 func (s *AssetService) bookDepreciation(ctx context.Context, req BookDepreciationRequest) (*DepreciationResult, error) {
 	year := req.FiscalYear
-	if year == 0 {
-		year = s.fiscalYear
-	}
-	if year != s.fiscalYear {
-		return nil, fmt.Errorf(
-			"die Abschreibung gehört in ihr eigenes Geschäftsjahr. Für %d wechsle zuerst das Geschäftsjahr", year)
-	}
-
-	run, err := s.Run(ctx)
+	run, err := s.Run(ctx, year)
 	if err != nil {
 		return nil, err
 	}
@@ -1233,10 +1225,7 @@ func (s *AssetService) postDepreciation(
 // AfA ist eine Abschlussbuchung, und ein festgeschriebenes Jahr nimmt sie nicht
 // mehr auf.
 func (s *AssetService) PendingDepreciation(ctx context.Context, fiscalYear int) ([]DepreciationDue, error) {
-	if fiscalYear != 0 && fiscalYear != s.fiscalYear {
-		return nil, nil
-	}
-	run, err := s.Run(ctx)
+	run, err := s.Run(ctx, fiscalYear)
 	if err != nil {
 		return nil, err
 	}
@@ -1779,7 +1768,7 @@ func (s *AssetService) transfer(ctx context.Context, req TransferRequest) (*doma
 		return nil, err
 	}
 
-	return s.reload(ctx, asset.ID)
+	return s.reload(ctx, asset.ID, req.Date)
 }
 
 // -------------------------------------------------------------------------
@@ -2209,7 +2198,7 @@ func (s *AssetService) dispose(ctx context.Context, req DisposalRequest) (*Dispo
 		}
 	}
 
-	reloaded, err := s.reload(ctx, fresh.ID)
+	reloaded, err := s.reload(ctx, fresh.ID, req.Date)
 	if err != nil {
 		return nil, err
 	}
@@ -2593,13 +2582,15 @@ func (s *AssetService) disposalSettlementLine(
 // the Kartei is kept across the years. Zugänge, Abgänge und kumulierte
 // Abschreibungen eines 2019 angeschafften Wirtschaftsguts stehen 2026 noch
 // genauso da; das Journal allein könnte die Spalten nicht füllen.
-func (s *AssetService) Anlagenspiegel(ctx context.Context) (*domain.Anlagenspiegel, error) {
+func (s *AssetService) Anlagenspiegel(ctx context.Context, year int) (*domain.Anlagenspiegel, error) {
+	if err := requireYear(year); err != nil {
+		return nil, err
+	}
 	assets, err := s.assetRepo.FindAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("das Anlagenverzeichnis konnte nicht gelesen werden: %w", err)
 	}
 	chart, _ := s.journalSvc.Chart(ctx)
-	year := s.fiscalYear
 
 	byAccount := map[string]*domain.AnlagenspiegelRow{}
 	order := []string{}
@@ -2731,8 +2722,11 @@ func addRow(into *domain.AnlagenspiegelRow, from *domain.AnlagenspiegelRow) {
 
 // AcquisitionCandidates lists bookings on Anlagekonten that no Anlagegut points
 // at yet.
-func (s *AssetService) AcquisitionCandidates(ctx context.Context) ([]AcquisitionCandidate, error) {
-	entries, err := s.journalRepo.FindAll(ctx, s.fiscalYear)
+func (s *AssetService) AcquisitionCandidates(ctx context.Context, year int) ([]AcquisitionCandidate, error) {
+	if err := requireYear(year); err != nil {
+		return nil, err
+	}
+	entries, err := s.journalRepo.FindAll(ctx, year)
 	if err != nil {
 		return nil, fmt.Errorf("das Journal konnte nicht gelesen werden: %w", err)
 	}
@@ -3120,13 +3114,18 @@ func (s *AssetService) nextInventoryNumber(ctx context.Context, acquisitionDate 
 	return domain.FormatInventoryNumber(year, seq), nil
 }
 
-func (s *AssetService) reload(ctx context.Context, id uint) (*domain.FixedAsset, error) {
+// reload liest ein Anlagegut nach einer Änderung, die abgeleiteten Werte für
+// das Geschäftsjahr des Vorgangstags gerechnet; ohne Tag für heute.
+func (s *AssetService) reload(ctx context.Context, id uint, date string) (*domain.FixedAsset, error) {
 	asset, err := s.assetRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
+	if date == "" {
+		date = todayLocal()
+	}
 	startMonth := s.fiscalYearStartMonth(ctx)
-	s.enrich(asset, s.fiscalYear, startMonth, s.fiscalPeriods(ctx))
+	s.enrich(asset, domain.GetFiscalYearForDate(date, startMonth), startMonth, s.fiscalPeriods(ctx))
 	if chart, err := s.journalSvc.Chart(ctx); err == nil {
 		asset.AccountName = chart.Name(asset.Account)
 	}

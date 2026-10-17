@@ -226,7 +226,7 @@ func TestCommitTaskIsOpenFromTheTenthOfTheNextMonth(t *testing.T) {
 
 	groupOf := func(today string) (domain.TaskGroup, bool) {
 		t.Helper()
-		svc := NewTaskService(repository.NewSettingsRepository(env.db), 2026)
+		svc := NewTaskService(repository.NewSettingsRepository(env.db))
 		svc.SetDeadlineSource(stubDeadlineSource{deadlines: []domain.Deadline{deadline}})
 		list, err := svc.Tasks(context.Background(), TaskOptions{Today: today})
 		if err != nil {

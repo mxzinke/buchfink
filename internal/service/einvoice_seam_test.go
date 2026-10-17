@@ -89,7 +89,7 @@ func (e *testEnv) filedReceipt(t *testing.T) *domain.Receipt {
 }
 
 func (e *testEnv) einvoicesWith(reader EInvoiceReader) *EInvoiceService {
-	return NewEInvoiceService(e.receipts, e.contactRepo, reader, e.fiscalYear)
+	return NewEInvoiceService(e.receipts, e.contactRepo, reader)
 }
 
 // Der Vorschlag entsteht aus dem, was die Schnittstelle liefert — nicht aus

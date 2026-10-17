@@ -48,10 +48,8 @@ func (b *BuchfinkBridge) MarkInvoiceSent(invoiceID uint, date string, via string
 
 // GetInvoiceNumberGaps liefert den Lückenbericht des Rechnungsnummernkreises.
 func (b *BuchfinkBridge) GetInvoiceNumberGaps(year int) (*domain.NumberGapReport, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*domain.NumberGapReport, error) {
-		if year == 0 {
-			year = s.FiscalYear()
-		}
 		return s.Invoices.NumberGaps(ctx, year)
 	})
 }
@@ -60,10 +58,8 @@ func (b *BuchfinkBridge) GetInvoiceNumberGaps(year int) (*domain.NumberGapReport
 // hat. Die Betriebsprüfung fragt danach, und eine Antwort im Kopf des
 // Geschäftsführers ist keine.
 func (b *BuchfinkBridge) RecordInvoiceNumberGapReason(year int, sequence int64, reason string, detail string) error {
+	year = b.yearOr(year)
 	return b.change(func(ctx context.Context, s *core.Services) error {
-		if year == 0 {
-			year = s.FiscalYear()
-		}
 		return s.Invoices.RecordNumberGapReason(
 			ctx, year, sequence, domain.NumberGapReason(reason), detail)
 	})
@@ -72,7 +68,7 @@ func (b *BuchfinkBridge) RecordInvoiceNumberGapReason(year int, sequence int64, 
 // GetInvoiceGroups liefert die Rechnungsverbünde mit ihrem Fortschritt.
 func (b *BuchfinkBridge) GetInvoiceGroups() ([]domain.InvoiceGroup, error) {
 	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.InvoiceGroup, error) {
-		return s.Invoices.GetInvoiceGroups(ctx, s.FiscalYear())
+		return s.Invoices.GetInvoiceGroups(ctx, b.viewYear())
 	})
 }
 

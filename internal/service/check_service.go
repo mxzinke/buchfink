@@ -52,8 +52,7 @@ type CheckService struct {
 	// und eine Regel, die „heute" fest verdrahtet, ließe sich nicht prüfen.
 	now func() time.Time
 
-	fiscalYear int
-	years      MonthFiscalYearSource
+	years MonthFiscalYearSource
 }
 
 // AccountBalanceSource liefert den Kontenplan mit den Salden eines Jahres. Der
@@ -98,7 +97,6 @@ func NewCheckService(
 	vatReturnRepo domain.VatReturnRepository,
 	checkRepo domain.CheckRunRepository,
 	auditRepo domain.AuditRepository,
-	fiscalYear int,
 ) *CheckService {
 	return &CheckService{
 		journalRepo:        journalRepo,
@@ -112,7 +110,6 @@ func NewCheckService(
 		checkRepo:          checkRepo,
 		auditRepo:          auditRepo,
 		now:                time.Now,
-		fiscalYear:         fiscalYear,
 	}
 }
 
@@ -135,13 +132,15 @@ func (s *CheckService) SetClosingStepSource(src SkippedClosingStepSource) { s.cl
 // SetSizeClassSource wires die Größenklasse (Regel size_class_change).
 func (s *CheckService) SetSizeClassSource(src SizeClassSource) { s.sizeClass = src }
 
-// SetFiscalYear updates the active fiscal year.
+// SetFiscalYearSource hängt die angelegten Geschäftsjahre an; ein Rumpfjahr hat
+// andere Monate als das Kalenderjahr.
 func (s *CheckService) SetFiscalYearSource(src MonthFiscalYearSource) { s.years = src }
-
-func (s *CheckService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // CheckRequest ist der Auftrag an einen Prüflauf.
 type CheckRequest struct {
+	// FiscalYear ist das geprüfte Geschäftsjahr. Ohne Angabe das Jahr, in dem
+	// der Stichtag liegt.
+	FiscalYear int
 	// CutoffDate ist der Stichtag: geprüft wird alles bis einschließlich hier.
 	CutoffDate string
 	// PeriodType ist der Anlass. "year" schaltet die Regeln zu, die nur vor der
@@ -201,8 +200,16 @@ func (s *CheckService) compute(ctx context.Context, req CheckRequest) (*domain.C
 	if len(req.CutoffDate) != 10 {
 		return nil, fmt.Errorf("der Prüflauf braucht einen Stichtag (erwartet JJJJ-MM-TT)")
 	}
+	cfg, err := s.companySettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	year := req.FiscalYear
+	if year == 0 {
+		year = domain.GetFiscalYearForDate(req.CutoffDate, cfg.FiscalYearStartMonth)
+	}
 	run := &domain.CheckRun{
-		FiscalYear: s.fiscalYear,
+		FiscalYear: year,
 		CutoffDate: req.CutoffDate,
 		PeriodType: req.PeriodType,
 		// Der Zeitpunkt kommt aus derselben Uhr wie die Fristen des Laufs. Stünde
@@ -211,7 +218,7 @@ func (s *CheckService) compute(ctx context.Context, req CheckRequest) (*domain.C
 		CreatedAt: s.clock(),
 	}
 
-	entries, err := s.journalRepo.FindAll(ctx, s.fiscalYear)
+	entries, err := s.journalRepo.FindAll(ctx, year)
 	if err != nil {
 		return nil, fmt.Errorf("die Buchungen konnten nicht gelesen werden: %w", err)
 	}
@@ -223,12 +230,7 @@ func (s *CheckService) compute(ctx context.Context, req CheckRequest) (*domain.C
 	}
 	run.CheckedEntries = len(upToCutoff)
 
-	cfg, err := s.companySettings(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	receipts := s.allReceipts(ctx)
+	receipts := s.allReceipts(ctx, year)
 	reference := s.referenceDate(req.CutoffDate)
 
 	// Leer statt nil: der Lauf geht als JSON an die Oberfläche, und ein nil-Slice
@@ -239,26 +241,26 @@ func (s *CheckService) compute(ctx context.Context, req CheckRequest) (*domain.C
 	findings = append(findings, s.checkInterimBalances(upToCutoff, req.CutoffDate)...)
 
 	run.CheckedReceipts = len(receipts)
-	findings = append(findings, s.checkReceipts(receipts, req.CutoffDate, reference, cfg, s.pendingByDesign(ctx))...)
+	findings = append(findings, s.checkReceipts(receipts, req.CutoffDate, reference, cfg, s.pendingByDesign(ctx, year))...)
 
-	bankFindings, bankCount := s.checkBank(ctx, req.CutoffDate)
+	bankFindings, bankCount := s.checkBank(ctx, year, req.CutoffDate)
 	run.CheckedBankTx = bankCount
 	findings = append(findings, bankFindings...)
 
-	findings = append(findings, s.checkNumberGaps(ctx)...)
+	findings = append(findings, s.checkNumberGaps(ctx, year)...)
 	findings = append(findings, s.checkOverpaidItems(ctx, req.CutoffDate)...)
-	findings = append(findings, s.checkVatReturns(ctx, req.CutoffDate, reference, cfg)...)
-	findings = append(findings, s.checkCommitOverdue(ctx, req.CutoffDate, cfg)...)
-	findings = append(findings, s.checkPeriodsNotCommitted(ctx, req.CutoffDate, cfg)...)
-	findings = append(findings, s.checkUnconfirmedVatIDs(ctx)...)
+	findings = append(findings, s.checkVatReturns(ctx, year, req.CutoffDate, reference, cfg)...)
+	findings = append(findings, s.checkCommitOverdue(ctx, year, req.CutoffDate, cfg)...)
+	findings = append(findings, s.checkPeriodsNotCommitted(ctx, year, req.CutoffDate, cfg)...)
+	findings = append(findings, s.checkUnconfirmedVatIDs(ctx, year)...)
 	findings = append(findings, s.checkServiceProof(receipts, req.CutoffDate, cfg)...)
 
 	if req.PeriodType == "year" {
-		findings = append(findings, s.checkAccountMapping(ctx)...)
-		findings = append(findings, s.checkDepreciation(ctx)...)
-		findings = append(findings, s.checkProvisionDiscounting(ctx)...)
-		findings = append(findings, s.checkSkippedClosingSteps(ctx)...)
-		findings = append(findings, s.checkSizeClassChange(ctx)...)
+		findings = append(findings, s.checkAccountMapping(ctx, year)...)
+		findings = append(findings, s.checkDepreciation(ctx, year)...)
+		findings = append(findings, s.checkProvisionDiscounting(ctx, year)...)
+		findings = append(findings, s.checkSkippedClosingSteps(ctx, year)...)
+		findings = append(findings, s.checkSizeClassChange(ctx, year)...)
 	}
 
 	sort.SliceStable(findings, func(i, j int) bool {
@@ -388,8 +390,8 @@ func (s *CheckService) EnsureCommittable(ctx context.Context, req CheckRequest) 
 
 // Runs liefert die gespeicherten Läufe eines Jahres, der jüngste zuerst.
 func (s *CheckService) Runs(ctx context.Context, year int) ([]domain.CheckRun, error) {
-	if year <= 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	if s.checkRepo == nil {
 		return []domain.CheckRun{}, nil
@@ -397,12 +399,15 @@ func (s *CheckService) Runs(ctx context.Context, year int) ([]domain.CheckRun, e
 	return s.checkRepo.FindByFiscalYear(ctx, year)
 }
 
-// Latest liefert den jüngsten Lauf des aktiven Jahres.
-func (s *CheckService) Latest(ctx context.Context) (*domain.CheckRun, error) {
+// Latest liefert den jüngsten Lauf eines Jahres.
+func (s *CheckService) Latest(ctx context.Context, year int) (*domain.CheckRun, error) {
+	if err := requireYear(year); err != nil {
+		return nil, err
+	}
 	if s.checkRepo == nil {
 		return nil, nil
 	}
-	return s.checkRepo.Latest(ctx, s.fiscalYear)
+	return s.checkRepo.Latest(ctx, year)
 }
 
 // -------------------------------------------------------------
@@ -567,11 +572,11 @@ func (s *CheckService) checkInterimBalances(entries []domain.JournalEntry, cutof
 
 // allReceipts liest die Belege des Jahres einmal für den ganzen Lauf: zwei
 // Regeln fragen dieselbe Liste.
-func (s *CheckService) allReceipts(ctx context.Context) []domain.Receipt {
+func (s *CheckService) allReceipts(ctx context.Context, year int) []domain.Receipt {
 	if s.receiptRepo == nil {
 		return nil
 	}
-	receipts, err := s.receiptRepo.FindAll(ctx, s.fiscalYear)
+	receipts, err := s.receiptRepo.FindAll(ctx, year)
 	if err != nil {
 		return nil
 	}
@@ -591,12 +596,12 @@ func (s *CheckService) allReceipts(ctx context.Context) []domain.Receipt {
 // Ohne diese Ausnahme meldete der Prüflauf jede Abschlagsrechnung als
 // abgelegten, ungebuchten Beleg und sperrte damit die Festschreibung — für
 // einen Zustand, der richtig ist.
-func (s *CheckService) pendingByDesign(ctx context.Context) map[uint]string {
+func (s *CheckService) pendingByDesign(ctx context.Context, year int) map[uint]string {
 	out := map[uint]string{}
 	if s.invoiceRepo == nil {
 		return out
 	}
-	invoices, err := s.invoiceRepo.FindAll(ctx, s.fiscalYear)
+	invoices, err := s.invoiceRepo.FindAll(ctx, year)
 	if err != nil {
 		return out
 	}
@@ -771,11 +776,11 @@ func (s *CheckService) checkServiceProof(
 	return out
 }
 
-func (s *CheckService) checkBank(ctx context.Context, cutoff string) ([]domain.CheckFinding, int) {
+func (s *CheckService) checkBank(ctx context.Context, year int, cutoff string) ([]domain.CheckFinding, int) {
 	if s.bankRepo == nil {
 		return nil, 0
 	}
-	transactions, err := s.bankRepo.FindAll(ctx, s.fiscalYear)
+	transactions, err := s.bankRepo.FindAll(ctx, year)
 	if err != nil {
 		return nil, 0
 	}
@@ -805,14 +810,14 @@ func (s *CheckService) checkBank(ctx context.Context, cutoff string) ([]domain.C
 // zurückgerollt wurde. Sie muss aber erklärbar sein: § 14 Abs. 4 Nr. 4 UStG
 // verlangt eine fortlaufende Rechnungsnummer, und eine Lücke, die niemand
 // bemerkt hat, ist im Zweifel eine unterschlagene Rechnung.
-func (s *CheckService) checkNumberGaps(ctx context.Context) []domain.CheckFinding {
+func (s *CheckService) checkNumberGaps(ctx context.Context, year int) []domain.CheckFinding {
 	if s.numberRepo == nil {
 		return nil
 	}
 	var out []domain.CheckFinding
 
 	if s.receiptRepo != nil {
-		receipts, err := s.receiptRepo.FindAll(ctx, s.fiscalYear)
+		receipts, err := s.receiptRepo.FindAll(ctx, year)
 		if err == nil {
 			// Gelesen wird mit dem eingestellten Belegnummernformat (BEL-02 K4).
 			// Mit dem festen Präfix „ER-" fand der Bericht in einem Mandanten
@@ -822,29 +827,29 @@ func (s *CheckService) checkNumberGaps(ctx context.Context) []domain.CheckFindin
 			used := map[int64]bool{}
 			for i := range receipts {
 				if seq, ok := domain.ParseReceiptSequence(
-					receipts[i].ReceiptNumber, s.fiscalYear, format); ok {
+					receipts[i].ReceiptNumber, year, format); ok {
 					used[seq] = true
 				}
 			}
-			out = append(out, s.gapFinding(ctx, domain.NumberRangeReceipt, used, "Belegnummern",
+			out = append(out, s.gapFinding(ctx, year, domain.NumberRangeReceipt, used, "Belegnummern",
 				func(seq int64) string {
-					return domain.FormatReceiptNumberWith(format, s.fiscalYear, seq)
+					return domain.FormatReceiptNumberWith(format, year, seq)
 				})...)
 		}
 	}
 
 	if s.invoiceRepo != nil {
-		invoices, err := s.invoiceRepo.FindAll(ctx, s.fiscalYear)
+		invoices, err := s.invoiceRepo.FindAll(ctx, year)
 		if err == nil {
 			used := map[int64]bool{}
-			prefix := fmt.Sprintf("RE-%d-", s.fiscalYear)
+			prefix := fmt.Sprintf("RE-%d-", year)
 			for i := range invoices {
 				if seq, ok := trailingNumber(invoices[i].InvoiceNumber, prefix); ok {
 					used[seq] = true
 				}
 			}
-			out = append(out, s.gapFinding(ctx, domain.NumberRangeInvoice, used, "Rechnungsnummern",
-				func(seq int64) string { return domain.FormatInvoiceNumber(s.fiscalYear, seq) })...)
+			out = append(out, s.gapFinding(ctx, year, domain.NumberRangeInvoice, used, "Rechnungsnummern",
+				func(seq int64) string { return domain.FormatInvoiceNumber(year, seq) })...)
 		}
 	}
 	return out
@@ -872,10 +877,10 @@ func (s *CheckService) companySettingsOrNil(ctx context.Context) *domain.Company
 }
 
 func (s *CheckService) gapFinding(
-	ctx context.Context, key domain.NumberRangeKey, used map[int64]bool, label string,
+	ctx context.Context, year int, key domain.NumberRangeKey, used map[int64]bool, label string,
 	format func(int64) string,
 ) []domain.CheckFinding {
-	next, err := s.numberRepo.Peek(ctx, key, s.fiscalYear)
+	next, err := s.numberRepo.Peek(ctx, key, year)
 	if err != nil || next <= 1 {
 		return nil
 	}
@@ -946,7 +951,7 @@ func (s *CheckService) checkOverpaidItems(ctx context.Context, cutoff string) []
 // Hinweis an dieser Stelle beanstandete die Reihenfolge, die Buchfink selbst
 // vorschreibt.
 func (s *CheckService) checkVatReturns(
-	ctx context.Context, cutoff, reference string, cfg *domain.CompanySettings,
+	ctx context.Context, year int, cutoff, reference string, cfg *domain.CompanySettings,
 ) []domain.CheckFinding {
 	if s.vatReturnRepo == nil {
 		return nil
@@ -960,7 +965,7 @@ func (s *CheckService) checkVatReturns(
 	if periodType == domain.VatPeriodYear {
 		return nil
 	}
-	saved, err := s.vatReturnRepo.FindByFiscalYear(ctx, s.fiscalYear)
+	saved, err := s.vatReturnRepo.FindByFiscalYear(ctx, year)
 	if err != nil {
 		return nil
 	}
@@ -972,7 +977,7 @@ func (s *CheckService) checkVatReturns(
 	}
 
 	var out []domain.CheckFinding
-	for _, p := range accounting.VatPeriodsOfYear(s.fiscalYear, periodType) {
+	for _, p := range accounting.VatPeriodsOfYear(year, periodType) {
 		due := accounting.VatDueDate(p, cfg.PermanentExtension)
 		if p.To > cutoff || submitted[p.Key] || due == "" || due >= reference {
 			continue
@@ -993,15 +998,15 @@ func (s *CheckService) checkVatReturns(
 
 // checkCommitOverdue meldet den Monat, dessen Folgemonat abgelaufen ist und der
 // immer noch nicht festgeschrieben wurde.
-func (s *CheckService) checkCommitOverdue(ctx context.Context, cutoff string, cfg *domain.CompanySettings) []domain.CheckFinding {
+func (s *CheckService) checkCommitOverdue(ctx context.Context, year int, cutoff string, cfg *domain.CompanySettings) []domain.CheckFinding {
 	if s.festschreibungRepo == nil {
 		return nil
 	}
-	committed, err := s.festschreibungRepo.LatestCutoff(ctx, s.fiscalYear)
+	committed, err := s.festschreibungRepo.LatestCutoff(ctx, year)
 	if err != nil {
 		return nil
 	}
-	for _, p := range fiscalYearMonths(ctx, s.years, s.fiscalYear) {
+	for _, p := range fiscalYearMonths(ctx, s.years, year) {
 		if committed >= p.To {
 			continue
 		}
@@ -1084,17 +1089,17 @@ func commitReportDate(p accounting.VatPeriod, cfg *domain.CompanySettings) strin
 // erste — der Rückstand ist die Zahl der offenen Monate, und wer nur den
 // ältesten sieht, hält ihn für einen Einzelfall.
 func (s *CheckService) checkPeriodsNotCommitted(
-	ctx context.Context, cutoff string, cfg *domain.CompanySettings,
+	ctx context.Context, year int, cutoff string, cfg *domain.CompanySettings,
 ) []domain.CheckFinding {
 	if s.festschreibungRepo == nil {
 		return nil
 	}
-	committed, err := s.festschreibungRepo.LatestCutoff(ctx, s.fiscalYear)
+	committed, err := s.festschreibungRepo.LatestCutoff(ctx, year)
 	if err != nil {
 		return nil
 	}
 	out := make([]domain.CheckFinding, 0, 2)
-	for _, p := range fiscalYearMonths(ctx, s.years, s.fiscalYear) {
+	for _, p := range fiscalYearMonths(ctx, s.years, year) {
 		if committed >= p.To {
 			continue
 		}
@@ -1122,11 +1127,11 @@ func (s *CheckService) checkPeriodsNotCommitted(
 // checkAccountMapping meldet bebuchte Konten ohne Gliederungsposition. Vor der
 // Jahresfestschreibung ist das blockierend: ein Konto ohne Position verschwindet
 // aus der Bilanz, und der Abschluss wäre unvollständig.
-func (s *CheckService) checkAccountMapping(ctx context.Context) []domain.CheckFinding {
+func (s *CheckService) checkAccountMapping(ctx context.Context, year int) []domain.CheckFinding {
 	if s.accounts == nil {
 		return nil
 	}
-	accounts, err := s.accounts.AccountsForYear(ctx, s.fiscalYear)
+	accounts, err := s.accounts.AccountsForYear(ctx, year)
 	if err != nil {
 		return nil
 	}
@@ -1160,11 +1165,11 @@ func (s *CheckService) checkAccountMapping(ctx context.Context) []domain.CheckFi
 // checkDepreciation überführt die bisherige Prüfung vor der Jahresfestschreibung
 // in den Prüflauf. Die AfA ist eine Abschlussbuchung zum Bilanzstichtag und
 // lässt sich nach der Festschreibung nicht mehr nachholen.
-func (s *CheckService) checkDepreciation(ctx context.Context) []domain.CheckFinding {
+func (s *CheckService) checkDepreciation(ctx context.Context, year int) []domain.CheckFinding {
 	if s.depreciation == nil {
 		return nil
 	}
-	pending, err := s.depreciation.PendingDepreciation(ctx, s.fiscalYear)
+	pending, err := s.depreciation.PendingDepreciation(ctx, year)
 	if err != nil || len(pending) == 0 {
 		return nil
 	}
@@ -1190,11 +1195,11 @@ func (s *CheckService) checkDepreciation(ctx context.Context) []domain.CheckFind
 // Sie entstehen bei der Bildung, wo sie in der Vorschau stehen — aber gelesen
 // wird die Vorschau einmal, und geprüft wird das Jahr am Ende. Ein Hinweis, den
 // nur sieht, wer gerade bucht, ist keine Prüfung.
-func (s *CheckService) checkProvisionDiscounting(ctx context.Context) []domain.CheckFinding {
+func (s *CheckService) checkProvisionDiscounting(ctx context.Context, year int) []domain.CheckFinding {
 	if s.provisions == nil {
 		return nil
 	}
-	findings, err := s.provisions.DiscountFindings(ctx, s.fiscalYear)
+	findings, err := s.provisions.DiscountFindings(ctx, year)
 	if err != nil {
 		// Ein Fehler ist kein „keine Befunde": stillschweigend nichts zu melden
 		// hieße, dem Anwender einen geprüften Abschluss zu zeigen, der ungeprüft
@@ -1217,11 +1222,11 @@ func (s *CheckService) checkProvisionDiscounting(ctx context.Context) []domain.C
 // eine Entscheidung mit Grund, und der Grund gehört dorthin, wo der Abschluss
 // beurteilt wird. Ohne diese Regel stünde er nur in der Schrittliste, die nach
 // der Festschreibung niemand mehr aufschlägt.
-func (s *CheckService) checkSkippedClosingSteps(ctx context.Context) []domain.CheckFinding {
+func (s *CheckService) checkSkippedClosingSteps(ctx context.Context, year int) []domain.CheckFinding {
 	if s.closingSteps == nil {
 		return nil
 	}
-	skipped, err := s.closingSteps.SkippedSteps(ctx, s.fiscalYear)
+	skipped, err := s.closingSteps.SkippedSteps(ctx, year)
 	if err != nil || len(skipped) == 0 {
 		return nil
 	}
@@ -1255,11 +1260,11 @@ func (s *CheckService) checkSkippedClosingSteps(ctx context.Context) []domain.Ch
 // Bestellung eines Abschlussprüfers keine Zeit mehr. Gemeldet wird ab dem
 // zweiten Stichtag, der die abweichende Klasse ergibt — der einzelne Ausreißer
 // ist keine Ankündigung, sondern ein gutes oder schlechtes Jahr.
-func (s *CheckService) checkSizeClassChange(ctx context.Context) []domain.CheckFinding {
+func (s *CheckService) checkSizeClassChange(ctx context.Context, year int) []domain.CheckFinding {
 	if s.sizeClass == nil {
 		return nil
 	}
-	class, err := s.sizeClass.SizeClassFor(ctx, s.fiscalYear)
+	class, err := s.sizeClass.SizeClassFor(ctx, year)
 	if err != nil || class == nil || class.PendingChange == nil {
 		return nil
 	}
@@ -1271,8 +1276,8 @@ func (s *CheckService) checkSizeClassChange(ctx context.Context) []domain.CheckF
 		Rule:       domain.CheckRuleSizeClassChange,
 		Severity:   domain.CheckWarning,
 		ObjectType: "FISCAL_YEAR",
-		ObjectID:   strconv.Itoa(s.fiscalYear),
-		ObjectName: fmt.Sprintf("Geschäftsjahr %d", s.fiscalYear),
+		ObjectID:   strconv.Itoa(year),
+		ObjectName: fmt.Sprintf("Geschäftsjahr %d", year),
 		Message:    change.Note,
 		Reference:  "§ 267 Abs. 4 Satz 1 HGB",
 	}}
@@ -1367,11 +1372,11 @@ func (s *CheckService) SetVatIDStatusSource(src VatIDStatusSource) { s.vatIDs = 
 // festgehaltenen Grund — und findet die Rechnung im nächsten Prüflauf wieder,
 // damit die Abfrage nachgeholt wird. Nur so ausgestellte Rechnungen tragen einen
 // Grund; jede andere ging mit einer Bestätigung hinaus.
-func (s *CheckService) checkUnconfirmedVatIDs(ctx context.Context) []domain.CheckFinding {
+func (s *CheckService) checkUnconfirmedVatIDs(ctx context.Context, year int) []domain.CheckFinding {
 	if s.vatIDs == nil || s.invoiceRepo == nil {
 		return nil
 	}
-	invoices, err := s.invoiceRepo.FindAll(ctx, s.fiscalYear)
+	invoices, err := s.invoiceRepo.FindAll(ctx, year)
 	if err != nil {
 		return nil
 	}

@@ -276,7 +276,7 @@ func TestWelle5cOutputsHaveNoNilLists(t *testing.T) {
 	rates.SetOpenItemSource(NewPaymentService(
 		env.journal, env.journalRepo,
 		repository.NewPaymentAllocationRepository(env.db),
-		env.contactRepo, repository.NewBankRepository(env.db), env.fiscalYear))
+		env.contactRepo, repository.NewBankRepository(env.db)))
 	valuation, err := rates.PreviewCurrencyValuation(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Fremdwährungsbewertung: %v", err)

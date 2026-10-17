@@ -40,7 +40,7 @@ func (e *testEnv) journalWithAudit(t *testing.T, trigger string) *JournalService
 	t.Helper()
 	audit := failingAudit{AuditRepository: repository.NewAuditRepository(e.db), trigger: trigger}
 	j := NewJournalService(e.journalRepo, repository.NewAccountRepository(e.db), e.contactRepo,
-		audit, repository.NewSettingsRepository(e.db), repository.NewTxRunner(e.db), e.fiscalYear)
+		audit, repository.NewSettingsRepository(e.db), repository.NewTxRunner(e.db))
 	j.SetReceiptRepo(e.receiptRepo)
 	return j
 }
@@ -134,7 +134,7 @@ func TestSettleIsAtomic(t *testing.T) {
 
 	payments := NewPaymentService(env.journal, env.journalRepo,
 		failingAllocations{repository.NewPaymentAllocationRepository(env.db)},
-		env.contactRepo, repository.NewBankRepository(env.db), env.fiscalYear)
+		env.contactRepo, repository.NewBankRepository(env.db))
 	before := env.entryCount(t)
 
 	_, err := payments.Settle(ctx, PaymentRequest{
@@ -164,7 +164,7 @@ func (e *testEnv) assetsWithAudit(t *testing.T, trigger string) *AssetService {
 	t.Helper()
 	return NewAssetService(repository.NewAssetRepository(e.db), e.journalRepo, e.journal, e.numberRepo,
 		e.contactRepo, repository.NewSettingsRepository(e.db),
-		failingAudit{AuditRepository: repository.NewAuditRepository(e.db), trigger: trigger}, e.fiscalYear)
+		failingAudit{AuditRepository: repository.NewAuditRepository(e.db), trigger: trigger})
 }
 
 func TestDisposalAndDepreciationAreAtomic(t *testing.T) {
@@ -201,7 +201,7 @@ func TestDisposalAndDepreciationAreAtomic(t *testing.T) {
 	if n := env.entryCount(t); n != before {
 		t.Errorf("%d Buchungen nach dem gescheiterten AfA-Lauf, erwartet %d", n, before)
 	}
-	run, err := env.assets(t).Run(ctx)
+	run, err := env.assets(t).Run(ctx, 2026)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +228,7 @@ func TestProvisionConsumptionFromAReceiptIsAtomic(t *testing.T) {
 	failing := NewProvisionService(m.provisionRepo, repository.NewDiscountRateRepository(env.db),
 		env.journalRepo, env.journal, repository.NewSettingsRepository(env.db),
 		failingAudit{AuditRepository: repository.NewAuditRepository(env.db), trigger: "Verbrauch"},
-		m.closing, env.fiscalYear)
+		m.closing)
 	env.posting.SetProvisionConsumer(failing)
 
 	vendor := env.vendor(t, "Prüfer GmbH", "DE", "")
@@ -276,7 +276,7 @@ func TestServicesReportAFailedAuditEntry(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	audit := failingAudit{AuditRepository: repository.NewAuditRepository(env.db), trigger: "CONTACT"}
-	contacts := NewContactService(env.contactRepo, env.journalRepo, env.numberRepo, audit, env.fiscalYear)
+	contacts := NewContactService(env.contactRepo, env.journalRepo, env.numberRepo, audit)
 	err := contacts.SaveContact(ctx, &domain.Contact{
 		Type: domain.ContactTypeCustomer, Name: "Kunde GmbH", CountryCode: "DE",
 		Street: "Kundenweg 2", PostalCode: "10115", City: "Berlin",

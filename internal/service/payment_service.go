@@ -66,8 +66,7 @@ type PaymentService struct {
 	// auditRepo ist optional: ohne es steht die Ausbuchung nur im Protokoll des
 	// Journals. Ein Pflichtparameter im Konstruktor hätte jeden Aufrufer
 	// erfasst.
-	auditRepo  domain.AuditRepository
-	fiscalYear int
+	auditRepo domain.AuditRepository
 }
 
 // SetAuditRepo koppelt das Protokoll an. Die Ausbuchung einer Forderung ist
@@ -96,7 +95,6 @@ func NewPaymentService(
 	allocationRepo domain.PaymentAllocationRepository,
 	contactRepo domain.ContactRepository,
 	bankRepo domain.BankRepository,
-	fiscalYear int,
 ) *PaymentService {
 	return &PaymentService{
 		journalSvc:     journalSvc,
@@ -104,21 +102,16 @@ func NewPaymentService(
 		allocationRepo: allocationRepo,
 		contactRepo:    contactRepo,
 		bankRepo:       bankRepo,
-		fiscalYear:     fiscalYear,
 	}
 }
 
-// SetFiscalYear updates the year the open items are computed for.
-func (s *PaymentService) SetFiscalYear(year int) { s.fiscalYear = year }
-
-// OpenItems lists the unsettled receivables and payables.
+// OpenItems lists the unsettled receivables and payables of every fiscal year.
 //
 // Das ist die operative Sicht: was ist heute noch offen, und wogegen darf
-// gebucht werden. Der Jahresabschluss fragt anders — siehe OpenItemsAt.
+// gebucht werden — gleich, in welchem Jahr der Posten entstand. Der
+// Jahresabschluss fragt anders — siehe OpenItemsAt.
 func (s *PaymentService) OpenItems(ctx context.Context) ([]domain.OpenItem, error) {
-	// Beide Abfragen sind bewusst nicht auf das Wirtschaftsjahr begrenzt — die
-	// Begründung steht an den Schnittstellen, die sie beantworten.
-	entries, err := s.journalRepo.FindOpenItemCandidates(ctx, s.fiscalYear)
+	entries, err := s.journalRepo.FindOpenItemCandidates(ctx, 0)
 	if err != nil {
 		return nil, err
 	}

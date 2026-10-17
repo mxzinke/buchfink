@@ -50,7 +50,7 @@ func TestBuildingUsesTheStatutoryRate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Gebäude: %v", err)
 	}
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Anlagegut lesen: %v", err)
 	}
@@ -90,7 +90,7 @@ func TestElectricVehicleNeedsItsFlag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("E-Fahrzeug: %v", err)
 	}
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Anlagegut lesen: %v", err)
 	}

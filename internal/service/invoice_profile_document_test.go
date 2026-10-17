@@ -86,14 +86,14 @@ func TestRegenerateDocumentRefusesASecondDocument(t *testing.T) {
 	if err := svc.Issue(ctx, inv); err != nil {
 		t.Fatalf("Rechnung ausstellen: %v", err)
 	}
-	before, err := env.receipts.List(ctx, "")
+	before, err := env.receipts.List(ctx, 2026, "")
 	if err != nil {
 		t.Fatalf("Belege lesen: %v", err)
 	}
 	if _, err := svc.RegenerateDocument(ctx, inv.ID); err == nil {
 		t.Error("zu einer vollständigen Rechnung darf kein zweites Dokument entstehen")
 	}
-	after, err := env.receipts.List(ctx, "")
+	after, err := env.receipts.List(ctx, 2026, "")
 	if err != nil {
 		t.Fatalf("Belege lesen: %v", err)
 	}

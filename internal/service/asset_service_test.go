@@ -20,7 +20,6 @@ func (e *testEnv) assets(t *testing.T) *AssetService {
 		e.contactRepo,
 		repository.NewSettingsRepository(e.db),
 		repository.NewAuditRepository(e.db),
-		e.fiscalYear,
 	)
 }
 
@@ -60,7 +59,7 @@ func TestSaveAssetAllocatesInventoryNumberAndRecordsAcquisition(t *testing.T) {
 		t.Errorf("Status %q — erwartet den Hinweis auf die offene Abschreibung", asset.Status)
 	}
 
-	detail, err := svc.Get(context.Background(), asset.ID)
+	detail, err := svc.Get(context.Background(), 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -98,7 +97,7 @@ func TestDepreciationRunBooksAgainstTheAssetAccount(t *testing.T) {
 	asset := env.machine(t, svc)
 	ctx := context.Background()
 
-	run, err := svc.Run(ctx)
+	run, err := svc.Run(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Abschreibungslauf: %v", err)
 	}
@@ -136,7 +135,7 @@ func TestDepreciationRunBooksAgainstTheAssetAccount(t *testing.T) {
 	}
 
 	// Zweiter Lauf: nichts mehr offen.
-	again, err := svc.Run(ctx)
+	again, err := svc.Run(ctx, 2026)
 	if err != nil {
 		t.Fatalf("zweiter Abschreibungslauf: %v", err)
 	}
@@ -147,7 +146,7 @@ func TestDepreciationRunBooksAgainstTheAssetAccount(t *testing.T) {
 		t.Error("ein zweiter Lauf darf die AfA nicht doppelt buchen")
 	}
 
-	reloaded, err := svc.Get(ctx, asset.ID)
+	reloaded, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -261,7 +260,7 @@ func TestWriteUpIsCappedAtContinuedCost(t *testing.T) {
 		t.Errorf("Ertragskonto %s — erwartet 4912 für die Zuschreibung auf eine Finanzanlage", revenue)
 	}
 
-	detail, err := svc.Get(ctx, share.ID)
+	detail, err := svc.Get(ctx, 2026, share.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -409,7 +408,7 @@ func TestAnlagenspiegelShowsTheDevelopmentOfEachPosition(t *testing.T) {
 		t.Fatalf("AfA buchen: %v", err)
 	}
 
-	spiegel, err := svc.Anlagenspiegel(ctx)
+	spiegel, err := svc.Anlagenspiegel(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Anlagenspiegel: %v", err)
 	}
@@ -444,7 +443,7 @@ func TestAcquisitionCandidatesFindUnregisteredBookings(t *testing.T) {
 		t.Fatalf("Zugangsbuchung: %v", err)
 	}
 
-	candidates, err := svc.AcquisitionCandidates(ctx)
+	candidates, err := svc.AcquisitionCandidates(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Zugangskandidaten: %v", err)
 	}
@@ -461,7 +460,7 @@ func TestAcquisitionCandidatesFindUnregisteredBookings(t *testing.T) {
 		t.Fatalf("Anlagegut zur Buchung: %v", err)
 	}
 
-	after, err := svc.AcquisitionCandidates(ctx)
+	after, err := svc.AcquisitionCandidates(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Zugangskandidaten nach der Erfassung: %v", err)
 	}
@@ -494,7 +493,7 @@ func TestCostAdjustmentsChangeTheDepreciationBase(t *testing.T) {
 		t.Fatalf("Anschaffungskosten %s € — erwartet 13.000,00 €", updated.Cost)
 	}
 
-	run, err := svc.Run(ctx)
+	run, err := svc.Run(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Abschreibungslauf: %v", err)
 	}
@@ -573,7 +572,7 @@ func TestImmediateWriteOffStaysOutOfTheDepreciationRun(t *testing.T) {
 			gwg.BookValue, gwg.Accumulated)
 	}
 
-	run, err := svc.Run(ctx)
+	run, err := svc.Run(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Abschreibungslauf: %v", err)
 	}
@@ -779,7 +778,7 @@ func TestDetailCarriesTheWriteUpCeiling(t *testing.T) {
 		t.Fatalf("außerplanmäßige Abschreibung: %v", err)
 	}
 
-	detail, err := svc.Get(ctx, share.ID)
+	detail, err := svc.Get(ctx, 2026, share.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -823,7 +822,7 @@ func TestSubsequentCostSpreadsOverTheRemainingLife(t *testing.T) {
 		t.Fatalf("Erweiterung: %v", err)
 	}
 
-	run, err := svc.Run(ctx)
+	run, err := svc.Run(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Abschreibungslauf: %v", err)
 	}
@@ -835,7 +834,7 @@ func TestSubsequentCostSpreadsOverTheRemainingLife(t *testing.T) {
 		t.Fatalf("fällige AfA %+v — erwartet 4.200,00 € (6.000 + 2.400 auf 24 Monate)", run.Due)
 	}
 
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -869,7 +868,7 @@ func TestExtensionCanProlongTheRemainingLife(t *testing.T) {
 		t.Fatalf("Erweiterung: %v", err)
 	}
 
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -951,7 +950,7 @@ func TestTransferCompletesAnAssetUnderConstruction(t *testing.T) {
 	}
 
 	// Solange sie nicht fertig ist, wird nichts abgeschrieben.
-	run, err := svc.Run(ctx)
+	run, err := svc.Run(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Abschreibungslauf: %v", err)
 	}
@@ -977,7 +976,7 @@ func TestTransferCompletesAnAssetUnderConstruction(t *testing.T) {
 
 	// Die AfA läuft ab der Betriebsbereitschaft, nicht ab der ersten Anzahlung:
 	// sechs Monate von 96, also die Hälfte eines Jahresbetrags von 1.000.000.
-	run, err = svc.Run(ctx)
+	run, err = svc.Run(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Abschreibungslauf nach der Fertigstellung: %v", err)
 	}
@@ -986,7 +985,7 @@ func TestTransferCompletesAnAssetUnderConstruction(t *testing.T) {
 	}
 
 	// Der Anlagenspiegel zeigt beide Positionen: 0700 gibt ab, 0440 nimmt auf.
-	spiegel, err := svc.Anlagenspiegel(ctx)
+	spiegel, err := svc.Anlagenspiegel(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Anlagenspiegel: %v", err)
 	}
@@ -1179,7 +1178,7 @@ func TestSpecialDepreciationIsTaxOnlyAndNotBooked(t *testing.T) {
 		t.Errorf("Konto der Sonderabschreibung %q — erwartet 6241", asset.SpecialAccount)
 	}
 
-	run, err := svc.Run(ctx)
+	run, err := svc.Run(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Abschreibungslauf: %v", err)
 	}
@@ -1215,7 +1214,7 @@ func TestSpecialDepreciationIsTaxOnlyAndNotBooked(t *testing.T) {
 			"nicht gebucht werden", lines["6241"])
 	}
 
-	reloaded, err := svc.Get(ctx, asset.ID)
+	reloaded, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -1253,7 +1252,7 @@ func TestCommercialPlanIsUntouchedBySpecialDepreciation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Anlagegut: %v", err)
 	}
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -1318,7 +1317,7 @@ func TestDepreciationRunHandlesTheTaxOnlyCase(t *testing.T) {
 	if len(result.TaxOnly) != 1 {
 		t.Fatalf("der Lauf nennt die nur steuerliche Sonderabschreibung nicht: %+v", result)
 	}
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -1531,7 +1530,7 @@ func TestAssetIncomeKeepsTheBookValueAndSplitsTheWithholdingTax(t *testing.T) {
 		t.Errorf("Zufluss %+v — erwartet 3.000,00 € auf der Bank", lines)
 	}
 
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -1603,7 +1602,7 @@ func TestPartialDisposalByQuantity(t *testing.T) {
 	if _, err := svc.Dispose(ctx, req); err != nil {
 		t.Fatalf("Teilabgang: %v", err)
 	}
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -1791,7 +1790,7 @@ func TestSkontoOnAnAssetInvoiceLowersTheAcquisitionCost(t *testing.T) {
 		t.Errorf("Vorsteuerkorrektur %+v — § 17 Abs. 1 UStG verlangt sie unverändert", lines)
 	}
 
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -2011,7 +2010,7 @@ func TestCurrencyValuationBooksOnItsOwnAccounts(t *testing.T) {
 		t.Errorf("Buchung %+v — erwartet 6880 an 0920 über 2.000,00 €", lines)
 	}
 
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -2064,7 +2063,7 @@ func TestFundDisposalShowsTheInvestmentTaxNote(t *testing.T) {
 		t.Errorf("Vorabpauschale %s € — erwartet 1.771,00 €", result.Amount)
 	}
 
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -2253,7 +2252,7 @@ func TestAssetPlanUsesTheRealFiscalYearPeriod(t *testing.T) {
 	// 12.000 € über 48 Monate sind 3.000 € im vollen Jahr.
 	asset := env.machine(t, svc)
 
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -2274,7 +2273,7 @@ func TestAssetPlanUsesTheRealFiscalYearPeriod(t *testing.T) {
 	// Ohne die Quelle bleibt es bei der Ableitung: das Rumpfjahr sähe aus wie ein
 	// volles. Genau das war der Fehler.
 	plain := env.assets(t)
-	plainDetail, err := plain.Get(ctx, asset.ID)
+	plainDetail, err := plain.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht ohne Geschäftsjahre: %v", err)
 	}

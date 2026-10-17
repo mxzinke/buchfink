@@ -67,19 +67,15 @@ type EInvoiceService struct {
 	receiptSvc  *ReceiptService
 	contactRepo domain.ContactRepository
 	reader      EInvoiceReader
-	fiscalYear  int
 }
 
 // NewEInvoiceService creates the reader for received E-Rechnungen.
-func NewEInvoiceService(receiptSvc *ReceiptService, contactRepo domain.ContactRepository, reader EInvoiceReader, fiscalYear int) *EInvoiceService {
+func NewEInvoiceService(receiptSvc *ReceiptService, contactRepo domain.ContactRepository, reader EInvoiceReader) *EInvoiceService {
 	return &EInvoiceService{
 		receiptSvc: receiptSvc, contactRepo: contactRepo,
-		reader: reader, fiscalYear: fiscalYear,
+		reader: reader,
 	}
 }
-
-// SetFiscalYear updates the active year.
-func (s *EInvoiceService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // ExtractStructuredPart pulls the invoice data out of a filed Beleg and attaches
 // it as the file with role `structured`.

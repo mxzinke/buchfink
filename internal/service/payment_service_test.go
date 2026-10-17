@@ -16,7 +16,6 @@ func (e *testEnv) payments(t *testing.T) *PaymentService {
 		repository.NewPaymentAllocationRepository(e.db),
 		e.contactRepo,
 		repository.NewBankRepository(e.db),
-		e.fiscalYear,
 	)
 }
 
@@ -441,7 +440,7 @@ func TestGrantedSkontoReducesTheReportedBase(t *testing.T) {
 		t.Fatalf("Zahlungseingang mit Skonto: %v", err)
 	}
 
-	summary, err := NewVatService(env.journalRepo, env.fiscalYear).Summary(ctx, "", "")
+	summary, err := NewVatService(env.journalRepo).Summary(ctx, 2026, "", "")
 	if err != nil {
 		t.Fatalf("USt-Auswertung: %v", err)
 	}
@@ -518,7 +517,7 @@ func TestSkontoOnReverseChargeCorrectsBothLegs(t *testing.T) {
 		{domain.SideCredit, domain.AccountBank, 98000},
 	})
 
-	summary, err := NewVatService(env.journalRepo, env.fiscalYear).Summary(ctx, "", "")
+	summary, err := NewVatService(env.journalRepo).Summary(ctx, 2026, "", "")
 	if err != nil {
 		t.Fatalf("USt-Auswertung: %v", err)
 	}
@@ -586,7 +585,6 @@ func TestOpenItemsFromEarlierYearsStayVisible(t *testing.T) {
 	invoice := env.openPayable(t, vendor.ID, 100000, domain.TaxRateStandard)
 
 	payments := env.payments(t)
-	payments.SetFiscalYear(2027)
 
 	items, err := payments.OpenItems(ctx)
 	if err != nil {
@@ -703,7 +701,6 @@ func TestReversedInvoiceStaysClosedInAnEarlierYearView(t *testing.T) {
 	}
 
 	payments := env.payments(t)
-	payments.SetFiscalYear(invoice.FiscalYear)
 
 	items, err := payments.OpenItems(ctx)
 	if err != nil {

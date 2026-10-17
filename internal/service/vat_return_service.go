@@ -37,7 +37,6 @@ type VatReturnService struct {
 	festschreibungRepo domain.FestschreibungRepository
 	returnRepo         domain.VatReturnRepository
 	auditRepo          domain.AuditRepository
-	fiscalYear         int
 }
 
 // NewVatReturnService wires the Voranmeldung.
@@ -49,7 +48,6 @@ func NewVatReturnService(
 	festschreibungRepo domain.FestschreibungRepository,
 	returnRepo domain.VatReturnRepository,
 	auditRepo domain.AuditRepository,
-	fiscalYear int,
 ) *VatReturnService {
 	return &VatReturnService{
 		journalRepo:        journalRepo,
@@ -59,12 +57,8 @@ func NewVatReturnService(
 		festschreibungRepo: festschreibungRepo,
 		returnRepo:         returnRepo,
 		auditRepo:          auditRepo,
-		fiscalYear:         fiscalYear,
 	}
 }
-
-// SetFiscalYear updates the active fiscal year.
-func (s *VatReturnService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // VatPeriodStatus ist ein Zeitraum mit dem Stand seiner Anmeldung.
 type VatPeriodStatus struct {
@@ -111,8 +105,8 @@ func vatPeriodTypeOf(cfg *domain.CompanySettings) domain.VatPeriodType {
 
 // Periods liefert die Zeiträume eines Jahres mit Fälligkeit und Stand.
 func (s *VatReturnService) Periods(ctx context.Context, year int) ([]VatPeriodStatus, error) {
-	if year <= 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	cfg, err := s.companySettings(ctx)
 	if err != nil {
@@ -308,8 +302,8 @@ type SpecialPrepaymentPeriod struct {
 // ihn wäre die Aufforderung, etwas anzumelden und zu zahlen, das er nicht
 // schuldet.
 func (s *VatReturnService) SuggestedSpecialPrepayment(ctx context.Context, year int) (*SpecialPrepaymentSuggestion, error) {
-	if year <= 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	prior := year - 1
 	out := &SpecialPrepaymentSuggestion{
@@ -405,8 +399,8 @@ func (s *VatReturnService) SuggestedSpecialPrepayment(ctx context.Context, year 
 
 // List liefert die gespeicherten Anmeldungen eines Jahres.
 func (s *VatReturnService) List(ctx context.Context, year int) ([]domain.VatReturn, error) {
-	if year <= 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	return s.returnRepo.FindByFiscalYear(ctx, year)
 }

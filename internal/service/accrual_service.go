@@ -31,7 +31,6 @@ type AccrualService struct {
 	auditRepo    domain.AuditRepository
 	closingSvc   *ClosingService
 	receipts     closingReceiptFiler
-	fiscalYear   int
 }
 
 // NewAccrualService wires die Rechnungsabgrenzung.
@@ -42,7 +41,6 @@ func NewAccrualService(
 	settingsRepo domain.SettingsRepository,
 	auditRepo domain.AuditRepository,
 	closingSvc *ClosingService,
-	fiscalYear int,
 ) *AccrualService {
 	return &AccrualService{
 		accrualRepo:  accrualRepo,
@@ -51,12 +49,8 @@ func NewAccrualService(
 		settingsRepo: settingsRepo,
 		auditRepo:    auditRepo,
 		closingSvc:   closingSvc,
-		fiscalYear:   fiscalYear,
 	}
 }
-
-// SetFiscalYear schaltet das aktive Geschäftsjahr um.
-func (s *AccrualService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // SetReceiptService gibt dem Dienst den Belegspeicher für die Eigenbelege.
 func (s *AccrualService) SetReceiptService(r closingReceiptFiler) { s.receipts = r }
@@ -155,8 +149,8 @@ type AccrualProposal struct {
 // Pflichtangabe macht. Damit ist die Abgrenzung keine Schätzung, sondern ergibt
 // sich aus dem, was ohnehin erfasst wurde.
 func (s *AccrualService) Propose(ctx context.Context, year int) (*AccrualProposal, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	fy, err := s.closingSvc.PeriodOf(ctx, year)
 	if err != nil {
@@ -297,8 +291,8 @@ type AccrualPreview struct {
 // Preview rechnet den Posten, ohne ihn zu speichern.
 func (s *AccrualService) Preview(ctx context.Context, req AccrualRequest) (*AccrualPreview, error) {
 	year := req.FiscalYear
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	fy, err := s.closingSvc.PeriodOf(ctx, year)
 	if err != nil {
@@ -660,8 +654,8 @@ func accrualReleaseExplanation(accrual *domain.Accrual, item AccrualReleaseDue) 
 
 // List liefert die im Geschäftsjahr gebildeten Posten.
 func (s *AccrualService) List(ctx context.Context, year int) ([]domain.Accrual, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	accruals, err := s.accrualRepo.FindByYear(ctx, year)
 	if err != nil {
@@ -706,12 +700,8 @@ type AccrualReport struct {
 
 // Report stellt den Bestand zu einem Stichtag zusammen.
 func (s *AccrualService) Report(ctx context.Context, cutoff string) (*AccrualReport, error) {
-	if cutoff == "" {
-		fy, err := s.closingSvc.PeriodOf(ctx, s.fiscalYear)
-		if err != nil {
-			return nil, err
-		}
-		cutoff = fy.EndDate
+	if err := domain.CheckDate("Stichtag", cutoff); err != nil {
+		return nil, err
 	}
 	// Ein Posten, dessen Bildung storniert wurde, hat keinen Bestand: er steht
 	// weder auf 1900 noch auf 3900, und der Bericht führte ihn sonst als

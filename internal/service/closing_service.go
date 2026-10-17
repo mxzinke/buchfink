@@ -46,9 +46,8 @@ type ClosingService struct {
 	currency CurrencyReverser
 	// revenue ist die GuV des Vorjahres. Sie belegt den Vorjahresumsatz vor,
 	// nach dem sich die Übergangsfrist des § 27 Abs. 38 UStG richtet.
-	revenue    RevenueSource
-	now        func() time.Time
-	fiscalYear int
+	revenue RevenueSource
+	now     func() time.Time
 }
 
 // NewClosingService wires the Jahresabschluss.
@@ -62,7 +61,6 @@ func NewClosingService(
 	festschreibungRepo domain.FestschreibungRepository,
 	auditRepo domain.AuditRepository,
 	journalSvc *JournalService,
-	fiscalYear int,
 ) *ClosingService {
 	return &ClosingService{
 		fiscalYearRepo:     fiscalYearRepo,
@@ -75,7 +73,6 @@ func NewClosingService(
 		auditRepo:          auditRepo,
 		journalSvc:         journalSvc,
 		now:                time.Now,
-		fiscalYear:         fiscalYear,
 	}
 }
 
@@ -141,9 +138,6 @@ type RevenueSource interface {
 // Vorjahresumsatz eine reine Eingabe.
 func (s *ClosingService) SetRevenueSource(r RevenueSource) { s.revenue = r }
 
-// SetFiscalYear updates the active fiscal year.
-func (s *ClosingService) SetFiscalYear(year int) { s.fiscalYear = year }
-
 // -------------------------------------------------------------
 // Geschäftsjahre
 // -------------------------------------------------------------
@@ -161,17 +155,18 @@ func (s *ClosingService) FiscalYears(ctx context.Context) ([]domain.FiscalYear, 
 // nachträglich nur aus zwei Angaben gewinnen — dem Beginn des Geschäftsjahres
 // aus den Unternehmensdaten und, für das Gründungsjahr, dem Beurkundungsdatum.
 // Vorhandene Einträge bleiben unberührt: ein von Hand berichtigter Zeitraum darf
-// beim nächsten Start nicht wieder überschrieben werden.
-func (s *ClosingService) EnsureFiscalYears(ctx context.Context) error {
+// beim nächsten Start nicht wieder überschrieben werden. current ist das Jahr,
+// das auch ohne Buchung bestehen soll; 0 heißt keines.
+func (s *ClosingService) EnsureFiscalYears(ctx context.Context, current int) error {
 	return s.journalSvc.InTx(ctx, func(ctx context.Context) error {
-		return s.ensureFiscalYears(ctx)
+		return s.ensureFiscalYears(ctx, current)
 	})
 }
 
-func (s *ClosingService) ensureFiscalYears(ctx context.Context) error {
+func (s *ClosingService) ensureFiscalYears(ctx context.Context, current int) error {
 	years := map[int]bool{}
-	if s.fiscalYear > 0 {
-		years[s.fiscalYear] = true
+	if current > 0 {
+		years[current] = true
 	}
 	journalYears, err := s.journalRepo.GetAvailableFiscalYears(ctx)
 	if err != nil {
@@ -235,7 +230,8 @@ func (s *ClosingService) FiscalYearCandidates(ctx context.Context) (*FiscalYearC
 		return nil, fmt.Errorf("die vorhandenen Geschäftsjahre konnten nicht gelesen werden: %w", err)
 	}
 	if len(all) == 0 {
-		all = []domain.FiscalYear{*s.derive(ctx, s.fiscalYear)}
+		current := domain.GetFiscalYearForDate(todayLocal(), s.fiscalYearStartMonth(ctx))
+		all = []domain.FiscalYear{*s.derive(ctx, current)}
 	}
 	first, last := &all[0], &all[0]
 	for i := range all {

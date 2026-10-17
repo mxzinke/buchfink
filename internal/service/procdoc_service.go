@@ -55,7 +55,6 @@ type ProcDocService struct {
 	store         *receiptstore.Store
 	renderer      DocumentRenderer
 	env           ProcDocEnvironment
-	fiscalYear    int
 }
 
 // NewProcDocService verdrahtet die Erzeugung der Verfahrensdokumentation.
@@ -66,12 +65,11 @@ func NewProcDocService(
 	migrationRepo domain.MigrationRepository,
 	auditRepo domain.AuditRepository,
 	store *receiptstore.Store,
-	fiscalYear int,
 ) *ProcDocService {
 	return &ProcDocService{
 		settingsRepo: settingsRepo, numberRepo: numberRepo,
 		procDocRepo: procDocRepo, migrationRepo: migrationRepo,
-		auditRepo: auditRepo, store: store, fiscalYear: fiscalYear,
+		auditRepo: auditRepo, store: store,
 	}
 }
 
@@ -81,9 +79,6 @@ func (s *ProcDocService) SetEnvironment(env ProcDocEnvironment) { s.env = env }
 // SetRenderer hängt den Dokumentensetzer an, mit dem die Fassung zusätzlich als
 // PDF entsteht. Ohne ihn bleibt es beim Markdown.
 func (s *ProcDocService) SetRenderer(r DocumentRenderer) { s.renderer = r }
-
-// SetFiscalYear setzt das Geschäftsjahr, für das erzeugt wird.
-func (s *ProcDocService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // OrganisationTexts liest die unternehmensindividuellen Freitexte, mit Mustern
 // dort, wo noch nichts erfasst ist.
@@ -151,13 +146,13 @@ func (s *ProcDocService) SaveOrganisationTexts(ctx context.Context, texts domain
 // Scheitert der Satz, gilt die Fassung trotzdem: der Nachweis nach GoBD Rz. 151
 // richtet sich nach dem Inhalt und nicht nach dem Layout. Der Grund steht dann in PDFNote und im
 // Protokoll, statt die Erzeugung an einer Formfrage scheitern zu lassen.
-func (s *ProcDocService) Generate(ctx context.Context, now time.Time) (*ProcDocResult, error) {
+func (s *ProcDocService) Generate(ctx context.Context, year int, now time.Time) (*ProcDocResult, error) {
 	if now.IsZero() {
 		now = time.Now().UTC()
 	}
 	now = now.UTC()
 
-	input, err := s.buildInput(ctx, now)
+	input, err := s.buildInput(ctx, year, now)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +164,7 @@ func (s *ProcDocService) Generate(ctx context.Context, now time.Time) (*ProcDocR
 	doc := domain.ProcedureDocumentation{
 		Version:     input.Version,
 		CreatedAt:   now,
-		FiscalYear:  s.fiscalYear,
+		FiscalYear:  input.FiscalYear,
 		CompanyName: input.CompanyName,
 		AppVersion:  input.AppVersion,
 		RuleVersion: input.RuleVersion,
@@ -316,7 +311,7 @@ func (s *ProcDocService) Documentations(ctx context.Context) ([]domain.Procedure
 }
 
 // buildInput sammelt die veränderlichen Angaben.
-func (s *ProcDocService) buildInput(ctx context.Context, now time.Time) (procdoc.Input, error) {
+func (s *ProcDocService) buildInput(ctx context.Context, year int, now time.Time) (procdoc.Input, error) {
 	settings, err := s.settingsRepo.GetCompanySettings(ctx)
 	if err != nil {
 		return procdoc.Input{}, fmt.Errorf("die Stammdaten konnten nicht gelesen werden: %w", err)
@@ -327,9 +322,8 @@ func (s *ProcDocService) buildInput(ctx context.Context, now time.Time) (procdoc
 		return procdoc.Input{}, err
 	}
 
-	year := s.fiscalYear
-	if year == 0 {
-		year = settings.FiscalYear
+	if err := requireYear(year); err != nil {
+		return procdoc.Input{}, err
 	}
 	from, to := fiscalYearBounds(year, settings.FiscalYearStartMonth)
 

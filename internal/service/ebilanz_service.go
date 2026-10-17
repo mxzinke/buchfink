@@ -13,7 +13,7 @@ import (
 // Der Export kennt die Anlagenbuchhaltung darüber und nicht weiter: er braucht
 // eine Auswertung, keine Kartei.
 type AnlagenspiegelSource interface {
-	Anlagenspiegel(ctx context.Context) (*domain.Anlagenspiegel, error)
+	Anlagenspiegel(ctx context.Context, year int) (*domain.Anlagenspiegel, error)
 }
 
 // EBilanzService erzeugt die XBRL-Instanz der E-Bilanz (§ 5b EStG).
@@ -27,7 +27,6 @@ type EBilanzService struct {
 	settingsRepo domain.SettingsRepository
 	auditRepo    domain.AuditRepository
 	assets       AnlagenspiegelSource
-	fiscalYear   int
 }
 
 // NewEBilanzService wires the E-Bilanz export.
@@ -35,22 +34,17 @@ func NewEBilanzService(
 	statementSvc *StatementService,
 	settingsRepo domain.SettingsRepository,
 	auditRepo domain.AuditRepository,
-	fiscalYear int,
 ) *EBilanzService {
 	return &EBilanzService{
 		statementSvc: statementSvc,
 		settingsRepo: settingsRepo,
 		auditRepo:    auditRepo,
-		fiscalYear:   fiscalYear,
 	}
 }
 
 // SetAnlagenspiegelSource verdrahtet den Anlagenspiegel in den Export. Ohne sie
 // entsteht die Instanz wie sonst, nur ohne den Nachweis zum Anlagevermögen.
 func (s *EBilanzService) SetAnlagenspiegelSource(src AnlagenspiegelSource) { s.assets = src }
-
-// SetFiscalYear updates the active fiscal year.
-func (s *EBilanzService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // MappingReport ist der Zuordnungsbericht vor dem Export: welches Konto unter
 // welcher Gliederungsposition und welchem Taxonomie-Element erscheint, und was
@@ -75,7 +69,7 @@ func (s *EBilanzService) ExportXBRL(ctx context.Context, year int) (string, erro
 	// Auswertung, entsteht die Instanz ohne ihn — eine E-Bilanz an einer nicht
 	// rechenbaren Kartei scheitern zu lassen hülfe niemandem.
 	if s.assets != nil {
-		in.Anlagenspiegel, _ = s.assets.Anlagenspiegel(ctx)
+		in.Anlagenspiegel, _ = s.assets.Anlagenspiegel(ctx, in.FiscalYear)
 	}
 	// Die Überleitungsrechnung gehört dazu, sobald Handels- und Steuerbilanz
 	// auseinanderfallen: die übermittelten Zahlen sind handelsrechtliche, und
@@ -157,8 +151,8 @@ func (s *EBilanzService) ExportOpeningXBRL(ctx context.Context, cutoff string) (
 
 // input beschafft alles, was in die Instanz eingeht.
 func (s *EBilanzService) input(ctx context.Context, year int) (ebilanz.InstanceInput, error) {
-	if year <= 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return ebilanz.InstanceInput{}, err
 	}
 	if s.statementSvc == nil {
 		return ebilanz.InstanceInput{}, fmt.Errorf("die Gliederung ist nicht verfügbar")

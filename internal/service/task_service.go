@@ -49,7 +49,7 @@ type TaskBankSource interface {
 
 // TaskReceiptSource liefert die abgelegten Belege eines Status.
 type TaskReceiptSource interface {
-	List(ctx context.Context, status domain.ReceiptStatus) ([]domain.Receipt, error)
+	List(ctx context.Context, year int, status domain.ReceiptStatus) ([]domain.Receipt, error)
 }
 
 // TaskBackupSource liefert die letzte erfolgreiche Sicherung und die jüngsten
@@ -86,7 +86,10 @@ type TaskOptions struct {
 	// Today ist der Tag, gegen den gerechnet wird. Leer heißt: heute. Er ist
 	// ein Parameter, weil eine Frist, die sich beim Testen nicht setzen lässt,
 	// nicht geprüft wird.
-	Today          string
+	Today string
+	// FiscalYear ist das Geschäftsjahr der Liste. Leer heißt: das Jahr, in dem
+	// Today liegt.
+	FiscalYear     int
 	ReadOnlyUntil  string
 	ReadOnlyReason string
 }
@@ -105,8 +108,6 @@ type TaskService struct {
 	backups       TaskBackupSource
 	carryForward  TaskCarryForwardSource
 	appropriation TaskAppropriationSource
-
-	fiscalYear int
 }
 
 // NewTaskService baut die Aufgabenliste über den Einstellungen auf; die Quellen
@@ -115,12 +116,9 @@ type TaskService struct {
 // Einzeln, weil jede für sich fehlen darf: ein Mandant ohne Bankkonto hat
 // keine offenen Umsätze, und eine Aufgabenliste, die deshalb gar nicht
 // entsteht, wäre der schlechteste Umgang damit.
-func NewTaskService(settingsRepo domain.SettingsRepository, fiscalYear int) *TaskService {
-	return &TaskService{settingsRepo: settingsRepo, fiscalYear: fiscalYear}
+func NewTaskService(settingsRepo domain.SettingsRepository) *TaskService {
+	return &TaskService{settingsRepo: settingsRepo}
 }
-
-// SetFiscalYear updates the year the list is built for.
-func (s *TaskService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 func (s *TaskService) SetCheckSource(src TaskCheckSource)             { s.checks = src }
 func (s *TaskService) SetDeadlineSource(src TaskDeadlineSource)       { s.deadlines = src }
@@ -162,19 +160,23 @@ func (s *TaskService) Tasks(ctx context.Context, opts TaskOptions) (*domain.Task
 	if err != nil {
 		return nil, err
 	}
+	year := opts.FiscalYear
+	if year == 0 {
+		year = domain.GetFiscalYearForDate(today, cfg.FiscalYearStartMonth)
+	}
 
 	s.addReadOnly(list, opts)
 	// Die Fristen zuerst: die Zeile „Januar 2026 festschreiben" entsteht dort,
 	// und die Befunde des Prüflaufs zur Festschreibung desselben Monats sind
 	// dann dieselbe Arbeit ein zweites Mal (siehe addCheckFindings).
-	s.addDeadlines(ctx, list, today, horizon)
-	s.addCheckFindings(ctx, list, today)
-	s.addBank(ctx, list)
-	s.addReceipts(ctx, list, today, cfg)
+	s.addDeadlines(ctx, year, list, today, horizon)
+	s.addCheckFindings(ctx, year, list, today)
+	s.addBank(ctx, year, list)
+	s.addReceipts(ctx, year, list, today, cfg)
 	s.addOverdueReceivables(ctx, list, today)
 	s.addExemptions(ctx, list, today)
 	s.addBackup(ctx, list, today)
-	s.addYearEnd(ctx, list, today)
+	s.addYearEnd(ctx, year, list, today)
 
 	list.Sort()
 	list.EnsureLists()
@@ -220,11 +222,11 @@ func (s *TaskService) addReadOnly(list *domain.TaskList, opts TaskOptions) {
 // Je Regel und nicht je Befund: fünfzig Belege ohne Buchung sind eine Aufgabe
 // und nicht fünfzig. Die Regel hat den Schlüssel, damit die Oberfläche zur
 // zugehörigen Stelle springen kann.
-func (s *TaskService) addCheckFindings(ctx context.Context, list *domain.TaskList, today string) {
+func (s *TaskService) addCheckFindings(ctx context.Context, year int, list *domain.TaskList, today string) {
 	if s.checks == nil {
 		return
 	}
-	run, err := s.checks.Preview(ctx, CheckRequest{CutoffDate: today})
+	run, err := s.checks.Preview(ctx, CheckRequest{FiscalYear: year, CutoffDate: today})
 	if err != nil || run == nil {
 		return
 	}
@@ -367,15 +369,15 @@ func checkRuleTask(rule string) (title, why, reference string) {
 // Dezembers Ende Januar. Wer im Januar nur das neue Geschäftsjahr abfragte,
 // sähe im Monat der meisten Fristen die wenigsten. Aus dem Vorjahr kommt
 // deshalb mit, was jetzt noch aussteht — nicht sein ganzer Rückstand.
-func (s *TaskService) addDeadlines(ctx context.Context, list *domain.TaskList, today, horizon string) {
+func (s *TaskService) addDeadlines(ctx context.Context, year int, list *domain.TaskList, today, horizon string) {
 	if s.deadlines == nil {
 		return
 	}
-	deadlines, err := s.deadlines.Deadlines(ctx, s.fiscalYear)
+	deadlines, err := s.deadlines.Deadlines(ctx, year)
 	if err != nil {
 		return
 	}
-	if previous, err := s.deadlines.Deadlines(ctx, s.fiscalYear-1); err == nil {
+	if previous, err := s.deadlines.Deadlines(ctx, year-1); err == nil {
 		// Die Grenze nach unten ist derselbe Vorlauf, mit dem die Liste nach
 		// oben blickt: eine Frist, die länger als dreißig Tage verstrichen ist,
 		// gehört auf die Fristenseite und nicht auf den ersten Bildschirm.
@@ -455,11 +457,11 @@ func commitOpenFrom(key string) string {
 }
 
 // addBank meldet die Bankumsätze ohne Zuordnung.
-func (s *TaskService) addBank(ctx context.Context, list *domain.TaskList) {
+func (s *TaskService) addBank(ctx context.Context, year int, list *domain.TaskList) {
 	if s.bank == nil {
 		return
 	}
-	transactions, err := s.bank.GetTransactions(ctx, s.fiscalYear)
+	transactions, err := s.bank.GetTransactions(ctx, year)
 	if err != nil {
 		return
 	}
@@ -488,7 +490,7 @@ func (s *TaskService) addBank(ctx context.Context, list *domain.TaskList) {
 // addReceipts meldet die abgelegten Belege ohne Buchung — und die, die länger
 // liegen als die Erfassungsfrist.
 func (s *TaskService) addReceipts(
-	ctx context.Context, list *domain.TaskList, today string, cfg *domain.CompanySettings,
+	ctx context.Context, year int, list *domain.TaskList, today string, cfg *domain.CompanySettings,
 ) {
 	if s.receipts == nil {
 		return
@@ -496,7 +498,7 @@ func (s *TaskService) addReceipts(
 	// Alle Belege des Jahres und nicht nur die abgelegten: der
 	// Leistungsnachweis fehlt auch an einem gebuchten Beleg, und gerade dort
 	// fällt er sonst niemandem mehr auf.
-	receipts, err := s.receipts.List(ctx, "")
+	receipts, err := s.receipts.List(ctx, year, "")
 	if err != nil {
 		return
 	}
@@ -764,11 +766,11 @@ func (s *TaskService) addFailedBackup(ctx context.Context, list *domain.TaskList
 
 // addYearEnd meldet die drei Aufgaben am Jahreswechsel: die Vortragsdifferenz,
 // den nicht festgestellten Vorjahresabschluss und die offene Ergebnisverwendung.
-func (s *TaskService) addYearEnd(ctx context.Context, list *domain.TaskList, today string) {
-	priorYear := s.fiscalYear - 1
+func (s *TaskService) addYearEnd(ctx context.Context, year int, list *domain.TaskList, today string) {
+	priorYear := year - 1
 
 	if s.carryForward != nil {
-		if preview, err := s.carryForward.CarryForwardState(ctx, s.fiscalYear); err == nil && preview != nil {
+		if preview, err := s.carryForward.CarryForwardState(ctx, year); err == nil && preview != nil {
 			switch {
 			case !preview.IsBalanced:
 				list.Add(domain.Task{

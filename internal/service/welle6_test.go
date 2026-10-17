@@ -406,7 +406,7 @@ func TestBlockedContactStaysOutOfSelections(t *testing.T) {
 		t.Errorf("die Antwort an die betroffene Person muss die Norm nennen: %q", answer)
 	}
 
-	selectable, err := env.contacts.SelectableContacts(ctx)
+	selectable, err := env.contacts.SelectableContacts(ctx, 2026)
 	if err != nil {
 		t.Fatalf("die Auswahl ließ sich nicht lesen: %v", err)
 	}
@@ -427,7 +427,7 @@ func TestBlockedContactStaysOutOfSelections(t *testing.T) {
 
 	// In der Kontaktliste bleibt er sichtbar: die Buchungen, in denen er steht,
 	// sind aufzubewahren.
-	all, _ := env.contacts.GetContacts(ctx)
+	all, _ := env.contacts.GetContacts(ctx, 2026)
 	var stillThere bool
 	for _, c := range all {
 		if c.ID == block.ID {
@@ -450,7 +450,6 @@ func newProcDocService(t *testing.T, env *testEnv) *ProcDocService {
 		repository.NewMigrationRepository(env.db),
 		repository.NewAuditRepository(env.db),
 		env.store,
-		2026,
 	)
 	svc.SetEnvironment(ProcDocEnvironment{
 		DataDir:      env.dataDir,
@@ -465,7 +464,7 @@ func TestProcedureDocumentationCoversAllParts(t *testing.T) {
 	svc := newProcDocService(t, env)
 	ctx := context.Background()
 
-	result, err := svc.Generate(ctx, time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC))
+	result, err := svc.Generate(ctx, 2026, time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("die Verfahrensdokumentation ließ sich nicht erzeugen: %v", err)
 	}
@@ -521,11 +520,11 @@ func TestProcedureDocumentationVersionsPerDay(t *testing.T) {
 	ctx := context.Background()
 	day := time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC)
 
-	first, err := svc.Generate(ctx, day)
+	first, err := svc.Generate(ctx, 2026, day)
 	if err != nil {
 		t.Fatalf("erste Fassung: %v", err)
 	}
-	second, err := svc.Generate(ctx, day.Add(2*time.Hour))
+	second, err := svc.Generate(ctx, 2026, day.Add(2*time.Hour))
 	if err != nil {
 		t.Fatalf("zweite Fassung: %v", err)
 	}
@@ -578,7 +577,7 @@ func TestOrganisationTextsComeWithSamplesAndAreLogged(t *testing.T) {
 		t.Errorf("das Nachher muss den neuen Text enthalten: %q", entries[0].After)
 	}
 
-	result, err := svc.Generate(ctx, time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC))
+	result, err := svc.Generate(ctx, 2026, time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("die Verfahrensdokumentation ließ sich nicht erzeugen: %v", err)
 	}

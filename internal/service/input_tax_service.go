@@ -30,7 +30,6 @@ type InputTaxService struct {
 	settingsRepo domain.SettingsRepository
 	closingSvc   *ClosingService
 	auditRepo    domain.AuditRepository
-	fiscalYear   int
 }
 
 func (s *InputTaxService) runInTx(ctx context.Context, fn func(context.Context) error) error {
@@ -45,17 +44,12 @@ func NewInputTaxService(
 	settingsRepo domain.SettingsRepository,
 	closingSvc *ClosingService,
 	auditRepo domain.AuditRepository,
-	fiscalYear int,
 ) *InputTaxService {
 	return &InputTaxService{
 		repo: repo, journalSvc: journalSvc, journalRepo: journalRepo,
 		settingsRepo: settingsRepo, closingSvc: closingSvc, auditRepo: auditRepo,
-		fiscalYear: fiscalYear,
 	}
 }
-
-// SetFiscalYear schaltet das aktive Geschäftsjahr um.
-func (s *InputTaxService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // -------------------------------------------------------------------------
 // Aufnahme ins Verzeichnis
@@ -253,8 +247,8 @@ func (y *InputTaxCorrectionYear) EnsureLists() {
 
 // Year stellt das Verzeichnis für ein Geschäftsjahr zusammen.
 func (s *InputTaxService) Year(ctx context.Context, year int) (*InputTaxCorrectionYear, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	out := &InputTaxCorrectionYear{FiscalYear: year}
 	out.EnsureLists()
@@ -422,8 +416,8 @@ func (s *InputTaxService) saveUsage(
 		return nil, fmt.Errorf("der Eintrag %d wurde nicht gefunden: %w", req.CorrectionID, err)
 	}
 	year := req.FiscalYear
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	if !correction.CoversYear(year) {
 		return nil, fmt.Errorf(
@@ -506,8 +500,8 @@ func (s *InputTaxService) bookYear(ctx context.Context, year int) (*InputTaxCorr
 	if s.journalSvc == nil {
 		return nil, fmt.Errorf("der Buchungsweg ist nicht eingerichtet")
 	}
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	view, err := s.Year(ctx, year)
 	if err != nil {

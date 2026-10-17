@@ -176,6 +176,10 @@ func (b *BuchfinkBridge) GetAvailableFiscalYears() []int {
 				years = append(years, fy.Year)
 			}
 		}
+		// Das angesehene Jahr steht immer zur Wahl, auch ohne Buchung.
+		if view := b.viewYear(); !known[view] {
+			years = append(years, view)
+		}
 		sort.Ints(years)
 		return years, nil
 	})
@@ -188,36 +192,25 @@ func (b *BuchfinkBridge) GetAvailableFiscalYears() []int {
 	return years
 }
 
-// fiscalYear ist das Geschäftsjahr der Ansicht: das des offenen Mandanten,
-// sonst das zuletzt angesehene oder das laufende Kalenderjahr.
-func (b *BuchfinkBridge) fiscalYear() int {
-	if t, release, err := b.host.Acquire(context.Background()); err == nil {
-		defer release()
-		return t.FiscalYear()
-	}
-	if year := b.host.Config().LastFiscalYear; year > 0 {
-		return year
-	}
-	return time.Now().Year()
-}
-
+// GetFiscalYear ist das Geschäftsjahr der Ansicht.
 func (b *BuchfinkBridge) GetFiscalYear() int {
-	return b.fiscalYear()
+	return b.viewYear()
 }
 
 // SetFiscalYear stellt die Ansicht auf ein Geschäftsjahr um und merkt es sich
-// für den nächsten Start.
+// für den nächsten Start. Das Jahr ist ein Filter der Oberfläche; die Dienste
+// bekommen es mit jedem Aufruf.
 func (b *BuchfinkBridge) SetFiscalYear(year int) error {
-	t, release, err := b.host.Acquire(context.Background())
-	if err != nil {
-		return err
+	if year < 1900 || year > 9999 {
+		return fmt.Errorf("%d ist kein Geschäftsjahr", year)
 	}
-	defer release()
-	if err := t.SetFiscalYear(year); err != nil {
+	if _, release, err := b.host.Acquire(context.Background()); err != nil {
 		return err
+	} else {
+		release()
 	}
 	if err := b.host.SetLastFiscalYear(year); err != nil {
-		return fmt.Errorf("das Geschäftsjahr ist gewechselt, ließ sich für den nächsten Start aber nicht merken: %w", err)
+		return fmt.Errorf("das Geschäftsjahr ließ sich nicht merken: %w", err)
 	}
 	return nil
 }
@@ -258,19 +251,19 @@ func (b *BuchfinkBridge) UpdateCompanySettings(settings domain.CompanySettings) 
 
 func (b *BuchfinkBridge) GetAccounts() ([]domain.Account, error) {
 	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.Account, error) {
-		return s.Accounting.GetAccounts(ctx)
+		return s.Accounting.GetAccounts(ctx, b.viewYear())
 	})
 }
 
 func (b *BuchfinkBridge) GetAccountLedger(accountNumber string) (*domain.AccountLedger, error) {
 	return read(b, func(ctx context.Context, s *core.Services) (*domain.AccountLedger, error) {
-		return s.Accounting.GetAccountLedger(ctx, accountNumber)
+		return s.Accounting.GetAccountLedger(ctx, b.viewYear(), accountNumber)
 	})
 }
 
 func (b *BuchfinkBridge) GetSuSaOverview() (*domain.SuSaOverview, error) {
 	return read(b, func(ctx context.Context, s *core.Services) (*domain.SuSaOverview, error) {
-		return s.Accounting.GetSuSaOverview(ctx)
+		return s.Accounting.GetSuSaOverview(ctx, b.viewYear())
 	})
 }
 
@@ -290,7 +283,7 @@ func (b *BuchfinkBridge) GetTaxTreatments(direction string) []domain.TaxTreatmen
 // GetPaymentAccounts lists the accounts that can settle a document immediately.
 func (b *BuchfinkBridge) GetPaymentAccounts() ([]domain.Account, error) {
 	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.Account, error) {
-		all, err := s.Accounting.GetAccounts(ctx)
+		all, err := s.Accounting.GetAccounts(ctx, b.viewYear())
 		if err != nil {
 			return nil, err
 		}
@@ -310,7 +303,7 @@ func (b *BuchfinkBridge) GetPaymentAccounts() ([]domain.Account, error) {
 
 func (b *BuchfinkBridge) GetJournalEntries() ([]domain.JournalEntry, error) {
 	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.JournalEntry, error) {
-		return s.Accounting.GetEntries(ctx)
+		return s.Accounting.GetEntries(ctx, b.viewYear())
 	})
 }
 
@@ -353,7 +346,7 @@ func (b *BuchfinkBridge) GetFinancialSummary() (*domain.FinancialSummary, error)
 		empty.EnsureLists()
 		return empty, nil
 	}, func(ctx context.Context, s *core.Services) (*domain.FinancialSummary, error) {
-		return s.Accounting.GetFinancialSummary(ctx)
+		return s.Accounting.GetFinancialSummary(ctx, b.viewYear())
 	})
 }
 
@@ -363,7 +356,7 @@ func (b *BuchfinkBridge) GetFinancialSummary() (*domain.FinancialSummary, error)
 
 func (b *BuchfinkBridge) GetBankTransactions() ([]domain.BankTransaction, error) {
 	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.BankTransaction, error) {
-		return s.Bank.GetTransactions(ctx, s.FiscalYear())
+		return s.Bank.GetTransactions(ctx, b.viewYear())
 	})
 }
 
@@ -387,7 +380,7 @@ func (b *BuchfinkBridge) IgnoreBankTransaction(bankTxID uint) error {
 
 func (b *BuchfinkBridge) GetContacts() ([]domain.Contact, error) {
 	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.Contact, error) {
-		return s.Contacts.GetContacts(ctx)
+		return s.Contacts.GetContacts(ctx, b.viewYear())
 	})
 }
 
@@ -402,7 +395,7 @@ func (b *BuchfinkBridge) SaveContact(c domain.Contact) (*domain.Contact, error) 
 
 func (b *BuchfinkBridge) GetInvoices() ([]domain.Invoice, error) {
 	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.Invoice, error) {
-		return s.Invoices.GetInvoices(ctx, s.FiscalYear())
+		return s.Invoices.GetInvoices(ctx, b.viewYear())
 	})
 }
 
@@ -494,7 +487,7 @@ func (b *BuchfinkBridge) RemoveReceiptFile(receiptID, fileID uint) (*domain.Rece
 // returns all of them.
 func (b *BuchfinkBridge) GetReceipts(status string) ([]domain.Receipt, error) {
 	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.Receipt, error) {
-		return s.Receipts.List(ctx, domain.ReceiptStatus(status))
+		return s.Receipts.List(ctx, b.viewYear(), domain.ReceiptStatus(status))
 	})
 }
 
@@ -654,7 +647,7 @@ func (b *BuchfinkBridge) GetLegalForms() []domain.LegalFormInfo {
 
 func (b *BuchfinkBridge) ExportEBilanzXBRL() (string, error) {
 	return read(b, func(ctx context.Context, s *core.Services) (string, error) {
-		return s.EBilanz.ExportXBRL(ctx, s.FiscalYear())
+		return s.EBilanz.ExportXBRL(ctx, b.viewYear())
 	})
 }
 

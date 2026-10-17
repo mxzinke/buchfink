@@ -22,7 +22,6 @@ func (e *testEnv) vatReturns(t *testing.T) *VatReturnService {
 		repository.NewFestschreibungRepository(e.db),
 		repository.NewVatReturnRepository(e.db),
 		repository.NewAuditRepository(e.db),
-		e.fiscalYear,
 	)
 }
 

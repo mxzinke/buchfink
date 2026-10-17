@@ -31,8 +31,6 @@ type Options struct {
 	// Generation zählt die Mandantenwechsel des Hosts. Ein Aufrufer, der sich
 	// eine Generation merkt, erkennt daran einen Wechsel.
 	Generation uint64
-	// InitialYear gilt, wenn die Unternehmensdaten kein Geschäftsjahr nennen.
-	InitialYear int
 	// Renderer setzt Rechnungen und Abschlüsse. Ohne Angabe bekommt der
 	// Mandant einen eigenen, der mit ihm geschlossen wird.
 	Renderer *invoice.Renderer
@@ -73,11 +71,12 @@ type Tenant struct {
 	backupDir   func() string
 	logger      *slog.Logger
 
-	write  writeLock
-	leases leases
-	// stateMu schützt das Geschäftsjahr, nach dem die Dienste ohne Angabe
-	// filtern: Lesen und Schreiben halten es geteilt, SetFiscalYear allein.
-	stateMu  sync.RWMutex
+	// startYear ist das Geschäftsjahr, mit dem die Ansicht nach dem Öffnen
+	// beginnt. Die Dienste kennen es nicht.
+	startYear int
+
+	write    writeLock
+	leases   leases
 	backupMu sync.Mutex
 
 	closeOnce sync.Once
@@ -106,45 +105,46 @@ func Open(ctx context.Context, dataDir string, o Options) (*Tenant, error) {
 		renderer, own = invoice.NewRenderer(), true
 	}
 	info := TenantInfo{ID: o.TenantID, Name: o.TenantName, DataDir: dataDir}
-	year := initialYear(ctx, repository.NewSettingsRepository(db), o.InitialYear, time.Now())
 
 	t := &Tenant{
 		info: info, gen: o.Generation,
 		db: db, reader: reader, tx: repository.NewTxRunner(db),
-		svc:      wire(db, info, year, renderer, o),
+		svc:      wire(db, info, renderer, o),
 		renderer: renderer, ownRenderer: own,
 		examiner: o.Examiner, backupDir: o.BackupDir, logger: logger,
 		write: newWriteLock(),
 	}
 
 	t.svc.Backup.SetRecorder(t.recordInWrite)
+	t.startYear = startYear(ctx, repository.NewSettingsRepository(db), time.Now())
 
-	// Ältere Bestände kennen das Geschäftsjahr nur als Zahl an der Buchung.
+	// Das Geschäftsjahr der Unternehmensdaten besteht auch ohne Buchung.
 	// Scheitert das Anlegen, bleibt der Mandant benutzbar; die Ansicht
 	// „Jahresabschluss" legt das Jahr beim ersten Aufruf an.
 	system := actor.WithChannel(ctx, actor.ChannelSystem)
 	if err := t.Write(system, func(ctx context.Context, s *Services) error {
-		return s.Closing.EnsureFiscalYears(ctx)
+		return s.Closing.EnsureFiscalYears(ctx, t.startYear)
 	}, ExaminerExempt()); err != nil {
 		logger.Warn("Geschäftsjahre konnten nicht angelegt werden", "mandant", info.ID, "fehler", err)
 	}
 	return t, nil
 }
 
-// initialYear ist das Geschäftsjahr, mit dem die Dienste beginnen: das der
-// Unternehmensdaten, sonst das des heutigen Tages nach Beginnmonat.
-func initialYear(ctx context.Context, settings domain.SettingsRepository, fallback int, now time.Time) int {
+// startYear ist das Geschäftsjahr der Unternehmensdaten, sonst das des
+// heutigen Tages nach Beginnmonat.
+func startYear(ctx context.Context, settings domain.SettingsRepository, now time.Time) int {
 	if s, err := settings.GetCompanySettings(ctx); err == nil && s != nil {
 		if s.FiscalYear > 0 {
 			return s.FiscalYear
 		}
 		return domain.GetFiscalYearForDate(now.Format("2006-01-02"), s.FiscalYearStartMonth)
 	}
-	if fallback > 0 {
-		return fallback
-	}
 	return now.Year()
 }
+
+// StartYear ist das Geschäftsjahr, mit dem die Ansicht nach dem Öffnen
+// beginnt: das der Unternehmensdaten, sonst das des heutigen Tages.
+func (t *Tenant) StartYear() int { return t.startYear }
 
 // Close wartet auf laufende Vorgänge und schließt die Datenbank. Danach
 // liefert jeder Aufruf ErrTenantClosing.
@@ -191,8 +191,6 @@ func (t *Tenant) Read(ctx context.Context, fn func(context.Context, *Services) e
 		return err
 	}
 	defer release()
-	t.stateMu.RLock()
-	defer t.stateMu.RUnlock()
 	return repository.RunReadOnly(ctx, t.reader, func(ctx context.Context) error {
 		return fn(ctx, t.svc)
 	})
@@ -232,8 +230,6 @@ func (t *Tenant) Write(ctx context.Context, fn func(context.Context, *Services) 
 		return err
 	}
 	defer t.write.unlock()
-	t.stateMu.RLock()
-	defer t.stateMu.RUnlock()
 
 	if !o.examinerExempt {
 		if err := t.ensureWritable(); err != nil {
@@ -271,31 +267,6 @@ func examinerError(state ExaminerState) error {
 		message += fmt.Sprintf(" (Grund: %s)", state.Reason)
 	}
 	return errors.New(message + ".")
-}
-
-// FiscalYear ist das Geschäftsjahr, nach dem die Dienste ohne Angabe filtern.
-func (t *Tenant) FiscalYear() int {
-	t.stateMu.RLock()
-	defer t.stateMu.RUnlock()
-	return t.svc.FiscalYear()
-}
-
-// SetFiscalYear stellt die Dienste auf ein Geschäftsjahr um. Es wartet, bis
-// laufende Vorgänge fertig sind; im Kontext eines Vorgangs gerufen, wartete es
-// auf sich selbst.
-func (t *Tenant) SetFiscalYear(year int) error {
-	if year < 1900 || year > 9999 {
-		return fmt.Errorf("%d ist kein Geschäftsjahr", year)
-	}
-	release, err := t.leases.acquire()
-	if err != nil {
-		return err
-	}
-	defer release()
-	t.stateMu.Lock()
-	defer t.stateMu.Unlock()
-	t.svc.setFiscalYear(year)
-	return nil
 }
 
 // germanDate macht aus 2026-06-30 den 30.06.2026.

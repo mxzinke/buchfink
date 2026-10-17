@@ -249,7 +249,7 @@ func TestCurrencyValuationFollowsTheOneYearRule(t *testing.T) {
 	svc.SetOpenItemSource(NewPaymentService(
 		env.journal, env.journalRepo,
 		repository.NewPaymentAllocationRepository(env.db),
-		env.contactRepo, repository.NewBankRepository(env.db), env.fiscalYear))
+		env.contactRepo, repository.NewBankRepository(env.db)))
 
 	// Der Buchkurs ist 1,10 USD je Euro, der Stichtagskurs 1,00. Eine Forderung
 	// über 11.000 USD stand mit 10.000 € in den Büchern und ist am Stichtag

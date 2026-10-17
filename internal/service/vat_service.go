@@ -19,30 +19,29 @@ import (
 // official return needs its own form and its own validation.
 type VatService struct {
 	journalRepo domain.JournalRepository
-	fiscalYear  int
 }
 
 // NewVatService creates the VAT aggregation service.
-func NewVatService(journalRepo domain.JournalRepository, fiscalYear int) *VatService {
-	return &VatService{journalRepo: journalRepo, fiscalYear: fiscalYear}
+func NewVatService(journalRepo domain.JournalRepository) *VatService {
+	return &VatService{journalRepo: journalRepo}
 }
 
-// SetFiscalYear updates the year the figures are computed for.
-func (s *VatService) SetFiscalYear(year int) { s.fiscalYear = year }
-
-// Summary computes the VAT figures for a date range. Empty bounds mean the
-// whole fiscal year.
-func (s *VatService) Summary(ctx context.Context, from, to string) (*domain.VatSummary, error) {
+// Summary computes the VAT figures of a fiscal year for a date range. Empty
+// bounds mean the whole fiscal year.
+func (s *VatService) Summary(ctx context.Context, year int, from, to string) (*domain.VatSummary, error) {
+	if err := requireYear(year); err != nil {
+		return nil, err
+	}
 	// Der Zeitraum wird in der Abfrage eingegrenzt, nicht hinterher: eine
 	// monatliche Voranmeldung liest sonst ein ganzes Jahr, um einen Monat
 	// auszuweisen.
-	entries, err := s.journalRepo.FindByBookingDateRange(ctx, s.fiscalYear, from, to)
+	entries, err := s.journalRepo.FindByBookingDateRange(ctx, year, from, to)
 	if err != nil {
 		return nil, err
 	}
 
 	summary := &domain.VatSummary{
-		FiscalYear: s.fiscalYear,
+		FiscalYear: year,
 		PeriodFrom: from,
 		PeriodTo:   to,
 	}

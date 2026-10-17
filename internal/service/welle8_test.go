@@ -184,7 +184,7 @@ func TestFailedManualEntryLeavesNoSelfIssuedReceipt(t *testing.T) {
 	if err == nil {
 		t.Fatal("eine Buchung auf ein unbekanntes Konto darf nicht entstehen")
 	}
-	receipts, err := env.receipts.List(ctx, "")
+	receipts, err := env.receipts.List(ctx, 2026, "")
 	if err != nil {
 		t.Fatalf("Belege lesen: %v", err)
 	}
@@ -695,7 +695,7 @@ func companySettingsFor(t *testing.T, env *testEnv) *domain.CompanySettings {
 // festschreiben" (UNV-02 K2).
 func TestNotCommittedPeriodBecomesATask(t *testing.T) {
 	env := newTestEnv(t)
-	svc := NewTaskService(repository.NewSettingsRepository(env.db), 2026)
+	svc := NewTaskService(repository.NewSettingsRepository(env.db))
 	svc.SetCheckSource(stubCheckSource{run: &domain.CheckRun{Findings: []domain.CheckFinding{{
 		Rule: domain.CheckRulePeriodNotCommitted, Severity: domain.CheckWarning,
 		ObjectID: "2026-01", ObjectName: "Januar 2026",

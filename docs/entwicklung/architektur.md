@@ -122,7 +122,8 @@ Regeln, die diese Schichtung stützen:
    Dienste. Jeder Zugriff geht über `Tenant.Read` (lesende Transaktion, ohne
    Sperre) oder `Tenant.Write` (Schreibsperre, Prüfermodus, eine Transaktion je
    Vorgang) und nennt seinen Erfassungsweg (`ui`, `system`, `agent:<kurzname>`).
-   Das Geschäftsjahr der Ansicht steht noch als Zustand in den Diensten.
+   Das Geschäftsjahr ist eine Angabe jedes Aufrufs; kein Dienst hält eines,
+   das Jahr der Ansicht kennt nur die Bridge.
 
 ### Prüfpunkte mit Datum
 

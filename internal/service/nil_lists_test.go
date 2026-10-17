@@ -120,7 +120,7 @@ func TestServiceResultsHaveNoNilLists(t *testing.T) {
 	}
 	assertNoNilSlices(t, "Größenklasse", size)
 
-	tasks, err := NewTaskService(repository.NewSettingsRepository(env.db), 2026).
+	tasks, err := NewTaskService(repository.NewSettingsRepository(env.db)).
 		Tasks(ctx, TaskOptions{Today: "2026-04-17"})
 	if err != nil {
 		t.Fatalf("Aufgaben: %v", err)

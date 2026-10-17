@@ -105,7 +105,7 @@ func (b *BuchfinkBridge) GenerateProcedureDocumentation() (*service.ProcDocResul
 			env.BackupRuns = runs
 		}
 		s.ProcDoc.SetEnvironment(env)
-		return s.ProcDoc.Generate(ctx, time.Time{})
+		return s.ProcDoc.Generate(ctx, b.viewYear(), time.Time{})
 	})
 }
 
@@ -262,7 +262,7 @@ func (b *BuchfinkBridge) BlockContact(id uint, reason string) (*BlockContactResu
 // lassen — gesperrte fehlen.
 func (b *BuchfinkBridge) GetSelectableContacts() ([]domain.Contact, error) {
 	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.Contact, error) {
-		return s.Contacts.SelectableContacts(ctx)
+		return s.Contacts.SelectableContacts(ctx, b.viewYear())
 	})
 }
 
@@ -287,6 +287,7 @@ func (b *BuchfinkBridge) CorrectEntry(entryID uint, reason string, newEntry *dom
 // PreviewOpeningBalance zeigt die Eröffnungsbuchungen des Umsteigers, ohne sie
 // zu schreiben.
 func (b *BuchfinkBridge) PreviewOpeningBalance(req service.OpeningBalanceRequest) (*service.OpeningBalancePreview, error) {
+	req.FiscalYear = b.yearOr(req.FiscalYear)
 	return read(b, func(ctx context.Context, s *core.Services) (*service.OpeningBalancePreview, error) {
 		return s.Journal.PreviewOpeningBalance(ctx, req)
 	})
@@ -294,6 +295,7 @@ func (b *BuchfinkBridge) PreviewOpeningBalance(req service.OpeningBalanceRequest
 
 // BookOpeningBalance bucht die Eröffnungsbilanz des Umsteigers.
 func (b *BuchfinkBridge) BookOpeningBalance(req service.OpeningBalanceRequest) (*service.OpeningBalancePreview, error) {
+	req.FiscalYear = b.yearOr(req.FiscalYear)
 	return write(b, func(ctx context.Context, s *core.Services) (*service.OpeningBalancePreview, error) {
 		return s.Journal.BookOpeningBalance(ctx, req)
 	})

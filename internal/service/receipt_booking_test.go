@@ -155,7 +155,7 @@ func TestBookingAndSealFailTogether(t *testing.T) {
 	req := env.receipt(t, vendor.ID, "buerobedarf", 5000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
 
 	failing := NewReceiptService(failingSeal{env.receiptRepo}, env.store,
-		repository.NewAuditRepository(env.db), env.fiscalYear)
+		repository.NewAuditRepository(env.db))
 	failing.SetContactSource(env.contactRepo)
 	failing.SetSettingsSource(repository.NewSettingsRepository(env.db))
 	env.posting.SetReceiptService(failing)

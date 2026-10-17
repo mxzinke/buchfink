@@ -56,8 +56,8 @@ type VatPeriodProposal struct {
 // SuggestPeriodType leitet den Voranmeldungszeitraum aus der Steuer des
 // Vorjahres ab.
 func (s *VatReturnService) SuggestPeriodType(ctx context.Context, year int) (*VatPeriodProposal, error) {
-	if year <= 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	prior := year - 1
 	out := &VatPeriodProposal{

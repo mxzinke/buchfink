@@ -45,7 +45,7 @@ func TestUGReserveIsInProfitYearAndCarriedWithoutReducingProfit(t *testing.T) {
 	if got := balances(t, e, 2026)[domain.AccountGesetzlicheRuecklage]; got != -169553 {
 		t.Fatalf("reserve absent in profit year: %d", got)
 	}
-	summary, err := e.accounting.GetFinancialSummary(ctx)
+	summary, err := e.accounting.GetFinancialSummary(ctx, 2026)
 	if err != nil {
 		t.Fatal(err)
 	}

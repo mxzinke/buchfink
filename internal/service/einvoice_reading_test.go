@@ -24,7 +24,7 @@ func sharedRenderer() *invoice.Renderer {
 }
 
 func (e *testEnv) einvoices() *EInvoiceService {
-	return NewEInvoiceService(e.receipts, e.contactRepo, invoice.NewReader(), e.fiscalYear)
+	return NewEInvoiceService(e.receipts, e.contactRepo, invoice.NewReader())
 }
 
 // hybridReceipt legt einen Beleg mit einem echten hybriden PDF ab — erzeugt über
@@ -251,7 +251,7 @@ func TestProposalInvertsTheCategoryCodeForTheRecipient(t *testing.T) {
 		t.Fatalf("den Vorschlag buchen: %v", err)
 	}
 
-	summary, err := env.vat().Summary(ctx, "", "")
+	summary, err := env.vat().Summary(ctx, 2026, "", "")
 	if err != nil {
 		t.Fatalf("USt-Auswertung: %v", err)
 	}

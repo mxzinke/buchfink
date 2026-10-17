@@ -44,7 +44,7 @@ func (s stubBankSource) GetTransactions(context.Context, int) ([]domain.BankTran
 
 type stubReceiptSource struct{ receipts []domain.Receipt }
 
-func (s stubReceiptSource) List(context.Context, domain.ReceiptStatus) ([]domain.Receipt, error) {
+func (s stubReceiptSource) List(context.Context, int, domain.ReceiptStatus) ([]domain.Receipt, error) {
 	return s.receipts, nil
 }
 
@@ -124,7 +124,7 @@ func tasksFor(t *testing.T, svc *TaskService, opts TaskOptions) map[string]domai
 // Listen statt `null`.
 func TestTasksAreEmptyWhenNothingIsDue(t *testing.T) {
 	env := newTestEnv(t)
-	svc := NewTaskService(repository.NewSettingsRepository(env.db), 2026)
+	svc := NewTaskService(repository.NewSettingsRepository(env.db))
 	svc.SetBankSource(stubBankSource{})
 	svc.SetReceiptSource(stubReceiptSource{})
 	svc.SetOpenItemSource(stubOpenItemSource{})
@@ -150,7 +150,7 @@ func TestEverySourceProducesItsTask(t *testing.T) {
 	env := newTestEnv(t)
 	today := "2026-03-10"
 
-	svc := NewTaskService(repository.NewSettingsRepository(env.db), 2026)
+	svc := NewTaskService(repository.NewSettingsRepository(env.db))
 	svc.SetCheckSource(stubCheckSource{run: &domain.CheckRun{Findings: []domain.CheckFinding{
 		{Rule: domain.CheckRuleEntryWithoutReceipt, Severity: domain.CheckBlocking, Message: "Buchung ohne Beleg"},
 		{Rule: domain.CheckRuleEntryWithoutReceipt, Severity: domain.CheckBlocking, Message: "noch eine"},
@@ -271,7 +271,7 @@ func TestEverySourceProducesItsTask(t *testing.T) {
 // Frist danach.
 func TestTasksAreSortedByDueDate(t *testing.T) {
 	env := newTestEnv(t)
-	svc := NewTaskService(repository.NewSettingsRepository(env.db), 2026)
+	svc := NewTaskService(repository.NewSettingsRepository(env.db))
 	svc.SetDeadlineSource(stubDeadlineSource{deadlines: []domain.Deadline{
 		{Key: "spaet", Title: "Später", DueDate: "2026-02-20"},
 		{Key: "frueh", Title: "Früher", DueDate: "2026-01-20"},
@@ -296,7 +296,7 @@ func TestTasksAreSortedByDueDate(t *testing.T) {
 // Eine Quelle, die ausfällt, nimmt der Liste ihre Zeile — und nicht die Liste.
 func TestFailingSourceDoesNotBreakTheTaskList(t *testing.T) {
 	env := newTestEnv(t)
-	svc := NewTaskService(repository.NewSettingsRepository(env.db), 2026)
+	svc := NewTaskService(repository.NewSettingsRepository(env.db))
 	svc.SetCheckSource(stubCheckSource{err: errors.New("Prüflauf kaputt")})
 	svc.SetBankSource(stubBankSource{transactions: []domain.BankTransaction{
 		{ID: 1, Amount: -100, MatchStatus: domain.MatchStatusUnmatched},
@@ -315,13 +315,13 @@ func TestBackupTaskFollowsTheLastSuccessfulRun(t *testing.T) {
 	settings := repository.NewSettingsRepository(env.db)
 	today := time.Now().Format("2006-01-02")
 
-	fresh := NewTaskService(settings, 2026)
+	fresh := NewTaskService(settings)
 	fresh.SetBackupSource(stubBackupSource{run: &domain.BackupRun{StartedAt: time.Now()}})
 	if _, ok := tasksFor(t, fresh, TaskOptions{Today: today})[domain.TaskKeyBackupMissing]; ok {
 		t.Error("nach einer frischen Sicherung darf keine Aufgabe entstehen")
 	}
 
-	stale := NewTaskService(settings, 2026)
+	stale := NewTaskService(settings)
 	stale.SetBackupSource(stubBackupSource{run: &domain.BackupRun{
 		StartedAt: time.Now().AddDate(0, 0, -7),
 	}})
@@ -365,7 +365,7 @@ func TestMonthCloseStateFollowsTheThreeSteps(t *testing.T) {
 			{Rule: domain.CheckRuleEntryWithoutReceipt, Severity: domain.CheckBlocking,
 				Message: "Buchung ohne Beleg"},
 		}}},
-		stubVatSource{periods: periods}, festschreibung, 2026)
+		stubVatSource{periods: periods}, festschreibung)
 
 	state, err := svc.State(ctx, "2026-03")
 	if err != nil {
@@ -394,7 +394,7 @@ func TestMonthCloseStateFollowsTheThreeSteps(t *testing.T) {
 	// Ohne Befund: Schritt 1 erledigt, Schritt 2 offen, Schritt 3 weiter gesperrt.
 	clean := NewMonthCloseService(
 		stubCheckSource{run: &domain.CheckRun{}}, stubVatSource{periods: periods},
-		festschreibung, 2026)
+		festschreibung)
 	state, err = clean.State(ctx, "2026-03")
 	if err != nil {
 		t.Fatalf("Monatsstand: %v", err)
@@ -432,7 +432,7 @@ func TestMonthCloseStateFollowsTheThreeSteps(t *testing.T) {
 	}}
 	done := NewMonthCloseService(
 		stubCheckSource{run: &domain.CheckRun{}}, stubVatSource{periods: submitted},
-		festschreibung, 2026)
+		festschreibung)
 	state, err = done.State(ctx, "2026-03")
 	if err != nil {
 		t.Fatalf("Monatsstand: %v", err)
@@ -452,7 +452,7 @@ func TestMonthWithoutVatPeriodEndsAfterTheCommitment(t *testing.T) {
 		stubVatSource{periods: []VatPeriodStatus{{
 			VatPeriod: vatPeriodFor(t, "2026-Q1"), DueDate: "2026-04-10",
 		}}},
-		repository.NewFestschreibungRepository(env.db), 2026)
+		repository.NewFestschreibungRepository(env.db))
 
 	state, err := svc.State(context.Background(), "2026-01")
 	if err != nil {
@@ -469,7 +469,7 @@ func TestMonthWithoutVatPeriodEndsAfterTheCommitment(t *testing.T) {
 // Ein unlesbarer Monat ist ein Fehler und keine leere Antwort.
 func TestMonthCloseRefusesAnUnreadableMonth(t *testing.T) {
 	env := newTestEnv(t)
-	svc := NewMonthCloseService(nil, nil, repository.NewFestschreibungRepository(env.db), 2026)
+	svc := NewMonthCloseService(nil, nil, repository.NewFestschreibungRepository(env.db))
 	if _, err := svc.State(context.Background(), "März"); err == nil {
 		t.Error("ein unlesbarer Monat muss abgewiesen werden")
 	}
@@ -487,7 +487,7 @@ func TestExemptionSourceProducesItsTask(t *testing.T) {
 	env := newTestEnv(t)
 	today := "2026-03-10"
 
-	svc := NewTaskService(repository.NewSettingsRepository(env.db), 2026)
+	svc := NewTaskService(repository.NewSettingsRepository(env.db))
 	svc.SetExemptionSource(stubExemptionSource{warnings: []ExemptionCertificateWarning{
 		{ContactID: 1, Name: "Bau Meier GmbH", ValidUntil: "2026-02-01", State: "expired"},
 		{ContactID: 2, Name: "Dach Schulz GmbH", ValidUntil: "2026-03-31", State: "expiring"},
@@ -509,7 +509,7 @@ func TestExemptionSourceProducesItsTask(t *testing.T) {
 		t.Errorf("ablaufende Bescheinigung: %+v", expiring)
 	}
 
-	quiet := NewTaskService(repository.NewSettingsRepository(env.db), 2026)
+	quiet := NewTaskService(repository.NewSettingsRepository(env.db))
 	quiet.SetExemptionSource(stubExemptionSource{})
 	for _, key := range []string{domain.TaskKeyExemption, domain.TaskKeyExemption + ".expired"} {
 		if _, ok := tasksFor(t, quiet, TaskOptions{Today: today})[key]; ok {
@@ -525,7 +525,7 @@ func TestCarryForwardSourceProducesItsTask(t *testing.T) {
 	today := "2026-03-10"
 	settings := repository.NewSettingsRepository(env.db)
 
-	unbalanced := NewTaskService(settings, 2026)
+	unbalanced := NewTaskService(settings)
 	unbalanced.SetCarryForwardSource(stubCarryForwardSource{
 		preview: &CarryForwardPreview{
 			FromYear: 2025, ToYear: 2026, IsBalanced: false, BalanceDifference: 12345,
@@ -541,7 +541,7 @@ func TestCarryForwardSourceProducesItsTask(t *testing.T) {
 	}
 
 	// Ausgeglichen, aber noch nicht gebucht: die Aufgabe „vortragen".
-	pending := NewTaskService(settings, 2026)
+	pending := NewTaskService(settings)
 	pending.SetCarryForwardSource(stubCarryForwardSource{
 		preview: &CarryForwardPreview{
 			FromYear: 2025, ToYear: 2026, IsBalanced: true, AlreadyCarried: false,
@@ -557,7 +557,7 @@ func TestCarryForwardSourceProducesItsTask(t *testing.T) {
 	}
 
 	// Ausgeglichen und gebucht: nichts zu tun.
-	done := NewTaskService(settings, 2026)
+	done := NewTaskService(settings)
 	done.SetCarryForwardSource(stubCarryForwardSource{
 		preview: &CarryForwardPreview{
 			FromYear: 2025, ToYear: 2026, IsBalanced: true, AlreadyCarried: true,
@@ -588,7 +588,7 @@ func TestPriorYearAndAppropriationProduceTheirTasks(t *testing.T) {
 	adoptedYear := []domain.FiscalYear{{Year: 2025, Status: domain.FiscalYearAdopted}}
 
 	// Vor Fristablauf: keine Aufgabe, auch wenn nicht festgestellt ist.
-	early := NewTaskService(settings, 2026)
+	early := NewTaskService(settings)
 	early.SetStatementSource(statements)
 	early.SetCarryForwardSource(stubCarryForwardSource{years: openYear})
 	if _, ok := tasksFor(t, early, TaskOptions{Today: "2026-03-10"})[domain.TaskKeyPriorYearOpen]; ok {
@@ -596,7 +596,7 @@ func TestPriorYearAndAppropriationProduceTheirTasks(t *testing.T) {
 	}
 
 	// Nach Fristablauf: überfällig, mit der Frist als Datum.
-	late := NewTaskService(settings, 2026)
+	late := NewTaskService(settings)
 	late.SetStatementSource(statements)
 	late.SetCarryForwardSource(stubCarryForwardSource{years: openYear})
 	task, ok := tasksFor(t, late, TaskOptions{Today: "2026-04-15"})[domain.TaskKeyPriorYearOpen]
@@ -612,7 +612,7 @@ func TestPriorYearAndAppropriationProduceTheirTasks(t *testing.T) {
 
 	// Festgestellt, aber ohne Beschluss: die Ergebnisverwendung steht an — und
 	// der Abschluss selbst nicht mehr.
-	adopted := NewTaskService(settings, 2026)
+	adopted := NewTaskService(settings)
 	adopted.SetStatementSource(statements)
 	adopted.SetCarryForwardSource(stubCarryForwardSource{years: adoptedYear})
 	adopted.SetAppropriationSource(stubAppropriationSource{})
@@ -629,7 +629,7 @@ func TestPriorYearAndAppropriationProduceTheirTasks(t *testing.T) {
 	}
 
 	// Beschlossen: nichts mehr zu tun.
-	decided := NewTaskService(settings, 2026)
+	decided := NewTaskService(settings)
 	decided.SetStatementSource(statements)
 	decided.SetCarryForwardSource(stubCarryForwardSource{years: adoptedYear})
 	decided.SetAppropriationSource(stubAppropriationSource{
@@ -648,7 +648,7 @@ func TestFailedBackupRunIsATaskOfItsOwn(t *testing.T) {
 	today := time.Now().Format("2006-01-02")
 	yesterday := time.Now().AddDate(0, 0, -1)
 
-	failed := NewTaskService(settings, 2026)
+	failed := NewTaskService(settings)
 	failed.SetBackupSource(stubBackupSource{
 		run: &domain.BackupRun{StartedAt: yesterday, Success: true},
 		runs: []domain.BackupRun{{
@@ -673,7 +673,7 @@ func TestFailedBackupRunIsATaskOfItsOwn(t *testing.T) {
 	}
 
 	// Ein gelungener jüngster Lauf ist keine Aufgabe.
-	fine := NewTaskService(settings, 2026)
+	fine := NewTaskService(settings)
 	fine.SetBackupSource(stubBackupSource{
 		run:  &domain.BackupRun{StartedAt: time.Now(), Success: true},
 		runs: []domain.BackupRun{{Kind: domain.BackupKindAutomatic, StartedAt: time.Now(), Success: true}},
@@ -707,22 +707,15 @@ func (s stubFiscalYears) FindByYear(_ context.Context, year int) (*domain.Fiscal
 	return nil, nil
 }
 
-// Ein Monat aus einem anderen Geschäftsjahr bekommt keinen Stand, sondern eine
-// Antwort.
+// Ein Monat zählt zu dem Geschäftsjahr, in dem er liegt, gleich welches Jahr
+// gerade angesehen wird.
 //
 // Der Fall ist der Regelfall am Jahreswechsel: die Voranmeldung für Dezember ist
-// am 10. Januar fällig und steht als Frist in der Aufgabenliste, das aktive
-// Geschäftsjahr ist da schon das neue. Gerechnet wurde der Dezember bisher gegen
-// die Bücher des neuen Jahres — drei Haken, alle drei falsch: die
-// Festschreibungstabelle des neuen Jahres ist leer, der Prüfbericht lief über
-// die Buchungen des neuen Jahres, und die Zeiträume des neuen Jahres enthalten
-// den Dezember nicht.
-func TestMonthCloseRefusesAMonthOfAnotherFiscalYear(t *testing.T) {
+// am 10. Januar fällig und steht als Frist in der Aufgabenliste. Festschreibung,
+// Prüfbericht und Voranmeldung des Dezembers gehören zum alten Jahr.
+func TestMonthCloseUsesTheFiscalYearOfTheMonth(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
-	// Der Dezember des Vorjahres ist festgeschrieben und seine Voranmeldung
-	// übermittelt: wer den Stand des falschen Jahres rechnete, sähe davon
-	// nichts.
 	festschreibung := repository.NewFestschreibungRepository(env.db)
 	if err := festschreibung.Create(ctx, &domain.Festschreibung{
 		FiscalYear: 2025, PeriodType: "month", PeriodLabel: "Dezember 2025",
@@ -734,23 +727,33 @@ func TestMonthCloseRefusesAMonthOfAnotherFiscalYear(t *testing.T) {
 		VatPeriod: vatPeriodFor(t, "2025-12"),
 		DueDate:   "2026-01-10", Status: domain.VatReturnSubmitted, SubmittedAt: "2026-01-09",
 	}}}
-	svc := NewMonthCloseService(
-		stubCheckSource{run: &domain.CheckRun{}}, vat, festschreibung, 2026)
+	checks := &recordingCheckSource{run: &domain.CheckRun{}}
+	svc := NewMonthCloseService(checks, vat, festschreibung)
 
 	state, err := svc.State(ctx, "2025-12")
-	if err == nil {
-		t.Fatalf("der Dezember 2025 darf im Geschäftsjahr 2026 keinen Stand liefern: %+v", state)
+	if err != nil {
+		t.Fatalf("Stand Dezember 2025: %v", err)
 	}
-	if !strings.Contains(err.Error(), "2025") || !strings.Contains(err.Error(), "Geschäftsjahr") {
-		t.Errorf("die Meldung nennt weder das Jahr des Monats noch das Geschäftsjahr: %v", err)
+	if state.FiscalYear != 2025 || !state.Committed || state.VatStatus != domain.VatReturnSubmitted {
+		t.Errorf("der Dezember 2025 steht nicht im Geschäftsjahr 2025: %+v", state)
 	}
-	if state != nil {
-		t.Errorf("neben dem Fehler darf kein Stand zurückkommen: %+v", state)
+	if vat.askedYear != 2025 {
+		t.Errorf("die Voranmeldungszeiträume wurden für %d abgefragt, erwartet 2025", vat.askedYear)
 	}
-	// Und die Zeiträume des falschen Jahres wurden gar nicht erst abgefragt.
-	if vat.askedYear != 0 {
-		t.Errorf("die Voranmeldungszeiträume wurden für %d abgefragt — erwartet gar nicht", vat.askedYear)
+	if checks.req.FiscalYear != 2025 {
+		t.Errorf("der Prüfbericht lief für %d, erwartet 2025", checks.req.FiscalYear)
 	}
+}
+
+// recordingCheckSource merkt sich den Auftrag des Prüflaufs.
+type recordingCheckSource struct {
+	run *domain.CheckRun
+	req CheckRequest
+}
+
+func (s *recordingCheckSource) Preview(_ context.Context, req CheckRequest) (*domain.CheckRun, error) {
+	s.req = req
+	return s.run, nil
 }
 
 // Bei abweichendem Geschäftsjahr entscheidet dessen Spanne und nicht das
@@ -767,7 +770,7 @@ func TestMonthCloseFollowsAShiftedFiscalYear(t *testing.T) {
 	}}}
 	svc := NewMonthCloseService(
 		stubCheckSource{run: &domain.CheckRun{}}, vat,
-		repository.NewFestschreibungRepository(env.db), 2026)
+		repository.NewFestschreibungRepository(env.db))
 	svc.SetFiscalYearSource(years)
 
 	state, err := svc.State(ctx, "2027-01")
@@ -785,9 +788,9 @@ func TestMonthCloseFollowsAShiftedFiscalYear(t *testing.T) {
 	}
 
 	// Der Januar 2026 trägt zwar dieselbe Jahreszahl wie das Geschäftsjahr,
-	// liegt aber vor seinem Beginn.
+	// liegt aber vor seinem Beginn und in keinem angelegten Jahr.
 	if _, err := svc.State(ctx, "2026-01"); err == nil {
-		t.Error("der Januar 2026 liegt vor dem Beginn des Geschäftsjahres und darf keinen Stand liefern")
+		t.Error("der Januar 2026 liegt in keinem angelegten Geschäftsjahr und darf keinen Stand liefern")
 	}
 }
 
@@ -806,7 +809,7 @@ func (s stubYearDeadlineSource) Deadlines(_ context.Context, year int) ([]domain
 // wenigsten — und die eine, die zuerst abläuft, gar nicht.
 func TestTasksIncludeLastYearsDeadlinesUntilTheyExpire(t *testing.T) {
 	env := newTestEnv(t)
-	svc := NewTaskService(repository.NewSettingsRepository(env.db), 2026)
+	svc := NewTaskService(repository.NewSettingsRepository(env.db))
 	svc.SetBankSource(stubBankSource{})
 	svc.SetReceiptSource(stubReceiptSource{})
 	svc.SetOpenItemSource(stubOpenItemSource{})

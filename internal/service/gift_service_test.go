@@ -18,7 +18,6 @@ func (e *testEnv) gifts(t *testing.T) *GiftService {
 		e.journalRepo, e.journal,
 		repository.NewSettingsRepository(e.db),
 		repository.NewAuditRepository(e.db),
-		e.fiscalYear,
 	)
 	e.posting.SetGiftRegister(svc)
 	return svc

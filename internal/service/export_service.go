@@ -77,8 +77,6 @@ type ExportService struct {
 	openItem ExportOpenItemSource
 	checks   ExportIntegritySource
 	register ExportTaxRegisterSource
-
-	fiscalYear int
 }
 
 // NewExportService verdrahtet den Export.
@@ -97,14 +95,13 @@ func NewExportService(
 	fiscalYearRepo domain.FiscalYearRepository,
 	store *receiptstore.Store,
 	dataDir string,
-	fiscalYear int,
 ) *ExportService {
 	return &ExportService{
 		journalRepo: journalRepo, accountRepo: accountRepo, contactRepo: contactRepo,
 		receiptRepo: receiptRepo, assetRepo: assetRepo, allocationRepo: allocationRepo,
 		auditRepo: auditRepo, settingsRepo: settingsRepo, commitRepo: commitRepo,
 		vatReturnRepo: vatReturnRepo, checkRunRepo: checkRunRepo, fiscalYearRepo: fiscalYearRepo,
-		store: store, dataDir: dataDir, fiscalYear: fiscalYear,
+		store: store, dataDir: dataDir,
 	}
 }
 
@@ -125,9 +122,6 @@ func (s *ExportService) SetProcDocRepo(r domain.ProcedureDocumentationRepository
 
 // SetTenantName setzt den Mandantennamen für die Metadaten.
 func (s *ExportService) SetTenantName(name string) { s.tenant = name }
-
-// SetFiscalYear setzt das Geschäftsjahr.
-func (s *ExportService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // --- Die drei Umfänge ------------------------------------------------------
 
@@ -155,8 +149,8 @@ func (s *ExportService) ExportAuditPackage(ctx context.Context, year int, target
 func (s *ExportService) exportPackage(
 	ctx context.Context, year int, targetDir string, kind export.Kind,
 ) (*export.Result, error) {
-	if year <= 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	data, err := s.collect(ctx, year)
 	if err != nil {

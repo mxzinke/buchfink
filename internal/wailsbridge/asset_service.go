@@ -22,7 +22,7 @@ import (
 // class ("tangible", "financial", "intangible"; empty for all).
 func (b *BuchfinkBridge) GetFixedAssets(class string) ([]domain.FixedAsset, error) {
 	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.FixedAsset, error) {
-		return s.Assets.List(ctx, domain.AssetClass(class))
+		return s.Assets.List(ctx, b.viewYear(), domain.AssetClass(class))
 	})
 }
 
@@ -30,7 +30,7 @@ func (b *BuchfinkBridge) GetFixedAssets(class string) ([]domain.FixedAsset, erro
 // den Erklärungen, die zu diesem Gut gehören.
 func (b *BuchfinkBridge) GetFixedAsset(id uint) (*service.AssetDetail, error) {
 	return read(b, func(ctx context.Context, s *core.Services) (*service.AssetDetail, error) {
-		return s.Assets.Get(ctx, id)
+		return s.Assets.Get(ctx, b.viewYear(), id)
 	})
 }
 
@@ -112,7 +112,7 @@ type assetMethodInfo struct {
 // GetAssetRules hands the Wertgrenzen, das Zeitfenster der degressiven AfA und
 // die zulässigen Methoden an die Oberfläche.
 func (b *BuchfinkBridge) GetAssetRules() (*AssetRules, error) {
-	year := b.fiscalYear()
+	year := b.viewYear()
 
 	// Die Wertgrenzen gelten je Tag; für die Anzeige nehmen wir den ersten Tag
 	// des Geschäftsjahres, weil sich Anschaffungen dieses Jahres daran messen.
@@ -213,12 +213,13 @@ func (b *BuchfinkBridge) GetDepreciationRun() (*service.DepreciationRun, error) 
 		empty.EnsureLists()
 		return empty, nil
 	}, func(ctx context.Context, s *core.Services) (*service.DepreciationRun, error) {
-		return s.Assets.Run(ctx)
+		return s.Assets.Run(ctx, b.viewYear())
 	})
 }
 
 // BookDepreciationRun writes the AfA of the active fiscal year.
 func (b *BuchfinkBridge) BookDepreciationRun(req service.BookDepreciationRequest) (*service.DepreciationResult, error) {
+	req.FiscalYear = b.yearOr(req.FiscalYear)
 	return write(b, func(ctx context.Context, s *core.Services) (*service.DepreciationResult, error) {
 		return s.Assets.BookDepreciation(ctx, req)
 	})
@@ -268,7 +269,7 @@ func (b *BuchfinkBridge) GetAnlagenspiegel() (*domain.Anlagenspiegel, error) {
 		empty.EnsureLists()
 		return empty, nil
 	}, func(ctx context.Context, s *core.Services) (*domain.Anlagenspiegel, error) {
-		return s.Assets.Anlagenspiegel(ctx)
+		return s.Assets.Anlagenspiegel(ctx, b.viewYear())
 	})
 }
 
@@ -276,13 +277,14 @@ func (b *BuchfinkBridge) GetAnlagenspiegel() (*domain.Anlagenspiegel, error) {
 // points at yet.
 func (b *BuchfinkBridge) GetAssetAcquisitionCandidates() ([]service.AcquisitionCandidate, error) {
 	return readList(b, func(ctx context.Context, s *core.Services) ([]service.AcquisitionCandidate, error) {
-		return s.Assets.AcquisitionCandidates(ctx)
+		return s.Assets.AcquisitionCandidates(ctx, b.viewYear())
 	})
 }
 
 // GetSammelposten returns the Sammelposten of a fiscal year, or nothing if none
 // was formed. Zero means the active fiscal year.
 func (b *BuchfinkBridge) GetSammelposten(fiscalYear int) (*domain.FixedAsset, error) {
+	fiscalYear = b.yearOr(fiscalYear)
 	return readOr(b, func() (*domain.FixedAsset, error) {
 		return nil, nil
 	}, func(ctx context.Context, s *core.Services) (*domain.FixedAsset, error) {

@@ -18,6 +18,7 @@ import (
 // GetVatPeriods liefert die Voranmeldungszeiträume eines Jahres mit Fälligkeit,
 // Festschreibungsstand und Stand der Anmeldung.
 func (b *BuchfinkBridge) GetVatPeriods(year int) ([]service.VatPeriodStatus, error) {
+	year = b.yearOr(year)
 	return readList(b, func(ctx context.Context, s *core.Services) ([]service.VatPeriodStatus, error) {
 		return s.VatReturns.Periods(ctx, year)
 	})
@@ -40,6 +41,7 @@ func (b *BuchfinkBridge) SaveVatReturn(periodKey string) (*domain.VatReturn, err
 
 // GetVatReturns liefert die gespeicherten Voranmeldungen eines Jahres.
 func (b *BuchfinkBridge) GetVatReturns(year int) ([]domain.VatReturn, error) {
+	year = b.yearOr(year)
 	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.VatReturn, error) {
 		return s.VatReturns.List(ctx, year)
 	})
@@ -75,6 +77,7 @@ func (b *BuchfinkBridge) ExportVatReturnCSV(id uint) (string, error) {
 // außerhalb von Buchfink, und in den Einstellungen steht, was der Anwender
 // angemeldet hat.
 func (b *BuchfinkBridge) GetSpecialPrepaymentSuggestion(year int) (*service.SpecialPrepaymentSuggestion, error) {
+	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*service.SpecialPrepaymentSuggestion, error) {
 		return s.VatReturns.SuggestedSpecialPrepayment(ctx, year)
 	})
@@ -87,6 +90,7 @@ func (b *BuchfinkBridge) GetSpecialPrepaymentSuggestion(year int) (*service.Spec
 // GetZMPeriods liefert die Meldezeiträume eines Jahres. Ihre Länge folgt aus den
 // Umsätzen (§ 18a Abs. 1 UStG) und nicht aus einer Einstellung.
 func (b *BuchfinkBridge) GetZMPeriods(year int) ([]service.ZMPeriodStatus, error) {
+	year = b.yearOr(year)
 	return readList(b, func(ctx context.Context, s *core.Services) ([]service.ZMPeriodStatus, error) {
 		return s.ZM.Periods(ctx, year)
 	})
@@ -108,6 +112,7 @@ func (b *BuchfinkBridge) SaveZMReturn(periodKey string) (*domain.ZMReturn, error
 
 // GetZMReturns liefert die gespeicherten Meldungen eines Jahres.
 func (b *BuchfinkBridge) GetZMReturns(year int) ([]domain.ZMReturn, error) {
+	year = b.yearOr(year)
 	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.ZMReturn, error) {
 		return s.ZM.List(ctx, year)
 	})

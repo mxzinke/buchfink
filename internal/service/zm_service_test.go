@@ -19,7 +19,6 @@ func (e *testEnv) zmReturns(t *testing.T) *ZMService {
 		repository.NewZMReturnRepository(e.db),
 		repository.NewVatReturnRepository(e.db),
 		repository.NewAuditRepository(e.db),
-		e.fiscalYear,
 	)
 }
 

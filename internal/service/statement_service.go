@@ -25,7 +25,6 @@ type StatementService struct {
 	openItems     OpenItemSource
 	notes         NotesSources
 	renderer      DocumentRenderer
-	fiscalYear    int
 }
 
 // Die drei Quellen des Anhangs. Jede ist der schmalste Ausschnitt des Dienstes,
@@ -76,14 +75,12 @@ func NewStatementService(
 	closingSvc *ClosingService,
 	settingsRepo domain.SettingsRepository,
 	auditRepo domain.AuditRepository,
-	fiscalYear int,
 ) *StatementService {
 	return &StatementService{
 		accountingSvc: accountingSvc,
 		closingSvc:    closingSvc,
 		settingsRepo:  settingsRepo,
 		auditRepo:     auditRepo,
-		fiscalYear:    fiscalYear,
 	}
 }
 
@@ -98,17 +95,14 @@ func (s *StatementService) SetNotesSources(src NotesSources) { s.notes = src }
 // SetRenderer koppelt den PDF-Renderer an.
 func (s *StatementService) SetRenderer(r DocumentRenderer) { s.renderer = r }
 
-// SetFiscalYear updates the active fiscal year.
-func (s *StatementService) SetFiscalYear(year int) { s.fiscalYear = year }
-
 // Build stellt den Jahresabschluss eines Geschäftsjahres auf.
 //
 // depth darf leer sein; dann entscheidet die Größenklasse über die
 // Gliederungstiefe, denn das ist die Tiefe, in der der Abschluss offenzulegen
 // ist (§ 266 Abs. 1 Sätze 3 und 4 HGB).
 func (s *StatementService) Build(ctx context.Context, year int, depth domain.StatementDepth) (*domain.FinancialStatement, error) {
-	if year <= 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 
 	// Die Größenklasse entsteht immer aus der vollen Gliederung: die Merkmale
@@ -185,9 +179,6 @@ func (s *StatementService) Build(ctx context.Context, year int, depth domain.Sta
 // Notes liefert den Anhang eines Geschäftsjahres — für die Ausgabewege, die
 // nicht den ganzen Abschluss aufbauen, etwa die E-Bilanz.
 func (s *StatementService) Notes(ctx context.Context, year int) domain.StatementNotes {
-	if year <= 0 {
-		year = s.fiscalYear
-	}
 	return s.notesFor(ctx, year)
 }
 
@@ -227,8 +218,8 @@ func (s *StatementService) notesFor(ctx context.Context, year int) domain.Statem
 
 // SizeClassFor beurteilt die Größenklasse eines Geschäftsjahres.
 func (s *StatementService) SizeClassFor(ctx context.Context, year int) (*domain.SizeClass, error) {
-	if year <= 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	stmt, err := s.statement(ctx, year, domain.DepthFull)
 	if err != nil {
@@ -244,8 +235,8 @@ func (s *StatementService) SizeClassFor(ctx context.Context, year int) (*domain.
 // Deadlines liefert die Termine des Jahresabschlusses: Aufstellung und
 // Offenlegung.
 func (s *StatementService) Deadlines(ctx context.Context, year int) ([]domain.Deadline, error) {
-	if year <= 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	sizeClass, err := s.SizeClassFor(ctx, year)
 	if err != nil {
@@ -257,8 +248,8 @@ func (s *StatementService) Deadlines(ctx context.Context, year int) ([]domain.De
 // Statement liefert allein die Gliederung — die E-Bilanz braucht sie ohne Kopf,
 // Größenklasse und Fristen.
 func (s *StatementService) Statement(ctx context.Context, year int, depth domain.StatementDepth) (*domain.Statement, error) {
-	if year <= 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	if depth == "" {
 		depth = domain.DepthFull
@@ -268,8 +259,8 @@ func (s *StatementService) Statement(ctx context.Context, year int, depth domain
 
 // Accounts liefert den Kontenplan mit den Salden eines Geschäftsjahres.
 func (s *StatementService) Accounts(ctx context.Context, year int) ([]domain.Account, error) {
-	if year <= 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	return s.accountingSvc.AccountsForYear(ctx, year)
 }

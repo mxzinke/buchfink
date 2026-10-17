@@ -15,7 +15,7 @@ import (
 // wire verdrahtet Repositories und Dienste eines Mandanten. Die Reihenfolge
 // zählt: ein Dienst, der einen anderen gesetzt bekommt, muss nach ihm
 // entstehen.
-func wire(db *gorm.DB, info TenantInfo, year int, renderer *invoice.Renderer, o Options) *Services {
+func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) *Services {
 	accountRepo := repository.NewAccountRepository(db)
 	journalRepo := repository.NewJournalRepository(db)
 	numberRepo := repository.NewNumberRangeRepository(db)
@@ -63,36 +63,35 @@ func wire(db *gorm.DB, info TenantInfo, year int, renderer *invoice.Renderer, o 
 			FiscalYears: fiscalYearRepo, Migrations: migrationRepo,
 			BackupRuns: backupRunRepo, ExchangeRates: exchangeRateRepo,
 		},
-		fiscalYear: year,
 	}
 
 	// Der Journaldienst ist der einzige Schreibweg ins Journal und hält die
 	// Transaktion aller Vorgänge, die über ihn buchen.
-	s.Journal = service.NewJournalService(journalRepo, accountRepo, contactRepo, auditRepo, settingsRepo, txRunner, year)
+	s.Journal = service.NewJournalService(journalRepo, accountRepo, contactRepo, auditRepo, settingsRepo, txRunner)
 	s.Journal.SetFestschreibungRepo(festschreibungRepo)
 	s.Journal.SetFiscalYearRepo(fiscalYearRepo)
 	s.Journal.SetReceiptRepo(receiptRepo)
 	s.Idempotency = service.NewIdempotencyService(idempotencyRepo, txRunner)
 
 	s.Posting = service.NewPostingService(s.Journal, contactRepo)
-	s.Receipts = service.NewReceiptService(receiptRepo, store, auditRepo, year)
+	s.Receipts = service.NewReceiptService(receiptRepo, store, auditRepo)
 	s.Posting.SetReceiptService(s.Receipts)
 	s.Receipts.SetSettingsSource(settingsRepo)
 	s.Receipts.SetNumberRepo(numberRepo)
 	s.Receipts.SetContactSource(contactRepo)
-	s.EInvoice = service.NewEInvoiceService(s.Receipts, contactRepo, invoice.NewReader(), year)
-	s.Accounting = service.NewAccountingService(accountRepo, journalRepo, contactRepo, settingsRepo, s.Journal, year)
+	s.EInvoice = service.NewEInvoiceService(s.Receipts, contactRepo, invoice.NewReader())
+	s.Accounting = service.NewAccountingService(accountRepo, journalRepo, contactRepo, settingsRepo, s.Journal)
 	s.Accounting.SetAuditRepo(auditRepo)
 	s.Accounts = service.NewAccountService(accountRepo, auditRepo)
 	s.Accounts.SetChartInvalidator(s.Journal)
 	s.Bank = service.NewBankService(bankRepo, s.Journal, auditRepo)
 	s.Bank.SetReceiptService(s.Receipts)
 	s.Bank.SetAccountRegistry(repository.NewBankAccountRepository(db), settingsRepo, txRunner)
-	s.Payments = service.NewPaymentService(s.Journal, journalRepo, allocationRepo, contactRepo, bankRepo, year)
+	s.Payments = service.NewPaymentService(s.Journal, journalRepo, allocationRepo, contactRepo, bankRepo)
 	s.Payments.SetAuditRepo(auditRepo)
 	s.Posting.SetVendorAdvances(vendorAdvanceRepo)
 	s.Posting.SetSettingsSource(settingsRepo)
-	s.Vat = service.NewVatService(journalRepo, year)
+	s.Vat = service.NewVatService(journalRepo)
 	s.Invoices = service.NewInvoiceService(invoiceRepo, contactRepo, settingsRepo, numberRepo, s.Posting, auditRepo)
 	s.Invoices.SetDocumentPipeline(s.Receipts, renderer)
 	s.Receipts.SetRenderer(renderer)
@@ -102,17 +101,17 @@ func wire(db *gorm.DB, info TenantInfo, year int, renderer *invoice.Renderer, o 
 		FiscalYears: fiscalYearRepo,
 		Bank:        bankRepo,
 	})
-	s.Contacts = service.NewContactService(contactRepo, journalRepo, numberRepo, auditRepo, year)
+	s.Contacts = service.NewContactService(contactRepo, journalRepo, numberRepo, auditRepo)
 	s.Assets = service.NewAssetService(
 		assetRepo, journalRepo, s.Journal, numberRepo,
-		contactRepo, settingsRepo, auditRepo, year,
+		contactRepo, settingsRepo, auditRepo,
 	)
 	s.Payments.SetAssetRegister(s.Assets)
 	s.Assets.SetFiscalYearRepo(fiscalYearRepo)
 	s.Audit = service.NewAuditService(auditRepo)
 	s.Settings = service.NewSettingsService(settingsRepo, auditRepo)
 	s.ProcDoc = service.NewProcDocService(
-		settingsRepo, numberRepo, procDocRepo, migrationRepo, auditRepo, store, year)
+		settingsRepo, numberRepo, procDocRepo, migrationRepo, auditRepo, store)
 	s.ProcDoc.SetRenderer(renderer)
 	s.ProcDoc.SetEnvironment(ProcDocEnvironment(info.DataDir, o.backupDir()))
 
@@ -131,45 +130,45 @@ func wire(db *gorm.DB, info TenantInfo, year int, renderer *invoice.Renderer, o 
 
 	s.Closing = service.NewClosingService(
 		fiscalYearRepo, journalRepo, accountRepo, contactRepo, allocationRepo,
-		settingsRepo, festschreibungRepo, auditRepo, s.Journal, year,
+		settingsRepo, festschreibungRepo, auditRepo, s.Journal,
 	)
 	s.Closing.SetFoundationRepo(foundationRepo)
 	s.Foundation.SetFoundingYearAligner(s.Closing)
 	s.ClosingSettings = service.NewClosingSettingsService(settingsRepo, auditRepo)
 
 	s.Accruals = service.NewAccrualService(
-		accrualRepo, journalRepo, s.Journal, settingsRepo, auditRepo, s.Closing, year,
+		accrualRepo, journalRepo, s.Journal, settingsRepo, auditRepo, s.Closing,
 	)
 	s.Accruals.SetReceiptService(s.Receipts)
 	s.Closing.SetAccrualCarrier(s.Accruals)
 
 	s.Provisions = service.NewProvisionService(
 		provisionRepo, discountRateRepo, journalRepo, s.Journal,
-		settingsRepo, auditRepo, s.Closing, year,
+		settingsRepo, auditRepo, s.Closing,
 	)
 	s.Provisions.SetReceiptService(s.Receipts)
 	s.Posting.SetProvisionConsumer(s.Provisions)
 
 	s.ClosingBookings = service.NewClosingBookingService(
-		provisionRepo, journalRepo, s.Journal, settingsRepo, auditRepo, s.Closing, year,
+		provisionRepo, journalRepo, s.Journal, settingsRepo, auditRepo, s.Closing,
 	)
 	s.ClosingBookings.SetReceiptService(s.Receipts)
 
 	s.Appropriation = service.NewAppropriationService(
 		appropriationRepo, notesRepo, journalRepo, s.Journal,
-		settingsRepo, auditRepo, s.Closing, year,
+		settingsRepo, auditRepo, s.Closing,
 	)
 	s.Appropriation.SetReceiptService(s.Receipts)
 	s.Closing.SetReservePosting(s.Receipts)
 	s.Closing.SetNotesCopier(s.Appropriation)
 
 	s.InputTax = service.NewInputTaxService(
-		inputTaxRepo, s.Journal, journalRepo, settingsRepo, s.Closing, auditRepo, year)
+		inputTaxRepo, s.Journal, journalRepo, settingsRepo, s.Closing, auditRepo)
 	s.VatIDs = service.NewVatIDService(vatIDCheckRepo, contactRepo, settingsRepo, auditRepo)
 	s.Invoices.SetVatIDConfirmer(s.VatIDs)
 	s.Contacts.SetVatIDStatusSource(s.VatIDs)
 
-	s.Gifts = service.NewGiftService(journalRepo, s.Journal, settingsRepo, auditRepo, year)
+	s.Gifts = service.NewGiftService(journalRepo, s.Journal, settingsRepo, auditRepo)
 	s.Posting.SetGiftRegister(s.Gifts)
 	// Der Beginn des Geschäftsjahres wird je Aufruf gelesen: ändert der
 	// Anwender ihn, rechnete die Freigrenze für Geschenke sonst bis zum
@@ -183,17 +182,17 @@ func wire(db *gorm.DB, info TenantInfo, year int, renderer *invoice.Renderer, o 
 	s.Closing.SetCurrencyReverser(s.Currency)
 
 	s.TaxRegister = service.NewTaxRegisterService(
-		assetRepo, provisionRepo, journalRepo, settingsRepo, s.Closing, year)
+		assetRepo, provisionRepo, journalRepo, settingsRepo, s.Closing)
 
 	s.ClosingSteps = service.NewClosingStepsService(
 		closingStepRepo, accrualRepo, provisionRepo,
-		appropriationRepo, checkRunRepo, journalRepo, auditRepo, s.Closing, year,
+		appropriationRepo, checkRunRepo, journalRepo, auditRepo, s.Closing,
 	)
 	s.ClosingSteps.SetDepreciationSource(s.Assets)
 	s.ClosingSteps.SetWriteUpSource(s.Assets)
 	s.ClosingSteps.SetInputTaxSource(s.InputTax)
 
-	s.Statement = service.NewStatementService(s.Accounting, s.Closing, settingsRepo, auditRepo, year)
+	s.Statement = service.NewStatementService(s.Accounting, s.Closing, settingsRepo, auditRepo)
 	s.Statement.SetOpenItemSource(s.Payments)
 	s.Closing.SetRevenueSource(s.Statement)
 	s.Statement.SetRenderer(renderer)
@@ -206,22 +205,22 @@ func wire(db *gorm.DB, info TenantInfo, year int, renderer *invoice.Renderer, o 
 		Texts:          s.Appropriation,
 	})
 
-	s.EBilanz = service.NewEBilanzService(s.Statement, settingsRepo, auditRepo, year)
+	s.EBilanz = service.NewEBilanzService(s.Statement, settingsRepo, auditRepo)
 	s.EBilanz.SetAnlagenspiegelSource(s.Assets)
 
 	s.VatReturns = service.NewVatReturnService(
 		journalRepo, receiptRepo, contactRepo, settingsRepo,
-		festschreibungRepo, vatReturnRepo, auditRepo, year,
+		festschreibungRepo, vatReturnRepo, auditRepo,
 	)
 	s.ZM = service.NewZMService(
 		journalRepo, contactRepo, settingsRepo, festschreibungRepo,
-		zmReturnRepo, vatReturnRepo, auditRepo, year,
+		zmReturnRepo, vatReturnRepo, auditRepo,
 	)
 
 	s.Checks = service.NewCheckService(
 		journalRepo, receiptRepo, bankRepo, invoiceRepo, numberRepo,
 		settingsRepo, festschreibungRepo, vatReturnRepo, checkRunRepo,
-		auditRepo, year,
+		auditRepo,
 	)
 	s.Checks.SetFiscalYearSource(fiscalYearRepo)
 	s.Checks.SetAccountSource(s.Accounting)
@@ -234,7 +233,7 @@ func wire(db *gorm.DB, info TenantInfo, year int, renderer *invoice.Renderer, o 
 
 	s.Deadlines = service.NewDeadlineService(
 		s.VatReturns, s.ZM, settingsRepo, festschreibungRepo,
-		deadlineRepo, auditRepo, year,
+		deadlineRepo, auditRepo,
 	)
 	s.Deadlines.SetFiscalYearSource(fiscalYearRepo)
 	s.Deadlines.SetStatementSource(s.Statement)
@@ -244,7 +243,7 @@ func wire(db *gorm.DB, info TenantInfo, year int, renderer *invoice.Renderer, o 
 		journalRepo, accountRepo, contactRepo, receiptRepo, assetRepo,
 		allocationRepo, auditRepo, settingsRepo, festschreibungRepo,
 		vatReturnRepo, checkRunRepo, fiscalYearRepo,
-		store, info.DataDir, year,
+		store, info.DataDir,
 	)
 	s.Export.SetTenantName(info.Name)
 	s.Export.SetOpenItemSource(s.Payments)
@@ -260,10 +259,10 @@ func wire(db *gorm.DB, info TenantInfo, year int, renderer *invoice.Renderer, o 
 	s.AuditTrail = service.NewAuditTrailService(receiptRepo, journalRepo, allocationRepo, bankRepo, auditRepo)
 	s.AuditTrail.SetRenderer(renderer)
 
-	s.MonthClose = service.NewMonthCloseService(s.Checks, s.VatReturns, festschreibungRepo, year)
+	s.MonthClose = service.NewMonthCloseService(s.Checks, s.VatReturns, festschreibungRepo)
 	s.MonthClose.SetFiscalYearSource(fiscalYearRepo)
 
-	s.Tasks = service.NewTaskService(settingsRepo, year)
+	s.Tasks = service.NewTaskService(settingsRepo)
 	s.Tasks.SetCheckSource(s.Checks)
 	s.Tasks.SetDeadlineSource(s.Deadlines)
 	s.Tasks.SetStatementSource(s.Statement)
