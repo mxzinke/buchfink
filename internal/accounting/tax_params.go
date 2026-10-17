@@ -3,6 +3,7 @@ package accounting
 import (
 	"fmt"
 	"sort"
+	"strconv"
 
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -32,7 +33,11 @@ type TaxParameters struct {
 	SmallAmountInvoiceLimit domain.Cents
 
 	// CorporateTaxPermille ist der Körperschaftsteuersatz in Promille
-	// (150 = 15 %, § 23 Abs. 1 KStG).
+	// (150 = 15 %, § 23 Abs. 1 KStG). Er gilt je Veranlagungszeitraum und kommt
+	// aus corporateTaxRates; TaxParametersFor wählt ihn nach dem Kalenderjahr
+	// des Datums. Für die Körperschaftsteuer ist das Datum deshalb das Ende des
+	// Wirtschaftsjahres: dessen Gewinn gilt als in diesem Kalenderjahr bezogen
+	// (§ 7 Abs. 4 Satz 2 KStG).
 	CorporateTaxPermille int64
 	// SolidarityPermille ist der Solidaritätszuschlag auf die
 	// Körperschaftsteuer (55 = 5,5 %, § 4 SolZG).
@@ -87,10 +92,8 @@ var taxParameterSets = []TaxParameters{
 		EntertainmentDeductiblePermille: 700,
 		// § 33 UStDV: 150 € until 2016, 250 € from 2017.
 		SmallAmountInvoiceLimit: 15000,
-		// Bis 2007 betrug der Körperschaftsteuersatz 25 % (§ 23 Abs. 1 KStG
-		// a. F.); die Unternehmensteuerreform 2008 hat ihn auf 15 % gesenkt und
-		// zugleich die Gewerbesteuer-Messzahl von 5 % auf 3,5 % vereinheitlicht.
-		CorporateTaxPermille:   250,
+		// Die Unternehmensteuerreform 2008 hat die Gewerbesteuer-Messzahl von
+		// 5 % auf 3,5 % vereinheitlicht.
 		SolidarityPermille:     55,
 		TradeTaxBasePermille:   50,
 		WithholdingTaxPermille: 200,
@@ -100,7 +103,6 @@ var taxParameterSets = []TaxParameters{
 		ValidFrom:                       "2008-01-01",
 		EntertainmentDeductiblePermille: 700,
 		SmallAmountInvoiceLimit:         15000,
-		CorporateTaxPermille:            150,
 		SolidarityPermille:              55,
 		TradeTaxBasePermille:            35,
 		// Die Abgeltungsteuer von 25 % gilt seit dem 1. Januar 2009
@@ -112,7 +114,6 @@ var taxParameterSets = []TaxParameters{
 		ValidFrom:                       "2009-01-01",
 		EntertainmentDeductiblePermille: 700,
 		SmallAmountInvoiceLimit:         15000,
-		CorporateTaxPermille:            150,
 		SolidarityPermille:              55,
 		TradeTaxBasePermille:            35,
 		WithholdingTaxPermille:          250,
@@ -122,7 +123,6 @@ var taxParameterSets = []TaxParameters{
 		ValidFrom:                       "2017-01-01",
 		EntertainmentDeductiblePermille: 700,
 		SmallAmountInvoiceLimit:         25000,
-		CorporateTaxPermille:            150,
 		SolidarityPermille:              55,
 		TradeTaxBasePermille:            35,
 		WithholdingTaxPermille:          250,
@@ -135,7 +135,6 @@ var taxParameterSets = []TaxParameters{
 		ValidFrom:                       "2024-01-01",
 		EntertainmentDeductiblePermille: 700,
 		SmallAmountInvoiceLimit:         25000,
-		CorporateTaxPermille:            150,
 		SolidarityPermille:              55,
 		TradeTaxBasePermille:            35,
 		WithholdingTaxPermille:          250,
@@ -174,7 +173,42 @@ func TaxParametersFor(date string) (TaxParameters, error) {
 	if idx == 0 {
 		return TaxParameters{}, fmt.Errorf("für den %s sind keine steuerlichen Werte hinterlegt", date)
 	}
-	return taxParameterSets[idx-1], nil
+	params := taxParameterSets[idx-1]
+	year, err := strconv.Atoi(date[:min(4, len(date))])
+	if err != nil {
+		return TaxParameters{}, fmt.Errorf("%q ist kein Datum", date)
+	}
+	if params.CorporateTaxPermille, err = CorporateTaxPermilleFor(year); err != nil {
+		return TaxParameters{}, err
+	}
+	return params, nil
+}
+
+// corporateTaxRates sind die Sätze des § 23 Abs. 1 KStG ab dem genannten
+// Veranlagungszeitraum, aufsteigend: bis 2007 25 % (a. F.), seit der
+// Unternehmensteuerreform 2008 15 % bis 2027, danach ein Punkt weniger je Jahr
+// bis 10 % ab 2032 (Abs. 1 Nr. 1 bis 6).
+var corporateTaxRates = []struct {
+	from     int
+	permille int64
+}{
+	{2007, 250},
+	{2008, 150},
+	{2028, 140},
+	{2029, 130},
+	{2030, 120},
+	{2031, 110},
+	{2032, 100},
+}
+
+// CorporateTaxPermilleFor liefert den Körperschaftsteuersatz eines
+// Veranlagungszeitraums in Promille.
+func CorporateTaxPermilleFor(year int) (int64, error) {
+	idx := sort.Search(len(corporateTaxRates), func(i int) bool { return corporateTaxRates[i].from > year })
+	if idx == 0 {
+		return 0, fmt.Errorf("für den Veranlagungszeitraum %d ist kein Körperschaftsteuersatz hinterlegt", year)
+	}
+	return corporateTaxRates[idx-1].permille, nil
 }
 
 // EInvoiceTransition says whether a sonstige Rechnung — paper or a plain PDF —

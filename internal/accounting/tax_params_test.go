@@ -53,3 +53,33 @@ func TestEInvoiceTransitionFollowsTheDeadlines(t *testing.T) {
 		}
 	}
 }
+
+// § 23 Abs. 1 KStG: 15 % bis 2027, dann ein Punkt weniger je
+// Veranlagungszeitraum bis 10 % ab 2032. Gewählt wird nach dem Kalenderjahr
+// des Datums, für den Abschluss also nach dem Ende des Wirtschaftsjahres.
+func TestCorporateTaxRateFollowsTheAssessmentYear(t *testing.T) {
+	cases := map[string]int64{
+		"2007-12-31": 250,
+		"2008-12-31": 150,
+		"2027-12-31": 150,
+		"2028-01-01": 140,
+		"2028-12-31": 140,
+		"2029-06-30": 130,
+		"2030-12-31": 120,
+		"2031-12-31": 110,
+		"2032-12-31": 100,
+		"2040-12-31": 100,
+	}
+	for date, want := range cases {
+		params, err := TaxParametersFor(date)
+		if err != nil {
+			t.Fatalf("%s: %v", date, err)
+		}
+		if params.CorporateTaxPermille != want {
+			t.Errorf("%s: Körperschaftsteuersatz %d ‰, erwartet %d ‰", date, params.CorporateTaxPermille, want)
+		}
+	}
+	if _, err := CorporateTaxPermilleFor(2006); err == nil {
+		t.Error("vor 2007 ist kein Satz hinterlegt; geraten wird nicht")
+	}
+}
