@@ -20,11 +20,9 @@ import (
 // der Verfahrensdokumentation liegen.
 const ProcDocCategory = "verfahrensdokumentation"
 
-// ProcDocEnvironment sind die Angaben, die nicht aus der Datenbank kommen.
-//
-// Sie werden übergeben und nicht ermittelt: der Datenordner und das
-// Sicherungsziel kennt die Bridge, nicht der Dienst — und ein Dienst, der sich
-// seine Umgebung selbst zusammensucht, lässt sich nicht prüfen.
+// ProcDocEnvironment sind die Angaben, die nicht aus der Datenbank kommen. Sie
+// gehören zum Aufruf: Datenordner und Sicherungsziel kennt der Kern, nicht der
+// Dienst.
 type ProcDocEnvironment struct {
 	DataDir      string
 	BackupDir    string
@@ -54,7 +52,6 @@ type ProcDocService struct {
 	auditRepo     domain.AuditRepository
 	store         *receiptstore.Store
 	renderer      DocumentRenderer
-	env           ProcDocEnvironment
 }
 
 // NewProcDocService verdrahtet die Erzeugung der Verfahrensdokumentation.
@@ -72,9 +69,6 @@ func NewProcDocService(
 		auditRepo: auditRepo, store: store,
 	}
 }
-
-// SetEnvironment reicht die Angaben nach, die außerhalb der Datenbank liegen.
-func (s *ProcDocService) SetEnvironment(env ProcDocEnvironment) { s.env = env }
 
 // SetRenderer hängt den Dokumentensetzer an, mit dem die Fassung zusätzlich als
 // PDF entsteht. Ohne ihn bleibt es beim Markdown.
@@ -149,13 +143,15 @@ func (s *ProcDocService) SaveOrganisationTexts(ctx context.Context, texts domain
 // Scheitert der Satz, gilt die Fassung trotzdem: der Nachweis nach GoBD Rz. 151
 // richtet sich nach dem Inhalt und nicht nach dem Layout. Der Grund steht dann in PDFNote und im
 // Protokoll, statt die Erzeugung an einer Formfrage scheitern zu lassen.
-func (s *ProcDocService) Generate(ctx context.Context, year int, now time.Time) (*ProcDocResult, error) {
+func (s *ProcDocService) Generate(
+	ctx context.Context, year int, env ProcDocEnvironment, now time.Time,
+) (*ProcDocResult, error) {
 	if now.IsZero() {
 		now = time.Now().UTC()
 	}
 	now = now.UTC()
 
-	input, err := s.buildInput(ctx, year, now)
+	input, err := s.buildInput(ctx, year, env, now)
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +310,9 @@ func (s *ProcDocService) Documentations(ctx context.Context) ([]domain.Procedure
 }
 
 // buildInput sammelt die veränderlichen Angaben.
-func (s *ProcDocService) buildInput(ctx context.Context, year int, now time.Time) (procdoc.Input, error) {
+func (s *ProcDocService) buildInput(
+	ctx context.Context, year int, env ProcDocEnvironment, now time.Time,
+) (procdoc.Input, error) {
 	settings, err := s.settingsRepo.GetCompanySettings(ctx)
 	if err != nil {
 		return procdoc.Input{}, fmt.Errorf("die Stammdaten konnten nicht gelesen werden: %w", err)
@@ -342,8 +340,8 @@ func (s *ProcDocService) buildInput(ctx context.Context, year int, now time.Time
 		FiscalYear:       year,
 		FiscalYearFrom:   from,
 		FiscalYearTo:     to,
-		DataDir:          s.env.DataDir,
-		CloudWarning:     domain.CloudFolderWarning(s.env.DataDir),
+		DataDir:          env.DataDir,
+		CloudWarning:     domain.CloudFolderWarning(env.DataDir),
 		SKR:              settings.SKR,
 		TaxCases:         coveredTaxCases(),
 		ExcludedCases:    domain.TaxCaseHints(),
@@ -354,8 +352,8 @@ func (s *ProcDocService) buildInput(ctx context.Context, year int, now time.Time
 		RuleVersion:      accounting.PostingRuleVersion,
 		TSAName:          timestamp.DefaultTSA,
 		ExportFormats:    exportFormats(),
-		BackupDir:        s.env.BackupDir,
-		BackupRhythm:     s.env.BackupRhythm,
+		BackupDir:        env.BackupDir,
+		BackupRhythm:     env.BackupRhythm,
 		ChangelogSection: changelog.Section(),
 		CheckRules:       checkRuleCatalog(),
 		Version:          version,
@@ -368,8 +366,8 @@ func (s *ProcDocService) buildInput(ctx context.Context, year int, now time.Time
 	input.NumberRanges = s.numberRanges(ctx, settings, year)
 	input.RetentionRows = retentionRows()
 	input.Migrations = s.migrations(ctx)
-	for i := range s.env.BackupRuns {
-		run := &s.env.BackupRuns[i]
+	for i := range env.BackupRuns {
+		run := &env.BackupRuns[i]
 		result := "fehlgeschlagen"
 		if run.Success {
 			result = "erfolgreich"

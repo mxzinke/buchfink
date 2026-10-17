@@ -131,3 +131,25 @@ func auditContains(t *testing.T, tenant *Tenant, text string) bool {
 	}
 	return found
 }
+
+// Scheitert das Übernahmeprotokoll, bleibt der Mandant angemeldet, und der
+// Aufrufer erfährt es.
+func TestFailedMigrationRecordIsReported(t *testing.T) {
+	h := newHost(t)
+	tc := newTenant(t, h, "Pfennig Ventures GmbH")
+	tenant := openTenant(t, h)
+	if err := tenant.db.Exec(`CREATE TRIGGER kein_uebernahmeprotokoll BEFORE INSERT ON migration_records
+		BEGIN SELECT RAISE(ABORT, 'Protokoll nicht verfügbar'); END`).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := h.RemoveTenant(uiCtx, tc.ID); err != nil {
+		t.Fatal(err)
+	}
+	registered, err := h.RegisterTenant(uiCtx, filepath.Join(tc.DataDir, "buchfink.sqlite"), "", domain.MigrationKindOpen)
+	if err == nil || !strings.Contains(err.Error(), "nicht protokollieren") {
+		t.Fatalf("gescheitertes Übernahmeprotokoll: %v", err)
+	}
+	if registered == nil || h.ActiveTenant() == nil || h.ActiveTenant().ID != registered.ID {
+		t.Errorf("der Mandant ist nicht angemeldet: %+v", registered)
+	}
+}

@@ -112,7 +112,6 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.ProcDoc = service.NewProcDocService(
 		settingsRepo, numberRepo, procDocRepo, migrationRepo, auditRepo, store)
 	s.ProcDoc.SetRenderer(renderer)
-	s.ProcDoc.SetEnvironment(ProcDocEnvironment(info.DataDir, o.backupDir()))
 
 	s.Currency = service.NewCurrencyService(exchangeRateRepo, o.Network.Rates, auditRepo)
 	s.Currency.SetJournalRepo(journalRepo)
@@ -166,10 +165,6 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 
 	s.Gifts = service.NewGiftService(journalRepo, s.Journal, settingsRepo, auditRepo)
 	s.Posting.SetGiftRegister(s.Gifts)
-	// Der Beginn des Geschäftsjahres wird je Aufruf gelesen: ändert der
-	// Anwender ihn, rechnete die Freigrenze für Geschenke sonst bis zum
-	// Neuöffnen mit dem alten Wirtschaftsjahr.
-	s.Posting.SetFiscalYearStartReader(func() int { return startMonthOf(settingsRepo) })
 	s.Posting.SetCurrencyConverter(s.Currency)
 	s.Assets.SetInputTaxRegister(s.InputTax)
 
@@ -273,18 +268,6 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	return s, st
 }
 
-// startMonthOf liest den Beginn des Geschäftsjahres aus den Unternehmensdaten.
-func startMonthOf(repo domain.SettingsRepository) int {
-	settings, err := repo.GetCompanySettings(context.Background())
-	if err != nil || settings == nil {
-		return 1
-	}
-	if settings.FiscalYearStartMonth < 1 || settings.FiscalYearStartMonth > 12 {
-		return 1
-	}
-	return settings.FiscalYearStartMonth
-}
-
 // integrityChecks bündelt die beiden Prüfläufe für den Export, der weder den
 // Journaldienst noch die Belegablage kennen soll.
 type integrityChecks struct {
@@ -300,9 +283,9 @@ func (c integrityChecks) VerifyReceiptFiles(ctx context.Context) (*domain.FileCh
 	return c.receipts.VerifyReceiptFiles(ctx)
 }
 
-// ProcDocEnvironment beschreibt Ablage und Sicherung für die
+// procDocEnvironment beschreibt Ablage und Sicherung für die
 // Verfahrensdokumentation.
-func ProcDocEnvironment(dataDir, backupDir string) service.ProcDocEnvironment {
+func procDocEnvironment(dataDir, backupDir string) service.ProcDocEnvironment {
 	return service.ProcDocEnvironment{
 		DataDir:      dataDir,
 		BackupDir:    backupDir,

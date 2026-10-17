@@ -222,10 +222,14 @@ func (h *Host) RestoreBackup(ctx context.Context, zipPath, targetDir string) (*d
 		}
 	}
 
+	problems := make([]string, 0, 3)
 	tc, restored, err := h.register(ctx, filepath.Join(targetDir, "buchfink.sqlite"), meta.TenantName,
 		domain.MigrationKindRestore)
-	if err != nil {
+	if restored == nil {
 		return nil, fmt.Errorf("die Daten wurden wiederhergestellt, konnten aber nicht als Mandant angemeldet werden: %w", err)
+	}
+	if err != nil {
+		problems = append(problems, err.Error())
 	}
 	if err := restored.Write(ctx, func(ctx context.Context, s *Services) error {
 		return s.Backup.RecordRun(ctx, run)
@@ -233,8 +237,7 @@ func (h *Host) RestoreBackup(ctx context.Context, zipPath, targetDir string) (*d
 		return tc, fmt.Errorf("die Daten wurden wiederhergestellt, der Lauf ließ sich aber nicht vermerken: %w", err)
 	}
 
-	problems := make([]string, 0, 2)
-	_ = restored.Read(ctx, func(ctx context.Context, s *Services) error {
+	if err := restored.Read(ctx, func(ctx context.Context, s *Services) error {
 		if result, err := s.Journal.VerifyIntegrity(ctx); err != nil {
 			problems = append(problems, fmt.Sprintf("Die Hash-Chain konnte nicht geprüft werden: %v", err))
 		} else if !result.IsValid {
@@ -246,7 +249,9 @@ func (h *Host) RestoreBackup(ctx context.Context, zipPath, targetDir string) (*d
 			problems = append(problems, result.Message)
 		}
 		return nil
-	})
+	}); err != nil {
+		problems = append(problems, fmt.Sprintf("Die Prüfung ließ sich nicht ausführen: %v", err))
+	}
 
 	outcome := "ohne Beanstandung"
 	if len(problems) > 0 {

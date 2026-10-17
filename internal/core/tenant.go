@@ -40,11 +40,12 @@ type Options struct {
 	Logger  *slog.Logger
 }
 
-func (o Options) backupDir() string {
-	if o.BackupDir == nil {
+// backupDirectory ist der eingerichtete Sicherungsordner dieses Mandanten.
+func (t *Tenant) backupDirectory() string {
+	if t.backupDir == nil {
 		return ""
 	}
-	return o.BackupDir()
+	return t.backupDir()
 }
 
 // Tenant ist ein offener Mandant.

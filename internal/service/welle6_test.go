@@ -451,12 +451,16 @@ func newProcDocService(t *testing.T, env *testEnv) *ProcDocService {
 		repository.NewAuditRepository(env.db),
 		env.store,
 	)
-	svc.SetEnvironment(ProcDocEnvironment{
+	return svc
+}
+
+// procDocEnv ist die Umgebung, mit der die Tests eine Fassung erzeugen.
+func procDocEnv(env *testEnv) ProcDocEnvironment {
+	return ProcDocEnvironment{
 		DataDir:      env.dataDir,
 		BackupDir:    "/media/sicherung",
 		BackupRhythm: "täglich",
-	})
-	return svc
+	}
 }
 
 func TestProcedureDocumentationCoversAllParts(t *testing.T) {
@@ -464,7 +468,7 @@ func TestProcedureDocumentationCoversAllParts(t *testing.T) {
 	svc := newProcDocService(t, env)
 	ctx := context.Background()
 
-	result, err := svc.Generate(ctx, 2026, time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC))
+	result, err := svc.Generate(ctx, 2026, procDocEnv(env), time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("die Verfahrensdokumentation ließ sich nicht erzeugen: %v", err)
 	}
@@ -520,11 +524,11 @@ func TestProcedureDocumentationVersionsPerDay(t *testing.T) {
 	ctx := context.Background()
 	day := time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC)
 
-	first, err := svc.Generate(ctx, 2026, day)
+	first, err := svc.Generate(ctx, 2026, procDocEnv(env), day)
 	if err != nil {
 		t.Fatalf("erste Fassung: %v", err)
 	}
-	second, err := svc.Generate(ctx, 2026, day.Add(2*time.Hour))
+	second, err := svc.Generate(ctx, 2026, procDocEnv(env), day.Add(2*time.Hour))
 	if err != nil {
 		t.Fatalf("zweite Fassung: %v", err)
 	}
@@ -577,7 +581,7 @@ func TestOrganisationTextsComeWithSamplesAndAreLogged(t *testing.T) {
 		t.Errorf("das Nachher muss den neuen Text enthalten: %q", entries[0].After)
 	}
 
-	result, err := svc.Generate(ctx, 2026, time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC))
+	result, err := svc.Generate(ctx, 2026, procDocEnv(env), time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("die Verfahrensdokumentation ließ sich nicht erzeugen: %v", err)
 	}

@@ -3,8 +3,6 @@ package wailsbridge
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -96,16 +94,9 @@ func (b *BuchfinkBridge) GetMigrationRecords() ([]domain.MigrationRecord, error)
 
 // GenerateProcedureDocumentation erzeugt eine neue Fassung und legt sie ab.
 func (b *BuchfinkBridge) GenerateProcedureDocumentation() (*service.ProcDocResult, error) {
-	backupDir := b.host.Config().BackupDir
-	return write(b, func(ctx context.Context, s *core.Services) (*service.ProcDocResult, error) {
-		// Die Sicherungsläufe kommen frisch dazu: die Betriebsdokumentation
-		// soll die letzten Läufe nennen und nicht den Stand beim Öffnen.
-		env := core.ProcDocEnvironment(s.Tenant.DataDir, backupDir)
-		if runs, err := s.Repos.BackupRuns.FindRecent(ctx, 5); err == nil {
-			env.BackupRuns = runs
-		}
-		s.ProcDoc.SetEnvironment(env)
-		return s.ProcDoc.Generate(ctx, b.viewYear(), time.Time{})
+	year := b.viewYear()
+	return operate(b, func(ctx context.Context, t *core.Tenant) (*service.ProcDocResult, error) {
+		return t.GenerateProcedureDocumentation(ctx, year)
 	})
 }
 
@@ -141,11 +132,7 @@ func (b *BuchfinkBridge) SaveProcedureDocumentationAs(id uint, wantPDF bool) (st
 	if err != nil || path == "" {
 		return "", err
 	}
-	if err := os.WriteFile(path, file.Data, 0o600); err != nil {
-		return "", fmt.Errorf("%s konnte nicht geschrieben werden: %w", filepath.Base(path), err)
-	}
-	// Die Herausgabe ist die Handlung, die ins Protokoll gehört (QUE-02 K2).
-	if err := b.logAccess("PROCEDURE_DOC", strconv.FormatUint(uint64(id), 10),
+	if err := b.handOut(path, file.Data, "PROCEDURE_DOC", strconv.FormatUint(uint64(id), 10),
 		fmt.Sprintf("Verfahrensdokumentation %s nach %s herausgegeben", file.FileName, path)); err != nil {
 		return "", err
 	}

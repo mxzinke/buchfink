@@ -330,7 +330,7 @@ func (s *PostingService) resolveGift(
 		}
 	}
 	if req.BookingDate != "" {
-		record.FiscalYear = domain.GetFiscalYearForDate(req.BookingDate, s.fiscalYearStartMonth())
+		record.FiscalYear = s.journalSvc.FiscalYearOf(ctx, req.BookingDate)
 	}
 	if err := record.Validate(); err != nil {
 		return nil, nil, err
@@ -346,7 +346,7 @@ func (s *PostingService) resolveGift(
 	// Jahreswechsel und 50 € danach, im selben Wirtschaftsjahr.
 	limitDate := req.DocumentDate
 	if record.FiscalYear > 0 {
-		limitDate = fmt.Sprintf("%04d-%02d-01", record.FiscalYear, s.fiscalYearStartMonth())
+		limitDate = fmt.Sprintf("%04d-%02d-01", record.FiscalYear, s.journalSvc.fiscalYearStartMonth(ctx))
 	}
 	params, err := accounting.TaxParametersFor(limitDate)
 	if err != nil {
@@ -385,7 +385,7 @@ func (s *PostingService) giftTotals(
 	if s.gifts == nil || !requestHasGifts(req) {
 		return out, nil
 	}
-	year := domain.GetFiscalYearForDate(req.BookingDate, s.fiscalYearStartMonth())
+	year := s.journalSvc.FiscalYearOf(ctx, req.BookingDate)
 	records, err := s.gifts.GiftsInYear(ctx, year)
 	if err != nil {
 		return nil, fmt.Errorf("die bisherigen Geschenke des Jahres ließen sich nicht lesen: %w", err)
@@ -425,28 +425,3 @@ type giftRegister interface {
 // keine Freigrenze und bucht jedes Geschenk als abziehbar — deshalb wird sie
 // gesetzt, wo es eine gibt.
 func (s *PostingService) SetGiftRegister(g giftRegister) { s.gifts = g }
-
-// SetFiscalYearStartMonth sagt dem Belegweg, wann das Geschäftsjahr beginnt. Die
-// Freigrenze läuft je Wirtschaftsjahr, und bei einem abweichenden Geschäftsjahr
-// ist das nicht das Kalenderjahr.
-func (s *PostingService) SetFiscalYearStartMonth(month int) { s.fiscalStartMonth = month }
-
-// SetFiscalYearStartReader gibt dem Belegweg den Beginn des Geschäftsjahres als
-// Frage statt als Zahl.
-//
-// Der Unterschied ist der zwischen einem Wert von damals und einem von jetzt:
-// die Einstellung wurde bisher einmal beim Einrichten des Mandanten gelesen, und
-// wer den Beginn des Geschäftsjahres danach änderte, bekam bis zum nächsten
-// Programmstart die Freigrenze des alten Wirtschaftsjahres.
-func (s *PostingService) SetFiscalYearStartReader(read func() int) { s.fiscalStartReader = read }
-
-func (s *PostingService) fiscalYearStartMonth() int {
-	month := s.fiscalStartMonth
-	if s.fiscalStartReader != nil {
-		month = s.fiscalStartReader()
-	}
-	if month <= 0 || month > 12 {
-		return 1
-	}
-	return month
-}

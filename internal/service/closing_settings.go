@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/buchfink/buchfink/internal/domain"
+	"gorm.io/gorm"
 )
 
 // ClosingSettings sind die drei Einstellungen, die die Abschlussbausteine
@@ -45,20 +47,29 @@ func (s *ClosingSettingsService) Get(ctx context.Context) (*ClosingSettings, err
 		AccrualThreshold:    domain.DefaultAccrualThreshold,
 		AccrualRelease:      "yearly",
 	}
-	if v := s.read(ctx, domain.SettingTradeTaxRate); v != "" {
+	values := map[string]string{}
+	for _, key := range []string{domain.SettingTradeTaxRate, domain.SettingAccrualMethod,
+		domain.SettingAccrualThreshold, domain.SettingAccrualRelease} {
+		v, err := s.read(ctx, key)
+		if err != nil {
+			return nil, fmt.Errorf("die Abschluss-Einstellung %s ließ sich nicht lesen: %w", key, err)
+		}
+		values[key] = v
+	}
+	if v := values[domain.SettingTradeTaxRate]; v != "" {
 		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
 			out.TradeTaxRatePercent = n
 		}
 	}
-	if v := s.read(ctx, domain.SettingAccrualMethod); v == "monthly" || v == "daily" {
+	if v := values[domain.SettingAccrualMethod]; v == "monthly" || v == "daily" {
 		out.AccrualMethod = v
 	}
-	if v := s.read(ctx, domain.SettingAccrualThreshold); v != "" {
+	if v := values[domain.SettingAccrualThreshold]; v != "" {
 		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n >= 0 {
 			out.AccrualThreshold = domain.Cents(n)
 		}
 	}
-	if v := s.read(ctx, domain.SettingAccrualRelease); v == "yearly" || v == "monthly" {
+	if v := values[domain.SettingAccrualRelease]; v == "yearly" || v == "monthly" {
 		out.AccrualRelease = v
 	}
 	return out, nil
@@ -82,7 +93,10 @@ func (s *ClosingSettingsService) Save(ctx context.Context, in ClosingSettings) (
 	if in.AccrualRelease != "yearly" && in.AccrualRelease != "monthly" {
 		return nil, fmt.Errorf("der Auflösungstakt ist jährlich (yearly) oder monatlich (monthly), nicht %q", in.AccrualRelease)
 	}
-	before, _ := s.Get(ctx)
+	before, err := s.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
 	writes := map[string]string{
 		domain.SettingTradeTaxRate:     strconv.FormatInt(in.TradeTaxRatePercent, 10),
 		domain.SettingAccrualMethod:    in.AccrualMethod,
@@ -94,7 +108,7 @@ func (s *ClosingSettingsService) Save(ctx context.Context, in ClosingSettings) (
 			return nil, fmt.Errorf("Einstellung %s konnte nicht gespeichert werden: %w", key, err)
 		}
 	}
-	if s.auditRepo != nil && before != nil {
+	if s.auditRepo != nil {
 		if err := logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "SETTINGS", "closing",
 			fmt.Sprintf("Abschluss-Einstellungen geändert: Hebesatz %d %% → %d %%, Abgrenzung %s → %s, Schwelle %s → %s, Auflösung %s → %s",
 				before.TradeTaxRatePercent, in.TradeTaxRatePercent, before.AccrualMethod, in.AccrualMethod,
@@ -105,13 +119,14 @@ func (s *ClosingSettingsService) Save(ctx context.Context, in ClosingSettings) (
 	return s.Get(ctx)
 }
 
-func (s *ClosingSettingsService) read(ctx context.Context, key string) string {
+// read liest eine Einstellung; ein fehlender Schlüssel ist der leere Wert.
+func (s *ClosingSettingsService) read(ctx context.Context, key string) (string, error) {
 	if s.settingsRepo == nil {
-		return ""
+		return "", nil
 	}
 	v, err := s.settingsRepo.Get(ctx, key)
-	if err != nil {
-		return ""
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", nil
 	}
-	return strings.TrimSpace(v)
+	return strings.TrimSpace(v), err
 }

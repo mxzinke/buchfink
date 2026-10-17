@@ -125,7 +125,7 @@ func TestProcedureDocumentationIsAlsoTypesetAsPDF(t *testing.T) {
 	svc.SetRenderer(sharedRenderer())
 	ctx := context.Background()
 
-	result, err := svc.Generate(ctx, 2026, time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC))
+	result, err := svc.Generate(ctx, 2026, procDocEnv(env), time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("die Verfahrensdokumentation ließ sich nicht erzeugen: %v", err)
 	}
@@ -172,7 +172,7 @@ func TestProcedureDocumentationSurvivesAFailedTypesetting(t *testing.T) {
 	svc.SetRenderer(failingRenderer{})
 	ctx := context.Background()
 
-	result, err := svc.Generate(ctx, 2026, time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC))
+	result, err := svc.Generate(ctx, 2026, procDocEnv(env), time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("ein Satzfehler darf die Fassung nicht verhindern: %v", err)
 	}

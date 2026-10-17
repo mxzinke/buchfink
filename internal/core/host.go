@@ -548,6 +548,8 @@ func (h *Host) RegisterTenant(
 }
 
 // register ist RegisterTenant ohne Sperre. Der Aufrufer hält lifecycle.
+// Liefert es einen Mandanten und einen Fehler, ist er angemeldet und offen,
+// aber die Übernahme nicht protokolliert.
 func (h *Host) register(
 	ctx context.Context, dbFile, name string, kind domain.MigrationKind,
 ) (*domain.TenantConfig, *Tenant, error) {
@@ -589,7 +591,10 @@ func (h *Host) register(
 		return nil, nil, err
 	}
 	h.activate(t)
-	h.recordMigration(ctx, t, kind, dbFile)
+	if err := h.recordMigration(ctx, t, kind, dbFile); err != nil {
+		return &tc, t, fmt.Errorf(
+			"der Mandant ist angemeldet und geöffnet, die Übernahme ließ sich aber nicht protokollieren: %w", err)
+	}
 	return &tc, t, nil
 }
 
@@ -612,10 +617,10 @@ func companyNameAt(dbFile string) string {
 // schreibt das Migrationsprotokoll (ARC-05). Jeder Weg herein geht durch
 // register, deshalb wird nur hier protokolliert.
 //
-// Der Vorgang hält die Übernahme nicht auf: die Daten sind da, und ein
-// gescheitertes Protokoll wäre kein Grund, sie wieder wegzunehmen.
-func (h *Host) recordMigration(ctx context.Context, t *Tenant, kind domain.MigrationKind, source string) {
-	err := t.Write(ctx, func(ctx context.Context, s *Services) error {
+// Ein gescheitertes Protokoll nimmt die Übernahme nicht zurück — die Daten
+// sind da —, es kommt aber als Fehler beim Aufrufer an.
+func (h *Host) recordMigration(ctx context.Context, t *Tenant, kind domain.MigrationKind, source string) error {
+	return t.Write(ctx, func(ctx context.Context, s *Services) error {
 		counts, err := repository.CountForMigration(ctx, t.db)
 		if err != nil {
 			return s.Repos.Audit.Log(ctx, domain.AuditActionImport, "MIGRATION", t.ID(),
@@ -644,9 +649,6 @@ func (h *Host) recordMigration(ctx context.Context, t *Tenant, kind domain.Migra
 			counts.Receipts, counts.Contacts, counts.Accounts, counts.Invoices,
 			counts.FixedAssets, counts.AuditEntries, balance, rec.ChainMessage))
 	}, ExaminerExempt())
-	if err != nil {
-		h.logger.Warn("Übernahme ließ sich nicht protokollieren", "mandant", t.ID(), "fehler", err)
-	}
 }
 
 // RemoveTenant nimmt einen Mandanten aus der Liste; die Daten bleiben liegen,

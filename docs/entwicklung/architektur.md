@@ -92,7 +92,7 @@ flowchart TB
         CORE --> SVC["service<br/>Anwendungsfälle: Buchen, Zahlen, Abschließen, Exportieren"]
         SVC --> ACC["accounting<br/>Regeln: SKR04, Steuerschlüssel, AfA, Hash"]
         SVC --> DOM["domain<br/>Entitäten, Invarianten, Repository-Schnittstellen"]
-        SVC --> REP["repository<br/>GORM, SQLite, Feldverschlüsselung"]
+        SVC --> REP["repository<br/>GORM, SQLite"]
         SVC --> FMT["Formatmodule<br/>einvoice, invoice, ebilanz, bank, export"]
     end
     REP --> DB[("buchfink.sqlite je Mandant")]
@@ -122,8 +122,10 @@ Regeln, die diese Schichtung stützen:
    Dienste. Jeder Zugriff geht über `Tenant.Read` (lesende Transaktion, ohne
    Sperre) oder `Tenant.Write` (Schreibsperre, Prüfermodus, eine Transaktion je
    Vorgang) und nennt seinen Erfassungsweg (`ui`, `system`, `agent:<kurzname>`).
-   Das Geschäftsjahr ist eine Angabe jedes Aufrufs; kein Dienst hält eines,
-   das Jahr der Ansicht kennt nur die Bridge.
+   Das Geschäftsjahr ist eine Angabe jedes Aufrufs; kein Dienst hält eines.
+   Das Jahr der Ansicht führt `core.Host` als Ansichtszustand der Oberfläche.
+   Ein Datenordner hat genau einen Schreiber: `core.Open` sperrt ihn über
+   `buchfink.lock`.
 
 ### Prüfpunkte mit Datum
 

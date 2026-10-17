@@ -83,7 +83,7 @@ func TestProcDocShowsTheConfiguredReceiptNumberFormat(t *testing.T) {
 	}
 
 	result, err := newProcDocService(t, env).
-		Generate(ctx, 2026, time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC))
+		Generate(ctx, 2026, procDocEnv(env), time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("Verfahrensdokumentation: %v", err)
 	}

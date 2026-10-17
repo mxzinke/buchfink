@@ -3,8 +3,6 @@ package wailsbridge
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -144,10 +142,7 @@ func (b *BuchfinkBridge) SaveReceiptFileAs(receiptID, fileID uint) (string, erro
 func (b *BuchfinkBridge) writeReceiptFileTo(
 	receiptID uint, content *service.FileContent, path string,
 ) error {
-	if err := os.WriteFile(path, content.Data, 0o600); err != nil {
-		return fmt.Errorf("%s konnte nicht geschrieben werden: %w", filepath.Base(path), err)
-	}
-	return b.logAccess("RECEIPT", strconv.FormatUint(uint64(receiptID), 10), fmt.Sprintf(
+	return b.handOut(path, content.Data, "RECEIPT", strconv.FormatUint(uint64(receiptID), 10), fmt.Sprintf(
 		"Belegdatei %s aus Beleg %d nach %s herausgegeben", content.FileName, receiptID, path))
 }
 

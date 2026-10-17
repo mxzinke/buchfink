@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/buchfink/buchfink/internal/actor"
 	"github.com/buchfink/buchfink/internal/core"
@@ -121,6 +123,30 @@ func (b *BuchfinkBridge) yearOr(year int) int {
 		return year
 	}
 	return b.viewYear()
+}
+
+// handOut gibt eine Datei heraus und protokolliert das (QUE-02). Die Datei
+// liegt erst nach dem Protokolleintrag unter ihrem Namen: scheitert der
+// Eintrag, bleibt nichts herausgegeben.
+func (b *BuchfinkBridge) handOut(path string, data []byte, entityType, entityID, details string) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*")
+	if err != nil {
+		return fmt.Errorf("%s konnte nicht geschrieben werden: %w", filepath.Base(path), err)
+	}
+	_, writeErr := tmp.Write(data)
+	if err := errors.Join(writeErr, tmp.Close()); err != nil {
+		_ = os.Remove(tmp.Name())
+		return fmt.Errorf("%s konnte nicht geschrieben werden: %w", filepath.Base(path), err)
+	}
+	if err := b.logAccess(entityType, entityID, details); err != nil {
+		_ = os.Remove(tmp.Name())
+		return err
+	}
+	if err := os.Rename(tmp.Name(), path); err != nil {
+		_ = os.Remove(tmp.Name())
+		return fmt.Errorf("%s konnte nicht geschrieben werden: %w", filepath.Base(path), err)
+	}
+	return nil
 }
 
 // logAccess protokolliert die Herausgabe von Daten (QUE-02). Sie ist ein

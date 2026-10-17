@@ -2,12 +2,14 @@ package wailsbridge
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/repository"
 	"github.com/buchfink/buchfink/internal/service"
 )
 
@@ -41,5 +43,36 @@ func TestReleasingASingleReceiptFileIsLogged(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("die Herausgabe der Belegdatei fehlt im Protokoll: %+v", entries)
+	}
+}
+
+// Ohne Protokolleintrag wird nichts herausgegeben: die Datei liegt erst nach
+// dem Eintrag unter ihrem Namen.
+func TestNoFileWithoutItsAccessLog(t *testing.T) {
+	b := testBridge(t)
+	receipt := fileTestReceipt(t, b)
+	var content *service.FileContent
+	testRead(t, b, func(ctx context.Context, s *core.Services) error {
+		var err error
+		content, err = s.Receipts.Content(ctx, receipt.ID, receipt.Files[0].ID)
+		return err
+	})
+	db, err := repository.InitTenantDB(b.host.ActiveTenant().DataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = db.Exec(`CREATE TRIGGER kein_protokoll BEFORE INSERT ON audit_log_entries
+		BEGIN SELECT RAISE(ABORT, 'Protokoll nicht verfügbar'); END`).Error
+	_ = repository.CloseDB(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dir := t.TempDir()
+	if err := b.writeReceiptFileTo(receipt.ID, content, filepath.Join(dir, "rechnung.pdf")); err == nil {
+		t.Fatal("herausgegeben ohne Protokolleintrag")
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
+		t.Errorf("im Zielordner liegt %s", entries[0].Name())
 	}
 }

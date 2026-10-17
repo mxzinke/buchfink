@@ -71,8 +71,8 @@ func (b *BuchfinkBridge) CreateTenant(
 }
 
 // DeleteTenant entfernt einen Mandanten aus der Konfiguration. Die Daten auf
-// der Platte bleiben liegen. Einen Mandanten im Prüfermodus nimmt der Kern
-// nicht heraus.
+// der Platte bleiben liegen, samt einem laufenden Prüfermodus in ihrer
+// Datenbank.
 func (b *BuchfinkBridge) DeleteTenant(tenantID string) error {
 	return b.host.RemoveTenant(uiContext(), tenantID)
 }
@@ -774,10 +774,7 @@ func (b *BuchfinkBridge) SaveOpeningBalanceAs() (string, error) {
 	if err != nil || path == "" {
 		return "", err
 	}
-	if err := os.WriteFile(path, file.Data, 0o600); err != nil {
-		return "", fmt.Errorf("%s konnte nicht geschrieben werden: %w", filepath.Base(path), err)
-	}
-	if err := b.logAccess("GRUENDUNG", "EROEFFNUNGSBILANZ",
+	if err := b.handOut(path, file.Data, "GRUENDUNG", "EROEFFNUNGSBILANZ",
 		fmt.Sprintf("Eröffnungsbilanz %s nach %s herausgegeben", file.FileName, path)); err != nil {
 		return "", err
 	}

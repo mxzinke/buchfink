@@ -226,15 +226,6 @@ type PostingService struct {
 	// gifts ist die Geschenkkartei. Ohne sie kennt der Belegweg die Freigrenze
 	// des § 4 Abs. 5 Satz 1 Nr. 1 EStG nicht.
 	gifts giftRegister
-	// fiscalStartMonth ist der Beginn des Geschäftsjahres. Null heißt Januar.
-	//
-	// Er wird über einen Leser geführt und nicht als Zahl gehalten: der Anwender
-	// kann den Beginn des Geschäftsjahres ändern, und eine einmal beim
-	// Einrichten gelesene Zahl rechnete danach bis zum Neustart mit dem alten
-	// Wirtschaftsjahr.
-	fiscalStartMonth  int
-	fiscalStartReader func() int
-
 	// currency ist der Kursdienst. Ohne ihn ist ein Beleg in Fremdwährung nicht
 	// buchbar.
 	currency currencyConverter
