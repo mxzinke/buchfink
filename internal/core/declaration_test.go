@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/declaration"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/service"
@@ -315,5 +316,54 @@ func TestDeclarationsUseTheAssetRegister(t *testing.T) {
 	}
 	if l, _ := gewst.Line("gewst.8_5"); l.Value.Amount() != 950_000 {
 		t.Errorf("Hinzurechnung § 8 Nr. 5 für die im Jahr erworbene Tochter: %+v", l)
+	}
+}
+
+// § 13b UStG nach Absätzen: die sonstige Leistung eines im übrigen
+// Gemeinschaftsgebiet ansässigen Unternehmers (Abs. 1) steht in Zeile 65
+// (Kz 846/847), die übrigen Fälle (Abs. 2) in Zeile 67 (Kz 877/878); die
+// Vorsteuer aus beiden in Zeile 83 (Kz 467).
+func TestVatYearDeclarationSplitsReverseCharge(t *testing.T) {
+	h := newHost(t)
+	newTenant(t, h, "Pfennig Ventures GmbH")
+	tenant := openTenant(t, h)
+	resolver := accounting.NewSKR04TaxResolver()
+	entry := func(date string, treatment domain.TaxTreatment, expense string, net domain.Cents) *domain.JournalEntry {
+		legs, err := resolver.Resolve(domain.DirectionIncoming, treatment, domain.TaxRateStandard, net)
+		if err != nil {
+			t.Fatal(err)
+		}
+		lines := []domain.JournalLine{
+			{Side: domain.SideDebit, Account: expense, Amount: net},
+			{Side: domain.SideCredit, Account: domain.AccountBank, Amount: net},
+		}
+		for _, leg := range legs {
+			lines = append(lines, domain.JournalLine{Side: leg.Side, Account: leg.Account, Amount: leg.Amount,
+				TaxKey: leg.Key, TaxBase: leg.Base})
+		}
+		return &domain.JournalEntry{BookingDate: date, DocumentDate: date, ServiceDateFrom: date, ServiceDateTo: date,
+			Description: "Test " + string(treatment), Source: domain.EntrySourceManual, TaxTreatment: treatment, Lines: lines}
+	}
+	if err := tenant.Write(uiCtx, func(ctx context.Context, s *Services) error {
+		if _, err := s.Journal.Post(ctx, entry("2026-03-10", domain.TaxTreatmentReverseChargeEU, "6600", 100_000)); err != nil {
+			return err
+		}
+		_, err := s.Journal.Post(ctx, entry("2026-04-10", domain.TaxTreatmentReverseCharge, "6330", 50_000))
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	d, err := tenant.Declaration(uiCtx, declaration.KindVatYear, 2026)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for key, want := range map[string]domain.Cents{
+		"ust.z65.kz846": 100_000, "ust.z65.kz847": 19_000,
+		"ust.z67.kz877": 50_000, "ust.z67.kz878": 9_500,
+		"ust.z83.kz467": 28_500,
+	} {
+		if got := d.Amount(key); got != want {
+			t.Errorf("%s: %s €, erwartet %s €", key, got, want)
+		}
 	}
 }
