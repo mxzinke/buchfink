@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/service"
 )
@@ -24,24 +25,23 @@ import (
 // eine Eigenschaft der Bedienung und steht in der Mandantenkonfiguration, die
 // die Bridge führt.
 func (b *BuchfinkBridge) GetTasks() (*domain.TaskList, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.taskSvc == nil {
+	cfg := b.host.Config()
+	opts := service.TaskOptions{}
+	if cfg.ReadOnly {
+		opts.ReadOnlyUntil, opts.ReadOnlyReason = cfg.ReadOnlyUntil, cfg.ReadOnlyReason
+	}
+	return readOr(b, func() (*domain.TaskList, error) {
 		empty := &domain.TaskList{}
 		empty.EnsureLists()
 		return empty, nil
-	}
-	active, until, reason := b.readOnlyStateLocked()
-	opts := service.TaskOptions{}
-	if active {
-		opts.ReadOnlyUntil, opts.ReadOnlyReason = until, reason
-	}
-	list, err := b.taskSvc.Tasks(context.Background(), opts)
-	if err != nil {
-		return nil, err
-	}
-	list.EnsureLists()
-	return list, nil
+	}, func(ctx context.Context, s *core.Services) (*domain.TaskList, error) {
+		list, err := s.Tasks.Tasks(ctx, opts)
+		if err != nil {
+			return nil, err
+		}
+		list.EnsureLists()
+		return list, nil
+	})
 }
 
 // --- Monatsabschluss ------------------------------------------------------
@@ -49,19 +49,18 @@ func (b *BuchfinkBridge) GetTasks() (*domain.TaskList, error) {
 // GetMonthCloseState liefert den Stand eines Monats ("JJJJ-MM") in seinen drei
 // Schritten.
 func (b *BuchfinkBridge) GetMonthCloseState(month string) (*service.MonthCloseState, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.monthCloseSvc == nil {
+	return readOr(b, func() (*service.MonthCloseState, error) {
 		empty := &service.MonthCloseState{Month: month}
 		empty.EnsureLists()
 		return empty, nil
-	}
-	state, err := b.monthCloseSvc.State(context.Background(), month)
-	if err != nil {
-		return nil, err
-	}
-	state.EnsureLists()
-	return state, nil
+	}, func(ctx context.Context, s *core.Services) (*service.MonthCloseState, error) {
+		state, err := s.MonthClose.State(ctx, month)
+		if err != nil {
+			return nil, err
+		}
+		state.EnsureLists()
+		return state, nil
+	})
 }
 
 // --- Bankabgleich ---------------------------------------------------------
@@ -69,42 +68,32 @@ func (b *BuchfinkBridge) GetMonthCloseState(month string) (*service.MonthCloseSt
 // SuggestBankMatches liefert die wahrscheinlichsten Zuordnungen zu einem
 // Bankumsatz. Gebucht wird davon nichts.
 func (b *BuchfinkBridge) SuggestBankMatches(bankTxID uint) (*service.BankSuggestions, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.bankSvc == nil {
+	return readOr(b, func() (*service.BankSuggestions, error) {
 		empty := &service.BankSuggestions{BankTxID: bankTxID}
 		empty.EnsureLists()
 		return empty, nil
-	}
-	suggestions, err := b.bankSvc.Suggest(context.Background(), bankTxID)
-	if err != nil {
-		return nil, err
-	}
-	suggestions.EnsureLists()
-	return suggestions, nil
+	}, func(ctx context.Context, s *core.Services) (*service.BankSuggestions, error) {
+		suggestions, err := s.Bank.Suggest(ctx, bankTxID)
+		if err != nil {
+			return nil, err
+		}
+		suggestions.EnsureLists()
+		return suggestions, nil
+	})
 }
 
 // GetBankRules liefert die gelernten Zuordnungen wiederkehrender Umsätze.
 func (b *BuchfinkBridge) GetBankRules() ([]domain.BankRule, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.bankSvc == nil {
-		return []domain.BankRule{}, nil
-	}
-	return emptyList(b.bankSvc.Rules(context.Background()))
+	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.BankRule, error) {
+		return s.Bank.Rules(ctx)
+	})
 }
 
 // DeleteBankRule entfernt eine gelernte Zuordnung.
 func (b *BuchfinkBridge) DeleteBankRule(id uint) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return err
-	}
-	if b.bankSvc == nil {
-		return fmt.Errorf("der Bankimport ist noch nicht eingerichtet")
-	}
-	return b.bankSvc.DeleteRule(context.Background(), id)
+	return b.change(func(ctx context.Context, s *core.Services) error {
+		return s.Bank.DeleteRule(ctx, id)
+	})
 }
 
 // --- Prüfpfad und Leistungsnachweis ---------------------------------------
@@ -121,23 +110,20 @@ func (b *BuchfinkBridge) ExportAuditTrail(receiptID uint, format string) (string
 	if format != "csv" && format != "pdf" {
 		return "", fmt.Errorf("%q ist kein Ausgabeformat des Prüfpfads (erwartet csv oder pdf)", format)
 	}
-	// Erst den Pfad wählen, dann sperren: der Speichern-Dialog steht offen,
-	// solange der Anwender überlegt.
+	// Erst den Pfad wählen: der Speichern-Dialog steht offen, solange der
+	// Anwender überlegt.
 	name := fmt.Sprintf("buchfink-pruefpfad-beleg-%d.%s", receiptID, format)
 	path, err := b.saveFileDialog("Prüfpfad speichern", name)
 	if err != nil || path == "" {
 		return "", err
 	}
 
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.auditTrailSvc == nil {
-		return "", fmt.Errorf("der Prüfpfad ist noch nicht eingerichtet")
-	}
-	if format == "csv" {
-		return b.auditTrailSvc.ExportCSV(context.Background(), receiptID, path)
-	}
-	return b.auditTrailSvc.ExportPDF(context.Background(), receiptID, path)
+	return read(b, func(ctx context.Context, s *core.Services) (string, error) {
+		if format == "csv" {
+			return s.AuditTrail.ExportCSV(ctx, receiptID, path)
+		}
+		return s.AuditTrail.ExportPDF(ctx, receiptID, path)
+	})
 }
 
 // GetAuditTrail liefert den Prüfpfad eines Belegs zur Anzeige.
@@ -145,32 +131,25 @@ func (b *BuchfinkBridge) ExportAuditTrail(receiptID uint, format string) (string
 // Dieselbe Kette, die auch ausgegeben wird: die Anwenderin sieht auf dem Schirm,
 // was der Prüfer in der Datei bekommt.
 func (b *BuchfinkBridge) GetAuditTrail(receiptID uint) (*service.AuditTrail, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.auditTrailSvc == nil {
+	return readOr(b, func() (*service.AuditTrail, error) {
 		empty := &service.AuditTrail{ReceiptID: receiptID}
 		empty.EnsureLists()
 		return empty, nil
-	}
-	trail, err := b.auditTrailSvc.Trail(context.Background(), receiptID)
-	if err != nil {
-		return nil, err
-	}
-	trail.EnsureLists()
-	return trail, nil
+	}, func(ctx context.Context, s *core.Services) (*service.AuditTrail, error) {
+		trail, err := s.AuditTrail.Trail(ctx, receiptID)
+		if err != nil {
+			return nil, err
+		}
+		trail.EnsureLists()
+		return trail, nil
+	})
 }
 
 // SaveServiceProof schreibt den Leistungsnachweis an einen Eingangsbeleg.
 func (b *BuchfinkBridge) SaveServiceProof(receiptID uint, text, date string) (*domain.Receipt, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.receiptSvc == nil {
-		return nil, fmt.Errorf("die Belegverwaltung ist noch nicht eingerichtet")
-	}
-	return b.receiptSvc.SaveServiceProof(context.Background(), receiptID, text, date)
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.Receipt, error) {
+		return s.Receipts.SaveServiceProof(ctx, receiptID, text, date)
+	})
 }
 
 // GetPaymentTermNotice liefert den Hinweis zu einem langen Zahlungsziel.

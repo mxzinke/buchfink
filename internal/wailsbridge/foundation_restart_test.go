@@ -1,10 +1,12 @@
 package wailsbridge
 
 import (
+	"context"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/repository"
 )
@@ -12,11 +14,11 @@ import (
 func TestFoundationRestartKeepsShortYearDeadlines(t *testing.T) {
 	base := t.TempDir()
 	config := repository.NewAppConfigRepository(filepath.Join(base, "config"))
-	b := &BuchfinkBridge{appCfgRepo: config, currentYear: 2026}
-	tenant, err := b.CreateTenant("August GmbH", filepath.Join(base, "company"), domain.CompanySettings{
+	withConfig := func(o *core.HostOptions) { o.Config, o.BaseDir = config, base }
+	b := newBridge(t, withConfig)
+	if _, err := b.CreateTenant("August GmbH", filepath.Join(base, "company"), domain.CompanySettings{
 		CompanyName: "August GmbH", LegalForm: "GmbH", FiscalYear: 2026, VatPeriod: "unknown",
-	})
-	if err != nil {
+	}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.SaveFoundation(domain.Foundation{
@@ -25,18 +27,10 @@ func TestFoundationRestartKeepsShortYearDeadlines(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := repository.CloseDB(b.db); err != nil {
+	if err := b.host.Close(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := config.Load()
-	if err != nil {
-		t.Fatal(err)
-	}
-	restarted := &BuchfinkBridge{appCfgRepo: config, appConfig: *cfg, currentYear: 2026}
-	if err := restarted.initTenant(tenant); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = repository.CloseDB(restarted.db) })
+	restarted := newBridge(t, withConfig)
 	state, err := restarted.GetFoundationState()
 	if err != nil {
 		t.Fatal(err)

@@ -6,18 +6,13 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
-	"github.com/buchfink/buchfink/internal/repository"
 )
 
 // Regression coverage for the year selected during setup.
 func TestCreateTenantRespectsSelectedYear(t *testing.T) {
 	base := t.TempDir()
-	current := time.Now().Year()
-	selected := current - 1
-	b := &BuchfinkBridge{
-		appCfgRepo:  repository.NewAppConfigRepository(filepath.Join(base, "config")),
-		currentYear: current,
-	}
+	selected := time.Now().Year() - 1
+	b := newBridge(t)
 	_, err := b.CreateTenant("Vorjahrestest", filepath.Join(base, "company"), domain.CompanySettings{
 		CompanyName: "Vorjahrestest", FiscalYear: selected,
 	})

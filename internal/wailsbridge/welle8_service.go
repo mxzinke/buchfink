@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/service"
 )
@@ -26,15 +27,9 @@ import (
 // die Angaben eines Eigenbelegs kommen mit (SelfIssued) — dann entstehen Beleg
 // und Buchung in einer Transaktion.
 func (b *BuchfinkBridge) PostManualEntry(req service.ManualEntryRequest) (*domain.JournalEntry, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.postingSvc == nil {
-		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
-	}
-	return b.postingSvc.PostManualEntry(context.Background(), req)
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.JournalEntry, error) {
+		return s.Posting.PostManualEntry(ctx, req)
+	})
 }
 
 // --- Eigenbeleg -----------------------------------------------------------
@@ -44,15 +39,9 @@ func (b *BuchfinkBridge) PostManualEntry(req service.ManualEntryRequest) (*domai
 func (b *BuchfinkBridge) CreateSelfIssuedReceipt(
 	req service.SelfIssuedReceiptRequest,
 ) (*domain.Receipt, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.receiptSvc == nil {
-		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
-	}
-	return b.receiptSvc.CreateSelfIssued(context.Background(), req)
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.Receipt, error) {
+		return s.Receipts.CreateSelfIssued(ctx, req)
+	})
 }
 
 // --- Aufbewahrung ---------------------------------------------------------
@@ -61,16 +50,10 @@ func (b *BuchfinkBridge) CreateSelfIssuedReceipt(
 func (b *BuchfinkBridge) OverrideReceiptRetention(
 	receiptID uint, class string, reason string,
 ) (*domain.Receipt, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.receiptSvc == nil {
-		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
-	}
-	return b.receiptSvc.OverrideRetention(
-		context.Background(), receiptID, domain.RetentionClass(class), reason)
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.Receipt, error) {
+		return s.Receipts.OverrideRetention(
+			ctx, receiptID, domain.RetentionClass(class), reason)
+	})
 }
 
 // GetRetentionRules liefert die Fristentabelle mit ihrer Quelle und ihrem
@@ -87,12 +70,9 @@ func (b *BuchfinkBridge) GetRetentionRules() accounting.RetentionRules {
 // Buchung nicht. Ein Prüfer, der von der Ablage ausgeht — und das ist der
 // übliche Weg —, kam damit nicht ins Journal (GOB-02 K2, BEL-01 K3).
 func (b *BuchfinkBridge) GetEntriesForReceipt(receiptID uint) ([]domain.JournalEntry, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.journalRepo == nil {
-		return []domain.JournalEntry{}, nil
-	}
-	return emptyList(entriesForReceipt(context.Background(), b.journalRepo, b.currentYear, receiptID))
+	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.JournalEntry, error) {
+		return entriesForReceipt(ctx, s.Repos.Journal, s.FiscalYear(), receiptID)
+	})
 }
 
 // entriesForReceipt sucht die Buchungen eines Belegs im aktiven Geschäftsjahr
@@ -132,14 +112,13 @@ func entriesForReceipt(
 // Formatfehler, Geschäftsregelfehler und Inhaltsfehler getrennt, je Befund mit
 // Regel, Norm und Folge für den Vorsteuerabzug.
 func (b *BuchfinkBridge) GetReceiptFindings(receiptID uint) (*domain.ReceiptFindings, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if b.receiptSvc == nil {
+	return readOr(b, func() (*domain.ReceiptFindings, error) {
 		empty := &domain.ReceiptFindings{}
 		empty.EnsureLists()
 		return empty, nil
-	}
-	return b.receiptSvc.Findings(context.Background(), receiptID)
+	}, func(ctx context.Context, s *core.Services) (*domain.ReceiptFindings, error) {
+		return s.Receipts.Findings(ctx, receiptID)
+	})
 }
 
 // --- Eigene Konten --------------------------------------------------------
@@ -148,15 +127,9 @@ func (b *BuchfinkBridge) GetReceiptFindings(receiptID uint) (*domain.ReceiptFind
 func (b *BuchfinkBridge) CreateCustomAccount(
 	req service.CustomAccountRequest,
 ) (*domain.Account, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.accountSvc == nil {
-		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
-	}
-	return b.accountSvc.CreateCustom(context.Background(), req)
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.Account, error) {
+		return s.Accounts.CreateCustom(ctx, req)
+	})
 }
 
 // SetAccountBlocked sperrt ein eigenes Konto für neue Buchungen oder gibt es
@@ -164,36 +137,24 @@ func (b *BuchfinkBridge) CreateCustomAccount(
 func (b *BuchfinkBridge) SetAccountBlocked(
 	number string, blocked bool, reason string,
 ) (*domain.Account, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.accountSvc == nil {
-		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
-	}
-	return b.accountSvc.SetBlocked(context.Background(), number, blocked, reason)
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.Account, error) {
+		return s.Accounts.SetBlocked(ctx, number, blocked, reason)
+	})
 }
 
 // GetCustomAccounts liefert die selbst angelegten Konten.
 func (b *BuchfinkBridge) GetCustomAccounts() ([]domain.Account, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.accountSvc == nil {
-		return []domain.Account{}, nil
-	}
-	return emptyList(b.accountSvc.CustomAccounts(context.Background()))
+	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.Account, error) {
+		return s.Accounts.CustomAccounts(ctx)
+	})
 }
 
 // GetStatementPositions liefert die Gliederungspositionen, unter denen ein
 // eigenes Konto stehen darf.
 func (b *BuchfinkBridge) GetStatementPositions() ([]domain.StatementPositionOption, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.accountSvc == nil {
-		return []domain.StatementPositionOption{}, nil
-	}
-	return emptyList(b.accountSvc.AvailablePositions())
+	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.StatementPositionOption, error) {
+		return s.Accounts.AvailablePositions()
+	})
 }
 
 // --- Umsatzsteuer ---------------------------------------------------------
@@ -201,12 +162,9 @@ func (b *BuchfinkBridge) GetStatementPositions() ([]domain.StatementPositionOpti
 // GetVatPeriodProposal liefert den Voranmeldungszeitraum, der sich aus der
 // Steuer des Vorjahres ergibt (§ 18 Abs. 2 UStG).
 func (b *BuchfinkBridge) GetVatPeriodProposal(year int) (*service.VatPeriodProposal, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.vatReturnSvc == nil {
-		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
-	}
-	return b.vatReturnSvc.SuggestPeriodType(context.Background(), year)
+	return read(b, func(ctx context.Context, s *core.Services) (*service.VatPeriodProposal, error) {
+		return s.VatReturns.SuggestPeriodType(ctx, year)
+	})
 }
 
 // --- Journalfilter --------------------------------------------------------
@@ -216,31 +174,26 @@ func (b *BuchfinkBridge) GetVatPeriodProposal(year int) (*service.VatPeriodPropo
 func (b *BuchfinkBridge) GetFilteredJournal(
 	filter accounting.JournalFilter,
 ) (*accounting.JournalFilterResult, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.accountingSvc == nil {
+	return readOr(b, func() (*accounting.JournalFilterResult, error) {
 		empty := &accounting.JournalFilterResult{Rows: []accounting.JournalFilterRow{}}
 		return empty, nil
-	}
-	return b.accountingSvc.FilterEntries(context.Background(), filter)
+	}, func(ctx context.Context, s *core.Services) (*accounting.JournalFilterResult, error) {
+		return s.Accounting.FilterEntries(ctx, filter)
+	})
 }
 
 // SaveFilteredJournalCSV schreibt die gefilterte Menge in eine gewählte Datei.
 func (b *BuchfinkBridge) SaveFilteredJournalCSV(
 	filter accounting.JournalFilter, path string,
 ) (string, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	// Schreibsperre trotz Ausgabe: die Herausgabe schreibt einen
-	// Protokolleintrag (QUE-02 K2). Im Prüfermodus bleibt sie zulässig — die
-	// Ausgabe von Daten ist sein Zweck, und sie ändert die Buchführung nicht.
-	if b.accountingSvc == nil {
-		return "", fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
-	}
 	if strings.TrimSpace(path) == "" {
 		return "", fmt.Errorf("ohne Zielpfad lässt sich die Datei nicht schreiben")
 	}
-	csv, err := b.accountingSvc.FilterEntriesCSV(context.Background(), filter)
+	// Ein Lesevorgang: die Herausgabe protokolliert sich (QUE-02 K2) und ist
+	// im Prüfermodus zulässig, ihr Zweck ist die Ausgabe von Daten.
+	csv, err := read(b, func(ctx context.Context, s *core.Services) (string, error) {
+		return s.Accounting.FilterEntriesCSV(ctx, filter)
+	})
 	if err != nil {
 		return "", err
 	}

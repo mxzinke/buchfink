@@ -13,7 +13,7 @@ import (
 // und die festen Gebäudesätze des § 7 Abs. 4 EStG waren genau so eine Weile im
 // Programm vorhanden und unerreichbar, und ein E-Fahrzeug lief still linear.
 func TestAssetRulesOfferEveryMethodTheCoreKnows(t *testing.T) {
-	b := &BuchfinkBridge{currentYear: 2026}
+	b := newBridge(t)
 	rules, err := b.GetAssetRules()
 	if err != nil {
 		t.Fatalf("Regeln lesen: %v", err)

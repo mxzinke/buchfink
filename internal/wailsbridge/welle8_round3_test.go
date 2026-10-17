@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/service"
 )
@@ -18,34 +19,20 @@ import (
 // Dokument mit personenbezogenen Daten heraus, ohne eine Spur zu hinterlassen.
 func TestReleasingASingleReceiptFileIsLogged(t *testing.T) {
 	b := testBridge(t)
-	ctx := context.Background()
+	receipt := fileTestReceipt(t, b)
 
-	receipt, err := b.receiptSvc.File(ctx, service.FileReceiptRequest{
-		Direction: domain.DirectionIncoming, FiscalYear: 2026,
-		Kind: domain.ReceiptKindInvoice, DocumentDate: "2026-03-01",
-		IssuerName: "Büromarkt GmbH", GrossAmount: 10000,
-		Files: []service.NewFile{{
-			Role: domain.ReceiptRoleOriginal, FileName: "rechnung.pdf",
-			Content: []byte("%PDF-1.4 Testbeleg"),
-		}},
+	var content *service.FileContent
+	testRead(t, b, func(ctx context.Context, s *core.Services) error {
+		var err error
+		content, err = s.Receipts.Content(ctx, receipt.ID, receipt.Files[0].ID)
+		return err
 	})
-	if err != nil {
-		t.Fatalf("Beleg ablegen: %v", err)
-	}
-
-	content, err := b.receiptSvc.Content(ctx, receipt.ID, receipt.Files[0].ID)
-	if err != nil {
-		t.Fatalf("Belegdatei lesen: %v", err)
-	}
 	target := filepath.Join(t.TempDir(), "rechnung.pdf")
 	if err := b.writeReceiptFileTo(receipt.ID, content, target); err != nil {
 		t.Fatalf("Belegdatei herausgeben: %v", err)
 	}
 
-	entries, err := b.auditRepo.FindFiltered(ctx, 0, domain.AuditFilter{Access: true})
-	if err != nil {
-		t.Fatalf("Protokoll lesen: %v", err)
-	}
+	entries := auditEntries(t, b, domain.AuditFilter{Access: true})
 	found := false
 	for _, e := range entries {
 		if e.EntityType == "RECEIPT" && strings.Contains(e.Details, "rechnung.pdf") {

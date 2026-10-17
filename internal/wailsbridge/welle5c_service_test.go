@@ -2,33 +2,20 @@ package wailsbridge
 
 import (
 	"testing"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
-	"github.com/buchfink/buchfink/internal/repository"
 )
 
 // Die Verdrahtung eines Mandanten läuft durch und die Auswertungen der Welle 5c
 // antworten auf einem leeren Bestand.
 //
 // Der Test prüft nichts Fachliches — das tun die Dienste. Er prüft, dass die
-// Reihenfolge in initTenant stimmt: die Dienste hängen aneinander, und ein
+// Reihenfolge der Verdrahtung (core/wire.go) stimmt: die Dienste hängen aneinander, und ein
 // Dienst, der einen später erzeugten setzt, bekommt nil. Das fiele sonst erst
 // beim ersten Aufruf im laufenden Programm auf, und dort als leerer Bildschirm
 // ohne Meldung.
 func TestTenantWiringAnswersOnAnEmptyLedger(t *testing.T) {
-	dir := t.TempDir()
-	b := &BuchfinkBridge{
-		currentYear: 2026,
-		appCfgRepo:  repository.NewAppConfigRepository(t.TempDir()),
-	}
-	tenant := &domain.TenantConfig{
-		ID: "tenant_wiring", Name: "Pfennig Ventures GmbH", DataDir: dir,
-		CreatedAt: time.Now().Format(time.RFC3339),
-	}
-	if err := b.initTenant(tenant); err != nil {
-		t.Fatalf("Mandant einrichten: %v", err)
-	}
+	b := testBridge(t)
 
 	if _, err := b.GetInputTaxCorrections(2026); err != nil {
 		t.Errorf("Verzeichnis nach § 15a UStG: %v", err)

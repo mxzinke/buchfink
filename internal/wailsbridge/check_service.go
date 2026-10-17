@@ -2,8 +2,8 @@ package wailsbridge
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/service"
 )
@@ -26,53 +26,35 @@ import (
 // Regeln zu, die nur vor der Jahresfestschreibung gelten; ohne ihn zeigte die
 // Vorschau weniger Befunde, als die Festschreibung danach verlangt.
 func (b *BuchfinkBridge) RunChecks(cutoffDate, periodType string) (*domain.CheckRun, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.checkSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.checkSvc.Preview(context.Background(), service.CheckRequest{
-		CutoffDate: cutoffDate,
-		PeriodType: periodType,
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.CheckRun, error) {
+		return s.Checks.Preview(ctx, service.CheckRequest{
+			CutoffDate: cutoffDate,
+			PeriodType: periodType,
+		})
 	})
 }
 
 // GetCheckRuns liefert die gespeicherten Prüfläufe eines Jahres, der jüngste
 // zuerst.
 func (b *BuchfinkBridge) GetCheckRuns(year int) ([]domain.CheckRun, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.checkSvc == nil {
-		return []domain.CheckRun{}, nil
-	}
-	return emptyList(b.checkSvc.Runs(context.Background(), year))
+	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.CheckRun, error) {
+		return s.Checks.Runs(ctx, year)
+	})
 }
 
 // GetDeadlines liefert alle Termine eines Jahres: Voranmeldungen,
 // Zusammenfassende Meldungen, Sondervorauszahlung, Festschreibungen, Aufstellung
 // und Offenlegung.
 func (b *BuchfinkBridge) GetDeadlines(year int) ([]domain.Deadline, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.deadlineSvc == nil {
-		return []domain.Deadline{}, nil
-	}
-	return emptyList(b.deadlineSvc.Deadlines(context.Background(), year))
+	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.Deadline, error) {
+		return s.Deadlines.Deadlines(ctx, year)
+	})
 }
 
 // MarkDeadlineDone hakt einen Termin ab, der sich nicht aus den Daten ergibt —
 // die Umsatzsteuer-Jahreserklärung etwa.
 func (b *BuchfinkBridge) MarkDeadlineDone(key, date string) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return err
-	}
-	if b.deadlineSvc == nil {
-		return fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.deadlineSvc.MarkDone(context.Background(), key, date)
+	return b.change(func(ctx context.Context, s *core.Services) error {
+		return s.Deadlines.MarkDone(ctx, key, date)
+	})
 }

@@ -1,17 +1,18 @@
 package wailsbridge
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
-	"github.com/buchfink/buchfink/internal/repository"
 )
 
 func TestCreateTenantPreservesExistingCompany(t *testing.T) {
 	base := t.TempDir()
-	b := &BuchfinkBridge{appCfgRepo: repository.NewAppConfigRepository(filepath.Join(base, "config")), currentYear: 2026}
+	b := newBridge(t)
 	dir := filepath.Join(base, "company")
 	first, err := b.CreateTenant("Erste Firma", dir, domain.CompanySettings{CompanyName: "Erste Firma", FiscalYear: 2026})
 	if err != nil {
@@ -41,7 +42,7 @@ func TestCreateTenantRejectsNonemptyDirectoryBeforeProvisioning(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "buchfink.sqlite"), []byte("existing database"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	b := &BuchfinkBridge{appCfgRepo: repository.NewAppConfigRepository(filepath.Join(base, "config")), currentYear: 2026}
+	b := newBridge(t)
 	if _, err := b.CreateTenant("Neue Firma", dir, domain.CompanySettings{FiscalYear: 2026}); err == nil {
 		t.Fatal("nonempty directory accepted")
 	}
@@ -78,7 +79,7 @@ func TestValidateTenantDirectory(t *testing.T) {
 
 func TestCreateTenantRechecksPreviouslyValidDirectory(t *testing.T) {
 	dir := t.TempDir()
-	b := &BuchfinkBridge{}
+	b := newBridge(t)
 	if err := b.ValidateTenantDirectory(dir); err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +104,7 @@ func TestTenantDirectoryExpandsHomePath(t *testing.T) {
 		t.Fatal(err)
 	}
 	suffix := filepath.Base(t.TempDir()) + "-buchfink-directory-check"
-	got, err := checkedTenantDirectory("~/" + suffix)
+	got, err := core.CheckTenantDirectory("~/" + suffix)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,22 +115,23 @@ func TestTenantDirectoryExpandsHomePath(t *testing.T) {
 
 func TestCreateTenantRollsBackWhenConfigurationCannotBeSaved(t *testing.T) {
 	base := t.TempDir()
-	blocked := filepath.Join(base, "blocked")
-	if err := os.WriteFile(blocked, []byte("keep"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	b := &BuchfinkBridge{appCfgRepo: repository.NewAppConfigRepository(filepath.Join(blocked, "config")), currentYear: 2026}
+	b := newBridge(t, func(o *core.HostOptions) { o.Config = unsavableConfig{} })
 	dir := filepath.Join(base, "company")
 	if _, err := b.CreateTenant("Fehlerfall", dir, domain.CompanySettings{FiscalYear: 2025}); err == nil {
 		t.Fatal("creation succeeded without saving configuration")
 	}
-	if b.appConfig.IsConfigured || len(b.appConfig.Tenants) != 0 || b.currentYear != 2026 {
-		t.Fatalf("partial tenant remains active: %+v", b.appConfig)
+	if cfg := b.GetAppConfig(); cfg.IsConfigured || len(cfg.Tenants) != 0 {
+		t.Fatalf("partial tenant remains active: %+v", cfg)
 	}
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		t.Fatalf("partial data directory remains: %v", err)
 	}
-	if data, err := os.ReadFile(blocked); err != nil || string(data) != "keep" {
-		t.Fatal("existing file was changed")
-	}
+}
+
+// unsavableConfig lädt eine leere Konfiguration und kann nicht speichern.
+type unsavableConfig struct{}
+
+func (unsavableConfig) Load() (*domain.AppConfig, error) { return &domain.AppConfig{}, nil }
+func (unsavableConfig) Save(*domain.AppConfig) error {
+	return errors.New("Datenträger schreibgeschützt")
 }

@@ -14,7 +14,7 @@ import (
 // Bildschirm. Käme dort `null` an, nähme `null.map` im Render den ganzen Baum
 // mit — und zwar bevor die Anwenderin etwas tun konnte.
 func TestWelle7BridgeAnswersWithEmptyListsWithoutServices(t *testing.T) {
-	b := testBridge(t)
+	b := newBridge(t)
 
 	tasks, err := b.GetTasks()
 	if err != nil {

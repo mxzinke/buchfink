@@ -9,35 +9,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
-	"github.com/buchfink/buchfink/internal/repository"
 	"github.com/buchfink/buchfink/internal/timestamp"
 )
 
-// wiredBridge baut einen vollständig verdrahteten Mandanten auf einem
-// Wegwerf-Datenordner. Anders als testBridge geht sie über initTenant: die
-// Festschreibung braucht Prüfdienst, Belegablage und Festschreibungskartei, und
-// die hängen aneinander.
+// wiredBridge ist eine Bridge mit vollständig verdrahtetem Mandanten.
 func wiredBridge(t *testing.T) *BuchfinkBridge {
 	t.Helper()
-	dataDir := t.TempDir()
-	tenant := &domain.TenantConfig{
-		ID: "tenant_welle6", Name: "Pfennig Ventures GmbH", DataDir: dataDir,
-		CreatedAt: time.Now().Format(time.RFC3339),
-	}
-	b := &BuchfinkBridge{
-		currentYear: 2026,
-		appCfgRepo:  repository.NewAppConfigRepository(filepath.Join(t.TempDir(), "config")),
-		appConfig: domain.AppConfig{
-			Tenants: []domain.TenantConfig{*tenant}, ActiveTenantID: tenant.ID,
-			DataDir: dataDir, IsConfigured: true, LastFiscalYear: 2026,
-		},
-		dataDir: dataDir,
-	}
-	if err := b.initTenant(tenant); err != nil {
-		t.Fatalf("Mandant einrichten: %v", err)
-	}
-	return b
+	return testBridge(t)
 }
 
 // postSimpleEntry schreibt eine ausgeglichene Buchung über den Journaldienst.
@@ -53,10 +33,12 @@ func postSimpleEntry(t *testing.T, b *BuchfinkBridge, bookingDate, description s
 			{Position: 2, Side: domain.SideCredit, Account: "1800", Amount: 10000},
 		},
 	}
-	created, err := b.journalSvc.Post(context.Background(), entry)
-	if err != nil {
-		t.Fatalf("Buchung %q: %v", description, err)
-	}
+	var created *domain.JournalEntry
+	testWrite(t, b, func(ctx context.Context, s *core.Services) error {
+		var err error
+		created, err = s.Journal.Post(ctx, entry)
+		return err
+	})
 	return created
 }
 
@@ -87,7 +69,6 @@ func fakeTSA(t *testing.T, genTime time.Time, name string) {
 // hinsieht. Als eigener Vorgang im Protokoll fällt die Abweichung auf.
 func TestCommitPeriodLogsTimeDriftBeyondTolerance(t *testing.T) {
 	b := wiredBridge(t)
-	ctx := context.Background()
 
 	postSimpleEntry(t, b, "2026-01-15", "Wareneingang Januar")
 
@@ -107,10 +88,7 @@ func TestCommitPeriodLogsTimeDriftBeyondTolerance(t *testing.T) {
 		t.Errorf("der Hinweis muss die Richtung nennen: %q", rec.TimeDriftNote)
 	}
 
-	entries, err := b.auditRepo.FindFiltered(ctx, 0, domain.AuditFilter{EntityType: "TIME_DRIFT"})
-	if err != nil {
-		t.Fatalf("Protokoll lesen: %v", err)
-	}
+	entries := auditEntries(t, b, domain.AuditFilter{EntityType: "TIME_DRIFT"})
 	if len(entries) != 1 {
 		t.Fatalf("erwartet ein Protokolleintrag zur Zeitabweichung, gefunden %d", len(entries))
 	}
@@ -140,8 +118,7 @@ func TestCommitPeriodStaysSilentWithinTolerance(t *testing.T) {
 	if rec.TimeDriftNote != "" {
 		t.Errorf("eine Minute liegt in der Toleranz, bekommen: %q", rec.TimeDriftNote)
 	}
-	entries, _ := b.auditRepo.FindFiltered(context.Background(), 0,
-		domain.AuditFilter{EntityType: "TIME_DRIFT"})
+	entries := auditEntries(t, b, domain.AuditFilter{EntityType: "TIME_DRIFT"})
 	if len(entries) != 0 {
 		t.Errorf("ohne Abweichung darf kein Eintrag entstehen, gefunden %d", len(entries))
 	}
@@ -152,7 +129,6 @@ func TestCommitPeriodStaysSilentWithinTolerance(t *testing.T) {
 // Buchungen danach nicht.
 func TestCommitPeriodStampsEntriesUpToTheCutoff(t *testing.T) {
 	b := wiredBridge(t)
-	ctx := context.Background()
 
 	inPeriod := postSimpleEntry(t, b, "2026-01-15", "Wareneingang Januar")
 	afterPeriod := postSimpleEntry(t, b, "2026-02-03", "Wareneingang Februar")
@@ -166,10 +142,15 @@ func TestCommitPeriodStampsEntriesUpToTheCutoff(t *testing.T) {
 		t.Errorf("gestempelt wurden %d Buchungen, erwartet 1", rec.EntriesStamped)
 	}
 
-	stamped, err := b.journalRepo.FindByID(ctx, inPeriod.ID)
-	if err != nil {
-		t.Fatalf("Buchung lesen: %v", err)
-	}
+	var stamped, open *domain.JournalEntry
+	testRead(t, b, func(ctx context.Context, s *core.Services) error {
+		var err error
+		if stamped, err = s.Repos.Journal.FindByID(ctx, inPeriod.ID); err != nil {
+			return err
+		}
+		open, err = s.Repos.Journal.FindByID(ctx, afterPeriod.ID)
+		return err
+	})
 	if stamped.CommittedAt == nil {
 		t.Error("die Buchung bis zum Stichtag hat keinen Festschreibungszeitpunkt")
 	}
@@ -178,10 +159,6 @@ func TestCommitPeriodStampsEntriesUpToTheCutoff(t *testing.T) {
 			rec.ID, stamped.FestschreibungID)
 	}
 
-	open, err := b.journalRepo.FindByID(ctx, afterPeriod.ID)
-	if err != nil {
-		t.Fatalf("Buchung lesen: %v", err)
-	}
 	if open.CommittedAt != nil || open.FestschreibungID != nil {
 		t.Error("eine Buchung nach dem Stichtag darf nicht festgeschrieben sein")
 	}
@@ -191,7 +168,6 @@ func TestCommitPeriodStampsEntriesUpToTheCutoff(t *testing.T) {
 // mit beiden Ständen ins Protokoll.
 func TestSetBackupDirLogsBeforeAndAfter(t *testing.T) {
 	b := wiredBridge(t)
-	ctx := context.Background()
 
 	first := t.TempDir()
 	second := t.TempDir()
@@ -202,9 +178,9 @@ func TestSetBackupDirLogsBeforeAndAfter(t *testing.T) {
 		t.Fatalf("Sicherungsordner ändern: %v", err)
 	}
 
-	entries, err := b.auditRepo.FindFiltered(ctx, 0, domain.AuditFilter{EntityType: "BACKUP_DIR"})
-	if err != nil || len(entries) == 0 {
-		t.Fatalf("Protokoll lesen: %v (%d Einträge)", err, len(entries))
+	entries := auditEntries(t, b, domain.AuditFilter{EntityType: "BACKUP_DIR"})
+	if len(entries) == 0 {
+		t.Fatal("kein Protokolleintrag zum Sicherungsordner")
 	}
 	before := auditFields(t, entries[0].Before)
 	after := auditFields(t, entries[0].After)
@@ -223,15 +199,14 @@ func TestSetBackupDirLogsBeforeAndAfter(t *testing.T) {
 // gesehen hat.
 func TestReadOnlyModeLogsBeforeAndAfter(t *testing.T) {
 	b := wiredBridge(t)
-	ctx := context.Background()
 
 	until := time.Now().AddDate(0, 0, 30).Format("2006-01-02")
 	if _, err := b.EnableReadOnly(until, "Außenprüfung 2020 bis 2023"); err != nil {
 		t.Fatalf("Prüfermodus einschalten: %v", err)
 	}
-	entries, err := b.auditRepo.FindFiltered(ctx, 0, domain.AuditFilter{EntityType: "READ_ONLY"})
-	if err != nil || len(entries) == 0 {
-		t.Fatalf("Protokoll lesen: %v (%d Einträge)", err, len(entries))
+	entries := auditEntries(t, b, domain.AuditFilter{EntityType: "READ_ONLY"})
+	if len(entries) == 0 {
+		t.Fatal("kein Protokolleintrag zum Prüfermodus")
 	}
 	after := auditFields(t, entries[0].After)
 	if after["readOnlyUntil"] != until {
@@ -244,7 +219,7 @@ func TestReadOnlyModeLogsBeforeAndAfter(t *testing.T) {
 	if _, err := b.DisableReadOnly("Prüfung abgeschlossen"); err != nil {
 		t.Fatalf("Prüfermodus beenden: %v", err)
 	}
-	entries, _ = b.auditRepo.FindFiltered(ctx, 0, domain.AuditFilter{EntityType: "READ_ONLY"})
+	entries = auditEntries(t, b, domain.AuditFilter{EntityType: "READ_ONLY"})
 	before := auditFields(t, entries[0].Before)
 	if before["readOnlyUntil"] != until {
 		t.Errorf("das Vorher des Abschaltens hat das Enddatum nicht: %v", before)

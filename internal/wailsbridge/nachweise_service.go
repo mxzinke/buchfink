@@ -11,6 +11,7 @@ import (
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/changelog"
+	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/service"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -27,28 +28,24 @@ import (
 
 // VerifyAuditChain rechnet die Kette des Änderungsprotokolls nach.
 func (b *BuchfinkBridge) VerifyAuditChain() (domain.AuditChainResult, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.auditSvc == nil {
+	return readOr(b, func() (domain.AuditChainResult, error) {
 		empty := domain.AuditChainResult{IsValid: true, Message: "Kein aktiver Mandant."}
 		empty.EnsureLists()
 		return empty, nil
-	}
-	return b.auditSvc.VerifyChain(context.Background())
+	}, func(ctx context.Context, s *core.Services) (domain.AuditChainResult, error) {
+		return s.Audit.VerifyChain(ctx)
+	})
 }
 
 // GetAuditLogsFiltered liefert das Änderungsprotokoll mit Vorher/Nachher,
 // eingeschränkt durch den Filter. Ein leerer Filter heißt: alles.
 func (b *BuchfinkBridge) GetAuditLogsFiltered(limit int, filter domain.AuditFilter) ([]domain.AuditLogEntry, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.auditSvc == nil {
-		return []domain.AuditLogEntry{}, nil
-	}
-	if limit <= 0 {
-		limit = 200
-	}
-	return emptyList(b.auditSvc.GetLogsFiltered(context.Background(), limit, filter))
+	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.AuditLogEntry, error) {
+		if limit <= 0 {
+			limit = 200
+		}
+		return s.Audit.GetLogsFiltered(ctx, limit, filter)
+	})
 }
 
 // GetChangeLog liefert die Versionshistorie des Programms als Zeilen.
@@ -83,60 +80,40 @@ const releasesURL = "https://github.com/mxzinke/buchfink/releases"
 
 // GetSchemaMigrations liefert das Protokoll der Schemaänderungen.
 func (b *BuchfinkBridge) GetSchemaMigrations() ([]domain.SchemaMigration, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.migrationRepo == nil {
-		return []domain.SchemaMigration{}, nil
-	}
-	return emptyList(b.migrationRepo.FindSchemaMigrations(context.Background()))
+	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.SchemaMigration, error) {
+		return s.Repos.Migrations.FindSchemaMigrations(ctx)
+	})
 }
 
 // GetMigrationRecords liefert das Protokoll der Datenübernahmen.
 func (b *BuchfinkBridge) GetMigrationRecords() ([]domain.MigrationRecord, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.migrationRepo == nil {
-		return []domain.MigrationRecord{}, nil
-	}
-	return emptyList(b.migrationRepo.FindMigrationRecords(context.Background()))
+	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.MigrationRecord, error) {
+		return s.Repos.Migrations.FindMigrationRecords(ctx)
+	})
 }
 
 // --- Verfahrensdokumentation ----------------------------------------------
 
 // GenerateProcedureDocumentation erzeugt eine neue Fassung und legt sie ab.
 func (b *BuchfinkBridge) GenerateProcedureDocumentation() (*service.ProcDocResult, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.procDocSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	// Die Sicherungsläufe kommen frisch dazu: die Betriebsdokumentation soll
-	// die letzten Läufe nennen und nicht den Stand beim Programmstart.
-	env := service.ProcDocEnvironment{
-		DataDir:      b.dataDir,
-		BackupDir:    b.appConfig.BackupDir,
-		BackupRhythm: b.backupRhythmLabel(),
-	}
-	if b.backupRunRepo != nil {
-		if runs, err := b.backupRunRepo.FindRecent(context.Background(), 5); err == nil {
+	backupDir := b.host.Config().BackupDir
+	return write(b, func(ctx context.Context, s *core.Services) (*service.ProcDocResult, error) {
+		// Die Sicherungsläufe kommen frisch dazu: die Betriebsdokumentation
+		// soll die letzten Läufe nennen und nicht den Stand beim Öffnen.
+		env := core.ProcDocEnvironment(s.Tenant.DataDir, backupDir)
+		if runs, err := s.Repos.BackupRuns.FindRecent(ctx, 5); err == nil {
 			env.BackupRuns = runs
 		}
-	}
-	b.procDocSvc.SetEnvironment(env)
-	return b.procDocSvc.Generate(context.Background(), time.Time{})
+		s.ProcDoc.SetEnvironment(env)
+		return s.ProcDoc.Generate(ctx, time.Time{})
+	})
 }
 
 // GetProcedureDocumentations liefert die abgelegten Fassungen.
 func (b *BuchfinkBridge) GetProcedureDocumentations() ([]domain.ProcedureDocumentation, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.procDocSvc == nil {
-		return []domain.ProcedureDocumentation{}, nil
-	}
-	return emptyList(b.procDocSvc.Documentations(context.Background()))
+	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.ProcedureDocumentation, error) {
+		return s.ProcDoc.Documentations(ctx)
+	})
 }
 
 // SaveProcedureDocumentationAs schreibt eine abgelegte Fassung an einen vom
@@ -151,17 +128,11 @@ func (b *BuchfinkBridge) GetProcedureDocumentations() ([]domain.ProcedureDocumen
 // Der leere Rückgabewert heißt: der Speichern-Dialog wurde abgebrochen. Das ist
 // keine Fehlermeldung wert.
 func (b *BuchfinkBridge) SaveProcedureDocumentationAs(id uint, wantPDF bool) (string, error) {
-	// Gelesen wird unter der Sperre, der Dialog steht ohne sie offen: er ist
-	// modal, und solange er offen ist, käme sonst keine andere Bridge-Methode
-	// mehr durch.
-	file, err := func() (*service.ProcDocFile, error) {
-		b.mu.RLock()
-		defer b.mu.RUnlock()
-		if b.procDocSvc == nil {
-			return nil, fmt.Errorf("kein aktiver Mandant")
-		}
-		return b.procDocSvc.File(context.Background(), id, wantPDF)
-	}()
+	// Gelesen wird vor dem Dialog: er ist modal und steht offen, solange der
+	// Anwender überlegt.
+	file, err := read(b, func(ctx context.Context, s *core.Services) (*service.ProcDocFile, error) {
+		return s.ProcDoc.File(ctx, id, wantPDF)
+	})
 	if err != nil {
 		return "", err
 	}
@@ -173,19 +144,10 @@ func (b *BuchfinkBridge) SaveProcedureDocumentationAs(id uint, wantPDF bool) (st
 	if err := os.WriteFile(path, file.Data, 0o600); err != nil {
 		return "", fmt.Errorf("%s konnte nicht geschrieben werden: %w", filepath.Base(path), err)
 	}
-
-	// Die Herausgabe ist die Handlung, die ins Protokoll gehört (QUE-02 K2):
-	// die Verfahrensdokumentation sagt zu, dass die Herausgabe einzelner
-	// Dateien als Zugriff festgehalten wird.
-	b.mu.RLock()
-	auditRepo := b.auditRepo
-	b.mu.RUnlock()
-	if auditRepo != nil {
-		if err := auditRepo.Log(context.Background(), domain.AuditActionExport, "PROCEDURE_DOC",
-			strconv.FormatUint(uint64(id), 10),
-			fmt.Sprintf("Verfahrensdokumentation %s nach %s herausgegeben", file.FileName, path)); err != nil {
-			return "", fmt.Errorf("die Herausgabe ließ sich nicht protokollieren: %w", err)
-		}
+	// Die Herausgabe ist die Handlung, die ins Protokoll gehört (QUE-02 K2).
+	if err := b.logAccess("PROCEDURE_DOC", strconv.FormatUint(uint64(id), 10),
+		fmt.Sprintf("Verfahrensdokumentation %s nach %s herausgegeben", file.FileName, path)); err != nil {
+		return "", err
 	}
 	return path, nil
 }
@@ -193,12 +155,11 @@ func (b *BuchfinkBridge) SaveProcedureDocumentationAs(id uint, wantPDF bool) (st
 // GetOrganisationTexts liefert die unternehmensindividuellen Freitexte, mit
 // Mustern dort, wo noch nichts erfasst ist.
 func (b *BuchfinkBridge) GetOrganisationTexts() (domain.OrganisationTexts, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.procDocSvc == nil {
+	return readOr(b, func() (domain.OrganisationTexts, error) {
 		return domain.DefaultOrganisationTexts(), nil
-	}
-	return b.procDocSvc.OrganisationTexts(context.Background()), nil
+	}, func(ctx context.Context, s *core.Services) (domain.OrganisationTexts, error) {
+		return s.ProcDoc.OrganisationTexts(ctx), nil
+	})
 }
 
 // GetOrganisationTextDefaults liefert die Muster, mit denen die Freitexte
@@ -216,15 +177,9 @@ func (b *BuchfinkBridge) GetOrganisationTextDefaults() (domain.OrganisationTexts
 
 // SaveOrganisationTexts schreibt die Freitexte der Organisationsanweisung.
 func (b *BuchfinkBridge) SaveOrganisationTexts(texts domain.OrganisationTexts) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return err
-	}
-	if b.procDocSvc == nil {
-		return fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.procDocSvc.SaveOrganisationTexts(context.Background(), texts)
+	return b.change(func(ctx context.Context, s *core.Services) error {
+		return s.ProcDoc.SaveOrganisationTexts(ctx, texts)
+	})
 }
 
 // SetSystemChangeDate hält den Umstellungszeitpunkt der Datenübernahme fest.
@@ -232,22 +187,16 @@ func (b *BuchfinkBridge) SaveOrganisationTexts(texts domain.OrganisationTexts) e
 // An ihm hängt die Fünfjahresfrist des § 147 Abs. 6 Satz 6 AO: so lange ist das
 // Altsystem für den Datenzugriff verfügbar zu halten.
 func (b *BuchfinkBridge) SetSystemChangeDate(date string) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return err
-	}
-	if b.settingsSvc == nil {
-		return fmt.Errorf("kein aktiver Mandant")
-	}
-	trimmed := strings.TrimSpace(date)
-	if trimmed != "" {
-		if _, err := time.Parse("2006-01-02", trimmed); err != nil {
-			return fmt.Errorf("der Umstellungszeitpunkt wird als Datum erwartet (JJJJ-MM-TT)")
+	return b.change(func(ctx context.Context, s *core.Services) error {
+		trimmed := strings.TrimSpace(date)
+		if trimmed != "" {
+			if _, err := time.Parse("2006-01-02", trimmed); err != nil {
+				return fmt.Errorf("der Umstellungszeitpunkt wird als Datum erwartet (JJJJ-MM-TT)")
+			}
 		}
-	}
-	return b.settingsSvc.SetValue(context.Background(), domain.SettingSystemChangeDate, trimmed,
-		"Umstellungszeitpunkt der Datenübernahme aus einem Altsystem gesetzt")
+		return s.Settings.SetValue(ctx, domain.SettingSystemChangeDate, trimmed,
+			"Umstellungszeitpunkt der Datenübernahme aus einem Altsystem gesetzt")
+	})
 }
 
 // --- Hinweise -------------------------------------------------------------
@@ -270,19 +219,17 @@ type ComplianceHints struct {
 
 // GetComplianceHints liefert die Hinweise zu Speicherort und Steuerfällen.
 func (b *BuchfinkBridge) GetComplianceHints() (*ComplianceHints, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-
+	dataDir := b.host.Config().DataDir
 	hints := &ComplianceHints{
-		DataDir:      b.dataDir,
-		CloudWarning: domain.CloudFolderWarning(b.dataDir),
+		DataDir:      dataDir,
+		CloudWarning: domain.CloudFolderWarning(dataDir),
 		TaxCaseHints: domain.TaxCaseHints(),
 	}
-	if b.settingsRepo != nil {
-		ctx := context.Background()
-		if date, err := b.settingsRepo.Get(ctx, domain.SettingSystemChangeDate); err == nil {
-			hints.SystemChangeDate = date
-		}
+	date, err := read(b, func(ctx context.Context, s *core.Services) (string, error) {
+		return s.Repos.Settings.Get(ctx, domain.SettingSystemChangeDate)
+	})
+	if err == nil {
+		hints.SystemChangeDate = date
 	}
 	if hints.SystemChangeDate != "" {
 		hints.SystemChangeNote = accounting.SystemChangeNote(hints.SystemChangeDate, "")
@@ -302,84 +249,54 @@ type BlockContactResult struct {
 
 // BlockContact sperrt einen Geschäftspartner nach einem Löschverlangen.
 func (b *BuchfinkBridge) BlockContact(id uint, reason string) (*BlockContactResult, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.contactSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	contact, answer, err := b.contactSvc.BlockContact(context.Background(), id, reason)
-	if err != nil {
-		return nil, err
-	}
-	return &BlockContactResult{Contact: contact, Answer: answer}, nil
+	return write(b, func(ctx context.Context, s *core.Services) (*BlockContactResult, error) {
+		contact, answer, err := s.Contacts.BlockContact(ctx, id, reason)
+		if err != nil {
+			return nil, err
+		}
+		return &BlockContactResult{Contact: contact, Answer: answer}, nil
+	})
 }
 
 // GetSelectableContacts liefert die Geschäftspartner, die sich noch auswählen
 // lassen — gesperrte fehlen.
 func (b *BuchfinkBridge) GetSelectableContacts() ([]domain.Contact, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.contactSvc == nil {
-		return []domain.Contact{}, nil
-	}
-	return emptyList(b.contactSvc.SelectableContacts(context.Background()))
+	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.Contact, error) {
+		return s.Contacts.SelectableContacts(ctx)
+	})
 }
 
 // --- Belege ---------------------------------------------------------------
 
 // SaveReceiptHeader schreibt die Kopfdaten eines abgelegten Belegs nach.
 func (b *BuchfinkBridge) SaveReceiptHeader(receiptID uint, header domain.ReceiptHeader) (*domain.Receipt, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.receiptSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.receiptSvc.SaveHeader(context.Background(), receiptID, header)
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.Receipt, error) {
+		return s.Receipts.SaveHeader(ctx, receiptID, header)
+	})
 }
 
 // --- Journal --------------------------------------------------------------
 
 // CorrectEntry storniert eine Buchung und bucht sie richtig neu.
 func (b *BuchfinkBridge) CorrectEntry(entryID uint, reason string, newEntry *domain.JournalEntry) (*service.CorrectionResult, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.journalSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.journalSvc.CorrectEntry(context.Background(), entryID, reason, newEntry)
+	return write(b, func(ctx context.Context, s *core.Services) (*service.CorrectionResult, error) {
+		return s.Journal.CorrectEntry(ctx, entryID, reason, newEntry)
+	})
 }
 
 // PreviewOpeningBalance zeigt die Eröffnungsbuchungen des Umsteigers, ohne sie
 // zu schreiben.
 func (b *BuchfinkBridge) PreviewOpeningBalance(req service.OpeningBalanceRequest) (*service.OpeningBalancePreview, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.journalSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.journalSvc.PreviewOpeningBalance(context.Background(), req)
+	return read(b, func(ctx context.Context, s *core.Services) (*service.OpeningBalancePreview, error) {
+		return s.Journal.PreviewOpeningBalance(ctx, req)
+	})
 }
 
 // BookOpeningBalance bucht die Eröffnungsbilanz des Umsteigers.
 func (b *BuchfinkBridge) BookOpeningBalance(req service.OpeningBalanceRequest) (*service.OpeningBalancePreview, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.journalSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.journalSvc.BookOpeningBalance(context.Background(), req)
+	return write(b, func(ctx context.Context, s *core.Services) (*service.OpeningBalancePreview, error) {
+		return s.Journal.BookOpeningBalance(ctx, req)
+	})
 }
 
 // --- Offene Posten --------------------------------------------------------
@@ -387,39 +304,22 @@ func (b *BuchfinkBridge) BookOpeningBalance(req service.OpeningBalanceRequest) (
 // GetOpenItemsAging liefert Altersstruktur und Restlaufzeiten der offenen
 // Posten zum Stichtag. Leerer Stichtag heißt: heute.
 func (b *BuchfinkBridge) GetOpenItemsAging(cutoff string) (*domain.OpenItemsAging, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.paymentSvc == nil {
+	return readOr(b, func() (*domain.OpenItemsAging, error) {
 		empty := &domain.OpenItemsAging{Cutoff: cutoff}
 		empty.EnsureLists()
 		return empty, nil
-	}
-	if cutoff == "" {
-		cutoff = time.Now().UTC().Format("2006-01-02")
-	}
-	items, err := b.paymentSvc.OpenItemsAt(context.Background(), cutoff)
-	if err != nil {
-		return nil, err
-	}
-	aging := accounting.AgeOpenItems(items, cutoff)
-	// Die Zusicherung steht hier und nicht nur bei der leeren Antwort: eine
-	// Liste, die an einer Stelle `null` sein darf, ist keine Zusicherung.
-	aging.EnsureLists()
-	return &aging, nil
-}
-
-// --- Hilfen ---------------------------------------------------------------
-
-// backupRhythmLabel beschreibt den Sicherungsrhythmus für die
-// Verfahrensdokumentation.
-//
-// Buchfink sichert beim Beenden und beim Start, wenn die letzte gelungene
-// Sicherung länger als einen Tag her ist. Das ist der Rhythmus, und er steht
-// hier als Satz, weil eine Verfahrensdokumentation ihn beschreiben muss und
-// nicht auf eine Einstellung verweisen kann, die es nicht gibt.
-func (b *BuchfinkBridge) backupRhythmLabel() string {
-	if b.appConfig.BackupDir == "" {
-		return "nicht eingerichtet — es wird nicht gesichert"
-	}
-	return "täglich, ausgelöst beim Beenden und beim Start des Programms, wenn die letzte erfolgreiche Sicherung länger als einen Tag zurückliegt"
+	}, func(ctx context.Context, s *core.Services) (*domain.OpenItemsAging, error) {
+		if cutoff == "" {
+			cutoff = time.Now().UTC().Format("2006-01-02")
+		}
+		items, err := s.Payments.OpenItemsAt(ctx, cutoff)
+		if err != nil {
+			return nil, err
+		}
+		aging := accounting.AgeOpenItems(items, cutoff)
+		// Die Zusicherung steht hier und nicht nur bei der leeren Antwort: eine
+		// Liste, die an einer Stelle `null` sein darf, ist keine Zusicherung.
+		aging.EnsureLists()
+		return &aging, nil
+	})
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/service"
 )
@@ -20,50 +21,32 @@ import (
 // GetFixedAssets returns the Anlagenverzeichnis, optionally narrowed to one
 // class ("tangible", "financial", "intangible"; empty for all).
 func (b *BuchfinkBridge) GetFixedAssets(class string) ([]domain.FixedAsset, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.assetSvc == nil {
-		return []domain.FixedAsset{}, nil
-	}
-	return emptyList(b.assetSvc.List(context.Background(), domain.AssetClass(class)))
+	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.FixedAsset, error) {
+		return s.Assets.List(ctx, domain.AssetClass(class))
+	})
 }
 
 // GetFixedAsset returns one Anlagegut with its AfA-Plan, seinen Bewegungen und
 // den Erklärungen, die zu diesem Gut gehören.
 func (b *BuchfinkBridge) GetFixedAsset(id uint) (*service.AssetDetail, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.assetSvc == nil {
-		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
-	}
-	return b.assetSvc.Get(context.Background(), id)
+	return read(b, func(ctx context.Context, s *core.Services) (*service.AssetDetail, error) {
+		return s.Assets.Get(ctx, id)
+	})
 }
 
 // SaveFixedAsset creates or updates an Anlagegut.
 func (b *BuchfinkBridge) SaveFixedAsset(asset domain.FixedAsset) (*domain.FixedAsset, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.assetSvc == nil {
-		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
-	}
-	return b.assetSvc.Save(context.Background(), &asset)
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.FixedAsset, error) {
+		return s.Assets.Save(ctx, &asset)
+	})
 }
 
 // RecordAssetCostAdjustment records nachträgliche Anschaffungskosten oder eine
 // Anschaffungspreisminderung.
 func (b *BuchfinkBridge) RecordAssetCostAdjustment(req service.CostAdjustmentRequest) (*domain.FixedAsset, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.assetSvc == nil {
-		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
-	}
-	return b.assetSvc.RecordCostAdjustment(context.Background(), req)
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.FixedAsset, error) {
+		return s.Assets.RecordCostAdjustment(ctx, req)
+	})
 }
 
 // GetAssetAccounts returns the curated Anlagekonten of one class, each with its
@@ -129,9 +112,7 @@ type assetMethodInfo struct {
 // GetAssetRules hands the Wertgrenzen, das Zeitfenster der degressiven AfA und
 // die zulässigen Methoden an die Oberfläche.
 func (b *BuchfinkBridge) GetAssetRules() (*AssetRules, error) {
-	b.mu.RLock()
-	year := b.currentYear
-	b.mu.RUnlock()
+	year := b.fiscalYear()
 
 	// Die Wertgrenzen gelten je Tag; für die Anzeige nehmen wir den ersten Tag
 	// des Geschäftsjahres, weil sich Anschaffungen dieses Jahres daran messen.
@@ -219,150 +200,102 @@ func (b *BuchfinkBridge) GetAssetRules() (*AssetRules, error) {
 // noch kein Anlagegut ist. Die Erfassungsmaske zeigt damit beim Tippen, was die
 // Nutzungsdauer bedeutet, statt es den Nutzer schätzen zu lassen.
 func (b *BuchfinkBridge) PreviewDepreciationPlan(req service.PlanRequest) ([]accounting.AfAYear, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.assetSvc == nil {
-		return []accounting.AfAYear{}, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
-	}
-	return emptyList(b.assetSvc.PreviewPlan(context.Background(), req))
+	return emptyList(read(b, func(ctx context.Context, s *core.Services) ([]accounting.AfAYear, error) {
+		return s.Assets.PreviewPlan(ctx, req)
+	}))
 }
 
 // GetDepreciationRun computes the AfA of the active fiscal year without writing
 // anything.
 func (b *BuchfinkBridge) GetDepreciationRun() (*service.DepreciationRun, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.assetSvc == nil {
+	return readOr(b, func() (*service.DepreciationRun, error) {
 		empty := &service.DepreciationRun{}
 		empty.EnsureLists()
 		return empty, nil
-	}
-	return b.assetSvc.Run(context.Background())
+	}, func(ctx context.Context, s *core.Services) (*service.DepreciationRun, error) {
+		return s.Assets.Run(ctx)
+	})
 }
 
 // BookDepreciationRun writes the AfA of the active fiscal year.
 func (b *BuchfinkBridge) BookDepreciationRun(req service.BookDepreciationRequest) (*service.DepreciationResult, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.assetSvc == nil {
-		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
-	}
-	return b.assetSvc.BookDepreciation(context.Background(), req)
+	return write(b, func(ctx context.Context, s *core.Services) (*service.DepreciationResult, error) {
+		return s.Assets.BookDepreciation(ctx, req)
+	})
 }
 
 // BookAssetImpairment writes an außerplanmäßige Abschreibung.
 func (b *BuchfinkBridge) BookAssetImpairment(req service.ImpairmentRequest) (*domain.JournalEntry, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.assetSvc == nil {
-		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
-	}
-	return b.assetSvc.BookImpairment(context.Background(), req)
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.JournalEntry, error) {
+		return s.Assets.BookImpairment(ctx, req)
+	})
 }
 
 // BookAssetWriteUp writes a Zuschreibung.
 func (b *BuchfinkBridge) BookAssetWriteUp(req service.WriteUpRequest) (*domain.JournalEntry, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.assetSvc == nil {
-		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
-	}
-	return b.assetSvc.BookWriteUp(context.Background(), req)
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.JournalEntry, error) {
+		return s.Assets.BookWriteUp(ctx, req)
+	})
 }
 
 // TransferFixedAsset bucht die Fertigstellung: von der Anlage im Bau auf ihr
 // endgültiges Konto, und ab da läuft die Abschreibung.
 func (b *BuchfinkBridge) TransferFixedAsset(req service.TransferRequest) (*domain.FixedAsset, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.assetSvc == nil {
-		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
-	}
-	return b.assetSvc.Transfer(context.Background(), req)
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.FixedAsset, error) {
+		return s.Assets.Transfer(ctx, req)
+	})
 }
 
 // PreviewAssetDisposal computes an Abgang without writing it.
 func (b *BuchfinkBridge) PreviewAssetDisposal(req service.DisposalRequest) (*service.DisposalPreview, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.assetSvc == nil {
-		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
-	}
-	return b.assetSvc.PreviewDisposal(context.Background(), req)
+	return read(b, func(ctx context.Context, s *core.Services) (*service.DisposalPreview, error) {
+		return s.Assets.PreviewDisposal(ctx, req)
+	})
 }
 
 // DisposeFixedAsset books the Abgang.
 func (b *BuchfinkBridge) DisposeFixedAsset(req service.DisposalRequest) (*service.DisposalResult, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.assetSvc == nil {
-		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
-	}
-	return b.assetSvc.Dispose(context.Background(), req)
+	return write(b, func(ctx context.Context, s *core.Services) (*service.DisposalResult, error) {
+		return s.Assets.Dispose(ctx, req)
+	})
 }
 
 // GetAnlagenspiegel returns the Entwicklung des Anlagevermögens of the active
 // fiscal year.
 func (b *BuchfinkBridge) GetAnlagenspiegel() (*domain.Anlagenspiegel, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.assetSvc == nil {
+	return readOr(b, func() (*domain.Anlagenspiegel, error) {
 		empty := &domain.Anlagenspiegel{}
 		empty.EnsureLists()
 		return empty, nil
-	}
-	return b.assetSvc.Anlagenspiegel(context.Background())
+	}, func(ctx context.Context, s *core.Services) (*domain.Anlagenspiegel, error) {
+		return s.Assets.Anlagenspiegel(ctx)
+	})
 }
 
 // GetAssetAcquisitionCandidates lists bookings on Anlagekonten that no Anlagegut
 // points at yet.
 func (b *BuchfinkBridge) GetAssetAcquisitionCandidates() ([]service.AcquisitionCandidate, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.assetSvc == nil {
-		return []service.AcquisitionCandidate{}, nil
-	}
-	return emptyList(b.assetSvc.AcquisitionCandidates(context.Background()))
+	return readList(b, func(ctx context.Context, s *core.Services) ([]service.AcquisitionCandidate, error) {
+		return s.Assets.AcquisitionCandidates(ctx)
+	})
 }
 
 // GetSammelposten returns the Sammelposten of a fiscal year, or nothing if none
 // was formed. Zero means the active fiscal year.
 func (b *BuchfinkBridge) GetSammelposten(fiscalYear int) (*domain.FixedAsset, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.assetSvc == nil {
+	return readOr(b, func() (*domain.FixedAsset, error) {
 		return nil, nil
-	}
-	return b.assetSvc.Pool(context.Background(), fiscalYear)
+	}, func(ctx context.Context, s *core.Services) (*domain.FixedAsset, error) {
+		return s.Assets.Pool(ctx, fiscalYear)
+	})
 }
 
 // BookAssetIncome bucht einen laufenden Ertrag aus einer Finanzanlage —
 // Dividende, Ausschüttung, Zins — und hängt ihn an den Anteil, aus dem er stammt.
 func (b *BuchfinkBridge) BookAssetIncome(req service.AssetIncomeRequest) (*domain.JournalEntry, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.assetSvc == nil {
-		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
-	}
-	return b.assetSvc.BookAssetIncome(context.Background(), req)
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.JournalEntry, error) {
+		return s.Assets.BookAssetIncome(ctx, req)
+	})
 }
 
 // ValuateAssetCurrency rechnet eine Fremdwährungs-Finanzanlage zum
@@ -370,12 +303,9 @@ func (b *BuchfinkBridge) BookAssetIncome(req service.AssetIncomeRequest) (*domai
 // nennt den Betrag, den eine außerplanmäßige Abschreibung oder eine
 // Zuschreibung hätte.
 func (b *BuchfinkBridge) ValuateAssetCurrency(req service.CurrencyValuationRequest) (*service.CurrencyValuation, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.assetSvc == nil {
-		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
-	}
-	return b.assetSvc.ValuateCurrency(context.Background(), req)
+	return read(b, func(ctx context.Context, s *core.Services) (*service.CurrencyValuation, error) {
+		return s.Assets.ValuateCurrency(ctx, req)
+	})
 }
 
 // -------------------------------------------------------------------------
@@ -386,11 +316,6 @@ func (b *BuchfinkBridge) ValuateAssetCurrency(req service.CurrencyValuationReque
 // vorgeben: die Fondsarten, die Anlegerstellungen und den Satz, der sich aus
 // der eingestellten Kombination ergibt.
 func (b *BuchfinkBridge) GetInvestmentRules() (*InvestmentRules, error) {
-	b.mu.RLock()
-	svc := b.assetSvc
-	settings := b.settingsSvc
-	b.mu.RUnlock()
-
 	// Leer statt nil: die Maske läuft über die Freistellungen, auch wenn die
 	// eingestellte Anlegerstellung keine ergibt.
 	rules := &InvestmentRules{Exemptions: make([]exemptionInfo, 0)}
@@ -402,10 +327,9 @@ func (b *BuchfinkBridge) GetInvestmentRules() (*InvestmentRules, error) {
 		rules.InvestorTypes = append(rules.InvestorTypes,
 			investorTypeInfo{Type: investor, Label: investor.Label()})
 	}
-	if svc == nil || settings == nil {
-		return rules, nil
-	}
-	cfg, err := settings.GetCompanySettings(context.Background())
+	cfg, err := read(b, func(ctx context.Context, s *core.Services) (*domain.CompanySettings, error) {
+		return s.Settings.GetCompanySettings(ctx)
+	})
 	if err != nil || cfg == nil {
 		return rules, nil
 	}
@@ -474,26 +398,22 @@ type exemptionInfo struct {
 
 // ComputeVorabpauschale rechnet die Vorabpauschale eines Kalenderjahres nach
 // § 18 InvStG — und hält sie fest, wenn `record` gesetzt ist. Gebucht wird
-// nichts: handelsrechtlich geschieht nichts.
+// nichts: handelsrechtlich geschieht nichts. Das Festhalten ist ein
+// Schreibvorgang, das Vorrechnen nicht.
 func (b *BuchfinkBridge) ComputeVorabpauschale(req service.VorabpauschaleRequest) (*accounting.Vorabpauschale, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if b.assetSvc == nil {
-		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
+	compute := func(ctx context.Context, s *core.Services) (*accounting.Vorabpauschale, error) {
+		return s.Assets.Vorabpauschale(ctx, req)
 	}
-	return b.assetSvc.Vorabpauschale(context.Background(), req)
+	if req.Record {
+		return write(b, compute)
+	}
+	return read(b, compute)
 }
 
 // BookAssetCurrencyValuation bucht die Umrechnungsdifferenz eines Stichtags auf
 // die Konten der Währungsumrechnung (§ 256a HGB).
 func (b *BuchfinkBridge) BookAssetCurrencyValuation(req service.CurrencyValuationRequest) (*domain.JournalEntry, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.assetSvc == nil {
-		return nil, fmt.Errorf("Anlagenbuchhaltung ist noch nicht initialisiert")
-	}
-	return b.assetSvc.BookCurrencyValuation(context.Background(), req)
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.JournalEntry, error) {
+		return s.Assets.BookCurrencyValuation(ctx, req)
+	})
 }

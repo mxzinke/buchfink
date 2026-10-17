@@ -22,10 +22,7 @@ import (
 func backupBridge(t *testing.T) (*BuchfinkBridge, *domain.TenantConfig, string) {
 	t.Helper()
 	base := t.TempDir()
-	b := &BuchfinkBridge{
-		appCfgRepo:  repository.NewAppConfigRepository(filepath.Join(base, "config")),
-		currentYear: 2026,
-	}
+	b := newBridge(t)
 
 	tenant, err := b.CreateTenant("Pfennig Ventures GmbH", filepath.Join(base, "mandant"),
 		domain.CompanySettings{CompanyName: "Pfennig Ventures GmbH", FiscalYear: 2026})
@@ -101,8 +98,8 @@ func TestRestoreFromBackupOpensAndChecksTheRestoredTenant(t *testing.T) {
 	if got := b.GetAppConfig().ActiveTenantID; got != restored.ID {
 		t.Errorf("aktiv ist %q und nicht der wiederhergestellte Mandant %q", got, restored.ID)
 	}
-	if !sameDir(b.dataDir, target) {
-		t.Errorf("die Dienste arbeiten auf %s statt auf dem wiederhergestellten Ordner %s", b.dataDir, target)
+	if dataDir := b.GetAppConfig().DataDir; !sameDir(dataDir, target) {
+		t.Errorf("die Dienste arbeiten auf %s statt auf dem wiederhergestellten Ordner %s", dataDir, target)
 	}
 
 	entries, err := b.GetAllJournalEntries()
@@ -137,10 +134,7 @@ func TestRestoreFromBackupOpensAndChecksTheRestoredTenant(t *testing.T) {
 func TestRestoreFromBackupWithoutOpenTenant(t *testing.T) {
 	_, _, zipPath := backupBridge(t)
 
-	fresh := &BuchfinkBridge{
-		appCfgRepo:  repository.NewAppConfigRepository(filepath.Join(t.TempDir(), "config")),
-		currentYear: 2026,
-	}
+	fresh := newBridge(t)
 	target := filepath.Join(t.TempDir(), "wiederhergestellt")
 
 	restored, err := fresh.RestoreFromBackup(zipPath, target)

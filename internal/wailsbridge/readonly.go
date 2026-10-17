@@ -1,11 +1,6 @@
 package wailsbridge
 
 import (
-	"context"
-	"fmt"
-	"strings"
-	"time"
-
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -17,15 +12,13 @@ import (
 // keine Benutzerkonten und kann den Zugriff deshalb nicht nach Personen
 // trennen; die Sperre gilt für die ganze Anwendung und ist befristet.
 //
-// Die Prüfung sitzt an der Bridge und nicht in den Diensten. Die Bridge ist die
-// einzige Stelle, an der eine Bedienung ankommt — ein Dienst wird auch vom
-// automatischen Sicherungslauf und vom Export gerufen, und die müssen weiter
-// arbeiten.
+// Die Prüfung sitzt im Kern (Tenant.Write): jeder Schreibvorgang geht dort
+// durch, gleich ob er aus der Oberfläche oder von einem Agenten kommt.
 
 // readOnlyAllowed sind die Methoden, die im Prüfermodus zulässig bleiben.
 //
 // Die Liste ist die Ausnahme und nicht die Regel: jede exportierte Methode der
-// Bridge steht entweder hier oder ruft ensureWritable. Der Test
+// Bridge steht entweder hier oder schreibt über write/change. Der Test
 // TestEveryBridgeMethodIsClassified hält das fest — eine neu hinzugefügte
 // schreibende Methode, die niemand eingeordnet hat, fällt dort auf und nicht
 // erst dem Prüfer.
@@ -42,13 +35,10 @@ var readOnlyAllowed = map[string]bool{
 	// Prüfer muss die Stichtagsbewertung eines abgeschlossenen Jahres ansehen
 	// können — die Kurse dazu stehen dann längst in der Historie.
 	"GetAfaRules": true,
-	// Welle 8: die lesenden Auswertungen der laufenden Buchhaltung. Sie lesen
-	// und rechnen; GetReceiptFindings liest den Beleg über ReceiptService.Get,
-	// der ein fehlendes Siegel repariert — eine Reparatur an den eigenen Daten
-	// und keine Änderung der Buchführung, die der Prüfer sieht; sie steht im
-	// Änderungsprotokoll wie jede andere. SaveFilteredJournalCSV gibt
-	// Journalzeilen heraus und protokolliert das als Zugriff (QUE-02 K2); auch
-	// es nimmt deshalb die Schreibsperre.
+	// Welle 8: die lesenden Auswertungen der laufenden Buchhaltung.
+	// SaveFilteredJournalCSV gibt Journalzeilen heraus und protokolliert das
+	// als Zugriff (QUE-02 K2); das Protokoll ist der eine Schreibweg eines
+	// Lesevorgangs.
 	"GetEntriesForReceipt":            true,
 	"GetReceiptFindings":              true,
 	"GetRetentionRules":               true,
@@ -159,7 +149,6 @@ var readOnlyAllowed = map[string]bool{
 
 	// Rechnen, ohne zu buchen
 	"ClassifyAcquisition":       true,
-	"ComputeVorabpauschale":     true,
 	"PreviewAccrual":            true,
 	"PreviewAppropriation":      true,
 	"PreviewAssetDisposal":      true,
@@ -244,8 +233,10 @@ var readOnlyAllowed = map[string]bool{
 
 	// Mandanten. Sie berühren keine Buchung des gesperrten Mandanten: ein
 	// zweiter Mandant darf angelegt und eine Sicherung darf wiederhergestellt
-	// werden, während hier eine Prüfung läuft.
+	// werden, während hier eine Prüfung läuft. Den geprüften Mandanten selbst
+	// nimmt der Kern nicht aus der Liste.
 	"CreateTenant":         true,
+	"DeleteTenant":         true,
 	"GetBankAccounts":      true,
 	"PreviewBankStatement": true,
 	"LoadExistingDatabase": true,
@@ -273,123 +264,14 @@ var readOnlyAllowed = map[string]bool{
 	"ServiceShutdown": true,
 }
 
-// readOnlyStateLocked liefert den Zustand des Prüfermodus.
-//
-// Der Aufrufer hält bereits b.mu — jede schreibende Bridge-Methode nimmt die
-// Sperre, bevor sie prüft. Eine zweite Sperre hier wäre ein Deadlock.
-func (b *BuchfinkBridge) readOnlyStateLocked() (active bool, until, reason string) {
-	tenant := b.activeTenantLocked()
-	if tenant == nil {
-		return false, "", ""
-	}
-	today := time.Now().Format("2006-01-02")
-	return tenant.ReadOnlyActiveOn(today), tenant.ReadOnlyUntil, tenant.ReadOnlyReason
-}
-
-// ensureWritable weist jede schreibende Methode ab, solange der Prüfermodus
-// gilt.
-//
-// Sie steht am Anfang jeder solchen Methode, hinter dem Sperren von b.mu. Eine
-// Prüfung, die nur die Oberfläche vornähme — Knöpfe ausblenden —, wäre keine:
-// die Bridge ist über die Wails-Laufzeit auch ohne die Oberfläche erreichbar.
-func (b *BuchfinkBridge) ensureWritable() error {
-	active, until, reason := b.readOnlyStateLocked()
-	if !active {
-		return nil
-	}
-	message := fmt.Sprintf("Der Prüfermodus ist bis zum %s aktiv. Bis dahin nimmt die Buchführung keine Änderung auf", formatGermanDate(until))
-	if strings.TrimSpace(reason) != "" {
-		message += fmt.Sprintf(" (Grund: %s)", reason)
-	}
-	return fmt.Errorf("%s.", message)
-}
-
-// EnableReadOnly schaltet den Prüfermodus bis zu einem Tag ein.
-//
-// Datum und Grund sind Pflicht. Ohne Ende bliebe der Modus liegen und
-// blockierte irgendwann die laufende Buchführung; ohne Grund ließe sich später
-// nicht mehr sagen, welche Prüfung ihn veranlasst hat.
+// EnableReadOnly schaltet den Prüfermodus bis zu einem Tag ein. Datum und
+// Grund sind Pflicht.
 func (b *BuchfinkBridge) EnableReadOnly(until, reason string) (domain.AppConfig, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	if strings.TrimSpace(until) == "" {
-		return b.appConfig, fmt.Errorf("der Prüfermodus braucht ein Datum, bis zu dem er gilt")
-	}
-	if _, err := time.Parse("2006-01-02", until); err != nil {
-		return b.appConfig, fmt.Errorf("%q ist kein gültiges Datum (erwartet JJJJ-MM-TT)", until)
-	}
-	if until < time.Now().Format("2006-01-02") {
-		return b.appConfig, fmt.Errorf("der Prüfermodus kann nicht in der Vergangenheit enden")
-	}
-	if strings.TrimSpace(reason) == "" {
-		return b.appConfig, fmt.Errorf("bitte den Grund angeben, aus dem der Prüfermodus eingeschaltet wird")
-	}
-
-	tenant := b.activeTenantLocked()
-	if tenant == nil {
-		return b.appConfig, fmt.Errorf("kein aktiver Mandant gefunden")
-	}
-	previousUntil, previousReason := tenant.ReadOnlyUntil, tenant.ReadOnlyReason
-
-	tenant.ReadOnlyUntil = until
-	tenant.ReadOnlyReason = reason
-	b.appConfig.SyncActiveTenant(time.Now().Format("2006-01-02"))
-	if err := b.appCfgRepo.Save(&b.appConfig); err != nil {
-		return b.appConfig, err
-	}
-
-	if b.auditRepo != nil {
-		// Vorher/Nachher als Feldkarte wie bei den Einstellungen: der
-		// Prüfermodus schaltet die Schreibwege des Programms ab, und wann er
-		// galt und wie lange, ist Teil des Nachweises über den Zeitraum, in
-		// dem der Prüfer gesehen hat, was er gesehen hat.
-		_ = b.auditRepo.LogChange(context.Background(), domain.AuditActionUpdate, domain.AuditEntityReadOnly, tenant.ID,
-			fmt.Sprintf("Prüfermodus eingeschaltet bis %s. Grund: %s", until, reason),
-			map[string]string{"readOnlyUntil": previousUntil, "readOnlyReason": previousReason},
-			map[string]string{"readOnlyUntil": until, "readOnlyReason": reason})
-	}
-	return b.appConfig, nil
+	return b.host.EnableExaminer(uiContext(), until, reason)
 }
 
 // DisableReadOnly beendet den Prüfermodus. Der Grund ist Pflicht und steht im
-// Änderungsprotokoll: ein vorzeitig beendeter Prüfermodus ist ein Vorgang, den
-// jemand zu verantworten hat.
+// Änderungsprotokoll.
 func (b *BuchfinkBridge) DisableReadOnly(reason string) (domain.AppConfig, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	if strings.TrimSpace(reason) == "" {
-		return b.appConfig, fmt.Errorf("bitte den Grund angeben, aus dem der Prüfermodus beendet wird")
-	}
-	tenant := b.activeTenantLocked()
-	if tenant == nil {
-		return b.appConfig, fmt.Errorf("kein aktiver Mandant gefunden")
-	}
-
-	was := tenant.ReadOnlyUntil
-	wasReason := tenant.ReadOnlyReason
-	tenant.ReadOnlyUntil = ""
-	tenant.ReadOnlyReason = ""
-	b.appConfig.SyncActiveTenant(time.Now().Format("2006-01-02"))
-	if err := b.appCfgRepo.Save(&b.appConfig); err != nil {
-		return b.appConfig, err
-	}
-
-	if b.auditRepo != nil {
-		_ = b.auditRepo.LogChange(context.Background(), domain.AuditActionUpdate, domain.AuditEntityReadOnly, tenant.ID,
-			fmt.Sprintf("Prüfermodus beendet (war bis %s). Grund: %s", was, reason),
-			map[string]string{"readOnlyUntil": was, "readOnlyReason": wasReason},
-			map[string]string{"readOnlyUntil": "", "readOnlyReason": ""})
-	}
-	return b.appConfig, nil
-}
-
-// formatGermanDate macht aus 2026-06-30 den 30.06.2026.
-func formatGermanDate(iso string) string {
-	t, err := time.Parse("2006-01-02", iso)
-	if err != nil {
-		return iso
-	}
-	return t.Format("02.01.2006")
+	return b.host.DisableExaminer(uiContext(), reason)
 }

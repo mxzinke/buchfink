@@ -86,9 +86,10 @@ flowchart TB
     subgraph Frontend["Frontend (React, TypeScript)"]
         P["pages/*"] --> API["services/api.ts"]
     end
-    API --> BR["wailsbridge<br/>Aufrufbare Oberfläche, Mandant, Geschäftsjahr"]
+    API --> BR["wailsbridge<br/>Aufrufbare Oberfläche"]
     subgraph Backend["Backend (Go)"]
-        BR --> SVC["service<br/>Anwendungsfälle: Buchen, Zahlen, Abschließen, Exportieren"]
+        BR --> CORE["core<br/>Mandant, Schreibsperre, Transaktion je Vorgang, Prüfermodus"]
+        CORE --> SVC["service<br/>Anwendungsfälle: Buchen, Zahlen, Abschließen, Exportieren"]
         SVC --> ACC["accounting<br/>Regeln: SKR04, Steuerschlüssel, AfA, Hash"]
         SVC --> DOM["domain<br/>Entitäten, Invarianten, Repository-Schnittstellen"]
         SVC --> REP["repository<br/>GORM, SQLite, Feldverschlüsselung"]
@@ -116,9 +117,12 @@ Regeln, die diese Schichtung stützen:
    E-Rechnung lesen ein neutrales Datenmodell und schreiben ein Format. Die
    künftige Buchführungsdatenschnittstelle nach § 147b AO wird ein weiteres
    Modul, kein Umbau.
-5. **Die Bridge hält den Zustand, die Dienste sind zustandsarm.** Mandant und
-   aktives Geschäftsjahr leben in `wailsbridge`; die Dienste bekommen das Jahr
-   gesetzt und filtern danach.
+5. **Der Kern hält den Mandanten, die Bridge reicht durch.** `core.Host` hält
+   die Mandantenliste und genau einen offenen Mandanten mit genau einem Satz
+   Dienste. Jeder Zugriff geht über `Tenant.Read` (lesende Transaktion, ohne
+   Sperre) oder `Tenant.Write` (Schreibsperre, Prüfermodus, eine Transaktion je
+   Vorgang) und nennt seinen Erfassungsweg (`ui`, `system`, `agent:<kurzname>`).
+   Das Geschäftsjahr der Ansicht steht noch als Zustand in den Diensten.
 
 ### Prüfpunkte mit Datum
 
