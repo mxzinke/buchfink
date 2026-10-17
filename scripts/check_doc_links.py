@@ -5,7 +5,7 @@ Ein Link zeigt auf eine Datei oder einen Ordner, der existiert; ein Anker auf
 eine Überschrift der Zieldatei, gebildet wie bei GitHub. Externe Adressen
 prüft das Skript nicht.
 
-Aufruf: python3 scripts/check_doc_links.py [Pfad, der fehlen darf ...]
+Aufruf: python3 scripts/check_doc_links.py
 """
 
 from __future__ import annotations
@@ -21,6 +21,12 @@ ROOT = Path(__file__).resolve().parent.parent
 LINK = re.compile(r'(?<!!)\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)|^\[[^\]]+\]:\s*(\S+)', re.M)
 FENCE = re.compile(r'```.*?```', re.S)
 HEADING = re.compile(r'^#{1,6}\s+(.*?)\s*#*\s*$', re.M)
+
+# Die Dokumentation verweist auf die Beschreibung des MCP-Servers, die Skills,
+# das Plugin und die Marketplace-Datei. Solange einer dieser Pfade fehlt, dürfen
+# Links darauf und darunter ins Leere zeigen. Liegt er im Repository, wird
+# jeder Link darunter geprüft.
+MAY_BE_MISSING = ('docs/entwicklung/mcp.md', 'skills', 'plugins', '.claude-plugin')
 
 
 def markdown_files() -> list[Path]:
@@ -55,8 +61,8 @@ def anchors(path: Path) -> set[str]:
     return _anchors[path]
 
 
-def main(allowed: list[str]) -> int:
-    allowed_paths = [a.strip('/') for a in allowed]
+def main() -> int:
+    missing = [a for a in MAY_BE_MISSING if not (ROOT / a).exists()]
     findings: list[str] = []
     for source in markdown_files():
         if not source.exists():
@@ -71,7 +77,7 @@ def main(allowed: list[str]) -> int:
             rel = dest.relative_to(ROOT).as_posix() if dest.is_relative_to(ROOT) else str(dest)
             name = source.relative_to(ROOT).as_posix()
             if not dest.exists():
-                if any(rel == a or rel.startswith(a + '/') for a in allowed_paths):
+                if any(rel == a or rel.startswith(a + '/') for a in missing):
                     continue
                 findings.append(f'{name}: Ziel fehlt: {target}')
             elif fragment and dest.suffix == '.md' and fragment not in anchors(dest):
@@ -82,4 +88,4 @@ def main(allowed: list[str]) -> int:
 
 
 if __name__ == '__main__':
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(main())
