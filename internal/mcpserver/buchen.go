@@ -302,6 +302,7 @@ func (in buchungErfassenIn) request() (service.ManualEntryRequest, error) {
 		}
 		e.Lines = append(e.Lines, line)
 	}
+	e.ContactID = entryContact(e.Lines)
 	req.Entry, req.ReceiptID = e, in.BelegID
 	if in.Eigenbeleg != nil {
 		gross, err := in.Eigenbeleg.Brutto.required("eigenbeleg.brutto")
@@ -323,6 +324,22 @@ func (in buchungErfassenIn) request() (service.ManualEntryRequest, error) {
 			Reason: in.Eigenbeleg.Grund}
 	}
 	return req, nil
+}
+
+// entryContact ist der Kontakt der Buchung, wenn alle Personenkontozeilen
+// denselben nennen; nur dann führt die Buchung einen offenen Posten.
+func entryContact(lines []domain.JournalLine) *uint {
+	var id *uint
+	for _, l := range lines {
+		if l.ContactID == nil {
+			continue
+		}
+		if id != nil && *id != *l.ContactID {
+			return nil
+		}
+		id = l.ContactID
+	}
+	return id
 }
 
 // --- buchung_stornieren -----------------------------------------------------

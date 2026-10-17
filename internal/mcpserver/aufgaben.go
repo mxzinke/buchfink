@@ -302,6 +302,10 @@ func registerFristen(tb *Toolbox) {
 			"Transparenzregister), Änderung der wirtschaftlich Berechtigten, Vorauszahlungsbescheid KSt oder GewSt. " +
 			"Vorher im Chat bestätigen lassen. Danach fristen aufrufen.",
 	}, func(ctx context.Context, c *Call, s *core.Services, in anlassIn) (anlassOut, error) {
+		if !domain.ObligationEventKind(in.Art).Valid() {
+			return anlassOut{}, inputError("art", "gesellschafterwechsel, wirtschaftlich-berechtigte, "+
+				"vorauszahlungsbescheid-kst oder vorauszahlungsbescheid-gewst, nicht %q", in.Art)
+		}
 		date, err := in.Datum.check("datum")
 		if err != nil {
 			return anlassOut{}, err

@@ -13,6 +13,7 @@ import (
 
 	"github.com/buchfink/buchfink/internal/actor"
 	"github.com/buchfink/buchfink/internal/core"
+	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/mcpserver/oauth"
 	"github.com/buchfink/buchfink/internal/service"
 	"github.com/google/jsonschema-go/jsonschema"
@@ -183,6 +184,11 @@ func AddWritePrepared[In writeInput, Out any](
 			return out, err
 		}
 		args := in.writeArgs()
+		if args.Idempotenzschluessel != "" {
+			if err := domain.ValidateIdempotencyKey(args.Idempotenzschluessel); err != nil {
+				return out, inputError("idempotenz_schluessel", "%v", err)
+			}
+		}
 		ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 		defer cancel()
 		if prepare != nil {

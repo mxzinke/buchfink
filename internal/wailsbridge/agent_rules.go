@@ -8,24 +8,25 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-// AgentRules sind die Regeln für verbundene Apps: wie gespeichert (leer heißt
-// Voreinstellung) und wie sie gelten.
+// AgentRules sind die Regeln für verbundene Apps: wie gespeichert (null und
+// leer heißen Voreinstellung) und wie sie gelten. Stored.ReceiptFolders ist
+// immer eine Liste; ob die Voreinstellung gilt, sagt ReceiptFoldersDefault.
 type AgentRules struct {
-	Stored            domain.AgentSettings `json:"stored"`
-	DirectMaxGross    domain.Cents         `json:"directMaxGross"`
-	DirectMinBookings int                  `json:"directMinBookings"`
-	ReceiptFolders    []string             `json:"receiptFolders"`
-	ExportFolder      string               `json:"exportFolder"`
+	Stored                domain.AgentSettings `json:"stored"`
+	ReceiptFoldersDefault bool                 `json:"receiptFoldersDefault"`
+	DirectMaxGross        domain.Cents         `json:"directMaxGross"`
+	DirectMinBookings     int                  `json:"directMinBookings"`
+	ReceiptFolders        []string             `json:"receiptFolders"`
+	ExportFolder          string               `json:"exportFolder"`
 }
 
 func agentRules(s *core.Services, stored *domain.AgentSettings) *AgentRules {
 	limits := policy.LimitsFrom(stored)
 	folders := policy.FoldersFrom(stored, s.Tenant.DataDir)
-	out := &AgentRules{Stored: *stored, DirectMaxGross: limits.MaxGross, DirectMinBookings: limits.MinBookings,
-		ReceiptFolders: folders.Receipt, ExportFolder: folders.Export}
-	if out.ReceiptFolders == nil {
-		out.ReceiptFolders = []string{}
-	}
+	out := &AgentRules{Stored: *stored, ReceiptFoldersDefault: stored.ReceiptFolders == nil,
+		DirectMaxGross: limits.MaxGross, DirectMinBookings: limits.MinBookings, ExportFolder: folders.Export}
+	out.Stored.ReceiptFolders, _ = emptyList(stored.ReceiptFolders, nil)
+	out.ReceiptFolders, _ = emptyList(folders.Receipt, nil)
 	return out
 }
 
