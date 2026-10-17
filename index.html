@@ -217,9 +217,10 @@
             Sie den Rechner mit der Festplattenverschlüsselung des Betriebssystems.
           </p>
           <p class="section__lead">
-            Buchungen, Belege und Änderungsprotokoll hängen in Hash-Ketten. Beim Festschreiben
-            holt Buchfink einen Zeitstempel nach RFC 3161. Eine nachträgliche Änderung an der
-            Datei fällt bei der Prüfung auf.
+            Buchungen und Änderungsprotokoll sind verkettet, und jede Buchung trägt den Hash
+            ihres Belegs. Eine geänderte oder entfernte Buchung bricht die Kette. Festgeschriebene
+            Zeiträume sichert ein Zeitstempel nach RFC 3161. Wer Datenbank und Ketten vollständig
+            neu berechnet, fällt erst an diesem Zeitstempel auf.
           </p>
           <p class="section__lead">
             Was Sie Ihrem Agenten zeigen, geht an den Anbieter des Sprachmodells. Dafür sind
