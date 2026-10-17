@@ -288,6 +288,29 @@ type positionTarget struct {
 	Note      string
 }
 
+// targetFor ist das Ziel eines Kontos in der Gliederung.
+//
+// Die Wertberichtigungen auf Forderungen teilen ihre SKR04-Position mit den
+// Forderungen und stehen im Haben. Über die Gegenposition fielen sie unter die
+// sonstigen Verbindlichkeiten; § 266 HGB kennt sie auf der Passivseite nicht,
+// sie mindern die Forderungen (§ 253 Abs. 4 Satz 2 HGB).
+func targetFor(acc domain.Account) (positionTarget, bool) {
+	target, ok := positionTargets[acc.PositionID]
+	if ok && allowanceAccount[acc.Number] {
+		target.AltKey, target.Deduction = "", true
+		target.Note = "Wertberichtigung, von den Forderungen abgesetzt (§ 253 Abs. 4 Satz 2 HGB)."
+	}
+	return target, ok
+}
+
+// allowanceAccount sind die Wertberichtigungen auf Forderungen aus
+// Lieferungen und Leistungen, gegen verbundene Unternehmen und gegen
+// Beteiligungsunternehmen (SKR04).
+var allowanceAccount = map[string]bool{
+	"1246": true, "1247": true, "1248": true, "1249": true,
+	"1276": true, "1277": true, "1296": true, "1297": true,
+}
+
 // balance ist der Saldo eines Kontos in Sollrichtung: positiv heißt Sollsaldo.
 //
 // Nicht Account.Balance: das ist der Saldo in der natürlichen Richtung der
@@ -465,7 +488,7 @@ func (b *builder) collect(current, prior []domain.Account) {
 // Verbindlichkeiten und gehört jetzt unter die flüssigen Mittel. Beides
 // zusammen in eine Zeile zu zwingen hieße, eine der beiden Bilanzen zu fälschen.
 func (b *builder) assign(item *accountBalances) {
-	target, known := positionTargets[item.account.PositionID]
+	target, known := targetFor(item.account)
 	if !known {
 		entry := b.accountEntry(item, "", item.current, item.prior)
 		b.report.Unassigned = append(b.report.Unassigned, entry)
@@ -772,7 +795,7 @@ func AccountsWithBalance(accounts []domain.Account) []domain.Account {
 // sich aus seinem Saldo ergibt. Die E-Bilanz braucht dieselbe Entscheidung wie
 // die Bilanz — nicht eine zweite, die anders ausfallen könnte.
 func StatementKeyForAccount(acc domain.Account) (string, bool) {
-	target, ok := positionTargets[acc.PositionID]
+	target, ok := targetFor(acc)
 	if !ok {
 		return "", false
 	}

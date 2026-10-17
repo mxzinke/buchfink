@@ -129,7 +129,7 @@ func (p placement) one(acc domain.Account) Placement {
 			if el == "" {
 				continue
 			}
-			if rule.Net && name == rule.Element || p.tax.within(role, el, anchors) {
+			if p.tax.within(role, el, anchors) {
 				candidates = append(candidates, el)
 			}
 		}

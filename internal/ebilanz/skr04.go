@@ -61,20 +61,12 @@ type ruleDef struct {
 	Accounts string
 	Element  string
 	Alt      string
-	// Net hält eine Wertberichtigung auf der Aktivposition, auch wenn ihr
-	// Habensaldo sie in der Gliederung auf die Passivseite stellt: § 266 HGB
-	// kennt Wertberichtigungen auf der Passivseite nicht.
-	Net bool
 }
 
 func r(accounts, element string) ruleDef { return ruleDef{Accounts: accounts, Element: element} }
 
 func ra(accounts, element, alt string) ruleDef {
 	return ruleDef{Accounts: accounts, Element: element, Alt: alt}
-}
-
-func rn(accounts, element string) ruleDef {
-	return ruleDef{Accounts: accounts, Element: element, Net: true}
 }
 
 var skr04Rules = []ruleDef{
@@ -162,13 +154,13 @@ var skr04Rules = []ruleDef{
 	ra("1200-1218", pRec+"trade.other", pLiab+"other.other"),
 	ra("1219-1220", pRec+"other.misc", pLiab+"other.other"),
 	ra("1221-1245", pRec+"trade.other", pLiab+"other.other"),
-	rn("1246-1249", pRec+"trade.other"),
+	r("1246-1249", pRec+"trade.other"),
 	ra("1250-1257", pRec+"shareholders.gmbh", pLiab+"shareholders.gmbh.other"),
 	ra("1258-1259", pRec+"trade.other", pLiab+"other.other"),
 	ra("1260-1275", pRec+"affil", pLiab+"assocComp.other"),
-	rn("1276-1277", pRec+"affil"),
+	r("1276-1277", pRec+"affil"),
 	ra("1280-1295", pRec+"particip", pLiab+"particip.other"),
-	rn("1296-1297", pRec+"particip"),
+	r("1296-1297", pRec+"particip"),
 	r("1298", pRec+"other.unpaidCapital"),
 	r("1299", pRec+"other.unpaidSupplementaryCalls"),
 	ra("1300-1305", pRec+"other.other", pLiab+"other.other"),
