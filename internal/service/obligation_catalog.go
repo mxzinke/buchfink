@@ -121,7 +121,7 @@ var obligationCatalog = []domain.ObligationType{
 		Basis:   "§ 31 Abs. 1a KStG, § 149 Abs. 2 und 3 AO",
 		Rhythm:  "jährlich",
 		Channel: domain.ChannelElster, Responsibility: domain.ResponsibilityAgentPrepares,
-		Evidence: domain.EvidenceFromHuman, ShiftsToWorkday: true,
+		Evidence: domain.EvidenceFromEither, ShiftsToWorkday: true,
 		Description: "Mit der Erklärung zum steuerlichen Einlagekonto. Sieben Monate nach Ablauf des " +
 			"Kalenderjahres; erstellt ein Steuerberater sie, bis zum letzten Tag des Februar des zweiten Folgejahres.",
 	},
@@ -130,7 +130,7 @@ var obligationCatalog = []domain.ObligationType{
 		Basis:   "§ 14a GewStG, § 149 Abs. 2 und 3 AO",
 		Rhythm:  "jährlich",
 		Channel: domain.ChannelElster, Responsibility: domain.ResponsibilityAgentPrepares,
-		Evidence: domain.EvidenceFromHuman, ShiftsToWorkday: true,
+		Evidence: domain.EvidenceFromEither, ShiftsToWorkday: true,
 		Description: "Erklärung zur Festsetzung des Steuermessbetrags. Fristen wie bei der Körperschaftsteuer.",
 	},
 	{
@@ -138,7 +138,7 @@ var obligationCatalog = []domain.ObligationType{
 		Basis:   "§ 18 Abs. 3 UStG, § 149 Abs. 2 und 3 AO",
 		Rhythm:  "jährlich",
 		Channel: domain.ChannelElster, Responsibility: domain.ResponsibilityAgentPrepares,
-		Evidence: domain.EvidenceFromHuman, ShiftsToWorkday: true,
+		Evidence: domain.EvidenceFromEither, ShiftsToWorkday: true,
 		Description: "Steueranmeldung für das Kalenderjahr. Fristen wie bei der Körperschaftsteuer.",
 	},
 	{

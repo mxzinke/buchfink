@@ -33,6 +33,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	zmReturnRepo := repository.NewZMReturnRepository(db)
 	checkRunRepo := repository.NewCheckRunRepository(db)
 	obligationRepo := repository.NewObligationRepository(db)
+	declarationRepo := repository.NewDeclarationRepository(db)
 	backupRunRepo := repository.NewBackupRunRepository(db)
 	closingStepRepo := repository.NewClosingStepRepository(db)
 	accrualRepo := repository.NewAccrualRepository(db)
@@ -235,6 +236,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Obligations.SetSizeSource(s.Statement)
 	s.Obligations.SetAppropriationSource(s.Appropriation)
 	s.Obligations.SetJournalSource(journalRepo)
+	s.Obligations.SetDeclarationSource(declarationRepo)
 	s.Settings.SetEventRecorder(s.Obligations)
 
 	s.Export = service.NewExportService(
@@ -280,7 +282,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Tasks.SetBackupSource(s.Backup)
 	s.Tasks.SetCarryForwardSource(s.Closing)
 
-	s.Declarations = service.NewDeclarationService(repository.NewDeclarationRepository(db), auditRepo,
+	s.Declarations = service.NewDeclarationService(declarationRepo, auditRepo,
 		service.DeclarationSources{
 			Journal: journalRepo, Settings: settingsRepo, FiscalYears: fiscalYearRepo,
 			Appropriations: appropriationRepo, Assets: assetRepo, InputTax: inputTaxRepo,

@@ -180,6 +180,19 @@ func TestDeclarationExportAndSubmission(t *testing.T) {
 	if d.Status != declaration.StatusSubmitted || d.Submission == nil || d.Submission.TransferTicket != "et9K2LX4QZ" {
 		t.Errorf("Stand nach der Übermittlung: %s %+v", d.Status, d.Submission)
 	}
+
+	// Der Pflichtenkalender nimmt die Übermittlung als Nachweis.
+	var o *domain.Obligation
+	if err := tenant.Read(agent, func(ctx context.Context, s *Services) (err error) {
+		o, err = s.Obligations.Get(ctx, string(domain.ObligationAnnualVatReturn)+".2026", today)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if o.Status != domain.ObligationDone || o.Proof == nil || !o.Proof.Automatic ||
+		o.Proof.Kind != domain.EvidenceTransferTicket || o.Proof.Reference != "et9K2LX4QZ" || o.Proof.Date != today {
+		t.Errorf("Pflicht nach der Übermittlung: %s %+v", o.Status, o.Proof)
+	}
 }
 
 // Im Prüfermodus bleibt der Export möglich; Angaben nimmt die Buchführung

@@ -33,6 +33,7 @@ type ObligationService struct {
 	sizes      ObligationSizeSource
 	decisions  ObligationAppropriationSource
 	journal    ObligationJournalSource
+	returns    ObligationDeclarationSource
 
 	now func() time.Time
 }
@@ -78,6 +79,12 @@ type ObligationJournalSource interface {
 	FindByAccountRange(ctx context.Context, account, from, to string) ([]domain.JournalEntry, error)
 }
 
+// ObligationDeclarationSource liefert die festgehaltenen Stände einer
+// Jahressteuererklärung, älteste zuerst.
+type ObligationDeclarationSource interface {
+	FindRecords(ctx context.Context, kind string, year int) ([]domain.DeclarationRecord, error)
+}
+
 // NewObligationService baut den Pflichtenkalender über Stammdaten, Ablage und
 // Protokoll; die Quellen werden einzeln angehängt.
 func NewObligationService(
@@ -113,6 +120,9 @@ func (s *ObligationService) SetAppropriationSource(src ObligationAppropriationSo
 
 // SetJournalSource hängt das Journal an: Vorauszahlungen und Lohnjournal.
 func (s *ObligationService) SetJournalSource(src ObligationJournalSource) { s.journal = src }
+
+// SetDeclarationSource hängt die Stände der Jahressteuererklärungen an.
+func (s *ObligationService) SetDeclarationSource(src ObligationDeclarationSource) { s.returns = src }
 
 // SetClock ersetzt die Uhr, gegen die überfällig gerechnet wird.
 func (s *ObligationService) SetClock(now func() time.Time) { s.now = now }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/calendar"
+	"github.com/buchfink/buchfink/internal/declaration"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -620,9 +621,34 @@ func (r *obligationRun) annualReturn(
 		if advisor {
 			o.Responsibility = domain.ResponsibilityTaxAdvisor
 		}
-		add(o, nil)
+		proof, err := r.declarationProof(declaration, year)
+		if err != nil {
+			return err
+		}
+		add(o, proof)
 		return nil
 	}
+}
+
+// declarationProof belegt eine Jahreserklärung mit der jüngsten in der App
+// erfassten Übermittlung und ihrem Transferticket.
+func (r *obligationRun) declarationProof(kind string, year int) (*domain.ObligationEvidence, error) {
+	if r.s.returns == nil {
+		return nil, nil
+	}
+	records, err := r.s.returns.FindRecords(r.ctx, kind, year)
+	if err != nil {
+		return nil, fmt.Errorf("die Stände der Erklärung %d konnten nicht gelesen werden: %w", year, err)
+	}
+	for i := len(records) - 1; i >= 0; i-- {
+		if rec := records[i]; rec.Status == string(declaration.StatusSubmitted) {
+			return &domain.ObligationEvidence{
+				Date: rec.SubmittedAt, Kind: domain.EvidenceTransferTicket,
+				Reference: rec.TransferTicket, Automatic: true,
+			}, nil
+		}
+	}
+	return nil, nil
 }
 
 func (r *obligationRun) returnHints(o *domain.Obligation, year int, advisor bool) {
