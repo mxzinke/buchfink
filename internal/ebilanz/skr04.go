@@ -158,7 +158,7 @@ var skr04Rules = []ruleDef{
 	r("1100-1139", pInv+"finishedAndMerch.goods"),
 	r("1140-1179", pInv+"finishedAndMerch.merchandise"),
 	r("1180-1189", pInv+"advPaymPaid"),
-	r("1190", pLiab+"advPaym"),
+	ra("1190", pInv+"advPaymReceived", pLiab+"advPaym"),
 	ra("1200-1218", pRec+"trade.other", pLiab+"other.other"),
 	ra("1219-1220", pRec+"other.misc", pLiab+"other.other"),
 	ra("1221-1245", pRec+"trade.other", pLiab+"other.other"),
@@ -853,6 +853,15 @@ var statementAnchors = map[string][]string{
 	"guv.13a":         {pPart + "loss", "is.netIncome.incomeSharing.gain"},
 	"guv.14":          {"is.netIncome.tax"},
 	"guv.16":          {"is.netIncome.otherTaxes"},
+
+	// Gesondert ausgewiesene Posten: gegenüber Gesellschaftern (§ 42 Abs. 3
+	// GmbHG), eingeforderte Einlagen (§ 272 Abs. 1 Satz 3 HGB) und von den
+	// Vorräten offen abgesetzte Anzahlungen (§ 268 Abs. 5 Satz 2 HGB).
+	"aktiva.A.III.gesellschafter": {pFin + "loansToSharehold"},
+	"aktiva.B.I.anzahlungen":      {pInv + "advPaymReceived"},
+	"aktiva.B.II.einlagen":        {pRec + "other.unpaidCapital"},
+	"aktiva.B.II.gesellschafter":  {pRec + "shareholders"},
+	"passiva.C.gesellschafter":    {pLiab + "shareholders"},
 }
 
 // appropriationAnchors gilt für A.IV und A.VI im Ausweis nach teilweiser
@@ -932,6 +941,12 @@ var statementDefaults = map[string]ruleDef{
 	"guv.13a":         r("", "is.netIncome.incomeSharing.gain.other"),
 	"guv.14":          r("", pTax+"otherIncomeTaxes"),
 	"guv.16":          r("", "is.netIncome.otherTaxes.other"),
+
+	"aktiva.A.III.gesellschafter": r("", pFin+"loansToSharehold.misc"),
+	"aktiva.B.I.anzahlungen":      r("", pInv+"advPaymReceived"),
+	"aktiva.B.II.einlagen":        r("", pRec+"other.unpaidCapital"),
+	"aktiva.B.II.gesellschafter":  r("", pRec+"shareholders.misc"),
+	"passiva.C.gesellschafter":    r("", pLiab+"shareholders.misc"),
 }
 
 // appropriationDefault gilt für Konten der Ergebnisverwendung ohne Regel.

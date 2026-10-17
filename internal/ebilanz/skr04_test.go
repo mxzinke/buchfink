@@ -270,3 +270,44 @@ func TestEveryIncomeAccountFitsTheMicroBilGStatement(t *testing.T) {
 		reportProblems(t, problems)
 	}
 }
+
+// Die gesondert ausgewiesenen Posten der Gliederung gehen auf ihre eigene
+// Position: Ausleihungen, Forderungen und Verbindlichkeiten gegenüber
+// Gesellschaftern (§ 42 Abs. 3 GmbHG) je nach Saldo, eingeforderte Einlagen
+// und die von den Vorräten offen abgesetzten erhaltenen Anzahlungen (§ 268
+// Abs. 5 Satz 2 HGB), diese mit positivem Wert auf ihrer Habenposition.
+func TestSeparatelyShownPostsHaveTheirOwnPosition(t *testing.T) {
+	tax, err := LoadTaxonomy("6.9")
+	if err != nil {
+		t.Fatal(err)
+	}
+	byNumber := map[string]domain.Account{}
+	for _, acc := range accounting.DefaultSKR04Accounts() {
+		byNumber[acc.Number] = acc
+	}
+	p := placement{tax: tax, begin: "2025-01-01", closing: "2025-12-31"}
+	for _, c := range []struct {
+		account      string
+		debit        domain.Cents
+		key, element string
+		value        domain.Cents
+	}{
+		{"1190", -50_000, "aktiva.B.I.anzahlungen", pInv + "advPaymReceived", 50_000},
+		{"1298", 25_000, "aktiva.B.II.einlagen", pRec + "other.unpaidCapital", 25_000},
+		{"0960", 100_000, "aktiva.A.III.gesellschafter", pFin + "loansToSharehold.misc", 100_000},
+		{"1307", 30_000, "aktiva.B.II.gesellschafter", pRec + "shareholders.gmbh", 30_000},
+		{"3640", -40_000, "passiva.C.gesellschafter", pLiab + "shareholders.gmbh.other", 40_000},
+		{"3640", 10_000, "aktiva.B.II.gesellschafter", pRec + "shareholders.gmbh", 10_000},
+	} {
+		base, ok := byNumber[c.account]
+		if !ok {
+			t.Fatalf("Konto %s fehlt im Katalog", c.account)
+		}
+		pl := p.one(withBalance(base, c.debit))
+		if pl.Finding != "" || pl.Fallback || pl.PositionKey != c.key || pl.Element != c.element || pl.Value != c.value {
+			t.Errorf("%s (Saldo %s): %s → %s, Wert %s, Auffang %v, Befund %q; erwartet %s → %s, Wert %s",
+				c.account, c.debit, pl.PositionKey, pl.Element, pl.Value, pl.Fallback, pl.Finding,
+				c.key, c.element, c.value)
+		}
+	}
+}
