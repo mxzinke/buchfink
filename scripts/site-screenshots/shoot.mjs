@@ -25,11 +25,13 @@ import buecher from './shots/buecher.mjs';
 import abschluesse from './shots/abschluesse.mjs';
 import unternehmen from './shots/unternehmen.mjs';
 import einstellungen from './shots/einstellungen.mjs';
+import einrichtung from './shots/einrichtung.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = resolve(ROOT, process.env.SCREENSHOT_DIR ?? 'website/assets/screenshots');
 
-const AREAS = { uebersicht, buecher, abschluesse, unternehmen, einstellungen };
+// Die Einrichtung zuletzt: sie lädt die Seite mit eigenen Schaltern neu.
+const AREAS = { uebersicht, buecher, abschluesse, unternehmen, einstellungen, einrichtung };
 const ONLY = process.env.SHOTS ? process.env.SHOTS.split(',').map((s) => s.trim()) : null;
 
 const VIEWPORT = { width: 1440, height: 900 };

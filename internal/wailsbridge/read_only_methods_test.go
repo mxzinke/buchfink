@@ -30,7 +30,7 @@ func TestReadOnlyMethodsDoNotWrite(t *testing.T) {
 		"RestoreFromBackup": true, "SwitchTenant": true, "DeleteTenant": true,
 		"CreateBackup": true, "SetBackupDir": true, "EnableReadOnly": true,
 		"DisableReadOnly": true, "ServiceShutdown": true, "SetFiscalYear": true,
-		"OpenReleasesPage": true,
+		"OpenReleasesPage": true, "OpenAgentGuide": true,
 	}
 
 	// Zwei Durchgänge: mit Nullwerten und mit einem Jahr, einer Kennung und

@@ -472,4 +472,15 @@ export const bridge = {
   GetPendingAppRequests: <T>() => invoke<T>('GetPendingAppRequests'),
   ResolveAppRequest: (id: string, nonce: string, approve: boolean) =>
     invoke<void>('ResolveAppRequest', id, nonce, approve),
+
+  // Stammdaten des Unternehmens (internal/wailsbridge/company_service.go)
+  RegisterCompany: <T>(date: string, court: string, number: string) =>
+    invoke<T>('RegisterCompany', date, court, number),
+  GetShareholderLoans: <T>() => invoke<T>('GetShareholderLoans'),
+  RegisterShareholderLoan: <T>(request: unknown) => invoke<T>('RegisterShareholderLoan', request),
+  CorrectShareholderLoan: <T>(id: number, request: unknown, reason: string) =>
+    invoke<T>('CorrectShareholderLoan', id, request, reason),
+  FormatElsterTaxNumber: (taxNumber: string, federalState: string) =>
+    invoke<string>('FormatElsterTaxNumber', taxNumber, federalState),
+  OpenAgentGuide: (client: string) => invoke<void>('OpenAgentGuide', client),
 };

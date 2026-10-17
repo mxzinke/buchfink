@@ -69,6 +69,10 @@ vorn (`buecher-journal.png`).
   `frontend/src/services/bridge.ts` ab: die lesenden mit Beispieldaten, die
   schreibenden als `unsupported`.
 
+- **Einrichtung und Zustimmung über Schalter.** Steht `mock:setup` mit dem Wert
+  `1` im lokalen Speicher, startet die Vorschau in der Einrichtung; `mock:consent`
+  lässt Claude Code um Zustimmung bitten. `shots/einrichtung.mjs` setzt beide
+  und lädt die Seite neu, deshalb läuft dieser Bereich zuletzt.
 - **Die Datei liegt außerhalb der tsconfig.** `frontend/tsconfig.json` nimmt nur
   `src` und `bindings` auf; `npx tsc --noEmit` prüft `mock-bridge.ts` also
   nicht. Geprüft wird sie faktisch durch den Lauf selbst — bricht eine Ansicht

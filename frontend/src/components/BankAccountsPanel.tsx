@@ -36,6 +36,13 @@ interface BankAccountsPanelProps {
   accounts: BankAccount[];
   paymentAccounts: Account[];
   onChanged: () => Promise<void>;
+  /** Anker und Überschrift, wenn der Abschnitt Teil einer längeren Seite ist. */
+  id?: string;
+  title?: string;
+  /** Eine Linie darüber, wenn ein Abschnitt vorausgeht (§6.4). */
+  divider?: boolean;
+  /** Was unter der Liste der Konten zum Abschnitt gehört. */
+  children?: React.ReactNode;
 }
 
 /**
@@ -47,6 +54,10 @@ export const BankAccountsPanel: React.FC<BankAccountsPanelProps> = ({
   accounts,
   paymentAccounts,
   onChanged,
+  id,
+  title = 'Bankkonten',
+  divider = false,
+  children,
 }) => {
   // Die Bankkonten gelten über alle Geschäftsjahre; ein abgeschlossenes Jahr
   // sperrt sie nicht, der Prüfermodus schon.
@@ -106,11 +117,12 @@ export const BankAccountsPanel: React.FC<BankAccountsPanelProps> = ({
 
   return (
     <Section
+      id={id}
       helpSummary="Legen Sie fest, welches Bankkonto auf Ihren Rechnungen steht."
-      title="Bankkonten"
+      title={title}
       context={accounts.length ? `${accounts.length} ${accounts.length === 1 ? 'Konto' : 'Konten'}` : undefined}
-      divider={false}
-      className="mt-8"
+      divider={divider}
+      className={divider ? undefined : 'mt-8'}
       explain={
         <>
           Buchfink legt ein Bankkonto an, sobald Sie einen Kontoauszug einlesen, und erkennt es
@@ -202,6 +214,8 @@ export const BankAccountsPanel: React.FC<BankAccountsPanelProps> = ({
           </Tbody>
         </Table>
       )}
+
+      {children}
 
       {editing && (
         <Dialog

@@ -1242,6 +1242,45 @@ func TestEnsureFiscalYearsStartsFoundingYearAtNotarization(t *testing.T) {
 	}
 }
 
+// Bei einer Gründung setzt die Einrichtung nur das Gründungsdatum der
+// Unternehmensdaten; die Gründung selbst wird später erfasst. Das erste
+// Geschäftsjahr beginnt trotzdem mit der Beurkundung.
+func TestEnsureFiscalYearsStartsAtTheFoundingDateOfTheCompany(t *testing.T) {
+	env := newTestEnv(t)
+	closing := env.closing(t)
+	ctx := context.Background()
+
+	settings := repository.NewSettingsRepository(env.db)
+	cfg, err := settings.GetCompanySettings(ctx)
+	if err != nil {
+		t.Fatalf("Unternehmensdaten: %v", err)
+	}
+	cfg.FoundedOn = "2026-05-04"
+	if err := settings.UpdateCompanySettings(ctx, cfg); err != nil {
+		t.Fatalf("Gründungsdatum: %v", err)
+	}
+	closing.SetFoundationRepo(repository.NewFoundationRepository(env.db))
+
+	if err := closing.EnsureFiscalYears(ctx, 2026); err != nil {
+		t.Fatalf("Geschäftsjahre anlegen: %v", err)
+	}
+	years, err := closing.FiscalYears(ctx)
+	if err != nil || len(years) != 1 {
+		t.Fatalf("erwartet ein Geschäftsjahr, erhalten %d (%v)", len(years), err)
+	}
+	if years[0].StartDate != "2026-05-04" || !years[0].IsShort {
+		t.Errorf("Gründungsjahr = %s bis %s (Rumpfjahr %v), erwartet ab 2026-05-04",
+			years[0].StartDate, years[0].EndDate, years[0].IsShort)
+	}
+	candidates, err := closing.FiscalYearCandidates(ctx)
+	if err != nil {
+		t.Fatalf("Kandidaten: %v", err)
+	}
+	if !strings.Contains(candidates.Previous.Blocked, "04.05.2026") {
+		t.Errorf("das Vorjahr muss mit dem Gründungsdatum gesperrt sein, Grund: %q", candidates.Previous.Blocked)
+	}
+}
+
 // Das Folgejahr beginnt am Tag nach dem Ende des Vorjahres — auch nach einem
 // Rumpfgeschäftsjahr.
 func TestCreateFiscalYearFollowsThePreviousPeriod(t *testing.T) {

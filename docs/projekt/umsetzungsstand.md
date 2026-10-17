@@ -15,7 +15,7 @@ einzelne Kriterien im [Anforderungskatalog](../anforderungen/README.md).
 | Kern | Ein offener Mandant mit einem Satz Dienste, Schreibsperre je Mandant, eine Transaktion je Vorgang, Prüfermodus in der Mandantendatenbank, Erfassungsweg `ui`, `system` oder `agent:<kurzname>` an jedem Vorgang, Vorgänge nur für die App, Sperre des Datenordners | `internal/core` (`Host`, `Tenant.Read`, `Tenant.Write`, `AppOnly`) |
 | MCP-Server | Streamable HTTP auf `127.0.0.1:7465`, eigener Autorisierungsserver mit OAuth 2.1, PKCE und dynamischer Registrierung, Zustimmung nur im Fenster der App, Liste verbundener Apps mit Entzug, Idempotenzschlüssel für schreibende Werkzeuge | `internal/mcpserver`, `internal/mcpserver/oauth`, [MCP-Server](../entwicklung/mcp.md) |
 | Brücke für Claude Desktop | stdio-Programm ohne Wails, meldet sich selbst per OAuth an, als Erweiterung `.mcpb` | `cmd/buchfink-mcp`, `packaging/claude-desktop` |
-| Oberfläche | fünf Bereiche: Übersicht, Bücher, Abschlüsse, Unternehmen, Einstellungen; Zustimmungsdialog für Apps | `frontend/src`, [Gestaltung](../gestaltung/README.md) |
+| Oberfläche | fünf Bereiche: Übersicht, Bücher, Abschlüsse, Unternehmen, Einstellungen; Einrichtung in zwei Schritten (Unternehmen, KI-App verbinden); Zustimmungsdialog für Apps | `frontend/src/pages/`, `frontend/src/components/SetupAssistantScreen.tsx`, [Gestaltung](../gestaltung/README.md) |
 
 ## Fachfunktionen
 
