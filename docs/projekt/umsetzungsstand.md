@@ -1,130 +1,90 @@
-# Stand der Umsetzung
+# Umsetzungsstand
 
-[Dokumentation](../README.md) · [Erste Schritte](../nutzung/README.md)
+[Dokumentation](../README.md) · [Roadmap](roadmap.md) ·
+[Umfang und Grenzen](../nutzung/umfang.md)
 
-Abgleich mit dem Repository: 13. September 2026, Vorabversion v0.2.
+Stand: Version 0.3, Vorschau. Diese Seite beschreibt, was gebaut ist und wo es
+im Code steht. Sie ist keine Freigabe für den produktiven Einsatz. Welche Fälle
+Buchfink fachlich abdeckt, steht unter [Umfang und Grenzen](../nutzung/umfang.md),
+einzelne Kriterien im [Anforderungskatalog](../anforderungen/README.md).
 
-Diese Seite beschreibt die implementierten Funktionen und bekannte Grenzen.
-Sie ist keine Freigabe für den produktiven Einsatz. Ziele stehen getrennt auf
-der [Roadmap](roadmap.md), einzelne fachliche Kriterien im
-[Anforderungskatalog](../anforderungen/README.md).
+## Aufbau
 
-## Zielgruppe und Umfang
-
-Buchfink ist eine lokale Desktop-Anwendung für doppelte Buchführung im SKR04.
-Der Schwerpunkt liegt auf kleinen Kapitalgesellschaften, insbesondere GmbH und
-UG. Auch eine Holding kann darunterfallen; ein Konzernabschluss wird nicht
-unterstützt. Für die Bedienung setzen wir keine Buchhaltungs-, Rechts- oder
-Programmierausbildung voraus. Die Installation der Vorschau erfordert derzeit
-noch Entwicklungswerkzeuge.
-
-Andere Rechtsformen sind teilweise auswählbar. Kapitalkonten je Gesellschafter,
-Entnahmen und Einlagen für Personengesellschaften sind nicht vollständig
-abgebildet. Keine EÜR, Lohnabrechnung, Kassenführung, Lagerverwaltung oder
-Konzernrechnungslegung. Die eigene Kleinunternehmerregelung und Istversteuerung
-werden nicht unterstützt; ein Kleinunternehmer als Lieferant ist erfassbar.
-
-## Implementierte Funktionen
-
-| Vorgang | Aktuelles Verhalten | Code |
+| Baustein | Stand | Fundstelle |
 |---|---|---|
-| Unternehmen einrichten | Gründung oder Übernahme bestehender Buchhaltung, Auswahl des ersten Geschäftsjahres und Aufforderung zur Schlüsselsicherung. Bankkonten werden beim ersten Import eingerichtet. | `frontend/src/components/SetupAssistantScreen.tsx`, `internal/wailsbridge/recovery_onboarding_test.go` |
-| Belege und Unterlagen ablegen | Originaldateien bleiben erhalten. E-Rechnungen werden ausgelesen und geprüft; andere Belege brauchen manuell erfasste Angaben. | `internal/service/receipt_service.go`, `internal/service/document_service.go`, `internal/einvoice/` |
-| Buchen und korrigieren | Der Buchungskern prüft ausgeglichene Buchungen. Belegbuchung und Handbuchung sind vorhanden; eine Handbuchung verlangt einen Beleg oder Eigenbeleg. Korrekturen erfolgen durch Storno und Neubuchung. | `internal/service/journal_service.go`, `manual_entry.go`, `self_issued_receipt.go` |
-| Bank und offene Rechnungen | CAMT.053-Import mit Originalnachweis und mehreren Euro-Bankkonten, Kontoeinrichtung beim ersten Import, Zuordnungsvorschläge, Teilzahlungen, Sammelzahlungen, Skonto und Zahlungsausfälle. CAMT-Sammeleinträge mit mehreren Einzeltransaktionen werden abgewiesen. Skonto korrigiert auch die Beträge der Voranmeldung. | `internal/bank/`, `internal/service/bank_service.go`, `payment_service.go`, `internal/accounting/ustva.go` |
-| Rechnungen schreiben | Rechnungsnummer und Buchung entstehen zusammen. ZUGFeRD und XRechnung im CII-Format, Berichtigungen und Stornorechnungen sind vorhanden. | `internal/service/invoice_service.go`, `invoice_correction.go`, `internal/invoice/` |
-| Anzahlungen | Rechnungsverbund mit Abschlägen, Zahlungseingängen und Schlussrechnung; geleistete Anzahlungen auf der Eingangsseite. | `internal/service/advance_service.go`, `posting_service.go` |
-| Mahnen | Vorschläge aus überfälligen Posten, Mahnstufen und Berechnung von Zinsen und Pauschalen; Schreiben als Dokument. | `internal/service/dunning_service.go`, `internal/accounting/default_interest.go` |
-| Umsatzsteuer | Voranmeldung mit Rückverfolgung zur Buchung, Berichtigung, Dauerfristverlängerung und Zusammenfassende Meldung. Übermittlungsdaten werden nach einer externen Abgabe von Hand erfasst. | `internal/service/vat_return_service.go`, `internal/accounting/ustva.go`, `zm.go` |
-| Steuerliche Nachweise | Verzeichnis für Vorsteuerberichtigungen, Bestätigung von Umsatzsteuer-IDs und Liefernachweise. | `internal/service/input_tax_service.go`, `supply_evidence_service.go`, `internal/vatid/` |
-| Anlagen | Anlagenkartei, Abschreibungen, Bewegungen, Abgänge und Anlagenspiegel. Steuerliche Sonderabschreibungen werden neben dem Handelswert geführt. | `internal/service/asset_service.go`, `internal/accounting/afa.go`, `afa_rules.json` |
-| Abschluss vorbereiten | Rechnungsabgrenzung, Rückstellungen, Inventurwert, Umsatzsteuer-Verrechnung, Steuerrückstellung, gesetzliche UG-Rücklage im Abschlussjahr und anschließende Ergebnisverwendung. | `internal/service/accrual_service.go`, `provision_service.go`, `appropriation_service.go`, `closing_steps_service.go` |
-| Auswerten | Journal, Konten, Bilanz und Gewinn- und Verlustrechnung mit Vorjahr. Anhangtexte, Rückstellungsspiegel und Überleitung werden zusammengestellt und als Teil der Ausgaben berücksichtigt. | `internal/service/statement_service.go`, `statement_export.go`, `internal/accounting/statement.go` |
-| E-Bilanz exportieren | Vorläufige XBRL-Datei aus der Bilanzgliederung. Die Taxonomie-Zuordnung ist ungeprüft; fehlende Zuordnungen nach teilweiser Ergebnisverwendung verhindern den Export. | `internal/ebilanz/ebilanz.go`, `taxonomy_6.9.json` |
-| Geschäftsjahr wechseln | Jahresanlage, Saldenvortrag mit offenen Posten, Übernahme von Anhangtexten als Vorlage. | `internal/service/closing_service.go` |
-| Gründung begleiten | Gründungsangaben, Kapitalaufbringung, Aufgaben und Nachweise, Eröffnungsbilanz. | `internal/service/foundation_opening.go`, `frontend/src/pages/GruendungPage.tsx` |
-| Änderungen nachvollziehen | Verkettete Prüfwerte für Journal und Änderungsprotokoll, Prüfläufe und Festschreibung mit externem Zeitstempel. | `internal/accounting/journalhash.go`, `audithash.go`, `internal/service/check_service.go`, `internal/timestamp/` |
-| Sichern und herausgeben | Sicherung, Wiederherstellung, Belegarchiv, Datenexport für Prüfungen und Verfahrensdokumentation. | `internal/service/backup_service.go`, `export_service.go`, `internal/export/`, `internal/procdoc/` |
-| Hilfe lesen | Kurzer Tooltip am Fragezeichen. „Mehr erfahren“ öffnet einen Detaildialog; erkannte Gesetzesverweise sind verlinkt. | `frontend/src/components/ui/Help.tsx`, `LegalText.tsx` |
-| Nummernkreise verwalten | Rechnungs- und Belegnummernformat sowie Lückenprüfung mit Begründungen stehen unter Einstellungen → Rechnungsstellung → Nummernkreise, standardmäßig eingeklappt. | `frontend/src/pages/SettingsPage.tsx`, `frontend/src/components/InvoiceNumberRange.tsx` |
+| Kern | Ein offener Mandant mit einem Satz Dienste, Schreibsperre je Mandant, eine Transaktion je Vorgang, Prüfermodus in der Mandantendatenbank, Erfassungsweg `ui`, `system` oder `agent:<kurzname>` an jedem Vorgang, Vorgänge nur für die App, Sperre des Datenordners | `internal/core` (`Host`, `Tenant.Read`, `Tenant.Write`, `AppOnly`) |
+| MCP-Server | Streamable HTTP auf `127.0.0.1:7465`, eigener Autorisierungsserver mit OAuth 2.1, PKCE und dynamischer Registrierung, Zustimmung nur im Fenster der App, Liste verbundener Apps mit Entzug, Idempotenzschlüssel für schreibende Werkzeuge | `internal/mcpserver`, `internal/mcpserver/oauth`, [MCP-Server](../entwicklung/mcp.md) |
+| Brücke für Claude Desktop | stdio-Programm ohne Wails, meldet sich selbst per OAuth an, als Erweiterung `.mcpb` | `cmd/buchfink-mcp`, `packaging/claude-desktop` |
+| Oberfläche | fünf Bereiche: Übersicht, Bücher, Abschlüsse, Unternehmen, Einstellungen; Zustimmungsdialog für Apps | `frontend/src`, [Gestaltung](../gestaltung/README.md) |
+| Skills und Plugin | Fachwissen mit Quellen für den Agenten, Plugin für Claude Code | `skills/`, `plugins/buchfink-buchhaltung/` |
 
-Dateinamen ohne Verzeichnis in einer Tabellenzelle beziehen sich auf das zuletzt
-genannte Verzeichnis derselben Zelle.
+## Fachfunktionen
 
-## Bekannte Einschränkungen
+| Vorgang | Stand | Fundstelle |
+|---|---|---|
+| Belege | Ablage im Original unter SHA-256, Kopfdaten, Pflichtangaben je Belegart, Eigenbeleg, Beleg-Hash in der Buchung | `service.ReceiptService`, `ReceiptService.CreateSelfIssued`, `internal/receiptstore` |
+| E-Rechnung empfangen | ZUGFeRD, Factur-X und XRechnung in CII und UBL lesen, gegen EN 16931 und XRechnung prüfen, Buchungsvorschlag | `internal/einvoice`, `internal/invoice/reader.go`, [Modulaufbau](../entwicklung/e-rechnung.md) |
+| Buchen und korrigieren | ein Schreibweg ins Journal, Steuerzeilen aus dem Steuerfall, Konten nach Rechtsform, Storno per Generalumkehr | `service.JournalService.Post`, `service.PostingService`, `accounting.SKR04TaxResolver` |
+| Zahlungswege | CAMT.053-Import, Zuordnung zu offenen Posten mit Teilzahlung und Skonto, Aufteilung eines Umsatzes, Firmenkreditkarte (3610), Auslage, Gesellschafterdarlehen | `internal/bank`, `service.PaymentService`, `service/bank_split.go`, `service.ShareholderService` |
+| Lohnjournal | Monatssummen eines externen Lohnbüros buchen und abstimmen | `service.PayrollService` |
+| Ausgangsrechnungen | Nummer, Buchung und Dokument in einer Transaktion, ZUGFeRD und XRechnung (CII), Storno und Berichtigung, Anzahlungen mit Schlussrechnung, Verzugszinsen | `service.InvoiceService`, `service/advance_service.go`, `service/overdue_service.go`, `internal/invoice` |
+| Umsatzsteuer | Voranmeldung nach Vordruck USt 1 A 2026 mit Drill-down, Dauerfristverlängerung, Sondervorauszahlung, Zusammenfassende Meldung, Mindest-Istversteuerung, § 13b nach Absätzen, Vorsteuerberichtigung § 15a, USt-IdNr.-Bestätigung | `accounting/ustva.go`, `accounting/vat_prepayment.go`, `service.VatReturnService`, `service.ZMService`, `internal/vatid` |
+| Anlagen | Kartei, AfA linear und degressiv, GWG, Sammelposten, § 7g, außerplanmäßige Abschreibung und Wertaufholung, Abgang | `service.AssetService`, `accounting/afa.go` |
+| Monatsabschluss | Prüflauf, Festschreibung mit Zeitstempel, Voranmeldung als Eingabehilfe | `service.CheckService`, `core.Tenant.CommitPeriod`, `service.MonthCloseService` |
+| Jahresabschluss | 15 Bausteine in fester Reihenfolge, Abschlussperiode zwischen Dezember- und Jahresfestschreibung, Wertberichtigung auf Forderungen, unfertige Leistungen, Steuerrückstellung mit Hebesatz, Verlustvortrag und KSt-Satz nach § 23 KStG, UG-Rücklage, Statuskette aufgestellt, festgestellt, offengelegt, Saldenvortrag | `domain.AllClosingSteps`, `service.ClosingStepsService`, `service/closing_tax_provision.go`, `service/closing_receivables.go`, `service/closing_work_in_progress.go` |
+| Bilanz und GuV | Gliederung nach §§ 266, 275 HGB mit Vorjahr, Größenklasse, Anhangangaben | `service.StatementService`, `accounting/statement.go`, `accounting/groessenklasse.go` |
+| Steuererklärungen | KSt 1 mit Anlagen, GewSt 1 A und USt 2 A formularnah mit Herkunft je Wert, Eingaben mit Bestätigung, Export als JSON (`buchfink.erklaerung/1`), Übermittlung mit Transferticket | `internal/declaration`, `service.DeclarationService`, `core.Tenant.ExportDeclaration` |
+| E-Bilanz | XBRL nach Taxonomie 6.9 und 6.10 mit Kontennachweis, Überleitung, Eröffnungsbilanz, Befunden vor dem Export | `internal/ebilanz`, `service.EBilanzService` |
+| Pflichtenkalender | 21 Pflichtarten mit Rechtsgrundlage, Frist und Nachweis; Fristen nach steuerlicher Beratung, Dauerfristverlängerung, Wochenende und Feiertagen des Bundeslands; Stand aus den Daten oder bestätigt in der App | `service/obligation_catalog.go`, `service/obligation_rules.go`, `service.ObligationService`, `internal/calendar` |
+| Gründung | Zeichnung, Einforderung und Einzahlung des Stammkapitals, Halbeinzahlung, Eröffnungsbilanz | `service.FoundationService`, `service/foundation_capital.go`, `service/opening_balance.go` |
+| Nachweise | Hash-Ketten für Journal und Protokoll, Änderungsprotokoll mit Vorher und Nachher, Datenüberlassung (Z3), Belegarchiv, Prüferpaket, Verfahrensdokumentation | `accounting/journalhash.go`, `accounting/audithash.go`, `service.ExportService`, `internal/export`, `internal/procdoc` |
+| Sicherung | ZIP mit Prüfsummen, automatisch bei eingerichtetem Ziel, Wiederherstellungstest, Wiederherstellung mit Prüfung | `service.BackupService`, `core.Host.RunDueBackup`, `core.Host.RestoreBackup` |
 
-### Jahresabschluss und Einreichung
+## Bekannte Grenzen
 
-- Alle Elemente der E-Bilanz-Ressource sind mit `verified: false` gekennzeichnet.
-  Eine erzeugte Datei ist kein Nachweis für ein amtlich gültiges Format.
-  Eine erprobte Einreichung ist nicht belegt.
-- Buchfink übermittelt keine Meldungen selbst an die Finanzverwaltung.
-  Das Kennziffernblatt für die Umsatzsteuer kann in Mein ELSTER übertragen werden.
-  Ein beliebiger XBRL-Upload für die E-Bilanz in Mein ELSTER wird nicht zugesichert.
-- Anhang und Ersatzangaben entstehen aus Freitexten und berechneten Tabellen.
-  Kleinstgesellschaften erhalten die abgefragten Ersatzangaben unter der Bilanz;
-  fehlende Pflichtabschnitte verhindern die Aufstellung. Ob alle Sachverhalte
-  vollständig und richtig erklärt sind, wird nicht automatisch festgestellt.
-  Weitere rechtsform- und größenabhängige Anhangpflichten bleiben unvollständig.
-- Die Größenklasse wird berechnet. Die Befreiung von latenten Steuern wird noch
-  nicht vollständig über diese Klasse gesteuert.
-- Unterzeichneter Abschluss, Feststellungsbeschluss und Prüfungsvermerk sind noch
-  nicht als vollständiges Abschlussdokument mit Nachweisen eingebunden.
-  Die allgemeine Dokumentablage und ein Beschluss zur Ergebnisverwendung ersetzen
-  diesen Ablauf nicht.
-- Offenlegung, Hinterlegung und zugehörige Einreichungsnachweise sind nicht
-  vollständig implementiert. Ein fertiger Datensatz für das Unternehmensregister fehlt.
+### Erklärungen und Übermittlung
+
+- Buchfink übermittelt nichts. Voranmeldung, Zusammenfassende Meldung und
+  Jahreserklärungen sind Eingabehilfen; die Übermittlung bestätigt der Mensch
+  in der App mit Transferticket.
+- Der Zeilenkatalog der Jahreserklärungen liegt für das Vordruckjahr 2025 vor.
+  Für andere Jahre nimmt Buchfink den nächstälteren Katalog und meldet das.
+- Bei USt 2 A sind alle Zeilen am amtlichen Vordruck belegt. Bei KSt und GewSt
+  ist ein Teil der Zeilennummern nicht belegt; diese Zeilen haben
+  `am_vordruck_geprueft: false`.
+- Die E-Bilanz braucht zur Übermittlung ein Programm mit ERiC. Die Instanzen
+  lassen sich mit `task test:ebilanz-xsd` gegen die amtlichen Schemata prüfen;
+  die Schemata liegen nicht im Repository. Eine Annahme durch ERiC ist nicht
+  belegt.
+- Offenlegung und Hinterlegung erfasst Buchfink als Stand mit Nachweis. Einen
+  Datensatz für das Unternehmensregister erzeugt es nicht.
 
 ### Laufende Buchhaltung
 
-- Der Bankimport unterstützt Euro-Konten und einzeln darstellbare gebuchte
-  CAMT.053-Umsätze. Fremdwährungen und Sammeleinträge mit mehreren
-  Einzeltransaktionen werden abgewiesen. Ohne belastbare Bankreferenz bleibt
-  bei vollständig identischen Zahlungen ein Abgleich mit dem Kontoauszug nötig.
-- Die unterstützten Steuerfälle sind begrenzt. Unter anderem fehlen eigene
-  Kleinunternehmerbesteuerung, Istversteuerung, OSS/IOSS, Differenzbesteuerung
-  und weitere Sonderfälle. Ein vorhandenes Feld im Meldeformular bedeutet
-  nicht, dass alle zugehörigen Geschäftsvorgänge erfasst werden können.
-- Unentgeltliche Wertabgaben, Einfuhrumsatzsteuer und die Option zur
-  Umsatzsteuerpflicht sind im Katalog weiterhin nicht vollständig abgedeckt.
-- Ein leeres Leistungsdatum wird beim Ausstellen einer Rechnung auf das
-  Rechnungsdatum gesetzt, siehe `InvoiceService.Issue` in `invoice_service.go`.
-- XRechnungen werden im CII-Format ausgestellt. UBL wird beim Empfang gelesen,
-  aber nicht als Ausgangsformat erzeugt.
-- Vorräte werden als bereits bewerteter Inventurwert übernommen. Buchfink
-  ermittelt diesen Wert nicht durch eine Lagerverwaltung.
+- Bankimport nur für Euro-Konten und CAMT.053. Sammeleinträge mit mehreren
+  Einzeltransaktionen weist Buchfink ab.
+- XRechnungen stellt Buchfink im CII-Format aus. UBL liest es, schreibt es aber
+  nicht.
+- Gutschrift, Korrektur und Anzahlungsrechnung eines Lieferanten erkennt
+  Buchfink beim Empfang, schlägt dafür aber keine Buchung vor.
+- Die Grenzen bei Rechtsform, Steuerfällen, Warenverkehr, Kasse und Lohn
+  stehen unter [Umfang und Grenzen](../nutzung/umfang.md).
 
-### Speicherung und Prüfung
+### Betrieb
 
-- Es gibt keine Benutzerverwaltung oder Rollenverteilung. Der Prüfermodus
-  sperrt Änderungen; er ersetzt keine Mehrbenutzerberechtigungen.
-- Ausgewählte Datenbankfelder sind verschlüsselt, einschließlich Kontakt- und
-  Zahlungspartnernamen, Positionsbeschreibungen und Protokolltexten mit
-  Bestandsmigration. Die Datenbank als Ganzes, Metadaten und Originaldateien sind
-  es nicht. Einzelheiten stehen im [Sicherheitskonzept](../nutzung/datensicherheit.md).
-- Sicherungen enthalten Datenbank, Belege, Dokumente und die Schlüsseldatei.
-  Sie benötigen ein gewähltes Sicherungsziel. Automatische Sicherungen laufen
-  beim Start nach 24 Stunden und beim Beenden zusätzlich bei Änderungen. Die Wiederherstellungsdatei ist
-  für den Verlust des Betriebssystem-Schlüssels getrennt aufzubewahren.
-- Aufbewahrungsregeln sind eingebettete Ressourcen. Geänderte Regeln brauchen
-  eine neue Programmfassung. Eine Aufbewahrungssperre gilt je Geschäftsjahr.
-- Der Datenexport für Betriebsprüfungen ist vorhanden. Ein erfolgreiches
-  Einlesen in eine externe Prüfsoftware ist nicht belegt.
-- DATEV-Export und lokaler MCP-Server sind nicht implementiert.
+- Releases sind nicht signiert.
+- Keine Verschlüsselung und keine Benutzerverwaltung, siehe
+  [Datensicherheit](../nutzung/datensicherheit.md).
+- Der MCP-Server läuft nur, solange die App geöffnet ist. Ein belegter Port
+  hält die App nicht auf; der Server bleibt dann aus, bis in den Einstellungen
+  ein freier Port gewählt ist.
 
 ## Was die Prüfungen aussagen
 
-Code und automatisierte Tests belegen einzelne Abläufe. Sie belegen weder die
-vollständige Gesetzeskonformität noch, dass Menschen ohne Vorkenntnisse alle
-Arbeitsschritte verstehen. Dafür bleiben fachliche Prüfung und Erprobung mit
-der Zielgruppe nötig. Wiederholbare Abläufe und die Reichweite der bisherigen
-Prüfungen stehen in den [Prüfszenarien](../entwicklung/pruefszenarien.md). Die
-[Änderungshistorie](../../internal/changelog/CHANGELOG.md) nennt behobene Fehler
-je Version. Die Abnahmeproben sind reguläre Regressionstests.
-
-Die erzeugten Rechnungsbeispiele wurden zusätzlich mit CII-Schema,
-EN-16931-Regeln, KoSIT-XRechnung-Konfiguration und veraPDF geprüft. Erfolgreiche
-Beispiele ersetzen keine Zertifizierung aller unterstützten Rechnungsfälle.
-Die Prüfung einer alten Testbuchhaltung belegt die Verschlüsselungsmigration
-bei erhaltener Buchungs- und Protokollkette. Eine neue Sicherung wurde in einen
-separaten Ordner wiederhergestellt und erneut geprüft.
+Automatische Tests belegen einzelne Abläufe, Rechenregeln und die Sperren des
+Kerns, auch gegen Zugriffe eines Agenten. Sie belegen weder vollständige
+Gesetzeskonformität noch, dass Menschen ohne Vorkenntnisse jeden Schritt
+verstehen. Eine externe fachliche Prüfung hat nicht stattgefunden. Die
+[Prüfszenarien](../entwicklung/pruefszenarien.md) beschreiben, was sich
+wiederholbar prüfen lässt. Behobene Fehler je Version stehen in der
+[Änderungshistorie](../../internal/changelog/CHANGELOG.md).
