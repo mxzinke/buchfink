@@ -252,3 +252,31 @@ func TestImportingTheSameStatementTwiceKeepsOneReceipt(t *testing.T) {
 		t.Errorf("es gibt %d Kontoauszug-Belege, erwartet 1", statements)
 	}
 }
+
+// Scheitert das Parsen, bleibt der empfangene Auszug als Beleg abgelegt; die
+// Umsätze kommen in einer eigenen Transaktion und fehlen dann ganz.
+func TestUnreadableStatementStaysArchived(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "kaputt.xml")
+	if err := os.WriteFile(path, []byte("<Document>kein CAMT</Document>"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.banking(t).ImportCAMT053File(ctx, path, "1800"); err == nil {
+		t.Fatal("eine unlesbare Datei muss gemeldet werden")
+	}
+	receipts, err := env.receipts.List(ctx, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(receipts) != 1 || receipts[0].Kind != domain.ReceiptKindStatement {
+		t.Errorf("die empfangene Datei muss als Kontoauszug abgelegt bleiben: %+v", receipts)
+	}
+	txs, err := repository.NewBankRepository(env.db).FindAll(ctx, 2026)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(txs) != 0 {
+		t.Errorf("%d Umsätze aus einer unlesbaren Datei", len(txs))
+	}
+}

@@ -91,13 +91,21 @@ func (s *BankService) ImportCAMT053File(ctx context.Context, path, ledgerAccount
 	return s.importCAMTBytes(ctx, data, filepath.Base(path), ledgerAccount)
 }
 
+// importCAMTBytes legt den Auszug als Beleg ab und importiert danach die
+// Umsätze in einer eigenen Transaktion: scheitert das Parsen, bleibt der
+// empfangene Beleg abgelegt.
 func (s *BankService) importCAMTBytes(ctx context.Context, data []byte, filename, ledgerAccount string) (int, error) {
+	statementID, err := s.fileStatement(ctx, data, filename)
+	if err != nil {
+		return 0, err
+	}
 	return atomically(ctx, s.journalSvc, func(ctx context.Context) (int, error) {
-		return s.importStatement(ctx, data, filename, ledgerAccount)
+		return s.importCAMT053(ctx, bytes.NewReader(data), ledgerAccount, statementID)
 	})
 }
 
-func (s *BankService) importStatement(ctx context.Context, data []byte, filename, ledgerAccount string) (int, error) {
+// fileStatement legt den Kontoauszug als Beleg ab, einmal je Datei.
+func (s *BankService) fileStatement(ctx context.Context, data []byte, filename string) (*uint, error) {
 	var statementID *uint
 	if s.receipts != nil {
 		// Derselbe Auszug ein zweites Mal: der Belegspeicher würde die Datei
@@ -108,7 +116,7 @@ func (s *BankService) importStatement(ctx context.Context, data []byte, filename
 		digest := hex.EncodeToString(sum[:])
 		existing, err := s.receipts.FindByOriginalHash(ctx, digest)
 		if err != nil {
-			return 0, fmt.Errorf("die Belegablage konnte nicht geprüft werden: %w", err)
+			return nil, fmt.Errorf("die Belegablage konnte nicht geprüft werden: %w", err)
 		}
 		if existing != nil {
 			id := existing.ID
@@ -135,13 +143,13 @@ func (s *BankService) importStatement(ctx context.Context, data []byte, filename
 			Files:        []NewFile{{Role: domain.ReceiptRoleOriginal, Content: data, FileName: filename}},
 		})
 		if err != nil {
-			return 0, fmt.Errorf("der Kontoauszug konnte nicht abgelegt werden: %w", err)
+			return nil, fmt.Errorf("der Kontoauszug konnte nicht abgelegt werden: %w", err)
 		}
 		id := receipt.ID
 		statementID = &id
 	}
 
-	return s.importCAMT053(ctx, bytes.NewReader(data), ledgerAccount, statementID)
+	return statementID, nil
 }
 
 func (s *BankService) importCAMT053(
