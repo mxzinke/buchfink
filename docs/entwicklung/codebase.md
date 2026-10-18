@@ -20,6 +20,7 @@ nutzt Base UI, Tailwind CSS und Lucide; Typst setzt Rechnungen und Berichte
 | Warnung, wenn die Ablage in einem Sync-Ordner liegt (Einrichtung, Einstellungen, Verfahrensdokumentation) | [internal/syncdir/](../../internal/syncdir) |
 | Ereignis nach einer Änderung, Nachladen der offenen Ansicht | [internal/core/changes.go](../../internal/core/changes.go), [internal/wailsbridge/changes.go](../../internal/wailsbridge/changes.go), [frontend/src/live.tsx](../../frontend/src/live.tsx), [MCP-Server](mcp.md#live-aktualisierung) |
 | Schreibsperre, Transaktion, Prüfermodus, Vorbehalt der App | [internal/core/](../../internal/core) |
+| Journal: feste Kernregeln, Regelreihenfolge, Steuerregeln und Ausnahmen | [service/journal_rules.go](../../internal/service/journal_rules.go), [service/journal_service.go](../../internal/service/journal_service.go), [domain/entry_rule.go](../../internal/domain/entry_rule.go), [taxrules](../../internal/taxrules), Registrierung in [core/wire.go](../../internal/core/wire.go) |
 | Anwendungsfall | [internal/service/](../../internal/service) |
 | Rechenregel, Steuerschlüssel, Kontenrahmen | [internal/accounting/](../../internal/accounting) |
 | Entität, Invariante, Repository-Schnittstelle | [internal/domain/](../../internal/domain) |

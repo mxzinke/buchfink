@@ -42,6 +42,8 @@ flowchart TB
         CORE["internal/core<br/>Mandant, Schreibsperre, Transaktion, Prüfermodus, Ereignisse"]
         CORE --> SVC["internal/service<br/>Anwendungsfälle"]
         SVC --> ACC["accounting, domain<br/>Regeln und Entitäten"]
+        CORE --> TAX["internal/taxrules<br/>Journal-Erweiterungen"]
+        TAX --> ACC
         SVC --> REP["repository<br/>GORM, SQLite"]
         SVC --> FMT["einvoice, invoice, bank, ebilanz,<br/>declaration, export, procdoc"]
     end
@@ -66,6 +68,28 @@ Regeln, die diese Schichtung stützen:
    Erklärungen und Datenüberlassung kennen weder Kern noch Oberfläche.
 5. **Zeitpunkte in UTC.** Gespeichert wird jeder Zeitpunkt in UTC, angezeigt in
    Ortszeit. Ein Datum ohne Uhrzeit ist ein Kalendertag (`JJJJ-MM-TT`).
+
+`JournalService.check` führt für `Post` und `ValidatePostable` dieselbe
+geordnete Regelliste aus. Ausgleich und Pflichtfelder, bebuchbare Konten nach
+Kontenplan und Rechtsform, die Zuordnung von Personenkonten, Steuerkonten mit
+Steuerschlüssel sowie Feststellung und Periodensperre sind feste Kernregeln
+in `internal/service`. Registrierung kann sie nicht ersetzen.
+
+`core/wire.go` registriert die Regeln aus `internal/taxrules`: Sollversteuerung,
+Bewirtungsaufzeichnung, Sammelkonten, Steuerausweis, Steuerschlüsselkatalog,
+steuerliche Angaben der Handbuchung und Belegkopf. `domain.EntryRule` legt
+Position und Geltung für die Generalumkehr fest. Die feste Reihenfolge der
+Positionen und die Registrierungsreihenfolge darin bestimmen die erste
+Fehlermeldung. Die Sammelkontenregel läuft nach der Kernprüfung jeder einzelnen
+Sachkontozeile; die Handbuchungsregel auch vor der Belegerzeugung.
+
+Die Regeln erhalten die Buchung und eine lesende `EntryRuleView` für
+Besteuerungsart und Beleg. Sie nutzen den Kontext des Aufrufers, ohne eigene
+Schreibzugriffe oder Netzaufrufe. Saldenvortrag und USt-Jahresverrechnung sind
+registrierte Ausnahmen vom Steuerschlüsselzwang; die Bebuchbarkeit des Kontos
+prüft der Kern trotzdem. Nummern, Hash-Kette, Stempel und Audit bleiben im
+Schreibweg des Journals. `TestJournalRuleContract` sichert die Meldungen beider
+Prüfpfade, `TestJournalRuleRegistration` die Verdrahtung.
 
 ## 3. Kern
 

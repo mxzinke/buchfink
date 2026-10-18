@@ -55,7 +55,7 @@ MUSS · § 146 Abs. 1 S. 1 AO, GoBD Rz 39 ff.
 |---|---|---|
 | Sammelbuchung verweist auf gespeicherte Einzelposten mit gleicher Frist | erfüllt | Zahlungszuordnungen, Tabelle `zahlungszuordnungen` der Überlassung |
 | Einzelposten erreichbar und maschinell auswertbar | erfüllt | `service.PaymentService.Allocations`; dieselben Zeilen in der Datenüberlassung |
-| Je Vorgang Datum, Betrag, Steuer, Leistung, Partner, Belegverweis | erfüllt | Belegweg; Handbuchung über `service.PostingService.PostManualEntry` und `service.ValidateManualTaxLines` |
+| Je Vorgang Datum, Betrag, Steuer, Leistung, Partner, Belegverweis | erfüllt | Belegweg; Handbuchung über `service.PostingService.PostManualEntry` und die Journalregel `manual_tax_lines` in `internal/taxrules` |
 
 ## GOB-06 Geschäftsjahr und Periodenabgrenzung
 
