@@ -118,3 +118,9 @@ jobs:
           node scripts/check_help.mjs || status=1
           python3 scripts/version.py check || status=1
           exit $status
+
+      # check_skills.py läuft oben mit. package_skills.py prüft zusätzlich die
+      # Symlinks des Plugins und packt wie der Release-Workflow.
+      - name: Skills und Plugin
+        working-directory: .
+        run: python3 -I scripts/package_skills.py --out "$RUNNER_TEMP/skills"

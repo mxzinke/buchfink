@@ -111,6 +111,17 @@ tasks:
     cmds:
       - python3 scripts/check_doc_links.py
 
+  check:skills:
+    summary: Checks the skills under skills/ and the symlinks of the Claude Code plugin
+    cmds:
+      - python3 -I scripts/check_skills.py skills
+      - python3 -I scripts/package_skills.py --check-only
+
+  package:skills:
+    summary: Packs every skill as a ZIP with SHA256SUMS into dist/skills
+    cmds:
+      - python3 -I scripts/package_skills.py --out dist/skills
+
   check:clicks:
     summary: Walks the Prüfszenario from the Bilanz to the Beleg and counts the clicks
     # GOB-02: „Keine Buchung ohne Beleg" ist erst dann eine Aussage über die
@@ -134,6 +145,7 @@ tasks:
       - task: check:text
       - task: check:steps
       - task: check:links
+      - task: check:skills
 
   build:
     summary: Builds the application

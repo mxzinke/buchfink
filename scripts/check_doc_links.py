@@ -24,11 +24,10 @@ HEADING = re.compile(r'^#{1,6}\s+(.*?)\s*#*\s*$', re.M)
 # Feste Anker wie <a id="ustva"></a> im Pflichtenkalender der Skills.
 HTML_ANCHOR = re.compile(r'<a\s+(?:id|name)="([^"]+)"')
 
-# Die Dokumentation verweist auf die Beschreibung des MCP-Servers, die Skills,
-# das Plugin und die Marketplace-Datei. Solange einer dieser Pfade fehlt, dürfen
-# Links darauf und darunter ins Leere zeigen. Liegt er im Repository, wird
-# jeder Link darunter geprüft.
-MAY_BE_MISSING = ('docs/entwicklung/mcp.md', 'skills', 'plugins', '.claude-plugin')
+# Die Dokumentation verweist auf die Beschreibung des MCP-Servers. Solange sie
+# fehlt, dürfen Links darauf ins Leere zeigen. Liegt sie im Repository, wird
+# jeder Link darauf geprüft.
+MAY_BE_MISSING = ('docs/entwicklung/mcp.md',)
 
 
 def markdown_files() -> list[Path]:
