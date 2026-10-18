@@ -93,6 +93,7 @@ func (c TaxCase) InvoiceCategory() string {
 	case domain.TaxTreatmentNotTaxable:
 		return "O"
 	case domain.TaxTreatmentZeroRated:
+		// § 12 Abs. 3 UStG: steuerpflichtig zum Satz null. Kategorie S mit 0 % verletzt BR-S-05.
 		return "Z"
 	default:
 		return "S"

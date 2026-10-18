@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/einvoice"
 	"github.com/buchfink/buchfink/internal/einvoice/ruleset"
@@ -139,7 +140,7 @@ func BuildCII(inv *domain.Invoice, seller *domain.CompanySettings, buyer *domain
 		}}
 	}
 
-	category := vatCategoryCode(inv.TaxTreatment)
+	category := accounting.TaxCaseFor(inv.TaxTreatment).InvoiceCategory()
 	reason := exemptionReason(inv.TaxTreatment)
 
 	for i := range inv.Items {

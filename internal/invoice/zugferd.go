@@ -8,27 +8,6 @@ import (
 	"github.com/buchfink/buchfink/internal/einvoice"
 )
 
-// vatCategoryCode maps a Steuerfall to the EN 16931 / UNTDID 5305 category code
-// a ZUGFeRD invoice must carry. Sending "S" for a § 13b supply makes the
-// document formally wrong even though the amounts add up.
-func vatCategoryCode(t domain.TaxTreatment) string {
-	switch t {
-	case domain.TaxTreatmentReverseChargeSupply:
-		return "AE" // Steuerschuldnerschaft des Leistungsempfängers
-	case domain.TaxTreatmentExempt:
-		return "E" // Steuerbefreit
-	case domain.TaxTreatmentNotTaxable:
-		return "O" // Nicht steuerbar
-	case domain.TaxTreatmentZeroRated:
-		// Nullsteuersatz nach § 12 Abs. 3 UStG: steuerpflichtig zum Satz null,
-		// nicht steuerfrei. "S" mit 0,00 % wäre nach BR-S-05 formal falsch, und
-		// die Rechnung ließe sich gar nicht erst ausstellen.
-		return "Z"
-	default:
-		return "S" // Regelbesteuerung
-	}
-}
-
 // exemptionReason returns the legal reference EN 16931 requires whenever the
 // category code is not "S".
 func exemptionReason(t domain.TaxTreatment) string {
