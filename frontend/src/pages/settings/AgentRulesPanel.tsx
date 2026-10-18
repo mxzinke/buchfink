@@ -4,6 +4,7 @@ import type { AgentRules } from '../../types';
 import { useWriteLock } from '../../components/WriteLock';
 import { useLiveReload } from '../../live';
 import { formatCents, formatCentsPlain, parseCents } from '../../utils/formatters';
+import { checkRules } from '../../utils/agentRules';
 import { Button, Field, FormGrid, Input, Notice, Section, SkeletonRows, toast } from '../../components/ui';
 
 function message(error: unknown): string {
@@ -56,21 +57,21 @@ export const AgentRulesPanel: React.FC<{ id?: string }> = ({ id }) => {
 
   async function save() {
     if (!rules) return;
-    const next: Partial<Record<keyof Draft, string>> = {};
-    const gross = draft.maxGross.trim() === '' ? 0 : parseCents(draft.maxGross);
-    if (gross === null || gross < 0) next.maxGross = 'Ein Betrag wie 1.000,00.';
-    const bookings = draft.minBookings.trim() === '' ? 0 : Number(draft.minBookings);
-    if (!Number.isInteger(bookings) || bookings < 0) next.minBookings = 'Eine ganze Zahl wie 3.';
-    setErrors(next);
-    if (Object.keys(next).length > 0) return;
+    const checked = checkRules(
+      draft,
+      { maxGrossLabel: formatCents(rules.defaults.directMaxGross), minBookings: rules.defaults.directMinBookings },
+      parseCents,
+    );
+    setErrors(checked.errors);
+    if (Object.keys(checked.errors).length > 0) return;
     setSaving(true);
     setError('');
     try {
       const fresh = await Api.getAgentRules();
       const saved = await Api.saveAgentRules({
         ...fresh.stored,
-        directMaxGross: gross ?? 0,
-        directMinBookings: bookings,
+        directMaxGross: checked.directMaxGross,
+        directMinBookings: checked.directMinBookings,
       });
       setRules(saved);
       setDraft(draftOf(saved));
@@ -100,7 +101,7 @@ export const AgentRulesPanel: React.FC<{ id?: string }> = ({ id }) => {
           hat, die Sie bestätigt haben, schon so oft mit ihr gebucht wurde und der Bruttobetrag unter
           der Grenze liegt. Fotos und PDF ohne E-Rechnung legt Claude Ihnen immer vor. Eine falsche
           Buchung hebt ein Storno auf, bis der Monat festgeschrieben ist. Ein leeres Feld steht für die
-          Voreinstellung.
+          Voreinstellung. Mit einer Grenze von 0,01 € bucht Claude keine Rechnung ohne Rückfrage.
         </>
       }
     >

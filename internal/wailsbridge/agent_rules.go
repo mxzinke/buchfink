@@ -17,13 +17,22 @@ type AgentRules struct {
 	DirectMinBookings int                  `json:"directMinBookings"`
 	ExtraReadFolders  []string             `json:"extraReadFolders"`
 	ExportFolder      string               `json:"exportFolder"`
+	// Defaults sind die Voreinstellungen, für die ein leeres Feld steht.
+	Defaults AgentRuleDefaults `json:"defaults"`
+}
+
+// AgentRuleDefaults sind die voreingestellten Regeln für direktes Buchen.
+type AgentRuleDefaults struct {
+	DirectMaxGross    domain.Cents `json:"directMaxGross"`
+	DirectMinBookings int          `json:"directMinBookings"`
 }
 
 func agentRules(s *core.Services, stored *domain.AgentSettings) *AgentRules {
 	limits := policy.LimitsFrom(stored)
 	folders := policy.FoldersFrom(stored, "", s.Tenant.DataDir, policy.Protected{})
 	out := &AgentRules{Stored: *stored, DirectMaxGross: limits.MaxGross, DirectMinBookings: limits.MinBookings,
-		ExportFolder: folders.Export}
+		ExportFolder: folders.Export, Defaults: AgentRuleDefaults{DirectMaxGross: domain.DefaultDirectMaxGross,
+			DirectMinBookings: domain.DefaultDirectMinBookings}}
 	out.Stored.ExtraReadFolders, _ = emptyList(stored.ExtraReadFolders, nil)
 	out.ExtraReadFolders, _ = emptyList(folders.Read, nil)
 	return out

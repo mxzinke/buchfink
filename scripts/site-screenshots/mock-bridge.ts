@@ -2720,6 +2720,7 @@ const AGENT_RULES = {
   directMinBookings: 3,
   extraReadFolders: READ_FOLDERS,
   exportFolder: `${DATA_DIR}/Export`,
+  defaults: { directMaxGross: c(1000), directMinBookings: 3 },
 };
 
 /**

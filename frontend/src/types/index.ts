@@ -4032,6 +4032,8 @@ export interface AgentRules {
   directMinBookings: number;
   extraReadFolders: string[];
   exportFolder: string;
+  /** Die Voreinstellungen, für die ein leeres Feld steht. */
+  defaults: { directMaxGross: Cents; directMinBookings: number };
 }
 
 /** Die grobe Art einer Änderung in einem Mandanten (`core.ChangeKind`). */
