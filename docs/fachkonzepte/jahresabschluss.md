@@ -106,8 +106,13 @@ Kleinstgesellschaften, sonst drei und acht. Kleine Gesellschaften legen Bilanz
 und Anhang offen, Kleinstgesellschaften nur die Bilanz und können sie
 hinterlegen.
 
-Der Beschluss über die Ergebnisverwendung wird in der App erfasst. Eine
-Ausschüttung löst die Pflicht zur Kapitalertragsteuer-Anmeldung aus. Der
+Den Beschluss über die Ergebnisverwendung bucht der Mensch in der App oder ein
+Agent nach Zustimmung im Chat (`ergebnisverwendung_buchen`). Die Gesellschafter
+beschließen über das Ergebnis des festgestellten Abschlusses ([§ 42a Abs. 2][gmbhg42a],
+[§ 46 Nr. 1 GmbHG][gmbhg46]); `service.AppropriationService` bucht deshalb erst
+nach der Feststellung und weist einen Beschluss ab, der vor ihr liegt. Ein
+zweiter Beschluss zum selben Jahr setzt das Storno der ersten Buchung voraus.
+Eine Ausschüttung löst die Pflicht zur Kapitalertragsteuer-Anmeldung aus. Der
 Saldenvortrag bringt Bestandskonten und offene Posten ins Folgejahr und weist
 eine Differenz aus.
 
@@ -118,4 +123,5 @@ eine Differenz aus.
 [ao146]: https://www.gesetze-im-internet.de/ao_1977/__146.html
 [gmbhg42a]: https://www.gesetze-im-internet.de/gmbhg/__42a.html
 [gmbhg5a]: https://www.gesetze-im-internet.de/gmbhg/__5a.html
+[gmbhg46]: https://www.gesetze-im-internet.de/gmbhg/__46.html
 [kstg23]: https://www.gesetze-im-internet.de/kstg_1977/__23.html

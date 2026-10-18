@@ -33,7 +33,7 @@ MUSS · GoBD Rz 151 bis 155
 | Kriterium | Stand | Fundstelle oder Grund |
 |---|---|---|
 | Allgemeine Beschreibung, Anwender-, technische und Betriebsdokumentation | erfüllt | `procdoc.Render` |
-| Muster für die unternehmensindividuellen Teile | erfüllt | `domain.OrganisationTexts`, vorbelegt, Pflege nur in der App |
+| Muster für die unternehmensindividuellen Teile | erfüllt | `domain.OrganisationTexts`, vorbelegt, Pflege in der App oder durch einen Agenten mit Rückfrage (`verfahrensdoku_text`); jede Änderung im Änderungsprotokoll |
 | Versioniert, Fassungen über die Frist erhalten | erfüllt | `service.ProcDocService.Generate` nummeriert und legt jede Fassung im Belegspeicher ab |
 | Beschreibung des internen Kontrollsystems | erfüllt | eigener Abschnitt aus dem Regelkatalog der Prüfregeln |
 

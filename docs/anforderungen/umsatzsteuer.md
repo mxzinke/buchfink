@@ -35,7 +35,7 @@ MUSS · § 18 UStG, §§ 46 bis 48 UStDV
 | Kriterium | Stand | Fundstelle oder Grund |
 |---|---|---|
 | Zeitraum aus der Vorjahressteuer vorgeschlagen, überschreibbar | erfüllt | `service.VatReturnService.SuggestPeriodType` |
-| Amtlicher Datensatz über ERiC oder Export für ELSTER | teilweise | Kennziffernblatt nach Vordruck 2026 und CSV (`service.VatReturnService.ExportCSV`) zum Übertragen in Mein ELSTER; keine eigene Übermittlung |
+| Amtlicher Datensatz per Datenfernübertragung oder Export für Mein ELSTER | teilweise | Kennziffernblatt nach Vordruck 2026 und CSV (`service.VatReturnService.ExportCSV`) zum Übertragen in Mein ELSTER; keine eigene Übermittlung |
 | Übermittlung mit Zeitpunkt, Transferticket und Status gespeichert | erfüllt | `service.VatReturnService.ConfirmSubmitted`, nur in der App |
 | Dauerfristverlängerung mit Sondervorauszahlung und Anrechnung | erfüllt | `service.VatReturnService.SuggestedSpecialPrepayment` |
 | Berichtigte Anmeldung gekennzeichnet und verknüpft | erfüllt | `service.VatReturnService.CreateCorrection` |

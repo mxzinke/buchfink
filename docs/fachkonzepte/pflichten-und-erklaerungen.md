@@ -91,7 +91,8 @@ Bücher seit dem Export geändert, steht das im Protokoll.
 ## E-Bilanz
 
 `internal/ebilanz` erzeugt die XBRL-Instanz nach [§ 5b EStG][estg5b] aus
-derselben Gliederung wie die Bilanz.
+derselben Gliederung wie die Bilanz, auf Wunsch zusätzlich eine Summen- und
+Saldenliste mit derselben Zuordnung.
 
 - **Taxonomie.** Eingebettet sind Auszüge der HGB-Taxonomie 6.9 und 6.10
   (`internal/ebilanz/taxonomy/`). Ohne Vorgabe nimmt Buchfink die
@@ -103,14 +104,25 @@ derselben Gliederung wie die Bilanz.
 - **Inhalt.** Bilanz, GuV (wahlweise in der Form der Kleinstgesellschaft),
   Kontennachweis je Konto, Überleitung bei steuerlichen Abweichungen,
   Ergebnisverwendung. Auch eine Eröffnungsbilanz lässt sich erzeugen.
-- **Übermittlung.** Mein ELSTER hat kein Formular für die E-Bilanz. Die Datei
-  geht über ein Programm mit ERiC, etwa ebilanzonline.de oder ebilanzplus.de.
-  Wahlweise bettet Buchfink die Instanz in den Nutzdatenteil einer
-  ELSTER-Übermittlung ein. Die Übermittlung bestätigt der Mensch im
-  Pflichtenkalender.
+- **Übermittlung.** Mein ELSTER hat kein Formular für die E-Bilanz. Der
+  Mensch lädt die XBRL-Datei bei einem E-Bilanz-Dienst wie ebilanzplus.de oder
+  ebilanzonline.de hoch und übermittelt dort. Wahlweise bettet Buchfink die
+  Instanz in den Nutzdatenteil einer ELSTER-Übermittlung ein. Die Übermittlung
+  bestätigt der Mensch im Pflichtenkalender mit dem Transferticket.
+- **Saldenliste als Ausweichweg.** Nimmt der Dienst die XBRL-Datei nicht an,
+  liest der Mensch bei eBilanz+ die Summen- und Saldenliste ein (Import
+  „Summen- und Saldenliste“, Taxonomie-Layout oder Zuordnung nach SKR04).
+  `ebilanz.SuSaCSV` schreibt je Konto mit Saldo eine Zeile
+  `Konto;Bezeichnung;Saldo;Taxonomie`: Saldo im Soll positiv, im Haben
+  negativ, mit Dezimalkomma; `Taxonomie` ist die Position, unter der das Konto
+  im Kontennachweis der Instanz steht. Konten und Salden sind dieselben wie in
+  der Instanz, blockierende Befunde verhindern beides. Die Liste füllt dort nur
+  Bilanz und GuV; Stammdaten, Anhang und weitere Berichtsteile ergänzt der
+  Mensch im Dienst.
 
 Die Instanzen lassen sich mit `task test:ebilanz-xsd` gegen die amtlichen
-Schemata prüfen. Eine Annahme durch ERiC ist nicht belegt.
+Schemata prüfen. Ob ein E-Bilanz-Dienst die Datei oder die Saldenliste
+annimmt und die Finanzverwaltung sie akzeptiert, ist nicht belegt.
 
 [ao108]: https://www.gesetze-im-internet.de/ao_1977/__108.html
 [ao149]: https://www.gesetze-im-internet.de/ao_1977/__149.html

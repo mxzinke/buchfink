@@ -47,8 +47,10 @@ Auslage eines Arbeitnehmers gehört in die Lohnabrechnung.
 ## Gesellschafterdarlehen
 
 Ein Darlehensvertrag zwischen GmbH und Gesellschafter wird in beide Richtungen
-geführt (`service.ShareholderService`). Den Vertrag erfasst und berichtigt nur
-der Mensch in der App, weil er Zinsbuchungen und den Fremdvergleich steuert.
+geführt (`service.ShareholderService`). Der Vertrag steuert Zinsbuchungen und
+den Fremdvergleich. Erfassen und berichtigen kann ihn der Mensch in der App
+oder ein Agent nach Zustimmung im Chat (`darlehen_erfassen`); eine
+Berichtigung braucht einen Grund und steht im Änderungsprotokoll.
 
 | Richtung | Konto nach Restlaufzeit | Zinsen |
 |---|---|---|

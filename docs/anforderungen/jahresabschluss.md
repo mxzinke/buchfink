@@ -56,7 +56,7 @@ MUSS / TERMIN · § 5b EStG, § 60 EStDV, BMF-Schreiben zu den Taxonomien
 
 | Kriterium | Stand | Fundstelle oder Grund |
 |---|---|---|
-| XBRL nach der gültigen Taxonomie, übermittelt oder zur Übermittlung bereit | teilweise | `ebilanz.Generate` mit Taxonomie 6.9 und 6.10; Prüfung gegen die amtlichen Schemata mit `task test:ebilanz-xsd`. Buchfink übermittelt nicht; eine Annahme durch ERiC ist nicht belegt |
+| XBRL nach der gültigen Taxonomie, übermittelt oder zur Übermittlung bereit | teilweise | `ebilanz.Generate` mit Taxonomie 6.9 und 6.10; Prüfung gegen die amtlichen Schemata mit `task test:ebilanz-xsd`. Daneben eine Summen- und Saldenliste mit derselben Zuordnung (`ebilanz.SuSaCSV`) für den Import in eBilanz+. Buchfink übermittelt nicht; eine Annahme durch einen E-Bilanz-Dienst und die Finanzverwaltung ist nicht belegt |
 | Taxonomie als austauschbare Ressource | teilweise | eingebettete Auszüge in `internal/ebilanz/taxonomy/`; eine neue Fassung kommt mit einem Programmupdate |
 | Jedes Konto einer Position zugeordnet, ungeklärte blockieren und werden benannt | erfüllt | `ebilanz.ElementForAccount`, Befunde in `ebilanz.MappingReport` |
 | Kontennachweis unverdichtet mit Salden | erfüllt | Kontennachweis je Konto in der Instanz |

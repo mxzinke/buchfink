@@ -98,6 +98,13 @@ buchbar erst mit einer Darstellung und vollständigen Kopfdaten, etwa
 Belegdatum, Aussteller und Betrag. Bei einer E-Rechnung kommen die Kopfdaten aus dem
 Datensatz; gebucht wird aus dem strukturierten Teil, nie aus dem Bild.
 
+**Eingang.** Vor der Ablage liegen Belege, E-Rechnungen und Kontoauszüge im
+Eingang des Mandanten (`internal/inbox`). Dort ist eine Datei noch kein Beleg:
+sie steht in keiner Sicherung, und der Mensch kann sie löschen. Abgelegt wird
+auf seine Anweisung, durch den Agenten oder in der App. Danach verschiebt
+Buchfink die Datei in `Übernommen/<JJJJ-MM>/` des Eingangs; maßgeblich bleibt
+die Kopie im Archiv.
+
 **Ablage.** Dateien liegen unter `belege/<Jahr>/eingang|ausgang/`, benannt nach
 ihrer SHA-256-Prüfsumme mit der Originalendung. Geschrieben wird in eine
 Temporärdatei, die nach dem Schreiben umbenannt wird; ein Abbruch hinterlässt

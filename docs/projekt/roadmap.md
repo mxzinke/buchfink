@@ -20,8 +20,9 @@ lässt. Was in Version 0.3 gebaut ist, steht im
   Windows, damit die Warnungen beim ersten Start entfallen.
 - **Vordrucke je Jahr.** Zeilenkataloge der Jahreserklärungen für jedes neue
   Vordruckjahr, die Zeilen von KSt und GewSt am amtlichen Vordruck prüfen.
-- **E-Bilanz erproben.** Eine von Buchfink erzeugte Datei über ein Programm mit
-  ERiC übermitteln und die Annahme belegen.
+- **E-Bilanz erproben.** Eine von Buchfink erzeugte XBRL-Datei über
+  ebilanzplus.de oder ebilanzonline.de übermitteln, die Saldenliste in
+  eBilanz+ einlesen und die Annahme belegen.
 - **Werkzeuge schärfen.** Welche Vorgänge der Agent direkt buchen darf und
   welche er erfragt, nach den Erfahrungen aus dem Pilotbetrieb nachstellen.
 
@@ -34,7 +35,7 @@ lässt. Was in Version 0.3 gebaut ist, steht im
 
 ## Nicht geplant
 
-- eigene Übermittlung an die Finanzverwaltung über ERiC
+- eigene Übermittlung an die Finanzverwaltung
 - Verschlüsselung in Buchfink; den Schutz am Rechner übernimmt das
   Betriebssystem
 - Kassenbuch, Warenwirtschaft, Lohnabrechnung

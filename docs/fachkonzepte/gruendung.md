@@ -52,6 +52,11 @@ Der nicht eingeforderte Teil steht offen vom gezeichneten Kapital abgesetzt
 Eine Sacheinlage bucht Buchfink nicht von selbst, weil nur der Gründer weiß,
 auf welches Konto der Gegenstand gehört.
 
+Zeichnung und Einforderung bucht ein Agent nach Zustimmung im Chat
+(`buchung_erfassen`), die Einzahlungen über den Bankumsatz. Gesellschafter,
+Anteile und Eintragung ins Handelsregister pflegt der Mensch in der App
+(`FoundationService.Save`, `FoundationService.Register`).
+
 ## Unterbilanz
 
 Bleibt das Reinvermögen am Tag der Eintragung hinter dem Stammkapital zurück,
