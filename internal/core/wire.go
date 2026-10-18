@@ -137,20 +137,20 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.ClosingSettings = service.NewClosingSettingsService(settingsRepo, auditRepo)
 
 	s.Accruals = service.NewAccrualService(
-		accrualRepo, journalRepo, s.Journal, settingsRepo, auditRepo, s.Closing,
+		accrualRepo, journalRepo, s.Journal, settingsRepo, auditRepo, s.Periods.ReadOnly(),
 	)
 	s.Accruals.SetReceiptService(s.Receipts)
 	s.Closing.SetAccrualCarrier(s.Accruals)
 
 	s.Provisions = service.NewProvisionService(
 		provisionRepo, discountRateRepo, journalRepo, s.Journal,
-		settingsRepo, auditRepo, s.Closing,
+		settingsRepo, auditRepo, s.Periods.ReadOnly(),
 	)
 	s.Provisions.SetReceiptService(s.Receipts)
 	s.Posting.SetProvisionConsumer(s.Provisions)
 
 	s.ClosingBookings = service.NewClosingBookingService(
-		provisionRepo, journalRepo, s.Journal, settingsRepo, auditRepo, s.Closing,
+		provisionRepo, journalRepo, s.Journal, settingsRepo, auditRepo, s.Periods.ReadOnly(),
 	)
 	s.ClosingBookings.SetReceiptService(s.Receipts)
 	s.Closing.AddOpeningReverser(s.ClosingBookings.WorkInProgressReverser())
@@ -164,7 +164,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Closing.SetNotesCopier(s.Appropriation)
 
 	s.InputTax = service.NewInputTaxService(
-		inputTaxRepo, s.Journal, journalRepo, settingsRepo, s.Closing, auditRepo)
+		inputTaxRepo, s.Journal, journalRepo, settingsRepo, s.Periods.ReadOnly(), auditRepo)
 	s.VatIDs = service.NewVatIDService(vatIDCheckRepo, contactRepo, settingsRepo, auditRepo)
 	s.VatIDs.SetClientFactory(o.Network.VatID)
 	s.Invoices.SetVatIDConfirmer(s.VatIDs)
@@ -176,11 +176,11 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Assets.SetInputTaxRegister(s.InputTax)
 
 	s.Currency.SetOpenItemSource(s.Payments)
-	s.Currency.SetClosingService(s.Closing)
+	s.Currency.SetPeriodSource(s.Periods.ReadOnly())
 	s.Closing.SetCurrencyReverser(s.Currency)
 
 	s.TaxRegister = service.NewTaxRegisterService(
-		assetRepo, provisionRepo, journalRepo, settingsRepo, s.Closing)
+		assetRepo, provisionRepo, journalRepo, settingsRepo, s.Periods.ReadOnly())
 
 	s.ClosingSteps = service.NewClosingStepsService(
 		closingStepRepo, accrualRepo, provisionRepo,
@@ -190,7 +190,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.ClosingSteps.SetWriteUpSource(s.Assets)
 	s.ClosingSteps.SetInputTaxSource(s.InputTax)
 
-	s.Statement = service.NewStatementService(s.Accounting, s.Closing, settingsRepo, auditRepo)
+	s.Statement = service.NewStatementService(s.Accounting, s.Periods.ReadOnly(), settingsRepo, auditRepo)
 	s.Statement.SetOpenItemSource(s.Payments)
 	s.Closing.SetRevenueSource(s.Statement)
 	s.Statement.SetRenderer(renderer)

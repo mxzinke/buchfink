@@ -98,7 +98,7 @@ func (s *ClosingBookingService) PreviewTaxProvision(
 	if err := ensureSupportedCompany(ctx, s.settingsRepo); err != nil {
 		return nil, err
 	}
-	fy, err := s.closingSvc.PeriodOf(ctx, year)
+	fy, err := s.periods.PeriodOf(ctx, year)
 	if err != nil {
 		return nil, err
 	}

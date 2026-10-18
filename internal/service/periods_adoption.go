@@ -51,7 +51,7 @@ func (s *PeriodService) nextStep(fy *domain.FiscalYear, hasYearCommitment bool) 
 }
 
 // yearCommitment sucht die Festschreibung des ganzen Jahres.
-func (s *PeriodService) yearCommitment(ctx context.Context, year int) (bool, string, error) {
+func (s *PeriodReader) yearCommitment(ctx context.Context, year int) (bool, string, error) {
 	if s.festschreibungRepo == nil {
 		return false, "", nil
 	}

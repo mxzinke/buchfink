@@ -76,7 +76,7 @@ func (s *ClosingBookingService) PreviewReceivableAllowance(
 	if s.openItems == nil {
 		return nil, fmt.Errorf("die offenen Posten sind für die Wertberichtigung nicht verfügbar")
 	}
-	fy, err := s.closingSvc.PeriodOf(ctx, req.FiscalYear)
+	fy, err := s.periods.PeriodOf(ctx, req.FiscalYear)
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +228,7 @@ func (s *ClosingBookingService) carriedBalances(
 	if err != nil || count == 0 || prior <= 0 {
 		return out, err
 	}
-	priorPeriod, err := s.closingSvc.PeriodOf(ctx, prior)
+	priorPeriod, err := s.periods.PeriodOf(ctx, prior)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +236,7 @@ func (s *ClosingBookingService) carriedBalances(
 	if err != nil {
 		return nil, err
 	}
-	carried, _, err := s.closingSvc.carriedSoFar(ctx, year)
+	carried, _, err := carriedSoFar(ctx, s.journalRepo, year)
 	if err != nil {
 		return nil, err
 	}

@@ -12,6 +12,12 @@ import (
 	"github.com/buchfink/buchfink/internal/ebilanz"
 )
 
+// TaxRegisterPeriods liefert die benötigten Jahresdaten.
+type TaxRegisterPeriods interface {
+	PeriodSource
+	FiscalYears(context.Context) ([]domain.FiscalYear, error)
+}
+
 // TaxRegisterService führt das Verzeichnis nach § 5 Abs. 1 Satz 2 EStG und die
 // Überleitungsrechnung zur Steuerbilanz.
 //
@@ -41,7 +47,7 @@ type TaxRegisterService struct {
 	// stornierte Bildung gehört in keine Überleitung — sie steht auch in keiner
 	// Bilanz mehr.
 	journalRepo domain.JournalRepository
-	closingSvc  *ClosingService
+	periods     TaxRegisterPeriods
 }
 
 // NewTaxRegisterService wires das Verzeichnis und die Überleitung.
@@ -50,12 +56,12 @@ func NewTaxRegisterService(
 	provisionRepo domain.ProvisionRepository,
 	journalRepo domain.JournalRepository,
 	settingsRepo domain.SettingsRepository,
-	closingSvc *ClosingService,
+	periods TaxRegisterPeriods,
 ) *TaxRegisterService {
 	return &TaxRegisterService{
 		assetRepo: assetRepo, provisionRepo: provisionRepo, journalRepo: journalRepo,
 		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo},
-		closingSvc:     closingSvc,
+		periods:        periods,
 	}
 }
 
@@ -255,7 +261,7 @@ func (s *TaxRegisterService) Reconcile(ctx context.Context, year int) (*Reconcil
 	if err := requireYear(year); err != nil {
 		return nil, err
 	}
-	fy, err := s.closingSvc.PeriodOf(ctx, year)
+	fy, err := s.periods.PeriodOf(ctx, year)
 	if err != nil {
 		return nil, err
 	}
@@ -388,7 +394,7 @@ func (s *TaxRegisterService) adjustmentsAt(ctx context.Context, year int) (map[s
 	if year < 1 {
 		return nil, nil
 	}
-	fy, err := s.closingSvc.PeriodOf(ctx, year)
+	fy, err := s.periods.PeriodOf(ctx, year)
 	if err != nil {
 		return nil, err
 	}
@@ -491,13 +497,13 @@ func (s *TaxRegisterService) taxValueOf(p *domain.Provision, cutoff string, bala
 }
 
 // fiscalPeriods liest die Zeiträume der angelegten Geschäftsjahre für den
-// Abschreibungsplan. Fehlt der Abschlussdienst, leitet der Plan sie aus dem
+// Abschreibungsplan. Fehlt die Periodensicht, leitet der Plan sie aus dem
 // Beginnmonat ab.
 func (s *TaxRegisterService) fiscalPeriods(ctx context.Context) map[int]accounting.FiscalPeriod {
-	if s.closingSvc == nil {
+	if s.periods == nil {
 		return nil
 	}
-	years, err := s.closingSvc.FiscalYears(ctx)
+	years, err := s.periods.FiscalYears(ctx)
 	if err != nil || len(years) == 0 {
 		return nil
 	}

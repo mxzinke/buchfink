@@ -52,7 +52,7 @@ func (s *ClosingBookingService) PreviewWorkInProgress(
 	if err := requireYear(req.FiscalYear); err != nil {
 		return nil, err
 	}
-	fy, err := s.closingSvc.PeriodOf(ctx, req.FiscalYear)
+	fy, err := s.periods.PeriodOf(ctx, req.FiscalYear)
 	if err != nil {
 		return nil, err
 	}

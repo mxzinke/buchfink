@@ -29,7 +29,7 @@ type InputTaxService struct {
 	repo        domain.InputTaxCorrectionRepository
 	journalSvc  *JournalService
 	journalRepo domain.JournalRepository
-	closingSvc  *ClosingService
+	periods     PeriodSource
 }
 
 func (s *InputTaxService) runInTx(ctx context.Context, fn func(context.Context) error) error {
@@ -42,13 +42,13 @@ func NewInputTaxService(
 	journalSvc *JournalService,
 	journalRepo domain.JournalRepository,
 	settingsRepo domain.SettingsRepository,
-	closingSvc *ClosingService,
+	periods PeriodSource,
 	auditRepo domain.AuditRepository,
 ) *InputTaxService {
 	return &InputTaxService{
 		repo: repo, journalSvc: journalSvc, journalRepo: journalRepo,
 		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo, limitMonth: true},
-		closingSvc:     closingSvc, auditor: auditor[uint]{auditRepo: auditRepo, entity: "INPUT_TAX_CORRECTION"},
+		periods:        periods, auditor: auditor[uint]{auditRepo: auditRepo, entity: "INPUT_TAX_CORRECTION"},
 	}
 }
 
@@ -648,8 +648,8 @@ func (s *InputTaxService) bookingDate(ctx context.Context, year int) (string, er
 // Berichtigungszeitraum bemisst sich nach den Monaten, die in beides fallen,
 // und ein Rumpfgeschäftsjahr hat weniger als zwölf davon.
 func (s *InputTaxService) fiscalYearWindow(ctx context.Context, year int) (string, string) {
-	if s.closingSvc != nil {
-		if fy, err := s.closingSvc.PeriodOf(ctx, year); err == nil && fy != nil {
+	if s.periods != nil {
+		if fy, err := s.periods.PeriodOf(ctx, year); err == nil && fy != nil {
 			return fy.StartDate, fy.EndDate
 		}
 	}

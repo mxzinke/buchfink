@@ -8,17 +8,28 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-// PeriodService verwaltet Geschäftsjahre, Festschreibungen und Abschlussstände.
-// Schreibende Vorgänge verwenden dieselbe Transaktion wie der Journaldienst.
-type PeriodService struct {
-	auditor[int]
+// PeriodReader liest Jahreszeiträume und Sperren ohne Abschlussvorprüfungen.
+// Journal und Abschlussbausteine teilen dieselben Repositories.
+type PeriodReader struct {
 	fiscalCalendar
 	journalRepo        domain.JournalRepository
 	festschreibungRepo domain.FestschreibungRepository
 	foundationRepo     domain.FoundationRepository
-	tx                 domain.TxRunner
-	closing            periodClosing
-	preCommitChecks    []PreCommitCheck
+}
+
+// PeriodSource liefert den Zeitraum, ohne ein Geschäftsjahr anzulegen.
+type PeriodSource interface {
+	PeriodOf(context.Context, int) (*domain.FiscalYear, error)
+}
+
+// PeriodService verwaltet Geschäftsjahre, Festschreibungen und Abschlussstände.
+// Schreibende Vorgänge verwenden dieselbe Transaktion wie der Journaldienst.
+type PeriodService struct {
+	*PeriodReader
+	auditor[int]
+	tx              domain.TxRunner
+	closing         periodClosing
+	preCommitChecks []PreCommitCheck
 }
 
 // periodClosing liefert die Abschlusszahlen und den Vorjahresumsatz.
@@ -28,13 +39,19 @@ type periodClosing interface {
 	prefillPriorYearRevenue(context.Context, *domain.FiscalYear) error
 }
 
+func newPeriodReader(journal domain.JournalRepository, settings domain.SettingsRepository) *PeriodReader {
+	return &PeriodReader{fiscalCalendar: fiscalCalendar{settingsRepo: settings}, journalRepo: journal}
+}
+
 func newPeriodService(journal domain.JournalRepository, settings domain.SettingsRepository, audit domain.AuditRepository, tx domain.TxRunner) *PeriodService {
 	return &PeriodService{
-		fiscalCalendar: fiscalCalendar{settingsRepo: settings},
-		auditor:        auditor[int]{auditRepo: audit, entity: "FISCAL_YEAR"},
-		journalRepo:    journal, tx: tx,
+		PeriodReader: newPeriodReader(journal, settings),
+		auditor:      auditor[int]{auditRepo: audit, entity: "FISCAL_YEAR"}, tx: tx,
 	}
 }
+
+// ReadOnly liefert die gemeinsame Periodensicht ohne Schreibvorgänge und Hooks.
+func (s *PeriodService) ReadOnly() *PeriodReader { return s.PeriodReader }
 
 // PeriodState beschreibt den Buchungstag. ClosingPeriod sagt, ob er der
 // Bilanzstichtag ist; ClosingOpen, ob er noch Abschlussbuchungen aufnimmt.
@@ -53,7 +70,7 @@ type PeriodState struct {
 
 // State liest die Sperren anhand des Tages und der gespeicherten Jahresgrenzen.
 // Ein geänderter Beginnmonat öffnet weder Festschreibung noch Feststellung.
-func (s *PeriodService) State(ctx context.Context, date string) (PeriodState, error) {
+func (s *PeriodReader) State(ctx context.Context, date string) (PeriodState, error) {
 	year := s.FiscalYearOf(ctx, date)
 	state := PeriodState{FiscalYear: year, EndDate: s.fiscalYearEnd(ctx, year)}
 	state.ClosingPeriod = date == state.EndDate
@@ -131,7 +148,7 @@ func (state PeriodState) ensureOpen(date string, closing bool) error {
 
 // assignClosingPeriod ordnet Abschlussbuchungen und AfA zum Bilanzstichtag
 // automatisch der Abschlussperiode zu; Handbuchungen auf ausdrücklichen Wunsch.
-func (s *PeriodService) assignClosingPeriod(ctx context.Context, e *domain.JournalEntry) error {
+func (s *PeriodReader) assignClosingPeriod(ctx context.Context, e *domain.JournalEntry) error {
 	end := s.fiscalYearEnd(ctx, e.FiscalYear)
 	if (e.Source == domain.EntrySourceClosing || e.Source == domain.EntrySourceDepreciation) && e.BookingDate == end {
 		e.ClosingPeriod = true
@@ -143,12 +160,12 @@ func (s *PeriodService) assignClosingPeriod(ctx context.Context, e *domain.Journ
 }
 
 // FiscalYearOf ordnet den Tag nach dem Beginnmonat der Unternehmensdaten zu.
-func (s *PeriodService) FiscalYearOf(ctx context.Context, date string) int {
+func (s *PeriodReader) FiscalYearOf(ctx context.Context, date string) int {
 	return domain.GetFiscalYearForDate(date, s.fiscalYearStartMonth(ctx))
 }
 
 // CommittedThrough ist der jüngste Stichtag über alle Geschäftsjahre.
-func (s *PeriodService) CommittedThrough(ctx context.Context) (string, error) {
+func (s *PeriodReader) CommittedThrough(ctx context.Context) (string, error) {
 	if s.festschreibungRepo == nil {
 		return "", nil
 	}

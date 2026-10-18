@@ -10,6 +10,12 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
+// StatementPeriods liefert die benötigten Jahresdaten.
+type StatementPeriods interface {
+	PeriodSource
+	EarliestFiscalYear(context.Context) (int, error)
+}
+
 // StatementService stellt Bilanz und Gewinn- und Verlustrechnung auf.
 //
 // Er beschafft, was die reine Gliederung in internal/accounting nicht beschaffen
@@ -19,7 +25,7 @@ import (
 // gar nicht.
 type StatementService struct {
 	accountingSvc *AccountingService
-	closingSvc    *ClosingService
+	periods       StatementPeriods
 	settingsRepo  domain.SettingsRepository
 	auditRepo     domain.AuditRepository
 	openItems     OpenItemSource
@@ -79,13 +85,13 @@ type DocumentRenderer interface {
 // NewStatementService wires the Jahresabschluss-Auswertung.
 func NewStatementService(
 	accountingSvc *AccountingService,
-	closingSvc *ClosingService,
+	periods StatementPeriods,
 	settingsRepo domain.SettingsRepository,
 	auditRepo domain.AuditRepository,
 ) *StatementService {
 	return &StatementService{
 		accountingSvc: accountingSvc,
-		closingSvc:    closingSvc,
+		periods:       periods,
 		settingsRepo:  settingsRepo,
 		auditRepo:     auditRepo,
 	}
@@ -377,8 +383,8 @@ func (s *StatementService) sizeClassFrom(ctx context.Context, year int, stmt *do
 	}
 
 	earliest := 0
-	if s.closingSvc != nil {
-		if e, err := s.closingSvc.EarliestFiscalYear(ctx); err == nil {
+	if s.periods != nil {
+		if e, err := s.periods.EarliestFiscalYear(ctx); err == nil {
 			earliest = e
 		}
 	}
@@ -476,10 +482,10 @@ func (s *StatementService) assessYear(ctx context.Context, year int) (domain.Siz
 
 // period liefert den Zeitraum eines Geschäftsjahres, ohne ihn anzulegen.
 func (s *StatementService) period(ctx context.Context, year int) (*domain.FiscalYear, error) {
-	if s.closingSvc == nil {
+	if s.periods == nil {
 		return domain.NewFiscalYear(year, fmt.Sprintf("%d-01-01", year), fmt.Sprintf("%d-12-31", year)), nil
 	}
-	return s.closingSvc.PeriodOf(ctx, year)
+	return s.periods.PeriodOf(ctx, year)
 }
 
 // Header sind die Pflichtangaben des § 264 Abs. 1a HGB, ohne eine Gliederung

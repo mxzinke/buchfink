@@ -29,7 +29,7 @@ type AccrualService struct {
 	accrualRepo domain.AccrualRepository
 	journalRepo domain.JournalRepository
 	journalSvc  *JournalService
-	closingSvc  *ClosingService
+	periods     PeriodSource
 	receipts    closingReceiptFiler
 }
 
@@ -40,7 +40,7 @@ func NewAccrualService(
 	journalSvc *JournalService,
 	settingsRepo domain.SettingsRepository,
 	auditRepo domain.AuditRepository,
-	closingSvc *ClosingService,
+	periods PeriodSource,
 ) *AccrualService {
 	return &AccrualService{
 		accrualRepo:    accrualRepo,
@@ -48,7 +48,7 @@ func NewAccrualService(
 		journalSvc:     journalSvc,
 		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo},
 		auditor:        auditor[uint]{auditRepo: auditRepo, entity: "ACCRUAL"},
-		closingSvc:     closingSvc,
+		periods:        periods,
 	}
 }
 
@@ -152,7 +152,7 @@ func (s *AccrualService) Propose(ctx context.Context, year int) (*AccrualProposa
 	if err := requireYear(year); err != nil {
 		return nil, err
 	}
-	fy, err := s.closingSvc.PeriodOf(ctx, year)
+	fy, err := s.periods.PeriodOf(ctx, year)
 	if err != nil {
 		return nil, err
 	}
@@ -294,7 +294,7 @@ func (s *AccrualService) Preview(ctx context.Context, req AccrualRequest) (*Accr
 	if err := requireYear(year); err != nil {
 		return nil, err
 	}
-	fy, err := s.closingSvc.PeriodOf(ctx, year)
+	fy, err := s.periods.PeriodOf(ctx, year)
 	if err != nil {
 		return nil, err
 	}

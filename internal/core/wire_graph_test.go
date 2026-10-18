@@ -30,7 +30,10 @@ func TestServiceDependencyGraph(t *testing.T) {
 	cycles := dependencyCycles(graph)
 	t.Logf("Zyklische Komponenten (%d):\n%s", len(cycles), strings.Join(cycles, "\n"))
 	// Jede entfernte Komponente verkleinert diese Ausgangsliste.
-	want := []string{"AccountingService, AccrualService, AppropriationService, AssetService, ClosingBookingService, ClosingService, CurrencyService, GiftService, InputTaxService, JournalService, ObligationService, PaymentService, PeriodService, PostingService, ProvisionService, ShareholderService, StatementService, TaxRegisterService, settlement"}
+	want := []string{
+		"AppropriationService, ClosingBookingService, ClosingService, ObligationService, PeriodService, StatementService",
+		"CurrencyService, PaymentService, PostingService, ShareholderService, settlement",
+	}
 	if !slices.Equal(cycles, want) {
 		t.Fatalf("zyklische Komponenten: %q; erwartet %q", cycles, want)
 	}

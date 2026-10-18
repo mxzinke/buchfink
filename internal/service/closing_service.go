@@ -699,7 +699,7 @@ func (s *ClosingService) plan(ctx context.Context, toYear int) (*carryForwardPla
 		counts[item.account]++
 	}
 
-	carried, existing, err := s.carriedSoFar(ctx, toYear)
+	carried, existing, err := carriedSoFar(ctx, s.journalRepo, toYear)
 	if err != nil {
 		return nil, err
 	}
@@ -856,7 +856,7 @@ func (s *ClosingService) priorCarryForwardMissing(ctx context.Context, fromYear 
 	if !earlier {
 		return false, nil
 	}
-	carried, existing, err := s.carriedSoFar(ctx, fromYear)
+	carried, existing, err := carriedSoFar(ctx, s.journalRepo, fromYear)
 	if err != nil {
 		return false, err
 	}
@@ -948,8 +948,8 @@ func (s *ClosingService) openItemsAt(ctx context.Context, cutoff string) ([]carr
 // liegt. Die zweite Rückgabe sind die Buchungen, die ein Korrekturvortrag
 // zurücknehmen müsste — Stornos und bereits stornierte Buchungen gehören
 // nicht dazu.
-func (s *ClosingService) carriedSoFar(ctx context.Context, toYear int) (map[string]domain.Cents, []domain.JournalEntry, error) {
-	entries, err := s.journalRepo.FindAll(ctx, toYear)
+func carriedSoFar(ctx context.Context, journal domain.JournalRepository, toYear int) (map[string]domain.Cents, []domain.JournalEntry, error) {
+	entries, err := journal.FindAll(ctx, toYear)
 	if err != nil {
 		return nil, nil, fmt.Errorf("die Buchungen des Geschäftsjahres %d konnten nicht gelesen werden: %w", toYear, err)
 	}
@@ -973,7 +973,7 @@ func (s *ClosingService) carriedSoFar(ctx context.Context, toYear int) (map[stri
 		if entry.Kind == domain.EntryKindReversal {
 			continue
 		}
-		reversal, err := s.journalRepo.FindReversalOf(ctx, entry.ID)
+		reversal, err := journal.FindReversalOf(ctx, entry.ID)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1549,26 +1549,7 @@ func (s *ClosingService) HasYearCommitment(ctx context.Context, year int) (bool,
 // keines gibt. Die Größenklasse braucht es für § 267 Abs. 4 Satz 2 HGB: der
 // erste Abschluss nach der Gründung wird nach seinem eigenen Stichtag beurteilt.
 func (s *ClosingService) EarliestFiscalYear(ctx context.Context) (int, error) {
-	years, err := s.fiscalYearRepo.FindAll(ctx)
-	if err != nil {
-		return 0, err
-	}
-	earliest := 0
-	for _, fy := range years {
-		if earliest == 0 || fy.Year < earliest {
-			earliest = fy.Year
-		}
-	}
-	journalYears, err := s.journalRepo.GetAvailableFiscalYears(ctx)
-	if err != nil {
-		return earliest, nil
-	}
-	for _, y := range journalYears {
-		if y > 0 && (earliest == 0 || y < earliest) {
-			earliest = y
-		}
-	}
-	return earliest, nil
+	return s.periods.EarliestFiscalYear(ctx)
 }
 
 func (s *ClosingService) SetStatementSource(source *StatementService) { s.statementSource = source }

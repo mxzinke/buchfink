@@ -22,7 +22,7 @@ type ClosingBookingService struct {
 	journalRepo   domain.JournalRepository
 	journalSvc    *JournalService
 	settingsRepo  domain.SettingsRepository
-	closingSvc    *ClosingService
+	periods       PeriodSource
 	receipts      closingReceiptFiler
 	// openItems und revenue tragen die Wertberichtigung auf Forderungen: die
 	// offenen Posten zum Stichtag und die Umsätze der Vorjahre für die Quote.
@@ -37,12 +37,12 @@ func NewClosingBookingService(
 	journalSvc *JournalService,
 	settingsRepo domain.SettingsRepository,
 	auditRepo domain.AuditRepository,
-	closingSvc *ClosingService,
+	periods PeriodSource,
 ) *ClosingBookingService {
 	return &ClosingBookingService{
 		provisionRepo: provisionRepo, journalRepo: journalRepo,
 		journalSvc: journalSvc, settingsRepo: settingsRepo, auditor: auditor[int]{auditRepo: auditRepo},
-		closingSvc: closingSvc,
+		periods: periods,
 	}
 }
 
@@ -100,7 +100,7 @@ func (s *ClosingBookingService) PreviewVatSettlement(ctx context.Context, year i
 	if err := requireYear(year); err != nil {
 		return nil, err
 	}
-	fy, err := s.closingSvc.PeriodOf(ctx, year)
+	fy, err := s.periods.PeriodOf(ctx, year)
 	if err != nil {
 		return nil, err
 	}

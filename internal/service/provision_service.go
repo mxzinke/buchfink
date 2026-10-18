@@ -33,7 +33,7 @@ type ProvisionService struct {
 	rateRepo      domain.DiscountRateRepository
 	journalRepo   domain.JournalRepository
 	journalSvc    *JournalService
-	closingSvc    *ClosingService
+	periods       PeriodSource
 	receipts      closingReceiptFiler
 }
 
@@ -45,7 +45,7 @@ func NewProvisionService(
 	journalSvc *JournalService,
 	settingsRepo domain.SettingsRepository,
 	auditRepo domain.AuditRepository,
-	closingSvc *ClosingService,
+	periods PeriodSource,
 ) *ProvisionService {
 	return &ProvisionService{
 		provisionRepo:  provisionRepo,
@@ -54,7 +54,7 @@ func NewProvisionService(
 		journalSvc:     journalSvc,
 		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo},
 		auditor:        auditor[uint]{auditRepo: auditRepo, entity: "PROVISION"},
-		closingSvc:     closingSvc,
+		periods:        periods,
 	}
 }
 
@@ -194,7 +194,7 @@ func (s *ProvisionService) Preview(ctx context.Context, req ProvisionRequest) (*
 	if err := requireYear(year); err != nil {
 		return nil, err
 	}
-	fy, err := s.closingSvc.PeriodOf(ctx, year)
+	fy, err := s.periods.PeriodOf(ctx, year)
 	if err != nil {
 		return nil, err
 	}
@@ -825,7 +825,7 @@ func (s *ProvisionService) DiscountFindings(
 	if err := requireYear(year); err != nil {
 		return nil, err
 	}
-	fy, err := s.closingSvc.PeriodOf(ctx, year)
+	fy, err := s.periods.PeriodOf(ctx, year)
 	if err != nil {
 		return nil, err
 	}

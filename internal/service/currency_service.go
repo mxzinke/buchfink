@@ -30,7 +30,7 @@ type CurrencyService struct {
 	journal    domain.JournalRepository
 	openItems  openItemSource
 	journalSvc *JournalService
-	closingSvc *ClosingService
+	periods    PeriodSource
 	// storedOnly schaltet den Dienst auf reines Lesen: kein Abruf beim
 	// Kursdienst, kein Speichern. Für den Prüfermodus — siehe ReadOnly.
 	storedOnly bool

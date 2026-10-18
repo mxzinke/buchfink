@@ -48,7 +48,7 @@ func TestTaxReportsHaveNoNilLists(t *testing.T) {
 	assertNoNilSlices(t, "Bericht nicht abziehbare Betriebsausgaben", gifts)
 
 	rates := env.currency(t, "https://rates.example.invalid/")
-	rates.SetClosingService(env.closing(t))
+	rates.SetPeriodSource(env.closing(t))
 	rates.SetOpenItemSource(NewPaymentService(
 		env.journal, env.journalRepo,
 		repository.NewPaymentAllocationRepository(env.db),

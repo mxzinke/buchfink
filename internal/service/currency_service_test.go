@@ -245,7 +245,7 @@ func TestCurrencyValuationFollowsTheOneYearRule(t *testing.T) {
 	ctx := context.Background()
 	server, _ := ecbServer(t, "1.0000", "2026-12-31")
 	svc := env.currency(t, server.URL)
-	svc.SetClosingService(env.closing(t))
+	svc.SetPeriodSource(env.closing(t))
 	svc.SetOpenItemSource(NewPaymentService(
 		env.journal, env.journalRepo,
 		repository.NewPaymentAllocationRepository(env.db),

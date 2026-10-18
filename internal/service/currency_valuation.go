@@ -37,9 +37,8 @@ func (s *CurrencyService) SetOpenItemSource(src openItemSource) { s.openItems = 
 // SetJournalService koppelt den Buchungsweg an den Kursdienst.
 func (s *CurrencyService) SetJournalService(j *JournalService) { s.journalSvc = j }
 
-// SetClosingService koppelt den Abschluss an den Kursdienst — er kennt die
-// Stichtage.
-func (s *CurrencyService) SetClosingService(c *ClosingService) { s.closingSvc = c }
+// SetPeriodSource liefert die Bilanzstichtage für die Kursbewertung.
+func (s *CurrencyService) SetPeriodSource(periods PeriodSource) { s.periods = periods }
 
 // PreviewCurrencyValuation rechnet die Stichtagsbewertung, ohne sie zu buchen.
 func (s *CurrencyService) PreviewCurrencyValuation(ctx context.Context, year int) (*ForeignCurrencyValuation, error) {
@@ -51,10 +50,10 @@ func (s *CurrencyService) PreviewCurrencyValuation(ctx context.Context, year int
 func (s *CurrencyService) buildValuation(
 	ctx context.Context, year int,
 ) (*ForeignCurrencyValuation, []domain.JournalLine, error) {
-	if s.closingSvc == nil || s.openItems == nil || s.journal == nil {
+	if s.periods == nil || s.openItems == nil || s.journal == nil {
 		return nil, nil, fmt.Errorf("die Fremdwährungsbewertung ist nicht eingerichtet")
 	}
-	fy, err := s.closingSvc.PeriodOf(ctx, year)
+	fy, err := s.periods.PeriodOf(ctx, year)
 	if err != nil {
 		return nil, nil, err
 	}

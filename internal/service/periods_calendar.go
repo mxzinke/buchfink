@@ -8,7 +8,7 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-func (s *PeriodService) closingCalendar() fiscalCalendar {
+func (s *PeriodReader) closingCalendar() fiscalCalendar {
 	calendar := s.fiscalCalendar
 	calendar.limitMonth = true
 	return calendar
@@ -19,7 +19,7 @@ func (s *PeriodService) closingCalendar() fiscalCalendar {
 // Die Vorschau darf nichts erzeugen: wer den Abschlussstand von 2026 ansieht,
 // fragt damit auch nach dem Vortrag ins Jahr 2027 — und fände es danach in der
 // Jahresauswahl wieder, ohne es angelegt zu haben.
-func (s *PeriodService) FiscalYear(ctx context.Context, year int) (*domain.FiscalYear, error) {
+func (s *PeriodReader) FiscalYear(ctx context.Context, year int) (*domain.FiscalYear, error) {
 	fy, err := s.fiscalYearRepo.FindByYear(ctx, year)
 	if err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func (s *PeriodService) FiscalYear(ctx context.Context, year int) (*domain.Fisca
 }
 
 // derive baut den Zeitraum eines Geschäftsjahres aus den Unternehmensdaten.
-func (s *PeriodService) derive(ctx context.Context, year int) *domain.FiscalYear {
+func (s *PeriodReader) derive(ctx context.Context, year int) *domain.FiscalYear {
 	startMonth := s.closingCalendar().fiscalYearStartMonth(ctx)
 	start := time.Date(year, time.Month(startMonth), 1, 0, 0, 0, 0, time.UTC)
 	startDate := start.Format("2006-01-02")
@@ -53,7 +53,7 @@ func (s *PeriodService) derive(ctx context.Context, year int) *domain.FiscalYear
 // foundingDate ist der Tag der Beurkundung: aus der erfassten Gründung, sonst
 // das Gründungsdatum der Unternehmensdaten. Die Einrichtung setzt es bei einer
 // Gründung als Starttag der Bücher, bevor die Gründung selbst erfasst ist.
-func (s *PeriodService) foundingDate(ctx context.Context) string {
+func (s *PeriodReader) foundingDate(ctx context.Context) string {
 	if s.foundationRepo != nil {
 		if f, err := s.foundationRepo.Get(ctx); err == nil && f != nil && len(f.NotarizedOn) == 10 {
 			return f.NotarizedOn
@@ -99,7 +99,7 @@ func (s *PeriodService) yearOf(ctx context.Context, year int) (*domain.FiscalYea
 // beim Korrekturvortrag vor: bis dahin ist im neuen Jahr weitergebucht und
 // vielleicht schon ein Monat festgeschrieben worden. Dann rückt der Vortrag auf
 // den ersten offenen Tag — die Alternative wäre, die Festschreibung zu brechen.
-func (s *PeriodService) carryForwardDate(ctx context.Context, fy *domain.FiscalYear) (string, bool, error) {
+func (s *PeriodReader) carryForwardDate(ctx context.Context, fy *domain.FiscalYear) (string, bool, error) {
 	date := fy.StartDate
 	if s.festschreibungRepo == nil {
 		return date, false, nil
@@ -196,4 +196,43 @@ func (s *PeriodService) alignFoundingYear(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+// PeriodOf liefert den Zeitraum für Abschlussbausteine.
+func (s *PeriodReader) PeriodOf(ctx context.Context, year int) (*domain.FiscalYear, error) {
+	return s.FiscalYear(ctx, year)
+}
+
+// FiscalYears liefert die erfassten Geschäftsjahre.
+func (s *PeriodReader) FiscalYears(ctx context.Context) ([]domain.FiscalYear, error) {
+	return s.fiscalYearRepo.FindAll(ctx)
+}
+
+// HasYearCommitment liest Jahresfestschreibung und jüngsten Stichtag.
+func (s *PeriodReader) HasYearCommitment(ctx context.Context, year int) (bool, string, error) {
+	return s.yearCommitment(ctx, year)
+}
+
+// EarliestFiscalYear liefert das erste Jahr aus Jahresverwaltung und Journal.
+func (s *PeriodReader) EarliestFiscalYear(ctx context.Context) (int, error) {
+	years, err := s.fiscalYearRepo.FindAll(ctx)
+	if err != nil {
+		return 0, err
+	}
+	earliest := 0
+	for _, fy := range years {
+		if earliest == 0 || fy.Year < earliest {
+			earliest = fy.Year
+		}
+	}
+	journalYears, err := s.journalRepo.GetAvailableFiscalYears(ctx)
+	if err != nil {
+		return earliest, nil
+	}
+	for _, y := range journalYears {
+		if y > 0 && (earliest == 0 || y < earliest) {
+			earliest = y
+		}
+	}
+	return earliest, nil
 }

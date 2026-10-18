@@ -25,7 +25,7 @@ import (
 // numbering, an unbroken hash chain and respect for committed periods.
 type JournalService struct {
 	auditor[uint]
-	periods      *PeriodService
+	periods      *PeriodReader
 	settingsRepo domain.SettingsRepository
 	journalRepo  domain.JournalRepository
 	accountRepo  domain.AccountRepository
@@ -69,7 +69,7 @@ func NewJournalService(
 		contactRepo:  contactRepo,
 		auditor:      auditor[uint]{auditRepo: auditRepo, entity: "JOURNAL"},
 		settingsRepo: settingsRepo,
-		periods:      newPeriodService(journalRepo, settingsRepo, auditRepo, tx),
+		periods:      newPeriodReader(journalRepo, settingsRepo),
 		tx:           tx,
 		hashChain:    accounting.NewHashChain(),
 		taxResolver:  accounting.NewSKR04TaxResolver(),
@@ -97,7 +97,7 @@ func (s *JournalService) SetPeriods(periods *PeriodService) {
 	if periods == nil {
 		panic("Periodenverwaltung fehlt")
 	}
-	s.periods = periods
+	s.periods = periods.ReadOnly()
 }
 
 // SetReceiptRepo hängt die Belegablage an. Mit ihr prüft Post die Kopfdaten des
