@@ -62,7 +62,7 @@ Die Seiten zeigen sieben Bilder, alle 2880 × 1800 Pixel:
 
 | Datei | Seite | Inhalt |
 |---|---|---|
-| `uebersicht.png` | Start | Übersicht mit Aufgaben und Fristen |
+| `uebersicht.png` | Start | Übersicht mit Aufgaben, Eingang und Fristen |
 | `zustimmung.png` | Start | Zustimmungsdialog für eine KI-App |
 | `einstellungen-apps.png` | So funktioniert’s | verbundene Apps mit ihren Rechten |
 | `buecher.png` | So funktioniert’s | Bücher mit Belegen, Bank und Buchungen |

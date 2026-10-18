@@ -258,9 +258,9 @@
           <ul class="plain-list">
             <li>
               <strong>Unternehmen.</strong> Firma und Rechtsform (GmbH oder UG), ob Sie gründen
-              oder mit bestehenden Büchern umsteigen, der erste Tag der Bücher und ein leerer
-              Ordner für die Daten. Anschrift, Register und Steuernummer tragen Sie ein, soweit Sie
-              sie haben.
+              oder mit bestehenden Büchern umsteigen, der erste Tag der Bücher, ein leerer
+              Ordner als Ablage für die Daten und der Eingang für neue Belege. Anschrift, Register
+              und Steuernummer tragen Sie ein, soweit Sie sie haben.
             </li>
             <li>
               <strong>KI-Agent verbinden.</strong> Sie wählen Ihren Client und richten ihn nach
@@ -355,9 +355,17 @@
         </div>
         <div class="modal__body">
           <p>
-            Je Unternehmen ein Ordner: die Datenbank <code>buchfink.sqlite</code> mit Buchungen,
-            Stammdaten und Änderungsprotokoll, die Originalbelege unter <code>belege/</code> und
-            die Fassungen der Verfahrensdokumentation unter <code>dokumente/</code>.
+            Je Unternehmen ein Ordner, die Ablage: die Datenbank <code>buchfink.sqlite</code> mit
+            Buchungen, Stammdaten und Änderungsprotokoll, die Originalbelege unter
+            <code>belege/</code> und die Fassungen der Verfahrensdokumentation unter
+            <code>dokumente/</code>. Dazu kommen der Eingang für neue Belege und der Exportordner
+            für Dateien, die Ihr Agent erzeugt; beide liegen zunächst in der Ablage und lassen sich
+            woanders hinlegen.
+          </p>
+          <p>
+            Legen Sie die Ablage nicht in einen Cloud-Ordner wie iCloud Drive, OneDrive oder
+            Dropbox. Die Datenbank verträgt keine Synchronisation, während Buchfink läuft. Den
+            Eingang dürfen Sie dorthin legen, etwa für eine Scanner-App auf dem Telefon.
           </p>
           <p>
             Nichts davon ist verschlüsselt. Schalten Sie die Festplattenverschlüsselung Ihres
