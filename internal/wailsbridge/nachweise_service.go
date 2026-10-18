@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/changelog"
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -213,14 +212,11 @@ func (b *BuchfinkBridge) GetComplianceHints() (*ComplianceHints, error) {
 		CloudWarning: syncdir.Warning(syncdir.Detect(dataDir)),
 		TaxCaseHints: domain.TaxCaseHints(),
 	}
-	date, err := read(b, func(ctx context.Context, s *core.Services) (string, error) {
-		return s.Repos.Settings.Get(ctx, domain.SettingSystemChangeDate)
+	systemChange, err := read(b, func(ctx context.Context, s *core.Services) (service.SystemChangeHint, error) {
+		return s.Settings.SystemChangeHint(ctx)
 	})
 	if err == nil {
-		hints.SystemChangeDate = date
-	}
-	if hints.SystemChangeDate != "" {
-		hints.SystemChangeNote = accounting.SystemChangeNote(hints.SystemChangeDate, "")
+		hints.SystemChangeDate, hints.SystemChangeNote = systemChange.Date, systemChange.Note
 	}
 	return hints, nil
 }
@@ -262,17 +258,6 @@ func (b *BuchfinkBridge) GetOpenItemsAging(cutoff string) (*domain.OpenItemsAgin
 		empty.EnsureLists()
 		return empty, nil
 	}, func(ctx context.Context, s *core.Services) (*domain.OpenItemsAging, error) {
-		if cutoff == "" {
-			cutoff = time.Now().UTC().Format("2006-01-02")
-		}
-		items, err := s.Payments.OpenItemsAt(ctx, cutoff)
-		if err != nil {
-			return nil, err
-		}
-		aging := accounting.AgeOpenItems(items, cutoff)
-		// Die Zusicherung steht hier und nicht nur bei der leeren Antwort: eine
-		// Liste, die an einer Stelle `null` sein darf, ist keine Zusicherung.
-		aging.EnsureLists()
-		return &aging, nil
+		return s.Payments.OpenItemsAging(ctx, cutoff)
 	})
 }

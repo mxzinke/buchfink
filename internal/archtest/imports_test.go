@@ -131,10 +131,10 @@ var knownLogicExceptions = map[string]int{
 	"mcpserver/belege.go:inputTaxPeriodHint:VatPeriodOf":                   0,
 	"mcpserver/erklaerung.go:periodMismatch:ParseVatPeriodKey":             0,
 	"mcpserver/posten.go:registerPosten:AgeOpenItems":                      0,
-	"wailsbridge/asset_service.go:GetAssetRules:AfAParametersFor":          1,
-	"wailsbridge/asset_service.go:GetInvestmentRules:PartialExemptionFor":  1,
-	"wailsbridge/nachweise_service.go:GetComplianceHints:SystemChangeNote": 1,
-	"wailsbridge/nachweise_service.go:GetOpenItemsAging:AgeOpenItems":      1,
+	"wailsbridge/asset_service.go:GetAssetRules:AfAParametersFor":          0,
+	"wailsbridge/asset_service.go:GetInvestmentRules:PartialExemptionFor":  0,
+	"wailsbridge/nachweise_service.go:GetComplianceHints:SystemChangeNote": 0,
+	"wailsbridge/nachweise_service.go:GetOpenItemsAging:AgeOpenItems":      0,
 }
 
 func symbolSet(names ...string) map[string]bool {

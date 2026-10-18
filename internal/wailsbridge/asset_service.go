@@ -2,7 +2,6 @@ package wailsbridge
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/core"
@@ -39,9 +38,7 @@ func (b *BuchfinkBridge) GetFixedAsset(id uint) (*service.AssetDetail, error) {
 func (b *BuchfinkBridge) GetAssetRules() (*AssetRules, error) {
 	year := b.viewYear()
 
-	// Die Wertgrenzen gelten je Tag; für die Anzeige nehmen wir den ersten Tag
-	// des Geschäftsjahres, weil sich Anschaffungen dieses Jahres daran messen.
-	params, err := accounting.AfAParametersFor(fmt.Sprintf("%d-01-01", year))
+	params, err := service.AssetParametersForYear(year)
 	if err != nil {
 		return nil, err
 	}
@@ -196,36 +193,18 @@ func (b *BuchfinkBridge) GetInvestmentRules() (*InvestmentRules, error) {
 		rules.InvestorTypes = append(rules.InvestorTypes,
 			investorTypeInfo{Type: investor, Label: investor.Label()})
 	}
-	cfg, err := read(b, func(ctx context.Context, s *core.Services) (*domain.CompanySettings, error) {
-		return s.Settings.GetCompanySettings(ctx)
+	computed, err := read(b, func(ctx context.Context, s *core.Services) (*service.InvestmentTaxRules, error) {
+		return s.Assets.InvestmentTaxRules(ctx)
 	})
-	if err != nil || cfg == nil {
+	if err != nil || computed == nil {
 		return rules, nil
 	}
-	investor, reason := cfg.InvestorTypeOrDerived()
-	rules.InvestorType = investor
-	rules.InvestorLabel = investor.Label()
-	rules.InvestorReason = reason
-	rules.LegalForm = cfg.LegalForm
-
-	// Der Satz je Fondsart, wie er sich aus der eingestellten Anlegerstellung
-	// ergibt — und, wo er sich nicht ergibt, der Grund dafür. Beides gehört an
-	// dieselbe Stelle: eine Maske, die nur den Satz zeigt, verschweigt die
-	// Fälle, in denen es keinen gibt.
-	for _, class := range accounting.AllFundClasses() {
-		if !class.IsFund() {
-			continue
-		}
-		exemption, err := accounting.PartialExemptionFor(class, investor)
-		info := exemptionInfo{Class: class, Label: class.Label()}
-		if err != nil {
-			info.Problem = err.Error()
-		} else {
-			info.Permille = exemption.Permille
-			info.Source = exemption.Source
-			info.Explanation = exemption.Explanation
-		}
-		rules.Exemptions = append(rules.Exemptions, info)
+	rules.InvestorType = computed.InvestorType
+	rules.InvestorLabel = computed.InvestorType.Label()
+	rules.InvestorReason = computed.Reason
+	rules.LegalForm = computed.LegalForm
+	for _, e := range computed.Exemptions {
+		rules.Exemptions = append(rules.Exemptions, exemptionInfo{Class: e.Class, Label: e.Class.Label(), Permille: e.Permille, Source: e.Source, Explanation: e.Explanation, Problem: e.Problem})
 	}
 	return rules, nil
 }
