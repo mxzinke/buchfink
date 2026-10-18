@@ -169,7 +169,7 @@ func TestEveryBridgeMethodIsClassified(t *testing.T) {
 func TestAppOnlyOperationsAreMarked(t *testing.T) {
 	methods := bridgeMethods(t)
 	for name, appOnly := range map[string]bool{
-		"ConfirmVatReturnSubmitted": true, "ConfirmZMSubmitted": true, "MarkDeadlineDone": true,
+		"ConfirmVatReturnSubmitted": true, "ConfirmZMSubmitted": true, "ConfirmObligation": true,
 		"SetFiscalYearStatus": true, "ReopenFiscalYear": true, "UpdateCompanySettings": true,
 		"SaveFoundation": true, "RegisterCompany": true, "SaveClosingSettings": true,
 		"ConfigureBankAccounts": true, "SetInvoiceBankAccount": true,

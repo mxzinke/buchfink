@@ -51,14 +51,3 @@ func (b *BuchfinkBridge) GetDeadlines(year int) ([]domain.Deadline, error) {
 		return s.Obligations.Deadlines(ctx, year)
 	})
 }
-
-// MarkDeadlineDone bestätigt eine Pflicht, die sich nicht aus den Daten ergibt,
-// mit dem Tag als Nachweis.
-func (b *BuchfinkBridge) MarkDeadlineDone(key, date string) error {
-	return b.change(func(ctx context.Context, s *core.Services) error {
-		_, err := s.Obligations.Confirm(ctx, key, service.ConfirmInput{
-			Date: date, Kind: domain.EvidenceConfirmation, Note: "in der App als erledigt bestätigt",
-		})
-		return err
-	}, core.AppOnly())
-}

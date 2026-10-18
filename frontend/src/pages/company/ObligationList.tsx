@@ -40,7 +40,11 @@ export const ObligationList: React.FC<{ deadlines: Deadline[]; onConfirmed: () =
     setBusy(true);
     setError('');
     try {
-      await Api.markDeadlineDone(confirming.key, date);
+      await Api.confirmObligation(confirming.key, {
+        date,
+        kind: 'confirmation',
+        note: 'in der App als erledigt bestätigt',
+      });
       toast.success(`${confirming.title}: als erledigt bestätigt.`);
       setConfirming(null);
       onConfirmed();

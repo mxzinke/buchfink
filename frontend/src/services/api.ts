@@ -872,9 +872,6 @@ export const Api = {
    */
   getDeadlines: (year: number): Promise<Deadline[]> =>
     call(() => Bridge.GetDeadlines(year) as Promise<Deadline[]>).then(list),
-  /** Der Haken für das, was Buchfink nicht sieht. Leeres Datum nimmt ihn zurück. */
-  markDeadlineDone: (key: string, date: string): Promise<void> =>
-    call(() => Bridge.MarkDeadlineDone(key, date)),
 
   // --- Pflichtenkalender und Jahreserklärungen ---------------------------
 

@@ -197,7 +197,6 @@ export const bridge = {
     invoke<T>('RunChecks', cutoffDate, periodType),
   GetCheckRuns: <T>(year: number) => invoke<T>('GetCheckRuns', year),
   GetDeadlines: <T>(year: number) => invoke<T>('GetDeadlines', year),
-  MarkDeadlineDone: (key: string, date: string) => invoke<void>('MarkDeadlineDone', key, date),
 
   // Pflichtenkalender und Jahreserklärungen (internal/wailsbridge/closings_service.go);
   // Bestätigen und Entfallen stehen bei der Übersicht.

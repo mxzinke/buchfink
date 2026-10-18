@@ -3096,7 +3096,6 @@ export const bridge = {
   DeleteDeclarationInput: unsupported('DeleteDeclarationInput'),
   SubmitDeclaration: unsupported('SubmitDeclaration'),
   ExportDeclarationJSON: unsupported('ExportDeclarationJSON'),
-  MarkDeadlineDone: unsupported('MarkDeadlineDone'),
   SaveFoundation: unsupported('SaveFoundation'),
   GetFoundationRules: () => later(FOUNDATION_RULES),
   ExportZ3: unsupported('ExportZ3'),
