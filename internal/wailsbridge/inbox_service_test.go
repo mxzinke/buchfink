@@ -101,7 +101,8 @@ func TestInboxInTheApp(t *testing.T) {
 	if _, err := b.AddToInbox([]string{pdf}); err != nil {
 		t.Fatal(err)
 	}
-	if list, _ = b.ListInbox(); len(list) != 1 || list[0].ReceiptID == nil || *list[0].ReceiptID != receipt.ID {
+	if list, _ = b.ListInbox(); len(list) != 1 || list[0].ReceiptID == nil || *list[0].ReceiptID != receipt.ID ||
+		list[0].ReceiptYear != receipt.FiscalYear || receipt.FiscalYear == 0 {
 		t.Errorf("bereits abgelegt: %+v", list)
 	}
 

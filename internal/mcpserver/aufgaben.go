@@ -115,7 +115,7 @@ func registerAufgaben(tb *Toolbox) {
 		case st.Dateien > 0:
 			why := "Im Eingang liegen Dateien, die noch nicht abgelegt sind."
 			if st.AeltesteVorTagen > 0 {
-				why += fmt.Sprintf(" Die älteste liegt seit %d Tagen dort.", st.AeltesteVorTagen)
+				why += fmt.Sprintf(" Die älteste Datei ist %d Tage alt.", st.AeltesteVorTagen)
 			}
 			out.Offen = append([]aufgabe{{Schluessel: "eingang", Titel: st.Hinweis, Warum: why + " Abgelegt wird, wenn der Mensch es sagt.",
 				Anzahl: st.Dateien, Werkzeug: "eingang"}}, out.Offen...)

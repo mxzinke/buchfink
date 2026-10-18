@@ -1,11 +1,13 @@
 import type { InboxAdded, InboxInfo, InboxKind } from '../types';
 
 /**
- * Der Eingang in Worten: wie viel dort liegt, seit wann, und was aus einer
- * ins Fenster gezogenen Datei geworden ist.
+ * Der Eingang in Worten: wie viel dort liegt, wie alt die älteste Datei ist,
+ * und was aus einer ins Fenster gezogenen Datei geworden ist. Das Alter ist
+ * das der Datei (Änderungsdatum), nicht die Zeit im Eingang: wer eine alte
+ * Rechnung aus den Downloads hineinzieht, bringt ihr Datum mit.
  */
 
-/** Ab so vielen Tagen erinnert die Übersicht daran, Claude ablegen zu lassen. */
+/** Ist die älteste Datei so viele Tage alt, erinnert die Übersicht daran, Claude ablegen zu lassen. */
 export const STALE_DAYS = 14;
 
 /** Der Name des Eingangs im Datenordner, wie `domain.DefaultInboxDir`. */
@@ -25,21 +27,21 @@ function files(count: number): string {
   return count === 1 ? '1 Datei' : `${count} Dateien`;
 }
 
-/** „seit heute“, „seit gestern“, „seit 19 Tagen“. */
-export function sinceDays(days: number): string {
-  if (days <= 0) return 'seit heute';
-  if (days === 1) return 'seit gestern';
-  return `seit ${days} Tagen`;
+/** „von heute“, „von gestern“, „19 Tage alt“. */
+export function ageText(days: number): string {
+  if (days <= 0) return 'von heute';
+  if (days === 1) return 'von gestern';
+  return `${days} Tage alt`;
 }
 
-/** Die Kontextzeile des Eingangs: „3 Dateien · die älteste seit 19 Tagen“. */
+/** Die Kontextzeile des Eingangs: „3 Dateien · die älteste 19 Tage alt“. */
 export function inboxContext(info: InboxInfo): string {
   if (info.count === 0) return 'Leer';
-  if (info.count === 1) return `1 Datei · ${sinceDays(info.oldestDays)}`;
-  return `${files(info.count)} · die älteste ${sinceDays(info.oldestDays)}`;
+  if (info.count === 1) return `1 Datei · ${ageText(info.oldestDays)}`;
+  return `${files(info.count)} · die älteste ${ageText(info.oldestDays)}`;
 }
 
-/** Liegt die älteste Datei so lange, dass die Übersicht daran erinnert? */
+/** Ist die älteste Datei so alt, dass die Übersicht daran erinnert? */
 export function inboxStale(info: InboxInfo): boolean {
   return info.count > 0 && info.oldestDays >= STALE_DAYS;
 }

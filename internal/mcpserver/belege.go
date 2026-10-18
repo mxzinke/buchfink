@@ -680,7 +680,8 @@ func receiptHints(ctx context.Context, s *core.Services, r *domain.Receipt) []st
 	}
 	if !r.IsDisplayable() {
 		out = append(out, "Der Beleg hat keine ansehbare Darstellung und lässt sich so nicht buchen. Eine reine "+
-			"XRechnung braucht ein PDF: dieselbe XML noch einmal mit beleg_ablegen und dem PDF als rolle=darstellung senden.")
+			"XRechnung braucht ein PDF: dieselbe XML noch einmal mit beleg_ablegen und dem PDF als rolle=darstellung senden, "+
+			"die XML mit dem Pfad aus verschoben, wenn Buchfink sie nach Übernommen/ gebracht hat.")
 	}
 	if hint := inputTaxPeriodHint(ctx, s, r); hint != "" {
 		out = append(out, hint)

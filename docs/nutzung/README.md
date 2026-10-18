@@ -157,11 +157,12 @@ Eingang in den Unterordner `Übernommen/<JJJJ-MM>`, nach dem Monat der Ablage.
 Das Original liegt dann im Belegarchiv. Dasselbe geschieht, wenn Sie in der App
 einen Beleg oder Kontoauszug aus dem Eingang ablegen.
 
-Die Übersicht zeigt, wie viele Dateien im Eingang liegen und seit wann. Liegt
-eine Datei 14 Tage oder länger dort, erinnert sie daran. Legen Sie nur echte
-Belege in den Eingang: eine abgelegte Datei bleibt im Belegarchiv und in jeder
-Sicherung, auch wenn der Beleg später verworfen wird. Was noch im Eingang
-liegt, ist in keiner Sicherung.
+Die Übersicht zeigt, wie viele Dateien im Eingang liegen und wie alt die
+älteste ist, gemessen am Änderungsdatum der Datei. Ist sie 14 Tage oder älter,
+erinnert die Übersicht daran; eine alte Rechnung aus den Downloads tut das also
+sofort. Legen Sie nur echte Belege in den Eingang: eine abgelegte Datei bleibt
+im Belegarchiv und in jeder Sicherung, auch wenn der Beleg später verworfen
+wird. Was noch im Eingang liegt, ist in keiner Sicherung.
 
 ## E-Bilanz übermitteln
 

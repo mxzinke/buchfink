@@ -240,6 +240,9 @@ func ReadFile(path string, f Folders, allowed ...Kind) (*File, error) {
 	name := filepath.Base(clean)
 	resolved, err := filepath.EvalSymlinks(clean)
 	if err != nil {
+		if moved := inbox.Settled(f.Inbox, clean); moved != "" {
+			return nil, invalidFile("die Datei %s liegt nach der Ablage unter %s; diesen Pfad übergeben", name, moved)
+		}
 		return nil, invalidFile("die Datei %s gibt es nicht oder sie ist nicht lesbar", name)
 	}
 	if remotePath(resolved) || !f.allows(resolved) {

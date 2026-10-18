@@ -74,7 +74,8 @@ func toolError(err error) *ToolError {
 			Werkzeug:         "eingang"}
 	case errors.As(err, &fe):
 		return &ToolError{Code: CodeFileInvalid, Nachricht: err.Error(),
-			NaechsterSchritt: "Die Originaldatei (PDF, Bild oder XML bis 50 MB) anfordern."}
+			NaechsterSchritt: "Nennt die Nachricht einen Pfad unter Übernommen/, diesen übergeben; sonst die Originaldatei " +
+				"(PDF, Bild oder XML bis 50 MB) anfordern."}
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		return &ToolError{Code: CodeNotFound, Nachricht: "Eine der angegebenen Kennungen gibt es nicht: " + err.Error(),
 			NaechsterSchritt: "Die Kennungen mit dem passenden Such-Werkzeug neu ermitteln."}

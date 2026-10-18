@@ -18,9 +18,9 @@ const info = (count, oldestDays) => ({ path: '/x/Eingang', default: true, count,
 
 test('the inbox context names count and age of the oldest file', () => {
   assert.equal(inbox.inboxContext(info(0, 0)), 'Leer');
-  assert.equal(inbox.inboxContext(info(1, 0)), '1 Datei · seit heute');
-  assert.equal(inbox.inboxContext(info(1, 1)), '1 Datei · seit gestern');
-  assert.equal(inbox.inboxContext(info(3, 19)), '3 Dateien · die älteste seit 19 Tagen');
+  assert.equal(inbox.inboxContext(info(1, 0)), '1 Datei · von heute');
+  assert.equal(inbox.inboxContext(info(1, 1)), '1 Datei · von gestern');
+  assert.equal(inbox.inboxContext(info(3, 19)), '3 Dateien · die älteste 19 Tage alt');
 });
 
 test('the overview reminds from fourteen days on', () => {

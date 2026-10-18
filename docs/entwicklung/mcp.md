@@ -274,7 +274,8 @@ Datei liegen, und ein Hinweis nennt den Grund. Eine vorhandene Datei
 überschreibt Buchfink nie, auch nicht bei gleichzeitigen Ablagen. Die Antwort
 nennt den neuen Pfad unter `verschoben`; ein zweites
 Ablegen derselben Datei, etwa mit der Darstellung einer reinen XRechnung,
-nimmt ihn. Scheitert das Verschieben, steht ein Hinweis in der Antwort, und
+nimmt ihn; wer den alten Pfad nennt, bekommt den neuen in der Meldung von
+`datei_ungueltig`. Scheitert das Verschieben, steht ein Hinweis in der Antwort, und
 die Ablage gilt. Dateien in Leseordnern bleiben liegen. Die App verschiebt
 genauso, wenn ein Beleg aus Datei oder ein Kontoauszug aus dem Eingang kommt.
 

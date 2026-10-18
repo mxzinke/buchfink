@@ -27,9 +27,10 @@ function message(error: unknown): string {
 }
 
 /**
- * Der Eingang in der Übersicht: wie viel dort liegt und seit wann. Abgelegt
- * wird nichts von selbst; Claude legt ab, wenn der Mensch es sagt. Liegt die
- * älteste Datei zwei Wochen, erinnert die Übersicht daran. Dateien kommen über
+ * Der Eingang in der Übersicht: wie viel dort liegt und wie alt die älteste
+ * Datei ist. Abgelegt wird nichts von selbst; Claude legt ab, wenn der Mensch
+ * es sagt. Ist die älteste Datei zwei Wochen alt, erinnert die Übersicht
+ * daran. Dateien kommen über
  * den Dateimanager, das ganze Fenster (Drag & Drop) oder „Dateien hinzufügen“
  * hinein.
  */
@@ -218,7 +219,12 @@ export const InboxSection: React.FC<{ tenantId: string | undefined; onNavigate: 
                                 size="sm"
                                 title="Derselbe Inhalt liegt schon als Beleg vor."
                                 onClick={() =>
-                                  onNavigate({ area: 'books', tab: 'receipts', id: String(file.receiptId) })
+                                  onNavigate({
+                                    area: 'books',
+                                    tab: 'receipts',
+                                    id: String(file.receiptId),
+                                    year: file.receiptYear,
+                                  })
                                 }
                               >
                                 Schon abgelegt

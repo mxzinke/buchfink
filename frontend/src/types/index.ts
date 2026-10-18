@@ -3993,6 +3993,8 @@ export interface InboxFile {
   kind: InboxKind;
   /** Derselbe Inhalt liegt schon als dieser Beleg im Archiv. */
   receiptId?: number;
+  /** Das Geschäftsjahr dieses Belegs; die Belegliste zeigt nur eines. */
+  receiptYear?: number;
 }
 
 /** Eine Datei, die nicht in den Eingang kam, mit Grund. */

@@ -46,8 +46,10 @@ type InboxFile struct {
 	ModifiedAt string `json:"modifiedAt"`
 	// Kind ist beleg, e_rechnung, kontoauszug oder nicht_unterstuetzt.
 	Kind string `json:"kind"`
-	// ReceiptID nennt den Beleg, wenn derselbe Inhalt schon im Archiv liegt.
-	ReceiptID *uint `json:"receiptId,omitempty"`
+	// ReceiptID nennt den Beleg, wenn derselbe Inhalt schon im Archiv liegt,
+	// ReceiptYear sein Geschäftsjahr: die Belegliste zeigt nur eines.
+	ReceiptID   *uint `json:"receiptId,omitempty"`
+	ReceiptYear int   `json:"receiptYear,omitempty"`
 }
 
 // InboxAdded sind die Dateien, die in den Eingang kamen, und die übergangenen.
@@ -120,6 +122,9 @@ func (b *BuchfinkBridge) ListInbox() ([]InboxFile, error) {
 				ModifiedAt: file.ModTime.Format(time.RFC3339), Kind: string(file.Kind)}
 			if id, ok := archived[file.SHA256]; ok && file.SHA256 != "" {
 				row.ReceiptID = &id
+				if r, err := s.Receipts.Get(ctx, id); err == nil {
+					row.ReceiptYear = r.FiscalYear
+				}
 			}
 			out = append(out, row)
 		}

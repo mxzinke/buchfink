@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -150,6 +151,26 @@ func numbered(name string, i int) string {
 	}
 	ext := filepath.Ext(name)
 	return fmt.Sprintf("%s (%d)%s", strings.TrimSuffix(name, ext), i, ext)
+}
+
+// Settled sucht eine Datei des Eingangs, die es unter ihrem Pfad nicht mehr
+// gibt, in Übernommen/: den Pfad im jüngsten Monat mit demselben Namen, oder
+// "". Wer nach der Ablage den alten Pfad nennt, erfährt so den neuen.
+func Settled(dir, path string) string {
+	if strings.TrimSpace(dir) == "" || !filepath.IsAbs(path) {
+		return ""
+	}
+	clean, root := filepath.Clean(path), filepath.Clean(dir)
+	rel, err := filepath.Rel(root, clean)
+	if err != nil || !within(root, clean) || rel == DoneDir || strings.HasPrefix(rel, DoneDir+string(filepath.Separator)) {
+		return ""
+	}
+	matches, _ := filepath.Glob(filepath.Join(root, DoneDir, "*", filepath.Base(clean)))
+	sort.Strings(matches)
+	if len(matches) == 0 {
+		return ""
+	}
+	return matches[len(matches)-1]
 }
 
 // Hash ist die Prüfsumme einer Datei bis MaxFileBytes.

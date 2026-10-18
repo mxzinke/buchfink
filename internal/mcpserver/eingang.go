@@ -27,7 +27,7 @@ type eingangDatei struct {
 
 type eingangOut struct {
 	Eingang          string         `json:"eingang" jsonschema:"Pfad des Eingangs"`
-	AeltesteVorTagen int            `json:"aelteste_vor_tagen" jsonschema:"Alter der ältesten Datei in Tagen"`
+	AeltesteVorTagen int            `json:"aelteste_vor_tagen" jsonschema:"Alter der ältesten Datei in Tagen, nach ihrem Änderungsdatum"`
 	Dateien          []eingangDatei `json:"dateien"`
 	Seitenende
 	NaechsterSchritt string `json:"naechster_schritt"`

@@ -468,3 +468,23 @@ func TestReadFoldersStayOutOfTheInbox(t *testing.T) {
 		t.Error("der Datenordner mit Schrägstrich angenommen")
 	}
 }
+
+// Nach der Ablage liegt die Datei unter Übernommen/; wer den alten Pfad nennt,
+// erfährt den neuen.
+func TestReadFileNamesTheSettledPath(t *testing.T) {
+	data := t.TempDir()
+	f := FoldersFrom(nil, "", data, Protected{})
+	old := filepath.Join(f.Inbox, "r.xml")
+	moved := writeFile(t, filepath.Join(f.Inbox, inbox.DoneDir, "2026-10", "r.xml"), "<x/>")
+	_, err := ReadFile(old, f)
+	var fe *FileError
+	if !errors.As(err, &fe) || fe.NotAllowed || !strings.Contains(err.Error(), moved) {
+		t.Fatalf("alter Pfad: %v", err)
+	}
+	if _, err := ReadFile(moved, f); err != nil {
+		t.Errorf("neuer Pfad: %v", err)
+	}
+	if _, err := ReadFile(filepath.Join(f.Inbox, "fehlt.xml"), f); err == nil || strings.Contains(err.Error(), inbox.DoneDir) {
+		t.Errorf("fehlende Datei: %v", err)
+	}
+}
