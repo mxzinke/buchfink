@@ -161,7 +161,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	)
 	s.Appropriation.SetReceiptService(s.Receipts)
 	s.Closing.SetReservePosting(s.Receipts)
-	s.Closing.SetNotesCopier(s.Appropriation)
+	s.Closing.SetNotesCopier(s.Appropriation.NotesSource())
 
 	s.InputTax = service.NewInputTaxService(
 		inputTaxRepo, s.Journal, journalRepo, settingsRepo, s.Periods.ReadOnly(), auditRepo)
@@ -203,7 +203,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Statement.SetNotesSources(service.NotesSources{
 		Provisions:     s.Provisions,
 		Reconciliation: s.TaxRegister,
-		Texts:          s.Appropriation,
+		Texts:          s.Appropriation.NotesSource(),
 	})
 
 	s.EBilanz = service.NewEBilanzService(s.Statement, settingsRepo, auditRepo)
