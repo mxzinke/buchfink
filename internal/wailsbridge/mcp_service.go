@@ -100,12 +100,13 @@ func (b *BuchfinkBridge) mcpServer() (*mcpserver.Server, error) {
 	return b.mcp, nil
 }
 
-// GetMCPServerStatus meldet, ob der Server läuft, auf welchem Port und mit
-// welchem Fehler.
+// GetMCPServerStatus meldet, ob der Server läuft, auf welchem Port, mit
+// welchem Fehler und ob BUCHFINK_MCP_PORT den eingestellten Port übersteuert.
 func (b *BuchfinkBridge) GetMCPServerStatus() mcpserver.Status {
 	srv, err := b.mcpServer()
 	if err != nil {
-		return mcpserver.Status{Port: mcpserver.ResolvePort(b.host.Config()), Error: err.Error()}
+		_, env := mcpserver.EnvironmentPort()
+		return mcpserver.Status{Port: mcpserver.ResolvePort(b.host.Config()), Error: err.Error(), FromEnvironment: env}
 	}
 	return srv.Status()
 }

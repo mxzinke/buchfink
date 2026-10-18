@@ -1,8 +1,8 @@
 package domain
 
 // AgentSettings sind die Grenzen, in denen ein verbundener Agent ohne
-// Rückfrage bucht, und die Ordner, aus denen er Belege liest und in die er
-// exportiert. Nur der Mensch ändert sie in der App.
+// Rückfrage bucht, und die Ordner, aus denen er neben dem Eingang liest und in
+// die er exportiert. Nur der Mensch ändert sie in der App.
 type AgentSettings struct {
 	// DirectMaxGross ist die Direktgrenze: der höchste Bruttobetrag einer
 	// E-Rechnung, die ein Agent ohne Rückfrage bucht. Null heißt Voreinstellung.
@@ -11,9 +11,9 @@ type AgentSettings struct {
 	// seiner Standard-Buchungsgruppe, ab der ein Agent direkt bucht. Null heißt
 	// Voreinstellung.
 	DirectMinBookings int `json:"directMinBookings"`
-	// ReceiptFolders sind die Belegordner. Nil heißt Voreinstellung (Eingang
-	// im Datenordner), eine leere Liste: kein Ordner.
-	ReceiptFolders []string `json:"receiptFolders"`
+	// ExtraReadFolders sind weitere Leseordner neben dem Eingang; leer heißt
+	// keiner.
+	ExtraReadFolders []string `json:"extraReadFolders"`
 	// ExportFolder ist der Exportordner; leer heißt Voreinstellung (Export im
 	// Datenordner).
 	ExportFolder string `json:"exportFolder"`
@@ -25,10 +25,16 @@ const (
 	DefaultDirectMinBookings       = 3
 )
 
-// Schlüssel der Einstellungen für Agenten.
+// DefaultInboxDir ist der voreingestellte Eingang im Datenordner.
+const DefaultInboxDir = "Eingang"
+
+// Schlüssel der Einstellungen für Agenten und den Eingang.
 const (
 	SettingAgentDirectMaxGross    = "agent.direct_max_gross"
 	SettingAgentDirectMinBookings = "agent.direct_min_bookings"
-	SettingAgentReceiptFolders    = "agent.receipt_folders"
+	SettingAgentExtraReadFolders  = "agent.extra_read_folders"
 	SettingAgentExportFolder      = "agent.export_folder"
+	// SettingInboxFolder ist der Eingang des Mandanten; leer heißt
+	// <Datenordner>/Eingang.
+	SettingInboxFolder = "inbox.folder"
 )

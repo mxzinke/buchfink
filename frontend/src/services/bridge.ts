@@ -40,8 +40,8 @@ export const bridge = {
   // Einrichtung
   ValidateTenantDirectory: (dataDir: string) => invoke<void>('ValidateTenantDirectory', dataDir),
   GetAppConfig: <T>() => invoke<T>('GetAppConfig'),
-  SetupApplication: (dataDir: string, settings: unknown) =>
-    invoke<void>('SetupApplication', dataDir, settings),
+  SetupApplication: (dataDir: string, inboxDir: string, settings: unknown) =>
+    invoke<void>('SetupApplication', dataDir, inboxDir, settings),
   LoadExistingDatabase: (dbFilePath: string) => invoke<void>('LoadExistingDatabase', dbFilePath),
   SelectDirectoryDialog: (title: string) => invoke<string>('SelectDirectoryDialog', title),
   SelectDatabaseFileDialog: (title: string) => invoke<string>('SelectDatabaseFileDialog', title),
@@ -125,7 +125,7 @@ export const bridge = {
     invoke<T>('SetAverageEmployees', year, count),
 
   // E-Bilanz, Audit & Festschreibung
-  SaveEBilanzXBRLAs: (year: number) => invoke<string>('SaveEBilanzXBRLAs', year),
+  SaveEBilanzAs: (year: number, format: string) => invoke<string>('SaveEBilanzAs', year, format),
   GetEBilanzMappingReport: <T>(year: number) => invoke<T>('GetEBilanzMappingReport', year),
   GetFestschreibungen: <T>() => invoke<T>('GetFestschreibungen'),
   CommitPeriod: <T>(

@@ -75,7 +75,7 @@ func TestShareholderLoansAreRegisteredInTheApp(t *testing.T) {
 // Gründungsdatum; das erste Geschäftsjahr beginnt dort.
 func TestSetupOfAFoundingStartsTheBooksAtTheNotarization(t *testing.T) {
 	b := newBridge(t)
-	if err := b.SetupApplication(t.TempDir()+"/mandant", domain.CompanySettings{
+	if err := b.SetupApplication(t.TempDir()+"/mandant", "", domain.CompanySettings{
 		CompanyName: "Nordlicht Systeme GmbH", LegalForm: "GmbH", FiscalYear: 2026,
 		FiscalYearStartMonth: 1, FoundedOn: "2026-05-04", FederalState: "HH", VatPeriod: "unknown",
 	}); err != nil {

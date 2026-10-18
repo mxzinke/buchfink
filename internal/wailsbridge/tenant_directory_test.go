@@ -87,7 +87,7 @@ func TestCreateTenantRechecksPreviouslyValidDirectory(t *testing.T) {
 	if err := os.WriteFile(path, []byte("Nach der Vorprüfung erstellt"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := b.SetupApplication(dir, domain.CompanySettings{CompanyName: "Neue Firma", FiscalYear: 2026}); err == nil {
+	if err := b.SetupApplication(dir, "", domain.CompanySettings{CompanyName: "Neue Firma", FiscalYear: 2026}); err == nil {
 		t.Fatal("Abschluss akzeptiert einen inzwischen belegten Ordner")
 	}
 	if _, err := os.Stat(filepath.Join(dir, "buchfink.sqlite")); !os.IsNotExist(err) {

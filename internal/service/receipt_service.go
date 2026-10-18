@@ -560,6 +560,13 @@ func (s *ReceiptService) FindByOriginalHash(ctx context.Context, sha256 string) 
 	return s.receiptRepo.FindByOriginalHash(ctx, sha256)
 }
 
+// ReceiptIDsByFileHash nennt zu Prüfsummen den Beleg, der eine Datei mit
+// diesem Inhalt trägt, gleich in welcher Rolle. So erkennt der Eingang, was
+// schon im Archiv liegt.
+func (s *ReceiptService) ReceiptIDsByFileHash(ctx context.Context, sha256s []string) (map[string]uint, error) {
+	return s.receiptRepo.FindIDsByFileHash(ctx, sha256s)
+}
+
 // SaveReceivedAt berichtigt den Eingangstag eines noch nicht gebuchten
 // Eingangsbelegs. Er entscheidet über den Voranmeldungszeitraum der Vorsteuer
 // (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 2 UStG) und gehört deshalb mit beiden

@@ -101,8 +101,21 @@ func registerAufgaben(tb *Toolbox) {
 			}
 			return out
 		}
-		return aufgabenOut{Stichtag: list.Today, Geschaeftsjahr: year,
-			Ueberfaellig: conv(list.Overdue), Offen: conv(list.Open), Demnaechst: conv(list.Upcoming)}, nil
+		out := aufgabenOut{Stichtag: list.Today, Geschaeftsjahr: year,
+			Ueberfaellig: conv(list.Overdue), Offen: conv(list.Open), Demnaechst: conv(list.Upcoming)}
+		dirs, err := folders(ctx, c, s)
+		if err != nil {
+			return out, err
+		}
+		if st, err := inboxStateOf(dirs.Inbox, time.Now()); err == nil && st.Dateien > 0 {
+			why := "Im Eingang liegen Dateien, die noch nicht abgelegt sind."
+			if st.AeltesteVorTagen > 0 {
+				why += fmt.Sprintf(" Die älteste liegt seit %d Tagen dort.", st.AeltesteVorTagen)
+			}
+			out.Offen = append([]aufgabe{{Schluessel: "eingang", Titel: st.Hinweis, Warum: why + " Abgelegt wird, wenn der Mensch es sagt.",
+				Anzahl: st.Dateien, Werkzeug: "eingang"}}, out.Offen...)
+		}
+		return out, nil
 	})
 }
 

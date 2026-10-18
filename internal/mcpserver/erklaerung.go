@@ -263,10 +263,11 @@ type exportOut struct {
 
 type ebilanzExportIn struct {
 	TenantArgs
-	Jahr      int    `json:"jahr"`
-	Taxonomie string `json:"taxonomie,omitempty" jsonschema:"z. B. 6.9 oder 6.10; Vorgabe die Regelfassung des Wirtschaftsjahres"`
-	Kleinst   bool   `json:"kleinstkapitalgesellschaft,omitempty" jsonschema:"GuV nach § 275 Abs. 5 HGB"`
-	Umschlag  bool   `json:"umschlag,omitempty" jsonschema:"in den Nutzdatenteil der ELSTER-Übermittlung betten"`
+	Jahr      int           `json:"jahr"`
+	Format    EBilanzFormat `json:"format,omitempty"`
+	Taxonomie string        `json:"taxonomie,omitempty" jsonschema:"z. B. 6.9 oder 6.10; Vorgabe die Regelfassung des Wirtschaftsjahres"`
+	Kleinst   bool          `json:"kleinstkapitalgesellschaft,omitempty" jsonschema:"GuV nach § 275 Abs. 5 HGB"`
+	Umschlag  bool          `json:"umschlag,omitempty" jsonschema:"nur xbrl: in den Nutzdatenteil der ELSTER-Übermittlung betten"`
 }
 
 func registerErklaerung(tb *Toolbox) {
@@ -426,11 +427,20 @@ func registerErklaerung(tb *Toolbox) {
 		Title: "E-Bilanz exportieren",
 		Tier:  TierDirect, Idempotent: true, ExaminerExempt: true,
 		Description: "Prüft die E-Bilanz eines Geschäftsjahres (Zuordnung der Konten, Pflichtfelder der Taxonomie) " +
-			"und schreibt die XBRL-Instanz in den Exportordner; liefert Pfad und Befunde. Blockierende Befunde " +
-			"verhindern den Export. Übermitteln (z. B. mit myebilanz oder ERiC) kann nur der Mensch.",
+			"und schreibt sie in den Exportordner: als XBRL-Instanz (Vorgabe) oder mit format=susa_csv als Summen- und " +
+			"Saldenliste mit der Taxonomie-Position je Konto, etwa für eBilanz+, das daraus Bilanz und GuV füllt. " +
+			"Liefert Pfad und Befunde. Blockierende Befunde verhindern beides. Übermitteln (z. B. mit eBilanz+, " +
+			"myebilanz oder ERiC) kann nur der Mensch.",
 	}, func(ctx context.Context, c *Call, t *core.Tenant, in ebilanzExportIn) (exportOut, error) {
-		out := exportOut{Format: "xbrl", Befunde: []erklaerungBefund{}}
+		format := string(in.Format)
+		if format == "" {
+			format = "xbrl"
+		}
+		out := exportOut{Format: format, Befunde: []erklaerungBefund{}}
 		opts := service.EBilanzOptions{Version: in.Taxonomie, MicroBilG: in.Kleinst, Envelope: in.Umschlag}
+		if format == "susa_csv" && in.Umschlag {
+			return out, inputError("umschlag", "den ELSTER-Umschlag gibt es nur für xbrl")
+		}
 		var data []byte
 		var path string
 		if err := t.Read(ctx, func(ctx context.Context, s *core.Services) error {
@@ -445,15 +455,22 @@ func registerErklaerung(tb *Toolbox) {
 				return &ToolError{Code: CodeRule, Nachricht: err.Error(),
 					NaechsterSchritt: "Die blockierenden Zuordnungen klären (auswertung, konten); einige setzt nur der Mensch in der App."}
 			}
+			dirs, err := folders(ctx, c, s)
+			if err != nil {
+				return err
+			}
+			if format == "susa_csv" {
+				if data, err = s.EBilanz.ExportSuSaCSV(ctx, in.Jahr, opts); err != nil {
+					return err
+				}
+				path, err = dirs.ExportPath(fmt.Sprintf("ebilanz-%d-susa.csv", in.Jahr))
+				return err
+			}
 			xml, err := s.EBilanz.ExportXBRLWith(ctx, in.Jahr, opts)
 			if err != nil {
 				return err
 			}
 			data = []byte(xml)
-			dirs, err := folders(ctx, c, s)
-			if err != nil {
-				return err
-			}
 			sum := sha256.Sum256(data)
 			path, err = dirs.ExportPath(fmt.Sprintf("e-bilanz-%d-%s.xml", in.Jahr, hex.EncodeToString(sum[:])[:12]))
 			return err
@@ -466,6 +483,10 @@ func registerErklaerung(tb *Toolbox) {
 		sum := sha256.Sum256(data)
 		out.Pfad, out.SHA256 = path, hex.EncodeToString(sum[:])
 		out.NaechsterSchritt = "Die Datei übermittelt der Mensch (myebilanz, ERiC); danach in der App den Nachweis erfassen."
+		if format == "susa_csv" {
+			out.NaechsterSchritt = "Der Mensch liest die Liste in eBilanz+ als Summen- und Saldenliste ein (Taxonomie-Layout), " +
+				"ergänzt dort die Stammdaten und übermittelt; danach in der App den Nachweis erfassen."
+		}
 		return out, nil
 	})
 }

@@ -44,7 +44,7 @@ func main() {
 	}
 	app.RegisterService(application.NewService(bridge))
 
-	window.Store(app.Window.NewWithOptions(application.WebviewWindowOptions{
+	w := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:  "Buchfink — Buchhaltung",
 		Width:  1280,
 		Height: 820,
@@ -55,7 +55,12 @@ func main() {
 		},
 		BackgroundColour: application.NewRGB(250, 249, 246),
 		URL:              "/",
-	}))
+		// Dateien, die auf eine Ablagezone gezogen werden, kommen in den
+		// Eingang (wailsbridge.AttachFileDrop).
+		EnableFileDrop: true,
+	})
+	window.Store(w)
+	wailsbridge.AttachFileDrop(w, bridge)
 
 	if err := app.Run(); err != nil {
 		log.Fatal(err)

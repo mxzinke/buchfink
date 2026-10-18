@@ -139,12 +139,18 @@ func TestDeclarationFromInputToSubmission(t *testing.T) {
 }
 
 // Die E-Bilanz gibt es nur über den Speichern-Dialog; ohne Anwendung bleibt
-// der Pfad leer. Blockierende Befunde melden sich davor.
+// der Pfad leer. Blockierende Befunde melden sich davor, ein unbekanntes
+// Format auch.
 func TestEBilanzIsSavedThroughTheDialog(t *testing.T) {
 	b := testBridge(t)
-	path, err := b.SaveEBilanzXBRLAs(2026)
-	if err == nil && path != "" {
-		t.Errorf("ohne Dialog gespeichert unter %s", path)
+	for _, format := range []string{"", "xbrl", "susa_csv"} {
+		path, err := b.SaveEBilanzAs(2026, format)
+		if err == nil && path != "" {
+			t.Errorf("%s: ohne Dialog gespeichert unter %s", format, path)
+		}
+	}
+	if _, err := b.SaveEBilanzAs(2026, "pdf"); err == nil {
+		t.Error("ein unbekanntes Format wurde angenommen")
 	}
 }
 

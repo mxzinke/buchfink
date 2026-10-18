@@ -28,7 +28,12 @@ type ablageOut struct {
 			Text    string `json:"text"`
 		} `json:"liste"`
 	} `json:"befunde"`
-	Wiederholt bool `json:"wiederholt"`
+	Verschoben []struct {
+		Von  string `json:"von"`
+		Nach string `json:"nach"`
+	} `json:"verschoben"`
+	Hinweise   []string `json:"hinweise"`
+	Wiederholt bool     `json:"wiederholt"`
 }
 
 type buchungAntwort struct {

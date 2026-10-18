@@ -408,7 +408,7 @@ export const Api = {
     call(() => Bridge.ValidateTenantDirectory(dataDir)),
 
   setupApplication: (dataDir: string, settings: CompanySettings): Promise<void> =>
-    call(() => Bridge.SetupApplication(dataDir, settings as any) as Promise<void>),
+    call(() => Bridge.SetupApplication(dataDir, '', settings as any) as Promise<void>),
   loadExistingDatabase: (dbFilePath: string): Promise<void> =>
     call(() => Bridge.LoadExistingDatabase(dbFilePath) as Promise<void>),
   selectDirectoryDialog: (title: string): Promise<string> =>
@@ -627,7 +627,7 @@ export const Api = {
    * der Dialog wurde abgebrochen.
    */
   saveEBilanzXBRLAs: (year: number): Promise<string> =>
-    call(() => Bridge.SaveEBilanzXBRLAs(year) as Promise<string>),
+    call(() => Bridge.SaveEBilanzAs(year, 'xbrl') as Promise<string>),
   /**
    * Welches Konto unter welcher Gliederungsposition und welchem
    * Taxonomie-Element erscheint — und was die Erzeugung verhindert.

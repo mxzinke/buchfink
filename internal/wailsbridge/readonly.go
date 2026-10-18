@@ -137,7 +137,7 @@ var readOnlyAllowed = map[string]bool{
 	// Gegenteil dessen, wofür der Modus da ist.
 	"ExportArchive":                true,
 	"ExportAuditPackage":           true,
-	"SaveEBilanzXBRLAs":            true,
+	"SaveEBilanzAs":                true,
 	"ExportStatementCSV":           true,
 	"ExportStatementPDF":           true,
 	"ExportVatReturnCSV":           true,
@@ -240,6 +240,15 @@ var readOnlyAllowed = map[string]bool{
 	"GetPendingAppRequests": true,
 	"ResolveAppRequest":     true,
 	"OpenAgentGuide":        true,
+
+	// Der Eingang. Er gehört nicht zu den Büchern: zeigen, öffnen und
+	// hineinziehen bleibt auch während einer Prüfung möglich, und ob ein
+	// Ordner synchronisiert wird, fragt nur das Dateisystem.
+	"GetInbox":    true,
+	"ListInbox":   true,
+	"OpenInbox":   true,
+	"AddToInbox":  true,
+	"CheckFolder": true,
 
 	// Stammdaten: der Stand der Gesellschafterdarlehen und die Umrechnung der
 	// Steuernummer lesen nur.

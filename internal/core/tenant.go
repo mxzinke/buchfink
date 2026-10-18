@@ -38,6 +38,9 @@ type Options struct {
 	// Network sind die Wege ins Netz; leere Felder nehmen die echten Dienste.
 	Network Network
 	Logger  *slog.Logger
+	// OnChange hört jeden gelungenen Vorgang (Change). Er läuft nach der
+	// Schreibsperre im Aufrufer und darf nicht blockieren.
+	OnChange func(Change)
 }
 
 // backupDirectory ist der eingerichtete Sicherungsordner dieses Mandanten.
@@ -63,6 +66,7 @@ type Tenant struct {
 	network     Network
 	backupDir   func() string
 	logger      *slog.Logger
+	onChange    func(Change)
 
 	// startYear ist das Geschäftsjahr, mit dem die Ansicht nach dem Öffnen
 	// beginnt. Die Dienste kennen es nicht.
@@ -109,7 +113,7 @@ func Open(ctx context.Context, dataDir string, o Options) (*Tenant, error) {
 		info: info, gen: o.Generation,
 		db: db, reader: reader, tx: repository.NewTxRunner(db),
 		renderer: renderer, ownRenderer: own,
-		backupDir: o.BackupDir, logger: logger,
+		backupDir: o.BackupDir, logger: logger, onChange: o.OnChange,
 		write: newWriteLock(), lock: lock,
 	}
 	o.Network = o.Network.guarded(func() bool { return t.Examiner().Active })
@@ -225,7 +229,8 @@ func (t *Tenant) ownsTx(ctx context.Context) (bool, error) {
 
 // Write führt fn als einen Vorgang aus: unter der Schreibsperre des
 // Mandanten, nach der Prüfung des Prüfermodus und in einer Transaktion.
-// Scheitert fn, ist nichts geschrieben.
+// Scheitert fn, ist nichts geschrieben. Gelingt er, meldet der Mandant ihn
+// nach der Schreibsperre als Change.
 //
 // Ein Write im Kontext eines laufenden Write desselben Mandanten gehört zu
 // dessen Transaktion.
@@ -254,13 +259,23 @@ func (t *Tenant) Write(ctx context.Context, fn func(context.Context, *Services) 
 		return err
 	}
 	defer release()
+	changes := &changeSet{}
+	if err := t.writeLocked(withChangeSet(ctx, changes), fn, o); err != nil {
+		return err
+	}
+	t.emit(Change{TenantID: t.ID(), Channel: channel, Kinds: changes.list()})
+	return nil
+}
+
+// writeLocked ist der Vorgang unter der Schreibsperre.
+func (t *Tenant) writeLocked(ctx context.Context, fn func(context.Context, *Services) error, o writeOptions) error {
 	if err := t.write.lock(ctx); err != nil {
 		return err
 	}
 	defer t.write.unlock()
 
 	ctx = markTxOf(markInWrite(ctx, t), t)
-	err = t.tx.RunInTx(ctx, func(ctx context.Context) error {
+	err := t.tx.RunInTx(ctx, func(ctx context.Context) error {
 		if !o.examinerExempt {
 			if err := t.ensureWritable(ctx); err != nil {
 				return err

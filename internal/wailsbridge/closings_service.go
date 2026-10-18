@@ -8,6 +8,7 @@ import (
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/declaration"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/ebilanz"
 	"github.com/buchfink/buchfink/internal/service"
 )
 
@@ -104,13 +105,23 @@ func (b *BuchfinkBridge) ExportDeclarationJSON(kind string, year int) (*core.Dec
 	})
 }
 
-// SaveEBilanzXBRLAs erzeugt die E-Bilanz eines Geschäftsjahres und schreibt
-// sie an einen gewählten Ort. Erzeugt wird vor dem Dialog: blockierende
-// Befunde melden sich, bevor jemand einen Speicherort sucht. Leer heißt: der
-// Dialog wurde abgebrochen.
-func (b *BuchfinkBridge) SaveEBilanzXBRLAs(year int) (string, error) {
+// SaveEBilanzAs erzeugt die E-Bilanz eines Geschäftsjahres und schreibt sie an
+// einen gewählten Ort: als XBRL-Instanz (format xbrl oder leer) oder als
+// Summen- und Saldenliste mit Taxonomie-Position je Konto (susa_csv), etwa für
+// eBilanz+. Erzeugt wird vor dem Dialog: blockierende Befunde melden sich,
+// bevor jemand einen Speicherort sucht. Leer heißt: der Dialog wurde
+// abgebrochen.
+func (b *BuchfinkBridge) SaveEBilanzAs(year int, format string) (string, error) {
 	year = b.yearOr(year)
-	instance, err := read(b, func(ctx context.Context, s *core.Services) ([]byte, error) {
+	name, label := fmt.Sprintf("e-bilanz-%d.xbrl", year), "XBRL-Instanz"
+	switch format {
+	case "", "xbrl":
+	case "susa_csv":
+		name, label = fmt.Sprintf("ebilanz-%d-susa.csv", year), "Summen- und Saldenliste (CSV)"
+	default:
+		return "", fmt.Errorf("unbekanntes Format %q; xbrl oder susa_csv", format)
+	}
+	data, err := read(b, func(ctx context.Context, s *core.Services) ([]byte, error) {
 		res, err := s.EBilanz.Generate(ctx, year, service.EBilanzOptions{})
 		if err != nil {
 			return nil, err
@@ -118,17 +129,20 @@ func (b *BuchfinkBridge) SaveEBilanzXBRLAs(year int) (string, error) {
 		if err := res.Report.BlockingError(); err != nil {
 			return nil, err
 		}
+		if format == "susa_csv" {
+			return ebilanz.SuSaCSV(res)
+		}
 		return res.Instance, nil
 	})
 	if err != nil {
 		return "", err
 	}
-	path, err := b.saveFileDialog("E-Bilanz speichern", fmt.Sprintf("e-bilanz-%d.xbrl", year))
+	path, err := b.saveFileDialog("E-Bilanz speichern", name)
 	if err != nil || path == "" {
 		return "", err
 	}
-	if err := b.handOut(path, instance, "EBILANZ", strconv.Itoa(year),
-		fmt.Sprintf("E-Bilanz %d als XBRL-Instanz nach %s herausgegeben", year, path)); err != nil {
+	if err := b.handOut(path, data, "EBILANZ", strconv.Itoa(year),
+		fmt.Sprintf("E-Bilanz %d als %s nach %s herausgegeben", year, label, path)); err != nil {
 		return "", err
 	}
 	return path, nil

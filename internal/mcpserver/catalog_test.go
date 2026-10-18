@@ -20,7 +20,7 @@ var catalog = map[string]Tier{
 	"kontakte_suchen": TierRead, "belege_suchen": TierRead, "beleg_lesen": TierRead,
 	"buchungen_suchen": TierRead, "buchung_lesen": TierRead, "offene_posten": TierRead,
 	"bankumsaetze": TierRead, "auswertung": TierRead, "anlagen": TierRead, "abschluss_status": TierRead,
-	"erklaerung": TierRead, "rechnung_vorschau": TierRead,
+	"erklaerung": TierRead, "rechnung_vorschau": TierRead, "eingang": TierRead,
 
 	"beleg_ablegen": TierDirect, "kontakt_anlegen": TierDirect, "kontoauszug_importieren": TierDirect,
 	"beleg_buchen": TierDirect, "bankumsatz_zuordnen": TierDirect, "erklaerung_exportieren": TierDirect,

@@ -45,6 +45,7 @@ type (
 	AfaMethode       string
 	ErklaerungArt    string
 	JahrArt          string
+	EBilanzFormat    string
 	Quelle           string
 	Monat            string
 	Zeitraum         string
@@ -84,7 +85,9 @@ var choices = map[reflect.Type]choice{
 	reflect.TypeFor[AfaMethode]():    {choiceKeys(depreciationMethods), "Abschreibungsmethode"},
 	reflect.TypeFor[ErklaerungArt](): {[]string{"ustva", "zm", "ust_jahr", "kst", "gewst"}, "Art der Anmeldung oder Erklärung"},
 	reflect.TypeFor[JahrArt]():       {choiceKeys(declarationKinds), "Jahreserklärung"},
-	reflect.TypeFor[Quelle]():        {choiceKeys(inputSources), "Herkunft der Angabe; Vorgabe mensch"},
+	reflect.TypeFor[EBilanzFormat](): {[]string{"xbrl", "susa_csv"},
+		"xbrl (Vorgabe): die Instanz zur Übermittlung; susa_csv: Summen- und Saldenliste mit Taxonomie-Position je Konto, etwa für eBilanz+"},
+	reflect.TypeFor[Quelle](): {choiceKeys(inputSources), "Herkunft der Angabe; Vorgabe mensch"},
 }
 
 var patterns = map[reflect.Type]*jsonschema.Schema{

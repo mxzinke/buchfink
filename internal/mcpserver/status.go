@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"time"
 
 	"github.com/buchfink/buchfink/internal/buildinfo"
 	"github.com/buchfink/buchfink/internal/core"
@@ -23,7 +24,8 @@ type statusOut struct {
 	Pruefermodus     *statusExaminer  `json:"pruefermodus,omitempty"`
 	Verbindung       statusConnection `json:"verbindung"`
 	VerbundeneApps   int              `json:"verbundene_apps" jsonschema:"Zahl der Apps mit gültiger Zulassung"`
-	Belegordner      []string         `json:"belegordner,omitempty" jsonschema:"Ordner, aus denen beleg_ablegen und kontoauszug_importieren lesen"`
+	Eingang          *inboxState      `json:"eingang,omitempty" jsonschema:"der Eingang, aus dem beleg_ablegen und kontoauszug_importieren lesen; die Dateien nennt eingang"`
+	Leseordner       []string         `json:"leseordner,omitempty" jsonschema:"weitere Ordner, aus denen gelesen werden darf"`
 	Exportordner     string           `json:"exportordner,omitempty" jsonschema:"Ordner, in den die Exporte schreiben"`
 	Direktregeln     *statusRules     `json:"direktregeln,omitempty" jsonschema:"Schwellen, bis zu denen beleg_buchen ohne Rückfrage bucht"`
 }
@@ -79,7 +81,7 @@ func registerStatus(tb *Toolbox) {
 		Name:  "status",
 		Title: "Status von Buchfink",
 		Description: "Überblick und Selbstauskunft: geöffneter Mandant (mandant_id für schreibende Werkzeuge), " +
-			"Geschäftsjahre, Prüfermodus, Fassung und ob Buchfink für diese App bereit ist. " +
+			"Geschäftsjahre, Prüfermodus, Eingang mit Zahl der Dateien, Fassung und ob Buchfink für diese App bereit ist. " +
 			"Zu Beginn jeder Sitzung und nach jedem Fehler mandant_gewechselt aufrufen.",
 	}, func(ctx context.Context, c *Call, _ statusIn) (statusOut, error) {
 		out := statusOut{
@@ -145,7 +147,11 @@ func registerStatus(tb *Toolbox) {
 				return err
 			}
 			dirs.EnsureInbox()
-			out.Belegordner, out.Exportordner = orEmpty(dirs.Receipt), dirs.Export
+			state, err := inboxStateOf(dirs.Inbox, time.Now())
+			if err != nil {
+				return err
+			}
+			out.Eingang, out.Leseordner, out.Exportordner = &state, dirs.Read, dirs.Export
 			limits, err := policy.LimitsFor(ctx, s)
 			if err != nil {
 				return err

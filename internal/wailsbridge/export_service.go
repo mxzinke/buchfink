@@ -174,11 +174,17 @@ func (b *BuchfinkBridge) GetPaymentAllocations(entryID uint) ([]domain.PaymentAl
 
 // ImportCAMT053File legt die Kontoauszugsdatei als Beleg ab und importiert die
 // Umsätze daraus. Sie bekommt den Pfad und nicht den Inhalt, damit die Datei
-// selbst archiviert wird.
+// selbst archiviert wird. Kam sie aus dem Eingang, geht sie danach nach
+// Übernommen/<JJJJ-MM>.
 func (b *BuchfinkBridge) ImportCAMT053File(path, ledgerAccount string) (int, error) {
-	return operate(b, func(ctx context.Context, t *core.Tenant) (int, error) {
+	imported, err := operate(b, func(ctx context.Context, t *core.Tenant) (int, error) {
 		return t.ImportBankStatement(ctx, path, ledgerAccount)
 	})
+	if err != nil {
+		return imported, err
+	}
+	b.settleInbox([]string{path})
+	return imported, nil
 }
 
 // SelectStatementFileDialog öffnet den Dateidialog für eine CAMT.053-Datei.
