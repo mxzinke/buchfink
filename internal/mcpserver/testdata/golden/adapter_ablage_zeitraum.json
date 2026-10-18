@@ -1,0 +1,42 @@
+{
+  "befunde": {
+    "blockierend": 0,
+    "geprueft": true,
+    "gesamt": 1,
+    "liste": [
+      {
+        "blockiert": false,
+        "klasse": "content",
+        "norm": "§ 33 UStDV",
+        "regel": "content_relief_small_amount",
+        "schwere": "information",
+        "text": "Kleinbetragsrechnung bis 250 €: Steuernummer, Leistungsempfänger, Leistungsdatum und gesonderter Steuerausweis sind nicht verlangt."
+      }
+    ]
+  },
+  "beleg": {
+    "art": "rechnung",
+    "aussteller": "Netzwerk GmbH",
+    "belegdatum": "2026-03-31",
+    "brutto": "119.00",
+    "e_rechnung": true,
+    "eingang_am": "2026-04-02",
+    "id": 1,
+    "nummer": "ER-2026-0001",
+    "richtung": "eingang",
+    "status": "abgelegt"
+  },
+  "bereits_vorhanden": false,
+  "e_rechnung": true,
+  "hinweise": [
+    "Der Beleg hat keine ansehbare Darstellung und lässt sich so nicht buchen. Eine reine XRechnung braucht ein PDF: dieselbe XML noch einmal mit beleg_ablegen und dem PDF als rolle=darstellung senden, die XML mit dem Pfad aus verschoben, wenn Buchfink sie nach Übernommen/ gebracht hat.",
+    "Eingang am 2026-04-02: die Vorsteuer fällt in den Voranmeldungszeitraum 2026-Q2, nicht in 2026-Q1 des Belegdatums. Kam der Beleg früher an, eingang_am beim Buchen mit beleg_buchen_mit_rueckfrage berichtigen."
+  ],
+  "naechster_schritt": "beleg_lesen mit beleg_id 1",
+  "verschoben": [
+    {
+      "nach": "\u003cDatenordner\u003e/Eingang/Übernommen/\u003cMonat\u003e/PERIOD.xml",
+      "von": "\u003cDatenordner\u003e/Eingang/PERIOD.xml"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "currency": "EUR",
+  "documentDate": "2026-03-31",
+  "grossAmount": 11900,
+  "issuerName": "Netzwerk GmbH",
+  "kind": "other",
+  "retentionClass": "",
+  "retentionUntil": "",
+  "subject": "Server",
+  "taxAmount": 1900
+}

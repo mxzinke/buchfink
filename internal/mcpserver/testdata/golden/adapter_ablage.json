@@ -1,0 +1,57 @@
+{
+  "befunde": {
+    "blockierend": 1,
+    "geprueft": false,
+    "gesamt": 3,
+    "liste": [
+      {
+        "blockiert": false,
+        "klasse": "format",
+        "norm": "§ 14 Abs. 1 Satz 4, § 27 Abs. 38 UStG",
+        "regel": "format_no_structured_part",
+        "schwere": "information",
+        "text": "Der Beleg hat keinen strukturierten Rechnungsdatensatz; er ist eine sonstige Rechnung."
+      },
+      {
+        "blockiert": true,
+        "klasse": "content",
+        "norm": "§ 14 Abs. 4 Nr. 1 UStG",
+        "regel": "content_issuer_name",
+        "schwere": "fatal",
+        "text": "Der vollständige Name des leistenden Unternehmers fehlt."
+      },
+      {
+        "blockiert": false,
+        "klasse": "content",
+        "norm": "§ 14 Abs. 4 Nr. 1 und 2 UStG",
+        "regel": "content_issuer_unknown",
+        "schwere": "warning",
+        "text": "Zu diesem Beleg ist kein Kontakt hinterlegt. Anschrift sowie Steuernummer oder USt-IdNr. des Ausstellers sind damit nicht gegen die Stammdaten geprüft."
+      }
+    ]
+  },
+  "beleg": {
+    "art": "rechnung",
+    "belegdatum": "2026-03-31",
+    "e_rechnung": false,
+    "eingang_am": "2026-04-02",
+    "id": 1,
+    "nummer": "ER-2026-0001",
+    "richtung": "eingang",
+    "status": "abgelegt"
+  },
+  "bereits_vorhanden": false,
+  "e_rechnung": false,
+  "hinweise": [
+    "Ohne E-Rechnung bucht Buchfink diesen Beleg nur mit Rückfrage.",
+    "Belegdatum, Aussteller oder Brutto fehlen; beleg_buchen_mit_rueckfrage ergänzt sie aus der Buchung.",
+    "Eingang am 2026-04-02: die Vorsteuer fällt in den Voranmeldungszeitraum 2026-Q2, nicht in 2026-Q1 des Belegdatums. Kam der Beleg früher an, eingang_am beim Buchen mit beleg_buchen_mit_rueckfrage berichtigen."
+  ],
+  "naechster_schritt": "beleg_lesen mit beleg_id 1",
+  "verschoben": [
+    {
+      "nach": "\u003cDatenordner\u003e/Eingang/Übernommen/\u003cMonat\u003e/kopf.pdf",
+      "von": "\u003cDatenordner\u003e/Eingang/kopf.pdf"
+    }
+  ]
+}

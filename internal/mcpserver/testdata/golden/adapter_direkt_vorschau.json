@@ -1,0 +1,46 @@
+{
+  "einstufung": "rueckfrage",
+  "gruende": [
+    {
+      "schluessel": "keine_eingangsrechnung",
+      "text": "Der Beleg ist keine Eingangsrechnung."
+    },
+    {
+      "schluessel": "keine_e_rechnung",
+      "text": "Der Beleg hat keinen strukturierten Rechnungsdatensatz; Fotos und PDF ohne E-Rechnung bucht Buchfink nie direkt."
+    },
+    {
+      "schluessel": "keine_bestaetigte_standardgruppe",
+      "text": "Der Lieferant hat keine vom Menschen bestätigte Standard-Buchungsgruppe."
+    }
+  ],
+  "vorschau": {
+    "befunde": [],
+    "brutto": "119.00",
+    "hinweise": [],
+    "netto": "100.00",
+    "steuer": "19.00",
+    "zeilen": [
+      {
+        "betrag": "100.00",
+        "konto": "6495",
+        "kontoname": "Wartungskosten für Hard- und Software",
+        "seite": "S"
+      },
+      {
+        "betrag": "19.00",
+        "konto": "1406",
+        "kontoname": "Abziehbare Vorsteuer 19 %",
+        "seite": "S",
+        "steuerschluessel": "VST19"
+      },
+      {
+        "betrag": "119.00",
+        "kontakt_id": 1,
+        "konto": "70000",
+        "kontoname": "70000",
+        "seite": "H"
+      }
+    ]
+  }
+}

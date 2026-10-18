@@ -1,0 +1,6 @@
+{
+  "code": "fachliche_regel",
+  "nachricht": "Beleg ER-2026-0001 hat keine ansehbare Darstellung; eine reine XRechnung braucht vor dem Buchen ein PDF.",
+  "naechster_schritt": "Dieselbe XML noch einmal mit beleg_ablegen senden, dazu das PDF mit rolle=darstellung.",
+  "werkzeug": "beleg_ablegen"
+}
