@@ -16,10 +16,6 @@ func (c TaxCase) Legs(direction domain.Direction, rate domain.TaxRate, net domai
 	return NewSKR04TaxResolver().Resolve(direction, c.treatment, rate, net)
 }
 
-func (c TaxCase) Timing(entry *domain.JournalEntry, line domain.JournalLine, receivedAt string) string {
-	return VatPeriodFor(entry, line, receivedAt)
-}
-
 // VatCode beschreibt den Beitrag einer Steuer- oder Erlöszeile. Ohne Schlüssel
 // bezeichnet c den Steuerfall des Erlöskontos; Aufwandskonten haben keinen Beitrag.
 func (c TaxCase) VatCode(key string) TaxCaseVAT {
