@@ -80,7 +80,7 @@ func (s *PostingService) invoiceCheckThreshold(ctx context.Context) domain.Cents
 // SaveServiceProof, und eine Buchung ohne Angabe darf einen schon erfassten
 // Vermerk nicht löschen.
 func (s *PostingService) saveServiceProof(
-	ctx context.Context, built *incomingLines, req ReceiptRequest,
+	ctx context.Context, built *incomingPlan, req ReceiptRequest,
 ) error {
 	if built == nil || built.receipt == nil || s.receiptSvc == nil {
 		return nil

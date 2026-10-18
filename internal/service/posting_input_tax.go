@@ -50,27 +50,9 @@ const (
 	warningGiftLimitExceeded = "gift_limit_exceeded"
 )
 
-// incomingLines ist das Ergebnis der Zeilenbildung eines Eingangsbelegs.
-//
-// Sie enthält mehr als die Zeilen, weil beim Bilden mehr entsteht als sie: die
-// Aufzeichnungen zu den Geschenken, die Warnungen der Freigrenze und die
-// Befunde der Rechnungsprüfung. Die Vorschau zeigt alles davon, die Buchung
-// wertet die Befunde aus — und beide laufen durch dieselbe Rechnung, damit sie
-// nicht auseinandergehen können.
-type incomingLines struct {
-	lines   []domain.JournalLine
-	contact *domain.Contact
-	receipt *domain.Receipt
-	// fx ist die Umrechnung eines Fremdwährungsbelegs, nil bei einem in Euro.
-	fx       *fxContext
-	gifts    []domain.GiftRecord
-	warnings []PostingWarning
-	findings []InputTaxFinding
-}
-
 // blockingError hält die Buchung an, solange ein Befund offen und kein Grund
 // angegeben ist.
-func (b *incomingLines) blockingError(req ReceiptRequest) error {
+func (b *incomingPlan) blockingError(req ReceiptRequest) error {
 	if len(b.findings) == 0 {
 		return nil
 	}
