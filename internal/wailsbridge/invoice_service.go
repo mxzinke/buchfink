@@ -48,13 +48,6 @@ func (b *BuchfinkBridge) SettleAdvance(req service.SettleAdvanceRequest) (*domai
 	})
 }
 
-// AdvanceTargetOption ist eine Verwendung mit ihrem Konto für die Oberfläche.
-type AdvanceTargetOption struct {
-	Key     string `json:"key"`
-	Label   string `json:"label"`
-	Account string `json:"account"`
-}
-
 // GetUnitCodes liefert die Mengeneinheiten nach UN/ECE Rec. 20, die eine
 // Rechnungsposition haben kann (BT-130).
 func (b *BuchfinkBridge) GetUnitCodes() []domain.UnitCode {

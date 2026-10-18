@@ -197,10 +197,3 @@ func (b *BuchfinkBridge) SelectStatementFileDialog(title string) (string, error)
 		SetTitle(title).
 		PromptForSingleSelection()
 }
-
-func orDefault(v, fallback string) string {
-	if v == "" {
-		return fallback
-	}
-	return v
-}

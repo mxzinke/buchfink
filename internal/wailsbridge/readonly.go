@@ -34,18 +34,23 @@ var readOnlyAllowed = map[string]bool{
 	// beide auf den nur lesenden Kursdienst um und stehen deshalb hier. Ein
 	// Prüfer muss die Stichtagsbewertung eines abgeschlossenen Jahres ansehen
 	// können — die Kurse dazu stehen dann längst in der Historie.
+	"GetAfaRules": true,
 	// Welle 8: die lesenden Auswertungen der laufenden Buchhaltung.
 	// SaveFilteredJournalCSV gibt Journalzeilen heraus und protokolliert das
 	// als Zugriff (QUE-02 K2); das Protokoll ist der eine Schreibweg eines
 	// Lesevorgangs.
 	"GetEntriesForReceipt":          true,
+	"GetReceiptFindings":            true,
 	"GetRetentionRules":             true,
 	"GetVatPeriodProposal":          true,
 	"GetFilteredJournal":            true,
 	"SaveFilteredJournalCSV":        true,
+	"GetExchangeRate":               true,
 	"PreviewCurrencyValuation":      true,
 	"GetInputTaxCorrections":        true,
 	"GetNonDeductibleReport":        true,
+	"GetPoolConsistencyReport":      true,
+	"GetVatExchangeRates":           true,
 	"GetVatIDStatus":                true,
 	"GetWriteUpReport":              true,
 	"GetClosingSettings":            true,
@@ -56,6 +61,7 @@ var readOnlyAllowed = map[string]bool{
 	"GetAnlagenspiegel":             true,
 	"GetAppConfig":                  true,
 	"GetAssetAcquisitionCandidates": true,
+	"GetAssetRules":                 true,
 	"GetAvailableFiscalYears":       true,
 	"GetBackupRuns":                 true,
 	"GetBankTransactions":           true,
@@ -84,6 +90,7 @@ var readOnlyAllowed = map[string]bool{
 	"GetInvoiceNumberGaps":    true,
 	"GetNumberGapReasons":     true,
 	"GetUnitCodes":            true,
+	"GetInvestmentRules":      true,
 	"GetInvoiceDocument":      true,
 	"GetInvoices":             true,
 	"GetJournalEntries":       true,
@@ -147,6 +154,7 @@ var readOnlyAllowed = map[string]bool{
 	"GetChangeLog":                true,
 	"GetComplianceHints":          true,
 	"GetMigrationRecords":         true,
+	"GetOpenItemsAging":           true,
 	"GetOrganisationTextDefaults": true,
 	"GetOrganisationTexts":        true,
 	"GetProcedureDocumentations":  true,
@@ -163,6 +171,7 @@ var readOnlyAllowed = map[string]bool{
 	"GetMonthCloseState": true,
 	"SuggestBankMatches": true,
 	"GetBankRules":       true,
+	"GetAuditTrail":      true,
 
 	// Die Übersicht: Pflichten des Kalenders und die Buchungen der
 	// verbundenen Apps seit der letzten Festschreibung.

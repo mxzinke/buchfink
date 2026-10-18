@@ -70,6 +70,19 @@ func entriesForReceipt(
 	return out, nil
 }
 
+// GetReceiptFindings liefert die Klärungsliste eines Belegs: die Befunde nach
+// Formatfehler, Geschäftsregelfehler und Inhaltsfehler getrennt, je Befund mit
+// Regel, Norm und Folge für den Vorsteuerabzug.
+func (b *BuchfinkBridge) GetReceiptFindings(receiptID uint) (*domain.ReceiptFindings, error) {
+	return readOr(b, func() (*domain.ReceiptFindings, error) {
+		empty := &domain.ReceiptFindings{}
+		empty.EnsureLists()
+		return empty, nil
+	}, func(ctx context.Context, s *core.Services) (*domain.ReceiptFindings, error) {
+		return s.Receipts.Findings(ctx, receiptID)
+	})
+}
+
 // --- Umsatzsteuer ---------------------------------------------------------
 
 // GetVatPeriodProposal liefert den Voranmeldungszeitraum, der sich aus der

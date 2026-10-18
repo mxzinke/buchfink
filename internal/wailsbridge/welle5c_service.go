@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/core"
+	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/service"
 )
 
@@ -57,6 +59,13 @@ func (b *BuchfinkBridge) GetNonDeductibleReport(year int) (*service.NonDeductibl
 	})
 }
 
+// GetExchangeRate liefert den Kurs eines Tages.
+func (b *BuchfinkBridge) GetExchangeRate(currency, date string) (*domain.ExchangeRate, error) {
+	return read(b, func(ctx context.Context, s *core.Services) (*domain.ExchangeRate, error) {
+		return b.currencyService(s).RateAt(ctx, currency, date)
+	})
+}
+
 // -------------------------------------------------------------------------
 // Fremdwährung
 // -------------------------------------------------------------------------
@@ -68,6 +77,14 @@ func (b *BuchfinkBridge) currencyService(s *core.Services) *service.CurrencyServ
 		return s.Currency.ReadOnly()
 	}
 	return s.Currency
+}
+
+// GetVatExchangeRates liefert die Umsatzsteuer-Durchschnittskurse eines
+// Zeitraums.
+func (b *BuchfinkBridge) GetVatExchangeRates(from, to string) ([]domain.VatExchangeRate, error) {
+	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.VatExchangeRate, error) {
+		return s.Currency.VatRates(ctx, from, to)
+	})
 }
 
 // PreviewCurrencyValuation rechnet die Stichtagsbewertung, ohne sie zu buchen.
@@ -84,6 +101,12 @@ func (b *BuchfinkBridge) PreviewCurrencyValuation(year int) (*service.ForeignCur
 	})
 }
 
+// GetAfaRules liefert die Abschreibungsregeln aus der eingebetteten Ressource —
+// dieselbe Datei, aus der gerechnet wird.
+func (b *BuchfinkBridge) GetAfaRules() accounting.AfARules {
+	return accounting.AfARuleSet()
+}
+
 // -------------------------------------------------------------------------
 // Anlagen
 // -------------------------------------------------------------------------
@@ -94,5 +117,14 @@ func (b *BuchfinkBridge) GetWriteUpReport(year int) (*service.WriteUpReport, err
 	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*service.WriteUpReport, error) {
 		return s.Assets.WriteUpReport(ctx, year)
+	})
+}
+
+// GetPoolConsistencyReport prüft die Einheitlichkeit des Wahlrechts nach
+// § 6 Abs. 2a Satz 5 EStG.
+func (b *BuchfinkBridge) GetPoolConsistencyReport(year int) (*service.PoolConsistencyReport, error) {
+	year = b.yearOr(year)
+	return read(b, func(ctx context.Context, s *core.Services) (*service.PoolConsistencyReport, error) {
+		return s.Assets.PoolConsistency(ctx, year)
 	})
 }

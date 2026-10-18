@@ -2,6 +2,7 @@ package wailsbridge
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/core"
@@ -31,6 +32,93 @@ func (b *BuchfinkBridge) GetFixedAsset(id uint) (*service.AssetDetail, error) {
 	return read(b, func(ctx context.Context, s *core.Services) (*service.AssetDetail, error) {
 		return s.Assets.Get(ctx, b.viewYear(), id)
 	})
+}
+
+// GetAssetRules hands the Wertgrenzen, das Zeitfenster der degressiven AfA und
+// die zulässigen Methoden an die Oberfläche.
+func (b *BuchfinkBridge) GetAssetRules() (*AssetRules, error) {
+	year := b.viewYear()
+
+	// Die Wertgrenzen gelten je Tag; für die Anzeige nehmen wir den ersten Tag
+	// des Geschäftsjahres, weil sich Anschaffungen dieses Jahres daran messen.
+	params, err := accounting.AfAParametersFor(fmt.Sprintf("%d-01-01", year))
+	if err != nil {
+		return nil, err
+	}
+
+	all := []domain.AssetClass{
+		domain.AssetClassIntangible, domain.AssetClassTangible, domain.AssetClassFinancial,
+	}
+	return &AssetRules{
+		FiscalYear:        year,
+		GWGImmediateLimit: params.GWGImmediateLimit,
+		GWGRecordFrom:     params.GWGRecordThreshold,
+		PoolLowerLimit:    params.PoolLowerLimit,
+		PoolUpperLimit:    params.PoolUpperLimit,
+		PoolYears:         params.PoolYears,
+		DegressiveWindows: accounting.DegressiveWindows(),
+		// Aus derselben Ressource, aus der auch gerechnet wird.
+		ElectricVehicleWindows: accounting.AfARuleSet().ElectricVehicle,
+		SpecialMaxPermille:     accounting.SpecialMaxPermille,
+		SpecialPeriodYears:     accounting.SpecialPeriodYears,
+		// Aus derselben Ressource wie die Sätze: der Hinweis steht dort, wo die
+		// Regeln stehen, und nicht als zweite Fassung im Bridge-Code.
+		InvestmentDeductionNote: accounting.AfARuleSet().InvestmentDeductionNote,
+		Methods: []assetMethodInfo{
+			{
+				Method: domain.DepreciationLinear, Label: domain.DepreciationLinear.Label(),
+				Classes: []domain.AssetClass{domain.AssetClassIntangible, domain.AssetClassTangible},
+				Hint: "Gleichmäßig über die betriebsgewöhnliche Nutzungsdauer, zeitanteilig ab dem " +
+					"Anschaffungsmonat. Der Normalfall.",
+			},
+			{
+				Method: domain.DepreciationDegressive, Label: domain.DepreciationDegressive.Label(),
+				Classes: []domain.AssetClass{domain.AssetClassTangible},
+				Hint: "Vom jeweiligen Restbuchwert, höchstens das Dreifache des linearen Satzes und " +
+					"höchstens 30 %. Nur für bewegliche Wirtschaftsgüter und nur für Anschaffungen " +
+					"innerhalb eines der gesetzlichen Zeitfenster. Eine Sonderabschreibung nach " +
+					"§ 7g Abs. 5 EStG ist daneben zulässig.",
+			},
+			{
+				// Ohne diesen Eintrag steht die Staffel des § 7 Abs. 2a EStG zwar im
+				// Rechenkern, ist aber in keiner Maske wählbar — und ein E-Fahrzeug
+				// liefe still linear.
+				Method:  domain.DepreciationElectricVehicle,
+				Label:   domain.DepreciationElectricVehicle.Label(),
+				Classes: []domain.AssetClass{domain.AssetClassTangible},
+				Hint: "Die Staffel des § 7 Abs. 2a EStG: 75, 10, 5, 5, 3 und 2 % der " +
+					"Anschaffungskosten. Nur für neue, rein elektrisch betriebene Fahrzeuge und nur " +
+					"für Anschaffungen nach dem 30.06.2025 und vor dem 01.01.2028. Das " +
+					"Anschaffungsjahr bekommt den vollen Satz, ohne Zeitanteil.",
+			},
+			{
+				Method:  domain.DepreciationBuildingLinear,
+				Label:   domain.DepreciationBuildingLinear.Label(),
+				Classes: []domain.AssetClass{domain.AssetClassTangible},
+				Hint: "Die festen Sätze des § 7 Abs. 4 EStG für Gebäude. Welcher gilt, entscheidet " +
+					"der Stichtag: der Bauantrag beim Betriebsgebäude, die Fertigstellung beim " +
+					"Wohngebäude. Die betriebsgewöhnliche Nutzungsdauer spielt hier keine Rolle.",
+			},
+			{
+				Method: domain.DepreciationPool, Label: domain.DepreciationPool.Label(),
+				Classes: []domain.AssetClass{domain.AssetClassTangible},
+				Hint: "Ein Pool je Wirtschaftsjahr, aufgelöst mit je einem Fünftel über fünf Jahre. " +
+					"Das Wahlrecht gilt einheitlich für alle Wirtschaftsgüter des Jahres.",
+			},
+			{
+				Method: domain.DepreciationImmediate, Label: domain.DepreciationImmediate.Label(),
+				Classes: []domain.AssetClass{domain.AssetClassTangible},
+				Hint: "Voller Aufwand im Anschaffungsjahr. Das Gut bleibt im Verzeichnis, weil ab 250 € " +
+					"ein laufend geführtes Verzeichnis vorgeschrieben ist.",
+			},
+			{
+				Method: domain.DepreciationNone, Label: domain.DepreciationNone.Label(),
+				Classes: all,
+				Hint: "Für alles, was sich nicht abnutzt: Grund und Boden, Anlagen im Bau und das " +
+					"gesamte Finanzanlagevermögen.",
+			},
+		},
+	}, nil
 }
 
 // AssetRules are the statutory figures the view explains itself with. They come
@@ -91,6 +179,55 @@ func (b *BuchfinkBridge) GetAssetAcquisitionCandidates() ([]service.AcquisitionC
 	return readList(b, func(ctx context.Context, s *core.Services) ([]service.AcquisitionCandidate, error) {
 		return s.Assets.AcquisitionCandidates(ctx, b.viewYear())
 	})
+}
+
+// GetInvestmentRules hands the UI what § 18 und § 20 InvStG an Auswahl
+// vorgeben: die Fondsarten, die Anlegerstellungen und den Satz, der sich aus
+// der eingestellten Kombination ergibt.
+func (b *BuchfinkBridge) GetInvestmentRules() (*InvestmentRules, error) {
+	// Leer statt nil: die Maske läuft über die Freistellungen, auch wenn die
+	// eingestellte Anlegerstellung keine ergibt.
+	rules := &InvestmentRules{Exemptions: make([]exemptionInfo, 0)}
+	for _, class := range accounting.AllFundClasses() {
+		rules.FundClasses = append(rules.FundClasses,
+			fundClassInfo{Class: class, Label: class.Label()})
+	}
+	for _, investor := range domain.AllInvestorTypes() {
+		rules.InvestorTypes = append(rules.InvestorTypes,
+			investorTypeInfo{Type: investor, Label: investor.Label()})
+	}
+	cfg, err := read(b, func(ctx context.Context, s *core.Services) (*domain.CompanySettings, error) {
+		return s.Settings.GetCompanySettings(ctx)
+	})
+	if err != nil || cfg == nil {
+		return rules, nil
+	}
+	investor, reason := cfg.InvestorTypeOrDerived()
+	rules.InvestorType = investor
+	rules.InvestorLabel = investor.Label()
+	rules.InvestorReason = reason
+	rules.LegalForm = cfg.LegalForm
+
+	// Der Satz je Fondsart, wie er sich aus der eingestellten Anlegerstellung
+	// ergibt — und, wo er sich nicht ergibt, der Grund dafür. Beides gehört an
+	// dieselbe Stelle: eine Maske, die nur den Satz zeigt, verschweigt die
+	// Fälle, in denen es keinen gibt.
+	for _, class := range accounting.AllFundClasses() {
+		if !class.IsFund() {
+			continue
+		}
+		exemption, err := accounting.PartialExemptionFor(class, investor)
+		info := exemptionInfo{Class: class, Label: class.Label()}
+		if err != nil {
+			info.Problem = err.Error()
+		} else {
+			info.Permille = exemption.Permille
+			info.Source = exemption.Source
+			info.Explanation = exemption.Explanation
+		}
+		rules.Exemptions = append(rules.Exemptions, info)
+	}
+	return rules, nil
 }
 
 // -------------------------------------------------------------------------

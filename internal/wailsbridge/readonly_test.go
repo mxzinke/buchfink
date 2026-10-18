@@ -387,7 +387,7 @@ func TestReadOnlyModeAnswersTheExchangeRateFromHistory(t *testing.T) {
 		t.Fatalf("Prüfermodus einschalten: %v", err)
 	}
 
-	rate, err := rateAt(b, "USD", "2026-12-31")
+	rate, err := b.GetExchangeRate("USD", "2026-12-31")
 	if err != nil {
 		t.Fatalf("im Prüfermodus muss der gespeicherte Kurs lesbar sein: %v", err)
 	}
@@ -397,7 +397,7 @@ func TestReadOnlyModeAnswersTheExchangeRateFromHistory(t *testing.T) {
 
 	// Und wo keiner gespeichert ist, sagt der Dienst genau das, statt still
 	// einen zu holen und abzulegen.
-	if _, err := rateAt(b, "CHF", "2026-12-31"); err == nil {
+	if _, err := b.GetExchangeRate("CHF", "2026-12-31"); err == nil {
 		t.Error("ohne gespeicherten Kurs darf im Prüfermodus keiner geholt werden")
 	} else if !strings.Contains(err.Error(), "Prüfermodus") {
 		t.Errorf("die Meldung muss den Grund nennen: %v", err)
@@ -408,7 +408,7 @@ func TestReadOnlyModeAnswersTheExchangeRateFromHistory(t *testing.T) {
 // Buchungsinhalt und muss beim nächsten Mal derselbe sein.
 func TestReadingAnExchangeRateKeepsTheFetchedRate(t *testing.T) {
 	b := testBridge(t, func(o *core.HostOptions) { o.Network.Rates = fixedRate{micros: 1_100_000} })
-	rate, err := rateAt(b, "USD", "2026-06-30")
+	rate, err := b.GetExchangeRate("USD", "2026-06-30")
 	if err != nil {
 		t.Fatalf("Kurs holen: %v", err)
 	}
@@ -421,13 +421,6 @@ func TestReadingAnExchangeRateKeepsTheFetchedRate(t *testing.T) {
 			t.Error("der geholte Kurs wurde nicht abgelegt")
 		}
 		return err
-	})
-}
-
-// rateAt liest einen Kurs über denselben Weg wie die Stichtagsbewertung.
-func rateAt(b *BuchfinkBridge, currency, date string) (*domain.ExchangeRate, error) {
-	return read(b, func(ctx context.Context, s *core.Services) (*domain.ExchangeRate, error) {
-		return b.currencyService(s).RateAt(ctx, currency, date)
 	})
 }
 

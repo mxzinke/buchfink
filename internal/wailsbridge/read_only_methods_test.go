@@ -68,7 +68,9 @@ func TestReadOnlyMethodsDoNotWrite(t *testing.T) {
 	receiptID := request.ReceiptID
 	for name, call := range map[string]func() error{
 		"GetReceiptPreview":    func() error { _, err := b.GetReceiptPreview(receiptID); return err },
+		"GetReceiptFindings":   func() error { _, err := b.GetReceiptFindings(receiptID); return err },
 		"GetEntriesForReceipt": func() error { _, err := b.GetEntriesForReceipt(receiptID); return err },
+		"GetAuditTrail":        func() error { _, err := b.GetAuditTrail(receiptID); return err },
 		"ProposeFromEInvoice":  func() error { _, err := b.ProposeFromEInvoice(receiptID); return err },
 		"GetPaymentAllocations": func() error {
 			_, err := b.GetPaymentAllocations(entry.ID)

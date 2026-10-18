@@ -252,3 +252,26 @@ func (b *BuchfinkBridge) GetSelectableContacts() ([]domain.Contact, error) {
 		return s.Contacts.SelectableContacts(ctx, b.viewYear())
 	})
 }
+
+// GetOpenItemsAging liefert Altersstruktur und Restlaufzeiten der offenen
+// Posten zum Stichtag. Leerer Stichtag heißt: heute.
+func (b *BuchfinkBridge) GetOpenItemsAging(cutoff string) (*domain.OpenItemsAging, error) {
+	return readOr(b, func() (*domain.OpenItemsAging, error) {
+		empty := &domain.OpenItemsAging{Cutoff: cutoff}
+		empty.EnsureLists()
+		return empty, nil
+	}, func(ctx context.Context, s *core.Services) (*domain.OpenItemsAging, error) {
+		if cutoff == "" {
+			cutoff = time.Now().UTC().Format("2006-01-02")
+		}
+		items, err := s.Payments.OpenItemsAt(ctx, cutoff)
+		if err != nil {
+			return nil, err
+		}
+		aging := accounting.AgeOpenItems(items, cutoff)
+		// Die Zusicherung steht hier und nicht nur bei der leeren Antwort: eine
+		// Liste, die an einer Stelle `null` sein darf, ist keine Zusicherung.
+		aging.EnsureLists()
+		return &aging, nil
+	})
+}

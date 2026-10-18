@@ -20,7 +20,9 @@ Drei Regeln:
    `api.ts` und eine Methode von `Api` ohne Aufruf aus einer Ansicht sind
    deshalb Befunde: Was die Oberfläche nicht tut, erledigt der Agent über den
    Kern, und ein vergessener Schreibweg in der Bridge wäre eine Hintertür daran
-   vorbei.
+   vorbei. Ausgenommen ist eine Methode, die ein Test der Bridge aufruft: Der
+   Test hält Verhalten fest, das die Methode selbst trägt, etwa die Methoden-
+   liste der Anlagenmaske oder die Antwort im Prüfermodus.
 """
 
 from __future__ import annotations
@@ -48,10 +50,18 @@ GO_METHOD_RE = re.compile(r'^func \(\w+ \*' + BRIDGE_TYPE + r'\) ([A-Z]\w*)\(', 
 INTERNAL_METHODS = {'ServiceName', 'ServiceStartup', 'ServiceShutdown', 'ServeHTTP'}
 
 
+def tested_methods() -> set[str]:
+    """Die Methoden, die ein Test in internal/wailsbridge über die Bridge aufruft."""
+    tested: set[str] = set()
+    for path in BRIDGE_GO_DIR.glob('*_test.go'):
+        tested.update(re.findall(r'\bb\.([A-Z]\w*)\(', path.read_text(encoding='utf-8')))
+    return tested
+
+
 def unused_methods(bridge_source: str, bound: set[str], called: set[str]) -> list[str]:
-    """Regel 3: jede gebundene Methode hat einen Aufrufer in einer Ansicht."""
+    """Regel 3: jede gebundene Methode hat einen Aufrufer in einer Ansicht oder einem Test."""
     findings: list[str] = []
-    for method in sorted(bound - called):
+    for method in sorted(bound - called - tested_methods()):
         findings.append(
             f'`{method}` ist gebunden, steht aber nicht in bridge.ts — '
             'aus der WebView aufrufbar, ohne dass eine Ansicht sie braucht'
@@ -123,7 +133,11 @@ def main() -> int:
         print(f'\n{len(findings)} Befund(e) in {BRIDGE_TS.relative_to(ROOT)}.')
         return 1
 
-    print(f'Bridge-Bindings: {len(called)} Methoden, Präfix und Namen stimmen, jede hat einen Aufrufer.')
+    only_tested = sorted(bound - set(called))
+    print(
+        f'Bridge-Bindings: {len(called)} Methoden, Präfix und Namen stimmen, jede hat einen Aufrufer'
+        f'; {len(only_tested)} weitere nur aus Tests der Bridge.'
+    )
     return 0
 
 
