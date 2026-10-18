@@ -59,3 +59,13 @@ assets/DATEV-SKR04-*.json
 
 # Screenshot-Werkzeug der Projektseite
 scripts/site-screenshots/node_modules
+
+# Nur die von der Projektseite eingebundenen Aufnahmen einchecken.
+website/assets/screenshots/*
+!website/assets/screenshots/uebersicht.png
+!website/assets/screenshots/zustimmung.png
+!website/assets/screenshots/einstellungen-apps.png
+!website/assets/screenshots/buecher.png
+!website/assets/screenshots/abschluesse.png
+!website/assets/screenshots/erklaerungen.png
+!website/assets/screenshots/unternehmen.png

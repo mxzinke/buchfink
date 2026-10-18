@@ -81,8 +81,6 @@ export default [
   },
   {
     file: 'abschluesse-kst.png',
-    // Auf der Projektseite als erklaerungen.png (website/README.md).
-    site: 'erklaerungen.png',
     go: async ({ page, open }) => {
       await open('#/closings/declarations/kst');
       await page.getByRole('heading', { name: 'Zu klären' }).waitFor();
@@ -92,6 +90,7 @@ export default [
   },
   {
     file: 'abschluesse-kst-zeile.png',
+    site: 'erklaerungen.png',
     go: async ({ page }) => {
       await page.getByRole('button', { name: /^Jahresüberschuss \/ Jahresfehlbetrag/ }).click();
       await page.getByText('Herkunft').first().waitFor();

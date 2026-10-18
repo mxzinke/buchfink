@@ -24,6 +24,9 @@ bei doppelter Pixeldichte), je Bereich der Navigation mit dessen Namen
 vorn (`buecher-journal.png`). Eine Aufnahme mit `site` liegt zusätzlich unter
 dem Namen, den die Projektseite einbindet (`buecher.png`); die sieben Namen
 stehen in [`website/README.md`](../../website/README.md#screenshots).
+`uebersicht.png` und `zustimmung.png` entstehen direkt unter ihrem Seitennamen.
+Git nimmt nur die sieben Bilder der Projektseite auf; die übrigen Aufnahmen
+schließt `.gitignore` aus.
 
 Die Uhr des Browsers steht auf dem 25.08.2026, dem Stand der Beispieldaten.
 Fälligkeiten und der laufende Monat passen so zu den Daten.
@@ -107,7 +110,7 @@ klickbar ist oder die Grenze überschritten wird; er ist damit auch die Probe
 darauf, dass der Weg Buchung → Beleg im Journal überhaupt besteht.
 
 Playwright braucht einen Chromium-Build. Ist keiner vorhanden, holt ihn
-`npx playwright install chromium`.
+`npx --prefix scripts/site-screenshots playwright install chromium`.
 
 `help.mjs` prüft das Popover am Fragezeichen bei Hover, Tastaturfokus und
 Enter, die Trennung von Kurztext und Details, Quellenlinks, Escape,
