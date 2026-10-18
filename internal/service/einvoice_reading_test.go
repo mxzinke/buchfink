@@ -452,3 +452,128 @@ func TestValidationCanRunOnASealedReceipt(t *testing.T) {
 		t.Errorf("die Kette muss nach einer Prüfung heil sein: %s", result.Message)
 	}
 }
+
+// --- Kopfdaten aus der E-Rechnung auf dem Weg, den die Anwendung geht ------
+
+// Geprüft wird ExtractStructuredPart und nicht prefillHeader: das ist der Weg,
+// den ein eingehender Beleg in der Anwendung nimmt. Ein Test auf der privaten
+// Hilfsfunktion beweist nur, dass die Hilfsfunktion tut, was sie tut — nicht,
+// dass sie auf diesem Weg überhaupt aufgerufen wird.
+func TestExtractStructuredPartFillsTheReceiptHeader(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+
+	receipt, err := env.receipts.File(ctx, FileReceiptRequest{
+		Direction: domain.DirectionIncoming, FiscalYear: env.fiscalYear,
+		ReceivedAt: "2026-05-05", ReceivedVia: domain.ReceivedViaEmail,
+		Files: []NewFile{
+			{Role: domain.ReceiptRoleOriginal, FileName: "rechnung.xml", Content: []byte("<Invoice/>")},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Beleg ablegen: %v", err)
+	}
+	if receipt.DocumentDate != "" {
+		t.Fatal("der Beleg soll ohne Kopfdaten hereinkommen — sonst prüft der Test nichts")
+	}
+
+	updated, err := env.einvoicesWith(fakeReader{invoice: receivedInvoice()}).
+		ExtractStructuredPart(ctx, receipt.ID)
+	if err != nil {
+		t.Fatalf("strukturierten Teil holen: %v", err)
+	}
+
+	if updated.DocumentDate != "2026-05-04" {
+		t.Errorf("Belegdatum %q, erwartet das Rechnungsdatum aus dem Datensatz", updated.DocumentDate)
+	}
+	if updated.IssuerName != "Netzwerk GmbH" {
+		t.Errorf("Aussteller %q, erwartet den Lieferanten aus dem Datensatz", updated.IssuerName)
+	}
+	if updated.GrossAmount != 119000 || updated.TaxAmount != 19000 {
+		t.Errorf("Beträge %s / %s, erwartet 1.190,00 / 190,00", updated.GrossAmount, updated.TaxAmount)
+	}
+	if updated.Subject != "LR-2026-0815" {
+		t.Errorf("Betreff %q, erwartet die Rechnungsnummer", updated.Subject)
+	}
+	if err := updated.ValidateHeader(); err != nil {
+		t.Errorf("nach dem Lesen ist der Beleg buchbar: %v", err)
+	}
+}
+
+// --- Kopfdaten aus der E-Rechnung -----------------------------------------
+
+func TestEInvoicePrefillsTheReceiptHeader(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+
+	// Ein Beleg ohne Kopfdaten — so kommt eine E-Rechnung herein, bevor ihr
+	// strukturierter Teil gelesen ist.
+	receipt := filePDFReceipt(t, env, FileReceiptRequest{})
+
+	read := &domain.IncomingInvoice{
+		Number:      "RE-2026-4711",
+		IssueDate:   "2026-03-14",
+		Currency:    "EUR",
+		Supplier:    domain.InvoiceParty{Name: "Bürobedarf Schmidt e. K."},
+		NetAmount:   10000,
+		TaxAmount:   1900,
+		GrossAmount: 11900,
+	}
+	if err := env.einvoices().prefillHeader(ctx, receipt.ID, read); err != nil {
+		t.Fatalf("die Kopfdaten ließen sich nicht übernehmen: %v", err)
+	}
+
+	filled, err := env.receipts.Get(ctx, receipt.ID)
+	if err != nil {
+		t.Fatalf("der Beleg ließ sich nicht lesen: %v", err)
+	}
+	if filled.DocumentDate != "2026-03-14" {
+		t.Errorf("Belegdatum %q, erwartet das Rechnungsdatum aus dem Datensatz", filled.DocumentDate)
+	}
+	if filled.IssuerName != "Bürobedarf Schmidt e. K." {
+		t.Errorf("Aussteller %q, erwartet den Lieferanten aus dem Datensatz", filled.IssuerName)
+	}
+	if filled.GrossAmount != 11900 || filled.TaxAmount != 1900 {
+		t.Errorf("Beträge %s / %s, erwartet 119,00 / 19,00", filled.GrossAmount, filled.TaxAmount)
+	}
+	if filled.Subject != "RE-2026-4711" {
+		t.Errorf("Betreff %q, erwartet die Rechnungsnummer", filled.Subject)
+	}
+	if err := filled.ValidateBookable(); err != nil {
+		t.Errorf("mit den übernommenen Kopfdaten ist der Beleg buchbar: %v", err)
+	}
+}
+
+func TestEInvoicePrefillDoesNotOverwriteWhatWasEntered(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+
+	// Was jemand erfasst hat, bleibt stehen: die Übernahme ergänzt, sie
+	// überschreibt nicht. Sonst verlöre eine von Hand berichtigte Angabe beim
+	// nächsten Lesen des strukturierten Teils ihre Wirkung.
+	receipt := filePDFReceipt(t, env, FileReceiptRequest{
+		DocumentDate: "2026-01-02", IssuerName: "Von Hand erfasst GmbH", GrossAmount: 5000,
+	})
+
+	read := &domain.IncomingInvoice{
+		Number: "RE-9", IssueDate: "2026-03-14", Currency: "EUR",
+		Supplier:    domain.InvoiceParty{Name: "Aus dem Datensatz GmbH"},
+		GrossAmount: 11900, TaxAmount: 1900,
+	}
+	if err := env.einvoices().prefillHeader(ctx, receipt.ID, read); err != nil {
+		t.Fatalf("die Übernahme ist fehlgeschlagen: %v", err)
+	}
+
+	filled, _ := env.receipts.Get(ctx, receipt.ID)
+	if filled.DocumentDate != "2026-01-02" || filled.IssuerName != "Von Hand erfasst GmbH" {
+		t.Errorf("die erfassten Angaben wurden überschrieben: %q / %q",
+			filled.DocumentDate, filled.IssuerName)
+	}
+	if filled.GrossAmount != 5000 {
+		t.Errorf("der erfasste Betrag wurde überschrieben: %s", filled.GrossAmount)
+	}
+	// Was leer war, wird ergänzt.
+	if filled.TaxAmount != 1900 {
+		t.Errorf("der leere Steuerbetrag muss ergänzt werden, bekommen %s", filled.TaxAmount)
+	}
+}

@@ -310,3 +310,33 @@ func TestLoadingAnExistingDatabaseIsRecordedAsOpened(t *testing.T) {
 		t.Errorf("Art %q, erwartet %q", records[0].Kind, domain.MigrationKindOpen)
 	}
 }
+
+// Der Sicherungsordner ist eine Einstellung des Mandanten: sein Wechsel gehört
+// mit beiden Ständen ins Protokoll.
+func TestSetBackupDirLogsBeforeAndAfter(t *testing.T) {
+	b := wiredBridge(t)
+
+	first := t.TempDir()
+	second := t.TempDir()
+	if _, err := b.SetBackupDir(first); err != nil {
+		t.Fatalf("Sicherungsordner setzen: %v", err)
+	}
+	if _, err := b.SetBackupDir(second); err != nil {
+		t.Fatalf("Sicherungsordner ändern: %v", err)
+	}
+
+	entries := auditEntries(t, b, domain.AuditFilter{EntityType: "BACKUP_DIR"})
+	if len(entries) == 0 {
+		t.Fatal("kein Protokolleintrag zum Sicherungsordner")
+	}
+	before := auditFields(t, entries[0].Before)
+	after := auditFields(t, entries[0].After)
+	firstAbs, _ := filepath.Abs(first)
+	secondAbs, _ := filepath.Abs(second)
+	if before["backupDir"] != firstAbs {
+		t.Errorf("das Vorher hat den alten Ordner nicht: %v", before)
+	}
+	if after["backupDir"] != secondAbs {
+		t.Errorf("das Nachher hat den neuen Ordner nicht: %v", after)
+	}
+}

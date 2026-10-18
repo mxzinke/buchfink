@@ -309,3 +309,41 @@ func TestReceiptFileCheckFindsAMissingFile(t *testing.T) {
 		t.Errorf("Grund %q, erwartet \"missing\"", result.Issues[0].Reason)
 	}
 }
+
+// Die Integritätsprüfung (Welle 4) muss die Protokollkette mitprüfen: eine
+// Buchführung, deren Buchungen unverändert sind, während sich die Einträge über
+// ihre Änderungen entfernen ließen, belegt nur die halbe Unveränderbarkeit.
+func TestVerifyIntegrityIncludesTheAuditChain(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	env.filledBooks(t)
+
+	result, err := env.journal.VerifyIntegrity(ctx)
+	if err != nil {
+		t.Fatalf("Integritätsprüfung: %v", err)
+	}
+	if result.AuditChain == nil {
+		t.Fatal("die Integritätsprüfung meldet die Protokollkette nicht")
+	}
+	if !result.AuditChain.IsValid || result.AuditChain.CheckedEntries == 0 {
+		t.Fatalf("die Protokollkette muss geprüft und gültig sein: %+v", result.AuditChain)
+	}
+
+	// Ein nachträglich veränderter Protokolleintrag macht das Gesamtergebnis
+	// ungültig.
+	if err := env.db.Exec(
+		"UPDATE audit_log_entries SET details = ? WHERE id = (SELECT MIN(id) FROM audit_log_entries)",
+		"nachträglich geändert").Error; err != nil {
+		t.Fatalf("Protokolleintrag ändern: %v", err)
+	}
+	broken, err := env.journal.VerifyIntegrity(ctx)
+	if err != nil {
+		t.Fatalf("Integritätsprüfung: %v", err)
+	}
+	if broken.IsValid {
+		t.Error("ein verändertes Änderungsprotokoll muss die Integritätsprüfung scheitern lassen")
+	}
+	if broken.AuditChain == nil || broken.AuditChain.IsValid {
+		t.Error("die Protokollkette muss den Bruch melden")
+	}
+}

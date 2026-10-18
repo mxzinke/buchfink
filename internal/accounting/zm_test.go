@@ -168,3 +168,18 @@ func TestZMPeriodsAreQuarters(t *testing.T) {
 		}
 	}
 }
+
+// Die sonstige Leistung wird im Quartal ihres Leistungsdatums gemeldet
+// (§ 18a Abs. 1 Satz 1 UStG).
+func TestZMReportsServicesInTheirQuarter(t *testing.T) {
+	movements := []ZMMovement{
+		{EntryID: 1, Date: "2026-01-20", ContactID: 1, Amount: 100_000},
+	}
+	recipient := func(uint) ZMRecipient {
+		return ZMRecipient{Name: "Client SARL", CountryCode: "FR", VatID: "FR12345678901", IsEU: true}
+	}
+	lines, _ := ZMLines(quarterPeriod(2026, 1), movements, recipient)
+	if len(lines) != 1 || lines[0].Amount != 100_000 {
+		t.Errorf("das Quartal meldet die sonstige Leistung nicht: %+v", lines)
+	}
+}

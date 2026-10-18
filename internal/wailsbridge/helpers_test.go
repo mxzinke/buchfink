@@ -2,6 +2,7 @@ package wailsbridge
 
 import (
 	"context"
+	"encoding/json"
 	"path/filepath"
 	"testing"
 
@@ -120,5 +121,46 @@ func auditEntries(t *testing.T, b *BuchfinkBridge, filter domain.AuditFilter) []
 		out, err = s.Repos.Audit.FindFiltered(ctx, 0, filter)
 		return err
 	})
+	return out
+}
+
+// wiredBridge ist eine Bridge mit vollständig verdrahtetem Mandanten.
+func wiredBridge(t *testing.T, opts ...func(*core.HostOptions)) *BuchfinkBridge {
+	t.Helper()
+	return testBridge(t, opts...)
+}
+
+// postSimpleEntry schreibt eine ausgeglichene Buchung über den Journaldienst.
+func postSimpleEntry(t *testing.T, b *BuchfinkBridge, bookingDate, description string) *domain.JournalEntry {
+	t.Helper()
+	entry := &domain.JournalEntry{
+		FiscalYear: 2026, BookingDate: bookingDate, DocumentDate: bookingDate,
+		ServiceDateFrom: bookingDate, ServiceDateTo: bookingDate,
+		Description: description, Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
+		Kind: domain.EntryKindNormal, Currency: "EUR", ExchangeRateMicros: 1_000_000,
+		Lines: []domain.JournalLine{
+			{Position: 1, Side: domain.SideDebit, Account: "6815", Amount: 10000},
+			{Position: 2, Side: domain.SideCredit, Account: "1800", Amount: 10000},
+		},
+	}
+	var created *domain.JournalEntry
+	testWrite(t, b, func(ctx context.Context, s *core.Services) error {
+		var err error
+		created, err = s.Journal.Post(ctx, entry)
+		return err
+	})
+	return created
+}
+
+// auditFields liest das Vorher oder Nachher eines Protokolleintrags.
+func auditFields(t *testing.T, raw string) map[string]any {
+	t.Helper()
+	if raw == "" {
+		return map[string]any{}
+	}
+	out := map[string]any{}
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		t.Fatalf("Vorher/Nachher ist kein JSON: %v (%s)", err, raw)
+	}
 	return out
 }

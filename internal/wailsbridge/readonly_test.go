@@ -436,3 +436,55 @@ type fixedRate struct{ micros int64 }
 func (f fixedRate) RateAt(_ context.Context, _, date string) (int64, string, string, error) {
 	return f.micros, date, "Testkurs", nil
 }
+
+// Der Prüfermodus schaltet die Schreibwege ab. Wann er galt und wie lange, ist
+// Teil des Nachweises über den Zeitraum, in dem der Prüfer gesehen hat, was er
+// gesehen hat.
+func TestReadOnlyModeLogsBeforeAndAfter(t *testing.T) {
+	b := wiredBridge(t)
+
+	until := time.Now().AddDate(0, 0, 30).Format("2006-01-02")
+	if _, err := b.EnableReadOnly(until, "Außenprüfung 2020 bis 2023"); err != nil {
+		t.Fatalf("Prüfermodus einschalten: %v", err)
+	}
+	entries := auditEntries(t, b, domain.AuditFilter{EntityType: "READ_ONLY"})
+	if len(entries) == 0 {
+		t.Fatal("kein Protokolleintrag zum Prüfermodus")
+	}
+	after := auditFields(t, entries[0].After)
+	if after["readOnlyUntil"] != until {
+		t.Errorf("das Nachher hat das Enddatum nicht: %v", after)
+	}
+	if after["readOnlyReason"] != "Außenprüfung 2020 bis 2023" {
+		t.Errorf("das Nachher hat den Grund nicht: %v", after)
+	}
+
+	if _, err := b.DisableReadOnly("Prüfung abgeschlossen"); err != nil {
+		t.Fatalf("Prüfermodus beenden: %v", err)
+	}
+	entries = auditEntries(t, b, domain.AuditFilter{EntityType: "READ_ONLY"})
+	before := auditFields(t, entries[0].Before)
+	if before["readOnlyUntil"] != until {
+		t.Errorf("das Vorher des Abschaltens hat das Enddatum nicht: %v", before)
+	}
+}
+
+// Im Prüfermodus bleiben die lesenden Wege offen und die schreibenden zu.
+func TestWelle7BridgeRespectsTheReadOnlyMode(t *testing.T) {
+	b := testBridge(t)
+	until := time.Now().AddDate(0, 0, 30).Format("2006-01-02")
+	if _, err := b.EnableReadOnly(until, "Betriebsprüfung 2022 bis 2024"); err != nil {
+		t.Fatalf("Prüfermodus einschalten: %v", err)
+	}
+
+	if _, err := b.GetTasks(); err != nil {
+		t.Errorf("die Aufgabenliste muss im Prüfermodus lesbar bleiben: %v", err)
+	}
+	if err := b.DeleteBankRule(1); err == nil || !strings.Contains(err.Error(), "Prüfermodus") {
+		t.Errorf("das Löschen einer Bankregel muss abgewiesen werden: %v", err)
+	}
+	if _, err := b.SaveServiceProof(1, "geprüft", "2026-03-20"); err == nil ||
+		!strings.Contains(err.Error(), "Prüfermodus") {
+		t.Errorf("der Leistungsnachweis muss abgewiesen werden: %v", err)
+	}
+}

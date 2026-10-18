@@ -252,3 +252,68 @@ func creditOn(entry *domain.JournalEntry, account string) domain.Cents {
 	}
 	return total
 }
+
+// -------------------------------------------------------------------------
+// Geschenke: Empfänger und Generalumkehr
+// -------------------------------------------------------------------------
+
+// Der Empfänger eines Geschenks wird aus der Kartei geladen. „Kontakt 17" ist
+// keine Aufzeichnung nach § 4 Abs. 7 EStG, und eine Kennung, die es nicht gibt,
+// führte eine Freigrenze über einen Empfänger, den es nicht gibt.
+func TestGiftRecipientComesFromTheContact(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	env.gifts(t)
+	vendor := env.vendor(t, "Präsente GmbH", "DE", "")
+	recipient := env.customer(t, "Dr. Meyer", "DE", "")
+
+	req := env.receipt(t, vendor.ID, "geschenke", 4_000,
+		domain.TaxRateStandard, domain.TaxTreatmentDomestic)
+	req.Positions[0].Gift = &GiftInput{ContactID: recipient.ID, Occasion: "Jubiläum"}
+
+	entry, err := env.posting.PostIncomingReceipt(ctx, req)
+	if err != nil {
+		t.Fatalf("Geschenk buchen: %v", err)
+	}
+	if len(entry.Gifts) != 1 || entry.Gifts[0].RecipientName != "Dr. Meyer" {
+		t.Fatalf("Aufzeichnung %+v — erwartet den Namen aus der Kartei", entry.Gifts)
+	}
+
+	// Ein Empfänger, den es nicht gibt, wird abgewiesen.
+	bad := env.receipt(t, vendor.ID, "geschenke", 1_000,
+		domain.TaxRateStandard, domain.TaxTreatmentDomestic)
+	bad.Positions[0].Gift = &GiftInput{ContactID: 9999}
+	if _, err := env.posting.PostIncomingReceipt(ctx, bad); err == nil {
+		t.Error("ein unbekannter Empfänger darf keine Aufzeichnung erzeugen")
+	}
+}
+
+// Die Generalumkehr übernimmt die Aufzeichnung mit — wie bei der Bewirtung. Gezählt
+// wird sie nicht: sonst liefe die Freigrenze über das stornierte Geschenk weiter.
+func TestReversalCarriesTheGiftRecord(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	svc := env.gifts(t)
+	vendor := env.vendor(t, "Präsente GmbH", "DE", "")
+
+	entry, err := env.posting.PostIncomingReceipt(ctx,
+		env.giftReceipt(t, vendor.ID, "Dr. Meyer", 4_000))
+	if err != nil {
+		t.Fatalf("Geschenk: %v", err)
+	}
+	reversal, err := env.journal.Reverse(ctx, entry.ID, "Falscher Empfänger")
+	if err != nil {
+		t.Fatalf("Storno: %v", err)
+	}
+	if len(reversal.Gifts) != 1 || reversal.Gifts[0].RecipientName != "Dr. Meyer" {
+		t.Errorf("die Umkehr muss die Aufzeichnung übernehmen: %+v", reversal.Gifts)
+	}
+
+	records, err := svc.GiftsInYear(ctx, 2026)
+	if err != nil {
+		t.Fatalf("Geschenkkartei: %v", err)
+	}
+	if len(records) != 0 {
+		t.Errorf("%d Geschenke in der Kartei — das stornierte zählt nicht mehr mit", len(records))
+	}
+}
