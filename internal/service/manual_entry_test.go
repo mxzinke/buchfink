@@ -13,7 +13,7 @@ import (
 )
 
 // Die Steuerangaben der Handbuchung prüft der Buchungsweg selbst und nicht nur
-// der Vorbau PostManualEntry (Welle 8, Entscheidung 1).
+// der Vorbau PostManualEntry.
 func TestPostRejectsAManualEntryWithoutATaxCase(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()

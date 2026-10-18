@@ -31,7 +31,7 @@ type ClosingStepsService struct {
 	auditRepo         domain.AuditRepository
 	closingSvc        *ClosingService
 	depreciation      PendingDepreciationSource
-	// Welle 5c: die beiden Bausteine, deren Zustand aus einer eigenen Kartei
+	// Die beiden Bausteine, deren Zustand aus einer eigenen Kartei
 	// folgt. Beide sind optional — ohne sie bleibt ihr Schritt schlicht offen.
 	writeUps WriteUpSource
 	inputTax InputTaxCorrectionSource

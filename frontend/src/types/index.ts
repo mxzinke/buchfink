@@ -2288,9 +2288,8 @@ export interface CheckRun {
   checkedReceipts: number;
   checkedBankTx: number;
   /**
-   * Optional, obwohl das Backend die Kennzahlen immer mitschickt: Läufe aus
-   * einer Fassung vor Welle 6 haben das Feld nicht, und die Ansicht darf daran
-   * nicht scheitern.
+   * Das Backend liefert die Kennzahlen; die Ansicht erlaubt auch gespeicherte
+   * Prüfläufe ohne Kennzahlen.
    */
   timeliness?: CheckTimeliness;
   /** Die Begründung, mit der blockierende Befunde übergangen wurden. */
@@ -2801,7 +2800,7 @@ export interface TaxElectionRegister {
 }
 
 // -------------------------------------------------------------------------
-// Steuerliche Nebenpflichten (Welle 5c): Vorsteuerberichtigung § 15a UStG,
+// Steuerliche Nebenpflichten: Vorsteuerberichtigung § 15a UStG,
 // Bestätigung der USt-IdNr., nicht abziehbare Betriebsausgaben, Fremdwährung,
 // Anlagen
 // -------------------------------------------------------------------------
@@ -3098,7 +3097,7 @@ export interface WriteUpReport {
 }
 
 // -------------------------------------------------------------------------
-// Nachweise (Welle 6): Änderungsprotokoll, Versionen, Aufbewahrung,
+// Nachweise: Änderungsprotokoll, Versionen, Aufbewahrung,
 // Verfahrensdokumentation, Datenübernahme, Altersstruktur
 // -------------------------------------------------------------------------
 
@@ -3245,7 +3244,7 @@ export interface BlockContactResult {
 }
 
 // ---------------------------------------------------------------------------
-// Die Bedienung (Welle 7): Aufgabenliste, Monatsabschluss, Zuordnungsvorschlag
+// Die Bedienung: Aufgabenliste, Monatsabschluss, Zuordnungsvorschlag
 // und Prüfpfad.
 // ---------------------------------------------------------------------------
 
@@ -3377,7 +3376,7 @@ export interface BankRule {
 }
 
 // -------------------------------------------------------------------------
-// Welle 8: laufende Buchhaltung — Handbuchung mit Beleg, Eigenbeleg,
+// Laufende Buchhaltung — Handbuchung mit Beleg, Eigenbeleg,
 // Beanstandungsliste, eigene Konten, Fristen, Steuersätze, Journalfilter
 // -------------------------------------------------------------------------
 

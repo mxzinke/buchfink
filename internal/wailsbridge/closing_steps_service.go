@@ -9,7 +9,7 @@ import (
 	"github.com/buchfink/buchfink/internal/service"
 )
 
-// Die Bridge der Abschlussbausteine (Welle 5a). Lesen und Schreiben gehen wie
+// Die Bridge der Abschlussbausteine. Lesen und Schreiben gehen wie
 // überall über read und write (session.go).
 
 // -------------------------------------------------------------------------

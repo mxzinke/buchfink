@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// Die Bedienung der Welle 7 antwortet auch dann, wenn ihre Dienste fehlen.
+// Aufgabenliste, Bankabgleich und Monatsabschluss antworten auch ohne Dienste.
 //
 // Der Fall ist nicht künstlich: zwischen dem Start und dem Öffnen eines
 // Mandanten ist genau das der Zustand, und die Aufgabenliste ist der erste

@@ -108,7 +108,7 @@ func TestEInvoiceNoticeStaysQuietWhereNoObligationExists(t *testing.T) {
 	t.Run("strukturierter Teil liegt vor", func(t *testing.T) {
 		vendor := env.businessVendor(t, "Agentur mit E-Rechnung")
 		filed, err := env.receipts.File(ctx, FileReceiptRequest{
-			// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+			// Die Kopfdaten gehören zu jedem buchbaren Beleg
 			// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
 			// ValidateBookable die Buchung zurück.
 			DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,

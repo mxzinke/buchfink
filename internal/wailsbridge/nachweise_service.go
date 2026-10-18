@@ -16,7 +16,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
-// Die Nachweise der Welle 6: Änderungsprotokoll mit Kette, Versionshistorie,
+// Die Nachweise: Änderungsprotokoll mit Kette, Versionshistorie,
 // Migrationsprotokoll, Verfahrensdokumentation, Eröffnungsbilanz des
 // Umsteigers und die Altersstruktur der offenen Posten.
 //

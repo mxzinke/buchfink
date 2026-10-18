@@ -8,13 +8,6 @@ import (
 	"github.com/buchfink/buchfink/internal/service"
 )
 
-// Die Bedienung der Welle 7: Aufgabenliste, Monatsabschluss,
-// Zuordnungsvorschlag und Prüfpfad.
-//
-// Sie stehen in einer eigenen Datei, weil sie eine Sache sind: die Antwort auf
-// die Frage, was eine Anwenderin ohne Buchhaltungsausbildung als Nächstes tun
-// soll — und wie sie das, was sie tut, wieder findet.
-
 // --- Aufgabenliste --------------------------------------------------------
 
 // GetTasks liefert die Aufgabenliste in ihren drei Gruppen. Der Prüfermodus

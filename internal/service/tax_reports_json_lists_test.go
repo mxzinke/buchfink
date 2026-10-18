@@ -9,7 +9,7 @@ import (
 )
 
 // -------------------------------------------------------------------------
-// Kein `null` in den Listen der Welle 5c
+// Kein `null` in den steuerlichen Auswertungen
 // -------------------------------------------------------------------------
 
 // Die Auswertungen der steuerlichen Nebenpflichten am leeren Mandanten.

@@ -266,7 +266,7 @@ function normalizeIntegrity(result: IntegrityCheckResult): IntegrityCheckResult 
     ...result,
     breaks: list(result.breaks),
     fiscalYears: list(result.fiscalYears),
-    // Die Protokollkette hängt seit Welle 6 am selben Ergebnis. Sie kann
+    // Das Ergebnis enthält auch die Protokollkette. Sie kann
     // fehlen — dann bleibt das Feld leer und behauptet nichts.
     auditChain: result.auditChain ? normalizeAuditChain(result.auditChain) : undefined,
   };
@@ -344,7 +344,7 @@ function normalizeInvoice(invoice: Invoice): Invoice {
 }
 
 /**
- * Die Listen der steuerlichen Nebenpflichten (Welle 5c).
+ * Die Listen der steuerlichen Nebenpflichten.
  *
  * Alle vier sind der Regelfall des unbelasteten Jahres: kein Wirtschaftsgut im
  * Verzeichnis, kein Nachweisbeleg, kein Geschenk, kein Posten in Fremdwährung.
@@ -1084,7 +1084,7 @@ export const Api = {
       hints ? { ...hints, taxCaseHints: list(hints.taxCaseHints) } : hints,
     ),
 
-  // --- Kontakte, Belege, Journal und offene Posten der Welle 6 -----------
+  // --- Kontakte, Belege, Journal und offene Posten ----------------------
 
   /**
    * Sperrt einen Geschäftspartner nach einem Löschverlangen und liefert die

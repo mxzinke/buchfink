@@ -2815,7 +2815,7 @@ func (s *AssetService) enrich(
 		asset.UnitsHeld += m.Quantity
 		if m.Kind == domain.AssetMovementVorabpauschale {
 			// TaxAmount speichert zwei verschiedene steuerliche Werte: die
-			// Vorabpauschale des Investmentanteils und seit dieser Welle die
+			// Vorabpauschale des Investmentanteils und die
 			// Sonderabschreibung nach § 7g Abs. 5 EStG. Ohne die Abfrage nach
 			// der Bewegungsart erschiene eine Sonderabschreibung als bereits
 			// versteuerte Vorabpauschale.

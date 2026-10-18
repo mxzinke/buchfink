@@ -306,8 +306,7 @@ func (s *BankService) ruleSuggestion(ctx context.Context, tx *domain.BankTransac
 	if err != nil {
 		return nil
 	}
-	// Das Muster hat die Geldrichtung seit Welle 7 selbst; die Prüfung bleibt
-	// für die Regeln, die davor gelernt wurden.
+	// Die Geldrichtung wird auch für Regeln ohne Richtungsangabe im Muster geprüft.
 	if rule != nil && rule.MoneyIn != (tx.Amount > 0) {
 		rule = nil
 	}

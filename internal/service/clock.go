@@ -5,7 +5,7 @@ import "time"
 // todayLocal ist der Kalendertag, mit dem Buchfink ein leeres Datumsfeld
 // vorbelegt — in Ortszeit und bewusst nicht in UTC.
 //
-// Welle 6 hat alle Zeitstempel in Persistenzpfaden auf UTC gestellt (QUE-04):
+// Zeitstempel werden in UTC gespeichert (QUE-04):
 // wann etwas geschehen ist, wird verglichen, sortiert und über
 // Rechnergrenzen hinweg gelesen, und dafür ist eine Ortszeit ohne Zonenangabe
 // wertlos. Ein Datumsfeld ist etwas anderes als ein Zeitstempel. Buchungstag,

@@ -8,13 +8,6 @@ import (
 	"github.com/buchfink/buchfink/internal/service"
 )
 
-// Die Bridge-Methoden des Rechnungswesens aus Welle 5b.
-//
-// Sie stehen in einer eigenen Datei und nicht in app_service.go: das
-// Rechnungswesen ist ein zusammenhängender Gegenstand — Korrektur, Storno,
-// Versand, Anzahlungen, Nummernkreis —, und app_service.go ist ohnehin die
-// Datei, in der man nichts mehr findet.
-
 // RegenerateInvoiceDocument holt ein fehlendes Rechnungsdokument nach.
 func (b *BuchfinkBridge) RegenerateInvoiceDocument(invoiceID uint) (*domain.Invoice, error) {
 	return write(b, func(ctx context.Context, s *core.Services) (*domain.Invoice, error) {

@@ -9,14 +9,8 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// Die Persistenz der steuerlichen Nebenpflichten (Welle 5c).
-//
-// Drei der vier Karteien hier haben gemeinsam, dass sie über Geschäftsjahre
-// hinweg leben: das Verzeichnis nach § 15a UStG läuft fünf oder zehn Jahre, die
-// Bestätigungsabfragen sind der Nachweis einer laufenden Geschäftsbeziehung, und
-// die Kurshistorie wird für jedes Jahr rückwirkend gebraucht. Keine von ihnen
-// bekommt deshalb ein Geschäftsjahr als Filter — sie würden in jedem Jahr außer
-// einem leer aussehen.
+// Das Verzeichnis nach § 15a UStG läuft über mehrere Geschäftsjahre.
+// FindAll liest deshalb alle Einträge ohne Geschäftsjahresfilter.
 
 // -------------------------------------------------------------------------
 // Verzeichnis der Vorsteuerberichtigung (§ 15a UStG)

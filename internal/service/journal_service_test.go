@@ -132,7 +132,7 @@ func simpleEntry(debit, credit string, amount domain.Cents) *domain.JournalEntry
 		ServiceDateTo:   "2026-03-01",
 		Description:     "Testbuchung",
 		Source:          domain.EntrySourceManual,
-		// Der Steuerfall gehört seit Welle 8 zu jeder Handbuchung
+		// Der Steuerfall gehört zu jeder Handbuchung
 		// (ValidatePostable prüft ihn); die Testbuchung löst keine Steuer aus.
 		TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{

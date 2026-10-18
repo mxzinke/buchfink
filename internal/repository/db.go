@@ -192,7 +192,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.ObligationRecord{},
 		&domain.ObligationEvent{},
 		&domain.BackupRun{},
-		// Welle 5a: die Abschlussbausteine. Sie stehen am Ende, weil AutoMigrate
+		// Die Abschlussbausteine stehen am Ende, weil AutoMigrate
 		// in dieser Reihenfolge anlegt und die Fremdschlüssel auf Journal und
 		// Beleg schon existieren müssen.
 		&domain.ClosingStep{},
@@ -203,21 +203,21 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.DiscountRate{},
 		&domain.NotesText{},
 		&domain.Appropriation{},
-		// Welle 5b: Rechnungswesen. Der Rechnungsverbund und seine Abschläge
+		// Der Rechnungsverbund und seine Abschläge
 		// verweisen auf Rechnung und Buchung, der Lückenvermerk auf den
 		// Nummernkreis — beide stehen deshalb hinter ihnen.
 		&domain.InvoiceGroup{},
 		&domain.AdvanceItem{},
 		&domain.VendorAdvance{},
 		&domain.NumberGap{},
-		// Welle 5c: die steuerlichen Nebenpflichten. Das Verzeichnis nach § 15a
+		// Das Verzeichnis nach § 15a
 		// UStG verweist auf Anlagegut, Beleg und Buchung, die Bestätigungsabfrage
 		// auf den Kontakt — beide stehen deshalb hinter ihnen.
 		&domain.InputTaxCorrection{},
 		&domain.InputTaxUsage{},
 		&domain.VatIDCheck{},
 		&domain.VatExchangeRate{},
-		// Welle 6: die Nachweise. Die beiden Protokolle stehen am Ende — sie
+		// Die beiden Protokolle stehen am Ende — sie
 		// verweisen auf nichts und nichts verweist auf sie.
 		&domain.SchemaMigration{},
 		&domain.MigrationRecord{},

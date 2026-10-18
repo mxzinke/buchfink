@@ -10,7 +10,7 @@ import (
 	"github.com/buchfink/buchfink/internal/repository"
 )
 
-// invoicesWired liefert den Rechnungsdienst mit der Verdrahtung der Welle 5b:
+// invoicesWired liefert den Rechnungsdienst mit
 // Transaktionsklammer, Lückenbericht, Rechnungsverbund und Geschäftsjahre.
 //
 // Ohne Beleg-Pipeline — die meisten dieser Prüfungen betreffen Nummernvergabe
@@ -59,10 +59,9 @@ func (e *testEnv) simpleInvoice(customerID uint, date string, net domain.Cents) 
 // Scheitert die Buchung, ist die Nummer nicht verbraucht und die Rechnung nicht
 // gespeichert.
 //
-// Das ist der Kern der Welle: § 14 Abs. 4 Nr. 4 UStG verlangt eine einmalige,
-// fortlaufende Nummer, GoBD Rz. 42 verlangt sie lückenlos. Vorher lief die
-// Nummernvergabe in einer eigenen Transaktion vor der Buchung — und jede
-// gescheiterte Buchung ließ eine verbrauchte Nummer ohne Rechnung zurück.
+// Nummernvergabe und Buchung gehören in dieselbe Transaktion, damit eine
+// gescheiterte Buchung keine Nummer verbraucht (§ 14 Abs. 4 Nr. 4 UStG,
+// GoBD Rz. 42).
 func TestFailedPostingConsumesNoInvoiceNumber(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()

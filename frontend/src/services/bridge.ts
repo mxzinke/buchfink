@@ -290,10 +290,7 @@ export const bridge = {
   BlockContact: <T>(id: number, reason: string) => invoke<T>('BlockContact', id, reason),
   GetSelectableContacts: <T>() => invoke<T>('GetSelectableContacts'),
 
-  // Die Bedienung der Welle 7: Aufgabenliste, Monatsabschluss,
-  // Zuordnungsvorschlag und Prüfpfad. Die Reihenfolge der Argumente ist gegen
-  // internal/wailsbridge/{task,month_close,bank_suggest}_service.go geprüft; `invoke` ist untypisiert
-  // und würde eine vertauschte Reihenfolge erst zur Laufzeit melden.
+  // Aufgabenliste, Monatsabschluss und Bankabgleich
   GetTasks: <T>() => invoke<T>('GetTasks'),
   GetMonthCloseState: <T>(month: string) => invoke<T>('GetMonthCloseState', month),
   SuggestBankMatches: <T>(bankTxId: number) => invoke<T>('SuggestBankMatches', bankTxId),
@@ -310,10 +307,7 @@ export const bridge = {
     invoke<T>('ReopenObligation', key, reason),
   GetAgentBookings: <T>(limit: number) => invoke<T>('GetAgentBookings', limit),
 
-  // Belegverweis, Fristen, Journalfilter. Jede Signatur ist gegen
-  // internal/wailsbridge/{receipt_findings,vat,journal_filter}_service.go geprüft — Anzahl und Reihenfolge der
-  // Argumente —, weil `invoke` untypisiert ist und eine vertauschte Reihenfolge
-  // erst zur Laufzeit auffiele.
+  // Belegverweis, Aufbewahrung, Umsatzsteuer und Journalfilter
   GetRetentionRules: <T>() => invoke<T>('GetRetentionRules'),
   GetEntriesForReceipt: <T>(receiptId: number) => invoke<T>('GetEntriesForReceipt', receiptId),
   GetVatPeriodProposal: <T>(year: number) => invoke<T>('GetVatPeriodProposal', year),

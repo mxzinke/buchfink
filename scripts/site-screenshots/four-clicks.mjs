@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Das Prüfszenario als Klickweg (GOB-02, Entscheidung 8 der Welle 7).
+ * Das Prüfszenario als Klickweg (GOB-02).
  *
  * Die Aufgabe: von der Bilanzposition, unter der das Bankkonto steht, zum Beleg
  * der Buchung — in höchstens vier Klicks. Sie ist der Prüfstein für die

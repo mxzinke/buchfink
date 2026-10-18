@@ -8,7 +8,9 @@ import (
 	"github.com/buchfink/buchfink/internal/service"
 )
 
-// GetExchangeRate liefert den Kurs eines Tages.
+// GetExchangeRate liefert den Kurs eines Tages und speichert einen fehlenden
+// Kurs in der Historie. Im Prüfermodus liest der Kursdienst nur gespeicherte
+// Kurse; dasselbe gilt für PreviewCurrencyValuation.
 func (b *BuchfinkBridge) GetExchangeRate(currency, date string) (*domain.ExchangeRate, error) {
 	return read(b, func(ctx context.Context, s *core.Services) (*domain.ExchangeRate, error) {
 		return b.currencyService(s).RateAt(ctx, currency, date)
@@ -40,9 +42,7 @@ func (b *BuchfinkBridge) GetVatExchangeRates(from, to string) ([]domain.VatExcha
 //
 // Wie GetExchangeRate: im laufenden Betrieb holt sie den fehlenden Stichtagskurs
 // und legt ihn ab, im Prüfermodus rechnet sie mit den gespeicherten Kursen und
-// nennt es, wo einer fehlt. Die Vorschau ganz zu sperren wäre die schlechteste
-// Antwort gewesen — sie ist eine Auswertung, und der Prüfermodus ist der Modus,
-// in dem ausgewertet wird.
+// meldet fehlende Kurse.
 func (b *BuchfinkBridge) PreviewCurrencyValuation(year int) (*service.ForeignCurrencyValuation, error) {
 	year = b.yearOr(year)
 	return read(b, func(ctx context.Context, s *core.Services) (*service.ForeignCurrencyValuation, error) {

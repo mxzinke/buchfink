@@ -36,10 +36,6 @@ func TestInputTaxCorrectionBooksOnTheLastDayOfTheFiscalYear(t *testing.T) {
 	}
 }
 
-// Die zweite Nachbesserung der Welle 5c: der Weg zurück aus einer stornierten
-// Abschlussbuchung, der Vorsteuerausschluss bei Steuerfällen mit eigener
-// Steuerschuld und die Umbuchung der Geschenke als ein Vorgang.
-
 // -------------------------------------------------------------------------
 // § 15a UStG: nach dem Storno wird erneut berichtigt
 // -------------------------------------------------------------------------

@@ -61,9 +61,9 @@ func shareOn(entry *domain.JournalEntry, account string) int {
 // § 15 Abs. 1a UStG nimmt den Abzug, nicht die Steuerschuld.
 //
 // Beim innergemeinschaftlichen Erwerb und beim Reverse Charge entstehen beide
-// aus derselben Bemessungsgrundlage. Buchfink wies den Fall bis Welle 8 ab,
-// weil es nur eine Bemessungsgrundlage führte; seither trägt die geschuldete
-// Steuer die volle und die Vorsteuer die abziehbare (siehe taxLinesForShare).
+// aus derselben Bemessungsgrundlage. Die geschuldete Steuer wird aus der vollen
+// und die Vorsteuer aus der abziehbaren Bemessungsgrundlage berechnet
+// (siehe taxLinesForShare).
 // Geprüft wird deshalb das Ergebnis: die Erwerb- bzw. § 13b-Steuer steht in
 // voller Höhe, eine Vorsteuerzeile entsteht nicht, und die nicht abziehbare
 // Steuer gehört zum Aufwand (§ 9b Abs. 1 EStG).

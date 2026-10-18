@@ -376,9 +376,7 @@ func BuildStatement(current, prior []domain.Account, depth domain.StatementDepth
 				// nicht eingeforderten ausstehenden Einlagen (aktiva.0, § 272
 				// Abs. 1 Satz 3 HGB) und ein auf der Aktivseite ausgewiesener
 				// Fehlbetrag nach § 268 Abs. 3 HGB. Die aktiven latenten
-				// Steuern (aktiva.D) gehören dazu — die Spezifikation der
-				// Welle 2 nimmt sie aus, das trifft den Gesetzeswortlaut nicht,
-				// und die Größenklasse folgt hier dem Gesetz.
+				// Steuern (aktiva.D) gehören dazu.
 				//
 				// Der Fehlbetrag des § 268 Abs. 3 HGB kommt in dieser
 				// Gliederung nicht als Aktivposition vor; negatives

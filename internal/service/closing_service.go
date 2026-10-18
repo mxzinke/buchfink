@@ -35,10 +35,8 @@ type ClosingService struct {
 	foundationRepo     domain.FoundationRepository
 	auditRepo          domain.AuditRepository
 	journalSvc         *JournalService
-	// accruals und notes sind die Kopplungen dieser Welle: die Auflösung der
-	// Rechnungsabgrenzung richtet sich nach dem Saldenvortrag, die Anhangtexte
-	// richten sich nach der Jahresanlage. Beide sind optional — ohne sie
-	// arbeitet der Abschluss wie zuvor.
+	// accruals koppelt die Auflösung der Rechnungsabgrenzung an den Saldenvortrag,
+	// notes die Anhangtexte an die Jahresanlage. Beide Kopplungen sind optional.
 	accruals AccrualCarrier
 	notes    NotesCopier
 	// currency ist die Fremdwährungsbewertung. Ihre Auflösung gehört wie die der

@@ -8,7 +8,7 @@ import (
 	"github.com/buchfink/buchfink/internal/repository"
 )
 
-// --- Keine `null`-Listen in den Antworten der Welle 6 ----------------------
+// --- Keine `null`-Listen in den Nachweisen --------------------------------
 
 // Die Nachweisseite liest die Listen ohne Umweg. Ein nicht belegter Slice wird
 // zu `null`, und `null.map` nimmt im Render den ganzen Baum mit — und zwar im

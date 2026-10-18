@@ -9,11 +9,6 @@ import (
 	"github.com/buchfink/buchfink/internal/repository"
 )
 
-// Die Prüfungen der Welle 8: keine Buchung ohne Beleg, der Eigenbeleg als der
-// zweite Weg dorthin, die überschreibbare Aufbewahrungsfrist, die
-// Fehlerklassen der Klärungsliste und der Voranmeldungszeitraum aus der
-// Vorjahressteuer.
-
 // withSelfIssued rüstet den Belegdienst für den Eigenbeleg aus: Setzer,
 // Unternehmensangaben und Nummernkreis.
 func (e *testEnv) withSelfIssued(t *testing.T) *stubRenderer {

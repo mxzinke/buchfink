@@ -20,7 +20,7 @@ func TestUncheckedEInvoiceIsAFinding(t *testing.T) {
 	ctx := context.Background()
 	vendor := env.vendor(t, "Agentur GmbH", "DE", "")
 	receipt, err := env.receipts.File(ctx, FileReceiptRequest{
-		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// Die Kopfdaten gehören zu jedem buchbaren Beleg
 		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
 		// ValidateBookable die Buchung zurück.
 		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
@@ -61,10 +61,6 @@ func TestUncheckedEInvoiceIsAFinding(t *testing.T) {
 		t.Errorf("mit festgehaltenem Grund muss die Buchung durchgehen: %v", err)
 	}
 }
-
-// Die Nachbesserungen der Welle 8: die verlängerte Aufbewahrungsfrist übersteht
-// die Kopfdaten, die Klärungsliste prüft die Stammdaten, und die Nachträge der
-// ZM zählen eine sonstige Leistung nicht doppelt.
 
 // rulesOf sammelt die Regelkennungen aller Befunde einer Klasse.
 func rulesOf(out *domain.ReceiptFindings, class domain.ValidationFindingClass) map[string]domain.ValidationFinding {

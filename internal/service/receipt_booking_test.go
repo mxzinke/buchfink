@@ -226,7 +226,7 @@ func TestBookingRejectsAReceiptOfTheWrongDirection(t *testing.T) {
 	vendor := env.vendor(t, "Lieferant", "DE", "")
 
 	outgoing, err := env.receipts.File(ctx, FileReceiptRequest{
-		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// Die Kopfdaten gehören zu jedem buchbaren Beleg
 		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
 		// ValidateBookable die Buchung zurück.
 		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
@@ -253,7 +253,7 @@ func TestBookingRefusesAReceiptThatCannotBeDisplayed(t *testing.T) {
 	vendor := env.vendor(t, "Lieferant", "DE", "")
 
 	filed, err := env.receipts.File(ctx, FileReceiptRequest{
-		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// Die Kopfdaten gehören zu jedem buchbaren Beleg
 		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
 		// ValidateBookable die Buchung zurück.
 		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,

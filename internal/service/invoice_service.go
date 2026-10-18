@@ -23,21 +23,17 @@ type InvoiceService struct {
 	receiptSvc   *ReceiptService
 	renderer     *invoice.Renderer
 
-	// Die Verdrahtung aus Welle 5b. Sie ist optional: ohne sie stellt der
-	// Dienst weiter Rechnungen aus, nur ohne Lückenbericht und
-	// Rechnungsverbund.
+	// Lückenbericht und Rechnungsverbund sind optionale Ergänzungen zur Ausstellung.
 	gapRepo        domain.NumberGapRepository
 	groupRepo      domain.InvoiceGroupRepository
 	fiscalYearRepo domain.FiscalYearRepository
 	bankRepo       domain.BankRepository
 
-	// vatIDs ist die Bestätigungsabfrage der USt-IdNr. (Welle 5c). Ebenso
-	// optional: ohne sie stellt der Dienst aus wie zuvor.
+	// vatIDs ergänzt die Ausstellung um die optionale Bestätigungsabfrage der USt-IdNr.
 	vatIDs vatIDConfirmer
 }
 
-// InvoiceRegistry bündelt, was das Rechnungswesen der Welle 5b zusätzlich
-// braucht.
+// InvoiceRegistry bündelt Transaktionen, Nummernlücken, Rechnungsverbünde und Geschäftsjahre.
 type InvoiceRegistry struct {
 	// Gaps hält die Gründe verbrauchter, aber nicht belegter Nummern fest.
 	Gaps domain.NumberGapRepository
@@ -51,7 +47,7 @@ type InvoiceRegistry struct {
 	Bank domain.BankRepository
 }
 
-// SetRegistry wires the Welle-5b collaborators.
+// SetRegistry verbindet die Dienste und Repositories des Rechnungswesens.
 func (s *InvoiceService) SetRegistry(r InvoiceRegistry) {
 	s.gapRepo = r.Gaps
 	s.groupRepo = r.Groups

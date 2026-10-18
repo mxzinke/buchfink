@@ -11,7 +11,7 @@ import (
 
 // Die Persistenz der Abschlussbausteine.
 //
-// Alle Entitäten dieser Welle hängen am Geschäftsjahr und werden über es
+// Die Abschlussbausteine hängen am Geschäftsjahr und werden über es
 // gelesen; die Rückstellung ist die Ausnahme, weil sie wie das Anlagegut über
 // Jahre hinweg lebt und ihre Bewegungen aus mehreren Jahren stammen. Deshalb
 // liest FindAll bei ihr alles und FindByYear nur die eines Jahres gebildeten —

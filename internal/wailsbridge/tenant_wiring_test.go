@@ -6,7 +6,7 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-// Die Verdrahtung eines Mandanten läuft durch und die Auswertungen der Welle 5c
+// Die Verdrahtung eines Mandanten läuft durch und die steuerlichen Auswertungen
 // antworten auf einem leeren Bestand.
 //
 // Der Test prüft nichts Fachliches — das tun die Dienste. Er prüft, dass die

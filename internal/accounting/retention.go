@@ -21,8 +21,8 @@ import (
 // alte Frist vorher schon abgelaufen war, bleibt es bei ihr — dort ist die
 // Aufbewahrung ohnehin beendet, und eine rückwirkend verlängerte Frist wäre die
 // falsche Auskunft.
-// Die Zahlen selbst stehen seit Welle 8 in retention_rules.json (ARC-01 K4);
-// dieser Teil rechnet nur noch mit ihnen.
+// Die Zahlen stehen in retention_rules.json (ARC-01 K4);
+// dieser Teil rechnet mit ihnen.
 
 // yearsOfClass und legalBasisOf lesen die Frist und ihre Fundstelle aus der
 // Ressource. Eine fehlende Klasse ergibt null Jahre und keinen erfundenen Wert:

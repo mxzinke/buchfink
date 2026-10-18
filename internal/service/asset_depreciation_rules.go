@@ -9,20 +9,13 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-// Die Anlagenthemen der Welle 5c: die Sperren, die sich nach dem Anlagekonto
-// richten, der Wertaufholungsbericht und die Einheitlichkeit des
-// Sammelposten-Wahlrechts.
-
 // validateMethodForAccount hält die Abschreibungsverfahren an den Merkmalen des
 // Anlagekontos fest.
 //
-// Ob ein Wirtschaftsgut beweglich ist, steht im Kontenkatalog, nicht am
-// Anlagegut — und danach richten sich drei Regeln, die bisher nur zum Teil
-// durchgesetzt waren: die degressive AfA des § 7 Abs. 2 EStG gilt für bewegliche
-// Wirtschaftsgüter, die festen Sätze des § 7 Abs. 4 EStG für Gebäude, und die
-// Staffel des § 7 Abs. 2a EStG für neue Elektrofahrzeuge. Ohne diese Prüfung
-// ließ sich ein Bürogebäude degressiv abschreiben, und der Plan sah plausibel
-// aus.
+// Ob ein Wirtschaftsgut beweglich ist, steht im Kontenkatalog. Die degressive
+// AfA des § 7 Abs. 2 EStG gilt für bewegliche Wirtschaftsgüter, die festen
+// Sätze des § 7 Abs. 4 EStG für Gebäude und die Staffel des § 7 Abs. 2a EStG
+// für neue Elektrofahrzeuge.
 func validateMethodForAccount(asset *domain.FixedAsset) error {
 	entry, known := accounting.LookupAssetAccount(asset.Account)
 

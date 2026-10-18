@@ -8,10 +8,6 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-// Die Anlagenthemen der Welle 5c: die Sperren am Anlagekonto, die Zuschreibung
-// mit Grund, der Wertaufholungsbericht und die Einheitlichkeit des
-// Sammelposten-Wahlrechts.
-
 // Ein Gebäude wird nicht degressiv abgeschrieben: § 7 Abs. 2 EStG gibt es nur
 // für bewegliche Wirtschaftsgüter. Bis hierher ließ sich der Plan rechnen, und
 // er sah plausibel aus.
@@ -242,10 +238,8 @@ func TestUsefulLifeReasonOnlyForTheDigitalProposal(t *testing.T) {
 // Eine Stammdatenänderung an einem bestehenden Anlagegut verlangt keine
 // Begründung für die Nutzungsdauer.
 //
-// Die Pflicht gehört zur Entscheidung über die Nutzungsdauer. Griffe sie bei
-// jedem Speichern, ließe sich der vor dieser Welle mit 36 Monaten angelegte
-// Server nicht einmal mehr umbenennen — eine Vorschrift rückwirkend auf einen
-// abgeschlossenen Vorgang anzuwenden, ist nicht ihr Zweck.
+// Eine unveränderte Nutzungsdauer braucht beim Umbenennen des Anlageguts
+// keine zusätzliche Begründung.
 func TestUsefulLifeReasonOnlyWhenTheDurationChanges(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
@@ -262,8 +256,7 @@ func TestUsefulLifeReasonOnlyWhenTheDurationChanges(t *testing.T) {
 		t.Fatalf("Zugang mit Begründung: %v", err)
 	}
 
-	// Der Bestand aus der Zeit vor dieser Welle: die Begründung fehlt, die
-	// Nutzungsdauer bleibt.
+	// Die Begründung fehlt; die Nutzungsdauer bleibt unverändert.
 	server.Name = "Server (Rack 2)"
 	server.UsefulLifeReason = ""
 	if _, err := svc.Save(ctx, server); err != nil {

@@ -28,7 +28,7 @@ import (
 // Mandanten, die keine Buchung berührt. Der Export gehört
 // ausdrücklich dazu: er ist der Zweck des Modus.
 var readOnlyAllowed = map[string]bool{
-	// Welle 5c: die Auswertungen der steuerlichen Nebenpflichten. Sie lesen und
+	// Die Auswertungen der steuerlichen Nebenpflichten lesen und
 	// rechnen. GetExchangeRate und PreviewCurrencyValuation holen im laufenden
 	// Betrieb einen fehlenden Kurs und legen ihn ab; im Prüfermodus schalten
 	// beide auf den nur lesenden Kursdienst um und stehen deshalb hier. Ein
@@ -37,7 +37,7 @@ var readOnlyAllowed = map[string]bool{
 	"GetAfaRules": true,
 	// Die Regeln für verbundene Apps lesen.
 	"GetAgentRules": true,
-	// Welle 8: die lesenden Auswertungen der laufenden Buchhaltung.
+	// Die lesenden Auswertungen der laufenden Buchhaltung.
 	// SaveFilteredJournalCSV gibt Journalzeilen heraus und protokolliert das
 	// als Zugriff (QUE-02 K2); das Protokoll ist der eine Schreibweg eines
 	// Lesevorgangs.
@@ -149,7 +149,7 @@ var readOnlyAllowed = map[string]bool{
 	"OpenReleasesPage":  true,
 	"SaveReceiptFileAs": true,
 
-	// Die Nachweise der Welle 6. Sie lesen: Protokoll, Historie, Migrationen
+	// Die Nachweise lesen Protokoll, Historie, Migrationen
 	// und die Altersstruktur. Gerade im Prüfermodus sind sie das,
 	// wonach gefragt wird.
 	"GetAuditLogsFiltered":        true,
@@ -164,7 +164,7 @@ var readOnlyAllowed = map[string]bool{
 	"GetSelectableContacts":       true,
 	"VerifyAuditChain":            true,
 
-	// Die Bedienung der Welle 7. Aufgabenliste, Monatsabschluss,
+	// Aufgabenliste, Monatsabschluss,
 	// Zuordnungsvorschlag und Prüfpfad lesen und
 	// rechnen — gebucht und geschrieben wird an keiner dieser Stellen. Gerade
 	// der Prüfpfad gehört in den Prüfermodus: er ist die Antwort auf die Frage,

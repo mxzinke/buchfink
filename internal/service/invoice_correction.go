@@ -527,9 +527,8 @@ func (s *InvoiceService) recordNumberGapReason(
 	//
 	// Er ist die Angabe, nach der die Betriebsprüfung fragt, und er wird
 	// nachträglich erfasst — wer wann welche Begründung eingetragen hat, ist
-	// dann selbst eine Angabe (GoBD Rz. 58). Jede andere fachliche Entscheidung
-	// dieser Welle steht im Protokoll; diese stünde als einzige nur in einer
-	// Zeile, die sich später anders lesen ließe.
+	// dann selbst eine Angabe (GoBD Rz. 58). Das Protokoll macht Änderungen
+	// der Begründung nachvollziehbar.
 	return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "NUMBER_GAP", number, fmt.Sprintf(
 		"Lücke %s begründet: %s%s", number, reason.Label(), noteSuffix(detail)))
 }

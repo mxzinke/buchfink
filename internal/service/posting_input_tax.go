@@ -280,12 +280,9 @@ func (s *PostingService) resolvePosition(
 	return out, nil
 }
 
-// Der Vorsteuerausschluss des § 15 Abs. 1a UStG ist seit Welle 8 auch beim
-// § 13b-Umsatz und beim innergemeinschaftlichen Erwerb buchbar: die geschuldete
-// Steuer entsteht auf die volle Bemessungsgrundlage, die Vorsteuerzeile
-// entfällt (siehe taxLinesForShare). Die Vorschrift nimmt den Abzug und nicht
-// die Steuerschuld — vorher wies Buchfink den Fall ab, weil es beides nur
-// gemeinsam rechnen konnte.
+// Beim Vorsteuerausschluss nach § 15 Abs. 1a UStG entfällt die Vorsteuerzeile.
+// Die Steuer auf einen § 13b-Umsatz oder innergemeinschaftlichen Erwerb entsteht
+// auf die volle Bemessungsgrundlage (siehe taxLinesForShare).
 
 // resolveGift baut die Aufzeichnung zu einem Geschenk und entscheidet über die
 // Freigrenze.

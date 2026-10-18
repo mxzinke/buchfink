@@ -126,7 +126,7 @@ func TestGiftRebookingStaysOutOfACommittedPeriod(t *testing.T) {
 }
 
 // Die Umbuchung der Geschenke bei einem Beleg mit mehreren Positionen und
-// mehreren Empfängern (Runde 3).
+// mehreren Empfängern.
 //
 // Der Beleg ist der Regelfall und nicht der Sonderfall: „zehn Präsentkörbe an
 // zehn Empfänger sind ein Beleg und eine Buchung, aber zehn Aufzeichnungen".

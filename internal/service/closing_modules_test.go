@@ -10,11 +10,10 @@ import (
 	"github.com/buchfink/buchfink/internal/repository"
 )
 
-// closingModules bündelt die Bausteine der Welle 5a auf der gemeinsamen
-// Testumgebung. Sie hängen alle am ClosingService, weil jeder von ihnen den
-// Bilanzstichtag braucht — und untereinander über die beiden Kopplungen, die
-// diese Welle eingeführt hat: die Auflösung der Abgrenzung am Saldenvortrag und
-// der Verbrauch der Rückstellung am Belegweg.
+// closingModules verbindet die Abschlussbausteine mit der Testumgebung.
+// Der ClosingService liefert den Bilanzstichtag; die Bausteine koppeln die
+// Auflösung der Abgrenzung an den Saldenvortrag und den Verbrauch der
+// Rückstellung an den Belegweg.
 type closingModules struct {
 	closing       *ClosingService
 	accruals      *AccrualService

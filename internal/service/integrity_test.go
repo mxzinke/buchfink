@@ -310,7 +310,7 @@ func TestReceiptFileCheckFindsAMissingFile(t *testing.T) {
 	}
 }
 
-// Die Integritätsprüfung (Welle 4) muss die Protokollkette mitprüfen: eine
+// Die Integritätsprüfung muss die Protokollkette mitprüfen: eine
 // Buchführung, deren Buchungen unverändert sind, während sich die Einträge über
 // ihre Änderungen entfernen ließen, belegt nur die halbe Unveränderbarkeit.
 func TestVerifyIntegrityIncludesTheAuditChain(t *testing.T) {

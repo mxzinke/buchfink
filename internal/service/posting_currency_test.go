@@ -9,11 +9,6 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-// Die Nachbesserungen der Welle 5c: die Fremdwährung am Belegweg, die Aufnahme
-// ins Verzeichnis nach § 15a UStG bei der Aktivierung, der Folgebefund zur
-// unbestätigten USt-IdNr., die Auflösung der Stichtagsbewertung beim
-// Saldenvortrag und der Gebäudestichtag.
-
 // -------------------------------------------------------------------------
 // Fremdwährung am Belegweg (BEW-10)
 // -------------------------------------------------------------------------
