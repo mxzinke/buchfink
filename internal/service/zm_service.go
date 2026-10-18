@@ -21,13 +21,13 @@ import (
 // vom Journal. Dazu kommen die Stammdaten — eine Meldung ohne USt-IdNr. des
 // Empfängers ist keine Meldung.
 type ZMService struct {
+	auditor[uint]
 	journalRepo        domain.JournalRepository
 	contactRepo        domain.ContactRepository
 	settingsRepo       domain.SettingsRepository
 	festschreibungRepo domain.FestschreibungRepository
 	zmRepo             domain.ZMReturnRepository
 	vatReturnRepo      domain.VatReturnRepository
-	auditRepo          domain.AuditRepository
 }
 
 // federalState ist das Land am Sitz für das Fristende; ohne Unternehmensdaten
@@ -59,7 +59,7 @@ func NewZMService(
 		festschreibungRepo: festschreibungRepo,
 		zmRepo:             zmRepo,
 		vatReturnRepo:      vatReturnRepo,
-		auditRepo:          auditRepo,
+		auditor:            auditor[uint]{auditRepo: auditRepo, entity: "ZM_RETURN"},
 	}
 }
 
@@ -713,11 +713,4 @@ func (s *ZMService) latestSubmitted(ctx context.Context, periodKey string) (*dom
 		}
 	}
 	return nil, nil
-}
-
-func (s *ZMService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) error {
-	if s.auditRepo == nil {
-		return nil
-	}
-	return logAudit(ctx, s.auditRepo, action, "ZM_RETURN", fmt.Sprintf("%d", id), details)
 }

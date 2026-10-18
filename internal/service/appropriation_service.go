@@ -17,12 +17,12 @@ import (
 // die Kapitalertragsteuer auf die Ausschüttung und hält den Beschluss fest.
 // Die Pflichtrücklage der UG entsteht bereits im Abschluss des Gewinnjahres.
 type AppropriationService struct {
+	auditor[int]
 	appropriationRepo domain.AppropriationRepository
 	notesRepo         domain.NotesTextRepository
 	journalRepo       domain.JournalRepository
 	journalSvc        *JournalService
 	settingsRepo      domain.SettingsRepository
-	auditRepo         domain.AuditRepository
 	closingSvc        *ClosingService
 	receipts          closingReceiptFiler
 }
@@ -39,7 +39,7 @@ func NewAppropriationService(
 ) *AppropriationService {
 	return &AppropriationService{
 		appropriationRepo: appropriationRepo, notesRepo: notesRepo, journalRepo: journalRepo,
-		journalSvc: journalSvc, settingsRepo: settingsRepo, auditRepo: auditRepo,
+		journalSvc: journalSvc, settingsRepo: settingsRepo, auditor: auditor[int]{auditRepo: auditRepo},
 		closingSvc: closingSvc,
 	}
 }
@@ -356,7 +356,7 @@ func (s *AppropriationService) bookAppropriation(
 	if err := s.appropriationRepo.Save(ctx, &appropriation); err != nil {
 		return nil, fmt.Errorf("der Beschluss konnte nicht gespeichert werden: %w", err)
 	}
-	if err := s.audit(ctx, "APPROPRIATION", preview.Year, fmt.Sprintf(
+	if err := s.auditEntity(ctx, domain.AuditActionUpdate, "APPROPRIATION", preview.Year, fmt.Sprintf(
 		"Ergebnisverwendung %d: %s", preview.Year, preview.Explanation)); err != nil {
 		return nil, err
 	}
@@ -459,7 +459,7 @@ func (s *AppropriationService) saveNotesText(
 		return nil, err
 	}
 	def, _ := domain.NotesSectionDefinitionFor(section)
-	if err := s.audit(ctx, "NOTES", year, fmt.Sprintf("Anhangabschnitt %q im Geschäftsjahr %d geändert", def.Label, year)); err != nil {
+	if err := s.auditEntity(ctx, domain.AuditActionUpdate, "NOTES", year, fmt.Sprintf("Anhangabschnitt %q im Geschäftsjahr %d geändert", def.Label, year)); err != nil {
 		return nil, err
 	}
 	return s.NotesTexts(ctx, year)
@@ -507,14 +507,10 @@ func (s *AppropriationService) copyNotesInto(ctx context.Context, toYear int) (i
 		copied++
 	}
 	if copied > 0 {
-		if err := s.audit(ctx, "NOTES", toYear, fmt.Sprintf(
+		if err := s.auditEntity(ctx, domain.AuditActionUpdate, "NOTES", toYear, fmt.Sprintf(
 			"%d Anhangtexte aus dem Geschäftsjahr %d als Vorlage übernommen", copied, toYear-1)); err != nil {
 			return 0, err
 		}
 	}
 	return copied, nil
-}
-
-func (s *AppropriationService) audit(ctx context.Context, entity string, year int, details string) error {
-	return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, entity, fmt.Sprintf("%d", year), details)
 }

@@ -17,12 +17,12 @@ import (
 // sie zusammenzählt und der Gesellschafterin sagt, dass sie am Tag der
 // Eintragung 3.000 € nachschießen wird.
 type FoundationService struct {
+	auditor[uint]
 	foundationRepo domain.FoundationRepository
 	accountRepo    domain.AccountRepository
 	journalRepo    domain.JournalRepository
 	settingsRepo   domain.SettingsRepository
 	journalSvc     *JournalService
-	auditRepo      domain.AuditRepository
 	// yearAligner zieht den Beginn des Gründungsjahres auf die Beurkundung nach.
 	// Optional: ohne ihn bleibt die Gründung erfasst und der Zeitraum, wie er war.
 	yearAligner FoundingYearAligner
@@ -50,7 +50,7 @@ func NewFoundationService(
 		journalRepo:    journalRepo,
 		settingsRepo:   settingsRepo,
 		journalSvc:     journalSvc,
-		auditRepo:      auditRepo,
+		auditor:        auditor[uint]{auditRepo: auditRepo, entity: "GRUENDUNG"},
 	}
 }
 
@@ -768,10 +768,6 @@ func (s *FoundationService) registerFromSettings(ctx context.Context, date, cour
 	}
 	_, err = s.Register(ctx, date, court, number)
 	return err
-}
-
-func (s *FoundationService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) error {
-	return logAudit(ctx, s.auditRepo, action, "GRUENDUNG", fmt.Sprintf("%d", id), details)
 }
 
 // adoptFoundingSettings trägt Gründungsdatum, Stammkapital und Gesellschafter in

@@ -323,7 +323,7 @@ func (s *ClosingBookingService) bookReceivableAllowance(
 	if err != nil {
 		return nil, err
 	}
-	if err := s.audit(ctx, "RECEIVABLE_ALLOWANCE", preview.FiscalYear, fmt.Sprintf(
+	if err := s.auditEntity(ctx, domain.AuditActionCreate, "RECEIVABLE_ALLOWANCE", preview.FiscalYear, fmt.Sprintf(
 		"Wertberichtigung auf Forderungen %d (%s): EWB %s € und %s €, PWB %s € und %s €",
 		preview.FiscalYear, created.EntryNumber, preview.SpecificShort, preview.SpecificLong,
 		preview.GeneralShort, preview.GeneralLong)); err != nil {

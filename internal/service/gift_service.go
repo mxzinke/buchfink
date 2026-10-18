@@ -18,10 +18,10 @@ import (
 // noch einmal führte, wäre die zweite Wahrheit, die beim ersten Storno von der
 // ersten abweicht.
 type GiftService struct {
+	auditor[string]
 	fiscalCalendar
 	journalRepo domain.JournalRepository
 	journalSvc  *JournalService
-	auditRepo   domain.AuditRepository
 }
 
 // NewGiftService wires die Auswertung der nicht abziehbaren Betriebsausgaben.
@@ -34,7 +34,7 @@ func NewGiftService(
 	return &GiftService{
 		journalRepo: journalRepo, journalSvc: journalSvc,
 		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo, limitMonth: true},
-		auditRepo:      auditRepo,
+		auditor:        auditor[string]{auditRepo: auditRepo, entity: "GIFT"},
 	}
 }
 
@@ -508,7 +508,7 @@ func (s *GiftService) rebookGiftsForRecipient(
 			"%s €. %d Buchung(en) wurden zurückgenommen und ohne Vorsteuerabzug neu gebucht "+
 			"(§ 4 Abs. 5 Satz 1 Nr. 1 EStG, § 15 Abs. 1a UStG).",
 		name, year, total, limit, len(pending))
-	if err := s.audit(ctx, fmt.Sprintf("Geschenke an %s umgebucht: %s", name, out.Note)); err != nil {
+	if err := s.audit(ctx, domain.AuditActionUpdate, "", fmt.Sprintf("Geschenke an %s umgebucht: %s", name, out.Note)); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -712,8 +712,4 @@ func reverseChargeInputTaxKey(key string) bool {
 		return true
 	}
 	return false
-}
-
-func (s *GiftService) audit(ctx context.Context, details string) error {
-	return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "GIFT", "", details)
 }

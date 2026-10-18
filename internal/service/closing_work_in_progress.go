@@ -186,7 +186,7 @@ func (s *ClosingBookingService) bookWorkInProgress(
 	if err != nil {
 		return nil, err
 	}
-	if err := s.audit(ctx, "WORK_IN_PROGRESS", preview.FiscalYear, fmt.Sprintf(
+	if err := s.auditEntity(ctx, domain.AuditActionCreate, "WORK_IN_PROGRESS", preview.FiscalYear, fmt.Sprintf(
 		"Unfertige Leistungen %d (%s): Bestand %s €, %d Projekte; Auflösung zum %s mit dem Saldenvortrag",
 		preview.FiscalYear, created.EntryNumber, preview.Total, len(preview.Projects),
 		preview.ReversalDate)); err != nil {
@@ -250,7 +250,7 @@ func (r workInProgressReverser) ReverseInto(ctx context.Context, toYear int) ([]
 			}
 			created = append(created, *posted)
 		}
-		if err := s.audit(ctx, "WORK_IN_PROGRESS", toYear, fmt.Sprintf(
+		if err := s.auditEntity(ctx, domain.AuditActionCreate, "WORK_IN_PROGRESS", toYear, fmt.Sprintf(
 			"Unfertige Leistungen %d aufgelöst: %d Buchung(en)", toYear-1, len(created))); err != nil {
 			return nil, err
 		}

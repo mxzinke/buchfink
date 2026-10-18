@@ -22,13 +22,13 @@ import (
 // Ein Jahr ohne Rückstellungen sieht sonst aus wie ein Jahr, in dem sie
 // vergessen wurden.
 type ClosingStepsService struct {
+	auditor[int]
 	stepRepo          domain.ClosingStepRepository
 	accrualRepo       domain.AccrualRepository
 	provisionRepo     domain.ProvisionRepository
 	appropriationRepo domain.AppropriationRepository
 	checkRunRepo      domain.CheckRunRepository
 	journalRepo       domain.JournalRepository
-	auditRepo         domain.AuditRepository
 	closingSvc        *ClosingService
 	depreciation      PendingDepreciationSource
 	// Die beiden Bausteine, deren Zustand aus einer eigenen Kartei
@@ -51,7 +51,7 @@ func NewClosingStepsService(
 	return &ClosingStepsService{
 		stepRepo: stepRepo, accrualRepo: accrualRepo, provisionRepo: provisionRepo,
 		appropriationRepo: appropriationRepo,
-		checkRunRepo:      checkRunRepo, journalRepo: journalRepo, auditRepo: auditRepo,
+		checkRunRepo:      checkRunRepo, journalRepo: journalRepo, auditor: auditor[int]{auditRepo: auditRepo, entity: "CLOSING_STEP"},
 		closingSvc: closingSvc,
 	}
 }
@@ -532,7 +532,7 @@ func (s *ClosingStepsService) SetStep(
 		return nil, err
 	}
 	def, _ := domain.ClosingStepDefinitionFor(key)
-	if err := s.audit(ctx, year, fmt.Sprintf("Abschlussschritt %q im Geschäftsjahr %d auf %q gesetzt: %s",
+	if err := s.audit(ctx, domain.AuditActionUpdate, year, fmt.Sprintf("Abschlussschritt %q im Geschäftsjahr %d auf %q gesetzt: %s",
 		def.Label, year, state, reason)); err != nil {
 		return nil, err
 	}
@@ -658,17 +658,10 @@ func (s *ClosingStepsService) ReopenStep(
 	if err := s.stepRepo.Save(ctx, step); err != nil {
 		return nil, err
 	}
-	if err := s.audit(ctx, year, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionUpdate, year, fmt.Sprintf(
 		"Abschlussschritt %q im Geschäftsjahr %d wieder aufgenommen: %s (übersprungen war er mit: %s)",
 		def.Label, year, strings.TrimSpace(reason), previous)); err != nil {
 		return nil, err
 	}
 	return s.Steps(ctx, year)
-}
-
-func (s *ClosingStepsService) audit(ctx context.Context, year int, details string) error {
-	if s.auditRepo == nil {
-		return nil
-	}
-	return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "CLOSING_STEP", fmt.Sprintf("%d", year), details)
 }

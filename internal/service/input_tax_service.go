@@ -24,12 +24,12 @@ import (
 // der Anteil, zu dem er gezogen wurde, und schon gar nicht der Anteil des
 // dritten Jahres. § 22 Abs. 4 UStG verlangt diese Aufzeichnungen.
 type InputTaxService struct {
+	auditor[uint]
 	fiscalCalendar
 	repo        domain.InputTaxCorrectionRepository
 	journalSvc  *JournalService
 	journalRepo domain.JournalRepository
 	closingSvc  *ClosingService
-	auditRepo   domain.AuditRepository
 }
 
 func (s *InputTaxService) runInTx(ctx context.Context, fn func(context.Context) error) error {
@@ -48,7 +48,7 @@ func NewInputTaxService(
 	return &InputTaxService{
 		repo: repo, journalSvc: journalSvc, journalRepo: journalRepo,
 		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo, limitMonth: true},
-		closingSvc:     closingSvc, auditRepo: auditRepo,
+		closingSvc:     closingSvc, auditor: auditor[uint]{auditRepo: auditRepo, entity: "INPUT_TAX_CORRECTION"},
 	}
 }
 
@@ -162,7 +162,7 @@ func (s *InputTaxService) register(
 	if err := s.repo.Save(ctx, correction); err != nil {
 		return nil, fmt.Errorf("der Eintrag ließ sich nicht speichern: %w", err)
 	}
-	if err := s.audit(ctx, correction.ID, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionUpdate, correction.ID, fmt.Sprintf(
 		"Ins Verzeichnis nach § 15a UStG aufgenommen: %s, Vorsteuer %s €, Anteil %s, Zeitraum "+
 			"%d Jahre bis zum %s",
 		correction.Label, correction.InputTaxAmount,
@@ -195,7 +195,7 @@ func (s *InputTaxService) close(ctx context.Context, id uint, reason, date strin
 	if err := s.repo.Save(ctx, correction); err != nil {
 		return nil, err
 	}
-	if err := s.audit(ctx, id, "Eintrag abgeschlossen: "+reason); err != nil {
+	if err := s.audit(ctx, domain.AuditActionUpdate, id, "Eintrag abgeschlossen: "+reason); err != nil {
 		return nil, err
 	}
 	correction.EnsureLists()
@@ -476,7 +476,7 @@ func (s *InputTaxService) saveUsage(
 	}); err != nil {
 		return nil, fmt.Errorf("der Verwendungsanteil ließ sich nicht speichern: %w", err)
 	}
-	if err := s.audit(ctx, correction.ID, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionUpdate, correction.ID, fmt.Sprintf(
 		"Verwendungsanteil %d für %s bestätigt: %s (%s)",
 		year, correction.Label, accounting.PermilleLabel(int64(req.Permille)), assessment.Reason)); err != nil {
 		return nil, err
@@ -607,7 +607,7 @@ func (s *InputTaxService) bookYear(ctx context.Context, year int) (*InputTaxCorr
 	if err != nil {
 		return nil, err
 	}
-	if err := s.audit(ctx, 0, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionUpdate, 0, fmt.Sprintf(
 		"Vorsteuerberichtigung %d gebucht: %s € über %d Wirtschaftsgüter (%s)",
 		year, total, len(todo), entry.EntryNumber)); err != nil {
 		return nil, err
@@ -677,11 +677,6 @@ func (s *InputTaxService) entryNumbers(ctx context.Context, year int) (map[uint]
 		out[entries[i].ID] = entries[i].EntryNumber
 	}
 	return out, nil
-}
-
-func (s *InputTaxService) audit(ctx context.Context, id uint, details string) error {
-	return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "INPUT_TAX_CORRECTION",
-		fmt.Sprintf("%d", id), details)
 }
 
 // standingCorrectionEntry sucht die Buchung der Berichtigung eines Jahres, die

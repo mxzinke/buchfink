@@ -24,11 +24,11 @@ import (
 // durch den JournalService und hat damit Nummer, Hash und Periodenprüfung wie
 // jede andere.
 type AccrualService struct {
+	auditor[uint]
 	fiscalCalendar
 	accrualRepo domain.AccrualRepository
 	journalRepo domain.JournalRepository
 	journalSvc  *JournalService
-	auditRepo   domain.AuditRepository
 	closingSvc  *ClosingService
 	receipts    closingReceiptFiler
 }
@@ -47,7 +47,7 @@ func NewAccrualService(
 		journalRepo:    journalRepo,
 		journalSvc:     journalSvc,
 		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo},
-		auditRepo:      auditRepo,
+		auditor:        auditor[uint]{auditRepo: auditRepo, entity: "ACCRUAL"},
 		closingSvc:     closingSvc,
 	}
 }
@@ -743,10 +743,6 @@ func (s *AccrualService) Report(ctx context.Context, cutoff string) (*AccrualRep
 	}
 	sort.Slice(report.Rows, func(i, j int) bool { return report.Rows[i].EndDate < report.Rows[j].EndDate })
 	return report, nil
-}
-
-func (s *AccrualService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) error {
-	return logAudit(ctx, s.auditRepo, action, "ACCRUAL", fmt.Sprintf("%d", id), details)
 }
 
 // calendarDaysBetween ist die Zahl der Kalendertage zwischen zwei Tagen; nie

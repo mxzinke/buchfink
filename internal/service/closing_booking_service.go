@@ -17,11 +17,11 @@ import (
 // erst auf Freigabe, mit einem Eigenbeleg über die Rechnung. Was sie
 // unterscheidet, ist nur die Rechnung dazwischen.
 type ClosingBookingService struct {
+	auditor[int]
 	provisionRepo domain.ProvisionRepository
 	journalRepo   domain.JournalRepository
 	journalSvc    *JournalService
 	settingsRepo  domain.SettingsRepository
-	auditRepo     domain.AuditRepository
 	closingSvc    *ClosingService
 	receipts      closingReceiptFiler
 	// openItems und revenue tragen die Wertberichtigung auf Forderungen: die
@@ -41,7 +41,7 @@ func NewClosingBookingService(
 ) *ClosingBookingService {
 	return &ClosingBookingService{
 		provisionRepo: provisionRepo, journalRepo: journalRepo,
-		journalSvc: journalSvc, settingsRepo: settingsRepo, auditRepo: auditRepo,
+		journalSvc: journalSvc, settingsRepo: settingsRepo, auditor: auditor[int]{auditRepo: auditRepo},
 		closingSvc: closingSvc,
 	}
 }
@@ -243,14 +243,10 @@ func (s *ClosingBookingService) bookVatSettlement(
 	if err != nil {
 		return nil, err
 	}
-	if err := s.audit(ctx, "VAT_SETTLEMENT", settlement.FiscalYear, fmt.Sprintf(
+	if err := s.auditEntity(ctx, domain.AuditActionCreate, "VAT_SETTLEMENT", settlement.FiscalYear, fmt.Sprintf(
 		"Umsatzsteuer-Jahresverrechnung %d: Zahllast %s €, Erstattung %s €",
 		settlement.FiscalYear, settlement.Payable, settlement.Refund)); err != nil {
 		return nil, err
 	}
 	return created, nil
-}
-
-func (s *ClosingBookingService) audit(ctx context.Context, entity string, year int, details string) error {
-	return logAudit(ctx, s.auditRepo, domain.AuditActionCreate, entity, fmt.Sprintf("%d", year), details)
 }

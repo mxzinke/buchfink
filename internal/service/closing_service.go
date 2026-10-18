@@ -23,6 +23,7 @@ import (
 // Geschrieben wird wie überall über den JournalService: ein Saldenvortrag ist
 // eine Buchung wie jede andere, mit Nummer, Hash und Festschreibungsprüfung.
 type ClosingService struct {
+	auditor[int]
 	fiscalCalendar
 	statementSource    *StatementService
 	reserveReceipts    closingReceiptFiler
@@ -32,7 +33,6 @@ type ClosingService struct {
 	allocationRepo     domain.PaymentAllocationRepository
 	festschreibungRepo domain.FestschreibungRepository
 	foundationRepo     domain.FoundationRepository
-	auditRepo          domain.AuditRepository
 	journalSvc         *JournalService
 	// accruals koppelt die Auflösung der Rechnungsabgrenzung an den Saldenvortrag,
 	// notes die Anhangtexte an die Jahresanlage. Beide Kopplungen sind optional.
@@ -69,7 +69,7 @@ func NewClosingService(
 		allocationRepo:     allocationRepo,
 		fiscalCalendar:     fiscalCalendar{fiscalYearRepo: fiscalYearRepo, settingsRepo: settingsRepo, limitMonth: true},
 		festschreibungRepo: festschreibungRepo,
-		auditRepo:          auditRepo,
+		auditor:            auditor[int]{auditRepo: auditRepo, entity: "FISCAL_YEAR"},
 		journalSvc:         journalSvc,
 		now:                time.Now,
 	}
@@ -1599,10 +1599,6 @@ func (s *ClosingService) ledgerAccountNames(ctx context.Context) (map[string]str
 	return names, nil
 }
 
-func (s *ClosingService) audit(ctx context.Context, action domain.AuditAction, year int, details string) error {
-	return logAudit(ctx, s.auditRepo, action, "FISCAL_YEAR", fmt.Sprintf("%d", year), details)
-}
-
 // auditChange protokolliert eine Änderung am Geschäftsjahr mit dem Stand davor
 // und danach.
 //
@@ -1618,7 +1614,7 @@ func (s *ClosingService) auditChange(
 	if before != nil {
 		beforeAny = before
 	}
-	return logAuditChange(ctx, s.auditRepo, action, "FISCAL_YEAR", fmt.Sprintf("%d", year), details, beforeAny, after)
+	return s.logChange(ctx, action, year, details, beforeAny, after)
 }
 
 // documentReference benennt einen offenen Posten so, wie er im Kontoblatt des

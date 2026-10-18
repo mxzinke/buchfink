@@ -24,10 +24,10 @@ import (
 // Und er rät nie. Fehlt ein Kurs und ist das Netz nicht da, kommt ein Fehler und
 // kein Wert; der Anwender trägt den Kurs mit seiner Quelle ein.
 type CurrencyService struct {
+	auditor[string]
 	rates      domain.ExchangeRateRepository
 	fetcher    domain.CurrencyFetcher
 	journal    domain.JournalRepository
-	auditLog   domain.AuditRepository
 	openItems  openItemSource
 	journalSvc *JournalService
 	closingSvc *ClosingService
@@ -59,7 +59,7 @@ func NewCurrencyService(
 	fetcher domain.CurrencyFetcher,
 	auditLog domain.AuditRepository,
 ) *CurrencyService {
-	return &CurrencyService{rates: rates, fetcher: fetcher, auditLog: auditLog}
+	return &CurrencyService{rates: rates, fetcher: fetcher, auditor: auditor[string]{auditRepo: auditLog, entity: "CURRENCY"}}
 }
 
 // SetJournalRepo gibt dem Dienst das Journal für die Stichtagsbewertung.
@@ -162,7 +162,7 @@ func (s *CurrencyService) SaveRate(ctx context.Context, rate domain.ExchangeRate
 	if err := s.rates.SaveRate(ctx, &rate); err != nil {
 		return nil, fmt.Errorf("der Kurs ließ sich nicht speichern: %w", err)
 	}
-	if err := s.audit(ctx, domain.AuditActionCreate, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionCreate, "", fmt.Sprintf(
 		"Kurs %s zum %s von Hand erfasst: %.6f (%s)",
 		rate.Currency, rate.Date, rate.Rate(), rate.Source)); err != nil {
 		return nil, err
@@ -221,7 +221,7 @@ func (s *CurrencyService) SaveVatRate(ctx context.Context, rate domain.VatExchan
 	if err := s.rates.SaveVatRate(ctx, &rate); err != nil {
 		return nil, fmt.Errorf("der Durchschnittskurs ließ sich nicht speichern: %w", err)
 	}
-	if err := s.audit(ctx, domain.AuditActionCreate, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionCreate, "", fmt.Sprintf(
 		"Umsatzsteuer-Umrechnungskurs %s für %s erfasst: %.6f (%s)",
 		rate.Currency, rate.Month, rate.Rate(), rate.Source)); err != nil {
 		return nil, err
@@ -309,7 +309,7 @@ func (s *CurrencyService) ImportVatRatesCSV(ctx context.Context, path string) (*
 		}
 		out.Imported++
 	}
-	if err := s.audit(ctx, domain.AuditActionImport, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionImport, "", fmt.Sprintf(
 		"Umsatzsteuer-Umrechnungskurse importiert: %d übernommen, %d übergangen (%s)",
 		out.Imported, out.Skipped, path)); err != nil {
 		return nil, err

@@ -542,7 +542,7 @@ func (s *ClosingBookingService) bookTaxProvision(
 		provision.Movements = append(provision.Movements, *movement)
 		provisions = append(provisions, *provision)
 	}
-	if err := s.audit(ctx, "TAX_PROVISION", preview.FiscalYear, fmt.Sprintf(
+	if err := s.auditEntity(ctx, domain.AuditActionCreate, "TAX_PROVISION", preview.FiscalYear, fmt.Sprintf(
 		"Steuerrückstellung %d (%s): Körperschaftsteuer und Soli %s €, Gewerbesteuer %s €; "+
 			"Erstattungsansprüche %s € und %s €",
 		preview.FiscalYear, created.EntryNumber, result.IncomeProvision, result.TradeProvision,

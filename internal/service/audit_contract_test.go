@@ -61,28 +61,28 @@ func TestServiceAuditContracts(t *testing.T) {
 			return NewFoundationService(nil, nil, nil, nil, nil, repo).audit(ctx, domain.AuditActionUpdate, 42, details)
 		}},
 		{"ClosingSteps", "CLOSING_STEP", "2024", domain.AuditActionUpdate, func(repo domain.AuditRepository) error {
-			return NewClosingStepsService(nil, nil, nil, nil, nil, nil, repo, nil).audit(ctx, 2024, details)
+			return NewClosingStepsService(nil, nil, nil, nil, nil, nil, repo, nil).audit(ctx, domain.AuditActionUpdate, 2024, details)
 		}},
 		{"VatID", "VAT_ID_CHECK", "42", domain.AuditActionUpdate, func(repo domain.AuditRepository) error {
-			return NewVatIDService(nil, nil, nil, repo).audit(ctx, 42, details)
+			return NewVatIDService(nil, nil, nil, repo).audit(ctx, domain.AuditActionUpdate, 42, details)
 		}},
 		{"InputTax", "INPUT_TAX_CORRECTION", "42", domain.AuditActionUpdate, func(repo domain.AuditRepository) error {
-			return NewInputTaxService(nil, nil, nil, nil, nil, repo).audit(ctx, 42, details)
+			return NewInputTaxService(nil, nil, nil, nil, nil, repo).audit(ctx, domain.AuditActionUpdate, 42, details)
 		}},
 		{"Gift", "GIFT", "", domain.AuditActionUpdate, func(repo domain.AuditRepository) error {
-			return NewGiftService(nil, nil, nil, repo).audit(ctx, details)
+			return NewGiftService(nil, nil, nil, repo).audit(ctx, domain.AuditActionUpdate, "", details)
 		}},
 		{"Currency", "CURRENCY", "", domain.AuditActionUpdate, func(repo domain.AuditRepository) error {
-			return NewCurrencyService(nil, nil, repo).audit(ctx, domain.AuditActionUpdate, details)
+			return NewCurrencyService(nil, nil, repo).audit(ctx, domain.AuditActionUpdate, "", details)
 		}},
 		{"ClosingBooking", "VAT_SETTLEMENT", "2024", domain.AuditActionCreate, func(repo domain.AuditRepository) error {
-			return NewClosingBookingService(nil, nil, nil, nil, repo, nil).audit(ctx, "VAT_SETTLEMENT", 2024, details)
+			return NewClosingBookingService(nil, nil, nil, nil, repo, nil).auditEntity(ctx, domain.AuditActionCreate, "VAT_SETTLEMENT", 2024, details)
 		}},
 		{"Appropriation", "APPROPRIATION", "2024", domain.AuditActionUpdate, func(repo domain.AuditRepository) error {
-			return NewAppropriationService(nil, nil, nil, nil, nil, repo, nil).audit(ctx, "APPROPRIATION", 2024, details)
+			return NewAppropriationService(nil, nil, nil, nil, nil, repo, nil).auditEntity(ctx, domain.AuditActionUpdate, "APPROPRIATION", 2024, details)
 		}},
 		{"Anhang", "NOTES", "2024", domain.AuditActionUpdate, func(repo domain.AuditRepository) error {
-			return NewAppropriationService(nil, nil, nil, nil, nil, repo, nil).audit(ctx, "NOTES", 2024, details)
+			return NewAppropriationService(nil, nil, nil, nil, nil, repo, nil).auditEntity(ctx, domain.AuditActionUpdate, "NOTES", 2024, details)
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

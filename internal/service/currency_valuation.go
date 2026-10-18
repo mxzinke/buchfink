@@ -266,7 +266,7 @@ func (s *CurrencyService) bookCurrencyValuation(ctx context.Context, year int) (
 			"Auflösung der Rechnungsabgrenzung. ", germanDay(valuation.ReversalDate), year+1) +
 		valuation.Note
 
-	if err := s.audit(ctx, domain.AuditActionCreate, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionCreate, "", fmt.Sprintf(
 		"Fremdwährungsbewertung %d gebucht: %s € Ertrag, %s € Aufwand (%s); Auflösung zum %s folgt "+
 			"mit dem Saldenvortrag",
 		year, valuation.TotalGain, valuation.TotalLoss, posted.EntryNumber, valuation.ReversalDate)); err != nil {
@@ -350,7 +350,7 @@ func (s *CurrencyService) reverseInto(ctx context.Context, toYear int) ([]domain
 		created = append(created, *posted)
 	}
 	if len(created) > 0 {
-		if err := s.audit(ctx, domain.AuditActionCreate, fmt.Sprintf(
+		if err := s.audit(ctx, domain.AuditActionCreate, "", fmt.Sprintf(
 			"Fremdwährungsbewertung %d zum %s aufgelöst: %d Buchung(en)",
 			fromYear, reversalDate, len(created))); err != nil {
 			return nil, err
@@ -450,11 +450,6 @@ func contactRef(id uint) *uint {
 		return nil
 	}
 	return &id
-}
-
-// audit schreibt einen Eintrag ins Protokoll.
-func (s *CurrencyService) audit(ctx context.Context, action domain.AuditAction, details string) error {
-	return logAudit(ctx, s.auditLog, action, "CURRENCY", "", details)
 }
 
 // -------------------------------------------------------------------------

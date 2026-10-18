@@ -25,11 +25,11 @@ import (
 // bookable accounts, tax accounts reserved for the tax automation, gapless
 // numbering, an unbroken hash chain and respect for committed periods.
 type JournalService struct {
+	auditor[uint]
 	fiscalCalendar
 	journalRepo        domain.JournalRepository
 	accountRepo        domain.AccountRepository
 	contactRepo        domain.ContactRepository
-	auditRepo          domain.AuditRepository
 	festschreibungRepo domain.FestschreibungRepository
 	// receiptRepo ist der Beleg, auf den eine Buchung verweist. Optional:
 	// ohne ihn bucht der Dienst wie zuvor, nur ohne die Kopfdatenprüfung.
@@ -68,7 +68,7 @@ func NewJournalService(
 		journalRepo:    journalRepo,
 		accountRepo:    accountRepo,
 		contactRepo:    contactRepo,
-		auditRepo:      auditRepo,
+		auditor:        auditor[uint]{auditRepo: auditRepo, entity: "JOURNAL"},
 		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo},
 		tx:             tx,
 		hashChain:      accounting.NewHashChain(),
@@ -1068,8 +1068,4 @@ func (s *JournalService) ensureYearNotAdopted(ctx context.Context, e *domain.Jou
 			fy.Year, fy.AdoptedOn, e.BookingDate)
 	}
 	return nil
-}
-
-func (s *JournalService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) error {
-	return logAudit(ctx, s.auditRepo, action, "JOURNAL", fmt.Sprintf("%d", id), details)
 }

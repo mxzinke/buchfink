@@ -30,6 +30,7 @@ func ProgramVersion() string {
 // Transferticket. Die Entität ist danach unveränderlich — sie *ist* das
 // Übermittlungsprotokoll, und ein Protokoll, das sich ändern lässt, ist keines.
 type VatReturnService struct {
+	auditor[uint]
 	journalRepo        domain.JournalRepository
 	receiptRepo        domain.ReceiptRepository
 	contactRepo        domain.ContactRepository
@@ -37,7 +38,6 @@ type VatReturnService struct {
 	settingsRepo       domain.SettingsRepository
 	festschreibungRepo domain.FestschreibungRepository
 	returnRepo         domain.VatReturnRepository
-	auditRepo          domain.AuditRepository
 }
 
 // NewVatReturnService wires the Voranmeldung.
@@ -59,7 +59,7 @@ func NewVatReturnService(
 		settingsRepo:       settingsRepo,
 		festschreibungRepo: festschreibungRepo,
 		returnRepo:         returnRepo,
-		auditRepo:          auditRepo,
+		auditor:            auditor[uint]{auditRepo: auditRepo, entity: "VAT_RETURN"},
 	}
 }
 
@@ -934,13 +934,6 @@ func (s *VatReturnService) companySettings(ctx context.Context) (*domain.Company
 	return cfg, nil
 }
 
-func (s *VatReturnService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) error {
-	if s.auditRepo == nil {
-		return nil
-	}
-	return logAudit(ctx, s.auditRepo, action, "VAT_RETURN", fmt.Sprintf("%d", id), details)
-}
-
 // auditChange protokolliert eine Voranmeldung mit ihrem Stand davor und danach.
 //
 // Die Voranmeldung ist eine Erklärung gegenüber dem Finanzamt, und was sich an
@@ -962,5 +955,5 @@ func (s *VatReturnService) auditChange(
 	if before != nil {
 		beforeAny = before
 	}
-	return logAuditChange(ctx, s.auditRepo, action, "VAT_RETURN", fmt.Sprintf("%d", id), details, beforeAny, after)
+	return s.logChange(ctx, action, id, details, beforeAny, after)
 }

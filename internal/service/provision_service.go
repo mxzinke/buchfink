@@ -27,12 +27,12 @@ import (
 // im Jahr 2026 gebildet und 2028 verbraucht wird, hat Bewegungen aus drei Jahren,
 // und der Rückstellungsspiegel eines Jahres braucht sie alle.
 type ProvisionService struct {
+	auditor[uint]
 	fiscalCalendar
 	provisionRepo domain.ProvisionRepository
 	rateRepo      domain.DiscountRateRepository
 	journalRepo   domain.JournalRepository
 	journalSvc    *JournalService
-	auditRepo     domain.AuditRepository
 	closingSvc    *ClosingService
 	receipts      closingReceiptFiler
 }
@@ -53,7 +53,7 @@ func NewProvisionService(
 		journalRepo:    journalRepo,
 		journalSvc:     journalSvc,
 		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo},
-		auditRepo:      auditRepo,
+		auditor:        auditor[uint]{auditRepo: auditRepo, entity: "PROVISION"},
 		closingSvc:     closingSvc,
 	}
 }
@@ -1092,10 +1092,6 @@ func (s *ProvisionService) fillEntryNumbers(ctx context.Context, movements []dom
 			movements[i].EntryNumber = entry.EntryNumber
 		}
 	}
-}
-
-func (s *ProvisionService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) error {
-	return logAudit(ctx, s.auditRepo, action, "PROVISION", fmt.Sprintf("%d", id), details)
 }
 
 // sortProvisionsByDate ordnet die Rückstellungen nach ihrem erwarteten

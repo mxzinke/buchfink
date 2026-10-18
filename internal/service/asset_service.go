@@ -22,13 +22,13 @@ import (
 // Anlagenkartei, which is kept across fiscal years while the journal is
 // organised per year.
 type AssetService struct {
+	auditor[uint]
 	fiscalCalendar
 	assetRepo   domain.AssetRepository
 	journalRepo domain.JournalRepository
 	journalSvc  *JournalService
 	numberRepo  domain.NumberRangeRepository
 	contactRepo domain.ContactRepository
-	auditRepo   domain.AuditRepository
 	taxResolver domain.TaxResolver
 	// inputTax ist das Verzeichnis nach § 15a UStG. Ohne es legt die Aktivierung
 	// keinen Eintrag an — mit ihm tut sie es von allein.
@@ -80,7 +80,7 @@ func NewAssetService(
 		numberRepo:     numberRepo,
 		contactRepo:    contactRepo,
 		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo},
-		auditRepo:      auditRepo,
+		auditor:        auditor[uint]{auditRepo: auditRepo, entity: "ANLAGE"},
 		taxResolver:    journalSvc.TaxResolver(),
 	}
 }
@@ -3155,10 +3155,6 @@ func (s *AssetService) fillEntryNumbers(ctx context.Context, movements []domain.
 	}
 }
 
-func (s *AssetService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) error {
-	return logAudit(ctx, s.auditRepo, action, "ANLAGE", fmt.Sprintf("%d", id), details)
-}
-
 // auditChange protokolliert eine Änderung der Anlagenstammdaten mit dem Stand
 // davor und danach.
 //
@@ -3177,7 +3173,7 @@ func (s *AssetService) auditChange(
 	if before != nil {
 		beforeAny = before
 	}
-	return logAuditChange(ctx, s.auditRepo, action, "ANLAGE", fmt.Sprintf("%d", id), details, beforeAny, after)
+	return s.logChange(ctx, action, id, details, beforeAny, after)
 }
 
 // bookedByYear sums the planmäßige AfA already booked per fiscal year. Only the
