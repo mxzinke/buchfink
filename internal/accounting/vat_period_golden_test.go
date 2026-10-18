@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/goldentest"
 )
 
 func TestGoldenVatPeriodFor(t *testing.T) {
@@ -65,6 +66,6 @@ func TestGoldenVatPeriodFor(t *testing.T) {
 			}
 		}
 	}
-	assertGolden(t, "vat_period/matrix", results)
-	assertGolden(t, "vat_period/nil", VatPeriodFor(nil, domain.JournalLine{}, "2026-03-10"))
+	goldentest.Assert(t, "vat_period/matrix", results)
+	goldentest.Assert(t, "vat_period/nil", VatPeriodFor(nil, domain.JournalLine{}, "2026-03-10"))
 }

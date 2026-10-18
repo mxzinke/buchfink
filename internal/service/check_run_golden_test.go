@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/goldentest"
 	"github.com/buchfink/buchfink/internal/repository"
 )
 
@@ -36,7 +37,7 @@ func TestGoldenCheckRun(t *testing.T) {
 			if err != nil || len(stored) != 1 {
 				t.Fatalf("Gespeicherter Lauf: %v, %v", stored, err)
 			}
-			assertGolden(t, "check_run_"+tc.name, struct {
+			goldentest.Assert(t, "check_run_"+tc.name, struct {
 				Run     *domain.CheckRun
 				Stored  domain.CheckRun
 				Summary string
@@ -157,7 +158,7 @@ func TestGoldenCheckRunErrors(t *testing.T) {
 			if readErr != nil {
 				t.Fatal(readErr)
 			}
-			assertGolden(t, "check_error_"+failure, struct {
+			goldentest.Assert(t, "check_error_"+failure, struct {
 				Run    *domain.CheckRun
 				Error  string
 				Calls  []string

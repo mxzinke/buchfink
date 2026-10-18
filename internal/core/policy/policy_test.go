@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/goldentest"
 )
 
 // routine ist eine E-Rechnung, die alle Regeln erfüllt.
@@ -68,7 +69,7 @@ func TestReceiptRules(t *testing.T) {
 		f := routine()
 		tc.change(&f)
 		v := ClassifyReceipt(f, limits)
-		assertGolden(t, "receipt_rules/"+tc.reason+"_"+tc.name, v)
+		goldentest.Assert(t, "receipt_rules/"+tc.reason+"_"+tc.name, v)
 		if v.Direct() || !slices.Contains(v.Keys(), tc.reason) {
 			t.Errorf("%s: %v %v, erwartet %s", tc.name, v.Level, v.Keys(), tc.reason)
 		}

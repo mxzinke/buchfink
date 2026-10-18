@@ -1,4 +1,7 @@
-package service
+// Package goldentest vergleicht ein Ergebnis mit einer Golden-Datei unter
+// testdata/golden/<name>.json im Paket des Tests. Mit -update schreibt der
+// Test die Datei neu, statt zu vergleichen.
+package goldentest
 
 import (
 	"bytes"
@@ -10,9 +13,10 @@ import (
 	"testing"
 )
 
-var updateGolden = flag.Bool("update", false, "Golden-Dateien mit dem aktuellen Ergebnis überschreiben")
+var update = flag.Bool("update", false, "Golden-Dateien mit dem aktuellen Ergebnis überschreiben")
 
-func assertGolden(t *testing.T, name string, value any) {
+// Assert vergleicht value als kanonisches JSON mit der Golden-Datei name.
+func Assert(t testing.TB, name string, value any) {
 	t.Helper()
 	raw, err := json.Marshal(value)
 	if err != nil {
@@ -31,7 +35,7 @@ func assertGolden(t *testing.T, name string, value any) {
 	}
 	got = append(got, '\n')
 	path := filepath.Join("testdata", "golden", name+".json")
-	if *updateGolden {
+	if *update {
 		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 			t.Fatal(err)
 		}

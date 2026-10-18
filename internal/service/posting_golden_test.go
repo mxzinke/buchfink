@@ -3,13 +3,14 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"github.com/buchfink/buchfink/internal/actor"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/actor"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/goldentest"
 	"github.com/buchfink/buchfink/internal/repository"
 )
 
@@ -199,7 +200,7 @@ func TestGoldenPreviewIncomingReceipt(t *testing.T) {
 				finding.Detail = strings.ReplaceAll(finding.Detail, receipt.ReceiptNumber, "<Beleg>")
 			}
 
-			assertGolden(t, "posting_preview/"+name, preview)
+			goldentest.Assert(t, "posting_preview/"+name, preview)
 		})
 	}
 }
@@ -280,7 +281,7 @@ func TestGoldenBookIncomingReceipt(t *testing.T) {
 				t.Fatal(err)
 			}
 			normalizeBookedGolden(t, value)
-			assertGolden(t, "posting_book/"+name, value)
+			goldentest.Assert(t, "posting_book/"+name, value)
 		})
 	}
 }

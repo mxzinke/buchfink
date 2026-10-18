@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/goldentest"
 )
 
 func TestGoldenObligationCalendar(t *testing.T) {
@@ -71,7 +72,7 @@ func TestGoldenObligationCalendar(t *testing.T) {
 			}
 			q := ObligationQuery{From: "2025-01-01", To: "2027-12-31", Today: "2026-10-17"}
 			list := listObligations(t, svc, q)
-			assertGolden(t, "obligations_"+tc.name, list)
+			goldentest.Assert(t, "obligations_"+tc.name, list)
 
 			// List sortiert nach Fälligkeit; die Erzeugungsreihenfolge ist ein eigener Vertrag.
 			run, err := svc.begin(context.Background(), q.Today)
@@ -88,7 +89,7 @@ func TestGoldenObligationCalendar(t *testing.T) {
 			for _, obligation := range generated {
 				keys = append(keys, obligation.Key)
 			}
-			assertGolden(t, "obligation_order_"+tc.name, keys)
+			goldentest.Assert(t, "obligation_order_"+tc.name, keys)
 
 			// Jede Art ist auch einzeln über dieselbe öffentliche Abfrage erreichbar.
 			for _, definition := range svc.Catalog() {
@@ -160,7 +161,7 @@ func TestGoldenObligationErrors(t *testing.T) {
 			if err != nil {
 				errText = err.Error()
 			}
-			assertGolden(t, "obligation_error_"+tc.name, struct {
+			goldentest.Assert(t, "obligation_error_"+tc.name, struct {
 				List  []domain.Obligation
 				Error string
 				Calls []string

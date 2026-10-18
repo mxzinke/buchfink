@@ -7,6 +7,7 @@ import (
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/goldentest"
 	"github.com/buchfink/buchfink/internal/receiptstore"
 	"github.com/buchfink/buchfink/internal/repository"
 	"github.com/buchfink/buchfink/internal/service"
@@ -70,7 +71,7 @@ func TestGoldenReceiptSpecials(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				assertGolden(t, "receipt_specials/"+tc.name+"_"+mode, ClassifyReceipt(facts, LimitsFrom(nil)))
+				goldentest.Assert(t, "receipt_specials/"+tc.name+"_"+mode, ClassifyReceipt(facts, LimitsFrom(nil)))
 			}
 		})
 	}
@@ -95,7 +96,7 @@ func TestGoldenReceiptPreviewFindings(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			assertGolden(t, "receipt_findings/"+name, ClassifyReceipt(f, LimitsFrom(nil)))
+			goldentest.Assert(t, "receipt_findings/"+name, ClassifyReceipt(f, LimitsFrom(nil)))
 		})
 	}
 }

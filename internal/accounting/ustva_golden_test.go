@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/goldentest"
 )
 
 func TestGoldenBuildVatReturn(t *testing.T) {
@@ -24,7 +25,7 @@ func TestGoldenBuildVatReturn(t *testing.T) {
 			for i := range ret.Figures {
 				sort.Slice(ret.Figures[i].EntryIDs, func(a, b int) bool { return ret.Figures[i].EntryIDs[a] < ret.Figures[i].EntryIDs[b] })
 			}
-			assertGolden(t, "vat_return/"+name, ret)
+			goldentest.Assert(t, "vat_return/"+name, ret)
 		})
 	}
 	check("leer", "2026-03", VatReturnSource{})

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/goldentest"
 	"github.com/buchfink/buchfink/internal/repository"
 )
 
@@ -106,7 +107,7 @@ func TestGoldenClosingSteps(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			assertGolden(t, "closing_steps_"+tc.name, steps)
+			goldentest.Assert(t, "closing_steps_"+tc.name, steps)
 		})
 	}
 }
