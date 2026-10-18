@@ -1,0 +1,54 @@
+{
+  "audit": [
+    {
+      "action": "COMMIT",
+      "channel": "ui",
+      "details": "Festschreibung monat (bis 2026-03-31, 3 Buchungen, davon 1 neu festgeschrieben). Blockierende Befunde übergangen mit der Begründung: Testbelege fehlen",
+      "entity": "FESTSCHREIBUNG",
+      "id": "1"
+    }
+  ],
+  "blocked": false,
+  "checks": [
+    {
+      "blocking": true,
+      "cutoff": "2026-03-31",
+      "override": "Testbelege fehlen"
+    }
+  ],
+  "commitments": [
+    {
+      "id": 1,
+      "fiscalYear": 2026,
+      "periodType": "month",
+      "periodLabel": "monat",
+      "cutoffDate": "2026-03-31",
+      "chainHead": "\u003cletzter Buchungshash\u003e",
+      "entryCount": 3,
+      "tsaName": "",
+      "timestampStatus": "pending",
+      "appVersion": "\u003cVersion\u003e",
+      "actor": "\u003cBearbeiter\u003e",
+      "entriesStamped": 1,
+      "createdAt": "0001-01-01T00:00:00Z"
+    }
+  ],
+  "entries": [
+    {
+      "commitment": 1,
+      "date": "2026-03-15",
+      "stamped": true
+    },
+    {
+      "commitment": null,
+      "date": "2026-04-15",
+      "stamped": false
+    },
+    {
+      "commitment": null,
+      "date": "2026-12-31",
+      "stamped": false
+    }
+  ],
+  "error": ""
+}
