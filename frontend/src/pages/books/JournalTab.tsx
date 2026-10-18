@@ -162,7 +162,7 @@ export const JournalTab: React.FC = () => {
                   <Th className="w-10">
                     <span className="sr-only">Erfasst von</span>
                   </Th>
-                  <Th className="w-36">Zustand</Th>
+                  <Th className="w-36">Stand</Th>
                 </Tr>
               </Thead>
               <Tbody>

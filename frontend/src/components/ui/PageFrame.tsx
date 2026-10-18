@@ -14,6 +14,8 @@ export interface FrameTab<T extends string> {
   label: string;
   /** Zähler rechts der Beschriftung, etwa offene Belege. */
   count?: number;
+  countTone?: 'neutral' | 'negative';
+  countLabel?: string;
 }
 
 export interface PageFrameProps<T extends string> {

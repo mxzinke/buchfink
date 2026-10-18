@@ -47,9 +47,11 @@ export const MonthCloseSection: React.FC<MonthCloseSectionProps> = ({
   error,
   onNavigate,
 }) => {
-  const steps = state?.steps ?? [];
+  // Ein entfallender Schritt, etwa die Voranmeldung in einem Monat ohne
+  // Abgabe, steht nicht da und zählt nicht mit.
+  const steps = (state?.steps ?? []).filter((step) => step.state !== 'not_applicable');
   const done = steps.filter((step) => step.state === 'done').length;
-  const applicable = steps.filter((step) => step.state !== 'not_applicable').length;
+  const applicable = steps.length;
 
   let context = 'Prüfbericht, Festschreibung, Voranmeldung';
   if (state) {

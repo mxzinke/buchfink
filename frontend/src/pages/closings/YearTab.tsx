@@ -492,7 +492,7 @@ export const YearTab: React.FC<YearTabProps> = ({
                 : 'Die Endbestände werden Anfangsbestände des Folgejahres.'
           }
           action={
-            <Button variant="quiet" size="sm" onClick={() => setCarryOpen(true)}>
+            <Button variant="secondary" size="sm" onClick={() => setCarryOpen(true)}>
               Vortrag ansehen
             </Button>
           }

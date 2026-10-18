@@ -188,7 +188,7 @@ export const AssetsTab: React.FC = () => {
                   Buchwert
                 </Th>
                 <Th numeric className="w-28">{`AfA ${year}`}</Th>
-                <Th className="w-40">Zustand</Th>
+                <Th className="w-40">Stand</Th>
               </Tr>
             </Thead>
             <Tbody>

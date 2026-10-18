@@ -251,7 +251,7 @@ export const BankTab: React.FC = () => {
                 <Th className="w-10">
                   <span className="sr-only">Gebucht von</span>
                 </Th>
-                <Th className="w-32">Zustand</Th>
+                <Th className="w-32">Stand</Th>
               </Tr>
             </Thead>
             <Tbody>

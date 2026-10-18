@@ -288,7 +288,7 @@ const OpenItems: React.FC = () => {
                   <Th numeric className="w-36">
                     Offen
                   </Th>
-                  <Th className="w-44">Zustand</Th>
+                  <Th className="w-44">Stand</Th>
                 </Tr>
               </Thead>
               <Tbody>

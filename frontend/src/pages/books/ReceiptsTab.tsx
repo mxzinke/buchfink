@@ -256,7 +256,7 @@ export const ReceiptsTab: React.FC = () => {
                 <Th className="w-10">
                   <span className="sr-only">Gebucht von</span>
                 </Th>
-                <Th className="w-32">Zustand</Th>
+                <Th className="w-32">Stand</Th>
               </Tr>
             </Thead>
             <Tbody>
@@ -266,7 +266,13 @@ export const ReceiptsTab: React.FC = () => {
                 return (
                   <Tr
                     key={receipt.id}
-                    variant={String(receipt.id) === id ? 'selected' : 'default'}
+                    variant={
+                      receipt.status === 'discarded'
+                        ? 'storno'
+                        : String(receipt.id) === id
+                          ? 'selected'
+                          : 'default'
+                    }
                     className="cursor-pointer"
                     onClick={() => open(String(receipt.id))}
                   >

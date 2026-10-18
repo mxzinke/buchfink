@@ -208,7 +208,7 @@ export const InvoicesTab: React.FC = () => {
                 <Th className="w-10">
                   <span className="sr-only">Ausgestellt von</span>
                 </Th>
-                <Th className="w-44">Zustand</Th>
+                <Th className="w-44">Stand</Th>
               </Tr>
             </Thead>
             <Tbody>

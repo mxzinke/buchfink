@@ -132,7 +132,7 @@ export const AppsPanel: React.FC<{ id?: string }> = ({ id }) => {
           }
         />
       )}
-      <AgentClientCommands url={status?.url} className="max-w-[900px]" />
+      <AgentClientCommands url={status?.url} />
 
       <h3 className="text-label text-ink mt-10 mb-3">Zugelassene Apps</h3>
       {error ? (

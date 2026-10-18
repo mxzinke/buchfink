@@ -166,7 +166,7 @@ export const BackupPanel: React.FC<BackupPanelProps> = ({
       )}
 
       {backupDir && (
-        <div className="flex flex-wrap items-center gap-x-4 max-w-[900px]">
+        <div className="flex flex-wrap items-center gap-x-4">
           <span className="text-label text-ink-muted w-36">Sicherungsordner</span>
           <FieldValue className="code-num flex-1 truncate" >{backupDir}</FieldValue>
           <Button
@@ -181,7 +181,7 @@ export const BackupPanel: React.FC<BackupPanelProps> = ({
         </div>
       )}
 
-      <div className="mt-4 max-w-[900px] border-t border-line">
+      <div className="mt-4 border-t border-line">
         <Disclosure
           variant="row"
           title="Prüfen und wiederherstellen"

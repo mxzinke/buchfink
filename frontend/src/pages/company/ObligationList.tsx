@@ -97,7 +97,7 @@ export const ObligationList: React.FC<{ deadlines: Deadline[]; onConfirmed: () =
                       setConfirming(d);
                     }}
                   >
-                    Erledigt bestätigen
+                    Als erledigt bestätigen
                   </Button>
                 )}
               </span>

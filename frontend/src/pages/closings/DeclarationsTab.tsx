@@ -227,6 +227,7 @@ export const DeclarationsTab: React.FC<DeclarationsTabProps> = ({
         <Disclosure
           title="Vorauszahlungen"
           context={prepaymentContext(prepayments)}
+          defaultOpen={prepayments.some((o) => o.status === 'overdue')}
         >
           <ul className="flex flex-col">
             {prepayments.map((o) => (

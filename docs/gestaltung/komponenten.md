@@ -31,16 +31,15 @@ machen gibt.
 |---|---|---|
 | `Button`, `DisabledReason` | `Button.tsx` | eigen |
 | `Input`, `Textarea` | `Input.tsx` | Base UI (Field-Anbindung) |
-| `AmountInput` | `Input.tsx` | Base UI NumberField |
 | `Select` | `Select.tsx` | Base UI Select |
 | `Combobox` | `Combobox.tsx` | Base UI Combobox |
 | `Checkbox`, `RadioGroup`, `Switch` | `Toggle.tsx` | Base UI |
 | `Field`, `FieldRow`, `FieldValue`, `FormGrid` | `Field.tsx` | Base UI Field |
 | `Dialog`, `ConfirmDialog` | `Dialog.tsx` | Base UI Dialog, AlertDialog |
 | `Menu` und Einträge | `Menu.tsx` | Base UI Menu |
-| `Help`, `InfoPopover` | `Help.tsx` | Base UI Tooltip, Dialog und Popover |
+| `Help` | `Help.tsx` | Base UI Popover und Dialog |
 | `Tabs`, `TabPanel`, `Separator` | `Tabs.tsx` | Base UI |
-| `Notice`, `Progress`, `Skeleton`, `SkeletonRows`, `toast` | `Feedback.tsx` | Base UI Progress, Sonner |
+| `Notice`, `Progress`, `SkeletonRows`, `toast` | `Feedback.tsx` | Base UI Progress, Sonner |
 | `legalText`, `SourceLink` | `LegalText.tsx` | eigen; verlinkt Normverweise wie „§ 147 AO“ auf Gesetze im Internet |
 | `Section`, `PageHeader` | `Section.tsx` | eigen |
 | `PageFrame` | `PageFrame.tsx` | Base UI Tabs |
@@ -175,7 +174,7 @@ abschließend.
 | Offengelegt | Salbei mit Schloss-Icon | Jahresabschluss, Geschäftsjahr |
 
 Synonyme wie erledigt, fertig oder abgeschlossen für denselben Zustand sind nicht
-erlaubt.
+erlaubt. Die Spalte, in der eine Liste den Status zeigt, heißt überall „Stand“.
 
 Die drei letzten Stände beschreiben nicht dasselbe wie Festgeschrieben:
 festgeschrieben ist der Zeitraum, festgestellt ist der Abschluss, und beschlossen

@@ -116,7 +116,14 @@ export const DutiesSection: React.FC<DutiesSectionProps> = ({ plan, extra = [], 
                     {duty.title}
                   </button>
                 </Td>
-                <Td className="num text-ink-muted">{duty.dueDate ? formatDate(duty.dueDate) : '—'}</Td>
+                <Td className="num text-ink-muted">
+                  {duty.dueDate ? formatDate(duty.dueDate) : '—'}
+                  {duty.obligation?.statutoryDate && duty.obligation.statutoryDate !== duty.dueDate && (
+                    <span className="block text-caption text-ink-subtle">
+                      {`verschoben vom ${formatDate(duty.obligation.statutoryDate).slice(0, 6)}`}
+                    </span>
+                  )}
+                </Td>
                 <Td>
                   <span className="inline-flex items-center gap-2">
                     <StatusBadge status={duty.group === 'overdue' ? 'ueberfaellig' : 'offen'} />

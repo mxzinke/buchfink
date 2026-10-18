@@ -28,6 +28,7 @@ import {
 } from '../../components/ui';
 import { errorText } from './shared';
 import { splitNorms } from '../../utils/norms';
+import { todayISO } from '../../utils/overview';
 
 /** Einrückung nach der Ebene: Buchstabe, römische Ziffer, arabische Ziffer. */
 const INDENT: Record<number, string> = { 1: 'pl-4', 2: 'pl-8', 3: 'pl-12' };
@@ -162,7 +163,14 @@ export const StatementsTab: React.FC = () => {
         />
       )}
 
-      <Section title={`Bilanz zum ${formatDate(data.header.closingDate)}`} context="Aktiva und Passiva">
+      <Section
+        title={`Bilanz zum ${formatDate(data.header.closingDate)}`}
+        context={
+          data.header.closingDate > todayISO()
+            ? `vorläufig, Stand ${formatDate(todayISO())} · Aktiva und Passiva`
+            : 'Aktiva und Passiva'
+        }
+      >
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
           <LineTable
             caption="Aktiva"

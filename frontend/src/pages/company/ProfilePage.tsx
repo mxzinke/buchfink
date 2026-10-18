@@ -111,7 +111,7 @@ export const ProfilePage: React.FC = () => {
   const firstYear = workspace.availableYears.length ? Math.min(...workspace.availableYears) : workspace.year;
 
   return (
-    <div className="max-w-[900px]" key={workspace.activeTenant?.id}>
+    <div key={workspace.activeTenant?.id}>
       <FirmBlock
         settings={settings}
         foundation={data.foundation}

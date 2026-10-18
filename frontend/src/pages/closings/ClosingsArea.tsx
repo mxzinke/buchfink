@@ -39,13 +39,15 @@ export const ClosingsArea: React.FC = () => {
     void loadObligations();
   }, [loadObligations]);
 
-  // Ein Reiter zählt, was an ihm überfällig ist.
+  // Ein Reiter zählt, was an ihm überfällig ist, in der Farbe des Überfälligen.
   const overdue = (target: ClosingsTab) =>
     obligations.filter((o) => o.status === 'overdue' && obligationTab(o.kind) === target).length;
   const tabs: FrameTab<ClosingsTab>[] = AREA_TABS.closings.map((value) => ({
     value,
     label: TAB_LABELS.closings[value],
     count: overdue(value) || undefined,
+    countTone: 'negative',
+    countLabel: `${overdue(value)} überfällig`,
   }));
 
   return (

@@ -160,7 +160,7 @@ export const AdvancedSettings: React.FC<{ onManageTenants?: () => void }> = ({ o
   }
 
   return (
-    <div className="max-w-[900px]">
+    <div>
       {error && <Notice tone="negative" className="mb-5" text={error} />}
 
       <FormGrid>
