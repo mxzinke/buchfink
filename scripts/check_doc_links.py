@@ -21,12 +21,8 @@ ROOT = Path(__file__).resolve().parent.parent
 LINK = re.compile(r'(?<!!)\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)|^\[[^\]]+\]:\s*(\S+)', re.M)
 FENCE = re.compile(r'```.*?```', re.S)
 HEADING = re.compile(r'^#{1,6}\s+(.*?)\s*#*\s*$', re.M)
-
-# Die Dokumentation verweist auf die Skills, das Plugin und die
-# Marketplace-Datei. Solange einer dieser Pfade fehlt, dürfen Links darauf und
-# darunter ins Leere zeigen. Liegt er im Repository, wird jeder Link darunter
-# geprüft.
-MAY_BE_MISSING = ('skills', 'plugins', '.claude-plugin')
+# Feste Anker wie <a id="ustva"></a> im Pflichtenkalender der Skills.
+HTML_ANCHOR = re.compile(r'<a\s+(?:id|name)="([^"]+)"')
 
 
 def markdown_files() -> list[Path]:
@@ -50,7 +46,7 @@ _anchors: dict[Path, set[str]] = {}
 def anchors(path: Path) -> set[str]:
     if path not in _anchors:
         text = FENCE.sub('', path.read_text(encoding='utf-8'))
-        found: set[str] = set()
+        found: set[str] = set(HTML_ANCHOR.findall(text))
         seen: dict[str, int] = {}
         for match in HEADING.finditer(text):
             base = slug(match.group(1))
@@ -62,7 +58,6 @@ def anchors(path: Path) -> set[str]:
 
 
 def main() -> int:
-    missing = [a for a in MAY_BE_MISSING if not (ROOT / a).exists()]
     findings: list[str] = []
     for source in markdown_files():
         if not source.exists():
@@ -74,11 +69,8 @@ def main() -> int:
                 continue
             path, _, fragment = target.partition('#')
             dest = source if path == '' else (source.parent / path).resolve()
-            rel = dest.relative_to(ROOT).as_posix() if dest.is_relative_to(ROOT) else str(dest)
             name = source.relative_to(ROOT).as_posix()
             if not dest.exists():
-                if any(rel == a or rel.startswith(a + '/') for a in missing):
-                    continue
                 findings.append(f'{name}: Ziel fehlt: {target}')
             elif fragment and dest.suffix == '.md' and fragment not in anchors(dest):
                 findings.append(f'{name}: Überschrift fehlt: {target}')

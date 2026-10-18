@@ -41,7 +41,7 @@ RULES = [
     ("build/windows/nsis/project.nsi", r'(INFO_PRODUCTVERSION "[^"]*"\s+# Default ")([^"]*)(")', 1, "semver", True),
     ("build/linux/nfpm/nfpm.yaml", r'^(version: ")([^"]*)(")', 1, "semver", True),
     ("packaging/claude-desktop/manifest.json", JSON_TOP, 1, "semver", True),
-    ("plugins/buchfink-buchhaltung/.claude-plugin/plugin.json", JSON_TOP, 1, "semver", False),
+    ("plugins/buchfink-buchhaltung/.claude-plugin/plugin.json", JSON_TOP, 1, "semver", True),
 ]
 
 
