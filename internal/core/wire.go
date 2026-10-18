@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 
+	"github.com/buchfink/buchfink/internal/bankeffects"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/invoice"
 	"github.com/buchfink/buchfink/internal/receiptstore"
@@ -71,7 +72,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Journal.AddEntryRules(taxrules.EntryRules()...)
 	s.Journal.AddTaxAccountExceptions(taxrules.TaxAccountExceptions()...)
 	s.Journal.SetReceiptRepo(receiptRepo)
-	s.Journal.SetBankRepo(bankRepo)
+	s.Journal.AddEntryEffects(bankeffects.EntryEffect(bankRepo, journalRepo))
 	s.Idempotency = service.NewIdempotencyService(idempotencyRepo, txRunner)
 
 	s.Posting = service.NewPostingService(s.Journal, contactRepo)

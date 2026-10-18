@@ -434,8 +434,8 @@ func (s *ReceiptService) DisplayContent(ctx context.Context, receiptID uint) (*F
 	return s.Content(ctx, receiptID, file.ID)
 }
 
-// Seal marks a Beleg as booked. It runs after the journal write has committed and
-// is idempotent, so a crash in between can be repaired by repeating it.
+// Seal versiegelt den Beleg auf seine Buchung. Der Buchungsweg ruft es in
+// derselben Transaktion auf.
 func (s *ReceiptService) Seal(ctx context.Context, receiptID, entryID uint) error {
 	// Die Kopfdaten sind beim Buchen Pflicht, und das Versiegeln ist das
 	// Buchen: hier bekommt der Beleg seine Buchung (BEL-02).

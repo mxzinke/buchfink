@@ -32,8 +32,6 @@ type JournalService struct {
 	contactRepo  domain.ContactRepository
 	// receiptRepo liefert Belege für den Hashstempel und die lesende Regelsicht.
 	receiptRepo domain.ReceiptRepository
-	// bankRepo hält fest, welcher Bankumsatz gebucht ist (journal_bank.go).
-	bankRepo domain.BankRepository
 
 	// tx ist die Transaktionsklammer aller Vorgänge, die über das Journal
 	// schreiben (siehe InTx).
@@ -41,6 +39,7 @@ type JournalService struct {
 
 	hashChain            *accounting.HashChain
 	taxResolver          domain.TaxResolver
+	entryEffects         []domain.EntryEffect
 	ruleExtensions       []domain.EntryRule
 	taxAccountExceptions []domain.TaxAccountException
 
@@ -168,6 +167,7 @@ func (s *JournalService) TaxResolver() domain.TaxResolver { return s.taxResolver
 // Verweis auf eine ersetzte Buchung setzt nur der Dienst selbst.
 type postMode struct {
 	reversal   bool
+	original   *domain.JournalEntry
 	correctsID *uint
 }
 
@@ -189,8 +189,7 @@ func (s *JournalService) post(ctx context.Context, entry *domain.JournalEntry, m
 		if err := s.check(ctx, entry); err != nil {
 			return nil, err
 		}
-		bankTx, err := s.claimBankTx(ctx, entry)
-		if err != nil {
+		if err := s.beforeAppend(ctx, entry, mode); err != nil {
 			return nil, err
 		}
 
@@ -199,7 +198,7 @@ func (s *JournalService) post(ctx context.Context, entry *domain.JournalEntry, m
 		if err := s.journalRepo.Append(ctx, entry, s.hashChain.CalculateHash); err != nil {
 			return nil, fmt.Errorf("Buchung konnte nicht gespeichert werden: %w", err)
 		}
-		if err := s.settleBankTx(ctx, entry, bankTx); err != nil {
+		if err := s.afterAppend(ctx, entry, mode); err != nil {
 			return nil, err
 		}
 
@@ -384,7 +383,7 @@ func (s *JournalService) reverseOn(ctx context.Context, entryID uint, reason, da
 		})
 	}
 
-	created, err := s.post(ctx, reversal, postMode{reversal: true})
+	created, err := s.post(ctx, reversal, postMode{reversal: true, original: original})
 	if err != nil {
 		return nil, err
 	}

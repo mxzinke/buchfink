@@ -75,3 +75,24 @@ func TestTaxRulesDependOnlyOnDomainAndCatalogs(t *testing.T) {
 		}
 	}
 }
+
+func TestLedgerDoesNotImportItsEffects(t *testing.T) {
+	for path, imports := range importsOf(t, "service") {
+		for _, imported := range imports {
+			if imported == internalImport+"bankeffects" {
+				t.Errorf("%s importiert %s; Buchungseffekte werden in core/wire.go registriert", path, imported)
+			}
+		}
+	}
+}
+
+func TestBankEffectsUseOnlyNarrowViews(t *testing.T) {
+	allowed := map[string]bool{"context": true, "fmt": true, internalImport + "domain": true}
+	for path, imports := range importsOf(t, "bankeffects") {
+		for _, imported := range imports {
+			if !allowed[imported] {
+				t.Errorf("%s importiert %s; der Bankeffekt braucht nur domain, context und fmt", path, imported)
+			}
+		}
+	}
+}

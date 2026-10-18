@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/buchfink/buchfink/internal/bankeffects"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/repository"
 )
@@ -13,7 +14,7 @@ import (
 // ihn der Kern verdrahtet: jeder Umsatz steht in genau einer gültigen Buchung.
 func (e *testEnv) paymentsWithBank(t *testing.T) *PaymentService {
 	t.Helper()
-	e.journal.SetBankRepo(repository.NewBankRepository(e.db))
+	e.journal.AddEntryEffects(bankeffects.EntryEffect(repository.NewBankRepository(e.db), e.journalRepo))
 	return e.payments(t)
 }
 

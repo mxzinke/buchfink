@@ -158,6 +158,12 @@ func TestBookingAndSealFailTogether(t *testing.T) {
 		repository.NewAuditRepository(env.db))
 	failing.SetContactSource(env.contactRepo)
 	failing.SetSettingsSource(repository.NewSettingsRepository(env.db))
+
+	audit := repository.NewAuditRepository(env.db)
+	before, err := audit.Count(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 	env.posting.SetReceiptService(failing)
 	if _, err := env.posting.PostIncomingReceipt(ctx, req); err == nil {
 		t.Fatal("ohne Siegel darf die Buchung nicht stehen")
@@ -165,6 +171,11 @@ func TestBookingAndSealFailTogether(t *testing.T) {
 	if n := env.entryCount(t); n != 0 {
 		t.Errorf("%d Buchungen ohne Siegel im Journal", n)
 	}
+
+	if after, err := audit.Count(ctx); err != nil || after != before {
+		t.Fatalf("Protokoll nach gescheitertem Siegel: %d, %v; erwartet %d", after, err, before)
+	}
+	assertReceiptSeal(t, env, req.ReceiptID, nil)
 
 	env.posting.SetReceiptService(env.receipts)
 	entry, err := env.posting.PostIncomingReceipt(ctx, req)

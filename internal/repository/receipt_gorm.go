@@ -252,12 +252,8 @@ func (r *receiptRepositoryGorm) ReplaceFiles(ctx context.Context, receiptID uint
 	return &updated, nil
 }
 
-// Seal marks a Beleg as booked.
-//
-// It is idempotent for the same journal entry on purpose. The seal is written
-// after the journal transaction has committed, so a crash in between leaves an
-// entry pointing at an unsealed Beleg; repeating the seal has to repair that
-// rather than fail.
+// Seal versiegelt den Beleg auf eine Buchung. Wiederholtes Versiegeln auf
+// dieselbe Buchung ist idempotent.
 func (r *receiptRepositoryGorm) Seal(ctx context.Context, receiptID uint, entryID uint) error {
 	return dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		var receipt domain.Receipt
