@@ -301,6 +301,15 @@ func TestReversalCarriesTheGiftRecord(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Geschenk: %v", err)
 	}
+
+	stored, err := env.journalRepo.FindByID(ctx, entry.ID)
+	if err != nil || len(stored.Gifts) != 1 || stored.Gifts[0].RecipientName != "Dr. Meyer" {
+		t.Fatalf("Geschenkaufzeichnung im Journal: %+v, %v", stored, err)
+	}
+	before, err := svc.GiftsInYear(ctx, 2026)
+	if err != nil || len(before) != 1 {
+		t.Fatalf("Geschenkkartei vor Storno: %+v, %v", before, err)
+	}
 	reversal, err := env.journal.Reverse(ctx, entry.ID, "Falscher Empfänger")
 	if err != nil {
 		t.Fatalf("Storno: %v", err)

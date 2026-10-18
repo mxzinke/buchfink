@@ -155,6 +155,17 @@ func TestVendorFinalInvoiceDeductsTheAdvance(t *testing.T) {
 	if got := env.accountBalance(t, domain.AccountVorsteuer19); got != 57000 {
 		t.Errorf("Vorsteuer insgesamt = %s, erwartet 570,00 auf 3000,00 netto", got)
 	}
+	if _, err := env.journal.Reverse(ctx, entry.ID, "Schlussrechnung berichtigen"); err != nil {
+		t.Fatal(err)
+	}
+	registered, err := repository.NewVendorAdvanceRepository(env.db).FindByID(ctx, open[0].ID)
+	if err != nil || registered.SettledByEntryID == nil || *registered.SettledByEntryID != entry.ID {
+		t.Fatalf("Verrechnung bleibt nach Storno vermerkt: %+v, %v", registered, err)
+	}
+	if after, err := posting.OpenVendorAdvances(ctx, vendor.ID); err != nil || len(after) != 0 {
+		t.Fatalf("Storno öffnet die Anzahlungskartei nicht: %+v, %v", after, err)
+	}
+
 }
 
 // Die Anzahlung eines anderen Lieferanten setzt diese Schlussrechnung nicht ab.

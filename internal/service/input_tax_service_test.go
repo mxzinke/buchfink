@@ -74,6 +74,14 @@ func TestInputTaxCorrectionCanBeBookedAgainAfterAReversal(t *testing.T) {
 		t.Fatalf("Generalumkehr: %v", err)
 	}
 
+	var usage domain.InputTaxUsage
+	if err := env.db.Where("correction_id = ? AND fiscal_year = ?", correction.ID, 2028).First(&usage).Error; err != nil {
+		t.Fatal(err)
+	}
+	if usage.EntryID == nil || *usage.EntryID != first.ID || usage.Amount != -60_800 {
+		t.Fatalf("Der Registervermerk bleibt nach Storno gespeichert: %+v", usage)
+	}
+
 	// Nach dem Storno ist das Jahr wieder offen — und zwar in allen drei
 	// Antworten des Dienstes.
 	view, err := svc.Year(ctx, 2028)

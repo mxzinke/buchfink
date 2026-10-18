@@ -1812,6 +1812,17 @@ func TestSkontoOnAnAssetInvoiceLowersTheAcquisitionCost(t *testing.T) {
 		t.Errorf("AfA 2026 %s € — erwartet 2.041,67 € (9.800,00 € über 48 Monate, zehn Monate)",
 			detail.Schedule[0].Amount)
 	}
+	if _, err := env.journal.Reverse(ctx, entry.ID, "Zahlung berichtigen"); err != nil {
+		t.Fatal(err)
+	}
+	after, err := svc.Get(ctx, 2026, asset.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Asset.Cost != 980_000 || len(after.Movements) != len(detail.Movements) {
+		t.Fatalf("AK-Minderung bleibt nach Storno bestehen: %+v", after)
+	}
+
 }
 
 // Auf jeder anderen Rechnung bleibt das Skonto, was es war: ein Ertrag auf 5736
