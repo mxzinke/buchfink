@@ -15,7 +15,9 @@ import (
 // positiv, Haben negativ) und die Position der Taxonomie, unter der das Konto
 // im Kontennachweis der Instanz steht. Es sind dieselben Konten und Salden wie
 // in der Instanz; blockieren Befunde die Instanz, gibt es auch die Liste
-// nicht. UTF-8 mit BOM, Semikolon, Dezimalkomma, CRLF.
+// nicht. UTF-8 mit BOM, Semikolon, Dezimalkomma, CRLF. Weicht die
+// Steuerbilanz ab (HGBM), enthält die Liste die Handelsbilanz; die
+// Überleitung steht nur in der Instanz und in Report.Transfers (SuSaNote).
 func SuSaCSV(res *Result) ([]byte, error) {
 	if res == nil || res.Report == nil {
 		return nil, fmt.Errorf("die E-Bilanz fehlt")
@@ -44,6 +46,21 @@ func SuSaCSV(res *Result) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// SuSaNote sagt, was die Saldenliste nicht enthält: bei einer Handelsbilanz
+// mit Überleitung (HGBM) die Abweichungen zur Steuerbilanz, die im Dienst
+// nachzutragen sind. Leer bei einer Einheitsbilanz.
+func SuSaNote(r *MappingReport) string {
+	if r == nil || r.AccountingStandard != "HGBM" || len(r.Transfers) == 0 {
+		return ""
+	}
+	n := "eine Abweichung"
+	if len(r.Transfers) > 1 {
+		n = fmt.Sprintf("%d Abweichungen", len(r.Transfers))
+	}
+	return fmt.Sprintf("Die Saldenliste enthält die Handelsbilanz. Die Steuerbilanz weicht ab (%s); "+
+		"die Überleitungsrechnung überträgt die Liste nicht und ist im E-Bilanz-Dienst nachzutragen.", n)
 }
 
 // decimalComma schreibt Cent als Betrag mit zwei Nachkommastellen und

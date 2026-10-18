@@ -24,6 +24,16 @@ type MappingRow struct {
 	Finding  string `json:"finding,omitempty"`
 }
 
+// TransferRow ist eine Abweichung der Überleitungsrechnung: steuerlich minus
+// handelsrechtlich am Stichtag und am Vorjahresstichtag, als Sollsaldo.
+type TransferRow struct {
+	Reason  string       `json:"reason"`
+	Account string       `json:"account"`
+	Element string       `json:"element"`
+	Current domain.Cents `json:"current"`
+	Prior   domain.Cents `json:"prior"`
+}
+
 // MappingReport ist der Prüfbericht vor dem Export: wohin jedes Konto geht,
 // welche Fassung gilt und was die Erzeugung verhindert.
 type MappingReport struct {
@@ -35,6 +45,10 @@ type MappingReport struct {
 	// mit Überleitungsrechnung).
 	AccountingStandard string       `json:"accountingStandard"`
 	Rows               []MappingRow `json:"rows"`
+	// Transfers sind die Abweichungen der Steuerbilanz, die bei HGBM in der
+	// Überleitungsrechnung der Instanz stehen; die Salden in Rows sind dann
+	// die der Handelsbilanz.
+	Transfers []TransferRow `json:"transfers"`
 	// Blocking sind die blockierenden Befunde, je Zeile mit den betroffenen
 	// Konten.
 	Blocking  []MappingRow           `json:"blocking"`
@@ -50,6 +64,7 @@ func (g *generator) report() *MappingReport {
 		TaxonomyNote:       g.version.Reason + " " + g.tax.Copyright + "; " + g.tax.Notice,
 		AccountingStandard: "HAOE",
 		Rows:               []MappingRow{},
+		Transfers:          []TransferRow{},
 		Blocking:           []MappingRow{},
 		Fallbacks:          []domain.FallbackCount{},
 		Findings:           append([]Finding{}, g.findings...),
@@ -57,6 +72,13 @@ func (g *generator) report() *MappingReport {
 	}
 	if g.commercial {
 		r.AccountingStandard = "HGBM"
+		for _, adj := range g.in.Adjustments {
+			if adj.Current == 0 && adj.Prior == 0 {
+				continue
+			}
+			r.Transfers = append(r.Transfers, TransferRow{Reason: adj.Reason, Account: adj.Account,
+				Element: g.elementOf(adj.Account, adj.Current), Current: adj.Current, Prior: adj.Prior})
+		}
 	}
 	_, _ = fmt.Sscanf(g.end, "%4d", &r.FiscalYear)
 	if g.in.Statement != nil {

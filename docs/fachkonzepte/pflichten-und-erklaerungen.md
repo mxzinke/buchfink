@@ -118,7 +118,13 @@ Saldenliste mit derselben Zuordnung.
   im Kontennachweis der Instanz steht. Konten und Salden sind dieselben wie in
   der Instanz, blockierende Befunde verhindern beides. Die Liste füllt dort nur
   Bilanz und GuV; Stammdaten, Anhang und weitere Berichtsteile ergänzt der
-  Mensch im Dienst.
+  Mensch im Dienst. Weicht die Steuerbilanz ab (Sonderabschreibung nach § 7g
+  Abs. 5 EStG, Abzinsung der Rückstellungen, Drohverlustrückstellung nach § 5
+  Abs. 4a EStG), ist die Instanz eine Handelsbilanz mit Überleitungsrechnung
+  (§ 5b Abs. 1 Satz 2 EStG), und die Liste hat die handelsrechtlichen Salden.
+  Die Überleitung überträgt sie nicht: `MappingReport.Transfers` nennt die
+  Abweichungen mit Position und Betrag, die App und `ebilanz_exportieren`
+  (`ueberleitung`) zeigen sie, und der Mensch trägt sie im Dienst nach.
 
 Die Instanzen lassen sich mit `task test:ebilanz-xsd` gegen die amtlichen
 Schemata prüfen. Ob ein E-Bilanz-Dienst die Datei oder die Saldenliste

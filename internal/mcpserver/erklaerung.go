@@ -14,6 +14,7 @@ import (
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/declaration"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/ebilanz"
 	"github.com/buchfink/buchfink/internal/service"
 )
 
@@ -258,7 +259,18 @@ type exportOut struct {
 	ZahlenHash       string             `json:"zahlen_hash,omitempty"`
 	Format           string             `json:"format"`
 	Befunde          []erklaerungBefund `json:"befunde"`
+	Ueberleitung     []ueberleitung     `json:"ueberleitung,omitempty" jsonschema:"susa_csv bei abweichender Steuerbilanz: was die Liste nicht enthält und der Mensch im Dienst nachträgt"`
+	Hinweis          string             `json:"hinweis,omitempty"`
 	NaechsterSchritt string             `json:"naechster_schritt"`
+}
+
+// ueberleitung ist eine Abweichung der Steuerbilanz von der Handelsbilanz.
+type ueberleitung struct {
+	Grund    string `json:"grund"`
+	Konto    string `json:"konto"`
+	Position string `json:"position" jsonschema:"Position der Taxonomie"`
+	Betrag   Betrag `json:"betrag" jsonschema:"steuerlich minus handelsrechtlich am Stichtag, als Sollsaldo"`
+	Vorjahr  Betrag `json:"vorjahr" jsonschema:"dasselbe am Vorjahresstichtag"`
 }
 
 type ebilanzExportIn struct {
@@ -429,7 +441,8 @@ func registerErklaerung(tb *Toolbox) {
 		Description: "Prüft die E-Bilanz eines Geschäftsjahres (Zuordnung der Konten, Pflichtfelder der Taxonomie) " +
 			"und schreibt sie in den Exportordner: als XBRL-Instanz (Vorgabe) oder mit format=susa_csv als Summen- und " +
 			"Saldenliste mit der Taxonomie-Position je Konto, der Ausweichweg für eBilanz+, das daraus nur Bilanz und " +
-			"GuV füllt. Liefert Pfad und Befunde. Blockierende Befunde verhindern beides. Übermitteln kann nur der " +
+			"GuV füllt; bei abweichender Steuerbilanz nennt ueberleitung, was der Mensch dort nachträgt. Liefert Pfad und " +
+			"Befunde. Blockierende Befunde verhindern beides. Übermitteln kann nur der " +
 			"Mensch, über einen E-Bilanz-Dienst wie ebilanzplus.de oder ebilanzonline.de.",
 	}, func(ctx context.Context, c *Call, t *core.Tenant, in ebilanzExportIn) (exportOut, error) {
 		format := string(in.Format)
@@ -463,6 +476,11 @@ func registerErklaerung(tb *Toolbox) {
 				if data, err = s.EBilanz.ExportSuSaCSV(ctx, in.Jahr, opts); err != nil {
 					return err
 				}
+				out.Hinweis = ebilanz.SuSaNote(res.Report)
+				for _, tr := range res.Report.Transfers {
+					out.Ueberleitung = append(out.Ueberleitung, ueberleitung{Grund: tr.Reason, Konto: tr.Account,
+						Position: tr.Element, Betrag: betrag(tr.Current), Vorjahr: betrag(tr.Prior)})
+				}
 				path, err = dirs.ExportPath(fmt.Sprintf("ebilanz-%d-susa.csv", in.Jahr))
 				return err
 			}
@@ -487,6 +505,11 @@ func registerErklaerung(tb *Toolbox) {
 		if format == "susa_csv" {
 			out.NaechsterSchritt = "Der Mensch liest die Liste in eBilanz+ als Summen- und Saldenliste ein (Taxonomie-Layout), " +
 				"ergänzt dort die übrigen Angaben und übermittelt; danach bestätigt er die Übermittlung in der App mit dem Transferticket."
+			if len(out.Ueberleitung) > 0 {
+				out.NaechsterSchritt = "Der Mensch liest die Liste in eBilanz+ als Summen- und Saldenliste ein (Taxonomie-Layout), " +
+					"trägt dort die Überleitungsrechnung mit den Abweichungen aus ueberleitung nach, ergänzt die übrigen " +
+					"Angaben und übermittelt; danach bestätigt er die Übermittlung in der App mit dem Transferticket."
+			}
 		}
 		return out, nil
 	})

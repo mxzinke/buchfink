@@ -2053,6 +2053,15 @@ export interface EBilanzFinding {
 }
 
 /** Der Zuordnungsbericht vor dem E-Bilanz-Export. */
+/** Eine Abweichung der Überleitungsrechnung, steuerlich minus handelsrechtlich. */
+export interface TransferRow {
+  reason: string;
+  account: string;
+  element: string;
+  current: number;
+  prior: number;
+}
+
 export interface MappingReport {
   fiscalYear: number;
   taxonomyVersion: string;
@@ -2061,6 +2070,11 @@ export interface MappingReport {
   /** HAOE: Einheitsbilanz; HGBM: Handelsbilanz mit Überleitungsrechnung. */
   accountingStandard: string;
   rows: MappingRow[];
+  /**
+   * Abweichungen der Steuerbilanz bei HGBM. Die XBRL-Instanz enthält sie als
+   * Überleitungsrechnung, die Saldenliste nicht.
+   */
+  transfers: TransferRow[];
   /** Blockierende Befunde, je Zeile mit den betroffenen Konten. */
   blocking: MappingRow[];
   fallbacks: FallbackCount[];

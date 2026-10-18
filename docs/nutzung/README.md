@@ -177,7 +177,10 @@ ebilanzonline.de.
    (CSV)“ und lesen die Datei bei eBilanz+ über den Import „Summen- und
    Saldenliste“ ein, mit dem Taxonomie-Layout oder der Zuordnung nach SKR04.
    Die Saldenliste füllt nur Bilanz und Gewinn- und Verlustrechnung; die
-   übrigen Angaben ergänzen Sie im Dienst.
+   übrigen Angaben ergänzen Sie im Dienst. Weicht die Steuerbilanz ab, etwa
+   durch eine Sonderabschreibung, enthält die Saldenliste die Handelsbilanz.
+   Die Ansicht nennt dann die Abweichungen; die Überleitung zur Steuerbilanz
+   tragen Sie im Dienst nach.
 4. Bestätigen Sie die Übermittlung in Buchfink mit „Übermittlung bestätigen“
    und dem Transferticket aus dem Protokoll des Dienstes.
 

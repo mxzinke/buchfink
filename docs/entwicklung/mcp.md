@@ -316,7 +316,9 @@ die Summen- und Saldenliste `ebilanz-<Jahr>-susa.csv` (UTF-8 mit BOM,
 Semikolon, Dezimalkomma, CRLF; Spalten `Konto;Bezeichnung;Saldo;Taxonomie`,
 Saldo im Soll positiv). `Taxonomie` ist die Position, unter der das Konto im
 Kontennachweis der Instanz steht; Konten und Salden sind dieselben, Konten
-ohne Saldo entfallen.
+ohne Saldo entfallen. Weicht die Steuerbilanz ab, hat die Liste die Salden
+der Handelsbilanz; `ueberleitung` und `hinweis` nennen die Abweichungen, die
+der Mensch im Dienst nachträgt.
 
 ## Live-Aktualisierung
 

@@ -179,3 +179,48 @@ func TestSuSaCSVQuotesAndBlocks(t *testing.T) {
 		t.Error("Liste trotz blockierender Befunde")
 	}
 }
+
+// Bei einer Handelsbilanz mit Überleitung enthält die Saldenliste die
+// handelsrechtlichen Salden; der Bericht nennt die Abweichungen samt Position,
+// und SuSaNote sagt, dass sie im Dienst nachzutragen sind. Eine Einheitsbilanz
+// braucht keinen Hinweis.
+func TestSuSaCSVNamesTheTransfer(t *testing.T) {
+	plain := generateOK(t, exampleInput(t, exampleBalances, "2025"))
+	if note := SuSaNote(plain.Report); note != "" || len(plain.Report.Transfers) != 0 {
+		t.Errorf("Einheitsbilanz: %q %+v", note, plain.Report.Transfers)
+	}
+	in := exampleInput(t, exampleBalances, "2025")
+	in.Adjustments = []Adjustment{{Reason: "Sonderabschreibung § 7g Abs. 5 EStG", Account: "0520", IncomeAccount: "6242",
+		Current: -600000}}
+	res := generateOK(t, in)
+	if len(res.Report.Transfers) != 1 {
+		t.Fatalf("Überleitung im Bericht: %+v", res.Report.Transfers)
+	}
+	tr := res.Report.Transfers[0]
+	if tr.Account != "0520" || tr.Current != -600000 || tr.Element != "bs.ass.fixAss.tan.otherEquipm.passengerCars" {
+		t.Errorf("Abweichung: %+v", tr)
+	}
+	if note := SuSaNote(res.Report); !strings.Contains(note, "Handelsbilanz") || !strings.Contains(note, "Überleitung") {
+		t.Errorf("Hinweis: %q", note)
+	}
+	data, err := SuSaCSV(res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := csv.NewReader(bytes.NewReader(bytes.TrimPrefix(data, []byte("\xEF\xBB\xBF"))))
+	r.Comma = ';'
+	rows, err := r.ReadAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, row := range rows[1:] {
+		found = found || row[0] == "0520"
+		if row[0] == "0520" && cents(t, row[2]) != exampleBalances["0520"] {
+			t.Errorf("0520 mit %s statt dem handelsrechtlichen Saldo", row[2])
+		}
+	}
+	if !found {
+		t.Error("0520 fehlt in der Saldenliste")
+	}
+}

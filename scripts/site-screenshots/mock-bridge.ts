@@ -2195,6 +2195,8 @@ function mappingReport(year: number) {
     fiscalYear: year || YEAR,
     taxonomyVersion: '6.9',
     taxonomyDate: '2026-01-01',
+    accountingStandard: 'HAOE',
+    transfers: [],
     taxonomyNote:
       'Die Taxonomie 6.9 gilt für Wirtschaftsjahre ab 2026. Ihre Elementnamen sind vor der ' +
       'ersten Übermittlung gegen die amtliche Fassung abzugleichen.',

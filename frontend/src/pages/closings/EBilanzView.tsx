@@ -70,6 +70,7 @@ export const EBilanzView: React.FC<{
   }
 
   const rows = report?.rows ?? [];
+  const transfers = report?.accountingStandard === 'HGBM' ? (report.transfers ?? []) : [];
   const blocking = report?.blocking ?? [];
   const warnings = (report?.findings ?? []).filter((f) => f.severity !== 'blocking');
   const fallbacks = report?.fallbacks ?? [];
@@ -148,7 +149,9 @@ export const EBilanzView: React.FC<{
                 nicht selbst. Das Übermittlungsprotokoll des Dienstes nennt das Transferticket; damit
                 bestätigen Sie die Übermittlung hier. Nimmt der Dienst die XBRL-Datei nicht an, lesen
                 Sie bei eBilanz+ die Saldenliste als Summen- und Saldenliste ein. Sie füllt nur Bilanz
-                und Gewinn- und Verlustrechnung; die übrigen Angaben ergänzen Sie im Dienst.
+                und Gewinn- und Verlustrechnung; die übrigen Angaben ergänzen Sie im Dienst. Weicht die
+                Steuerbilanz ab, enthält die Saldenliste die Handelsbilanz, und die Überleitungsrechnung
+                tragen Sie im Dienst nach (§ 5b Abs. 1 Satz 2 EStG).
               </Help>
             </p>
             {obligation && (
@@ -168,6 +171,16 @@ export const EBilanzView: React.FC<{
               </div>
             )}
           </div>
+
+          {transfers.length > 0 && (
+            <Notice
+              text={`Die Saldenliste enthält die Handelsbilanz. Die Steuerbilanz weicht an ${
+                transfers.length === 1 ? 'einer Stelle' : `${transfers.length} Stellen`
+              } ab (${transfers
+                .map((t) => `Konto ${t.account}: ${formatCents(t.current)}`)
+                .join(', ')}). Die XBRL-Datei enthält diese Überleitung. Nehmen Sie die Saldenliste, tragen Sie die Überleitung im Dienst nach; die Einzelheiten stehen unten unter „Überleitung zur Steuerbilanz“.`}
+            />
+          )}
 
           {warnings.length > 0 && (
             <Disclosure title="Hinweise" context={`${warnings.length} Hinweise zur Zuordnung`} className="mt-0 pt-4">
