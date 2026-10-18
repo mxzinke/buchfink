@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/buchfink/buchfink/internal/domain"
-	"gorm.io/gorm"
 )
 
 // SettingsService manages company profile and fiscal year configurations.
@@ -190,7 +189,7 @@ func (s *SettingsService) SetValue(ctx context.Context, key, value, description 
 		return fmt.Errorf("die Einstellung %q lässt sich nicht einzeln setzen", key)
 	}
 	before, err := s.settingsRepo.Get(ctx, key)
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil && !errors.Is(err, domain.ErrNotFound) {
 		return fmt.Errorf("der bisherige Wert von %s ließ sich nicht lesen: %w", key, err)
 	}
 	if err := s.settingsRepo.Set(ctx, key, value); err != nil {

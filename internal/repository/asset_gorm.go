@@ -44,7 +44,7 @@ func (r *assetRepositoryGorm) FindByClass(ctx context.Context, class domain.Asse
 func (r *assetRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.FixedAsset, error) {
 	var asset domain.FixedAsset
 	if err := r.preloaded(ctx).First(&asset, id).Error; err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	return &asset, nil
 }

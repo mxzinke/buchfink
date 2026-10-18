@@ -148,7 +148,7 @@ func (r *journalRepositoryGorm) FindOpenItemCandidatesAt(ctx context.Context, cu
 func (r *journalRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
 	if err := dbFrom(ctx, r.db).Preload("Lines").Preload("Entertainment").Preload("Gifts").First(&entry, id).Error; err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	return &entry, nil
 }

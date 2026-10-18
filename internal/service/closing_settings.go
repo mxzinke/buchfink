@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/buchfink/buchfink/internal/domain"
-	"gorm.io/gorm"
 )
 
 // ClosingSettings sind die drei Einstellungen, die die Abschlussbausteine
@@ -125,7 +124,7 @@ func (s *ClosingSettingsService) read(ctx context.Context, key string) (string, 
 		return "", nil
 	}
 	v, err := s.settingsRepo.Get(ctx, key)
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	if errors.Is(err, domain.ErrNotFound) {
 		return "", nil
 	}
 	return strings.TrimSpace(v), err

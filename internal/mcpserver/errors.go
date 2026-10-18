@@ -11,7 +11,6 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/service"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"gorm.io/gorm"
 )
 
 // Fehlercodes der Werkzeuge. Sie sind stabil; Agenten verzweigen daran.
@@ -76,7 +75,7 @@ func toolError(err error) *ToolError {
 		return &ToolError{Code: CodeFileInvalid, Nachricht: err.Error(),
 			NaechsterSchritt: "Nennt die Nachricht einen Pfad unter Übernommen/, diesen übergeben; sonst die Originaldatei " +
 				"(PDF, Bild oder XML bis 50 MB) anfordern."}
-	case errors.Is(err, gorm.ErrRecordNotFound):
+	case errors.Is(err, domain.ErrNotFound):
 		return &ToolError{Code: CodeNotFound, Nachricht: "Eine der angegebenen Kennungen gibt es nicht: " + err.Error(),
 			NaechsterSchritt: "Die Kennungen mit dem passenden Such-Werkzeug neu ermitteln."}
 	case errors.Is(err, context.DeadlineExceeded):
@@ -140,7 +139,7 @@ var searchTool = map[string]string{
 // notFound benennt bei einer unbekannten Kennung das Feld; andere Fehler
 // gehen unverändert durch.
 func notFound(field string, id uint, err error) error {
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
+	if !errors.Is(err, domain.ErrNotFound) {
 		return err
 	}
 	tool := searchTool[field]

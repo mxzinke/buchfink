@@ -44,7 +44,7 @@ func (r *inputTaxCorrectionRepositoryGorm) FindAll(ctx context.Context) ([]domai
 func (r *inputTaxCorrectionRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.InputTaxCorrection, error) {
 	var out domain.InputTaxCorrection
 	if err := r.preloaded(ctx).First(&out, id).Error; err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	return &out, nil
 }

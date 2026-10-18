@@ -21,7 +21,7 @@ func NewSettingsRepository(db *gorm.DB) domain.SettingsRepository {
 	return &settingsRepositoryGorm{db: db}
 }
 
-// Get liefert gorm.ErrRecordNotFound für einen fehlenden Schlüssel. Find statt
+// Get liefert domain.ErrNotFound für einen fehlenden Schlüssel. Find statt
 // First, weil First jeden fehlenden Schlüssel ins Log schreibt, und fehlende
 // Schlüssel sind hier der Regelfall: sie stehen für die Voreinstellung.
 func (r *settingsRepositoryGorm) Get(ctx context.Context, key string) (string, error) {
@@ -30,7 +30,7 @@ func (r *settingsRepositoryGorm) Get(ctx context.Context, key string) (string, e
 		return "", err
 	}
 	if len(items) == 0 {
-		return "", gorm.ErrRecordNotFound
+		return "", mapError(gorm.ErrRecordNotFound)
 	}
 	return items[0].Value, nil
 }

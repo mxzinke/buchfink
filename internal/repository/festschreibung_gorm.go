@@ -36,7 +36,7 @@ func (r *festschreibungRepositoryGorm) FindByFiscalYear(ctx context.Context, fis
 func (r *festschreibungRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.Festschreibung, error) {
 	var rec domain.Festschreibung
 	if err := dbFrom(ctx, r.db).First(&rec, id).Error; err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	return &rec, nil
 }

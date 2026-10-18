@@ -10,7 +10,6 @@ import (
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
-	"gorm.io/gorm"
 )
 
 // TaxProvisionReference ist die Belegnummer der Buchung, an der der Baustein
@@ -565,7 +564,7 @@ func (s *ClosingBookingService) tradeTaxRate(ctx context.Context, opts TaxProvis
 	}
 	if s.settingsRepo != nil {
 		value, err := s.settingsRepo.Get(ctx, domain.SettingTradeTaxRate)
-		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		if err != nil && !errors.Is(err, domain.ErrNotFound) {
 			return 0, "", fmt.Errorf("der Hebesatz ließ sich nicht lesen: %w", err)
 		}
 		if rate, perr := strconv.ParseInt(strings.TrimSpace(value), 10, 64); perr == nil && rate > 0 {

@@ -15,7 +15,6 @@ import (
 	"github.com/buchfink/buchfink/internal/buildinfo"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/repository"
-	"gorm.io/gorm"
 )
 
 // JournalService is the single write path into the journal.
@@ -577,7 +576,7 @@ func (s *JournalService) verifyReceiptHashes(
 			id := *e.ReceiptID
 			if _, ok := actual[id]; !ok {
 				receipt, err := s.receiptRepo.FindByID(ctx, id)
-				if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+				if err != nil && !errors.Is(err, domain.ErrNotFound) {
 					return fmt.Errorf("der Beleg %d ließ sich nicht lesen: %w", id, err)
 				}
 				if receipt != nil {

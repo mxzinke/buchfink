@@ -33,7 +33,7 @@ func (r *bankRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.Ban
 	var tx domain.BankTransaction
 	err := dbFrom(ctx, r.db).First(&tx, id).Error
 	if err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	return &tx, nil
 }

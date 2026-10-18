@@ -45,7 +45,7 @@ func (r *checkRunRepositoryGorm) FindByFiscalYear(ctx context.Context, fiscalYea
 func (r *checkRunRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.CheckRun, error) {
 	var run domain.CheckRun
 	if err := dbFrom(ctx, r.db).Preload("Findings").First(&run, id).Error; err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	run.EnsureLists()
 	return &run, nil

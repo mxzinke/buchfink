@@ -74,7 +74,7 @@ func (r *vatReturnRepositoryGorm) Update(ctx context.Context, rec *domain.VatRet
 func (r *vatReturnRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.VatReturn, error) {
 	var rec domain.VatReturn
 	if err := dbFrom(ctx, r.db).First(&rec, id).Error; err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	decodeVatReturn(&rec)
 	return &rec, nil
@@ -168,7 +168,7 @@ func (r *zmReturnRepositoryGorm) Update(ctx context.Context, rec *domain.ZMRetur
 func (r *zmReturnRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.ZMReturn, error) {
 	var rec domain.ZMReturn
 	if err := dbFrom(ctx, r.db).Preload("Lines").First(&rec, id).Error; err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	decodeZMLines(&rec)
 	return &rec, nil

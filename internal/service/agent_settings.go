@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/buchfink/buchfink/internal/domain"
-	"gorm.io/gorm"
 )
 
 // AgentSettings liest die Einstellungen für verbundene Agenten so, wie sie
@@ -55,7 +54,7 @@ func (s *SettingsService) AgentSettings(ctx context.Context) (*domain.AgentSetti
 func (s *SettingsService) lookup(ctx context.Context, key string) (string, bool, error) {
 	v, err := s.settingsRepo.Get(ctx, key)
 	switch {
-	case errors.Is(err, gorm.ErrRecordNotFound):
+	case errors.Is(err, domain.ErrNotFound):
 		return "", false, nil
 	case err != nil:
 		return "", false, fmt.Errorf("die Einstellung %s ließ sich nicht lesen: %w", key, err)

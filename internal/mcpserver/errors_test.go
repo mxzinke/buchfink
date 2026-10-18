@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"testing"
 
-	"gorm.io/gorm"
+	"github.com/buchfink/buchfink/internal/domain"
 )
 
 func TestNotFoundErrorMapping(t *testing.T) {
 	for _, err := range []error{
-		gorm.ErrRecordNotFound,
-		fmt.Errorf("Beleg lesen: %w", gorm.ErrRecordNotFound),
+		domain.ErrNotFound,
+		fmt.Errorf("Beleg lesen: %w", domain.ErrNotFound),
 	} {
 		t.Run(err.Error(), func(t *testing.T) {
 			got := toolError(err)

@@ -30,7 +30,7 @@ func (r *invoiceRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.
 	var invoice domain.Invoice
 	err := dbFrom(ctx, r.db).Preload("Items").Preload("PrecedingRefs").First(&invoice, id).Error
 	if err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	return &invoice, nil
 }
@@ -39,7 +39,7 @@ func (r *invoiceRepositoryGorm) FindByNumber(ctx context.Context, number string)
 	var invoice domain.Invoice
 	err := dbFrom(ctx, r.db).Preload("Items").Preload("PrecedingRefs").Where("invoice_number = ?", number).First(&invoice).Error
 	if err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	return &invoice, nil
 }

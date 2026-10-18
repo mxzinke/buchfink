@@ -26,7 +26,7 @@ func (r *receiptRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.
 		Preload("Files", func(db *gorm.DB) *gorm.DB { return db.Order("receipt_files.position asc") }).
 		First(&receipt, id).Error
 	if err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	receipt.EnsureLists()
 	return &receipt, nil
@@ -117,7 +117,7 @@ func (r *receiptRepositoryGorm) FindByJournalEntry(ctx context.Context, entryID 
 		Preload("Files", func(db *gorm.DB) *gorm.DB { return db.Order("receipt_files.position asc") }).
 		Where("journal_entry_id = ?", entryID).First(&receipt).Error
 	if err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	return &receipt, nil
 }
@@ -163,7 +163,7 @@ func (r *receiptRepositoryGorm) SaveHeader(
 	err := dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		var receipt domain.Receipt
 		if err := tx.Preload("Files").First(&receipt, receiptID).Error; err != nil {
-			return err
+			return mapError(err)
 		}
 		// Ein gebuchter Beleg ist versiegelt: seine Kopfdaten stehen im
 		// Beleg-Hash, der Beleg-Hash in der Buchung und die Buchung in der
@@ -215,7 +215,7 @@ func (r *receiptRepositoryGorm) ReplaceFiles(ctx context.Context, receiptID uint
 	err := dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		var receipt domain.Receipt
 		if err := tx.First(&receipt, receiptID).Error; err != nil {
-			return err
+			return mapError(err)
 		}
 		if receipt.Status != domain.ReceiptStatusFiled {
 			return fmt.Errorf("Beleg %s ist %s und seine Dateien lassen sich nicht mehr ändern",
@@ -262,7 +262,7 @@ func (r *receiptRepositoryGorm) Seal(ctx context.Context, receiptID uint, entryI
 	return dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		var receipt domain.Receipt
 		if err := tx.First(&receipt, receiptID).Error; err != nil {
-			return err
+			return mapError(err)
 		}
 		if receipt.Status == domain.ReceiptStatusDiscarded {
 			return fmt.Errorf("Beleg %s wurde verworfen und kann nicht gebucht werden", receipt.ReceiptNumber)
@@ -331,7 +331,7 @@ func (r *receiptRepositoryGorm) Discard(ctx context.Context, receiptID uint, rea
 	return dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		var receipt domain.Receipt
 		if err := tx.First(&receipt, receiptID).Error; err != nil {
-			return err
+			return mapError(err)
 		}
 		if receipt.Status == domain.ReceiptStatusSealed {
 			return fmt.Errorf("Beleg %s ist gebucht. Eine Korrektur geschieht durch Storno der Buchung, nicht am Beleg",
@@ -412,6 +412,3 @@ func statusLabel(s domain.ReceiptStatus) string {
 		return string(s)
 	}
 }
-
-// IsNotFound reports a missing record without leaking GORM into the services.
-func IsNotFound(err error) bool { return errors.Is(err, gorm.ErrRecordNotFound) }

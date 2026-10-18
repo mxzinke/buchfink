@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/buchfink/buchfink/internal/domain"
-	"gorm.io/gorm"
 )
 
 func missingResult[T any](value *T, err error) (bool, error) { return value == nil, err }
@@ -186,7 +185,7 @@ func TestRepositoryMissingRecords(t *testing.T) {
 							t.Error("fehlender Datensatz liefert keinen leeren Wert")
 						}
 						if tc.wantError {
-							if !errors.Is(err, gorm.ErrRecordNotFound) {
+							if !errors.Is(err, domain.ErrNotFound) {
 								t.Fatalf("Fehler = %v, erwartet: nicht gefunden", err)
 							}
 							if err.Error() != "record not found" {

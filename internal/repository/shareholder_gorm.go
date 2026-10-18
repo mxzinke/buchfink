@@ -23,7 +23,7 @@ func (r *shareholderLoanRepositoryGorm) Save(ctx context.Context, loan *domain.S
 func (r *shareholderLoanRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.ShareholderLoan, error) {
 	var loan domain.ShareholderLoan
 	if err := dbFrom(ctx, r.db).First(&loan, id).Error; err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	return &loan, nil
 }
