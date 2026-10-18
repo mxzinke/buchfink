@@ -125,7 +125,7 @@ export const bridge = {
     invoke<T>('SetAverageEmployees', year, count),
 
   // E-Bilanz, Audit & Festschreibung
-  SaveEBilanzXBRLAs: (year: number) => invoke<string>('SaveEBilanzXBRLAs', year),
+  SaveEBilanzAs: (year: number, format: string) => invoke<string>('SaveEBilanzAs', year, format),
   GetEBilanzMappingReport: <T>(year: number) => invoke<T>('GetEBilanzMappingReport', year),
   GetFestschreibungen: <T>() => invoke<T>('GetFestschreibungen'),
   CommitPeriod: <T>(

@@ -137,7 +137,7 @@ var readOnlyAllowed = map[string]bool{
 	// Gegenteil dessen, wofür der Modus da ist.
 	"ExportArchive":                true,
 	"ExportAuditPackage":           true,
-	"SaveEBilanzXBRLAs":            true,
+	"SaveEBilanzAs":                true,
 	"ExportStatementCSV":           true,
 	"ExportStatementPDF":           true,
 	"ExportVatReturnCSV":           true,

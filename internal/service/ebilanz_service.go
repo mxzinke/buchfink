@@ -106,6 +106,25 @@ func (s *EBilanzService) ExportXBRLWith(ctx context.Context, year int, opts EBil
 	return string(instance), nil
 }
 
+// ExportSuSaCSV erzeugt die Summen- und Saldenliste zur E-Bilanz mit
+// denselben Konten und Salden wie die Instanz (ebilanz.SuSaCSV).
+func (s *EBilanzService) ExportSuSaCSV(ctx context.Context, year int, opts EBilanzOptions) ([]byte, error) {
+	res, err := s.Generate(ctx, year, opts)
+	if err != nil {
+		return nil, err
+	}
+	data, err := ebilanz.SuSaCSV(res)
+	if err != nil {
+		return nil, err
+	}
+	if err := logAudit(ctx, s.auditRepo, domain.AuditActionExport, "EBILANZ", fmt.Sprintf("%d", year),
+		fmt.Sprintf("E-Bilanz %d als Summen- und Saldenliste (CSV) erzeugt (Taxonomie %s)", year, res.Version.Version),
+	); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
 // ExportOpeningXBRL erzeugt die Instanz der Eröffnungsbilanz (§ 5b Abs. 1
 // EStG, § 242 Abs. 1 HGB): Bilanz ohne GuV auf den Tag, an dem das
 // Handelsgewerbe beginnt.

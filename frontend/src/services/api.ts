@@ -627,7 +627,7 @@ export const Api = {
    * der Dialog wurde abgebrochen.
    */
   saveEBilanzXBRLAs: (year: number): Promise<string> =>
-    call(() => Bridge.SaveEBilanzXBRLAs(year) as Promise<string>),
+    call(() => Bridge.SaveEBilanzAs(year, 'xbrl') as Promise<string>),
   /**
    * Welches Konto unter welcher Gliederungsposition und welchem
    * Taxonomie-Element erscheint — und was die Erzeugung verhindert.
