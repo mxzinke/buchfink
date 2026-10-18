@@ -134,3 +134,18 @@ func endOfFollowingMonth(date string) string {
 	first := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC)
 	return first.AddDate(0, 2, -1).Format("2006-01-02")
 }
+
+// prepaymentDate bestimmt, ob und wann eine Zahlung vor der Leistung wirkt.
+// Die Vorsteuer aus einer Rechnung setzt deren Besitz voraus; für § 13b und
+// die Umsatzsteuer entscheidet der Zahlungstag (§ 13 Abs. 1, § 13b Abs. 4,
+// § 15 Abs. 1 UStG).
+func (v TaxCaseVAT) prepaymentDate(documentDate, receivedAt string) func(string) string {
+	switch v.Prepayment {
+	case TaxPrepaymentOnPayment:
+		return func(payment string) string { return payment }
+	case TaxPrepaymentWithInvoice:
+		return func(payment string) string { return latest(payment, documentDate, receivedAt) }
+	default:
+		return nil
+	}
+}

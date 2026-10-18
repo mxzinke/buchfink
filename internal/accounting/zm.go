@@ -66,15 +66,13 @@ func ZMMovements(src ZMSource) []ZMMovement {
 		if src.Recipient != nil && contactID != 0 {
 			recipient = src.Recipient(contactID)
 		}
-		// Nur Leistungen an einen Empfänger im übrigen Gemeinschaftsgebiet sind
-		// zu melden. Die Leistung an ein Drittland ist zwar auch nicht steuerbar,
-		// geht das Bundeszentralamt aber nichts an.
-		if !recipient.IsEU {
-			continue
-		}
 
 		for _, line := range entry.Lines {
-			if line.TaxKey != "" || treatments[line.Account] != domain.TaxTreatmentReverseChargeSupply {
+			if line.TaxKey != "" {
+				continue
+			}
+			rule := TaxCaseFor(treatments[line.Account]).VatCode("").ForRecipient(recipient.IsEU, false)
+			if rule.ZMKind == "" {
 				continue
 			}
 			amount := line.Amount
@@ -122,6 +120,7 @@ func ZMPeriodFor(periods []VatPeriod, m ZMMovement) (VatPeriod, bool) {
 // Eine fehlende USt-IdNr. ist kein Formfehler: ohne sie ist die Meldung nicht
 // abzugeben (§ 18a Abs. 7 UStG).
 func ZMLines(period VatPeriod, movements []ZMMovement, recipient func(uint) ZMRecipient) ([]domain.ZMLine, []string) {
+	service := TaxCaseFor(domain.TaxTreatmentReverseChargeSupply).VatCode("").ForRecipient(true, false)
 	grouped := map[string]*domain.ZMLine{}
 	order := make([]string, 0, len(movements))
 	findings := make([]string, 0)
@@ -169,7 +168,7 @@ func ZMLines(period VatPeriod, movements []ZMMovement, recipient func(uint) ZMRe
 			line = &domain.ZMLine{
 				CountryCode: country,
 				VatID:       vatID,
-				Kind:        domain.ZMKindService,
+				Kind:        service.ZMKind,
 				ContactID:   m.ContactID,
 				ContactName: info.Name,
 			}

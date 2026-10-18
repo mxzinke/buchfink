@@ -3,7 +3,6 @@ package accounting
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -372,8 +371,12 @@ func vatMovements(src VatReturnSource) []vatMovement {
 		writeOff := paid.isWriteOff(entry)
 
 		for _, line := range entry.Lines {
-			if closing && line.TaxKey != TaxKeyInputTaxCorrection {
+			rule := TaxCaseFor(treatments[line.Account]).VatCode(line.TaxKey)
+			if rule.Code == "" || closing && !rule.AllowClosing {
 				continue
+			}
+			if rule.RecipientDependent {
+				rule = rule.ForRecipient(vatRecipient(src, entry))
 			}
 			// Vorzeichen in der natürlichen Richtung des Kontos: die
 			// Bemessungsgrundlage folgt derselben Seitenlogik wie der
@@ -386,29 +389,7 @@ func vatMovements(src VatReturnSource) []vatMovement {
 			debit := -credit
 
 			date := VatPeriodFor(entry, line, receivedAt)
-			m := vatMovement{entryIndex: i, date: date}
-			// earlier sagt, ab wann eine Zahlung vor der Leistung die Steuer
-			// entstehen lässt oder den Abzug erlaubt; nil, wo sie es nicht tut.
-			// longTerm: für die Steuer nach § 13b gilt Abs. 3 bei einer Leistung
-			// über mehr als ein Jahr.
-			var earlier func(string) string
-			longTerm := false
-
-			// Die Skonto-Steuerkorrektur läuft in dieselbe Kennziffer wie der
-			// Umsatz, den sie mindert: § 17 Abs. 1 UStG berichtigt Steuer und
-			// Bemessungsgrundlage im Zeitraum der Änderung (Satz 8). Der eigene
-			// Schlüssel trennt die Korrektur im Journal; das Vorzeichen kommt aus
-			// der Seite der Buchung.
-			key := strings.TrimPrefix(line.TaxKey, TaxKeySkontoPrefix)
-
-			rule := vatCodeForLine(treatments[line.Account], line.TaxKey)
-			if rule.Code == "" {
-				continue
-			}
-			m.code = rule.Code
-			if rule.RecipientDependent {
-				m.code = reverseChargeSupplyCode(src, entry)
-			}
+			m := vatMovement{entryIndex: i, date: date, code: rule.Code}
 			if rule.HasBase {
 				m.base = base
 			}
@@ -421,17 +402,10 @@ func vatMovements(src VatReturnSource) []vatMovement {
 			case domain.SideDebit:
 				m.tax = debit
 			}
-			switch rule.Prepayment {
-			case TaxPrepaymentOnPayment:
-				earlier = paymentDate
-			case TaxPrepaymentWithInvoice:
-				docDate := entry.DocumentDate
-				earlier = func(payment string) string { return latest(payment, docDate, receivedAt) }
-			}
-			longTerm = rule.LongTerm
+			earlier := rule.prepaymentDate(entry.DocumentDate, receivedAt)
 
 			total, events := gross, paymentArisings(gross, payments, earlier)
-			if longTerm {
+			if rule.LongTerm {
 				var yearEnds []arising
 				total, yearEnds = longTermYearEnds(entry, gross)
 				events = append(events, yearEnds...)
@@ -442,7 +416,7 @@ func vatMovements(src VatReturnSource) []vatMovement {
 			// Die Ausbuchung einer uneinbringlichen Forderung mindert die
 			// Bemessungsgrundlage in Kz 81 oder 86 und wird zusätzlich in Kz 50
 			// genannt, als Betrag der Minderung.
-			if writeOff && (key == "UST19" || key == "UST7") && line.TaxKey == key {
+			if writeOff && rule.BadDebtBase {
 				out = append(out, vatMovement{entryIndex: i, date: date, code: VatCodeBadDebtBase, base: -base})
 			}
 		}
@@ -450,112 +424,15 @@ func vatMovements(src VatReturnSource) []vatMovement {
 	return out
 }
 
-func vatCodeForLine(treatment domain.TaxTreatment, key string) TaxCaseVAT {
-	originalKey := key
-	key = strings.TrimPrefix(key, TaxKeySkontoPrefix)
-	v := TaxCaseVAT{Code: vatCodeForTaxKey[key]}
-	switch {
-	case key == "":
-		v.BaseFromAmount = true
-		switch treatment {
-		case domain.TaxTreatmentExempt:
-			v.Code = VatCodeExemptNoDeduction
-		case domain.TaxTreatmentZeroRated:
-			v.Code, v.Prepayment = VatCodeZeroRate, TaxPrepaymentOnPayment
-		case domain.TaxTreatmentReverseChargeSupply:
-			v.Code, v.RecipientDependent = VatCodeNotTaxable, true
-		case domain.TaxTreatmentNotTaxable:
-			v.Code = VatCodeNotTaxable
-		default:
-			return TaxCaseVAT{}
-		}
-	case key == "UST19", key == "UST7":
-		v.HasBase, v.TaxSide, v.Prepayment, v.BadDebtBase = true, domain.SideCredit, TaxPrepaymentOnPayment, originalKey == key
-	case key == TaxKeyUnlawful:
-		// § 14c UStG: geschuldete Steuer ohne Bemessungsgrundlage im Vordruck.
-		v.TaxSide = domain.SideCredit
-	case key == "IG19_UST", key == "IG7_UST":
-		v.HasBase, v.TaxSide = true, domain.SideCredit
-	case isReverseChargeKey(key, TaxKeyReverseChargeEUPrefix, "_UST"):
-		v.Code, v.HasBase, v.TaxSide, v.Prepayment, v.LongTerm = VatCodeReverseChargeEU, true, domain.SideCredit, TaxPrepaymentOnPayment, true
-	case isReverseChargeKey(key, TaxKeyReverseChargePrefix, "_UST"):
-		v.Code, v.HasBase, v.TaxSide, v.Prepayment, v.LongTerm = VatCodeReverseChargeOther, true, domain.SideCredit, TaxPrepaymentOnPayment, true
-	case key == "VST19", key == "VST7":
-		v.TaxSide, v.Prepayment = domain.SideDebit, TaxPrepaymentWithInvoice
-	case key == "IG19_VST", key == "IG7_VST":
-		v.TaxSide = domain.SideDebit
-	case isReverseChargeKey(key, TaxKeyReverseChargeEUPrefix, "_VST"), isReverseChargeKey(key, TaxKeyReverseChargePrefix, "_VST"):
-		v.Code, v.TaxSide, v.Prepayment, v.LongTerm = VatCodeInputTaxReverse, domain.SideDebit, TaxPrepaymentOnPayment, true
-	case key == TaxKeyInputTaxCorrection:
-		// § 15a UStG: auch als Abschlussbuchung ein Beitrag zur Voranmeldung.
-		v.TaxSide, v.AllowClosing = domain.SideDebit, originalKey == key
-	}
-	return v
-}
-
-// paymentDate: bei der Umsatzsteuer und beim § 13b entsteht die Steuer auf
-// eine Zahlung vor der Leistung mit Ablauf des Zeitraums der Zahlung.
-func paymentDate(date string) string { return date }
-
-// isReverseChargeKey erkennt die Schlüssel eines § 13b-Absatzes. Der Präfix
-// „RC" ist in „RCEU" enthalten; geprüft wird deshalb der Satz dazwischen.
-func isReverseChargeKey(key, prefix, suffix string) bool {
-	if !strings.HasPrefix(key, prefix) || !strings.HasSuffix(key, suffix) {
-		return false
-	}
-	rate := strings.TrimSuffix(strings.TrimPrefix(key, prefix), suffix)
-	if rate == "" {
-		return false
-	}
-	for _, r := range rate {
-		if r < '0' || r > '9' {
-			return false
-		}
-	}
-	return true
-}
-
-// reverseChargeSupplyCode ordnet die eigene Leistung mit Steuerschuld des
-// Empfängers nach dessen Sitz: im übrigen Gemeinschaftsgebiet mit USt-IdNr.
-// eine sonstige Leistung nach § 18b Satz 1 Nr. 2 UStG (Kz 21), im Inland ein
-// Umsatz nach § 13b Abs. 5 UStG (Kz 60), sonst ein übriger nicht steuerbarer
-// Umsatz (Kz 45).
-func reverseChargeSupplyCode(src VatReturnSource, entry *domain.JournalEntry) string {
+func vatRecipient(src VatReturnSource, entry *domain.JournalEntry) (eu, domestic bool) {
 	if entry.ContactID == nil {
-		return VatCodeNotTaxable
+		return false, false
 	}
-	switch {
-	case src.EURecipient != nil && src.EURecipient(*entry.ContactID):
-		return VatCodeEUServices
-	case src.DomesticRecipient != nil && src.DomesticRecipient(*entry.ContactID):
-		return VatCodeRecipientLiable
+	if src.EURecipient != nil && src.EURecipient(*entry.ContactID) {
+		return true, false
 	}
-	return VatCodeNotTaxable
+	return false, src.DomesticRecipient != nil && src.DomesticRecipient(*entry.ContactID)
 }
-
-// RevenueTreatments ordnet jedes Erlöskonto seinem Steuerfall zu.
-//
-// Der Katalog der Buchungsgruppen liefert die Zuordnung; dazu kommen die
-// steuerfreien Erlöskonten des SKR04, die keine Gruppe anbietet, eine
-// Handbuchung aber erreicht. Die Tabelle steht einmal — eine zweite Kopie in der
-// Auswertung driftete stillschweigend, und ein neuer Steuerfall fiele einfach
-// aus der Voranmeldung heraus.
-func RevenueTreatments() map[string]domain.TaxTreatment {
-	out := RevenueAccountTreatments()
-	for _, account := range []string{"4110", "4160", "4165"} {
-		out[account] = domain.TaxTreatmentExempt
-	}
-	// Das gewährte Skonto auf eine Leistung mit Steuerschuld des Empfängers
-	// mindert deren Bemessungsgrundlage in Kz 21, 45 oder 60 und in der
-	// Zusammenfassenden Meldung (§ 17 Abs. 1 Satz 8, § 18a Abs. 7 Satz 2 UStG).
-	out[ReverseChargeSupplySkontoAccount] = domain.TaxTreatmentReverseChargeSupply
-	return out
-}
-
-// ReverseChargeSupplySkontoAccount ist das Skontokonto zum Erlöskonto 4337
-// (SKR04: Gewährte Skonti aus Leistungen, für die der Leistungsempfänger die
-// Umsatzsteuer nach § 13b UStG schuldet).
-const ReverseChargeSupplySkontoAccount = "4741"
 
 // TruncToEuro schneidet die Cent ab, wie es die amtlichen Vordrucke für die
 // Bemessungsgrundlagen und für die Zusammenfassende Meldung vorsehen. Gerundet

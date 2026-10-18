@@ -16,50 +16,7 @@ func (c TaxCase) Legs(direction domain.Direction, rate domain.TaxRate, net domai
 	return NewSKR04TaxResolver().Resolve(direction, c.treatment, rate, net)
 }
 
-// VatCode beschreibt den Beitrag einer Steuer- oder Erlöszeile. Ohne Schlüssel
-// bezeichnet c den Steuerfall des Erlöskontos; Aufwandskonten haben keinen Beitrag.
-func (c TaxCase) VatCode(key string) TaxCaseVAT {
-	return vatCodeForLine(c.treatment, key)
-}
-
 func (c TaxCase) MayShowTax() bool { return c.treatment.MayShowTax() }
-
-type TaxPrepayment int
-
-const (
-	TaxPrepaymentNone TaxPrepayment = iota
-	TaxPrepaymentOnPayment
-	TaxPrepaymentWithInvoice
-)
-
-// TaxCaseVAT beschreibt Kennzahl, Vorzeichen und vorgezogene Steuerentstehung.
-// HasBase verwendet die TaxBase, BaseFromAmount den Betrag der Erlöszeile.
-type TaxCaseVAT struct {
-	Code               string
-	HasBase            bool
-	BaseFromAmount     bool
-	TaxSide            domain.Side
-	Prepayment         TaxPrepayment
-	LongTerm           bool
-	BadDebtBase        bool
-	AllowClosing       bool
-	RecipientDependent bool
-	ZMKind             domain.ZMLineKind
-}
-
-func (v TaxCaseVAT) ForRecipient(eu, domestic bool) TaxCaseVAT {
-	if v.RecipientDependent {
-		switch {
-		case eu:
-			v.Code, v.ZMKind = VatCodeEUServices, domain.ZMKindService
-		case domestic:
-			v.Code, v.ZMKind = VatCodeRecipientLiable, ""
-		default:
-			v.Code, v.ZMKind = VatCodeNotTaxable, ""
-		}
-	}
-	return v
-}
 
 // TaxCaseSkonto enthält die Entgeltminderung und die gegenläufigen Steuerzeilen.
 // Eine Minderung von Anschaffungskosten ordnet der Zahlungsdienst dem Anlagegut zu.

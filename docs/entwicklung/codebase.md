@@ -24,6 +24,7 @@ nutzt Base UI, Tailwind CSS und Lucide; Typst setzt Rechnungen und Berichte
 | Geschäftsjahr, Rumpfjahr, Periodensperre, Festschreibung und Feststellung | [service/periods.go](../../internal/service/periods.go), [periods_calendar.go](../../internal/service/periods_calendar.go), [periods_commit.go](../../internal/service/periods_commit.go), [periods_adoption.go](../../internal/service/periods_adoption.go); Vorprüfungen in [core/wire.go](../../internal/core/wire.go), Zeitstempelablauf in [core/commit.go](../../internal/core/commit.go) |
 | Anwendungsfall | [internal/service/](../../internal/service) |
 | Rechenregel, Steuerschlüssel, Kontenrahmen | [internal/accounting/](../../internal/accounting) |
+| Steuerfall, Steuerentstehung, UStVA- und ZM-Zuordnung | [TaxCase-Fassade](../../internal/accounting/taxcase.go), [Zeitpunkt](../../internal/accounting/taxcase_timing.go), [Melderegeln](../../internal/accounting/taxcase_reporting.go) |
 | Entität, Invariante, Repository-Schnittstelle | [internal/domain/](../../internal/domain) |
 | Speicherung und Migration | [internal/repository/](../../internal/repository) |
 | Ansicht oder Bedienablauf | [frontend/src/](../../frontend/src), [Gestaltung](../gestaltung/README.md) |

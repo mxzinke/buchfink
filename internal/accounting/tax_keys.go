@@ -27,36 +27,6 @@ type TaxKeyInfo struct {
 	VatCodeLabel string `json:"vatCodeLabel"`
 }
 
-// vatCodeForTaxKey ordnet jedem Steuerschlüssel seine Kennziffer zu.
-//
-// Die Zuordnung ist dieselbe wie in vatMovements. Sie steht hier ein zweites
-// Mal, weil dort über Buchungen gelaufen wird und hier über den Katalog; der
-// Test TestTaxKeyCatalogMatchesVatReturn hält beide zusammen, damit ein neuer
-// Schlüssel nicht in der einen Liste auftaucht und in der anderen fehlt.
-var vatCodeForTaxKey = map[string]string{
-	"UST19":        VatCodeStandardRate,
-	"UST7":         VatCodeReducedRate,
-	"VST19":        VatCodeInputTax,
-	"VST7":         VatCodeInputTax,
-	"IG19_UST":     VatCodeAcquisition19,
-	"IG7_UST":      VatCodeAcquisition7,
-	"IG19_VST":     VatCodeInputTaxAcquisition,
-	"IG7_VST":      VatCodeInputTaxAcquisition,
-	"RCEU19_UST":   VatCodeReverseChargeEU,
-	"RCEU7_UST":    VatCodeReverseChargeEU,
-	"RCEU19_VST":   VatCodeInputTaxReverse,
-	"RCEU7_VST":    VatCodeInputTaxReverse,
-	"RC19_UST":     VatCodeReverseChargeOther,
-	"RC7_UST":      VatCodeReverseChargeOther,
-	"RC19_VST":     VatCodeInputTaxReverse,
-	"RC7_VST":      VatCodeInputTaxReverse,
-	TaxKeyUnlawful: VatCodeUnlawfulTax,
-	// Die Berichtigung nach § 15a UStG hat eine eigene Zeile im Vordruck. In
-	// Kz 66 gehört sie nicht: dort steht die Vorsteuer aus Rechnungen dieses
-	// Zeitraums, und die Berichtigung stammt aus einem früheren.
-	TaxKeyInputTaxCorrection: VatCodeInputTaxCorrection,
-}
-
 // taxKeyLabels sind die Klartexte der Schlüssel.
 var taxKeyLabels = map[string]string{
 	"UST19":                  "Umsatzsteuer 19 % auf einen steuerpflichtigen Inlandsumsatz",
@@ -112,7 +82,7 @@ func TaxKeyCatalog() []TaxKeyInfo {
 						Treatment: treatment,
 						Rate:      rate,
 						Side:      leg.Side,
-						VatCode:   vatCodeForTaxKey[leg.Key],
+						VatCode:   TaxCaseFor(treatment).VatCode(leg.Key).Code,
 					}
 				}
 			}
@@ -127,7 +97,7 @@ func TaxKeyCatalog() []TaxKeyInfo {
 		Account:   domain.AccountUmsatzsteuer14c,
 		Direction: domain.DirectionOutgoing,
 		Side:      domain.SideCredit,
-		VatCode:   vatCodeForTaxKey[TaxKeyUnlawful],
+		VatCode:   TaxCaseFor("").VatCode(TaxKeyUnlawful).Code,
 	}
 
 	// Ebenso die Vorsteuerberichtigung: sie entsteht aus keinem Umsatz und aus
@@ -141,7 +111,7 @@ func TaxKeyCatalog() []TaxKeyInfo {
 		Account:   InputTaxCorrectionRepayableMovable,
 		Direction: domain.DirectionIncoming,
 		Side:      domain.SideCredit,
-		VatCode:   vatCodeForTaxKey[TaxKeyInputTaxCorrection],
+		VatCode:   TaxCaseFor("").VatCode(TaxKeyInputTaxCorrection).Code,
 	}
 
 	out := make([]TaxKeyInfo, 0, len(seen))
