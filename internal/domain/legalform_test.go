@@ -62,17 +62,17 @@ func TestExplicitChoiceBeatsTheLegalForm(t *testing.T) {
 }
 
 // Die Ersteinrichtung bietet Rechtsformen zur Auswahl an, bevor ein Mandant
-// existiert — ihre Liste steht deshalb im Frontend. Weicht eine Schreibweise
+// existiert — ihre Liste steht deshalb im Frontend (utils/companyLabels.ts). Weicht eine Schreibweise
 // vom Katalog ab, ließe sich der Mandant nicht speichern.
 func TestSetupAssistantOffersOnlyCatalogForms(t *testing.T) {
 	source, err := os.ReadFile(filepath.Join(
-		"..", "..", "frontend", "src", "components", "SetupAssistantScreen.tsx"))
+		"..", "..", "frontend", "src", "utils", "companyLabels.ts"))
 	if err != nil {
 		t.Skipf("die Ersteinrichtung ist von hier nicht lesbar: %v", err)
 	}
 	block := regexp.MustCompile(`(?s)const LEGAL_FORMS = \[(.*?)\];`).FindSubmatch(source)
 	if block == nil {
-		t.Fatal("in SetupAssistantScreen.tsx steht keine Liste LEGAL_FORMS mehr")
+		t.Fatal("in companyLabels.ts steht keine Liste LEGAL_FORMS mehr")
 	}
 	offered := regexp.MustCompile(`'([^']+)'`).FindAllStringSubmatch(string(block[1]), -1)
 	if len(offered) == 0 {
