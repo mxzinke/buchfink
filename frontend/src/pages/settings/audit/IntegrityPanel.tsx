@@ -64,6 +64,8 @@ const SubHeading: React.FC<{ title: string; context?: string; action?: React.Rea
 
 export interface IntegrityPanelProps {
   integrity: IntegrityCheckResult | null;
+  /** Die letzte Prüfung ist fehlgeschlagen. */
+  integrityError?: string | null;
   isChecking: boolean;
   onRefresh: () => void;
   /** Die Prüfregel einer Aufgabe: der jüngste Lauf mit diesem Befund geht auf. */
@@ -77,6 +79,7 @@ export interface IntegrityPanelProps {
  */
 export const IntegrityPanel: React.FC<IntegrityPanelProps> = ({
   integrity,
+  integrityError,
   isChecking,
   onRefresh,
   initialRule,
@@ -148,6 +151,14 @@ export const IntegrityPanel: React.FC<IntegrityPanelProps> = ({
       {broken && integrity && <Notice tone="negative" className="mb-5" text={integrity.message} />}
       {error && <Notice tone="negative" className="mb-5" text={error} />}
 
+      {!integrity && integrityError && !isChecking && (
+        <Notice
+          tone="negative"
+          className="mb-5"
+          text={`Die Prüfung ist fehlgeschlagen. ${integrityError}`}
+        />
+      )}
+
       {integrity ? (
         <StatRow>
           <Stat
@@ -177,7 +188,7 @@ export const IntegrityPanel: React.FC<IntegrityPanelProps> = ({
             tone={fileCheck ? (fileCheck.isValid ? 'positive' : 'negative') : 'neutral'}
           />
         </StatRow>
-      ) : (
+      ) : integrityError && !isChecking ? null : (
         <SkeletonRows rows={2} />
       )}
 

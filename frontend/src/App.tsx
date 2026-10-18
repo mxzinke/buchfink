@@ -31,6 +31,7 @@ export function App() {
   const [fiscalYears, setFiscalYears] = useState<FiscalYear[]>([]);
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [integrity, setIntegrity] = useState<IntegrityCheckResult | null>(null);
+  const [integrityError, setIntegrityError] = useState<string | null>(null);
   const [isCheckingIntegrity, setIsCheckingIntegrity] = useState(false);
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [isAddingTenant, setIsAddingTenant] = useState(false);
@@ -163,8 +164,10 @@ export function App() {
     setIsCheckingIntegrity(true);
     try {
       setIntegrity(await Api.verifyIntegrity());
+      setIntegrityError(null);
     } catch (e) {
-      console.error('Error verifying integrity:', e);
+      setIntegrity(null);
+      setIntegrityError(e instanceof Error ? e.message : String(e));
     } finally {
       setIsCheckingIntegrity(false);
     }
@@ -261,6 +264,7 @@ export function App() {
     closedYears,
     refreshFiscalYears: refreshFiscalYearSelection,
     integrity,
+    integrityError,
     isCheckingIntegrity,
     refreshIntegrity,
   };
@@ -283,6 +287,7 @@ export function App() {
                 currentArea={route.area}
                 onSelectArea={(area) => navigate({ area } as Route)}
                 integrity={integrity}
+                integrityError={integrityError}
                 isCheckingIntegrity={isCheckingIntegrity}
                 onOpenAudit={() => navigate({ area: 'settings', tab: 'audit' })}
                 isOpenMobile={isMobileSidebarOpen}

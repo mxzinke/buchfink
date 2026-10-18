@@ -32,7 +32,10 @@ export interface Workspace {
   closedYears: number[];
   /** Nach Feststellung oder Saldenvortrag: die Jahresauswahl ändert sich. */
   refreshFiscalYears: () => Promise<void>;
+  /** Das Ergebnis der letzten Prüfung; `null`, solange keine gelungen ist. */
   integrity: IntegrityCheckResult | null;
+  /** Die Prüfung selbst ist fehlgeschlagen. Das ist keine Entwarnung. */
+  integrityError: string | null;
   isCheckingIntegrity: boolean;
   refreshIntegrity: () => Promise<void>;
 }

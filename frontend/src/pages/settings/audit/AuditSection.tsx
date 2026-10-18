@@ -80,7 +80,7 @@ export const AuditSection: React.FC<{ target?: string }> = ({ target }) => {
   const toggle = (row: Row) => (next: boolean) =>
     setOpen((prev) => (next ? [...prev, row] : prev.filter((r) => r !== row)));
 
-  const { integrity, isCheckingIntegrity, appConfig } = workspace;
+  const { integrity, integrityError, isCheckingIntegrity, appConfig } = workspace;
   const broken = integrity !== null && !integrity.isValid;
 
   return (
@@ -99,6 +99,8 @@ export const AuditSection: React.FC<{ target?: string }> = ({ target }) => {
             <Meta>Prüfung läuft</Meta>
           ) : integrity ? (
             <Meta tone={broken ? 'negative' : 'positive'}>{broken ? 'Verletzt' : 'Unverändert'}</Meta>
+          ) : integrityError ? (
+            <Meta tone="negative">Prüfung fehlgeschlagen</Meta>
           ) : undefined
         }
         open={open.includes('integritaet')}
@@ -106,6 +108,7 @@ export const AuditSection: React.FC<{ target?: string }> = ({ target }) => {
       >
         <IntegrityPanel
           integrity={integrity}
+          integrityError={integrityError}
           isChecking={isCheckingIntegrity}
           onRefresh={() => void workspace.refreshIntegrity()}
           initialRule={rule}

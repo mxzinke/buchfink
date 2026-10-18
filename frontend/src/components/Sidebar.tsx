@@ -19,6 +19,7 @@ interface SidebarProps {
   currentArea: Area;
   onSelectArea: (area: Area) => void;
   integrity: IntegrityCheckResult | null;
+  integrityError: string | null;
   isCheckingIntegrity: boolean;
   /** Der Zustandsanzeiger öffnet „Prüfung & GoBD" in den Einstellungen. */
   onOpenAudit: () => void;
@@ -74,42 +75,75 @@ const NavItem: React.FC<{
   </button>
 );
 
+type IntegrityState = 'checking' | 'valid' | 'broken' | 'failed' | 'unchecked';
+
+/**
+ * „Daten unverändert" steht nur nach einer gelungenen Prüfung. Ist sie
+ * fehlgeschlagen oder noch nicht gelaufen, sagt die Anzeige genau das.
+ */
+function integrityState(
+  integrity: IntegrityCheckResult | null,
+  error: string | null,
+  isChecking: boolean,
+): IntegrityState {
+  if (isChecking) return 'checking';
+  if (integrity) return integrity.isValid ? 'valid' : 'broken';
+  return error ? 'failed' : 'unchecked';
+}
+
+const INTEGRITY_LABEL: Record<IntegrityState, string> = {
+  checking: 'Prüfung läuft',
+  valid: 'Daten unverändert',
+  broken: 'Integrität verletzt',
+  failed: 'Prüfung fehlgeschlagen',
+  unchecked: 'Noch nicht geprüft',
+};
+
 /**
  * Der Integritätszustand steht dauerhaft hier und nie in einem Toast (§11.4).
  * Ein Klick führt zu „Prüfung & GoBD"; nachgeprüft wird dort.
  */
 const IntegrityStatus: React.FC<{
   integrity: IntegrityCheckResult | null;
+  error: string | null;
   isChecking: boolean;
   onOpen: () => void;
-}> = ({ integrity, isChecking, onOpen }) => {
-  const broken = integrity !== null && !integrity.isValid;
+}> = ({ integrity, error, isChecking, onOpen }) => {
+  const state = integrityState(integrity, error, isChecking);
+  const alarming = state === 'broken' || state === 'failed';
 
   return (
     <button
       type="button"
       onClick={onOpen}
-      title={integrity?.message || 'Prüfung & GoBD öffnen'}
+      title={integrity?.message || error || 'Prüfung & GoBD öffnen'}
       className="w-full flex items-start gap-2.5 px-2 py-1.5 rounded-control text-left
                  transition-colors duration-120 ease-quiet hover:bg-shell-raised"
     >
       <span className="mt-1 shrink-0">
-        {isChecking ? (
+        {state === 'checking' ? (
           <Loader2 className="w-3.5 h-3.5 animate-spin text-shell-text-muted" strokeWidth={1.5} />
-        ) : broken ? (
+        ) : alarming ? (
           <ShieldAlert className="w-3.5 h-3.5 text-shell-negative" strokeWidth={1.5} />
-        ) : (
+        ) : state === 'valid' ? (
           <span className="mark-diamond bg-shell-positive block" />
+        ) : (
+          <span className="mark-diamond bg-shell-text-muted block" />
         )}
       </span>
       <span className="min-w-0">
-        <span className={cn('block text-caption', broken ? 'text-shell-negative' : 'text-shell-text')}>
-          {isChecking ? 'Prüfung läuft' : broken ? 'Integrität verletzt' : 'Daten unverändert'}
+        <span className={cn('block text-caption', alarming ? 'text-shell-negative' : 'text-shell-text')}>
+          {INTEGRITY_LABEL[state]}
         </span>
-        {integrity?.checkedAt && !isChecking && (
+        {integrity?.checkedAt && state !== 'checking' ? (
           <span className="block text-caption text-shell-text-muted num">
             Geprüft um {formatTime(integrity.checkedAt)}
           </span>
+        ) : (
+          state !== 'checking' &&
+          state !== 'valid' && (
+            <span className="block text-caption text-shell-text-muted">In Prüfung &amp; GoBD prüfen</span>
+          )
         )}
       </span>
     </button>
@@ -120,6 +154,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentArea,
   onSelectArea,
   integrity,
+  integrityError,
   isCheckingIntegrity,
   onOpenAudit,
   isOpenMobile = false,
@@ -190,6 +225,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="p-3 border-t border-shell-line window-no-drag">
         <IntegrityStatus
           integrity={integrity}
+          error={integrityError}
           isChecking={isCheckingIntegrity}
           onOpen={() => {
             onOpenAudit();
