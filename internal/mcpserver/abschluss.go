@@ -101,7 +101,7 @@ var stepActions = map[domain.ClosingStepKey]naechsteAktion{
 	domain.ClosingStepStatement:           {Werkzeug: "auswertung", Parameter: map[string]string{"art": "bilanz"}},
 	domain.ClosingStepAdoption:            {Werkzeug: "nur_app"},
 	domain.ClosingStepDisclosure:          {Werkzeug: "ebilanz_exportieren"},
-	domain.ClosingStepAppropriation:       {Werkzeug: "nur_app"},
+	domain.ClosingStepAppropriation:       {Werkzeug: "ergebnisverwendung_buchen", Parameter: map[string]string{"nur_vorschau": "true"}},
 }
 
 var stepState = map[domain.ClosingStepState]string{
@@ -263,7 +263,7 @@ func registerAbschluss(tb *Toolbox) {
 		Title: "Stand des Jahresabschlusses",
 		Description: "Die Schritte des Jahresabschlusses mit Stand (offen, erledigt, uebersprungen), Hinweis und " +
 			"nächster Aktion: welches Werkzeug den Schritt vorbereitet oder bucht, oder nur_app (Aufstellen, " +
-			"Feststellen, Offenlegen, Ergebnisverwendung, Wertaufholung, § 15a). Zuerst den ersten offenen Schritt.",
+			"Feststellen, Offenlegen, Wertaufholung, § 15a). Zuerst den ersten offenen Schritt.",
 	}, func(ctx context.Context, c *Call, s *core.Services, in abschlussStatusIn) (abschlussStatusOut, error) {
 		year, err := yearOr(ctx, c, in.Geschaeftsjahr)
 		if err != nil {

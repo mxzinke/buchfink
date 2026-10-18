@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -71,6 +72,26 @@ func (e *testEnv) closingModules(t *testing.T) *closingModules {
 		stepRepo, accrualRepo, provisionRepo, appropriationRepo,
 		repository.NewCheckRunRepository(e.db), e.journalRepo, auditRepo, closing)
 	return m
+}
+
+// adopt stellt den Abschluss eines Jahres fest, wie es der Mensch in der App
+// tut: festgeschrieben, aufgestellt und festgestellt am Tag on. Danach nimmt
+// das Jahr keine Buchung mehr auf.
+func (m *closingModules) adopt(t *testing.T, e *testEnv, year int, on string) {
+	t.Helper()
+	ctx := context.Background()
+	if err := repository.NewFestschreibungRepository(e.db).Create(ctx, &domain.Festschreibung{
+		FiscalYear: year, PeriodType: domain.PeriodTypeYear, PeriodLabel: fmt.Sprintf("Geschäftsjahr %d", year),
+		CutoffDate: fmt.Sprintf("%d-12-31", year), ChainHead: domain.GenesisHash,
+	}); err != nil {
+		t.Fatalf("Festschreibung %d: %v", year, err)
+	}
+	if _, err := m.closing.SetFiscalYearStatus(ctx, year, domain.FiscalYearPrepared, on, ""); err != nil {
+		t.Fatalf("Aufstellung %d: %v", year, err)
+	}
+	if _, err := m.closing.SetFiscalYearStatus(ctx, year, domain.FiscalYearAdopted, on, "Gesellschafterversammlung"); err != nil {
+		t.Fatalf("Feststellung %d: %v", year, err)
+	}
 }
 
 // setSetting schreibt eine Einstellung, von der ein Baustein abhängt.
@@ -682,6 +703,7 @@ func TestAppropriationEnforcesTheUGReserve(t *testing.T) {
 	if _, err := m.closing.BookLegalReserve(ctx, 2026); err != nil {
 		t.Fatal(err)
 	}
+	m.adopt(t, env, 2026, "2027-05-20")
 	// The opening balance carries the already formed reserve separately.
 	opening := &domain.JournalEntry{
 		BookingDate: "2027-01-01", DocumentDate: "2027-01-01",
@@ -745,6 +767,48 @@ func TestAppropriationEnforcesTheUGReserve(t *testing.T) {
 	}
 }
 
+// Die Ergebnisverwendung bucht auch ein Agent, aber erst über den
+// festgestellten Abschluss und nicht mit einem Beschluss, der vor der
+// Feststellung liegt.
+func TestAppropriationNeedsTheAdoptedStatement(t *testing.T) {
+	env := newTestEnv(t)
+	m := env.closingModules(t)
+	opening := &domain.JournalEntry{
+		BookingDate: "2027-01-01", DocumentDate: "2027-01-01",
+		ServiceDateFrom: "2027-01-01", ServiceDateTo: "2027-01-01",
+		Description: "Saldenvortrag", Source: domain.EntrySourceOpening,
+		Lines: []domain.JournalLine{
+			{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 400_000},
+			{Side: domain.SideCredit, Account: domain.AccountGewinnvortrag, Amount: 400_000},
+		},
+	}
+	if _, err := env.journal.Post(context.Background(), opening); err != nil {
+		t.Fatalf("Vortrag buchen: %v", err)
+	}
+
+	req := AppropriationRequest{DecisionDate: "2027-05-20", Text: "Ausschüttung", Distribution: 100_000}
+	if _, err := m.appropriation.BookAppropriation(agentCtx, 2026, req); err == nil ||
+		!strings.Contains(err.Error(), "nicht festgestellt") {
+		t.Fatalf("Beschluss ohne festgestellten Abschluss: %v", err)
+	}
+	m.adopt(t, env, 2026, "2027-05-21")
+	if _, err := m.appropriation.BookAppropriation(agentCtx, 2026, req); err == nil ||
+		!strings.Contains(err.Error(), "vor der Feststellung") {
+		t.Fatalf("Beschluss vom Tag vor der Feststellung: %v", err)
+	}
+	req.DecisionDate = "2027-05-21"
+	decision, err := m.appropriation.BookAppropriation(agentCtx, 2026, req)
+	if err != nil {
+		t.Fatalf("Beschluss durch den Agenten: %v", err)
+	}
+	if decision.JournalEntryID == nil {
+		t.Fatal("die Ausschüttung ist nicht gebucht")
+	}
+	if entry := entryByID(t, env, *decision.JournalEntryID); entry.Channel != agentChannel(t) {
+		t.Errorf("die Buchung trägt den Erfassungsweg %q", entry.Channel)
+	}
+}
+
 // Wer alles vorträgt, bucht nichts: der Betrag steht bereits auf dem
 // Vortragskonto.
 func TestAppropriationCarryForwardNeedsNoBooking(t *testing.T) {
@@ -764,6 +828,7 @@ func TestAppropriationCarryForwardNeedsNoBooking(t *testing.T) {
 	if _, err := env.journal.Post(ctx, opening); err != nil {
 		t.Fatalf("Vortrag buchen: %v", err)
 	}
+	m.adopt(t, env, 2026, "2027-05-20")
 	before := len(entriesOf(t, env, 2027))
 
 	decision, err := m.appropriation.BookAppropriation(ctx, 2026, AppropriationRequest{
@@ -1353,6 +1418,7 @@ func TestAppropriationIsDecidedOnlyOnce(t *testing.T) {
 	if _, err := env.journal.Post(ctx, opening); err != nil {
 		t.Fatalf("Vortrag buchen: %v", err)
 	}
+	m.adopt(t, env, 2026, "2027-05-20")
 
 	if _, err := m.appropriation.BookAppropriation(ctx, 2026, AppropriationRequest{
 		DecisionDate: "2027-05-20", Distribution: 100_000, Text: "Beschluss",
@@ -1751,6 +1817,7 @@ func TestAppropriationStepNeedsCarryForwardAndDecision(t *testing.T) {
 		t.Errorf("der Schritt sagt nicht, was fehlt: %q", step.Detail)
 	}
 
+	m.adopt(t, env, 2026, "2027-05-20")
 	if _, err := m.appropriation.BookAppropriation(ctx, 2026, AppropriationRequest{
 		DecisionDate: "2027-05-20", Text: "Vortrag auf neue Rechnung",
 	}); err != nil {
@@ -1930,15 +1997,16 @@ func TestReversedTaxProvisionCanBeBookedAgain(t *testing.T) {
 	}
 }
 
-// Und für die Ergebnisverwendung.
+// Und für die Ergebnisverwendung. Verwendet wird das Ergebnis 2025: der Storno
+// trägt das heutige Datum und gehört damit in das offene Buchungsjahr 2026.
 func TestReversedAppropriationCanBeDecidedAgain(t *testing.T) {
 	env := newTestEnv(t)
 	m := env.closingModules(t)
 	ctx := context.Background()
 
 	opening := &domain.JournalEntry{
-		BookingDate: "2027-01-01", DocumentDate: "2027-01-01",
-		ServiceDateFrom: "2027-01-01", ServiceDateTo: "2027-01-01",
+		BookingDate: "2026-01-01", DocumentDate: "2026-01-01",
+		ServiceDateFrom: "2026-01-01", ServiceDateTo: "2026-01-01",
 		Description: "Saldenvortrag", Source: domain.EntrySourceOpening,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 400_000},
@@ -1948,8 +2016,9 @@ func TestReversedAppropriationCanBeDecidedAgain(t *testing.T) {
 	if _, err := env.journal.Post(ctx, opening); err != nil {
 		t.Fatalf("Vortrag buchen: %v", err)
 	}
-	first, err := m.appropriation.BookAppropriation(ctx, 2026, AppropriationRequest{
-		DecisionDate: "2027-05-20", Distribution: 100_000, Text: "Beschluss",
+	m.adopt(t, env, 2025, "2026-05-20")
+	first, err := m.appropriation.BookAppropriation(ctx, 2025, AppropriationRequest{
+		DecisionDate: "2026-05-20", Distribution: 100_000, Text: "Beschluss",
 	})
 	if err != nil {
 		t.Fatalf("Beschluss buchen: %v", err)
@@ -1960,12 +2029,12 @@ func TestReversedAppropriationCanBeDecidedAgain(t *testing.T) {
 	if _, err := env.journal.Reverse(ctx, *first.JournalEntryID, "Beschluss aufgehoben"); err != nil {
 		t.Fatalf("Beschluss stornieren: %v", err)
 	}
-	if _, err := m.appropriation.BookAppropriation(ctx, 2026, AppropriationRequest{
-		DecisionDate: "2027-06-20", Distribution: 200_000, Text: "Neuer Beschluss",
+	if _, err := m.appropriation.BookAppropriation(ctx, 2025, AppropriationRequest{
+		DecisionDate: "2026-06-20", Distribution: 200_000, Text: "Neuer Beschluss",
 	}); err != nil {
 		t.Fatalf("nach dem Storno muss neu beschlossen werden dürfen: %v", err)
 	}
-	stored, err := m.appropriation.Appropriation(ctx, 2026)
+	stored, err := m.appropriation.Appropriation(ctx, 2025)
 	if err != nil || stored == nil {
 		t.Fatalf("Beschluss lesen: %v", err)
 	}
@@ -2033,6 +2102,7 @@ func TestClosingBookingsCarryTheirVoucher(t *testing.T) {
 		t.Fatalf("Vortrag buchen: %v", err)
 	}
 	decision := env.fileIncoming(t, "gesellschafterbeschluss.pdf")
+	m.adopt(t, env, 2026, "2027-05-20")
 	appropriation, err := m.appropriation.BookAppropriation(ctx, 2026, AppropriationRequest{
 		DecisionDate: "2027-05-20", Distribution: 100_000, Text: "Beschluss",
 		ReceiptID: decision.ID,
@@ -2072,6 +2142,7 @@ func TestAppropriationWithoutADocumentGetsItsOwnVoucher(t *testing.T) {
 	if _, err := env.journal.Post(ctx, opening); err != nil {
 		t.Fatalf("Vortrag buchen: %v", err)
 	}
+	m.adopt(t, env, 2026, "2027-05-20")
 	appropriation, err := m.appropriation.BookAppropriation(ctx, 2026, AppropriationRequest{
 		DecisionDate: "2027-05-20", Distribution: 100_000, Text: "Beschluss",
 	})

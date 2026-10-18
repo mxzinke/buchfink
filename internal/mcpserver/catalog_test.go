@@ -30,7 +30,8 @@ var catalog = map[string]Tier{
 	"beleg_buchen_mit_rueckfrage": TierConfirm, "bankumsatz_buchen": TierConfirm, "buchung_erfassen": TierConfirm,
 	"buchung_stornieren": TierConfirm, "lohnjournal_buchen": TierConfirm, "rechnung_ausstellen": TierConfirm,
 	"mahnung_vermerken": TierConfirm, "abschlussbuchung": TierConfirm, "erklaerung_eingabe": TierConfirm,
-	"beleg_verwerfen": TierConfirm, "anlass_erfassen": TierConfirm,
+	"beleg_verwerfen": TierConfirm, "anlass_erfassen": TierConfirm, "darlehen_erfassen": TierConfirm,
+	"ergebnisverwendung_buchen": TierConfirm, "verfahrensdoku_text": TierConfirm,
 }
 
 // writeFixtures sind gültige Mindesteingaben der schreibenden Werkzeuge ohne
@@ -60,6 +61,10 @@ var writeFixtures = map[string]map[string]any{
 	"erklaerung_eingabe":  {"art": "kst", "jahr": 2026, "schluessel": "kst.x", "wert": map[string]any{"text": "y"}},
 	"beleg_verwerfen":     {"beleg_id": 1, "grund": "Dublette"},
 	"anlass_erfassen":     {"art": "gesellschafterwechsel", "datum": "2026-05-04", "idempotenz_schluessel": "matrix-anlass"},
+	"darlehen_erfassen": {"kontakt_id": 1, "richtung": "an_gesellschaft", "betrag": "1.00", "zinssatz": "3",
+		"beginn": "2026-05-04", "idempotenz_schluessel": "matrix-darlehen"},
+	"ergebnisverwendung_buchen": {"geschaeftsjahr": 2025, "beschluss_am": "2026-05-04", "nur_vorschau": true},
+	"verfahrensdoku_text":       {},
 }
 
 // readFixtures sind gültige Mindesteingaben der lesenden Werkzeuge.
@@ -149,7 +154,7 @@ func TestCatalogTiersAndAnnotations(t *testing.T) {
 	// Was nur in der App geht, hat kein Werkzeug.
 	for name := range tools {
 		for _, appOnly := range []string{"festschreib", "uebermittl", "transferticket", "erledigt", "aufstell",
-			"feststell", "offenleg", "ergebnisverwendung", "stammdaten", "bankkonto", "darlehen", "bestaetig",
+			"feststell", "offenleg", "stammdaten", "gesellschafter", "bankkonto", "bestaetig",
 			"pruefermodus", "zulass", "entzieh", "regeln"} {
 			if strings.Contains(name, appOnly) {
 				t.Errorf("%s klingt nach einem Vorgang, der der App vorbehalten ist", name)
@@ -279,8 +284,8 @@ func TestAppOnlyOperationsHaveNoTool(t *testing.T) {
 	h := newHarness(t)
 	tools := listTools(t, h.mustSession(h.login("Claude Code", "").access))
 	appOnly := []string{"festschreib", "uebermitt", "transferticket", "erledigt", "aufstell", "feststell", "offenleg",
-		"ergebnisverwendung", "stammdaten", "bankkonto", "berater", "darlehen", "pruefermodus", "zulass", "entzieh",
-		"direktgrenze", "mindestbuchungen", "bestaetig"}
+		"stammdaten", "bankkonto", "berater", "pruefermodus", "zulass", "entzieh", "direktgrenze", "mindestbuchungen",
+		"bestaetig"}
 	for name, tool := range tools {
 		schema, _ := json.Marshal(tool.InputSchema)
 		var in struct {
@@ -309,7 +314,7 @@ func TestWriteToolsTakeAnIdempotencyKey(t *testing.T) {
 	flows := map[string]bool{"kontoauszug_importieren": true, "erklaerung_exportieren": true, "ebilanz_exportieren": true,
 		"beleg_datei_exportieren": true}
 	keyed := map[string]bool{"buchung_erfassen": true, "rechnung_ausstellen": true, "abschlussbuchung": true,
-		"mahnung_vermerken": true, "anlass_erfassen": true}
+		"mahnung_vermerken": true, "anlass_erfassen": true, "darlehen_erfassen": true}
 	for name, tier := range catalog {
 		if tier == TierRead {
 			continue

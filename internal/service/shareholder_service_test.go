@@ -2,11 +2,9 @@ package service
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
 
-	"github.com/buchfink/buchfink/internal/actor"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/repository"
 )
@@ -127,10 +125,10 @@ func TestShareholderLoanToCompanyWithInterest(t *testing.T) {
 	}
 }
 
-// Den Darlehensvertrag erfasst und berichtigt der Mensch in der App; die
+// Den Darlehensvertrag erfasst und berichtigt auch ein Agent; die
 // Berichtigung steht mit Grund, vorher und nachher im Protokoll. Sind Zinsen
 // gebucht, bleibt der Zinssatz bis zu deren Storno.
-func TestLoanContractIsCorrectedByTheHuman(t *testing.T) {
+func TestLoanContractIsCorrectedWithAReason(t *testing.T) {
 	env := newTestEnv(t)
 	env.withShareholders(t)
 	mara := env.person(t, "Mara Beispiel")
@@ -138,27 +136,21 @@ func TestLoanContractIsCorrectedByTheHuman(t *testing.T) {
 	req := LoanRequest{ContactID: mara.ID, Direction: domain.LoanToCompany, Principal: 2_000_000,
 		InterestRateBP: 400, StartDate: "2026-01-01", MaturityDate: "2027-12-31"}
 
-	if _, err := svc.RegisterLoan(agentCtx, req); !errors.Is(err, actor.ErrAppOnly) {
-		t.Fatalf("ein Agent erfasst ein Gesellschafterdarlehen: %v", err)
-	}
-	view, err := svc.RegisterLoan(appCtx, req)
+	view, err := svc.RegisterLoan(agentCtx, req)
 	if err != nil {
-		t.Fatalf("Darlehen erfassen: %v", err)
+		t.Fatalf("Darlehen erfassen durch den Agenten: %v", err)
 	}
 	id := view.Loan.ID
 
 	fix := req
 	fix.Account = view.Loan.Account
 	fix.ComparisonRateBP, fix.ComparisonSource = intPtr(450), "Angebot der Hausbank vom 10.12.2025"
-	if _, err := svc.CorrectLoan(agentCtx, id, fix, "Vergleichszins nachgetragen"); !errors.Is(err, actor.ErrAppOnly) {
-		t.Errorf("ein Agent berichtigt den Vertrag: %v", err)
-	}
-	if _, err := svc.CorrectLoan(appCtx, id, fix, " "); err == nil {
+	if _, err := svc.CorrectLoan(agentCtx, id, fix, " "); err == nil {
 		t.Error("eine Berichtigung ohne Grund wurde angenommen")
 	}
-	corrected, err := svc.CorrectLoan(appCtx, id, fix, "Vergleichszins nachgetragen")
+	corrected, err := svc.CorrectLoan(agentCtx, id, fix, "Vergleichszins nachgetragen")
 	if err != nil {
-		t.Fatalf("Berichtigung: %v", err)
+		t.Fatalf("Berichtigung durch den Agenten: %v", err)
 	}
 	if corrected.Loan.ID != id || corrected.Loan.ComparisonRateBP == nil || *corrected.Loan.ComparisonRateBP != 450 {
 		t.Errorf("berichtigter Vertrag: %+v", corrected.Loan)

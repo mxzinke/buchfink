@@ -14,10 +14,12 @@ import (
 
 // Was nur ein Mensch in der App auslöst, weist der Kern jedem Agenten ab, über
 // welchen Einstieg auch immer: Prüfermodus, Festschreibung,
-// Übermittlungsbestätigung, Aufstellen/Feststellen/Offenlegen, Stammdaten,
-// Bankkonten und die Verwaltung der Mandanten. Die Vorgänge der Dienste laufen
-// hier ohne core.AppOnly(): sie weisen den Agenten selbst ab, auch wenn ein
-// Einstieg die Kennzeichnung vergisst.
+// Übermittlungsbestätigung, Pflicht als erledigt, Aufstellen/Feststellen/
+// Offenlegen, Stammdaten samt Gesellschaftern, Bankkonten, Regeln für Apps,
+// Standardgruppe bestätigen und die Verwaltung der Mandanten samt Ablage und
+// Sicherung. Die Vorgänge der Dienste laufen hier ohne core.AppOnly(): sie
+// weisen den Agenten selbst ab, auch wenn ein Einstieg die Kennzeichnung
+// vergisst.
 func TestAgentsAreRefusedForHumanOnlyOperations(t *testing.T) {
 	h := newHost(t)
 	tc := newTenant(t, h, "Pfennig Ventures GmbH")
@@ -41,6 +43,14 @@ func TestAgentsAreRefusedForHumanOnlyOperations(t *testing.T) {
 		},
 		"Aufstellen": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Closing.SetFiscalYearStatus(ctx, 2026, domain.FiscalYearPrepared, "2027-03-01", "")
+			return err
+		}),
+		"Feststellen": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.Closing.SetFiscalYearStatus(ctx, 2026, domain.FiscalYearAdopted, "2027-06-01", "")
+			return err
+		}),
+		"Offenlegen": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.Closing.SetFiscalYearStatus(ctx, 2026, domain.FiscalYearDisclosed, "2027-12-01", "Auftrag 1")
 			return err
 		}),
 		"Feststellung zurücknehmen": inService(func(ctx context.Context, s *Services) error {
@@ -77,8 +87,13 @@ func TestAgentsAreRefusedForHumanOnlyOperations(t *testing.T) {
 				TradeTaxRatePercent: 250, AccrualMethod: "monthly", AccrualRelease: "yearly"})
 			return err
 		}),
-		"Organisationsanweisung ändern": inService(func(ctx context.Context, s *Services) error {
-			return s.ProcDoc.SaveOrganisationTexts(ctx, domain.OrganisationTexts{Responsibilities: "Agent"})
+		"Regeln für Apps ändern": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.Settings.SaveAgentSettings(ctx, domain.AgentSettings{DirectMaxGross: 99_999_999})
+			return err
+		}),
+		"Standardgruppe bestätigen": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.Contacts.ConfirmDefaultPostingGroup(ctx, 1, "software")
+			return err
 		}),
 		"USt-Jahreserklärung als erledigt bestätigen": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Obligations.Confirm(ctx, "ust-erklaerung.2025", service.ConfirmInput{Date: "2026-03-01"})
@@ -94,20 +109,6 @@ func TestAgentsAreRefusedForHumanOnlyOperations(t *testing.T) {
 		}),
 		"Bestätigung einer Pflicht zurücknehmen": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Obligations.Reopen(ctx, "kst-erklaerung.2025", "Irrtum")
-			return err
-		}),
-		"Ergebnisverwendung beschließen": inService(func(ctx context.Context, s *Services) error {
-			_, err := s.Appropriation.BookAppropriation(ctx, 2025, service.AppropriationRequest{DecisionDate: "2026-06-01"})
-			return err
-		}),
-		"Gesellschafterdarlehen erfassen": inService(func(ctx context.Context, s *Services) error {
-			_, err := s.Shareholders.RegisterLoan(ctx, service.LoanRequest{ContactID: 1, Direction: domain.LoanToCompany,
-				Principal: 1_000_000, InterestRateBP: 300, StartDate: "2026-01-01"})
-			return err
-		}),
-		"Gesellschafterdarlehen berichtigen": inService(func(ctx context.Context, s *Services) error {
-			_, err := s.Shareholders.CorrectLoan(ctx, 1, service.LoanRequest{ContactID: 1, Direction: domain.LoanToCompany,
-				Principal: 1_000_000, InterestRateBP: 300, StartDate: "2026-01-01"}, "Zinssatz")
 			return err
 		}),
 		"Sicherungsordner setzen": func() error { _, err := h.SetBackupDir(agent, t.TempDir()); return err },

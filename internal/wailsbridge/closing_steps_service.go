@@ -121,7 +121,7 @@ func (b *BuchfinkBridge) BookAppropriation(
 	}
 	return write(b, func(ctx context.Context, s *core.Services) (*domain.Appropriation, error) {
 		return s.Appropriation.BookAppropriation(ctx, year, req)
-	}, core.AppOnly())
+	})
 }
 
 // GetAppropriation liefert den gespeicherten Beschluss eines Jahres.

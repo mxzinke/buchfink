@@ -38,6 +38,7 @@ func TestAppropriationDecisionWithoutHeaderLeavesNoBooking(t *testing.T) {
 	if _, err := env.journal.Post(ctx, opening); err != nil {
 		t.Fatalf("Vortrag buchen: %v", err)
 	}
+	m.adopt(t, env, 2026, "2027-05-20")
 	before, _ := env.journalRepo.FindAll(ctx, 2027)
 
 	decision := filePDFReceipt(t, env, FileReceiptRequest{

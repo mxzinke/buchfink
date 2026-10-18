@@ -26,20 +26,17 @@ Werkzeug und nicht im Prompt.
 | lesen | `readOnlyHint: true` | ändert nichts; jede zugelassene App mit `buchfink:lesen` |
 | direkt | `destructiveHint: false` | schreibt ohne Rückfrage, aber nur, was `internal/core/policy` als Routine einstuft; sonst `freigabe_noetig` |
 | rueckfrage | `destructiveHint: true` | der Agent legt dem Menschen den Vorgang im Chat vor und holt sein Ja ein, bevor er aufruft |
-| nur App | kein Werkzeug | Festschreibung, Übermittlung und Transferticket, Pflicht als erledigt, Angaben einer Erklärung bestätigen, Aufstellen, Feststellen, Offenlegen, Ergebnisverwendung, Stammdaten samt Bankkonten und steuerlicher Beratung, Darlehensverträge, Standardgruppe bestätigen, Prüfermodus, Apps zulassen und entziehen, Regeln für Apps |
+| nur App | kein Werkzeug | Festschreibung, Übermittlung und Transferticket, Pflicht als erledigt, Angaben einer Erklärung bestätigen, Aufstellen, Feststellen, Offenlegen, Unternehmensstammdaten samt Gesellschaftern, Bankkonten und steuerlicher Beratung, Abschluss-Einstellungen, Ablage, Eingang, Export- und Leseordner, Regeln für direktes Buchen, Standardgruppe bestätigen, Prüfermodus, Apps zulassen und entziehen |
 
 Ein `_meta`-Feld `anthropic/requiresUserInteraction` setzt der Server nicht.
 Der Agent fragt laut Skill selbst; eine zweite Abfrage des Clients wäre doppelt.
 Die Dienste weisen Vorgänge der App für jeden Erfassungsweg außer `ui` ab
 (`requireHuman`, `core.AppOnly`), das Werkzeug meldet dann `nur_in_app`.
-
-Daneben haben einige Konten einen Fachweg, an dem ein Agent nicht vorbeibucht.
-Handbuchung, Neubuchung beim Storno und die Aufteilung eines Bankumsatzes
-weisen für ihn ab: Kapital, Rücklagen und Ergebnisvortrag (2000 bis 2999),
-offene Ausschüttung (3519), einbehaltene Kapitalertragsteuer (3760) und die
-Gesellschafterkonten (0960, 1307 bis 1309, 3640 bis 3643). Die Zahlung einer
-beschlossenen Ausschüttung über die Bank bleibt möglich, ein Darlehen über
-`bankumsatz_buchen` mit `darlehen_id` auch.
+Was sich per Storno korrigieren lässt, darf ein Agent mit Rückfrage, ohne
+Sperre einzelner Konten: Kapital, Rücklagen, Ausschüttung und
+Gesellschafterkonten, Gründungsbuchungen, Darlehensverträge, die
+Ergebnisverwendung über den festgestellten Abschluss und die
+Organisationstexte der Verfahrensdokumentation.
 
 ## Eingaben und Ausgaben
 
@@ -48,8 +45,8 @@ Vorgang schreibt, nimmt einen `idempotenz_schluessel` (8 bis 100 Zeichen).
 Derselbe Schlüssel mit derselben Eingabe liefert das erste Ergebnis mit
 `wiederholt: true`, mit anderer Eingabe `schluessel_wiederverwendet`. Pflicht
 ist er bei den Werkzeugen ohne natürlichen Schlüssel: `buchung_erfassen`,
-`rechnung_ausstellen`, `abschlussbuchung`, `mahnung_vermerken` und
-`anlass_erfassen`. Ein Aufruf mit `nur_vorschau` verbraucht den Schlüssel
+`rechnung_ausstellen`, `abschlussbuchung`, `mahnung_vermerken`,
+`anlass_erfassen` und `darlehen_erfassen`. Ein Aufruf mit `nur_vorschau` verbraucht den Schlüssel
 nicht; derselbe Schlüssel bucht danach. Die Werkzeuge aus mehreren Schritten
 (`kontoauszug_importieren`, die drei Exporte) nehmen keinen Schlüssel, sie
 schreiben von sich aus nichts doppelt.
@@ -88,7 +85,7 @@ aus `Toolbox.OutputSchema`, `TestCatalogStaysSmall` hält den Katalog unter
 | `buchung_lesen` | lesen | eine Buchung mit allen Zeilen und Storno-Bezügen |
 | `offene_posten` | lesen | Forderungen und Verbindlichkeiten, Altersstruktur, Verzugszinsen, Mahnstand |
 | `bankumsaetze` | lesen | Bankumsätze mit den besten Zuordnungsvorschlägen, Einstufung und Prüfstand des Auszugs |
-| `auswertung` | lesen | Summen und Salden, Kontoblatt eines Sachkontos, Bilanz, GuV, USt-Übersicht, Prüfbericht |
+| `auswertung` | lesen | Summen und Salden, Kontoblatt eines Sachkontos, Bilanz, GuV, USt-Übersicht, Prüfbericht, Gesellschafterdarlehen mit Stand und Befunden |
 | `anlagen` | lesen | Anlagenverzeichnis, fällige AfA, Aktivierungskandidaten |
 | `abschluss_status` | lesen | Schritte des Jahresabschlusses mit nächster Aktion |
 | `erklaerung` | lesen | UStVA, ZM, USt-, KSt- und GewSt-Erklärung formularnah mit Herkunft |
@@ -105,7 +102,7 @@ aus `Toolbox.OutputSchema`, `TestCatalogStaysSmall` hält den Katalog unter
 | `standardgruppe_vorschlagen` | direkt | Standard-Buchungsgruppe eines Lieferanten vorschlagen |
 | `beleg_buchen_mit_rueckfrage` | rueckfrage | Eingangsbeleg in allen Nicht-Routinefällen, auch Auslage; ergänzt fehlende Kopfdaten und berichtigt `eingang_am` |
 | `bankumsatz_buchen` | rueckfrage | Aufteilung mit Skonto, Gebühren, Darlehen; Kreditkartenabrechnung; Ignorieren mit Grund |
-| `buchung_erfassen` | rueckfrage | Handbuchung mit Beleg oder Eigenbeleg, auch in der Abschlussperiode; ein Kontakt an den Personenkontozeilen macht sie zum offenen Posten |
+| `buchung_erfassen` | rueckfrage | Handbuchung mit Beleg oder Eigenbeleg, auch in der Abschlussperiode und für die Gründung (Zeichnung, Einforderung); ein Kontakt an den Personenkontozeilen macht sie zum offenen Posten |
 | `buchung_stornieren` | rueckfrage | Generalumkehr mit Grund, auf Wunsch mit Neubuchung; `datum` nur beim Saldenvortrag |
 | `lohnjournal_buchen` | rueckfrage | Monatssummen des Lohnbüros |
 | `rechnung_ausstellen` | rueckfrage | Rechnung, Abschlagsrechnung, Schlussrechnung; PDF und E-Rechnung im Exportordner |
@@ -114,6 +111,9 @@ aus `Toolbox.OutputSchema`, `TestCatalogStaysSmall` hält den Katalog unter
 | `erklaerung_eingabe` | rueckfrage | Angabe zu einer Zeile einer Jahreserklärung; was der Mensch gesetzt oder bestätigt hat, ändert nur er |
 | `beleg_verwerfen` | rueckfrage | abgelegten Beleg mit Grund verwerfen; er bleibt im Archiv |
 | `anlass_erfassen` | rueckfrage | Gesellschafterwechsel, Änderung der wirtschaftlich Berechtigten, Vorauszahlungsbescheid KSt oder GewSt |
+| `darlehen_erfassen` | rueckfrage | Darlehensvertrag mit einem Gesellschafter anlegen oder mit Grund berichtigen, Vertrag als `beleg_id`; `nur_vorschau` zeigt Konten und Befunde zum Fremdvergleich |
+| `ergebnisverwendung_buchen` | rueckfrage | Gesellschafterbeschluss über das Ergebnis im Folgejahr buchen: Rücklagen, Ausschüttung mit Kapitalertragsteuer, Vortrag; erst nach der Feststellung durch den Menschen |
+| `verfahrensdoku_text` | rueckfrage | Organisationstexte der Verfahrensdokumentation lesen und ändern; ohne `texte` nur lesen |
 
 Eine Auslage eines Gesellschafters bucht `beleg_buchen_mit_rueckfrage` mit
 `bezahlung: auslage`; ein eigenes Werkzeug gibt es dafür nicht.
@@ -142,7 +142,7 @@ Text, der mit `validating` beginnt.
 | `mandant_gewechselt` | `mandant_id` ist nicht der geöffnete Mandant; nichts geschrieben |
 | `berechtigung_fehlt` | Scope `buchfink:lesen` oder `buchfink:buchen` fehlt |
 | `pruefermodus_aktiv` | Prüfermodus, nur lesen; Exporte laufen weiter |
-| `nur_in_app` | der Vorgang gehört dem Menschen in der App, auch ein Konto mit Fachweg |
+| `nur_in_app` | der Vorgang gehört dem Menschen in der App |
 | `freigabe_noetig` | kein Routinefall; `gruende` nennt die Regeln, `werkzeug` das Werkzeug mit Rückfrage |
 | `pfad_nicht_erlaubt` | Pfad liegt außerhalb von Eingang und Leseordnern, in einem gesperrten Ordner oder hat weitere harte Verweise |
 | `datei_ungueltig` | Datei fehlt, Typ, Größe oder Inhalt passt nicht |
@@ -286,8 +286,7 @@ ohne Saldo entfallen.
 ## Ein Werkzeug ergänzen
 
 1. Dienst zuerst: die fachliche Regel und jede Sperre für Agenten
-   (`requireHuman`, Fachweg-Konten) gehören in `internal/service`, nicht ins
-   Werkzeug.
+   (`requireHuman`) gehören in `internal/service`, nicht ins Werkzeug.
 2. Ein- und Ausgabe als Go-Structs mit `json`- und `jsonschema`-Tags. Beträge
    als `Betrag`, Daten als `Datum`, Gruppen und Steuerfälle als
    `Buchungsgruppe`, `Steuerfall`, `Satz`. Ein Auswahlfeld bekommt einen

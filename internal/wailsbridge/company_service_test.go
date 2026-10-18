@@ -8,9 +8,9 @@ import (
 	"github.com/buchfink/buchfink/internal/service"
 )
 
-// Ein Darlehensvertrag entsteht in den Stammdaten: nur mit einem
-// Gesellschafter aus der Gesellschafterliste, berichtigt nur mit Grund, und
-// die Liste zeigt ihn mit dem Namen des Gesellschafters.
+// Ein Darlehensvertrag entsteht nur mit einem Gesellschafter aus der
+// Gesellschafterliste, berichtigt wird er nur mit Grund, und die Liste zeigt
+// ihn mit dem Namen des Gesellschafters.
 func TestShareholderLoansAreRegisteredInTheApp(t *testing.T) {
 	b := testBridge(t)
 	settings, err := b.GetCompanySettings()

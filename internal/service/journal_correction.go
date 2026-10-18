@@ -42,9 +42,6 @@ func (s *JournalService) CorrectEntry(
 	if reason == "" {
 		return nil, fmt.Errorf("zum Stornieren gehört ein Grund (GoBD Rz. 58)")
 	}
-	if err := requireFachweg(ctx, replacement); err != nil {
-		return nil, err
-	}
 	return atomically(ctx, s, func(ctx context.Context) (*CorrectionResult, error) {
 		return s.correctEntry(ctx, entryID, reason, replacement)
 	})

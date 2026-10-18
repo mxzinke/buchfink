@@ -590,10 +590,12 @@ func registerBuchen(tb *Toolbox) {
 		Title: "Buchung erfassen",
 		Tier:  TierConfirm,
 		Description: "Handbuchung mit Soll- und Habenzeilen zu einem abgelegten Beleg (beleg_id) oder mit Eigenbeleg " +
-			"(grund, brutto). Für Umbuchungen, Kreditkartenabrechnung ohne Bankumsatz und Abschlussbuchungen im " +
-			"13. Monat (abschlussperiode). Eingangsrechnungen über beleg_buchen, Bankumsätze über bankumsatz_buchen. " +
-			"Kapital, Rücklagen, Ergebnisvortrag, Ausschüttung und Gesellschafterdarlehen haben einen Fachweg und " +
-			"gehen hier nicht (nur_in_app). Vorher im Chat bestätigen lassen.",
+			"(grund, brutto). Für Umbuchungen, Kreditkartenabrechnung ohne Bankumsatz, Abschlussbuchungen im " +
+			"13. Monat (abschlussperiode) und die Gründung: Zeichnung des Stammkapitals (1298, bei Resteinlage auch " +
+			"2910, an 2900) zum Tag der Beurkundung mit dem Gesellschaftsvertrag als Beleg, Einforderung (1298 an " +
+			"2910) mit dem Beschluss. Eingangsrechnungen über beleg_buchen, Bankumsätze über bankumsatz_buchen, " +
+			"Ergebnisverwendung über ergebnisverwendung_buchen. Vorher Buchungssatz, Beträge und Beleg im Chat " +
+			"vorlegen und bestätigen lassen.",
 	}, func(ctx context.Context, c *Call, s *core.Services, in buchungErfassenIn) (buchungOut, error) {
 		req, err := in.request()
 		if err != nil {

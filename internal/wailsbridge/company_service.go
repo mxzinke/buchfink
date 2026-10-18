@@ -11,9 +11,8 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
-// Stammdaten, die nur der Mensch in der App pflegt: Darlehensverträge mit
-// Gesellschaftern und die Steuernummer im Bundesschema. Dazu die Anleitungen
-// zum Verbinden einer KI-App.
+// Darlehensverträge mit Gesellschaftern, die Steuernummer im Bundesschema und
+// die Anleitungen zum Verbinden einer KI-App.
 
 // GetShareholderLoans liefert die Darlehensverträge mit Gesellschaftern und
 // ihrem gebuchten Stand von heute.
@@ -25,18 +24,18 @@ func (b *BuchfinkBridge) GetShareholderLoans() ([]service.LoanView, error) {
 }
 
 // RegisterShareholderLoan erfasst einen Darlehensvertrag. Er steuert
-// Zinsbuchungen und Fremdvergleich und gehört deshalb zu den Stammdaten.
+// Zinsbuchungen und Fremdvergleich.
 func (b *BuchfinkBridge) RegisterShareholderLoan(req service.LoanRequest) (*service.LoanView, error) {
 	return write(b, func(ctx context.Context, s *core.Services) (*service.LoanView, error) {
 		return s.Shareholders.RegisterLoan(ctx, req)
-	}, core.AppOnly())
+	})
 }
 
 // CorrectShareholderLoan berichtigt einen Darlehensvertrag mit Grund.
 func (b *BuchfinkBridge) CorrectShareholderLoan(id uint, req service.LoanRequest, reason string) (*service.LoanView, error) {
 	return write(b, func(ctx context.Context, s *core.Services) (*service.LoanView, error) {
 		return s.Shareholders.CorrectLoan(ctx, id, req, reason)
-	}, core.AppOnly())
+	})
 }
 
 // FormatElsterTaxNumber rechnet eine Steuernummer in das 13-stellige

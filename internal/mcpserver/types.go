@@ -39,9 +39,13 @@ type Steuerfall string
 // Satz ist ein Umsatzsteuersatz in Prozent.
 type Satz string
 
+// Zinssatz ist ein Zinssatz in Prozent im Jahr mit Punkt, etwa "3.5".
+type Zinssatz string
+
 var (
-	betragPattern = regexp.MustCompile(`^-?[0-9]{1,12}(\.[0-9]{1,2})?$`)
-	datumPattern  = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}$`)
+	betragPattern   = regexp.MustCompile(`^-?[0-9]{1,12}(\.[0-9]{1,2})?$`)
+	datumPattern    = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}$`)
+	zinssatzPattern = regexp.MustCompile(`^[0-9]{1,3}(\.[0-9]{1,2})?$`)
 )
 
 func schemaOptions() *jsonschema.ForOptions {
@@ -69,6 +73,8 @@ var typeSchemas = map[reflect.Type]*jsonschema.Schema{
 	reflect.TypeFor[Steuerfall](): {Type: "string", Enum: treatmentKeys(),
 		Description: "Steuerfall; Bedeutung über konten mit art=steuerfaelle. Regelfall: domestic"},
 	reflect.TypeFor[Satz](): {Type: "string", Enum: []any{"19", "7", "0"}, Description: "Umsatzsteuersatz in Prozent"},
+	reflect.TypeFor[Zinssatz](): {Type: "string", Pattern: zinssatzPattern.String(),
+		Description: `Prozent im Jahr, z. B. "3.5"`},
 }
 
 func groupKeys(dir domain.Direction) []any {
@@ -122,6 +128,21 @@ func optBetrag(c domain.Cents) *Betrag {
 	b := betrag(c)
 	return &b
 }
+
+// basisPoints liest einen Zinssatz in Hundertstel Prozent: "3.5" ist 350.
+func (z Zinssatz) basisPoints(field string) (int, error) {
+	if !zinssatzPattern.MatchString(string(z)) {
+		return 0, inputError(field, "%q ist kein Zinssatz (erwartet Prozent, z. B. \"3.5\")", z)
+	}
+	c, err := domain.ParseCents(string(z))
+	if err != nil {
+		return 0, inputError(field, "%v", err)
+	}
+	return int(c), nil
+}
+
+// zinssatz zeigt Hundertstel Prozent als Zinssatz.
+func zinssatz(bp int) string { return fmt.Sprintf("%d.%02d", bp/100, bp%100) }
 
 func (d Datum) check(field string) (string, error) {
 	if d == "" {
