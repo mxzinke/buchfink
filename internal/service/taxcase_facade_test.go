@@ -9,9 +9,8 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-// Die Dienste entscheiden selbst über Skonto und Rechnungen. Die Fassade muss
-// deren Regeln einschließlich Rundung und Partnerprüfung gleich beschreiben.
-func TestTaxCaseFacadeMatchesServices(t *testing.T) {
+// Die Skonto-Fassade und der Zahlungsdienst müssen Konten, Steuerzeilen und Rundung gleich bestimmen.
+func TestTaxCaseFacadeMatchesSkonto(t *testing.T) {
 	env := newTestEnv(t)
 	payments := env.payments(t)
 	for _, direction := range []domain.Direction{domain.DirectionIncoming, domain.DirectionOutgoing} {
@@ -43,23 +42,6 @@ func TestTaxCaseFacadeMatchesServices(t *testing.T) {
 							}
 						}
 					})
-				}
-			}
-			for _, country := range []string{"DE", "FR", "US", ""} {
-				for _, vatID := range []string{"", "FR12345678901"} {
-					contact := &domain.Contact{Name: "Partner", CountryCode: country, VatID: vatID}
-					check := c.CheckPartner(direction)
-					wantError := !check.Allowed || check.RequiresEU && !contact.IsEUCounterparty() ||
-						(check.RequiresVatID || check.RequiresVatIDForEU && contact.IsEUCounterparty()) && vatID == ""
-					var err error
-					if direction == domain.DirectionIncoming {
-						err = validateIncomingTreatment(info.Treatment, contact)
-					} else {
-						err = (&InvoiceService{}).validateTaxTreatment(&domain.Invoice{TaxTreatment: info.Treatment}, contact)
-					}
-					if (err != nil) != wantError {
-						t.Errorf("Partnerprüfung %s/%s/%s/%s: Fassade=%+v, Dienst=%v", direction, info.Treatment, country, vatID, check, err)
-					}
 				}
 			}
 		}

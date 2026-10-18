@@ -1398,7 +1398,7 @@ func (s *CheckService) checkUnconfirmedVatIDs(ctx context.Context, year int) []d
 	for i := range invoices {
 		inv := &invoices[i]
 		reason := strings.TrimSpace(inv.VatIDOverrideReason)
-		if inv.TaxTreatment != domain.TaxTreatmentReverseChargeSupply || reason == "" {
+		if !accounting.TaxCaseFor(inv.TaxTreatment).CheckPartner(domain.DirectionOutgoing).ConfirmEUVatID || reason == "" {
 			continue
 		}
 		if inv.Status == domain.InvoiceStatusCancelled || inv.Status == domain.InvoiceStatusDraft {

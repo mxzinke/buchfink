@@ -993,42 +993,24 @@ func isLiquidAccount(account string) bool {
 	return false
 }
 
-// validateIncomingTreatment blocks Steuerfälle the partner's master data does
-// not support. Reverse Charge without a VAT identification number on file is the
-// single most common source of a wrong Umsatzsteuer-Voranmeldung.
 func validateIncomingTreatment(treatment domain.TaxTreatment, contact *domain.Contact) error {
-	switch treatment {
-	case domain.TaxTreatmentIntraCommunityAcquisition:
-		if !contact.IsEUCounterparty() {
+	check := accounting.TaxCaseFor(treatment).CheckPartner(domain.DirectionIncoming)
+	if check.RequiresEU && !contact.IsEUCounterparty() {
+		if treatment == domain.TaxTreatmentIntraCommunityAcquisition {
 			return fmt.Errorf("ein innergemeinschaftlicher Erwerb setzt einen Lieferanten in einem anderen EU-Land voraus, %s ist in %q erfasst", contact.Name, contact.CountryCode)
 		}
-		if contact.VatID == "" {
+		return fmt.Errorf(
+			"§ 13b Abs. 1 UStG gilt nur für die sonstige Leistung eines Unternehmers aus einem anderen EU-Staat, "+
+				"%s ist in %q erfasst. Für einen Lieferanten aus dem Drittland gilt § 13b Abs. 2 UStG",
+			contact.Name, contact.CountryCode)
+	}
+	if (check.RequiresVatID || check.RequiresVatIDForEU && contact.IsEUCounterparty()) && contact.VatID == "" {
+		if treatment == domain.TaxTreatmentIntraCommunityAcquisition {
 			return fmt.Errorf("für einen innergemeinschaftlichen Erwerb braucht %s eine USt-IdNr.", contact.Name)
 		}
-	case domain.TaxTreatmentReverseChargeEU:
-		// § 13b Abs. 1 UStG setzt einen im übrigen Gemeinschaftsgebiet
-		// ansässigen Unternehmer voraus; die USt-IdNr. belegt die
-		// Unternehmereigenschaft dort.
-		if !contact.IsEUCounterparty() {
-			return fmt.Errorf(
-				"§ 13b Abs. 1 UStG gilt nur für die sonstige Leistung eines Unternehmers aus einem anderen EU-Staat, "+
-					"%s ist in %q erfasst. Für einen Lieferanten aus dem Drittland gilt § 13b Abs. 2 UStG",
-				contact.Name, contact.CountryCode)
-		}
-		if contact.VatID == "" {
-			return fmt.Errorf(
-				"für § 13b UStG braucht der ausländische Lieferant %s eine USt-IdNr., die seine Unternehmereigenschaft belegt",
-				contact.Name)
-		}
-	case domain.TaxTreatmentReverseCharge:
-		// Bei einer inländischen Bauleistung (Abs. 2 Nr. 4) hängt die
-		// Steuerschuld am Leistungsempfänger (Abs. 5); eine fehlende USt-IdNr.
-		// des inländischen Lieferanten blockiert den Fall deshalb nicht.
-		if contact.IsEUCounterparty() && contact.VatID == "" {
-			return fmt.Errorf(
-				"für § 13b UStG braucht der ausländische Lieferant %s eine USt-IdNr., die seine Unternehmereigenschaft belegt",
-				contact.Name)
-		}
+		return fmt.Errorf(
+			"für § 13b UStG braucht der ausländische Lieferant %s eine USt-IdNr., die seine Unternehmereigenschaft belegt",
+			contact.Name)
 	}
 	return nil
 }

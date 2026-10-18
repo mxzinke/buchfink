@@ -824,7 +824,7 @@ func (s *InvoiceService) ensureVatIDConfirmed(
 }
 
 func (s *InvoiceService) needsVatIDConfirmation(inv *domain.Invoice, contact *domain.Contact) bool {
-	return s.vatIDs != nil && inv.TaxTreatment == domain.TaxTreatmentReverseChargeSupply &&
+	return s.vatIDs != nil && accounting.TaxCaseFor(inv.TaxTreatment).CheckPartner(domain.DirectionOutgoing).ConfirmEUVatID &&
 		contact.IsEUCounterparty()
 }
 
@@ -849,20 +849,12 @@ func (s *InvoiceService) VatIDToConfirm(ctx context.Context, inv *domain.Invoice
 	return contact.ID, nil
 }
 
-// validateTaxTreatment blocks the combinations that would produce a formally
-// wrong invoice — the ones a supplier only finds out about during an audit.
 func (s *InvoiceService) validateTaxTreatment(inv *domain.Invoice, contact *domain.Contact) error {
-	known := false
-	for _, info := range domain.TaxTreatments(domain.DirectionOutgoing) {
-		if info.Treatment == inv.TaxTreatment {
-			known = true
-			break
-		}
-	}
-	if !known {
+	check := accounting.TaxCaseFor(inv.TaxTreatment).CheckPartner(domain.DirectionOutgoing)
+	if !check.Allowed {
 		return fmt.Errorf("den Steuerfall %q gibt es für Ausgangsrechnungen nicht", inv.TaxTreatment)
 	}
-	if inv.TaxTreatment == domain.TaxTreatmentReverseChargeSupply && contact.VatID == "" {
+	if check.RequiresVatID && contact.VatID == "" {
 		return fmt.Errorf("für eine Rechnung nach § 13b UStG braucht %s eine USt-IdNr.", contact.Name)
 	}
 	return nil

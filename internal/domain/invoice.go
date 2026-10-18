@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -546,7 +547,9 @@ func (inv *Invoice) ValidateParties(sellerTaxNumber, sellerVatID string, buyer *
 // RequiresBuyerVatID reports whether the recipient's VAT identification number
 // belongs on the document.
 func (inv *Invoice) RequiresBuyerVatID() bool {
-	return inv.TaxTreatment == TaxTreatmentReverseChargeSupply
+	return slices.ContainsFunc(TaxTreatments(DirectionOutgoing), func(info TaxTreatmentInfo) bool {
+		return info.Treatment == inv.TaxTreatment && info.RequiresVatID
+	})
 }
 
 // Negate turns the invoice into its own Storno: same content, negated amounts.

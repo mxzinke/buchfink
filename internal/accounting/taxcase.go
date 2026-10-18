@@ -74,7 +74,9 @@ func (c TaxCase) CheckPartner(direction domain.Direction) TaxPartnerCheck {
 		}
 	}
 	if direction == domain.DirectionIncoming {
+		// § 13b Abs. 1 UStG und der ig. Erwerb setzen einen Unternehmer im übrigen EU-Gebiet voraus.
 		check.RequiresEU = c.treatment == domain.TaxTreatmentReverseChargeEU || c.treatment == domain.TaxTreatmentIntraCommunityAcquisition
+		// Bei inländischen Leistungen nach Abs. 2 hängt die Steuerschuld am Empfänger (§ 13b Abs. 5 UStG).
 		check.RequiresVatIDForEU = c.treatment == domain.TaxTreatmentReverseCharge
 	}
 	check.ConfirmEUVatID = direction == domain.DirectionOutgoing && c.treatment == domain.TaxTreatmentReverseChargeSupply
