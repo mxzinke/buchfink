@@ -175,24 +175,33 @@ func requiredOf(tool *mcp.Tool) []string {
 }
 
 // docs/entwicklung/mcp.md ist die Quelle für die Skills: jede Zeile der
-// Tabelle ist ein Werkzeug mit seiner Stufe und umgekehrt.
+// Werkzeugtabelle hat ihre Stufe; die App-Vorbehalte nennen ihre Durchsetzung.
 func TestDocsListEveryTool(t *testing.T) {
 	raw, err := os.ReadFile("../../docs/entwicklung/mcp.md")
 	if err != nil {
 		t.Fatal(err)
 	}
-	row := regexp.MustCompile("(?m)^\\| `([a-z_]+)` \\| (lesen|direkt|rueckfrage) \\|")
+	row := regexp.MustCompile("(?m)^\\| `([a-z_]+)` \\| (lesen|direkt|rueckfrage|nur App) \\|")
 	documented := map[string]Tier{}
 	for _, m := range row.FindAllStringSubmatch(string(raw), -1) {
+		if _, duplicate := documented[m[1]]; duplicate {
+			t.Errorf("mcp.md nennt %s mehrfach", m[1])
+		}
 		documented[m[1]] = Tier(m[2])
 	}
-	for name, tier := range catalog {
-		if documented[name] != tier {
-			t.Errorf("mcp.md: %s steht als %q, erwartet %q", name, documented[name], tier)
+	for _, op := range ops.All() {
+		if documented[op.Name] != op.Tier {
+			t.Errorf("mcp.md: %s steht als %q, erwartet %q", op.Name, documented[op.Name], op.Tier)
+		}
+		if op.Tier == ops.AppOnly {
+			expected := "| `" + op.Name + "` | nur App | " + op.Description + " | " + string(op.Enforcement) + " |"
+			if !strings.Contains(string(raw), expected+"\n") {
+				t.Errorf("mcp.md: Vorbehalt oder Durchsetzung von %s weicht vom Katalog ab", op.Name)
+			}
 		}
 	}
 	for name := range documented {
-		if _, ok := catalog[name]; !ok {
+		if _, ok := ops.Lookup(name); !ok {
 			t.Errorf("mcp.md nennt %s, das es nicht gibt", name)
 		}
 	}

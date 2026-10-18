@@ -131,7 +131,12 @@ Feststellen und Offenlegen, Stammdaten samt Gesellschaftern und Gründung,
 Bankkonten, Eingang und Ordner, Regeln für Apps, Bestätigung von Pflichten,
 Standardgruppen und Erklärungsangaben und der Prüfermodus laufen nur über `ui`.
 Zwei Stellen prüfen das: `core.AppOnly` am Schreibvorgang und `requireHuman`
-in den Diensten. Alles, was sich per Storno korrigieren lässt, steht auch
+in den Diensten; `requireApp` schützt die Mandantenverwaltung und weitere
+Kerneinstiege. [`internal/ops`](../../internal/ops) ordnet die Vorgänge mit
+`Read`, `Direct`, `Confirm` und `AppOnly` ein. Tests gleichen die dort benannten
+Schutzstellen mit den tatsächlichen Aufrufen und ihrer Ablehnung anderer
+Erfassungswege ab. Die Prüfungen bleiben im Kern und in den Diensten.
+Alles, was sich per Storno korrigieren lässt, steht auch
 einem Agenten offen, darunter Darlehensverträge, Ergebnisverwendung und
 Organisationstexte der Verfahrensdokumentation
 ([Freigabestufen](mcp.md#freigabestufen)).
@@ -165,7 +170,10 @@ Telefon.
 
 **Prüfermodus.** Sein Zeitraum steht in der Mandantendatenbank. Solange er
 läuft, weist `Write` jeden Vorgang ab, außer dem Schalter selbst und Nachweisen
-wie einem Sicherungslauf (`core.ExaminerExempt`).
+wie einem Sicherungslauf (`core.ExaminerExempt`). Die Bridge liest ihre
+Prüfermodus-Ausnahmen aus `ops.BridgeExaminerAllowed`; Tests prüfen die
+Klassifikation gegen ihre Schreibwege. Diese Ausnahmen sind unabhängig von
+der Freigabestufe: auch ein Vorgang nur für die App kann zulässig bleiben.
 
 **Netz außerhalb der Sperre.** Wechselkurse und die Abfrage einer USt-IdNr.
 holt der Kern vor dem Schreibvorgang. Ein Netzaufruf aus einem laufenden `Write`
@@ -193,14 +201,19 @@ Entwicklung und Tests. Buchfink ist selbst
 Autorisierungsserver (`internal/mcpserver/oauth`): dynamische Registrierung
 nur für Rücksprungadressen auf diesem Rechner, PKCE, Tokens nur als Hash
 gespeichert. Die Zustimmung kommt als Ereignis ins Fenster und wird über die
-Bridge mit einer Einmal-Nonce entschieden, nie über HTTP.
+Bridge mit einer Einmal-Nonce entschieden, nie über HTTP. Zulassen und Entziehen
+von Apps sind im Operationskatalog als strukturell geschützt eingeordnet:
+die privaten Verwaltungs-APIs prüfen keinen Erfassungsweg. Ein Quelltexttest
+begrenzt ihre Aufrufer auf die Kette von der Bridge zum OAuth-Speicher.
 
 Werkzeuge registrieren sich über `AddInfo`, `AddRead`, `AddWrite` und dessen
 Varianten (`internal/mcpserver/tools.go`). Der Rahmen liest die Anmeldung, holt den
 Mandanten, prüft Zulassung und Rechte (`buchfink:lesen`, `buchfink:buchen`),
 setzt den Erfassungsweg und ruft `Tenant.Read` oder `Tenant.Write`. Schreibende
 Werkzeuge verlangen `mandant_id` und nehmen einen Idempotenzschlüssel an, der in
-derselben Transaktion gespeichert wird. Werkzeuge mit Rückfrage haben
+derselben Transaktion gespeichert wird. Der Rahmen liest `Spec.Tier` aus dem
+Operationskatalog und weist unbekannte oder der App vorbehaltene Vorgänge bei
+der Registrierung ab. Daraus folgen die Annotationen. Werkzeuge mit Rückfrage haben
 `destructiveHint: true`; die Rückfrage stellt der Agent im Chat, wie es die
 Skills verlangen. Fehler haben stabile Codes (`internal/mcpserver/errors.go`).
 Die Werkzeuge selbst beschreibt [MCP-Server](mcp.md).

@@ -4,7 +4,8 @@
 
 Diese Seite ist die Quelle für die Skills der verbundenen Apps. Ändert sich ein
 Werkzeug, ein Fehlercode oder eine Regel, ändert sich diese Seite im selben
-Commit. `TestDocsListEveryTool` hält Tabelle und Katalog gleich.
+Commit. `TestDocsListEveryTool` hält Werkzeugtabelle und App-Vorbehalte mit
+`internal/ops` gleich.
 
 ## Aufbau
 
@@ -21,17 +22,34 @@ nicht im Werkzeug und nicht im Prompt.
 
 ## Freigabestufen
 
+[`internal/ops`](../../internal/ops) ist die deklarative Quelle der Stufen.
+Bei der Registrierung übernimmt der MCP-Rahmen `Spec.Tier` aus dem Katalog
+und bildet daraus die Annotationen. Unbekannte und `AppOnly`-Vorgänge lassen
+sich nicht als Werkzeug registrieren. Golden-Tests sichern Werkzeugliste,
+Schemas, Annotationen und Stufen.
+
 | Stufe | Annotation | Bedeutung |
 |---|---|---|
 | lesen | `readOnlyHint: true` | ändert nichts; jede zugelassene App mit `buchfink:lesen` |
 | direkt | `destructiveHint: false` | schreibt ohne Rückfrage, aber nur, was `internal/core/policy` als Routine einstuft; sonst `freigabe_noetig` |
 | rueckfrage | `destructiveHint: true` | der Agent legt dem Menschen den Vorgang im Chat vor und holt sein Ja ein, bevor er aufruft |
-| nur App | kein Werkzeug | Festschreibung, Übermittlung und Transferticket, Pflicht als erledigt oder entfallen, Angaben einer Erklärung bestätigen, Aufstellen, Feststellen, Offenlegen, Unternehmensstammdaten samt Gesellschaftern, Gründung und Eintragung, Bankkonten und steuerlicher Beratung, Abschluss-Einstellungen, Ablage, Eingang, Export- und Leseordner, Regeln für direktes Buchen, Standardgruppe bestätigen, Prüfermodus, Apps zulassen und entziehen |
+| nur App | kein Werkzeug | die [vorbehaltenen Vorgänge](#vorgänge-nur-in-der-app) mit ihrer Durchsetzungsart |
 
 Ein `_meta`-Feld `anthropic/requiresUserInteraction` setzt der Server nicht.
 Der Agent fragt laut Skill selbst; eine zweite Abfrage des Clients wäre doppelt.
-Die Dienste weisen Vorgänge der App für jeden Erfassungsweg außer `ui` ab
-(`requireHuman`, `core.AppOnly`), das Werkzeug meldet dann `nur_in_app`.
+Kern und Dienste behalten ihre Schutzprüfungen (`core.AppOnly`,
+`requireApp`, `service.requireHuman`). Die kanalgeschützten Vorgänge weisen
+jeden Erfassungsweg außer `ui` ab; ein Aufruf über ein Werkzeug meldet dann
+`nur_in_app`. Tests führen jede Schutzstelle aus dem Katalog über zwei
+Agentenkanäle, `system` sowie fehlende und ungültige Erfassungswege aus.
+Dienste werden dabei ohne die zusätzliche `core.AppOnly`-Option aufgerufen.
+
+Zulassen und Entziehen verbundener Apps sind strukturell geschützt: nur die
+Bridge ruft die privaten Verwaltungs-APIs des Servers auf. Diese APIs prüfen
+keinen Erfassungsweg; die Bridge übergibt `context.Background()`. Ein Test
+begrenzt alle Methodenverweise bis zum OAuth-Speicher auf diese Aufrufkette.
+Weder ein MCP-Werkzeug noch ein HTTP-Handler darf sie erreichen. Der
+OAuth-Endpunkt zum Widerrufen eines Tokens entzieht keine App-Zulassung.
 
 Was sich per Storno korrigieren lässt, darf ein Agent mit Rückfrage, auf jedem
 Konto des Kontenrahmens:
@@ -51,6 +69,48 @@ bis 1309, 3640 bis 3643 und die übrigen aus `shareholderAccounts`), braucht den
 Gesellschafter als Kontakt, in der Handbuchung, in der Neubuchung beim Storno
 und in der Aufteilung eines Bankumsatzes. Ohne ihn fehlte sie im Stand des
 Darlehens, in der Zinsrechnung und in den Salden je Gesellschafter.
+
+### Vorgänge nur in der App
+
+Der Katalog unterscheidet den vorbehaltenen Vorgang von seiner ganzen
+Einstiegsmethode: `SetInput` darf zum Beispiel Vorschläge annehmen, aber keine
+bestätigte Angabe des Menschen überschreiben. Beim Anlegen eines Kontakts
+entfernt `keepPostingGroup` eine unzulässige Bestätigung; der Kontakt selbst
+wird angelegt.
+
+| Vorgang | Stufe | Bedeutung | Durchsetzung |
+|---|---|---|---|
+| `abschlusseinstellungen_aendern` | nur App | Abschluss-Einstellungen ändern | Erfassungsweg ui im Kern oder Dienst |
+| `abschlussstatus_setzen` | nur App | Jahresabschluss aufstellen, feststellen und offenlegen | Erfassungsweg ui im Kern oder Dienst |
+| `agentregeln_aendern` | nur App | Regeln für direktes Buchen sowie Export- und Leseordner ändern | Erfassungsweg ui im Kern oder Dienst |
+| `apps_entziehen` | nur App | Apps den Zugriff entziehen | strukturell: private API der Bridge |
+| `apps_zulassen` | nur App | Apps zulassen | strukturell: private API der Bridge |
+| `bankkonten_einrichten` | nur App | Bankkonten einrichten | Erfassungsweg ui im Kern oder Dienst |
+| `datenbank_anmelden` | nur App | Bestehende Datenbank als Mandant anmelden | Erfassungsweg ui im Kern oder Dienst |
+| `eingang_waehlen` | nur App | Eingang wählen | Erfassungsweg ui im Kern oder Dienst |
+| `eintragung_erfassen` | nur App | Eintragung ins Handelsregister erfassen | Erfassungsweg ui im Kern oder Dienst |
+| `erklaerung_angabe_bestaetigen` | nur App | Vorbehaltene Angabe einer Erklärung bestätigen | Erfassungsweg ui im Kern oder Dienst |
+| `erklaerung_bestaetigte_angabe_aendern` | nur App | Bestätigte Angabe des Menschen ändern | Erfassungsweg ui im Kern oder Dienst |
+| `erklaerung_bestaetigte_angabe_loeschen` | nur App | Bestätigte vorbehaltene Angabe zurücknehmen | Erfassungsweg ui im Kern oder Dienst |
+| `erklaerung_uebermittlung_bestaetigen` | nur App | Übermittlung einer Jahreserklärung mit Transferticket bestätigen | Erfassungsweg ui im Kern oder Dienst |
+| `festschreiben` | nur App | Festschreibung | Erfassungsweg ui im Kern oder Dienst |
+| `feststellung_zuruecknehmen` | nur App | Feststellung zurücknehmen | Erfassungsweg ui im Kern oder Dienst |
+| `gruendung_erfassen` | nur App | Gründung mit Gesellschaftern erfassen | Erfassungsweg ui im Kern oder Dienst |
+| `mandant_anlegen` | nur App | Mandant mit Ablage anlegen | Erfassungsweg ui im Kern oder Dienst |
+| `mandant_entfernen` | nur App | Mandant aus der Liste entfernen | Erfassungsweg ui im Kern oder Dienst |
+| `mandant_wechseln` | nur App | Mandant wechseln | Erfassungsweg ui im Kern oder Dienst |
+| `mcp_port_aendern` | nur App | Port des MCP-Servers ändern | Erfassungsweg ui im Kern oder Dienst |
+| `pflicht_bestaetigen` | nur App | Pflicht als erledigt bestätigen | Erfassungsweg ui im Kern oder Dienst |
+| `pflicht_entfallen` | nur App | Pflicht als entfallen kennzeichnen | Erfassungsweg ui im Kern oder Dienst |
+| `pflicht_zuruecknehmen` | nur App | Bestätigung einer Pflicht zurücknehmen | Erfassungsweg ui im Kern oder Dienst |
+| `pruefermodus_aendern` | nur App | Prüfermodus ein- und ausschalten | Erfassungsweg ui im Kern oder Dienst |
+| `rechnungskonto_waehlen` | nur App | Bankkonto für Rechnungen wählen | Erfassungsweg ui im Kern oder Dienst |
+| `sicherung_wiederherstellen` | nur App | Sicherung wiederherstellen | Erfassungsweg ui im Kern oder Dienst |
+| `sicherungsordner_waehlen` | nur App | Sicherungsordner wählen | Erfassungsweg ui im Kern oder Dienst |
+| `standardgruppe_bestaetigen` | nur App | Standardgruppe bestätigen, auch beim Anlegen eines Kontakts | Erfassungsweg ui im Kern oder Dienst |
+| `unternehmensdaten_aendern` | nur App | Unternehmensstammdaten einschließlich Gesellschaftern und steuerlicher Beratung ändern | Erfassungsweg ui im Kern oder Dienst |
+| `ustva_uebermittlung_bestaetigen` | nur App | Übermittlung der UStVA mit Transferticket bestätigen | Erfassungsweg ui im Kern oder Dienst |
+| `zm_uebermittlung_bestaetigen` | nur App | Übermittlung der ZM mit Transferticket bestätigen | Erfassungsweg ui im Kern oder Dienst |
 
 ## Eingaben und Ausgaben
 
@@ -338,16 +398,21 @@ zu laden.
 ## Ein Werkzeug ergänzen
 
 1. Dienst zuerst: die fachliche Regel und jeder Vorbehalt der App
-   (`requireHuman`) gehören in `internal/service`, nicht ins Werkzeug.
+   (`requireHuman`) gehören in `internal/service`. Den Vorgang in
+   `internal/ops` mit `Define(name, tier)` einordnen. Für `AppOnly` die
+   Schutzstellen und Bridge-Methoden angeben und die Ausführungsproben in
+   `TestAgentsAreRefusedForHumanOnlyOperations` ergänzen.
 2. Ein- und Ausgabe als Go-Structs mit `json`- und `jsonschema`-Tags. Beträge
    als `Betrag`, Daten als `Datum`, Gruppen und Steuerfälle als
    `Buchungsgruppe`, `Steuerfall`, `Satz`. Ein Auswahlfeld bekommt einen
    eigenen Typ in `auswahl.go` mit Werteliste und Übersetzung in den Kern
    (`pick`, `label`). Listen in der Ausgabe nie `nil`.
-3. Registrieren mit `AddRead`, `AddWrite`, `AddWritePrepared` (Vorlauf ohne
+3. Mit `AddRead`, `AddWrite`, `AddWritePrepared` (Vorlauf ohne
    Sperre, etwa ein Kurs aus dem Netz), `AddWriteThen` (Nachlauf nach dem
    Vorgang, etwa das Aufräumen des Eingangs) oder `AddFlow` (mehrere Vorgänge)
-   und der Stufe in `Spec.Tier`. Ohne natürlichen Schlüssel `KeyedWriteArgs`
+   registrieren. Der Werkzeugname bezeichnet den Katalogvorgang; nur bei einem
+   abweichenden Namen wird `Spec.Operation` gesetzt. `Spec.Tier` kommt aus dem
+   Katalog. Ohne natürlichen Schlüssel `KeyedWriteArgs`
    statt `WriteArgs`; eine Eingabe mit `nur_vorschau` implementiert
    `preview()`.
    Die Beschreibung sagt, wann das Werkzeug passt, wann nicht und welches
