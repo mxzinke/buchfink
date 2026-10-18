@@ -14,8 +14,8 @@ type TenantInfo struct {
 	DataDir string
 }
 
-// Services ist der eine Satz Dienste eines offenen Mandanten. Bridge und
-// MCP-Server bekommen ihn nur über Tenant.Read und Tenant.Write.
+// Services ist der Dienstsatz eines offenen Mandanten für Kern und Bridge.
+// MCP und Policy erhalten über ReadAgent und WriteAgent die begrenzte AgentServices-Sicht.
 type Services struct {
 	Tenant TenantInfo
 	Repos  Repos

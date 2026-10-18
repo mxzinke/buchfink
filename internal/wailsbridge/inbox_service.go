@@ -67,7 +67,7 @@ type FolderCheck struct {
 
 // inboxFolders sind Eingang, Lese- und Exportordner des offenen Mandanten.
 func (b *BuchfinkBridge) inboxFolders(ctx context.Context, s *core.Services) (policy.Folders, error) {
-	return policy.FoldersFor(ctx, s, s.Tenant.DataDir, policy.ProtectedDirs(b.host.Config(), s.Tenant.DataDir))
+	return policy.FoldersFor(ctx, s.AgentServices(), s.Tenant.DataDir, policy.ProtectedDirs(b.host.Config(), s.Tenant.DataDir))
 }
 
 func inboxInfo(f policy.Folders) (*InboxInfo, error) {

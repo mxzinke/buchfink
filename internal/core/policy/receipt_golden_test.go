@@ -101,7 +101,7 @@ func TestGoldenReceiptPreviewFindings(t *testing.T) {
 	}
 }
 
-func receiptGoldenServices(t *testing.T) (*core.Services, service.ReceiptRequest) {
+func receiptGoldenServices(t *testing.T) (core.AgentServices, service.ReceiptRequest) {
 	t.Helper()
 	ctx := context.Background()
 	db, err := repository.InitInMemoryDB()
@@ -129,7 +129,7 @@ func receiptGoldenServices(t *testing.T) (*core.Services, service.ReceiptRequest
 	journal := service.NewJournalService(repository.NewJournalRepository(db), repository.NewAccountRepository(db), contacts, audit, repository.NewSettingsRepository(db), repository.NewTxRunner(db))
 	posting := service.NewPostingService(journal, contacts)
 	posting.SetReceiptService(receipts)
-	s := &core.Services{Repos: core.Repos{Contacts: contacts}, Receipts: receipts, Posting: posting}
+	s := core.AgentServices{Contacts: service.NewContactService(contacts, nil, nil, audit), Receipts: receipts, Posting: posting}
 	return s, service.ReceiptRequest{ReceiptID: receipt.ID, ContactID: contact.ID, BookingDate: "2026-03-10", DocumentDate: "2026-03-10",
 		TaxTreatment: domain.TaxTreatmentDomestic, Settlement: service.SettlementOpen,
 		Positions: []service.ReceiptPosition{{PostingGroup: "software", Net: 10000, TaxRate: domain.TaxRateStandard}},

@@ -113,7 +113,7 @@ func registerStatus(tb *Toolbox) {
 			return out, nil
 		}
 		t := c.Tenant
-		err = t.Read(ctx, func(ctx context.Context, s *core.Services) error {
+		err = t.ReadAgent(ctx, func(ctx context.Context, s core.AgentServices) error {
 			out.Mandant = &statusTenant{ID: t.ID(), Name: t.Name()}
 			if settings, err := s.Settings.GetCompanySettings(ctx); err == nil && settings != nil {
 				out.Mandant.Rechtsform = settings.LegalForm

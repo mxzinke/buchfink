@@ -179,7 +179,7 @@ func registerKonten(tb *Toolbox) {
 		Description: "Nachschlagen: art=suche findet Konten des SKR04 mit Saldo im Geschäftsjahr; art=buchungsgruppen " +
 			"listet die fachlichen Gruppen für beleg_buchen (Schlüssel, Konto, Vorgabesatz, ob eine Sonderregel gilt); " +
 			"art=steuerfaelle die Steuerfälle. Für Salden aller Konten oder ein Kontoblatt auswertung.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in kontenIn) (kontenOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in kontenIn) (kontenOut, error) {
 		out := kontenOut{Konten: []kontoZeile{}, Buchungsgruppen: []gruppeZeile{}, Steuerfaelle: []steuerfallZeile{}}
 		switch in.Art {
 		case "buchungsgruppen":
@@ -238,7 +238,7 @@ func registerKonten(tb *Toolbox) {
 			"laufendem Saldo), bilanz, guv (mit Vorjahr), ust (Umsatzsteuer-Übersicht eines Zeitraums), pruefbericht " +
 			"(Befunde des Prüflaufs, ohne ihn zu speichern), darlehen (Gesellschafterdarlehen mit Stand und Befunden " +
 			"zum Fremdvergleich). Listen seitenweise. Für einzelne Buchungen buchung_lesen.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in auswertungIn) (auswertungOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in auswertungIn) (auswertungOut, error) {
 		year, err := yearOr(ctx, c, in.Geschaeftsjahr)
 		if err != nil {
 			return auswertungOut{}, err

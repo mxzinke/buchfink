@@ -15,7 +15,7 @@ import (
 )
 
 // LimitsFor liest die Schwellen des Mandanten.
-func LimitsFor(ctx context.Context, s *core.Services) (Limits, error) {
+func LimitsFor(ctx context.Context, s core.AgentServices) (Limits, error) {
 	settings, err := s.Settings.AgentSettings(ctx)
 	if err != nil {
 		return Limits{}, err
@@ -26,7 +26,7 @@ func LimitsFor(ctx context.Context, s *core.Services) (Limits, error) {
 // ClassifyReceiptRequest sammelt die Fakten einer Belegbuchung und urteilt.
 // Ein Fehler heißt: die Buchung ginge auch mit Rückfrage nicht so durch
 // (Beleg fehlt, Vorschau scheitert); er kommt aus dem Dienst.
-func ClassifyReceiptRequest(ctx context.Context, s *core.Services, req service.ReceiptRequest, today string) (Verdict, error) {
+func ClassifyReceiptRequest(ctx context.Context, s core.AgentServices, req service.ReceiptRequest, today string) (Verdict, error) {
 	limits, err := LimitsFor(ctx, s)
 	if err != nil {
 		return Verdict{}, err
@@ -42,10 +42,10 @@ func ClassifyReceiptRequest(ctx context.Context, s *core.Services, req service.R
 // E-Rechnung mit der bestätigten Standardgruppe des Lieferanten ergäbe. Ohne
 // bestätigte Gruppe lässt sich die Buchung nicht durchrechnen; die übrigen
 // Regeln gelten trotzdem, und der Brutto kommt aus der E-Rechnung.
-func ClassifyProposal(ctx context.Context, s *core.Services, req service.ReceiptRequest, today string) Verdict {
+func ClassifyProposal(ctx context.Context, s core.AgentServices, req service.ReceiptRequest, today string) Verdict {
 	req.Positions = append([]service.ReceiptPosition(nil), req.Positions...)
 	grouped := false
-	if contact, err := s.Repos.Contacts.FindByID(ctx, req.ContactID); err == nil && contact.DefaultPostingGroupConfirmedAt != "" {
+	if contact, err := s.Contacts.Contact(ctx, req.ContactID); err == nil && contact.DefaultPostingGroupConfirmedAt != "" {
 		for i := range req.Positions {
 			req.Positions[i].PostingGroup = contact.DefaultPostingGroup
 		}
@@ -63,13 +63,13 @@ func ClassifyProposal(ctx context.Context, s *core.Services, req service.Receipt
 }
 
 // ReceiptFactsFor sammelt die Fakten einer Belegbuchung.
-func ReceiptFactsFor(ctx context.Context, s *core.Services, req service.ReceiptRequest, today string) (ReceiptFacts, error) {
+func ReceiptFactsFor(ctx context.Context, s core.AgentServices, req service.ReceiptRequest, today string) (ReceiptFacts, error) {
 	return receiptFacts(ctx, s, req, today, true)
 }
 
 // receiptFacts sammelt die Fakten; ohne preview wird nicht durchgerechnet und
 // der Brutto der E-Rechnung genommen.
-func receiptFacts(ctx context.Context, s *core.Services, req service.ReceiptRequest, today string, preview bool) (ReceiptFacts, error) {
+func receiptFacts(ctx context.Context, s core.AgentServices, req service.ReceiptRequest, today string, preview bool) (ReceiptFacts, error) {
 	f := ReceiptFacts{
 		Treatment: req.TaxTreatment, Currency: strings.ToUpper(strings.TrimSpace(req.Currency)),
 		Settlement: string(req.Settlement), BookingDate: req.BookingDate, DocumentDate: req.DocumentDate,
@@ -117,7 +117,7 @@ func receiptFacts(ctx context.Context, s *core.Services, req service.ReceiptRequ
 		}
 	}
 
-	contact, err := s.Repos.Contacts.FindByID(ctx, req.ContactID)
+	contact, err := s.Contacts.Contact(ctx, req.ContactID)
 	if err != nil {
 		return f, err
 	}
@@ -211,7 +211,7 @@ func masterDataMismatch(c *domain.Contact, p *service.EInvoiceProposal) ([]strin
 
 // bookingsWithGroup zählt die nicht stornierten Belegbuchungen eines
 // Lieferanten auf den Konten seiner Gruppe im Inland.
-func bookingsWithGroup(ctx context.Context, s *core.Services, contactID uint, key string) (int, error) {
+func bookingsWithGroup(ctx context.Context, s core.AgentServices, contactID uint, key string) (int, error) {
 	group, err := accounting.LookupPostingGroup(key)
 	if err != nil {
 		return 0, nil
@@ -251,7 +251,7 @@ func bookingsWithGroup(ctx context.Context, s *core.Services, contactID uint, ke
 // E-Rechnung zählen Nummer, Betrag und Datum aus dem strukturierten Teil,
 // nicht die Kopfdaten: die lassen sich beim Ablegen frei setzen. Die Nummer
 // wird über alle Geschäftsjahre gesucht.
-func duplicateOf(ctx context.Context, s *core.Services, receipt *domain.Receipt, contact *domain.Contact,
+func duplicateOf(ctx context.Context, s core.AgentServices, receipt *domain.Receipt, contact *domain.Contact,
 	proposal *service.EInvoiceProposal) (string, error) {
 	number, gross, date := receipt.Subject, receipt.GrossAmount, receipt.DocumentDate
 	ids := map[string]bool{domain.NormalizeTaxIdentifier(contact.VatID): true, domain.NormalizeTaxIdentifier(contact.TaxID): true}
@@ -323,16 +323,16 @@ func duplicateOf(ctx context.Context, s *core.Services, receipt *domain.Receipt,
 }
 
 // bookedTo meldet, ob ein Beleg schon auf diesen Kontakt gebucht ist.
-func bookedTo(ctx context.Context, s *core.Services, r *domain.Receipt, contactID uint) bool {
+func bookedTo(ctx context.Context, s core.AgentServices, r *domain.Receipt, contactID uint) bool {
 	if r.JournalEntryID == nil {
 		return false
 	}
-	entry, err := s.Repos.Journal.FindByID(ctx, *r.JournalEntryID)
+	entry, err := s.Accounting.Entry(ctx, *r.JournalEntryID)
 	return err == nil && entry.ContactID != nil && *entry.ContactID == contactID
 }
 
 // ClassifyBankRequest sammelt die Fakten einer Zuordnung und urteilt.
-func ClassifyBankRequest(ctx context.Context, s *core.Services, bankTxID, entryID uint) (Verdict, error) {
+func ClassifyBankRequest(ctx context.Context, s core.AgentServices, bankTxID, entryID uint) (Verdict, error) {
 	tx, err := s.Bank.Transaction(ctx, bankTxID)
 	if err != nil {
 		return Verdict{}, err
@@ -347,13 +347,13 @@ func ClassifyBankRequest(ctx context.Context, s *core.Services, bankTxID, entryI
 // BankClassifier stuft die Zuordnungen eines Aufrufs ein. Die offenen Posten
 // liest er einmal, nicht je Umsatz.
 type BankClassifier struct {
-	s       *core.Services
+	s       core.AgentServices
 	items   []domain.OpenItem
 	numbers map[uint]string
 }
 
 // NewBankClassifier liest die offenen Posten.
-func NewBankClassifier(ctx context.Context, s *core.Services) (*BankClassifier, error) {
+func NewBankClassifier(ctx context.Context, s core.AgentServices) (*BankClassifier, error) {
 	items, err := s.Payments.OpenItems(ctx)
 	if err != nil {
 		return nil, err
@@ -392,7 +392,7 @@ func (b *BankClassifier) Facts(ctx context.Context, tx *domain.BankTransaction, 
 }
 
 // BankFactsFor sammelt die Fakten einer Zuordnung.
-func BankFactsFor(ctx context.Context, s *core.Services, bankTxID, entryID uint) (BankFacts, error) {
+func BankFactsFor(ctx context.Context, s core.AgentServices, bankTxID, entryID uint) (BankFacts, error) {
 	tx, err := s.Bank.Transaction(ctx, bankTxID)
 	if err != nil {
 		return BankFacts{Requested: entryID}, err
@@ -430,7 +430,7 @@ func (b *BankClassifier) supplierInvoiceNumber(ctx context.Context, item domain.
 		return n
 	}
 	n := ""
-	if entry, err := b.s.Repos.Journal.FindByID(ctx, item.EntryID); err == nil && entry.ReceiptID != nil {
+	if entry, err := b.s.Accounting.Entry(ctx, item.EntryID); err == nil && entry.ReceiptID != nil {
 		if receipt, err := b.s.Receipts.Get(ctx, *entry.ReceiptID); err == nil {
 			n = firstNonEmpty(receipt.EInvoiceNumber, receipt.Subject)
 		}

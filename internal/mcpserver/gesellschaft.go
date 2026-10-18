@@ -196,7 +196,7 @@ func (o darlehenOut) Ref() string {
 
 // bookLoanInterest rechnet die Zinsen eines Darlehens bis zinsen_bis und bucht
 // sie, außer in der Vorschau.
-func bookLoanInterest(ctx context.Context, s *core.Services, in darlehenIn) (darlehenOut, error) {
+func bookLoanInterest(ctx context.Context, s core.AgentServices, in darlehenIn) (darlehenOut, error) {
 	if in.DarlehenID == 0 {
 		return darlehenOut{}, inputError("darlehen_id", "art=zinsen braucht das Darlehen")
 	}
@@ -314,7 +314,7 @@ func registerGesellschaft(tb *Toolbox) {
 			"zinsen_bis mit Eigenbeleg der Zinsrechnung und vermerkt die Zinsperiode; Zinsen nicht mit " +
 			"buchung_erfassen buchen. Auszahlung, Tilgung und Zinszahlung über bankumsatz_buchen mit darlehen_id; " +
 			"den Stand zeigt auswertung mit art=darlehen.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in darlehenIn) (darlehenOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in darlehenIn) (darlehenOut, error) {
 		if in.Art == "zinsen" {
 			return bookLoanInterest(ctx, s, in)
 		}
@@ -361,7 +361,7 @@ func registerGesellschaft(tb *Toolbox) {
 			"Voraussetzung sind der Saldenvortrag und der vom Menschen in der App festgestellte Abschluss; der " +
 			"Beschluss liegt nicht vor der Feststellung. Erst mit nur_vorschau rechnen, dann dem Menschen Beschluss " +
 			"(Tag, Wortlaut, beleg_id), Beträge und Buchungssatz vorlegen und nach seinem Ja buchen.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in ergebnisverwendungIn) (ergebnisverwendungOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in ergebnisverwendungIn) (ergebnisverwendungOut, error) {
 		req, err := in.request()
 		if err != nil {
 			return ergebnisverwendungOut{}, err

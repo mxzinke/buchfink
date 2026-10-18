@@ -89,7 +89,7 @@ func registerVerfahrensdoku(tb *Toolbox) {
 			"geht auch im Prüfermodus. Vor dem Schreiben dem Menschen den neuen " +
 			"Wortlaut jedes Abschnitts vorlegen und sein Ja einholen; die Texte beschreiben, wie sein Unternehmen " +
 			"arbeitet.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in verfahrensdokuIn) (verfahrensdokuOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in verfahrensdokuIn) (verfahrensdokuOut, error) {
 		current := s.ProcDoc.OrganisationTexts(ctx)
 		out := verfahrensdokuOut{Muster: []string{}, Geaendert: []string{}}
 		if in.Texte != nil {

@@ -47,7 +47,7 @@ func SettleInbox(ctx context.Context, t *core.Tenant, f Folders, paths []string,
 		sums = append(sums, sum)
 	}
 	var archived map[string]uint
-	if err := t.Read(ctx, func(ctx context.Context, s *core.Services) (err error) {
+	if err := t.ReadAgent(ctx, func(ctx context.Context, s core.AgentServices) (err error) {
 		archived, err = s.Receipts.ReceiptIDsByFileHash(ctx, sums)
 		return err
 	}); err != nil {

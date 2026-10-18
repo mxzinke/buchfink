@@ -36,7 +36,6 @@ func TestAppOnlyRefusalOfAServiceIsMarked(t *testing.T) {
 // schriebe daran vorbei. Nur das Protokoll der Zulassungen schreibt der
 // Server selbst, unter dem Erfassungsweg ui.
 func TestToolsDoNotTouchRepositories(t *testing.T) {
-	allowed := map[string]bool{"logInTenant": true}
 	fset := token.NewFileSet()
 	err := filepath.WalkDir(".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
@@ -47,10 +46,6 @@ func TestToolsDoNotTouchRepositories(t *testing.T) {
 			return err
 		}
 		for _, decl := range file.Decls {
-			fn, ok := decl.(*ast.FuncDecl)
-			if ok && allowed[fn.Name.Name] {
-				continue
-			}
 			ast.Inspect(decl, func(n ast.Node) bool {
 				if sel, ok := n.(*ast.SelectorExpr); ok && sel.Sel.Name == "Repos" {
 					t.Errorf("%s: Zugriff auf Repos; Werkzeuge gehen über die Dienste", fset.Position(sel.Pos()))

@@ -289,7 +289,7 @@ func registerErklaerung(tb *Toolbox) {
 			"je Zeitraum mit Kennzahlen und Zahllast; ust_jahr, kst und gewst je Jahr mit Formularen, Zeilen, Wert, " +
 			"Status, Zuständigkeit und Herkunft (Konten, Rechnung). nur_offen zeigt, was noch eine Angabe braucht. " +
 			"Danach erklaerung_eingabe und erklaerung_exportieren. Übermitteln kann nur der Mensch.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in erklaerungIn) (erklaerungOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in erklaerungIn) (erklaerungOut, error) {
 		period := strings.TrimPrefix(strings.TrimPrefix(string(in.Zeitraum), "ustva."), "zm.")
 		out := emptyErklaerung(string(in.Art), period)
 		switch in.Art {
@@ -364,7 +364,7 @@ func registerErklaerung(tb *Toolbox) {
 			"Bescheid, Beschluss, Beleg). Vorher im Chat bestätigen lassen. Bei Zeilen, die dem Menschen vorbehalten " +
 			"sind, bleibt die Angabe ein Vorschlag bis zur Bestätigung in der App; eine vom Menschen bestätigte Angabe " +
 			"ändert nur er (nur_in_app).",
-	}, func(ctx context.Context, c *Call, s *core.Services, in erklaerungEingabeIn) (erklaerungEingabeOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in erklaerungEingabeIn) (erklaerungEingabeOut, error) {
 		kind, ok := declarationKinds[in.Art]
 		if !ok {
 			return erklaerungEingabeOut{}, inputError("art", "ust_jahr, kst oder gewst, nicht %q", in.Art)
@@ -408,7 +408,7 @@ func registerErklaerung(tb *Toolbox) {
 			return out, inputError("art", "ust_jahr, kst oder gewst, nicht %q", in.Art)
 		}
 		var dir string
-		if err := t.Read(ctx, func(ctx context.Context, s *core.Services) error {
+		if err := t.ReadAgent(ctx, func(ctx context.Context, s core.AgentServices) error {
 			dirs, err := folders(ctx, c, s)
 			if err != nil {
 				return err
@@ -455,7 +455,7 @@ func registerErklaerung(tb *Toolbox) {
 		}
 		var data []byte
 		var path string
-		if err := t.Read(ctx, func(ctx context.Context, s *core.Services) error {
+		if err := t.ReadAgent(ctx, func(ctx context.Context, s core.AgentServices) error {
 			res, err := s.EBilanz.Generate(ctx, in.Jahr, opts)
 			if err != nil {
 				return err

@@ -212,14 +212,14 @@ func receiptHead(receiptID, contactID uint, docDate, bookDate, from, to Datum, t
 
 // receiptReady prüft, ob Beleg und Kontakt einer Belegbuchung da sind und
 // der Beleg gebucht werden kann, und nennt sonst den Ausweg.
-func receiptReady(ctx context.Context, s *core.Services, req service.ReceiptRequest) (*domain.Receipt, error) {
+func receiptReady(ctx context.Context, s core.AgentServices, req service.ReceiptRequest) (*domain.Receipt, error) {
 	if _, err := s.Contacts.Contact(ctx, req.ContactID); err != nil {
 		return nil, notFound("kontakt_id", req.ContactID, err)
 	}
 	return receiptBookable(ctx, s, req.ReceiptID)
 }
 
-func receiptBookable(ctx context.Context, s *core.Services, id uint) (*domain.Receipt, error) {
+func receiptBookable(ctx context.Context, s core.AgentServices, id uint) (*domain.Receipt, error) {
 	r, err := s.Receipts.GetForPosting(ctx, id)
 	var display *service.ReceiptDisplayError
 	if errors.As(err, &display) {
@@ -476,7 +476,7 @@ func registerBuchen(tb *Toolbox) {
 			"bezahlung offen oder kreditkarte, kein Dublettenverdacht. Sonst kommt freigabe_noetig mit Gründen und " +
 			"es ist nichts gebucht; dann dem Menschen vorlegen und beleg_buchen_mit_rueckfrage nutzen. Mit " +
 			"nur_vorschau wird gerechnet und eingestuft, nicht gebucht.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in belegBuchenIn) (buchungOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in belegBuchenIn) (buchungOut, error) {
 		req, err := in.request()
 		if err != nil {
 			return buchungOut{}, err
@@ -519,7 +519,7 @@ func registerBuchen(tb *Toolbox) {
 			return nil
 		}
 		return prefetchRate(ctx, t, strings.ToUpper(strings.TrimSpace(in.Waehrung)), string(in.Belegdatum))
-	}, func(ctx context.Context, c *Call, s *core.Services, in belegBuchenRueckfrageIn) (buchungOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in belegBuchenRueckfrageIn) (buchungOut, error) {
 		req, err := in.request()
 		if err != nil {
 			return buchungOut{}, err
@@ -558,7 +558,7 @@ func registerBuchen(tb *Toolbox) {
 			"Ergebnisverwendung über ergebnisverwendung_buchen, Darlehenszinsen über darlehen_erfassen mit " +
 			"art=zinsen. Vorher Buchungssatz, Beträge und Beleg im Chat " +
 			"vorlegen und bestätigen lassen.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in buchungErfassenIn) (buchungOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in buchungErfassenIn) (buchungOut, error) {
 		req, err := in.request()
 		if err != nil {
 			return buchungOut{}, err
@@ -576,7 +576,7 @@ func registerBuchen(tb *Toolbox) {
 		Description: "Storniert eine Buchung durch Generalumkehr mit Grund, auf Wunsch zugleich mit der richtigen " +
 			"Neubuchung (neubuchung). Die ursprüngliche Buchung bleibt sichtbar. Eine festgeschriebene Buchung " +
 			"wird im offenen Zeitraum storniert. Vorher im Chat bestätigen lassen.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in stornierenIn) (stornierenOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in stornierenIn) (stornierenOut, error) {
 		if strings.TrimSpace(in.Grund) == "" {
 			return stornierenOut{}, inputError("grund", "zum Stornieren gehört ein Grund (GoBD Rz. 58)")
 		}
@@ -612,7 +612,7 @@ func registerBuchen(tb *Toolbox) {
 		Title: "Lohnjournal buchen",
 		Description: "Bucht die Monatssummen aus dem Lohnjournal des Lohnbüros (Beleg vorher mit beleg_ablegen " +
 			"ablegen). Buchfink prüft Brutto minus Abzüge gleich Netto. Vorher die Summen dem Menschen vorlegen.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in lohnjournalIn) (buchungOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in lohnjournalIn) (buchungOut, error) {
 		req, err := in.request()
 		if err != nil {
 			return buchungOut{}, err

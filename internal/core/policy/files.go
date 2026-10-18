@@ -59,7 +59,7 @@ func (p Protected) all() []string {
 
 // FoldersFor löst die Einstellungen des Mandanten zu Ordnern auf; nicht
 // gesetzte stehen für die Voreinstellung.
-func FoldersFor(ctx context.Context, s *core.Services, dataDir string, protected Protected) (Folders, error) {
+func FoldersFor(ctx context.Context, s core.AgentServices, dataDir string, protected Protected) (Folders, error) {
 	settings, err := s.Settings.AgentSettings(ctx)
 	if err != nil {
 		return Folders{}, err

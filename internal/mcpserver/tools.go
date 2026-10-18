@@ -176,7 +176,7 @@ func AddInfo[In, Out any](tb *Toolbox, spec Spec, fn func(ctx context.Context, c
 }
 
 // AddRead registriert ein lesendes Werkzeug im geöffneten Mandanten.
-func AddRead[In, Out any](tb *Toolbox, spec Spec, fn func(ctx context.Context, c *Call, s *core.Services, in In) (Out, error)) {
+func AddRead[In, Out any](tb *Toolbox, spec Spec, fn func(ctx context.Context, c *Call, s core.AgentServices, in In) (Out, error)) {
 	spec = catalogSpec(spec, TierRead)
 	add(tb, spec, func(ctx context.Context, c *Call, in In) (Out, error) {
 		var out Out
@@ -186,7 +186,7 @@ func AddRead[In, Out any](tb *Toolbox, spec Spec, fn func(ctx context.Context, c
 		if !c.Can(oauth.ScopeRead) {
 			return out, errScope(oauth.ScopeRead)
 		}
-		err := c.Tenant.Read(ctx, func(ctx context.Context, s *core.Services) error {
+		err := c.Tenant.ReadAgent(ctx, func(ctx context.Context, s core.AgentServices) error {
 			var err error
 			out, err = fn(ctx, c, s, in)
 			return err
@@ -198,7 +198,7 @@ func AddRead[In, Out any](tb *Toolbox, spec Spec, fn func(ctx context.Context, c
 // AddWrite registriert ein schreibendes Werkzeug. Es läuft als ein Vorgang
 // über Tenant.Write und damit unter Schreibsperre, Prüfermodus und einer
 // Transaktion; der Idempotenzschlüssel steht in derselben Transaktion.
-func AddWrite[In writeInput, Out any](tb *Toolbox, spec Spec, fn func(ctx context.Context, c *Call, s *core.Services, in In) (Out, error)) {
+func AddWrite[In writeInput, Out any](tb *Toolbox, spec Spec, fn func(ctx context.Context, c *Call, s core.AgentServices, in In) (Out, error)) {
 	AddWritePrepared(tb, spec, nil, fn)
 }
 
@@ -207,7 +207,7 @@ func AddWrite[In writeInput, Out any](tb *Toolbox, spec Spec, fn func(ctx contex
 func AddWritePrepared[In writeInput, Out any](
 	tb *Toolbox, spec Spec,
 	prepare func(ctx context.Context, c *Call, t *core.Tenant, in In) error,
-	fn func(ctx context.Context, c *Call, s *core.Services, in In) (Out, error),
+	fn func(ctx context.Context, c *Call, s core.AgentServices, in In) (Out, error),
 ) {
 	addWrite(tb, spec, prepare, fn, nil)
 }
@@ -218,7 +218,7 @@ func AddWritePrepared[In writeInput, Out any](
 // schreibt nicht in die Bücher; was er meldet, steht nur in dieser Antwort.
 func AddWriteThen[In writeInput, Out any](
 	tb *Toolbox, spec Spec,
-	fn func(ctx context.Context, c *Call, s *core.Services, in In) (Out, error),
+	fn func(ctx context.Context, c *Call, s core.AgentServices, in In) (Out, error),
 	then func(ctx context.Context, c *Call, in In, out *Out),
 ) {
 	addWrite(tb, spec, nil, fn, then)
@@ -227,7 +227,7 @@ func AddWriteThen[In writeInput, Out any](
 func addWrite[In writeInput, Out any](
 	tb *Toolbox, spec Spec,
 	prepare func(ctx context.Context, c *Call, t *core.Tenant, in In) error,
-	fn func(ctx context.Context, c *Call, s *core.Services, in In) (Out, error),
+	fn func(ctx context.Context, c *Call, s core.AgentServices, in In) (Out, error),
 	then func(ctx context.Context, c *Call, in In, out *Out),
 ) {
 	spec = catalogSpec(spec, TierDirect, TierConfirm)
@@ -260,7 +260,7 @@ func addWrite[In writeInput, Out any](
 				return out, err
 			}
 		}
-		err := c.Tenant.Write(ctx, func(ctx context.Context, s *core.Services) error {
+		err := c.Tenant.WriteAgent(ctx, func(ctx context.Context, s core.AgentServices) error {
 			if args.Idempotenzschluessel == "" || preview {
 				var err error
 				out, err = fn(ctx, c, s, in)
@@ -309,7 +309,7 @@ type readOnlyInput interface{ readOnly() bool }
 // dem Recht zu lesen, auch im Prüfermodus, über Tenant.Read und damit ohne
 // Änderungsereignis.
 func readAsWriteTool[In writeInput, Out any](ctx context.Context, c *Call, in In,
-	fn func(ctx context.Context, c *Call, s *core.Services, in In) (Out, error)) (Out, error) {
+	fn func(ctx context.Context, c *Call, s core.AgentServices, in In) (Out, error)) (Out, error) {
 	var out Out
 	if err := c.ensureTenant(); err != nil {
 		return out, err
@@ -320,7 +320,7 @@ func readAsWriteTool[In writeInput, Out any](ctx context.Context, c *Call, in In
 	if !c.Can(oauth.ScopeRead) {
 		return out, errScope(oauth.ScopeRead)
 	}
-	err := c.Tenant.Read(ctx, func(ctx context.Context, s *core.Services) error {
+	err := c.Tenant.ReadAgent(ctx, func(ctx context.Context, s core.AgentServices) error {
 		var err error
 		out, err = fn(ctx, c, s, in)
 		return err

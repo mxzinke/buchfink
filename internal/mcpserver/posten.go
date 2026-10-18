@@ -115,7 +115,7 @@ func daysBetween(from, to string) int {
 	return int(b.Sub(a).Hours() / 24)
 }
 
-func overdueByEntry(ctx context.Context, s *core.Services, cutoff string) (map[uint]service.OverdueItem, error) {
+func overdueByEntry(ctx context.Context, s core.AgentServices, cutoff string) (map[uint]service.OverdueItem, error) {
 	claims, err := s.Overdue.Claims(ctx, cutoff)
 	if err != nil {
 		return nil, err
@@ -145,7 +145,7 @@ func registerPosten(tb *Toolbox) {
 			"Verzugsbeginn, Verzugszinsen und Pauschale (§§ 286, 288 BGB, nicht gebucht) und letzter Mahnung; " +
 			"auf Wunsch die Altersstruktur. Zahlungen ordnet bankumsatz_zuordnen oder bankumsatz_buchen zu; eine " +
 			"versandte Mahnung vermerkt mahnung_vermerken.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in offenePostenIn) (offenePostenOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in offenePostenIn) (offenePostenOut, error) {
 		out := offenePostenOut{Posten: []offenerPosten{}, Altersstruktur: []altersseite{}}
 		cutoff, err := in.Stichtag.check("stichtag")
 		if err != nil {
@@ -200,7 +200,7 @@ func registerPosten(tb *Toolbox) {
 		Description: "Vermerkt, dass eine offene Forderung gemahnt wurde und wann die Mahnung zugegangen ist. Das " +
 			"Schreiben entsteht außerhalb von Buchfink. Ab dem Folgetag des Zugangs rechnet offene_posten den Verzug, " +
 			"auch gegenüber einem Verbraucher ohne Hinweis in der Rechnung. Vorher im Chat bestätigen lassen.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in mahnungIn) (mahnungOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in mahnungIn) (mahnungOut, error) {
 		date, err := in.Datum.check("datum")
 		if err != nil {
 			return mahnungOut{}, err

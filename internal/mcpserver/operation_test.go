@@ -24,10 +24,10 @@ func TestRegistrationRejectsAppOnlyAndUnknownOperations(t *testing.T) {
 				AddInfo(tb, s, func(context.Context, *Call, struct{}) (struct{}, error) { return struct{}{}, nil })
 			},
 			"Read": func(tb *Toolbox, s Spec) {
-				AddRead(tb, s, func(context.Context, *Call, *core.Services, struct{}) (struct{}, error) { return struct{}{}, nil })
+				AddRead(tb, s, func(context.Context, *Call, core.AgentServices, struct{}) (struct{}, error) { return struct{}{}, nil })
 			},
 			"Write": func(tb *Toolbox, s Spec) {
-				AddWrite(tb, s, func(context.Context, *Call, *core.Services, WriteArgs) (struct{}, error) { return struct{}{}, nil })
+				AddWrite(tb, s, func(context.Context, *Call, core.AgentServices, WriteArgs) (struct{}, error) { return struct{}{}, nil })
 			},
 			"Flow": func(tb *Toolbox, s Spec) {
 				AddFlow(tb, s, func(context.Context, *Call, *core.Tenant, TenantArgs) (struct{}, error) { return struct{}{}, nil })

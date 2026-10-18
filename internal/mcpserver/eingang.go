@@ -74,7 +74,7 @@ type verschoben struct {
 // settleInbox verschiebt nach der Ablage, was im Eingang lag (policy.SettleInbox).
 func settleInbox(ctx context.Context, c *Call, paths []string) ([]verschoben, []string) {
 	var dirs policy.Folders
-	if err := c.Tenant.Read(ctx, func(ctx context.Context, s *core.Services) (err error) {
+	if err := c.Tenant.ReadAgent(ctx, func(ctx context.Context, s core.AgentServices) (err error) {
 		dirs, err = folders(ctx, c, s)
 		return err
 	}); err != nil {
@@ -97,7 +97,7 @@ func registerEingang(tb *Toolbox) {
 			"(beleg und e_rechnung an beleg_ablegen, kontoauszug an kontoauszug_importieren), bereits_abgelegt " +
 			"nennt den Beleg, wenn derselbe Inhalt schon im Archiv liegt. Nur ablegen, wenn der Mensch es sagt; " +
 			"nach der Ablage verschiebt Buchfink die Datei nach Übernommen/<JJJJ-MM>.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in eingangIn) (eingangOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in eingangIn) (eingangOut, error) {
 		out := eingangOut{Dateien: []eingangDatei{}}
 		dirs, err := folders(ctx, c, s)
 		if err != nil {

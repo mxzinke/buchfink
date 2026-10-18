@@ -75,7 +75,7 @@ func registerAufgaben(tb *Toolbox) {
 		Description: "Die Arbeitsliste des Mandanten: überfällig, offen, demnächst (Belege ohne Buchung, offene " +
 			"Bankumsätze, Befunde, Pflichten, Sicherung). Nach status aufrufen. Jede Aufgabe nennt das Werkzeug, " +
 			"mit dem es weitergeht, oder nur_app, wenn der Mensch in der App handeln muss. Für Fristen im Einzelnen fristen.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in aufgabenIn) (aufgabenOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in aufgabenIn) (aufgabenOut, error) {
 		year, err := yearOr(ctx, c, in.Geschaeftsjahr)
 		if err != nil {
 			return aufgabenOut{}, err
@@ -271,7 +271,7 @@ func registerFristen(tb *Toolbox) {
 			"erledigt, entfaellt), Kanal, Zuständigkeit und verweis auf den Abschnitt in " +
 			"buchfink-grundlagen/references/pflichten.md. Ohne Filter alles noch nicht Erledigte bis 180 Tage voraus. " +
 			"Nach dem Vorbereiten pflicht_vorbereitet melden; erledigt setzt nur die App oder der Datenstand.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in fristenIn) (fristenOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in fristenIn) (fristenOut, error) {
 		out := fristenOut{Stichtag: today(), Pflichten: []pflicht{}}
 		if in.Schluessel != "" {
 			o, err := s.Obligations.Get(ctx, obligationKey(in.Schluessel), "")
@@ -329,7 +329,7 @@ func registerFristen(tb *Toolbox) {
 		Description: "Meldet eine Pflicht aus fristen als vorbereitet, mit Notiz (was fertig ist, wo die Datei liegt). " +
 			"Danach dem Menschen Weg, Fälligkeit und Nachweis nennen. „Erledigt“ meldet ein Agent nie: das setzen " +
 			"die Daten (Transferticket, Festschreibung) oder der Mensch in der App.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in pflichtVorbereitetIn) (pflichtOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in pflichtVorbereitetIn) (pflichtOut, error) {
 		if in.Schluessel == "" {
 			return pflichtOut{}, inputError("schluessel", "der Schlüssel der Pflicht fehlt")
 		}
@@ -346,7 +346,7 @@ func registerFristen(tb *Toolbox) {
 		Description: "Erfasst einen Anlass, der Pflichten auslöst: Gesellschafterwechsel (Gesellschafterliste, " +
 			"Transparenzregister), Änderung der wirtschaftlich Berechtigten, Vorauszahlungsbescheid KSt oder GewSt. " +
 			"Vorher im Chat bestätigen lassen. Danach fristen aufrufen.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in anlassIn) (anlassOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in anlassIn) (anlassOut, error) {
 		if !domain.ObligationEventKind(in.Art).Valid() {
 			return anlassOut{}, inputError("art", "gesellschafterwechsel, wirtschaftlich-berechtigte, "+
 				"vorauszahlungsbescheid-kst oder vorauszahlungsbescheid-gewst, nicht %q", in.Art)

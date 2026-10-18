@@ -221,7 +221,7 @@ func registerAbschluss(tb *Toolbox) {
 		Description: "Anlagenverzeichnis mit AK, Buchwert, gebuchter und noch fälliger AfA des Geschäftsjahres, " +
 			"dazu Buchungen auf Anlagekonten ohne Anlagegut (aktivierungskandidaten). Buchen über abschlussbuchung " +
 			"(afa_lauf, anlage_aktivieren).",
-	}, func(ctx context.Context, c *Call, s *core.Services, in anlagenIn) (anlagenOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in anlagenIn) (anlagenOut, error) {
 		out := anlagenOut{Anlagen: []anlage{}, Kandidaten: []kandidat{}}
 		year, err := yearOr(ctx, c, in.Geschaeftsjahr)
 		if err != nil {
@@ -264,7 +264,7 @@ func registerAbschluss(tb *Toolbox) {
 		Description: "Die Schritte des Jahresabschlusses mit Stand (offen, erledigt, uebersprungen), Hinweis und " +
 			"nächster Aktion: welches Werkzeug den Schritt vorbereitet oder bucht, oder nur_app (Aufstellen, " +
 			"Feststellen, Offenlegen, Wertaufholung, § 15a). Zuerst den ersten offenen Schritt.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in abschlussStatusIn) (abschlussStatusOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in abschlussStatusIn) (abschlussStatusOut, error) {
 		year, err := yearOr(ctx, c, in.Geschaeftsjahr)
 		if err != nil {
 			return abschlussStatusOut{}, err
@@ -321,7 +321,7 @@ func registerAbschluss(tb *Toolbox) {
 			return err
 		}
 		return t.PrefetchValuationRates(ctx, year)
-	}, func(ctx context.Context, c *Call, s *core.Services, in abschlussbuchungIn) (abschlussbuchungOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in abschlussbuchungIn) (abschlussbuchungOut, error) {
 		year, err := yearOr(ctx, c, in.Geschaeftsjahr)
 		if err != nil {
 			return abschlussbuchungOut{}, err
@@ -339,7 +339,7 @@ func registerAbschluss(tb *Toolbox) {
 	})
 }
 
-type closingRun func(ctx context.Context, s *core.Services, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error
+type closingRun func(ctx context.Context, s core.AgentServices, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error
 
 var closingRuns = map[string]closingRun{
 	"afa_lauf":             runDepreciation,
@@ -362,7 +362,7 @@ func addEntry(out *abschlussbuchungOut, e *domain.JournalEntry) {
 	out.Zeilen = append(out.Zeilen, zeilenOf(e.Lines)...)
 }
 
-func runDepreciation(ctx context.Context, s *core.Services, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error {
+func runDepreciation(ctx context.Context, s core.AgentServices, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error {
 	date, err := in.Buchungsdatum.check("buchungsdatum")
 	if err != nil {
 		return err
@@ -393,7 +393,7 @@ func runDepreciation(ctx context.Context, s *core.Services, year int, in abschlu
 	return nil
 }
 
-func runAccrual(ctx context.Context, s *core.Services, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error {
+func runAccrual(ctx context.Context, s core.AgentServices, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error {
 	a := in.Abgrenzung
 	if a == nil {
 		return inputError("abgrenzung", "die Angaben der Abgrenzung fehlen")
@@ -441,7 +441,7 @@ func runAccrual(ctx context.Context, s *core.Services, year int, in abschlussbuc
 	return nil
 }
 
-func runProvision(ctx context.Context, s *core.Services, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error {
+func runProvision(ctx context.Context, s core.AgentServices, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error {
 	p := in.Rueckstellung
 	if p == nil {
 		return inputError("rueckstellung", "die Angaben der Rückstellung fehlen")
@@ -482,7 +482,7 @@ func runProvision(ctx context.Context, s *core.Services, year int, in abschlussb
 	return nil
 }
 
-func runVatSettlement(ctx context.Context, s *core.Services, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error {
+func runVatSettlement(ctx context.Context, s core.AgentServices, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error {
 	preview, err := s.ClosingBookings.PreviewVatSettlement(ctx, year)
 	if err != nil {
 		return err
@@ -501,7 +501,7 @@ func runVatSettlement(ctx context.Context, s *core.Services, year int, in abschl
 	return nil
 }
 
-func runTaxProvision(ctx context.Context, s *core.Services, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error {
+func runTaxProvision(ctx context.Context, s core.AgentServices, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error {
 	opts := service.TaxProvisionOptions{}
 	var req service.TaxProvisionRequest
 	if p := in.Steuerrueckstellung; p != nil {
@@ -556,7 +556,7 @@ func runTaxProvision(ctx context.Context, s *core.Services, year int, in abschlu
 	return nil
 }
 
-func runLegalReserve(ctx context.Context, s *core.Services, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error {
+func runLegalReserve(ctx context.Context, s core.AgentServices, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error {
 	state, err := s.Closing.LegalReserve(ctx, year)
 	if err != nil {
 		return err
@@ -578,7 +578,7 @@ func runLegalReserve(ctx context.Context, s *core.Services, year int, in abschlu
 	return nil
 }
 
-func runAllowance(ctx context.Context, s *core.Services, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error {
+func runAllowance(ctx context.Context, s core.AgentServices, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error {
 	w := in.Wertberichtigung
 	if w == nil {
 		return inputError("wertberichtigung", "die Angaben der Wertberichtigung fehlen")
@@ -605,7 +605,7 @@ func runAllowance(ctx context.Context, s *core.Services, year int, in abschlussb
 	return nil
 }
 
-func runWorkInProgress(ctx context.Context, s *core.Services, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error {
+func runWorkInProgress(ctx context.Context, s core.AgentServices, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error {
 	u := in.UnfertigeLeistungen
 	if u == nil || len(u.Projekte) == 0 {
 		return inputError("unfertige_leistungen", "die Projekte fehlen")
@@ -648,7 +648,7 @@ func runWorkInProgress(ctx context.Context, s *core.Services, year int, in absch
 	return nil
 }
 
-func runCurrency(ctx context.Context, s *core.Services, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error {
+func runCurrency(ctx context.Context, s core.AgentServices, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error {
 	var v *service.ForeignCurrencyValuation
 	var err error
 	if in.NurVorschau {
@@ -668,7 +668,7 @@ func runCurrency(ctx context.Context, s *core.Services, year int, in abschlussbu
 	return nil
 }
 
-func runActivate(ctx context.Context, s *core.Services, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error {
+func runActivate(ctx context.Context, s core.AgentServices, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error {
 	a := in.Anlage
 	if a == nil || a.BuchungID == 0 || strings.TrimSpace(a.Bezeichnung) == "" {
 		return inputError("anlage", "buchung_id und bezeichnung fehlen")

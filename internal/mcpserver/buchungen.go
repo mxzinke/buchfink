@@ -107,7 +107,7 @@ func registerBuchungen(tb *Toolbox) {
 		Title: "Buchungen suchen",
 		Description: "Das Journal eines Geschäftsjahres nach Zeitraum, Konto, Kontakt, Beleg, Text, Betrag, " +
 			"Erfassungsweg und Storno. Je Buchung die Kopfzeile mit Konten; alle Zeilen liefert buchung_lesen.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in buchungenIn) (buchungenOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in buchungenIn) (buchungenOut, error) {
 		out := buchungenOut{Buchungen: []buchungZeile{}}
 		year, err := yearOr(ctx, c, in.Geschaeftsjahr)
 		if err != nil {
@@ -169,7 +169,7 @@ func registerBuchungen(tb *Toolbox) {
 		Title: "Buchung lesen",
 		Description: "Eine Buchung mit allen Zeilen (Konto, Seite, Betrag, Steuerschlüssel), Daten, Beleg, " +
 			"Erfassungsweg und Storno-Bezügen. Zum Korrigieren buchung_stornieren.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in buchungLesenIn) (buchungLesenOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in buchungLesenIn) (buchungLesenOut, error) {
 		e, err := s.Accounting.Entry(ctx, in.BuchungID)
 		if err != nil {
 			return buchungLesenOut{}, err

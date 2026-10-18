@@ -342,9 +342,7 @@ func (s *Server) logInTenant(ctx context.Context, tenantID, entityID, details st
 		return
 	}
 	ui := actor.WithChannel(context.WithoutCancel(ctx), actor.ChannelUI)
-	err = t.Write(ui, func(ctx context.Context, svc *core.Services) error {
-		return svc.Repos.Audit.Log(ctx, domain.AuditActionUpdate, "VERBUNDENE_APP", entityID, details)
-	}, core.ExaminerExempt())
+	err = t.LogAppChange(ui, entityID, details)
 	if err != nil {
 		s.opts.Logger.Warn("verbundene Apps: Protokolleintrag fehlt", "mandant", tenantID, "fehler", err)
 	}

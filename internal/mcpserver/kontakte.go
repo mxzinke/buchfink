@@ -140,7 +140,7 @@ func registerKontakte(tb *Toolbox) {
 		Description: "Kunden und Lieferanten mit Personenkonto, offenem Saldo und Standard-Buchungsgruppe (bestätigt " +
 			"oder nur vorgeschlagen). Vor kontakt_anlegen und beleg_buchen aufrufen. IBAN nur mit mit_iban oder " +
 			"bei Suche nach iban.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in kontakteIn) (kontakteOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in kontakteIn) (kontakteOut, error) {
 		out := kontakteOut{Kontakte: []kontakt{}}
 		year, err := yearOr(ctx, c, in.Geschaeftsjahr)
 		if err != nil {
@@ -185,7 +185,7 @@ func registerKontakte(tb *Toolbox) {
 			"(gleiche USt-IdNr., IBAN oder Name mit PLZ) und liefert dann den vorhandenen Kontakt mit " +
 			"bereits_vorhanden=true. Eine mitgegebene Standardgruppe ist nur ein Vorschlag. Ändern vorhandener " +
 			"Kontakte geht nur in der App.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in kontaktAnlegenIn) (kontaktAnlegenOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in kontaktAnlegenIn) (kontaktAnlegenOut, error) {
 		out := kontaktAnlegenOut{Hinweise: []string{}}
 		typ, err := contactType(in.Typ)
 		if err != nil {
@@ -247,7 +247,7 @@ func registerKontakte(tb *Toolbox) {
 		Description: "Schlägt für einen Lieferanten die Buchungsgruppe vor, mit der seine Eingangsrechnungen in der " +
 			"Regel gebucht werden. Bestätigen kann nur der Mensch in der App; erst dann und nach genug früheren " +
 			"Buchungen bucht beleg_buchen seine E-Rechnungen ohne Rückfrage.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in standardgruppeIn) (standardgruppeOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in standardgruppeIn) (standardgruppeOut, error) {
 		contact, err := s.Contacts.ProposeDefaultPostingGroup(ctx, in.KontaktID, string(in.Gruppe), in.Begruendung)
 		if err != nil {
 			return standardgruppeOut{}, err

@@ -159,7 +159,7 @@ func rechnungOutOf(inv *domain.Invoice) rechnungOut {
 
 // withFiles legt PDF und E-Rechnung einer ausgestellten Rechnung in den
 // Exportordner.
-func withFiles(ctx context.Context, c *Call, s *core.Services, out rechnungOut) (rechnungOut, error) {
+func withFiles(ctx context.Context, c *Call, s core.AgentServices, out rechnungOut) (rechnungOut, error) {
 	if out.BelegID == nil {
 		return out, nil
 	}
@@ -193,7 +193,7 @@ func registerRechnung(tb *Toolbox) {
 		Title: "Rechnung durchrechnen",
 		Description: "Rechnet eine Ausgangsrechnung durch, ohne sie auszustellen: Buchungssatz, Netto, Steuer, Brutto " +
 			"und fehlende Pflichtangaben. Vor rechnung_ausstellen aufrufen und dem Menschen vorlegen.",
-	}, func(ctx context.Context, c *Call, s *core.Services, in rechnungVorschauIn) (rechnungVorschauOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in rechnungVorschauIn) (rechnungVorschauOut, error) {
 		inv, err := in.Rechnung.invoice()
 		if err != nil {
 			return rechnungVorschauOut{}, err
@@ -226,7 +226,7 @@ func registerRechnung(tb *Toolbox) {
 			return t.PrepareInvoice(ctx, inv)
 		}
 		return nil
-	}, func(ctx context.Context, c *Call, s *core.Services, in rechnungAusstellenIn) (rechnungOut, error) {
+	}, func(ctx context.Context, c *Call, s core.AgentServices, in rechnungAusstellenIn) (rechnungOut, error) {
 		switch in.Art {
 		case "", "rechnung":
 			if in.Rechnung == nil {
