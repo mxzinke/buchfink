@@ -158,3 +158,26 @@ func TestReopenIsClosedAfterTheYearIsCommitted(t *testing.T) {
 		t.Error("nach der Festschreibung darf kein Schritt zurückgenommen werden")
 	}
 }
+
+func TestClosingStepsHaveExactlyOneDeriver(t *testing.T) {
+	s := NewClosingStepsService(nil, nil, nil, nil, nil, nil, nil, nil)
+	definitions := domain.AllClosingSteps()
+	if len(s.derivers) != len(definitions) {
+		t.Fatalf("%d Ableitungen für %d Bausteine", len(s.derivers), len(definitions))
+	}
+	seen := make(map[domain.ClosingStepKey]bool)
+	for _, def := range definitions {
+		if seen[def.Key] {
+			t.Errorf("Baustein %q doppelt definiert", def.Key)
+		}
+		seen[def.Key] = true
+		if s.derivers[def.Key] == nil {
+			t.Errorf("Baustein %q ohne Ableitung", def.Key)
+		}
+	}
+	for key := range s.derivers {
+		if !seen[key] {
+			t.Errorf("Ableitung für unbekannten Baustein %q", key)
+		}
+	}
+}
