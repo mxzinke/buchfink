@@ -124,7 +124,9 @@ export const Progress: React.FC<ProgressProps> = ({ value, label, detail, classN
  * ausgeführt und bleibt acht Sekunden lang zurückholbar.
  */
 export const toast = {
-  success: (message: string) => sonner.success(message, { duration: 4000 }),
+  /** Mit `detail` steht darunter eine zweite Zeile, etwa was nicht gelang; sie bleibt länger stehen. */
+  success: (message: string, detail?: string) =>
+    sonner.success(message, { duration: detail ? 8000 : 4000, description: detail }),
   error: (message: string) => sonner.error(message, { duration: 6000 }),
   info: (message: string) => sonner(message, { duration: 4000 }),
   undo: (message: string, onUndo: () => void) =>

@@ -7,6 +7,8 @@ import type {
   AdvanceItem,
   AgentBookings,
   AgentClient,
+  AgentRules,
+  AgentSettings,
   Anlagenspiegel,
   AppConfig,
   AppConsentRequest,
@@ -56,10 +58,14 @@ import type {
   FiscalYearCandidates,
   FiscalYearStatus,
   FixedAsset,
+  FolderCheck,
   ForeignCurrencyValuation,
   Foundation,
   FoundationRules,
   FoundationState,
+  InboxAdded,
+  InboxFile,
+  InboxInfo,
   InputTaxCorrectionYear,
   IntegrityCheckResult,
   Invoice,
@@ -231,6 +237,20 @@ function normalizeZMReturn(r: ZMReturn): ZMReturn {
 function normalizeCheckRun(run: CheckRun): CheckRun {
   if (!run) return run;
   return { ...run, findings: list(run.findings) };
+}
+
+/** Ohne übergangene Datei kommt die Liste auch leer als Liste an. */
+export function normalizeInboxAdded(added: InboxAdded): InboxAdded {
+  return { ...added, names: list(added?.names), skipped: list(added?.skipped) };
+}
+
+/** Die Leseordner kommen auch ohne Eintrag als Liste an. */
+function normalizeAgentRules(rules: AgentRules): AgentRules {
+  return {
+    ...rules,
+    stored: { ...rules.stored, extraReadFolders: list(rules.stored?.extraReadFolders) },
+    extraReadFolders: list(rules.extraReadFolders),
+  };
 }
 
 /** Die Kette des Änderungsprotokolls: ohne Bruch ist die Liste leer. */
@@ -407,8 +427,9 @@ export const Api = {
   validateTenantDirectory: (dataDir: string): Promise<void> =>
     call(() => Bridge.ValidateTenantDirectory(dataDir)),
 
-  setupApplication: (dataDir: string, settings: CompanySettings): Promise<void> =>
-    call(() => Bridge.SetupApplication(dataDir, '', settings as any) as Promise<void>),
+  /** Legt den Mandanten an; ein leerer Eingang heißt `<Datenordner>/Eingang`. */
+  setupApplication: (dataDir: string, inboxDir: string, settings: CompanySettings): Promise<void> =>
+    call(() => Bridge.SetupApplication(dataDir, inboxDir, settings as any) as Promise<void>),
   loadExistingDatabase: (dbFilePath: string): Promise<void> =>
     call(() => Bridge.LoadExistingDatabase(dbFilePath) as Promise<void>),
   selectDirectoryDialog: (title: string): Promise<string> =>
@@ -1078,6 +1099,41 @@ export const Api = {
   disableReadOnly: (reason: string): Promise<AppConfig> =>
     call(() => Bridge.DisableReadOnly(reason) as Promise<AppConfig>),
 
+  // --- Eingang -----------------------------------------------------------
+
+  /** Pfad, Anzahl und Alter der ältesten Datei im Eingang, dazu Lese- und Exportordner. */
+  getInbox: (): Promise<InboxInfo> =>
+    call(() => Bridge.GetInbox() as Promise<InboxInfo>).then((info) => ({
+      ...info,
+      readFolders: list(info?.readFolders),
+    })),
+  /** Die Dateien im Eingang, die älteste zuerst. */
+  listInbox: (): Promise<InboxFile[]> =>
+    call(() => Bridge.ListInbox() as Promise<InboxFile[]>).then(list),
+  /** Öffnet den Eingang im Dateimanager des Systems. */
+  openInbox: (): Promise<void> => call(() => Bridge.OpenInbox()),
+  /** Kopiert Dateien in den Eingang; abgelegt wird dabei nichts. */
+  addToInbox: (paths: string[]): Promise<InboxAdded> =>
+    call(() => Bridge.AddToInbox(paths) as Promise<InboxAdded>).then(normalizeInboxAdded),
+  /** Wählt den Eingang; leer heißt `<Datenordner>/Eingang`. Nur in der App. */
+  setInboxFolder: (path: string): Promise<InboxInfo> =>
+    call(() => Bridge.SetInboxFolder(path) as Promise<InboxInfo>).then((info) => ({
+      ...info,
+      readFolders: list(info?.readFolders),
+    })),
+  /** Ob ein Ordner synchronisiert wird; geht auch vor der Einrichtung. */
+  checkFolder: (path: string): Promise<FolderCheck> =>
+    call(() => Bridge.CheckFolder(path) as Promise<FolderCheck>),
+
+  // --- Regeln für verbundene Apps ----------------------------------------
+
+  /** Direktgrenze, Mindestzahl früherer Buchungen, Lese- und Exportordner. */
+  getAgentRules: (): Promise<AgentRules> =>
+    call(() => Bridge.GetAgentRules() as Promise<AgentRules>).then(normalizeAgentRules),
+  /** Speichert die Regeln; 0 und leer heißen Voreinstellung. Nur in der App. */
+  saveAgentRules: (settings: AgentSettings): Promise<AgentRules> =>
+    call(() => Bridge.SaveAgentRules(settings) as Promise<AgentRules>).then(normalizeAgentRules),
+
   // --- Verbundene Apps ---------------------------------------------------
 
   /** Läuft der MCP-Server, auf welchem Port, und wenn nicht: warum. */
@@ -1119,7 +1175,7 @@ export const Api = {
     call(() => Bridge.GetShareholderLoans() as Promise<ShareholderLoanView[]>).then((loans) =>
       list(loans).map((view) => ({ ...view, findings: list(view.findings) })),
     ),
-  /** Erfasst einen Darlehensvertrag; nur in der App, nie über eine KI-App. */
+  /** Erfasst einen Darlehensvertrag; Claude kann das auch mit `darlehen_erfassen`. */
   registerShareholderLoan: (request: ShareholderLoanRequest): Promise<ShareholderLoanView> =>
     call(() => Bridge.RegisterShareholderLoan(request) as Promise<ShareholderLoanView>),
   /** Berichtigt einen Darlehensvertrag; der Grund steht im Änderungsprotokoll. */

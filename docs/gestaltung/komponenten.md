@@ -117,6 +117,7 @@ Navigation ([Abschnitt 11.4](#114-integrität-der-hash-chain)), andere Statuspun
 | Art | Umsetzung |
 |---|---|
 | Erfolg einer Aktion | `toast.success`, 4 s |
+| Erfolg mit Einschränkung | `toast.success` mit zweiter Zeile, 8 s |
 | Umkehrbarer Schritt | `toast.undo`, 8 s |
 | Fachlicher Fehler im Formular | am Feld, nie als Toast |
 | Fehler aus dem Backend | Hinweisfläche in Rosé über den Aktionen |
@@ -258,11 +259,11 @@ die Seitenleiste schreibt es aus.
 
 | Bereich | Frage, die er zuerst beantwortet | Darunter |
 |---|---|---|
-| Übersicht | Was ist jetzt zu tun? | Pflichten, Monatsabschluss, Buchungen der Apps, verbundene Apps |
+| Übersicht | Was ist jetzt zu tun? | Pflichten, Eingang, Monatsabschluss, Buchungen der Apps, verbundene Apps |
 | Bücher | Stimmt, was gebucht ist? | Belege, Bank, Rechnungen, Journal, Konten, Anlagen, Bilanz & GuV |
 | Abschlüsse | Welcher Monat, welches Jahr ist offen? | Monat, Jahr, Erklärungen mit E-Bilanz |
 | Unternehmen | Sind die Stammdaten vollständig? | Stammdaten, Kontakte |
-| Einstellungen | Wer hat Zugriff, ist gesichert? | Apps verbinden, Sicherung, Mandanten, Prüfung & GoBD, Erweitert |
+| Einstellungen | Wer hat Zugriff, ist gesichert? | Apps verbinden, Eingang & Ordner, Sicherung, Mandanten, Prüfung & GoBD, Erweitert |
 
 Was unter einem Bereich liegt, erreicht man innerhalb des Bereichs, nicht über
 die Navigation ([Abschnitt 2](grundlagen.md#2-leitidee-stilles-kontor),

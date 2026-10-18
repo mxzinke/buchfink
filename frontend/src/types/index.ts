@@ -3940,6 +3940,72 @@ export interface ShareholderLoanRequest {
   note?: string;
 }
 
+/** Art einer Datei im Eingang, wie Buchfink sie erkennt (`inbox.Kind`). */
+export type InboxKind = 'beleg' | 'e_rechnung' | 'kontoauszug' | 'nicht_unterstuetzt';
+
+/** Der Eingang des geöffneten Mandanten mit den Ordnern der verbundenen Apps (`wailsbridge.InboxInfo`). */
+export interface InboxInfo {
+  path: string;
+  /** Der Eingang ist der voreingestellte im Datenordner. */
+  default: boolean;
+  count: number;
+  /** Alter der ältesten Datei in Tagen; 0 ohne Datei. */
+  oldestDays: number;
+  readFolders: string[];
+  exportFolder: string;
+}
+
+/** Eine Datei im Eingang (`wailsbridge.InboxFile`). */
+export interface InboxFile {
+  path: string;
+  name: string;
+  size: number;
+  /** RFC 3339 */
+  modifiedAt: string;
+  kind: InboxKind;
+  /** Derselbe Inhalt liegt schon als dieser Beleg im Archiv. */
+  receiptId?: number;
+}
+
+/** Eine Datei, die nicht in den Eingang kam, mit Grund. */
+export interface InboxSkipped {
+  name: string;
+  reason: string;
+}
+
+/** Das Ergebnis, wenn Dateien in den Eingang gelegt werden (`wailsbridge.InboxAdded`). */
+export interface InboxAdded {
+  names: string[];
+  skipped: InboxSkipped[];
+  error?: string;
+}
+
+/** Ein Synchronisationsdienst über einem Ordner und der Hinweis dazu (`wailsbridge.FolderCheck`). */
+export interface FolderCheck {
+  /** Name des Dienstes, etwa „iCloud Drive“; leer ohne Dienst. */
+  sync: string;
+  warning: string;
+}
+
+/** Die Regeln für verbundene Apps, wie gespeichert; 0 und leer heißen Voreinstellung (`domain.AgentSettings`). */
+export interface AgentSettings {
+  /** Die Direktgrenze brutto in Cent. */
+  directMaxGross: Cents;
+  /** Frühere Buchungen mit der Standardgruppe, ab der direkt gebucht wird. */
+  directMinBookings: number;
+  extraReadFolders: string[];
+  exportFolder: string;
+}
+
+/** Die Regeln für verbundene Apps: gespeichert und wie sie gelten (`wailsbridge.AgentRules`). */
+export interface AgentRules {
+  stored: AgentSettings;
+  directMaxGross: Cents;
+  directMinBookings: number;
+  extraReadFolders: string[];
+  exportFolder: string;
+}
+
 /** Die grobe Art einer Änderung in einem Mandanten (`core.ChangeKind`). */
 export type ChangeKind = 'buchungen' | 'belege' | 'bank' | 'stammdaten' | 'abschluss' | 'eingang';
 

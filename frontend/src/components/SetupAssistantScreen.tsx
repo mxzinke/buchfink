@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, ArrowRight, Check, Database, FolderOpen, HardDrive } from 'lucide-react';
-import type { CompanySettings, ConnectedApp, MCPServerStatus } from '../types';
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, Database, FolderOpen, HardDrive } from 'lucide-react';
+import type { CompanySettings, ConnectedApp, FolderCheck, MCPServerStatus } from '../types';
 import { Api } from '../services/api';
 import { FEDERAL_STATES, LEGAL_FORMS } from '../utils/companyLabels';
+import { defaultInbox } from '../utils/inbox';
 import { AgentClientCommands } from './AgentClients';
 import { GermanFlag } from './GermanFlag';
 import { Checkbox, Help, SHELL_BUTTON, SHELL_CONTROL, SHELL_PANEL, cn } from './ui';
@@ -15,26 +16,14 @@ interface SetupAssistantScreenProps {
 
 type Start = 'founding' | 'switch';
 
-/**
- * Die Pfadbestandteile bekannter Synchronisationsordner. Sie stehen hier, weil
- * es vor der Einrichtung keinen Mandanten gibt, den das Backend prüfen könnte;
- * die Liste spiegelt `cloudFolderMarkers` in internal/domain/datadir.go.
- */
-const CLOUD_FOLDER_MARKERS: Array<{ needle: string; name: string }> = [
-  { needle: 'onedrive', name: 'OneDrive' },
-  { needle: 'dropbox', name: 'Dropbox' },
-  { needle: 'google drive', name: 'Google Drive' },
-  { needle: 'googledrive', name: 'Google Drive' },
-  { needle: 'gdrive', name: 'Google Drive' },
-  { needle: 'icloud', name: 'iCloud' },
-  { needle: 'nextcloud', name: 'Nextcloud' },
-  { needle: 'owncloud', name: 'ownCloud' },
-  { needle: 'magentacloud', name: 'MagentaCLOUD' },
-];
-
-function cloudFolderName(path: string): string {
-  const lowered = path.replace(/\\/g, '/').toLowerCase();
-  return CLOUD_FOLDER_MARKERS.find((m) => lowered.includes(m.needle))?.name ?? '';
+/** Ein Pfad, der nach einem Trennzeichen umbricht statt mitten im Ordnernamen. */
+function breakable(path: string): React.ReactNode {
+  return path.split(/([\\/])/).map((part, index) => (
+    <React.Fragment key={index}>
+      {part}
+      {(part === '/' || part === '\\') && <wbr />}
+    </React.Fragment>
+  ));
 }
 
 /** Ein Ordnername aus der Firma: „Nordlicht Systeme GmbH" → „nordlicht-systeme-gmbh". */
@@ -205,6 +194,10 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
   const [dirTouched, setDirTouched] = useState(false);
   const [dirOpen, setDirOpen] = useState(false);
   const [dirCheck, setDirCheck] = useState<{ path: string; error: string | null } | null>(null);
+  // Ein Synchronisationsdienst über der Ablage; der Hinweis sperrt nichts.
+  const [syncCheck, setSyncCheck] = useState<{ path: string; result: FolderCheck } | null>(null);
+  // Leer heißt: der Eingang liegt in der Ablage und folgt ihr.
+  const [inboxDir, setInboxDir] = useState('');
 
   const [existingPath, setExistingPath] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -227,6 +220,9 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
         () => active && setDirCheck({ path: dataDir, error: null }),
         (e) => active && setDirCheck({ path: dataDir, error: e instanceof Error ? e.message : String(e) }),
       );
+      Api.checkFolder(dataDir)
+        .then((result) => active && setSyncCheck({ path: dataDir, result }))
+        .catch(() => active && setSyncCheck(null));
     }, 250);
     return () => {
       active = false;
@@ -257,7 +253,8 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
 
   const dirError = dirCheck?.path === dataDir ? dirCheck.error : null;
   const dirValid = dirCheck?.path === dataDir && !dirCheck.error;
-  const cloudFolder = cloudFolderName(dataDir);
+  const syncWarning = syncCheck?.path === dataDir ? syncCheck.result.warning : '';
+  const inboxShown = inboxDir || defaultInbox(dataDir);
   const exclusions = [nonProfit, inLiquidation, fiscalUnity].some(Boolean);
 
   const dateComplete = /^\d{4}-\d{2}-\d{2}$/.test(startDate);
@@ -282,7 +279,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
     setError(null);
     const month = start === 'switch' ? Number(startDate.slice(5, 7)) : startMonth;
     try {
-      await Api.setupApplication(dataDir, {
+      await Api.setupApplication(dataDir, inboxDir, {
         ...DEFAULTS,
         companyName: companyName.trim(),
         legalForm,
@@ -313,6 +310,15 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
         setDirTouched(true);
         setDataDir(selected);
       }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function pickInbox() {
+    try {
+      const selected = await Api.selectDirectoryDialog('Eingang für Belege, E-Rechnungen und Kontoauszüge wählen');
+      if (selected) setInboxDir(selected);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -562,26 +568,63 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                     <div className="flex flex-col gap-3 pt-4 border-t border-shell-line">
                       <p className="flex items-start gap-2.5">
                         <HardDrive className="w-4 h-4 mt-0.5 shrink-0 text-shell-text-muted" strokeWidth={1.5} />
-                        <span className="min-w-0">
-                          <span className="block text-body text-shell-text">
-                            Buchfink speichert lokal und unverschlüsselt. Schalten Sie die
-                            Festplattenverschlüsselung des Rechners ein: FileVault, BitLocker oder LUKS.
-                          </span>
-                          <span className="block mt-1 text-caption text-shell-text-muted">
-                            Daten in <span className="code-num text-shell-text">{dataDir}</span>
-                            {' · '}
-                            <button
-                              type="button"
-                              onClick={() => setDirOpen((open) => !open)}
-                              aria-expanded={dirOpen}
-                              className="text-accent-light hover:underline"
-                            >
-                              Ordner ändern
-                            </button>
-                          </span>
-                          {dirError && <span className="block mt-1 text-caption text-shell-negative">{dirError}</span>}
+                        <span className="block text-body text-shell-text">
+                          Buchfink speichert lokal und unverschlüsselt. Schalten Sie die
+                          Festplattenverschlüsselung des Rechners ein: FileVault, BitLocker oder LUKS.
                         </span>
                       </p>
+                      <dl className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-3 gap-y-1.5 pl-[26px] text-caption">
+                        <dt className="text-shell-text-muted">Ablage</dt>
+                        <dd className="min-w-0">
+                          <span className="code-num text-shell-text break-words">{breakable(dataDir)}</span>
+                          {' · '}
+                          <button
+                            type="button"
+                            onClick={() => setDirOpen((open) => !open)}
+                            aria-expanded={dirOpen}
+                            className="text-accent-light hover:underline"
+                          >
+                            Ordner ändern
+                          </button>
+                          {dirError && <span className="block mt-1 text-shell-negative">{dirError}</span>}
+                        </dd>
+                        <dt className="flex items-start text-shell-text-muted">
+                          Eingang
+                          <Help
+                            summary="Hier sammeln Sie Belege, E-Rechnungen und Kontoauszüge für Claude."
+                            label="Erklärung zum Eingang"
+                            className={helpTone}
+                          >
+                            Legen Sie Dateien in diesen Ordner oder ziehen Sie sie später ins Fenster.
+                            Claude legt sie ab, wenn Sie es sagen; danach verschiebt Buchfink sie in den
+                            Unterordner Übernommen. Der Eingang darf auch in einem Cloud-Ordner liegen,
+                            etwa wenn eine Scanner-App auf dem Telefon dorthin speichert.
+                          </Help>
+                        </dt>
+                        <dd className="min-w-0">
+                          <span className="code-num text-shell-text break-words">{breakable(inboxShown)}</span>
+                          {' · '}
+                          <button
+                            type="button"
+                            onClick={() => void pickInbox()}
+                            className="text-accent-light hover:underline"
+                          >
+                            Anderen Ordner wählen
+                          </button>
+                          {inboxDir && (
+                            <>
+                              {' · '}
+                              <button
+                                type="button"
+                                onClick={() => setInboxDir('')}
+                                className="text-accent-light hover:underline"
+                              >
+                                Zurück in die Ablage
+                              </button>
+                            </>
+                          )}
+                        </dd>
+                      </dl>
                       {dirOpen && (
                         <span className="flex gap-2">
                           <input
@@ -600,10 +643,10 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                           </button>
                         </span>
                       )}
-                      {cloudFolder && (
-                        <p className="text-caption text-shell-negative">
-                          Der Ordner liegt in {cloudFolder}. Ein Synchronisationsdienst kann die Daten im Ausland
-                          speichern und ist keine Sicherung; besser ein gewöhnlicher Ordner.
+                      {syncWarning && (
+                        <p role="status" className="flex items-start gap-2.5 text-caption text-shell-attention">
+                          <AlertTriangle className="w-4 h-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+                          <span>{syncWarning}</span>
                         </p>
                       )}
                     </div>

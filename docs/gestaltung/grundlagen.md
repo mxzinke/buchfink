@@ -79,7 +79,9 @@ lesbar bleibt: `shell` `#24211E`, `shell-raised` `#2E2A26`, `shell-line`
 Für die Statuszeile im Fuß der Navigation kommen zwei aufgehellte Signalfarben
 dazu, weil die Werte aus [Abschnitt 3.3](#33-die-vier-familien) für helles Papier gerechnet sind und auf der
 dunklen Fläche den Kontrast verlieren: `shell-positive` `#9BCFA6` (9,9:1) und
-`shell-negative` `#E8A79C` (8,7:1).
+`shell-negative` `#E8A79C` (8,7:1). Ein Hinweis der Einrichtung, der nichts
+sperrt, etwa zur Ablage in einem Cloud-Ordner, steht in `shell-attention`
+`#E3C189` (9,3:1).
 
 ### 3.2 Vier Familien, vier Rollen
 

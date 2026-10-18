@@ -325,6 +325,18 @@ export const bridge = {
   EnableReadOnly: <T>(until: string, reason: string) => invoke<T>('EnableReadOnly', until, reason),
   DisableReadOnly: <T>(reason: string) => invoke<T>('DisableReadOnly', reason),
 
+  // Eingang (internal/wailsbridge/inbox_service.go)
+  GetInbox: <T>() => invoke<T>('GetInbox'),
+  ListInbox: <T>() => invoke<T>('ListInbox'),
+  OpenInbox: () => invoke<void>('OpenInbox'),
+  AddToInbox: <T>(paths: string[]) => invoke<T>('AddToInbox', paths),
+  SetInboxFolder: <T>(path: string) => invoke<T>('SetInboxFolder', path),
+  CheckFolder: <T>(path: string) => invoke<T>('CheckFolder', path),
+
+  // Regeln und Ordner für verbundene Apps (internal/wailsbridge/agent_rules.go)
+  GetAgentRules: <T>() => invoke<T>('GetAgentRules'),
+  SaveAgentRules: <T>(settings: unknown) => invoke<T>('SaveAgentRules', settings),
+
   // Verbundene Apps (internal/wailsbridge/mcp_service.go)
   GetMCPServerStatus: <T>() => invoke<T>('GetMCPServerStatus'),
   SetMCPPort: <T>(port: number) => invoke<T>('SetMCPPort', port),

@@ -67,6 +67,11 @@ im Bild steht.
 Dauerhafte Zustände wie Integrität und Periodensperre stehen in der Oberfläche,
 nie in einem Toast.
 
+Dateien, die ins Fenster gezogen werden, kommen in den Eingang. Die Ablagezone
+über dem ganzen Fenster erscheint nur, solange gezogen wird; danach meldet ein
+Toast, wie viele Dateien im Eingang liegen, und darunter jede übergangene Datei
+mit Grund. Mit dieser zweiten Zeile steht er 8 Sekunden.
+
 ### 8.6 Tastatur
 
 Die häufigste Tätigkeit muss ohne Maus funktionieren. Eine Buchung erfassen:

@@ -18,7 +18,7 @@ export const AREA_TABS = {
   books: ['receipts', 'bank', 'invoices', 'journal', 'accounts', 'assets', 'statements'],
   closings: ['month', 'year', 'declarations'],
   company: ['profile', 'contacts'],
-  settings: ['apps', 'backup', 'tenants', 'audit', 'advanced'],
+  settings: ['apps', 'inbox', 'backup', 'tenants', 'audit', 'advanced'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type Area = keyof typeof AREA_TABS;
@@ -63,6 +63,7 @@ export const TAB_LABELS: { [A in Area]: Record<TabOf<A>, string> } = {
   company: { profile: 'Stammdaten', contacts: 'Kontakte' },
   settings: {
     apps: 'Apps verbinden',
+    inbox: 'Eingang & Ordner',
     backup: 'Sicherung',
     tenants: 'Mandanten',
     audit: 'Prüfung & GoBD',

@@ -76,7 +76,7 @@ var taskAreaTabs = map[string][]string{
 	AreaBooks:    {"receipts", "bank", "invoices", "journal", "accounts", "assets", "statements"},
 	AreaClosings: {"month", "year", "declarations"},
 	AreaCompany:  {"profile", "contacts"},
-	AreaSettings: {"apps", "backup", "tenants", "audit", "advanced"},
+	AreaSettings: {"apps", "inbox", "backup", "tenants", "audit", "advanced"},
 }
 
 // Valid meldet, ob Bereich und Reiter in der Oberfläche vorkommen. Ein leerer

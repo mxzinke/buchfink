@@ -54,6 +54,8 @@ export function targetLabel(route: Route | null): string {
       switch (route.tab) {
         case 'backup':
           return 'Zur Sicherung';
+        case 'inbox':
+          return 'Zum Eingang';
         case 'audit':
           return 'Zur Prüfung';
         default:

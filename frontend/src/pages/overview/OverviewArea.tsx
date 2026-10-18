@@ -13,11 +13,13 @@ import { agentWorkSummary, monthToClose, planOverview, todayISO } from '../../ut
 import { profileGaps, profileTask } from '../../utils/profileGaps';
 import { useNavigation } from '../../navigation';
 import { useWorkspace } from '../../workspace';
+import { useLiveReload } from '../../live';
 import { PageFrame } from '../../components/ui';
 import { DutiesSection } from './DutiesSection';
 import { MonthCloseSection } from './MonthCloseSection';
 import { AgentBookingsSection } from './AgentBookingsSection';
 import { AppsSection } from './AppsSection';
+import { InboxSection } from './InboxSection';
 import { ObligationPanel } from './ObligationPanel';
 
 /** So viele Buchungen der Apps zeigt die Übersicht; der Rest steht im Journal. */
@@ -33,11 +35,12 @@ function loadFailed(error: unknown): string {
 }
 
 /**
- * Die Startseite: was jetzt zu tun ist, der anstehende Monatsabschluss, was
- * die verbundenen Apps seit der letzten Festschreibung gebucht haben, und ob
- * sie verbunden sind. Gebucht wird hier nichts; bestätigt wird nur, was allein
- * der Mensch bestätigen kann. Eine Pflicht öffnet sich über das Ziel
- * `#/overview/<schlüssel>` in der Seitenleiste.
+ * Die Startseite: was jetzt zu tun ist, was im Eingang liegt, der anstehende
+ * Monatsabschluss, was die verbundenen Apps seit der letzten Festschreibung
+ * gebucht haben, und ob sie verbunden sind. Gebucht wird hier nichts;
+ * bestätigt wird nur, was allein der Mensch bestätigen kann. Eine Pflicht
+ * öffnet sich über das Ziel `#/overview/<schlüssel>` in der Seitenleiste.
+ * Ändert ein Agent etwas, lädt die Seite neu, ohne den Stand zu verlieren.
  */
 export const OverviewArea: React.FC = () => {
   const { route, navigate } = useNavigation();
@@ -143,6 +146,21 @@ export const OverviewArea: React.FC = () => {
     };
   }, [month]);
 
+  // Ein Agent bucht, legt ab oder bereitet vor: die Seite liest Aufgaben,
+  // Buchungen und Monatsabschluss neu und behält, was sie zeigt, bis der neue
+  // Stand da ist.
+  useLiveReload(() => {
+    void load();
+    if (month) {
+      Api.getMonthCloseState(month)
+        .then((state) => {
+          setMonthState(state);
+          setMonthError('');
+        })
+        .catch(() => undefined);
+    }
+  });
+
   const closePanel = useCallback(() => navigate({ area: 'overview' }), [navigate]);
   const openPanel = useCallback((key: string) => navigate({ area: 'overview', id: key }), [navigate]);
 
@@ -151,13 +169,8 @@ export const OverviewArea: React.FC = () => {
       title="Übersicht"
       context={`Stand ${formatDate(tasks?.today ?? todayISO())} · Geschäftsjahr ${year}`}
     >
-      <DutiesSection
-        plan={plan}
-        extra={profile ? [profile] : []}
-        error={error}
-        onOpen={openPanel}
-        onNavigate={navigate}
-      />
+      <DutiesSection plan={plan} extra={profile ? [profile] : []} error={error} onOpen={openPanel} onNavigate={navigate} />
+      <InboxSection tenantId={activeTenant?.id} onNavigate={navigate} />
       {!error && (
         <MonthCloseSection month={month} state={monthState} error={monthError} onNavigate={navigate} />
       )}

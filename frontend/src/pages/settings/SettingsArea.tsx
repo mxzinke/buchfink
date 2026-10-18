@@ -4,6 +4,7 @@ import { useWorkspace } from '../../workspace';
 import { Disclosure, PageFrame } from '../../components/ui';
 import { AdvancedSettings } from './AdvancedSettings';
 import { AppsPanel } from './AppsPanel';
+import { InboxPanel } from './InboxPanel';
 import { BackupPanel } from './BackupPanel';
 import { TenantsPanel } from './TenantsPanel';
 import { AuditSection, auditAnchor } from './audit/AuditSection';
@@ -11,10 +12,10 @@ import { AuditSection, auditAnchor } from './audit/AuditSection';
 type SettingsSection = TabOf<'settings'>;
 
 /**
- * Die Einstellungen als eine Seite: oben Apps verbinden und Sicherung,
- * darunter eingeklappt Prüfung & GoBD und Erweitertes. Der Reiter im Ziel
- * benennt den Abschnitt, der aufgeklappt und angesprungen wird; die Kennung
- * eine Zeile darin.
+ * Die Einstellungen als eine Seite: oben Apps verbinden, Eingang und Ordner
+ * und die Sicherung, darunter eingeklappt Prüfung & GoBD und Erweitertes. Der Reiter im Ziel benennt den
+ * Abschnitt, der aufgeklappt und angesprungen wird; die Kennung eine Zeile
+ * darin.
  */
 export const SettingsArea: React.FC = () => {
   const { route, navigate } = useNavigation();
@@ -43,8 +44,10 @@ export const SettingsArea: React.FC = () => {
   );
 
   return (
-    <PageFrame title="Einstellungen" context="Apps, Sicherung und Prüfung">
+    <PageFrame title="Einstellungen" context="Apps, Eingang, Sicherung und Prüfung">
       <AppsPanel id="einstellungen-apps" />
+
+      <InboxPanel id="einstellungen-inbox" />
 
       <BackupPanel
         id="einstellungen-backup"

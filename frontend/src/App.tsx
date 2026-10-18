@@ -5,6 +5,7 @@ import { Header } from './components/Header';
 import { SetupAssistantScreen } from './components/SetupAssistantScreen';
 import { PostingLockProvider, WriteLockProvider } from './components/WriteLock';
 import { AppConsentDialog } from './components/AppConsentDialog';
+import { DROP_TARGET, InboxDropZone } from './components/InboxDrop';
 import { IntegrityCheckResult, CompanySettings, AppConfig, TenantConfig, FiscalYear } from './types';
 import { Api } from './services/api';
 import { formatDate } from './utils/formatters';
@@ -285,7 +286,11 @@ export function App() {
           <ChangesProvider tenantId={activeTenant?.id}>
             <NavigationProvider value={{ route, navigate }}>
               <LiveWorkspace onSettings={reloadSettings} onClosings={refreshFiscalYearSelection} />
-              <div className="flex h-screen bg-paper text-ink overflow-hidden">
+              {/* Das ganze Fenster nimmt Dateien für den Eingang an. Die
+                  Klasse bleibt fest: die Wails-Laufzeit setzt während des
+                  Ziehens eine eigene dazu. */}
+              <div {...DROP_TARGET} className="flex h-screen bg-paper text-ink overflow-hidden">
+                <InboxDropZone />
                 <Sidebar
                   currentArea={route.area}
                   onSelectArea={(area) => navigate({ area } as Route)}
