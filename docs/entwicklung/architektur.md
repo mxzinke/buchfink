@@ -13,9 +13,10 @@ warum.
 | Entscheidung | Folge |
 |---|---|
 | **Ein Prozess, ein Schreiber.** Der MCP-Server läuft im Prozess der App. | Ohne geöffnete App keine Werkzeuge. Oberfläche und Agent schreiben über denselben Kern und dieselbe Sperre. |
-| **Freigabe nach Risiko.** Routine bucht der Agent direkt nach festen Regeln, anderes erst nach Zustimmung im Chat, Unumkehrbares nur der Mensch in der App. | Der Kern weist Vorgänge, die der App vorbehalten sind, für jeden anderen Erfassungsweg ab. Ein Werkzeug dafür gibt es nicht. |
+| **Freigabe nach Risiko.** Routine bucht der Agent direkt nach festen Regeln, was sich per Storno korrigieren lässt nach Zustimmung im Chat, Unumkehrbares und Stammdaten nur der Mensch in der App. | Der Kern weist Vorgänge, die der App vorbehalten sind, für jeden anderen Erfassungsweg ab. Ein Werkzeug dafür gibt es nicht. Einzelne Konten sperrt Buchfink für Agenten nicht. |
+| **Ablage auf Anweisung.** Belege, E-Rechnungen und Kontoauszüge kommen in einen Eingang je Mandant. | Buchfink beobachtet keinen Ordner und legt nichts von selbst ab. Der Agent legt ab, wenn der Mensch es sagt; danach verschiebt Buchfink die Datei in den Unterordner `Übernommen/`. |
 | **Lokal und unverschlüsselt.** Alle Daten liegen im Datenordner des Mandanten. | Schutz am Rechner über das Betriebssystem, Integrität über Hash-Ketten und Zeitstempel ([Datensicherheit](../nutzung/datensicherheit.md)). |
-| **Keine Übermittlung.** Kein ERiC. | Voranmeldung und Erklärungen sind Eingabehilfen für Mein ELSTER, die E-Bilanz ist eine XBRL-Datei für ein Programm mit ERiC. Die Übermittlung bestätigt der Mensch mit Transferticket. |
+| **Keine Übermittlung.** Buchfink sendet nichts an Finanzamt oder Register. | Voranmeldung und Erklärungen sind Eingabehilfen für Mein ELSTER. Die E-Bilanz ist eine XBRL-Datei für einen E-Bilanz-Dienst wie ebilanzplus.de oder ebilanzonline.de, ersatzweise eine Saldenliste für eBilanz+. Die Übermittlung bestätigt der Mensch mit Transferticket. |
 | **SKR04, Einheitsbilanz.** Ein Kontenrahmen, ein Wertansatz. | Steuerliche Abweichungen (§ 7g EStG) führt Buchfink am Anlagegut und zeigt sie in der Überleitung der E-Bilanz. |
 | **Geschlossene Liste der Steuerfälle.** | Jeder Fall ist durchgängig richtig: Buchung, Rechnungstext, Voranmeldung, Meldung. Was nicht in der Liste steht, weist Buchfink ab ([Umfang](../nutzung/umfang.md)). |
 | **Nur GmbH und UG.** | Konten, Gründung, Größenklassen, Feststellung und Offenlegung sind für Kapitalgesellschaften gebaut. |
@@ -36,7 +37,9 @@ flowchart TB
         UI["frontend + internal/wailsbridge<br/>Oberfläche"]
         MCP --> CORE
         UI --> CORE
-        CORE["internal/core<br/>Mandant, Schreibsperre, Transaktion, Prüfermodus"]
+        MCP --> POL["internal/core/policy, inbox<br/>Routine, Pfade, Eingang"]
+        UI --> POL
+        CORE["internal/core<br/>Mandant, Schreibsperre, Transaktion, Prüfermodus, Ereignisse"]
         CORE --> SVC["internal/service<br/>Anwendungsfälle"]
         SVC --> ACC["accounting, domain<br/>Regeln und Entitäten"]
         SVC --> REP["repository<br/>GORM, SQLite"]
@@ -44,6 +47,7 @@ flowchart TB
     end
     REP --> DB[("buchfink.sqlite je Mandant")]
     FMT --> FS[("belege/, dokumente/")]
+    POL --> IN[("Eingang/, Übernommen/")]
 ```
 
 Regeln, die diese Schichtung stützen:
@@ -82,10 +86,39 @@ jeder Buchung und jedem Protokolleintrag und gehen in die Hash-Kette ein. Der
 Kurzname einer App ändert sich deshalb nach der ersten Zustimmung nie.
 
 **Vorbehalt der App.** Festschreibung, Übermittlungsbestätigung, Aufstellen,
-Feststellen und Offenlegen, Ergebnisverwendung, Stammdaten, Bankkonten,
-Gesellschafterdarlehen, Bestätigung von Pflichten und Prüfermodus laufen nur
-über `ui`. Zwei Stellen prüfen das: `core.AppOnly` am Schreibvorgang und
-`requireHuman` in den Diensten.
+Feststellen und Offenlegen, Stammdaten samt Gesellschaftern und Gründung,
+Bankkonten, Eingang und Ordner, Regeln für Apps, Bestätigung von Pflichten,
+Standardgruppen und Erklärungsangaben und der Prüfermodus laufen nur über `ui`.
+Zwei Stellen prüfen das: `core.AppOnly` am Schreibvorgang und `requireHuman`
+in den Diensten. Alles, was sich per Storno korrigieren lässt, steht auch
+einem Agenten offen, darunter Darlehensverträge, Ergebnisverwendung und
+Organisationstexte der Verfahrensdokumentation
+([Freigabestufen](mcp.md#freigabestufen)).
+
+**Ereignisse.** Nach jedem gelungenen `Write` meldet der Mandant einen
+`core.Change` mit Erfassungsweg und grober Art der Änderung, die er aus den
+Protokolleinträgen des Vorgangs abliest. Der Kern reicht ihn an den Beobachter
+`OnChange` der Host-Optionen weiter und kennt weder Wails noch Netz. Die
+Bridge bündelt die Meldungen je Mandant zum Ereignis `buchfink:geaendert`, auf
+das die Oberfläche die offene Ansicht nachlädt
+([Live-Aktualisierung](mcp.md#live-aktualisierung)).
+
+**Eingang.** Jeder Mandant hat einen Eingang, voreingestellt
+`<Datenordner>/Eingang`, wählbar auch außerhalb. `internal/inbox` listet ihn,
+erkennt die Art einer Datei (Beleg, E-Rechnung, CAMT-Kontoauszug) und
+verschiebt Abgelegtes nach `Übernommen/<JJJJ-MM>/`. Verschoben wird nach dem
+Schreibvorgang, außerhalb der Sperre; scheitert es, gilt die Ablage trotzdem.
+`internal/core/policy` prüft jeden Pfad, den ein Agent übergibt, gegen Eingang
+und Leseordner ([Eingang, Leseordner und
+Exportordner](mcp.md#eingang-leseordner-und-exportordner)).
+
+**Sync-Erkennung.** `internal/syncdir` erkennt, ob ein Ordner in iCloud Drive,
+OneDrive, Google Drive, Dropbox, Nextcloud/ownCloud oder Syncthing liegt: am
+Ort unter dem Benutzerordner, an den Umgebungsvariablen von OneDrive und an
+den Markerdateien der Dienste in den Elternordnern. Die Einrichtung warnt,
+wenn die Ablage darin liegt, weil ein Dienst die Datenbank mitten im Schreiben
+kopieren kann. Gesperrt wird nichts; für den Eingang ist ein Sync-Ordner
+gewollt, etwa für eine Scanner-App am Telefon.
 
 **Prüfermodus.** Sein Zeitraum steht in der Mandantendatenbank. Solange er
 läuft, weist `Write` jeden Vorgang ab, außer dem Schalter selbst und Nachweisen
@@ -108,15 +141,17 @@ löschen (`core/jobs.go`).
 
 ## 4. MCP-Server und Brücke
 
-`internal/mcpserver` lauscht auf `127.0.0.1:7465` (Streamable HTTP, Port in den
-Einstellungen änderbar, für Tests `BUCHFINK_MCP_PORT`). Buchfink ist selbst
+`internal/mcpserver` lauscht auf `127.0.0.1:7465` (Streamable HTTP). Den Port
+ändert der Mensch in den Einstellungen; der Server startet dann sofort auf dem
+neuen Port. `BUCHFINK_MCP_PORT` geht dem eingestellten Port vor, für
+Entwicklung und Tests. Buchfink ist selbst
 Autorisierungsserver (`internal/mcpserver/oauth`): dynamische Registrierung
 nur für Rücksprungadressen auf diesem Rechner, PKCE, Tokens nur als Hash
 gespeichert. Die Zustimmung kommt als Ereignis ins Fenster und wird über die
 Bridge mit einer Einmal-Nonce entschieden, nie über HTTP.
 
-Werkzeuge registrieren sich über `AddInfo`, `AddRead` und `AddWrite`
-(`internal/mcpserver/tools.go`). Der Rahmen liest die Anmeldung, holt den
+Werkzeuge registrieren sich über `AddInfo`, `AddRead`, `AddWrite` und dessen
+Varianten (`internal/mcpserver/tools.go`). Der Rahmen liest die Anmeldung, holt den
 Mandanten, prüft Zulassung und Rechte (`buchfink:lesen`, `buchfink:buchen`),
 setzt den Erfassungsweg und ruft `Tenant.Read` oder `Tenant.Write`. Schreibende
 Werkzeuge verlangen `mandant_id` und nehmen einen Idempotenzschlüssel an, der in
@@ -165,7 +200,9 @@ Details auf Anforderung ([Gestaltung](../gestaltung/grundlagen.md)).
 `service.TaskService` stellt die Aufgaben zusammen und rechnet nichts selbst.
 Quellen sind Prüflauf, Pflichtenkalender, Bankumsätze ohne Zuordnung, Belege
 ohne Buchung, überfällige Posten, ablaufende Freistellungsbescheinigungen,
-Sicherung, Prüfermodus und Jahreswechsel.
+Sicherung, Prüfermodus und Jahreswechsel. Die Übersicht zeigt daneben den
+Eingang und die Standardgruppen, die ein Agent vorgeschlagen hat und der Mensch
+bestätigen soll.
 Fällt eine Quelle aus, fehlt nur ihre Zeile. Gruppen: überfällig, offen,
 demnächst (30 Tage). Jede Zeile sagt, was zu tun ist, warum und wohin.
 

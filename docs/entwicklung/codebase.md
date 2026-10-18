@@ -15,7 +15,10 @@ nutzt Base UI, Tailwind CSS und Lucide; Typst setzt Rechnungen und Berichte
 | Werkzeug für Agenten | [internal/mcpserver/](../../internal/mcpserver), [MCP-Server](mcp.md) |
 | Anmeldung und Zustimmung verbundener Apps | [internal/mcpserver/oauth/](../../internal/mcpserver/oauth), [internal/wailsbridge/mcp_service.go](../../internal/wailsbridge/mcp_service.go) |
 | Brücke für Claude Desktop | [cmd/buchfink-mcp/](../../cmd/buchfink-mcp), [packaging/claude-desktop/](../../packaging/claude-desktop) |
-| Was ein Agent ohne Rückfrage bucht, Beleg- und Exportordner | [internal/core/policy/](../../internal/core/policy), [MCP-Server](mcp.md#regeln-für-direkt) |
+| Was ein Agent ohne Rückfrage bucht, welche Pfade er lesen darf, Exportordner | [internal/core/policy/](../../internal/core/policy), [MCP-Server](mcp.md#regeln-für-direkt) |
+| Eingang: Dateien listen, Art erkennen, nach `Übernommen/` verschieben, Dateien aus dem Fenster aufnehmen | [internal/inbox/](../../internal/inbox), [internal/core/policy/settle.go](../../internal/core/policy/settle.go), [internal/wailsbridge/inbox_service.go](../../internal/wailsbridge/inbox_service.go), [MCP-Server](mcp.md#eingang-leseordner-und-exportordner) |
+| Warnung, wenn die Ablage in einem Sync-Ordner liegt | [internal/syncdir/](../../internal/syncdir) |
+| Ereignis nach einer Änderung, Nachladen der offenen Ansicht | [internal/core/changes.go](../../internal/core/changes.go), [internal/wailsbridge/changes.go](../../internal/wailsbridge/changes.go), [frontend/src/live.tsx](../../frontend/src/live.tsx), [MCP-Server](mcp.md#live-aktualisierung) |
 | Schreibsperre, Transaktion, Prüfermodus, Vorbehalt der App | [internal/core/](../../internal/core) |
 | Anwendungsfall | [internal/service/](../../internal/service) |
 | Rechenregel, Steuerschlüssel, Kontenrahmen | [internal/accounting/](../../internal/accounting) |
@@ -31,7 +34,7 @@ nutzt Base UI, Tailwind CSS und Lucide; Typst setzt Rechnungen und Berichte
 |---|---|---|
 | Pflichtenkalender | `service/obligation_*.go`, [calendar](../../internal/calendar) (Feiertage, Fristenden) | [Pflichten und Erklärungen](../fachkonzepte/pflichten-und-erklaerungen.md) |
 | Steuererklärungen KSt, GewSt, USt 2 A | [declaration](../../internal/declaration) mit Zeilenkatalog in `catalog/` | [Pflichten und Erklärungen](../fachkonzepte/pflichten-und-erklaerungen.md) |
-| E-Bilanz | [ebilanz](../../internal/ebilanz) mit Taxonomie-Auszug in `taxonomy/` | [Pflichten und Erklärungen](../fachkonzepte/pflichten-und-erklaerungen.md) |
+| E-Bilanz als XBRL und als Summen- und Saldenliste | [ebilanz](../../internal/ebilanz) mit Taxonomie-Auszug in `taxonomy/` | [Pflichten und Erklärungen](../fachkonzepte/pflichten-und-erklaerungen.md#e-bilanz) |
 | Bankimport | [bank](../../internal/bank) | [Zahlungswege](../fachkonzepte/zahlungswege.md) |
 | E-Rechnung lesen, prüfen, schreiben | [einvoice](../../internal/einvoice), [invoice](../../internal/invoice) | [Modulaufbau](e-rechnung.md) |
 | Belegablage | [receiptstore](../../internal/receiptstore) | [Belege und Buchungen](../fachkonzepte/beleg-buchungsflow.md) |

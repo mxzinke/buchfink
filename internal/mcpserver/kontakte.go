@@ -257,8 +257,8 @@ func registerKontakte(tb *Toolbox) {
 }
 
 // confirmHint sagt, was nach einem Vorschlag der Standardgruppe geschieht.
-// Die Bestätigung gehört dem Menschen; bietet seine Fassung der App sie noch
-// nicht an, bleibt jede Belegbuchung des Lieferanten eine Rückfrage.
+// Die Bestätigung gehört dem Menschen; bis dahin bleibt jede Belegbuchung des
+// Lieferanten eine Rückfrage.
 const confirmHint = "Vorgeschlagen, nicht bestätigt. Bestätigen kann nur der Mensch in der App; bis dahin bucht " +
 	"beleg_buchen diesen Lieferanten nicht direkt, beleg_buchen_mit_rueckfrage geht immer."
 

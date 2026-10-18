@@ -16,8 +16,8 @@ geöffneten Mandanten mit Lease holen, Zulassung und Rechte für diesen Mandante
 prüfen, den Erfassungsweg `agent:<kurzname>` setzen und über `Tenant.Read` oder
 `Tenant.Write` in die Dienste gehen. Werkzeuge rufen nur Dienste auf, nie
 Repositories (`TestToolsDoNotTouchRepositories`). Die Regeln für Routine stehen
-in `internal/core/policy`, die Sperren für Agenten in den Diensten, nicht im
-Werkzeug und nicht im Prompt.
+in `internal/core/policy`, die Vorbehalte der App im Kern und in den Diensten,
+nicht im Werkzeug und nicht im Prompt.
 
 ## Freigabestufen
 
@@ -26,17 +26,25 @@ Werkzeug und nicht im Prompt.
 | lesen | `readOnlyHint: true` | ändert nichts; jede zugelassene App mit `buchfink:lesen` |
 | direkt | `destructiveHint: false` | schreibt ohne Rückfrage, aber nur, was `internal/core/policy` als Routine einstuft; sonst `freigabe_noetig` |
 | rueckfrage | `destructiveHint: true` | der Agent legt dem Menschen den Vorgang im Chat vor und holt sein Ja ein, bevor er aufruft |
-| nur App | kein Werkzeug | Festschreibung, Übermittlung und Transferticket, Pflicht als erledigt, Angaben einer Erklärung bestätigen, Aufstellen, Feststellen, Offenlegen, Unternehmensstammdaten samt Gesellschaftern, Bankkonten und steuerlicher Beratung, Abschluss-Einstellungen, Ablage, Eingang, Export- und Leseordner, Regeln für direktes Buchen, Standardgruppe bestätigen, Prüfermodus, Apps zulassen und entziehen |
+| nur App | kein Werkzeug | Festschreibung, Übermittlung und Transferticket, Pflicht als erledigt oder entfallen, Angaben einer Erklärung bestätigen, Aufstellen, Feststellen, Offenlegen, Unternehmensstammdaten samt Gesellschaftern, Gründung und Eintragung, Bankkonten und steuerlicher Beratung, Abschluss-Einstellungen, Ablage, Eingang, Export- und Leseordner, Regeln für direktes Buchen, Standardgruppe bestätigen, Prüfermodus, Apps zulassen und entziehen |
 
 Ein `_meta`-Feld `anthropic/requiresUserInteraction` setzt der Server nicht.
 Der Agent fragt laut Skill selbst; eine zweite Abfrage des Clients wäre doppelt.
 Die Dienste weisen Vorgänge der App für jeden Erfassungsweg außer `ui` ab
 (`requireHuman`, `core.AppOnly`), das Werkzeug meldet dann `nur_in_app`.
-Was sich per Storno korrigieren lässt, darf ein Agent mit Rückfrage, ohne
-Sperre einzelner Konten: Kapital, Rücklagen, Ausschüttung und
-Gesellschafterkonten, Gründungsbuchungen, Darlehensverträge, die
-Ergebnisverwendung über den festgestellten Abschluss und die
-Organisationstexte der Verfahrensdokumentation.
+
+Was sich per Storno korrigieren lässt, darf ein Agent mit Rückfrage, auf jedem
+Konto des Kontenrahmens:
+
+| Vorgang | Werkzeug |
+|---|---|
+| Kapital, Rücklagen, Ausschüttung, Gesellschafterkonten, Gründungsbuchungen (Zeichnung, Einforderung) | `buchung_erfassen`, Zahlungen über `bankumsatz_buchen` |
+| Darlehensvertrag mit einem Gesellschafter anlegen oder berichtigen | `darlehen_erfassen` |
+| Ergebnisverwendung nach der Feststellung durch den Menschen | `ergebnisverwendung_buchen` |
+| Organisationstexte der Verfahrensdokumentation | `verfahrensdoku_text` |
+
+Die Gründung selbst mit Gesellschaftern, Anteilen und Eintragung bleibt
+Stammdatum des Menschen (`FoundationService.Save`, `Register`).
 
 ## Eingaben und Ausgaben
 
@@ -46,10 +54,10 @@ Derselbe Schlüssel mit derselben Eingabe liefert das erste Ergebnis mit
 `wiederholt: true`, mit anderer Eingabe `schluessel_wiederverwendet`. Pflicht
 ist er bei den Werkzeugen ohne natürlichen Schlüssel: `buchung_erfassen`,
 `rechnung_ausstellen`, `abschlussbuchung`, `mahnung_vermerken`,
-`anlass_erfassen` und `darlehen_erfassen`. Ein Aufruf mit `nur_vorschau` verbraucht den Schlüssel
-nicht; derselbe Schlüssel bucht danach. Die Werkzeuge aus mehreren Schritten
-(`kontoauszug_importieren`, die drei Exporte) nehmen keinen Schlüssel, sie
-schreiben von sich aus nichts doppelt.
+`anlass_erfassen` und `darlehen_erfassen`. Ein Aufruf mit `nur_vorschau`
+verbraucht den Schlüssel nicht; derselbe Schlüssel bucht danach. Die Werkzeuge
+aus mehreren Schritten (`kontoauszug_importieren`, die drei Exporte) nehmen
+keinen Schlüssel, sie schreiben von sich aus nichts doppelt.
 
 Beträge sind Zeichenketten in Euro mit Punkt (`"119.00"`), Datumsangaben
 `JJJJ-MM-TT`. Jedes Auswahlfeld hat eine Werteliste im Schema; ein falscher
@@ -205,15 +213,16 @@ einlesen.
 Die Standardgruppe schlägt ein Agent nur vor (`standardgruppe_vorschlagen`,
 `kontakt_anlegen`). Bestätigen kann sie nur der Mensch
 (`ContactService.ConfirmDefaultPostingGroup`, Bridge
-`ConfirmDefaultPostingGroup`). `SaveContact` ändert die Felder nicht. Die
-Schwellen, Lese- und Exportordner stellt der Mensch in der App ein
-(`SettingsService.SaveAgentSettings`, Bridge `GetAgentRules` und
-`SaveAgentRules`), den Eingang mit `SetInboxFolder`.
+`ConfirmDefaultPostingGroup`), in der App unter Unternehmen › Kontakte in der
+Seitenleiste des Lieferanten. `SaveContact` ändert die Felder nicht. Bis zur
+Bestätigung bucht `beleg_buchen` diesen Lieferanten nicht direkt;
+`beleg_buchen_mit_rueckfrage` geht immer.
 
-Bekannte Lücke: die Oberfläche für diese drei Bridge-Methoden fehlt noch. Bis
-sie da ist, gibt es keine bestätigte Standardgruppe, und `beleg_buchen` bucht
-nichts direkt; `beleg_buchen_mit_rueckfrage` geht immer. Die Hinweise der
-Werkzeuge sagen das so.
+Betragsgrenze und Mindestzahl früherer Buchungen stellt der Mensch unter
+Einstellungen › „Buchen ohne Rückfrage“ ein, Eingang, Exportordner und weitere
+Leseordner unter Einstellungen › „Eingang & Ordner“
+(`SettingsService.SaveAgentSettings`, Bridge `GetAgentRules`,
+`SaveAgentRules` und `SetInboxFolder`).
 
 Restrisiko: Buchfink prüft nicht, woher eine Datei im Eingang oder einem
 Leseordner kommt. Wer dorthin schreiben kann (ein Agent mit Dateizugriff wie
@@ -259,14 +268,15 @@ Endung, keine versteckten Dateien. Gesperrt sind der eigene Datenordner bis
 auf den voreingestellten Eingang darin, die Datenordner aller anderen
 Mandanten und alle Sicherungsordner, auch wenn ein Leseordner sie umschließt.
 
-Downloads ist kein Leseordner, obwohl dort Anhänge und Portal-Downloads
-landen. Jede Webseite und jeder Mailanhang schreibt dorthin, und eine
-abgelegte Datei lässt sich nicht zurücknehmen: auch ein verworfener Beleg
-bleibt zehn Jahre im Archiv, in jeder Sicherung und im Prüferexport. Ein Agent
-ohne eigenen Dateizugriff (Claude Desktop) bekommt eine Rechnung, wenn der
-Mensch sie in den Eingang legt oder ins Fenster zieht; wer Downloads will,
-nimmt ihn in der App als Leseordner auf. Die Beschreibung von `beleg_ablegen`
-verlangt, nur Dateien abzulegen, die der Mensch als Beleg benannt hat.
+Voreingestellt liest ein Agent nur aus dem Eingang. Den Download-Ordner des
+Systems nimmt Buchfink nicht von sich aus auf: jede Webseite und jeder
+Mailanhang schreibt dorthin, und eine abgelegte Datei lässt sich nicht
+zurücknehmen. Auch ein verworfener Beleg bleibt zehn Jahre im Archiv, in jeder
+Sicherung und im Prüferexport. Wer den Download-Ordner trotzdem freigeben will,
+nimmt ihn in der App als Leseordner auf. Ein Agent ohne eigenen Dateizugriff (Claude Desktop) bekommt
+eine Rechnung, wenn der Mensch sie in den Eingang legt oder ins Fenster von
+Buchfink zieht (`AddToInbox`). Die Beschreibung von `beleg_ablegen` verlangt,
+nur Dateien abzulegen, die der Mensch als Beleg benannt hat.
 
 `eingang_am` ist bei `beleg_ablegen` Pflicht: der Tag des Eingangs bestimmt
 den Voranmeldungszeitraum der Vorsteuer (§ 15 Abs. 1 UStG). Liegt er in einem
@@ -283,9 +293,23 @@ Saldo im Soll positiv). `Taxonomie` ist die Position, unter der das Konto im
 Kontennachweis der Instanz steht; Konten und Salden sind dieselben, Konten
 ohne Saldo entfallen.
 
+## Live-Aktualisierung
+
+Was ein Agent schreibt, sieht der Mensch in der App ohne Neuladen. Nach jedem
+gelungenen `Tenant.Write`, gleich auf welchem Erfassungsweg, und nach einer
+Änderung im Eingang meldet der Kern einen `core.Change` mit Mandant,
+Erfassungsweg und grober Art (`buchungen`, `belege`, `bank`, `stammdaten`,
+`abschluss`, `eingang`); die Art liest er aus den Protokolleinträgen des
+Vorgangs. Der Kern kennt dafür nur den Beobachter `OnChange` in den
+Host-Optionen. Die Bridge bündelt die Meldungen je Mandant und sendet höchstens
+alle 250 ms das Wails-Ereignis `buchfink:geaendert`. Die Oberfläche lädt die
+offene Ansicht nach, wenn der Mandant der aktive ist (`useLiveReload`).
+Werkzeuge und Skills müssen den Menschen deshalb nicht bitten, die Ansicht neu
+zu laden.
+
 ## Ein Werkzeug ergänzen
 
-1. Dienst zuerst: die fachliche Regel und jede Sperre für Agenten
+1. Dienst zuerst: die fachliche Regel und jeder Vorbehalt der App
    (`requireHuman`) gehören in `internal/service`, nicht ins Werkzeug.
 2. Ein- und Ausgabe als Go-Structs mit `json`- und `jsonschema`-Tags. Beträge
    als `Betrag`, Daten als `Datum`, Gruppen und Steuerfälle als
