@@ -125,17 +125,7 @@ var catalogSymbols = map[string]map[string]bool{
 	"wailsbridge": symbolSet("DegressiveWindows", "AfARuleSet", "SpecialMaxPermille", "SpecialPeriodYears", "DegressiveWindow", "ElectricVehicleWindow", "AllFundClasses", "FundClass", "RetentionRules", "LoadedRetentionRules", "JournalFilter", "JournalFilterResult", "JournalFilterRow", "PostingGroup", "PostingGroups", "FoundationRules", "FoundationLegalForms", "SizeClass", "AfARules", "ProvisionMirror"),
 }
 
-// Bekannte Ausnahmen, werden in Schritt 9 abgebaut. Die Fundstelle und die
-// Anzahl begrenzen jede Ausnahme auf die vorhandenen Aufrufe.
-var knownLogicExceptions = map[string]int{
-	"mcpserver/belege.go:inputTaxPeriodHint:VatPeriodOf":                   0,
-	"mcpserver/erklaerung.go:periodMismatch:ParseVatPeriodKey":             0,
-	"mcpserver/posten.go:registerPosten:AgeOpenItems":                      0,
-	"wailsbridge/asset_service.go:GetAssetRules:AfAParametersFor":          0,
-	"wailsbridge/asset_service.go:GetInvestmentRules:PartialExemptionFor":  0,
-	"wailsbridge/nachweise_service.go:GetComplianceHints:SystemChangeNote": 0,
-	"wailsbridge/nachweise_service.go:GetOpenItemsAging:AgeOpenItems":      0,
-}
+var knownLogicExceptions = map[string]int{}
 
 func symbolSet(names ...string) map[string]bool {
 	out := map[string]bool{}
@@ -291,4 +281,43 @@ func TestImportBoundaryExceptionIsLimitedToItsCallSite(t *testing.T) {
 	if len(problems) != 2 || exceptions["probe.go:existing:AgeOpenItems"] != 0 {
 		t.Fatalf("genau der bestehende Aufruf darf freigegeben sein: %v, verbleibend %v", problems, exceptions)
 	}
+}
+
+func TestAdaptersRejectAccountingLogic(t *testing.T) {
+	if len(knownLogicExceptions) != 0 {
+		t.Fatal("Anwendungslogik gehört in Dienste; Kataloge brauchen eine begründete Symbolfreigabe")
+	}
+	for _, adapter := range []string{"mcpserver", "wailsbridge"} {
+		for _, symbol := range []string{"VatPeriodOf", "ParseVatPeriodKey", "AgeOpenItems", "AfAParametersFor", "PartialExemptionFor", "SystemChangeNote"} {
+			t.Run(adapter+"/"+symbol, func(t *testing.T) {
+				fset := token.NewFileSet()
+				file, err := parser.ParseFile(fset, "probe.go", `package example; import "github.com/buchfink/buchfink/internal/accounting"; var x = accounting.`+symbol, 0)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if problems := inspectImports(fset, file, "probe.go", adapter, map[string]int{}); len(problems) != 1 {
+					t.Fatalf("Rechenregel %s wird nicht abgewiesen: %v", symbol, problems)
+				}
+			})
+		}
+	}
+}
+
+func TestReceiptBookingAdapterDoesNotWriteHeaders(t *testing.T) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, filepath.Join("..", "mcpserver", "buchen.go"), nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ast.Inspect(file, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if ok && (sel.Sel.Name == "SaveHeader" || sel.Sel.Name == "SaveReceivedAt") {
+			t.Errorf("%s: Belegänderungen gehören in die Buchungstransaktion des Dienstes", fset.Position(sel.Pos()))
+		}
+		return true
+	})
 }
