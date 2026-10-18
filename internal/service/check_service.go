@@ -245,42 +245,25 @@ func (s *CheckService) compute(ctx context.Context, req CheckRequest) (*domain.C
 	receipts := s.allReceipts(ctx, year)
 	reference := s.referenceDate(req.CutoffDate)
 
-	// Leer statt nil: der Lauf geht als JSON an die Oberfläche, und ein nil-Slice
-	// wird dort zu `null` — die Vorschau ohne Befund brächte die Ansicht zu Fall.
-	findings := make([]domain.CheckFinding, 0, 8)
-	findings = append(findings, s.checkEntriesWithoutReceipt(upToCutoff, entriesWithReceipt(receipts))...)
-	findings = append(findings, s.checkDuplicateDocuments(upToCutoff)...)
-	findings = append(findings, s.checkInterimBalances(upToCutoff, req.CutoffDate)...)
-
+	scope := &checkScope{
+		year: year, cutoff: req.CutoffDate, reference: reference, cfg: cfg,
+		entries: upToCutoff, receipts: receipts, withReceipt: entriesWithReceipt(receipts),
+	}
 	run.CheckedReceipts = len(receipts)
-	findings = append(findings, s.checkReceipts(receipts, req.CutoffDate, reference, cfg, s.pendingByDesign(ctx, year))...)
 
-	bankFindings, bankCount := s.checkBank(ctx, year, req.CutoffDate)
-	run.CheckedBankTx = bankCount
-	findings = append(findings, bankFindings...)
-
-	findings = append(findings, s.checkNumberGaps(ctx, year)...)
-	findings = append(findings, s.checkOverpaidItems(ctx, req.CutoffDate)...)
-	findings = append(findings, s.checkVatReturns(ctx, year, req.CutoffDate, reference, cfg)...)
-	findings = append(findings, s.checkCommitOverdue(ctx, year, req.CutoffDate, cfg)...)
-	findings = append(findings, s.checkPeriodsNotCommitted(ctx, year, req.CutoffDate, cfg)...)
-	findings = append(findings, s.checkUnconfirmedVatIDs(ctx, year)...)
-	findings = append(findings, s.checkServiceProof(receipts, req.CutoffDate, cfg)...)
-	for _, src := range s.domains {
-		extra, err := src.Findings(ctx, req.CutoffDate)
+	// Leer statt nil: der Lauf geht als JSON an die Oberfläche.
+	findings := make([]domain.CheckFinding, 0, 8)
+	for _, rule := range s.checkRules() {
+		if rule.yearOnly && req.PeriodType != "year" {
+			continue
+		}
+		extra, err := rule.check(ctx, scope)
 		if err != nil {
 			return nil, err
 		}
 		findings = append(findings, extra...)
 	}
-
-	if req.PeriodType == "year" {
-		findings = append(findings, s.checkAccountMapping(ctx, year)...)
-		findings = append(findings, s.checkDepreciation(ctx, year)...)
-		findings = append(findings, s.checkProvisionDiscounting(ctx, year)...)
-		findings = append(findings, s.checkSkippedClosingSteps(ctx, year)...)
-		findings = append(findings, s.checkSizeClassChange(ctx, year)...)
-	}
+	run.CheckedBankTx = scope.checkedBankTx
 
 	sort.SliceStable(findings, func(i, j int) bool {
 		if findings[i].Severity != findings[j].Severity {
