@@ -16,6 +16,7 @@ type incomingPlan struct {
 	lines    []domain.JournalLine
 	contact  *domain.Contact
 	receipt  *domain.Receipt
+	header   *domain.ReceiptHeader
 	// fx ist die Umrechnung eines Fremdwährungsbelegs, nil bei einem in Euro.
 	fx                  *fxContext
 	gifts               []domain.GiftRecord
@@ -115,6 +116,7 @@ func (s *PostingService) planIncomingReceipt(ctx context.Context, req ReceiptReq
 	}
 
 	s.completeIncomingPreview(ctx, out)
+	out.header = incomingReceiptHeader(out)
 	return out, nil
 }
 
@@ -137,4 +139,28 @@ func (s *PostingService) completeIncomingPreview(ctx context.Context, built *inc
 		preview.Conversion = built.fx.conv
 	}
 	built.preview = preview
+}
+
+// incomingReceiptHeader ergänzt nur fehlende Angaben ohne strukturierten Datensatz.
+func incomingReceiptHeader(plan *incomingPlan) *domain.ReceiptHeader {
+	r, req := plan.receipt, plan.request
+	if _, structured := r.FileByRole(domain.ReceiptRoleStructured); structured ||
+		(r.DocumentDate != "" && r.IssuerName != "" && r.GrossAmount != 0) {
+		return nil
+	}
+	h := domain.ReceiptHeader{Kind: r.Kind, DocumentDate: r.DocumentDate, IssuerName: r.IssuerName, GrossAmount: r.GrossAmount, TaxAmount: r.TaxAmount, Currency: r.Currency, Subject: r.Subject}
+	if h.DocumentDate == "" {
+		h.DocumentDate = req.DocumentDate
+	}
+	if h.IssuerName == "" {
+		h.IssuerName = plan.contact.LegalName()
+	}
+	if h.GrossAmount == 0 {
+		if req.Currency != "" && req.Currency != "EUR" {
+			h.GrossAmount, h.Currency = req.ForeignAmount, req.Currency
+		} else {
+			h.GrossAmount, h.TaxAmount = plan.preview.Gross, plan.preview.Tax
+		}
+	}
+	return &h
 }
