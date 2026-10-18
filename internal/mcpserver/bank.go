@@ -337,9 +337,9 @@ func registerBank(tb *Toolbox) {
 	})
 
 	AddFlow(tb, Spec{
-		Name:  "kontoauszug_importieren",
-		Title: "Kontoauszug importieren",
-		Tier:  TierDirect, Idempotent: true,
+		Name:       "kontoauszug_importieren",
+		Title:      "Kontoauszug importieren",
+		Idempotent: true,
 		Description: "Liest eine CAMT.053-Datei aus dem Eingang (eingang, art kontoauszug) oder einem Leseordner " +
 			"ein: legt sie als Beleg ab, importiert die Umsätze auf das in der App eingerichtete Bankkonto und " +
 			"verschiebt sie aus dem Eingang nach Übernommen/<JJJJ-MM>. Schon vorhandene Umsätze werden übersprungen. " +
@@ -434,9 +434,9 @@ func registerBank(tb *Toolbox) {
 	})
 
 	AddWrite(tb, Spec{
-		Name:  "bankumsatz_zuordnen",
-		Title: "Bankumsatz zuordnen (Routine)",
-		Tier:  TierDirect, Idempotent: true,
+		Name:       "bankumsatz_zuordnen",
+		Title:      "Bankumsatz zuordnen (Routine)",
+		Idempotent: true,
 		Description: "Gleicht einen Bankumsatz ohne Rückfrage mit einem offenen Posten aus, wenn er Routine ist: " +
 			"genau ein offener Posten stimmt im Betrag centgenau überein, seine Nummer steht im Verwendungszweck, " +
 			"die Richtung passt. Sonst freigabe_noetig mit Gründen, nichts gebucht; dann bankumsatz_buchen nach " +
@@ -469,7 +469,6 @@ func registerBank(tb *Toolbox) {
 	AddWritePrepared(tb, Spec{
 		Name:  "bankumsatz_buchen",
 		Title: "Bankumsatz buchen (mit Rückfrage)",
-		Tier:  TierConfirm,
 		Description: "Bucht einen Bankumsatz in allen Fällen, die keine Routine sind: aufteilung auf offene Posten " +
 			"(mit Differenz Skonto, Gebühr, Rundung, Währung), Konten und Gesellschafterdarlehen, zusammen genau der " +
 			"Umsatz; kreditkartenabrechnung gegen 3610; oder ignorieren mit Grund. Genau eine der drei Angaben. " +

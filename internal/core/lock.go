@@ -22,9 +22,8 @@ type writeOptions struct {
 // und ähnliche Nachweise, die die Buchführung nicht ändern.
 func ExaminerExempt() WriteOption { return func(o *writeOptions) { o.examinerExempt = true } }
 
-// AppOnly behält den Vorgang der Bedienung in der App vor: Festschreibung,
-// Übermittlungsbestätigung, Aufstellen/Feststellen/Offenlegen, Stammdaten des
-// Unternehmens, Prüfermodus. Jeder andere Erfassungsweg wird abgewiesen.
+// AppOnly behält den Vorgang der Bedienung in der App vor. Jeder andere
+// Erfassungsweg wird abgewiesen. Die Einordnung steht in internal/ops.
 func AppOnly() WriteOption { return func(o *writeOptions) { o.appOnly = true } }
 
 // writeLock ordnet die Schreiber eines Mandanten. Ein Kanal statt eines

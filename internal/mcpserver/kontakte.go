@@ -178,9 +178,9 @@ func registerKontakte(tb *Toolbox) {
 	})
 
 	AddWrite(tb, Spec{
-		Name:  "kontakt_anlegen",
-		Title: "Kontakt anlegen",
-		Tier:  TierDirect, Idempotent: true,
+		Name:       "kontakt_anlegen",
+		Title:      "Kontakt anlegen",
+		Idempotent: true,
 		Description: "Legt einen Kunden oder Lieferanten mit Personenkonto an. Vorher prüft Buchfink auf Dubletten " +
 			"(gleiche USt-IdNr., IBAN oder Name mit PLZ) und liefert dann den vorhandenen Kontakt mit " +
 			"bereits_vorhanden=true. Eine mitgegebene Standardgruppe ist nur ein Vorschlag. Ändern vorhandener " +
@@ -241,9 +241,9 @@ func registerKontakte(tb *Toolbox) {
 	})
 
 	AddWrite(tb, Spec{
-		Name:  "standardgruppe_vorschlagen",
-		Title: "Standard-Buchungsgruppe vorschlagen",
-		Tier:  TierDirect, Idempotent: true,
+		Name:       "standardgruppe_vorschlagen",
+		Title:      "Standard-Buchungsgruppe vorschlagen",
+		Idempotent: true,
 		Description: "Schlägt für einen Lieferanten die Buchungsgruppe vor, mit der seine Eingangsrechnungen in der " +
 			"Regel gebucht werden. Bestätigen kann nur der Mensch in der App; erst dann und nach genug früheren " +
 			"Buchungen bucht beleg_buchen seine E-Rechnungen ohne Rückfrage.",

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/goldentest"
+	"github.com/buchfink/buchfink/internal/ops"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -29,24 +30,15 @@ func TestGoldenToolCatalog(t *testing.T) {
 
 // catalog ist der Werkzeugkatalog mit seiner Stufe, wie ihn
 // docs/entwicklung/mcp.md führt.
-var catalog = map[string]Tier{
-	"status": TierRead, "aufgaben": TierRead, "fristen": TierRead, "konten": TierRead,
-	"kontakte_suchen": TierRead, "belege_suchen": TierRead, "beleg_lesen": TierRead,
-	"buchungen_suchen": TierRead, "buchung_lesen": TierRead, "offene_posten": TierRead,
-	"bankumsaetze": TierRead, "auswertung": TierRead, "anlagen": TierRead, "abschluss_status": TierRead,
-	"erklaerung": TierRead, "rechnung_vorschau": TierRead, "eingang": TierRead,
-
-	"beleg_ablegen": TierDirect, "kontakt_anlegen": TierDirect, "kontoauszug_importieren": TierDirect,
-	"beleg_buchen": TierDirect, "bankumsatz_zuordnen": TierDirect, "erklaerung_exportieren": TierDirect,
-	"ebilanz_exportieren": TierDirect, "pflicht_vorbereitet": TierDirect, "standardgruppe_vorschlagen": TierDirect,
-	"beleg_datei_exportieren": TierDirect,
-
-	"beleg_buchen_mit_rueckfrage": TierConfirm, "bankumsatz_buchen": TierConfirm, "buchung_erfassen": TierConfirm,
-	"buchung_stornieren": TierConfirm, "lohnjournal_buchen": TierConfirm, "rechnung_ausstellen": TierConfirm,
-	"mahnung_vermerken": TierConfirm, "abschlussbuchung": TierConfirm, "erklaerung_eingabe": TierConfirm,
-	"beleg_verwerfen": TierConfirm, "anlass_erfassen": TierConfirm, "darlehen_erfassen": TierConfirm,
-	"ergebnisverwendung_buchen": TierConfirm, "verfahrensdoku_text": TierConfirm,
-}
+var catalog = func() map[string]Tier {
+	out := map[string]Tier{}
+	for _, op := range ops.All() {
+		if op.Tier != ops.AppOnly {
+			out[op.Name] = op.Tier
+		}
+	}
+	return out
+}()
 
 // writeFixtures sind gültige Mindesteingaben der schreibenden Werkzeuge ohne
 // mandant_id. Gültig heißt: sie bestehen das Eingabeschema; was danach
@@ -165,14 +157,10 @@ func TestCatalogTiersAndAnnotations(t *testing.T) {
 			}
 		}
 	}
-	// Was nur in der App geht, hat kein Werkzeug.
 	for name := range tools {
-		for _, appOnly := range []string{"festschreib", "uebermittl", "transferticket", "erledigt", "aufstell",
-			"feststell", "offenleg", "stammdaten", "gesellschafter", "bankkonto", "bestaetig",
-			"pruefermodus", "zulass", "entzieh", "regeln"} {
-			if strings.Contains(name, appOnly) {
-				t.Errorf("%s klingt nach einem Vorgang, der der App vorbehalten ist", name)
-			}
+		op, ok := ops.Lookup(specs[name].Operation)
+		if !ok || op.Tier == ops.AppOnly {
+			t.Errorf("%s verweist auf einen unbekannten oder der App vorbehaltenen Vorgang", name)
 		}
 	}
 }

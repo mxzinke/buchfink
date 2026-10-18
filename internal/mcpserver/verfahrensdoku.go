@@ -80,9 +80,9 @@ func organisationsTexteOf(t domain.OrganisationTexts) organisationsTexte {
 
 func registerVerfahrensdoku(tb *Toolbox) {
 	AddWrite(tb, Spec{
-		Name:  "verfahrensdoku_text",
-		Title: "Verfahrensdokumentation: Organisationstexte",
-		Tier:  TierConfirm, Idempotent: true,
+		Name:       "verfahrensdoku_text",
+		Title:      "Verfahrensdokumentation: Organisationstexte",
+		Idempotent: true,
 		Description: "Liest und schreibt die Organisationstexte der Verfahrensdokumentation: Zuständigkeit, " +
 			"Belegfluss, Scannen, Freigabe, Vertretung, Sicherung, Sonstiges. Ohne texte liefert es den Stand und " +
 			"welche Abschnitte noch das Muster tragen, ohne zu schreiben; das braucht nur das Recht zu lesen und " +

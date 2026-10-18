@@ -15,6 +15,7 @@ import (
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/mcpserver/oauth"
+	"github.com/buchfink/buchfink/internal/ops"
 	"github.com/buchfink/buchfink/internal/service"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -29,18 +30,13 @@ import (
 // Vorgang. Danach antwortet das Werkzeug mit „beschaeftigt".
 const writeTimeout = 30 * time.Second
 
-// Tier ist die Freigabestufe eines Werkzeugs.
-type Tier string
+// Tier ist die Freigabestufe aus dem Operationskatalog.
+type Tier = ops.Tier
 
 const (
-	// TierRead ändert nichts an den Büchern.
-	TierRead Tier = "lesen"
-	// TierDirect schreibt ohne Rückfrage; Buchfink prüft die Regeln für
-	// Routine (internal/core/policy) und antwortet sonst mit freigabe_noetig.
-	TierDirect Tier = "direkt"
-	// TierConfirm schreibt erst, nachdem der Agent im Chat das Ja des
-	// Menschen eingeholt hat; destructiveHint ist gesetzt.
-	TierConfirm Tier = "rueckfrage"
+	TierRead    = ops.Read
+	TierDirect  = ops.Direct
+	TierConfirm = ops.Confirm
 )
 
 // Call ist der Zusammenhang eines Werkzeugaufrufs.
@@ -70,7 +66,10 @@ type Spec struct {
 	Name        string
 	Title       string
 	Description string
-	Tier        Tier
+	// Tier wird bei der Registrierung aus dem Operationskatalog übernommen.
+	Tier Tier
+	// Operation benennt den Vorgang, falls sein Name vom Werkzeug abweicht.
+	Operation string
 	// Idempotent: derselbe Aufruf ein zweites Mal ändert nichts mehr.
 	Idempotent bool
 	// ExaminerExempt: das Werkzeug ändert die Bücher nicht (Export) und läuft
@@ -172,13 +171,13 @@ func (tb *Toolbox) Specs() []Spec { return slices.Clone(tb.specs) }
 // AddInfo registriert ein lesendes Werkzeug, das auch ohne geöffneten oder
 // freigegebenen Mandanten antwortet.
 func AddInfo[In, Out any](tb *Toolbox, spec Spec, fn func(ctx context.Context, c *Call, in In) (Out, error)) {
-	spec.Tier = TierRead
+	spec = catalogSpec(spec, TierRead)
 	add(tb, spec, fn)
 }
 
 // AddRead registriert ein lesendes Werkzeug im geöffneten Mandanten.
 func AddRead[In, Out any](tb *Toolbox, spec Spec, fn func(ctx context.Context, c *Call, s *core.Services, in In) (Out, error)) {
-	spec.Tier = TierRead
+	spec = catalogSpec(spec, TierRead)
 	add(tb, spec, func(ctx context.Context, c *Call, in In) (Out, error) {
 		var out Out
 		if err := c.ensureTenant(); err != nil {
@@ -231,7 +230,7 @@ func addWrite[In writeInput, Out any](
 	fn func(ctx context.Context, c *Call, s *core.Services, in In) (Out, error),
 	then func(ctx context.Context, c *Call, in In, out *Out),
 ) {
-	checkWriteTier(spec)
+	spec = catalogSpec(spec, TierDirect, TierConfirm)
 	add(tb, spec, func(ctx context.Context, c *Call, in In) (Out, error) {
 		var out Out
 		if r, ok := any(in).(readOnlyInput); ok && r.readOnly() {
@@ -335,7 +334,7 @@ func readAsWriteTool[In writeInput, Out any](ctx context.Context, c *Call, in In
 // Recht wie AddWrite; einen Idempotenzschlüssel nimmt es nicht, weil seine
 // Schritte schon von sich aus nichts doppelt schreiben.
 func AddFlow[In tenantInput, Out any](tb *Toolbox, spec Spec, fn func(ctx context.Context, c *Call, t *core.Tenant, in In) (Out, error)) {
-	checkWriteTier(spec)
+	spec = catalogSpec(spec, TierDirect, TierConfirm)
 	add(tb, spec, func(ctx context.Context, c *Call, in In) (Out, error) {
 		var out Out
 		if err := c.ensureWritable(in, spec.ExaminerExempt); err != nil {
@@ -347,10 +346,20 @@ func AddFlow[In tenantInput, Out any](tb *Toolbox, spec Spec, fn func(ctx contex
 	})
 }
 
-func checkWriteTier(spec Spec) {
-	if spec.Tier != TierDirect && spec.Tier != TierConfirm {
-		panic(fmt.Sprintf("Werkzeug %s: ein schreibendes Werkzeug ist direkt oder rueckfrage, nicht %q", spec.Name, spec.Tier))
+func catalogSpec(spec Spec, allowed ...Tier) Spec {
+	name := spec.Operation
+	if name == "" {
+		name = spec.Name
 	}
+	op, ok := ops.Lookup(name)
+	if !ok || op.Tier == ops.AppOnly || !slices.Contains(allowed, op.Tier) {
+		panic(fmt.Sprintf("Werkzeug %s: Vorgang %q hat keine zulässige MCP-Stufe", spec.Name, name))
+	}
+	if spec.Tier != "" && spec.Tier != op.Tier {
+		panic(fmt.Sprintf("Werkzeug %s: Stufe %q widerspricht dem Katalog (%q)", spec.Name, spec.Tier, op.Tier))
+	}
+	spec.Operation, spec.Tier = op.Name, op.Tier
+	return spec
 }
 
 // withoutKey ist die Eingabe ohne den Schlüssel: der Schlüssel benennt den
@@ -402,6 +411,7 @@ func (c *Call) ensureWritable(in tenantInput, examinerExempt bool) error {
 }
 
 func add[In, Out any](tb *Toolbox, spec Spec, run func(ctx context.Context, c *Call, in In) (Out, error)) {
+	spec = catalogSpec(spec, TierRead, TierDirect, TierConfirm)
 	if spec.Tier == "" || spec.Title == "" || spec.Description == "" {
 		panic(fmt.Sprintf("Werkzeug %s: Stufe, Titel und Beschreibung sind Pflicht", spec.Name))
 	}

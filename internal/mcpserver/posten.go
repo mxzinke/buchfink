@@ -197,7 +197,6 @@ func registerPosten(tb *Toolbox) {
 	AddWrite(tb, Spec{
 		Name:  "mahnung_vermerken",
 		Title: "Mahnung vermerken",
-		Tier:  TierConfirm,
 		Description: "Vermerkt, dass eine offene Forderung gemahnt wurde und wann die Mahnung zugegangen ist. Das " +
 			"Schreiben entsteht außerhalb von Buchfink. Ab dem Folgetag des Zugangs rechnet offene_posten den Verzug, " +
 			"auch gegenüber einem Verbraucher ohne Hinweis in der Rechnung. Vorher im Chat bestätigen lassen.",

@@ -466,9 +466,9 @@ func (in lohnjournalIn) request() (service.PayrollRequest, error) {
 
 func registerBuchen(tb *Toolbox) {
 	AddWrite(tb, Spec{
-		Name:  "beleg_buchen",
-		Title: "Beleg buchen (Routine)",
-		Tier:  TierDirect, Idempotent: true,
+		Name:       "beleg_buchen",
+		Title:      "Beleg buchen (Routine)",
+		Idempotent: true,
 		Description: "Bucht eine Eingangsrechnung ohne Rückfrage, wenn Buchfink sie als Routine einstuft: " +
 			"E-Rechnung ohne Befund, Aussteller über USt-IdNr. oder Steuernummer erkannt, Beträge centgenau wie in " +
 			"der E-Rechnung, Inland in Euro, Brutto unter der Direktgrenze, Lieferant mit vom Menschen bestätigter " +
@@ -509,7 +509,6 @@ func registerBuchen(tb *Toolbox) {
 	AddWritePrepared(tb, Spec{
 		Name:  "beleg_buchen_mit_rueckfrage",
 		Title: "Beleg buchen (mit Rückfrage)",
-		Tier:  TierConfirm,
 		Description: "Bucht einen Eingangsbeleg in allen Fällen, die keine Routine sind: Foto oder PDF, " +
 			"Abweichung von der E-Rechnung, Fremdwährung, Bewirtung, Geschenk, Vorsteueranteil, Rückstellung, " +
 			"Anzahlung, Auslage eines Gesellschafters (bezahlung=auslage), bar bezahlt, Konto statt Gruppe, " +
@@ -551,7 +550,6 @@ func registerBuchen(tb *Toolbox) {
 	AddWrite(tb, Spec{
 		Name:  "buchung_erfassen",
 		Title: "Buchung erfassen",
-		Tier:  TierConfirm,
 		Description: "Handbuchung mit Soll- und Habenzeilen zu einem abgelegten Beleg (beleg_id) oder mit Eigenbeleg " +
 			"(grund, brutto). Für Umbuchungen, Kreditkartenabrechnung ohne Bankumsatz, Abschlussbuchungen im " +
 			"13. Monat (abschlussperiode) und die Gründung: Zeichnung des Stammkapitals (1298, bei Resteinlage auch " +
@@ -575,7 +573,6 @@ func registerBuchen(tb *Toolbox) {
 	AddWrite(tb, Spec{
 		Name:  "buchung_stornieren",
 		Title: "Buchung stornieren",
-		Tier:  TierConfirm,
 		Description: "Storniert eine Buchung durch Generalumkehr mit Grund, auf Wunsch zugleich mit der richtigen " +
 			"Neubuchung (neubuchung). Die ursprüngliche Buchung bleibt sichtbar. Eine festgeschriebene Buchung " +
 			"wird im offenen Zeitraum storniert. Vorher im Chat bestätigen lassen.",
@@ -613,7 +610,6 @@ func registerBuchen(tb *Toolbox) {
 	AddWrite(tb, Spec{
 		Name:  "lohnjournal_buchen",
 		Title: "Lohnjournal buchen",
-		Tier:  TierConfirm,
 		Description: "Bucht die Monatssummen aus dem Lohnjournal des Lohnbüros (Beleg vorher mit beleg_ablegen " +
 			"ablegen). Buchfink prüft Brutto minus Abzüge gleich Netto. Vorher die Summen dem Menschen vorlegen.",
 	}, func(ctx context.Context, c *Call, s *core.Services, in lohnjournalIn) (buchungOut, error) {

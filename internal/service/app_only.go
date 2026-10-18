@@ -7,11 +7,8 @@ import (
 	"github.com/buchfink/buchfink/internal/actor"
 )
 
-// requireHuman behält einen Vorgang dem Menschen in der App vor:
-// Übermittlungsbestätigung, Pflicht als erledigt, Aufstellen/Feststellen/
-// Offenlegen, Stammdaten des Unternehmens samt Gesellschaftern und Gründung,
-// Bankkonten, Abschluss-Einstellungen, Regeln für Apps und das Bestätigen von
-// Standardgruppe und Angaben zur Steuererklärung sowie Festschreibung.
+// requireHuman behält einen Vorgang dem Menschen in der App vor.
+// internal/ops ordnet die Vorgänge ein; Tests gleichen die Schutzstellen ab.
 //
 // Zugelassen ist nur der Erfassungsweg ui. Ohne Erfassungsweg läuft der Dienst
 // unterhalb des Kerns (Einrichtung eines Mandanten, Tests); der Kern lässt

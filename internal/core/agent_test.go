@@ -8,153 +8,257 @@ import (
 	"testing"
 	"time"
 
+	"github.com/buchfink/buchfink/internal/actor"
+	"github.com/buchfink/buchfink/internal/declaration"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/ops"
 	"github.com/buchfink/buchfink/internal/service"
 )
 
-// Was nur ein Mensch in der App auslöst, weist der Kern jedem Agenten ab, über
-// welchen Einstieg auch immer: Prüfermodus, Festschreibung,
-// Übermittlungsbestätigung, Pflicht als erledigt, Aufstellen/Feststellen/
-// Offenlegen, Stammdaten samt Gesellschaftern, Bankkonten, Eingang, Regeln
-// für Apps, Standardgruppe bestätigen und die Verwaltung der Mandanten samt
-// Ablage und Sicherung. Die Vorgänge der Dienste laufen hier ohne
-// core.AppOnly(): sie weisen den Agenten selbst ab, auch wenn ein Einstieg die
-// Kennzeichnung vergisst.
+// Jede kanalgeschützte AppOnly-Operation hat ausführbare Proben für sämtliche
+// Schutzstellen. Dienste werden ohne core.AppOnly aufgerufen, damit auch ihre
+// eigene Prüfung wirkt. Die private App-Verwaltung wird strukturell geprüft.
 func TestAgentsAreRefusedForHumanOnlyOperations(t *testing.T) {
 	h := newHost(t)
 	tc := newTenant(t, h, "Pfennig Ventures GmbH")
 	tenant := openTenant(t, h)
 	agent := agentCtx(t)
 	until := time.Now().AddDate(0, 0, 10).Format("2006-01-02")
-	inService := func(fn func(ctx context.Context, s *Services) error) func() error {
-		return func() error { return tenant.Write(agent, fn) }
+	inService := func(fn func(ctx context.Context, s *Services) error) func(context.Context) error {
+		return func(ctx context.Context) error { return tenant.Write(ctx, fn) }
 	}
 
-	cases := map[string]func() error{
-		"Prüfermodus einschalten": func() error { _, err := tenant.EnableExaminer(agent, until, "Prüfung"); return err },
-		"Prüfermodus beenden":     func() error { _, err := tenant.DisableExaminer(agent, "Ende"); return err },
-		"Monat festschreiben": func() error {
-			_, err := tenant.CommitPeriod(agent, CommitRequest{PeriodType: "month", PeriodLabel: "Jan", CutoffDate: "2026-01-31"})
+	cases := map[string]func(context.Context) error{
+		"core.Tenant.EnableExaminer":  func(ctx context.Context) error { _, err := tenant.EnableExaminer(ctx, until, "Prüfung"); return err },
+		"core.Tenant.DisableExaminer": func(ctx context.Context) error { _, err := tenant.DisableExaminer(ctx, "Ende"); return err },
+		"core.Tenant.CommitPeriod/Monat": func(ctx context.Context) error {
+			_, err := tenant.CommitPeriod(ctx, CommitRequest{PeriodType: "month", PeriodLabel: "Jan", CutoffDate: "2026-01-31"})
 			return err
 		},
-		"Jahr festschreiben": func() error {
-			_, err := tenant.CommitPeriod(agent, CommitRequest{PeriodType: domain.PeriodTypeYear, PeriodLabel: "2026", CutoffDate: "2026-12-31"})
+		"core.Tenant.CommitPeriod/Jahr": func(ctx context.Context) error {
+			_, err := tenant.CommitPeriod(ctx, CommitRequest{PeriodType: domain.PeriodTypeYear, PeriodLabel: "2026", CutoffDate: "2026-12-31"})
 			return err
 		},
-		"Periods festschreiben": inService(func(ctx context.Context, s *Services) error {
+		"service.PeriodService.Commit": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Periods.Commit(ctx, service.PeriodCommitRequest{PeriodType: "month", CutoffDate: "2026-01-31"})
 			return err
 		}),
-		"Periods aufstellen": inService(func(ctx context.Context, s *Services) error {
+		"service.PeriodService.Adopt/Aufstellen": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Periods.Adopt(ctx, 2026, domain.FiscalYearPrepared, "2027-03-01", "")
 			return err
 		}),
-		"Periods feststellen": inService(func(ctx context.Context, s *Services) error {
+		"service.PeriodService.Adopt/Feststellen": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Periods.Adopt(ctx, 2026, domain.FiscalYearAdopted, "2027-06-01", "Beschluss")
 			return err
 		}),
-		"Periods offenlegen": inService(func(ctx context.Context, s *Services) error {
+		"service.PeriodService.Adopt/Offenlegen": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Periods.Adopt(ctx, 2026, domain.FiscalYearDisclosed, "2027-07-01", "Auftrag")
 			return err
 		}),
-		"Periods Feststellung zurücknehmen": inService(func(ctx context.Context, s *Services) error {
+		"service.PeriodService.Reopen": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Periods.Reopen(ctx, 2026, "Korrektur")
 			return err
 		}),
-		"Aufstellen": inService(func(ctx context.Context, s *Services) error {
+		"service.ClosingService.SetFiscalYearStatus/Aufstellen": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Closing.SetFiscalYearStatus(ctx, 2026, domain.FiscalYearPrepared, "2027-03-01", "")
 			return err
 		}),
-		"Feststellen": inService(func(ctx context.Context, s *Services) error {
+		"service.ClosingService.SetFiscalYearStatus/Feststellen": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Closing.SetFiscalYearStatus(ctx, 2026, domain.FiscalYearAdopted, "2027-06-01", "")
 			return err
 		}),
-		"Offenlegen": inService(func(ctx context.Context, s *Services) error {
+		"service.ClosingService.SetFiscalYearStatus/Offenlegen": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Closing.SetFiscalYearStatus(ctx, 2026, domain.FiscalYearDisclosed, "2027-12-01", "Auftrag 1")
 			return err
 		}),
-		"Feststellung zurücknehmen": inService(func(ctx context.Context, s *Services) error {
+		"service.ClosingService.ReopenFiscalYear": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Closing.ReopenFiscalYear(ctx, 2026, "Korrektur")
 			return err
 		}),
-		"Voranmeldung als übermittelt bestätigen": inService(func(ctx context.Context, s *Services) error {
+		"service.VatReturnService.ConfirmSubmitted": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.VatReturns.ConfirmSubmitted(ctx, 1, "2026-02-10", "et-123", "")
 			return err
 		}),
-		"ZM als übermittelt bestätigen": inService(func(ctx context.Context, s *Services) error {
+		"service.ZMService.ConfirmSubmitted": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.ZM.ConfirmSubmitted(ctx, 1, "2026-02-25", "et-123", "")
 			return err
 		}),
-		"Unternehmensdaten ändern": inService(func(ctx context.Context, s *Services) error {
+		"service.SettingsService.UpdateCompanySettings": inService(func(ctx context.Context, s *Services) error {
 			return s.Settings.UpdateCompanySettings(ctx, &domain.CompanySettings{CompanyName: "Andere GmbH"})
 		}),
-		"Bankkonten einrichten": inService(func(ctx context.Context, s *Services) error {
+		"service.BankService.ConfigureAccounts": inService(func(ctx context.Context, s *Services) error {
 			return s.Bank.ConfigureAccounts(ctx, nil)
 		}),
-		"Rechnungskonto wählen": inService(func(ctx context.Context, s *Services) error {
+		"service.BankService.SetInvoiceAccount": inService(func(ctx context.Context, s *Services) error {
 			return s.Bank.SetInvoiceAccount(ctx, "DE02120300000000202051")
 		}),
-		"Gründung erfassen": inService(func(ctx context.Context, s *Services) error {
+		"service.FoundationService.Save": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Foundation.Save(ctx, &domain.Foundation{NotarizedOn: "2026-01-10", ShareCapital: 2_500_000})
 			return err
 		}),
-		"Eintragung ins Handelsregister": inService(func(ctx context.Context, s *Services) error {
+		"service.FoundationService.Register": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Foundation.Register(ctx, "2026-02-01", "AG Köln", "HRB 4711")
 			return err
 		}),
-		"Hebesatz ändern": inService(func(ctx context.Context, s *Services) error {
+		"service.ClosingSettingsService.Save": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.ClosingSettings.Save(ctx, service.ClosingSettings{
 				TradeTaxRatePercent: 250, AccrualMethod: "monthly", AccrualRelease: "yearly"})
 			return err
 		}),
-		"Regeln für Apps ändern": inService(func(ctx context.Context, s *Services) error {
+		"service.SettingsService.SaveAgentSettings": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Settings.SaveAgentSettings(ctx, domain.AgentSettings{DirectMaxGross: 99_999_999})
 			return err
 		}),
-		"Eingang wählen": inService(func(ctx context.Context, s *Services) error {
+		"service.SettingsService.SetInboxFolder": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Settings.SetInboxFolder(ctx, t.TempDir())
 			return err
 		}),
-		"Standardgruppe bestätigen": inService(func(ctx context.Context, s *Services) error {
+		"service.ContactService.ConfirmDefaultPostingGroup": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Contacts.ConfirmDefaultPostingGroup(ctx, 1, "software")
 			return err
 		}),
-		"USt-Jahreserklärung als erledigt bestätigen": inService(func(ctx context.Context, s *Services) error {
+		"service.ObligationService.Confirm/USt": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Obligations.Confirm(ctx, "ust-erklaerung.2025", service.ConfirmInput{Date: "2026-03-01"})
 			return err
 		}),
-		"Sondervorauszahlung als erledigt bestätigen": inService(func(ctx context.Context, s *Services) error {
+		"service.ObligationService.Confirm/Sondervorauszahlung": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Obligations.Confirm(ctx, "sondervorauszahlung.2026", service.ConfirmInput{Date: "2026-02-10"})
 			return err
 		}),
-		"Pflicht als entfallen kennzeichnen": inService(func(ctx context.Context, s *Services) error {
+		"service.ObligationService.Waive": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Obligations.Waive(ctx, "gewerbeanmeldung.gruendung", "freiberuflich")
 			return err
 		}),
-		"Bestätigung einer Pflicht zurücknehmen": inService(func(ctx context.Context, s *Services) error {
+		"service.ObligationService.Reopen": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Obligations.Reopen(ctx, "kst-erklaerung.2025", "Irrtum")
 			return err
 		}),
-		"Sicherungsordner setzen": func() error { _, err := h.SetBackupDir(agent, t.TempDir()); return err },
-		"Mandant wechseln":        func() error { _, err := h.Switch(agent, tc.ID); return err },
-		"Mandant anlegen": func() error {
-			_, err := h.CreateTenant(agent, "Zweite GmbH", filepath.Join(t.TempDir(), "neu"), domain.CompanySettings{})
+		"core.Host.SetBackupDir": func(ctx context.Context) error { _, err := h.SetBackupDir(ctx, t.TempDir()); return err },
+		"core.Host.Switch":       func(ctx context.Context) error { _, err := h.Switch(ctx, tc.ID); return err },
+		"core.Host.CreateTenant": func(ctx context.Context) error {
+			_, err := h.CreateTenant(ctx, "Zweite GmbH", filepath.Join(t.TempDir(), "neu"), domain.CompanySettings{})
 			return err
 		},
-		"Mandant entfernen": func() error { return h.RemoveTenant(agent, tc.ID) },
-		"Datenbank anmelden": func() error {
-			_, err := h.RegisterTenant(agent, filepath.Join(tc.DataDir, "buchfink.sqlite"), "", domain.MigrationKindOpen)
+		"core.Host.RemoveTenant": func(ctx context.Context) error { return h.RemoveTenant(ctx, tc.ID) },
+		"core.Host.RegisterTenant": func(ctx context.Context) error {
+			_, err := h.RegisterTenant(ctx, filepath.Join(tc.DataDir, "buchfink.sqlite"), "", domain.MigrationKindOpen)
 			return err
 		},
-		"Sicherung wiederherstellen": func() error {
-			_, err := h.RestoreBackup(agent, filepath.Join(t.TempDir(), "x.zip"), t.TempDir())
+		"core.Host.RestoreBackup": func(ctx context.Context) error {
+			_, err := h.RestoreBackup(ctx, filepath.Join(t.TempDir(), "x.zip"), t.TempDir())
 			return err
 		},
 	}
+	confirmed := service.InputRequest{Kind: declaration.KindCorporateTax, Year: 2026,
+		Key: "kst.v.z14", Value: declaration.Cents(500000)}
+	if _, err := tenant.SetDeclarationInput(uiCtx, confirmed); err != nil {
+		t.Fatal(err)
+	}
+	cases["core.Host.SetMCPPort"] = func(ctx context.Context) error { return h.SetMCPPort(ctx, 7466) }
+	cases["core.Tenant.changeExaminer"] = func(ctx context.Context) error {
+		_, err := tenant.changeExaminer(ctx, func(context.Context, *Services, *domain.ExaminerPeriod) (*domain.ExaminerPeriod, string, error) {
+			t.Fatal("der geschützte Prüfermodus-Callback wurde erreicht")
+			return nil, "", nil
+		})
+		return err
+	}
+	cases["core.Tenant.ConfirmDeclarationInput"] = func(ctx context.Context) error {
+		_, err := tenant.ConfirmDeclarationInput(ctx, confirmed.Kind, confirmed.Year, confirmed.Key)
+		return err
+	}
+	cases["core.Tenant.SubmitDeclaration"] = func(ctx context.Context) error {
+		_, err := tenant.SubmitDeclaration(ctx, service.SubmissionRequest{})
+		return err
+	}
+	cases["service.DeclarationService.ConfirmInput"] = inService(func(ctx context.Context, s *Services) error {
+		_, err := s.Declarations.ConfirmInput(ctx, confirmed.Kind, confirmed.Year, confirmed.Key)
+		return err
+	})
+	cases["service.DeclarationService.SetInput"] = inService(func(ctx context.Context, s *Services) error {
+		_, err := s.Declarations.SetInput(ctx, confirmed)
+		return err
+	})
+	cases["service.DeclarationService.DeleteInput"] = inService(func(ctx context.Context, s *Services) error {
+		return s.Declarations.DeleteInput(ctx, confirmed.Kind, confirmed.Year, confirmed.Key)
+	})
+	cases["service.DeclarationService.MarkSubmitted"] = inService(func(ctx context.Context, s *Services) error {
+		_, err := s.Declarations.MarkSubmitted(ctx, service.SubmissionRequest{})
+		return err
+	})
+	checks := map[string]func(*testing.T, context.Context){}
 	for name, run := range cases {
-		err := run()
-		if err == nil || !(errors.Is(err, ErrAppOnly) || strings.Contains(err.Error(), "vorbehalten")) {
-			t.Errorf("%s durch einen Agenten: %v", name, err)
+		checks[name] = func(t *testing.T, ctx context.Context) {
+			err := run(ctx)
+			switch _, ok := actor.ChannelOf(ctx); {
+			case !ok:
+				if !errors.Is(err, ErrNoChannel) {
+					t.Errorf("ohne Erfassungsweg: %v", err)
+				}
+			case actor.RecordedChannel(ctx) == "unbekannt":
+				if !errors.Is(err, ErrUnknownChannel) {
+					t.Errorf("mit unbekanntem Erfassungsweg: %v", err)
+				}
+			default:
+				if !errors.Is(err, ErrAppOnly) {
+					t.Errorf("Vorbehalt der App fehlt: %v", err)
+				}
+			}
+		}
+	}
+	checks["service.keepPostingGroup"] = func(t *testing.T, ctx context.Context) {
+		contact := domain.Contact{Type: domain.ContactTypeVendor, Name: "Gruppe bleibt Vorschlag", DefaultPostingGroup: "software"}
+		err := tenant.Write(ctx, func(ctx context.Context, s *Services) error { return s.Contacts.SaveContact(ctx, &contact) })
+		if _, ok := actor.ChannelOf(ctx); !ok {
+			if !errors.Is(err, ErrNoChannel) {
+				t.Errorf("ohne Erfassungsweg: %v", err)
+			}
+			return
+		}
+		if actor.RecordedChannel(ctx) == "unbekannt" {
+			if !errors.Is(err, ErrUnknownChannel) {
+				t.Errorf("unbekannter Erfassungsweg: %v", err)
+			}
+			return
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if contact.DefaultPostingGroup != "" || contact.DefaultPostingGroupConfirmedAt != "" || contact.DefaultPostingGroupConfirmedBy != "" {
+			t.Errorf("Standardgruppe über SaveContact bestätigt: %+v", contact)
+		}
+	}
+	covered := map[string]bool{}
+	channels := map[string]context.Context{
+		"agent": agent, "anderer_agent": actor.WithChannel(context.Background(), "agent:anderer-client"),
+		"system": systemCtx, "ohne": context.Background(),
+		"unbekannt": actor.WithChannel(context.Background(), "unbekannt"),
+	}
+	for _, op := range ops.All() {
+		if op.Tier != ops.AppOnly || op.Enforcement != ops.Channel {
+			continue
+		}
+		t.Run(op.Name, func(t *testing.T) {
+			for _, guard := range op.Guards {
+				found := false
+				for name, check := range checks {
+					site, _, _ := strings.Cut(name, "/")
+					if site != guard {
+						continue
+					}
+					found, covered[name] = true, true
+					for channel, ctx := range channels {
+						t.Run(name+"/"+channel, func(t *testing.T) { check(t, ctx) })
+					}
+				}
+				if !found {
+					t.Errorf("keine ausführbare Probe für %s", guard)
+				}
+			}
+		})
+	}
+	for name := range checks {
+		if !covered[name] {
+			t.Errorf("Probe %s gehört zu keiner AppOnly-Operation", name)
 		}
 	}
 

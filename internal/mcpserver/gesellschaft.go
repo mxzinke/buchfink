@@ -307,7 +307,6 @@ func registerGesellschaft(tb *Toolbox) {
 	AddWrite(tb, Spec{
 		Name:  "darlehen_erfassen",
 		Title: "Gesellschafterdarlehen erfassen",
-		Tier:  TierConfirm,
 		Description: "Erfasst einen Darlehensvertrag zwischen der GmbH und einem Gesellschafter oder berichtigt ihn " +
 			"(darlehen_id mit grund; fehlende Angaben bleiben, wie sie sind). Erst mit nur_vorschau prüfen, dann dem " +
 			"Menschen Gesellschafter, Richtung, Betrag, Zinssatz, Laufzeit, Konten, den Vertrag (beleg_id) und die " +
@@ -357,7 +356,6 @@ func registerGesellschaft(tb *Toolbox) {
 	AddWrite(tb, Spec{
 		Name:  "ergebnisverwendung_buchen",
 		Title: "Ergebnisverwendung buchen",
-		Tier:  TierConfirm,
 		Description: "Bucht den Gesellschafterbeschluss über das Ergebnis eines Geschäftsjahres im Folgejahr: " +
 			"Rücklagen, Ausschüttung mit einbehaltener Kapitalertragsteuer, Rest als Vortrag ohne Buchung. " +
 			"Voraussetzung sind der Saldenvortrag und der vom Menschen in der App festgestellte Abschluss; der " +

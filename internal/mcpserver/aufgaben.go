@@ -323,9 +323,9 @@ func registerFristen(tb *Toolbox) {
 	})
 
 	AddWrite(tb, Spec{
-		Name:  "pflicht_vorbereitet",
-		Title: "Pflicht als vorbereitet melden",
-		Tier:  TierDirect, Idempotent: true,
+		Name:       "pflicht_vorbereitet",
+		Title:      "Pflicht als vorbereitet melden",
+		Idempotent: true,
 		Description: "Meldet eine Pflicht aus fristen als vorbereitet, mit Notiz (was fertig ist, wo die Datei liegt). " +
 			"Danach dem Menschen Weg, Fälligkeit und Nachweis nennen. „Erledigt“ meldet ein Agent nie: das setzen " +
 			"die Daten (Transferticket, Festschreibung) oder der Mensch in der App.",
@@ -343,7 +343,6 @@ func registerFristen(tb *Toolbox) {
 	AddWrite(tb, Spec{
 		Name:  "anlass_erfassen",
 		Title: "Anlass erfassen",
-		Tier:  TierConfirm,
 		Description: "Erfasst einen Anlass, der Pflichten auslöst: Gesellschafterwechsel (Gesellschafterliste, " +
 			"Transparenzregister), Änderung der wirtschaftlich Berechtigten, Vorauszahlungsbescheid KSt oder GewSt. " +
 			"Vorher im Chat bestätigen lassen. Danach fristen aufrufen.",

@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/currency"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/ops"
 )
 
 // Der Prüfermodus muss an der Bridge greifen und nicht in der Oberfläche.
@@ -158,34 +160,25 @@ func TestEveryBridgeMethodIsClassified(t *testing.T) {
 	}
 }
 
-// Übermittlungsbestätigung, Pflicht als erledigt, Aufstellen/Feststellen/
-// Offenlegen, die Stammdaten des Unternehmens samt Gründung und Bankkonten,
-// die Abschluss-Einstellungen, der Eingang und die Regeln für Apps sind der
-// App vorbehalten. Der Kern weist sie für jeden anderen Erfassungsweg ab, wenn die
-// Bridge sie als solche kennzeichnet; die Dienste tun es zusätzlich selbst.
-// Die Festschreibung ist ein Vorgang des Kerns und prüft den Erfassungsweg
-// dort (core.Tenant.CommitPeriod). Was ein Agent ebenso darf, trägt die
-// Kennzeichnung nicht.
+// Direkte AppOnly-Kennzeichnungen müssen zum Operationskatalog gehören.
+// Delegierte Prüfungen und bedingte Vorbehalte prüft internal/core zusätzlich.
 func TestAppOnlyOperationsAreMarked(t *testing.T) {
 	methods := bridgeMethods(t)
-	for name, appOnly := range map[string]bool{
-		"ConfirmVatReturnSubmitted": true, "ConfirmZMSubmitted": true, "ConfirmObligation": true,
-		"SetFiscalYearStatus": true, "ReopenFiscalYear": true, "UpdateCompanySettings": true,
-		"SaveFoundation": true, "RegisterCompany": true, "SaveClosingSettings": true,
-		"ConfigureBankAccounts": true, "SetInvoiceBankAccount": true,
-		"SaveAgentRules": true, "ConfirmDefaultPostingGroup": true, "SetInboxFolder": true,
-
-		"BookAppropriation": false, "RegisterShareholderLoan": false, "CorrectShareholderLoan": false,
-		"SaveOrganisationTexts": false,
-	} {
-		m, ok := methods[name]
-		if !ok {
-			t.Errorf("die Methode %s gibt es nicht mehr", name)
-			continue
+	for name, method := range methods {
+		op, reserved := ops.ForBridge(name)
+		if method.appOnly && (!reserved || op.Tier != ops.AppOnly) {
+			t.Errorf("%s: core.AppOnly ohne Katalogeintrag", name)
 		}
-		if m.appOnly != appOnly {
-			t.Errorf("%s.%s: core.AppOnly() %v, erwartet %v", m.file, name, m.appOnly, appOnly)
+	}
+	for _, op := range ops.All() {
+		for _, name := range op.Bridge {
+			if _, ok := methods[name]; !ok {
+				t.Errorf("%s: Bridge-Methode %s fehlt", op.Name, name)
+			}
 		}
+	}
+	if !reflect.DeepEqual(readOnlyAllowed, ops.BridgeExaminerAllowed()) {
+		t.Error("die Prüfermodus-Ausnahmen weichen vom Operationskatalog ab")
 	}
 }
 

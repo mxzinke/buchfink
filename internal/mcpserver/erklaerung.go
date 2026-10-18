@@ -360,7 +360,6 @@ func registerErklaerung(tb *Toolbox) {
 	AddWrite(tb, Spec{
 		Name:  "erklaerung_eingabe",
 		Title: "Angabe zur Erklärung setzen",
-		Tier:  TierConfirm,
 		Description: "Setzt eine Angabe zu einer Zeile einer Jahreserklärung, die eine Eingabe zulässt (Wert aus " +
 			"Bescheid, Beschluss, Beleg). Vorher im Chat bestätigen lassen. Bei Zeilen, die dem Menschen vorbehalten " +
 			"sind, bleibt die Angabe ein Vorschlag bis zur Bestätigung in der App; eine vom Menschen bestätigte Angabe " +
@@ -396,9 +395,9 @@ func registerErklaerung(tb *Toolbox) {
 	})
 
 	AddFlow(tb, Spec{
-		Name:  "erklaerung_exportieren",
-		Title: "Erklärung exportieren",
-		Tier:  TierDirect, Idempotent: true, ExaminerExempt: true,
+		Name:       "erklaerung_exportieren",
+		Title:      "Erklärung exportieren",
+		Idempotent: true, ExaminerExempt: true,
 		Description: "Schreibt eine Jahreserklärung (ust_jahr, kst, gewst) als JSON (Schema buchfink.erklaerung/1) " +
 			"in den Exportordner und hält den Export fest; liefert Pfad, Hashwerte und Befunde. Die Bücher ändert " +
 			"das nicht. Übermitteln und Transferticket erfassen nur der Mensch.",
@@ -435,9 +434,9 @@ func registerErklaerung(tb *Toolbox) {
 	})
 
 	AddFlow(tb, Spec{
-		Name:  "ebilanz_exportieren",
-		Title: "E-Bilanz exportieren",
-		Tier:  TierDirect, Idempotent: true, ExaminerExempt: true,
+		Name:       "ebilanz_exportieren",
+		Title:      "E-Bilanz exportieren",
+		Idempotent: true, ExaminerExempt: true,
 		Description: "Prüft die E-Bilanz eines Geschäftsjahres (Zuordnung der Konten, Pflichtfelder der Taxonomie) " +
 			"und schreibt sie in den Exportordner: als XBRL-Instanz (Vorgabe) oder mit format=susa_csv als Summen- und " +
 			"Saldenliste mit der Taxonomie-Position je Konto, der Ausweichweg für eBilanz+, das daraus nur Bilanz und " +

@@ -307,7 +307,6 @@ func registerAbschluss(tb *Toolbox) {
 	AddWritePrepared(tb, Spec{
 		Name:  "abschlussbuchung",
 		Title: "Abschlussbuchung",
-		Tier:  TierConfirm,
 		Description: "Bucht einen Schritt des Jahresabschlusses: afa_lauf, abgrenzung, rueckstellung, ust_verrechnung, " +
 			"steuerrueckstellung, ug_ruecklage, wertberichtigung, unfertige_leistungen, fremdwaehrung oder " +
 			"anlage_aktivieren, jeweils mit seinen Angaben im gleichnamigen Feld. Erst mit nur_vorschau rechnen, " +

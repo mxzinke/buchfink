@@ -396,9 +396,9 @@ func registerBelege(tb *Toolbox) {
 	})
 
 	AddWriteThen(tb, Spec{
-		Name:  "beleg_ablegen",
-		Title: "Beleg ablegen",
-		Tier:  TierDirect, Idempotent: true,
+		Name:       "beleg_ablegen",
+		Title:      "Beleg ablegen",
+		Idempotent: true,
 		Description: "Legt Dateien aus dem Eingang (eingang) oder einem Leseordner als Eingangsbeleg ab (absoluter " +
 			"Pfad; PDF, Bild oder XML bis 50 MB; kein Dateiinhalt im Aufruf). Nur Dateien ablegen, die der Mensch " +
 			"als Beleg benannt hat: die Ablage ist endgültig, auch ein verworfener Beleg bleibt im Archiv. Danach " +
@@ -529,9 +529,9 @@ func registerBelege(tb *Toolbox) {
 	})
 
 	AddFlow(tb, Spec{
-		Name:  "beleg_datei_exportieren",
-		Title: "Belegdatei exportieren",
-		Tier:  TierDirect, Idempotent: true, ExaminerExempt: true,
+		Name:       "beleg_datei_exportieren",
+		Title:      "Belegdatei exportieren",
+		Idempotent: true, ExaminerExempt: true,
 		Description: "Legt eine Kopie einer Belegdatei (PDF, Bild, E-Rechnung) in den Exportordner und liefert den Pfad, " +
 			"etwa um ein Foto oder PDF ohne E-Rechnung zu lesen oder eine ausgestellte Rechnung zu versenden. Die " +
 			"Bücher ändert das nicht. Welche Dateien ein Beleg hat, nennt beleg_lesen.",
@@ -566,9 +566,9 @@ func registerBelege(tb *Toolbox) {
 	})
 
 	AddWrite(tb, Spec{
-		Name:  "beleg_verwerfen",
-		Title: "Beleg verwerfen",
-		Tier:  TierConfirm, Idempotent: true,
+		Name:       "beleg_verwerfen",
+		Title:      "Beleg verwerfen",
+		Idempotent: true,
 		Description: "Verwirft einen abgelegten, nicht gebuchten Beleg mit Grund (Dublette, kein Beleg dieses " +
 			"Unternehmens). Er behält seine Nummer und bleibt auffindbar. Vorher im Chat bestätigen lassen.",
 	}, func(ctx context.Context, c *Call, s *core.Services, in belegVerwerfenIn) (belegOut, error) {

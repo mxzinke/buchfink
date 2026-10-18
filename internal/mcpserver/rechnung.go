@@ -212,7 +212,6 @@ func registerRechnung(tb *Toolbox) {
 	AddWritePrepared(tb, Spec{
 		Name:  "rechnung_ausstellen",
 		Title: "Rechnung ausstellen",
-		Tier:  TierConfirm,
 		Description: "Stellt eine Ausgangsrechnung mit fortlaufender Nummer aus, bucht die Forderung und archiviert " +
 			"das Dokument (E-Rechnung nach dem Format des Kunden). art=abschlag stellt eine Anzahlungsrechnung " +
 			"in einem Rechnungsverbund aus (neu mit verbund und kontakt_id, sonst verbund_id); art=schlussrechnung " +

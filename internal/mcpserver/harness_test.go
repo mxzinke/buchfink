@@ -461,7 +461,7 @@ type testContactOut struct {
 func (o testContactOut) Ref() string { return fmt.Sprintf("kontakt:%d", o.ID) }
 
 func registerTestWriteTool(tb *Toolbox) {
-	AddWrite(tb, Spec{Name: "test_lieferant", Title: "Lieferant anlegen (Test)", Description: "nur für Tests", Tier: TierDirect},
+	AddWrite(tb, Spec{Name: "test_lieferant", Title: "Lieferant anlegen (Test)", Description: "nur für Tests", Operation: "kontakt_anlegen"},
 		func(ctx context.Context, c *Call, s *core.Services, in testContactIn) (testContactOut, error) {
 			contact := domain.Contact{Type: domain.ContactTypeVendor, Name: in.Name}
 			if err := s.Contacts.SaveContact(ctx, &contact); err != nil {
