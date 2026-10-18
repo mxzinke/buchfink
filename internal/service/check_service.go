@@ -709,7 +709,7 @@ func (s *CheckService) checkReceipts(
 			severity = domain.CheckBlocking
 		}
 		message := fmt.Sprintf("Beleg %s (Eingang %s) ist abgelegt, aber nicht gebucht",
-			r.ReceiptNumber, relevant)
+			r.ReceiptNumber, germanDay(relevant))
 		reference := "GoBD Rz. 47"
 		// Der Abschlagsfall ist keine Versäumnis, sondern die Rechtslage. Er
 		// bleibt sichtbar — als Hinweis, nicht als Sperre.
@@ -740,7 +740,7 @@ func (s *CheckService) checkReceipts(
 				ObjectName: r.ReceiptNumber,
 				Message: fmt.Sprintf(
 					"Beleg %s liegt seit %s unbearbeitet — unbare Geschäftsvorfälle sind innerhalb von %d Tagen zu erfassen",
-					r.ReceiptNumber, relevant, captureDays),
+					r.ReceiptNumber, germanDay(relevant), captureDays),
 				Reference: "GoBD Rz. 47",
 			})
 		}
@@ -828,7 +828,7 @@ func (s *CheckService) checkBank(ctx context.Context, year int, cutoff string) (
 			ObjectID:   fmt.Sprintf("%d", tx.ID),
 			ObjectName: tx.CounterpartyName,
 			Message: fmt.Sprintf("Bankumsatz vom %s über %s € (%s) ist keiner Buchung zugeordnet",
-				tx.BookingDate, tx.Amount, tx.CounterpartyName),
+				germanDay(tx.BookingDate), tx.Amount, tx.CounterpartyName),
 			Reference: "§ 146 Abs. 1 AO",
 		})
 	}
@@ -1437,7 +1437,7 @@ func (s *CheckService) checkUnconfirmedVatIDs(ctx context.Context, year int) []d
 			ObjectName: inv.InvoiceNumber,
 			Message: fmt.Sprintf(
 				"Zur Rechnung %s an %s liegt keine gültige Bestätigung der USt-IdNr. vor. "+
-					"Ausgestellt mit dem Grund: %s. %s Hole die Bestätigungsanfrage nach: die gültige "+
+					"Ausgestellt mit dem Grund: %s. %s Die Bestätigungsanfrage ist nachzuholen: die gültige "+
 					"USt-IdNr. weist den Empfänger als Unternehmer aus, und daran hängt der Leistungsort "+
 					"im übrigen Gemeinschaftsgebiet.",
 				inv.InvoiceNumber, inv.ContactName, reason, status.Note),

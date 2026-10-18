@@ -195,7 +195,7 @@ func (s *MonthCloseService) State(ctx context.Context, month string) (*MonthClos
 	switch {
 	case state.Committed:
 		commitState, commitNote = MonthStepDone,
-			fmt.Sprintf("Festgeschrieben bis zum %s.", state.CommittedTo)
+			fmt.Sprintf("Festgeschrieben bis zum %s.", germanDay(state.CommittedTo))
 	case checkState == MonthStepBlocked:
 		commitState, commitNote = MonthStepBlocked,
 			"Erst die blockierenden Befunde klären oder mit Begründung übergehen."
@@ -257,7 +257,7 @@ func (s *MonthCloseService) vatStep(
 	switch {
 	case period.Status == domain.VatReturnSubmitted:
 		step.State = MonthStepDone
-		step.Note = fmt.Sprintf("Am %s übermittelt.", period.SubmittedAt)
+		step.Note = fmt.Sprintf("Am %s übermittelt.", germanDay(period.SubmittedAt))
 	case !state.Committed:
 		// Das Kennziffernblatt ist vorher schon sichtbar — bestätigt werden
 		// kann erst, was unveränderbar ist.
@@ -267,7 +267,7 @@ func (s *MonthCloseService) vatStep(
 		step.State = MonthStepOpen
 		step.Note = fmt.Sprintf(
 			"Werte in Mein ELSTER eintragen, danach Datum und Transferticket erfassen. Fällig am %s.",
-			period.DueDate)
+			germanDay(period.DueDate))
 	}
 	return step
 }

@@ -258,7 +258,7 @@ func overdueNote(c *OverdueClaim, extra []string) string {
 				"Verzugseintritt dreißig Tage nach Fälligkeit hingewiesen hat "+
 				"(§ 286 Abs. 3 Satz 1 Halbsatz 2 BGB) — fehlt der Hinweis, beginnt der Verzug "+
 				"erst mit der Mahnung. Bei den in Buchfink ausgestellten Rechnungen ist das "+
-				"berücksichtigt; bei einem von Hand gebuchten Posten prüfe den Text der Rechnung.")
+				"berücksichtigt; bei einem anderen Posten ist der Text der Rechnung zu prüfen.")
 	} else {
 		parts = append(parts,
 			"Der Kunde ist kein Verbraucher: Verzugszinsen neun Prozentpunkte über dem Basiszinssatz, "+

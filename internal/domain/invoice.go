@@ -479,8 +479,8 @@ func (inv *Invoice) Validate() error {
 	if inv.TaxAmount != 0 && !inv.TaxTreatment.MayShowTax() {
 		return fmt.Errorf(
 			"die Rechnung weist %s € Umsatzsteuer aus, der Steuerfall %q lässt aber keine entstehen. "+
-				"Ein solcher Ausweis wird nach § 14c UStG trotzdem geschuldet – wähle entweder den "+
-				"steuerpflichtigen Inlandsumsatz oder nimm den Steuerausweis heraus",
+				"Ein solcher Ausweis wird nach § 14c UStG trotzdem geschuldet – richtig ist entweder der "+
+				"steuerpflichtige Inlandsumsatz oder eine Rechnung ohne Steuerausweis",
 			inv.TaxAmount, inv.TaxTreatment)
 	}
 	for i := range inv.Items {

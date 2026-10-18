@@ -248,11 +248,11 @@ func (c *calc) tradeControl(common Common, data CorporateData, before, deduction
 	c.books("gewst.k.ertrag_gerundet", Cents(trade.Rounded), fromLines("auf volle 100 € abgerundet", "gewst.k.ertrag"))
 	c.books("gewst.k.messbetrag", Cents(trade.Base), fromLines("3,5 % des abgerundeten Gewerbeertrags", "gewst.k.ertrag_gerundet"))
 	if data.TradeTaxRate <= 0 {
-		c.open("gewst.k.hebesatz", "Der Hebesatz der Gemeinde fehlt in den Einstellungen.")
+		c.open("gewst.k.hebesatz", "Der Hebesatz der Gemeinde fehlt. Er gehört unter Unternehmen › Stammdaten › Steuern.")
 		c.finding(SeverityWarning, "hebesatz_fehlt", "gewst.k.hebesatz",
 			"Ohne Hebesatz rechnet Buchfink keine Gewerbesteuer; er steht im Bescheid der Gemeinde.", "§ 16 GewStG")
 	} else {
-		c.books("gewst.k.hebesatz", Text(fmt.Sprintf("%d %%", data.TradeTaxRate)), Origin{Kind: OriginSettings, Text: "Einstellungen zum Abschluss"})
+		c.books("gewst.k.hebesatz", Text(fmt.Sprintf("%d %%", data.TradeTaxRate)), Origin{Kind: OriginSettings, Text: "Stammdaten, Steuern"})
 		if min := c.params.TradeTaxMinRatePercent; data.TradeTaxRate < min {
 			c.finding(SeverityWarning, "hebesatz_unter_minimum", "gewst.k.hebesatz",
 				fmt.Sprintf("Der Hebesatz von %d %% liegt unter dem Mindesthebesatz von %d %%.", data.TradeTaxRate, min),

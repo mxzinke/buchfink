@@ -176,7 +176,7 @@ func (s *ZMService) Save(ctx context.Context, periodKey string) (*domain.ZMRetur
 		if submitted != nil {
 			return nil, fmt.Errorf(
 				"für den Zeitraum %s ist am %s bereits eine Zusammenfassende Meldung übermittelt "+
-					"(Transferticket %s). Lege stattdessen eine berichtigte Meldung an",
+					"(Transferticket %s). Anzulegen ist stattdessen eine berichtigte Meldung",
 				period.Key, submitted.SubmittedAt, submitted.TransferTicket)
 		}
 	}
@@ -352,8 +352,8 @@ func ensureZMCurrent(rec, fresh *domain.ZMReturn) error {
 	}
 	return fmt.Errorf(
 		"der gespeicherte Entwurf der Zusammenfassenden Meldung %s stimmt nicht mehr mit dem Journal "+
-			"überein (im Entwurf %s €, aus dem Journal %s €). Speichere ihn neu und bestätige dann die "+
-			"Übermittlung — bestätigt wird, was übermittelt wurde",
+			"überein (im Entwurf %s €, aus dem Journal %s €). Er ist neu zu speichern, danach lässt sich die "+
+			"Übermittlung bestätigen — bestätigt wird, was übermittelt wurde",
 		rec.PeriodKey, rec.TotalServices, fresh.TotalServices)
 }
 
@@ -663,7 +663,7 @@ func (s *ZMService) ensureCommitted(ctx context.Context, rec *domain.ZMReturn) e
 	if cutoff == "" || cutoff < rec.PeriodTo {
 		return fmt.Errorf(
 			"der Meldezeitraum %s (bis %s) ist noch nicht festgeschrieben. Eine übermittelte Meldung muss "+
-				"sich auf einen unveränderlichen Stand stützen — schreibe den Zeitraum zuerst fest",
+				"sich auf einen unveränderlichen Stand stützen. Der Zeitraum ist zuerst festzuschreiben",
 			rec.PeriodKey, rec.PeriodTo)
 	}
 	return nil
@@ -684,7 +684,7 @@ func (s *ZMService) ensureFirstOrCorrection(ctx context.Context, rec *domain.ZMR
 	}
 	return fmt.Errorf(
 		"für den Zeitraum %s ist am %s bereits eine Zusammenfassende Meldung übermittelt (Transferticket %s). "+
-			"Eine zweite Erstmeldung desselben Zeitraums gibt es nicht — bestätige sie als berichtigte Meldung",
+			"Eine zweite Erstmeldung desselben Zeitraums gibt es nicht — sie ist als berichtigte Meldung zu bestätigen",
 		rec.PeriodKey, submitted.SubmittedAt, submitted.TransferTicket)
 }
 

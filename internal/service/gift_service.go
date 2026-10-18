@@ -568,7 +568,7 @@ func (s *GiftService) buildRebooking(
 				"die Buchung %s ist ein innergemeinschaftlicher Erwerb oder eine Leistung nach "+
 					"§ 13b UStG. Dort steht die Vorsteuer neben der Steuerschuld aus derselben "+
 					"Bemessungsgrundlage, und § 15 Abs. 1a UStG nimmt nur den Abzug — diese "+
-					"Aufteilung rechnet Buchfink nicht. Buche den Beleg von Hand um",
+					"Aufteilung rechnet Buchfink nicht. Die Buchung ist zu stornieren und der Beleg mit einer eigenen Position für das Geschenk neu zu buchen",
 				entry.EntryNumber)
 		}
 		if !deductibleInputTaxKey(l.TaxKey) {
@@ -577,8 +577,8 @@ func (s *GiftService) buildRebooking(
 		if taxIdx >= 0 {
 			return nil, fmt.Errorf(
 				"die Buchung %s hat mehrere Vorsteuerzeilen (verschiedene Steuersätze). Welcher "+
-					"Anteil auf das Geschenk entfällt, ist ihr nicht mehr zu entnehmen — buche diesen "+
-					"Beleg von Hand um", entry.EntryNumber)
+					"Anteil auf das Geschenk entfällt, ist ihr nicht mehr zu entnehmen — die Buchung ist "+
+					"zu stornieren und der Beleg mit einer eigenen Position für das Geschenk neu zu buchen", entry.EntryNumber)
 		}
 		taxIdx = i
 	}
@@ -609,8 +609,8 @@ func (s *GiftService) buildRebooking(
 		if idx < 0 {
 			return nil, fmt.Errorf(
 				"in der Buchung %s ist die Zeile zum Geschenk an %s (%s € auf Konto %s) nicht "+
-					"eindeutig zu finden. Eine Umbuchung nähme sonst fremden Aufwand mit — buche "+
-					"diesen Beleg von Hand um",
+					"eindeutig zu finden. Eine Umbuchung nähme sonst fremden Aufwand mit — die Buchung ist "+
+					"zu stornieren und der Beleg mit einer eigenen Position für das Geschenk neu zu buchen",
 				entry.EntryNumber, record.RecipientName, record.NetAmount, record.Account)
 		}
 		matched[idx] = record
@@ -624,7 +624,8 @@ func (s *GiftService) buildRebooking(
 			if tax.TaxBase <= 0 || record.NetAmount > tax.TaxBase {
 				return nil, fmt.Errorf(
 					"die Vorsteuerzeile der Buchung %s hat keine Bemessungsgrundlage, aus der sich "+
-						"der Anteil des Geschenks rechnen ließe — buche diesen Beleg von Hand um",
+						"der Anteil des Geschenks rechnen ließe. Die Buchung ist zu stornieren und der Beleg "+
+						"mit einer eigenen Position für das Geschenk neu zu buchen",
 					entry.EntryNumber)
 			}
 			share := domain.MulRound(tax.Amount, int64(record.NetAmount), int64(tax.TaxBase))

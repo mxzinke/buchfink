@@ -444,7 +444,7 @@ func (s *ClosingBookingService) bookTaxProvision(
 		if booked[i].Kind.IsTax() {
 			return nil, fmt.Errorf(
 				"für das Geschäftsjahr %d besteht bereits eine Steuerrückstellung (%q über %s €). "+
-					"Storniere zuerst ihre Buchung; ein zweiter Lauf bildete sie ein zweites Mal",
+					"Zuerst ist ihre Buchung zu stornieren; ein zweiter Lauf bildete sie ein zweites Mal",
 				preview.FiscalYear, booked[i].Text, booked[i].SettlementAmount)
 		}
 	}

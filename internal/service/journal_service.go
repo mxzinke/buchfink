@@ -355,7 +355,7 @@ func (s *JournalService) reverseOn(ctx context.Context, entryID uint, reason, da
 	if date != "" && original.Source != domain.EntrySourceOpening {
 		return nil, fmt.Errorf(
 			"Buchung %s ist keine Eröffnungsbuchung; eine Generalumkehr mit vorgegebenem Datum gibt es "+
-				"nur für den Saldenvortrag. Storniere die Buchung ohne Datumsangabe – die Korrektur hat "+
+				"nur für den Saldenvortrag. Storniert wird ohne Datumsangabe – die Korrektur hat "+
 				"dann den Tag ihrer Erstellung", original.EntryNumber)
 	}
 	// Und auch beim Saldenvortrag ist das Datum nicht frei: die Rücknahme
@@ -808,8 +808,8 @@ func (s *JournalService) ensureLawfulTaxDisclosure(e *domain.JournalEntry) error
 		}
 		return fmt.Errorf(
 			"Zeile %d weist %s € Umsatzsteuer aus, %s lässt aber keine entstehen. "+
-				"Ein solcher Ausweis wird nach § 14c UStG trotzdem geschuldet – buche ihn mit dem "+
-				"Steuerschlüssel %s (Kennziffer 69) oder wähle den steuerpflichtigen Inlandsumsatz",
+				"Ein solcher Ausweis wird nach § 14c UStG trotzdem geschuldet – er gehört auf den "+
+				"Steuerschlüssel %s (Kennziffer 69), oder der Umsatz ist steuerpflichtig im Inland",
 			i+1, l.Amount, source, accounting.TaxKeyUnlawful)
 	}
 	return nil
@@ -895,7 +895,7 @@ func (s *JournalService) validateAccounts(ctx context.Context, e *domain.Journal
 			}
 			return fmt.Errorf(
 				"Zeile %d: Konto %s ist das Sammelkonto für die Bilanz und wird nicht direkt bebucht. "+
-					"Buche den offenen Posten auf das Personenkonto des %s – die Bilanzposition verdichtet sich daraus",
+					"Der offene Posten gehört auf das Personenkonto des %s – die Bilanzposition verdichtet sich daraus",
 				i+1, l.Account, partner,
 			)
 		}
@@ -1084,9 +1084,9 @@ func (s *JournalService) ensureYearNotAdopted(ctx context.Context, e *domain.Jou
 			continue
 		}
 		return fmt.Errorf(
-			"Der Jahresabschluss %d ist am %s festgestellt (§ 42a Abs. 2 GmbHG). Eine Buchung zum %s ist "+
-				"deshalb nicht mehr möglich. Wenn der Abschluss geändert werden muss, setze das Geschäftsjahr "+
-				"zunächst unter „Jahresabschluss\" mit Angabe des Grundes zurück",
+			"Der Jahresabschluss %d ist am %s festgestellt. Eine Buchung zum %s ist deshalb nicht mehr "+
+				"möglich. Muss der Abschluss geändert werden, setzen Sie die Feststellung unter "+
+				"Abschlüsse › Jahr mit Angabe des Grundes zurück",
 			fy.Year, fy.AdoptedOn, e.BookingDate)
 	}
 	return nil

@@ -31,7 +31,7 @@ import (
 const (
 	effectFormat = "Der Datensatz ist nicht lesbar. Damit ist die Rechnung keine E-Rechnung im Sinne " +
 		"des § 14 Abs. 1 Satz 3 UStG, sondern eine sonstige Rechnung; für den Vorsteuerabzug kommt es " +
-		"dann auf die Pflichtangaben im lesbaren Teil an. Lass den Lieferanten den Datensatz neu senden."
+		"dann auf die Pflichtangaben im lesbaren Teil an. Der Lieferant sollte den Datensatz neu senden."
 	effectBusinessRule = "Der Datensatz verletzt eine Regel der EN 16931 bzw. der deutschen " +
 		"Ausprägung. Der Vorsteuerabzug hängt nicht unmittelbar daran, solange die Pflichtangaben " +
 		"der §§ 14, 14a UStG vorhanden sind — die Rechnung ist aber nicht normgerecht, und Buchfink " +
@@ -39,8 +39,8 @@ const (
 	effectBusinessRuleWarning = "Die Norm stuft diese Regel selbst als Hinweis ein. Für den " +
 		"Vorsteuerabzug folgt daraus nichts; die Angabe fehlt oder ist unüblich."
 	effectContent = "Es fehlt eine Pflichtangabe der §§ 14, 14a UStG. Ohne sie ist der Vorsteuerabzug " +
-		"nicht zulässig (§ 15 Abs. 1 Satz 1 Nr. 1 UStG). Ergänze die Angabe in den Stammdaten oder " +
-		"lass die Rechnung berichtigen — die Berichtigung wirkt auf den Zeitpunkt der Ausstellung zurück."
+		"nicht zulässig (§ 15 Abs. 1 Satz 1 Nr. 1 UStG). Die Angabe gehört in die Stammdaten, oder " +
+		"der Aussteller berichtigt die Rechnung — die Berichtigung wirkt auf den Zeitpunkt der Ausstellung zurück."
 )
 
 // ReceiptCheckContext sind die Daten neben dem Beleg, gegen die die
@@ -191,7 +191,7 @@ func ClassifyReceiptFindings(receipt *domain.Receipt, check ReceiptCheckContext)
 				Class: domain.ValidationClassFormat, Rule: "findings_unreadable",
 				Severity: string(einvoice.SeverityFatal),
 				Message: "Das gespeicherte Prüfergebnis dieses Belegs ist nicht lesbar. " +
-					"Lies den Beleg erneut ein.",
+					"Der Beleg ist erneut einzulesen.",
 				Norm: "GoBD Rz. 100 ff.", InputTaxEffect: effectFormat, Blocking: false,
 			})
 		}
@@ -305,7 +305,7 @@ func contentFindingsOf(receipt *domain.Receipt, check ReceiptCheckContext) []dom
 					"ausgewiesene Steuer ist kein Vorsteuerabzug möglich.", receipt.ReceiptNumber),
 			Norm: "§ 14 Abs. 4 Nr. 8 UStG, § 15 Abs. 1 Satz 1 Nr. 1 UStG",
 			InputTaxEffect: "Ohne gesondert ausgewiesene Steuer gibt es keinen Vorsteuerabzug. " +
-				"Ist der Umsatz steuerfrei oder schuldest du die Steuer nach § 13b UStG, ist das " +
+				"Ist der Umsatz steuerfrei oder wird die Steuer nach § 13b UStG vom Empfänger geschuldet, ist das " +
 				"richtig so — dann ist der Steuerfall der Buchung entsprechend zu wählen.",
 			Blocking: false,
 		})
@@ -369,7 +369,7 @@ func masterDataFindings(check ReceiptCheckContext, relief invoiceRelief) []domai
 				"Stammdaten geprüft.",
 			Norm: "§ 14 Abs. 4 Nr. 1 und 2 UStG",
 			InputTaxEffect: "Ob die Rechnung die Angaben zum Aussteller hat, ist offen. " +
-				"Lege den Aussteller als Kontakt an, dann prüft Buchfink die Angaben mit.",
+				"Ist der Aussteller als Kontakt angelegt, prüft Buchfink die Angaben mit.",
 			Blocking: false,
 		})
 	}

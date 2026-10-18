@@ -269,8 +269,8 @@ func (s *ProvisionService) Preview(ctx context.Context, req ProvisionRequest) (*
 			preview.Findings = append(preview.Findings, fmt.Sprintf(
 				"Für eine Restlaufzeit von %d Jahren ist zum %s kein Abzinsungssatz aus dem "+
 					"%d-Jahres-Durchschnitt hinterlegt. § 253 Abs. 2 HGB verlangt die Abzinsung; "+
-					"Buchfink zinst nicht ab und rät auch nicht. Pflege die Sätze der Deutschen "+
-					"Bundesbank ein.",
+					"Buchfink zinst nicht ab und rät auch nicht. Die Sätze der Deutschen Bundesbank "+
+					"sind nachzutragen.",
 				years, fy.EndDate, average))
 		} else {
 			preview.Discounted = true
@@ -489,7 +489,7 @@ func (s *ProvisionService) bookRelease(ctx context.Context, req ProvisionChangeR
 	if strings.TrimSpace(req.Reason) == "" {
 		return nil, fmt.Errorf(
 			"eine Rückstellung darf nur aufgelöst werden, soweit der Grund dafür entfallen ist " +
-				"(§ 249 Abs. 2 Satz 2 HGB). Nenne den weggefallenen Grund")
+				"(§ 249 Abs. 2 Satz 2 HGB). Der weggefallene Grund ist anzugeben")
 	}
 	provision, err := s.load(ctx, req.ProvisionID)
 	if err != nil {

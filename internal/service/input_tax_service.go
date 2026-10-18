@@ -336,7 +336,7 @@ func (s *InputTaxService) Year(ctx context.Context, year int) (*InputTaxCorrecti
 		return out.Rows[i].Correction.AcquisitionDate < out.Rows[j].Correction.AcquisitionDate
 	})
 	out.Note = fmt.Sprintf(
-		"Bestätige für jedes Wirtschaftsgut den Verwendungsanteil des Jahres %d oder ändere ihn. "+
+		"Für jedes Wirtschaftsgut ist der Verwendungsanteil des Jahres %d zu bestätigen oder zu ändern. "+
 			"Berichtigt wird die Differenz zum ursprünglichen Anteil, verteilt auf den "+
 			"Berichtigungszeitraum. Gebucht wird zum %s mit dem Steuerschlüssel %s; er läuft in die "+
 			"Kennziffer %s der Voranmeldung. Der Zeitraum läuft ab der erstmaligen Verwendung "+
@@ -438,8 +438,8 @@ func (s *InputTaxService) saveUsage(
 		}
 		if stands {
 			return nil, fmt.Errorf(
-				"die Berichtigung des Jahres %d ist für %s bereits gebucht. Nimm die Buchung zurück, "+
-					"bevor du den Anteil änderst", year, correction.Label)
+				"die Berichtigung des Jahres %d ist für %s bereits gebucht. Die Buchung ist zurückzunehmen, "+
+					"bevor sich der Anteil ändern lässt", year, correction.Label)
 		}
 	}
 
@@ -565,8 +565,8 @@ func (s *InputTaxService) bookYear(ctx context.Context, year int) (*InputTaxCorr
 		return nil, err
 	} else if standing != nil {
 		return nil, fmt.Errorf(
-			"die Berichtigung des Vorsteuerabzugs %d ist mit der Buchung %s bereits gebucht. Nimm "+
-				"sie zurück, bevor du sie neu rechnest — zweimal gebucht stünde sie doppelt in "+
+			"die Berichtigung des Vorsteuerabzugs %d ist mit der Buchung %s bereits gebucht. Sie ist "+
+				"zurückzunehmen, bevor sie neu gerechnet wird — zweimal gebucht stünde sie doppelt in "+
 				"Kennziffer 64", year, standing.EntryNumber)
 	}
 

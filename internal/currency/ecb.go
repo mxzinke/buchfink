@@ -83,7 +83,7 @@ func (s *Service) RateAt(ctx context.Context, currency, date string) (int64, str
 	resp, err := s.http.Do(req)
 	if err != nil {
 		return 0, "", "", fmt.Errorf(
-			"der Kursdienst ist nicht erreichbar (%s). Trage den Kurs mit seiner Quelle von Hand ein — "+
+			"der Kursdienst ist nicht erreichbar (%s). Der Kurs ist mit seiner Quelle von Hand einzutragen — "+
 				"Buchfink rät keinen: %w", s.endpoint, err)
 	}
 	defer resp.Body.Close()

@@ -51,8 +51,8 @@ func (s *PostingService) PostManualEntry(
 	}
 	if receiptID == 0 && req.SelfIssued == nil {
 		return nil, fmt.Errorf(
-			"zu einer Buchung gehört ein Beleg (§ 146 Abs. 1 AO, GoBD Rz. 61). Wähle den abgelegten " +
-				"Beleg zu diesem Vorgang — oder erstelle einen Eigenbeleg, wenn es keinen fremden gibt")
+			"zu einer Buchung gehört ein Beleg (§ 146 Abs. 1 AO, GoBD Rz. 61). Nötig ist der abgelegte " +
+				"Beleg zu diesem Vorgang — oder ein Eigenbeleg, wenn es keinen fremden gibt")
 	}
 	if receiptID != 0 && req.SelfIssued != nil {
 		return nil, fmt.Errorf(

@@ -733,7 +733,7 @@ func (s *AssetService) save(ctx context.Context, asset *domain.FixedAsset) (*dom
 		if existing != nil {
 			return nil, fmt.Errorf(
 				"für das Wirtschaftsjahr %d besteht bereits der Sammelposten %s. § 6 Abs. 2a EStG kennt "+
-					"genau einen je Wirtschaftsjahr — nimm das Wirtschaftsgut dort als weiteren Zugang auf",
+					"genau einen je Wirtschaftsjahr — das Wirtschaftsgut gehört dort als weiterer Zugang hinein",
 				asset.PoolYear, existing.InventoryNumber)
 		}
 	}
@@ -1609,7 +1609,7 @@ func (s *AssetService) settlement(
 		if contactID == 0 {
 			return domain.JournalLine{}, fmt.Errorf(
 				"ohne Geschäftspartner bleibt offen, auf wessen Personenkonto der Posten steht. " +
-					"Wähle ihn aus oder buche sofort bezahlt")
+					"Er ist auszuwählen, oder der Posten wird sofort bezahlt gebucht")
 		}
 		found, err := s.contactRepo.FindByID(ctx, contactID)
 		if err != nil {
@@ -1686,8 +1686,8 @@ func (s *AssetService) transfer(ctx context.Context, req TransferRequest) (*doma
 	if !known || !source.InProgress {
 		return nil, fmt.Errorf(
 			"%s steht auf Konto %s und ist keine Anlage im Bau. Umgebucht wird von den "+
-				"Konten der geleisteten Anzahlungen und Anlagen im Bau; ein anderes Konto änderst du "+
-				"in den Stammdaten, solange noch nichts gebucht ist",
+				"Konten der geleisteten Anzahlungen und Anlagen im Bau; ein anderes Konto lässt sich "+
+				"am Anlagegut ändern, solange noch nichts gebucht ist",
 			asset.InventoryNumber, asset.Account)
 	}
 
@@ -2350,7 +2350,7 @@ func (s *AssetService) buildDisposal(
 	if req.Quantity > 0 {
 		if asset.UnitsHeld <= 0 {
 			return nil, nil, nil, fmt.Errorf(
-				"%s wird nicht in Stück geführt. Gib den Anteil der Anschaffungskosten als Betrag an",
+				"%s wird nicht in Stück geführt. Der Anteil der Anschaffungskosten ist als Betrag anzugeben",
 				asset.InventoryNumber)
 		}
 		if req.Quantity > asset.UnitsHeld {
@@ -2556,7 +2556,7 @@ func (s *AssetService) disposalSettlementLine(
 		if req.ContactID == 0 {
 			return domain.JournalLine{}, fmt.Errorf(
 				"ohne Käufer bleibt offen, auf wessen Personenkonto die Forderung steht. " +
-					"Wähle den Kunden oder buche den Erlös als sofort bezahlt")
+					"Der Kunde ist auszuwählen, oder der Erlös wird als sofort bezahlt gebucht")
 		}
 		contact, err := s.contactRepo.FindByID(ctx, req.ContactID)
 		if err != nil {

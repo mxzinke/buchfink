@@ -99,7 +99,7 @@ func (s *AccountService) CreateCustom(ctx context.Context, req CustomAccountRequ
 	if !accounting.HasPositionTarget(position.ID) {
 		return nil, fmt.Errorf(
 			"die Position %q ist in der Gliederung von Bilanz und GuV nicht hinterlegt. Ein Konto "+
-				"unter ihr erschiene weder im Abschluss noch in der E-Bilanz — wähle eine Position, "+
+				"unter ihr erschiene weder im Abschluss noch in der E-Bilanz — gewählt werden muss eine Position, "+
 				"die Buchfink abbildet", position.Name)
 	}
 
@@ -247,13 +247,13 @@ func (s *AccountService) ensureFreeNumber(
 	if class == 9 {
 		return fmt.Errorf(
 			"die Kontonummer %s liegt in der Klasse 9. Sie ist den Vortrags- und statistischen "+
-				"Konten vorbehalten — lege das Konto in der Klasse der Aufwendungen, Erträge oder "+
-				"Bestände an, zu der es gehört", number)
+				"Konten vorbehalten — das Konto gehört in die Klasse der Aufwendungen, Erträge oder "+
+				"Bestände, zu der es zählt", number)
 	}
 	if class == 0 && position.Kontenklasse.Number != 0 {
 		return fmt.Errorf(
 			"die Kontonummer %s liegt in der Klasse 0 (Anlagevermögen), die gewählte Position "+
-				"%q gehört aber nicht dorthin. Wähle eine Position des Anlagevermögens oder eine "+
+				"%q gehört aber nicht dorthin. Nötig ist eine Position des Anlagevermögens oder eine "+
 				"Nummer aus der Klasse, zu der das Konto gehört", number, position.Name)
 	}
 	if s.taxResolver != nil && s.taxResolver.IsTaxAccount(number) {
@@ -266,7 +266,7 @@ func (s *AccountService) ensureFreeNumber(
 	existing, err := s.accountRepo.FindByNumber(ctx, number)
 	if err == nil && existing != nil {
 		return fmt.Errorf(
-			"die Kontonummer %s ist mit „%s\" belegt. Wähle eine freie Nummer — ein Konto des "+
+			"die Kontonummer %s ist mit „%s\" belegt. Nötig ist eine freie Nummer — ein Konto des "+
 				"Kontenrahmens umzuwidmen zerstört die Zuordnung, auf der Bilanz, GuV und E-Bilanz "+
 				"beruhen", number, existing.Name)
 	}

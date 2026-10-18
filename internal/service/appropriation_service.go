@@ -283,7 +283,7 @@ func (s *AppropriationService) bookAppropriation(
 		if stored.JournalEntryID != nil && !voided {
 			return nil, fmt.Errorf(
 				"für das Geschäftsjahr %d ist am %s bereits ein Beschluss erfasst und gebucht. "+
-					"Storniere zuerst seine Buchung", preview.Year, stored.DecisionDate)
+					"Zuerst ist seine Buchung zu stornieren", preview.Year, stored.DecisionDate)
 		}
 		// Ein Beschluss ohne Buchung — der reine Vortrag auf neue Rechnung —
 		// wird fortgeschrieben: der Schlüssel ist das Geschäftsjahr, und es

@@ -114,8 +114,8 @@ func (s *PostingService) requireServiceProof(
 		return nil
 	}
 	return fmt.Errorf(
-		"%s. Trage ihn am Beleg ein — etwa „geprüft gegen Bestellung 4711 vom 12.03.2026\" — und "+
-			"buche dann; die Grenze steht in den Einstellungen",
+		"%s. Tragen Sie ihn beim Buchen ein, etwa „geprüft gegen Bestellung 4711 vom 12.03.2026“. "+
+			"Die Grenze steht unter Einstellungen › Erweitert",
 		serviceProofMissingMessage(receipt, threshold))
 }
 

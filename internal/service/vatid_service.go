@@ -305,8 +305,8 @@ func (s *VatIDService) EnsureConfirmed(
 	if s.ownVatID(ctx) == "" {
 		return fmt.Errorf(
 			"für die Bestätigungsanfrage fehlt die eigene USt-IdNr. Sie ist nach § 18e UStG Teil "+
-				"jeder Anfrage — trage sie in den Unternehmensdaten ein und stelle die Rechnung an "+
-				"%s danach aus. Ein Grund hilft hier nicht weiter: die Abfrage ist nicht "+
+				"jeder Anfrage. Tragen Sie sie unter Unternehmen › Stammdaten › Steuern ein und stellen "+
+				"Sie die Rechnung an %s danach aus. Ein Grund hilft hier nicht weiter: die Abfrage ist nicht "+
 				"fehlgeschlagen, sie ist noch nicht möglich", contact.Name)
 	}
 
@@ -330,8 +330,8 @@ func (s *VatIDService) EnsureConfirmed(
 	return fmt.Errorf(
 		"für die USt-IdNr. von %s liegt keine Bestätigung vor: aus den letzten %d Tagen fehlt eine Auskunft des "+
 			"Bundeszentralamts. Ohne Bestätigung ist der Leistungsort im Ausland nicht belegt. "+
-			"Wiederhole die Abfrage, sobald das Netz erreichbar ist, oder stelle die Rechnung mit einem "+
-			"festgehaltenen Grund aus — der nächste Prüflauf führt sie dann als offen",
+			"Die Abfrage ist zu wiederholen, sobald das Netz erreichbar ist, oder die Rechnung geht mit einem "+
+			"festgehaltenen Grund hinaus — der nächste Prüflauf führt sie dann als offen",
 		contact.Name, domain.VatIDCheckValidityDays)
 }
 

@@ -224,8 +224,8 @@ func (s *InvoiceService) ensureAdvanceCancellable(ctx context.Context, inv *doma
 	if advance.Settled() {
 		return fmt.Errorf(
 			"die Abschlagsrechnung %s ist am %s vereinnahmt. Die darauf entstandene Umsatzsteuer wird erst "+
-				"mit der Rückzahlung des Betrags berichtigt (§ 17 Abs. 2 Nr. 2 UStG). Buche zuerst die "+
-				"Rückzahlung, danach lässt sich die Rechnung stornieren",
+				"mit der Rückzahlung des Betrags berichtigt (§ 17 Abs. 2 Nr. 2 UStG). Erst wenn die "+
+				"Rückzahlung gebucht ist, lässt sich die Rechnung stornieren",
 			advance.InvoiceNumber, domain.GermanDate(advance.SettledAt))
 	}
 	return nil

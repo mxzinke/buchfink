@@ -441,7 +441,7 @@ func SpecialDepreciationAccount(class domain.AssetClass, account string) (string
 	if known && entry.InProgress {
 		return "", fmt.Errorf(
 			"%s steht noch als Anlage im Bau. Die Sonderabschreibung setzt die Anschaffung oder "+
-				"Herstellung voraus; buche zuerst die Fertigstellung um", account)
+				"Herstellung voraus; zuerst ist die Fertigstellung umzubuchen", account)
 	}
 	if known && entry.DepreciationAccount == "6222" {
 		// Der SKR04 führt die Sonderabschreibung auf Fahrzeuge getrennt, weil die

@@ -308,7 +308,7 @@ func TestRebookingRefusesWhenTheGiftLineIsNotIdentifiable(t *testing.T) {
 	if err == nil {
 		t.Fatal("eine Buchung, deren Geschenkzeile nicht zu finden ist, darf nicht umgebucht werden")
 	}
-	if !strings.Contains(err.Error(), "von Hand") {
+	if !strings.Contains(err.Error(), "zu stornieren") {
 		t.Errorf("die Meldung muss den Weg nennen: %v", err)
 	}
 }

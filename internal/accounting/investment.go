@@ -171,7 +171,7 @@ func equityExemption(investor domain.InvestorType) (int, string, string, error) 
 	default:
 		return 0, "", "", errors.New(
 			"für die Teilfreistellung fehlt die Anlegerstellung. Sie folgt aus der Rechtsform — " +
-				"trage sie in den Stammdaten ein")
+				"sie gehört in die Stammdaten")
 	}
 }
 
@@ -260,7 +260,7 @@ func ComputeVorabpauschale(in VorabpauschaleInput) (Vorabpauschale, error) {
 		return Vorabpauschale{}, fmt.Errorf(
 			"für %d fehlt der Basiszins. Er steht nicht im Gesetz: die Bundesbank errechnet ihn auf "+
 				"den ersten Börsentag des Jahres, das Bundesministerium der Finanzen veröffentlicht "+
-				"ihn im Bundessteuerblatt (§ 18 Abs. 4 InvStG). Trage ihn von dort ein", in.Year)
+				"ihn im Bundessteuerblatt (§ 18 Abs. 4 InvStG). Von dort ist er einzutragen", in.Year)
 	}
 	if in.OpeningPrice < 0 || in.ClosingPrice < 0 || in.Distributions < 0 {
 		return Vorabpauschale{}, fmt.Errorf("Rücknahmepreise und Ausschüttungen können nicht negativ sein")

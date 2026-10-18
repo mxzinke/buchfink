@@ -156,13 +156,13 @@ func (s *ContactService) vatIDNotice(ctx context.Context, c *domain.Contact) str
 			if status.Confirmed {
 				return status.Note
 			}
-			return status.Note + " Hole die qualifizierte Bestätigungsanfrage nach § 18e UStG nach: " +
+			return status.Note + " Die qualifizierte Bestätigungsanfrage nach § 18e UStG ist nachzuholen: " +
 				"beim Ausstellen einer Leistung an ein Unternehmen im übrigen Gemeinschaftsgebiet ist sie zwingend."
 		}
 	}
 	return fmt.Sprintf(
-		"%s hat die USt-IdNr. %s aus einem anderen Mitgliedstaat. Lass sie beim Bundeszentralamt "+
-			"bestätigen (§ 18e UStG) — bei einer Leistung an ein Unternehmen im übrigen "+
+		"%s hat die USt-IdNr. %s aus einem anderen Mitgliedstaat. Sie ist beim Bundeszentralamt "+
+			"bestätigen zu lassen (§ 18e UStG) — bei einer Leistung an ein Unternehmen im übrigen "+
 			"Gemeinschaftsgebiet weist die gültige Nummer den Empfänger als Unternehmer aus "+
 			"(§ 3a Abs. 2 UStG).", c.Name, c.VatID)
 }

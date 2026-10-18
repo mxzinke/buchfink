@@ -56,7 +56,7 @@ func (s *JournalService) correctEntry(
 	}
 	if original.Kind == domain.EntryKindReversal {
 		return nil, fmt.Errorf(
-			"Buchung %s ist selbst eine Generalumkehr und lässt sich nicht stornieren — storniere stattdessen die Buchung, die sie zurücknimmt",
+			"Buchung %s ist selbst eine Generalumkehr und lässt sich nicht stornieren — zu stornieren ist stattdessen die Buchung, die sie zurücknimmt",
 			original.EntryNumber)
 	}
 
@@ -65,7 +65,7 @@ func (s *JournalService) correctEntry(
 	if replacement.Source == domain.EntrySourceOpening {
 		return nil, fmt.Errorf(
 			"eine Eröffnungsbuchung lässt sich nicht über „stornieren und neu buchen\" ersetzen. " +
-				"Storniere sie und erfasse die Eröffnungswerte über die Eröffnungsbilanz neu")
+				"Sie ist zu stornieren; die Eröffnungswerte werden über die Eröffnungsbilanz neu erfasst")
 	}
 	id := original.ID
 	mode := postMode{correctsID: &id}

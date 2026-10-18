@@ -111,7 +111,7 @@ func (s *JournalService) BookOpeningBalance(
 	if !preview.Balanced {
 		return nil, fmt.Errorf(
 			"die Eröffnungsbilanz geht nicht auf: Aktiva %s €, Passiva %s €, die Vortragskonten 9000, 9008 "+
-				"und 9009 stehen auf %s €. Prüfe die Schlussbilanz des Altsystems",
+				"und 9009 stehen auf %s €. Zu prüfen ist die Schlussbilanz des Altsystems",
 			preview.DebitTotal, preview.CreditTotal, carryForwardBalance(entries))
 	}
 	return atomically(ctx, s, func(ctx context.Context) (*OpeningBalancePreview, error) {
@@ -192,7 +192,7 @@ func (s *JournalService) buildOpeningBalance(
 	}
 	if req.ReceiptID == nil {
 		return nil, nil, fmt.Errorf(
-			"zur Eröffnungsbilanz gehört die Schlussbilanz des Altsystems als Beleg. Lege sie zuerst ab (§ 146 Abs. 1 AO)")
+			"zur Eröffnungsbilanz gehört die Schlussbilanz des Altsystems als Beleg. Sie ist zuerst abzulegen (§ 146 Abs. 1 AO)")
 	}
 	if len(req.Accounts) == 0 && len(req.Receivables) == 0 && len(req.Payables) == 0 {
 		return nil, nil, fmt.Errorf("die Eröffnungsbilanz enthält keine Werte")

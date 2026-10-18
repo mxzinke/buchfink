@@ -140,8 +140,8 @@ func (s *CurrencyService) RateAt(ctx context.Context, currency, date string) (*d
 			currency, date)
 	}
 	return nil, fmt.Errorf(
-		"für %s liegt zum %s kein Kurs vor und es ist kein Kursdienst eingerichtet. Trage den Kurs "+
-			"mit seiner Quelle von Hand ein — Buchfink rät keinen", currency, date)
+		"für %s liegt zum %s kein Kurs vor und es ist kein Kursdienst eingerichtet. Der Kurs ist "+
+			"mit seiner Quelle von Hand einzutragen — Buchfink rät keinen", currency, date)
 }
 
 // SaveRate nimmt einen von Hand erfassten Kurs auf.

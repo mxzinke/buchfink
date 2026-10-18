@@ -959,7 +959,7 @@ func (s *ExportService) copyProcessDocumentation(ctx context.Context, b *export.
 	}
 	if len(docs) == 0 {
 		b.Note("Es wurde noch keine Verfahrensdokumentation erzeugt; sie liegt dem Paket deshalb nicht bei (GoBD Rz. 151 ff.). " +
-			"Sie lässt sich unter „Betriebsprüfung → Verfahrensdokumentation“ erzeugen.")
+			"Sie lässt sich unter Einstellungen › Prüfung & GoBD › Verfahrensdokumentation erzeugen.")
 		return
 	}
 

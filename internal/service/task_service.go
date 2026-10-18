@@ -200,7 +200,7 @@ func (s *TaskService) addReadOnly(list *domain.TaskList, opts TaskOptions) {
 	list.Add(domain.Task{
 		Key: domain.TaskKeyReadOnly, Group: domain.TaskGroupOpen,
 		Title:     "Prüfermodus ist eingeschaltet",
-		Why:       why + " Der Zugriff des Prüfers wird protokolliert (§ 147 Abs. 6 AO).",
+		Why:       why + " Der Zugriff des Prüfers wird protokolliert.",
 		Reference: "§ 147 Abs. 6 AO",
 		DueDate:   opts.ReadOnlyUntil,
 		Target:    domain.TaskTarget{Area: domain.AreaSettings, Tab: "audit", ID: "betriebspruefung"},

@@ -213,8 +213,8 @@ func (s *VatReturnService) Save(ctx context.Context, periodKey string) (*domain.
 		if submitted != nil {
 			return nil, fmt.Errorf(
 				"für den Zeitraum %s ist am %s bereits eine Voranmeldung übermittelt (Transferticket %s). "+
-					"Ein zweiter Entwurf wäre eine zweite Erstanmeldung desselben Zeitraums — lege stattdessen "+
-					"eine berichtigte Anmeldung an (Kennziffer 10)",
+					"Ein zweiter Entwurf wäre eine zweite Erstanmeldung desselben Zeitraums — anzulegen ist "+
+					"stattdessen eine berichtigte Anmeldung (Kennziffer 10)",
 				period.Key, submitted.SubmittedAt, submitted.TransferTicket)
 		}
 	}
@@ -393,8 +393,8 @@ func (s *VatReturnService) SuggestedSpecialPrepayment(ctx context.Context, year 
 		prior, out.PrepaymentSum, len(out.Periods))
 	if !out.Complete {
 		out.Note += fmt.Sprintf(
-			" Für %d der %d Zeiträume des Jahres %d liegt keine übermittelte Anmeldung vor — prüfe den "+
-				"Vorschlag. Wurde die Tätigkeit nur einen Teil des Jahres ausgeübt, ist die Summe nach "+
+			" Für %d der %d Zeiträume des Jahres %d liegt keine übermittelte Anmeldung vor; der Vorschlag ist "+
+				"deshalb zu prüfen. Wurde die Tätigkeit nur einen Teil des Jahres ausgeübt, ist die Summe nach "+
 				"§ 47 Abs. 2 UStDV auf ein volles Jahr hochzurechnen.", missing, len(periods), prior)
 	}
 	return out, nil
@@ -825,7 +825,7 @@ func (s *VatReturnService) ensureCommitted(ctx context.Context, rec *domain.VatR
 	if cutoff == "" || cutoff < rec.PeriodTo {
 		return fmt.Errorf(
 			"der Zeitraum %s (bis %s) ist noch nicht festgeschrieben. Eine übermittelte Voranmeldung muss sich "+
-				"auf einen unveränderlichen Stand stützen — schreibe den Zeitraum zuerst fest",
+				"auf einen unveränderlichen Stand stützen. Der Zeitraum ist zuerst festzuschreiben",
 			rec.PeriodKey, rec.PeriodTo)
 	}
 	return nil
@@ -850,8 +850,8 @@ func (s *VatReturnService) ensureFirstOrCorrection(ctx context.Context, rec *dom
 	}
 	return fmt.Errorf(
 		"für den Zeitraum %s ist am %s bereits eine Voranmeldung übermittelt (Transferticket %s). "+
-			"Eine zweite Erstanmeldung desselben Zeitraums gibt es nicht — bestätige sie als berichtigte "+
-			"Anmeldung (Kennziffer 10) oder lege eine Berichtigung an",
+			"Eine zweite Erstanmeldung desselben Zeitraums gibt es nicht — sie ist als berichtigte "+
+			"Anmeldung (Kennziffer 10) zu bestätigen oder eine Berichtigung anzulegen",
 		rec.PeriodKey, submitted.SubmittedAt, submitted.TransferTicket)
 }
 
@@ -874,8 +874,8 @@ func (s *VatReturnService) ensureCurrent(ctx context.Context, rec *domain.VatRet
 	}
 	return fmt.Errorf(
 		"der gespeicherte Entwurf der Voranmeldung %s stimmt nicht mehr mit dem Journal überein "+
-			"(Zahllast im Entwurf %s €, aus dem Journal %s €). Speichere ihn neu und bestätige dann die "+
-			"Übermittlung — bestätigt wird, was übermittelt wurde",
+			"(Zahllast im Entwurf %s €, aus dem Journal %s €). Er ist neu zu speichern, danach lässt sich die "+
+			"Übermittlung bestätigen — bestätigt wird, was übermittelt wurde",
 		rec.PeriodKey, rec.Payable, fresh.Payable)
 }
 

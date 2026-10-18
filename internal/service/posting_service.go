@@ -744,7 +744,7 @@ func (s *PostingService) validateAdvanceRequest(req ReceiptRequest) error {
 		return fmt.Errorf(
 			"eine Anzahlungsrechnung wird mit der Zahlung gebucht, nicht mit ihrem Eingang: " +
 				"der Vorsteuerabzug setzt nach § 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG die Entrichtung des " +
-				"Entgelts voraus. Buche sie mit dem Zahlungstag und dem Zahlungsmittel")
+				"Entgelts voraus. Sie wird mit dem Zahlungstag und dem Zahlungsmittel gebucht")
 	}
 	if req.ProvisionID != 0 {
 		return fmt.Errorf("eine geleistete Anzahlung verbraucht keine Rückstellung: sie ist kein Aufwand")
@@ -1784,7 +1784,7 @@ func (s *PostingService) PostFinalInvoice(
 		// nicht ab und sagt es, statt eine Zahl zu erfinden.
 		return nil, fmt.Errorf(
 			"die Schlussrechnung %s lautet auf %s, die verrechneten Anzahlungen stehen in Euro. "+
-				"Dieser Fall ist in Buchfink nicht abgebildet — stelle die Schlussrechnung in Euro aus",
+				"Dieser Fall ist in Buchfink nicht abgebildet — die Schlussrechnung ist in Euro auszustellen",
 			inv.InvoiceNumber, fx.currency)
 	}
 

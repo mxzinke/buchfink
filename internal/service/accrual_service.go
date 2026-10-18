@@ -403,7 +403,7 @@ func (s *AccrualService) book(ctx context.Context, req AccrualRequest) (*domain.
 			}
 			return nil, fmt.Errorf(
 				"zu dieser Buchung besteht bereits die Abgrenzung %q über %s € vom %s. "+
-					"Storniere sie, wenn der Betrag nicht stimmt",
+					"Stimmt der Betrag nicht, ist sie zu stornieren",
 				other.Text, other.DeferredAmount, other.CutoffDate)
 		}
 	}

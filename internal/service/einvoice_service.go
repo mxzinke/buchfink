@@ -483,7 +483,7 @@ func vatRateMismatchNote(serviceDate string, positions []ReceiptPosition) string
 		}
 		return fmt.Sprintf(
 			"Der Steuersatz %s passt nicht zum Leistungsdatum %s: an diesem Tag galten %s und %s "+
-				"(%s). Prüfe Satz und Leistungsdatum vor dem Buchen.",
+				"(%s). Satz und Leistungsdatum vor dem Buchen prüfen.",
 			p.TaxRate.Label(), serviceDate, period.Standard.Label(), period.Reduced.Label(),
 			period.Source)
 	}

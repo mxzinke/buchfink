@@ -44,8 +44,8 @@ func CloudFolderWarning(path string) string {
 				"(§ 146 Abs. 2a AO). Für die Speicherung in Drittstaaten ist eine Bewilligung des Finanzamts "+
 				"nach § 146 Abs. 2b AO nötig. Wo ein Synchronisationsdienst die Daten tatsächlich "+
 				"speichert, lässt sich von hier aus nicht feststellen. Ein Synchronisationsordner ist "+
-				"außerdem kein Sicherungsziel: er spiegelt auch das Löschen. Lege die Daten in einen "+
-				"gewöhnlichen Ordner und sichere sie getrennt.", marker.name)
+				"außerdem kein Sicherungsziel: er spiegelt auch das Löschen. Die Daten gehören in einen "+
+				"gewöhnlichen Ordner und werden getrennt gesichert.", marker.name)
 	}
 	return ""
 }

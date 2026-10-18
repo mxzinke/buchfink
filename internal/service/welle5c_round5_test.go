@@ -210,8 +210,8 @@ func TestMissingOwnVatIDIsNotAnOverridableOutage(t *testing.T) {
 	if err == nil {
 		t.Fatal("ohne eigene USt-IdNr. gibt es keine Bestätigung")
 	}
-	if !strings.Contains(err.Error(), "Unternehmensdaten") {
-		t.Errorf("die Meldung muss auf die Unternehmensdaten verweisen: %v", err)
+	if !strings.Contains(err.Error(), "Stammdaten") {
+		t.Errorf("die Meldung muss auf die Stammdaten verweisen: %v", err)
 	}
 
 	// Und ein Grund hilft hier nicht: die Abfrage ist nicht fehlgeschlagen,

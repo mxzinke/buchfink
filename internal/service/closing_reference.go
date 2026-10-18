@@ -61,7 +61,7 @@ func refuseSecondClosingEntry(
 	}
 	if len(standing) > 0 {
 		return fmt.Errorf(
-			"%s %d ist mit der Buchung %s bereits gebucht. Storniere sie zuerst; ein zweiter Lauf "+
+			"%s %d ist mit der Buchung %s bereits gebucht. Sie ist zuerst zu stornieren; ein zweiter Lauf "+
 				"buchte sie ein zweites Mal", what, year, standing[0].EntryNumber)
 	}
 	return nil

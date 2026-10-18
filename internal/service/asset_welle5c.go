@@ -46,7 +46,7 @@ func validateMethodForAccount(asset *domain.FixedAsset) error {
 		if !known {
 			return fmt.Errorf(
 				"die festen Sätze des § 7 Abs. 4 EStG gelten für Gebäude. Das Konto %s steht nicht im "+
-					"Katalog der Anlagekonten — wähle eines der Gebäudekonten", asset.Account)
+					"Katalog der Anlagekonten — nötig ist eines der Gebäudekonten", asset.Account)
 		}
 		if !entry.Immovable {
 			return fmt.Errorf(
@@ -62,7 +62,7 @@ func validateMethodForAccount(asset *domain.FixedAsset) error {
 		if known && entry.Group != "Fahrzeuge" {
 			return fmt.Errorf(
 				"%s (%s) ist kein Fahrzeug. § 7 Abs. 2a EStG gilt für neue, rein elektrisch "+
-					"betriebene Fahrzeuge — buche sie auf ein Fahrzeugkonto",
+					"betriebene Fahrzeuge — sie gehören auf ein Fahrzeugkonto",
 				asset.Account, entry.Name)
 		}
 		if _, ok := accounting.ElectricVehicleWindowFor(asset.DepreciationStart()); !ok {
@@ -341,7 +341,7 @@ func (s *AssetService) WriteUpReport(ctx context.Context, year int) (*WriteUpRep
 		} else {
 			out.Open++
 			candidate.Note = fmt.Sprintf(
-				"Bis zu %s € könnten zugeschrieben werden. Prüfe, ob der Grund der außerplanmäßigen "+
+				"Bis zu %s € könnten zugeschrieben werden. Zu prüfen ist, ob der Grund der außerplanmäßigen "+
 					"Abschreibung weggefallen ist — dann ist die Zuschreibung nach § 253 Abs. 5 Satz 1 "+
 					"HGB geboten und kein Wahlrecht.", ceiling)
 		}
@@ -556,7 +556,7 @@ func (s *AssetService) registerInputTaxCorrection(ctx context.Context, asset *do
 	if err != nil {
 		return fmt.Errorf(
 			"%s wurde aktiviert, der Eintrag im Verzeichnis nach § 15a UStG aber nicht angelegt. "+
-				"Trage ihn nach — ohne ihn fehlt der ursprüngliche Verwendungsanteil, und der ist "+
+				"Er ist nachzutragen — ohne ihn fehlt der ursprüngliche Verwendungsanteil, und der ist "+
 				"später aus keiner Buchung mehr zu gewinnen: %w", asset.InventoryNumber, err)
 	}
 	return nil

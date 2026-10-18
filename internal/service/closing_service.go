@@ -665,7 +665,7 @@ func (s *ClosingService) setFiscalYearStatus(
 		// die sich danach noch ändern lassen.
 		if !hasYear {
 			return nil, fmt.Errorf(
-				"für %d liegt keine Jahres-Festschreibung vor. Schreibe das Geschäftsjahr zuerst fest – "+
+				"für %d liegt keine Jahres-Festschreibung vor. Das Geschäftsjahr ist zuerst festzuschreiben – "+
 					"erst dann steht fest, worüber die Gesellschafter beschließen (§ 42a Abs. 2 GmbHG)", year)
 		}
 		if date < fy.PreparedOn {
@@ -1310,11 +1310,11 @@ func (s *ClosingService) carryForward(ctx context.Context, toYear int) ([]domain
 	preview := plan.preview
 
 	if !preview.IsBalanced {
-		hint := "Prüfe die Summen- und Saldenliste des Vorjahres"
+		hint := "Die Summen- und Saldenliste des Vorjahres ist zu prüfen"
 		if preview.PriorYearNotCarried {
 			hint = fmt.Sprintf(
 				"Im Geschäftsjahr %d steht kein Saldenvortrag, obwohl es Buchungen aus früheren Jahren "+
-					"gibt: buche zuerst den Saldenvortrag %d → %d",
+					"gibt: zuerst ist der Saldenvortrag %d → %d zu buchen",
 				preview.FromYear, preview.FromYear-1, preview.FromYear)
 		}
 		return nil, fmt.Errorf(
@@ -1338,8 +1338,8 @@ func (s *ClosingService) carryForward(ctx context.Context, toYear int) ([]domain
 			"der Saldenvortrag ins Geschäftsjahr %d lässt sich nicht korrigieren: %s stehen auf den "+
 				"Konten des Zieljahres, ohne dass es dazu eine zurücknehmbare Vortragsbuchung gibt – "+
 				"die bestehende Vortragsbuchung wurde außerhalb des Geschäftsjahres %d storniert. Ein "+
-				"neuer Vortrag würde diese Werte verdoppeln. Gleiche den stornierten Vortrag zuerst "+
-				"innerhalb des Geschäftsjahres %d aus",
+				"neuer Vortrag würde diese Werte verdoppeln. Der stornierte Vortrag ist zuerst "+
+				"innerhalb des Geschäftsjahres %d auszugleichen",
 			toYear, residualDescription(plan.residual), toYear, toYear)
 	}
 

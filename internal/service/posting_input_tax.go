@@ -83,8 +83,8 @@ func (b *incomingLines) blockingError(req ReceiptRequest) error {
 	}
 	return fmt.Errorf(
 		"der Vorsteuerabzug setzt eine Rechnung mit allen Pflichtangaben voraus (§ 15 Abs. 1 Satz 1 "+
-			"Nr. 1 i. V. m. §§ 14, 14a UStG). Es fehlt: %s. Ergänze die Angabe, lass die Rechnung "+
-			"berichtigen — oder buche mit einem Grund, der festgehalten wird",
+			"Nr. 1 i. V. m. §§ 14, 14a UStG). Es fehlt: %s. Ergänzen Sie die Angabe, lassen Sie die Rechnung "+
+			"berichtigen, oder buchen Sie mit einem Grund, der festgehalten wird",
 		strings.Join(parts, " "))
 }
 
@@ -130,7 +130,7 @@ func (s *PostingService) inputTaxFindings(
 				Detail: fmt.Sprintf(
 					"die Prüfung des Rechnungsdatensatzes von Beleg %s nach EN 16931. Ohne sie ist "+
 						"nicht festgestellt, ob die Rechnung die Pflichtangaben der §§ 14, 14a UStG "+
-						"hat — lies den Beleg erneut ein oder buche mit einem Grund.",
+						"hat. Lesen Sie den Beleg erneut ein, oder buchen Sie mit einem Grund.",
 					receipt.ReceiptNumber),
 			})
 		default:

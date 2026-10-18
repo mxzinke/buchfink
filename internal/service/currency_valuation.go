@@ -241,7 +241,7 @@ func (s *CurrencyService) bookCurrencyValuation(ctx context.Context, year int) (
 	if len(existing) > 0 {
 		return nil, fmt.Errorf(
 			"die Fremdwährungsbewertung des Geschäftsjahres %d ist mit der Buchung %s bereits "+
-				"gebucht. Nimm sie zurück, bevor sie neu gerechnet wird",
+				"gebucht. Sie ist zurückzunehmen, bevor sie neu gerechnet wird",
 			year, existing[0].EntryNumber)
 	}
 

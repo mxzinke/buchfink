@@ -328,7 +328,7 @@ func (s *InvoiceService) prepareForIssue(
 		return nil, fmt.Errorf("Unternehmensdaten konnten nicht geladen werden: %w", err)
 	}
 	if missing := seller.InvoiceSellerFindings(inv.EInvoiceProfile != domain.EInvoiceProfilePDFOnly); len(missing) > 0 {
-		return nil, fmt.Errorf("bitte vor dem Ausstellen in den Einstellungen ergänzen: %s", strings.Join(missing, "; "))
+		return nil, fmt.Errorf("für die Rechnung fehlen Angaben zum Unternehmen: %s. Ergänzen Sie sie unter Unternehmen › Stammdaten", strings.Join(missing, "; "))
 	}
 	if err := inv.ValidateParties(seller.TaxNumber, seller.VatID, contact); err != nil {
 		return nil, err
@@ -793,8 +793,8 @@ func ensureNoUnlawfulTax(inv *domain.Invoice) error {
 		}
 		return fmt.Errorf(
 			"Position %d ist mit %s erfasst, der Steuerfall %q lässt aber keine Umsatzsteuer entstehen. "+
-				"Ein ausgewiesener Steuerbetrag wird nach § 14c UStG trotzdem geschuldet – wähle entweder "+
-				"den steuerpflichtigen Inlandsumsatz oder nimm den Steuersatz aus der Position",
+				"Ein ausgewiesener Steuerbetrag wird nach § 14c UStG trotzdem geschuldet – richtig ist entweder "+
+				"der steuerpflichtige Inlandsumsatz oder eine Position ohne Steuersatz",
 			i+1, item.TaxRate.Label(), inv.TaxTreatment)
 	}
 	return nil

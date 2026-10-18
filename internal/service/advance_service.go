@@ -469,7 +469,7 @@ func (s *InvoiceService) IssueFinalInvoice(ctx context.Context, req FinalInvoice
 	if open := openAdvancesOf(group); len(open) > 0 {
 		return nil, fmt.Errorf(
 			"der Verbund %q hat noch offene Abschlagsrechnungen: %s. "+
-				"Vereinnahme sie oder storniere sie, bevor die Schlussrechnung entsteht — sonst stünden "+
+				"Sie sind zu vereinnahmen oder zu stornieren, bevor die Schlussrechnung entsteht — sonst stünden "+
 				"sie als offene Posten neben ihr", group.Title, strings.Join(open, ", "))
 	}
 

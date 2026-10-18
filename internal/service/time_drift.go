@@ -42,7 +42,7 @@ func TimeDriftNote(system, trusted time.Time, tsaName string) string {
 		name = "dem Zeitstempeldienst"
 	}
 	return fmt.Sprintf(
-		"Die Uhr dieses Rechners %s um %s gegenüber %s. Prüfe die Systemzeit — "+
+		"Die Uhr dieses Rechners %s um %s gegenüber %s. Bitte die Systemzeit prüfen — "+
 			"Buchungs- und Protokollzeitpunkte richten sich nach ihr.",
 		direction, formatDrift(drift), name)
 }
