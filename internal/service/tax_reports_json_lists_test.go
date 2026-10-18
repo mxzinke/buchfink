@@ -18,7 +18,7 @@ import (
 // Render den ganzen Baum mit. Betroffen wäre der Regelfall: das Verzeichnis ohne
 // Eintrag, die Lieferung ohne Nachweis, das Jahr ohne Geschenk. Geprüft wird an
 // der Ausgabe und nicht an den Feldern — siehe assertNoNilSlices.
-func TestWelle5cOutputsHaveNoNilLists(t *testing.T) {
+func TestTaxReportsHaveNoNilLists(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 
@@ -81,7 +81,7 @@ func TestWelle5cOutputsHaveNoNilLists(t *testing.T) {
 // Buchungen eines Empfängers, den Abschreibungen eines Anlageguts. Sie sind am
 // leeren Mandanten nicht zu sehen, weil der Weg dorthin über eine Zeile führt,
 // die es dort nicht gibt.
-func TestWelle5cFilledOutputsHaveNoNilLists(t *testing.T) {
+func TestFilledTaxReportsHaveNoNilLists(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 

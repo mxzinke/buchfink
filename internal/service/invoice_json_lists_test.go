@@ -89,7 +89,7 @@ func TestInvoiceOutputsHaveNoNilLists(t *testing.T) {
 // Kein `null` in den Listen, die an die Oberfläche gehen: die Ansicht liest
 // `gaps.length` und `advances.length` ohne Umweg, und `null.length` nimmt im
 // Render den ganzen Baum mit.
-func TestWelle5bListsMarshalEmptyNotNull(t *testing.T) {
+func TestInvoiceListsMarshalEmptyNotNull(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	customer := env.customer(t, "Kunde GmbH", "DE", "")

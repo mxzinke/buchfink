@@ -470,7 +470,7 @@ func TestReadOnlyModeLogsBeforeAndAfter(t *testing.T) {
 }
 
 // Im Prüfermodus bleiben die lesenden Wege offen und die schreibenden zu.
-func TestWelle7BridgeRespectsTheReadOnlyMode(t *testing.T) {
+func TestTaskAndBankBridgeRespectsTheReadOnlyMode(t *testing.T) {
 	b := testBridge(t)
 	until := time.Now().AddDate(0, 0, 30).Format("2006-01-02")
 	if _, err := b.EnableReadOnly(until, "Betriebsprüfung 2022 bis 2024"); err != nil {

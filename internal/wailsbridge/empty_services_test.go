@@ -12,7 +12,7 @@ import (
 // Mandanten ist genau das der Zustand, und die Aufgabenliste ist der erste
 // Bildschirm. Käme dort `null` an, nähme `null.map` im Render den ganzen Baum
 // mit — und zwar bevor die Anwenderin etwas tun konnte.
-func TestWelle7BridgeAnswersWithEmptyListsWithoutServices(t *testing.T) {
+func TestBridgeAnswersWithEmptyListsWithoutServices(t *testing.T) {
 	b := newBridge(t)
 
 	tasks, err := b.GetTasks()

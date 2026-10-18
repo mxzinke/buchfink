@@ -13,7 +13,7 @@ import (
 // Die Nachweisseite liest die Listen ohne Umweg. Ein nicht belegter Slice wird
 // zu `null`, und `null.map` nimmt im Render den ganzen Baum mit — und zwar im
 // Regelfall: die frische Buchhaltung ohne Bruch und ohne offenen Posten.
-func TestWelle6AnswersMarshalEmptyListsNotNull(t *testing.T) {
+func TestEvidenceAnswersMarshalEmptyListsNotNull(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 

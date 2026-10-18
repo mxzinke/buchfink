@@ -117,7 +117,7 @@ func TestSecondOpenWithoutChangeLogsNothing(t *testing.T) {
 }
 
 func TestSeedAddsMissingAccountsAndNeverDeletes(t *testing.T) {
-	db := welle6DB(t)
+	db := auditTestDB(t)
 	ctx := context.Background()
 
 	// Ein Konto, das es im Kontenrahmen nicht gibt, und ein umbenanntes aus dem

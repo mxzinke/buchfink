@@ -10,7 +10,7 @@ import (
 // --- Fassungen der Verfahrensdokumentation --------------------------------
 
 func TestProcedureDocumentationCountsPerDay(t *testing.T) {
-	db := welle6DB(t)
+	db := auditTestDB(t)
 	repo := NewProcedureDocumentationRepository(db)
 	ctx := context.Background()
 

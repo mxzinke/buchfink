@@ -23,7 +23,7 @@ func rawInMemoryDB() (*gorm.DB, error) {
 	})
 }
 
-func welle6DB(t *testing.T) *gorm.DB {
+func auditTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db, err := InitInMemoryDB()
 	if err != nil {
@@ -37,7 +37,7 @@ func welle6DB(t *testing.T) *gorm.DB {
 // --- Änderungsprotokoll ---------------------------------------------------
 
 func TestAuditLogChainsEntriesOnWrite(t *testing.T) {
-	db := welle6DB(t)
+	db := auditTestDB(t)
 	repo := NewAuditRepository(db)
 	ctx := context.Background()
 
@@ -71,7 +71,7 @@ func TestAuditLogChainsEntriesOnWrite(t *testing.T) {
 }
 
 func TestAuditLogDetectsTamperingInTheDatabase(t *testing.T) {
-	db := welle6DB(t)
+	db := auditTestDB(t)
 	repo := NewAuditRepository(db)
 	ctx := context.Background()
 
@@ -96,7 +96,7 @@ func TestAuditLogDetectsTamperingInTheDatabase(t *testing.T) {
 }
 
 func TestAuditLogStoresUTCActorAndVersion(t *testing.T) {
-	db := welle6DB(t)
+	db := auditTestDB(t)
 	repo := NewAuditRepository(db)
 	ctx := context.Background()
 
@@ -128,7 +128,7 @@ func TestAuditLogStoresUTCActorAndVersion(t *testing.T) {
 }
 
 func TestLogChangeStoresOnlyChangedFields(t *testing.T) {
-	db := welle6DB(t)
+	db := auditTestDB(t)
 	repo := NewAuditRepository(db)
 	ctx := context.Background()
 
@@ -155,7 +155,7 @@ func TestLogChangeStoresOnlyChangedFields(t *testing.T) {
 }
 
 func TestAuditFilterNarrowsTheLog(t *testing.T) {
-	db := welle6DB(t)
+	db := auditTestDB(t)
 	repo := NewAuditRepository(db)
 	ctx := context.Background()
 

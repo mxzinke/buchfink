@@ -12,12 +12,12 @@ import (
 // --- Festschreibungszeitpunkt je Buchung ----------------------------------
 
 func TestMarkCommittedStampsOnlyEntriesUpToTheCutoff(t *testing.T) {
-	db := welle6DB(t)
+	db := auditTestDB(t)
 	repo := NewJournalRepository(db)
 	ctx := context.Background()
 
-	march := welle6Entry(t, repo, "2026-03-15")
-	june := welle6Entry(t, repo, "2026-06-15")
+	march := committableEntry(t, repo, "2026-03-15")
+	june := committableEntry(t, repo, "2026-06-15")
 
 	stampedAt := time.Date(2026, 4, 10, 8, 30, 0, 0, time.UTC)
 	count, err := repo.MarkCommitted(ctx, 2026, "2026-03-31", 42, stampedAt)
@@ -46,11 +46,11 @@ func TestMarkCommittedStampsOnlyEntriesUpToTheCutoff(t *testing.T) {
 }
 
 func TestMarkCommittedKeepsTheEarlierStamp(t *testing.T) {
-	db := welle6DB(t)
+	db := auditTestDB(t)
 	repo := NewJournalRepository(db)
 	ctx := context.Background()
 
-	entry := welle6Entry(t, repo, "2026-01-15")
+	entry := committableEntry(t, repo, "2026-01-15")
 
 	first := time.Date(2026, 2, 1, 9, 0, 0, 0, time.UTC)
 	second := time.Date(2026, 7, 1, 9, 0, 0, 0, time.UTC)
@@ -78,12 +78,12 @@ func TestMarkCommittedKeepsTheEarlierStamp(t *testing.T) {
 }
 
 func TestMarkCommittedLeavesTheHashChainIntact(t *testing.T) {
-	db := welle6DB(t)
+	db := auditTestDB(t)
 	repo := NewJournalRepository(db)
 	ctx := context.Background()
 
-	welle6Entry(t, repo, "2026-02-01")
-	welle6Entry(t, repo, "2026-02-02")
+	committableEntry(t, repo, "2026-02-01")
+	committableEntry(t, repo, "2026-02-02")
 
 	if _, err := repo.MarkCommitted(ctx, 2026, "2026-12-31", 1, time.Now().UTC()); err != nil {
 		t.Fatalf("die Festschreibung ist fehlgeschlagen: %v", err)
@@ -98,7 +98,7 @@ func TestMarkCommittedLeavesTheHashChainIntact(t *testing.T) {
 	}
 }
 
-func welle6Entry(t *testing.T, repo domain.JournalRepository, bookingDate string) *domain.JournalEntry {
+func committableEntry(t *testing.T, repo domain.JournalRepository, bookingDate string) *domain.JournalEntry {
 	t.Helper()
 	entry := &domain.JournalEntry{
 		FiscalYear:      2026,
