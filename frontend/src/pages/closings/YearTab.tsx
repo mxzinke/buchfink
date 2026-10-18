@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Api } from '../../services/api';
+import { useLiveReload } from '../../live';
 import { useWriteLock } from '../../components/WriteLock';
 import { formatCents, formatDate, parseCents } from '../../utils/formatters';
 import { useAnchorScroll, useRouteObject, type NavigateFn } from '../../navigation';
@@ -161,6 +162,8 @@ export const YearTab: React.FC<YearTabProps> = ({
   useEffect(() => {
     void load();
   }, [load]);
+
+  useLiveReload(load, ['buchungen', 'abschluss']);
 
   const changed = async () => {
     await load();

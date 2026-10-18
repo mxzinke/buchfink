@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FileDown } from 'lucide-react';
 import { Api } from '../../services/api';
+import { useLiveReload } from '../../live';
 import { useWriteLock } from '../../components/WriteLock';
 import { formatCents, formatDate, formatDateTime, formatShortHash, parseCents } from '../../utils/formatters';
 import { useAnchorScroll, type NavigateFn } from '../../navigation';
@@ -375,6 +376,8 @@ const DeclarationDetail: React.FC<{
   useEffect(() => {
     void load();
   }, [load]);
+
+  useLiveReload(load, ['buchungen', 'abschluss', 'stammdaten']);
 
   const lines = useMemo(() => {
     const out = new Map<string, DeclarationLine>();

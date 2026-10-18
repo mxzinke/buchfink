@@ -3,6 +3,7 @@ import { FilePlus } from 'lucide-react';
 import type { Invoice, JournalEntry } from '../../types';
 import { useNavigation, useRouteObject } from '../../navigation';
 import { useWorkspace } from '../../workspace';
+import { useLiveReload } from '../../live';
 import { Api } from '../../services/api';
 import { usePostingLock } from '../../components/WriteLock';
 import { ActorMark } from '../../components/ActorMark';
@@ -106,6 +107,8 @@ export const InvoicesTab: React.FC = () => {
     setLoading(true);
     void load();
   }, [load, year]);
+
+  useLiveReload(load, ['buchungen', 'belege']);
 
   const entryById = useMemo(() => new Map(entries.map((e) => [e.id, e])), [entries]);
 

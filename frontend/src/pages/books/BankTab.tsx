@@ -9,6 +9,7 @@ import type {
 } from '../../types';
 import { useNavigation, useRouteObject } from '../../navigation';
 import { useWorkspace } from '../../workspace';
+import { useLiveReload } from '../../live';
 import { Api } from '../../services/api';
 import { usePostingLock } from '../../components/WriteLock';
 import { ActorMark } from '../../components/ActorMark';
@@ -133,6 +134,8 @@ export const BankTab: React.FC = () => {
     setLoading(true);
     void load();
   }, [load, year]);
+
+  useLiveReload(load, ['bank', 'buchungen', 'stammdaten']);
 
   const entryOf = useMemo(() => {
     const map = new Map<number, JournalEntry>();

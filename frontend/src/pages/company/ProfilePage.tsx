@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Api } from '../../services/api';
+import { useLiveReload } from '../../live';
 import type {
   CompanySettings,
   Country,
@@ -76,6 +77,9 @@ export const ProfilePage: React.FC = () => {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Darlehen, Gründungsbuchungen und Fristen kann auch Claude ändern.
+  useLiveReload(load, ['stammdaten', 'buchungen', 'abschluss']);
 
   /** Speichert einen Block auf dem frisch gelesenen Stand der übrigen. */
   const saveSettings = useCallback(

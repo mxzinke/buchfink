@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Account, JournalEntry, PaymentAllocationDetail } from '../../types';
 import { useNavigation, useRouteObject } from '../../navigation';
 import { useWorkspace } from '../../workspace';
+import { useLiveReload } from '../../live';
 import { Api } from '../../services/api';
 import { ActorMark } from '../../components/ActorMark';
 import { actorWho } from '../../utils/actor';
@@ -86,21 +87,24 @@ export const JournalTab: React.FC = () => {
   const [search, setSearch] = useState('');
   const [limit, setLimit] = useState(PAGE);
 
+  const load = useCallback(async () => {
+    try {
+      const list = await Api.getJournalEntries();
+      setEntries([...(list ?? [])].sort((a, b) => b.id - a.id));
+      setError(null);
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    let cancelled = false;
     setLoading(true);
-    Api.getJournalEntries()
-      .then((list) => {
-        if (cancelled) return;
-        setEntries([...(list ?? [])].sort((a, b) => b.id - a.id));
-        setError(null);
-      })
-      .catch((e) => !cancelled && setError(errorText(e)))
-      .finally(() => !cancelled && setLoading(false));
-    return () => {
-      cancelled = true;
-    };
-  }, [year]);
+    void load();
+  }, [load, year]);
+
+  useLiveReload(load, ['buchungen', 'belege', 'bank', 'abschluss']);
 
   const reversed = useMemo(() => reversedIds(entries), [entries]);
   const visible = useMemo(() => entries.filter((e) => matches(e, search.trim())), [entries, search]);

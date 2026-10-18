@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { AREA_TABS, TAB_LABELS, activeTab, useNavigation, type TabOf } from '../../navigation';
 import { useWorkspace } from '../../workspace';
 import { Api } from '../../services/api';
+import { useLiveReload } from '../../live';
 import type { Obligation } from '../../types';
 import { PageFrame, type FrameTab } from '../../components/ui';
 import { DeclarationsTab } from './DeclarationsTab';
@@ -38,6 +39,8 @@ export const ClosingsArea: React.FC = () => {
   useEffect(() => {
     void loadObligations();
   }, [loadObligations]);
+
+  useLiveReload(loadObligations, ['abschluss', 'buchungen']);
 
   // Ein Reiter zählt, was an ihm überfällig ist, in der Farbe des Überfälligen.
   const overdue = (target: ClosingsTab) =>

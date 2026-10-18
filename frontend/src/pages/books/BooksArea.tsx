@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { AREA_TABS, TAB_LABELS, activeTab, useNavigation, type TabOf } from '../../navigation';
 import { useWorkspace } from '../../workspace';
+import { useLiveReload } from '../../live';
 import { Api } from '../../services/api';
 import { ClosedYearNotice } from '../../components/WriteLock';
 import { PageFrame, type FrameTab } from '../../components/ui';
@@ -34,22 +35,25 @@ export const BooksArea: React.FC = () => {
   const tab = activeTab(route, 'books');
   const [counts, setCounts] = useState<Counts>({});
 
-  // Neu gezählt wird beim Wechsel des Reiters: dort wurde gerade gebucht.
+  const count = useCallback(async () => {
+    try {
+      const [receipts, transactions] = await Promise.all([Api.getReceipts(''), Api.getBankTransactions()]);
+      setCounts({
+        receipts: receipts.filter(needsBooking).length,
+        bank: transactions.filter((t) => t.matchStatus === 'unmatched').length,
+      });
+    } catch {
+      setCounts({});
+    }
+  }, []);
+
+  // Neu gezählt wird beim Wechsel des Reiters, dort wurde gerade gebucht, und
+  // wenn Claude Belege oder Umsätze bucht.
   useEffect(() => {
-    let cancelled = false;
-    Promise.all([Api.getReceipts(''), Api.getBankTransactions()])
-      .then(([receipts, transactions]) => {
-        if (cancelled) return;
-        setCounts({
-          receipts: receipts.filter(needsBooking).length,
-          bank: transactions.filter((t) => t.matchStatus === 'unmatched').length,
-        });
-      })
-      .catch(() => !cancelled && setCounts({}));
-    return () => {
-      cancelled = true;
-    };
-  }, [year, tab]);
+    void count();
+  }, [count, year, tab]);
+
+  useLiveReload(count, ['belege', 'bank', 'buchungen']);
 
   const tabs: FrameTab<BooksTab>[] = AREA_TABS.books.map((value) => ({
     value,

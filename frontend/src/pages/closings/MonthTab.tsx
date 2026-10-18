@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronRight, Lock } from 'lucide-react';
 import { Api } from '../../services/api';
+import { useLiveReload } from '../../live';
 import { useWriteLock } from '../../components/WriteLock';
 import { downloadCSV } from '../../utils/download';
 import { formatCents, formatDate } from '../../utils/formatters';
@@ -217,6 +218,8 @@ export const MonthTab: React.FC<MonthTabProps> = ({
   useEffect(() => {
     void load();
   }, [load]);
+
+  useLiveReload(load, ['buchungen', 'belege', 'bank', 'abschluss']);
 
   const zmPeriod = state ? zmPeriods.find((p) => p.to === state.to) ?? null : null;
   useEffect(() => {

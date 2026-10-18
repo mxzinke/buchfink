@@ -3,6 +3,7 @@ import { Download, Plus } from 'lucide-react';
 import type { JournalEntry, Receipt, ReceiptFileInput, ReceiptKind, ValidationFinding } from '../../types';
 import { useNavigation, useRouteObject } from '../../navigation';
 import { useWorkspace } from '../../workspace';
+import { useLiveReload } from '../../live';
 import { Api } from '../../services/api';
 import { usePostingLock } from '../../components/WriteLock';
 import { ActorMark } from '../../components/ActorMark';
@@ -133,6 +134,8 @@ export const ReceiptsTab: React.FC = () => {
     setLoading(true);
     void load();
   }, [load, year]);
+
+  useLiveReload(load, ['belege', 'buchungen', 'eingang']);
 
   /** Wer den Beleg gebucht hat, steht an seiner Buchung. */
   const entryOf = useMemo(() => {

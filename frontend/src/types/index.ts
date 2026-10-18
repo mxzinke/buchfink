@@ -3939,3 +3939,14 @@ export interface ShareholderLoanRequest {
   subordinated?: boolean;
   note?: string;
 }
+
+/** Die grobe Art einer Änderung in einem Mandanten (`core.ChangeKind`). */
+export type ChangeKind = 'buchungen' | 'belege' | 'bank' | 'stammdaten' | 'abschluss' | 'eingang';
+
+/** Die Änderungen eines Mandanten seit dem letzten Ereignis (`wailsbridge.ChangeEvent`). */
+export interface ChangeEvent {
+  tenantId: string;
+  /** Die Erfassungswege: `ui`, `system`, `agent:<kurzname>`. */
+  channels: string[];
+  kinds: ChangeKind[];
+}

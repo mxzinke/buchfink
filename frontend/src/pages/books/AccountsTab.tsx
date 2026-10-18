@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Account, AccountLedger, OpenItem, SuSaOverview } from '../../types';
 import { useNavigation, useRouteObject } from '../../navigation';
 import { useWorkspace } from '../../workspace';
+import { useLiveReload } from '../../live';
 import { Api } from '../../services/api';
 import { formatBalance, formatCents, formatDate } from '../../utils/formatters';
 import {
@@ -41,21 +42,23 @@ export const AccountsTab: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
+  const load = useCallback(async () => {
+    try {
+      setAccounts((await Api.getAccounts()) ?? []);
+      setError(null);
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    let cancelled = false;
     setLoading(true);
-    Api.getAccounts()
-      .then((list) => {
-        if (cancelled) return;
-        setAccounts(list ?? []);
-        setError(null);
-      })
-      .catch((e) => !cancelled && setError(errorText(e)))
-      .finally(() => !cancelled && setLoading(false));
-    return () => {
-      cancelled = true;
-    };
-  }, [year]);
+    void load();
+  }, [load, year]);
+
+  useLiveReload(load, ['buchungen', 'belege', 'bank', 'abschluss']);
 
   const inUse = useMemo(
     () => accounts.filter((a) => a.bookingsCount > 0).sort((a, b) => a.number.localeCompare(b.number)),

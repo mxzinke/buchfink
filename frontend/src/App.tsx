@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import React, { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Toaster } from 'sonner';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -11,6 +11,7 @@ import { formatDate } from './utils/formatters';
 import { Button, Notice, PAGE_CONTAINER, cn, toast } from './components/ui';
 import { NavigationProvider, useHashRoute, type Route } from './navigation';
 import { WorkspaceProvider, type Workspace } from './workspace';
+import { ChangesProvider, useLiveReload } from './live';
 import { OverviewArea } from './pages/overview/OverviewArea';
 import { BooksArea } from './pages/books/BooksArea';
 import { ClosingsArea } from './pages/closings/ClosingsArea';
@@ -281,74 +282,91 @@ export function App() {
     >
       <PostingLockProvider closedYear={yearClosed ? currentYear : undefined}>
         <WorkspaceProvider value={workspace}>
-          <NavigationProvider value={{ route, navigate }}>
-            <div className="flex h-screen bg-paper text-ink overflow-hidden">
-              <Sidebar
-                currentArea={route.area}
-                onSelectArea={(area) => navigate({ area } as Route)}
-                integrity={integrity}
-                integrityError={integrityError}
-                isCheckingIntegrity={isCheckingIntegrity}
-                onOpenAudit={() => navigate({ area: 'settings', tab: 'audit' })}
-                isOpenMobile={isMobileSidebarOpen}
-                onCloseMobile={() => setIsMobileSidebarOpen(false)}
-              />
-
-              <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                <Header
-                  settings={companySettings}
-                  tenants={tenants}
-                  activeTenant={activeTenant}
-                  onSwitchTenant={(id) => void handleSwitchTenant(id)}
-                  onManageTenants={() => navigate({ area: 'settings', tab: 'tenants' })}
-                  onAddTenant={() => setIsAddingTenant(true)}
-                  currentYear={currentYear}
-                  availableYears={availableYears}
-                  closedYears={closedYears}
-                  onYearChange={handleYearChange}
-                  onCreateFiscalYear={handleCreateFiscalYear}
-                  onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+          <ChangesProvider tenantId={activeTenant?.id}>
+            <NavigationProvider value={{ route, navigate }}>
+              <LiveWorkspace onSettings={reloadSettings} onClosings={refreshFiscalYearSelection} />
+              <div className="flex h-screen bg-paper text-ink overflow-hidden">
+                <Sidebar
+                  currentArea={route.area}
+                  onSelectArea={(area) => navigate({ area } as Route)}
+                  integrity={integrity}
+                  integrityError={integrityError}
+                  isCheckingIntegrity={isCheckingIntegrity}
+                  onOpenAudit={() => navigate({ area: 'settings', tab: 'audit' })}
+                  isOpenMobile={isMobileSidebarOpen}
+                  onCloseMobile={() => setIsMobileSidebarOpen(false)}
                 />
 
-                {/* Ein abgeschlossenes Geschäftsjahr hat einen anderen Grund:
-                    `sunken` statt `paper`, in jeder Ansicht (§11.5). */}
-                <main
-                  ref={mainRef}
-                  className={cn('flex-1 overflow-y-auto', yearClosed ? 'bg-sunken' : 'bg-paper')}
-                >
-                  {/* Der Prüfermodus sperrt die ganze Anwendung; der Hinweis
-                      steht deshalb über jedem Bereich (§11.5). */}
-                  {appConfig.readOnly && (
-                    <div className={cn(PAGE_CONTAINER, 'pt-8')}>
-                      <Notice
-                        text={`Prüfermodus bis ${formatDate(appConfig.readOnlyUntil)} — die Buchführung nimmt bis dahin keine Änderung auf.`}
-                        action={
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() =>
-                              navigate({ area: 'settings', tab: 'audit', id: 'betriebspruefung' })
-                            }
-                          >
-                            Zum Prüfermodus
-                          </Button>
-                        }
-                      />
-                    </div>
-                  )}
-                  {route.area === 'overview' && <OverviewArea />}
-                  {route.area === 'books' && <BooksArea />}
-                  {route.area === 'closings' && <ClosingsArea />}
-                  {route.area === 'company' && <CompanyArea />}
-                  {route.area === 'settings' && <SettingsArea />}
-                </main>
+                <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                  <Header
+                    settings={companySettings}
+                    tenants={tenants}
+                    activeTenant={activeTenant}
+                    onSwitchTenant={(id) => void handleSwitchTenant(id)}
+                    onManageTenants={() => navigate({ area: 'settings', tab: 'tenants' })}
+                    onAddTenant={() => setIsAddingTenant(true)}
+                    currentYear={currentYear}
+                    availableYears={availableYears}
+                    closedYears={closedYears}
+                    onYearChange={handleYearChange}
+                    onCreateFiscalYear={handleCreateFiscalYear}
+                    onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+                  />
+
+                  {/* Ein abgeschlossenes Geschäftsjahr hat einen anderen Grund:
+                      `sunken` statt `paper`, in jeder Ansicht (§11.5). */}
+                  <main
+                    ref={mainRef}
+                    className={cn('flex-1 overflow-y-auto', yearClosed ? 'bg-sunken' : 'bg-paper')}
+                  >
+                    {/* Der Prüfermodus sperrt die ganze Anwendung; der Hinweis
+                        steht deshalb über jedem Bereich (§11.5). */}
+                    {appConfig.readOnly && (
+                      <div className={cn(PAGE_CONTAINER, 'pt-8')}>
+                        <Notice
+                          text={`Prüfermodus bis ${formatDate(appConfig.readOnlyUntil)} — die Buchführung nimmt bis dahin keine Änderung auf.`}
+                          action={
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() =>
+                                navigate({ area: 'settings', tab: 'audit', id: 'betriebspruefung' })
+                              }
+                            >
+                              Zum Prüfermodus
+                            </Button>
+                          }
+                        />
+                      </div>
+                    )}
+                    {route.area === 'overview' && <OverviewArea />}
+                    {route.area === 'books' && <BooksArea />}
+                    {route.area === 'closings' && <ClosingsArea />}
+                    {route.area === 'company' && <CompanyArea />}
+                    {route.area === 'settings' && <SettingsArea />}
+                  </main>
+                </div>
               </div>
-            </div>
-          </NavigationProvider>
+            </NavigationProvider>
+          </ChangesProvider>
         </WorkspaceProvider>
       </PostingLockProvider>
     </WriteLockProvider>,
   );
 }
+
+/**
+ * Was der ganze Arbeitsbereich zeigt und sich mit einer Änderung im Backend
+ * ändern kann: die Firma in der Kopfzeile und die abgeschlossenen
+ * Geschäftsjahre, die Kopfzeile und Buchungsansichten sperren.
+ */
+const LiveWorkspace: React.FC<{ onSettings: () => Promise<void>; onClosings: () => Promise<void> }> = ({
+  onSettings,
+  onClosings,
+}) => {
+  useLiveReload(onSettings, ['stammdaten']);
+  useLiveReload(onClosings, ['abschluss']);
+  return null;
+};
 
 export default App;

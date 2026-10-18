@@ -9,6 +9,7 @@ import type {
   ShareholderLoanView,
 } from '../../types';
 import { useWriteLock } from '../../components/WriteLock';
+import { useLiveReload } from '../../live';
 import { formatCents, formatCentsPlain, formatDate, parseCents } from '../../utils/formatters';
 import {
   Button,
@@ -91,6 +92,9 @@ export const CapitalBlock: React.FC<{
   }, []);
 
   useEffect(() => loadLoans(), [loadLoans]);
+
+  // Darlehen erfasst und berichtigt auch Claude.
+  useLiveReload(loadLoans, ['buchungen']);
 
   const shareholders = settings.shareholders ?? [];
   const capital = settings.shareCapital;

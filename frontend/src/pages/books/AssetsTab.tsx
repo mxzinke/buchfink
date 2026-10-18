@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
   AcquisitionCandidate,
   Anlagenspiegel,
@@ -10,6 +10,7 @@ import type {
 } from '../../types';
 import { useNavigation, useRouteObject } from '../../navigation';
 import { useWorkspace } from '../../workspace';
+import { useLiveReload } from '../../live';
 import { Api } from '../../services/api';
 import { formatCents, formatDate, formatUnits } from '../../utils/formatters';
 import {
@@ -104,22 +105,25 @@ export const AssetsTab: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const load = useCallback(async () => {
+    try {
+      const [list, pending] = await Promise.all([Api.getFixedAssets(''), Api.getAssetAcquisitionCandidates()]);
+      setAssets(list ?? []);
+      setCandidates(pending ?? []);
+      setError(null);
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    let cancelled = false;
     setLoading(true);
-    Promise.all([Api.getFixedAssets(''), Api.getAssetAcquisitionCandidates()])
-      .then(([list, pending]) => {
-        if (cancelled) return;
-        setAssets(list ?? []);
-        setCandidates(pending ?? []);
-        setError(null);
-      })
-      .catch((e) => !cancelled && setError(errorText(e)))
-      .finally(() => !cancelled && setLoading(false));
-    return () => {
-      cancelled = true;
-    };
-  }, [year]);
+    void load();
+  }, [load, year]);
+
+  useLiveReload(load, ['buchungen', 'belege', 'abschluss']);
 
   const inStock = assets.filter((a) => a.status !== 'disposed');
   const sum = (pick: (a: FixedAsset) => number) => inStock.reduce((total, a) => total + pick(a), 0);

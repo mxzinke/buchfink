@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, Download } from 'lucide-react';
 import type { Cents, FinancialStatement, StatementAccount, StatementLine } from '../../types';
 import { useNavigation } from '../../navigation';
 import { useWorkspace } from '../../workspace';
+import { useLiveReload } from '../../live';
 import { Api } from '../../services/api';
 import { downloadBlob, downloadCSV } from '../../utils/download';
 import { formatCents, formatDate } from '../../utils/formatters';
@@ -58,7 +59,6 @@ export const StatementsTab: React.FC = () => {
   const [exporting, setExporting] = useState<'pdf' | 'csv' | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
     try {
       setData(await Api.getStatement(year));
       setError(null);
@@ -71,8 +71,11 @@ export const StatementsTab: React.FC = () => {
   }, [year]);
 
   useEffect(() => {
+    setLoading(true);
     void load();
   }, [load]);
+
+  useLiveReload(load, ['buchungen', 'belege', 'bank', 'abschluss']);
 
   async function exportAs(kind: 'pdf' | 'csv') {
     setExporting(kind);
