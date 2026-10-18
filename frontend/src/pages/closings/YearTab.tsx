@@ -48,6 +48,7 @@ import {
   obligationKindOf,
   todayISO,
   type CommitTarget,
+  loadErrorText,
 } from './shared';
 import { STEP_VIEWS, StepDetails, StepState, isBookingStep, isStepKey } from './yearSteps';
 
@@ -100,6 +101,8 @@ const ROW_MARK: Record<RowState, { mark: string; label: string }> = {
 export interface YearTabProps {
   year: number;
   obligations: Obligation[];
+  /** Der Pflichtenkalender ließ sich nicht laden. */
+  obligationsError?: string;
   onObligationsChanged: () => Promise<void>;
   onFiscalYearChanged: () => Promise<void>;
   id?: string;
@@ -109,6 +112,7 @@ export interface YearTabProps {
 export const YearTab: React.FC<YearTabProps> = ({
   year,
   obligations,
+  obligationsError,
   onObligationsChanged,
   onFiscalYearChanged,
   id,
@@ -174,7 +178,12 @@ export const YearTab: React.FC<YearTabProps> = ({
 
   if (loading && !closing) return <SkeletonRows rows={8} />;
   if (!closing) {
-    return <Notice tone="negative" text={error || 'Der Abschlussstand ließ sich nicht lesen.'} />;
+    return (
+      <Notice
+        tone="negative"
+        text={loadErrorText(error || 'Der Abschlussstand ließ sich nicht lesen.', obligationsError)}
+      />
+    );
   }
 
   const fy = closing.fiscalYear;
@@ -225,7 +234,9 @@ export const YearTab: React.FC<YearTabProps> = ({
         action={<StatusBadge status={STATUS_BADGE[fy.status]} />}
       />
 
-      {error && <Notice tone="negative" className="mt-6" text={error} />}
+      {(error || obligationsError) && (
+        <Notice tone="negative" className="mt-6" text={loadErrorText(error, obligationsError)} />
+      )}
 
       <Progress
         className="mt-6"

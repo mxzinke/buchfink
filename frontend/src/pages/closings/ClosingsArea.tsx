@@ -3,7 +3,7 @@ import { AREA_TABS, TAB_LABELS, activeTab, useNavigation, type TabOf } from '../
 import { useWorkspace } from '../../workspace';
 import { Api } from '../../services/api';
 import type { Obligation } from '../../types';
-import { Notice, PageFrame, type FrameTab } from '../../components/ui';
+import { PageFrame, type FrameTab } from '../../components/ui';
 import { DeclarationsTab } from './DeclarationsTab';
 import { MonthTab } from './MonthTab';
 import { YearTab } from './YearTab';
@@ -29,6 +29,7 @@ export const ClosingsArea: React.FC = () => {
       setObligations(await Api.getObligations(year));
       setError('');
     } catch (e) {
+      // Der Reiter zeigt den Fehler zusammen mit seinem eigenen.
       setObligations([]);
       setError(message(e));
     }
@@ -54,13 +55,13 @@ export const ClosingsArea: React.FC = () => {
       tabs={tabs}
       tab={tab}
       onTabChange={(next) => navigate({ area: 'closings', tab: next })}
-      notice={error ? <Notice tone="negative" text={error} /> : undefined}
     >
       {tab === 'month' && (
         <MonthTab
           key={year}
           year={year}
           obligations={obligations}
+          obligationsError={error}
           onObligationsChanged={loadObligations}
           id={id}
           onNavigate={navigate}
@@ -71,6 +72,7 @@ export const ClosingsArea: React.FC = () => {
           key={year}
           year={year}
           obligations={obligations}
+          obligationsError={error}
           onObligationsChanged={loadObligations}
           onFiscalYearChanged={refreshFiscalYears}
           id={id}
@@ -82,6 +84,7 @@ export const ClosingsArea: React.FC = () => {
           key={year}
           year={year}
           obligations={obligations}
+          obligationsError={error}
           onObligationsChanged={loadObligations}
           id={id}
           onNavigate={navigate}

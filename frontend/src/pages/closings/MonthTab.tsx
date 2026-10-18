@@ -44,6 +44,7 @@ import {
   monthsBetween,
   todayISO,
   type CommitTarget,
+  loadErrorText,
 } from './shared';
 
 /**
@@ -62,13 +63,14 @@ const PAYABLE_CODE = '83';
 /** Monatspflichten, die nicht schon als eigener Schritt stehen. */
 const SIDE_KINDS = ['lohnsteuer-anmeldung', 'sondervorauszahlung'];
 
-type MonthMark = 'committed' | 'overdue' | 'open' | 'running';
+type MonthMark = 'committed' | 'overdue' | 'open' | 'running' | 'unknown';
 
 const MARK_CLASS: Record<MonthMark, string> = {
   committed: 'bg-positive',
   overdue: 'bg-negative',
   open: 'bg-attention',
   running: 'bg-ink-faint',
+  unknown: 'bg-line-strong',
 };
 
 const MARK_LABEL: Record<MonthMark, string> = {
@@ -76,6 +78,7 @@ const MARK_LABEL: Record<MonthMark, string> = {
   overdue: 'Festschreibung überfällig',
   open: 'Festschreibung offen',
   running: 'läuft noch',
+  unknown: 'Stand nicht geladen',
 };
 
 /** Der Monat davor als „JJJJ-MM". */
@@ -109,6 +112,8 @@ function monthOfTarget(id: string | undefined, obligations: Obligation[]): strin
 export interface MonthTabProps {
   year: number;
   obligations: Obligation[];
+  /** Der Pflichtenkalender ließ sich nicht laden. */
+  obligationsError?: string;
   onObligationsChanged: () => Promise<void>;
   id?: string;
   onNavigate: NavigateFn;
@@ -117,6 +122,7 @@ export interface MonthTabProps {
 export const MonthTab: React.FC<MonthTabProps> = ({
   year,
   obligations,
+  obligationsError,
   onObligationsChanged,
   id,
   onNavigate,
@@ -163,9 +169,10 @@ export const MonthTab: React.FC<MonthTabProps> = ({
       if (o?.status === 'done') return 'committed';
       if (o?.status === 'overdue') return 'overdue';
       if (monthEnd(month) >= today) return 'running';
-      return 'open';
+      // Ohne Pflichtenkalender ist unbekannt, ob der Monat festgeschrieben ist.
+      return obligationsError ? 'unknown' : 'open';
     },
-    [commits, today],
+    [commits, today, obligationsError],
   );
 
   // Ohne Ziel zeigt der Reiter den ältesten Monat, der noch nicht
@@ -351,7 +358,9 @@ export const MonthTab: React.FC<MonthTabProps> = ({
         onSelect={(next) => onNavigate({ area: 'closings', tab: 'month', id: next })}
       />
 
-      {stateError && <Notice tone="negative" className="mt-6" text={stateError} />}
+      {(stateError || obligationsError) && (
+        <Notice tone="negative" className="mt-6" text={loadErrorText(stateError, obligationsError)} />
+      )}
 
       {loading && !state ? (
         <div className="mt-8">

@@ -74,8 +74,7 @@ export const AppsPanel: React.FC<{ id?: string }> = ({ id }) => {
       setApps(nextApps.filter((app) => !app.revoked));
       setError('');
     } catch (e) {
-      setApps([]);
-      setError(message(e));
+      setError(`Die Apps konnten nicht geladen werden. ${message(e)}`);
     }
   }, []);
 
@@ -132,12 +131,20 @@ export const AppsPanel: React.FC<{ id?: string }> = ({ id }) => {
           }
         />
       )}
-      {error && <Notice tone="negative" className="mb-5" text={error} />}
-
       <AgentClientCommands url={status?.url} className="max-w-[900px]" />
 
       <h3 className="text-label text-ink mt-10 mb-3">Zugelassene Apps</h3>
-      {apps === null ? (
+      {error ? (
+        <Notice
+          tone="negative"
+          text={error}
+          action={
+            <Button variant="quiet" size="sm" onClick={() => void load()}>
+              Erneut laden
+            </Button>
+          }
+        />
+      ) : apps === null ? (
         <SkeletonRows rows={3} />
       ) : apps.length === 0 ? (
         <EmptyState

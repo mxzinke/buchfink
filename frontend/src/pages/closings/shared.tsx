@@ -31,6 +31,15 @@ export function message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/**
+ * Die Ladefehler eines Reiters und des Pflichtenkalenders in einer Meldung.
+ * Scheitern beide am selben Grund, steht er einmal da.
+ */
+export function loadErrorText(...errors: (string | undefined)[]): string {
+  const distinct = [...new Set(errors.filter((e): e is string => Boolean(e)))];
+  return distinct.length > 0 ? `Konnte nicht vollständig geladen werden. ${distinct.join(' ')}` : '';
+}
+
 /** Heute als JJJJ-MM-TT in der Zeitzone des Rechners. */
 export function todayISO(): string {
   const now = new Date();

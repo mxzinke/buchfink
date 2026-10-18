@@ -4,7 +4,7 @@ import { Api } from '../../services/api';
 import type { Account, BankAccount, CompanySettings } from '../../types';
 import { BankAccountsPanel } from '../../components/BankAccountsPanel';
 import { useWriteLock } from '../../components/WriteLock';
-import { Button, DetailList, Field, FormGrid, Input, SkeletonRows, toast } from '../../components/ui';
+import { Button, DetailList, Field, FormGrid, Input, Notice, SkeletonRows } from '../../components/ui';
 import { EditPanel, Missing, PROFILE_LIST } from './ProfileBlock';
 
 type Draft = Pick<
@@ -33,6 +33,7 @@ export const BankBlock: React.FC<{
 }> = ({ settings, onSave, onChanged }) => {
   const writeLock = useWriteLock();
   const [accounts, setAccounts] = useState<BankAccount[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [paymentAccounts, setPaymentAccounts] = useState<Account[]>([]);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Draft>(() => draftOf(settings));
@@ -43,9 +44,9 @@ export const BankBlock: React.FC<{
       const [banks, payment] = await Promise.all([Api.getBankAccounts(), Api.getPaymentAccounts()]);
       setAccounts(banks);
       setPaymentAccounts(payment);
+      setLoadError(null);
     } catch (e) {
-      setAccounts([]);
-      toast.error(e instanceof Error ? e.message : String(e));
+      setLoadError(`Die Bankkonten konnten nicht geladen werden. ${e instanceof Error ? e.message : String(e)}`);
     }
   }, []);
 
@@ -53,10 +54,22 @@ export const BankBlock: React.FC<{
     void load();
   }, [load]);
 
-  if (accounts === null) {
+  if (loadError || accounts === null) {
     return (
       <section id="bankkonten" className="mt-8 pt-8 border-t border-line">
-        <SkeletonRows rows={3} />
+        {loadError ? (
+          <Notice
+            tone="negative"
+            text={loadError}
+            action={
+              <Button variant="quiet" size="sm" onClick={() => void load()}>
+                Erneut laden
+              </Button>
+            }
+          />
+        ) : (
+          <SkeletonRows rows={3} />
+        )}
       </section>
     );
   }

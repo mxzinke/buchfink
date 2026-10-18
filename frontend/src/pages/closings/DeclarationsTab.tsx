@@ -52,6 +52,7 @@ import {
   message,
   obligationKindOf,
   todayISO,
+  loadErrorText,
 } from './shared';
 import { EBilanzView } from './EBilanzView';
 
@@ -112,6 +113,8 @@ const DECLARATION_KINDS = ['kst-erklaerung', 'gewst-erklaerung', 'ust-erklaerung
 export interface DeclarationsTabProps {
   year: number;
   obligations: Obligation[];
+  /** Der Pflichtenkalender ließ sich nicht laden. */
+  obligationsError?: string;
   onObligationsChanged: () => Promise<void>;
   id?: string;
   onNavigate: NavigateFn;
@@ -120,6 +123,7 @@ export interface DeclarationsTabProps {
 export const DeclarationsTab: React.FC<DeclarationsTabProps> = ({
   year,
   obligations,
+  obligationsError,
   onObligationsChanged,
   id,
   onNavigate,
@@ -164,6 +168,10 @@ export const DeclarationsTab: React.FC<DeclarationsTabProps> = ({
           </>
         }
       />
+
+      {obligationsError && (
+        <Notice tone="negative" className="mt-6" text={loadErrorText(obligationsError)} />
+      )}
 
       {previousOpen.length > 0 && (
         <Notice

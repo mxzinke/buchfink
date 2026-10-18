@@ -53,13 +53,14 @@ export const ContactsPanel: React.FC = () => {
   const [editing, setEditing] = useState<Partial<Contact> | null>(null);
   const [blocking, setBlocking] = useState<Contact | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   async function load() {
     try {
       setContacts(await Api.getContacts());
+      setLoadError(null);
     } catch (e) {
-      setContacts([]);
-      toast.error(message(e));
+      setLoadError(`Die Kontakte konnten nicht geladen werden. ${message(e)}`);
     }
   }
 
@@ -122,7 +123,17 @@ export const ContactsPanel: React.FC = () => {
       </div>
 
       <div className="mt-5">
-        {contacts === null ? (
+        {loadError ? (
+          <Notice
+            tone="negative"
+            text={loadError}
+            action={
+              <Button variant="quiet" size="sm" onClick={() => void load()}>
+                Erneut laden
+              </Button>
+            }
+          />
+        ) : contacts === null ? (
           <SkeletonRows rows={6} />
         ) : filtered.length === 0 ? (
           <EmptyState
