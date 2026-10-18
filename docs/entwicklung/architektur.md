@@ -91,6 +91,20 @@ prüft der Kern trotzdem. Nummern, Hash-Kette, Stempel und Audit bleiben im
 Schreibweg des Journals. `TestJournalRuleContract` sichert die Meldungen beider
 Prüfpfade, `TestJournalRuleRegistration` die Verdrahtung.
 
+`PaymentService` delegiert den Ausgleich an das interne Modul `settlement`
+mit `OpenItems`, `Settle`, `Split` und `WriteOff`. Es bündelt offene Posten
+einschließlich Stichtagssicht und Altersstruktur, Zahlungszuordnungen,
+Bankaufteilungen, Differenzen und Forderungsausbuchungen. Die Aufrufer in
+Diensten, Bridge und MCP nutzen die Methoden von `PaymentService`.
+
+Skontokonto, Nettominderung und gegenläufige Steuerzeilen liefert
+`accounting.TaxCase.Skonto`. Bei einer Anlagenrechnung ordnet Settlement die
+Minderung dem Anlagegut zu. Journalbuchung, Zuordnungen, Anlagenbewegung und
+Protokoll stehen in derselben Transaktion. Den Bankumsatz beansprucht der
+in `core/wire.go` registrierte Effekt aus `internal/bankeffects`; die
+Generalumkehr gibt ihn wieder frei. Eine erfasste Anschaffungskostenminderung
+bleibt beim Storno der Zahlung bestehen.
+
 `service.PeriodService` bündelt Geschäftsjahr, Rumpfjahr, Festschreibung,
 Abschlussperiode und Feststellung. `State(ctx, date)` liefert die Sperren des
 Buchungstags; `FiscalYear` liest oder berechnet den Jahreszeitraum, ohne ihn

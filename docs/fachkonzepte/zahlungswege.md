@@ -21,7 +21,7 @@ Begründung (`service/bank_suggest.go`). Gebucht wird erst, wenn jemand den
 Vorschlag annimmt. Ein Konto aus dem Verwendungszweck rät Buchfink nicht.
 
 **Aufteilung.** Ein Umsatz lässt sich auf mehrere Gegenkonten aufteilen
-(`service/bank_split.go`): offene Posten, ein Gesellschafterdarlehen oder
+(`service/settlement_split.go`): offene Posten, ein Gesellschafterdarlehen oder
 beliebige Konten. Typische Fälle sind eine Zinsgutschrift mit
 Kapitalertragsteuer, eine Darlehensrate aus Tilgung und Zins und eine
 Steuerlastschrift über mehrere Steuerarten. Die Summe muss dem Umsatz

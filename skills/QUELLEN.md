@@ -435,7 +435,7 @@ abgeglichen.
 | Rechnungsverbund | `internal/domain/invoice_group.go`, `internal/service/advance_service.go` | Abschläge, Absetzung in der Schlussrechnung |
 | Ausstellen | `internal/service/invoice_service.go` (`Issue`) | Fälligkeit 14 Tage ohne Angabe, Verbraucherhinweis, USt-IdNr.-Bestätigung, Kleinbetrag |
 | Storno, Korrektur | `internal/service/invoice_correction.go` | Generalumkehr im laufenden Zeitraum; derzeit ohne Aufruf aus App oder Werkzeug |
-| Ausbuchung | `internal/service/writeoff.go` | Begründungspflicht, Steuerkorrektur; derzeit ohne Aufruf aus App oder Werkzeug |
+| Ausbuchung | `internal/service/settlement_writeoff.go` | Begründungspflicht, Steuerkorrektur; derzeit ohne Aufruf aus App oder Werkzeug |
 | Konten | `internal/accounting/advance_accounts.go`, `skr04_2026.json` | 3272/3260/3250, 6930/6931/6936, 4925, 4970, 7110 |
 | Verzugsrechnung | `internal/accounting/default_interest.go`, `tax_params.go` | Zuschläge, 365 Tage, Basiszinstabelle |
 | Voranmeldung, ZM | `internal/accounting/ustva.go`, `zm.go` | `reverse_charge_supply` → Kz 21 und ZM bei EU-Kunden, sonst Kz 45 |
