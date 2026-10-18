@@ -131,6 +131,25 @@ func TestInboxFolderIsChosenInTheApp(t *testing.T) {
 			t.Errorf("Eingang %s angenommen", refused)
 		}
 	}
+	// Geprüft, angelegt und gespeichert wird derselbe Pfad: „daten “ ist ein
+	// Geschwisterordner des Datenordners, nicht der Datenordner selbst.
+	spaced := data + " "
+	if info, err = b.SetInboxFolder(spaced); err != nil || info.Path != spaced {
+		t.Errorf("Ordner mit Leerzeichen am Ende: %+v %v", info, err)
+	}
+	if st, err := os.Stat(spaced); err != nil || !st.IsDir() {
+		t.Errorf("nicht angelegt: %v", err)
+	}
+	// Ein Leseordner im Eingang und ein Eingang um einen Leseordner gehen nicht.
+	if _, err := b.SaveAgentRules(domain.AgentSettings{ExtraReadFolders: []string{filepath.Join(custom, "Verträge")}}); err != nil {
+		t.Fatalf("Leseordner, solange der Eingang woanders liegt: %v", err)
+	}
+	if _, err := b.SetInboxFolder(custom); err == nil {
+		t.Error("Eingang um einen Leseordner angenommen")
+	}
+	if _, err := b.SaveAgentRules(domain.AgentSettings{ExtraReadFolders: []string{filepath.Join(spaced, "Verträge")}}); err == nil {
+		t.Error("Leseordner im Eingang angenommen")
+	}
 	if info, err = b.SetInboxFolder(""); err != nil || info.Path != filepath.Join(data, policy.InboxDir) || !info.Default {
 		t.Errorf("zurück zur Voreinstellung: %+v %v", info, err)
 	}

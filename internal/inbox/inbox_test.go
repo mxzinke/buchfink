@@ -2,9 +2,11 @@ package inbox
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 )
@@ -57,7 +59,7 @@ func TestListShowsKindsAndSkipsWhatIsDone(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	files, err := List(dir)
+	files, err := List(dir, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,11 +92,11 @@ func TestListShowsKindsAndSkipsWhatIsDone(t *testing.T) {
 	if AgeDays(Oldest(nil), now) != 0 {
 		t.Error("ein leerer Eingang hat kein Alter")
 	}
-	if n, oldest, err := Count(dir); err != nil || n != len(files) || !oldest.Equal(Oldest(files)) {
+	if n, oldest, err := Count(dir, nil); err != nil || n != len(files) || !oldest.Equal(Oldest(files)) {
 		t.Errorf("Count: %d %v %v", n, oldest, err)
 	}
 
-	missing, err := List(filepath.Join(t.TempDir(), "fehlt"))
+	missing, err := List(filepath.Join(t.TempDir(), "fehlt"), nil)
 	if err != nil || len(missing) != 0 || missing == nil {
 		t.Errorf("fehlender Eingang: %v %v", missing, err)
 	}
@@ -192,8 +194,126 @@ func TestAddCopiesSupportedFiles(t *testing.T) {
 	if len(inside) != 0 || len(skipped) != 1 {
 		t.Errorf("aus dem Eingang selbst: %v %+v", inside, skipped)
 	}
-	files, _ := List(dir)
+	files, _ := List(dir, nil)
 	if len(files) != 3 {
 		t.Errorf("keine Zwischendatei bleibt sichtbar: %+v", files)
+	}
+}
+
+// Ist der Eingang ein Symlink, zeigt List die Dateien des Ordners, auf den er
+// zeigt, mit Pfaden unter dem Eingang, wie er eingestellt ist. Ordner, die
+// skip nennt, bleiben mit ihrem Inhalt draußen.
+func TestListFollowsASymlinkedInboxAndSkipsGuardedDirs(t *testing.T) {
+	base := t.TempDir()
+	real := filepath.Join(base, "Scans")
+	write(t, filepath.Join(real, "r.pdf"), pdfData, time.Time{})
+	write(t, filepath.Join(real, "Sicherung", "pfennig.zip"), "PK", time.Time{})
+	link := filepath.Join(base, "Eingang")
+	if err := os.Symlink(real, link); err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := filepath.EvalSymlinks(real)
+	if err != nil {
+		t.Fatal(err)
+	}
+	backup := filepath.Join(resolved, "Sicherung")
+	skip := func(dir string) bool { return dir == backup }
+	files, err := List(link, skip)
+	if err != nil || len(files) != 1 || files[0].Path != filepath.Join(link, "r.pdf") || files[0].Kind != KindReceipt {
+		t.Fatalf("Eingang über Symlink: %+v %v", files, err)
+	}
+	if n, _, err := Count(link, skip); err != nil || n != 1 {
+		t.Errorf("Count über Symlink: %d %v", n, err)
+	}
+	if n, _, _ := Count(link, nil); n != 2 {
+		t.Errorf("ohne skip: %d Dateien", n)
+	}
+	if !Contains(link, files[0].Path) {
+		t.Error("der gelistete Pfad liegt nicht im Eingang")
+	}
+}
+
+// Ein Symlink namens Übernommen oder als Monatsordner führt nicht aus dem
+// Eingang hinaus: Settle verschiebt dann nicht, und die Datei bleibt liegen.
+func TestSettleStaysInsideTheInbox(t *testing.T) {
+	base := t.TempDir()
+	foreign := filepath.Join(base, "B", "Eingang")
+	if err := os.MkdirAll(foreign, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	day := time.Date(2026, 10, 18, 12, 0, 0, 0, time.Local)
+	for name, setup := range map[string]func(dir string){
+		"Übernommen als Symlink": func(dir string) {
+			if err := os.Symlink(foreign, filepath.Join(dir, DoneDir)); err != nil {
+				t.Fatal(err)
+			}
+		},
+		"Monatsordner als Symlink": func(dir string) {
+			if err := os.MkdirAll(filepath.Join(dir, DoneDir), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(foreign, filepath.Join(dir, DoneDir, "2026-10")); err != nil {
+				t.Fatal(err)
+			}
+		},
+		"Übernommen als Symlink im Eingang": func(dir string) {
+			if err := os.MkdirAll(filepath.Join(dir, "Scans"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink("Scans", filepath.Join(dir, DoneDir)); err != nil {
+				t.Fatal(err)
+			}
+		},
+	} {
+		dir := filepath.Join(t.TempDir(), "Eingang")
+		path := write(t, filepath.Join(dir, "r.pdf"), pdfData, time.Time{})
+		setup(dir)
+		if moved, err := Settle(dir, path, day); err == nil {
+			t.Errorf("%s: verschoben nach %s", name, moved)
+		}
+		if _, err := os.Stat(path); err != nil {
+			t.Errorf("%s: die Datei ist nicht mehr im Eingang: %v", name, err)
+		}
+	}
+	if entries, _ := os.ReadDir(foreign); len(entries) != 0 {
+		t.Errorf("im fremden Ordner: %v", entries)
+	}
+}
+
+// Gleichzeitige Ablagen mit demselben Namen überschreiben einander nicht,
+// und eine Datei, die schon unter dem Namen liegt, bleibt.
+func TestSettleAndAddNeverReplace(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "Eingang")
+	day := time.Date(2026, 10, 18, 12, 0, 0, 0, time.Local)
+	const n = 8
+	paths := make([]string, n)
+	for i := range paths {
+		paths[i] = write(t, filepath.Join(dir, fmt.Sprintf("Lieferant %d", i), "Rechnung.pdf"),
+			fmt.Sprintf("%s %d", pdfData, i), time.Time{})
+	}
+	var wg sync.WaitGroup
+	for _, p := range paths {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := Settle(dir, p, day); err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+	wg.Wait()
+	entries, err := os.ReadDir(filepath.Join(dir, DoneDir, "2026-10"))
+	if err != nil || len(entries) != n {
+		t.Errorf("in Übernommen/: %d Dateien, erwartet %d (%v)", len(entries), n, err)
+	}
+
+	src := write(t, filepath.Join(t.TempDir(), "Scan.pdf"), pdfData+" neu", time.Time{})
+	existing := write(t, filepath.Join(dir, "Scan.pdf"), pdfData+" alt", time.Time{})
+	added, _, err := Add(dir, []string{src})
+	if err != nil || !slices.Equal(added, []string{"Scan (2).pdf"}) {
+		t.Errorf("Add neben einer vorhandenen Datei: %v %v", added, err)
+	}
+	if data, _ := os.ReadFile(existing); string(data) != pdfData+" alt" {
+		t.Errorf("die vorhandene Datei wurde überschrieben: %q", data)
 	}
 }

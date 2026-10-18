@@ -25,6 +25,9 @@ type Moved struct {
 // Vorgang, außerhalb der Schreibsperre.
 func SettleInbox(ctx context.Context, t *core.Tenant, f Folders, paths []string, day time.Time) ([]Moved, []string) {
 	moved, hints := []Moved{}, []string{}
+	if err := f.CheckInbox(); err != nil {
+		return moved, append(hints, "Der Eingang ließ sich nicht aufräumen: "+err.Error())
+	}
 	hashes := map[string]string{}
 	for _, p := range paths {
 		if _, seen := hashes[p]; seen || !inbox.Contains(f.Inbox, p) {

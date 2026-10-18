@@ -455,7 +455,7 @@ type tenantSetup struct {
 // <Datenordner>/Eingang. Ob er einen geschützten Ordner berührt, prüft der
 // Aufrufer (policy.CheckFolders).
 func WithInbox(path string) TenantOption {
-	return func(s *tenantSetup) { s.inbox = strings.TrimSpace(path) }
+	return func(s *tenantSetup) { s.inbox = domain.CleanFolder(path) }
 }
 
 // CreateTenant legt einen Mandanten in einem leeren Ordner an, legt seinen

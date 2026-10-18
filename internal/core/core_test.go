@@ -768,3 +768,36 @@ func TestExaminerPeriodsKeepTheirHistory(t *testing.T) {
 		t.Errorf("Verlauf der Zeiträume: %+v", periods)
 	}
 }
+
+// Eine Sicherung im Eingang oder in einem Leseordner wäre für verbundene Apps
+// erreichbar; der Sicherungsordner darf dort nicht liegen. Eine Sicherung um
+// den Eingang herum geht.
+func TestBackupDirStaysOutOfAgentFolders(t *testing.T) {
+	h := newHost(t)
+	newTenant(t, h, "Pfennig Ventures GmbH")
+	dropbox := t.TempDir()
+	scans := filepath.Join(dropbox, "Scans")
+	read := t.TempDir()
+	for _, d := range []string{filepath.Join(scans, "Sicherung"), filepath.Join(read, "Sicherung")} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := h.Write(uiCtx, func(ctx context.Context, s *Services) error {
+		if _, err := s.Settings.SetInboxFolder(ctx, scans); err != nil {
+			return err
+		}
+		_, err := s.Settings.SaveAgentSettings(ctx, domain.AgentSettings{ExtraReadFolders: []string{read}})
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, refused := range []string{scans, filepath.Join(scans, "Sicherung"), filepath.Join(read, "Sicherung")} {
+		if _, err := h.SetBackupDir(uiCtx, refused); err == nil {
+			t.Errorf("Sicherung in %s angenommen", refused)
+		}
+	}
+	if _, err := h.SetBackupDir(uiCtx, dropbox); err != nil {
+		t.Errorf("Sicherung um den Eingang: %v", err)
+	}
+}

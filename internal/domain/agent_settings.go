@@ -1,5 +1,10 @@
 package domain
 
+import (
+	"path/filepath"
+	"strings"
+)
+
 // AgentSettings sind die Grenzen, in denen ein verbundener Agent ohne
 // Rückfrage bucht, und die Ordner, aus denen er neben dem Eingang liest und in
 // die er exportiert. Nur der Mensch ändert sie in der App.
@@ -38,3 +43,13 @@ const (
 	// <Datenordner>/Eingang.
 	SettingInboxFolder = "inbox.folder"
 )
+
+// CleanFolder ist ein Ordner so, wie Buchfink ihn prüft und speichert:
+// bereinigt, aber ohne Leerzeichen abzuschneiden, denn „Scans “ ist ein
+// anderer Ordner als „Scans“. Nur aus Leerzeichen heißt nicht gesetzt.
+func CleanFolder(path string) string {
+	if strings.TrimSpace(path) == "" {
+		return ""
+	}
+	return filepath.Clean(path)
+}

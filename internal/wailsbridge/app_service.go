@@ -114,6 +114,7 @@ func (b *BuchfinkBridge) SetupApplication(
 	if name == "" {
 		name = "Hauptmandant"
 	}
+	inboxDir = domain.CleanFolder(inboxDir)
 	if inboxDir != "" {
 		dir, err := core.CheckTenantDirectory(dataDir)
 		if err != nil {

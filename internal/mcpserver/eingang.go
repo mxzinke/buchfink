@@ -39,18 +39,22 @@ type inboxState struct {
 	Dateien          int    `json:"dateien"`
 	AeltesteVorTagen int    `json:"aelteste_vor_tagen"`
 	Hinweis          string `json:"hinweis,omitempty" jsonschema:"N Dateien im Eingang, sobald dort etwas liegt"`
+	Fehler           string `json:"fehler,omitempty" jsonschema:"warum Buchfink den Eingang nicht lesen kann; die übrigen Werkzeuge arbeiten weiter"`
 }
 
-func inboxStateOf(dir string, now time.Time) (inboxState, error) {
-	n, oldest, err := inbox.Count(dir)
+// inboxStateOf zählt die Dateien im Eingang. Ist er nicht lesbar, etwa weil
+// das System der App den Zugriff auf den Ordner verweigert, nennt Fehler den
+// Grund; status und aufgaben liefern ihren übrigen Stand trotzdem.
+func inboxStateOf(dirs policy.Folders, now time.Time) inboxState {
+	n, oldest, err := dirs.InboxCount()
 	if err != nil {
-		return inboxState{Pfad: dir}, err
+		return inboxState{Pfad: dirs.Inbox, Fehler: "Der Eingang ist nicht lesbar: " + err.Error()}
 	}
-	st := inboxState{Pfad: dir, Dateien: n, AeltesteVorTagen: inbox.AgeDays(oldest, now)}
+	st := inboxState{Pfad: dirs.Inbox, Dateien: n, AeltesteVorTagen: inbox.AgeDays(oldest, now)}
 	if n > 0 {
 		st.Hinweis = inboxCount(n) + " im Eingang"
 	}
-	return st, nil
+	return st
 }
 
 func inboxCount(n int) string {
@@ -101,7 +105,7 @@ func registerEingang(tb *Toolbox) {
 		}
 		dirs.EnsureInbox()
 		out.Eingang = dirs.Inbox
-		files, err := inbox.List(dirs.Inbox)
+		files, err := dirs.InboxFiles()
 		if err != nil {
 			return out, fmt.Errorf("der Eingang %s ließ sich nicht lesen: %w", dirs.Inbox, err)
 		}

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -38,16 +39,27 @@ type Folders struct {
 	// Read sind weitere Leseordner.
 	Read   []string `json:"leseordner"`
 	Export string   `json:"exportordner"`
-	// DataDir ist gesperrt, bis auf den Eingang darin.
+	// DataDir ist gesperrt, bis auf den voreingestellten Eingang darin.
 	DataDir string `json:"-"`
-	// Denied sind weitere gesperrte Ordner: die Datenordner der übrigen
-	// Mandanten und alle Sicherungsordner.
-	Denied []string `json:"-"`
+	// Protected sind die weiteren gesperrten Ordner.
+	Protected Protected `json:"-"`
+}
+
+// Protected sind die Ordner, aus denen kein Agent eines Mandanten liest.
+type Protected struct {
+	// DataDirs sind die Datenordner der übrigen Mandanten.
+	DataDirs []string
+	// Backups sind alle Sicherungsordner.
+	Backups []string
+}
+
+func (p Protected) all() []string {
+	return append(append([]string{}, p.DataDirs...), p.Backups...)
 }
 
 // FoldersFor löst die Einstellungen des Mandanten zu Ordnern auf; nicht
 // gesetzte stehen für die Voreinstellung.
-func FoldersFor(ctx context.Context, s *core.Services, dataDir string, denied ...string) (Folders, error) {
+func FoldersFor(ctx context.Context, s *core.Services, dataDir string, protected Protected) (Folders, error) {
 	settings, err := s.Settings.AgentSettings(ctx)
 	if err != nil {
 		return Folders{}, err
@@ -56,20 +68,25 @@ func FoldersFor(ctx context.Context, s *core.Services, dataDir string, denied ..
 	if err != nil {
 		return Folders{}, err
 	}
-	return FoldersFrom(settings, inboxFolder, dataDir, denied...), nil
+	return FoldersFrom(settings, inboxFolder, dataDir, protected), nil
 }
 
 // FoldersFrom löst Einstellungen zu Ordnern auf. Ein leerer Eingang ist
 // <Datenordner>/Eingang.
-func FoldersFrom(settings *domain.AgentSettings, inboxFolder, dataDir string, denied ...string) Folders {
-	f := Folders{Inbox: strings.TrimSpace(inboxFolder), Read: []string{}, DataDir: dataDir,
+func FoldersFrom(settings *domain.AgentSettings, inboxFolder, dataDir string, protected Protected) Folders {
+	f := Folders{Inbox: domain.CleanFolder(inboxFolder), Read: []string{}, DataDir: dataDir,
 		Export: filepath.Join(dataDir, ExportDir)}
 	if f.Inbox == "" {
-		f.Inbox = filepath.Join(dataDir, InboxDir)
+		f.Inbox = DefaultInbox(dataDir)
 	}
-	for _, d := range denied {
+	for _, d := range protected.DataDirs {
 		if strings.TrimSpace(d) != "" {
-			f.Denied = append(f.Denied, d)
+			f.Protected.DataDirs = append(f.Protected.DataDirs, d)
+		}
+	}
+	for _, d := range protected.Backups {
+		if strings.TrimSpace(d) != "" {
+			f.Protected.Backups = append(f.Protected.Backups, d)
 		}
 	}
 	if settings != nil && settings.ExportFolder != "" {
@@ -81,6 +98,11 @@ func FoldersFrom(settings *domain.AgentSettings, inboxFolder, dataDir string, de
 	return f
 }
 
+// DefaultInbox ist der voreingestellte Eingang im Datenordner.
+func DefaultInbox(dataDir string) string {
+	return filepath.Join(dataDir, InboxDir)
+}
+
 // roots sind die Ordner, aus denen gelesen wird: Eingang und Leseordner.
 func (f Folders) roots() []string {
 	return append([]string{f.Inbox}, f.Read...)
@@ -88,62 +110,79 @@ func (f Folders) roots() []string {
 
 // ProtectedDirs sind die Ordner, aus denen kein Agent eines Mandanten liest:
 // die Datenordner aller anderen Mandanten und alle Sicherungsordner.
-func ProtectedDirs(cfg domain.AppConfig, ownDataDir string) []string {
-	out := []string{cfg.BackupDir}
+func ProtectedDirs(cfg domain.AppConfig, ownDataDir string) Protected {
+	p := Protected{Backups: []string{cfg.BackupDir}}
 	for _, t := range cfg.Tenants {
-		out = append(out, t.BackupDir)
+		p.Backups = append(p.Backups, t.BackupDir)
 		if t.DataDir != "" && filepath.Clean(t.DataDir) != filepath.Clean(ownDataDir) {
-			out = append(out, t.DataDir)
+			p.DataDirs = append(p.DataDirs, t.DataDir)
 		}
 	}
-	return out
+	return p
 }
 
 // CheckFolders weist einen Eingang oder Leseordner ab, der einen geschützten
 // Ordner enthält oder in einem liegt: den eigenen Datenordner, die Datenordner
 // der anderen Mandanten, eine Sicherung. Im eigenen Datenordner ist allein
 // der voreingestellte Eingang erlaubt. Leer heißt beim Eingang Voreinstellung.
-func CheckFolders(inboxFolder string, read []string, ownDataDir string, protected []string) error {
-	if strings.TrimSpace(inboxFolder) != "" &&
-		filepath.Clean(inboxFolder) == filepath.Join(filepath.Clean(ownDataDir), InboxDir) {
-		inboxFolder = ""
+// Ein Leseordner darf den Eingang weder enthalten noch in ihm liegen: aus dem
+// Eingang verschiebt Buchfink nach der Ablage, aus einem Leseordner nicht.
+// Geprüft wird der Pfad so, wie er gespeichert wird (domain.CleanFolder).
+func CheckFolders(inboxFolder string, read []string, ownDataDir string, protected Protected) error {
+	inboxFolder = domain.CleanFolder(inboxFolder)
+	effective := inboxFolder
+	if inboxFolder == "" || inboxFolder == DefaultInbox(filepath.Clean(ownDataDir)) {
+		inboxFolder, effective = "", DefaultInbox(filepath.Clean(ownDataDir))
 	}
-	if err := checkFolder("der Eingang", inboxFolder, ownDataDir, protected); err != nil {
+	if err := checkFolder("der Eingang", inboxFolder, ownDataDir, protected.all()); err != nil {
 		return err
 	}
 	for _, folder := range read {
-		if strings.TrimSpace(folder) == "" {
+		folder = domain.CleanFolder(folder)
+		if folder == "" {
 			continue
 		}
-		if err := checkFolder("der Leseordner", folder, ownDataDir, protected); err != nil {
+		if err := checkFolder("der Leseordner", folder, ownDataDir, protected.all()); err != nil {
 			return err
+		}
+		if overlaps(folder, effective) {
+			return fmt.Errorf("der Leseordner %s überschneidet sich mit dem Eingang %s; was im Eingang liegt, "+
+				"verschiebt Buchfink nach der Ablage, aus einem Leseordner nicht", folder, effective)
 		}
 	}
 	return nil
 }
 
 func checkFolder(what, folder, ownDataDir string, protected []string) error {
-	if strings.TrimSpace(folder) == "" {
+	if folder == "" {
 		return nil
 	}
 	if !filepath.IsAbs(folder) || remotePath(folder) {
 		return fmt.Errorf("%s %s ist kein lokaler absoluter Pfad", what, folder)
 	}
-	clean := filepath.Clean(folder)
 	for _, p := range append([]string{ownDataDir}, protected...) {
 		if strings.TrimSpace(p) == "" {
 			continue
 		}
-		for _, guarded := range []string{filepath.Clean(p), resolveDir(p)} {
-			for _, candidate := range []string{clean, resolveDir(clean)} {
-				if candidate == guarded || within(guarded, candidate) || within(candidate, guarded) {
-					return fmt.Errorf("%s %s überschneidet sich mit %s (Datenordner eines Mandanten "+
-						"oder Sicherung); er wäre für verbundene Apps lesbar", what, folder, p)
-				}
-			}
+		if overlaps(folder, p) {
+			return fmt.Errorf("%s %s überschneidet sich mit %s (Datenordner eines Mandanten "+
+				"oder Sicherung); er wäre für verbundene Apps lesbar", what, folder, p)
 		}
 	}
 	return nil
+}
+
+// overlaps meldet, ob zwei Ordner gleich sind oder einer im anderen liegt, so
+// wie angegeben oder aufgelöst.
+func overlaps(a, b string) bool {
+	for _, x := range []string{filepath.Clean(a), resolveDir(a)} {
+		for _, y := range []string{filepath.Clean(b), resolveDir(b)} {
+			if inside(x, y) || within(y, x) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // FileError ist ein abgewiesener Pfad (NotAllowed) oder eine ungeeignete
@@ -290,45 +329,86 @@ func (f Folders) lexicallyAllows(clean string) bool {
 }
 
 // allows meldet, ob ein aufgelöster Pfad im Eingang oder einem Leseordner
-// liegt und in keinem gesperrten. Im eigenen Datenordner ist nur der
-// voreingestellte Eingang offen, und nur, wenn er der eingestellte ist; ein
-// gesperrter Ordner, der den Eingang umschließt, sperrt ihn nicht.
+// liegt und in keinem gesperrten.
 func (f Folders) allows(resolved string) bool {
-	inFolder := false
 	for _, folder := range f.roots() {
 		if strings.TrimSpace(folder) == "" || remotePath(folder) {
 			continue
 		}
 		if within(resolveDir(folder), resolved) {
-			inFolder = true
-			break
+			return !f.guarded(resolved)
 		}
 	}
-	if !inFolder {
-		return false
-	}
+	return false
+}
+
+// guarded meldet, ob ein aufgelöster Pfad in einem gesperrten Ordner liegt:
+// im eigenen Datenordner, im Datenordner eines anderen Mandanten oder in einer
+// Sicherung. Offen bleibt der voreingestellte Eingang im eigenen Datenordner,
+// wenn er der eingestellte ist, auch wenn der Datenordner eines anderen
+// Mandanten ihn umschließt. Eine Sicherung, die den eingestellten Eingang
+// umschließt, sperrt ihn nicht. Der Datenordner eines anderen Mandanten sperrt
+// immer, auch wenn der Eingang inzwischen dorthin zeigt.
+func (f Folders) guarded(resolved string) bool {
 	inboxDir := ""
 	if strings.TrimSpace(f.Inbox) != "" && !remotePath(f.Inbox) {
 		inboxDir = resolveDir(f.Inbox)
 	}
-	inInbox := inboxDir != "" && within(inboxDir, resolved)
+	ownInbox := ""
 	if f.DataDir != "" {
 		data := resolveDir(f.DataDir)
-		if within(data, resolved) && !(inInbox && within(filepath.Join(data, InboxDir), resolved)) {
-			return false
+		if def := DefaultInbox(data); inboxDir == def {
+			ownInbox = def
+		}
+		if inside(data, resolved) && (ownInbox == "" || !inside(ownInbox, resolved)) {
+			return true
 		}
 	}
-	for _, d := range f.Denied {
+	for _, d := range f.Protected.DataDirs {
 		dir := resolveDir(d)
-		if !within(dir, resolved) {
-			continue
+		if inside(dir, resolved) && (ownInbox == "" || !inside(ownInbox, resolved) || !within(dir, ownInbox)) {
+			return true
 		}
-		if inInbox && within(dir, inboxDir) {
-			continue
-		}
-		return false
 	}
-	return true
+	for _, d := range f.Protected.Backups {
+		dir := resolveDir(d)
+		if inside(dir, resolved) && (inboxDir == "" || !inside(inboxDir, resolved) || !within(dir, inboxDir)) {
+			return true
+		}
+	}
+	return false
+}
+
+// CheckInbox weist einen Eingang ab, der aufgelöst in einem gesperrten Ordner
+// liegt, etwa weil er inzwischen ein Symlink in den Datenordner eines anderen
+// Mandanten ist, oder der ein Netzwerkpfad ist.
+func (f Folders) CheckInbox() error {
+	if strings.TrimSpace(f.Inbox) == "" || remotePath(f.Inbox) {
+		return notAllowed("der Eingang %s ist kein lokaler Ordner", f.Inbox)
+	}
+	if f.guarded(resolveDir(f.Inbox)) {
+		return notAllowed("der Eingang %s liegt im Datenordner eines Mandanten oder in einer Sicherung; "+
+			"Buchfink liest ihn nicht", f.Inbox)
+	}
+	return nil
+}
+
+// InboxFiles sind die Dateien im Eingang (inbox.List) ohne die gesperrten
+// Ordner darin, etwa eine Sicherung im Eingang.
+func (f Folders) InboxFiles() ([]inbox.File, error) {
+	if err := f.CheckInbox(); err != nil {
+		return nil, err
+	}
+	return inbox.List(f.Inbox, f.guarded)
+}
+
+// InboxCount zählt dieselben Dateien wie InboxFiles und nennt den Zeitpunkt
+// der ältesten.
+func (f Folders) InboxCount() (int, time.Time, error) {
+	if err := f.CheckInbox(); err != nil {
+		return 0, time.Time{}, err
+	}
+	return inbox.Count(f.Inbox, f.guarded)
 }
 
 // ExportPath bereitet den Exportordner vor und liefert den Zielpfad einer
@@ -360,7 +440,7 @@ func (f Folders) EnsureInbox() {
 	if f.DataDir == "" {
 		return
 	}
-	if inbox := filepath.Join(f.DataDir, InboxDir); filepath.Clean(f.Inbox) == inbox {
+	if inbox := DefaultInbox(f.DataDir); filepath.Clean(f.Inbox) == inbox {
 		_ = os.MkdirAll(inbox, 0o755)
 	}
 }
@@ -371,6 +451,11 @@ func resolveDir(dir string) string {
 		return r
 	}
 	return dir
+}
+
+// inside meldet, ob path der Ordner dir ist oder in ihm liegt.
+func inside(dir, path string) bool {
+	return filepath.Clean(dir) == filepath.Clean(path) || within(dir, path)
 }
 
 func within(dir, path string) bool {

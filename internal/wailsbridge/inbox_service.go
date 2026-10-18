@@ -11,6 +11,7 @@ import (
 
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/core/policy"
+	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/inbox"
 	"github.com/buchfink/buchfink/internal/syncdir"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -64,12 +65,12 @@ type FolderCheck struct {
 
 // inboxFolders sind Eingang, Lese- und Exportordner des offenen Mandanten.
 func (b *BuchfinkBridge) inboxFolders(ctx context.Context, s *core.Services) (policy.Folders, error) {
-	return policy.FoldersFor(ctx, s, s.Tenant.DataDir, policy.ProtectedDirs(b.host.Config(), s.Tenant.DataDir)...)
+	return policy.FoldersFor(ctx, s, s.Tenant.DataDir, policy.ProtectedDirs(b.host.Config(), s.Tenant.DataDir))
 }
 
 func inboxInfo(f policy.Folders) (*InboxInfo, error) {
 	f.EnsureInbox()
-	n, oldest, err := inbox.Count(f.Inbox)
+	n, oldest, err := f.InboxCount()
 	if err != nil {
 		return nil, fmt.Errorf("der Eingang %s ließ sich nicht lesen: %w", f.Inbox, err)
 	}
@@ -99,7 +100,7 @@ func (b *BuchfinkBridge) ListInbox() ([]InboxFile, error) {
 		if err != nil {
 			return nil, err
 		}
-		files, err := inbox.List(f.Inbox)
+		files, err := f.InboxFiles()
 		if err != nil {
 			return nil, fmt.Errorf("der Eingang %s ließ sich nicht lesen: %w", f.Inbox, err)
 		}
@@ -175,17 +176,23 @@ func (b *BuchfinkBridge) AddToInbox(paths []string) (*InboxAdded, error) {
 }
 
 // SetInboxFolder wählt den Eingang; leer heißt <Datenordner>/Eingang. Der
-// Ordner wird angelegt. Er darf keinen Datenordner und keine Sicherung
-// berühren; im eigenen Datenordner ist nur der voreingestellte erlaubt.
+// Ordner wird angelegt. Er darf keinen Datenordner, keine Sicherung und
+// keinen Leseordner berühren; im eigenen Datenordner ist nur der
+// voreingestellte erlaubt.
 func (b *BuchfinkBridge) SetInboxFolder(path string) (*InboxInfo, error) {
+	path = domain.CleanFolder(path)
 	return write(b, func(ctx context.Context, s *core.Services) (*InboxInfo, error) {
+		stored, err := s.Settings.AgentSettings(ctx)
+		if err != nil {
+			return nil, err
+		}
 		protected := policy.ProtectedDirs(b.host.Config(), s.Tenant.DataDir)
-		if err := policy.CheckFolders(path, nil, s.Tenant.DataDir, protected); err != nil {
+		if err := policy.CheckFolders(path, stored.ExtraReadFolders, s.Tenant.DataDir, protected); err != nil {
 			return nil, err
 		}
 		dir := path
 		if dir == "" {
-			dir = filepath.Join(s.Tenant.DataDir, policy.InboxDir)
+			dir = policy.DefaultInbox(s.Tenant.DataDir)
 		}
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return nil, fmt.Errorf("der Eingang %s ließ sich nicht anlegen: %w", dir, err)

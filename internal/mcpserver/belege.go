@@ -33,7 +33,7 @@ func richtungOf(d domain.Direction) Richtung {
 // Datenordner der übrigen Mandanten und alle Sicherungen bleiben gesperrt,
 // auch wenn ein Leseordner sie umschließt.
 func folders(ctx context.Context, c *Call, s *core.Services) (policy.Folders, error) {
-	return policy.FoldersFor(ctx, s, c.Tenant.DataDir(), policy.ProtectedDirs(c.Host.Config(), c.Tenant.DataDir())...)
+	return policy.FoldersFor(ctx, s, c.Tenant.DataDir(), policy.ProtectedDirs(c.Host.Config(), c.Tenant.DataDir()))
 }
 
 // --- belege_suchen ----------------------------------------------------------

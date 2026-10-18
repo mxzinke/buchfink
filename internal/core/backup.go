@@ -59,6 +59,11 @@ func (h *Host) SetBackupDir(ctx context.Context, dir string) (domain.AppConfig, 
 			return h.Config(), fmt.Errorf(
 				"der Sicherungsordner darf nicht im Datenordner liegen — sonst geht die Sicherung mit den Daten zusammen verloren")
 		}
+		if err := t.Read(ctx, func(ctx context.Context, s *Services) error {
+			return backupOutsideAgentFolders(ctx, s, t.DataDir(), dir)
+		}); err != nil {
+			return h.Config(), err
+		}
 	}
 
 	previous := h.backupDirOf(t.ID())
@@ -270,6 +275,32 @@ func (h *Host) RestoreBackup(ctx context.Context, zipPath, targetDir string) (*d
 			strings.Join(problems, " "))
 	}
 	return tc, nil
+}
+
+// backupOutsideAgentFolders weist einen Sicherungsordner im Eingang oder in
+// einem Leseordner ab: von dort lesen verbundene Apps, und eine Sicherung
+// enthält die ganze Buchführung.
+func backupOutsideAgentFolders(ctx context.Context, s *Services, dataDir, dir string) error {
+	inbox, err := s.Settings.InboxFolder(ctx)
+	if err != nil {
+		return err
+	}
+	if inbox == "" {
+		inbox = filepath.Join(dataDir, domain.DefaultInboxDir)
+	}
+	agent, err := s.Settings.AgentSettings(ctx)
+	if err != nil {
+		return err
+	}
+	if sameOrInside(dir, inbox) {
+		return fmt.Errorf("der Sicherungsordner darf nicht im Eingang %s liegen — von dort lesen verbundene Apps", inbox)
+	}
+	for _, read := range agent.ExtraReadFolders {
+		if sameOrInside(dir, read) {
+			return fmt.Errorf("der Sicherungsordner darf nicht im Leseordner %s liegen — von dort lesen verbundene Apps", read)
+		}
+	}
+	return nil
 }
 
 // sameOrInside meldet, ob a gleich b ist oder in b liegt.

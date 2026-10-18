@@ -79,7 +79,7 @@ func (s *SettingsService) SaveAgentSettings(ctx context.Context, in domain.Agent
 	values := map[string]string{
 		domain.SettingAgentDirectMaxGross:    "",
 		domain.SettingAgentDirectMinBookings: "",
-		domain.SettingAgentExportFolder:      strings.TrimSpace(in.ExportFolder),
+		domain.SettingAgentExportFolder:      domain.CleanFolder(in.ExportFolder),
 		domain.SettingAgentExtraReadFolders:  "",
 	}
 	if in.DirectMaxGross > 0 {
@@ -93,14 +93,14 @@ func (s *SettingsService) SaveAgentSettings(ctx context.Context, in domain.Agent
 	}
 	folders := make([]string, 0, len(in.ExtraReadFolders))
 	for _, f := range in.ExtraReadFolders {
-		f = strings.TrimSpace(f)
+		f = domain.CleanFolder(f)
 		if f == "" {
 			continue
 		}
 		if !filepath.IsAbs(f) {
 			return nil, fmt.Errorf("der Leseordner %q ist kein absoluter Pfad", f)
 		}
-		folders = append(folders, filepath.Clean(f))
+		folders = append(folders, f)
 	}
 	if len(folders) > 0 {
 		raw, err := json.Marshal(folders)
@@ -141,7 +141,7 @@ func (s *SettingsService) setLogged(ctx context.Context, key, value, details str
 // (<Datenordner>/Eingang).
 func (s *SettingsService) InboxFolder(ctx context.Context) (string, error) {
 	raw, _, err := s.lookup(ctx, domain.SettingInboxFolder)
-	return strings.TrimSpace(raw), err
+	return domain.CleanFolder(raw), err
 }
 
 // SetInboxFolder stellt den Eingang ein; leer heißt Voreinstellung. Nur in der
@@ -152,12 +152,9 @@ func (s *SettingsService) SetInboxFolder(ctx context.Context, folder string) (st
 	if err := requireHuman(ctx, "Die Wahl des Eingangs"); err != nil {
 		return "", err
 	}
-	folder = strings.TrimSpace(folder)
-	if folder != "" {
-		if !filepath.IsAbs(folder) {
-			return "", fmt.Errorf("der Eingang %q ist kein absoluter Pfad", folder)
-		}
-		folder = filepath.Clean(folder)
+	folder = domain.CleanFolder(folder)
+	if folder != "" && !filepath.IsAbs(folder) {
+		return "", fmt.Errorf("der Eingang %q ist kein absoluter Pfad", folder)
 	}
 	if err := s.setLogged(ctx, domain.SettingInboxFolder, folder, "Eingang geändert"); err != nil {
 		return "", err

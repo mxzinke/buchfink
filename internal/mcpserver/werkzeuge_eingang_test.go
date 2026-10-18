@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -106,6 +107,59 @@ func TestInboxListsFilesWithKind(t *testing.T) {
 		t.Errorf("aufgaben nennt den Eingang nicht: %+v", tasks.Offen)
 	}
 	a.fail("eingang", map[string]any{"cursor": "kaputt"}, CodeInvalidInput)
+}
+
+// Ist der Eingang nicht lesbar, etwa weil das System der App den Zugriff
+// verweigert, liefert status trotzdem Mandant und Bereitschaft und nennt den
+// Grund; aufgaben nennt ihn als Aufgabe für den Menschen.
+func TestStatusSurvivesAnUnreadableInbox(t *testing.T) {
+	h := newHarness(t)
+	h.completeCompany()
+	blocker := filepath.Join(t.TempDir(), "datei")
+	if err := os.WriteFile(blocker, []byte("kein Ordner"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// Unter einer Datei lässt sich kein Ordner lesen, auch nicht als root.
+	unreadable := filepath.Join(blocker, "Eingang")
+	h.ui(func(ctx context.Context, s *core.Services) error {
+		_, err := s.Settings.SetInboxFolder(ctx, unreadable)
+		return err
+	})
+	a := h.agent("")
+	st := statusResult(t, callTool(t, a.cs, "status", nil))
+	if !st.Bereit || st.Mandant == nil || st.Mandant.ID == "" {
+		t.Fatalf("status ohne Mandant: %+v", st)
+	}
+	if st.Eingang == nil || st.Eingang.Pfad != unreadable || !strings.Contains(st.Eingang.Fehler, "nicht lesbar") ||
+		!strings.Contains(st.Hinweis, "nicht lesbar") {
+		t.Errorf("Grund fehlt: %+v %q", st.Eingang, st.Hinweis)
+	}
+	var tasks aufgabenOut
+	a.ok("aufgaben", nil, &tasks)
+	found := false
+	for _, task := range tasks.Offen {
+		found = found || (task.Schluessel == "eingang" && task.Werkzeug == "nur_app")
+	}
+	if !found {
+		t.Errorf("aufgaben nennt den unlesbaren Eingang nicht: %+v", tasks.Offen)
+	}
+
+	// Ohne Leserecht auf den Ordner gilt dasselbe; root liest trotzdem.
+	if os.Geteuid() == 0 {
+		return
+	}
+	locked := filepath.Join(t.TempDir(), "Eingang")
+	if err := os.Mkdir(locked, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
+	h.ui(func(ctx context.Context, s *core.Services) error {
+		_, err := s.Settings.SetInboxFolder(ctx, locked)
+		return err
+	})
+	if st := statusResult(t, callTool(t, a.cs, "status", nil)); !st.Bereit || st.Eingang == nil || st.Eingang.Fehler == "" {
+		t.Errorf("Eingang ohne Leserecht: %+v", st.Eingang)
+	}
 }
 
 // Nach der Ablage geht die Datei aus dem Eingang nach Übernommen/, auch eine

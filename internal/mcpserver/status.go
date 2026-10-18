@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/buildinfo"
@@ -147,9 +148,9 @@ func registerStatus(tb *Toolbox) {
 				return err
 			}
 			dirs.EnsureInbox()
-			state, err := inboxStateOf(dirs.Inbox, time.Now())
-			if err != nil {
-				return err
+			state := inboxStateOf(dirs, time.Now())
+			if state.Fehler != "" {
+				out.Hinweis = state.Fehler + "."
 			}
 			out.Eingang, out.Leseordner, out.Exportordner = &state, dirs.Read, dirs.Export
 			limits, err := policy.LimitsFor(ctx, s)
@@ -165,7 +166,8 @@ func registerStatus(tb *Toolbox) {
 		out.Bereit = true
 		if ex := t.Examiner(); ex.Active {
 			out.Pruefermodus = &statusExaminer{Aktiv: true, Bis: ex.Until, Grund: ex.Reason}
-			out.Hinweis = "Der Prüfermodus ist bis " + ex.Until + " aktiv: lesen ja, schreiben nein."
+			out.Hinweis = strings.TrimSpace("Der Prüfermodus ist bis " + ex.Until + " aktiv: lesen ja, schreiben nein. " +
+				out.Hinweis)
 		} else {
 			out.Pruefermodus = &statusExaminer{}
 		}

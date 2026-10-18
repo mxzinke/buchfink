@@ -50,13 +50,22 @@ type File struct {
 	SHA256 string
 }
 
+// Skip meldet für einen aufgelösten Ordner im Eingang, ob List ihn mit
+// allem darin auslässt, etwa eine Sicherung oder den Datenordner eines
+// Mandanten.
+type Skip func(dir string) bool
+
 // List liest den Eingang mit Unterordnern, ohne Übernommen/, versteckte
-// Dateien und Ordner und ohne Symlinks, die älteste Datei zuerst. Ein
-// fehlender Eingang ist leer.
-func List(dir string) ([]File, error) {
+// Dateien und Ordner, Symlinks und die Ordner, die skip nennt, die älteste
+// Datei zuerst. Ein fehlender Eingang ist leer. Ist der Eingang selbst ein
+// Symlink, liest List den Ordner, auf den er zeigt; die Pfade stehen trotzdem
+// unter dem Eingang, wie er eingestellt ist.
+func List(dir string, skip Skip) ([]File, error) {
 	out := []File{}
-	err := walk(dir, func(path string, info fs.FileInfo) {
-		out = append(out, describe(path, info))
+	err := walk(dir, skip, func(path, real string, info fs.FileInfo) {
+		f := describe(real, info)
+		f.Path = path
+		out = append(out, f)
 	})
 	if err != nil {
 		return nil, err
@@ -72,9 +81,9 @@ func List(dir string) ([]File, error) {
 
 // Count zählt dieselben Dateien wie List, ohne sie zu lesen, und nennt den
 // Zeitpunkt der ältesten.
-func Count(dir string) (int, time.Time, error) {
+func Count(dir string, skip Skip) (int, time.Time, error) {
 	n, oldest := 0, time.Time{}
-	err := walk(dir, func(_ string, info fs.FileInfo) {
+	err := walk(dir, skip, func(_, _ string, info fs.FileInfo) {
 		n++
 		if oldest.IsZero() || info.ModTime().Before(oldest) {
 			oldest = info.ModTime()
@@ -83,15 +92,18 @@ func Count(dir string) (int, time.Time, error) {
 	return n, oldest, err
 }
 
-// walk ruft fn für jede Datei des Eingangs, die List zeigt.
-func walk(dir string, fn func(path string, info fs.FileInfo)) error {
+// walk ruft fn für jede Datei des Eingangs, die List zeigt, mit dem Pfad unter
+// dem eingestellten Eingang und dem aufgelösten.
+func walk(dir string, skip Skip, fn func(path, real string, info fs.FileInfo)) error {
 	if strings.TrimSpace(dir) == "" {
 		return nil
 	}
-	root := filepath.Clean(dir)
+	shown := filepath.Clean(dir)
+	root := resolve(shown)
 	if _, err := os.Stat(root); errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}
+	done := filepath.Join(root, DoneDir)
 	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			if path == root {
@@ -102,17 +114,18 @@ func walk(dir string, fn func(path string, info fs.FileInfo)) error {
 		if path == root {
 			return nil
 		}
-		if strings.HasPrefix(d.Name(), ".") || (d.IsDir() && path == filepath.Join(root, DoneDir)) {
-			if d.IsDir() {
-				return filepath.SkipDir
-			}
+		if d.IsDir() && (strings.HasPrefix(d.Name(), ".") || path == done || (skip != nil && skip(path))) {
+			return filepath.SkipDir
+		}
+		if strings.HasPrefix(d.Name(), ".") || d.IsDir() || !d.Type().IsRegular() {
 			return nil
 		}
-		if d.IsDir() || !d.Type().IsRegular() {
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
 			return nil
 		}
 		if info, err := d.Info(); err == nil {
-			fn(path, info)
+			fn(filepath.Join(shown, rel), path, info)
 		}
 		return nil
 	})

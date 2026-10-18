@@ -21,7 +21,7 @@ type AgentRules struct {
 
 func agentRules(s *core.Services, stored *domain.AgentSettings) *AgentRules {
 	limits := policy.LimitsFrom(stored)
-	folders := policy.FoldersFrom(stored, "", s.Tenant.DataDir)
+	folders := policy.FoldersFrom(stored, "", s.Tenant.DataDir, policy.Protected{})
 	out := &AgentRules{Stored: *stored, DirectMaxGross: limits.MaxGross, DirectMinBookings: limits.MinBookings,
 		ExportFolder: folders.Export}
 	out.Stored.ExtraReadFolders, _ = emptyList(stored.ExtraReadFolders, nil)
@@ -43,12 +43,20 @@ func (b *BuchfinkBridge) GetAgentRules() (*AgentRules, error) {
 
 // SaveAgentRules ändert die Regeln für verbundene Apps. Null und eine leere
 // Zeichenkette stehen für die Voreinstellung, eine leere Liste für keinen
-// weiteren Leseordner. Ein Leseordner darf keinen Datenordner und keine
-// Sicherung berühren.
+// weiteren Leseordner. Ein Leseordner darf keinen Datenordner, keine
+// Sicherung und nicht den Eingang berühren.
 func (b *BuchfinkBridge) SaveAgentRules(in domain.AgentSettings) (*AgentRules, error) {
 	return write(b, func(ctx context.Context, s *core.Services) (*AgentRules, error) {
+		in.ExportFolder = domain.CleanFolder(in.ExportFolder)
+		for i, f := range in.ExtraReadFolders {
+			in.ExtraReadFolders[i] = domain.CleanFolder(f)
+		}
+		inboxFolder, err := s.Settings.InboxFolder(ctx)
+		if err != nil {
+			return nil, err
+		}
 		protected := policy.ProtectedDirs(b.host.Config(), s.Tenant.DataDir)
-		if err := policy.CheckFolders("", in.ExtraReadFolders, s.Tenant.DataDir, protected); err != nil {
+		if err := policy.CheckFolders(inboxFolder, in.ExtraReadFolders, s.Tenant.DataDir, protected); err != nil {
 			return nil, err
 		}
 		stored, err := s.Settings.SaveAgentSettings(ctx, in)

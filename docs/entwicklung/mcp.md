@@ -241,15 +241,32 @@ liegen, in den eine Scanner-App am Telefon schreibt. Im Datenordner ist er die
 einzige erlaubte Stelle. Daneben gibt es weitere Leseordner
 (`agent.extra_read_folders`, voreingestellt keiner). Eingang und Leseordner
 dürfen weder einen Datenordner noch eine Sicherung enthalten oder in einem
-liegen (`policy.CheckFolders`). Beides stellt nur der Mensch in der App ein.
+liegen, und ein Leseordner überschneidet sich nicht mit dem Eingang
+(`policy.CheckFolders`). Geprüft und gespeichert wird derselbe Pfad
+(`domain.CleanFolder`); Leerzeichen am Ende gehören zum Namen. Ein
+Sicherungsordner darf nicht im Eingang oder einem Leseordner liegen
+(`Host.SetBackupDir`). Beides stellt nur der Mensch in der App ein.
 
 Buchfink legt nichts von selbst ab und beobachtet den Ordner nicht. Der Agent
-listet den Eingang mit `eingang` und legt ab, wenn der Mensch es sagt. Nach
-einer gelungenen Ablage mit `beleg_ablegen` oder `kontoauszug_importieren`
-verschiebt Buchfink die Datei außerhalb der Schreibsperre nach
+listet den Eingang mit `eingang` und legt ab, wenn der Mensch es sagt. Die
+Liste lässt gesperrte Ordner im Eingang aus, etwa eine Sicherung oder den
+Datenordner eines anderen Mandanten. Ist der Eingang ein Symlink, liest
+Buchfink den Ordner, auf den er zeigt; liegt der in einem gesperrten Ordner,
+weist Buchfink den Eingang ab. Ist der Eingang nicht lesbar, etwa weil das
+System der App den Zugriff verweigert, nennt `status` den Grund unter
+`eingang.fehler`, und `aufgaben` führt ihn als Aufgabe für den Menschen; die
+übrigen Werkzeuge arbeiten weiter.
+
+Nach einer gelungenen Ablage mit `beleg_ablegen` oder
+`kontoauszug_importieren` verschiebt Buchfink die Datei außerhalb der
+Schreibsperre nach
 `<Eingang>/Übernommen/<JJJJ-MM>/` (Monat des Ablagetags, bei gleichem Namen
 „Name (2).pdf“), ebenso eine exakte Dublette, deren Inhalt schon im Archiv
-liegt. Die Antwort nennt den neuen Pfad unter `verschoben`; ein zweites
+liegt. Verschoben wird nur innerhalb des Eingangs: steht an der Stelle von
+`Übernommen/` oder des Monatsordners ein Symlink oder eine Datei, bleibt die
+Datei liegen, und ein Hinweis nennt den Grund. Eine vorhandene Datei
+überschreibt Buchfink nie, auch nicht bei gleichzeitigen Ablagen. Die Antwort
+nennt den neuen Pfad unter `verschoben`; ein zweites
 Ablegen derselben Datei, etwa mit der Darstellung einer reinen XRechnung,
 nimmt ihn. Scheitert das Verschieben, steht ein Hinweis in der Antwort, und
 die Ablage gilt. Dateien in Leseordnern bleiben liegen. Die App verschiebt
@@ -266,7 +283,9 @@ nach dem Öffnen, dass die Datei noch an derselben Stelle liegt. Gelesen wird
 einmal: PDF, PNG, JPEG, TIFF, WebP oder XML bis 50 MB, Inhalt passend zur
 Endung, keine versteckten Dateien. Gesperrt sind der eigene Datenordner bis
 auf den voreingestellten Eingang darin, die Datenordner aller anderen
-Mandanten und alle Sicherungsordner, auch wenn ein Leseordner sie umschließt.
+Mandanten, auch wenn ein Leseordner sie umschließt oder der Eingang
+inzwischen dorthin zeigt, und alle Sicherungsordner bis auf einen, der den
+Eingang umschließt.
 
 Voreingestellt liest ein Agent nur aus dem Eingang. Den Download-Ordner des
 Systems nimmt Buchfink nicht von sich aus auf: jede Webseite und jeder

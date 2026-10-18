@@ -107,7 +107,12 @@ func registerAufgaben(tb *Toolbox) {
 		if err != nil {
 			return out, err
 		}
-		if st, err := inboxStateOf(dirs.Inbox, time.Now()); err == nil && st.Dateien > 0 {
+		switch st := inboxStateOf(dirs, time.Now()); {
+		case st.Fehler != "":
+			out.Offen = append([]aufgabe{{Schluessel: "eingang", Titel: "Der Eingang ist nicht lesbar",
+				Warum: st.Fehler + ". Der Mensch gibt Buchfink in den Einstellungen des Systems Zugriff auf den Ordner " +
+					"oder wählt in der App einen anderen Eingang.", Werkzeug: "nur_app"}}, out.Offen...)
+		case st.Dateien > 0:
 			why := "Im Eingang liegen Dateien, die noch nicht abgelegt sind."
 			if st.AeltesteVorTagen > 0 {
 				why += fmt.Sprintf(" Die älteste liegt seit %d Tagen dort.", st.AeltesteVorTagen)
