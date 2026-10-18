@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/goldentest"
 	"github.com/buchfink/buchfink/internal/repository"
 )
 
@@ -86,7 +87,7 @@ func TestGoldenPeriodPostingLocks(t *testing.T) {
 				t.Fatal(err)
 			}
 			result["entryCount"] = len(entries)
-			assertGolden(t, "period_post_"+tc.name, result)
+			goldentest.Assert(t, "period_post_"+tc.name, result)
 		})
 	}
 }
@@ -152,7 +153,7 @@ func TestGoldenPeriodAdoptionAndReopen(t *testing.T) {
 				details = append(details, log.Details)
 			}
 			result["audit"] = details
-			assertGolden(t, "period_reopen_"+tc.name, result)
+			goldentest.Assert(t, "period_reopen_"+tc.name, result)
 		})
 	}
 }
