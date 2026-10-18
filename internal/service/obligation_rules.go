@@ -195,46 +195,25 @@ func (r *obligationRun) generate(from, to int, kinds []domain.ObligationKind) ([
 	}
 	r.ledgerFrom = fmt.Sprintf("%04d-01-01", from-1)
 
-	for year := from; year <= to; year++ {
-		steps := []struct {
-			kind domain.ObligationKind
-			fn   func(int, func(domain.Obligation, *domain.ObligationEvidence)) error
-		}{
-			{domain.ObligationVatReturn, r.vatReturns},
-			{domain.ObligationSpecialPrepayment, r.specialPrepayment},
-			{domain.ObligationECSalesList, r.ecSalesLists},
-			{domain.ObligationCorporatePrepay, r.corporatePrepayments},
-			{domain.ObligationTradePrepay, r.tradePrepayments},
-			{domain.ObligationPayrollTax, r.payrollTax},
-			{domain.ObligationCorporateTaxReturn, r.annualReturn(domain.ObligationCorporateTaxReturn, domain.DeclarationCorporateTax)},
-			{domain.ObligationTradeTaxReturn, r.annualReturn(domain.ObligationTradeTaxReturn, domain.DeclarationTradeTax)},
-			{domain.ObligationAnnualVatReturn, r.annualReturn(domain.ObligationAnnualVatReturn, domain.DeclarationAnnualVat)},
+	generators := r.generators(want, add)
+	for first := 0; first < len(generators); {
+		next := first + 1
+		for next < len(generators) && generators[next].axis == generators[first].axis {
+			next++
 		}
-		for _, step := range steps {
-			if !want(step.kind) {
-				continue
-			}
-			if err := step.fn(year, add); err != nil {
-				return nil, err
+		// Je Zeitraum laufen alle benachbarten Generatoren derselben Achse.
+		for _, period := range r.generatorPeriods(generators[first].axis, from, to) {
+			for _, generator := range generators[first:next] {
+				if !generator.selected(want) {
+					continue
+				}
+				if err := generator.generate(period); err != nil {
+					return nil, err
+				}
 			}
 		}
+		first = next
 	}
-
-	for _, fy := range r.fiscalYearsIn(from, to) {
-		if want(domain.ObligationMonthCommit) {
-			if err := r.monthCommits(fy, add); err != nil {
-				return nil, err
-			}
-		}
-		if err := r.annualStatement(fy, want, add); err != nil {
-			return nil, err
-		}
-	}
-
-	if want(domain.ObligationTransparency) || want(domain.ObligationShareholderList) {
-		r.eventObligations(want, add)
-	}
-	r.foundingObligations(want, add)
 	return out, nil
 }
 
