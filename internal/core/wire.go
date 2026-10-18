@@ -8,6 +8,7 @@ import (
 	"github.com/buchfink/buchfink/internal/receiptstore"
 	"github.com/buchfink/buchfink/internal/repository"
 	"github.com/buchfink/buchfink/internal/service"
+	"github.com/buchfink/buchfink/internal/taxrules"
 	"gorm.io/gorm"
 )
 
@@ -67,6 +68,8 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	// Der Journaldienst ist der einzige Schreibweg ins Journal und hält die
 	// Transaktion aller Vorgänge, die über ihn buchen.
 	s.Journal = service.NewJournalService(journalRepo, accountRepo, contactRepo, auditRepo, settingsRepo, txRunner)
+	s.Journal.AddEntryRules(taxrules.EntryRules()...)
+	s.Journal.AddTaxAccountExceptions(taxrules.TaxAccountExceptions()...)
 	s.Journal.SetFestschreibungRepo(festschreibungRepo)
 	s.Journal.SetFiscalYearRepo(fiscalYearRepo)
 	s.Journal.SetReceiptRepo(receiptRepo)

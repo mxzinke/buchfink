@@ -30,8 +30,7 @@ type JournalService struct {
 	accountRepo        domain.AccountRepository
 	contactRepo        domain.ContactRepository
 	festschreibungRepo domain.FestschreibungRepository
-	// receiptRepo ist der Beleg, auf den eine Buchung verweist. Optional:
-	// ohne ihn bucht der Dienst wie zuvor, nur ohne die Kopfdatenprüfung.
+	// receiptRepo liefert Belege für den Hashstempel und die lesende Regelsicht.
 	receiptRepo domain.ReceiptRepository
 	// bankRepo hält fest, welcher Bankumsatz gebucht ist (journal_bank.go).
 	bankRepo domain.BankRepository
@@ -40,8 +39,10 @@ type JournalService struct {
 	// schreiben (siehe InTx).
 	tx domain.TxRunner
 
-	hashChain   *accounting.HashChain
-	taxResolver domain.TaxResolver
+	hashChain            *accounting.HashChain
+	taxResolver          domain.TaxResolver
+	ruleExtensions       []domain.EntryRule
+	taxAccountExceptions []domain.TaxAccountException
 
 	// chart ist der zwischengespeicherte Kontenplan im festgeschriebenen
 	// Stand der Datenbank. Füllen dürfen ihn nur Schreibvorgänge ohne eigene
@@ -206,89 +207,6 @@ func (s *JournalService) post(ctx context.Context, entry *domain.JournalEntry, m
 		}
 		return entry, nil
 	})
-}
-
-type entryRule struct {
-	name              string
-	appliesToReversal bool
-	check             func(context.Context, *domain.JournalEntry) error
-}
-
-func (s *JournalService) entryRules() []entryRule {
-	return []entryRule{
-		{"accrual_taxation", false, func(ctx context.Context, _ *domain.JournalEntry) error {
-			return s.ensureAccrualTaxation(ctx)
-		}},
-		{"entry", true, func(_ context.Context, e *domain.JournalEntry) error { return e.Validate() }},
-		{"entertainment", true, func(_ context.Context, e *domain.JournalEntry) error {
-			if e.Entertainment != nil {
-				return e.Entertainment.Validate()
-			}
-			return nil
-		}},
-		{"accounts", true, s.validateAccounts},
-		{"lawful_tax_disclosure", false, func(_ context.Context, e *domain.JournalEntry) error {
-			return s.ensureLawfulTaxDisclosure(e)
-		}},
-		{"tax_lines", false, func(_ context.Context, e *domain.JournalEntry) error { return validateTaxLines(e) }},
-		{"manual_tax_lines", false, func(_ context.Context, e *domain.JournalEntry) error {
-			if e.Source == domain.EntrySourceManual {
-				return ValidateManualTaxLines(e)
-			}
-			return nil
-		}},
-		// Die Feststellung nennt den Weg zurück und geht der Festschreibung vor.
-		{"year_not_adopted", true, s.ensureYearNotAdopted},
-		{"period_open", true, s.ensurePeriodOpen},
-		{"receipt_header", false, s.ensureReceiptHeader},
-	}
-}
-
-// check hält jede Regel, die eine Buchung vor dem Schreiben erfüllen muss.
-// Post und ValidatePostable prüfen dieselbe Liste; der erste Fehler entscheidet.
-func (s *JournalService) check(ctx context.Context, entry *domain.JournalEntry) error {
-	for _, rule := range s.entryRules() {
-		if entry.Kind == domain.EntryKindReversal && !rule.appliesToReversal {
-			continue
-		}
-		if err := rule.check(ctx, entry); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// ensureReceiptHeader verlangt die Kopfdaten des Belegs, auf den die Buchung
-// verweist.
-//
-// Die Kopfdaten sind beim Ablegen freiwillig und beim Buchen Pflicht (BEL-02).
-// „Beim Buchen" heißt: hier — Post ist der einzige Schreibweg ins Journal, und
-// eine Regel, die nur im Dialog „Beleg buchen" gilt, ließe jeden anderen Weg
-// (Abschlussbuchung, Anlagenzugang, Zahlungsausgleich) an ihr vorbei.
-//
-// Geprüft wird ValidateHeader und nicht ValidateBookable: die dort zusätzlich
-// verlangte Ansehbarkeit gilt dem Beleg, den ein Mensch vor sich hat, und
-// nicht dem maschinell erzeugten Eigenbeleg einer Abschlussbuchung.
-//
-// Die Generalumkehr ist in der Regelliste ausgenommen (GoBD Rz. 58):
-// die Kopfdatenpflicht darf die Korrektur vorhandener Buchungen nicht sperren.
-func (s *JournalService) ensureReceiptHeader(ctx context.Context, entry *domain.JournalEntry) error {
-	if s.receiptRepo == nil || entry.ReceiptID == nil {
-		return nil
-	}
-	receipt, err := s.receiptRepo.FindByID(ctx, *entry.ReceiptID)
-	if err != nil || receipt == nil {
-		return nil
-	}
-	// Ein Beleg, der nicht mehr offen ist, ist bereits gebucht (versiegelt) oder
-	// verworfen. Seine Kopfdaten sind beim Versiegeln geprüft worden
-	// (ReceiptService.Seal) und lassen sich nicht mehr nachtragen, weil
-	// SaveHeader den offenen Beleg verlangt; eine verschärfte Prüfung darf ihn
-	// nicht nachträglich sperren.
-	if receipt.Status != domain.ReceiptStatusFiled {
-		return nil
-	}
-	return receipt.ValidateHeader()
 }
 
 // ValidatePostable prüft eine Buchung, ohne sie zu schreiben.
@@ -719,34 +637,6 @@ func (s *JournalService) FiscalYearOf(ctx context.Context, date string) int {
 	return domain.GetFiscalYearForDate(date, s.fiscalYearStartMonth(ctx))
 }
 
-// ensureAccrualTaxation refuses to book while the company is set to
-// Istversteuerung.
-//
-// The whole flow — record the invoice, book it at once, settle it later —
-// presumes taxation on agreed consideration (§ 16 Abs. 1 Satz 1 UStG). Under
-// Istversteuerung the tax only arises with the receipt of payment
-// (§ 13 Abs. 1 Nr. 1 Buchst. b UStG) and the bookings would look different. The
-// setting has existed since the setup wizard shipped, but nothing ever checked
-// it — so the option quietly produced wrong VAT returns. Refusing is the honest
-// behaviour until the second booking path exists.
-func (s *JournalService) ensureAccrualTaxation(ctx context.Context) error {
-	if s.settingsRepo == nil {
-		return nil
-	}
-	cfg, err := s.settingsRepo.GetCompanySettings(ctx)
-	if err != nil || cfg == nil || cfg.TaxationType == "" {
-		return nil
-	}
-	if strings.EqualFold(cfg.TaxationType, "SOLL") {
-		return nil
-	}
-	// Kein Verweis auf eine Einstellung: die Besteuerungsart ist in der
-	// Oberfläche nur ablesbar, nicht änderbar. Eine Meldung, die auf einen
-	// Schalter zeigt, den es nicht gibt, hilft niemandem weiter.
-	return fmt.Errorf(
-		"Für diesen Mandanten ist die Istversteuerung hinterlegt. Buchfink unterstützt derzeit nur die Sollversteuerung (§ 16 Abs. 1 Satz 1 UStG): bei Istversteuerung entsteht die Steuer erst mit der Vereinnahmung des Entgelts (§ 13 Abs. 1 Nr. 1 Buchst. b UStG), und die Buchungen sähen anders aus. Stornos bestehender Buchungen bleiben möglich")
-}
-
 func (s *JournalService) legalForm(ctx context.Context) string {
 	if s.settingsRepo == nil {
 		return ""
@@ -756,76 +646,6 @@ func (s *JournalService) legalForm(ctx context.Context) string {
 		return ""
 	}
 	return cfg.LegalForm
-}
-
-// validateAccounts rejects bookings that reference accounts which cannot carry
-// them. Without this check the journal accepts numbers that exist nowhere in the
-// chart of accounts, and the resulting balances silently omit them.
-// ensureLawfulTaxDisclosure hält § 14c UStG auch auf dem Handbuchungsweg.
-//
-// Der Rechnungsdienst weist eine Rechnung zurück, die zu einem Steuerfall ohne
-// Steuerpflicht Umsatzsteuer ausweist. Ohne dieselbe Regel hier bliebe die
-// Handbuchung offen: eine Leistung nach § 13b UStG mit einer UST19-Zeile
-// stünde in Kennziffer 21 *und* in 81, und in der Zusammenfassenden Meldung
-// stünde ein Umsatz, den die Voranmeldung als steuerpflichtig führt. Wer die
-// Steuer tatsächlich schuldet, weil die Rechnung außerhalb von
-// Buchfink entstanden ist, bucht sie mit dem Schlüssel UST14C in Kennziffer 69.
-//
-// Die Generalumkehr läuft durch: eine Regel über künftige Buchungen darf die
-// Rücknahme vorhandener nicht verhindern.
-//
-// Fehlt der Steuerfall an der Buchung, entscheiden die Erlöskonten. Eine
-// Handbuchung hat ihn nicht zwingend — sie kommt ohne Buchungsgruppe zustande
-// —, und ohne diese Ableitung stünde der Fall offen, den die Regel
-// verhindern soll: Konto 4337 und eine UST19-Zeile in einer Buchung, gemeldet in
-// Kennziffer 21 *und* in 81.
-func (s *JournalService) ensureLawfulTaxDisclosure(e *domain.JournalEntry) error {
-	treatment := e.TaxTreatment
-	derived := false
-	if treatment == "" {
-		treatment = revenueTreatmentOf(e)
-		derived = treatment != ""
-	}
-	if treatment == "" || treatment.MayShowTax() {
-		return nil
-	}
-	for i, l := range e.Lines {
-		if !accounting.IsDomesticOutputTaxKey(l.TaxKey) {
-			continue
-		}
-		source := fmt.Sprintf("der Steuerfall %q", treatment)
-		if derived {
-			source = fmt.Sprintf("das Erlöskonto der Buchung führt den Steuerfall %q und", treatment)
-		}
-		return fmt.Errorf(
-			"Zeile %d weist %s € Umsatzsteuer aus, %s lässt aber keine entstehen. "+
-				"Ein solcher Ausweis wird nach § 14c UStG trotzdem geschuldet – er gehört auf den "+
-				"Steuerschlüssel %s (Kennziffer 69), oder der Umsatz ist steuerpflichtig im Inland",
-			i+1, l.Amount, source, accounting.TaxKeyUnlawful)
-	}
-	return nil
-}
-
-// revenueTreatmentOf leitet den Steuerfall einer Buchung aus ihren Erlöskonten
-// ab.
-//
-// Abgeleitet wird nur, wenn *jede* Erlöszeile der Buchung einen Steuerfall ohne
-// Steuerpflicht hat. Eine Buchung, die daneben einen steuerpflichtigen
-// Inlandsumsatz enthält, darf Umsatzsteuer ausweisen — sie gehört dann zu diesem
-// Erlös, und ein Verbot träfe die richtige Buchung.
-func revenueTreatmentOf(e *domain.JournalEntry) domain.TaxTreatment {
-	treatments := accounting.RevenueTreatments()
-	taxable := accounting.TaxableRevenueAccounts()
-	found := domain.TaxTreatment("")
-	for _, l := range e.Lines {
-		if taxable[l.Account] {
-			return ""
-		}
-		if t, ok := treatments[l.Account]; ok && t != "" && !t.MayShowTax() && found == "" {
-			found = t
-		}
-	}
-	return found
 }
 
 func (s *JournalService) validateAccounts(ctx context.Context, e *domain.JournalEntry) error {
@@ -847,104 +667,21 @@ func (s *JournalService) validateAccounts(ctx context.Context, e *domain.Journal
 			return fmt.Errorf("Zeile %d: %w", i+1, err)
 		}
 
-		// Tax accounts carry the figures of the Umsatzsteuer-Voranmeldung. They
-		// may only be written by the tax automation, which stamps a TaxKey on
-		// the line it generates.
-		//
-		// Der Saldenvortrag ist die Ausnahme, und er ist keine Umgehung: Konten
-		// wie die abziehbare Vorsteuer sind Bilanzkonten und tragen zum
-		// Bilanzstichtag einen Bestand, der ins neue Jahr gehört (§ 252 Abs. 1
-		// Nr. 1 HGB). Vorgetragen wird der Saldo, nicht ein Umsatz — die Zeile
-		// hat deshalb bewusst keinen Steuerschlüssel, und die
-		// Umsatzsteuer-Auswertung lässt Eröffnungsbuchungen aus.
-		//
-		// Die zweite Ausnahme ist die Umsatzsteuer-Jahresverrechnung: sie stellt
-		// die Steuerkonten zum Bilanzstichtag auf null und bringt den Saldo auf
-		// die Verbindlichkeit bzw. Forderung, die der Jahreserklärung
-		// entspricht. Auch sie bucht keinen Umsatz, sondern einen Bestand —
-		// deshalb hat sie keinen Steuerschlüssel, und die Auswertungen lassen
-		// Abschlussbuchungen genauso aus wie den Vortrag.
-		//
-		// Die Ausnahme gilt ausdrücklich nur für diese eine Buchung und nur für
-		// die Konten, die sie auf null stellt: jeder andere Abschlussbaustein
-		// bucht auf anwendergewählte Konten, und ein Steuerkonto darunter würde
-		// die Voranmeldung von der Jahreserklärung trennen.
-		if s.taxResolver.IsTaxAccount(l.Account) && l.TaxKey == "" && !mayWriteTaxAccount(e, l.Account) {
+		// Steuerkonten liefern die Beträge der Voranmeldung. Ohne TaxKey darf
+		// nur eine registrierte Ausnahme ihre Bestände verändern.
+		if s.taxResolver.IsTaxAccount(l.Account) && l.TaxKey == "" && !s.mayWriteTaxAccount(e, l.Account) {
 			return fmt.Errorf(
 				"Zeile %d: Konto %s ist ein Steuerkonto und darf nur über die Steuerautomatik bebucht werden",
 				i+1, l.Account,
 			)
 		}
 
-		// Offene Posten gehören auf das Personenkonto des Geschäftspartners.
-		// Eine Buchung direkt auf das Sammelkonto stünde zwar in der Bilanz,
-		// aber in keiner OPOS-Liste.
-		if kind, ok := domain.CollectiveAccounts()[l.Account]; ok {
-			partner := "Kunden"
-			if kind == domain.ContactTypeVendor {
-				partner = "Lieferanten"
-			}
-			return fmt.Errorf(
-				"Zeile %d: Konto %s ist das Sammelkonto für die Bilanz und wird nicht direkt bebucht. "+
-					"Der offene Posten gehört auf das Personenkonto des %s – die Bilanzposition verdichtet sich daraus",
-				i+1, l.Account, partner,
-			)
+		if err := s.checkRulesAt(ctx, domain.EntryRulesAfterAccount, e, i); err != nil {
+			return err
 		}
 	}
 
 	return nil
-}
-
-// validateTaxLines hält jeden Steuerschlüssel gegen den Katalog. Die
-// Generalumkehr übernimmt die Zeilen der stornierten Buchung und läuft durch.
-func validateTaxLines(e *domain.JournalEntry) error {
-	for i, l := range e.Lines {
-		if err := accounting.CheckTaxLine(l); err != nil {
-			return fmt.Errorf("Zeile %d: %w", i+1, err)
-		}
-	}
-	return nil
-}
-
-// isVatSettlementReference erkennt die Belegnummer einer Jahresverrechnung.
-//
-// Geprüft wird die Form und nicht das Jahr des Eintrags: die Generalumkehr einer
-// Verrechnung hat deren Belegnummer, liegt aber im Geschäftsjahr ihrer
-// Erstellung. Mit einem Vergleich auf das Jahr des Eintrags ließe sich eine
-// Verrechnung nicht mehr stornieren.
-func isVatSettlementReference(documentNumber string) bool {
-	year, err := strconv.Atoi(strings.TrimPrefix(documentNumber, "USTV "))
-	if err != nil {
-		return false
-	}
-	return documentNumber == VatSettlementReference(year)
-}
-
-// mayWriteTaxAccount meldet, ob eine Zeile auf einem Steuerkonto ohne
-// Steuerschlüssel ausnahmsweise zulässig ist.
-//
-// Der Saldenvortrag darf jedes Steuerkonto anfassen — er trägt Bestände vor.
-// Die Abschlussbuchung darf es nur als Umsatzsteuer-Jahresverrechnung, erkennbar
-// an ihrer Belegnummer, und auch dann nur auf den Konten, die sie auf null
-// stellt. Die Belegnummer allein ist kein Schlüssel, den jemand von außen
-// setzen könnte: die Bridge normiert die Quelle jeder Handbuchung auf manual,
-// und ohne Quelle „closing" greift diese Ausnahme nicht.
-func mayWriteTaxAccount(e *domain.JournalEntry, account string) bool {
-	if e.Source == domain.EntrySourceOpening {
-		return true
-	}
-	if e.Source != domain.EntrySourceClosing {
-		return false
-	}
-	if !isVatSettlementReference(e.DocumentNumber) {
-		return false
-	}
-	for _, settlement := range settlementAccounts() {
-		if settlement == account {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *JournalService) validateLedgerAccount(ctx context.Context, l domain.JournalLine) error {

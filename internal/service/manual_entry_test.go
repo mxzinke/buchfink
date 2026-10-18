@@ -56,7 +56,7 @@ func TestFailedJournalWriteRollsBackTheSelfIssuedReceipt(t *testing.T) {
 
 	// Der Journalspeicher weist das Schreiben ab. Alles davor — Vorprüfung,
 	// Anlage des Eigenbelegs — läuft durch.
-	failing := NewJournalService(
+	failing := newJournalWithTaxRules(
 		failingJournalRepo{JournalRepository: env.journalRepo},
 		repository.NewAccountRepository(env.db),
 		env.contactRepo,
@@ -225,9 +225,15 @@ func TestFailedManualEntryLeavesNoSelfIssuedReceipt(t *testing.T) {
 // Die Handbuchung hat den Steuerfall, und eine Zeile auf einem Steuerkonto
 // hat Schlüssel und Bemessungsgrundlage.
 func TestManualEntryRequiresItsTaxDetails(t *testing.T) {
+	env := newTestEnv(t)
+	validate := func(e *domain.JournalEntry) error {
+		probe := *e
+		probe.Source = domain.EntrySourceManual
+		return env.journal.checkRulesAt(context.Background(), domain.EntryRulesManual, &probe, -1)
+	}
 	withoutTreatment := manualEntry()
 	withoutTreatment.TaxTreatment = ""
-	if err := ValidateManualTaxLines(withoutTreatment); err == nil {
+	if err := validate(withoutTreatment); err == nil {
 		t.Error("eine Handbuchung ohne Steuerfall läuft an der Voranmeldung vorbei")
 	} else if !strings.Contains(err.Error(), "Steuerfall") {
 		t.Errorf("die Meldung nennt nicht, was fehlt: %v", err)
@@ -236,7 +242,7 @@ func TestManualEntryRequiresItsTaxDetails(t *testing.T) {
 	// Ein steuerpflichtiger Inlandsumsatz ohne Steuerzeile ist keiner.
 	withoutTaxLine := manualEntry()
 	withoutTaxLine.TaxTreatment = domain.TaxTreatmentDomestic
-	if err := ValidateManualTaxLines(withoutTaxLine); err == nil {
+	if err := validate(withoutTaxLine); err == nil {
 		t.Error("ein steuerpflichtiger Inlandsumsatz ohne Steuerzeile darf nicht durchgehen")
 	}
 
@@ -249,7 +255,7 @@ func TestManualEntryRequiresItsTaxDetails(t *testing.T) {
 		{Side: domain.SideDebit, Account: domain.AccountVorsteuer19, Amount: 1900, TaxKey: "VST19"},
 		{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 11900},
 	}
-	err := ValidateManualTaxLines(withoutBase)
+	err := validate(withoutBase)
 	if err == nil {
 		t.Fatal("eine Steuerzeile ohne Bemessungsgrundlage darf nicht durchgehen")
 	}
@@ -266,7 +272,7 @@ func TestManualEntryRequiresItsTaxDetails(t *testing.T) {
 			TaxKey: "VST19", TaxBase: 10000},
 		{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 11900},
 	}
-	if err := ValidateManualTaxLines(complete); err != nil {
+	if err := validate(complete); err != nil {
 		t.Errorf("die vollständige Buchung muss durchgehen: %v", err)
 	}
 }

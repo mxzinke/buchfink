@@ -61,7 +61,7 @@ func (s *ClosingBookingService) SetRevenueSource(src RevenueSource) { s.revenue 
 
 // VatSettlementReference ist die Belegnummer der Verrechnungsbuchung. Über sie
 // erkennt der Assistent, ob der Schritt getan ist.
-func VatSettlementReference(year int) string { return fmt.Sprintf("USTV %d", year) }
+func VatSettlementReference(year int) string { return accounting.VatSettlementReference(year) }
 
 // VatSettlementRow ist ein Steuerkonto mit seinem Jahressaldo.
 type VatSettlementRow struct {
@@ -87,21 +87,6 @@ type VatSettlement struct {
 	Lines       []domain.JournalLine `json:"lines"`
 	BookingDate string               `json:"bookingDate"`
 	Explanation string               `json:"explanation"`
-}
-
-// settlementAccounts sind die Konten, die die Jahresverrechnung anfasst: die
-// Steuerautomatik-Konten plus die Vorauszahlungskonten.
-func settlementAccounts() []string {
-	return []string{
-		domain.AccountVorsteuer, domain.AccountVorsteuer7, domain.AccountVorsteuer19,
-		domain.AccountVorsteuerIG, domain.AccountVorsteuerIG19,
-		domain.AccountVorsteuer13b, domain.AccountVorsteuer13b19,
-		domain.AccountUmsatzsteuer, domain.AccountUmsatzsteuer7, domain.AccountUmsatzsteuer19,
-		domain.AccountUmsatzsteuerIG, domain.AccountUmsatzsteuerIG19,
-		domain.AccountUmsatzsteuer13b, domain.AccountUmsatzsteuer13b19,
-		domain.AccountUmsatzsteuer14c,
-		domain.AccountUmsatzsteuerVorauszahlungen, domain.AccountSondervorauszahlung,
-	}
 }
 
 // PreviewVatSettlement rechnet die Jahresverrechnung der Umsatzsteuer.
@@ -133,7 +118,7 @@ func (s *ClosingBookingService) PreviewVatSettlement(ctx context.Context, year i
 		Rows: make([]VatSettlementRow, 0), Lines: make([]domain.JournalLine, 0),
 	}
 	var total domain.Cents
-	for _, account := range settlementAccounts() {
+	for _, account := range accounting.VatSettlementAccounts() {
 		turnover, ok := turnovers[account]
 		if !ok {
 			continue

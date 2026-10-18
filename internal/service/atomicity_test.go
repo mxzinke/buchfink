@@ -39,7 +39,7 @@ func (f failingAudit) LogChange(
 func (e *testEnv) journalWithAudit(t *testing.T, trigger string) *JournalService {
 	t.Helper()
 	audit := failingAudit{AuditRepository: repository.NewAuditRepository(e.db), trigger: trigger}
-	j := NewJournalService(e.journalRepo, repository.NewAccountRepository(e.db), e.contactRepo,
+	j := newJournalWithTaxRules(e.journalRepo, repository.NewAccountRepository(e.db), e.contactRepo,
 		audit, repository.NewSettingsRepository(e.db), repository.NewTxRunner(e.db))
 	j.SetReceiptRepo(e.receiptRepo)
 	return j

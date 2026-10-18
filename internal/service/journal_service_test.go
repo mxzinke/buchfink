@@ -67,7 +67,7 @@ func newTestEnv(t *testing.T) *testEnv {
 	dataDir := t.TempDir()
 	store := receiptstore.New(dataDir)
 
-	journal := NewJournalService(journalRepo, accountRepo, contactRepo, auditRepo, settingsRepo, repository.NewTxRunner(db))
+	journal := newJournalWithTaxRules(journalRepo, accountRepo, contactRepo, auditRepo, settingsRepo, repository.NewTxRunner(db))
 	// Wie in der Anwendung (core/wire.go): der Journaldienst kennt die
 	// Belegablage und prüft die Kopfdaten jedes Belegs, auf den eine Buchung
 	// zeigt. Ohne diese Verdrahtung prüften die Tests eine Verkabelung, die es

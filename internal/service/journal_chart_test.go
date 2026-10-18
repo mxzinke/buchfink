@@ -18,7 +18,7 @@ func TestChartCacheIsSafeForConcurrentUse(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = repository.CloseDB(db) })
 	accounts := repository.NewAccountRepository(db)
-	journal := NewJournalService(repository.NewJournalRepository(db), accounts,
+	journal := newJournalWithTaxRules(repository.NewJournalRepository(db), accounts,
 		repository.NewContactRepository(db), repository.NewAuditRepository(db),
 		repository.NewSettingsRepository(db), repository.NewTxRunner(db))
 	ctx := context.Background()

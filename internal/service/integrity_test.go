@@ -210,7 +210,7 @@ func TestIntegrityCheckLogsNamedObjectWithoutFiscalYears(t *testing.T) {
 	ctx := context.Background()
 
 	// Ohne Geschäftsjahr und ohne Buchung: die Prüfung findet keine Jahre.
-	empty := NewJournalService(
+	empty := newJournalWithTaxRules(
 		repository.NewJournalRepository(env.db), repository.NewAccountRepository(env.db),
 		repository.NewContactRepository(env.db), repository.NewAuditRepository(env.db),
 		repository.NewSettingsRepository(env.db), repository.NewTxRunner(env.db))
