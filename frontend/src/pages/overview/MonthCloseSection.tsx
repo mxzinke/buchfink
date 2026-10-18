@@ -1,7 +1,7 @@
 import React from 'react';
 import type { MonthCloseState, MonthCloseStep } from '../../types';
 import type { NavigateFn } from '../../navigation';
-import { Button, Section, SkeletonRows, cn } from '../../components/ui';
+import { Button, Notice, Section, SkeletonRows, cn } from '../../components/ui';
 
 /**
  * Die Farbe eines Schritts. Ein gesperrter Prüfbericht hat Befunde, die die
@@ -86,7 +86,7 @@ export const MonthCloseSection: React.FC<MonthCloseSectionProps> = ({
       {!state && !error ? (
         <SkeletonRows rows={2} />
       ) : !state ? (
-        <p className="text-body text-ink-muted">{error}</p>
+        <Notice text={error} />
       ) : (
         <ol className="grid grid-cols-1 gap-6 md:grid-cols-3">
           {steps.map((step) => (

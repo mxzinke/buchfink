@@ -20,6 +20,7 @@ import {
   Select,
 } from '../../components/ui';
 import { EditPanel, Missing, ProfileBlock, PROFILE_LIST } from './ProfileBlock';
+import { taxGaps } from '../../utils/profileGaps';
 
 /** Die Grenzen des Hebesatzes, die der Dienst durchsetzt. */
 const TRADE_TAX_MIN = 200;
@@ -149,11 +150,7 @@ export const TaxBlock: React.FC<{
 
   const exclusions = exclusionsOf(settings);
   const draftExclusions = exclusionsOf(draft);
-  const missing = [
-    !settings.taxNumber && 'Steuernummer',
-    !settings.federalState && 'Bundesland',
-    (!settings.vatPeriod || settings.vatPeriod === 'unknown') && 'Voranmeldungszeitraum',
-  ].filter(Boolean) as string[];
+  const missing = taxGaps(settings);
 
   return (
     <ProfileBlock

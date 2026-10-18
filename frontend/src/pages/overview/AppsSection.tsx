@@ -24,6 +24,7 @@ function serverContext(apps: ConnectedApp[], status: MCPServerStatus | null): st
 
 export interface AppsSectionProps {
   apps: ConnectedApp[] | null;
+  error?: string;
   status: MCPServerStatus | null;
   tenantId: string | undefined;
   onNavigate: NavigateFn;
@@ -34,12 +35,12 @@ export interface AppsSectionProps {
  * darf und wann sie zuletzt zugegriffen hat. Verbinden und Entziehen stehen in
  * den Einstellungen.
  */
-export const AppsSection: React.FC<AppsSectionProps> = ({ apps, status, tenantId, onNavigate }) => {
+export const AppsSection: React.FC<AppsSectionProps> = ({ apps, error, status, tenantId, onNavigate }) => {
   const toSettings = () => onNavigate({ area: 'settings', tab: 'apps' });
   return (
     <Section
       title="Verbundene Apps"
-      context={apps ? serverContext(apps, status) : 'Apps mit Zugriff auf Ihre Buchhaltung'}
+      context={apps && !error ? serverContext(apps, status) : 'Apps mit Zugriff auf Ihre Buchhaltung'}
       helpSummary="Diese Apps dürfen auf Ihre Buchhaltung zugreifen."
       explain={
         <>
@@ -57,7 +58,9 @@ export const AppsSection: React.FC<AppsSectionProps> = ({ apps, status, tenantId
       {status && !status.running && status.error && (
         <Notice tone="negative" className="mb-4" text={status.error} />
       )}
-      {!apps ? (
+      {error ? (
+        <Notice tone="negative" text={error} />
+      ) : !apps ? (
         <SkeletonRows rows={2} />
       ) : apps.length === 0 ? (
         <p className="text-body text-ink-muted">

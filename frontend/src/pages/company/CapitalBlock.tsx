@@ -27,6 +27,7 @@ import {
   cn,
 } from '../../components/ui';
 import { EditPanel, Missing, ProfileBlock, PROFILE_LIST } from './ProfileBlock';
+import { capitalGaps } from '../../utils/profileGaps';
 import { COMPANY_OBLIGATIONS, ObligationList, obligationsOf } from './ObligationList';
 import { FoundationDialog } from './FoundationDialog';
 import { LoanDialog } from './LoanDialog';
@@ -95,13 +96,8 @@ export const CapitalBlock: React.FC<{
   const capital = settings.shareCapital;
   const subscribed = shareholders.reduce((sum, s) => sum + s.shareCapital, 0);
   const hasFoundation = Boolean(foundation?.hasFoundation && foundation.foundation);
-  const foundedInBooks =
-    settings.foundedOn.length === 10 && Number(settings.foundedOn.slice(0, 4)) >= firstYear;
-  const missing = [
-    !capital && 'Stammkapital',
-    shareholders.length === 0 && 'Gesellschafter',
-    foundedInBooks && !hasFoundation && 'Gründung',
-  ].filter(Boolean) as string[];
+  const missing = capitalGaps(settings, { hasFoundation, firstYear });
+  const foundationMissing = missing.includes('Gründung');
 
   const draftSubscribed = draft.rows.reduce((sum, r) => sum + (parseCents(r.amount) ?? 0), 0);
   const draftCapital = parseCents(draft.shareCapital) ?? 0;
@@ -205,7 +201,7 @@ export const CapitalBlock: React.FC<{
       {foundation?.anmeldung && !foundation.anmeldung.isSatisfied && foundation.stage === 'vorgesellschaft' && (
         <Notice className="mt-4" text={foundation.anmeldung.findings[0] ?? 'Die Mindesteinzahlung vor der Anmeldung ist nicht erreicht.'} />
       )}
-      {foundedInBooks && !hasFoundation && rules && (
+      {foundationMissing && rules && (
         <Notice
           className="mt-5"
           text="Die Gesellschaft wurde in diesen Büchern gegründet. Erfassen Sie Kapital, Anteile und Einzahlungen laut Gesellschaftsvertrag."

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { CompanySettings, Country } from '../../types';
 import { DetailList, Field, FormGrid, Input, Select } from '../../components/ui';
 import { EditPanel, Missing, ProfileBlock, PROFILE_LIST } from './ProfileBlock';
+import { addressGaps } from '../../utils/profileGaps';
 
 type Draft = Pick<
   CompanySettings,
@@ -29,11 +30,7 @@ export const AddressBlock: React.FC<{
   const [draft, setDraft] = useState<Draft>(() => draftOf(settings));
   const patch = (next: Partial<Draft>) => setDraft((prev) => ({ ...prev, ...next }));
 
-  const missing = [
-    !settings.street && 'Straße',
-    !settings.postalCode && 'Postleitzahl',
-    !settings.city && 'Ort',
-  ].filter(Boolean) as string[];
+  const missing = addressGaps(settings);
   const country = countries.find((c) => c.code === (settings.countryCode || 'DE'))?.name ?? settings.countryCode;
   const streetLine = [settings.street, settings.houseNumber].filter(Boolean).join(' ');
 

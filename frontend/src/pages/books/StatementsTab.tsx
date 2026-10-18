@@ -27,6 +27,7 @@ import {
   toast,
 } from '../../components/ui';
 import { errorText } from './shared';
+import { splitNorms } from '../../utils/norms';
 
 /** Einrückung nach der Ebene: Buchstabe, römische Ziffer, arabische Ziffer. */
 const INDENT: Record<number, string> = { 1: 'pl-4', 2: 'pl-8', 3: 'pl-12' };
@@ -297,11 +298,8 @@ const LineTable: React.FC<LineTableProps> = ({
                         )}
                         <span className={line.level === 1 ? 'font-medium' : undefined}>{line.label}</span>
                         {line.note && (
-                          <Help
-                            summary="Hier erfahren Sie, wie sich dieser Betrag zusammensetzt."
-                            label={`Erklärung zu ${line.label}`}
-                          >
-                            {line.note}
+                          <Help summary={splitNorms(line.note).text} label={`Erklärung zu ${line.label}`}>
+                            {splitNorms(line.note).norms.length > 0 ? line.note : undefined}
                           </Help>
                         )}
                       </span>

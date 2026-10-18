@@ -8,6 +8,7 @@ import type {
   TaskGroup,
   TaskList,
 } from '../types';
+import { agentName } from './actor';
 
 /**
  * Was die Übersicht aus Aufgabenliste und Pflichtenkalender zusammenstellt.
@@ -34,10 +35,59 @@ export interface DutyRow {
 export interface OverviewPlan {
   /** Pflichten, die der Mensch erledigt oder bestätigt; überfällige zuerst. */
   duties: DutyRow[];
-  /** Die übrige Arbeit in den Büchern, in der Reihenfolge der Aufgabenliste. */
-  work: Task[];
+  /** Weitere Aufgaben, die nur der Mensch erledigt, etwa die Sicherung. */
+  human: Task[];
+  /** Arbeit in den Büchern, die Claude erledigt. Sie steht als Stand da, nicht als Auftrag. */
+  agent: Task[];
   /** Die nächste Pflicht, wenn gerade keine ansteht. */
   next?: Obligation;
+}
+
+/** Buchen, Zuordnen und Prüfbefunde klären erledigt der Agent. */
+const AGENT_TASKS = ['bank_unmatched', 'receipts_unbooked', 'receipts_overdue', 'check_findings'];
+
+/** Festschreiben kann nur der Mensch; diese Prüfbefunde bleiben bei ihm. */
+const HUMAN_CHECKS = ['check_findings.commit_overdue', 'check_findings.period_not_committed'];
+
+export function isAgentTask(task: Task): boolean {
+  if (HUMAN_CHECKS.includes(task.key)) return false;
+  return AGENT_TASKS.some((key) => task.key === key || task.key.startsWith(`${key}.`));
+}
+
+/** Ein Eintrag in „Noch offen für Claude“: Anzahl mit Wort und Ziel. */
+export interface AgentWorkItem {
+  key: string;
+  label: string;
+  target: Task['target'];
+}
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * Die Arbeit des Agenten in Kürze: „6 Bankumsätze“, „2 Belege, davon 1 über
+ * der Frist“, „3 Prüfbefunde“. Die Prüfbefunde stehen zusammen, je Regel
+ * stünde sonst eine eigene Zeile da.
+ */
+export function agentWorkSummary(agent: Task[]): AgentWorkItem[] {
+  const items: AgentWorkItem[] = [];
+  const bank = agent.find((t) => t.key === 'bank_unmatched');
+  if (bank) items.push({ key: bank.key, label: plural(bank.count, 'Bankumsatz', 'Bankumsätze'), target: bank.target });
+
+  const unbooked = agent.find((t) => t.key === 'receipts_unbooked');
+  const late = agent.find((t) => t.key === 'receipts_overdue');
+  if (unbooked) {
+    const lateNote = late ? `, davon ${late.count} über der Frist` : '';
+    items.push({ key: unbooked.key, label: `${plural(unbooked.count, 'Beleg', 'Belege')}${lateNote}`, target: unbooked.target });
+  } else if (late) {
+    items.push({ key: late.key, label: `${plural(late.count, 'Beleg', 'Belege')} über der Frist`, target: late.target });
+  }
+
+  const checks = agent.filter((t) => t.key.startsWith('check_findings'));
+  if (checks.length > 0) {
+    const count = checks.reduce((sum, t) => sum + Math.max(t.count, 1), 0);
+    items.push({ key: 'check_findings', label: plural(count, 'Prüfbefund', 'Prüfbefunde'), target: checks[0].target });
+  }
+  return items;
 }
 
 const GROUP_ORDER: Record<TaskGroup, number> = { overdue: 0, open: 1, upcoming: 2 };
@@ -46,12 +96,13 @@ export function planOverview(tasks: TaskList | null, obligations: Obligation[]):
   const byKey = new Map(obligations.map((o) => [o.key, o]));
   const seen = new Set<string>();
   const duties: DutyRow[] = [];
-  const work: Task[] = [];
+  const human: Task[] = [];
+  const agent: Task[] = [];
 
   for (const group of ['overdue', 'open', 'upcoming'] as const) {
     for (const task of tasks?.[group] ?? []) {
       if (!task.key.startsWith(OBLIGATION_TASK_PREFIX)) {
-        work.push(task);
+        (isAgentTask(task) ? agent : human).push(task);
         continue;
       }
       const key = task.key.slice(OBLIGATION_TASK_PREFIX.length);
@@ -78,7 +129,7 @@ export function planOverview(tasks: TaskList | null, obligations: Obligation[]):
     duties.length === 0
       ? obligations.find((o) => o.status !== 'done' && o.status !== 'waived')
       : undefined;
-  return { duties, work, next };
+  return { duties, human, agent, next };
 }
 
 /**
@@ -99,14 +150,14 @@ export function monthToClose(obligations: Obligation[], today: string): string {
 
 /**
  * Der Name der App hinter einem Erfassungsweg `agent:<kurzname>`. Kennt
- * Buchfink die App nicht mehr, steht der Kurzname da.
+ * Buchfink die App nicht mehr, steht ihr Anzeigename aus dem Kurznamen da.
  */
 export function appName(channel: string | undefined, apps: ConnectedApp[]): string {
   if (!channel || channel === 'ui') return 'Sie in der App';
   if (channel === 'system') return 'Programmlauf';
   const app = apps.find((a) => a.channel === channel);
   if (app) return app.name;
-  return channel.startsWith('agent:') ? channel.slice('agent:'.length) : channel;
+  return channel.startsWith('agent:') ? agentName(channel) : channel;
 }
 
 /** Haben nur Apps von Claude gebucht? Dann heißt der Abschnitt nach Claude. */

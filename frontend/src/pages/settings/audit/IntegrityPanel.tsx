@@ -415,7 +415,7 @@ export const IntegrityPanel: React.FC<IntegrityPanelProps> = ({
                           {finding.message}
                           {finding.reference && (
                             <Help
-                              summary="Hier steht, auf welcher Anforderung der Prüfhinweis beruht."
+                              summary="Auf dieser Vorschrift beruht der Prüfhinweis."
                               label="Hintergrund zum Prüfhinweis"
                             >
                               {finding.reference}

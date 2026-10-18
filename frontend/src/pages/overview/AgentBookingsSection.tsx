@@ -2,11 +2,12 @@ import React from 'react';
 import { Bot } from 'lucide-react';
 import type { AgentBooking, AgentBookings, ConnectedApp } from '../../types';
 import { formatCents, formatDate } from '../../utils/formatters';
-import { appName, onlyClaude } from '../../utils/overview';
-import type { NavigateFn } from '../../navigation';
+import { appName, onlyClaude, type AgentWorkItem } from '../../utils/overview';
+import { toRoute, type NavigateFn } from '../../navigation';
 import {
   Button,
   EmptyState,
+  Notice,
   Section,
   SkeletonRows,
   StatusBadge,
@@ -25,6 +26,9 @@ function grossOf(entry: AgentBooking): number {
 
 export interface AgentBookingsSectionProps {
   bookings: AgentBookings | null;
+  /** Was in den Büchern noch offen ist und Claude erledigt. */
+  open?: AgentWorkItem[];
+  error?: string;
   apps: ConnectedApp[];
   onNavigate: NavigateFn;
 }
@@ -36,6 +40,8 @@ export interface AgentBookingsSectionProps {
  */
 export const AgentBookingsSection: React.FC<AgentBookingsSectionProps> = ({
   bookings,
+  open = [],
+  error,
   apps,
   onNavigate,
 }) => {
@@ -80,7 +86,33 @@ export const AgentBookingsSection: React.FC<AgentBookingsSectionProps> = ({
         ) : undefined
       }
     >
-      {!bookings ? (
+      {open.length > 0 && (
+        <p className="mb-4 flex flex-wrap items-center gap-x-1 text-body text-ink-muted">
+          <span>Noch offen für Claude:</span>
+          {open.map((item, index) => {
+            const route = toRoute(item.target.area, item.target.tab, item.target.id);
+            return (
+              <span key={item.key}>
+                {route ? (
+                  <button
+                    type="button"
+                    className="text-ink underline-offset-2 hover:underline"
+                    onClick={() => onNavigate(route)}
+                  >
+                    {item.label}
+                  </button>
+                ) : (
+                  item.label
+                )}
+                {index < open.length - 1 ? ',' : ''}
+              </span>
+            );
+          })}
+        </p>
+      )}
+      {error ? (
+        <Notice tone="negative" text={error} />
+      ) : !bookings ? (
         <SkeletonRows rows={4} />
       ) : entries.length === 0 ? (
         <EmptyState

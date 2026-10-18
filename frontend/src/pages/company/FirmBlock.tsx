@@ -17,6 +17,7 @@ import {
   toast,
 } from '../../components/ui';
 import { EditPanel, Missing, ProfileBlock, PROFILE_LIST } from './ProfileBlock';
+import { firmGaps } from '../../utils/profileGaps';
 import { COMPANY_OBLIGATIONS, ObligationList, obligationsOf } from './ObligationList';
 
 interface FirmBlockProps {
@@ -64,11 +65,7 @@ export const FirmBlock: React.FC<FirmBlockProps> = ({ settings, foundation, dead
   const [registering, setRegistering] = useState(false);
 
   const inFounding = Boolean(settings.inGruendung);
-  const missing = [
-    !settings.seat && 'Sitz',
-    !settings.managingDirectors && 'Geschäftsführung',
-    !inFounding && (!settings.registerCourt || !settings.registerNumber) && 'Registereintrag',
-  ].filter(Boolean) as string[];
+  const missing = firmGaps(settings);
 
   const register = inFounding ? (
     <span className="flex flex-wrap items-center gap-3">

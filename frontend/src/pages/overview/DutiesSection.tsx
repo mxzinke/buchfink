@@ -9,6 +9,7 @@ import {
   Button,
   EmptyState,
   Help,
+  Notice,
   Section,
   SkeletonRows,
   StatusBadge,
@@ -45,24 +46,28 @@ function dutiesContext(duties: DutyRow[]): string {
 
 export interface DutiesSectionProps {
   plan: OverviewPlan | null;
+  /** Aufgaben, die die Übersicht selbst ableitet, etwa fehlende Stammdaten. */
+  extra?: Task[];
+  /** Pflichten oder Aufgaben ließen sich nicht laden. */
+  error?: string;
   onOpen: (key: string) => void;
   onNavigate: NavigateFn;
 }
 
 /**
  * Was jetzt zu tun ist: die Pflichten, die nur der Mensch abgibt, festschreibt
- * oder bestätigt, und darunter, was in den Büchern offen ist. Eine Pflicht
- * öffnet ihre Einzelheiten in der Seitenleiste; die übrige Arbeit führt in
- * die Bücher.
+ * oder bestätigt, und darunter weitere Aufgaben, die nur er erledigt, etwa
+ * Stammdaten oder Sicherung. Was Claude in den Büchern erledigt, steht hier
+ * nicht. Eine Pflicht öffnet ihre Einzelheiten in der Seitenleiste.
  */
-export const DutiesSection: React.FC<DutiesSectionProps> = ({ plan, onOpen, onNavigate }) => {
+export const DutiesSection: React.FC<DutiesSectionProps> = ({ plan, extra = [], error, onOpen, onNavigate }) => {
   const duties = plan?.duties ?? [];
-  const work = plan?.work ?? [];
+  const work = plan ? [...extra, ...plan.human] : [];
 
   return (
     <Section
       title="Was jetzt zu tun ist"
-      context={plan ? dutiesContext(duties) : 'Fristen und Bestätigungen'}
+      context={plan && !error ? dutiesContext(duties) : 'Fristen und Bestätigungen'}
       divider={false}
       helpSummary="Hier stehen die Fristen, die nur Sie erledigen können."
       explain={
@@ -73,7 +78,9 @@ export const DutiesSection: React.FC<DutiesSectionProps> = ({ plan, onOpen, onNa
         </>
       }
     >
-      {!plan ? (
+      {error ? (
+        <Notice tone="negative" text={error} />
+      ) : !plan ? (
         <SkeletonRows rows={4} />
       ) : duties.length === 0 ? (
         <EmptyState
@@ -131,18 +138,9 @@ export const DutiesSection: React.FC<DutiesSectionProps> = ({ plan, onOpen, onNa
         </Table>
       )}
 
-      {work.length > 0 && (
+      {!error && work.length > 0 && (
         <div className="mt-8">
-          <h3 className="flex items-center text-label text-ink-muted">
-            Offen in den Büchern
-            <Help
-              summary="Diese Arbeit in den Büchern ist noch offen."
-              label="Erklärung zu Offen in den Büchern"
-            >
-              Belege buchen, Bankumsätze zuordnen und Prüfbefunde klären erledigt Claude, wenn Sie
-              darum bitten. Der Verweis zeigt Ihnen die betroffenen Einträge.
-            </Help>
-          </h3>
+          <h3 className="text-label text-ink-muted">Weitere Aufgaben</h3>
           <ul className="mt-2 flex flex-col">
             {work.map((task) => {
               const route = toRoute(task.target.area, task.target.tab, task.target.id);
@@ -154,11 +152,8 @@ export const DutiesSection: React.FC<DutiesSectionProps> = ({ plan, onOpen, onNa
                   <span className={cn('mark-diamond shrink-0', MARK[task.group])} aria-hidden="true" />
                   <span className="flex min-w-0 flex-1 items-center">
                     <span className="truncate text-body text-ink">{task.title}</span>
-                    <Help
-                      summary="Hier erfahren Sie, warum diese Aufgabe ansteht."
-                      label={`Erklärung zu ${task.title}`}
-                    >
-                      {task.reference ? `${task.why} ${task.reference}` : task.why}
+                    <Help summary={task.why} label={`Erklärung zu ${task.title}`}>
+                      {task.reference ? `Grundlage: ${task.reference}` : undefined}
                     </Help>
                   </span>
                   <span className="text-caption text-ink-subtle num">{taskContext(task)}</span>
