@@ -13,7 +13,7 @@ import (
 
 // Übermittlungsbestätigung, Pflicht als erledigt, Aufstellen, Feststellen und
 // Offenlegen, Stammdaten samt Gesellschaftern und Gründung, Bankkonten,
-// Abschluss-Einstellungen, Regeln für Apps und das Bestätigen von
+// Abschluss-Einstellungen, Eingang, Regeln für Apps und das Bestätigen von
 // Standardgruppe und Erklärungsangaben weist der Dienst selbst jedem
 // Erfassungsweg außer der App ab — gleich, ob der Aufrufer den Vorgang als
 // App-vorbehalten gekennzeichnet hat.
@@ -92,6 +92,10 @@ func refusesAppOnlyOperations(t *testing.T, ctx context.Context) {
 		},
 		"Regeln für Apps": func() error {
 			_, err := (&SettingsService{}).SaveAgentSettings(ctx, domain.AgentSettings{})
+			return err
+		},
+		"Eingang wählen": func() error {
+			_, err := (&SettingsService{}).SetInboxFolder(ctx, "/tmp/eingang")
 			return err
 		},
 		"Standardgruppe bestätigen": func() error {

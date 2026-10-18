@@ -15,11 +15,11 @@ import (
 // Was nur ein Mensch in der App auslöst, weist der Kern jedem Agenten ab, über
 // welchen Einstieg auch immer: Prüfermodus, Festschreibung,
 // Übermittlungsbestätigung, Pflicht als erledigt, Aufstellen/Feststellen/
-// Offenlegen, Stammdaten samt Gesellschaftern, Bankkonten, Regeln für Apps,
-// Standardgruppe bestätigen und die Verwaltung der Mandanten samt Ablage und
-// Sicherung. Die Vorgänge der Dienste laufen hier ohne core.AppOnly(): sie
-// weisen den Agenten selbst ab, auch wenn ein Einstieg die Kennzeichnung
-// vergisst.
+// Offenlegen, Stammdaten samt Gesellschaftern, Bankkonten, Eingang, Regeln
+// für Apps, Standardgruppe bestätigen und die Verwaltung der Mandanten samt
+// Ablage und Sicherung. Die Vorgänge der Dienste laufen hier ohne
+// core.AppOnly(): sie weisen den Agenten selbst ab, auch wenn ein Einstieg die
+// Kennzeichnung vergisst.
 func TestAgentsAreRefusedForHumanOnlyOperations(t *testing.T) {
 	h := newHost(t)
 	tc := newTenant(t, h, "Pfennig Ventures GmbH")
@@ -89,6 +89,10 @@ func TestAgentsAreRefusedForHumanOnlyOperations(t *testing.T) {
 		}),
 		"Regeln für Apps ändern": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Settings.SaveAgentSettings(ctx, domain.AgentSettings{DirectMaxGross: 99_999_999})
+			return err
+		}),
+		"Eingang wählen": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.Settings.SetInboxFolder(ctx, t.TempDir())
 			return err
 		}),
 		"Standardgruppe bestätigen": inService(func(ctx context.Context, s *Services) error {
