@@ -24,8 +24,8 @@ type closingChecks struct {
 	statementSource StatementBuilder
 }
 
-// LegalReserve belongs to the balance sheet of the profit year (§ 5a GmbHG).
-// Transfers use a result-appropriation account and never reduce taxable profit.
+// LegalReserve gehört in die Bilanz des Gewinnjahres (§ 5a GmbHG).
+// Die Zuführung über ein Ergebnisverwendungskonto mindert den steuerlichen Gewinn nicht.
 func (s *closingChecks) LegalReserve(ctx context.Context, year int) (*LegalReserveState, error) {
 	state := &LegalReserveState{Year: year}
 	if s.settingsRepo == nil {
@@ -55,7 +55,7 @@ func (s *closingChecks) LegalReserve(ctx context.Context, year int) (*LegalReser
 	loss, profit := turnovers[domain.AccountVerlustvortrag], turnovers[domain.AccountGewinnvortrag]
 	state.LossCarryForward = max(domain.Cents(0), loss.Debit-loss.Credit-(profit.Credit-profit.Debit))
 	base := max(domain.Cents(0), state.NetIncome-state.LossCarryForward)
-	// Round up to a cent so the statutory quarter is never undershot.
+	// Auf volle Cent aufrunden, damit das gesetzliche Viertel erreicht wird.
 	state.Required = base / 4
 	if base%4 != 0 {
 		state.Required++

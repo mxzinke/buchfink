@@ -13,8 +13,8 @@ import (
 )
 
 // Der Graph folgt den tatsächlich gespeicherten Abhängigkeiten, auch durch
-// Schnittstellen, eingebettete Module und Listen. Repositories und reine
-// Funktionen sind Blätter; registrierte Funktionsrückrufe prüft die Verdrahtung.
+// Schnittstellen, eingebettete Module und Listen. Repositories und
+// Funktionswerte sind Blätter; registrierte Rückrufe haben eigene Vertragstests.
 func TestServiceDependencyGraph(t *testing.T) {
 	h := newHost(t)
 	newTenant(t, h, "Graph GmbH")

@@ -96,6 +96,8 @@ mit `OpenItems`, `Settle`, `Split` und `WriteOff`. Es bündelt offene Posten
 einschließlich Stichtagssicht und Altersstruktur, Zahlungszuordnungen,
 Bankaufteilungen, Differenzen und Forderungsausbuchungen. Die Aufrufer in
 Diensten, Bridge und MCP nutzen die Methoden von `PaymentService`.
+Settlement und Kursbewertung teilen den `openItemReader` für offene Posten.
+Dieser Leser benötigt nur Journal, Zahlungszuordnungen und Kontakte.
 
 Skontokonto, Nettominderung und gegenläufige Steuerzeilen liefert
 `accounting.TaxCase.Skonto`. Bei einer Anlagenrechnung ordnet Settlement die
@@ -106,7 +108,9 @@ Generalumkehr gibt ihn wieder frei. Eine erfasste Anschaffungskostenminderung
 bleibt beim Storno der Zahlung bestehen.
 
 `service.PeriodService` bündelt Geschäftsjahr, Rumpfjahr, Festschreibung,
-Abschlussperiode und Feststellung. `State(ctx, date)` liefert die Sperren des
+Abschlussperiode und Feststellung. Er entsteht eigenständig in `core/wire.go`.
+Journal und lesende Abschlussbausteine verwenden seinen gemeinsamen
+`PeriodReader`. `State(ctx, date)` liefert die Sperren des
 Buchungstags; `FiscalYear` liest oder berechnet den Jahreszeitraum, ohne ihn
 anzulegen. Das Journal fragt den Stand in seinen festen Kernregeln bei jedem
 `Post` und jeder Generalumkehr ab. Gespeicherte Jahresgrenzen halten die Sperren
@@ -122,10 +126,32 @@ gespeichert; andere Fehler rollen den Vorgang zurück. `Periods.Adopt` und
 bisherigen Einstiege in `ClosingService` delegieren dorthin. Beide Dienste
 prüfen den Vorbehalt des Menschen; `Reopen` erhält die Festschreibungen.
 
+`ClosingService` und Periodenverwaltung teilen die lesenden Abschlussprüfungen
+aus `closingChecks`. Die Perioden erhalten sie über `PeriodAdoptionChecks`.
+Der Vorjahresumsatz wird in der Periodenverwaltung vorbelegt.
+`StatementFigures` liefert dafür die Umsatzerlöse und für den Pflichtenkalender
+die Größenklasse. Der vollständige Abschluss ergänzt Anhang und Fristen.
+`notesStore` liest und übernimmt die Anhangtexte für Abschluss, Jahresanlage
+und Ergebnisverwendung.
+
+`TestServiceDependencyGraph` verfolgt die gespeicherten Dienstverweise der
+Verdrahtung auch durch Schnittstellen und eingebettete Module und verlangt
+einen zyklusfreien Graphen. Funktionsrückrufe wie die H8-Vorprüfungen haben
+eigene Registrierungs-, Reihenfolge- und Transaktionstests.
+`TestServiceSetterInventory` gibt alle `Set*`-Methoden und ihre Aufrufe in
+`wire.go` aus. Optionale Setter ermöglichen einen begrenzten Testaufbau.
+
 ## 3. Kern
 
 `core.Host` hält die Mandantenliste und genau einen offenen Mandanten
 (`core.Tenant`) mit einem Satz Dienste. `internal/core` importiert kein Wails.
+
+`core.Services` ist der vollständige Dienstsatz für Kern und Wails-Bridge.
+MCP und `core/policy` erhalten `core.AgentServices`: Schnittstellen mit ihren
+benötigten Dienstmethoden, ohne Repository-Zugang. `Tenant.ReadAgent` und
+`WriteAgent` reichen diese Sicht innerhalb von `Read` und `Write` weiter.
+`TestAgentServicesMatchAdapterUse` verbietet volle Diensttypen im Adapter und
+in der Policy und weist ungenutzte Erweiterungen der Fassade ab.
 
 **Lesen und Schreiben.** Jeder Zugriff geht über `Tenant.Read` (lesende
 Transaktion ohne Sperre) oder `Tenant.Write`. `Write` nimmt die Schreibsperre
@@ -223,7 +249,8 @@ begrenzt ihre Aufrufer auf die Kette von der Bridge zum OAuth-Speicher.
 Werkzeuge registrieren sich über `AddInfo`, `AddRead`, `AddWrite` und dessen
 Varianten (`internal/mcpserver/tools.go`). Der Rahmen liest die Anmeldung, holt den
 Mandanten, prüft Zulassung und Rechte (`buchfink:lesen`, `buchfink:buchen`),
-setzt den Erfassungsweg und ruft `Tenant.Read` oder `Tenant.Write`. Schreibende
+setzt den Erfassungsweg und ruft `Tenant.ReadAgent` oder `Tenant.WriteAgent`.
+Diese Einstiege verwenden die Kernvorgänge mit der begrenzten Dienstsicht. Schreibende
 Werkzeuge verlangen `mandant_id` und nehmen einen Idempotenzschlüssel an, der in
 derselben Transaktion gespeichert wird. Der Rahmen liest `Spec.Tier` aus dem
 Operationskatalog und weist unbekannte oder der App vorbehaltene Vorgänge bei

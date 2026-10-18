@@ -13,9 +13,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// wire verdrahtet Repositories und Dienste eines Mandanten. Die Reihenfolge
-// zählt: ein Dienst, der einen anderen gesetzt bekommt, muss nach ihm
-// entstehen.
+// wire verdrahtet Repositories, Dienste und ihre Erweiterungen je Mandant.
+// Gemeinsam genutzte Leser halten die gespeicherten Dienstverweise zyklusfrei.
 func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (*Services, stores) {
 	accountRepo := repository.NewAccountRepository(db)
 	journalRepo := repository.NewJournalRepository(db)

@@ -14,8 +14,13 @@ eigener OAuth-Autorisierungsserver, Zustimmung im Fenster der App). Claude
 Desktop verbindet sich über die stdio-Brücke `cmd/buchfink-mcp`. Jedes Werkzeug
 geht durch denselben Rahmen in `internal/mcpserver/tools.go`: Anmeldung lesen,
 geöffneten Mandanten mit Lease holen, Zulassung und Rechte für diesen Mandanten
-prüfen, den Erfassungsweg `agent:<kurzname>` setzen und über `Tenant.Read` oder
-`Tenant.Write` in die Dienste gehen. Werkzeuge rufen nur Dienste auf, nie
+prüfen, den Erfassungsweg `agent:<kurzname>` setzen und über `Tenant.ReadAgent`
+oder `Tenant.WriteAgent` in die Dienste gehen. Diese Einstiege verwenden
+`Read` und `Write` mit `core.AgentServices`, der auf die benötigten Methoden
+begrenzten Dienstsicht. Dieselbe Sicht verwendet `core/policy`.
+`TestAgentServicesMatchAdapterUse` hält den Adapter frei von vollständigen
+Diensttypen und prüft, dass jede Fassadenmethode genutzt wird.
+Werkzeuge rufen nur Dienste auf, nie
 Repositories (`TestToolsDoNotTouchRepositories`). Die Regeln für Routine stehen
 in `internal/core/policy`, die Vorbehalte der App im Kern und in den Diensten,
 nicht im Werkzeug und nicht im Prompt.
@@ -402,6 +407,8 @@ zu laden.
    `internal/ops` mit `Define(name, tier)` einordnen. Für `AppOnly` die
    Schutzstellen und Bridge-Methoden angeben und die Ausführungsproben in
    `TestAgentsAreRefusedForHumanOnlyOperations` ergänzen.
+   Benötigte Dienstmethoden in `core.AgentServices` aufnehmen; die Fassade
+   gibt weder vollständige Dienste noch Repositories heraus.
 2. Ein- und Ausgabe als Go-Structs mit `json`- und `jsonschema`-Tags. Beträge
    als `Betrag`, Daten als `Datum`, Gruppen und Steuerfälle als
    `Buchungsgruppe`, `Steuerfall`, `Satz`. Ein Auswahlfeld bekommt einen

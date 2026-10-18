@@ -13,6 +13,7 @@ nutzt Base UI, Tailwind CSS und Lucide; Typst setzt Rechnungen und Berichte
 | Aufgabe | Fundstelle |
 |---|---|
 | Werkzeug für Agenten | [internal/mcpserver/](../../internal/mcpserver), [MCP-Server](mcp.md) |
+| Dienstverdrahtung und Adaptergrenze | [core/wire.go](../../internal/core/wire.go), [Graph und Setter-Inventur](../../internal/core/wire_graph_test.go), [MCP-Fassade](../../internal/core/agent_services.go), [Fassadenwächter](../../internal/mcpserver/agent_services_test.go) |
 | Anmeldung und Zustimmung verbundener Apps | [internal/mcpserver/oauth/](../../internal/mcpserver/oauth), [internal/wailsbridge/mcp_service.go](../../internal/wailsbridge/mcp_service.go) |
 | Brücke für Claude Desktop | [cmd/buchfink-mcp/](../../cmd/buchfink-mcp), [packaging/claude-desktop/](../../packaging/claude-desktop) |
 | Was ein Agent ohne Rückfrage bucht, welche Pfade er lesen darf, Exportordner | [internal/core/policy/](../../internal/core/policy), [MCP-Server](mcp.md#regeln-für-direkt) |
