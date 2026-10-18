@@ -23,14 +23,13 @@ import (
 // Geschrieben wird wie überall über den JournalService: ein Saldenvortrag ist
 // eine Buchung wie jede andere, mit Nummer, Hash und Festschreibungsprüfung.
 type ClosingService struct {
+	fiscalCalendar
 	statementSource    *StatementService
 	reserveReceipts    closingReceiptFiler
-	fiscalYearRepo     domain.FiscalYearRepository
 	journalRepo        domain.JournalRepository
 	accountRepo        domain.AccountRepository
 	contactRepo        domain.ContactRepository
 	allocationRepo     domain.PaymentAllocationRepository
-	settingsRepo       domain.SettingsRepository
 	festschreibungRepo domain.FestschreibungRepository
 	foundationRepo     domain.FoundationRepository
 	auditRepo          domain.AuditRepository
@@ -64,12 +63,11 @@ func NewClosingService(
 	journalSvc *JournalService,
 ) *ClosingService {
 	return &ClosingService{
-		fiscalYearRepo:     fiscalYearRepo,
 		journalRepo:        journalRepo,
 		accountRepo:        accountRepo,
 		contactRepo:        contactRepo,
 		allocationRepo:     allocationRepo,
-		settingsRepo:       settingsRepo,
+		fiscalCalendar:     fiscalCalendar{fiscalYearRepo: fiscalYearRepo, settingsRepo: settingsRepo, limitMonth: true},
 		festschreibungRepo: festschreibungRepo,
 		auditRepo:          auditRepo,
 		journalSvc:         journalSvc,
@@ -451,17 +449,6 @@ func (s *ClosingService) foundingDate(ctx context.Context) string {
 		}
 	}
 	return ""
-}
-
-func (s *ClosingService) fiscalYearStartMonth(ctx context.Context) int {
-	if s.settingsRepo == nil {
-		return 1
-	}
-	cfg, err := s.settingsRepo.GetCompanySettings(ctx)
-	if err != nil || cfg == nil || cfg.FiscalYearStartMonth <= 0 || cfg.FiscalYearStartMonth > 12 {
-		return 1
-	}
-	return cfg.FiscalYearStartMonth
 }
 
 // -------------------------------------------------------------

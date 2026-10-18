@@ -3,14 +3,15 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
 type fiscalCalendar struct {
-	settingsRepo domain.SettingsRepository
-	years        domain.FiscalYearRepository
-	// Abschluss und Vorsteuerberichtigung begrenzen den Beginnmonat auf 1–12.
+	settingsRepo   domain.SettingsRepository
+	fiscalYearRepo domain.FiscalYearRepository
+	// Abschluss, Vorsteuerberichtigung und Geschenke begrenzen den Monat auf 1–12.
 	limitMonth bool
 }
 
@@ -29,8 +30,8 @@ func (c fiscalCalendar) fiscalYearStartMonth(ctx context.Context) int {
 }
 
 func (c fiscalCalendar) fiscalYearStart(ctx context.Context, year int) string {
-	if c.years != nil {
-		if fy, err := c.years.FindByYear(ctx, year); err == nil && fy != nil && fy.StartDate != "" {
+	if c.fiscalYearRepo != nil {
+		if fy, err := c.fiscalYearRepo.FindByYear(ctx, year); err == nil && fy != nil && fy.StartDate != "" {
 			return fy.StartDate
 		}
 	}
@@ -38,10 +39,18 @@ func (c fiscalCalendar) fiscalYearStart(ctx context.Context, year int) string {
 }
 
 func (c fiscalCalendar) fiscalYearEnd(ctx context.Context, year int) string {
-	if c.years != nil {
-		if fy, err := c.years.FindByYear(ctx, year); err == nil && fy != nil && fy.EndDate != "" {
+	if c.fiscalYearRepo != nil {
+		if fy, err := c.fiscalYearRepo.FindByYear(ctx, year); err == nil && fy != nil && fy.EndDate != "" {
 			return fy.EndDate
 		}
 	}
 	return fiscalYearEndDate(year, c.fiscalYearStartMonth(ctx))
+}
+
+func fiscalYearEndDate(fiscalYear, startMonth int) string {
+	if startMonth <= 1 || startMonth > 12 {
+		return fmt.Sprintf("%d-12-31", fiscalYear)
+	}
+	start := time.Date(fiscalYear, time.Month(startMonth), 1, 0, 0, 0, 0, time.UTC)
+	return start.AddDate(1, 0, -1).Format("2006-01-02")
 }

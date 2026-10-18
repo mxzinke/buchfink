@@ -62,6 +62,7 @@ type ExportLoanSource interface {
 // einer Überlassung gehört festgehalten, weil später niemand mehr sagen kann,
 // was der Prüfer bekommen hat.
 type ExportService struct {
+	fiscalCalendar
 	journalRepo    domain.JournalRepository
 	accountRepo    domain.AccountRepository
 	contactRepo    domain.ContactRepository
@@ -69,11 +70,9 @@ type ExportService struct {
 	assetRepo      domain.AssetRepository
 	allocationRepo domain.PaymentAllocationRepository
 	auditRepo      domain.AuditRepository
-	settingsRepo   domain.SettingsRepository
 	commitRepo     domain.FestschreibungRepository
 	vatReturnRepo  domain.VatReturnRepository
 	checkRunRepo   domain.CheckRunRepository
-	fiscalYearRepo domain.FiscalYearRepository
 
 	// procDocRepo liefert die erzeugten Fassungen der Verfahrensdokumentation.
 	// Optional: ein Export ohne sie vermerkt ihr Fehlen, statt zu scheitern.
@@ -108,8 +107,8 @@ func NewExportService(
 	return &ExportService{
 		journalRepo: journalRepo, accountRepo: accountRepo, contactRepo: contactRepo,
 		receiptRepo: receiptRepo, assetRepo: assetRepo, allocationRepo: allocationRepo,
-		auditRepo: auditRepo, settingsRepo: settingsRepo, commitRepo: commitRepo,
-		vatReturnRepo: vatReturnRepo, checkRunRepo: checkRunRepo, fiscalYearRepo: fiscalYearRepo,
+		auditRepo: auditRepo, fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo, fiscalYearRepo: fiscalYearRepo}, commitRepo: commitRepo,
+		vatReturnRepo: vatReturnRepo, checkRunRepo: checkRunRepo,
 		store: store, dataDir: dataDir,
 	}
 }
@@ -659,12 +658,7 @@ func (s *ExportService) fiscalYearBounds(ctx context.Context, year int) (string,
 			return fy.StartDate, fy.EndDate
 		}
 	}
-	startMonth := 1
-	if s.settingsRepo != nil {
-		if cfg, err := s.settingsRepo.GetCompanySettings(ctx); err == nil && cfg != nil && cfg.FiscalYearStartMonth > 0 {
-			startMonth = cfg.FiscalYearStartMonth
-		}
-	}
+	startMonth := s.fiscalYearStartMonth(ctx)
 	start := time.Date(year, time.Month(startMonth), 1, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(1, 0, -1)
 	return start.Format("2006-01-02"), end.Format("2006-01-02")

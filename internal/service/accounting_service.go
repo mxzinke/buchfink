@@ -15,11 +15,11 @@ import (
 // It only reads. Everything that writes goes through JournalService, so the
 // booking rules live in exactly one place.
 type AccountingService struct {
-	accountRepo  domain.AccountRepository
-	journalRepo  domain.JournalRepository
-	contactRepo  domain.ContactRepository
-	settingsRepo domain.SettingsRepository
-	journalSvc   *JournalService
+	fiscalCalendar
+	accountRepo domain.AccountRepository
+	journalRepo domain.JournalRepository
+	contactRepo domain.ContactRepository
+	journalSvc  *JournalService
 	// auditRepo protokolliert die Herausgabe von Daten (QUE-02 K2). Freiwillig
 	// wie überall: ohne ihn rechnet der Dienst weiter, nur schreibt er nichts.
 	auditRepo domain.AuditRepository
@@ -38,11 +38,11 @@ func NewAccountingService(
 	journalSvc *JournalService,
 ) *AccountingService {
 	return &AccountingService{
-		accountRepo:  accountRepo,
-		journalRepo:  journalRepo,
-		contactRepo:  contactRepo,
-		settingsRepo: settingsRepo,
-		journalSvc:   journalSvc,
+		accountRepo:    accountRepo,
+		journalRepo:    journalRepo,
+		contactRepo:    contactRepo,
+		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo},
+		journalSvc:     journalSvc,
 	}
 }
 
@@ -535,12 +535,7 @@ func (s *AccountingService) GetFinancialSummary(ctx context.Context, year int) (
 // GetAvailableFiscalYears lists the years that hold bookings, plus the current
 // one.
 func (s *AccountingService) GetAvailableFiscalYears(ctx context.Context) []int {
-	startMonth := 1
-	if s.settingsRepo != nil {
-		if cfg, err := s.settingsRepo.GetCompanySettings(ctx); err == nil && cfg != nil && cfg.FiscalYearStartMonth > 0 {
-			startMonth = cfg.FiscalYearStartMonth
-		}
-	}
+	startMonth := s.fiscalYearStartMonth(ctx)
 
 	years := map[int]bool{
 		domain.GetFiscalYearForDate(todayLocal(), startMonth): true,

@@ -18,10 +18,10 @@ import (
 // noch einmal führte, wäre die zweite Wahrheit, die beim ersten Storno von der
 // ersten abweicht.
 type GiftService struct {
-	journalRepo  domain.JournalRepository
-	journalSvc   *JournalService
-	settingsRepo domain.SettingsRepository
-	auditRepo    domain.AuditRepository
+	fiscalCalendar
+	journalRepo domain.JournalRepository
+	journalSvc  *JournalService
+	auditRepo   domain.AuditRepository
 }
 
 // NewGiftService wires die Auswertung der nicht abziehbaren Betriebsausgaben.
@@ -33,7 +33,8 @@ func NewGiftService(
 ) *GiftService {
 	return &GiftService{
 		journalRepo: journalRepo, journalSvc: journalSvc,
-		settingsRepo: settingsRepo, auditRepo: auditRepo,
+		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo, limitMonth: true},
+		auditRepo:      auditRepo,
 	}
 }
 
@@ -311,14 +312,7 @@ func (s *GiftService) NonDeductibleReport(ctx context.Context, year int) (*NonDe
 func (s *GiftService) giftLimit(ctx context.Context, year int) (domain.Cents, error) {
 	// Am ersten Tag des Wirtschaftsjahres gemessen: die Grenze gilt für
 	// Wirtschaftsjahre, die nach einem Stichtag beginnen.
-	month := 1
-	if s.settingsRepo != nil {
-		if settings, err := s.settingsRepo.GetCompanySettings(ctx); err == nil && settings != nil {
-			if settings.FiscalYearStartMonth >= 1 && settings.FiscalYearStartMonth <= 12 {
-				month = settings.FiscalYearStartMonth
-			}
-		}
-	}
+	month := s.fiscalYearStartMonth(ctx)
 	params, err := accounting.TaxParametersFor(fmt.Sprintf("%04d-%02d-01", year, month))
 	if err != nil {
 		return 0, err

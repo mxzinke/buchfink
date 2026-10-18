@@ -27,11 +27,11 @@ import (
 // im Jahr 2026 gebildet und 2028 verbraucht wird, hat Bewegungen aus drei Jahren,
 // und der Rückstellungsspiegel eines Jahres braucht sie alle.
 type ProvisionService struct {
+	fiscalCalendar
 	provisionRepo domain.ProvisionRepository
 	rateRepo      domain.DiscountRateRepository
 	journalRepo   domain.JournalRepository
 	journalSvc    *JournalService
-	settingsRepo  domain.SettingsRepository
 	auditRepo     domain.AuditRepository
 	closingSvc    *ClosingService
 	receipts      closingReceiptFiler
@@ -48,13 +48,13 @@ func NewProvisionService(
 	closingSvc *ClosingService,
 ) *ProvisionService {
 	return &ProvisionService{
-		provisionRepo: provisionRepo,
-		rateRepo:      rateRepo,
-		journalRepo:   journalRepo,
-		journalSvc:    journalSvc,
-		settingsRepo:  settingsRepo,
-		auditRepo:     auditRepo,
-		closingSvc:    closingSvc,
+		provisionRepo:  provisionRepo,
+		rateRepo:       rateRepo,
+		journalRepo:    journalRepo,
+		journalSvc:     journalSvc,
+		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo},
+		auditRepo:      auditRepo,
+		closingSvc:     closingSvc,
 	}
 }
 
@@ -1078,17 +1078,6 @@ func (s *ProvisionService) load(ctx context.Context, id uint) (*domain.Provision
 				"Bilde sie neu, wenn sie weiter gebraucht wird", provision.Text)
 	}
 	return &live[0], nil
-}
-
-func (s *ProvisionService) fiscalYearStartMonth(ctx context.Context) int {
-	if s.settingsRepo == nil {
-		return 1
-	}
-	settings, err := s.settingsRepo.GetCompanySettings(ctx)
-	if err != nil || settings == nil || settings.FiscalYearStartMonth <= 0 {
-		return 1
-	}
-	return settings.FiscalYearStartMonth
 }
 
 // fillEntryNumbers trägt die Buchungsnummern nach: die Bewegung speichert die

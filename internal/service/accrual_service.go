@@ -24,13 +24,13 @@ import (
 // durch den JournalService und hat damit Nummer, Hash und Periodenprüfung wie
 // jede andere.
 type AccrualService struct {
-	accrualRepo  domain.AccrualRepository
-	journalRepo  domain.JournalRepository
-	journalSvc   *JournalService
-	settingsRepo domain.SettingsRepository
-	auditRepo    domain.AuditRepository
-	closingSvc   *ClosingService
-	receipts     closingReceiptFiler
+	fiscalCalendar
+	accrualRepo domain.AccrualRepository
+	journalRepo domain.JournalRepository
+	journalSvc  *JournalService
+	auditRepo   domain.AuditRepository
+	closingSvc  *ClosingService
+	receipts    closingReceiptFiler
 }
 
 // NewAccrualService wires die Rechnungsabgrenzung.
@@ -43,12 +43,12 @@ func NewAccrualService(
 	closingSvc *ClosingService,
 ) *AccrualService {
 	return &AccrualService{
-		accrualRepo:  accrualRepo,
-		journalRepo:  journalRepo,
-		journalSvc:   journalSvc,
-		settingsRepo: settingsRepo,
-		auditRepo:    auditRepo,
-		closingSvc:   closingSvc,
+		accrualRepo:    accrualRepo,
+		journalRepo:    journalRepo,
+		journalSvc:     journalSvc,
+		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo},
+		auditRepo:      auditRepo,
+		closingSvc:     closingSvc,
 	}
 }
 
@@ -743,17 +743,6 @@ func (s *AccrualService) Report(ctx context.Context, cutoff string) (*AccrualRep
 	}
 	sort.Slice(report.Rows, func(i, j int) bool { return report.Rows[i].EndDate < report.Rows[j].EndDate })
 	return report, nil
-}
-
-func (s *AccrualService) fiscalYearStartMonth(ctx context.Context) int {
-	if s.settingsRepo == nil {
-		return 1
-	}
-	settings, err := s.settingsRepo.GetCompanySettings(ctx)
-	if err != nil || settings == nil || settings.FiscalYearStartMonth <= 0 {
-		return 1
-	}
-	return settings.FiscalYearStartMonth
 }
 
 func (s *AccrualService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) error {

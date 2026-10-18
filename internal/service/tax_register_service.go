@@ -33,15 +33,15 @@ import (
 // Gebucht wird in beiden Fällen nichts. Die Überleitung ist eine Rechnung neben
 // der Bilanz, keine zweite Buchführung.
 type TaxRegisterService struct {
+	fiscalCalendar
 	assetRepo     domain.AssetRepository
 	provisionRepo domain.ProvisionRepository
 	// journalRepo wird nur gelesen, und nur für eine Frage: ob die Buchung
 	// einer Rückstellungsbewegung per Generalumkehr zurückgenommen wurde. Eine
 	// stornierte Bildung gehört in keine Überleitung — sie steht auch in keiner
 	// Bilanz mehr.
-	journalRepo  domain.JournalRepository
-	settingsRepo domain.SettingsRepository
-	closingSvc   *ClosingService
+	journalRepo domain.JournalRepository
+	closingSvc  *ClosingService
 }
 
 // NewTaxRegisterService wires das Verzeichnis und die Überleitung.
@@ -54,7 +54,8 @@ func NewTaxRegisterService(
 ) *TaxRegisterService {
 	return &TaxRegisterService{
 		assetRepo: assetRepo, provisionRepo: provisionRepo, journalRepo: journalRepo,
-		settingsRepo: settingsRepo, closingSvc: closingSvc,
+		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo},
+		closingSvc:     closingSvc,
 	}
 }
 
@@ -208,17 +209,6 @@ func (s *TaxRegisterService) Register(ctx context.Context, year int) (*TaxElecti
 		return register.Rows[i].InventoryNumber < register.Rows[j].InventoryNumber
 	})
 	return register, nil
-}
-
-func (s *TaxRegisterService) fiscalYearStartMonth(ctx context.Context) int {
-	if s.settingsRepo == nil {
-		return 1
-	}
-	settings, err := s.settingsRepo.GetCompanySettings(ctx)
-	if err != nil || settings == nil || settings.FiscalYearStartMonth <= 0 {
-		return 1
-	}
-	return settings.FiscalYearStartMonth
 }
 
 // RegisterCSV gibt das Verzeichnis als CSV aus — eine Zeile je Wirtschaftsgut

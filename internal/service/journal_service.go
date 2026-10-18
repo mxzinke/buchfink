@@ -25,13 +25,12 @@ import (
 // bookable accounts, tax accounts reserved for the tax automation, gapless
 // numbering, an unbroken hash chain and respect for committed periods.
 type JournalService struct {
+	fiscalCalendar
 	journalRepo        domain.JournalRepository
 	accountRepo        domain.AccountRepository
 	contactRepo        domain.ContactRepository
 	auditRepo          domain.AuditRepository
-	settingsRepo       domain.SettingsRepository
 	festschreibungRepo domain.FestschreibungRepository
-	fiscalYearRepo     domain.FiscalYearRepository
 	// receiptRepo ist der Beleg, auf den eine Buchung verweist. Optional:
 	// ohne ihn bucht der Dienst wie zuvor, nur ohne die Kopfdatenprüfung.
 	receiptRepo domain.ReceiptRepository
@@ -66,14 +65,14 @@ func NewJournalService(
 	tx domain.TxRunner,
 ) *JournalService {
 	return &JournalService{
-		journalRepo:  journalRepo,
-		accountRepo:  accountRepo,
-		contactRepo:  contactRepo,
-		auditRepo:    auditRepo,
-		settingsRepo: settingsRepo,
-		tx:           tx,
-		hashChain:    accounting.NewHashChain(),
-		taxResolver:  accounting.NewSKR04TaxResolver(),
+		journalRepo:    journalRepo,
+		accountRepo:    accountRepo,
+		contactRepo:    contactRepo,
+		auditRepo:      auditRepo,
+		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo},
+		tx:             tx,
+		hashChain:      accounting.NewHashChain(),
+		taxResolver:    accounting.NewSKR04TaxResolver(),
 	}
 }
 
@@ -755,17 +754,6 @@ func (s *JournalService) ensureAccrualTaxation(ctx context.Context) error {
 		"Für diesen Mandanten ist die Istversteuerung hinterlegt. Buchfink unterstützt derzeit nur die Sollversteuerung (§ 16 Abs. 1 Satz 1 UStG): bei Istversteuerung entsteht die Steuer erst mit der Vereinnahmung des Entgelts (§ 13 Abs. 1 Nr. 1 Buchst. b UStG), und die Buchungen sähen anders aus. Stornos bestehender Buchungen bleiben möglich")
 }
 
-func (s *JournalService) fiscalYearStartMonth(ctx context.Context) int {
-	if s.settingsRepo == nil {
-		return 1
-	}
-	cfg, err := s.settingsRepo.GetCompanySettings(ctx)
-	if err != nil || cfg == nil || cfg.FiscalYearStartMonth <= 0 {
-		return 1
-	}
-	return cfg.FiscalYearStartMonth
-}
-
 func (s *JournalService) legalForm(ctx context.Context) string {
 	if s.settingsRepo == nil {
 		return ""
@@ -1042,29 +1030,6 @@ func (s *JournalService) assignClosingPeriod(ctx context.Context, e *domain.Jour
 			e.FiscalYear, end, e.BookingDate)
 	}
 	return nil
-}
-
-// fiscalYearEnd ist der Bilanzstichtag eines Geschäftsjahres: das Ende des
-// angelegten Jahres, ein Rumpfjahr eingeschlossen, sonst das Ende nach dem
-// Beginnmonat.
-func (s *JournalService) fiscalYearEnd(ctx context.Context, year int) string {
-	if s.fiscalYearRepo != nil {
-		if fy, err := s.fiscalYearRepo.FindByYear(ctx, year); err == nil && fy != nil && fy.EndDate != "" {
-			return fy.EndDate
-		}
-	}
-	return fiscalYearEndDate(year, s.fiscalYearStartMonth(ctx))
-}
-
-// fiscalYearStart ist der erste Tag eines Geschäftsjahres: der Beginn des
-// angelegten Jahres, sonst der nach dem Beginnmonat.
-func (s *JournalService) fiscalYearStart(ctx context.Context, year int) string {
-	if s.fiscalYearRepo != nil {
-		if fy, err := s.fiscalYearRepo.FindByYear(ctx, year); err == nil && fy != nil && fy.StartDate != "" {
-			return fy.StartDate
-		}
-	}
-	return fmt.Sprintf("%04d-%02d-01", year, s.fiscalYearStartMonth(ctx))
 }
 
 // ensureYearNotAdopted sperrt jede Buchung in ein Geschäftsjahr, dessen

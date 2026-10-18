@@ -24,12 +24,12 @@ import (
 // der Anteil, zu dem er gezogen wurde, und schon gar nicht der Anteil des
 // dritten Jahres. § 22 Abs. 4 UStG verlangt diese Aufzeichnungen.
 type InputTaxService struct {
-	repo         domain.InputTaxCorrectionRepository
-	journalSvc   *JournalService
-	journalRepo  domain.JournalRepository
-	settingsRepo domain.SettingsRepository
-	closingSvc   *ClosingService
-	auditRepo    domain.AuditRepository
+	fiscalCalendar
+	repo        domain.InputTaxCorrectionRepository
+	journalSvc  *JournalService
+	journalRepo domain.JournalRepository
+	closingSvc  *ClosingService
+	auditRepo   domain.AuditRepository
 }
 
 func (s *InputTaxService) runInTx(ctx context.Context, fn func(context.Context) error) error {
@@ -47,7 +47,8 @@ func NewInputTaxService(
 ) *InputTaxService {
 	return &InputTaxService{
 		repo: repo, journalSvc: journalSvc, journalRepo: journalRepo,
-		settingsRepo: settingsRepo, closingSvc: closingSvc, auditRepo: auditRepo,
+		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo, limitMonth: true},
+		closingSvc:     closingSvc, auditRepo: auditRepo,
 	}
 }
 
@@ -676,20 +677,6 @@ func (s *InputTaxService) entryNumbers(ctx context.Context, year int) (map[uint]
 		out[entries[i].ID] = entries[i].EntryNumber
 	}
 	return out, nil
-}
-
-func (s *InputTaxService) fiscalYearStartMonth(ctx context.Context) int {
-	if s.settingsRepo == nil {
-		return 1
-	}
-	settings, err := s.settingsRepo.GetCompanySettings(ctx)
-	if err != nil || settings == nil {
-		return 1
-	}
-	if settings.FiscalYearStartMonth < 1 || settings.FiscalYearStartMonth > 12 {
-		return 1
-	}
-	return settings.FiscalYearStartMonth
 }
 
 func (s *InputTaxService) audit(ctx context.Context, id uint, details string) error {

@@ -14,20 +14,19 @@ import (
 // InvoiceService manages outgoing invoices, their booking and the ZUGFeRD /
 // Typst rendering.
 type InvoiceService struct {
-	invoiceRepo  domain.InvoiceRepository
-	contactRepo  domain.ContactRepository
-	settingsRepo domain.SettingsRepository
-	numberRepo   domain.NumberRangeRepository
-	postingSvc   *PostingService
-	auditRepo    domain.AuditRepository
-	receiptSvc   *ReceiptService
-	renderer     *invoice.Renderer
+	fiscalCalendar
+	invoiceRepo domain.InvoiceRepository
+	contactRepo domain.ContactRepository
+	numberRepo  domain.NumberRangeRepository
+	postingSvc  *PostingService
+	auditRepo   domain.AuditRepository
+	receiptSvc  *ReceiptService
+	renderer    *invoice.Renderer
 
 	// Lückenbericht und Rechnungsverbund sind optionale Ergänzungen zur Ausstellung.
-	gapRepo        domain.NumberGapRepository
-	groupRepo      domain.InvoiceGroupRepository
-	fiscalYearRepo domain.FiscalYearRepository
-	bankRepo       domain.BankRepository
+	gapRepo   domain.NumberGapRepository
+	groupRepo domain.InvoiceGroupRepository
+	bankRepo  domain.BankRepository
 
 	// vatIDs ergänzt die Ausstellung um die optionale Bestätigungsabfrage der USt-IdNr.
 	vatIDs vatIDConfirmer
@@ -73,12 +72,12 @@ func NewInvoiceService(
 	auditRepo domain.AuditRepository,
 ) *InvoiceService {
 	return &InvoiceService{
-		invoiceRepo:  invoiceRepo,
-		contactRepo:  contactRepo,
-		settingsRepo: settingsRepo,
-		numberRepo:   numberRepo,
-		postingSvc:   postingSvc,
-		auditRepo:    auditRepo,
+		invoiceRepo:    invoiceRepo,
+		contactRepo:    contactRepo,
+		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo},
+		numberRepo:     numberRepo,
+		postingSvc:     postingSvc,
+		auditRepo:      auditRepo,
 	}
 }
 
@@ -1000,15 +999,4 @@ func (s *InvoiceService) GenerateZUGFeRDAndTypst(ctx context.Context, invoiceID 
 
 	typst = invoice.GenerateTypstTemplate(inv, seller, buyer)
 	return xml, typst, nil
-}
-
-func (s *InvoiceService) fiscalYearStartMonth(ctx context.Context) int {
-	if s.settingsRepo == nil {
-		return 1
-	}
-	cfg, err := s.settingsRepo.GetCompanySettings(ctx)
-	if err != nil || cfg == nil || cfg.FiscalYearStartMonth <= 0 {
-		return 1
-	}
-	return cfg.FiscalYearStartMonth
 }

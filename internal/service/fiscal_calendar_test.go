@@ -97,7 +97,7 @@ func TestFiscalCalendarBounds(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			settings := calendarSettings{value: &domain.CompanySettings{FiscalYearStartMonth: tc.month}}
-			calendar := fiscalCalendar{settingsRepo: settings, years: tc.years}
+			calendar := fiscalCalendar{settingsRepo: settings, fiscalYearRepo: tc.years}
 			journal := NewJournalService(nil, nil, nil, nil, settings, nil)
 			journal.SetFiscalYearRepo(tc.years)
 			for name, reader := range map[string]interface {

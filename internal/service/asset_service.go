@@ -22,21 +22,17 @@ import (
 // Anlagenkartei, which is kept across fiscal years while the journal is
 // organised per year.
 type AssetService struct {
-	assetRepo    domain.AssetRepository
-	journalRepo  domain.JournalRepository
-	journalSvc   *JournalService
-	numberRepo   domain.NumberRangeRepository
-	contactRepo  domain.ContactRepository
-	settingsRepo domain.SettingsRepository
-	auditRepo    domain.AuditRepository
-	taxResolver  domain.TaxResolver
+	fiscalCalendar
+	assetRepo   domain.AssetRepository
+	journalRepo domain.JournalRepository
+	journalSvc  *JournalService
+	numberRepo  domain.NumberRangeRepository
+	contactRepo domain.ContactRepository
+	auditRepo   domain.AuditRepository
+	taxResolver domain.TaxResolver
 	// inputTax ist das Verzeichnis nach § 15a UStG. Ohne es legt die Aktivierung
 	// keinen Eintrag an — mit ihm tut sie es von allein.
 	inputTax inputTaxRegistrar
-	// fiscalYearRepo liefert die tatsächlichen Zeiträume der Geschäftsjahre. Der
-	// Abschreibungsplan braucht sie, weil ein Rumpfjahr weniger als zwölf Monate
-	// trägt; ohne die Quelle rechnet er mit dem abgeleiteten vollen Jahr.
-	fiscalYearRepo domain.FiscalYearRepository
 }
 
 // SetFiscalYearRepo koppelt die Geschäftsjahre an den Abschreibungsplan.
@@ -78,14 +74,14 @@ func NewAssetService(
 	auditRepo domain.AuditRepository,
 ) *AssetService {
 	return &AssetService{
-		assetRepo:    assetRepo,
-		journalRepo:  journalRepo,
-		journalSvc:   journalSvc,
-		numberRepo:   numberRepo,
-		contactRepo:  contactRepo,
-		settingsRepo: settingsRepo,
-		auditRepo:    auditRepo,
-		taxResolver:  journalSvc.TaxResolver(),
+		assetRepo:      assetRepo,
+		journalRepo:    journalRepo,
+		journalSvc:     journalSvc,
+		numberRepo:     numberRepo,
+		contactRepo:    contactRepo,
+		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo},
+		auditRepo:      auditRepo,
+		taxResolver:    journalSvc.TaxResolver(),
 	}
 }
 
@@ -3159,17 +3155,6 @@ func (s *AssetService) fillEntryNumbers(ctx context.Context, movements []domain.
 	}
 }
 
-func (s *AssetService) fiscalYearStartMonth(ctx context.Context) int {
-	if s.settingsRepo == nil {
-		return 1
-	}
-	cfg, err := s.settingsRepo.GetCompanySettings(ctx)
-	if err != nil || cfg == nil || cfg.FiscalYearStartMonth <= 0 {
-		return 1
-	}
-	return cfg.FiscalYearStartMonth
-}
-
 func (s *AssetService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) error {
 	return logAudit(ctx, s.auditRepo, action, "ANLAGE", fmt.Sprintf("%d", id), details)
 }
@@ -3243,16 +3228,6 @@ func disposedBefore(asset *domain.FixedAsset, fiscalYear int) bool {
 		}
 	}
 	return false
-}
-
-// fiscalYearEndDate is the Bilanzstichtag of a fiscal year — the day the AfA is
-// booked on.
-func fiscalYearEndDate(fiscalYear, startMonth int) string {
-	if startMonth <= 1 || startMonth > 12 {
-		return fmt.Sprintf("%d-12-31", fiscalYear)
-	}
-	start := time.Date(fiscalYear, time.Month(startMonth), 1, 0, 0, 0, 0, time.UTC)
-	return start.AddDate(1, 0, -1).Format("2006-01-02")
 }
 
 func permilleLabel(permille int) string {
