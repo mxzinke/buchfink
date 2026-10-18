@@ -401,64 +401,34 @@ func vatMovements(src VatReturnSource) []vatMovement {
 			// der Seite der Buchung.
 			key := strings.TrimPrefix(line.TaxKey, TaxKeySkontoPrefix)
 
-			switch {
-			case key == "":
-				treatment := treatments[line.Account]
-				if treatment == "" {
-					continue
-				}
-				m.base = credit
-				switch treatment {
-				case domain.TaxTreatmentExempt:
-					m.code = VatCodeExemptNoDeduction
-				case domain.TaxTreatmentZeroRated:
-					// § 12 Abs. 3 UStG ist keine Befreiung, sondern ein
-					// steuerpflichtiger Umsatz zum Satz null: Kz 87.
-					m.code = VatCodeZeroRate
-					earlier = paymentDate
-				case domain.TaxTreatmentReverseChargeSupply:
-					m.code = reverseChargeSupplyCode(src, entry)
-				case domain.TaxTreatmentNotTaxable:
-					m.code = VatCodeNotTaxable
-				default:
-					continue
-				}
-
-			case key == "UST19":
-				m.code, m.base, m.tax, earlier = VatCodeStandardRate, base, credit, paymentDate
-			case key == "UST7":
-				m.code, m.base, m.tax, earlier = VatCodeReducedRate, base, credit, paymentDate
-			case key == TaxKeyUnlawful:
-				// § 14c UStG: der Betrag wird geschuldet, obwohl kein
-				// steuerpflichtiger Umsatz dahintersteht. Er hat deshalb keine
-				// Bemessungsgrundlage im Vordruck.
-				m.code, m.tax = VatCodeUnlawfulTax, credit
-			case key == "IG19_UST":
-				m.code, m.base, m.tax = VatCodeAcquisition19, base, credit
-			case key == "IG7_UST":
-				m.code, m.base, m.tax = VatCodeAcquisition7, base, credit
-			case isReverseChargeKey(key, TaxKeyReverseChargeEUPrefix, "_UST"):
-				m.code, m.base, m.tax, earlier, longTerm = VatCodeReverseChargeEU, base, credit, paymentDate, true
-			case isReverseChargeKey(key, TaxKeyReverseChargePrefix, "_UST"):
-				m.code, m.base, m.tax, earlier, longTerm = VatCodeReverseChargeOther, base, credit, paymentDate, true
-			case key == "VST19", key == "VST7":
-				m.code, m.tax = VatCodeInputTax, debit
-				docDate := entry.DocumentDate
-				earlier = func(payment string) string { return latest(payment, docDate, receivedAt) }
-			case key == "IG19_VST", key == "IG7_VST":
-				m.code, m.tax = VatCodeInputTaxAcquisition, debit
-			case isReverseChargeKey(key, TaxKeyReverseChargeEUPrefix, "_VST"),
-				isReverseChargeKey(key, TaxKeyReverseChargePrefix, "_VST"):
-				m.code, m.tax, earlier, longTerm = VatCodeInputTaxReverse, debit, paymentDate, true
-			case key == TaxKeyInputTaxCorrection:
-				// Die Berichtigung hat keine Bemessungsgrundlage im Vordruck: sie
-				// ist ein Steuerbetrag, der eine frühere Grundlage nachträglich
-				// anders bewertet. Die zurückzuzahlende Vorsteuer steht im Haben
-				// und mindert damit die abziehbaren Beträge der Kennziffer 64.
-				m.code, m.tax = VatCodeInputTaxCorrection, debit
-			default:
+			rule := vatCodeForLine(treatments[line.Account], line.TaxKey)
+			if rule.Code == "" {
 				continue
 			}
+			m.code = rule.Code
+			if rule.RecipientDependent {
+				m.code = reverseChargeSupplyCode(src, entry)
+			}
+			if rule.HasBase {
+				m.base = base
+			}
+			if rule.BaseFromAmount {
+				m.base = credit
+			}
+			switch rule.TaxSide {
+			case domain.SideCredit:
+				m.tax = credit
+			case domain.SideDebit:
+				m.tax = debit
+			}
+			switch rule.Prepayment {
+			case TaxPrepaymentOnPayment:
+				earlier = paymentDate
+			case TaxPrepaymentWithInvoice:
+				docDate := entry.DocumentDate
+				earlier = func(payment string) string { return latest(payment, docDate, receivedAt) }
+			}
+			longTerm = rule.LongTerm
 
 			total, events := gross, paymentArisings(gross, payments, earlier)
 			if longTerm {
@@ -478,6 +448,49 @@ func vatMovements(src VatReturnSource) []vatMovement {
 		}
 	}
 	return out
+}
+
+func vatCodeForLine(treatment domain.TaxTreatment, key string) TaxCaseVAT {
+	originalKey := key
+	key = strings.TrimPrefix(key, TaxKeySkontoPrefix)
+	v := TaxCaseVAT{Code: vatCodeForTaxKey[key]}
+	switch {
+	case key == "":
+		v.BaseFromAmount = true
+		switch treatment {
+		case domain.TaxTreatmentExempt:
+			v.Code = VatCodeExemptNoDeduction
+		case domain.TaxTreatmentZeroRated:
+			v.Code, v.Prepayment = VatCodeZeroRate, TaxPrepaymentOnPayment
+		case domain.TaxTreatmentReverseChargeSupply:
+			v.Code, v.RecipientDependent = VatCodeNotTaxable, true
+		case domain.TaxTreatmentNotTaxable:
+			v.Code = VatCodeNotTaxable
+		default:
+			return TaxCaseVAT{}
+		}
+	case key == "UST19", key == "UST7":
+		v.HasBase, v.TaxSide, v.Prepayment, v.BadDebtBase = true, domain.SideCredit, TaxPrepaymentOnPayment, originalKey == key
+	case key == TaxKeyUnlawful:
+		// § 14c UStG: geschuldete Steuer ohne Bemessungsgrundlage im Vordruck.
+		v.TaxSide = domain.SideCredit
+	case key == "IG19_UST", key == "IG7_UST":
+		v.HasBase, v.TaxSide = true, domain.SideCredit
+	case isReverseChargeKey(key, TaxKeyReverseChargeEUPrefix, "_UST"):
+		v.Code, v.HasBase, v.TaxSide, v.Prepayment, v.LongTerm = VatCodeReverseChargeEU, true, domain.SideCredit, TaxPrepaymentOnPayment, true
+	case isReverseChargeKey(key, TaxKeyReverseChargePrefix, "_UST"):
+		v.Code, v.HasBase, v.TaxSide, v.Prepayment, v.LongTerm = VatCodeReverseChargeOther, true, domain.SideCredit, TaxPrepaymentOnPayment, true
+	case key == "VST19", key == "VST7":
+		v.TaxSide, v.Prepayment = domain.SideDebit, TaxPrepaymentWithInvoice
+	case key == "IG19_VST", key == "IG7_VST":
+		v.TaxSide = domain.SideDebit
+	case isReverseChargeKey(key, TaxKeyReverseChargeEUPrefix, "_VST"), isReverseChargeKey(key, TaxKeyReverseChargePrefix, "_VST"):
+		v.Code, v.TaxSide, v.Prepayment, v.LongTerm = VatCodeInputTaxReverse, domain.SideDebit, TaxPrepaymentOnPayment, true
+	case key == TaxKeyInputTaxCorrection:
+		// § 15a UStG: auch als Abschlussbuchung ein Beitrag zur Voranmeldung.
+		v.TaxSide, v.AllowClosing = domain.SideDebit, originalKey == key
+	}
+	return v
 }
 
 // paymentDate: bei der Umsatzsteuer und beim § 13b entsteht die Steuer auf
