@@ -18,7 +18,7 @@ type ClosingService struct {
 	auditor[int]
 	fiscalCalendar
 	periods         *PeriodService
-	statementSource *StatementService
+	checks          *closingChecks
 	reserveReceipts closingReceiptFiler
 	journalRepo     domain.JournalRepository
 	accountRepo     domain.AccountRepository
@@ -35,10 +35,7 @@ type ClosingService struct {
 	// openingReversers lösen weitere Abschlussbuchungen des Vorjahres am
 	// ersten Tag auf, etwa die unfertigen Leistungen.
 	openingReversers []OpeningReverser
-	// revenue ist die GuV des Vorjahres. Sie belegt den Vorjahresumsatz vor,
-	// nach dem sich die Übergangsfrist des § 27 Abs. 38 UStG richtet.
-	revenue RevenueSource
-	now     func() time.Time
+	now              func() time.Time
 }
 
 // NewClosingService wires the Jahresabschluss.
@@ -49,7 +46,7 @@ func NewClosingService(
 	contactRepo domain.ContactRepository,
 	allocationRepo domain.PaymentAllocationRepository,
 	settingsRepo domain.SettingsRepository,
-	festschreibungRepo domain.FestschreibungRepository,
+	periods *PeriodService,
 	auditRepo domain.AuditRepository,
 	journalSvc *JournalService,
 ) *ClosingService {
@@ -63,12 +60,12 @@ func NewClosingService(
 		journalSvc:     journalSvc,
 		now:            time.Now,
 	}
-	s.periods = newPeriodService(journalRepo, settingsRepo, auditRepo, nil)
-	s.periods.fiscalYearRepo, s.periods.festschreibungRepo = fiscalYearRepo, festschreibungRepo
-	s.periods.closing = s
-	if journalSvc != nil {
-		s.periods.tx = journalSvc.tx
+	s.periods = periods
+	s.checks = &closingChecks{journalRepo: journalRepo, accountRepo: accountRepo, settingsRepo: settingsRepo, journalSvc: journalSvc}
+	if periods != nil {
+		s.checks.periods = periods.ReadOnly()
 	}
+
 	return s
 }
 
@@ -149,7 +146,7 @@ type RevenueSource interface {
 
 // SetRevenueSource koppelt die GuV an das Geschäftsjahr. Ohne sie bleibt der
 // Vorjahresumsatz eine reine Eingabe.
-func (s *ClosingService) SetRevenueSource(r RevenueSource) { s.revenue = r }
+func (s *ClosingService) SetRevenueSource(r RevenueSource) { s.periods.SetRevenueSource(r) }
 
 // -------------------------------------------------------------
 // Geschäftsjahre
@@ -352,7 +349,7 @@ func (s *ClosingService) createFiscalYear(ctx context.Context, year int) (*domai
 	}
 	// Der Vorjahresumsatz kommt aus der GuV des Vorjahres — die Angabe, nach der
 	// sich die Übergangsfrist des § 27 Abs. 38 Nr. 2 UStG richtet.
-	if err := s.prefillPriorYearRevenue(ctx, fy); err != nil {
+	if err := s.periods.prefillPriorYearRevenue(ctx, fy); err != nil {
 		return nil, err
 	}
 	// Die Anhangtexte des Vorjahres werden als Vorlage übernommen. Scheitert das,
@@ -1283,14 +1280,7 @@ func netIncomeOf(turnovers map[string]domain.AccountTurnover, chart *accounting.
 }
 
 func (s *ClosingService) chart(ctx context.Context) (*accounting.Chart, error) {
-	if s.journalSvc != nil {
-		return s.journalSvc.Chart(ctx)
-	}
-	accounts, err := s.accountRepo.FindAll(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("Kontenplan konnte nicht geladen werden: %w", err)
-	}
-	return accounting.NewChart(accounts), nil
+	return s.checks.chart(ctx)
 }
 
 func (s *ClosingService) ledgerAccountNames(ctx context.Context) (map[string]string, error) {
@@ -1499,32 +1489,6 @@ func (s *ClosingService) setPriorYearRevenue(ctx context.Context, year int, amou
 	return fy, nil
 }
 
-// prefillPriorYearRevenue belegt den Vorjahresumsatz eines neu angelegten
-// Geschäftsjahres aus der GuV des Vorjahres vor.
-//
-// Nur wo er noch nicht erfasst ist, und nur wo sich das Vorjahr überhaupt
-// auswerten lässt: eine Bilanz, die nicht aufgeht, gibt keine Umsatzerlöse her,
-// und das ist kein Grund, das neue Jahr nicht anzulegen. Die Vorbelegung ist
-// ein Vorschlag — ohne sie bliebe der Wert null, und null heißt „nicht
-// erfasst": die Übergangsregel des § 27 Abs. 38 Nr. 2 UStG käme dann nie zum
-// Zug.
-func (s *ClosingService) prefillPriorYearRevenue(ctx context.Context, fy *domain.FiscalYear) error {
-	if s.revenue == nil || fy == nil || fy.PriorYearRevenue != 0 {
-		return nil
-	}
-	revenue, err := s.revenue.RevenueOf(ctx, fy.Year-1)
-	if err != nil || revenue <= 0 {
-		return nil
-	}
-	fy.PriorYearRevenue = revenue
-	if err := s.fiscalYearRepo.Save(ctx, fy); err != nil {
-		return fmt.Errorf("der Vorjahresumsatz ließ sich nicht vorbelegen: %w", err)
-	}
-	return s.audit(ctx, domain.AuditActionUpdate, fy.Year, fmt.Sprintf(
-		"Vorjahresumsatz des Geschäftsjahres %d mit %s € aus der Gewinn- und Verlustrechnung des Jahres %d "+
-			"vorbelegt (§ 27 Abs. 38 Nr. 2 UStG)", fy.Year, revenue, fy.Year-1))
-}
-
 // PeriodOf liefert den Zeitraum eines Geschäftsjahres, ohne ihn anzulegen.
 //
 // Die Bilanz fragt danach, und eine Ansicht darf nichts erzeugen: wer den
@@ -1552,20 +1516,12 @@ func (s *ClosingService) EarliestFiscalYear(ctx context.Context) (int, error) {
 	return s.periods.EarliestFiscalYear(ctx)
 }
 
-func (s *ClosingService) SetStatementSource(source *StatementService) { s.statementSource = source }
-func (s *ClosingService) ensureStatementReady(ctx context.Context, year int) error {
-	if s.statementSource == nil {
-		return nil
-	}
-	fs, err := s.statementSource.Build(ctx, year, domain.DepthFull)
-	if err != nil {
-		return err
-	}
-	if len(fs.Header.Missing) > 0 {
-		return fmt.Errorf("für den Abschluss fehlen Unternehmensangaben: %s", strings.Join(fs.Header.Missing, ", "))
-	}
-	if len(fs.Notes.Missing) > 0 {
-		return fmt.Errorf("bitte unter Abschlussbausteine → Anhang ergänzen: %s. Wenn nichts anzugeben ist, halten Sie dies ausdrücklich fest", strings.Join(fs.Notes.Missing, ", "))
-	}
-	return nil
+func (s *ClosingService) SetStatementSource(source StatementBuilder) {
+	s.checks.statementSource = source
 }
+func (s *ClosingService) ensureStatementReady(ctx context.Context, year int) error {
+	return s.checks.EnsureStatementReady(ctx, year)
+}
+
+// AdoptionChecks teilt die Abschlussprüfungen mit der Periodenverwaltung.
+func (s *ClosingService) AdoptionChecks() PeriodAdoptionChecks { return s.checks }

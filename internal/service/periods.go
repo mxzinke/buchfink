@@ -28,26 +28,31 @@ type PeriodService struct {
 	*PeriodReader
 	auditor[int]
 	tx              domain.TxRunner
-	closing         periodClosing
+	adoption        PeriodAdoptionChecks
+	revenue         RevenueSource
 	preCommitChecks []PreCommitCheck
 }
 
-// periodClosing liefert die Abschlusszahlen und den Vorjahresumsatz.
-type periodClosing interface {
+// PeriodAdoptionChecks prüft die Abschlusszahlen vor einem Statuswechsel.
+type PeriodAdoptionChecks interface {
 	EnsureLegalReserve(context.Context, int) error
-	ensureStatementReady(context.Context, int) error
-	prefillPriorYearRevenue(context.Context, *domain.FiscalYear) error
+	EnsureStatementReady(context.Context, int) error
 }
+
+func (s *PeriodService) SetAdoptionChecks(checks PeriodAdoptionChecks) { s.adoption = checks }
+func (s *PeriodService) SetRevenueSource(source RevenueSource)         { s.revenue = source }
 
 func newPeriodReader(journal domain.JournalRepository, settings domain.SettingsRepository) *PeriodReader {
 	return &PeriodReader{fiscalCalendar: fiscalCalendar{settingsRepo: settings}, journalRepo: journal}
 }
 
-func newPeriodService(journal domain.JournalRepository, settings domain.SettingsRepository, audit domain.AuditRepository, tx domain.TxRunner) *PeriodService {
-	return &PeriodService{
-		PeriodReader: newPeriodReader(journal, settings),
-		auditor:      auditor[int]{auditRepo: audit, entity: "FISCAL_YEAR"}, tx: tx,
-	}
+// NewPeriodService verbindet Jahresverwaltung und Festschreibung mit ihrer Transaktion.
+func NewPeriodService(years domain.FiscalYearRepository, journal domain.JournalRepository,
+	settings domain.SettingsRepository, commitments domain.FestschreibungRepository,
+	foundation domain.FoundationRepository, audit domain.AuditRepository, tx domain.TxRunner) *PeriodService {
+	reader := newPeriodReader(journal, settings)
+	reader.fiscalYearRepo, reader.festschreibungRepo, reader.foundationRepo = years, commitments, foundation
+	return &PeriodService{PeriodReader: reader, auditor: auditor[int]{auditRepo: audit, entity: "FISCAL_YEAR"}, tx: tx}
 }
 
 // ReadOnly liefert die gemeinsame Periodensicht ohne Schreibvorgänge und Hooks.

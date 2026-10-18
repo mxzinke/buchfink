@@ -87,7 +87,7 @@ func (s *PeriodService) yearOf(ctx context.Context, year int) (*domain.FiscalYea
 		"Geschäftsjahr %d angelegt (%s bis %s%s)", year, derived.StartDate, derived.EndDate, shortSuffix(derived))); err != nil {
 		return nil, err
 	}
-	if err := s.closing.prefillPriorYearRevenue(ctx, derived); err != nil {
+	if err := s.prefillPriorYearRevenue(ctx, derived); err != nil {
 		return nil, err
 	}
 	return derived, nil
@@ -235,4 +235,30 @@ func (s *PeriodReader) EarliestFiscalYear(ctx context.Context) (int, error) {
 		}
 	}
 	return earliest, nil
+}
+
+// prefillPriorYearRevenue belegt den Vorjahresumsatz eines neu angelegten
+// Geschäftsjahres aus der GuV des Vorjahres vor.
+//
+// Nur wo er noch nicht erfasst ist, und nur wo sich das Vorjahr überhaupt
+// auswerten lässt: eine Bilanz, die nicht aufgeht, gibt keine Umsatzerlöse her,
+// und das ist kein Grund, das neue Jahr nicht anzulegen. Die Vorbelegung ist
+// ein Vorschlag — ohne sie bliebe der Wert null, und null heißt „nicht
+// erfasst": die Übergangsregel des § 27 Abs. 38 Nr. 2 UStG käme dann nie zum
+// Zug.
+func (s *PeriodService) prefillPriorYearRevenue(ctx context.Context, fy *domain.FiscalYear) error {
+	if s.revenue == nil || fy == nil || fy.PriorYearRevenue != 0 {
+		return nil
+	}
+	revenue, err := s.revenue.RevenueOf(ctx, fy.Year-1)
+	if err != nil || revenue <= 0 {
+		return nil
+	}
+	fy.PriorYearRevenue = revenue
+	if err := s.fiscalYearRepo.Save(ctx, fy); err != nil {
+		return fmt.Errorf("der Vorjahresumsatz ließ sich nicht vorbelegen: %w", err)
+	}
+	return s.audit(ctx, domain.AuditActionUpdate, fy.Year, fmt.Sprintf(
+		"Vorjahresumsatz des Geschäftsjahres %d mit %s € aus der Gewinn- und Verlustrechnung des Jahres %d "+
+			"vorbelegt (§ 27 Abs. 38 Nr. 2 UStG)", fy.Year, revenue, fy.Year-1))
 }

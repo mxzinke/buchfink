@@ -18,6 +18,9 @@ func (e *testEnv) closing(t *testing.T) *ClosingService {
 	t.Helper()
 	e.journal.SetFiscalYearRepo(repository.NewFiscalYearRepository(e.db))
 	e.journal.SetFestschreibungRepo(repository.NewFestschreibungRepository(e.db))
+	periods := NewPeriodService(repository.NewFiscalYearRepository(e.db), e.journalRepo,
+		repository.NewSettingsRepository(e.db), repository.NewFestschreibungRepository(e.db), nil,
+		repository.NewAuditRepository(e.db), e.journal.tx)
 	closing := NewClosingService(
 		repository.NewFiscalYearRepository(e.db),
 		e.journalRepo,
@@ -25,10 +28,11 @@ func (e *testEnv) closing(t *testing.T) *ClosingService {
 		e.contactRepo,
 		repository.NewPaymentAllocationRepository(e.db),
 		repository.NewSettingsRepository(e.db),
-		repository.NewFestschreibungRepository(e.db),
+		periods,
 		repository.NewAuditRepository(e.db),
 		e.journal,
 	)
+	periods.SetAdoptionChecks(closing.AdoptionChecks())
 	closing.SetClock(func() time.Time { return time.Date(2026, 11, 15, 12, 0, 0, 0, time.UTC) })
 	return closing
 }

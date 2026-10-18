@@ -24,61 +24,11 @@ func (s *ClosingService) SetReservePosting(receipts closingReceiptFiler) {
 	s.reserveReceipts = receipts
 }
 
-// LegalReserve belongs to the balance sheet of the profit year (§ 5a GmbHG).
-// Transfers use a result-appropriation account and never reduce taxable profit.
 func (s *ClosingService) LegalReserve(ctx context.Context, year int) (*LegalReserveState, error) {
-	state := &LegalReserveState{Year: year}
-	if s.settingsRepo == nil {
-		return state, nil
-	}
-	settings, err := s.settingsRepo.GetCompanySettings(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if settings == nil || !isEntrepreneurialCompany(settings.LegalForm) {
-		return state, nil
-	}
-	turnovers, err := s.journalRepo.AccountTurnovers(ctx, year)
-	if err != nil {
-		return nil, err
-	}
-	capital := turnovers[domain.AccountGezeichnetesKapital]
-	if capital.Credit-capital.Debit >= 2500000 {
-		return state, nil
-	}
-	state.Applies = true
-	chart, err := s.chart(ctx)
-	if err != nil {
-		return nil, err
-	}
-	state.NetIncome = netIncomeOf(turnovers, chart)
-	loss, profit := turnovers[domain.AccountVerlustvortrag], turnovers[domain.AccountGewinnvortrag]
-	state.LossCarryForward = max(domain.Cents(0), loss.Debit-loss.Credit-(profit.Credit-profit.Debit))
-	base := max(domain.Cents(0), state.NetIncome-state.LossCarryForward)
-	// Round up to a cent so the statutory quarter is never undershot.
-	state.Required = base / 4
-	if base%4 != 0 {
-		state.Required++
-	}
-	allocation := turnovers[legalReserveExpenseAccount]
-	state.Booked = allocation.Debit - allocation.Credit
-	state.Difference = state.Required - state.Booked
-	period, err := s.PeriodOf(ctx, year)
-	if err != nil {
-		return nil, err
-	}
-	state.Date = period.EndDate
-	return state, nil
+	return s.checks.LegalReserve(ctx, year)
 }
 func (s *ClosingService) EnsureLegalReserve(ctx context.Context, year int) error {
-	reserve, err := s.LegalReserve(ctx, year)
-	if err != nil {
-		return err
-	}
-	if reserve.Applies && reserve.Difference != 0 {
-		return fmt.Errorf("die gesetzliche UG-Rücklage für %d ist noch nicht vollständig im Abschluss gebucht: erforderlich %s €, gebucht %s €. Bitte unter Jahresabschluss die Rücklage bilden bzw. anpassen", year, reserve.Required, reserve.Booked)
-	}
-	return nil
+	return s.checks.EnsureLegalReserve(ctx, year)
 }
 func (s *ClosingService) BookLegalReserve(ctx context.Context, year int) (*domain.JournalEntry, error) {
 	if s.reserveReceipts == nil {

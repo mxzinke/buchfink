@@ -29,12 +29,17 @@ func TestServiceDependencyGraph(t *testing.T) {
 	t.Logf("Dienstabhängigkeiten (%d):\n%s", len(edges), strings.Join(edges, "\n"))
 	cycles := dependencyCycles(graph)
 	t.Logf("Zyklische Komponenten (%d):\n%s", len(cycles), strings.Join(cycles, "\n"))
-	// Jede entfernte Komponente verkleinert diese Ausgangsliste.
-	want := []string{
-		"ClosingService, PeriodService",
+	if len(cycles) != 0 {
+		t.Fatalf("zyklische Komponenten: %q", cycles)
 	}
-	if !slices.Equal(cycles, want) {
-		t.Fatalf("zyklische Komponenten: %q; erwartet %q", cycles, want)
+
+	// Auch ein Kreis hinter einer schmalen Schnittstelle muss auffallen.
+	s := openTenant(t, h).svc
+	s.Currency.SetOpenItemSource(s.Payments)
+	regression := serviceDependencies(reflect.ValueOf(s).Elem())
+	want := []string{"CurrencyService, PaymentService, PostingService, ShareholderService, settlement"}
+	if got := dependencyCycles(regression); !slices.Equal(got, want) {
+		t.Fatalf("Kreis durch OpenItemSource: %q; erwartet %q", got, want)
 	}
 }
 
@@ -57,6 +62,13 @@ func serviceDependencies(root reflect.Value) dependencyGraph {
 		if v.Kind() == reflect.Slice || v.Kind() == reflect.Array {
 			for i := 0; i < v.Len(); i++ {
 				visit(v.Index(i), owner)
+			}
+			return
+		}
+		if v.Kind() == reflect.Map {
+			iter := v.MapRange()
+			for iter.Next() {
+				visit(iter.Value(), owner)
 			}
 			return
 		}

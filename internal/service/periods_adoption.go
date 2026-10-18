@@ -108,10 +108,13 @@ func (s *PeriodService) setFiscalYearStatus(
 				"aufstellen, bevor das Jahr vorbei ist", date, fy.EndDate)
 	}
 
-	if err := s.closing.EnsureLegalReserve(ctx, year); err != nil {
+	if s.adoption == nil {
+		return nil, fmt.Errorf("Abschlussprüfung ist nicht eingerichtet")
+	}
+	if err := s.adoption.EnsureLegalReserve(ctx, year); err != nil {
 		return nil, err
 	}
-	if err := s.closing.ensureStatementReady(ctx, year); err != nil {
+	if err := s.adoption.EnsureStatementReady(ctx, year); err != nil {
 		return nil, err
 	}
 	switch status {

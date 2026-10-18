@@ -68,7 +68,9 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 
 	// Der Journaldienst ist der einzige Schreibweg ins Journal und hält die
 	// Transaktion aller Vorgänge, die über ihn buchen.
+	s.Periods = service.NewPeriodService(fiscalYearRepo, journalRepo, settingsRepo, festschreibungRepo, foundationRepo, auditRepo, txRunner)
 	s.Journal = service.NewJournalService(journalRepo, accountRepo, contactRepo, auditRepo, settingsRepo, txRunner)
+	s.Journal.SetPeriods(s.Periods)
 	s.Journal.AddEntryRules(taxrules.EntryRules()...)
 	s.Journal.AddTaxAccountExceptions(taxrules.TaxAccountExceptions()...)
 	s.Journal.SetReceiptRepo(receiptRepo)
@@ -128,11 +130,10 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 
 	s.Closing = service.NewClosingService(
 		fiscalYearRepo, journalRepo, accountRepo, contactRepo, allocationRepo,
-		settingsRepo, festschreibungRepo, auditRepo, s.Journal,
+		settingsRepo, s.Periods, auditRepo, s.Journal,
 	)
-	s.Periods = s.Closing.Periods()
-	s.Journal.SetPeriods(s.Periods)
-	s.Closing.SetFoundationRepo(foundationRepo)
+	adoptionChecks := s.Closing.AdoptionChecks()
+	s.Periods.SetAdoptionChecks(adoptionChecks)
 	s.Foundation.SetFoundingYearAligner(s.Closing)
 	s.ClosingSettings = service.NewClosingSettingsService(settingsRepo, auditRepo)
 
@@ -192,7 +193,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 
 	s.Statement = service.NewStatementService(s.Accounting, s.Periods.ReadOnly(), settingsRepo, auditRepo)
 	s.Statement.SetOpenItemSource(s.Payments)
-	s.Closing.SetRevenueSource(s.Statement.Figures())
+	s.Periods.SetRevenueSource(s.Statement.Figures())
 	s.Statement.SetRenderer(renderer)
 	s.Foundation.SetStatementSource(s.Statement)
 	s.Foundation.SetRenderer(renderer)
@@ -226,7 +227,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Periods.AddPreCommitChecks(
 		service.PreCommitCheck{Name: "legal_reserve", Check: func(ctx context.Context, fy domain.FiscalYear, r service.PeriodCommitRequest) error {
 			if r.PeriodType == domain.PeriodTypeYear || r.CutoffDate >= fy.EndDate {
-				return s.Closing.EnsureLegalReserve(ctx, fy.Year)
+				return adoptionChecks.EnsureLegalReserve(ctx, fy.Year)
 			}
 			return nil
 		}},
