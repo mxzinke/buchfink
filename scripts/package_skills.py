@@ -9,13 +9,15 @@ Prüfsummen aller Dateien.
 
 Geprüft wird vor dem Packen:
 - Frontmatter nach dem Agent-Skills-Standard (https://agentskills.io/specification),
-  nur die dort definierten Felder, weil die Spezifikation keine anderen kennt und
-  skills-ref validate jedes andere Feld meldet;
+  davon nur name, description, license (EUPL-1.2), compatibility und metadata;
 - name gleich Ordnername, SKILL.md unter MAX_SKILL_LINES Zeilen;
 - jeder Link auf references/ zeigt auf eine vorhandene Datei;
 - keine Symlinks innerhalb eines Skills;
 - plugins/buchfink-buchhaltung/skills/ enthält für jeden Skill genau einen
-  relativen Symlink ../../../skills/<name> und sonst nichts.
+  relativen Symlink ../../../skills/<name> und sonst nichts;
+- marketplace.json, plugin.json und .mcp.json passen zu Ordner und Server.
+
+Den Inhalt der Skills (Links, Anker, Pflichten) prüft scripts/check_skills.py.
 
 Aufruf:
     python3 scripts/package_skills.py              # prüfen und nach dist/skills packen
@@ -29,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 import re
 import sys
@@ -38,11 +41,14 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 PLUGIN_NAME = "buchfink-buchhaltung"
+MARKETPLACE_NAME = "buchfink"
+MCP_URL = "http://127.0.0.1:7465/mcp"
+LICENSE = "EUPL-1.2"
 BUNDLE_NAME = "buchfink-skills.zip"
 
 # Projektregel; der Standard empfiehlt unter 500.
 MAX_SKILL_LINES = 300
-ALLOWED_KEYS = {"name", "description", "license", "compatibility", "metadata", "allowed-tools"}
+ALLOWED_KEYS = {"name", "description", "license", "compatibility", "metadata"}
 NAME_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 REFERENCE_LINK_RE = re.compile(r"\]\((references/[^)#\s]+)")
 IGNORED_NAMES = {".DS_Store", "Thumbs.db", "__pycache__"}
@@ -144,6 +150,9 @@ def check_skill(skill_dir: Path, problems: Problems) -> None:
     if not isinstance(description, str) or not 1 <= len(description) <= 1024:
         problems.add(where, "description fehlt oder ist länger als 1024 Zeichen")
 
+    if meta.get("license") != LICENSE:
+        problems.add(where, f"license muss {LICENSE} sein")
+
     compatibility = meta.get("compatibility")
     if compatibility is not None and (not isinstance(compatibility, str) or len(compatibility) > 500):
         problems.add(where, "compatibility ist länger als 500 Zeichen")
@@ -156,6 +165,7 @@ def check_skill(skill_dir: Path, problems: Problems) -> None:
     lines = skill_md.read_text(encoding="utf-8").count("\n")
     if lines >= MAX_SKILL_LINES:
         problems.add(where, f"SKILL.md hat {lines} Zeilen, erlaubt sind unter {MAX_SKILL_LINES}")
+    print(f"{skill_dir.name}: {lines} Zeilen, description {len(description or '')} Zeichen")
 
     for target in sorted(set(REFERENCE_LINK_RE.findall(skill_md.read_text(encoding="utf-8")))):
         if not (skill_dir / target).is_file():
@@ -183,6 +193,56 @@ def check_plugin_links(skills: list[str], plugin_skills: Path, problems: Problem
             problems.add(where, f"{name} zeigt auf {os.readlink(link)}, erwartet {expected}")
     for extra in sorted(present):
         problems.add(where, f"{extra} gehört zu keinem Skill unter skills/")
+
+
+def load_json(path: Path, problems: Problems) -> dict:
+    where = str(path.relative_to(REPO)) if path.is_relative_to(REPO) else str(path)
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        problems.add(where, "Datei fehlt")
+        return {}
+    except json.JSONDecodeError as err:
+        problems.add(where, f"kein gültiges JSON: {err}")
+        return {}
+    if not isinstance(data, dict):
+        problems.add(where, "erwartet ein JSON-Objekt")
+        return {}
+    return data
+
+
+def check_manifests(repo: Path, plugin_dir: Path, problems: Problems) -> None:
+    """Prüft, was Claude Code beim Installieren liest: Marketplace, Plugin, Server."""
+    market_path = repo / ".claude-plugin" / "marketplace.json"
+    market = load_json(market_path, problems)
+    if market:
+        where = ".claude-plugin/marketplace.json"
+        if market.get("name") != MARKETPLACE_NAME:
+            problems.add(where, f"name {market.get('name')!r}, erwartet {MARKETPLACE_NAME!r}")
+        entries = [p for p in market.get("plugins", []) if isinstance(p, dict) and p.get("name") == PLUGIN_NAME]
+        if len(entries) != 1:
+            problems.add(where, f"genau ein Eintrag {PLUGIN_NAME!r} erwartet, gefunden {len(entries)}")
+        for entry in entries:
+            source = entry.get("source")
+            if not isinstance(source, str) or (repo / source).resolve() != plugin_dir.resolve():
+                problems.add(where, f"source {source!r} zeigt nicht auf plugins/{PLUGIN_NAME}")
+
+    plugin = load_json(plugin_dir / ".claude-plugin" / "plugin.json", problems)
+    if plugin:
+        where = f"plugins/{PLUGIN_NAME}/.claude-plugin/plugin.json"
+        if plugin.get("name") != PLUGIN_NAME:
+            problems.add(where, f"name {plugin.get('name')!r}, erwartet {PLUGIN_NAME!r}")
+        if plugin.get("license") != LICENSE:
+            problems.add(where, f"license muss {LICENSE} sein")
+
+    mcp = load_json(plugin_dir / ".mcp.json", problems)
+    if mcp:
+        where = f"plugins/{PLUGIN_NAME}/.mcp.json"
+        server = mcp.get("mcpServers", {}).get("buchfink") if isinstance(mcp.get("mcpServers"), dict) else None
+        if not isinstance(server, dict):
+            problems.add(where, "mcpServers.buchfink fehlt")
+        elif server.get("type") != "http" or server.get("url") != MCP_URL:
+            problems.add(where, f"mcpServers.buchfink muss type http und url {MCP_URL} haben")
 
 
 def skill_files(skill_dir: Path) -> list[Path]:
@@ -258,6 +318,7 @@ def main() -> int:
     for skill_dir in skill_dirs:
         check_skill(skill_dir, problems)
     check_plugin_links([p.name for p in skill_dirs], args.plugin_dir / "skills", problems)
+    check_manifests(REPO, args.plugin_dir, problems)
 
     if problems.items:
         print("Die Skills sind nicht bereit:", file=sys.stderr)
