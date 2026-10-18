@@ -26,6 +26,8 @@ type TaxCaseSkonto struct {
 	Legs    []domain.TaxLeg
 }
 
+// Skonto berichtigt Entgelt und Steuer nach § 17 Abs. 1 UStG. Bei § 13b und
+// ig. Erwerb werden beide Steuerzeilen berichtigt (Satz 5), obwohl sie sich saldieren.
 func (c TaxCase) Skonto(direction domain.Direction, rate domain.TaxRate, gross domain.Cents) (TaxCaseSkonto, error) {
 	skontoRate := domain.TaxRateNone
 	if c.MayShowTax() {

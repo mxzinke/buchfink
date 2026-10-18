@@ -581,24 +581,8 @@ func (s *PaymentService) differenceLines(
 	return nil, nil, fmt.Errorf("unbekannte Differenzart %q", alloc.DifferenceKind)
 }
 
-// skontoLines books a Skonto as what it is in tax law: a change of the taxable
-// amount under § 17 Abs. 1 UStG.
-//
-// Satz 1 makes the supplier correct the tax it owes, Satz 2 makes the recipient
-// correct the input tax it deducted, and Satz 8 puts both into the period in
-// which the change occurred — which is why this runs with the payment and not
-// as a backdated change to the invoice. Satz 5 extends all of it to § 13b and
-// to the innergemeinschaftlicher Erwerb, where the recipient owes the tax and
-// deducts it again: there both legs have to be corrected, even though they
-// cancel out. UStAE 17.1 Abs. 3 says so in as many words — the duty to correct
-// exists "auch dann, wenn sich die Berichtigung der Steuer und die Berichtigung
-// des Vorsteuerabzugs im Ergebnis ausgleichen". Netting them away would leave
-// two lines of the Voranmeldung overstated.
-//
-// The tax lines come from the Steuerautomatik rather than from a second table of
-// account numbers here. That is what keeps a Skonto on a § 13b purchase from
-// landing on 1406, and it is why the correction follows the Steuerfall of the
-// original document instead of guessing from the rate.
+// skontoLines ordnet die Entgeltminderung aus dem Steuerfall-Katalog dem
+// offenen Posten und gegebenenfalls seinem Anlagegut zu.
 func (s *PaymentService) skontoLines(
 	ctx context.Context,
 	alloc AllocationRequest,
@@ -612,44 +596,14 @@ func (s *PaymentService) skontoLines(
 	}
 	direction := item.Direction()
 
-	// Nur beim steuerpflichtigen Inlandsumsatz steckt die Steuer im offenen
-	// Betrag. Bei § 13b, beim innergemeinschaftlichen Erwerb und bei jedem
-	// steuerfreien Umsatz ist die Rechnung netto ausgestellt — dort ist das
-	// ganze Skonto Bemessungsgrundlage, und ihm eine Steuer herauszurechnen,
-	// die nie berechnet wurde, verkürzte die Minderung um 19 %. Derselbe Satz
-	// entscheidet über das Skontokonto: ohne ausgewiesene Steuer ist es das
-	// ohne Steuersatz.
-	skontoRate := domain.TaxRateNone
-	if item.TaxTreatment == domain.TaxTreatmentDomestic {
-		skontoRate = item.TaxRate
-	}
-	net := skontoRate.NetFromGross(alloc.DifferenceAmount)
-
-	// Der Steuersatz des Belegs bleibt der des Belegs: er bestimmt die Höhe der
-	// Berichtigung, auch wo im Skonto selbst keine Steuer steckt.
-	legs, err := s.journalSvc.TaxResolver().Resolve(direction, item.TaxTreatment, item.TaxRate, net)
+	skonto, err := accounting.TaxCaseFor(item.TaxTreatment).Skonto(direction, item.TaxRate, alloc.DifferenceAmount)
 	if err != nil {
 		return nil, nil, fmt.Errorf("die Steuerkorrektur des Skontos ließ sich nicht auflösen: %w", err)
 	}
 
-	// Auf eine Anlagenrechnung mindert das Skonto die Anschaffungskosten und
-	// nicht den Aufwand.
-	//
-	// § 255 Abs. 1 Satz 3 HGB zieht Anschaffungspreisminderungen von den
-	// Anschaffungskosten ab; auf 5736 gebucht wäre das Skonto ein Ertrag des
-	// Zahlungsjahres, und die AfA liefe weiter von einem Wert, den das
-	// Wirtschaftsgut nie gekostet hat. Die Steuerkorrektur nach § 17 Abs. 1 UStG
-	// bleibt davon unberührt: sie richtet sich nach dem Umsatz, nicht danach, was mit dem
-	// Entgelt im Anlagevermögen geschieht.
-	account, err := domain.SkontoAccount(direction, skontoRate)
-	if err != nil {
-		return nil, nil, err
-	}
-	// Das Skonto auf eine Leistung mit Steuerschuld des Empfängers hat ein
-	// eigenes Konto: nur so mindert es Kz 21 und die Zusammenfassende Meldung.
-	if direction == domain.DirectionOutgoing && item.TaxTreatment == domain.TaxTreatmentReverseChargeSupply {
-		account = accounting.ReverseChargeSupplySkontoAccount
-	}
+	// Anschaffungspreisminderungen senken die Anschaffungskosten (§ 255 Abs. 1
+	// Satz 3 HGB). Die Steuerkorrektur richtet sich weiterhin nach dem Umsatz.
+	account := skonto.Account
 	text := "Skonto"
 	var reduction *assetCostReduction
 	if asset := s.assetForItem(ctx, item, direction); asset != nil {
@@ -657,24 +611,17 @@ func (s *PaymentService) skontoLines(
 		text = "Skonto: Minderung der Anschaffungskosten " + asset.InventoryNumber
 		reduction = &assetCostReduction{
 			assetID: asset.ID,
-			amount:  net,
+			amount:  skonto.Net,
 			note: fmt.Sprintf("Skonto auf %s: Minderung der Anschaffungskosten "+
 				"(§ 255 Abs. 1 Satz 3 HGB)", item.DocumentNumber),
 		}
 	}
 
 	lines := []domain.JournalLine{
-		{Side: opposite, Account: account, Amount: net, Text: text},
+		{Side: opposite, Account: account, Amount: skonto.Net, Text: text},
 	}
-	for _, leg := range legs {
-		if leg.Amount == 0 {
-			continue
-		}
-		// Die Minderung steht der ursprünglichen Steuerzeile gegenüber: was die
-		// Rechnung im Soll gebucht hat, wird im Haben zurückgenommen.
+	for _, leg := range skonto.Legs {
 		line := taxLegLine(leg)
-		line.Side = leg.Side.Opposite()
-		line.TaxKey = accounting.TaxKeySkontoPrefix + leg.Key
 		line.Text = "Steuerkorrektur Skonto (§ 17 Abs. 1 UStG)"
 		lines = append(lines, line)
 	}
