@@ -46,6 +46,8 @@ type (
 	ErklaerungArt    string
 	JahrArt          string
 	Quelle           string
+	DarlehenRichtung string
+	Zinsmethode      string
 	Monat            string
 	Zeitraum         string
 )
@@ -58,7 +60,7 @@ type choice struct {
 var choices = map[reflect.Type]choice{
 	reflect.TypeFor[KontenArt]():       {[]string{"suche", "buchungsgruppen", "steuerfaelle"}, "suche: Konten des SKR04; buchungsgruppen; steuerfaelle"},
 	reflect.TypeFor[Richtung]():        {[]string{"eingang", "ausgang"}, "eingang oder ausgang"},
-	reflect.TypeFor[AuswertungArt]():   {[]string{"susa", "kontoblatt", "bilanz", "guv", "ust", "pruefbericht"}, "Art der Auswertung"},
+	reflect.TypeFor[AuswertungArt]():   {[]string{"susa", "kontoblatt", "bilanz", "guv", "ust", "pruefbericht", "darlehen"}, "Art der Auswertung"},
 	reflect.TypeFor[Gliederung]():      {[]string{"voll", "kurz", "buchstaben"}, "Tiefe der Gliederung; Vorgabe voll"},
 	reflect.TypeFor[BelegStatus]():     {[]string{"abgelegt", "gebucht", "verworfen"}, "abgelegt (noch nicht gebucht), gebucht oder verworfen"},
 	reflect.TypeFor[BelegArt]():        {choiceKeys(receiptKinds), "Belegart"},
@@ -85,6 +87,9 @@ var choices = map[reflect.Type]choice{
 	reflect.TypeFor[ErklaerungArt](): {[]string{"ustva", "zm", "ust_jahr", "kst", "gewst"}, "Art der Anmeldung oder Erklärung"},
 	reflect.TypeFor[JahrArt]():       {choiceKeys(declarationKinds), "Jahreserklärung"},
 	reflect.TypeFor[Quelle]():        {choiceKeys(inputSources), "Herkunft der Angabe; Vorgabe mensch"},
+	reflect.TypeFor[DarlehenRichtung](): {choiceKeys(loanDirections),
+		"an_gesellschaft: der Gesellschafter leiht der GmbH; an_gesellschafter: die GmbH leiht ihm"},
+	reflect.TypeFor[Zinsmethode](): {choiceKeys(dayCounts), "Zinsmethode; Vorgabe act/365"},
 }
 
 var patterns = map[reflect.Type]*jsonschema.Schema{
@@ -186,6 +191,14 @@ var suggestionKinds = map[string]service.SuggestionKind{
 
 var depths = map[Gliederung]domain.StatementDepth{
 	"voll": domain.DepthFull, "kurz": domain.DepthShort, "buchstaben": domain.DepthLetters,
+}
+
+var loanDirections = map[DarlehenRichtung]domain.LoanDirection{
+	"an_gesellschaft": domain.LoanToCompany, "an_gesellschafter": domain.LoanToShareholder,
+}
+
+var dayCounts = map[Zinsmethode]domain.DayCount{
+	"act/365": domain.DayCountAct365, "act/360": domain.DayCountAct360, "30/360": domain.DayCount30E360,
 }
 
 var inputSources = map[Quelle]declaration.InputSource{

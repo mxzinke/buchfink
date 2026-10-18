@@ -1,10 +1,10 @@
 package mcpserver
 
 // registerTools registriert den Werkzeugkatalog. Was nur in der App geht
-// (Festschreibung, Übermittlung, Pflicht erledigt, Aufstellen bis Offenlegen,
-// Ergebnisverwendung, Stammdaten und Bankkonten, Darlehensverträge,
-// Standardgruppe bestätigen, Prüfermodus, Apps, Regeln für Apps), hat kein
-// Werkzeug; docs/entwicklung/mcp.md führt die Liste.
+// (Festschreibung, Übermittlung, Pflicht als erledigt, Aufstellen bis
+// Offenlegen, Stammdaten samt Gesellschaftern und Bankkonten, Ablage, Eingang
+// und Ordner, Standardgruppe bestätigen, Prüfermodus, Apps, Regeln für Apps),
+// hat kein Werkzeug; docs/entwicklung/mcp.md führt die Liste.
 func registerTools(tb *Toolbox) {
 	registerStatus(tb)
 	registerAufgaben(tb)
@@ -18,5 +18,7 @@ func registerTools(tb *Toolbox) {
 	registerPosten(tb)
 	registerRechnung(tb)
 	registerAbschluss(tb)
+	registerGesellschaft(tb)
+	registerVerfahrensdoku(tb)
 	registerErklaerung(tb)
 }

@@ -593,8 +593,9 @@ func registerBuchen(tb *Toolbox) {
 			"(grund, brutto). Für Umbuchungen, Kreditkartenabrechnung ohne Bankumsatz, Abschlussbuchungen im " +
 			"13. Monat (abschlussperiode) und die Gründung: Zeichnung des Stammkapitals (1298, bei Resteinlage auch " +
 			"2910, an 2900) zum Tag der Beurkundung mit dem Gesellschaftsvertrag als Beleg, Einforderung (1298 an " +
-			"2910) mit dem Beschluss. Eingangsrechnungen über beleg_buchen, Bankumsätze über bankumsatz_buchen. " +
-			"Vorher Buchungssatz, Beträge und Beleg im Chat vorlegen und bestätigen lassen.",
+			"2910) mit dem Beschluss. Eingangsrechnungen über beleg_buchen, Bankumsätze über bankumsatz_buchen, " +
+			"Ergebnisverwendung über ergebnisverwendung_buchen. Vorher Buchungssatz, Beträge und Beleg im Chat " +
+			"vorlegen und bestätigen lassen.",
 	}, func(ctx context.Context, c *Call, s *core.Services, in buchungErfassenIn) (buchungOut, error) {
 		req, err := in.request()
 		if err != nil {

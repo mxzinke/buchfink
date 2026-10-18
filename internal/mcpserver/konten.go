@@ -69,11 +69,11 @@ func direction(s Richtung) domain.Direction {
 // --- auswertung -------------------------------------------------------------
 
 type auswertungIn struct {
-	Art            AuswertungArt `json:"art" jsonschema:"susa (Summen und Salden), kontoblatt, bilanz, guv, ust (Umsatzsteuer-Übersicht) oder pruefbericht"`
+	Art            AuswertungArt `json:"art" jsonschema:"susa (Summen und Salden), kontoblatt, bilanz, guv, ust (Umsatzsteuer-Übersicht), pruefbericht oder darlehen (Gesellschafterdarlehen mit Stand)"`
 	Geschaeftsjahr int           `json:"geschaeftsjahr,omitempty"`
 	Konto          Konto         `json:"konto,omitempty" jsonschema:"Sachkonto des SKR04 für art=kontoblatt; Buchungen eines Personenkontos liefert buchungen_suchen mit kontakt_id"`
 	Von            Datum         `json:"von,omitempty" jsonschema:"kontoblatt, ust: Beginn; Vorgabe Beginn des Geschäftsjahres"`
-	Bis            Datum         `json:"bis,omitempty" jsonschema:"kontoblatt, ust, pruefbericht: Ende oder Stichtag; Vorgabe Ende des Geschäftsjahres bzw. heute"`
+	Bis            Datum         `json:"bis,omitempty" jsonschema:"kontoblatt, ust, pruefbericht, darlehen: Ende oder Stichtag; Vorgabe Ende des Geschäftsjahres bzw. heute"`
 	Tiefe          Gliederung    `json:"tiefe,omitempty" jsonschema:"bilanz, guv"`
 	Seite
 }
@@ -149,13 +149,15 @@ type auswertungOut struct {
 	Umsatzsteuer   []ustZeile       `json:"umsatzsteuer"`
 	Zahllast       *Betrag          `json:"zahllast,omitempty"`
 	Befunde        []befundZeile    `json:"befunde"`
+	Darlehen       []darlehenZeile  `json:"darlehen"`
 	Hinweis        string           `json:"hinweis,omitempty"`
 	Seitenende
 }
 
 func emptyAuswertung(art string, year int) auswertungOut {
 	return auswertungOut{Art: art, Geschaeftsjahr: year, Susa: []susaZeile{}, Aktiva: []abschlussZeile{},
-		Passiva: []abschlussZeile{}, GuV: []abschlussZeile{}, Umsatzsteuer: []ustZeile{}, Befunde: []befundZeile{}}
+		Passiva: []abschlussZeile{}, GuV: []abschlussZeile{}, Umsatzsteuer: []ustZeile{}, Befunde: []befundZeile{},
+		Darlehen: []darlehenZeile{}}
 }
 
 func statementLines(lines []domain.StatementLine) []abschlussZeile {
@@ -234,7 +236,8 @@ func registerKonten(tb *Toolbox) {
 		Title: "Auswertung",
 		Description: "Zahlen der Bücher: susa (Summen und Salden je Konto), kontoblatt (Buchungen eines Kontos mit " +
 			"laufendem Saldo), bilanz, guv (mit Vorjahr), ust (Umsatzsteuer-Übersicht eines Zeitraums), pruefbericht " +
-			"(Befunde des Prüflaufs, ohne ihn zu speichern). Listen seitenweise. Für einzelne Buchungen buchung_lesen.",
+			"(Befunde des Prüflaufs, ohne ihn zu speichern), darlehen (Gesellschafterdarlehen mit Stand und Befunden " +
+			"zum Fremdvergleich). Listen seitenweise. Für einzelne Buchungen buchung_lesen.",
 	}, func(ctx context.Context, c *Call, s *core.Services, in auswertungIn) (auswertungOut, error) {
 		year, err := yearOr(ctx, c, in.Geschaeftsjahr)
 		if err != nil {
@@ -371,8 +374,24 @@ func registerKonten(tb *Toolbox) {
 			}
 			out.Befunde, out.Seitenende, err = Paginate(rows, in.Seite)
 			return out, err
+		case "darlehen":
+			cutoff := to
+			if cutoff == "" {
+				cutoff = today()
+			}
+			loans, err := s.Shareholders.Loans(ctx, cutoff)
+			if err != nil {
+				return out, err
+			}
+			rows := make([]darlehenZeile, 0, len(loans))
+			for i := range loans {
+				rows = append(rows, darlehenOf(&loans[i]))
+			}
+			out.Stichtag = cutoff
+			out.Darlehen, out.Seitenende, err = Paginate(rows, in.Seite)
+			return out, err
 		}
-		return out, inputError("art", "unbekannte Art %q (susa, kontoblatt, bilanz, guv, ust, pruefbericht)", in.Art)
+		return out, inputError("art", "unbekannte Art %q (susa, kontoblatt, bilanz, guv, ust, pruefbericht, darlehen)", in.Art)
 	})
 }
 

@@ -152,34 +152,9 @@ func (s *ShareholderService) CorrectLoan(ctx context.Context, id uint, req LoanR
 		return nil, fmt.Errorf("eine Berichtigung des Darlehensvertrags braucht einen Grund")
 	}
 	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*LoanView, error) {
-		before, err := s.loans.FindByID(ctx, id)
-		if err != nil {
-			return nil, fmt.Errorf("Darlehen %d wurde nicht gefunden: %w", id, err)
-		}
-		loan, contact, cfg, err := s.loanFrom(ctx, req)
+		before, loan, contact, cfg, err := s.correctedLoan(ctx, id, req)
 		if err != nil {
 			return nil, err
-		}
-		loan.ID, loan.CreatedAt = before.ID, before.CreatedAt
-		booked, err := s.bookedInterest(ctx, id)
-		if err != nil {
-			return nil, err
-		}
-		if len(booked) > 0 {
-			through := ""
-			for _, p := range booked {
-				if p.PeriodTo > through {
-					through = p.PeriodTo
-				}
-			}
-			if changed := interestTermsChanged(before, loan); changed != "" {
-				return nil, fmt.Errorf("für das Darlehen sind Zinsen bis %s gebucht; %s ändert sich erst, wenn "+
-					"die Zinsbuchungen storniert sind", domain.GermanDate(through), changed)
-			}
-			if loan.MaturityDate != "" && loan.MaturityDate < through {
-				return nil, fmt.Errorf("die Fälligkeit %s liegt vor dem Ende der gebuchten Zinsen am %s",
-					domain.GermanDate(loan.MaturityDate), domain.GermanDate(through))
-			}
 		}
 		if err := s.loans.Save(ctx, loan); err != nil {
 			return nil, fmt.Errorf("der Darlehensvertrag ließ sich nicht speichern: %w", err)
@@ -191,6 +166,60 @@ func (s *ShareholderService) CorrectLoan(ctx context.Context, id uint, req LoanR
 		}
 		return s.view(ctx, loan, contact, cfg, loan.StartDate)
 	})
+}
+
+// PreviewLoan prüft einen Vertrag wie RegisterLoan oder, mit id, wie
+// CorrectLoan und rechnet Konten, Stand und Befunde, ohne zu speichern.
+func (s *ShareholderService) PreviewLoan(ctx context.Context, id uint, req LoanRequest) (*LoanView, error) {
+	if id != 0 {
+		_, loan, contact, cfg, err := s.correctedLoan(ctx, id, req)
+		if err != nil {
+			return nil, err
+		}
+		return s.view(ctx, loan, contact, cfg, loan.StartDate)
+	}
+	loan, contact, cfg, err := s.loanFrom(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return s.view(ctx, loan, contact, cfg, loan.StartDate)
+}
+
+// correctedLoan ist der berichtigte Vertrag neben dem bisherigen. Sind Zinsen
+// gebucht, weist es eine Änderung der Angaben ab, aus denen sie gerechnet sind.
+func (s *ShareholderService) correctedLoan(
+	ctx context.Context, id uint, req LoanRequest,
+) (*domain.ShareholderLoan, *domain.ShareholderLoan, *domain.Contact, *domain.CompanySettings, error) {
+	before, err := s.loans.FindByID(ctx, id)
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("Darlehen %d wurde nicht gefunden: %w", id, err)
+	}
+	loan, contact, cfg, err := s.loanFrom(ctx, req)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	loan.ID, loan.CreatedAt = before.ID, before.CreatedAt
+	booked, err := s.bookedInterest(ctx, id)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	if len(booked) > 0 {
+		through := ""
+		for _, p := range booked {
+			if p.PeriodTo > through {
+				through = p.PeriodTo
+			}
+		}
+		if changed := interestTermsChanged(before, loan); changed != "" {
+			return nil, nil, nil, nil, fmt.Errorf("für das Darlehen sind Zinsen bis %s gebucht; %s ändert sich erst, "+
+				"wenn die Zinsbuchungen storniert sind", domain.GermanDate(through), changed)
+		}
+		if loan.MaturityDate != "" && loan.MaturityDate < through {
+			return nil, nil, nil, nil, fmt.Errorf("die Fälligkeit %s liegt vor dem Ende der gebuchten Zinsen am %s",
+				domain.GermanDate(loan.MaturityDate), domain.GermanDate(through))
+		}
+	}
+	return before, loan, contact, cfg, nil
 }
 
 // interestTermsChanged nennt die Angaben, aus denen gebuchte Zinsen gerechnet
