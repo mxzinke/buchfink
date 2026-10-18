@@ -258,31 +258,15 @@ func TestReportsAndClosing(t *testing.T) {
 	var statement ablageOut
 	a.ok("beleg_ablegen", a.args(map[string]any{"eingang_am": today(), "dateien": []any{map[string]any{"pfad": h.inboxFile("einzahlung.pdf", pdf("Kontoauszug"))}},
 		"belegdatum": "2026-02-03", "aussteller": "Hausbank", "brutto": "25000.00"}), &statement)
-	// Kapital, Rücklagen, Ausschüttung und Gesellschafterdarlehen haben einen
-	// Fachweg; von Hand bucht sie ein Agent nicht.
-	capital := map[string]any{"idempotenz_schluessel": "kapital-2026", "buchungsdatum": "2026-02-03", "beschreibung": "Stammkapital eingezahlt",
-		"steuerfall": "not_taxable", "beleg_id": statement.Beleg.ID,
+	// Das Stammkapital bucht der Agent selbst, mit dem Kontoauszug als Beleg.
+	var capital buchungAntwort
+	a.ok("buchung_erfassen", a.args(map[string]any{"idempotenz_schluessel": "kapital-2026", "buchungsdatum": "2026-02-03",
+		"beschreibung": "Stammkapital eingezahlt", "steuerfall": "not_taxable", "beleg_id": statement.Beleg.ID,
 		"zeilen": []any{map[string]any{"konto": "1800", "seite": "S", "betrag": "25000.00"},
-			map[string]any{"konto": "2900", "seite": "H", "betrag": "25000.00"}}}
-	a.fail("buchung_erfassen", a.args(capital), CodeAppOnly)
-	for _, lines := range [][2]string{{"2970", "3519"}, {"2970", "2930"}, {"2970", "2960"}, {"1800", "3640"}} {
-		e := a.fail("buchung_erfassen", a.args(map[string]any{"idempotenz_schluessel": "beschluss-" + lines[1], "buchungsdatum": "2026-06-30",
-			"beschreibung": "Gesellschafterbeschluss", "steuerfall": "not_taxable",
-			"eigenbeleg": map[string]any{"grund": "Gesellschafterbeschluss", "brutto": "1000.00"},
-			"zeilen": []any{map[string]any{"konto": lines[0], "seite": "S", "betrag": "1000.00"},
-				map[string]any{"konto": lines[1], "seite": "H", "betrag": "1000.00"}}}), CodeAppOnly)
-		if e.Werkzeug != "nur_app" {
-			t.Errorf("%v: %+v", lines, e)
-		}
+			map[string]any{"konto": "2900", "seite": "H", "betrag": "25000.00"}}}), &capital)
+	if capital.Buchung == nil || capital.Buchung.ID == 0 {
+		t.Fatalf("Stammkapital: %+v", capital)
 	}
-	h.ui(func(ctx context.Context, s *core.Services) error {
-		_, err := s.Posting.PostManualEntry(ctx, service.ManualEntryRequest{ReceiptID: statement.Beleg.ID,
-			Entry: domain.JournalEntry{BookingDate: "2026-02-03", DocumentDate: "2026-02-03", ServiceDateFrom: "2026-02-03",
-				ServiceDateTo: "2026-02-03", Description: "Stammkapital eingezahlt", TaxTreatment: domain.TaxTreatmentNotTaxable,
-				Lines: []domain.JournalLine{{Position: 1, Side: domain.SideDebit, Account: "1800", Amount: 2500000},
-					{Position: 2, Side: domain.SideCredit, Account: "2900", Amount: 2500000}}}})
-		return err
-	})
 
 	var report struct {
 		Susa []struct {
@@ -646,6 +630,26 @@ func TestInvoicePreviewAndIssue(t *testing.T) {
 	a.ok("rechnung_ausstellen", in, &replay)
 	if !replay.Wiederholt || replay.RechnungID != issued.RechnungID {
 		t.Errorf("Wiederholung: %+v", replay)
+	}
+}
+
+// Kapital, Rücklagen, Ausschüttung und Gesellschafterkonten bucht der Agent
+// von Hand wie jedes andere Konto; ein Fehler lässt sich stornieren.
+func TestManualEntryReachesEquityAndShareholderAccounts(t *testing.T) {
+	h := newHarness(t)
+	h.completeCompany()
+	h.warmRenderer()
+	a := h.agent("")
+	for _, lines := range [][2]string{{"2970", "3519"}, {"2970", "2930"}, {"2970", "2960"}, {"1800", "3640"}, {"1298", "2900"}} {
+		var out buchungAntwort
+		a.ok("buchung_erfassen", a.args(map[string]any{"idempotenz_schluessel": "beschluss-" + lines[1], "buchungsdatum": "2026-06-30",
+			"beschreibung": "Gesellschafterbeschluss", "steuerfall": "not_taxable",
+			"eigenbeleg": map[string]any{"grund": "Gesellschafterbeschluss", "brutto": "1000.00"},
+			"zeilen": []any{map[string]any{"konto": lines[0], "seite": "S", "betrag": "1000.00"},
+				map[string]any{"konto": lines[1], "seite": "H", "betrag": "1000.00"}}}), &out)
+		if out.Buchung == nil || len(out.Buchung.Zeilen) != 2 || out.Buchung.Zeilen[1].Konto != lines[1] {
+			t.Errorf("%v: %+v", lines, out.Buchung)
+		}
 	}
 }
 

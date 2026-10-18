@@ -122,12 +122,7 @@ type LoanView struct {
 // RegisterLoan legt einen Darlehensvertrag an. Konto und Zinskonto folgen aus
 // Richtung, Laufzeit und Beteiligung, wenn sie nicht angegeben sind.
 // Unübliche Konditionen sperren nichts; sie stehen als Befund am Ergebnis.
-// Den Vertrag erfasst der Mensch in der App: er steuert Zinsbuchungen und den
-// Fremdvergleich.
 func (s *ShareholderService) RegisterLoan(ctx context.Context, req LoanRequest) (*LoanView, error) {
-	if err := requireHuman(ctx, "Das Erfassen eines Gesellschafterdarlehens"); err != nil {
-		return nil, err
-	}
 	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*LoanView, error) {
 		loan, contact, cfg, err := s.loanFrom(ctx, req)
 		if err != nil {
@@ -152,9 +147,6 @@ func (s *ShareholderService) RegisterLoan(ctx context.Context, req LoanRequest) 
 // Angaben, aus denen sie gerechnet sind; sie ändern sich erst nach dem Storno
 // der Zinsbuchungen.
 func (s *ShareholderService) CorrectLoan(ctx context.Context, id uint, req LoanRequest, reason string) (*LoanView, error) {
-	if err := requireHuman(ctx, "Das Berichtigen eines Gesellschafterdarlehens"); err != nil {
-		return nil, err
-	}
 	reason = strings.TrimSpace(reason)
 	if reason == "" {
 		return nil, fmt.Errorf("eine Berichtigung des Darlehensvertrags braucht einen Grund")

@@ -33,14 +33,6 @@ Der Agent fragt laut Skill selbst; eine zweite Abfrage des Clients wäre doppelt
 Die Dienste weisen Vorgänge der App für jeden Erfassungsweg außer `ui` ab
 (`requireHuman`, `core.AppOnly`), das Werkzeug meldet dann `nur_in_app`.
 
-Daneben haben einige Konten einen Fachweg, an dem ein Agent nicht vorbeibucht.
-Handbuchung, Neubuchung beim Storno und die Aufteilung eines Bankumsatzes
-weisen für ihn ab: Kapital, Rücklagen und Ergebnisvortrag (2000 bis 2999),
-offene Ausschüttung (3519), einbehaltene Kapitalertragsteuer (3760) und die
-Gesellschafterkonten (0960, 1307 bis 1309, 3640 bis 3643). Die Zahlung einer
-beschlossenen Ausschüttung über die Bank bleibt möglich, ein Darlehen über
-`bankumsatz_buchen` mit `darlehen_id` auch.
-
 ## Eingaben und Ausgaben
 
 Schreibende Werkzeuge verlangen `mandant_id` aus `status`. Wer in einem
@@ -141,7 +133,7 @@ Text, der mit `validating` beginnt.
 | `mandant_gewechselt` | `mandant_id` ist nicht der geöffnete Mandant; nichts geschrieben |
 | `berechtigung_fehlt` | Scope `buchfink:lesen` oder `buchfink:buchen` fehlt |
 | `pruefermodus_aktiv` | Prüfermodus, nur lesen; Exporte laufen weiter |
-| `nur_in_app` | der Vorgang gehört dem Menschen in der App, auch ein Konto mit Fachweg |
+| `nur_in_app` | der Vorgang gehört dem Menschen in der App |
 | `freigabe_noetig` | kein Routinefall; `gruende` nennt die Regeln, `werkzeug` das Werkzeug mit Rückfrage |
 | `pfad_nicht_erlaubt` | Pfad liegt außerhalb der Belegordner, in einem gesperrten Ordner oder hat weitere harte Verweise |
 | `datei_ungueltig` | Datei fehlt im Belegordner, Typ, Größe oder Inhalt passt nicht |
@@ -259,8 +251,7 @@ Belegdatei und `rechnung_ausstellen` PDF und E-Rechnung zum Versand.
 ## Ein Werkzeug ergänzen
 
 1. Dienst zuerst: die fachliche Regel und jede Sperre für Agenten
-   (`requireHuman`, Fachweg-Konten) gehören in `internal/service`, nicht ins
-   Werkzeug.
+   (`requireHuman`) gehören in `internal/service`, nicht ins Werkzeug.
 2. Ein- und Ausgabe als Go-Structs mit `json`- und `jsonschema`-Tags. Beträge
    als `Betrag`, Daten als `Datum`, Gruppen und Steuerfälle als
    `Buchungsgruppe`, `Steuerfall`, `Satz`. Ein Auswahlfeld bekommt einen

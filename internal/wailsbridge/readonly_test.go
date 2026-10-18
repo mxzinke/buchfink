@@ -158,27 +158,33 @@ func TestEveryBridgeMethodIsClassified(t *testing.T) {
 	}
 }
 
-// Übermittlungsbestätigung, Aufstellen/Feststellen/Offenlegen und die
-// Stammdaten des Unternehmens sind der App vorbehalten. Der Kern weist sie für
-// jeden anderen Erfassungsweg ab, wenn die Bridge sie als solche kennzeichnet;
-// die Dienste tun es zusätzlich selbst. Die Festschreibung ist ein Vorgang des
-// Kerns und prüft den Erfassungsweg dort (core.Tenant.CommitPeriod).
+// Übermittlungsbestätigung, Pflicht als erledigt, Aufstellen/Feststellen/
+// Offenlegen, die Stammdaten des Unternehmens samt Gründung und Bankkonten,
+// die Abschluss-Einstellungen und die Regeln für Apps sind der App
+// vorbehalten. Der Kern weist sie für jeden anderen Erfassungsweg ab, wenn die
+// Bridge sie als solche kennzeichnet; die Dienste tun es zusätzlich selbst.
+// Die Festschreibung ist ein Vorgang des Kerns und prüft den Erfassungsweg
+// dort (core.Tenant.CommitPeriod). Was ein Agent ebenso darf, trägt die
+// Kennzeichnung nicht.
 func TestAppOnlyOperationsAreMarked(t *testing.T) {
 	methods := bridgeMethods(t)
-	for _, name := range []string{
-		"ConfirmVatReturnSubmitted", "ConfirmZMSubmitted",
-		"SetFiscalYearStatus", "ReopenFiscalYear", "UpdateCompanySettings",
-		"ConfigureBankAccounts", "SetInvoiceBankAccount", "BookAppropriation",
-		"RegisterShareholderLoan", "CorrectShareholderLoan",
-		"SaveAgentRules", "ConfirmDefaultPostingGroup",
+	for name, appOnly := range map[string]bool{
+		"ConfirmVatReturnSubmitted": true, "ConfirmZMSubmitted": true, "MarkDeadlineDone": true,
+		"SetFiscalYearStatus": true, "ReopenFiscalYear": true, "UpdateCompanySettings": true,
+		"SaveFoundation": true, "RegisterCompany": true, "SaveClosingSettings": true,
+		"ConfigureBankAccounts": true, "SetInvoiceBankAccount": true,
+		"SaveAgentRules": true, "ConfirmDefaultPostingGroup": true,
+
+		"BookAppropriation": false, "RegisterShareholderLoan": false, "CorrectShareholderLoan": false,
+		"SaveOrganisationTexts": false,
 	} {
 		m, ok := methods[name]
 		if !ok {
 			t.Errorf("die Methode %s gibt es nicht mehr", name)
 			continue
 		}
-		if !m.appOnly {
-			t.Errorf("%s.%s schreibt ohne core.AppOnly()", m.file, name)
+		if m.appOnly != appOnly {
+			t.Errorf("%s.%s: core.AppOnly() %v, erwartet %v", m.file, name, m.appOnly, appOnly)
 		}
 	}
 }

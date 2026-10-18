@@ -244,15 +244,14 @@ func appropriationExplanation(a *domain.Appropriation) string {
 	return strings.TrimSpace(b.String())
 }
 
-// BookAppropriation hält den Beschluss fest und bucht ihn. Die
-// Ergebnisverwendung beschließen die Gesellschafter (§ 46 Nr. 1 GmbHG); den
-// Beschluss erfasst der Mensch in der App, ein Agent rechnet ihn nur vor.
+// BookAppropriation hält den Beschluss fest und bucht ihn. Die Gesellschafter
+// beschließen über die Verwendung des Ergebnisses, das der festgestellte
+// Jahresabschluss ausweist (§ 42a Abs. 2, § 46 Nr. 1 GmbHG). Gebucht wird
+// deshalb erst, wenn die Feststellung erfasst ist, und nicht mit einem
+// Beschluss, der vor ihr liegt.
 func (s *AppropriationService) BookAppropriation(
 	ctx context.Context, year int, req AppropriationRequest,
 ) (*domain.Appropriation, error) {
-	if err := requireHuman(ctx, "Der Beschluss über die Ergebnisverwendung"); err != nil {
-		return nil, err
-	}
 	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.Appropriation, error) {
 		return s.bookAppropriation(ctx, year, req)
 	})
@@ -266,6 +265,9 @@ func (s *AppropriationService) bookAppropriation(
 		return nil, err
 	}
 	if err := s.closingSvc.EnsureLegalReserve(ctx, preview.Year); err != nil {
+		return nil, err
+	}
+	if err := s.ensureAdopted(ctx, preview.Year, preview.BookingDate); err != nil {
 		return nil, err
 	}
 	// Ein zweiter Beschluss zum selben Jahr überschriebe den ersten, während
@@ -359,6 +361,27 @@ func (s *AppropriationService) bookAppropriation(
 		return nil, err
 	}
 	return &appropriation, nil
+}
+
+// ensureAdopted verlangt den festgestellten Abschluss des verwendeten Jahres
+// und einen Beschluss, der nicht vor der Feststellung liegt. Beide dürfen auf
+// denselben Tag fallen: meist beschließt dieselbe Versammlung über beides.
+func (s *AppropriationService) ensureAdopted(ctx context.Context, year int, decisionDate string) error {
+	fy, err := s.closingSvc.YearOf(ctx, year)
+	if err != nil {
+		return err
+	}
+	if !fy.IsAdopted() {
+		return fmt.Errorf(
+			"der Jahresabschluss %d ist nicht festgestellt (Stand: %s). Über die Verwendung des Ergebnisses "+
+				"beschließen die Gesellschafter auf Grundlage des festgestellten Abschlusses (§ 42a Abs. 2, "+
+				"§ 46 Nr. 1 GmbHG); die Feststellung erfasst der Mensch in der App", year, fy.Status.Label())
+	}
+	if decisionDate < fy.AdoptedOn {
+		return fmt.Errorf("der Beschluss vom %s liegt vor der Feststellung des Abschlusses %d am %s",
+			domain.GermanDate(decisionDate), year, domain.GermanDate(fy.AdoptedOn))
+	}
+	return nil
 }
 
 // Appropriation liefert den gespeicherten Beschluss eines Jahres, oder nil.

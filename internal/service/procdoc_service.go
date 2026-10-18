@@ -98,11 +98,13 @@ func (s *ProcDocService) OrganisationTexts(ctx context.Context) domain.Organisat
 }
 
 // SaveOrganisationTexts schreibt die Freitexte und protokolliert die Änderung.
+// Ein leerer Text setzt den Abschnitt auf das Muster zurück; ohne Änderung
+// schreibt es nichts.
 func (s *ProcDocService) SaveOrganisationTexts(ctx context.Context, texts domain.OrganisationTexts) error {
-	if err := requireHuman(ctx, "Die Organisationsanweisung"); err != nil {
-		return err
-	}
 	before := s.OrganisationTexts(ctx)
+	if texts == before {
+		return nil
+	}
 	pairs := []struct {
 		key   string
 		value string
