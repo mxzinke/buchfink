@@ -1,0 +1,47 @@
+{
+  "Run": {
+    "checkedBankTx": 0,
+    "checkedEntries": 0,
+    "checkedReceipts": 0,
+    "createdAt": "2026-01-01T00:00:00Z",
+    "cutoffDate": "2026-01-01",
+    "findings": [],
+    "fiscalYear": 2026,
+    "id": 1,
+    "periodType": "month",
+    "timeliness": {
+      "captureDaysMax": 0,
+      "captureDaysMedian": 0,
+      "captureLimitDays": 10,
+      "commitDaysMax": 0,
+      "commitDaysMedian": 0,
+      "committedEntries": 0,
+      "lateEntries": 0,
+      "measuredEntries": 0,
+      "uncommittedEntries": 0
+    }
+  },
+  "Stored": {
+    "checkedBankTx": 0,
+    "checkedEntries": 0,
+    "checkedReceipts": 0,
+    "createdAt": "2026-01-01T00:00:00Z",
+    "cutoffDate": "2026-01-01",
+    "findings": [],
+    "fiscalYear": 2026,
+    "id": 1,
+    "periodType": "month",
+    "timeliness": {
+      "captureDaysMax": 0,
+      "captureDaysMedian": 0,
+      "captureLimitDays": 10,
+      "commitDaysMax": 0,
+      "commitDaysMedian": 0,
+      "committedEntries": 0,
+      "lateEntries": 0,
+      "measuredEntries": 0,
+      "uncommittedEntries": 0
+    }
+  },
+  "Summary": ""
+}

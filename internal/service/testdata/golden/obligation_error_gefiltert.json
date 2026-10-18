@@ -1,0 +1,46 @@
+{
+  "Calls": [],
+  "Error": "",
+  "List": [
+    {
+      "basis": "§ 325 Abs. 1 und 1a, § 326 HGB",
+      "channel": "unternehmensregister",
+      "description": "Übermittlung des festgestellten Abschlusses spätestens ein Jahr nach dem Abschlussstichtag. Kleine Gesellschaften legen Bilanz und Anhang offen, Kleinstgesellschaften nur die Bilanz und können sie hinterlegen. Erledigt mit dem Stand „offengelegt“.",
+      "dueDate": "2026-12-31",
+      "evidenceSource": "data",
+      "fiscalYear": 2025,
+      "hints": [],
+      "key": "offenlegung.2025",
+      "kind": "offenlegung",
+      "periodFrom": "2025-09-15",
+      "periodKey": "2025",
+      "periodLabel": "2025",
+      "periodTo": "2025-12-31",
+      "responsibility": "human_confirms",
+      "skillRef": "buchfink-grundlagen/references/pflichten.md#offenlegung",
+      "status": "open",
+      "statutoryDate": "2026-12-31",
+      "title": "Offenlegung im Unternehmensregister 2025"
+    },
+    {
+      "basis": "§ 325 Abs. 1 und 1a, § 326 HGB",
+      "channel": "unternehmensregister",
+      "description": "Übermittlung des festgestellten Abschlusses spätestens ein Jahr nach dem Abschlussstichtag. Kleine Gesellschaften legen Bilanz und Anhang offen, Kleinstgesellschaften nur die Bilanz und können sie hinterlegen. Erledigt mit dem Stand „offengelegt“.",
+      "dueDate": "2027-12-31",
+      "evidenceSource": "data",
+      "fiscalYear": 2026,
+      "hints": [],
+      "key": "offenlegung.2026",
+      "kind": "offenlegung",
+      "periodFrom": "2026-01-01",
+      "periodKey": "2026",
+      "periodLabel": "2026",
+      "periodTo": "2026-12-31",
+      "responsibility": "human_confirms",
+      "skillRef": "buchfink-grundlagen/references/pflichten.md#offenlegung",
+      "status": "open",
+      "statutoryDate": "2027-12-31",
+      "title": "Offenlegung im Unternehmensregister 2026"
+    }
+  ]
+}

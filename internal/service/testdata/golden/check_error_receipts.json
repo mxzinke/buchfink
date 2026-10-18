@@ -1,0 +1,184 @@
+{
+  "Calls": [
+    "Quelle 1",
+    "Quelle 2",
+    "Konten"
+  ],
+  "Error": "",
+  "Run": {
+    "checkedBankTx": 0,
+    "checkedEntries": 0,
+    "checkedReceipts": 0,
+    "createdAt": "2026-01-01T00:00:00Z",
+    "cutoffDate": "2026-12-31",
+    "findings": [
+      {
+        "checkRunId": 1,
+        "id": 1,
+        "message": "Oktober 2026 ist noch nicht festgeschrieben, obwohl der Folgemonat am 2026-11-30 abgelaufen ist",
+        "objectId": "2026-10",
+        "objectName": "Oktober 2026",
+        "objectType": "PERIOD",
+        "reference": "GoBD Rz. 107",
+        "rule": "commit_overdue",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 2,
+        "message": "Januar 2026 ist seit dem 2026-03-31 nicht festgeschrieben. Zwei Monate nach dem Ende des Zeitraums ist auch die Voranmeldung mit Dauerfristverlängerung abgegeben — bis dahin sollten die Buchungen unveränderbar gestellt sein",
+        "objectId": "2026-01",
+        "objectName": "Januar 2026",
+        "objectType": "PERIOD",
+        "reference": "GoBD Rz. 107, § 146 Abs. 4 AO",
+        "rule": "period_not_committed",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 3,
+        "message": "Februar 2026 ist seit dem 2026-04-30 nicht festgeschrieben. Zwei Monate nach dem Ende des Zeitraums ist auch die Voranmeldung mit Dauerfristverlängerung abgegeben — bis dahin sollten die Buchungen unveränderbar gestellt sein",
+        "objectId": "2026-02",
+        "objectName": "Februar 2026",
+        "objectType": "PERIOD",
+        "reference": "GoBD Rz. 107, § 146 Abs. 4 AO",
+        "rule": "period_not_committed",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 4,
+        "message": "März 2026 ist seit dem 2026-05-31 nicht festgeschrieben. Zwei Monate nach dem Ende des Zeitraums ist auch die Voranmeldung mit Dauerfristverlängerung abgegeben — bis dahin sollten die Buchungen unveränderbar gestellt sein",
+        "objectId": "2026-03",
+        "objectName": "März 2026",
+        "objectType": "PERIOD",
+        "reference": "GoBD Rz. 107, § 146 Abs. 4 AO",
+        "rule": "period_not_committed",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 5,
+        "message": "April 2026 ist seit dem 2026-06-30 nicht festgeschrieben. Zwei Monate nach dem Ende des Zeitraums ist auch die Voranmeldung mit Dauerfristverlängerung abgegeben — bis dahin sollten die Buchungen unveränderbar gestellt sein",
+        "objectId": "2026-04",
+        "objectName": "April 2026",
+        "objectType": "PERIOD",
+        "reference": "GoBD Rz. 107, § 146 Abs. 4 AO",
+        "rule": "period_not_committed",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 6,
+        "message": "Mai 2026 ist seit dem 2026-07-31 nicht festgeschrieben. Zwei Monate nach dem Ende des Zeitraums ist auch die Voranmeldung mit Dauerfristverlängerung abgegeben — bis dahin sollten die Buchungen unveränderbar gestellt sein",
+        "objectId": "2026-05",
+        "objectName": "Mai 2026",
+        "objectType": "PERIOD",
+        "reference": "GoBD Rz. 107, § 146 Abs. 4 AO",
+        "rule": "period_not_committed",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 7,
+        "message": "Juni 2026 ist seit dem 2026-08-31 nicht festgeschrieben. Zwei Monate nach dem Ende des Zeitraums ist auch die Voranmeldung mit Dauerfristverlängerung abgegeben — bis dahin sollten die Buchungen unveränderbar gestellt sein",
+        "objectId": "2026-06",
+        "objectName": "Juni 2026",
+        "objectType": "PERIOD",
+        "reference": "GoBD Rz. 107, § 146 Abs. 4 AO",
+        "rule": "period_not_committed",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 8,
+        "message": "Juli 2026 ist seit dem 2026-09-30 nicht festgeschrieben. Zwei Monate nach dem Ende des Zeitraums ist auch die Voranmeldung mit Dauerfristverlängerung abgegeben — bis dahin sollten die Buchungen unveränderbar gestellt sein",
+        "objectId": "2026-07",
+        "objectName": "Juli 2026",
+        "objectType": "PERIOD",
+        "reference": "GoBD Rz. 107, § 146 Abs. 4 AO",
+        "rule": "period_not_committed",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 9,
+        "message": "August 2026 ist seit dem 2026-10-31 nicht festgeschrieben. Zwei Monate nach dem Ende des Zeitraums ist auch die Voranmeldung mit Dauerfristverlängerung abgegeben — bis dahin sollten die Buchungen unveränderbar gestellt sein",
+        "objectId": "2026-08",
+        "objectName": "August 2026",
+        "objectType": "PERIOD",
+        "reference": "GoBD Rz. 107, § 146 Abs. 4 AO",
+        "rule": "period_not_committed",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 10,
+        "message": "September 2026 ist seit dem 2026-11-30 nicht festgeschrieben. Zwei Monate nach dem Ende des Zeitraums ist auch die Voranmeldung mit Dauerfristverlängerung abgegeben — bis dahin sollten die Buchungen unveränderbar gestellt sein",
+        "objectId": "2026-09",
+        "objectName": "September 2026",
+        "objectType": "PERIOD",
+        "reference": "GoBD Rz. 107, § 146 Abs. 4 AO",
+        "rule": "period_not_committed",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 11,
+        "message": "Die Rückstellungen konnten nicht auf ihre Abzinsung geprüft werden: Abzinsung nicht lesbar",
+        "objectType": "PROVISION",
+        "reference": "§ 253 Abs. 2 HGB",
+        "rule": "provision_discount",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 12,
+        "message": "Für 1. Quartal 2026 ist keine übermittelte Umsatzsteuer-Voranmeldung erfasst (fällig am 2026-04-10)",
+        "objectId": "2026-Q1",
+        "objectName": "1. Quartal 2026",
+        "objectType": "VAT_PERIOD",
+        "reference": "§ 18 Abs. 1 UStG",
+        "rule": "vat_return_missing",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 13,
+        "message": "Für 2. Quartal 2026 ist keine übermittelte Umsatzsteuer-Voranmeldung erfasst (fällig am 2026-07-10)",
+        "objectId": "2026-Q2",
+        "objectName": "2. Quartal 2026",
+        "objectType": "VAT_PERIOD",
+        "reference": "§ 18 Abs. 1 UStG",
+        "rule": "vat_return_missing",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 14,
+        "message": "Für 3. Quartal 2026 ist keine übermittelte Umsatzsteuer-Voranmeldung erfasst (fällig am 2026-10-12)",
+        "objectId": "2026-Q3",
+        "objectName": "3. Quartal 2026",
+        "objectType": "VAT_PERIOD",
+        "reference": "§ 18 Abs. 1 UStG",
+        "rule": "vat_return_missing",
+        "severity": "warning"
+      }
+    ],
+    "fiscalYear": 2026,
+    "id": 1,
+    "periodType": "year",
+    "timeliness": {
+      "captureDaysMax": 0,
+      "captureDaysMedian": 0,
+      "captureLimitDays": 10,
+      "commitDaysMax": 0,
+      "commitDaysMedian": 0,
+      "committedEntries": 0,
+      "lateEntries": 0,
+      "measuredEntries": 0,
+      "uncommittedEntries": 0
+    }
+  },
+  "Stored": 1
+}

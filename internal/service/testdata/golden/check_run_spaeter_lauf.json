@@ -1,0 +1,343 @@
+{
+  "Run": {
+    "checkedBankTx": 2,
+    "checkedEntries": 2,
+    "checkedReceipts": 2,
+    "createdAt": "2026-05-15T00:00:00Z",
+    "cutoffDate": "2026-03-06",
+    "findings": [
+      {
+        "checkRunId": 1,
+        "id": 1,
+        "message": "Bankumsatz vom 02.03.2026 über 500,00 € (Kunde) ist keiner Buchung zugeordnet",
+        "objectId": "1",
+        "objectName": "Kunde",
+        "objectType": "BANK_TX",
+        "reference": "§ 146 Abs. 1 AO",
+        "rule": "bank_unmatched",
+        "severity": "blocking"
+      },
+      {
+        "checkRunId": 1,
+        "id": 2,
+        "message": "Buchung 2026-000001 vom 2026-03-01 (Testbuchung) hat keinen Beleg",
+        "objectId": "1",
+        "objectName": "2026-000001",
+        "objectType": "JOURNAL_ENTRY",
+        "reference": "§ 238 Abs. 1 Satz 3 HGB, GoBD Rz. 61",
+        "rule": "entry_without_receipt",
+        "severity": "blocking"
+      },
+      {
+        "checkRunId": 1,
+        "id": 3,
+        "message": "Buchung 2026-000002 vom 2026-03-02 (Testbuchung) hat keinen Beleg",
+        "objectId": "2",
+        "objectName": "2026-000002",
+        "objectType": "JOURNAL_ENTRY",
+        "reference": "§ 238 Abs. 1 Satz 3 HGB, GoBD Rz. 61",
+        "rule": "entry_without_receipt",
+        "severity": "blocking"
+      },
+      {
+        "checkRunId": 1,
+        "id": 4,
+        "message": "Konto 1460 (Geldtransit) trägt am 2026-03-06 einen Saldo von 2.000,00 € — ein Durchgangskonto muss zum Stichtag ausgeglichen sein",
+        "objectId": "1460",
+        "objectName": "Geldtransit",
+        "objectType": "ACCOUNT",
+        "reference": "§ 246 Abs. 1 HGB",
+        "rule": "interim_balance",
+        "severity": "blocking"
+      },
+      {
+        "checkRunId": 1,
+        "id": 5,
+        "message": "Beleg ER-2026-0001 (Eingang 01.03.2026) ist abgelegt, aber nicht gebucht",
+        "objectId": "1",
+        "objectName": "ER-2026-0001",
+        "objectType": "RECEIPT",
+        "reference": "GoBD Rz. 47",
+        "rule": "receipt_unbooked",
+        "severity": "blocking"
+      },
+      {
+        "checkRunId": 1,
+        "id": 6,
+        "message": "Januar 2026 ist noch nicht festgeschrieben, obwohl der Folgemonat am 2026-02-28 abgelaufen ist",
+        "objectId": "2026-01",
+        "objectName": "Januar 2026",
+        "objectType": "PERIOD",
+        "reference": "GoBD Rz. 107",
+        "rule": "commit_overdue",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 7,
+        "message": "Auf den Posten 2026-000001 (Lieferant, 1.190,00 €) sind 2.380,00 € zugeordnet — 1.190,00 € zu viel",
+        "objectId": "1",
+        "objectName": "2026-000001",
+        "objectType": "JOURNAL_ENTRY",
+        "reference": "§ 146 Abs. 1 AO",
+        "rule": "duplicate_payment",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 8,
+        "message": "Belegnummer RG-4711 über 1.000,00 € kommt 2-mal vor (2026-000001, 2026-000002) — möglicherweise doppelt erfasst",
+        "objectId": "RG-4711",
+        "objectName": "RG-4711",
+        "objectType": "JOURNAL_ENTRY",
+        "reference": "§ 146 Abs. 1 AO",
+        "rule": "duplicate_receipt",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 9,
+        "message": "In den Belegnummern fehlen 1 Nummern: ER-2026-0003",
+        "objectId": "receipt",
+        "objectName": "Belegnummern",
+        "objectType": "NUMBER_RANGE",
+        "reference": "§ 14 Abs. 4 Nr. 4 UStG, GoBD Rz. 36",
+        "rule": "number_gap",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 10,
+        "message": "Erster Fachbereich",
+        "rule": "provision_discount",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 11,
+        "message": "Zweiter Fachbereich",
+        "rule": "provision_discount",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 12,
+        "message": "Beleg ER-2026-0001 liegt seit 01.03.2026 unbearbeitet — unbare Geschäftsvorfälle sind innerhalb von 10 Tagen zu erfassen",
+        "objectId": "1",
+        "objectName": "ER-2026-0001",
+        "objectType": "RECEIPT",
+        "reference": "GoBD Rz. 47",
+        "rule": "receipt_overdue",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 13,
+        "message": "Beleg ER-2026-0002 liegt seit 01.04.2026 unbearbeitet — unbare Geschäftsvorfälle sind innerhalb von 10 Tagen zu erfassen",
+        "objectId": "2",
+        "objectName": "ER-2026-0002",
+        "objectType": "RECEIPT",
+        "reference": "GoBD Rz. 47",
+        "rule": "receipt_overdue",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 14,
+        "message": "Beleg ER-2026-0002 (Eingang 01.04.2026) ist abgelegt, aber nicht gebucht",
+        "objectId": "2",
+        "objectName": "ER-2026-0002",
+        "objectType": "RECEIPT",
+        "reference": "GoBD Rz. 47",
+        "rule": "receipt_unbooked",
+        "severity": "warning"
+      }
+    ],
+    "fiscalYear": 2026,
+    "id": 1,
+    "overrideReason": "Begründung für den Prüflauf",
+    "periodType": "month",
+    "timeliness": {
+      "captureDaysMax": 14,
+      "captureDaysMedian": 14,
+      "captureLimitDays": 10,
+      "commitDaysMax": 0,
+      "commitDaysMedian": 0,
+      "committedEntries": 0,
+      "lateEntries": 2,
+      "measuredEntries": 2,
+      "uncommittedEntries": 2
+    }
+  },
+  "Stored": {
+    "checkedBankTx": 2,
+    "checkedEntries": 2,
+    "checkedReceipts": 2,
+    "createdAt": "2026-05-15T00:00:00Z",
+    "cutoffDate": "2026-03-06",
+    "findings": [
+      {
+        "checkRunId": 1,
+        "id": 1,
+        "message": "Bankumsatz vom 02.03.2026 über 500,00 € (Kunde) ist keiner Buchung zugeordnet",
+        "objectId": "1",
+        "objectName": "Kunde",
+        "objectType": "BANK_TX",
+        "reference": "§ 146 Abs. 1 AO",
+        "rule": "bank_unmatched",
+        "severity": "blocking"
+      },
+      {
+        "checkRunId": 1,
+        "id": 2,
+        "message": "Buchung 2026-000001 vom 2026-03-01 (Testbuchung) hat keinen Beleg",
+        "objectId": "1",
+        "objectName": "2026-000001",
+        "objectType": "JOURNAL_ENTRY",
+        "reference": "§ 238 Abs. 1 Satz 3 HGB, GoBD Rz. 61",
+        "rule": "entry_without_receipt",
+        "severity": "blocking"
+      },
+      {
+        "checkRunId": 1,
+        "id": 3,
+        "message": "Buchung 2026-000002 vom 2026-03-02 (Testbuchung) hat keinen Beleg",
+        "objectId": "2",
+        "objectName": "2026-000002",
+        "objectType": "JOURNAL_ENTRY",
+        "reference": "§ 238 Abs. 1 Satz 3 HGB, GoBD Rz. 61",
+        "rule": "entry_without_receipt",
+        "severity": "blocking"
+      },
+      {
+        "checkRunId": 1,
+        "id": 4,
+        "message": "Konto 1460 (Geldtransit) trägt am 2026-03-06 einen Saldo von 2.000,00 € — ein Durchgangskonto muss zum Stichtag ausgeglichen sein",
+        "objectId": "1460",
+        "objectName": "Geldtransit",
+        "objectType": "ACCOUNT",
+        "reference": "§ 246 Abs. 1 HGB",
+        "rule": "interim_balance",
+        "severity": "blocking"
+      },
+      {
+        "checkRunId": 1,
+        "id": 5,
+        "message": "Beleg ER-2026-0001 (Eingang 01.03.2026) ist abgelegt, aber nicht gebucht",
+        "objectId": "1",
+        "objectName": "ER-2026-0001",
+        "objectType": "RECEIPT",
+        "reference": "GoBD Rz. 47",
+        "rule": "receipt_unbooked",
+        "severity": "blocking"
+      },
+      {
+        "checkRunId": 1,
+        "id": 6,
+        "message": "Januar 2026 ist noch nicht festgeschrieben, obwohl der Folgemonat am 2026-02-28 abgelaufen ist",
+        "objectId": "2026-01",
+        "objectName": "Januar 2026",
+        "objectType": "PERIOD",
+        "reference": "GoBD Rz. 107",
+        "rule": "commit_overdue",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 7,
+        "message": "Auf den Posten 2026-000001 (Lieferant, 1.190,00 €) sind 2.380,00 € zugeordnet — 1.190,00 € zu viel",
+        "objectId": "1",
+        "objectName": "2026-000001",
+        "objectType": "JOURNAL_ENTRY",
+        "reference": "§ 146 Abs. 1 AO",
+        "rule": "duplicate_payment",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 8,
+        "message": "Belegnummer RG-4711 über 1.000,00 € kommt 2-mal vor (2026-000001, 2026-000002) — möglicherweise doppelt erfasst",
+        "objectId": "RG-4711",
+        "objectName": "RG-4711",
+        "objectType": "JOURNAL_ENTRY",
+        "reference": "§ 146 Abs. 1 AO",
+        "rule": "duplicate_receipt",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 9,
+        "message": "In den Belegnummern fehlen 1 Nummern: ER-2026-0003",
+        "objectId": "receipt",
+        "objectName": "Belegnummern",
+        "objectType": "NUMBER_RANGE",
+        "reference": "§ 14 Abs. 4 Nr. 4 UStG, GoBD Rz. 36",
+        "rule": "number_gap",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 10,
+        "message": "Erster Fachbereich",
+        "rule": "provision_discount",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 11,
+        "message": "Zweiter Fachbereich",
+        "rule": "provision_discount",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 12,
+        "message": "Beleg ER-2026-0001 liegt seit 01.03.2026 unbearbeitet — unbare Geschäftsvorfälle sind innerhalb von 10 Tagen zu erfassen",
+        "objectId": "1",
+        "objectName": "ER-2026-0001",
+        "objectType": "RECEIPT",
+        "reference": "GoBD Rz. 47",
+        "rule": "receipt_overdue",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 13,
+        "message": "Beleg ER-2026-0002 liegt seit 01.04.2026 unbearbeitet — unbare Geschäftsvorfälle sind innerhalb von 10 Tagen zu erfassen",
+        "objectId": "2",
+        "objectName": "ER-2026-0002",
+        "objectType": "RECEIPT",
+        "reference": "GoBD Rz. 47",
+        "rule": "receipt_overdue",
+        "severity": "warning"
+      },
+      {
+        "checkRunId": 1,
+        "id": 14,
+        "message": "Beleg ER-2026-0002 (Eingang 01.04.2026) ist abgelegt, aber nicht gebucht",
+        "objectId": "2",
+        "objectName": "ER-2026-0002",
+        "objectType": "RECEIPT",
+        "reference": "GoBD Rz. 47",
+        "rule": "receipt_unbooked",
+        "severity": "warning"
+      }
+    ],
+    "fiscalYear": 2026,
+    "id": 1,
+    "overrideReason": "Begründung für den Prüflauf",
+    "periodType": "month",
+    "timeliness": {
+      "captureDaysMax": 14,
+      "captureDaysMedian": 14,
+      "captureLimitDays": 10,
+      "commitDaysMax": 0,
+      "commitDaysMedian": 0,
+      "committedEntries": 0,
+      "lateEntries": 2,
+      "measuredEntries": 2,
+      "uncommittedEntries": 2
+    }
+  },
+  "Summary": "Bankumsatz vom 02.03.2026 über 500,00 € (Kunde) ist keiner Buchung zugeordnet; Buchung 2026-000001 vom 2026-03-01 (Testbuchung) hat keinen Beleg; Buchung 2026-000002 vom 2026-03-02 (Testbuchung) hat keinen Beleg und 2 weitere"
+}
