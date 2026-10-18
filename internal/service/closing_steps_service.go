@@ -8,8 +8,14 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-// ClosingStepsService führt den Abschlussassistenten mit abgeleiteten Zuständen
-// und begründeten Entscheidungen über einzelne Bausteine.
+// ClosingStepsService führt den Abschlussassistenten.
+//
+// Der Zustand ist zur Hälfte abgeleitet und zur Hälfte gespeichert. Abgeleitet
+// ist, was sich aus den Daten ergibt: eine AfA, die nicht mehr offen ist, ist
+// gebucht; ein festgestellter Abschluss ist festgestellt. Gespeichert ist, was
+// sich daraus nicht ergibt — vor allem das ausdrückliche Übergehen mit Grund.
+// Ein Jahr ohne Rückstellungen sieht sonst aus wie ein Jahr, in dem sie
+// vergessen wurden.
 type ClosingStepsService struct {
 	derivers map[domain.ClosingStepKey]closingStepDeriver
 	auditor[int]
