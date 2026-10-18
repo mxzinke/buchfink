@@ -42,8 +42,10 @@ import { message } from './shared';
  *
  * Gebucht werden die Bausteine von Claude. Die App zeigt je Baustein die
  * Kartei, die dahinter steht, damit ein Prüfer sie ohne Claude einsehen kann
- * (§ 147 Abs. 6 AO). Aufstellen, Feststellen, Ergebnisverwendung und
- * Offenlegung sind Schritte des Menschen und stehen in der Schrittliste.
+ * (§ 147 Abs. 6 AO). Feststellen, Ergebnisverwendung und Offenlegung haben je
+ * eine eigene Zeile in der Schrittliste (`row`): Feststellen und Offenlegen
+ * tut der Mensch, die Ergebnisverwendung bucht Claude nach dem Beschluss der
+ * Gesellschafter, oder der Mensch erfasst sie dort.
  *
  * scripts/check_closing_steps.py hält diese Zuordnung gegen die Schlüssel in
  * internal/domain/closing_step.go.
@@ -51,7 +53,7 @@ import { message } from './shared';
 type StepView =
   | { kind: 'kartei'; kartei: Kartei; route?: Route; routeLabel?: string }
   | { kind: 'route'; route: Route; routeLabel: string }
-  | { kind: 'human' };
+  | { kind: 'row' };
 
 type Kartei =
   | 'accruals'
@@ -77,9 +79,9 @@ export const STEP_VIEWS: Record<ClosingStepKey, StepView> = {
   tax_provision: { kind: 'kartei', kartei: 'taxProvision' },
   check_run: { kind: 'route', route: { area: 'closings', tab: 'month' }, routeLabel: 'Zum Monatsabschluss' },
   statement: { kind: 'kartei', kartei: 'statement', route: { area: 'books', tab: 'statements' }, routeLabel: 'Zu Bilanz und GuV' },
-  adoption: { kind: 'human' },
-  disclosure: { kind: 'human' },
-  appropriation: { kind: 'human' },
+  adoption: { kind: 'row' },
+  disclosure: { kind: 'row' },
+  appropriation: { kind: 'row' },
 };
 
 /** Ist der Schlüssel ein Baustein des Abschlusses? */
@@ -87,9 +89,9 @@ export function isStepKey(value: string | undefined): value is ClosingStepKey {
   return value !== undefined && Object.prototype.hasOwnProperty.call(STEP_VIEWS, value);
 }
 
-/** Die Bausteine, die Claude bucht, ohne die Schritte des Menschen. */
+/** Die Abschlussbuchungen, ohne die Bausteine mit eigener Zeile in der Schrittliste. */
 export function isBookingStep(step: ClosingStepView): boolean {
-  return STEP_VIEWS[step.key]?.kind !== 'human';
+  return STEP_VIEWS[step.key]?.kind !== 'row';
 }
 
 /** Der Stand eines Bausteins als Abzeichen; übersprungen steht als Wort. */

@@ -25,10 +25,12 @@ import {
 import { ObligationDecisionDialog, ObligationState, isManual, message } from './shared';
 
 /**
- * Die E-Bilanz: Prüfergebnis der Zuordnung, Export als XBRL und die
- * Bestätigung der Übermittlung. Mein ELSTER hat für die E-Bilanz kein
- * Formular; übermittelt wird die Datei über ein Programm oder einen Dienst mit
- * ERiC-Anbindung.
+ * Die E-Bilanz: Prüfergebnis der Zuordnung, Export als XBRL oder als Summen-
+ * und Saldenliste und die Bestätigung der Übermittlung. Mein ELSTER hat für
+ * die E-Bilanz kein Formular; übermittelt wird die Datei über ein Programm
+ * oder einen Dienst mit ERiC-Anbindung. Die Summen- und Saldenliste ist der
+ * Ausweichweg für Dienste wie eBilanz+, die sie statt der XBRL-Datei
+ * einlesen.
  */
 export const EBilanzView: React.FC<{
   year: number;
@@ -38,7 +40,7 @@ export const EBilanzView: React.FC<{
   const writeLock = useWriteLock();
   const [report, setReport] = useState<MappingReport | null>(null);
   const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<'xbrl' | 'susa_csv' | null>(null);
   const [deciding, setDeciding] = useState<Obligation | null>(null);
 
   const load = useCallback(async () => {
@@ -55,15 +57,15 @@ export const EBilanzView: React.FC<{
     void load();
   }, [load]);
 
-  async function save() {
-    setSaving(true);
+  async function save(format: 'xbrl' | 'susa_csv') {
+    setSaving(format);
     try {
-      const path = await Api.saveEBilanzXBRLAs(year);
+      const path = await Api.saveEBilanzAs(year, format);
       if (path) toast.success(`E-Bilanz gespeichert unter ${path}`);
     } catch (e) {
       setError(message(e));
     } finally {
-      setSaving(false);
+      setSaving(null);
     }
   }
 
@@ -81,16 +83,27 @@ export const EBilanzView: React.FC<{
           : undefined
       }
       action={
-        <Button
-          variant="primary"
-          icon={<FileDown className="w-4 h-4" strokeWidth={1.5} />}
-          loading={saving}
-          disabled={!report?.canExport}
-          title={report && !report.canExport ? 'Erst wenn jedes Konto zugeordnet ist, entsteht die Datei.' : undefined}
-          onClick={() => void save()}
-        >
-          XBRL exportieren
-        </Button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button
+            variant="quiet"
+            loading={saving === 'susa_csv'}
+            disabled={!report?.canExport || saving !== null}
+            title={report && !report.canExport ? 'Erst wenn jedes Konto zugeordnet ist, entsteht die Datei.' : undefined}
+            onClick={() => void save('susa_csv')}
+          >
+            Als Saldenliste (CSV)
+          </Button>
+          <Button
+            variant="primary"
+            icon={<FileDown className="w-4 h-4" strokeWidth={1.5} />}
+            loading={saving === 'xbrl'}
+            disabled={!report?.canExport || saving !== null}
+            title={report && !report.canExport ? 'Erst wenn jedes Konto zugeordnet ist, entsteht die Datei.' : undefined}
+            onClick={() => void save('xbrl')}
+          >
+            XBRL exportieren
+          </Button>
+        </div>
       }
     >
       {error && <Notice tone="negative" className="mb-6" text={error} />}
@@ -133,7 +146,9 @@ export const EBilanzView: React.FC<{
                 Bilanz und Gewinn- und Verlustrechnung sind nach amtlichem Datensatz zu übermitteln (§ 5b
                 EStG). Buchfink erzeugt den Datensatz nach der amtlichen Taxonomie und übermittelt ihn
                 nicht selbst. Das Übermittlungsprotokoll des Dienstes nennt das Transferticket; damit
-                bestätigen Sie die Übermittlung hier.
+                bestätigen Sie die Übermittlung hier. Nimmt ein Dienst keine XBRL-Datei an, etwa
+                eBilanz+, lesen Sie dort die Saldenliste als Summen- und Saldenliste ein. Sie füllt nur
+                Bilanz und Gewinn- und Verlustrechnung; die übrigen Angaben ergänzen Sie im Dienst.
               </Help>
             </p>
             {obligation && (

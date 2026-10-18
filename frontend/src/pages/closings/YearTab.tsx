@@ -56,9 +56,10 @@ import { STEP_VIEWS, StepDetails, StepState, isBookingStep, isStepKey } from './
 /**
  * Der Jahresabschluss als Schrittliste: Abschlussbuchungen, Aufstellen,
  * Festschreiben, Feststellen, Ergebnisverwendung, Offenlegen und der
- * Saldenvortrag. Die Abschlussbuchungen bucht Claude; jeder andere Schritt ist
- * eine Handlung der Geschäftsführung oder der Gesellschafter und geschieht nur
- * hier (§ 42a GmbHG, § 146 Abs. 4 AO).
+ * Saldenvortrag. Die Abschlussbuchungen bucht Claude, nach dem Beschluss der
+ * Gesellschafter auch die Ergebnisverwendung. Aufstellen, Festschreiben,
+ * Feststellen und Offenlegen sind Handlungen der Geschäftsführung oder der
+ * Gesellschafter und geschehen nur hier (§ 42a GmbHG, § 146 Abs. 4 AO).
  */
 
 type RowKey = 'bookings' | 'prepared' | 'commit' | 'adopted' | 'appropriation' | 'disclosed' | 'carry';
@@ -193,7 +194,7 @@ export const YearTab: React.FC<YearTabProps> = ({
   const bookingSteps = (steps?.steps ?? []).filter(isBookingStep);
   const openBookings = bookingSteps.filter((step) => step.state === 'open').length;
   const panelStep =
-    selection.id && isStepKey(selection.id) && STEP_VIEWS[selection.id].kind !== 'human'
+    selection.id && isStepKey(selection.id) && STEP_VIEWS[selection.id].kind !== 'row'
       ? (steps?.steps ?? []).find((step) => step.key === selection.id) ?? null
       : null;
 
@@ -226,9 +227,10 @@ export const YearTab: React.FC<YearTabProps> = ({
         helpSummary="Vom Jahresende bis zur Offenlegung: was Claude bucht und was Sie freigeben."
         explain={
           <>
-            Die Abschlussbuchungen bucht Claude mit Rückfrage. Aufstellen, Festschreiben,
-            Feststellen, Ergebnisverwendung und Offenlegung sind Handlungen der Geschäftsführung und
-            der Gesellschafter (§ 242 HGB, § 42a GmbHG, § 325 HGB). Buchfink hält sie mit Datum und
+            Die Abschlussbuchungen bucht Claude mit Rückfrage, nach dem Beschluss der Gesellschafter
+            auch die Ergebnisverwendung; Sie können den Beschluss ebenso hier erfassen. Aufstellen,
+            Festschreiben, Feststellen und Offenlegung sind Handlungen der Geschäftsführung und der
+            Gesellschafter (§ 242 HGB, § 42a GmbHG, § 325 HGB). Buchfink hält sie mit Datum und
             Nachweis fest. Ab der Feststellung nimmt das Geschäftsjahr keine Buchung mehr an.
           </>
         }
@@ -540,7 +542,7 @@ export const YearTab: React.FC<YearTabProps> = ({
               )}
               {(() => {
                 const view = STEP_VIEWS[panelStep.key];
-                return view.kind !== 'human' && view.route ? (
+                return view.kind !== 'row' && view.route ? (
                   <Button variant="secondary" onClick={() => onNavigate(view.route!)}>
                     {view.routeLabel}
                   </Button>

@@ -7,8 +7,8 @@ Prüfer sähe die Kartei nicht, ohne Claude zu fragen.
 
 Die Schlüssel stehen im Backend (internal/domain/closing_step.go); die
 Zuordnung steht in STEP_VIEWS in frontend/src/pages/closings/yearSteps.tsx:
-eine Kartei in der Seitenleiste, ein Verweis in einen anderen Reiter oder ein
-Schritt des Menschen in der Schrittliste.
+eine Kartei in der Seitenleiste, ein Verweis in einen anderen Reiter oder eine
+eigene Zeile in der Schrittliste (Feststellen, Ergebnisverwendung, Offenlegen).
 
 Die Prüfung läuft gegen den Go-Quelltext und nicht gegen eine Liste in diesem
 Skript: eine zweite Liste liefe auseinander, sobald ein Baustein dazukommt, und
@@ -69,10 +69,10 @@ def main() -> int:
         print("Einträge ohne Baustein:", ", ".join(unknown), file=sys.stderr)
         return 1
 
-    human = sorted(re.findall(r"^\s*([a-z_]+):\s*\{\s*kind:\s*'human'", views, re.MULTILINE))
+    rows = sorted(re.findall(r"^\s*([a-z_]+):\s*\{\s*kind:\s*'row'", views, re.MULTILINE))
     print(
         f"Jahresabschluss: {len(keys)} Bausteine, jeder in der Oberfläche; "
-        f"{len(human)} davon Schritte des Menschen ({', '.join(human)})."
+        f"{len(rows)} davon mit eigener Zeile in der Schrittliste ({', '.join(rows)})."
     )
     return 0
 

@@ -623,11 +623,12 @@ export const Api = {
   // --- E-Bilanz, Audit & Festschreibung ---------------------------------
 
   /**
-   * Erzeugt die E-Bilanz und schreibt sie an einen gewählten Ort. Leer heißt:
-   * der Dialog wurde abgebrochen.
+   * Erzeugt die E-Bilanz als XBRL-Instanz oder als Summen- und Saldenliste
+   * für eBilanz+ und schreibt sie an einen gewählten Ort. Leer heißt: der
+   * Dialog wurde abgebrochen.
    */
-  saveEBilanzXBRLAs: (year: number): Promise<string> =>
-    call(() => Bridge.SaveEBilanzAs(year, 'xbrl') as Promise<string>),
+  saveEBilanzAs: (year: number, format: 'xbrl' | 'susa_csv'): Promise<string> =>
+    call(() => Bridge.SaveEBilanzAs(year, format) as Promise<string>),
   /**
    * Welches Konto unter welcher Gliederungsposition und welchem
    * Taxonomie-Element erscheint — und was die Erzeugung verhindert.
