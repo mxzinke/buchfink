@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/service"
@@ -184,8 +183,7 @@ func registerPosten(tb *Toolbox) {
 		}
 		out.SummeOffen = betrag(sum)
 		if in.MitAltersstruktur {
-			aging := accounting.AgeOpenItems(picked, cutoff)
-			aging.EnsureLists()
+			aging := s.Payments.AgeOpenItems(picked, cutoff)
 			for _, side := range aging.Sides {
 				out.Altersstruktur = append(out.Altersstruktur, altersseite{Seite: side.Label, Summe: betrag(side.Total),
 					Posten: side.Items, Faelligkeit: bands(side.Buckets), Restlaufzeit: maturities(side.Maturities)})

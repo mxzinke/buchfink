@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/core/policy"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -683,29 +682,9 @@ func receiptHints(ctx context.Context, s *core.Services, r *domain.Receipt) []st
 			"XRechnung braucht ein PDF: dieselbe XML noch einmal mit beleg_ablegen und dem PDF als rolle=darstellung senden, "+
 			"die XML mit dem Pfad aus verschoben, wenn Buchfink sie nach Übernommen/ gebracht hat.")
 	}
-	if hint := inputTaxPeriodHint(ctx, s, r); hint != "" {
-		out = append(out, hint)
+	if period := s.Receipts.InputTaxPeriodDifference(ctx, r); period != nil {
+		out = append(out, fmt.Sprintf("Eingang am %s: die Vorsteuer fällt in den Voranmeldungszeitraum %s, nicht in %s des Belegdatums. "+
+			"Kam der Beleg früher an, eingang_am beim Buchen mit beleg_buchen_mit_rueckfrage berichtigen.", r.ReceivedAt, period.Received, period.Document))
 	}
 	return out
-}
-
-// inputTaxPeriodHint sagt, wenn der Eingang in einem späteren
-// Voranmeldungszeitraum liegt als das Belegdatum: die Vorsteuer fällt dann
-// erst in den Zeitraum des Eingangs.
-func inputTaxPeriodHint(ctx context.Context, s *core.Services, r *domain.Receipt) string {
-	if r.DocumentDate == "" || r.ReceivedAt == "" || r.ReceivedAt <= r.DocumentDate {
-		return ""
-	}
-	cfg, err := s.Settings.GetCompanySettings(ctx)
-	if err != nil || cfg == nil {
-		return ""
-	}
-	kind := domain.VatPeriodType(cfg.VatPeriod)
-	doc, err1 := accounting.VatPeriodOf(r.DocumentDate, kind)
-	got, err2 := accounting.VatPeriodOf(r.ReceivedAt, kind)
-	if err1 != nil || err2 != nil || doc.Key == got.Key {
-		return ""
-	}
-	return fmt.Sprintf("Eingang am %s: die Vorsteuer fällt in den Voranmeldungszeitraum %s, nicht in %s des Belegdatums. "+
-		"Kam der Beleg früher an, eingang_am beim Buchen mit beleg_buchen_mit_rueckfrage berichtigen.", r.ReceivedAt, got.Key, doc.Key)
 }

@@ -957,3 +957,23 @@ func (s *VatReturnService) auditChange(
 	}
 	return s.logChange(ctx, action, id, details, beforeAny, after)
 }
+
+// PeriodMismatch nennt die eingestellte Zeitraumart, wenn der Schlüssel davon abweicht.
+func (s *VatReturnService) PeriodMismatch(ctx context.Context, period string) domain.VatPeriodType {
+	if s.settingsRepo == nil {
+		return ""
+	}
+	cfg, err := s.settingsRepo.GetCompanySettings(ctx)
+	if err != nil || cfg == nil {
+		return ""
+	}
+	p, err := accounting.ParseVatPeriodKey(period)
+	if err != nil {
+		return ""
+	}
+	want := domain.VatPeriodType(cfg.VatPeriod)
+	if !want.Valid() || p.Type == want {
+		return ""
+	}
+	return want
+}

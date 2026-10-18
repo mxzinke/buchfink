@@ -128,9 +128,9 @@ var catalogSymbols = map[string]map[string]bool{
 // Bekannte Ausnahmen, werden in Schritt 9 abgebaut. Die Fundstelle und die
 // Anzahl begrenzen jede Ausnahme auf die vorhandenen Aufrufe.
 var knownLogicExceptions = map[string]int{
-	"mcpserver/belege.go:inputTaxPeriodHint:VatPeriodOf":                   2,
-	"mcpserver/erklaerung.go:periodMismatch:ParseVatPeriodKey":             1,
-	"mcpserver/posten.go:registerPosten:AgeOpenItems":                      1,
+	"mcpserver/belege.go:inputTaxPeriodHint:VatPeriodOf":                   0,
+	"mcpserver/erklaerung.go:periodMismatch:ParseVatPeriodKey":             0,
+	"mcpserver/posten.go:registerPosten:AgeOpenItems":                      0,
 	"wailsbridge/asset_service.go:GetAssetRules:AfAParametersFor":          1,
 	"wailsbridge/asset_service.go:GetInvestmentRules:PartialExemptionFor":  1,
 	"wailsbridge/nachweise_service.go:GetComplianceHints:SystemChangeNote": 1,

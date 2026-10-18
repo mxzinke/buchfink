@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/declaration"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -302,7 +301,8 @@ func registerErklaerung(tb *Toolbox) {
 			out.Zeitraum, out.Status, out.Faellig = ret.PeriodKey, statusLabel(string(ret.Status)), ret.DueDate
 			out.Zahllast = optBetrag(ret.Payable)
 			out.Uebermittelt, out.Transferticket = ret.SubmittedAt, ret.TransferTicket
-			if note := periodMismatch(ctx, s, period); note != "" {
+			if want := s.VatReturns.PeriodMismatch(ctx, period); want != "" {
+				note := fmt.Sprintf("Der Mandant meldet %s, %s ist ein anderer Zeitraum. Den passenden Schlüssel nennt fristen.", vatPeriodWord[want], period)
 				out.Befunde = append(out.Befunde, erklaerungBefund{Schwere: "warnung", Code: "zeitraum_passt_nicht", Text: note})
 			}
 			for _, f := range ret.Figures {
@@ -513,25 +513,6 @@ func registerErklaerung(tb *Toolbox) {
 		}
 		return out, nil
 	})
-}
-
-// periodMismatch meldet, wenn ein Voranmeldungszeitraum nicht zur
-// eingestellten Zeitraumart des Mandanten passt.
-func periodMismatch(ctx context.Context, s *core.Services, period string) string {
-	cfg, err := s.Settings.GetCompanySettings(ctx)
-	if err != nil || cfg == nil {
-		return ""
-	}
-	p, err := accounting.ParseVatPeriodKey(period)
-	if err != nil {
-		return ""
-	}
-	want := domain.VatPeriodType(cfg.VatPeriod)
-	if !want.Valid() || p.Type == want {
-		return ""
-	}
-	return fmt.Sprintf("Der Mandant meldet %s, %s ist ein anderer Zeitraum. Den passenden Schlüssel nennt fristen.",
-		vatPeriodWord[want], period)
 }
 
 var vatPeriodWord = map[domain.VatPeriodType]string{
