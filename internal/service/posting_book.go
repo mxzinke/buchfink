@@ -3,10 +3,10 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
-	"strings"
 )
 
 // bookIncomingReceipt schreibt Nachweise, Buchung, Nebenbücher und Siegel

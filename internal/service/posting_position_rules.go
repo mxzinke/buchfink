@@ -20,24 +20,56 @@ type positionWork struct {
 	request    ReceiptRequest
 	resolved   resolvedPosition
 	giftTotals map[string]domain.Cents
+	fx         *fxContext
+	euroNet    domain.Cents
+	foreignNet domain.Cents
+	advance    bool
 }
 
 var incomingPositionRules = []positionRule{
+	{"fremdwaehrung", applyPositionCurrency},
+	{"anzahlung", applyAdvancePosition},
 	{"vorsteueranteil", applyInputTaxShare},
 	{"buchungsgruppe", applyPostingGroup},
 	{"vorsteuerausschluss", applyInputTaxExclusion},
 	{"geschenk_freigrenze", applyGiftLimit},
 }
 
-func (s *PostingService) resolvePosition(ctx context.Context, req ReceiptRequest, p ReceiptPosition, giftTotals map[string]domain.Cents) (resolvedPosition, error) {
-	w := positionWork{request: req, giftTotals: giftTotals,
+func (s *PostingService) prepareIncomingPosition(ctx context.Context, req ReceiptRequest, p ReceiptPosition, fx *fxContext, euroNet domain.Cents, giftTotals map[string]domain.Cents) (preparedPosition, error) {
+	w := positionWork{request: req, giftTotals: giftTotals, fx: fx, euroNet: euroNet,
 		resolved: resolvedPosition{position: p, permille: 1000, warnings: make([]PostingWarning, 0, 1)}}
 	for _, rule := range incomingPositionRules {
 		if err := rule.apply(ctx, s, &w); err != nil {
-			return w.resolved, err
+			return preparedPosition{}, err
+		}
+		if w.advance {
+			break
 		}
 	}
-	return w.resolved, nil
+	return preparedPosition{position: w.resolved.position, foreignNet: w.foreignNet, advance: w.advance, resolved: w.resolved}, nil
+}
+
+// applyPositionCurrency rechnet vor jeder Euro-Freigrenze um (§ 256a HGB).
+// Die Kurse sind vorbereitet; diese Regel fragt keinen Netzdienst.
+func applyPositionCurrency(_ context.Context, _ *PostingService, w *positionWork) error {
+	p := &w.resolved.position
+	if p.Net <= 0 {
+		return fmt.Errorf("der Nettobetrag muss größer als null sein")
+	}
+	if w.fx != nil {
+		w.foreignNet, p.Net = p.Net, w.euroNet
+		if p.Net <= 0 {
+			return fmt.Errorf("%s %s ergeben zum Kurs %s keinen Betrag über null", w.foreignNet, w.fx.currency, w.fx.conv.Rate.Source)
+		}
+	}
+	return nil
+}
+
+// applyAdvancePosition führt die gezahlte Anzahlung als Vermögen (§ 266 HGB).
+// Der Vorsteuerabzug setzt ihre Zahlung voraus (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG).
+func applyAdvancePosition(_ context.Context, _ *PostingService, w *positionWork) error {
+	w.advance = w.request.AdvanceTarget != ""
+	return nil
 }
 
 // applyInputTaxShare begrenzt den Abzug nach § 15 Abs. 4 UStG und hält
