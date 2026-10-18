@@ -393,10 +393,23 @@ func (s *AppropriationService) ensureAdopted(ctx context.Context, year int, deci
 
 // Appropriation liefert den gespeicherten Beschluss eines Jahres, oder nil.
 func (s *AppropriationService) Appropriation(ctx context.Context, year int) (*domain.Appropriation, error) {
+	return s.DecisionSource().Appropriation(ctx, year)
+}
+
+// DecisionSource liest den Beschluss ohne Zugriff auf Abschlussbuchungen.
+func (s *AppropriationService) DecisionSource() ObligationAppropriationSource {
+	return appropriationReader{repo: s.appropriationRepo}
+}
+
+type appropriationReader struct {
+	repo domain.AppropriationRepository
+}
+
+func (s appropriationReader) Appropriation(ctx context.Context, year int) (*domain.Appropriation, error) {
 	if err := requireYear(year); err != nil {
 		return nil, err
 	}
-	return s.appropriationRepo.FindByYear(ctx, year)
+	return s.repo.FindByYear(ctx, year)
 }
 
 // -------------------------------------------------------------------------

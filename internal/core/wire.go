@@ -192,14 +192,14 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 
 	s.Statement = service.NewStatementService(s.Accounting, s.Periods.ReadOnly(), settingsRepo, auditRepo)
 	s.Statement.SetOpenItemSource(s.Payments)
-	s.Closing.SetRevenueSource(s.Statement)
+	s.Closing.SetRevenueSource(s.Statement.Figures())
 	s.Statement.SetRenderer(renderer)
 	s.Foundation.SetStatementSource(s.Statement)
 	s.Foundation.SetRenderer(renderer)
 	s.Foundation.SetReceiptService(s.Receipts)
 	s.Closing.SetStatementSource(s.Statement)
 	s.ClosingBookings.SetOpenItemSource(s.Payments)
-	s.ClosingBookings.SetRevenueSource(s.Statement)
+	s.ClosingBookings.SetRevenueSource(s.Statement.Figures())
 	s.Statement.SetNotesSources(service.NotesSources{
 		Provisions:     s.Provisions,
 		Reconciliation: s.TaxRegister,
@@ -244,7 +244,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Checks.SetDepreciationSource(s.Assets)
 	s.Checks.SetProvisionSource(s.Provisions)
 	s.Checks.SetClosingStepSource(s.ClosingSteps)
-	s.Checks.SetSizeClassSource(s.Statement)
+	s.Checks.SetSizeClassSource(s.Statement.Figures())
 	s.Checks.SetVatIDStatusSource(s.VatIDs)
 
 	s.Obligations = service.NewObligationService(settingsRepo, obligationRepo, auditRepo)
@@ -252,8 +252,8 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Obligations.SetZMSources(s.ZM, zmReturnRepo)
 	s.Obligations.SetCommitments(festschreibungRepo)
 	s.Obligations.SetFiscalYearSource(fiscalYearRepo)
-	s.Obligations.SetSizeSource(s.Statement)
-	s.Obligations.SetAppropriationSource(s.Appropriation)
+	s.Obligations.SetSizeSource(s.Statement.Figures())
+	s.Obligations.SetAppropriationSource(s.Appropriation.DecisionSource())
 	s.Obligations.SetJournalSource(journalRepo)
 	s.Obligations.SetDeclarationSource(declarationRepo)
 	s.Statement.SetDeadlineSource(s.Obligations)
