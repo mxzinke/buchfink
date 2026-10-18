@@ -208,51 +208,54 @@ func (s *JournalService) post(ctx context.Context, entry *domain.JournalEntry, m
 	})
 }
 
-// check hält jede Regel, die eine Buchung vor dem Schreiben erfüllen muss. Post
-// und ValidatePostable rufen dieselbe Prüfung, damit die Vorprüfung nichts
-// anderes prüft als das, was danach geschieht.
+type entryRule struct {
+	name              string
+	appliesToReversal bool
+	check             func(context.Context, *domain.JournalEntry) error
+}
+
+func (s *JournalService) entryRules() []entryRule {
+	return []entryRule{
+		{"accrual_taxation", false, func(ctx context.Context, _ *domain.JournalEntry) error {
+			return s.ensureAccrualTaxation(ctx)
+		}},
+		{"entry", true, func(_ context.Context, e *domain.JournalEntry) error { return e.Validate() }},
+		{"entertainment", true, func(_ context.Context, e *domain.JournalEntry) error {
+			if e.Entertainment != nil {
+				return e.Entertainment.Validate()
+			}
+			return nil
+		}},
+		{"accounts", true, s.validateAccounts},
+		{"lawful_tax_disclosure", false, func(_ context.Context, e *domain.JournalEntry) error {
+			return s.ensureLawfulTaxDisclosure(e)
+		}},
+		{"tax_lines", false, func(_ context.Context, e *domain.JournalEntry) error { return validateTaxLines(e) }},
+		{"manual_tax_lines", false, func(_ context.Context, e *domain.JournalEntry) error {
+			if e.Source == domain.EntrySourceManual {
+				return ValidateManualTaxLines(e)
+			}
+			return nil
+		}},
+		// Die Feststellung nennt den Weg zurück und geht der Festschreibung vor.
+		{"year_not_adopted", true, s.ensureYearNotAdopted},
+		{"period_open", true, s.ensurePeriodOpen},
+		{"receipt_header", false, s.ensureReceiptHeader},
+	}
+}
+
+// check hält jede Regel, die eine Buchung vor dem Schreiben erfüllen muss.
+// Post und ValidatePostable prüfen dieselbe Liste; der erste Fehler entscheidet.
 func (s *JournalService) check(ctx context.Context, entry *domain.JournalEntry) error {
-	// Die Generalumkehr läuft durch: eine Regel über künftige Buchungen darf
-	// nicht die Korrektur vorhandener verhindern.
-	if entry.Kind != domain.EntryKindReversal {
-		if err := s.ensureAccrualTaxation(ctx); err != nil {
+	for _, rule := range s.entryRules() {
+		if entry.Kind == domain.EntryKindReversal && !rule.appliesToReversal {
+			continue
+		}
+		if err := rule.check(ctx, entry); err != nil {
 			return err
 		}
 	}
-	if err := entry.Validate(); err != nil {
-		return err
-	}
-	if d := entry.Entertainment; d != nil {
-		if err := d.Validate(); err != nil {
-			return err
-		}
-	}
-	if err := s.validateAccounts(ctx, entry); err != nil {
-		return err
-	}
-	if err := s.ensureLawfulTaxDisclosure(entry); err != nil {
-		return err
-	}
-	if err := validateTaxLines(entry); err != nil {
-		return err
-	}
-	// Steuerfall, Steuerschlüssel und Bemessungsgrundlage sind an einer
-	// Handbuchung Pflicht, gleich über welchen Weg sie hereinkommt.
-	if entry.Source == domain.EntrySourceManual {
-		if err := ValidateManualTaxLines(entry); err != nil {
-			return err
-		}
-	}
-	// Der Abschlussstand steht vor der Festschreibung: ein festgestelltes Jahr
-	// ist immer auch festgeschrieben, und die Meldung über die Feststellung nennt
-	// den Weg zurück.
-	if err := s.ensureYearNotAdopted(ctx, entry); err != nil {
-		return err
-	}
-	if err := s.ensurePeriodOpen(ctx, entry); err != nil {
-		return err
-	}
-	return s.ensureReceiptHeader(ctx, entry)
+	return nil
 }
 
 // ensureReceiptHeader verlangt die Kopfdaten des Belegs, auf den die Buchung
@@ -267,19 +270,10 @@ func (s *JournalService) check(ctx context.Context, entry *domain.JournalEntry) 
 // verlangte Ansehbarkeit gilt dem Beleg, den ein Mensch vor sich hat, und
 // nicht dem maschinell erzeugten Eigenbeleg einer Abschlussbuchung.
 //
-// Zwei Fälle sind ausgenommen, und beide aus demselben Grund: die Kopfdatenpflicht
-// gilt dem Buchen eines noch offenen Belegs und darf keine Buchung sperren, die
-// sich nicht mehr in Ordnung bringen lässt.
+// Die Generalumkehr ist in der Regelliste ausgenommen (GoBD Rz. 58):
+// die Kopfdatenpflicht darf die Korrektur vorhandener Buchungen nicht sperren.
 func (s *JournalService) ensureReceiptHeader(ctx context.Context, entry *domain.JournalEntry) error {
 	if s.receiptRepo == nil || entry.ReceiptID == nil {
-		return nil
-	}
-	// Die Generalumkehr läuft durch — dieselbe Erwägung wie bei der
-	// Istversteuerung weiter oben in Post. Der Storno kopiert den Beleg der
-	// Ursprungsbuchung, und er ist der Weg, den GoBD Rz. 58 für die Korrektur
-	// vorsieht. Eine Regel über künftige Aufzeichnungen darf die Korrektur
-	// vorhandener nicht verhindern.
-	if entry.Kind == domain.EntryKindReversal {
 		return nil
 	}
 	receipt, err := s.receiptRepo.FindByID(ctx, *entry.ReceiptID)
@@ -786,9 +780,6 @@ func (s *JournalService) legalForm(ctx context.Context) string {
 // verhindern soll: Konto 4337 und eine UST19-Zeile in einer Buchung, gemeldet in
 // Kennziffer 21 *und* in 81.
 func (s *JournalService) ensureLawfulTaxDisclosure(e *domain.JournalEntry) error {
-	if e.Kind == domain.EntryKindReversal {
-		return nil
-	}
 	treatment := e.TaxTreatment
 	derived := false
 	if treatment == "" {
@@ -907,9 +898,6 @@ func (s *JournalService) validateAccounts(ctx context.Context, e *domain.Journal
 // validateTaxLines hält jeden Steuerschlüssel gegen den Katalog. Die
 // Generalumkehr übernimmt die Zeilen der stornierten Buchung und läuft durch.
 func validateTaxLines(e *domain.JournalEntry) error {
-	if e.Kind == domain.EntryKindReversal {
-		return nil
-	}
 	for i, l := range e.Lines {
 		if err := accounting.CheckTaxLine(l); err != nil {
 			return fmt.Errorf("Zeile %d: %w", i+1, err)
