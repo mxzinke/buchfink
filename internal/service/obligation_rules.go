@@ -431,11 +431,11 @@ func (r *obligationRun) specialPrepayment(year int, add func(domain.Obligation, 
 	if r.cfg.SpecialPrepayment > 0 {
 		o.Hints = append(o.Hints, fmt.Sprintf("Erfasster Betrag: %s €.", r.cfg.SpecialPrepayment))
 	}
-	payments, err := r.postings(accountSpecialPrepayment, domain.SideDebit)
+	booked, err := r.postings(accountSpecialPrepayment, domain.SideDebit)
 	if err != nil {
 		return err
 	}
-	add(o, bookingProof(payments, fmt.Sprintf("%d-01-01", year), fmt.Sprintf("%d-12-31", year)))
+	add(o, bookingProof(payments(booked), fmt.Sprintf("%d-01-01", year), fmt.Sprintf("%d-12-31", year)))
 	return nil
 }
 
@@ -486,7 +486,7 @@ func (r *obligationRun) prepayments(
 		o := r.base(kind, fmt.Sprintf("%d-Q%d", year, quarter), domain.GermanDate(dueISO),
 			calendar.Format(qFrom), calendar.Format(calendar.EndOfMonth(year, time.Month(quarter*3))), year)
 		r.setDue(&o, due)
-		add(o, bookingProof(paid, addDays(dueISO, -prepaymentWindowDays), addDays(dueISO, prepaymentWindowDays)))
+		add(o, bookingProof(payments(paid), addDays(dueISO, -prepaymentWindowDays), addDays(dueISO, prepaymentWindowDays)))
 	}
 	return nil
 }
@@ -1135,6 +1135,9 @@ type ledgerPosting struct {
 	number  string
 	amount  domain.Cents
 	entryID uint
+	// paid: die Buchung beruht auf einem Bankumsatz oder stammt nicht von
+	// einem Agenten. Nur sie belegt eine Zahlung.
+	paid bool
 }
 
 // postings liest die Buchungen einer Seite eines Kontos ab ledgerFrom.
@@ -1167,12 +1170,26 @@ func (r *obligationRun) postings(account string, side domain.Side) ([]ledgerPost
 		}
 		for _, line := range e.Lines {
 			if line.Account == account && line.Side == side && line.Amount > 0 {
-				out = append(out, ledgerPosting{date: e.BookingDate, number: e.EntryNumber, amount: line.Amount, entryID: e.ID})
+				out = append(out, ledgerPosting{date: e.BookingDate, number: e.EntryNumber, amount: line.Amount, entryID: e.ID,
+					paid: e.BankTxID != nil || !actor.Channel(e.Channel).IsAgent()})
 			}
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].date < out[j].date })
 	return out, nil
+}
+
+// payments sind die Buchungen, die eine Zahlung belegen. Eine Handbuchung
+// eines Agenten („laut Bescheid gezahlt") ist keine: sie setzte eine
+// versäumte Vorauszahlung auf erledigt, ohne dass Geld floss.
+func payments(postings []ledgerPosting) []ledgerPosting {
+	out := make([]ledgerPosting, 0, len(postings))
+	for _, p := range postings {
+		if p.paid {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // bookingProof ist der Nachweis aus der ersten Buchung im Zeitraum.

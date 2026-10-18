@@ -136,7 +136,18 @@ func (s *BankService) Suggest(ctx context.Context, bankTxID uint) (*BankSuggesti
 	if err != nil {
 		return nil, fmt.Errorf("Bankumsatz %d wurde nicht gefunden: %w", bankTxID, err)
 	}
+	var items []domain.OpenItem
+	if s.openItems != nil {
+		if items, err = s.openItems.OpenItems(ctx); err != nil {
+			items = nil
+		}
+	}
+	return s.SuggestFor(ctx, tx, items)
+}
 
+// SuggestFor ist Suggest mit schon gelesenen offenen Posten; wer viele Umsätze
+// auf einmal vorschlägt, liest sie so nur einmal.
+func (s *BankService) SuggestFor(ctx context.Context, tx *domain.BankTransaction, open []domain.OpenItem) (*BankSuggestions, error) {
 	out := &BankSuggestions{BankTxID: tx.ID, Amount: tx.Amount}
 	out.EnsureLists()
 
@@ -147,7 +158,7 @@ func (s *BankService) Suggest(ctx context.Context, bankTxID uint) (*BankSuggesti
 		BookingDate:      tx.BookingDate,
 	}
 
-	items := s.candidates(ctx, tx)
+	items := candidatesFor(tx, open)
 	for i := range items {
 		item := items[i]
 		score, reasons := accounting.ScoreMatch(match, accounting.MatchItem{
@@ -204,17 +215,10 @@ func (s *BankService) Suggest(ctx context.Context, bankTxID uint) (*BankSuggesti
 	return out, nil
 }
 
-// candidates sind die offenen Posten der Seite, die zum Vorzeichen des Umsatzes
-// passt: ein Geldeingang gleicht eine Forderung aus, ein Ausgang eine
+// candidatesFor sind die offenen Posten der Seite, die zum Vorzeichen des
+// Umsatzes passt: ein Geldeingang gleicht eine Forderung aus, ein Ausgang eine
 // Verbindlichkeit.
-func (s *BankService) candidates(ctx context.Context, tx *domain.BankTransaction) []domain.OpenItem {
-	if s.openItems == nil {
-		return nil
-	}
-	items, err := s.openItems.OpenItems(ctx)
-	if err != nil {
-		return nil
-	}
+func candidatesFor(tx *domain.BankTransaction, items []domain.OpenItem) []domain.OpenItem {
 	wanted := domain.ContactTypeVendor
 	if tx.Amount > 0 {
 		wanted = domain.ContactTypeCustomer

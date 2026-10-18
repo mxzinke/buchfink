@@ -52,6 +52,15 @@ type EInvoiceProposal struct {
 	InvoiceNumber  string       `json:"invoiceNumber"`
 	GrossAmount    domain.Cents `json:"grossAmount"`
 	MatchedContact bool         `json:"matchedContact"`
+	// MatchedBy sagt, woran der Kontakt erkannt wurde: "ust_id" oder
+	// "steuernummer" identifizieren, "name" deutet nur an.
+	MatchedBy string `json:"matchedBy,omitempty"`
+
+	// SupplierPostCode, SupplierCity und PaymentAccounts (BT-84) stehen für den
+	// Abgleich mit den Stammdaten des Kontakts.
+	SupplierPostCode string   `json:"supplierPostCode,omitempty"`
+	SupplierCity     string   `json:"supplierCity,omitempty"`
+	PaymentAccounts  []string `json:"paymentAccounts,omitempty"`
 
 	// PrecedingInvoices are the invoices this one refers to (BG-3) — what ties
 	// a correction to what it corrects.
@@ -324,6 +333,9 @@ func (s *EInvoiceService) Propose(ctx context.Context, receiptID uint) (*EInvoic
 		SupplierTaxID:     read.Supplier.TaxID,
 		InvoiceNumber:     read.Number,
 		GrossAmount:       read.GrossAmount,
+		SupplierPostCode:  read.Supplier.PostCode,
+		SupplierCity:      read.Supplier.City,
+		PaymentAccounts:   read.PaymentAccounts,
 		PrecedingInvoices: read.PrecedingInvoices,
 		Notes:             append([]string{}, read.Notes...),
 	}
@@ -335,8 +347,9 @@ func (s *EInvoiceService) Propose(ctx context.Context, receiptID uint) (*EInvoic
 		proposal.Notes = append(proposal.Notes, note)
 	}
 
-	contact, matched := s.matchSupplier(ctx, read.Supplier)
-	proposal.MatchedContact = matched
+	contact, matchedBy := s.matchSupplier(ctx, read.Supplier)
+	matched := contact != nil
+	proposal.MatchedContact, proposal.MatchedBy = matched, matchedBy
 	// Der Kategoriecode AE sagt nur „Steuerschuld beim Empfänger". Bei einem
 	// Lieferanten aus einem anderen EU-Staat ist das in aller Regel die
 	// sonstige Leistung nach § 13b Abs. 1 UStG.
@@ -420,28 +433,31 @@ func resolveTreatment(read *domain.IncomingInvoice) (domain.TaxTreatment, string
 
 // matchSupplier finds the contact behind the seller, by VAT id, tax number or
 // name — in that order, because the first two identify and the last only hints.
-func (s *EInvoiceService) matchSupplier(ctx context.Context, supplier domain.InvoiceParty) (*domain.Contact, bool) {
+// The second result names the key that matched.
+func (s *EInvoiceService) matchSupplier(ctx context.Context, supplier domain.InvoiceParty) (*domain.Contact, string) {
 	contacts, err := s.contactRepo.FindAll(ctx)
 	if err != nil {
-		return nil, false
+		return nil, ""
 	}
 
 	for _, key := range []struct {
+		name  string
 		value string
 		field func(domain.Contact) string
 	}{
-		{supplier.VatID, func(c domain.Contact) string { return c.VatID }},
-		{supplier.TaxID, func(c domain.Contact) string { return c.TaxID }},
+		{"ust_id", supplier.VatID, func(c domain.Contact) string { return c.VatID }},
+		{"steuernummer", supplier.TaxID, func(c domain.Contact) string { return c.TaxID }},
 	} {
-		if key.value == "" {
+		value := domain.NormalizeTaxIdentifier(key.value)
+		if value == "" {
 			continue
 		}
 		for i := range contacts {
 			if contacts[i].Type != domain.ContactTypeVendor {
 				continue
 			}
-			if strings.EqualFold(strings.TrimSpace(key.field(contacts[i])), key.value) {
-				return &contacts[i], true
+			if domain.NormalizeTaxIdentifier(key.field(contacts[i])) == value {
+				return &contacts[i], key.name
 			}
 		}
 	}
@@ -449,11 +465,11 @@ func (s *EInvoiceService) matchSupplier(ctx context.Context, supplier domain.Inv
 	if name := strings.TrimSpace(supplier.Name); name != "" {
 		for i := range contacts {
 			if contacts[i].Type == domain.ContactTypeVendor && strings.EqualFold(contacts[i].Name, name) {
-				return &contacts[i], true
+				return &contacts[i], "name"
 			}
 		}
 	}
-	return nil, false
+	return nil, ""
 }
 
 func isXML(mimeType string, data []byte) bool {

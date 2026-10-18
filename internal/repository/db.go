@@ -230,6 +230,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.PayrollRun{},
 		&domain.DeclarationInput{},
 		&domain.DeclarationRecord{},
+		&domain.DunningNote{},
 	)
 }
 

@@ -454,6 +454,7 @@ type ForeignCurrencyValuation struct {
 	Note      string       `json:"note"`
 	// EntryNumber und ReversalEntryNumber sind nach dem Buchen belegt.
 	EntryNumber         string `json:"entryNumber,omitempty"`
+	EntryID             uint   `json:"entryId,omitempty"`
 	ReversalEntryNumber string `json:"reversalEntryNumber,omitempty"`
 }
 

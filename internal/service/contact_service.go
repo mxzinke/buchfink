@@ -37,6 +37,11 @@ func NewContactService(
 	}
 }
 
+// Contact liefert einen Geschäftspartner ohne Saldo.
+func (s *ContactService) Contact(ctx context.Context, id uint) (*domain.Contact, error) {
+	return s.contactRepo.FindByID(ctx, id)
+}
+
 // GetContacts returns all business partners with the balance their
 // Personenkonto shows in the fiscal year (the open item total) filled in.
 func (s *ContactService) GetContacts(ctx context.Context, year int) ([]domain.Contact, error) {
@@ -96,6 +101,7 @@ func (s *ContactService) SaveContact(ctx context.Context, c *domain.Contact) err
 			before = prev
 		}
 	}
+	keepPostingGroup(ctx, c, before)
 
 	if c.LedgerAccount == "" {
 		account, err := s.allocateLedgerAccount(ctx, c.Type)

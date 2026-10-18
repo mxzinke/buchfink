@@ -10,9 +10,9 @@ import (
 // entstehen aus Stammdaten und Buchführung; gespeichert wird nur, was ein
 // Mensch bestätigt, ein Agent vorbereitet oder ein Anlass ausgelöst hat.
 
-// ObligationKind ist der stabile Schlüssel einer Pflichtart. Er ist zugleich
-// der Anker in buchfink-grundlagen/references/pflichten.md und ändert sich
-// deshalb nicht.
+// ObligationKind ist der stabile Schlüssel einer Pflichtart. Er steht in den
+// Schlüsseln der Pflichten und ändert sich deshalb nicht. Den Abschnitt in
+// buchfink-grundlagen/references/pflichten.md nennt Anchor.
 type ObligationKind string
 
 const (
@@ -42,8 +42,46 @@ const (
 // ObligationSkillFile ist die Skill-Referenz, deren Anker die Pflichtarten sind.
 const ObligationSkillFile = "buchfink-grundlagen/references/pflichten.md"
 
+// obligationAnchors sind die Pflichtarten, deren Abschnitt in der
+// Skill-Referenz anders heißt als ihr Schlüssel.
+var obligationAnchors = map[ObligationKind]string{
+	ObligationMonthCommit:     "monatsfestschreibung",
+	ObligationClosingBookings: "bilanzstichtag",
+	ObligationEBilanz:         "ebilanz",
+	ObligationTaxRegistration: "fragebogen-steuerliche-erfassung",
+}
+
+// ObligationKinds sind alle Pflichtarten.
+func ObligationKinds() []ObligationKind {
+	return []ObligationKind{ObligationVatReturn, ObligationSpecialPrepayment, ObligationECSalesList,
+		ObligationCorporatePrepay, ObligationTradePrepay, ObligationPayrollTax, ObligationMonthCommit,
+		ObligationClosingBookings, ObligationStatementPrep, ObligationAdoption, ObligationAppropriation,
+		ObligationEBilanz, ObligationCorporateTaxReturn, ObligationTradeTaxReturn, ObligationAnnualVatReturn,
+		ObligationDisclosure, ObligationTransparency, ObligationShareholderList, ObligationTaxRegistration,
+		ObligationTradeRegistration, ObligationWithholdingTax}
+}
+
+// ObligationKindOf liest eine Pflichtart, auch unter dem Anker ihres
+// Abschnitts in der Skill-Referenz („ebilanz" für „e-bilanz").
+func ObligationKindOf(s string) (ObligationKind, bool) {
+	for _, k := range ObligationKinds() {
+		if string(k) == s || k.Anchor() == s {
+			return k, true
+		}
+	}
+	return "", false
+}
+
+// Anchor ist der Anker des Abschnitts in der Skill-Referenz.
+func (k ObligationKind) Anchor() string {
+	if a, ok := obligationAnchors[k]; ok {
+		return a
+	}
+	return string(k)
+}
+
 // SkillRef ist der Verweis auf die Skill-Referenz der Pflichtart.
-func (k ObligationKind) SkillRef() string { return ObligationSkillFile + "#" + string(k) }
+func (k ObligationKind) SkillRef() string { return ObligationSkillFile + "#" + k.Anchor() }
 
 // ObligationStatus ist der Stand einer Pflicht.
 type ObligationStatus string

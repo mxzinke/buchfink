@@ -78,6 +78,20 @@ func ScoreMatch(tx MatchTransaction, item MatchItem) (int, []string) {
 	return score, reasons
 }
 
+// MatchedReference liefert die erste der Nummern, die im Verwendungszweck
+// steht, oder "". Nummern unter vier Zeichen zählen nicht.
+func MatchedReference(remittance string, numbers ...string) string {
+	if len(numbers) == 0 {
+		return ""
+	}
+	for _, n := range numbers {
+		if ref := matchedReference(remittance, n, ""); ref != "" {
+			return ref
+		}
+	}
+	return ""
+}
+
 // matchedReference liefert die im Verwendungszweck gefundene Nummer oder "".
 func matchedReference(remittance, documentNumber, entryNumber string) string {
 	normalized := normalizeReference(remittance)

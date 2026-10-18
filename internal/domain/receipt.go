@@ -268,6 +268,11 @@ type Receipt struct {
 	// ValidationFindings holds the findings as JSON. They are display material,
 	// not booking data, which is why they are not part of the Beleg-Hash.
 	ValidationFindings string `gorm:"type:text" json:"validationFindings,omitempty"`
+	// EInvoiceNumber und EInvoiceIssuer kennzeichnen die E-Rechnung aus ihrem
+	// strukturierten Teil, unabhängig von den Kopfdaten. Die Dublettenprüfung
+	// sucht darüber in allen Geschäftsjahren.
+	EInvoiceNumber string `gorm:"size:120;index" json:"eInvoiceNumber,omitempty"`
+	EInvoiceIssuer string `gorm:"size:40" json:"eInvoiceIssuer,omitempty"`
 
 	// InputTaxOverride ist der Grund, mit dem der Anwender einen blockierenden
 	// Befund der Rechnungsprüfung übersteuert hat.
@@ -562,6 +567,9 @@ type ReceiptRepository interface {
 	// existiert — ein zweites Mal importierter Kontoauszug darf keinen zweiten
 	// Beleg erzeugen.
 	FindByOriginalHash(ctx context.Context, sha256 string) (*Receipt, error)
+	// FindByEInvoiceNumber liefert alle Belege, deren E-Rechnung diese
+	// Rechnungsnummer trägt, über alle Geschäftsjahre.
+	FindByEInvoiceNumber(ctx context.Context, number string) ([]Receipt, error)
 	// Create allocates the Belegnummer, computes the Beleg-Hash and inserts the
 	// Beleg with its files in one transaction.
 	Create(ctx context.Context, receipt *Receipt, hash ReceiptHashFunc) error
@@ -584,6 +592,8 @@ type ReceiptRepository interface {
 	// der Rechnungsprüfung übersteuert wurde. Auch er berührt keine Datei und
 	// damit den Beleg-Hash nicht.
 	SaveInputTaxOverride(ctx context.Context, receiptID uint, reason, at string) error
+	// SaveReceivedAt berichtigt den Eingangstag. Er steht nicht im Beleg-Hash.
+	SaveReceivedAt(ctx context.Context, receiptID uint, date string) error
 	// SaveRetention schreibt eine überschriebene Aufbewahrungsfrist. Sie berührt
 	// keine Datei und keine Kopfdaten und damit den Beleg-Hash nicht — die
 	// Frist ist eine Aussage über die Aufbewahrung, nicht über das Dokument.
@@ -622,4 +632,8 @@ type ReceiptValidation struct {
 	Coverage string
 	Errors   int
 	Findings string
+	// InvoiceNumber und Issuer kennzeichnen die E-Rechnung: Rechnungsnummer
+	// (BT-1) und Steuerkennung des Ausstellers (BT-31, sonst BT-32).
+	InvoiceNumber string
+	Issuer        string
 }

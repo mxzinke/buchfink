@@ -35,6 +35,8 @@ var readOnlyAllowed = map[string]bool{
 	// Prüfer muss die Stichtagsbewertung eines abgeschlossenen Jahres ansehen
 	// können — die Kurse dazu stehen dann längst in der Historie.
 	"GetAfaRules": true,
+	// Die Regeln für verbundene Apps lesen.
+	"GetAgentRules": true,
 	// Welle 8: die lesenden Auswertungen der laufenden Buchhaltung.
 	// SaveFilteredJournalCSV gibt Journalzeilen heraus und protokolliert das
 	// als Zugriff (QUE-02 K2); das Protokoll ist der eine Schreibweg eines

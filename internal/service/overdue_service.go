@@ -37,6 +37,10 @@ type OverdueItem struct {
 	Interest     domain.Cents `json:"interest"`
 	// LumpSum ist die Pauschale des § 288 Abs. 5 BGB für diese Forderung.
 	LumpSum domain.Cents `json:"lumpSum"`
+	// LastReminder ist der Zugang der letzten Mahnung, ReminderLevel ihre
+	// Stufe; leer ohne Mahnvermerk.
+	LastReminder  string `json:"lastReminder,omitempty"`
+	ReminderLevel int    `json:"reminderLevel,omitempty"`
 	// Note sagt, was an diesem Posten nicht gerechnet werden konnte. Zinsen,
 	// die still mit null ausgewiesen werden, führten zu einer zu niedrigen
 	// Forderung, und niemand sähe, woran es lag.
@@ -79,6 +83,10 @@ type OverdueService struct {
 	// den Verzug nach dreißig Tagen hingewiesen hat (§ 286 Abs. 3 Satz 1
 	// Halbsatz 2 BGB).
 	invoiceRepo domain.InvoiceRepository
+	// dunning sind die Mahnvermerke; ohne sie rechnet der Dienst wie vor
+	// jeder Mahnung.
+	dunning   domain.DunningRepository
+	auditRepo domain.AuditRepository
 }
 
 // NewOverdueService wires die Verzugsrechnung.
@@ -123,6 +131,10 @@ func (s *OverdueService) Claims(ctx context.Context, today string) ([]OverdueCla
 		return nil, err
 	}
 	rates := accounting.DefaultBaseRates()
+	reminders, err := s.reminders(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	byContact := map[uint]*OverdueClaim{}
 	order := make([]uint, 0, 8)
@@ -171,9 +183,17 @@ func (s *OverdueService) Claims(ctx context.Context, today string) ([]OverdueCla
 		if claim.IsConsumer {
 			noticePrinted = s.consumerNoticePrinted(ctx, item.DocumentNumber)
 		}
-		if from, err := accounting.DefaultInterestStartFor(
-			item.DueDate, claim.IsConsumer, noticePrinted,
-		); err != nil {
+		from, err := accounting.DefaultInterestStartFor(item.DueDate, claim.IsConsumer, noticePrinted)
+		if last, effective := reminderOf(reminders[item.EntryID], item.DueDate); last != nil {
+			row.LastReminder, row.ReminderLevel = last.Date, last.Level
+			// Eine Mahnung nach Fälligkeit setzt in Verzug (§ 286 Abs. 1 BGB),
+			// verzinst ab dem Folgetag ihres Zugangs; gegenüber einem
+			// Verbraucher ohne Hinweis in der Rechnung ist sie der einzige Weg.
+			if effective != "" && (err != nil || effective < from) {
+				from, err = effective, nil
+			}
+		}
+		if err != nil {
 			// Ohne Verzugsbeginn keine Zinsen und keine Pauschale; beide setzen
 			// den Verzug voraus.
 			row.Note = fmt.Sprintf(

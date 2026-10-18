@@ -60,6 +60,9 @@ func (s *PostingService) PostManualEntry(
 				"erzeugen. Zu einem Geschäftsvorfall gehört ein Beleg — entscheide dich für einen der " +
 				"beiden Wege")
 	}
+	if err := requireFachweg(ctx, &entry); err != nil {
+		return nil, err
+	}
 	if err := ValidateManualTaxLines(&entry); err != nil {
 		return nil, err
 	}

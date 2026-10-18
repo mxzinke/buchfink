@@ -5,6 +5,7 @@ import (
 
 	"github.com/buchfink/buchfink/internal/buildinfo"
 	"github.com/buchfink/buchfink/internal/core"
+	"github.com/buchfink/buchfink/internal/core/policy"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/mcpserver/oauth"
 )
@@ -22,15 +23,29 @@ type statusOut struct {
 	Pruefermodus     *statusExaminer  `json:"pruefermodus,omitempty"`
 	Verbindung       statusConnection `json:"verbindung"`
 	VerbundeneApps   int              `json:"verbundene_apps" jsonschema:"Zahl der Apps mit gültiger Zulassung"`
+	Belegordner      []string         `json:"belegordner,omitempty" jsonschema:"Ordner, aus denen beleg_ablegen und kontoauszug_importieren lesen"`
+	Exportordner     string           `json:"exportordner,omitempty" jsonschema:"Ordner, in den die Exporte schreiben"`
+	Direktregeln     *statusRules     `json:"direktregeln,omitempty" jsonschema:"Schwellen, bis zu denen beleg_buchen ohne Rückfrage bucht"`
+}
+
+type statusRules struct {
+	GrenzeBrutto     Betrag `json:"grenze_brutto" jsonschema:"direkt nur, was darunter liegt"`
+	Mindestbuchungen int    `json:"mindestbuchungen" jsonschema:"frühere Buchungen des Lieferanten mit seiner bestätigten Standardgruppe"`
 }
 
 type statusTenant struct {
-	ID            string `json:"id" jsonschema:"mandant_id für schreibende Werkzeuge"`
-	Name          string `json:"name"`
-	Rechtsform    string `json:"rechtsform,omitempty"`
-	GJBeginnMonat int    `json:"gj_beginn_monat,omitempty" jsonschema:"Monat, in dem das Geschäftsjahr beginnt (1 = Januar)"`
-	Besteuerung   string `json:"besteuerung,omitempty" jsonschema:"SOLL oder IST"`
+	ID                 string `json:"id" jsonschema:"mandant_id für schreibende Werkzeuge"`
+	Name               string `json:"name"`
+	Rechtsform         string `json:"rechtsform,omitempty"`
+	GJBeginnMonat      int    `json:"gj_beginn_monat,omitempty" jsonschema:"Monat, in dem das Geschäftsjahr beginnt (1 = Januar)"`
+	Besteuerung        string `json:"besteuerung,omitempty" jsonschema:"SOLL oder IST"`
+	UStZeitraum        string `json:"ust_zeitraum,omitempty" jsonschema:"monat, quartal, jahr oder keiner: wie oft die UStVA fällig ist"`
+	Dauerfrist         bool   `json:"dauerfrist" jsonschema:"Dauerfristverlängerung: die UStVA ist einen Monat später fällig"`
+	FestgeschriebenBis string `json:"festgeschrieben_bis,omitempty" jsonschema:"bis zu diesem Tag sind die Buchungen festgeschrieben; Korrekturen nur als Storno im offenen Zeitraum"`
+	LetzteSicherung    string `json:"letzte_sicherung,omitempty"`
 }
+
+var vatPeriodLabel = map[string]string{"month": "monat", "quarter": "quartal", "year": "jahr", "none": "keiner"}
 
 type statusYear struct {
 	Jahr  int    `json:"jahr"`
@@ -101,6 +116,13 @@ func registerStatus(tb *Toolbox) {
 				out.Mandant.Rechtsform = settings.LegalForm
 				out.Mandant.GJBeginnMonat = settings.FiscalYearStartMonth
 				out.Mandant.Besteuerung = settings.TaxationType
+				out.Mandant.UStZeitraum = vatPeriodLabel[settings.VatPeriod]
+				out.Mandant.Dauerfrist = settings.PermanentExtension
+			}
+			for _, tc := range c.Host.Config().Tenants {
+				if tc.ID == t.ID() {
+					out.Mandant.LetzteSicherung = tc.LastBackupAt
+				}
 			}
 			years, err := s.Closing.FiscalYears(ctx)
 			if err != nil {
@@ -111,10 +133,24 @@ func registerStatus(tb *Toolbox) {
 					Jahr: fy.Year, Von: fy.StartDate, Bis: fy.EndDate, Stand: yearStand[fy.Status],
 				})
 			}
+			if out.Mandant.FestgeschriebenBis, err = s.Journal.CommittedThrough(ctx); err != nil {
+				return err
+			}
 			year, err := t.CurrentFiscalYear(ctx)
 			if err == nil {
 				out.GJAktuell = year
 			}
+			dirs, err := folders(ctx, c, s)
+			if err != nil {
+				return err
+			}
+			dirs.EnsureInbox()
+			out.Belegordner, out.Exportordner = orEmpty(dirs.Receipt), dirs.Export
+			limits, err := policy.LimitsFor(ctx, s)
+			if err != nil {
+				return err
+			}
+			out.Direktregeln = &statusRules{GrenzeBrutto: betrag(limits.MaxGross), Mindestbuchungen: limits.MinBookings}
 			return nil
 		})
 		if err != nil {

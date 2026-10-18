@@ -9,7 +9,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/buchfink/buchfink/internal/actor"
 	"github.com/buchfink/buchfink/internal/bank"
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -122,8 +124,21 @@ func (s *BankService) FileStatement(ctx context.Context, data []byte, filename s
 
 // ImportStatement importiert die Umsätze eines abgelegten Kontoauszugs.
 func (s *BankService) ImportStatement(ctx context.Context, data []byte, ledgerAccount string, statementID *uint) (int, error) {
-	return atomically(ctx, s.journalSvc, func(ctx context.Context) (int, error) {
-		return s.importCAMT053(ctx, bytes.NewReader(data), ledgerAccount, statementID)
+	res, err := s.ImportStatementChecked(ctx, data, ledgerAccount, statementID)
+	return res.Inserted, err
+}
+
+// StatementImport ist das Ergebnis eines Imports: neu eingelesene Umsätze und
+// je Auszug der Datei, ob er geprüft ist (siehe BankTransaction.StatementChecked).
+type StatementImport struct {
+	Inserted int
+	Checked  []bool
+}
+
+// ImportStatementChecked ist ImportStatement mit dem Ergebnis der Saldenprüfung.
+func (s *BankService) ImportStatementChecked(ctx context.Context, data []byte, ledgerAccount string, statementID *uint) (StatementImport, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (StatementImport, error) {
+		return s.importStatements(ctx, bytes.NewReader(data), ledgerAccount, statementID)
 	})
 }
 
@@ -178,21 +193,43 @@ func (s *BankService) fileStatement(ctx context.Context, data []byte, filename s
 func (s *BankService) importCAMT053(
 	ctx context.Context, r io.Reader, ledgerAccount string, statementID *uint,
 ) (int, error) {
-	parsed, err := bank.ParseCAMT053(r)
+	res, err := s.importStatements(ctx, r, ledgerAccount, statementID)
+	return res.Inserted, err
+}
+
+func (s *BankService) importStatements(
+	ctx context.Context, r io.Reader, ledgerAccount string, statementID *uint,
+) (StatementImport, error) {
+	statements, err := bank.ParseCAMT053Statements(r)
 	if err != nil {
-		return 0, err
+		return StatementImport{}, err
+	}
+	var parsed []domain.BankTransaction
+	for _, st := range statements {
+		parsed = append(parsed, st.Transactions...)
 	}
 
 	if err := s.routeTransactions(ctx, parsed, ledgerAccount); err != nil {
-		return 0, err
+		return StatementImport{}, err
 	}
-	for i := range parsed {
-		parsed[i].StatementReceiptID = statementID
+	checked, err := s.checkStatements(ctx, statements)
+	if err != nil {
+		return StatementImport{}, err
+	}
+	channel := string(actor.RecordedChannel(ctx))
+	i := 0
+	for si, st := range statements {
+		for range st.Transactions {
+			parsed[i].StatementReceiptID = statementID
+			parsed[i].ImportChannel = channel
+			parsed[i].StatementChecked = checked[si]
+			i++
+		}
 	}
 
 	inserted, err := s.bankRepo.CreateBatch(ctx, parsed)
 	if err != nil {
-		return 0, err
+		return StatementImport{}, err
 	}
 
 	archived := "ohne Ablage der Auszugsdatei"
@@ -202,9 +239,47 @@ func (s *BankService) importCAMT053(
 	if err := logAudit(ctx, s.auditRepo, domain.AuditActionImport, "BANK_TX", fmt.Sprintf("%d", inserted),
 		fmt.Sprintf("%d Umsätze aus CAMT.053 für Konto %s importiert (%s)",
 			inserted, ledgerAccount, archived)); err != nil {
-		return 0, err
+		return StatementImport{}, err
 	}
-	return inserted, nil
+	return StatementImport{Inserted: inserted, Checked: checked}, nil
+}
+
+// checkStatements prüft jeden Auszug: beide Salden, Umsätze gleich ihrer
+// Differenz, Anfangssaldo gleich dem gemerkten Endsaldo des Kontos. Den
+// Endsaldo merkt sich das Konto aus einem geprüften Auszug oder aus einem,
+// den der Mensch eingelesen hat; ein ungeprüfter Auszug eines Agenten
+// verschiebt den Anschluss nicht.
+func (s *BankService) checkStatements(ctx context.Context, statements []bank.Statement) ([]bool, error) {
+	checked := make([]bool, len(statements))
+	if s.accounts == nil {
+		return checked, nil
+	}
+	known, err := s.accounts.FindAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	accounts := map[string]domain.BankAccount{}
+	for _, a := range known {
+		accounts[a.IBAN] = a
+	}
+	human := !actor.RecordedChannel(ctx).IsAgent()
+	for i, st := range statements {
+		account, ok := accounts[st.IBAN]
+		if !ok || !st.Consistent() {
+			continue
+		}
+		checked[i] = account.ClosingDate != "" && account.ClosingBalance == *st.Opening &&
+			st.OpeningDate >= account.ClosingDate
+		if (!checked[i] && !human) || st.ClosingDate < account.ClosingDate {
+			continue
+		}
+		account.ClosingBalance, account.ClosingDate = *st.Closing, st.ClosingDate
+		if err := s.accounts.Save(ctx, &account); err != nil {
+			return nil, err
+		}
+		accounts[st.IBAN] = account
+	}
+	return checked, nil
 }
 
 // BookDirect books a bank transaction that has no document behind it against a
@@ -281,8 +356,24 @@ func (s *BankService) bookDirect(ctx context.Context, bankTxID uint, counterAcco
 	return created, nil
 }
 
+// Transaction liefert einen Bankumsatz.
+func (s *BankService) Transaction(ctx context.Context, bankTxID uint) (*domain.BankTransaction, error) {
+	tx, err := s.bankRepo.FindByID(ctx, bankTxID)
+	if err != nil {
+		return nil, fmt.Errorf("Bankumsatz %d wurde nicht gefunden: %w", bankTxID, err)
+	}
+	return tx, nil
+}
+
 // Ignore marks a bank transaction as deliberately not booked.
 func (s *BankService) Ignore(ctx context.Context, bankTxID uint) error {
+	return s.IgnoreBecause(ctx, bankTxID, "")
+}
+
+// IgnoreBecause markiert einen Bankumsatz als nicht zu buchen und hält den
+// Grund im Protokoll fest.
+func (s *BankService) IgnoreBecause(ctx context.Context, bankTxID uint, reason string) error {
+	reason = strings.TrimSpace(reason)
 	return s.journalSvc.InTx(ctx, func(ctx context.Context) error {
 		tx, err := s.bankRepo.FindByID(ctx, bankTxID)
 		if err != nil {
@@ -294,9 +385,12 @@ func (s *BankService) Ignore(ctx context.Context, bankTxID uint) error {
 		if err := s.bankRepo.SetMatchStatus(ctx, bankTxID, domain.MatchStatusIgnored); err != nil {
 			return err
 		}
-		return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "BANK_TX", fmt.Sprintf("%d", bankTxID),
-			fmt.Sprintf("Bankumsatz vom %s über %s € (%s) als nicht zu buchen markiert",
-				tx.BookingDate, tx.Amount, tx.CounterpartyName))
+		details := fmt.Sprintf("Bankumsatz vom %s über %s € (%s) als nicht zu buchen markiert",
+			tx.BookingDate, tx.Amount, tx.CounterpartyName)
+		if reason != "" {
+			details += ": " + reason
+		}
+		return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "BANK_TX", fmt.Sprintf("%d", bankTxID), details)
 	})
 }
 

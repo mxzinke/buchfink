@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
@@ -74,6 +75,18 @@ func (r *receiptRepositoryGorm) FindByOriginalHash(ctx context.Context, sha256 s
 	}
 	receipt.EnsureLists()
 	return &receipt, nil
+}
+
+func (r *receiptRepositoryGorm) FindByEInvoiceNumber(ctx context.Context, number string) ([]domain.Receipt, error) {
+	var receipts []domain.Receipt
+	number = strings.TrimSpace(number)
+	if number == "" {
+		return receipts, nil
+	}
+	err := dbFrom(ctx, r.db).
+		Where("e_invoice_number = ? COLLATE NOCASE", number).
+		Order("id asc").Find(&receipts).Error
+	return receipts, err
 }
 
 func (r *receiptRepositoryGorm) FindByJournalEntry(ctx context.Context, entryID uint) (*domain.Receipt, error) {
@@ -256,6 +269,11 @@ func (r *receiptRepositoryGorm) SaveInputTaxOverride(
 		Select("InputTaxOverride", "InputTaxOverrideAt").Updates(&receipt).Error
 }
 
+func (r *receiptRepositoryGorm) SaveReceivedAt(ctx context.Context, receiptID uint, date string) error {
+	receipt := domain.Receipt{ID: receiptID, ReceivedAt: date}
+	return dbFrom(ctx, r.db).Model(&receipt).Select("ReceivedAt").Updates(&receipt).Error
+}
+
 // SaveRetention schreibt die überschriebene Aufbewahrungsfrist an den Beleg.
 //
 // Ein gebuchter Beleg ist ausdrücklich nicht ausgenommen — die Frist steht
@@ -322,6 +340,8 @@ func (r *receiptRepositoryGorm) SaveValidation(ctx context.Context, receiptID ui
 			"validation_coverage": v.Coverage,
 			"validation_errors":   v.Errors,
 			"validation_findings": v.Findings,
+			"e_invoice_number":    v.InvoiceNumber,
+			"e_invoice_issuer":    v.Issuer,
 			"updated_at":          time.Now().UTC(),
 		}).Error
 }

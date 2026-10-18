@@ -34,6 +34,8 @@ type IncomingInvoice struct {
 
 	Supplier InvoiceParty `json:"supplier"`
 	Buyer    InvoiceParty `json:"buyer"`
+	// PaymentAccounts sind die Konten, auf die gezahlt werden soll (BT-84).
+	PaymentAccounts []string `json:"paymentAccounts,omitempty"`
 
 	NetAmount   Cents `json:"netAmount"`
 	TaxAmount   Cents `json:"taxAmount"`
@@ -124,6 +126,21 @@ type InvoiceParty struct {
 	VatID       string `json:"vatId,omitempty"`
 	TaxID       string `json:"taxId,omitempty"`
 	CountryCode string `json:"countryCode,omitempty"`
+	PostCode    string `json:"postCode,omitempty"`
+	City        string `json:"city,omitempty"`
+}
+
+// NormalizeTaxIdentifier macht USt-IdNr. und Steuernummer vergleichbar: nur
+// Buchstaben und Ziffern, groß geschrieben ("DE 555 666 777" und
+// "22/333/44444" wie "DE555666777" und "2233344444").
+func NormalizeTaxIdentifier(s string) string {
+	var b strings.Builder
+	for _, r := range strings.ToUpper(s) {
+		if (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 // IncomingPosition is one line of a received invoice.

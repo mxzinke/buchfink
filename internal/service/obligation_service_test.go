@@ -1120,15 +1120,36 @@ func TestListFiltersAndNext(t *testing.T) {
 	}
 }
 
-// Jede Pflichtart des Katalogs verweist auf ihren Anker in der Skill-Referenz.
+// skillAnchors sind die Anker der Abschnitte in
+// buchfink-grundlagen/references/pflichten.md.
+var skillAnchors = map[string]bool{
+	"ustva": true, "sondervorauszahlung": true, "zm": true, "kst-vorauszahlung": true,
+	"gewst-vorauszahlung": true, "lohnsteuer-anmeldung": true, "monatsfestschreibung": true,
+	"bilanzstichtag": true, "aufstellung": true, "feststellung": true, "ergebnisverwendung": true,
+	"ebilanz": true, "kst-erklaerung": true, "gewst-erklaerung": true, "ust-erklaerung": true,
+	"offenlegung": true, "transparenzregister": true, "gesellschafterliste": true,
+	"fragebogen-steuerliche-erfassung": true, "gewerbeanmeldung": true, "kapitalertragsteuer": true,
+}
+
+// Jede Pflichtart des Katalogs verweist auf ihren Anker in der Skill-Referenz,
+// und jeder Anker gehört zu genau einer Pflichtart.
 func TestCatalogCarriesSkillReferences(t *testing.T) {
 	seen := map[domain.ObligationKind]bool{}
+	anchors := map[string]domain.ObligationKind{}
 	for _, typ := range ObligationTypes() {
 		if seen[typ.Kind] {
 			t.Errorf("%s steht zweimal im Katalog", typ.Kind)
 		}
 		seen[typ.Kind] = true
-		if typ.SkillRef != "buchfink-grundlagen/references/pflichten.md#"+string(typ.Kind) {
+		anchor := typ.Kind.Anchor()
+		if !skillAnchors[anchor] {
+			t.Errorf("%s verweist auf den Anker %q, den pflichten.md nicht hat", typ.Kind, anchor)
+		}
+		if other, dup := anchors[anchor]; dup {
+			t.Errorf("%s und %s teilen sich den Anker %q", other, typ.Kind, anchor)
+		}
+		anchors[anchor] = typ.Kind
+		if typ.SkillRef != "buchfink-grundlagen/references/pflichten.md#"+anchor {
 			t.Errorf("%s verweist auf %q", typ.Kind, typ.SkillRef)
 		}
 		if typ.Basis == "" || typ.Title == "" || typ.Channel == "" || typ.Responsibility == "" || typ.Evidence == "" {
@@ -1140,5 +1161,10 @@ func TestCatalogCarriesSkillReferences(t *testing.T) {
 	}
 	if len(seen) != 21 {
 		t.Errorf("%d Pflichtarten im Katalog, erwartet 21", len(seen))
+	}
+	for anchor := range skillAnchors {
+		if _, ok := anchors[anchor]; !ok {
+			t.Errorf("zum Anker %q gibt es keine Pflichtart", anchor)
+		}
 	}
 }

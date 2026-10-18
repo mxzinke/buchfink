@@ -886,7 +886,8 @@ func TestToolsCarryAnnotationsAndSchemas(t *testing.T) {
 		byName[tool.Name] = tool
 	}
 	status := byName["status"]
-	if status == nil || status.Annotations == nil || !status.Annotations.ReadOnlyHint || status.OutputSchema == nil || status.Title == "" {
+	if status == nil || status.Annotations == nil || !status.Annotations.ReadOnlyHint || status.Title == "" ||
+		h.srv.Toolbox().OutputSchema("status") == nil {
 		t.Fatalf("status: %+v", status)
 	}
 	write := byName["test_lieferant"]
@@ -899,8 +900,8 @@ func TestToolsCarryAnnotationsAndSchemas(t *testing.T) {
 	}
 }
 
-// Clients prüfen structuredContent gegen das Ausgabeschema (Claude Code
-// tut es). Jede Lage von status muss deshalb zu seinem Schema passen.
+// Jede Lage von status passt zum Ausgabeschema; es ist der Vertrag der
+// Antwort, auch wenn der Katalog es nicht veröffentlicht.
 func TestOutputsMatchTheirSchemas(t *testing.T) {
 	h := newHarness(t)
 	cs := h.mustSession(h.login("Claude Code", "").access)
@@ -910,12 +911,7 @@ func TestOutputsMatchTheirSchemas(t *testing.T) {
 	}
 	schemas := map[string]*jsonschema.Resolved{}
 	for _, tool := range listed.Tools {
-		raw, _ := json.Marshal(tool.OutputSchema)
-		var s jsonschema.Schema
-		if err := json.Unmarshal(raw, &s); err != nil {
-			t.Fatalf("%s: %v", tool.Name, err)
-		}
-		resolved, err := s.Resolve(nil)
+		resolved, err := h.srv.Toolbox().OutputSchema(tool.Name).Resolve(nil)
 		if err != nil {
 			t.Fatalf("%s: %v", tool.Name, err)
 		}
