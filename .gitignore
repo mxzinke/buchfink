@@ -1,5 +1,5 @@
 # Binaries for programs and plugins
-buchfink
+/buchfink
 /buchfink-mcp
 *.exe
 *.exe~
