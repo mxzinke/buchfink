@@ -91,10 +91,10 @@ Unternehmen und `bereit: true`.
 ## Rechte für schreibende Werkzeuge einschränken
 
 Buchfink teilt seine Werkzeuge in lesende, direkt buchende und solche mit
-Rückfrage. Bei Rückfrage-Werkzeugen fragt Claude Code vor jedem Aufruf und
-bietet „don't ask again“ nicht an; auch Erlaubnisregeln überspringen die Frage
-nicht. Bei den übrigen Werkzeugen fragt Claude Code, bis Sie „Yes, and don't ask
-again“ wählen.
+Rückfrage. Vor einem Werkzeug mit Rückfrage legt Claude Ihnen den Vorgang im
+Chat vor und ruft es erst nach Ihrem Ja auf; so verlangen es die
+Buchfink-Skills. Claude Code selbst fragt vor einem Buchfink-Werkzeug, bis Sie
+„Yes, and don't ask again“ wählen.
 
 Soll Claude Code vor jedem Buchfink-Werkzeug fragen, tragen Sie in
 `~/.claude/settings.json` ein:
@@ -143,8 +143,7 @@ Training genutzt werden.
 Abgerufen am 17. Oktober 2026.
 
 - Claude Code, MCP: <https://code.claude.com/docs/en/mcp> (`claude mcp add`,
-  `claude mcp login`, `claude mcp list`, Plugin-Servernamen,
-  `anthropic/requiresUserInteraction`)
+  `claude mcp login`, `claude mcp list`, Plugin-Servernamen)
 - Claude Code, Plugins installieren: <https://code.claude.com/docs/en/plugins/install>
 - Claude Code, Berechtigungen: <https://code.claude.com/docs/en/permissions>
 - Claude Code, Laden und Updates von Plugins: <https://code.claude.com/docs/en/plugins/loading>

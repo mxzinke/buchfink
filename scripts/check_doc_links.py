@@ -22,11 +22,11 @@ LINK = re.compile(r'(?<!!)\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)|^\[[^\]]+\]:\s*
 FENCE = re.compile(r'```.*?```', re.S)
 HEADING = re.compile(r'^#{1,6}\s+(.*?)\s*#*\s*$', re.M)
 
-# Die Dokumentation verweist auf die Beschreibung des MCP-Servers, die Skills,
-# das Plugin und die Marketplace-Datei. Solange einer dieser Pfade fehlt, dürfen
-# Links darauf und darunter ins Leere zeigen. Liegt er im Repository, wird
-# jeder Link darunter geprüft.
-MAY_BE_MISSING = ('docs/entwicklung/mcp.md', 'skills', 'plugins', '.claude-plugin')
+# Die Dokumentation verweist auf die Skills, das Plugin und die
+# Marketplace-Datei. Solange einer dieser Pfade fehlt, dürfen Links darauf und
+# darunter ins Leere zeigen. Liegt er im Repository, wird jeder Link darunter
+# geprüft.
+MAY_BE_MISSING = ('skills', 'plugins', '.claude-plugin')
 
 
 def markdown_files() -> list[Path]:

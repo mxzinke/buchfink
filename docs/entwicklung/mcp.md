@@ -26,7 +26,7 @@ Werkzeug und nicht im Prompt.
 | lesen | `readOnlyHint: true` | ändert nichts; jede zugelassene App mit `buchfink:lesen` |
 | direkt | `destructiveHint: false` | schreibt ohne Rückfrage, aber nur, was `internal/core/policy` als Routine einstuft; sonst `freigabe_noetig` |
 | rueckfrage | `destructiveHint: true` | der Agent legt dem Menschen den Vorgang im Chat vor und holt sein Ja ein, bevor er aufruft |
-| nur App | kein Werkzeug | Festschreibung, Übermittlung und Transferticket, Pflicht als erledigt, Aufstellen, Feststellen, Offenlegen, Ergebnisverwendung, Stammdaten samt Bankkonten und steuerlicher Beratung, Darlehensverträge, Standardgruppe bestätigen, Prüfermodus, Apps zulassen und entziehen, Regeln für Apps |
+| nur App | kein Werkzeug | Festschreibung, Übermittlung und Transferticket, Pflicht als erledigt, Angaben einer Erklärung bestätigen, Aufstellen, Feststellen, Offenlegen, Ergebnisverwendung, Stammdaten samt Bankkonten und steuerlicher Beratung, Darlehensverträge, Standardgruppe bestätigen, Prüfermodus, Apps zulassen und entziehen, Regeln für Apps |
 
 Ein `_meta`-Feld `anthropic/requiresUserInteraction` setzt der Server nicht.
 Der Agent fragt laut Skill selbst; eine zweite Abfrage des Clients wäre doppelt.
@@ -151,6 +151,11 @@ Text, der mit `validating` beginnt.
 | `nicht_gefunden` | Kennung unbekannt; die Nachricht nennt das Feld, `werkzeug` das Such-Werkzeug |
 | `fachliche_regel` | der Dienst lehnt ab; die Nachricht nennt den Grund, `wiederholbar` sagt, ob ein späterer Versuch hilft (fehlendes Netz) |
 | `intern` | Programmfehler |
+
+Die stdio-Brücke für Claude Desktop antwortet im selben Format mit eigenen
+Codes, bevor ein Aufruf den Server erreicht: `app_nicht_geoeffnet`,
+`anmeldung_erforderlich` und `anmeldung_abgelehnt`
+([packaging/claude-desktop](../../packaging/claude-desktop/README.md)).
 
 ## Regeln für direkt
 

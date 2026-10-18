@@ -14,6 +14,8 @@ Jeder Mandant hat einen eigenen Datenordner, den Sie beim Anlegen wählen:
 | Buchungen, Stammdaten, Änderungsprotokoll | `buchfink.sqlite` |
 | Belegdateien, benannt nach ihrer SHA-256-Prüfsumme | `belege/` |
 | Fassungen der Verfahrensdokumentation | `dokumente/` |
+| Belege, die eine verbundene KI-App ablegen darf | `Belegeingang/` |
+| Dateien, die eine verbundene KI-App erzeugt | `Export/` |
 | Sperrdatei, gesperrt, solange Buchfink den Mandanten geöffnet hat | `buchfink.lock` |
 
 Die App selbst legt ihre Einstellungen unter `~/.buchfink/` ab: die Liste der

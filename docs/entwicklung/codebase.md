@@ -15,6 +15,7 @@ nutzt Base UI, Tailwind CSS und Lucide; Typst setzt Rechnungen und Berichte
 | Werkzeug für Agenten | [internal/mcpserver/](../../internal/mcpserver), [MCP-Server](mcp.md) |
 | Anmeldung und Zustimmung verbundener Apps | [internal/mcpserver/oauth/](../../internal/mcpserver/oauth), [internal/wailsbridge/mcp_service.go](../../internal/wailsbridge/mcp_service.go) |
 | Brücke für Claude Desktop | [cmd/buchfink-mcp/](../../cmd/buchfink-mcp), [packaging/claude-desktop/](../../packaging/claude-desktop) |
+| Was ein Agent ohne Rückfrage bucht, Beleg- und Exportordner | [internal/core/policy/](../../internal/core/policy), [MCP-Server](mcp.md#regeln-für-direkt) |
 | Schreibsperre, Transaktion, Prüfermodus, Vorbehalt der App | [internal/core/](../../internal/core) |
 | Anwendungsfall | [internal/service/](../../internal/service) |
 | Rechenregel, Steuerschlüssel, Kontenrahmen | [internal/accounting/](../../internal/accounting) |

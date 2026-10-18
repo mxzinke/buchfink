@@ -7,8 +7,8 @@ Gilt ab Buchfink 0.3.0.
 Buchfink öffnet beim Start einen Zugang für KI-Apps auf Ihrem Rechner unter
 `http://127.0.0.1:7465/mcp`. Eine App erhält Zugriff erst, wenn Sie ihn im
 Fenster von Buchfink zulassen. Die Zulassung gilt für den Mandanten, der
-gerade geöffnet ist, und lässt sich in den Einstellungen unter „Verbundene
-Apps“ jederzeit entziehen. Dort ändern Sie auch den Port, falls 7465 belegt ist.
+gerade geöffnet ist, und lässt sich in den Einstellungen unter „Apps
+verbinden“ jederzeit entziehen. Dort ändern Sie auch den Port, falls 7465 belegt ist.
 
 | App | Verbindung | Skills | Anleitung |
 |---|---|---|---|
@@ -48,6 +48,21 @@ Nur Sie in Buchfink:
 
 Ein Werkzeug für diese Vorgänge gibt es nicht. Versucht ein Agent sie über
 einen anderen Weg, weist der Kern von Buchfink den Vorgang ab.
+
+## Belege und Exporte
+
+Ein Agent übergibt Buchfink einen Beleg als Pfad zu einer Datei. Buchfink liest
+nur Dateien aus dem Ordner `Belegeingang` im Datenordner des Unternehmens und
+legt ihn an, sobald eine App zum ersten Mal `status` aufruft. Legen Sie eine
+Rechnung dort ab, bevor Sie den Agenten bitten, sie zu buchen. Eine Datei aus
+einem anderen Ordner, etwa aus Downloads, weist Buchfink mit
+`pfad_nicht_erlaubt` ab. Legen Sie nur echte Belege in den Eingang: eine
+abgelegte Datei bleibt im Belegarchiv und in jeder Sicherung, auch wenn der
+Beleg später verworfen wird.
+
+Was ein Agent erzeugt, schreibt Buchfink in den Ordner `Export` im
+Datenordner: ausgestellte Rechnungen als PDF und E-Rechnung, Kopien von
+Belegdateien, Steuererklärungen und die E-Bilanz.
 
 ## Datenschutz
 

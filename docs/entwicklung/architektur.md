@@ -120,9 +120,9 @@ Werkzeuge registrieren sich über `AddInfo`, `AddRead` und `AddWrite`
 Mandanten, prüft Zulassung und Rechte (`buchfink:lesen`, `buchfink:buchen`),
 setzt den Erfassungsweg und ruft `Tenant.Read` oder `Tenant.Write`. Schreibende
 Werkzeuge verlangen `mandant_id` und nehmen einen Idempotenzschlüssel an, der in
-derselben Transaktion gespeichert wird. Werkzeuge mit Rückfrage tragen
-`destructiveHint` und `anthropic/requiresUserInteraction`, damit der Client vor
-jedem Aufruf fragt. Fehler haben stabile Codes (`internal/mcpserver/errors.go`).
+derselben Transaktion gespeichert wird. Werkzeuge mit Rückfrage haben
+`destructiveHint: true`; die Rückfrage stellt der Agent im Chat, wie es die
+Skills verlangen. Fehler haben stabile Codes (`internal/mcpserver/errors.go`).
 Die Werkzeuge selbst beschreibt [MCP-Server](mcp.md).
 
 `cmd/buchfink-mcp` übersetzt stdio in HTTP für Clients, die lokale
