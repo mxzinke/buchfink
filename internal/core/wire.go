@@ -222,7 +222,21 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 		settingsRepo, festschreibungRepo, vatReturnRepo, checkRunRepo,
 		auditRepo,
 	)
-	s.Periods.SetCheckService(s.Checks)
+	s.Periods.AddPreCommitChecks(
+		service.PreCommitCheck{Name: "legal_reserve", Check: func(ctx context.Context, fy domain.FiscalYear, r service.PeriodCommitRequest) error {
+			if r.PeriodType == domain.PeriodTypeYear || r.CutoffDate >= fy.EndDate {
+				return s.Closing.EnsureLegalReserve(ctx, fy.Year)
+			}
+			return nil
+		}},
+		service.PreCommitCheck{Name: "committable", Check: func(ctx context.Context, fy domain.FiscalYear, r service.PeriodCommitRequest) error {
+			_, err := s.Checks.EnsureCommittable(ctx, service.CheckRequest{
+				FiscalYear: fy.Year, CutoffDate: r.CutoffDate,
+				PeriodType: r.PeriodType, OverrideReason: r.OverrideReason,
+			})
+			return err
+		}},
+	)
 	s.Checks.SetFiscalYearSource(fiscalYearRepo)
 	s.Checks.SetAccountSource(s.Accounting)
 	s.Checks.SetOpenItemSource(s.Payments)

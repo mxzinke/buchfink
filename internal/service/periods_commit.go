@@ -48,8 +48,36 @@ func (s *PeriodService) Commit(ctx context.Context, r PeriodCommitRequest) (Peri
 	return result, nil
 }
 
-// SetCheckService koppelt den Prüflauf für Festschreibungen an.
-func (s *PeriodService) SetCheckService(checks *CheckService) { s.checks = checks }
+// PreCommitCheck prüft vor der Festschreibung in derselben Transaktion.
+// Die Registrierungsreihenfolge bestimmt den ersten Fehler; Netz ist untersagt.
+type PreCommitCheck struct {
+	Name  string
+	Check func(context.Context, domain.FiscalYear, PeriodCommitRequest) error
+}
+
+// AddPreCommitChecks registriert Prüfungen beim Verdrahten des Mandanten.
+func (s *PeriodService) AddPreCommitChecks(checks ...PreCommitCheck) {
+	for _, check := range checks {
+		if check.Name == "" || check.Check == nil {
+			panic("ungültige Festschreibungsprüfung: " + check.Name)
+		}
+		for _, existing := range s.preCommitChecks {
+			if existing.Name == check.Name {
+				panic("doppelte Festschreibungsprüfung: " + check.Name)
+			}
+		}
+		s.preCommitChecks = append(s.preCommitChecks, check)
+	}
+}
+
+// PreCommitCheckNames nennt die Prüfungsreihenfolge.
+func (s *PeriodService) PreCommitCheckNames() []string {
+	names := make([]string, 0, len(s.preCommitChecks))
+	for _, check := range s.preCommitChecks {
+		names = append(names, check.Name)
+	}
+	return names
+}
 
 // commit legt Festschreibung und Buchungsstempel in derselben Transaktion an.
 //
@@ -83,7 +111,7 @@ func (s *PeriodService) commit(ctx context.Context, r PeriodCommitRequest) (*dom
 	} else if latest != "" && r.CutoffDate <= latest {
 		return nil, nil, fmt.Errorf("Zeitraum bis %s ist bereits festgeschrieben", latest)
 	}
-	if err := s.preCommitChecks(ctx, year, r); err != nil {
+	if err := s.checkCommit(ctx, year, r); err != nil {
 		var blocked *CommitBlocked
 		if errors.As(err, &blocked) {
 			return nil, blocked, nil
@@ -141,24 +169,15 @@ func (s *PeriodService) commit(ctx context.Context, r PeriodCommitRequest) (*dom
 	return rec, nil, s.auditRepo.Log(ctx, domain.AuditActionCommit, "FESTSCHREIBUNG", fmt.Sprintf("%d", rec.ID), details)
 }
 
-// preCommitChecks führt den Prüflauf aus und entscheidet, ob festgeschrieben
-// werden darf. Vor der Jahresfestschreibung muss die gesetzliche Rücklage
-// gebucht sein.
-func (s *PeriodService) preCommitChecks(ctx context.Context, year int, r PeriodCommitRequest) error {
+func (s *PeriodService) checkCommit(ctx context.Context, year int, r PeriodCommitRequest) error {
 	fy, err := s.FiscalYear(ctx, year)
 	if err != nil {
 		return err
 	}
-	if r.PeriodType == domain.PeriodTypeYear || r.CutoffDate >= fy.EndDate {
-		if err := s.closing.EnsureLegalReserve(ctx, year); err != nil {
+	for _, check := range s.preCommitChecks {
+		if err := check.Check(ctx, *fy, r); err != nil {
 			return err
 		}
 	}
-	_, err = s.checks.EnsureCommittable(ctx, CheckRequest{
-		FiscalYear:     year,
-		CutoffDate:     r.CutoffDate,
-		PeriodType:     r.PeriodType,
-		OverrideReason: r.OverrideReason,
-	})
-	return err
+	return nil
 }

@@ -18,7 +18,7 @@ type PeriodService struct {
 	foundationRepo     domain.FoundationRepository
 	tx                 domain.TxRunner
 	closing            periodClosing
-	checks             *CheckService
+	preCommitChecks    []PreCommitCheck
 }
 
 // periodClosing liefert die Abschlusszahlen und den Vorjahresumsatz.
