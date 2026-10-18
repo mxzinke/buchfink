@@ -17,6 +17,7 @@ import {
   ConfirmDialog,
   DetailPanel,
   Dialog,
+  DisabledReason,
   Disclosure,
   Field,
   Help,
@@ -215,7 +216,7 @@ export const YearTab: React.FC<YearTabProps> = ({
   const next = order.find((row) => rowState[row] === 'open') ?? null;
   const done = (Object.keys(rowState) as RowKey[]).filter((row) => rowState[row] === 'done').length;
 
-  const notEnded = `Das Geschäftsjahr endet am ${formatDate(fy.endDate)}.`;
+  const notEnded = `Möglich nach dem Ende des Geschäftsjahres am ${formatDate(fy.endDate)}.`;
 
   return (
     <div>
@@ -336,13 +337,15 @@ export const YearTab: React.FC<YearTabProps> = ({
           highlighted={targetRow === 'prepared'}
           caption={fy.preparedOn ? `Aufgestellt am ${formatDate(fy.preparedOn)}` : 'Die Geschäftsführung unterschreibt den Abschluss.'}
           due={dueOf.prepared}
+          blocked={fy.status === 'open' && !ended ? notEnded : undefined}
           action={
             fy.status === 'open' && (
               <Button
                 variant={next === 'prepared' ? 'primary' : 'secondary'}
                 size="sm"
                 disabled={!ended || writeLock.locked}
-                title={writeLock.hint ?? (!ended ? notEnded : undefined)}
+                title={writeLock.hint}
+                aria-describedby={!ended ? 'jahr-prepared-grund' : undefined}
                 onClick={() => setStatusDialog('prepared')}
               >
                 Aufstellen
@@ -362,13 +365,15 @@ export const YearTab: React.FC<YearTabProps> = ({
               ? `Festgeschrieben bis ${formatDate(closing.committedUntil ?? fy.endDate)}`
               : 'Danach nimmt das Jahr keine Abschlussbuchung mehr an.'
           }
+          blocked={!closing.hasYearCommitment && !ended ? notEnded : undefined}
           action={
             !closing.hasYearCommitment && (
               <Button
                 variant={next === 'commit' ? 'primary' : 'secondary'}
                 size="sm"
                 disabled={!ended || writeLock.locked}
-                title={writeLock.hint ?? (!ended ? notEnded : undefined)}
+                title={writeLock.hint}
+                aria-describedby={!ended ? 'jahr-commit-grund' : undefined}
                 onClick={() =>
                   setCommitTarget({ type: 'year', label: `Geschäftsjahr ${year}`, cutoff: fy.endDate })
                 }
@@ -391,13 +396,15 @@ export const YearTab: React.FC<YearTabProps> = ({
               : 'Die Gesellschafter beschließen über den Abschluss.'
           }
           due={dueOf.adopted}
+          blocked={fy.status === 'prepared' && !closing.canAdopt ? closing.blocker : undefined}
           action={
             fy.status === 'prepared' ? (
               <Button
                 variant={next === 'adopted' ? 'primary' : 'secondary'}
                 size="sm"
                 disabled={!closing.canAdopt || writeLock.locked}
-                title={writeLock.hint ?? (closing.canAdopt ? undefined : closing.blocker)}
+                title={writeLock.hint}
+                aria-describedby={closing.canAdopt ? undefined : 'jahr-adopted-grund'}
                 onClick={() => setStatusDialog('adopted')}
               >
                 Feststellen
@@ -526,6 +533,11 @@ export const YearTab: React.FC<YearTabProps> = ({
         footer={
           panelStep && (
             <>
+              {panelStep.state === 'skipped' && !steps?.reopenable && (
+                <DisabledReason id="baustein-grund" className="mr-auto self-center">
+                  {steps?.reopenBlocker}
+                </DisabledReason>
+              )}
               {(() => {
                 const view = STEP_VIEWS[panelStep.key];
                 return view.kind !== 'human' && view.route ? (
@@ -538,7 +550,8 @@ export const YearTab: React.FC<YearTabProps> = ({
                 <Button
                   variant="secondary"
                   disabled={writeLock.locked || !steps?.reopenable}
-                  title={writeLock.hint ?? steps?.reopenBlocker}
+                  title={writeLock.hint}
+                  aria-describedby={steps?.reopenable ? undefined : 'baustein-grund'}
                   onClick={() => setStepDecision({ mode: 'reopen', key: panelStep.key })}
                 >
                   Wieder aufnehmen
@@ -621,8 +634,10 @@ const Row: React.FC<{
   highlighted?: boolean;
   due?: Obligation;
   action?: React.ReactNode;
+  /** Warum die Aktion gesperrt ist; der Knopf verweist mit `aria-describedby` auf `${id}-grund`. */
+  blocked?: string;
   children?: React.ReactNode;
-}> = ({ id, number, title, caption, state, highlighted, due, action, children }) => {
+}> = ({ id, number, title, caption, state, highlighted, due, action, blocked, children }) => {
   const mark = ROW_MARK[state];
   return (
     <li
@@ -649,6 +664,9 @@ const Row: React.FC<{
                 <ObligationState obligation={due} />
               </span>
             )}
+            <DisabledReason id={`${id}-grund`} className="mt-1">
+              {blocked}
+            </DisabledReason>
           </div>
           <span className="shrink-0 flex items-center gap-2 text-caption text-ink-muted pt-0.5">
             <span className={cn('mark-diamond', mark.mark)} aria-hidden="true" />
@@ -1111,15 +1129,21 @@ const CarryPanel: React.FC<{
         context={preview ? `Buchungsdatum ${formatDate(preview.bookingDate)}` : undefined}
         width="lg"
         footer={
-          <Button
-            variant="primary"
-            loading={busy}
-            disabled={blocked || writeLock.locked}
-            title={writeLock.hint ?? reason}
-            onClick={() => setConfirming(true)}
-          >
-            {label}
-          </Button>
+          <>
+            <DisabledReason id="vortrag-grund" className="mr-auto self-center">
+              {reason}
+            </DisabledReason>
+            <Button
+              variant="primary"
+              loading={busy}
+              disabled={blocked || writeLock.locked}
+              title={writeLock.hint}
+              aria-describedby={reason ? 'vortrag-grund' : undefined}
+              onClick={() => setConfirming(true)}
+            >
+              {label}
+            </Button>
+          </>
         }
       >
         {error && <Notice tone="negative" className="mb-4" text={error} />}

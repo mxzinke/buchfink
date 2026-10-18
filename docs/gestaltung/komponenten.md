@@ -29,7 +29,7 @@ machen gibt.
 
 | Baustein | Datei | Verhalten von |
 |---|---|---|
-| `Button` | `Button.tsx` | eigen |
+| `Button`, `DisabledReason` | `Button.tsx` | eigen |
 | `Input`, `Textarea` | `Input.tsx` | Base UI (Field-Anbindung) |
 | `AmountInput` | `Input.tsx` | Base UI NumberField |
 | `Select` | `Select.tsx` | Base UI Select |
@@ -64,10 +64,12 @@ das native Feld ist im Desktop-WebView brauchbar.
 
 ### 10.4 Regeln, die der Code nicht zeigt
 
-**Buttons.** Genau eine Primäraktion pro Ansicht, in Tinte. Ein deaktivierter
-Button braucht eine Erklärung im `title`, sonst versteckt er seinen Grund. Beim
-Laden bleibt er an seiner Stelle, behält die Breite und tauscht die Beschriftung
-nicht aus.
+**Buttons.** Genau eine Primäraktion pro Ansicht, in Tinte. Ein gesperrter
+Button nennt seinen Grund als sichtbaren Text daneben (`DisabledReason`, mit
+`aria-describedby` am Button) oder als Fehler am auslösenden Feld. Ein `title`
+allein reicht nicht: Ihn erreichen weder Tastatur noch Screenreader, und die
+WebView zeigt ihn oft gar nicht. Beim Laden bleibt der Button an seiner Stelle,
+behält die Breite und tauscht die Beschriftung nicht aus.
 
 **Felder.** Pflichtfelder haben kein Sternchen. Gekennzeichnet wird das
 Seltenere: optional. Der Fehlertext ersetzt den Hinweis, solange er steht.

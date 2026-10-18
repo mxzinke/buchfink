@@ -16,6 +16,7 @@ import { usePostingLock } from '../../components/WriteLock';
 import { formatCents, parseCents } from '../../utils/formatters';
 import {
   Button,
+  DisabledReason,
   Combobox,
   ConfirmDialog,
   Dialog,
@@ -213,6 +214,9 @@ export const InvoiceDialog: React.FC<InvoiceDialogProps> = ({ onClose, onIssued 
       dirty={dirty}
       footer={
         <>
+          <DisabledReason id="rechnung-grund" className="mr-auto self-center max-w-lg">
+            {blockedReason}
+          </DisabledReason>
           <Button variant="secondary" onClick={onClose}>
             Abbrechen
           </Button>
@@ -220,7 +224,7 @@ export const InvoiceDialog: React.FC<InvoiceDialogProps> = ({ onClose, onIssued 
             variant="primary"
             loading={busy}
             disabled={Boolean(blockedReason) || lock.locked}
-            title={blockedReason}
+            aria-describedby={blockedReason ? 'rechnung-grund' : undefined}
             onClick={() => setConfirming(true)}
           >
             Ausstellen

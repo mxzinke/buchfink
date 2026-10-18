@@ -18,6 +18,7 @@ import { usePostingLock } from '../../components/WriteLock';
 import { formatCents, formatCentsPlain, parseCents } from '../../utils/formatters';
 import {
   Button,
+  DisabledReason,
   Combobox,
   Dialog,
   Field,
@@ -222,6 +223,9 @@ export const ReceiptBookingDialog: React.FC<ReceiptBookingDialogProps> = ({ rece
       dirty={dirty}
       footer={
         <>
+          <DisabledReason id="beleg-buchen-grund" className="mr-auto self-center max-w-lg">
+            {blockedReason}
+          </DisabledReason>
           <Button variant="secondary" onClick={onClose}>
             Abbrechen
           </Button>
@@ -229,7 +233,7 @@ export const ReceiptBookingDialog: React.FC<ReceiptBookingDialogProps> = ({ rece
             variant="primary"
             loading={busy}
             disabled={Boolean(blockedReason) || lock.locked}
-            title={blockedReason}
+            aria-describedby={blockedReason ? 'beleg-buchen-grund' : undefined}
             onClick={() => void submit()}
           >
             Buchen
@@ -392,7 +396,11 @@ export const ReceiptBookingDialog: React.FC<ReceiptBookingDialogProps> = ({ rece
             )}
 
             {proofRequired && (
-              <Field label="Leistungsnachweis" hint="Wer hat die Leistung geprüft?" className="mt-4">
+              <Field
+                label="Leistungsnachweis"
+                hint="Pflichtangabe: Wer hat die Leistung geprüft?"
+                className="mt-4"
+              >
                 <Input value={serviceProof} onChange={(e) => setServiceProof(e.target.value)} />
               </Field>
             )}

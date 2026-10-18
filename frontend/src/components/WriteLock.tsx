@@ -78,7 +78,9 @@ export function useWriteLock(): WriteLock {
  * Geltungsbereich hat: der Prüfermodus sperrt jede Änderung der Anwendung, das
  * festgestellte Jahr nur die Erfassung in diesem Jahr. Getrennt gehalten,
  * gemeinsam gelesen — die Buchungsansichten fragen über `usePostingLock` beide
- * zugleich ab und zeigen den Grund im `title` des gesperrten Knopfes (§10.4).
+ * zugleich ab. Sichtbar steht der Grund im Hinweisstreifen über der Ansicht
+ * (`ClosedYearNotice`, beim Prüfermodus über dem Arbeitsbereich); der `title`
+ * des gesperrten Knopfes wiederholt ihn nur (§10.4).
  */
 const PostingLockContext = createContext<number | undefined>(undefined);
 

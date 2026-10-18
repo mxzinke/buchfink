@@ -248,7 +248,7 @@ export const MonthTab: React.FC<MonthTabProps> = ({
   const commitObligation = commits.get(month);
   const contextParts: string[] = [];
   if (committed) contextParts.push(`festgeschrieben bis ${formatDate(state?.committedTo ?? '')}`);
-  else if (!ended && state) contextParts.push(`läuft bis ${formatDate(state.to)}`);
+  else if (!ended && state) contextParts.push(`läuft bis ${formatDate(state.to)}, festschreiben erst danach`);
   else if (commitObligation) contextParts.push(`Festschreibung fällig am ${formatDate(commitObligation.dueDate)}`);
   if (state?.vatApplies && state.vatDueDate && state.vatStatus !== 'submitted') {
     contextParts.push(`Voranmeldung fällig am ${formatDate(state.vatDueDate)}`);
@@ -337,10 +337,7 @@ export const MonthTab: React.FC<MonthTabProps> = ({
               variant="primary"
               icon={<Lock className="w-4 h-4" strokeWidth={1.5} />}
               disabled={!ended || writeLock.locked}
-              title={
-                writeLock.hint ??
-                (!ended ? `Der Monat läuft noch bis ${formatDate(state.to)}.` : undefined)
-              }
+              title={writeLock.hint}
               onClick={() =>
                 setCommitTarget({ type: 'month', label: state.label, cutoff: state.to })
               }

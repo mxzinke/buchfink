@@ -16,7 +16,14 @@
 export { cn } from './cn';
 export { BACKDROP, POPUP, POPUP_ITEM } from './popup';
 
-export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from './Button';
+export {
+  Button,
+  DisabledReason,
+  type ButtonProps,
+  type ButtonSize,
+  type ButtonVariant,
+  type DisabledReasonProps,
+} from './Button';
 export { Combobox, type ComboboxOption, type ComboboxProps } from './Combobox';
 export { ConfirmDialog, Dialog, type ConfirmDialogProps, type DialogProps } from './Dialog';
 export {

@@ -268,6 +268,13 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
         ? 'So weit im Voraus lassen sich keine Bücher anlegen.'
         : '';
   const ready = companyName.trim() !== '' && dateComplete && !startError && federalState !== '' && dirValid;
+  // Was „Weiter“ noch sperrt, steht sichtbar neben dem Knopf.
+  const missing = [
+    companyName.trim() === '' && 'Firma',
+    !dateComplete && (start === 'founding' ? 'Tag der Beurkundung' : 'erster Tag in Buchfink'),
+    federalState === '' && 'Bundesland',
+    dirCheck?.path === dataDir && dirCheck.error && 'ein beschreibbarer Ordner',
+  ].filter((item): item is string => Boolean(item));
 
   async function createTenant() {
     if (!ready) return;
@@ -648,16 +655,23 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                         <Database className="w-4 h-4" strokeWidth={1.5} />
                         Vorhandene Buchhaltung öffnen
                       </button>
-                      <button
-                        type="button"
-                        disabled={!ready || submitting}
-                        title={ready ? undefined : 'Firma, Starttag und Bundesland fehlen noch.'}
-                        onClick={() => void createTenant()}
-                        className={SHELL_BUTTON.primary}
-                      >
-                        Weiter
-                        <ArrowRight className="w-4 h-4" strokeWidth={1.5} />
-                      </button>
+                      <span className="flex items-center gap-4">
+                        {missing.length > 0 && (
+                          <span id="einrichtung-fehlt" className="text-caption text-shell-text-muted text-right">
+                            {`Es fehlt noch: ${missing.join(', ')}`}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          disabled={!ready || submitting}
+                          aria-describedby={missing.length > 0 ? 'einrichtung-fehlt' : undefined}
+                          onClick={() => void createTenant()}
+                          className={cn(SHELL_BUTTON.primary, 'shrink-0')}
+                        >
+                          Weiter
+                          <ArrowRight className="w-4 h-4" strokeWidth={1.5} />
+                        </button>
+                      </span>
                     </>
                   ) : (
                     <>
