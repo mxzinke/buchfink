@@ -557,6 +557,12 @@ export const Api = {
     call(() => Bridge.GetContacts() as Promise<Contact[]>).then(list),
   saveContact: (contact: Partial<Contact>): Promise<Contact> =>
     call(() => Bridge.SaveContact(contact as any) as Promise<Contact>),
+  /**
+   * Bestätigt die Standard-Buchungsgruppe eines Lieferanten; leer hebt sie
+   * auf. Nur in der App: erst mit ihr bucht ein Agent ohne Rückfrage.
+   */
+  confirmDefaultPostingGroup: (contactId: number, group: string): Promise<Contact> =>
+    call(() => Bridge.ConfirmDefaultPostingGroup(contactId, group) as Promise<Contact>),
   getInvoices: (): Promise<Invoice[]> =>
     call(() => Bridge.GetInvoices() as Promise<Invoice[]>)
       .then(list)

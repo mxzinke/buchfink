@@ -297,7 +297,11 @@ const PortDialog: React.FC<{
     setError('');
     try {
       const next = await Api.setMCPPort(port);
-      toast.success(`Erreichbar unter ${next.url}. Tragen Sie die neue Adresse in Ihren Apps ein.`);
+      toast.success(
+        next.fromEnvironment
+          ? 'Port gespeichert. Er gilt ab dem nächsten Start ohne BUCHFINK_MCP_PORT.'
+          : `Erreichbar unter ${next.url}. Tragen Sie die neue Adresse in Ihren Apps ein und starten Sie sie neu.`,
+      );
       onChanged(next);
     } catch (e) {
       setError(message(e));
@@ -323,12 +327,23 @@ const PortDialog: React.FC<{
         </>
       }
     >
+      {status.fromEnvironment ? (
+        <Notice
+          className="mb-5"
+          text={`Die Umgebungsvariable BUCHFINK_MCP_PORT legt den Port ${status.port} fest. Ein hier gewählter Port gilt ab dem nächsten Start ohne sie.`}
+        />
+      ) : (
+        <p className="mb-5 text-body text-ink-muted">
+          Buchfink startet den Zugang sofort auf dem neuen Port. Ihre Apps erreichen ihn, sobald Sie dort
+          die neue Adresse eintragen und die App neu starten.
+        </p>
+      )}
       <Field
         label="Port"
         hint="Leer heißt 7465"
         error={error || undefined}
         helpSummary="Ändern Sie den Port nur, wenn ein anderes Programm ihn belegt."
-        explain="Die Adresse mit dem Port steht in jeder verbundenen App. Nach einem Wechsel tragen Sie Buchfink dort mit der neuen Adresse ein und melden sich erneut an."
+        explain="Die Adresse mit dem Port steht in jeder verbundenen App. Nach einem Wechsel tragen Sie Buchfink dort mit der neuen Adresse ein, starten die App neu und melden sich erneut an."
       >
         <Input
           type="number"

@@ -3,14 +3,17 @@ import { Api } from '../../services/api';
 import type {
   AgentBookings,
   ConnectedApp,
+  Contact,
   MCPServerStatus,
   MonthCloseState,
   Obligation,
+  Task,
   TaskList,
 } from '../../types';
 import { formatDate } from '../../utils/formatters';
 import { agentWorkSummary, monthToClose, planOverview, todayISO } from '../../utils/overview';
 import { profileGaps, profileTask } from '../../utils/profileGaps';
+import { postingGroupTask } from '../../utils/contacts';
 import { useNavigation } from '../../navigation';
 import { useWorkspace } from '../../workspace';
 import { useLiveReload } from '../../live';
@@ -60,6 +63,8 @@ export const OverviewArea: React.FC = () => {
   const [profileFacts, setProfileFacts] = useState<{ bankAccounts: number; hasFoundation: boolean } | null>(
     null,
   );
+  // Für die Aufgabe „Standardgruppen bestätigen“: die Vorschläge von Claude.
+  const [contacts, setContacts] = useState<Contact[]>([]);
 
   const load = useCallback(async () => {
     try {
@@ -87,9 +92,19 @@ export const OverviewArea: React.FC = () => {
       });
   }, []);
 
+  const loadContacts = useCallback(() => {
+    Api.getContacts()
+      .then(setContacts)
+      .catch(() => setContacts([]));
+  }, []);
+
   useEffect(() => {
     void load();
   }, [load, year, activeTenant?.id]);
+
+  useEffect(() => {
+    loadContacts();
+  }, [loadContacts, activeTenant?.id]);
 
   // Für die Aufgabe „Stammdaten vervollständigen“: was die Einstellungen allein nicht wissen.
   useEffect(() => {
@@ -127,6 +142,10 @@ export const OverviewArea: React.FC = () => {
     const firstYear = availableYears.length ? Math.min(...availableYears) : year;
     return profileTask(profileGaps(settings, { ...profileFacts, firstYear }));
   }, [settings, profileFacts, availableYears, year]);
+  const extra = useMemo(
+    () => [profile, postingGroupTask(contacts)].filter((task): task is Task => task !== null),
+    [profile, contacts],
+  );
   const agentWork = useMemo(() => agentWorkSummary(plan?.agent ?? []), [plan]);
   const month = useMemo(
     () => (tasks && obligations ? monthToClose(obligations, tasks.today) : ''),
@@ -147,10 +166,11 @@ export const OverviewArea: React.FC = () => {
   }, [month]);
 
   // Ein Agent bucht, legt ab oder bereitet vor: die Seite liest Aufgaben,
-  // Buchungen und Monatsabschluss neu und behält, was sie zeigt, bis der neue
-  // Stand da ist.
+  // Buchungen, Monatsabschluss und Vorschläge neu und behält, was sie zeigt,
+  // bis der neue Stand da ist.
   useLiveReload(() => {
     void load();
+    loadContacts();
     if (month) {
       Api.getMonthCloseState(month)
         .then((state) => {
@@ -169,7 +189,7 @@ export const OverviewArea: React.FC = () => {
       title="Übersicht"
       context={`Stand ${formatDate(tasks?.today ?? todayISO())} · Geschäftsjahr ${year}`}
     >
-      <DutiesSection plan={plan} extra={profile ? [profile] : []} error={error} onOpen={openPanel} onNavigate={navigate} />
+      <DutiesSection plan={plan} extra={extra} error={error} onOpen={openPanel} onNavigate={navigate} />
       <InboxSection tenantId={activeTenant?.id} onNavigate={navigate} />
       {!error && (
         <MonthCloseSection month={month} state={monthState} error={monthError} onNavigate={navigate} />

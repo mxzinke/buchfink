@@ -12,6 +12,7 @@ function load(file) {
 
 const inbox = await import(load('./inbox.ts'));
 const changes = await import(load('./changes.ts'));
+const contacts = await import(load('./contacts.ts'));
 
 const info = (count, oldestDays) => ({ path: '/x/Eingang', default: true, count, oldestDays, readFolders: [], exportFolder: '' });
 
@@ -67,4 +68,32 @@ test('a run of changes reloads after a pause, but not later than the maximum', (
   assert.equal(changes.reloadDelay(0, 0, 400, 1500), 400);
   assert.equal(changes.reloadDelay(0, 1300, 400, 1500), 200);
   assert.equal(changes.reloadDelay(0, 2000, 400, 1500), 0);
+});
+
+const vendor = (id, extra = {}) => ({ id, type: 'vendor', name: `Lieferant ${id}`, company: '', blocked: false, ...extra });
+
+test('a proposal of Claude waits for confirmation, a confirmed group does not', () => {
+  assert.equal(contacts.postingGroupState(vendor(1)), 'none');
+  assert.equal(contacts.postingGroupState(vendor(2, { defaultPostingGroup: 'telefon' })), 'confirmed');
+  assert.equal(contacts.postingGroupState(vendor(3, { proposedPostingGroup: 'werbung' })), 'proposed');
+  assert.equal(
+    contacts.postingGroupState(vendor(4, { defaultPostingGroup: 'werbung', proposedPostingGroup: 'werbung' })),
+    'confirmed',
+  );
+  assert.equal(contacts.hasPendingProposal(vendor(5, { proposedPostingGroup: 'werbung', blocked: true })), false);
+  assert.equal(contacts.hasPendingProposal({ ...vendor(6, { proposedPostingGroup: 'werbung' }), type: 'customer' }), false);
+});
+
+test('the overview task leads to the one vendor or to the list', () => {
+  assert.equal(contacts.postingGroupTask([vendor(1)]), null);
+  const one = contacts.postingGroupTask([vendor(1), vendor(18, { proposedPostingGroup: 'fremdleistungen' })]);
+  assert.equal(one.title, 'Standardgruppe für Lieferant 18 bestätigen');
+  assert.deepEqual(one.target, { area: 'company', tab: 'contacts', id: '18' });
+  const two = contacts.postingGroupTask([
+    vendor(16, { proposedPostingGroup: 'werbung' }),
+    vendor(18, { proposedPostingGroup: 'fremdleistungen' }),
+  ]);
+  assert.equal(two.title, '2 Standardgruppen bestätigen');
+  assert.equal(two.target.id, undefined);
+  assert.equal(two.count, 2);
 });

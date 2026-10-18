@@ -806,6 +806,18 @@ export interface Contact {
   blocked: boolean;
   blockedAt?: string;
   blockedReason?: string;
+  /**
+   * Die Standard-Buchungsgruppe eines Lieferanten. Gesetzt ist sie nur, wenn
+   * der Mensch sie in der App bestätigt hat; erst dann bucht ein Agent
+   * E-Rechnungen des Lieferanten ohne Rückfrage. Ein Agent schlägt nur vor.
+   */
+  defaultPostingGroup?: string;
+  defaultPostingGroupConfirmedAt?: string;
+  defaultPostingGroupConfirmedBy?: string;
+  proposedPostingGroup?: string;
+  proposedPostingGroupNote?: string;
+  /** Der Erfassungsweg des Vorschlags, etwa `agent:claude-code`. */
+  proposedPostingGroupBy?: string;
   createdAt: string;
 }
 
@@ -3492,6 +3504,8 @@ export interface MCPServerStatus {
   url: string;
   /** Warum der Server nicht läuft, etwa ein belegter Port; sonst leer. */
   error: string;
+  /** BUCHFINK_MCP_PORT setzt den Port; der eingestellte gilt erst ohne die Variable. */
+  fromEnvironment: boolean;
 }
 
 /** Ein Mandant, für den eine App zugelassen ist. */

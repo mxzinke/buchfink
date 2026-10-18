@@ -333,9 +333,11 @@ export const bridge = {
   SetInboxFolder: <T>(path: string) => invoke<T>('SetInboxFolder', path),
   CheckFolder: <T>(path: string) => invoke<T>('CheckFolder', path),
 
-  // Regeln und Ordner für verbundene Apps (internal/wailsbridge/agent_rules.go)
+  // Regeln für verbundene Apps und Standardgruppe (internal/wailsbridge/agent_rules.go)
   GetAgentRules: <T>() => invoke<T>('GetAgentRules'),
   SaveAgentRules: <T>(settings: unknown) => invoke<T>('SaveAgentRules', settings),
+  ConfirmDefaultPostingGroup: <T>(contactId: number, group: string) =>
+    invoke<T>('ConfirmDefaultPostingGroup', contactId, group),
 
   // Verbundene Apps (internal/wailsbridge/mcp_service.go)
   GetMCPServerStatus: <T>() => invoke<T>('GetMCPServerStatus'),

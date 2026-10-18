@@ -1,10 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Lock, Plus, Users } from 'lucide-react';
 import { Api } from '../../services/api';
-import type { Contact, ContactType, EInvoiceProfileInfo, VatIDStatus } from '../../types';
+import type { Contact, ContactType, EInvoiceProfileInfo, PostingGroup, VatIDStatus } from '../../types';
 import { useRouteObject } from '../../navigation';
 import { useWriteLock } from '../../components/WriteLock';
-import { formatCents, formatDate, formatDateTime } from '../../utils/formatters';
+import { useLiveReload } from '../../live';
+import { agentName } from '../../utils/actor';
+import { hasPendingProposal, postingGroupState } from '../../utils/contacts';
+import { formatCents, formatDate, formatDateOfTimestamp, formatDateTime } from '../../utils/formatters';
 import {
   Button,
   Checkbox,
@@ -15,6 +18,7 @@ import {
   EmptyState,
   Field,
   FormGrid,
+  Help,
   Input,
   Notice,
   PageHeader,
@@ -43,7 +47,8 @@ const NEW_CONTACT: Partial<Contact> = { type: 'vendor', countryCode: 'DE', payme
 
 /**
  * Kunden und Lieferanten. Die Liste zeigt Personenkonto und offenen Betrag,
- * alles Weitere die Seitenleiste. Anlegen kann auch eine verbundene App.
+ * alles Weitere die Seitenleiste. Anlegen kann auch eine verbundene App; die
+ * Standardgruppe eines Lieferanten bestätigt nur der Mensch.
  */
 export const ContactsPanel: React.FC = () => {
   const writeLock = useWriteLock();
@@ -55,18 +60,21 @@ export const ContactsPanel: React.FC = () => {
   const [notice, setNotice] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     try {
       setContacts(await Api.getContacts());
       setLoadError(null);
     } catch (e) {
       setLoadError(`Die Kontakte konnten nicht geladen werden. ${message(e)}`);
     }
-  }
+  }, []);
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
+
+  // Claude legt Kontakte an und schlägt Standardgruppen vor.
+  useLiveReload(load, ['stammdaten', 'belege', 'buchungen']);
 
   const filtered = useMemo(() => {
     const list = contacts ?? [];
@@ -180,6 +188,11 @@ export const ContactsPanel: React.FC = () => {
                     {contact.blocked && (
                       <span className="ml-2 text-caption text-negative-text whitespace-nowrap">Gesperrt</span>
                     )}
+                    {hasPendingProposal(contact) && (
+                      <span className="ml-2 text-caption text-attention-text whitespace-nowrap">
+                        Standardgruppe bestätigen
+                      </span>
+                    )}
                   </Td>
                   <Td className="text-ink-muted">{typeLabel(contact.type)}</Td>
                   <Td code>{contact.ledgerAccount}</Td>
@@ -196,6 +209,9 @@ export const ContactsPanel: React.FC = () => {
         onClose={selection.close}
         onEdit={(contact) => setEditing(contact)}
         onBlock={(contact) => setBlocking(contact)}
+        onChanged={(changed) =>
+          setContacts((prev) => (prev ?? []).map((c) => (c.id === changed.id ? { ...c, ...changed } : c)))
+        }
       />
 
       {editing && (
@@ -233,7 +249,8 @@ const ContactDetail: React.FC<{
   onClose: () => void;
   onEdit: (contact: Contact) => void;
   onBlock: (contact: Contact) => void;
-}> = ({ contact, onClose, onEdit, onBlock }) => {
+  onChanged: (contact: Contact) => void;
+}> = ({ contact, onClose, onEdit, onBlock, onChanged }) => {
   const writeLock = useWriteLock();
   const [vatStatus, setVatStatus] = useState<VatIDStatus | null>(null);
 
@@ -338,9 +355,186 @@ const ContactDetail: React.FC<{
                 : []),
             ]}
           />
+          {contact.type === 'vendor' && <PostingGroupBlock contact={contact} onChanged={onChanged} />}
         </>
       )}
     </DetailPanel>
+  );
+};
+
+/**
+ * Die Standard-Buchungsgruppe eines Lieferanten: bestätigt, von Claude
+ * vorgeschlagen oder keine. Bestätigen kann nur der Mensch; erst dann bucht
+ * Claude E-Rechnungen des Lieferanten ohne Rückfrage, in den Grenzen unter
+ * Einstellungen › Buchen ohne Rückfrage.
+ */
+const PostingGroupBlock: React.FC<{ contact: Contact; onChanged: (contact: Contact) => void }> = ({
+  contact,
+  onChanged,
+}) => {
+  const writeLock = useWriteLock();
+  const [groups, setGroups] = useState<PostingGroup[]>([]);
+  const [choosing, setChoosing] = useState(false);
+  const [choice, setChoice] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const state = postingGroupState(contact);
+  const proposal = contact.proposedPostingGroup ?? '';
+  const confirmed = contact.defaultPostingGroup ?? '';
+
+  useEffect(() => {
+    Api.getPostingGroups('incoming')
+      .then(setGroups)
+      .catch(() => setGroups([]));
+  }, []);
+
+  useEffect(() => {
+    setChoosing(false);
+    setChoice(proposal || confirmed);
+    setError('');
+  }, [contact.id, proposal, confirmed]);
+
+  const label = (key: string) => groups.find((g) => g.key === key)?.label ?? key;
+  const name = contact.company || contact.name;
+
+  async function confirm(group: string) {
+    setBusy(true);
+    setError('');
+    try {
+      const saved = await Api.confirmDefaultPostingGroup(contact.id, group);
+      onChanged(saved);
+      toast.success(
+        group ? `Standardgruppe ${label(group)} für ${name} bestätigt.` : `${name} hat keine Standardgruppe mehr.`,
+      );
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const picker = (
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <div className="min-w-[14rem] flex-1">
+        <Select
+          aria-label="Standardgruppe"
+          items={groups.map((g) => ({ value: g.key, label: g.label }))}
+          value={choice}
+          placeholder="Gruppe wählen"
+          disabled={writeLock.locked}
+          onValueChange={setChoice}
+        />
+      </div>
+      <Button
+        variant="secondary"
+        size="sm"
+        loading={busy}
+        disabled={!choice || writeLock.locked}
+        title={writeLock.hint}
+        onClick={() => void confirm(choice)}
+      >
+        Bestätigen
+      </Button>
+      {choosing && (
+        <Button variant="quiet" size="sm" onClick={() => setChoosing(false)}>
+          Abbrechen
+        </Button>
+      )}
+    </div>
+  );
+
+  return (
+    <section className="mt-6 pt-5 border-t border-line">
+      <h3 className="flex items-center text-label text-ink-muted">
+        Standardgruppe
+        <Help
+          summary="Mit dieser Gruppe bucht Claude E-Rechnungen des Lieferanten ohne Rückfrage."
+          label="Erklärung zur Standardgruppe"
+        >
+          Claude schlägt die Gruppe vor, nach der die Rechnungen eines Lieferanten gebucht werden,
+          etwa Fremdleistungen. Erst wenn Sie sie bestätigen, bucht Claude seine E-Rechnungen ohne
+          Rückfrage, und nur unter der Betragsgrenze und ab der Zahl früherer Buchungen, die Sie unter
+          Einstellungen festlegen. Fotos und PDF ohne E-Rechnung legt Claude Ihnen immer vor.
+        </Help>
+      </h3>
+
+      {choosing || state === 'none' ? (
+        <>
+          {state === 'none' && (
+            <p className="mt-1 text-caption text-ink-subtle">
+              Keine bestätigt. Bis dahin fragt Claude bei jeder Rechnung nach.
+            </p>
+          )}
+          {picker}
+        </>
+      ) : state === 'confirmed' ? (
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="text-body text-ink">{label(confirmed)}</span>
+          <span className="text-caption text-positive-text">
+            {contact.defaultPostingGroupConfirmedAt
+              ? `Bestätigt am ${formatDateOfTimestamp(contact.defaultPostingGroupConfirmedAt)}`
+              : 'Bestätigt'}
+          </span>
+          <span className="ml-auto flex gap-1">
+            <Button
+              variant="quiet"
+              size="sm"
+              disabled={writeLock.locked}
+              title={writeLock.hint}
+              onClick={() => setChoosing(true)}
+            >
+              Ändern
+            </Button>
+            <Button
+              variant="quiet"
+              size="sm"
+              loading={busy}
+              disabled={writeLock.locked}
+              title={writeLock.hint}
+              onClick={() => void confirm('')}
+            >
+              Aufheben
+            </Button>
+          </span>
+        </div>
+      ) : (
+        <div className="mt-2">
+          <p className="text-body text-ink">
+            {`Vorschlag von ${agentName(contact.proposedPostingGroupBy)}: `}
+            <span className="font-semibold">{label(proposal)}</span>
+          </p>
+          {contact.proposedPostingGroupNote && (
+            <p className="mt-0.5 text-caption text-ink-subtle">{contact.proposedPostingGroupNote}</p>
+          )}
+          {confirmed && (
+            <p className="mt-0.5 text-caption text-ink-subtle">{`Bisher bestätigt: ${label(confirmed)}`}</p>
+          )}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={busy}
+              disabled={writeLock.locked}
+              title={writeLock.hint}
+              onClick={() => void confirm(proposal)}
+            >
+              Bestätigen
+            </Button>
+            <Button
+              variant="quiet"
+              size="sm"
+              disabled={writeLock.locked}
+              title={writeLock.hint}
+              onClick={() => setChoosing(true)}
+            >
+              Andere Gruppe wählen
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {error && <Notice tone="negative" className="mt-3" text={error} />}
+    </section>
   );
 };
 

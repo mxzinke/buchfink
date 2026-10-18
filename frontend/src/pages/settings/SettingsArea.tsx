@@ -3,6 +3,7 @@ import { useAnchorScroll, useNavigation, type TabOf } from '../../navigation';
 import { useWorkspace } from '../../workspace';
 import { Disclosure, PageFrame } from '../../components/ui';
 import { AdvancedSettings } from './AdvancedSettings';
+import { AgentRulesPanel } from './AgentRulesPanel';
 import { AppsPanel } from './AppsPanel';
 import { InboxPanel } from './InboxPanel';
 import { BackupPanel } from './BackupPanel';
@@ -12,8 +13,9 @@ import { AuditSection, auditAnchor } from './audit/AuditSection';
 type SettingsSection = TabOf<'settings'>;
 
 /**
- * Die Einstellungen als eine Seite: oben Apps verbinden, Eingang und Ordner
- * und die Sicherung, darunter eingeklappt Prüfung & GoBD und Erweitertes. Der Reiter im Ziel benennt den
+ * Die Einstellungen als eine Seite: oben Apps verbinden, Eingang und Ordner,
+ * die Regeln für Buchungen ohne Rückfrage und die Sicherung, darunter
+ * eingeklappt Prüfung & GoBD und Erweitertes. Der Reiter im Ziel benennt den
  * Abschnitt, der aufgeklappt und angesprungen wird; die Kennung eine Zeile
  * darin.
  */
@@ -48,6 +50,8 @@ export const SettingsArea: React.FC = () => {
       <AppsPanel id="einstellungen-apps" />
 
       <InboxPanel id="einstellungen-inbox" />
+
+      <AgentRulesPanel id="einstellungen-regeln" />
 
       <BackupPanel
         id="einstellungen-backup"
