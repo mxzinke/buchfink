@@ -268,3 +268,31 @@ type exemptionInfo struct {
 	// Anlegerstellung.
 	Problem string `json:"problem,omitempty"`
 }
+
+// GetAfaRules liefert die Abschreibungsregeln aus der eingebetteten Ressource —
+// dieselbe Datei, aus der gerechnet wird.
+func (b *BuchfinkBridge) GetAfaRules() accounting.AfARules {
+	return accounting.AfARuleSet()
+}
+
+// -------------------------------------------------------------------------
+// Anlagen
+// -------------------------------------------------------------------------
+
+// GetWriteUpReport listet die Anlagegüter, bei denen die Wertaufholung zu prüfen
+// ist.
+func (b *BuchfinkBridge) GetWriteUpReport(year int) (*service.WriteUpReport, error) {
+	year = b.yearOr(year)
+	return read(b, func(ctx context.Context, s *core.Services) (*service.WriteUpReport, error) {
+		return s.Assets.WriteUpReport(ctx, year)
+	})
+}
+
+// GetPoolConsistencyReport prüft die Einheitlichkeit des Wahlrechts nach
+// § 6 Abs. 2a Satz 5 EStG.
+func (b *BuchfinkBridge) GetPoolConsistencyReport(year int) (*service.PoolConsistencyReport, error) {
+	year = b.yearOr(year)
+	return read(b, func(ctx context.Context, s *core.Services) (*service.PoolConsistencyReport, error) {
+		return s.Assets.PoolConsistency(ctx, year)
+	})
+}

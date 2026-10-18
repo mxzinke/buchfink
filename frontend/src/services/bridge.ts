@@ -292,7 +292,7 @@ export const bridge = {
 
   // Die Bedienung der Welle 7: Aufgabenliste, Monatsabschluss,
   // Zuordnungsvorschlag und Prüfpfad. Die Reihenfolge der Argumente ist gegen
-  // internal/wailsbridge/welle7_service.go geprüft; `invoke` ist untypisiert
+  // internal/wailsbridge/{task,month_close,bank_suggest}_service.go geprüft; `invoke` ist untypisiert
   // und würde eine vertauschte Reihenfolge erst zur Laufzeit melden.
   GetTasks: <T>() => invoke<T>('GetTasks'),
   GetMonthCloseState: <T>(month: string) => invoke<T>('GetMonthCloseState', month),
@@ -311,7 +311,7 @@ export const bridge = {
   GetAgentBookings: <T>(limit: number) => invoke<T>('GetAgentBookings', limit),
 
   // Belegverweis, Fristen, Journalfilter. Jede Signatur ist gegen
-  // internal/wailsbridge/welle8_service.go geprüft — Anzahl und Reihenfolge der
+  // internal/wailsbridge/{receipt_findings,vat,journal_filter}_service.go geprüft — Anzahl und Reihenfolge der
   // Argumente —, weil `invoke` untypisiert ist und eine vertauschte Reihenfolge
   // erst zur Laufzeit auffiele.
   GetRetentionRules: <T>() => invoke<T>('GetRetentionRules'),

@@ -86,3 +86,14 @@ func (b *BuchfinkBridge) ConfirmZMSubmitted(id uint, date, ticket, note string) 
 		return s.ZM.ConfirmSubmitted(ctx, id, date, ticket, note)
 	}, core.AppOnly())
 }
+
+// --- Umsatzsteuer ---------------------------------------------------------
+
+// GetVatPeriodProposal liefert den Voranmeldungszeitraum, der sich aus der
+// Steuer des Vorjahres ergibt (§ 18 Abs. 2 UStG).
+func (b *BuchfinkBridge) GetVatPeriodProposal(year int) (*service.VatPeriodProposal, error) {
+	year = b.yearOr(year)
+	return read(b, func(ctx context.Context, s *core.Services) (*service.VatPeriodProposal, error) {
+		return s.VatReturns.SuggestPeriodType(ctx, year)
+	})
+}
