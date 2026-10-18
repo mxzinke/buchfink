@@ -26,10 +26,10 @@ buchfink-grundlagen.
    Dateien, die der Mensch nennt, oder auf seine Anweisung alle
    Rechnungen und Quittungen im Eingang; CAMT-Kontoauszüge übernimmt
    buchfink-bank. Prüfe mit `belege_suchen` (`status: abgelegt`), was schon
-   abgelegt und noch nicht gebucht ist; dazu gehört, was der Mensch ins
-   Buchfink-Fenster gezogen hat. Liegt ein Beleg nur im Chat, bitte ihn, die
-   Originaldatei in den Eingang zu speichern (buchfink-grundlagen,
-   Belegsicherung). Fertig, wenn du eine Liste der Dateien und offenen Belege
+   abgelegt und noch nicht gebucht ist, auch was der Mensch in der App
+   abgelegt hat. Was er ins Buchfink-Fenster zieht, landet im Eingang. Liegt
+   ein Beleg nur im Chat, bitte ihn, die Originaldatei in den Eingang zu
+   speichern (buchfink-grundlagen, Belegsicherung). Fertig, wenn du eine Liste der Dateien und offenen Belege
    hast.
 2. **Ablegen.** Rufe je Beleg `beleg_ablegen` mit `dateien` (je `pfad` im
    Eingang und `rolle`) auf. Setze `eingang_am` auf den Tag, an dem der Beleg im

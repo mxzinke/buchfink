@@ -192,9 +192,9 @@ Volltexte: [GoBD 2019][gobd], [Änderung 2024][gobd2024],
 - Buchfink erzeugt die technischen Teile und listet die verbundenen Apps.
   Die organisatorischen Texte entwirfst du auf Bitte mit dem Menschen: wer
   Belege in den Eingang legt, wie Papier gescannt und aufbewahrt wird, welche
-  Vorgänge du buchst und wer freigibt. Ein Werkzeug für die
-  Organisationstexte gibt es noch nicht; der Mensch überträgt deinen Entwurf
-  in der App.
+  Vorgänge du buchst und wer freigibt. Lies die bestehenden Texte mit
+  `verfahrensdoku_text` ohne `texte`; nach dem Ja des Menschen zum Wortlaut
+  schreibst du sie mit demselben Werkzeug.
 
 ## 11. Folgen von Verstößen
 

@@ -52,7 +52,8 @@ bleibt.
 | `geschaeftsjahre[]` | `jahr`, `von`, `bis`, `stand` (offen, aufgestellt, festgestellt, offengelegt) |
 | `pruefermodus` | `aktiv`, `bis`, `grund` |
 | `verbindung` | `app`, `erfassungsweg`, `rechte`, `mandant_freigegeben` |
-| `belegordner` | der Eingang und weitere Ordner, die der Mensch freigegeben hat |
+| `eingang` | `pfad`, `dateien` (Zahl), `aelteste_vor_tagen`, `hinweis`; die Dateien selbst listet das Werkzeug `eingang` |
+| `leseordner` | weitere Ordner, die der Mensch zum Lesen freigegeben hat |
 | `exportordner` | Ziel der Exporte |
 | `direktregeln` | `grenze_brutto`, `mindestbuchungen` |
 | `version` | Fassung der laufenden App |
@@ -75,7 +76,7 @@ bleibt.
 | `buchung_lesen` | eine Buchung mit allen Zeilen und Storno-Bezügen |
 | `offene_posten` | Forderungen und Verbindlichkeiten, Altersstruktur, Verzugszinsen, Mahnstand |
 | `bankumsaetze` | Umsätze mit Vorschlägen, `einstufung` und `auszug_geprueft` |
-| `auswertung` | `art`: `susa`, `kontoblatt` (Sachkonto), `bilanz`, `guv`, `ust`, `pruefbericht` |
+| `auswertung` | `art`: `susa`, `kontoblatt` (Sachkonto), `bilanz`, `guv`, `ust`, `pruefbericht`, `darlehen` (Gesellschafterdarlehen mit Stand und Befunden) |
 | `anlagen` | Anlagenverzeichnis, fällige AfA, Aktivierungskandidaten |
 | `abschluss_status` | Schritte des Jahresabschlusses mit nächster Aktion |
 | `erklaerung` | `art`: `ustva`, `zm`, `ust_jahr`, `kst`, `gewst`; formularnah mit Herkunft |
@@ -113,6 +114,7 @@ bleibt.
 | `anlass_erfassen` | `gesellschafterwechsel`, `wirtschaftlich-berechtigte`, `vorauszahlungsbescheid-kst`, `vorauszahlungsbescheid-gewst` |
 | `darlehen_erfassen` | Darlehensvertrag zwischen GmbH und Gesellschafter erfassen; danach bucht `bankumsatz_buchen` Auszahlung und Tilgung mit `darlehen_id` |
 | `ergebnisverwendung_buchen` | den Beschluss der Gesellschafter über die Ergebnisverwendung buchen |
+| `verfahrensdoku_text` | Organisationstexte der Verfahrensdokumentation lesen und ändern; ohne `texte` nur lesen |
 
 ## 4. Wann der Server „direkt“ zulässt
 
@@ -278,8 +280,7 @@ Nur der Mensch in der App:
 
 Kein Vorbehalt, aber ohne Werkzeug, deshalb in der App: einen vorhandenen
 Kontakt ändern (USt-IdNr., IBAN, E-Rechnungsformat, Leitweg-ID), den
-Saldenvortrag ausführen, die Organisationstexte der Verfahrensdokumentation
-eintragen.
+Saldenvortrag ausführen.
 
 Noch nicht abgebildet, weder als Werkzeug noch in der App: Stornorechnung und
 Rechnungskorrektur, Forderung ausbuchen, Versand vermerken, Rückzahlung einer

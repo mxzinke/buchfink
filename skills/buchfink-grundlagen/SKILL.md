@@ -34,7 +34,7 @@ Rollen:
    - `geschaeftsjahr_aktuell` und `geschaeftsjahre[]` mit `stand`.
    - `pruefermodus`: ist er aktiv, arbeitest du nur lesend und nennst dem
      Menschen das Enddatum.
-   - `belegordner` (Eingang), `exportordner`, `direktregeln`.
+   - `eingang` (Pfad, Dateien, Alter), `leseordner`, `exportordner`, `direktregeln`.
 2. Kläre Hindernisse, bevor du weiterarbeitest:
    - `bereit: false`, `kein_mandant_offen` oder `mandant_nicht_freigegeben`:
      Bitte den Menschen, den Mandanten zu öffnen und diese App zuzulassen.
