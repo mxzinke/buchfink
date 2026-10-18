@@ -20,6 +20,7 @@ type Services struct {
 	Tenant TenantInfo
 	Repos  Repos
 
+	Periods         *service.PeriodService
 	Journal         *service.JournalService
 	Posting         *service.PostingService
 	Receipts        *service.ReceiptService
@@ -150,8 +151,8 @@ type ExaminerReader interface {
 	Latest(ctx context.Context) (*domain.ExaminerPeriod, error)
 }
 
-// stores sind die schreibenden Repositories, die nur der Kern selbst anfasst:
-// Festschreibung, Prüfermodus und Übernahmeprotokoll.
+// stores hält die Repositories für die Kernvorgänge: Zeitstempel, Prüfermodus
+// und Übernahmeprotokoll sowie die lesenden Zugänge in Repos.
 type stores struct {
 	journal        domain.JournalRepository
 	audit          domain.AuditRepository

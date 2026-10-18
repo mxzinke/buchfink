@@ -25,11 +25,11 @@ import (
 // numbering, an unbroken hash chain and respect for committed periods.
 type JournalService struct {
 	auditor[uint]
-	fiscalCalendar
-	journalRepo        domain.JournalRepository
-	accountRepo        domain.AccountRepository
-	contactRepo        domain.ContactRepository
-	festschreibungRepo domain.FestschreibungRepository
+	periods      *PeriodService
+	settingsRepo domain.SettingsRepository
+	journalRepo  domain.JournalRepository
+	accountRepo  domain.AccountRepository
+	contactRepo  domain.ContactRepository
 	// receiptRepo liefert Belege für den Hashstempel und die lesende Regelsicht.
 	receiptRepo domain.ReceiptRepository
 	// bankRepo hält fest, welcher Bankumsatz gebucht ist (journal_bank.go).
@@ -65,36 +65,40 @@ func NewJournalService(
 	tx domain.TxRunner,
 ) *JournalService {
 	return &JournalService{
-		journalRepo:    journalRepo,
-		accountRepo:    accountRepo,
-		contactRepo:    contactRepo,
-		auditor:        auditor[uint]{auditRepo: auditRepo, entity: "JOURNAL"},
-		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo},
-		tx:             tx,
-		hashChain:      accounting.NewHashChain(),
-		taxResolver:    accounting.NewSKR04TaxResolver(),
+		journalRepo:  journalRepo,
+		accountRepo:  accountRepo,
+		contactRepo:  contactRepo,
+		auditor:      auditor[uint]{auditRepo: auditRepo, entity: "JOURNAL"},
+		settingsRepo: settingsRepo,
+		periods:      newPeriodService(journalRepo, settingsRepo, auditRepo, tx),
+		tx:           tx,
+		hashChain:    accounting.NewHashChain(),
+		taxResolver:  accounting.NewSKR04TaxResolver(),
 	}
 }
 
 // SetFestschreibungRepo wires period-commitment enforcement. Optional.
 func (s *JournalService) SetFestschreibungRepo(r domain.FestschreibungRepository) {
-	s.festschreibungRepo = r
+	s.periods.festschreibungRepo = r
 }
 
 // SetFiscalYearRepo wires the Abschlussstand of the fiscal years. Optional.
-func (s *JournalService) SetFiscalYearRepo(r domain.FiscalYearRepository) { s.fiscalYearRepo = r }
+func (s *JournalService) SetFiscalYearRepo(r domain.FiscalYearRepository) {
+	s.periods.fiscalYearRepo = r
+}
 
 // CommittedThrough ist der jüngste Stichtag einer Festschreibung, leer ohne
 // Festschreibung.
 func (s *JournalService) CommittedThrough(ctx context.Context) (string, error) {
-	if s.festschreibungRepo == nil {
-		return "", nil
+	return s.periods.CommittedThrough(ctx)
+}
+
+// SetPeriods verbindet Journal und Abschluss mit derselben Periodenverwaltung.
+func (s *JournalService) SetPeriods(periods *PeriodService) {
+	if periods == nil {
+		panic("Periodenverwaltung fehlt")
 	}
-	all, err := s.festschreibungRepo.FindCutoffOnOrAfter(ctx, "")
-	if err != nil || len(all) == 0 {
-		return "", err
-	}
-	return all[0].CutoffDate, nil
+	s.periods = periods
 }
 
 // SetReceiptRepo hängt die Belegablage an. Mit ihr prüft Post die Kopfdaten des
@@ -253,7 +257,7 @@ func (s *JournalService) Reverse(ctx context.Context, entryID uint, reason strin
 // gebucht. Auf dem Weg über „heute" wäre das nur so lange richtig, wie die
 // Korrektur im selben Jahr geschieht; im Januar darauf wäre sie es nicht mehr.
 //
-// Rückdatiert wird trotzdem nicht in eine geschlossene Periode: ensurePeriodOpen
+// Rückdatiert wird trotzdem nicht in eine geschlossene Periode: die Periodensperre
 // weist jedes Datum bis zur letzten Festschreibung ab, und der Aufrufer, der ein
 // Datum vorgibt, muss sich am ersten offenen Tag orientieren.
 //
@@ -287,7 +291,7 @@ func (s *JournalService) reverseOn(ctx context.Context, entryID uint, reason, da
 	// eine Umkehr ohne Gegenstück — die Eröffnungsbilanz beider Jahre wäre
 	// falsch.
 	if date != "" {
-		if target := domain.GetFiscalYearForDate(date, s.fiscalYearStartMonth(ctx)); target != original.FiscalYear {
+		if target := s.periods.FiscalYearOf(ctx, date); target != original.FiscalYear {
 			return nil, fmt.Errorf(
 				"das Korrekturdatum %s fällt in das Geschäftsjahr %d; die Generalumkehr zur "+
 					"Eröffnungsbuchung %s gehört in das Geschäftsjahr %d",
@@ -560,7 +564,7 @@ func (s *JournalService) prepare(ctx context.Context, e *domain.JournalEntry, mo
 				"Das Geschäftsjahr folgt aus dem Buchungsdatum", e.BookingDate, year, e.FiscalYear)
 	}
 	e.FiscalYear = year
-	if err := s.assignClosingPeriod(ctx, e); err != nil {
+	if err := s.periods.assignClosingPeriod(ctx, e); err != nil {
 		return err
 	}
 
@@ -634,7 +638,7 @@ func (s *JournalService) stampReceiptHash(ctx context.Context, e *domain.Journal
 
 // FiscalYearOf ist das Geschäftsjahr, in das ein Datum fällt.
 func (s *JournalService) FiscalYearOf(ctx context.Context, date string) int {
-	return domain.GetFiscalYearForDate(date, s.fiscalYearStartMonth(ctx))
+	return s.periods.FiscalYearOf(ctx, date)
 }
 
 func (s *JournalService) legalForm(ctx context.Context) string {
@@ -698,98 +702,6 @@ func (s *JournalService) validateLedgerAccount(ctx context.Context, l domain.Jou
 	return nil
 }
 
-// ensurePeriodOpen hält festgeschriebene Zeiträume geschlossen. Maßgeblich ist
-// der Buchungstag: jede Festschreibung, deren Geschäftsjahr ihn umfasst und
-// deren Stichtag ihn erreicht, sperrt ihn — auch eine aus einem anderen Jahr
-// als dem, das der Beginnmonat heute ergibt. Eine Korrektur trägt den Tag
-// ihrer Erstellung und landet deshalb nie in einem gesperrten Zeitraum.
-func (s *JournalService) ensurePeriodOpen(ctx context.Context, e *domain.JournalEntry) error {
-	if s.festschreibungRepo == nil {
-		return nil
-	}
-	records, err := s.festschreibungRepo.FindCutoffOnOrAfter(ctx, e.BookingDate)
-	if err != nil {
-		return fmt.Errorf("Festschreibungsstand konnte nicht geprüft werden: %w", err)
-	}
-	for _, rec := range records {
-		if rec.FiscalYear != e.FiscalYear {
-			if start := s.fiscalYearStart(ctx, rec.FiscalYear); e.BookingDate < start {
-				continue
-			}
-		}
-		// Die Abschlussperiode bleibt nach der Festschreibung des letzten
-		// Monats offen, bis das ganze Jahr festgeschrieben ist: AfA,
-		// Abgrenzung, Rückstellungen und Steuern lassen sich erst rechnen,
-		// wenn das Jahr gebucht ist.
-		if e.ClosingPeriod && rec.FiscalYear == e.FiscalYear {
-			if rec.PeriodType != domain.PeriodTypeYear {
-				continue
-			}
-			return fmt.Errorf(
-				"Das Geschäftsjahr %d ist festgeschrieben, auch seine Abschlussperiode. Eine Buchung zum %s ist "+
-					"nicht mehr möglich – bitte über eine Stornierung korrigieren", e.FiscalYear, e.BookingDate)
-		}
-		message := fmt.Sprintf(
-			"Der Zeitraum bis %s ist festgeschrieben. Eine Buchung zum %s ist nicht mehr möglich – bitte über eine Stornierung korrigieren",
-			rec.CutoffDate, e.BookingDate)
-		if rec.FiscalYear == e.FiscalYear && e.BookingDate == s.fiscalYearEnd(ctx, e.FiscalYear) {
-			message += ". Eine Abschlussbuchung zum Bilanzstichtag ist bis zur Jahresfestschreibung als Buchung der Abschlussperiode möglich"
-		}
-		return errors.New(message)
-	}
-	return nil
-}
-
-// assignClosingPeriod ordnet eine Buchung der Abschlussperiode zu. Eine
-// Abschlussbuchung oder AfA zum Bilanzstichtag gehört von selbst dazu, eine
-// andere Buchung auf Antrag; jede trägt dann den Bilanzstichtag.
-func (s *JournalService) assignClosingPeriod(ctx context.Context, e *domain.JournalEntry) error {
-	end := s.fiscalYearEnd(ctx, e.FiscalYear)
-	if (e.Source == domain.EntrySourceClosing || e.Source == domain.EntrySourceDepreciation) && e.BookingDate == end {
-		e.ClosingPeriod = true
-	}
-	if e.ClosingPeriod && e.BookingDate != end {
-		return fmt.Errorf(
-			"eine Buchung der Abschlussperiode trägt den Bilanzstichtag des Geschäftsjahres %d (%s), nicht den %s",
-			e.FiscalYear, end, e.BookingDate)
-	}
-	return nil
-}
-
-// ensureYearNotAdopted sperrt jede Buchung in ein Geschäftsjahr, dessen
-// Abschluss festgestellt ist — gesucht über die Jahresnummer der Buchung und
-// über den Zeitraum jedes angelegten Jahres, damit ein geänderter Beginnmonat
-// den Tag keinem anderen Jahr zuschlägt.
-//
-// Mit der Feststellung durch die Gesellschafter (§ 42a Abs. 2 GmbHG) ist der
-// Abschluss verbindlich: er ist die Grundlage des Ergebnisverwendungsbeschlusses
-// und der Steuererklärung. Eine Buchung danach änderte Zahlen, die beschlossen
-// und weitergereicht sind, ohne dass jemand davon erführe. Deshalb sperrt die
-// Feststellung das Jahr — und deshalb nennt die Meldung den Weg zurück, statt
-// nur nein zu sagen: die Rücksetzung ist möglich, sie ist nur eine Entscheidung
-// und kein Nebeneffekt einer Buchung.
-//
-// Die Generalumkehr ist nicht ausgenommen. Sie hat das Datum ihrer eigenen
-// Erstellung und landet damit im laufenden Jahr; nur eine ausdrücklich in das
-// festgestellte Jahr datierte Korrektur fällt hierunter, und die soll auffallen.
-func (s *JournalService) ensureYearNotAdopted(ctx context.Context, e *domain.JournalEntry) error {
-	if s.fiscalYearRepo == nil {
-		return nil
-	}
-	years, err := s.fiscalYearRepo.FindAll(ctx)
-	if err != nil {
-		return fmt.Errorf("der Abschlussstand des Geschäftsjahres %d konnte nicht geprüft werden: %w", e.FiscalYear, err)
-	}
-	for _, fy := range years {
-		covers := fy.Year == e.FiscalYear || (fy.StartDate <= e.BookingDate && e.BookingDate <= fy.EndDate)
-		if !covers || !fy.IsAdopted() {
-			continue
-		}
-		return fmt.Errorf(
-			"Der Jahresabschluss %d ist am %s festgestellt. Eine Buchung zum %s ist deshalb nicht mehr "+
-				"möglich. Muss der Abschluss geändert werden, setzen Sie die Feststellung unter "+
-				"Abschlüsse › Jahr mit Angabe des Grundes zurück",
-			fy.Year, fy.AdoptedOn, e.BookingDate)
-	}
-	return nil
+func (s *JournalService) fiscalYearStartMonth(ctx context.Context) int {
+	return s.periods.fiscalYearStartMonth(ctx)
 }

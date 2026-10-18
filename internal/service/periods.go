@@ -1,0 +1,160 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"github.com/buchfink/buchfink/internal/domain"
+)
+
+// PeriodService verwaltet Geschäftsjahre, Festschreibungen und Abschlussstände.
+// Schreibende Vorgänge verwenden dieselbe Transaktion wie der Journaldienst.
+type PeriodService struct {
+	auditor[int]
+	fiscalCalendar
+	journalRepo        domain.JournalRepository
+	festschreibungRepo domain.FestschreibungRepository
+	foundationRepo     domain.FoundationRepository
+	tx                 domain.TxRunner
+	closing            periodClosing
+	checks             *CheckService
+}
+
+// periodClosing liefert die Abschlusszahlen und den Vorjahresumsatz.
+type periodClosing interface {
+	EnsureLegalReserve(context.Context, int) error
+	ensureStatementReady(context.Context, int) error
+	prefillPriorYearRevenue(context.Context, *domain.FiscalYear) error
+}
+
+func newPeriodService(journal domain.JournalRepository, settings domain.SettingsRepository, audit domain.AuditRepository, tx domain.TxRunner) *PeriodService {
+	return &PeriodService{
+		fiscalCalendar: fiscalCalendar{settingsRepo: settings},
+		auditor:        auditor[int]{auditRepo: audit, entity: "FISCAL_YEAR"},
+		journalRepo:    journal, tx: tx,
+	}
+}
+
+// PeriodState beschreibt den Buchungstag. ClosingPeriod sagt, ob er der
+// Bilanzstichtag ist; ClosingOpen, ob er noch Abschlussbuchungen aufnimmt.
+// AdoptedYear kann bei geändertem Beginnmonat eine andere Jahresnummer haben.
+type PeriodState struct {
+	FiscalYear       int
+	EndDate          string
+	Open             bool
+	CommittedThrough string
+	ClosingPeriod    bool
+	ClosingOpen      bool
+	AdoptedYear      *domain.FiscalYear
+	lock             *domain.Festschreibung
+	closingLock      *domain.Festschreibung
+}
+
+// State liest die Sperren anhand des Tages und der gespeicherten Jahresgrenzen.
+// Ein geänderter Beginnmonat öffnet weder Festschreibung noch Feststellung.
+func (s *PeriodService) State(ctx context.Context, date string) (PeriodState, error) {
+	year := s.FiscalYearOf(ctx, date)
+	state := PeriodState{FiscalYear: year, EndDate: s.fiscalYearEnd(ctx, year)}
+	state.ClosingPeriod = date == state.EndDate
+	if s.fiscalYearRepo != nil {
+		years, err := s.fiscalYearRepo.FindAll(ctx)
+		if err != nil {
+			return state, fmt.Errorf("der Abschlussstand des Geschäftsjahres %d konnte nicht geprüft werden: %w", year, err)
+		}
+		for i := range years {
+			fy := &years[i]
+			if (fy.Year == year || (fy.StartDate <= date && date <= fy.EndDate)) && fy.IsAdopted() {
+				state.AdoptedYear = fy
+				break
+			}
+		}
+	}
+	if s.festschreibungRepo != nil {
+		records, err := s.festschreibungRepo.FindCutoffOnOrAfter(ctx, "")
+		if err != nil {
+			return state, fmt.Errorf("Festschreibungsstand konnte nicht geprüft werden: %w", err)
+		}
+		for i := range records {
+			rec := &records[i]
+			if rec.FiscalYear != year && (rec.CutoffDate < date || date < s.fiscalYearStart(ctx, rec.FiscalYear)) {
+				continue
+			}
+			if state.CommittedThrough == "" {
+				state.CommittedThrough = rec.CutoffDate
+			}
+			if rec.CutoffDate < date {
+				continue
+			}
+			if state.lock == nil {
+				state.lock = rec
+			}
+			if state.closingLock == nil && (rec.FiscalYear != year || rec.PeriodType == domain.PeriodTypeYear) {
+				state.closingLock = rec
+			}
+		}
+	}
+	state.Open = state.AdoptedYear == nil && state.lock == nil
+	state.ClosingOpen = state.ClosingPeriod && state.AdoptedYear == nil && state.closingLock == nil
+	return state, nil
+}
+
+func (state PeriodState) ensureNotAdopted(date string) error {
+	fy := state.AdoptedYear
+	if fy == nil {
+		return nil
+	}
+	return fmt.Errorf(
+		"Der Jahresabschluss %d ist am %s festgestellt. Eine Buchung zum %s ist deshalb nicht mehr "+
+			"möglich. Muss der Abschluss geändert werden, setzen Sie die Feststellung unter "+
+			"Abschlüsse › Jahr mit Angabe des Grundes zurück", fy.Year, fy.AdoptedOn, date)
+}
+
+func (state PeriodState) ensureOpen(date string, closing bool) error {
+	rec := state.lock
+	if closing {
+		rec = state.closingLock
+	}
+	if rec == nil {
+		return nil
+	}
+	if closing && rec.FiscalYear == state.FiscalYear {
+		return fmt.Errorf("Das Geschäftsjahr %d ist festgeschrieben, auch seine Abschlussperiode. Eine Buchung zum %s ist "+
+			"nicht mehr möglich – bitte über eine Stornierung korrigieren", state.FiscalYear, date)
+	}
+	message := fmt.Sprintf("Der Zeitraum bis %s ist festgeschrieben. Eine Buchung zum %s ist nicht mehr möglich – bitte über eine Stornierung korrigieren", rec.CutoffDate, date)
+	if rec.FiscalYear == state.FiscalYear && date == state.EndDate {
+		message += ". Eine Abschlussbuchung zum Bilanzstichtag ist bis zur Jahresfestschreibung als Buchung der Abschlussperiode möglich"
+	}
+	return errors.New(message)
+}
+
+// assignClosingPeriod ordnet Abschlussbuchungen und AfA zum Bilanzstichtag
+// automatisch der Abschlussperiode zu; Handbuchungen auf ausdrücklichen Wunsch.
+func (s *PeriodService) assignClosingPeriod(ctx context.Context, e *domain.JournalEntry) error {
+	end := s.fiscalYearEnd(ctx, e.FiscalYear)
+	if (e.Source == domain.EntrySourceClosing || e.Source == domain.EntrySourceDepreciation) && e.BookingDate == end {
+		e.ClosingPeriod = true
+	}
+	if e.ClosingPeriod && e.BookingDate != end {
+		return fmt.Errorf("eine Buchung der Abschlussperiode trägt den Bilanzstichtag des Geschäftsjahres %d (%s), nicht den %s", e.FiscalYear, end, e.BookingDate)
+	}
+	return nil
+}
+
+// FiscalYearOf ordnet den Tag nach dem Beginnmonat der Unternehmensdaten zu.
+func (s *PeriodService) FiscalYearOf(ctx context.Context, date string) int {
+	return domain.GetFiscalYearForDate(date, s.fiscalYearStartMonth(ctx))
+}
+
+// CommittedThrough ist der jüngste Stichtag über alle Geschäftsjahre.
+func (s *PeriodService) CommittedThrough(ctx context.Context) (string, error) {
+	if s.festschreibungRepo == nil {
+		return "", nil
+	}
+	all, err := s.festschreibungRepo.FindCutoffOnOrAfter(ctx, "")
+	if err != nil || len(all) == 0 {
+		return "", err
+	}
+	return all[0].CutoffDate, nil
+}

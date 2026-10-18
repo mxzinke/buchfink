@@ -70,8 +70,6 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Journal = service.NewJournalService(journalRepo, accountRepo, contactRepo, auditRepo, settingsRepo, txRunner)
 	s.Journal.AddEntryRules(taxrules.EntryRules()...)
 	s.Journal.AddTaxAccountExceptions(taxrules.TaxAccountExceptions()...)
-	s.Journal.SetFestschreibungRepo(festschreibungRepo)
-	s.Journal.SetFiscalYearRepo(fiscalYearRepo)
 	s.Journal.SetReceiptRepo(receiptRepo)
 	s.Journal.SetBankRepo(bankRepo)
 	s.Idempotency = service.NewIdempotencyService(idempotencyRepo, txRunner)
@@ -131,6 +129,8 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 		fiscalYearRepo, journalRepo, accountRepo, contactRepo, allocationRepo,
 		settingsRepo, festschreibungRepo, auditRepo, s.Journal,
 	)
+	s.Periods = s.Closing.Periods()
+	s.Journal.SetPeriods(s.Periods)
 	s.Closing.SetFoundationRepo(foundationRepo)
 	s.Foundation.SetFoundingYearAligner(s.Closing)
 	s.ClosingSettings = service.NewClosingSettingsService(settingsRepo, auditRepo)
@@ -222,6 +222,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 		settingsRepo, festschreibungRepo, vatReturnRepo, checkRunRepo,
 		auditRepo,
 	)
+	s.Periods.SetCheckService(s.Checks)
 	s.Checks.SetFiscalYearSource(fiscalYearRepo)
 	s.Checks.SetAccountSource(s.Accounting)
 	s.Checks.SetOpenItemSource(s.Payments)

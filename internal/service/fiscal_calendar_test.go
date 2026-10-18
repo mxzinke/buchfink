@@ -103,7 +103,7 @@ func TestFiscalCalendarBounds(t *testing.T) {
 			for name, reader := range map[string]interface {
 				fiscalYearStart(context.Context, int) string
 				fiscalYearEnd(context.Context, int) string
-			}{"Kalender": calendar, "Journal": journal} {
+			}{"Kalender": calendar, "Journal": journal.periods} {
 				if got := reader.fiscalYearStart(context.Background(), 2024); got != tc.start {
 					t.Errorf("%s Beginn: %s, erwartet %s", name, got, tc.start)
 				}

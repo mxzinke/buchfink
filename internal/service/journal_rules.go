@@ -51,8 +51,17 @@ func (s *JournalService) entryRules() []entryRule {
 	rules = append(rules, s.rulesAt(domain.EntryRulesAfterAccounts, -1)...)
 	rules = append(rules, s.rulesAt(domain.EntryRulesManual, -1)...)
 	// Die Feststellung nennt den Weg zurück und geht der Festschreibung vor.
-	rules = append(rules, entryRule{"year_not_adopted", true, s.ensureYearNotAdopted},
-		entryRule{"period_open", true, s.ensurePeriodOpen})
+	var state PeriodState
+	rules = append(rules, entryRule{"year_not_adopted", true, func(ctx context.Context, e *domain.JournalEntry) error {
+		var err error
+		state, err = s.periods.State(ctx, e.BookingDate)
+		if adopted := state.ensureNotAdopted(e.BookingDate); adopted != nil {
+			return adopted
+		}
+		return err
+	}}, entryRule{"period_open", true, func(_ context.Context, e *domain.JournalEntry) error {
+		return state.ensureOpen(e.BookingDate, e.ClosingPeriod)
+	}})
 	return append(rules, s.rulesAt(domain.EntryRulesAfterPeriods, -1)...)
 }
 

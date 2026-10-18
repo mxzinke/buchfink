@@ -41,6 +41,26 @@ func TestAgentsAreRefusedForHumanOnlyOperations(t *testing.T) {
 			_, err := tenant.CommitPeriod(agent, CommitRequest{PeriodType: domain.PeriodTypeYear, PeriodLabel: "2026", CutoffDate: "2026-12-31"})
 			return err
 		},
+		"Periods festschreiben": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.Periods.Commit(ctx, service.PeriodCommitRequest{PeriodType: "month", CutoffDate: "2026-01-31"})
+			return err
+		}),
+		"Periods aufstellen": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.Periods.Adopt(ctx, 2026, domain.FiscalYearPrepared, "2027-03-01", "")
+			return err
+		}),
+		"Periods feststellen": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.Periods.Adopt(ctx, 2026, domain.FiscalYearAdopted, "2027-06-01", "Beschluss")
+			return err
+		}),
+		"Periods offenlegen": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.Periods.Adopt(ctx, 2026, domain.FiscalYearDisclosed, "2027-07-01", "Auftrag")
+			return err
+		}),
+		"Periods Feststellung zurücknehmen": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.Periods.Reopen(ctx, 2026, "Korrektur")
+			return err
+		}),
 		"Aufstellen": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Closing.SetFiscalYearStatus(ctx, 2026, domain.FiscalYearPrepared, "2027-03-01", "")
 			return err

@@ -48,6 +48,26 @@ func refusesAppOnlyOperations(t *testing.T, ctx context.Context) {
 		}
 	}
 	for name, call := range map[string]func() error{
+		"Perioden festschreiben": func() error {
+			_, err := (&PeriodService{}).Commit(ctx, PeriodCommitRequest{})
+			return err
+		},
+		"Perioden aufstellen": func() error {
+			_, err := (&PeriodService{}).Adopt(ctx, 2025, domain.FiscalYearPrepared, "2026-03-01", "")
+			return err
+		},
+		"Perioden feststellen": func() error {
+			_, err := (&PeriodService{}).Adopt(ctx, 2025, domain.FiscalYearAdopted, "2026-06-01", "Beschluss")
+			return err
+		},
+		"Perioden offenlegen": func() error {
+			_, err := (&PeriodService{}).Adopt(ctx, 2025, domain.FiscalYearDisclosed, "2026-07-01", "Auftrag")
+			return err
+		},
+		"Periodenfeststellung zurücknehmen": func() error {
+			_, err := (&PeriodService{}).Reopen(ctx, 2025, "Korrektur")
+			return err
+		},
 		"Unternehmensdaten": func() error {
 			return (&SettingsService{}).UpdateCompanySettings(ctx, &domain.CompanySettings{})
 		},

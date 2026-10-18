@@ -11,8 +11,7 @@ import (
 // Übermittlungsbestätigung, Pflicht als erledigt, Aufstellen/Feststellen/
 // Offenlegen, Stammdaten des Unternehmens samt Gesellschaftern und Gründung,
 // Bankkonten, Abschluss-Einstellungen, Regeln für Apps und das Bestätigen von
-// Standardgruppe und Angaben zur Steuererklärung. Die Festschreibung behält
-// der Kern selbst der App vor.
+// Standardgruppe und Angaben zur Steuererklärung sowie Festschreibung.
 //
 // Zugelassen ist nur der Erfassungsweg ui. Ohne Erfassungsweg läuft der Dienst
 // unterhalb des Kerns (Einrichtung eines Mandanten, Tests); der Kern lässt
