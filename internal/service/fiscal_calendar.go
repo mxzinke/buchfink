@@ -8,6 +8,8 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
+// fiscalCalendar liest Beginn und Ende eines Geschäftsjahres aus den
+// angelegten Jahren und dem Beginnmonat der Stammdaten.
 type fiscalCalendar struct {
 	settingsRepo   domain.SettingsRepository
 	fiscalYearRepo domain.FiscalYearRepository
@@ -29,6 +31,8 @@ func (c fiscalCalendar) fiscalYearStartMonth(ctx context.Context) int {
 	return settings.FiscalYearStartMonth
 }
 
+// fiscalYearStart ist der erste Tag eines Geschäftsjahres: der Beginn des
+// angelegten Jahres, sonst der nach dem Beginnmonat.
 func (c fiscalCalendar) fiscalYearStart(ctx context.Context, year int) string {
 	if c.fiscalYearRepo != nil {
 		if fy, err := c.fiscalYearRepo.FindByYear(ctx, year); err == nil && fy != nil && fy.StartDate != "" {
@@ -38,6 +42,9 @@ func (c fiscalCalendar) fiscalYearStart(ctx context.Context, year int) string {
 	return fmt.Sprintf("%04d-%02d-01", year, c.fiscalYearStartMonth(ctx))
 }
 
+// fiscalYearEnd ist der Bilanzstichtag eines Geschäftsjahres: das Ende des
+// angelegten Jahres, ein Rumpfjahr eingeschlossen, sonst das Ende nach dem
+// Beginnmonat.
 func (c fiscalCalendar) fiscalYearEnd(ctx context.Context, year int) string {
 	if c.fiscalYearRepo != nil {
 		if fy, err := c.fiscalYearRepo.FindByYear(ctx, year); err == nil && fy != nil && fy.EndDate != "" {
