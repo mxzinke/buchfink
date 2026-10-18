@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Events } from '@wailsio/runtime';
 import type { ChangeEvent, ChangeKind } from './types';
-import { concerns, forTenant, reloadDelay } from './utils/changes';
+import { concerns, forTenant, reloadDelay, requestCounter } from './utils/changes';
 
 /**
  * Live-Aktualisierung: Was ein Agent, ein Hintergrundlauf oder die App selbst
@@ -90,4 +90,14 @@ export function useLiveReload(reload: () => unknown, kinds?: readonly ChangeKind
     if (!concerns(changes.kinds, latest.current.kinds)) return;
     void latest.current.reload();
   }, [changes]);
+}
+
+/**
+ * Nur der jüngste Ladevorgang einer Ansicht setzt ihren Stand
+ * (`requestCounter`). `begin()` am Anfang eines Ladens aufrufen und vor jedem
+ * `set…` die gelieferte Prüfung fragen.
+ */
+export function useLatestRequest(): () => () => boolean {
+  const counter = useRef(requestCounter());
+  return counter.current.begin;
 }

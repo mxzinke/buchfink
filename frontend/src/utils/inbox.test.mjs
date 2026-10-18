@@ -97,3 +97,31 @@ test('the overview task leads to the one vendor or to the list', () => {
   assert.equal(two.target.id, undefined);
   assert.equal(two.count, 2);
 });
+
+test('a confirmation clears the proposal it answered', () => {
+  const before = vendor(7, {
+    proposedPostingGroup: 'fremdleistungen',
+    proposedPostingGroupBy: 'agent:claude-code',
+    openAmount: 11900,
+  });
+  // Die Antwort der App lässt geleerte Felder weg.
+  const confirmed = { ...vendor(7), defaultPostingGroup: 'software', defaultPostingGroupConfirmedAt: '2026-10-18', openAmount: 0 };
+  const after = contacts.withPostingGroupOf(before, confirmed);
+  assert.equal(contacts.postingGroupState(after), 'confirmed');
+  assert.equal(after.proposedPostingGroup, undefined);
+  assert.equal(after.openAmount, 11900);
+  const cleared = contacts.withPostingGroupOf(after, vendor(7));
+  assert.equal(contacts.postingGroupState(cleared), 'none');
+  assert.equal(cleared.defaultPostingGroupConfirmedAt, undefined);
+});
+
+test('only the latest load of a view sets its state', () => {
+  const counter = changes.requestCounter();
+  const live = counter.begin();
+  const yearSwitch = counter.begin();
+  // Die Antwort auf das Neuladen kommt nach der des Jahreswechsels.
+  assert.equal(yearSwitch(), true);
+  assert.equal(live(), false);
+  const other = changes.requestCounter();
+  assert.equal(other.begin()(), true);
+});

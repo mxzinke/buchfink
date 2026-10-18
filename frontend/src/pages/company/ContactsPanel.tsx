@@ -6,7 +6,7 @@ import { useRouteObject } from '../../navigation';
 import { useWriteLock } from '../../components/WriteLock';
 import { useLiveReload } from '../../live';
 import { agentName } from '../../utils/actor';
-import { hasPendingProposal, postingGroupState } from '../../utils/contacts';
+import { hasPendingProposal, postingGroupState, withPostingGroupOf } from '../../utils/contacts';
 import { formatCents, formatDate, formatDateOfTimestamp, formatDateTime } from '../../utils/formatters';
 import {
   Button,
@@ -210,7 +210,7 @@ export const ContactsPanel: React.FC = () => {
         onEdit={(contact) => setEditing(contact)}
         onBlock={(contact) => setBlocking(contact)}
         onChanged={(changed) =>
-          setContacts((prev) => (prev ?? []).map((c) => (c.id === changed.id ? { ...c, ...changed } : c)))
+          setContacts((prev) => (prev ?? []).map((c) => (c.id === changed.id ? withPostingGroupOf(c, changed) : c)))
         }
       />
 

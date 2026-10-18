@@ -66,9 +66,12 @@ export const InboxSection: React.FC<{ tenantId: string | undefined; onNavigate: 
     if (filesOpen) void loadFiles();
   }, [load, loadFiles, filesOpen]);
 
+  // Ein anderer Mandant hat einen anderen Eingang: die aufgeklappte Liste
+  // gehörte zum vorigen.
   useEffect(() => {
     setInfo(null);
     setFiles(null);
+    setFilesOpen(false);
     void load();
   }, [load, tenantId]);
 

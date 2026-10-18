@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Account, AccountLedger, OpenItem, SuSaOverview } from '../../types';
 import { useNavigation, useRouteObject } from '../../navigation';
 import { useWorkspace } from '../../workspace';
-import { useLiveReload } from '../../live';
+import { useLatestRequest, useLiveReload } from '../../live';
 import { Api } from '../../services/api';
 import { formatBalance, formatCents, formatDate } from '../../utils/formatters';
 import {
@@ -42,16 +42,20 @@ export const AccountsTab: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
+  const begin = useLatestRequest();
   const load = useCallback(async () => {
+    const latest = begin();
     try {
-      setAccounts((await Api.getAccounts()) ?? []);
+      const list = await Api.getAccounts();
+      if (!latest()) return;
+      setAccounts(list ?? []);
       setError(null);
     } catch (e) {
-      setError(errorText(e));
+      if (latest()) setError(errorText(e));
     } finally {
-      setLoading(false);
+      if (latest()) setLoading(false);
     }
-  }, []);
+  }, [begin]);
 
   useEffect(() => {
     setLoading(true);
@@ -335,19 +339,30 @@ const LedgerPanel: React.FC<{ account: string | undefined; onClose: () => void }
   const { navigate } = useNavigation();
   const [ledger, setLedger] = useState<AccountLedger | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const begin = useLatestRequest();
+
+  const load = useCallback(async () => {
+    if (!account) return;
+    const latest = begin();
+    try {
+      const result = await Api.getAccountLedger(account);
+      if (!latest()) return;
+      setLedger(result);
+      setError(null);
+    } catch (e) {
+      if (latest()) setError(errorText(e));
+    }
+  }, [account, begin]);
 
   useEffect(() => {
     if (!account) return;
-    let cancelled = false;
     setError(null);
     setLedger((current) => (current?.account.number === account ? current : null));
-    Api.getAccountLedger(account)
-      .then((result) => !cancelled && setLedger(result))
-      .catch((e) => !cancelled && setError(errorText(e)));
-    return () => {
-      cancelled = true;
-    };
-  }, [account]);
+    void load();
+  }, [account, load]);
+
+  // Das offene Kontoblatt zeigt dieselben Buchungen wie die Liste daneben.
+  useLiveReload(load, ['buchungen', 'belege', 'bank', 'abschluss']);
 
   const rows = ledger?.rows ?? [];
   const title = ledger ? `${ledger.account.number} · ${ledger.account.name}` : (account ?? '');

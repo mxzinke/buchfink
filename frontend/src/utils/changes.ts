@@ -30,3 +30,20 @@ export function concerns(changed: readonly ChangeKind[], wanted?: readonly Chang
 export function reloadDelay(firstAt: number, now: number, settle: number, max: number): number {
   return Math.max(0, Math.min(settle, firstAt + max - now));
 }
+
+/**
+ * Nummeriert die Ladevorgänge einer Ansicht. `begin` liefert für jeden eine
+ * Prüfung, ob er noch der jüngste ist. Antworten kommen nicht in der
+ * Reihenfolge der Anfragen zurück: ein Neuladen nach einem Ereignis, das vor
+ * einem Wechsel des Geschäftsjahres begann, darf den Stand des neuen Jahres
+ * nicht überschreiben.
+ */
+export function requestCounter(): { begin: () => () => boolean } {
+  let latest = 0;
+  return {
+    begin() {
+      const id = ++latest;
+      return () => id === latest;
+    },
+  };
+}

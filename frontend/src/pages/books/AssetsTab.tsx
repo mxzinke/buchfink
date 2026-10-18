@@ -10,7 +10,7 @@ import type {
 } from '../../types';
 import { useNavigation, useRouteObject } from '../../navigation';
 import { useWorkspace } from '../../workspace';
-import { useLiveReload } from '../../live';
+import { useLatestRequest, useLiveReload } from '../../live';
 import { Api } from '../../services/api';
 import { formatCents, formatDate, formatUnits } from '../../utils/formatters';
 import {
@@ -105,18 +105,21 @@ export const AssetsTab: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const begin = useLatestRequest();
   const load = useCallback(async () => {
+    const latest = begin();
     try {
       const [list, pending] = await Promise.all([Api.getFixedAssets(''), Api.getAssetAcquisitionCandidates()]);
+      if (!latest()) return;
       setAssets(list ?? []);
       setCandidates(pending ?? []);
       setError(null);
     } catch (e) {
-      setError(errorText(e));
+      if (latest()) setError(errorText(e));
     } finally {
-      setLoading(false);
+      if (latest()) setLoading(false);
     }
-  }, []);
+  }, [begin]);
 
   useEffect(() => {
     setLoading(true);
@@ -348,19 +351,30 @@ const AssetPanel: React.FC<{ assetId: number | undefined; onClose: () => void }>
   const { navigate } = useNavigation();
   const [detail, setDetail] = useState<AssetDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const begin = useLatestRequest();
+
+  const load = useCallback(async () => {
+    if (!assetId) return;
+    const latest = begin();
+    try {
+      const result = await Api.getFixedAsset(assetId);
+      if (!latest()) return;
+      setDetail(result);
+      setError(null);
+    } catch (e) {
+      if (latest()) setError(errorText(e));
+    }
+  }, [assetId, begin]);
 
   useEffect(() => {
     if (!assetId) return;
-    let cancelled = false;
     setError(null);
     setDetail((current) => (current?.asset.id === assetId ? current : null));
-    Api.getFixedAsset(assetId)
-      .then((result) => !cancelled && setDetail(result))
-      .catch((e) => !cancelled && setError(errorText(e)));
-    return () => {
-      cancelled = true;
-    };
-  }, [assetId]);
+    void load();
+  }, [assetId, load]);
+
+  // Die offene Anlage zeigt neue Abschreibungen und Bewegungen wie die Liste.
+  useLiveReload(load, ['buchungen', 'belege', 'abschluss']);
 
   const asset = detail?.asset;
   const facts = asset

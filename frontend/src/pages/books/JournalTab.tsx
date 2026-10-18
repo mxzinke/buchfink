@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Account, JournalEntry, PaymentAllocationDetail } from '../../types';
 import { useNavigation, useRouteObject } from '../../navigation';
 import { useWorkspace } from '../../workspace';
-import { useLiveReload } from '../../live';
+import { useLatestRequest, useLiveReload } from '../../live';
 import { Api } from '../../services/api';
 import { ActorMark } from '../../components/ActorMark';
 import { actorWho } from '../../utils/actor';
@@ -87,17 +87,20 @@ export const JournalTab: React.FC = () => {
   const [search, setSearch] = useState('');
   const [limit, setLimit] = useState(PAGE);
 
+  const begin = useLatestRequest();
   const load = useCallback(async () => {
+    const latest = begin();
     try {
       const list = await Api.getJournalEntries();
+      if (!latest()) return;
       setEntries([...(list ?? [])].sort((a, b) => b.id - a.id));
       setError(null);
     } catch (e) {
-      setError(errorText(e));
+      if (latest()) setError(errorText(e));
     } finally {
-      setLoading(false);
+      if (latest()) setLoading(false);
     }
-  }, []);
+  }, [begin]);
 
   useEffect(() => {
     setLoading(true);

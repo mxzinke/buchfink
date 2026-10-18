@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { FileDown } from 'lucide-react';
 import { Api } from '../../services/api';
 import { useWriteLock } from '../../components/WriteLock';
+import { useLatestRequest, useLiveReload } from '../../live';
 import { formatCents } from '../../utils/formatters';
 import type { MappingReport, Obligation, Reconciliation, TaxElectionRegister } from '../../types';
 import {
@@ -43,19 +44,28 @@ export const EBilanzView: React.FC<{
   const [saving, setSaving] = useState<'xbrl' | 'susa_csv' | null>(null);
   const [deciding, setDeciding] = useState<Obligation | null>(null);
 
+  const begin = useLatestRequest();
   const load = useCallback(async () => {
+    const latest = begin();
     try {
-      setReport(await Api.getEBilanzMappingReport(year));
+      const next = await Api.getEBilanzMappingReport(year);
+      if (!latest()) return;
+      setReport(next);
       setError('');
     } catch (e) {
+      if (!latest()) return;
       setReport(null);
       setError(message(e));
     }
-  }, [year]);
+  }, [year, begin]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Ordnet Claude ein Konto zu oder bucht den Abschluss, gibt die Ansicht den
+  // Export frei, ohne dass jemand sie verlässt.
+  useLiveReload(load, ['buchungen', 'abschluss', 'stammdaten']);
 
   async function save(format: 'xbrl' | 'susa_csv') {
     setSaving(format);

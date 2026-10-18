@@ -48,3 +48,26 @@ export function postingGroupTask(contacts: Contact[]): Task | null {
     amount: 0,
   };
 }
+
+/** Die Felder der Standardgruppe, die eine Bestätigung setzt oder leert. */
+const POSTING_GROUP_FIELDS = [
+  'defaultPostingGroup',
+  'defaultPostingGroupConfirmedAt',
+  'defaultPostingGroupConfirmedBy',
+  'proposedPostingGroup',
+  'proposedPostingGroupNote',
+  'proposedPostingGroupBy',
+] as const;
+
+/**
+ * Übernimmt die Antwort einer Bestätigung in die Liste. Geleerte Felder fehlen
+ * in der Antwort; ein bloßes Mischen ließe den alten Vorschlag stehen. Was die
+ * Antwort nicht kennt, etwa der offene Betrag, bleibt.
+ */
+export function withPostingGroupOf(contact: Contact, changed: Contact): Contact {
+  const next: Contact = { ...contact, ...changed, openAmount: contact.openAmount };
+  for (const field of POSTING_GROUP_FIELDS) {
+    next[field] = changed[field];
+  }
+  return next;
+}

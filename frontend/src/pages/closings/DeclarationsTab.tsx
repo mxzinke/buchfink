@@ -359,7 +359,9 @@ const DeclarationDetail: React.FC<{
   const [error, setError] = useState('');
   const [allLines, setAllLines] = useState(false);
   const [lineKey, setLineKey] = useState<string | null>(null);
-  const [inputLine, setInputLine] = useState<DeclarationLine | null>(null);
+  // Zeile und Angabe beim Öffnen: ein Neuladen während der Eingabe setzt das
+  // Formular nicht zurück.
+  const [inputTarget, setInputTarget] = useState<{ line: DeclarationLine; input?: DeclarationInput } | null>(null);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
@@ -552,7 +554,7 @@ const DeclarationDetail: React.FC<{
                       size="sm"
                       disabled={writeLock.locked}
                       title={writeLock.hint}
-                      onClick={() => setInputLine(line)}
+                      onClick={() => setInputTarget({ line, input: inputOf(line.schluessel) })}
                     >
                       Angabe eintragen
                     </Button>
@@ -744,17 +746,17 @@ const DeclarationDetail: React.FC<{
         lines={lines}
         onClose={() => setLineKey(null)}
         onSelect={setLineKey}
-        onInput={(line) => setInputLine(line)}
+        onInput={(line) => setInputTarget({ line, input: inputOf(line.schluessel) })}
         onConfirm={(line) => void confirmProposal(line)}
         onRemove={(line) => void removeInput(line)}
       />
 
       <InputDialog
-        line={inputLine}
+        line={inputTarget?.line ?? null}
         kind={kind}
         year={year}
-        input={inputLine ? inputOf(inputLine.schluessel) : undefined}
-        onClose={() => setInputLine(null)}
+        input={inputTarget?.input}
+        onClose={() => setInputTarget(null)}
         onDone={load}
       />
 
