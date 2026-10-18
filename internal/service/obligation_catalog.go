@@ -114,8 +114,8 @@ var obligationCatalog = []domain.ObligationType{
 		Channel: domain.ChannelElster, Responsibility: domain.ResponsibilityAgentPrepares,
 		Evidence: domain.EvidenceFromHuman, ShiftsToWorkday: true,
 		Description: "Bilanz und Gewinn- und Verlustrechnung mit Kontennachweisen nach amtlichem Datensatz; " +
-			"fällig mit der Körperschaftsteuererklärung. Buchfink exportiert die XBRL-Datei, die Übermittlung " +
-			"braucht ein Programm mit ERiC.",
+			"fällig mit der Körperschaftsteuererklärung. Buchfink exportiert die XBRL-Datei; übermittelt wird sie " +
+			"über einen E-Bilanz-Dienst wie ebilanzplus.de oder ebilanzonline.de.",
 	},
 	{
 		Kind: domain.ObligationCorporateTaxReturn, Title: "Körperschaftsteuererklärung",

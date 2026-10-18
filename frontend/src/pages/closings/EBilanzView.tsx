@@ -27,10 +27,10 @@ import { ObligationDecisionDialog, ObligationState, isManual, message } from './
 /**
  * Die E-Bilanz: Prüfergebnis der Zuordnung, Export als XBRL oder als Summen-
  * und Saldenliste und die Bestätigung der Übermittlung. Mein ELSTER hat für
- * die E-Bilanz kein Formular; übermittelt wird die Datei über ein Programm
- * oder einen Dienst mit ERiC-Anbindung. Die Summen- und Saldenliste ist der
- * Ausweichweg für Dienste wie eBilanz+, die sie statt der XBRL-Datei
- * einlesen.
+ * die E-Bilanz kein Formular; übermittelt wird die XBRL-Datei über einen
+ * E-Bilanz-Dienst wie ebilanzplus.de oder ebilanzonline.de. Die Summen- und
+ * Saldenliste ist der Ausweichweg, wenn der Dienst die XBRL-Datei nicht
+ * annimmt: eBilanz+ liest sie als Summen- und Saldenliste ein.
  */
 export const EBilanzView: React.FC<{
   year: number;
@@ -146,9 +146,9 @@ export const EBilanzView: React.FC<{
                 Bilanz und Gewinn- und Verlustrechnung sind nach amtlichem Datensatz zu übermitteln (§ 5b
                 EStG). Buchfink erzeugt den Datensatz nach der amtlichen Taxonomie und übermittelt ihn
                 nicht selbst. Das Übermittlungsprotokoll des Dienstes nennt das Transferticket; damit
-                bestätigen Sie die Übermittlung hier. Nimmt ein Dienst keine XBRL-Datei an, etwa
-                eBilanz+, lesen Sie dort die Saldenliste als Summen- und Saldenliste ein. Sie füllt nur
-                Bilanz und Gewinn- und Verlustrechnung; die übrigen Angaben ergänzen Sie im Dienst.
+                bestätigen Sie die Übermittlung hier. Nimmt der Dienst die XBRL-Datei nicht an, lesen
+                Sie bei eBilanz+ die Saldenliste als Summen- und Saldenliste ein. Sie füllt nur Bilanz
+                und Gewinn- und Verlustrechnung; die übrigen Angaben ergänzen Sie im Dienst.
               </Help>
             </p>
             {obligation && (

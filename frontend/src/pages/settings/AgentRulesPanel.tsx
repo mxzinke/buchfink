@@ -90,7 +90,7 @@ export const AgentRulesPanel: React.FC<{ id?: string }> = ({ id }) => {
       title="Buchen ohne Rückfrage"
       context={
         rules
-          ? `Bis ${formatCents(rules.directMaxGross)} brutto, ab ${rules.directMinBookings} früheren Buchungen`
+          ? `Unter ${formatCents(rules.directMaxGross)} brutto, ab ${rules.directMinBookings} früheren Buchungen`
           : 'Wann Claude E-Rechnungen direkt bucht'
       }
       helpSummary="Unter diesen Grenzen bucht Claude E-Rechnungen bekannter Lieferanten ohne Rückfrage."

@@ -428,9 +428,9 @@ func registerErklaerung(tb *Toolbox) {
 		Tier:  TierDirect, Idempotent: true, ExaminerExempt: true,
 		Description: "Prüft die E-Bilanz eines Geschäftsjahres (Zuordnung der Konten, Pflichtfelder der Taxonomie) " +
 			"und schreibt sie in den Exportordner: als XBRL-Instanz (Vorgabe) oder mit format=susa_csv als Summen- und " +
-			"Saldenliste mit der Taxonomie-Position je Konto, etwa für eBilanz+, das daraus Bilanz und GuV füllt. " +
-			"Liefert Pfad und Befunde. Blockierende Befunde verhindern beides. Übermitteln (z. B. mit eBilanz+, " +
-			"myebilanz oder ERiC) kann nur der Mensch.",
+			"Saldenliste mit der Taxonomie-Position je Konto, der Ausweichweg für eBilanz+, das daraus nur Bilanz und " +
+			"GuV füllt. Liefert Pfad und Befunde. Blockierende Befunde verhindern beides. Übermitteln kann nur der " +
+			"Mensch, über einen E-Bilanz-Dienst wie ebilanzplus.de oder ebilanzonline.de.",
 	}, func(ctx context.Context, c *Call, t *core.Tenant, in ebilanzExportIn) (exportOut, error) {
 		format := string(in.Format)
 		if format == "" {
@@ -482,10 +482,11 @@ func registerErklaerung(tb *Toolbox) {
 		}
 		sum := sha256.Sum256(data)
 		out.Pfad, out.SHA256 = path, hex.EncodeToString(sum[:])
-		out.NaechsterSchritt = "Die Datei übermittelt der Mensch (myebilanz, ERiC); danach in der App den Nachweis erfassen."
+		out.NaechsterSchritt = "Der Mensch lädt die Datei bei einem E-Bilanz-Dienst wie ebilanzplus.de oder ebilanzonline.de " +
+			"hoch und übermittelt dort; danach bestätigt er die Übermittlung in der App mit dem Transferticket."
 		if format == "susa_csv" {
 			out.NaechsterSchritt = "Der Mensch liest die Liste in eBilanz+ als Summen- und Saldenliste ein (Taxonomie-Layout), " +
-				"ergänzt dort die Stammdaten und übermittelt; danach in der App den Nachweis erfassen."
+				"ergänzt dort die übrigen Angaben und übermittelt; danach bestätigt er die Übermittlung in der App mit dem Transferticket."
 		}
 		return out, nil
 	})

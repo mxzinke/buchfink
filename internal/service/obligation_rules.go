@@ -1014,8 +1014,8 @@ func (r *obligationRun) annualStatement(
 		if r.cfg.TaxAdvisor.Prepares(domain.DeclarationEBilanz, vz) {
 			o.Responsibility = domain.ResponsibilityTaxAdvisor
 		}
-		o.Hints = append(o.Hints, "Mein ELSTER führt kein Formular für die E-Bilanz; die Übermittlung braucht ein "+
-			"Programm mit ERiC oder einen Steuerberater.")
+		o.Hints = append(o.Hints, "Mein ELSTER führt kein Formular für die E-Bilanz; übermittelt wird sie über einen "+
+			"E-Bilanz-Dienst wie ebilanzplus.de oder ebilanzonline.de oder vom Steuerberater.")
 		add(o, nil)
 	}
 	if want(domain.ObligationWithholdingTax) && decision != nil && decision.Distribution > 0 {
