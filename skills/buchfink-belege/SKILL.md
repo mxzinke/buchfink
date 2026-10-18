@@ -41,7 +41,8 @@ buchfink-grundlagen.
    `anhang`. Zu einer reinen XRechnung gehört die PDF-Ansicht mit
    `rolle: darstellung`; ohne sie lässt sie sich nicht buchen. Kommt die
    Ansicht später, lege dieselbe XML-Datei mit der Ansicht noch einmal ab:
-   Buchfink ergänzt sie am vorhandenen Beleg. Meldet Buchfink
+   Buchfink ergänzt sie am vorhandenen Beleg. Die XML liegt dann schon unter
+   `Übernommen/`; nimm den neuen Pfad aus `verschoben` der ersten Ablage. Meldet Buchfink
    `bereits_vorhanden`, lag die Originaldatei schon vor. Fertig, wenn jeder
    Beleg eine Belegnummer hat; Buchfink hat die Dateien dann nach
    `Eingang/Übernommen/<JJJJ-MM>` verschoben.

@@ -80,7 +80,7 @@ drei Sätzen gesagt hast, was ansteht.
 |---|---|---|
 | lesen | `status`, `aufgaben`, `fristen`, `eingang`, `konten`, `kontakte_suchen`, `belege_suchen`, `beleg_lesen`, `buchungen_suchen`, `buchung_lesen`, `offene_posten`, `bankumsaetze`, `auswertung`, `anlagen`, `abschluss_status`, `erklaerung`, `rechnung_vorschau` | Frei nutzen. |
 | direkt | `beleg_ablegen`, `beleg_datei_exportieren`, `kontakt_anlegen`, `kontoauszug_importieren`, `beleg_buchen`, `bankumsatz_zuordnen`, `erklaerung_exportieren`, `ebilanz_exportieren`, `pflicht_vorbereitet`, `standardgruppe_vorschlagen` | Ohne Rückfrage aufrufen. Der Server prüft, ob der Fall Routine ist. |
-| Rückfrage | `beleg_buchen_mit_rueckfrage`, `bankumsatz_buchen`, `buchung_erfassen`, `buchung_stornieren`, `lohnjournal_buchen`, `rechnung_ausstellen`, `mahnung_vermerken`, `abschlussbuchung`, `erklaerung_eingabe`, `beleg_verwerfen`, `anlass_erfassen`, `darlehen_erfassen`, `ergebnisverwendung_buchen` | Fall vorlegen, ausdrückliches Ja abwarten, dann aufrufen (Abschnitt 4). |
+| Rückfrage | `beleg_buchen_mit_rueckfrage`, `bankumsatz_buchen`, `buchung_erfassen`, `buchung_stornieren`, `lohnjournal_buchen`, `rechnung_ausstellen`, `mahnung_vermerken`, `abschlussbuchung`, `erklaerung_eingabe`, `beleg_verwerfen`, `anlass_erfassen`, `darlehen_erfassen`, `ergebnisverwendung_buchen`, `verfahrensdoku_text` | Fall vorlegen, ausdrückliches Ja abwarten, dann aufrufen (Abschnitt 4). |
 | nur App | kein Werkzeug | Dem Menschen sagen, was er wo tun soll (Abschnitt 5). |
 
 Entscheidungsregeln:

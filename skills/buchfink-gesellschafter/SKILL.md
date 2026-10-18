@@ -105,9 +105,15 @@ sperrt Buchfink für GmbH und UG.
   Sicherheit, belegter Vergleichszins, Rangrücktritt. Die Feldnamen nennt das
   Schema des Werkzeugs. Den Kontakt des Gesellschafters findest oder anlegst
   du wie bei einer Auslage (buchfink-belege, Referenz zu Auslagen).
+- Eine Berichtigung (`darlehen_id` mit `grund`) ändert nur die Angaben, die
+  du nennst; alles andere bleibt, wie es ist.
 - Auszahlung und Tilgung bucht `bankumsatz_buchen` mit einer Zeile
-  `darlehen_id`; Zinsen bucht `buchung_erfassen` oder eine Zeile `konto` am
-  Bankumsatz. Konten, Nachrang und Insolvenzfolgen:
+  `darlehen_id`. Die Zinsen bucht `darlehen_erfassen` mit `art: zinsen` bis
+  `zinsen_bis`: Buchfink rechnet sie aus dem Vertrag, legt einen Eigenbeleg mit
+  der Zinsrechnung an und vermerkt die Zinsperiode. Liegt eine Zinsabrechnung
+  vor, gib sie als `beleg_id` mit. Zinsen nie mit `buchung_erfassen` buchen,
+  sonst bleibt die Zinsperiode offen. Die Zinszahlung bucht `bankumsatz_buchen`
+  mit einer Zeile `konto`. Konten, Nachrang und Insolvenzfolgen:
   [references/darlehen.md](references/darlehen.md).
 
 ## 5. Ausschüttung

@@ -197,8 +197,11 @@ stellt nur der Mensch in der App ein.
   Downloads und andere Ordner sind gesperrt, ebenso Ablage und Sicherungen.
   Pfade außerhalb meldet der Server einheitlich mit `pfad_nicht_erlaubt`.
 - Nach der Übernahme verschiebt Buchfink die Datei nach
-  `Eingang/Übernommen/<JJJJ-MM>`. Arbeite danach mit `beleg_id`, nicht mehr mit
-  dem Pfad.
+  `Eingang/Übernommen/<JJJJ-MM>`; das Ergebnis nennt den neuen Pfad unter
+  `verschoben`. Lesen und Buchen gehen danach über `beleg_id`. Nur wenn du
+  dieselbe Datei noch einmal ablegst (etwa eine XRechnung mit ihrer später
+  gelieferten Ansicht), nimmst du den neuen Pfad. Dateien in zusätzlichen
+  Leseordnern bleiben, wo sie sind.
 - Dateien, die lange im Eingang liegen, meldet Buchfink als Hinweis: Belege
   sind zeitnah zu erfassen ([GoBD Rz. 47, 67][gobd]).
 - Zulässig: PDF, PNG, JPEG, TIFF, WebP oder XML bis 50 MB, Inhalt passend zur

@@ -101,7 +101,7 @@ Rechtsstand: 17. Oktober 2026. Bankdarlehen regelt buchfink-bank.
 | Vorgang | Soll | Haben | Werkzeug |
 |---|---|---|---|
 | Gesellschafter zahlt Darlehen aus | Bank | 3641 bis 3643 | `bankumsatz_buchen`, Zeile `darlehen_id` |
-| Zinsen fällig, noch nicht gezahlt | 7316 oder 7317 | 3640 | `buchung_erfassen` mit Vertrag als Beleg |
+| Zinsen fällig, noch nicht gezahlt | 7316 oder 7317 | 3640 | `darlehen_erfassen` mit `art: zinsen`, Eigenbeleg mit der Zinsrechnung |
 | Zinszahlung | 3640 | Bank | `bankumsatz_buchen`, Zeile `konto` |
 | Tilgung | 3641 bis 3643 | Bank | `bankumsatz_buchen`, Zeile `darlehen_id` |
 | GmbH zahlt Darlehen an Gesellschafter aus | 0960, 1308 oder 1309 | Bank | `bankumsatz_buchen`, Zeile `darlehen_id` |
