@@ -12,14 +12,12 @@ import (
 // Ausbuchung. Die schreibenden Einstiege schließen Journal, Zuordnungen,
 // Anlagenminderung und Protokoll in eine Transaktion ein.
 type settlement struct {
-	journalSvc     *JournalService
-	journalRepo    domain.JournalRepository
-	allocationRepo domain.PaymentAllocationRepository
-	contactRepo    domain.ContactRepository
-	bankRepo       domain.BankRepository
-	assets         AssetRegister
-	auditRepo      domain.AuditRepository
-	loans          LoanLineSource
+	journalSvc *JournalService
+	*openItemReader
+	bankRepo  domain.BankRepository
+	assets    AssetRegister
+	auditRepo domain.AuditRepository
+	loans     LoanLineSource
 }
 
 // Settle bucht eine Zahlung gegen offene Posten.

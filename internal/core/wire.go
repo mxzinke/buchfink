@@ -175,7 +175,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Posting.SetCurrencyConverter(s.Currency)
 	s.Assets.SetInputTaxRegister(s.InputTax)
 
-	s.Currency.SetOpenItemSource(s.Payments)
+	s.Currency.SetOpenItemSource(s.Payments.OpenItemSource())
 	s.Currency.SetPeriodSource(s.Periods.ReadOnly())
 	s.Closing.SetCurrencyReverser(s.Currency)
 

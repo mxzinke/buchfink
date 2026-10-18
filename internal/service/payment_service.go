@@ -45,10 +45,13 @@ func NewPaymentService(
 	bankRepo domain.BankRepository,
 ) *PaymentService {
 	return &PaymentService{settlement: &settlement{
-		journalSvc: journalSvc, journalRepo: journalRepo, allocationRepo: allocationRepo,
-		contactRepo: contactRepo, bankRepo: bankRepo,
+		journalSvc: journalSvc, bankRepo: bankRepo,
+		openItemReader: &openItemReader{journalRepo: journalRepo, allocationRepo: allocationRepo, contactRepo: contactRepo},
 	}}
 }
+
+// OpenItemSource liefert die Stichtagssicht ohne Abhängigkeit vom Buchungsweg.
+func (s *PaymentService) OpenItemSource() OpenItemSource { return s.settlement.openItemReader }
 
 func (s *PaymentService) SetAuditRepo(repo domain.AuditRepository) { s.settlement.auditRepo = repo }
 func (s *PaymentService) SetAssetRegister(register AssetRegister)  { s.settlement.assets = register }

@@ -10,8 +10,20 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
+// openItemReader berechnet offene Posten aus Buchungen, Ausgleichen und Kontakten.
+// Er benötigt keine Zahlungsbuchungen, Anlagen oder Gesellschafterdarlehen.
+type openItemReader struct {
+	journalRepo    domain.JournalRepository
+	allocationRepo domain.PaymentAllocationRepository
+	contactRepo    domain.ContactRepository
+}
+
+func (s *openItemReader) OpenItemsAt(ctx context.Context, cutoff string) ([]domain.OpenItem, error) {
+	return s.OpenItems(ctx, cutoff)
+}
+
 // allocations löst Sammelzahlungen in ihre Einzelzuordnungen auf (GoBD Rz. 36).
-func (s *settlement) allocations(ctx context.Context, paymentEntryID uint) ([]domain.PaymentAllocationDetail, error) {
+func (s *openItemReader) allocations(ctx context.Context, paymentEntryID uint) ([]domain.PaymentAllocationDetail, error) {
 	allocations, err := s.allocationRepo.FindByPayment(ctx, paymentEntryID)
 	if err != nil {
 		return nil, fmt.Errorf("die Zahlungszuordnungen konnten nicht gelesen werden: %w", err)
@@ -48,7 +60,7 @@ func (s *settlement) allocations(ctx context.Context, paymentEntryID uint) ([]do
 
 // OpenItems liest den Stand aller Geschäftsjahre. Ohne Stichtag zählt jeder
 // Ausgleich, mit Stichtag begrenzt das Buchungsdatum Posten und Zahlungen.
-func (s *settlement) OpenItems(ctx context.Context, cutoff string) ([]domain.OpenItem, error) {
+func (s *openItemReader) OpenItems(ctx context.Context, cutoff string) ([]domain.OpenItem, error) {
 	var entries []domain.JournalEntry
 	var settled map[uint]domain.Cents
 	var err error
@@ -71,7 +83,7 @@ func (s *settlement) OpenItems(ctx context.Context, cutoff string) ([]domain.Ope
 	return s.openItemsFrom(ctx, entries, settled)
 }
 
-func (s *settlement) openItemsFrom(
+func (s *openItemReader) openItemsFrom(
 	ctx context.Context, entries []domain.JournalEntry, settled map[uint]domain.Cents,
 ) ([]domain.OpenItem, error) {
 	contacts, err := s.contactRepo.FindAll(ctx)
@@ -209,7 +221,7 @@ func ageOpenItems(items []domain.OpenItem, cutoff string) *domain.OpenItemsAging
 }
 
 // openItemsAging liefert die Altersstruktur zum Stichtag; leer heißt heute.
-func (s *settlement) openItemsAging(ctx context.Context, cutoff string) (*domain.OpenItemsAging, error) {
+func (s *openItemReader) openItemsAging(ctx context.Context, cutoff string) (*domain.OpenItemsAging, error) {
 	if cutoff == "" {
 		cutoff = time.Now().UTC().Format("2006-01-02")
 	}
