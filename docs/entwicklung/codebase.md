@@ -21,6 +21,7 @@ nutzt Base UI, Tailwind CSS und Lucide; Typst setzt Rechnungen und Berichte
 | Ereignis nach einer Änderung, Nachladen der offenen Ansicht | [internal/core/changes.go](../../internal/core/changes.go), [internal/wailsbridge/changes.go](../../internal/wailsbridge/changes.go), [frontend/src/live.tsx](../../frontend/src/live.tsx), [MCP-Server](mcp.md#live-aktualisierung) |
 | Schreibsperre, Transaktion, Prüfermodus, Vorbehalt der App | [internal/core/](../../internal/core) |
 | Journal: feste Kernregeln, Regelreihenfolge, Steuerregeln und Ausnahmen | [service/journal_rules.go](../../internal/service/journal_rules.go), [service/journal_service.go](../../internal/service/journal_service.go), [domain/entry_rule.go](../../internal/domain/entry_rule.go), [taxrules](../../internal/taxrules), Registrierung in [core/wire.go](../../internal/core/wire.go) |
+| Geschäftsjahr, Rumpfjahr, Periodensperre, Festschreibung und Feststellung | [service/periods.go](../../internal/service/periods.go), [periods_calendar.go](../../internal/service/periods_calendar.go), [periods_commit.go](../../internal/service/periods_commit.go), [periods_adoption.go](../../internal/service/periods_adoption.go); Vorprüfungen in [core/wire.go](../../internal/core/wire.go), Zeitstempelablauf in [core/commit.go](../../internal/core/commit.go) |
 | Anwendungsfall | [internal/service/](../../internal/service) |
 | Rechenregel, Steuerschlüssel, Kontenrahmen | [internal/accounting/](../../internal/accounting) |
 | Entität, Invariante, Repository-Schnittstelle | [internal/domain/](../../internal/domain) |

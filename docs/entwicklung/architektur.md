@@ -91,6 +91,23 @@ prüft der Kern trotzdem. Nummern, Hash-Kette, Stempel und Audit bleiben im
 Schreibweg des Journals. `TestJournalRuleContract` sichert die Meldungen beider
 Prüfpfade, `TestJournalRuleRegistration` die Verdrahtung.
 
+`service.PeriodService` bündelt Geschäftsjahr, Rumpfjahr, Festschreibung,
+Abschlussperiode und Feststellung. `State(ctx, date)` liefert die Sperren des
+Buchungstags; `FiscalYear` liest oder berechnet den Jahreszeitraum, ohne ihn
+anzulegen. Das Journal fragt den Stand in seinen festen Kernregeln bei jedem
+`Post` und jeder Generalumkehr ab. Gespeicherte Jahresgrenzen halten die Sperren
+auch dann aufrecht, wenn der Beginnmonat abweicht. Die Abschlussperiode bleibt
+nach der letzten Monatsfestschreibung bis zur Jahresfestschreibung offen.
+
+`Periods.Commit` prüft den Stichtag, schreibt fest, stempelt die Buchungen und
+protokolliert in derselben Transaktion. `core/wire.go` registriert dafür die
+`PreCommitCheck`-Liste: gesetzliche Rücklage, dann `EnsureCommittable`. Die erste
+fehlgeschlagene Prüfung beendet die Liste. Ein blockierender Prüflauf bleibt
+gespeichert; andere Fehler rollen den Vorgang zurück. `Periods.Adopt` und
+`Reopen` verwalten die Abschlussstände, ihre Daten und Begründungen. Die
+bisherigen Einstiege in `ClosingService` delegieren dorthin. Beide Dienste
+prüfen den Vorbehalt des Menschen; `Reopen` erhält die Festschreibungen.
+
 ## 3. Kern
 
 `core.Host` hält die Mandantenliste und genau einen offenen Mandanten
@@ -150,11 +167,13 @@ Telefon.
 läuft, weist `Write` jeden Vorgang ab, außer dem Schalter selbst und Nachweisen
 wie einem Sicherungslauf (`core.ExaminerExempt`).
 
-**Netz außerhalb der Sperre.** Zeitstempel, Wechselkurse und die Abfrage einer
-USt-IdNr. holt der Kern vor dem Schreibvorgang. Ein Netzaufruf aus einem
-laufenden `Write` wird abgewiesen, weil er die Sperre bis zu 20 Sekunden
-hielte. Die Festschreibung läuft deshalb in drei Schritten: festschreiben,
-Zeitstempel holen, Zeitstempel eintragen.
+**Netz außerhalb der Sperre.** Wechselkurse und die Abfrage einer USt-IdNr.
+holt der Kern vor dem Schreibvorgang. Ein Netzaufruf aus einem laufenden `Write`
+wird abgewiesen, auch aus einer Vorprüfung zur Festschreibung. Der Kern führt
+die Festschreibung in drei Schritten aus: `Periods.Commit` im `Write` mit
+`AppOnly`, RFC-3161-Zeitstempel ohne Sperre holen, Zeitstempel in einem kurzen
+`Write` eintragen. Nachholen und Prüfen der Zeitstempel bleiben in
+`core/commit.go`.
 
 **Mandantenwechsel.** Nur die App wechselt. Der vorige Mandant nimmt ab dem
 Wechsel nichts Neues mehr an und schließt, sobald laufende Vorgänge fertig
