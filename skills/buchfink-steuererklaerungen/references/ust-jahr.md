@@ -2,7 +2,7 @@
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von UStG, UStDV und AO am 17.10.2026
 gelesen. UStAE nicht amtlich gelesen, nur über Verlagsdatenbank und
-Kanzleispiegel (Quellenverzeichnis `skills/QUELLEN.md` im Buchfink-Repository).
+Kanzleispiegel ([Quellenverzeichnis][quellen]).
 
 ## Inhalt
 
@@ -90,6 +90,7 @@ Erstattung feststeht.
   berichtigte Jahreserklärung vor. Ob zusätzlich Voranmeldungen zu berichtigen
   sind, klärt buchfink-monatsabschluss.
 
+[quellen]: https://github.com/mxzinke/buchfink/blob/main/skills/QUELLEN.md
 [ao149]: https://www.gesetze-im-internet.de/ao_1977/__149.html
 [ao153]: https://www.gesetze-im-internet.de/ao_1977/__153.html
 [ao168]: https://www.gesetze-im-internet.de/ao_1977/__168.html

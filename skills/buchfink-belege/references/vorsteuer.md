@@ -37,7 +37,7 @@ Voraussetzung.
   ([§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG][ustg15]). Buche die
   Anzahlungsrechnung deshalb erst, wenn die Zahlung im Kontoauszug steht.
 - Buchfink nimmt das späteste von drei Daten: Ende des Leistungszeitraums,
-  Belegdatum, Eingang des Belegs (`internal/accounting/vat_period.go`). Setze
+  Belegdatum, Eingang des Belegs. Setze
   `eingang_am` beim Ablegen auf den echten Eingangstag; berichtigen lässt er
   sich mit `beleg_buchen_mit_rueckfrage`. Ein Beleg, der erst im
   Folgemonat eingeht, gehört mit seiner Vorsteuer in den Folgemonat.
@@ -94,9 +94,10 @@ eine Wertungsfrage; die Folgen für die GmbH regelt buchfink-gesellschafter.
     1.000 € (Abs. 2);
   - bis 6.000 € Berichtigungsbetrag erst in der Jahreserklärung (Abs. 3).
 - Buchfink führt ein Verzeichnis der Wirtschaftsgüter mit Vorsteuer über der
-  Grenze und bucht Berichtigungen nur daraus (Konten 1396, 1397, 1398, 1399 mit
-  Steuerschlüssel). Dein Teil: Erfährst du, dass sich die Nutzung ändert
-  (Verkauf, steuerfreie Vermietung, private Nutzung), sag es dem Menschen.
+  Grenze (Konten 1396, 1397, 1398, 1399). Den Verwendungsanteil zu erfassen und
+  die Berichtigung zu buchen bildet es noch nicht ab. Dein Teil: Erfährst du,
+  dass sich die Nutzung ändert (Verkauf, steuerfreie Vermietung, private
+  Nutzung), sag es dem Menschen.
 
 ## 7. Minderung des Entgelts
 

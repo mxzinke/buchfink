@@ -102,8 +102,7 @@ Regeln:
   ob es sie schon gibt.
 - Ändern heißt stornieren und neu buchen (buchfink-grundlagen).
 - Nutze nur Konten, die `konten` (`art: suche`) findet. Die Kontonummern in den
-  references stammen aus dem SKR04-Katalog von Buchfink
-  (`internal/accounting/skr04_2026.json`).
+  references stammen aus dem SKR04-Katalog von Buchfink.
 
 ## 4. Liste Abschlussposten
 

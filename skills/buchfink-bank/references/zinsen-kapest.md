@@ -42,7 +42,7 @@ Finanzamts und Darlehenszinsen haben eigene Referenzen (Liste in SKILL.md).
 
 ## 3. Buchung
 
-Konten aus dem SKR04 (`internal/accounting/skr04_2026.json`):
+Konten aus dem SKR04:
 
 | Zeile | Konto | Betrag im Beispiel |
 |---|---|---|

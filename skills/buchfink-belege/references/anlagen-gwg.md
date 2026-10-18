@@ -2,7 +2,7 @@
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von EStG und HGB am 17.10.2026 gelesen.
 Die Wertgrenzen ändert der Gesetzgeber von Zeit zu Zeit; für frühere Jahre gilt
-die Fassung des Anschaffungsjahres (Buchfink: `internal/accounting/afa_rules.json`).
+die Fassung des Anschaffungsjahres, so führt sie auch Buchfink.
 
 Abschreibungslauf, Anlagenspiegel und Abgang regelt buchfink-jahresabschluss.
 Hier geht es um den Zugang.
@@ -53,8 +53,8 @@ bewegliche, selbständig nutzbare Wirtschaftsgüter des Anlagevermögens.
 | über 1.000 € | Anlagegut | Anlagegut |
 
 - Weg A oder B gilt einheitlich für alle Zugänge eines Wirtschaftsjahres
-  (Abs. 2a Satz 5). Frag den Menschen, welcher Weg im Jahr gilt. Ein Blick auf
-  das Konto 0675 (`konten art=kontoblatt konto=0675`) zeigt, ob schon ein
+  (Abs. 2a Satz 5). Frag den Menschen, welcher Weg im Jahr gilt. Das Kontoblatt
+  0675 (`auswertung`, `art: kontoblatt`, `konto: 0675`) zeigt, ob schon ein
   Sammelposten des Jahres besteht.
 - Der Sammelposten wird im Jahr der Bildung und in den vier Folgejahren zu je
   einem Fünftel aufgelöst; ein Abgang mindert ihn nicht (Abs. 2a Satz 2, 3).
@@ -84,8 +84,8 @@ bewegliche, selbständig nutzbare Wirtschaftsgüter des Anlagevermögens.
 - Für andere Güter nennen die AfA-Tabellen des BMF Erfahrungswerte, etwa die
   AfA-Tabelle für die allgemein verwendbaren Anlagegüter (BMF vom 15.12.2000,
   BStBl I S. 1532; hier nicht am Wortlaut gelesen). Buchfink schlägt je
-  Anlagekonto eine Dauer vor (`internal/accounting/asset_accounts.go`). Die
-  Nutzungsdauer ist eine Wertungsfrage; der Mensch entscheidet.
+  Anlagekonto eine Dauer vor. Die Nutzungsdauer ist eine Wertungsfrage; der
+  Mensch entscheidet.
 
 Häufige Konten aus dem Buchfink-Katalog:
 

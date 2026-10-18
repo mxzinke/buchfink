@@ -14,19 +14,23 @@ Setzt buchfink-grundlagen voraus; lade ihn, falls noch nicht geschehen.
 
 Eine GmbH oder UG gibt für jedes Jahr die Umsatzsteuer-, die Körperschaftsteuer-
 und die Gewerbesteuererklärung ab, dazu die Erklärung zum steuerlichen
-Einlagekonto, und übermittelt die E-Bilanz. Buchfink zeigt die Erklärungen
-formularnah und exportiert die E-Bilanz als XBRL-Datei; es übermittelt nicht.
-Du rechnest nach, ergänzt, was Buchfink nicht kennt, und bereitest die Abgabe
-vor. Der Mensch entscheidet die Wertungsfragen, gibt die Zahlen frei, überträgt
-sie in Mein ELSTER und sendet.
+Einlagekonto, und übermittelt die E-Bilanz. Buchfink rechnet die Erklärungen
+aus den Büchern, zeigt sie formularnah und exportiert die E-Bilanz als
+XBRL-Datei; es übermittelt nicht. Du prüfst die Rechnung, trägst nach
+Rückfrage ein, was nicht in den Büchern steht, und bereitest die Abgabe vor.
+Der Mensch entscheidet die Wertungsfragen, gibt die Zahlen frei, überträgt sie
+in Mein ELSTER und sendet.
 
-Buchfink schätzt die Ertragsteuern nur: Ergebnis vor Ertragsteuern plus die
-nicht abziehbaren Teile von Geschenken, Bewirtung und Repräsentation, darauf
-Körperschaftsteuer, Solidaritätszuschlag und Gewerbesteuer mit dem Hebesatz aus
-den Einstellungen. Verlustvorträge, Hinzurechnungen, Kürzungen, verdeckte
-Gewinnausschüttungen, Beteiligungserträge, Spenden und nicht abziehbare
-Nebenleistungen fehlen in der Schätzung. Diese Posten ergänzt du nach den
-references. Sag nie zu, dass eine Erklärung steuerlich richtig ist; bei
+Buchfink rechnet die Überleitung vom Jahresüberschuss zum zu versteuernden
+Einkommen (nicht abziehbare Aufwendungen, § 8b KStG aus Konten und
+Anlagenkartei, Spendenabzug, Verlustabzug mit Mindestbesteuerung), die
+Hinzurechnungen und Kürzungen der Gewerbesteuer, Messbetrag, Steuer und das
+steuerliche Einlagekonto. Jede Zeile trägt `status` (`auto`, `vorgeschlagen`,
+`eingabe`, `offen`, `entfaellt`), `zustaendig` und `herkunft`. Was nicht in
+den Büchern steht, steht als `offen` oder `vorgeschlagen`: Verlustvortrag und
+Einlagekonto laut Bescheid, verdeckte Gewinnausschüttung, Beteiligungsquoten,
+Betriebsstätten. Die Rechtslage in den references dient dir zur Prüfung, nicht
+zum Nachrechnen. Sag nie zu, dass eine Erklärung steuerlich richtig ist; bei
 Zweifeln empfiehl einen Steuerberater (buchfink-grundlagen, Grenzen).
 
 | Thema | Skill |
@@ -81,27 +85,34 @@ Kalenderjahr ([§ 16 Abs. 1 Satz 2 UStG][ustg16]). Prüfe in der Antwort von
 3. **Umsatzsteuer-Jahreserklärung.** `erklaerung` (`art: ust_jahr`). Gleiche
    sie mit der Summe der Voranmeldungen und den Konten ab. Fertig, wenn jede
    Abweichung erklärt ist. [ust-jahr.md](references/ust-jahr.md)
-4. **Körperschaftsteuer.** `erklaerung` (`art: kst`), `auswertung`
-   (`art: guv` und `art: susa`). Baue die Überleitung vom Jahresüberschuss zum
-   zu versteuernden Einkommen nach [kst.md](references/kst.md), Posten für
-   Posten mit Konto und Betrag. Angaben, die nicht aus den Büchern kommen
-   (Verlustvortrag, Einlagekonto laut Bescheid), trägst du nach Rückfrage mit
+4. **Körperschaftsteuer.** `erklaerung` (`art: kst`, erst mit
+   `nur_offen: true`). Prüfe jede Zeile `offen` oder `vorgeschlagen` und jeden
+   Eintrag in `befunde` nach [kst.md](references/kst.md); die Zeilen `auto`
+   prüfst du über `herkunft` gegen `auswertung` auf Plausibilität. Angaben aus
+   Bescheid, Beschluss oder Beleg trägst du nach Rückfrage mit
    `erklaerung_eingabe` ein (`art`, `jahr`, `schluessel` der Zeile, `wert`,
-   `quelle`, `beleg_id`); was der Mensch gesetzt oder bestätigt hat, ändert
-   nur er. Fertig, wenn jede Zeile eine Herkunft hat (Konto, Beleg oder
-   Bescheid) und die Wertungsfragen gesammelt sind.
-5. **Gewerbesteuer.** `erklaerung` (`art: gewst`). Gewerbeertrag aus Schritt 4,
-   Hinzurechnungen, Kürzungen, Gewerbeverlust, Messbetrag und Steuer nach
-   [gewst.md](references/gewst.md). Fertig, wenn Messbetrag und Steuer
-   nachgerechnet sind.
-6. **Steuerrückstellung.** Vergleiche den Vorschlag aus Buchfink mit Schritt 4
-   und 5. Nenne je Steuerart Steuer, Vorauszahlungen und Rückstellung und
+   `quelle`, `beleg_id`). Bei `zustaendig: mensch` bleibt sie ein Vorschlag,
+   bis der Mensch sie in der App bestätigt; was er gesetzt oder bestätigt hat,
+   ändert nur er. Fertig, wenn keine Pflichtzeile mehr `offen` ist, kein
+   blockierender Befund bleibt (`abgabereif: true`) und die Wertungsfragen
+   gesammelt sind.
+5. **Gewerbesteuer.** `erklaerung` (`art: gewst`) ebenso. Den Gewinn übernimmt
+   Buchfink aus der Körperschaftsteuer; Hinzurechnungen nach § 8 Nr. 1 rechnet
+   es aus den Konten. Prüfe die Zuordnung von Miete, Leasing und Lizenzen nach
+   [gewst.md](references/gewst.md). Fertig wie Schritt 4 und wenn der Hebesatz
+   zum Bescheid der Gemeinde passt.
+6. **Steuerrückstellung.** Vergleiche den Vorschlag von `abschlussbuchung`
+   (`art: steuerrueckstellung`, `nur_vorschau: true`) mit Schritt 4 und 5. Der
+   Vorschlag kennt Verlustvorträge, Hinzurechnungen, Kürzungen und eine vGA nur
+   als Eingabe (`verlustvortrag_kst`, `verlustvortrag_gewst`,
+   `hinzurechnungen`, `kuerzungen`, `korrekturen`); nimm die Werte aus den
+   Erklärungen. Nenne je Steuerart Steuer, Vorauszahlungen und Rückstellung und
    übergib an buchfink-jahresabschluss. Fertig, wenn der Mensch die Beträge
    bestätigt hat.
 7. **E-Bilanz.** `ebilanz_exportieren` (`jahr`; `format: xbrl` ist Vorgabe)
-   prüft und schreibt die XBRL-Datei in den Exportordner. Fertig, wenn die
-   Summen der Datei zum Abschluss passen und der Mensch den Online-Dienst
-   gewählt hat. [ebilanz.md](references/ebilanz.md)
+   prüft und schreibt die XBRL-Datei in den Exportordner. Fertig, wenn kein
+   blockierender Befund bleibt und der Mensch den Online-Dienst gewählt hat.
+   [ebilanz.md](references/ebilanz.md)
 8. **Freigabe.** Lege je Erklärung vor: Kennzahlen, Überleitung, Abweichungen
    zum Vorschlag aus Buchfink, Wertungsfragen mit Grundlage und Optionen.
    Fertig, wenn der Mensch die Zahlen ausdrücklich freigibt.
@@ -155,10 +166,11 @@ und nenne dem Menschen die rückwirkende Fristverlängerung
 - Verlustvortrag, Anfangsbestand des Einlagekontos, Hebesatz und
   Vorauszahlungen übernimmst du nur aus einem Bescheid oder einer Angabe des
   Menschen.
-- Den Steuersatz wählst du nach dem Jahr: Körperschaftsteuer 15 % bis 2027,
-  14 % für 2028, 13 % für 2029, 12 % für 2030, 11 % für 2031, 10 % ab 2032
-  ([§ 23 Abs. 1 KStG][kstg23]); Solidaritätszuschlag 5,5 % der festgesetzten
-  Körperschaftsteuer ([§ 3 Abs. 1 Nr. 1 SolZG][solzg3], [§ 4 Satz 1 SolZG][solzg4]);
+- Die Sätze wählt Buchfink nach dem Veranlagungszeitraum. Zur Prüfung:
+  Körperschaftsteuer 15 % bis 2027, 14 % für 2028, 13 % für 2029, 12 % für
+  2030, 11 % für 2031, 10 % ab 2032 ([§ 23 Abs. 1 KStG][kstg23]);
+  Solidaritätszuschlag 5,5 % der festgesetzten Körperschaftsteuer
+  ([§ 3 Abs. 1 Nr. 1 SolZG][solzg3], [§ 4 Satz 1 SolZG][solzg4]);
   Steuermesszahl 3,5 % ([§ 11 Abs. 2 GewStG][gewstg11]). Stand: Oktober 2026.
 - Der Mensch sendet erst, wenn die Prüfung in Mein ELSTER ohne Fehler endet
   und jeder von ELSTER berechnete Wert zu deiner freigegebenen Tabelle passt.
@@ -218,9 +230,6 @@ Leite jede mit „Wertungsfrage:“ ein, nenne Grundlage, Optionen und Folgen.
   17.10.2026). Ob der Online-Dienst Kontennachweis und Stammdaten aus der
   XBRL-Datei vollständig übernimmt, ist nicht dokumentiert; prüft es nach
   jedem Import ([ebilanz.md](references/ebilanz.md)).
-- Die Zuordnung der E-Bilanz in Buchfink ist ungeprüft (`verified: false`).
-- Buchfink hinterlegt für die Körperschaftsteuer 15 % ohne die Senkung ab 2028.
-  Prüfe für Jahre ab 2028 den verwendeten Satz.
 - Ein elektronisch bereitgestellter Bescheid gilt am vierten Tag als bekannt
   gegeben ([§ 122a Abs. 4 AO][ao122a]); ab dann läuft die Einspruchsfrist von
   einem Monat ([§ 355 Abs. 1 AO][ao355]). Ein Einspruch hält die Zahlung nicht

@@ -1,9 +1,7 @@
 # Eröffnungsbilanz
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von HGB, AO, EStG und GmbHG am
-17.10.2026 gelesen. Buchfink-Verhalten aus
-`internal/service/foundation_opening.go` und
-`internal/service/opening_balance.go`.
+17.10.2026 gelesen.
 
 ## Inhalt
 
@@ -78,18 +76,18 @@ hat.
   das Original.
 - Bei Eröffnung des Betriebs ist auch die Eröffnungsbilanz elektronisch an das
   Finanzamt zu übermitteln ([§ 5b Abs. 1 Satz 4 EStG][estg5b]). Taxonomie und
-  Übermittlungsweg regelt buchfink-steuererklaerungen. Ob
-  `ebilanz_exportieren` die Eröffnungsbilanz als eigene Bilanzart schreibt,
-  sagt der Werkzeugkatalog nicht; prüf die Datei im Online-Dienst und frag im
-  Zweifel den Steuerberater.
+  Übermittlungsweg regelt buchfink-steuererklaerungen. `ebilanz_exportieren`
+  schreibt die Bilanz eines Geschäftsjahres; für die Eröffnungsbilanz gibt es
+  noch keinen Export. Der Mensch erfasst sie im Online-Dienst, oder ein
+  Steuerberater übermittelt sie.
 
 ## 6. Bestehende GmbH wechselt zu Buchfink
 
-Das ist keine Gründung. Die Eröffnungsbuchungen eines Umsteigers bucht der
-Mensch in der App; ein Werkzeug dafür gibt es nicht: Sachkonten gegen 9000 Saldenvorträge,
-Sachkonten, offene Posten einzeln gegen 9008 (Debitoren) und 9009
-(Kreditoren). Buchfink verlangt die Schlussbilanz des Altsystems als Beleg und
-bucht nur, wenn die Eröffnungsbilanz aufgeht.
+Das ist keine Gründung. Die Eröffnungsbuchungen eines Umsteigers bildet
+Buchfink noch nicht ab, weder als Werkzeug noch in der App. Gebucht würden
+Sachkonten gegen 9000 Saldenvorträge, offene Posten einzeln gegen 9008
+(Debitoren) und 9009 (Kreditoren), mit der Schlussbilanz des Altsystems als
+Beleg. Sag das dem Menschen, bevor er Daten überträgt.
 
 Dein Teil:
 
@@ -97,8 +95,9 @@ Dein Teil:
 2. Liste der offenen Forderungen und Verbindlichkeiten mit Belegnummer,
    Belegdatum, Fälligkeit und Kontakt vorbereiten; fehlende Kontakte mit
    `kontakt_anlegen` anlegen.
-3. Nach der Buchung prüfen: `auswertung` (`art: susa`) zum ersten Tag gleich
-   der Schlussbilanz; die Salden von 9000, 9008 und 9009 ergeben zusammen null.
+3. Sobald die Buchungen möglich sind, prüfen: `auswertung` (`art: susa`) zum
+   ersten Tag gleich der Schlussbilanz; die Salden von 9000, 9008 und 9009
+   ergeben zusammen null.
 
 [ao147]: https://www.gesetze-im-internet.de/ao_1977/__147.html
 [estg5b]: https://www.gesetze-im-internet.de/estg/__5b.html

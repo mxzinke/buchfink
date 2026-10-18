@@ -57,8 +57,8 @@ Werkzeuge: `kontakte_suchen`, `kontakt_anlegen`, `rechnung_vorschau`,
    (PDF und E-Rechnung im Exportordner) enthält.
 8. **Versand.** Buchfink versendet nicht. Gib dem Menschen die Pfade aus
    `dateien` oder versende sie, wenn dein Client das kann und der Mensch es
-   will. Eine E-Rechnung geht als unveränderte Datei hinaus. Den Versand
-   vermerkt der Mensch in der App.
+   will. Eine E-Rechnung geht als unveränderte Datei hinaus. Einen
+   Versandvermerk bildet Buchfink noch nicht ab.
 
 Fristen:
 
@@ -77,7 +77,7 @@ Fristen:
   ([§ 13 Abs. 1 Nr. 1 Buchst. a Satz 1 UStG][ustg13]), unabhängig von Rechnung
   und Zahlung.
 - Prüfe offene Rechnungen mit `offene_posten` (`richtung: forderung`,
-  `ueberfaellig: true`) mindestens beim Monatsabschluss.
+  `nur_ueberfaellig: true`) mindestens beim Monatsabschluss.
 
 ## 3. Steuerfall
 
@@ -163,9 +163,11 @@ Einzelheiten, Formate, Zustimmung und Validierung:
   Bemessungsgrundlage ([§ 17 UStG][ustg17]); die Rechnung bleibt
   ([UStAE 14.11 Abs. 4][bmf2025]). Skonto am Zahlungseingang regelt
   buchfink-bank.
-- Für Stornorechnung und Rechnungskorrektur gibt es kein Werkzeug. Der Mensch
-  löst sie in der App an der Rechnung aus. Du bereitest Grund und neue
-  Positionen vor und prüfst danach mit `offene_posten`.
+- Stornorechnung und Rechnungskorrektur bildet Buchfink noch nicht ab, weder
+  als Werkzeug noch in der App. Bereite Grund und neue Positionen vor und sag
+  dem Menschen, dass Buchfink sie noch nicht ausstellen kann. Eine zweite
+  Rechnung über dieselbe Leistung stellst du nicht aus: Forderung und Steuer
+  stünden doppelt in den Büchern.
 - Zu hoch oder unberechtigt ausgewiesene Steuer, Folgen für die Voranmeldung:
   [references/storno-berichtigung.md](references/storno-berichtigung.md).
 
@@ -178,9 +180,9 @@ Einzelheiten, Formate, Zustimmung und Validierung:
    zugeordnet ist. Ist sie da, ordne sie mit buchfink-bank zu.
 3. Kläre, ob und seit wann Verzug besteht
    ([§ 286 BGB][bgb286], [references/mahnen-verzug.md](references/mahnen-verzug.md)).
-4. Entwirf das Mahnschreiben als Text. Rechne Verzugszinsen und Pauschale nur
-   aus, wenn der Mensch sie verlangen will. Buchfink erzeugt kein Mahnschreiben
-   und bucht nichts beim Mahnen.
+4. Entwirf das Mahnschreiben als Text. Verzugszinsen und Pauschale nimmst du
+   aus `offene_posten` auf, wenn der Mensch sie verlangen will. Buchfink
+   erzeugt kein Mahnschreiben und bucht nichts beim Mahnen.
 5. Der Mensch prüft und versendet. Ist die Mahnung zugegangen, hältst du sie
    nach Rückfrage mit `mahnung_vermerken` fest (`buchung_id` der Forderung,
    `datum` des Zugangs, `stufe`, `notiz` mit Weg und Ablage,
@@ -199,8 +201,10 @@ Einzelheiten, Formate, Zustimmung und Validierung:
 - Wertungsfrage: ob eine Forderung zweifelhaft oder uneinbringlich ist. Lege
   Belege vor (Insolvenzbekanntmachung, Vollstreckungsprotokoll,
   Schriftverkehr), der Mensch entscheidet.
-- Für die Ausbuchung ohne Zahlung gibt es kein Werkzeug. Der Mensch bucht sie
-  in der App beim offenen Posten („Forderung ausbuchen“) mit Begründung.
+- Die Ausbuchung ohne Zahlung bildet Buchfink noch nicht ab. Bereite sie vor
+  und sag dem Menschen, dass sie noch nicht gebucht werden kann. Zum Stichtag
+  bucht buchfink-jahresabschluss eine Einzelwertberichtigung; die
+  Steuerberichtigung nach § 17 fehlt dann weiter.
 - Ablauf, Teilausfall, spätere Zahlung, Abgrenzung zur Wertberichtigung:
   [references/forderungsausfall.md](references/forderungsausfall.md).
 
@@ -222,9 +226,10 @@ entscheidet.
 
 - Unternehmensstammdaten (Steuernummer, USt-IdNr., Anschrift, Bankverbindung)
   und Nummernkreise.
-- E-Rechnungsformat oder Leitweg-ID eines vorhandenen Kontakts ändern; ein
-  Werkzeug dafür gibt es nicht.
-- Stornorechnung, Rechnungskorrektur, Forderung ausbuchen, Versand vermerken.
+
+Ohne Werkzeug, deshalb in der App: E-Rechnungsformat oder Leitweg-ID eines
+vorhandenen Kontakts ändern. Noch nicht abgebildet: Stornorechnung,
+Rechnungskorrektur, Forderung ausbuchen, Versand vermerken.
 
 ## 11. Stolperfallen
 

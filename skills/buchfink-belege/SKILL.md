@@ -54,8 +54,10 @@ buchfink-grundlagen.
 4. **Prüfen.** Kläre in dieser Reihenfolge:
    - Ist es ein Beleg dieses Unternehmens? Fremde und private Belege legst du
      dem Menschen zum Verwerfen vor.
-   - Dublette? Gleiche Rechnungsnummer beim selben Kontakt oder gleiches
-     Brutto am selben Tag: vorlegen, nicht buchen.
+   - Dublette? Meldet `einstufung` `dublettenverdacht`, leg beide Belege vor
+     und buche nicht. Bei einem Foto oder PDF ohne Datensatz suchst du selbst:
+     `belege_suchen` mit dem Aussteller als `text`, dann Rechnungsnummer und
+     Brutto vergleichen.
    - Pflichtangaben und Vorsteuer (Abschnitt 2).
    - Steuerfall und Satz (Abschnitt 3).
    - Sonderfall (Abschnitt 4).
@@ -140,7 +142,8 @@ Wähle den Steuerfall aus dem Beleg, nie aus der Gewohnheit.
 | Merkmal auf dem Beleg | Steuerfall | Hinweis |
 |---|---|---|
 | Inländischer Lieferant weist 19 % oder 7 % aus | Inland | Satz und Netto je Satz aus dem Beleg; Hotel und Gaststätte weisen oft zwei Sätze aus |
-| Unternehmer aus dem Ausland, sonstige Leistung (Software, Werbung, Beratung), keine deutsche Steuer | § 13b | Die GmbH schuldet die Steuer und zieht sie ab ([§ 13b Abs. 1, 2 Nr. 1, Abs. 5 UStG][ustg13b]). EU-Lieferant braucht eine USt-IdNr. am Kontakt |
+| Unternehmer aus einem anderen EU-Staat, sonstige Leistung (Software, Werbung, Beratung), keine deutsche Steuer | § 13b Abs. 1 (`reverse_charge_eu`) | Die GmbH schuldet die Steuer und zieht sie ab ([§ 13b Abs. 1, Abs. 5 UStG][ustg13b]). USt-IdNr. am Kontakt Pflicht |
+| Unternehmer aus dem Drittland, sonstige Leistung; Werklieferung eines ausländischen Unternehmers | § 13b Abs. 2 (`reverse_charge`) | [§ 13b Abs. 2 Nr. 1, Abs. 5 UStG][ustg13b] |
 | Ware aus einem anderen EU-Staat, beide USt-IdNr., keine Steuer | innergemeinschaftlicher Erwerb | [§ 1a UStG][ustg1a]; USt-IdNr. am Kontakt Pflicht |
 | Ware aus dem Drittland | Einfuhr | Einfuhrumsatzsteuer bildet Buchfink nicht vollständig ab: vorlegen |
 | Versicherung, Kontoführung, Miete ohne Steuerausweis | steuerfrei | [§ 4 Nr. 8, 10, 12 UStG][ustg4] |
@@ -148,9 +151,11 @@ Wähle den Steuerfall aus dem Beleg, nie aus der Gewohnheit.
 | Ausländische Umsatzsteuer ausgewiesen | Wertungsfrage | Keine deutsche Vorsteuer. Hotel oder Mietwagen im Ausland: Steuer des anderen Staates ist richtig. Sonst Rechnung mit USt-IdNr. der GmbH anfordern |
 | Inländischer Lieferant ohne Steuer und ohne Hinweis | offen | Nachfragen: Kleinunternehmer, Steuerbefreiung oder fehlende Angabe? |
 
-Buchfink rechnet von § 13b nur Leistungen eines im Ausland ansässigen
-Unternehmers. Bauleistungen nach § 13b Abs. 2 Nr. 4 und die Grenze von 5.000 €
-nach Nr. 10 und 11 prüft Buchfink nicht (buchfink-grundlagen, Grenzen).
+Wählt eine Buchung `reverse_charge` für einen EU-Lieferanten, warnt Buchfink
+mit `reverse_charge_eu_supplier`: Für seine sonstige Leistung gilt Abs. 1.
+Ob die Voraussetzungen der inländischen Fälle nach § 13b Abs. 2 Nr. 4 bis 12
+vorliegen, etwa die Grenze von 5.000 € nach Nr. 10 und 11, prüft Buchfink
+nicht ([references/steuerfaelle.md](references/steuerfaelle.md), Abschnitt 2).
 
 Lies [references/steuerfaelle.md](references/steuerfaelle.md), wenn der
 Lieferant im Ausland sitzt, keine deutsche Steuer ausweist, der Satz unklar ist
@@ -218,12 +223,12 @@ sobald einer dieser Fälle vorliegt.
 
 ## 6. Nur der Mensch in der App
 
-- Kontakt ändern, etwa eine fehlende USt-IdNr. oder neue IBAN eintragen; ein
-  Werkzeug dafür gibt es nicht.
-- Standardgruppe eines Lieferanten bestätigen.
-- Schwellen der Direktregeln (Grenze brutto, Mindestbuchungen) und
-  Nachweisgrenze einstellen.
+- Direktregeln: Standardgruppe eines Lieferanten bestätigen, Schwellen
+  (Grenze brutto, Mindestbuchungen) und Nachweisgrenze einstellen.
 - Eingang einrichten, weitere Ordner für Belege freigeben.
+
+Ohne Werkzeug, deshalb vorerst in der App: einen vorhandenen Kontakt ändern,
+etwa eine fehlende USt-IdNr. oder eine neue IBAN eintragen.
 
 ## 7. Stolperfallen
 
@@ -236,9 +241,9 @@ sobald einer dieser Fälle vorliegt.
   Nettobetrag. Buchfink bucht Steuer und Vorsteuer in gleicher Höhe.
 - Bei einer Dienstleistung aus einem anderen EU-Staat entsteht die Steuer mit
   Ablauf des Voranmeldungszeitraums, in dem die Leistung ausgeführt wurde
-  ([§ 13b Abs. 1 UStG][ustg13b]). Buchfink ordnet nach dem Belegdatum. Liegt
-  das Rechnungsdatum in einem späteren Voranmeldungszeitraum als die Leistung,
-  sag das dem Menschen vor der Voranmeldung.
+  ([§ 13b Abs. 1 UStG][ustg13b]). Buchfink ordnet sie nach dem
+  Leistungszeitraum, ohne ihn nach dem Belegdatum. Trag den Leistungszeitraum
+  deshalb immer ein.
 - Weist ein Lieferant zu viel Steuer aus, schuldet er sie
   ([§ 14c Abs. 1 UStG][ustg14c]). Abziehbar ist nur die richtige Steuer; lass die
   Rechnung berichtigen.

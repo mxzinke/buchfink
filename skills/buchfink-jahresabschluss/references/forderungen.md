@@ -19,7 +19,7 @@ einer Forderung im laufenden Jahr regelt buchfink-rechnungen.
    (`richtung: verbindlichkeit`, `stichtag`).
 2. Summe je Liste gleich Saldo des Sammelkontos 1200 bzw. 3300 laut
    `auswertung` (`art: susa`).
-3. Überfällige Posten (`offene_posten`, `ueberfaellig: true`), Gutschriften
+3. Überfällige Posten (`offene_posten`, `nur_ueberfaellig: true`), Gutschriften
    ohne Gegenposten und Posten mit Minusbetrag legst du dem Menschen vor.
 
 Fertig, wenn beide Listen mit den Konten übereinstimmen und jeder auffällige

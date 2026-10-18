@@ -44,9 +44,15 @@ Sätze aus der Rechnung.
 
 **Verwaltungsanweisung.** Für Bewirtungen ab 2025 gibt es das BMF-Schreiben vom
 19.11.2025 (IV C 6 - S 2145/00026/005/033) mit Anforderungen an die Rechnung
-der Gaststätte. Sein Wortlaut war am 17.10.2026 nicht abrufbar; die Inhalte nach
-Sekundärquellen stehen im Quellenverzeichnis `skills/QUELLEN.md` im Buchfink-Repository unter „Offen“. Zieh sie erst heran, wenn
-der Wortlaut geprüft ist.
+der Gaststätte. Sein Wortlaut war am 17.10.2026 nicht abrufbar. Nach
+Sekundärquellen ([Deloitte Tax-News][deloittebew], [PwC-Blog][pwcbew]) ersetzt
+es das Schreiben vom 30.06.2021, das für Bewirtungen bis 31.12.2024 gilt, und
+verlangt: maschinell erstellte, elektronisch aufgezeichnete Rechnung, bei
+einem Kassensystem mit TSE; über 250 € den Namen des Bewirtenden; eine
+genauere Leistungsbeschreibung als „Speisen und Getränke“; Trinkgeld mit
+Nachweis. Ein digitaler Eigenbeleg ist zulässig, wenn er mit der Rechnung
+verknüpft ist. Nutze diese Punkte als Prüfliste für Rückfragen; einen Beleg
+lehnst du deswegen nicht ab, solange der Wortlaut ungeprüft ist.
 
 **Ablauf in Buchfink.**
 
@@ -82,7 +88,7 @@ Empfänger im Wirtschaftsjahr zugewendeten Gegenstände übersteigen insgesamt
   ([§ 4 Abs. 7 EStG][estg4]).
 - Die Grenze von 50 € gilt für Wirtschaftsjahre, die nach dem 31.12.2023
   beginnen ([§ 52 Abs. 6 Satz 10 EStG][estg52]); davor 35 €. Buchfink führt sie
-  datiert (`internal/accounting/tax_params.go`).
+  datiert.
 
 **Ablauf in Buchfink.**
 
@@ -140,8 +146,7 @@ abziehbare Ausgabe ([§ 10 Nr. 2 KStG][kstg10]).
 | `geschenke_betrieblich` | 6625 | – | Empfänger |
 | `repraesentation` | 6645 | ganz, Vorsteuer im Aufwand | – |
 
-Quelle: `internal/accounting/posting_groups.go`. Diese Konten bebuchst du nur
-über ihre Gruppe.
+Diese Konten bebuchst du nur über ihre Gruppe.
 
 [estg4]: https://www.gesetze-im-internet.de/estg/__4.html
 [estg9b]: https://www.gesetze-im-internet.de/estg/__9b.html
@@ -157,3 +162,5 @@ Quelle: `internal/accounting/posting_groups.go`. Diese Konten bebuchst du nur
 [ustae156]: https://datenbank.nwb.de/Dokument/378652_15___6/
 [fgbb]: https://www.haufe.de/steuern/rechtsprechung/vorsteuerabzug-aus-bewirtungsaufwendungen-trotz-fehlendem-beleg_166_496064.html
 [fgms]: https://datenbank.nwb.de/Dokument/831949/
+[deloittebew]: https://www.deloitte-tax-news.de/steuern/unternehmensteuer/bmf-steuerliche-anerkennung-von-bewirtungsaufwendungen.html
+[pwcbew]: https://blogs.pwc.de/de/steuern-und-recht/article/251895/

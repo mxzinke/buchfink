@@ -24,7 +24,7 @@ du ebenfalls ab.
 
 ## 2. Konten
 
-Aus dem SKR04 (`internal/accounting/skr04_2026.json`):
+Aus dem SKR04:
 
 | Konto | Inhalt |
 |---|---|

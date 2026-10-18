@@ -1,8 +1,8 @@
 # Bewertung und Veräußerung von Finanzanlagen
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von HGB, EStG, KStG, GmbHG und UStG am
-17.10.2026 auf gesetze-im-internet.de gelesen. Konten und Abläufe aus
-`internal/accounting/asset_accounts.go` und `internal/service/asset_service.go`.
+17.10.2026 auf gesetze-im-internet.de gelesen. Konten und Abläufe wie in der
+Anlagenkartei von Buchfink.
 
 Planmäßige Abschreibung, Anlagenspiegel und den Abschreibungslauf regelt
 buchfink-jahresabschluss. Hier geht es um Anteile, Wertpapiere und
@@ -62,7 +62,8 @@ Darlehen. Frag nach früheren Abschreibungen und ob ihr Grund noch besteht.
 ## 3. Folgen bei Anteilen an Kapitalgesellschaften
 
 - Teilwertabschreibung und andere Gewinnminderungen beim Anteil mindern das
-  Einkommen nicht ([§ 8b Abs. 3 Satz 3 KStG][kstg8b]). Rechne sie hinzu.
+  Einkommen nicht ([§ 8b Abs. 3 Satz 3 KStG][kstg8b]). Buchfink rechnet sie
+  aus 7204 und den Verlustkonten hinzu.
 - Eine spätere Wertaufholung bleibt außer Ansatz; 5 % davon gelten als nicht
   abziehbar ([§ 8b Abs. 2 Satz 3, Abs. 3 Satz 1 KStG][kstg8b]).
 - Bei der Gewerbesteuer wirkt das über den Gewinn mit
@@ -84,11 +85,11 @@ Darlehen. Frag nach früheren Abschreibungen und ob ihr Grund noch besteht.
 
 ## 5. Wertänderung in Buchfink
 
-Außerplanmäßige Abschreibung und Zuschreibung eines Anlageguts erfasst der
-Mensch in der Anlagenkartei der App („Außerplanmäßig abschreiben“,
-„Zuschreiben“); ein Werkzeug dafür gibt es nicht. Du lieferst Betrag, Stichtag und
-Grund mit Tatsache und Datum, etwa „Kurs am 31.12.2026 38,20 € gegenüber
-Anschaffung 52,00 €, Depotauszug B-2027-0003“. Buchfink verlangt den Grund.
+Außerplanmäßige Abschreibung und Zuschreibung eines Anlageguts bildet
+Buchfink noch nicht ab, weder als Werkzeug noch in der App. Leg dem Menschen
+Betrag, Stichtag und Grund mit Tatsache und Datum vor, etwa „Kurs am
+31.12.2026 38,20 € gegenüber Anschaffung 52,00 €, Depotauszug B-2027-0003“,
+und die Konten der Tabelle.
 
 | Anlagegut | Abschreibung | Zuschreibung |
 |---|---|---|
@@ -96,15 +97,18 @@ Anschaffung 52,00 €, Depotauszug B-2027-0003“. Buchfink verlangt den Grund.
 | andere Finanzanlage, dauernde Minderung | 7200 Abschreibungen auf Finanzanlagen (dauerhaft) | 4912 Erträge aus Zuschreibungen des Finanzanlagevermögens |
 | andere Finanzanlage, vorübergehende Minderung | 7201 Abschreibungen auf Finanzanlagen (nicht dauerhaft) | 4912 |
 
-- Buchfink bucht beim gekennzeichneten Anteil auch eine vorübergehende
-  Minderung auf 7204. Halte im Grund fest, ob die Minderung dauernd ist.
+- Beim gekennzeichneten Anteil gehört auch eine vorübergehende Minderung auf
+  7204. Halte im Grund fest, ob die Minderung dauernd ist.
 - Wertpapiere des Umlaufvermögens (1510) gehören nicht in die Anlagenkartei.
   Buche ihre Abschreibung mit `buchung_erfassen` (`abschlussperiode: true`):
   Soll 7214 bei Aktien, 7210 bei anderen Papieren, Haben 1510; Zuschreibung
   auf 4916 bzw. 4915. Eigenbeleg mit Kursnachweis.
-- Notiert ein Papier in Fremdwährung, rechnet „Währung bewerten“ in der App
-  den Euro-Wert zum Stichtag (6880, 4840); Regeln in buchfink-jahresabschluss.
-- Vermerke jede Wertänderung als Beteiligungsposten.
+- Notiert ein Papier in Fremdwährung, gehört der Euro-Wert zum Stichtag auf
+  6880 oder 4840; die Bewertung am Anlagegut bildet Buchfink noch nicht ab.
+  Regeln in buchfink-jahresabschluss.
+- Teilwertabschreibungen und Zuschreibungen liest Buchfink aus den Konten in
+  die Körperschaftsteuererklärung ([steuerfreistellung.md](steuerfreistellung.md),
+  Abschnitt 8).
 
 ## 6. Verkauf: Ablauf
 
@@ -115,19 +119,18 @@ Anschaffung 52,00 €, Depotauszug B-2027-0003“. Buchfink verlangt den Grund.
 2. **Rechnung vorlegen:** Erlös, Veräußerungskosten, Buchwert laut
    Anlagenspiegel, Buchgewinn oder -verlust, steuerliche Folge
    (Abschnitt 7). Fertig mit dem Ja des Menschen.
-3. **Abgang (nur App):** Der Mensch erfasst in der Anlagenkartei „Verkauf“
-   mit Datum, Erlös, bei Teilverkauf der Stückzahl, und wählt, ob der Erlös
-   auf ein Zahlungsmittelkonto oder als offener Posten an den Käufer geht.
-   Buchfink wählt die Konten nach Ergebnis und Kennzeichen:
+3. **Abgang:** Den Abgang aus der Kartei bildet Buchfink noch nicht ab, weder
+   als Werkzeug noch in der App. Sag das dem Menschen und nenne ihm die
+   Konten, die nach Ergebnis und Kennzeichen gelten:
 
 | Anlagegut | Buchgewinn | Buchverlust |
 |---|---|---|
 | gekennzeichneter Anteil | 4852 Erlöse, 4858 Restbuchwert | 6892 Erlöse, 6898 Restbuchwert |
 | andere Finanzanlage, auch Fonds | 4851 Erlöse, 4857 Restbuchwert | 6891 Erlöse, 6897 Restbuchwert |
 
-4. **Zahlung:** Bleibt der Erlös offener Posten, gleiche den Bankumsatz nach
-   buchfink-bank aus. Fertig, wenn Anlagekonto und offener Posten null zeigen.
-5. **Beteiligungsposten** vormerken und die Beteiligungsliste schließen.
+4. **Beteiligungsliste** fortschreiben. Den Gewinn oder Verlust nach § 8b
+   Abs. 2, 3 KStG rechnet Buchfink aus den Konten der Tabelle, sobald der
+   Abgang gebucht ist.
 
 ## 7. Verkauf: Steuer
 
@@ -146,21 +149,19 @@ Anschaffung 52,00 €, Depotauszug B-2027-0003“. Buchfink verlangt den Grund.
   [§ 4 Nr. 8 Buchst. e, f UStG][ustg4] steuerfrei; Vorsteuer aus den Kosten
   des Verkaufs ist in beiden Fällen nicht abziehbar
   ([UStAE 15.22 Abs. 2][ustae1522]), außer beim Verzicht auf die
-  Steuerfreiheit nach § 9 Abs. 1 UStG, den Buchfink nicht abbildet. Im Abgang
-  wählt der Mensch deshalb einen Steuerfall ohne Umsatzsteuer.
+  Steuerfreiheit nach § 9 Abs. 1 UStG, den Buchfink nicht abbildet. Der
+  Verkauf trägt deshalb keine Umsatzsteuer.
 - Ausländische Gesellschaft: Mitteilung an das Finanzamt
   ([§ 138 Abs. 2 Satz 1 Nr. 3 AO][ao138]).
 
 ## 8. Teilverkauf, Tilgung, Fonds
 
-- **Teilverkauf:** Ist die Stückzahl geführt, rechnet Buchfink den Anteil der
-  Anschaffungskosten aus der verkauften Stückzahl; sonst nennt der Mensch den
-  abgehenden Betrag.
-- **Tilgung einer Ausleihung:** Abgang „Tilgung“ in der Kartei; gebucht wird
-  Geld an Ausleihung, ohne Erlöskonto.
+- **Teilverkauf:** Abgehend sind die Anschaffungskosten im Verhältnis der
+  verkauften Stückzahl; fehlt die Stückzahl, nennt der Mensch den Betrag.
+- **Tilgung einer Ausleihung:** gebucht wird Geld an Ausleihung, ohne
+  Erlöskonto; ein Abgang aus der Kartei ist das nicht.
 - **Fondsanteile:** nie als Anteil an einer Kapitalgesellschaft gekennzeichnet.
-  Beim Abgang zeigt Buchfink die Nebenrechnung mit Teilfreistellung und
-  abgezogenen Vorabpauschalen (Referenz zu Investmentfonds, Liste in
+  Zur Steuer beim Verkauf siehe die Referenz zu Investmentfonds (Liste in
   SKILL.md).
 
 [ao138]: https://www.gesetze-im-internet.de/ao_1977/__138.html

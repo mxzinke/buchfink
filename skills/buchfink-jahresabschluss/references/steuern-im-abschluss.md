@@ -1,9 +1,8 @@
 # Umsatzsteuer-Verrechnung und Steuerrückstellung
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von § 249 HGB, § 4 Abs. 5b und § 36
-EStG, § 10 KStG am 17.10.2026 gelesen. Buchungslogik aus
-`internal/service/closing_booking_service.go`. Die Steuern selbst berechnet
-buchfink-steuererklaerungen; Zahlungen bucht buchfink-bank.
+EStG, § 10 KStG am 17.10.2026 gelesen. Die Steuern rechnet Buchfink in den
+Erklärungen (buchfink-steuererklaerungen); Zahlungen bucht buchfink-bank.
 
 ## Inhalt
 
@@ -42,9 +41,9 @@ Abschlusszahlung aus der Jahreserklärung gehören auf 3841, eine Erstattung auf
 ## 2. Vorsteuerberichtigung nach § 15a UStG
 
 Führt Buchfink Wirtschaftsgüter im Verzeichnis nach § 15a UStG (Regeln:
-buchfink-belege), bestätigt der Mensch vor der letzten Voranmeldung des Jahres
-den Verwendungsanteil in der App. Buchfink bucht die Berichtigung mit
-Steuerschlüssel; sie erscheint in Kennziffer 64.
+buchfink-belege), ist vor der letzten Voranmeldung des Jahres der
+Verwendungsanteil zu prüfen. Ihn zu erfassen und die Berichtigung zu buchen
+(Kennziffer 64) bildet Buchfink noch nicht ab; sag das dem Menschen.
 
 ## 3. Steuerrückstellung: Betrag
 
@@ -70,8 +69,10 @@ Prüfe vor dem Buchen:
 2. Der Hebesatz der Gemeinde stimmt mit dem Gewerbesteuerbescheid überein.
 3. Ein Verlustvortrag aus Vorjahren ist berücksichtigt.
 
-Buchfinks eigener Vorschlag zur Steuerrückstellung prüft diese drei Punkte
-nicht zuverlässig. Nimm die Zahlen aus buchfink-steuererklaerungen.
+Der Vorschlag zur Steuerrückstellung nimmt die Vorauszahlungen von 7600, 7608
+und 7610, den Hebesatz aus den Einstellungen und Verlustvorträge,
+Hinzurechnungen und Kürzungen nur als Eingabe. Nimm diese Werte aus den
+Erklärungen (buchfink-steuererklaerungen).
 
 ## 4. Steuerrückstellung: Buchung
 
@@ -80,7 +81,7 @@ buchfink-steuererklaerungen mit: `hebesatz`, `verlustvortrag_kst`,
 `verlustvortrag_gewst`, `korrekturen` (etwa eine verdeckte
 Gewinnausschüttung), `hinzurechnungen`, `kuerzungen`; weichen die Beträge ab,
 `kst_betrag` und `gewst_betrag` mit Rechenweg in `grund`. Vergleiche die
-Vorschau mit deiner Rechnung, bevor du buchst. Die Buchung:
+Vorschau mit den Erklärungen, bevor du buchst. Die Buchung:
 
 | Steuer | Nachzahlung erwartet | Vorauszahlungen zu hoch |
 |---|---|---|

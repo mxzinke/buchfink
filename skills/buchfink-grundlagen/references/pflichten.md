@@ -247,15 +247,14 @@ Mit und ohne Steuerberater:
 - **Weg:**
   1. `erklaerung` (`art: zm`) prüfen; Summe gleich Kennzahl 21 der
      Voranmeldungen des Quartals.
-  2. Der Mensch exportiert in der App die CSV-Datei der ZM; ein Werkzeug dafür
-     gibt es nicht.
+  2. Du legst die Zeilen als Tabelle vor; eine CSV-Datei der ZM bildet
+     Buchfink noch nicht ab.
   3. Mein ELSTER → „Formulare und Leistungen“ → „Alle Formulare“ →
-     „Umsatzsteuer“ → „Zusammenfassende Meldung“, CSV importieren. Alternativ
+     „Umsatzsteuer“ → „Zusammenfassende Meldung“, Zeilen eintragen. Alternativ
      das BZSt-Online-Portal (BOP) mit Anmeldung zum Fachverfahren ZM
      ([BZSt, Elektronische Abgabe][bzstzm]).
   4. Der Mensch vergleicht die Zeilen mit deiner Tabelle und sendet.
-- **Buchfink liefert:** `erklaerung` je Empfänger mit USt-IdNr. und Summe;
-  CSV-Export in der App.
+- **Buchfink liefert:** `erklaerung` je Empfänger mit USt-IdNr. und Summe.
 - **Nachweis:** Transferticket, vom Menschen in der App an der ZM erfasst; die
   Pflicht steht dann aus den Daten auf erledigt.
 - **Bei Versäumnis:** kein Verspätungszuschlag ([§ 18a Abs. 11 UStG][ustg18a]).
@@ -348,8 +347,7 @@ Mit und ohne Steuerberater:
 - **Nachweis:** Übermittlungsprotokoll mit Transferticket, vom Menschen in der
   App bestätigt, und die gebuchte Zahlung zum Fälligkeitstag. Verlangt sind
   Anmeldung und Abführung ([§ 41a Abs. 1 Satz 1 Nr. 1, 2 EStG][estg41a]); ein
-  gebuchtes Lohnjournal belegt keins von beiden. Buchfink führt den Zeitraum
-  heute schon mit gebuchtem Lohnjournal als erledigt. Prüfe deshalb je
+  gebuchtes Lohnjournal meldet den Zeitraum nur als vorbereitet. Prüfe je
   Zeitraum Protokoll und Zahlung, bitte das Lohnbüro um das Protokoll und lege
   es aus dem Eingang mit `beleg_ablegen` ab.
 - **Bei Versäumnis:** Verspätungszuschlag nach Dauer, Häufigkeit und Höhe
@@ -591,10 +589,9 @@ Mit und ohne Steuerberater:
   bei Eröffnung die Eröffnungsbilanz als Abschrift mit der Erklärung
   ([§ 60 Abs. 1 EStDV][estdv60]); das Anlagenverzeichnis ab Wirtschaftsjahren,
   die nach dem 31.12.2027 beginnen ([§ 84 Abs. 3f EStDV][estdv84]).
-- **Buchfink liefert:** Zuordnung der Konten zu Taxonomie-Positionen mit
-  Kontennachweis in der XBRL-Datei; als Rückfallweg die Summen- und
-  Saldenliste als CSV. Die Zuordnung ist nicht gegen die amtliche Fassung
-  geprüft; sag das dem Menschen.
+- **Buchfink liefert:** XBRL-Datei nach der amtlichen Taxonomie mit
+  Kontennachweis, vor dem Export geprüft (`befunde`); als Rückfallweg die
+  Summen- und Saldenliste als CSV.
 - **Nachweis:** Transferticket; der Mensch bestätigt in der App.
 - **Bei Versäumnis:** Ohne E-Bilanz ist die Körperschaftsteuererklärung
   unvollständig. Das Finanzamt kann die Übermittlung mit Zwangsgeld

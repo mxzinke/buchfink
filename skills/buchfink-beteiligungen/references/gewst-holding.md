@@ -6,7 +6,8 @@ Gewerbesteuererklärung 2025. Die Grenzen von 15 %
 gelten unverändert; sie ändern sich nur durch Gesetz. Stand: Oktober 2026.
 
 Rechenweg, Messzahl, Hebesatz und Abgabe regelt buchfink-steuererklaerungen.
-Hier bestimmst du, was Beteiligungserträge am Gewerbeertrag ändern.
+Hier steht, was Beteiligungserträge am Gewerbeertrag ändern; Buchfink rechnet
+es in `erklaerung` (`art: gewst`), du prüfst es.
 
 ## Inhalt
 
@@ -80,8 +81,8 @@ bei der Gewerbesteuer hinzuzurechnen ist.
   Veräußerungsverluste hinzu, soweit sie auf Ausschüttungen zurückgehen, die
   nach § 9 Nr. 2a, 7 oder 8 gekürzt werden ([§ 8 Nr. 10 GewStG][gewstg8]).
   Bei einem Anteil an einer Kapitalgesellschaft hat § 8b Abs. 3 Satz 3 KStG
-  diese Minderung schon aus dem Gewinn genommen. Rechne sie nicht ein zweites
-  Mal hinzu.
+  diese Minderung schon aus dem Gewinn genommen; sie wird nicht ein zweites
+  Mal hinzugerechnet.
 
 ## 5. Finanzierungskosten der Beteiligung
 
@@ -101,13 +102,13 @@ Die Teilfreistellung der Fondserträge ist bei der Ermittlung des
 Gewerbeertrags nur zur Hälfte zu berücksichtigen
 ([§ 20 Abs. 5 InvStG][invstg20]). Für die GmbH bei einem Aktienfonds: 80 %
 frei bei der Körperschaftsteuer, 40 % bei der Gewerbesteuer. In der
-Kontrollrechnung rechnest du den Unterschied, also 40 % des Ertrags, dem
-Gewerbeertrag hinzu. In der Erklärung trägt der Mensch dagegen die gesamten
-Teilfreistellungen nach §§ 20 und 21 InvStG aus unmittelbaren Beteiligungen in
-GewSt 1 A Zeile 48 ein; den Korrekturbetrag nach § 20 Abs. 5 rechnet das
-Finanzamt selbst ([ELSTER-Anleitung GewSt 2025][elstergewst]). Übergib deshalb
-den vollen Freistellungsbetrag, nicht die Hälfte. Sätze je Fondsart stehen in
-der Referenz zu Investmentfonds (Liste in SKILL.md).
+Erklärung stehen die gesamten Teilfreistellungen nach §§ 20 und 21 InvStG aus
+unmittelbaren Beteiligungen in GewSt 1 A Zeile 48; den Korrekturbetrag nach
+§ 20 Abs. 5 rechnet das Finanzamt selbst
+([ELSTER-Anleitung GewSt 2025][elstergewst]). So führt es auch Buchfink: Zeile
+48 mit dem vollen Betrag, die Hälfte nur in seiner Rechnung des Gewerbeertrags.
+Sätze je Fondsart stehen in der Referenz zu Investmentfonds (Liste in
+SKILL.md).
 
 ## 7. Beispiel
 
@@ -128,15 +129,15 @@ buchfink-steuererklaerungen.
 
 ## 8. Angaben für die Erklärung
 
-- Übergib je Beteiligung: Quote zu Beginn des Erhebungszeitraums, Sitz,
-  Dividende brutto, die 5 % nach § 8b Abs. 5 KStG, den Betrag der
-  Hinzurechnung nach § 8 Nr. 5 oder der Kürzung nach § 9 Nr. 2a oder 7.
+- `erklaerung` (`art: gewst`) führt § 8 Nr. 5 und § 9 Nr. 2a als eigene
+  Zeilen. Den Vorschlag zu § 8 Nr. 5 rechnet Buchfink aus der Quote der Kartei
+  und dem Erwerbsdatum; ein Erwerb im Jahr zählt für § 9 Nr. 2a nicht.
+  Bestätige ihn nach Rückfrage, wenn die Quote zu Beginn des
+  Erhebungszeitraums an der Gesellschafterliste stimmt. Ausländische
+  Gesellschaften (§ 9 Nr. 7) prüft ein Steuerberater (Abschnitt 3).
 - Belegt ist nur Zeile 48 (Teilfreistellungen, Abschnitt 6). Die Zeilen für
   § 8 Nr. 5 und § 9 Nr. 2a, 7 sind hier nicht belegt; der Mensch folgt der
   Ausfüllhilfe in Mein ELSTER.
-- Prüfe in `erklaerung` (`art: gewst`), ob die Zeilen für § 8 Nr. 5 und
-  § 9 Nr. 2a, 7 belegt sind. Fehlen sie, ergänze sie in der Tabelle für
-  Mein ELSTER mit Herkunft (buchfink-steuererklaerungen, Abgabe).
 
 [elstergewst]: https://www.elster.de/eportal/helpGlobal?themaGlobal=help_gewst_ufa_20_2025
 [gewstg7]: https://www.gesetze-im-internet.de/gewstg/__7.html

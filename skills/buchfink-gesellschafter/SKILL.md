@@ -103,7 +103,8 @@ sperrt Buchfink für GmbH und UG.
   `darlehen_erfassen`: Gesellschafter, Richtung, Betrag, Zinssatz und
   Zinsberechnung, Vertragsdatum, Beginn, Fälligkeit oder unbestimmte Laufzeit,
   Sicherheit, belegter Vergleichszins, Rangrücktritt. Die Feldnamen nennt das
-  Schema des Werkzeugs.
+  Schema des Werkzeugs. Den Kontakt des Gesellschafters findest oder anlegst
+  du wie bei einer Auslage (buchfink-belege, Referenz zu Auslagen).
 - Auszahlung und Tilgung bucht `bankumsatz_buchen` mit einer Zeile
   `darlehen_id`; Zinsen bucht `buchung_erfassen` oder eine Zeile `konto` am
   Bankumsatz. Konten, Nachrang und Insolvenzfolgen:

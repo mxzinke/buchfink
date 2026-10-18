@@ -75,8 +75,11 @@ Quelle: [Deutsche Bundesbank, Basiszinssatz nach § 247 BGB][bbk], abgerufen am
 
 ## 4. Rechenweg
 
-`offene_posten` nennt Verzugszinsen und Mahnstand je Posten. Rechne trotzdem
-selbst nach und zeig den Rechenweg:
+`offene_posten` liefert je Posten `verzug_ab`, `verzugszinsen` bis zum
+`stichtag`, `pauschale` und den Mahnstand. Übernimm diese Werte und nenne dem
+Menschen die Grundlage (Verzugsbeginn, Zinssatz, Zeitraum). Selbst rechnest du
+nur, wenn ein Wert fehlt, etwa weil der Verzug aus einer Abrede außerhalb von
+Buchfink folgt, oder wenn der Kunde ihn bestreitet. Dann so:
 
 1. Verzugsbeginn nach Abschnitt 1 bestimmen. Zinsen laufen ab dem Folgetag
    ([§ 187 Abs. 1 BGB][bgb187] entsprechend).

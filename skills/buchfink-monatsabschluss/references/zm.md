@@ -76,13 +76,10 @@ Abweichungen an (BZSt, Berichtigung einer ZM).
 - Buchfink übermittelt nicht; der Mensch sendet. `fristen` führt die ZM als
   Pflicht `zm` nur für Zeiträume mit Leistungen nach § 3a Abs. 2 UStG an
   Unternehmer im übrigen Gemeinschaftsgebiet.
-- Ablauf: Der Mensch exportiert die CSV in der App (ein Werkzeug dafür gibt
-  es nicht) → er importiert die Datei im Online-Formular, prüft die Zeilen
-  gegen deine Tabelle aus `erklaerung`, sendet → er nennt dir Zeitpunkt und
+- Ablauf: Du legst die Zeilen aus `erklaerung` als Tabelle vor (eine
+  CSV-Datei bildet Buchfink noch nicht ab) → der Mensch trägt sie im
+  Online-Formular ein, prüft und sendet → er nennt dir Zeitpunkt und
   Transferticket → er erfasst sie in der App (nur App).
-- Ob die CSV von Buchfink dem aktuellen Importformat des Formulars entspricht,
-  ist nicht geprüft. Lehnt das Formular sie ab, trägt der Mensch die Zeilen von
-  Hand ein; melde die Ablehnung als Fehler von Buchfink.
 
 ## 5. Berichtigung
 
@@ -95,7 +92,7 @@ Abweichungen an (BZSt, Berichtigung einer ZM).
 - Ist Kennziffer 21 einer Voranmeldung falsch, ist auch die Voranmeldung
   unverzüglich zu berichtigen ([§ 18b Satz 5 UStG][ustg18b]).
 - In Buchfink: Die Berichtigung rechnet den Zeitraum vollständig neu und
-  verknüpft sie mit der übermittelten Meldung. Die CSV enthält deshalb auch
+  verknüpft sie mit der übermittelten Meldung. `erklaerung` zeigt deshalb auch
   unveränderte Zeilen. Leg dem Menschen nur die Zeilen vor, die sich ändern
   oder storniert werden; nur diese übernimmt er in die berichtigte ZM.
 

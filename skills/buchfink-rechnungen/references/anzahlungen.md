@@ -111,8 +111,8 @@ buchfink-bank dem offenen Abschlag zu; prüfe danach mit `buchungen_suchen`
   buchfink-bank die Zahlung zu.
 - **Auftrag fällt weg, Anzahlung wird zurückgezahlt.** Die Steuer auf die
   Anzahlung wird im Zeitraum der Rückzahlung berichtigt
-  ([§ 17 Abs. 2 Nr. 2 UStG][ustg17], [UStAE 17.1 Abs. 7][ustae171]). In der App
-  über den Verbund; die Auszahlung ordnet buchfink-bank zu.
+  ([§ 17 Abs. 2 Nr. 2 UStG][ustg17], [UStAE 17.1 Abs. 7][ustae171]). Die
+  Rückzahlung im Verbund bildet Buchfink noch nicht ab; sag das dem Menschen.
 - **Leistung an Unternehmen im EU-Ausland.** Keine deutsche Steuer auf die
   Anzahlung, Steuerfall wie die Leistung
   (SKILL.md, Abschnitt 3).

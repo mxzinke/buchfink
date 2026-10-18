@@ -5,9 +5,7 @@ gesetze-im-internet.de gelesen. Basiszins aus den BMF-Schreiben vom
 10.01.2025, IV C 1 - S 1980/00230/009/002 ([Spiegel][bmf2025basis]), und vom
 13.01.2026, IV C 1 - S 1980/00230/012/001 ([Spiegel][bmf2026basis]); das
 BMF-Original war nicht abrufbar. Steuerbescheinigung: BMF-Schreiben vom
-16.05.2025, IV C 1 - S 2401/00008/014/051 ([Spiegel][bmf2025]). Rechenweg von
-Buchfink aus `internal/accounting/investment.go` und
-`internal/service/asset_investment_service.go`.
+16.05.2025, IV C 1 - S 2401/00008/014/051 ([Spiegel][bmf2025]).
 
 ## Inhalt
 
@@ -46,16 +44,16 @@ Buchfink aus `internal/accounting/investment.go` und
 
 - Daueranlage: 0900 Wertpapiere des Anlagevermögens; kurzfristige Anlage: 1510
   Sonstige Wertpapiere.
-- Anlagegut: Fondsart, Stückzahl und ISIN trägt der Mensch in der
-  Anlagenkartei der App ein; das Kennzeichen „Anteil an einer
-  Kapitalgesellschaft“ setzt er **nicht**.
+- Anlagegut: Fondsart, Stückzahl und ISIN bildet Buchfink noch nicht ab,
+  weder als Werkzeug noch in der App; halte sie in der Beteiligungsliste fest.
+  Ein Fonds ist nie „Anteil an einer Kapitalgesellschaft“.
   Buchfink leitet die Anlegerstellung aus der Rechtsform ab; für GmbH und UG
   gilt die Stellung als Anleger, der dem KStG unterliegt.
 - Ausschüttung: `bankumsatz_buchen`, Ertrag brutto auf 7010
   (Anlagevermögen) bzw. 7100 (Umlaufvermögen), Kapitalertragsteuer auf 7630,
   Solidaritätszuschlag auf 7633. Nie auf die §-8b-Konten.
-- Vorabpauschale: keine Buchung. Handelsrechtlich fließt nichts zu; Buchfink
-  hält sie als Nebenrechnung am Anlagegut fest.
+- Vorabpauschale: keine Buchung. Handelsrechtlich fließt nichts zu; sie wirkt
+  nur in der Erklärung (Abschnitt 5).
 - Belastet die Bank Anfang Januar Kapitalertragsteuer auf die Vorabpauschale:
   `bankumsatz_buchen` mit 7630 und 7633.
 
@@ -121,37 +119,35 @@ Stand: Oktober 2026. Den Basiszins für 2027 veröffentlicht das BMF im Januar
 **Steuer.** Die Vorabpauschale ist ein Investmentertrag; die Teilfreistellung
 gilt für sie. Für die GmbH mit einem Aktienfonds sind 20 % der
 Vorabpauschale bei der Körperschaftsteuer und 60 % bei der Gewerbesteuer
-anzusetzen. Rechne den steuerpflichtigen Teil außerbilanziell hinzu.
+anzusetzen. In der Erklärung steht sie in der Zeile `kst.gk.inv_vorabpauschale`
+und die Teilfreistellung in `kst.gk.inv_teilfreistellung`.
 
 Wertungsfrage: **In welchem Jahr setzt die GmbH die Vorabpauschale an?** Das
-Gesetz fingiert den Zufluss am ersten Werktag des Folgejahres. Buchfink hält
-sie beim Kalenderjahr fest, aus dem sie stammt, mit dem Zuflusstag als Datum.
-Ob die bilanzierende GmbH sie im Jahr der Entstehung oder im Jahr des
-fiktiven Zuflusses erfasst, klärt der Mensch mit dem Steuerberater; danach
-gilt die Wahl jedes Jahr gleich.
+Gesetz fingiert den Zufluss am ersten Werktag des Folgejahres. Ob die
+bilanzierende GmbH sie im Jahr der Entstehung oder im Jahr des fiktiven
+Zuflusses erfasst, klärt der Mensch mit dem Steuerberater; danach gilt die
+Wahl jedes Jahr gleich.
 
-**In Buchfink (nur App):** Am Anlagegut mit Fondsart „Vorabpauschale“:
-Kalenderjahr, Rücknahmepreis des gehaltenen Bestands am Jahresanfang und
-Jahresende, Ausschüttungen, Basiszins in Prozent. Buchfink zeigt Basisertrag,
-Wertzuwachs, Vorabpauschale und Zuflusstag mit Erklärung; „festhalten“
-schreibt eine Bewegung ohne Buchung, je Jahr höchstens eine. Ein Werkzeug
-dafür gibt es nicht: Rechne vor, gleiche mit der Bescheinigung der Bank ab
-(Abschnitt 7) und bitte den Menschen, den Wert festzuhalten.
+**In Buchfink:** Die Vorabpauschale am Anlagegut festzuhalten bildet Buchfink
+noch nicht ab, weder als Werkzeug noch in der App. Nimm den Betrag aus der
+Bescheinigung der Bank (Abschnitt 7) und trag ihn nach Rückfrage mit
+`erklaerung_eingabe` in die Zeile `kst.gk.inv_vorabpauschale` ein; die
+Teilfreistellung (`kst.gk.inv_teilfreistellung`) ebenso.
 
 ## 6. Verkauf und Verlust
 
-- Buchung in der Kartei wie jeder Abgang einer Finanzanlage: 4851 und 4857
-  bei Buchgewinn, 6891 und 6897 bei Buchverlust.
+- Den Abgang aus der Kartei bildet Buchfink noch nicht ab; die Konten wären
+  4851 und 4857 bei Buchgewinn, 6891 und 6897 bei Buchverlust.
 - Steuerpflichtig ist der Gewinn abzüglich der über die Besitzzeit
-  angesetzten Vorabpauschalen, davon der nicht freigestellte Teil. Buchfink
-  zeigt diese Nebenrechnung im Abgang.
+  angesetzten Vorabpauschalen, davon der nicht freigestellte Teil.
 - [§ 19 Abs. 1 Satz 3 InvStG][invstg19] ordnet den Abzug der Vorabpauschalen
   ausdrücklich für Anteile an, die nicht zu einem Betriebsvermögen gehören.
-  Buchfink zieht sie auch bei der GmbH ab, weil sie dort schon versteuert
-  wurden. Lass das vom Steuerberater bestätigen.
+  Ob er bei der GmbH ebenso gilt, weil sie dort schon versteuert wurden, lass
+  vom Steuerberater bestätigen.
 - Ein Verlust ist bei einem Aktienfonds für die GmbH nur zu 20 % abziehbar
   ([§ 21 InvStG][invstg21] mit [§ 20 Abs. 1 Satz 3 InvStG][invstg20]); ebenso
-  eine Teilwertabschreibung. Rechne 80 % hinzu. Die ELSTER-Anleitung zur
+  eine Teilwertabschreibung. Die übrigen 80 % rechnet Buchfink nicht hinzu;
+  leg den Betrag dem Menschen vor. Die ELSTER-Anleitung zur
   Gewerbesteuererklärung 2025 lässt in Zeile 48 die gesamten Teilfreistellungen
   „nach den §§ 20 und 21 InvStG“ eintragen und den Korrekturbetrag nach § 20
   Abs. 5 vom Finanzamt rechnen. Ob § 21 damit bei der Gewerbesteuer nur zur
@@ -171,22 +167,16 @@ dafür gibt es nicht: Rechne vor, gleiche mit der Bescheinigung der Bank ab
 - Die Bank bescheinigt Körperschaften nach Muster III
   ([BMF 16.05.2025, Rn. 57][bmf2025]). Der nachrichtliche Teil gliedert die
   Investmenterträge vor Teilfreistellung und die als zugeflossen geltenden
-  Vorabpauschalen auf (Rn. 59). Gleiche Buchfinks Rechnung damit ab.
+  Vorabpauschalen auf (Rn. 59). Daraus nimmst du die Werte für die
+  Erklärung.
 
 ## 8. Was Buchfink rechnet und was nicht
 
 | Buchfink rechnet | Buchfink rechnet nicht |
 |---|---|
-| Teilfreistellungssatz je Fondsart für die Körperschaftsteuer | die halbe Teilfreistellung für die Gewerbesteuer (§ 20 Abs. 5); in GewSt 1 A Zeile 48 gehört ohnehin die volle Teilfreistellung, die Hälfte rechnet das Finanzamt (ELSTER-Anleitung GewSt 2025) |
-| Vorabpauschale nach § 18 mit Begrenzung, Ausschüttungsabzug, Zwölftelung | Basiszins (Eingabe); Zwölftelung getrennter Nachkäufe |
-| steuerfreien und steuerpflichtigen Teil einer Ausschüttung und eines Abgangs | anteiliges Abzugsverbot nach § 21 für Verluste und Abschreibungen |
-| Summe der Vorabpauschalen über die Besitzzeit | Buchung irgendeines dieser Werte |
-
-- Zwölftelung: Buchfink kürzt nur nach dem Erwerbsmonat des Anlageguts. Kauft
-  die GmbH im Jahr nach, rechne die Tranche getrennt oder lass sie als eigenes
-  Anlagegut anlegen.
-- Zuflusstag: Buchfink zählt den Samstag als Werktag und nennt für 2026 den
-  02.01.2027; das BMF nennt den 04.01.2027. Nimm den Tag des BMF.
+| Teilfreistellung je Fondsart aus den Daten der Kartei; in der Gewerbesteuer die volle Teilfreistellung in Zeile 48 und die Hälfte im Gewerbeertrag (§ 20 Abs. 5) | Fondsart, Ertrag, Vorabpauschale und Abgang in der Kartei erfassen: noch nicht abgebildet; ohne diese Daten bleiben die Zeilen offen |
+| | Vorabpauschale; den Betrag nennt die Bescheinigung der Bank |
+| | anteiliges Abzugsverbot nach § 21 für Verluste und Abschreibungen |
 
 ## 9. Beispiel
 

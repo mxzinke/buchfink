@@ -146,7 +146,7 @@ Rechtsstand: 17. Oktober 2026. GoBD in der Fassung vom 14.07.2025
   selbst. Ob sie gelöscht wird, entscheidet der Mensch.
 - Fragt der Mensch, ob er etwas löschen darf, prüf Art der Unterlage, Frist,
   Beginn und offene Festsetzungsfristen und antworte mit Datum und Fundstelle.
-  Löschen nach Fristablauf geschieht nur in der App.
+  Ein Löschen nach Fristablauf bildet Buchfink noch nicht ab.
 
 [gobd]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf
 [gobd2024]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2024-03-11-aenderung-gobd.pdf

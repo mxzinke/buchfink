@@ -112,8 +112,9 @@ diesen Monat nach der Fälligkeit der Voranmeldung.
    schreibt in der App fest. Fertig, wenn `status` ein
    `mandant.festgeschrieben_bis` am oder nach dem Monatsende zeigt.
 8. **Vorbereitet melden.** Rufe `erklaerung` noch einmal auf; der
-   `zahlen_hash` muss dem aus Schritt 5 gleichen. Die CSV der ZM exportiert
-   der Mensch in der App; ein Werkzeug dafür gibt es nicht. Melde jede
+   `zahlen_hash` muss dem aus Schritt 5 gleichen. Eine CSV-Datei der ZM
+   bildet Buchfink noch nicht ab; der Mensch überträgt die Zeilen aus deiner
+   Tabelle. Melde jede
    Pflicht mit `pflicht_vorbereitet` (`schluessel` aus `fristen`, `notiz`)
    ([pflichten.md](../buchfink-grundlagen/references/pflichten.md#arbeiten-mit-fristen)).
    Fertig, wenn der Hash passt und `fristen` die Pflicht als vorbereitet
@@ -151,9 +152,9 @@ die Werte in Mein ELSTER mit deiner Tabelle übereinstimmen.
    Übermittlungsprotokoll. Er speichert das Protokoll als PDF in den Eingang;
    du legst es auf seine Anweisung mit `beleg_ablegen` ab.
 
-Feldregeln (volle Euro, Kennzahl 500, 46/47 gegen 84/85):
-[references/ustva.md](references/ustva.md), Abschnitt 6. Die ZM geht als
-CSV-Import in Mein ELSTER oder im BZSt-Online-Portal:
+Feldregeln (volle Euro, Kennzahl 500):
+[references/ustva.md](references/ustva.md), Abschnitt 6. Die ZM geht über
+Mein ELSTER oder das BZSt-Online-Portal:
 [references/zm.md](references/zm.md), Abschnitt 4.
 
 Endet ein Senden unklar (Abbruch, Zeitüberschreitung, Fehler nach dem Senden),
@@ -214,10 +215,10 @@ Das Transferticket, das er nennt, erfasst der Mensch in der App.
   [§ 108 Abs. 3 AO][ao108] mit den Feiertagen des Bundeslands aus den
   Stammdaten; stimmt das Bundesland nicht, bitte den Menschen um die Korrektur
   in der App.
-- Buchfink meldet jede § 13b-Steuer als Leistungsempfänger unter Kennziffer
-  46/47, auch Leistungen aus dem Drittland. Diese gehören in 84/85. Prüfe die
-  Buchungen hinter 46/47 ([references/ustva.md](references/ustva.md),
-  Abschnitt 4).
+- Der Steuerfall der Buchung entscheidet zwischen Kennziffer 46/47
+  (`reverse_charge_eu`) und 84/85 (`reverse_charge`). Eine Warnung
+  `reverse_charge_eu_supplier` klärst du vor der Abgabe
+  ([references/ustva.md](references/ustva.md), Abschnitt 4).
 - Für die ZM gilt die Dauerfristverlängerung nicht.
 - Zertifikatsdatei und Passwort für ELSTER bedient nur der Mensch. Lass sie dir
   nie nennen oder schicken.

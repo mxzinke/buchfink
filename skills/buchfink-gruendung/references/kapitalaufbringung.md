@@ -1,9 +1,8 @@
 # Kapitalaufbringung
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von GmbHG und HGB am 17.10.2026
-gelesen; Musterprotokoll aus Anlage 1 zum GmbHG. Konten aus
-`internal/accounting/skr04_2026.json`, Rechenregeln von Buchfink aus
-`internal/accounting/gruendung.go`.
+gelesen; Musterprotokoll aus Anlage 1 zum GmbHG. Konten nach dem SKR04 in
+Buchfink.
 
 ## Inhalt
 

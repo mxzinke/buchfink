@@ -1,8 +1,7 @@
 # Skonto und andere Zahlungsdifferenzen
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von UStG, HGB und GewStG am 17.10.2026
-gelesen. Buchungslogik aus `internal/service/payment_service.go` und
-`internal/domain/payment.go`.
+gelesen.
 
 ## Inhalt
 

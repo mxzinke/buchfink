@@ -3,7 +3,7 @@
 Rechtsstand: 17. Oktober 2026. Gesetz am Wortlaut gelesen. BMF-Schreiben vom
 15.10.2024 über den Spiegel des LfSt Bayern gelesen, BMF-Schreiben vom
 15.10.2025 über einen Kanzleispiegel (bundesfinanzministerium.de war nicht
-abrufbar; Abgleich offen, Quellenverzeichnis `skills/QUELLEN.md` im Buchfink-Repository).
+abrufbar; Abgleich offen, [Quellenverzeichnis][quellen]).
 
 ## Inhalt
 
@@ -135,6 +135,7 @@ Befunde am Beleg.
 Bei einer E-Rechnung genügt der strukturierte Teil in seiner ursprünglichen
 Form. Einzelheiten stehen in buchfink-grundlagen (Aufbewahrung).
 
+[quellen]: https://github.com/mxzinke/buchfink/blob/main/skills/QUELLEN.md
 [ustg14]: https://www.gesetze-im-internet.de/ustg_1980/__14.html
 [ustg27]: https://www.gesetze-im-internet.de/ustg_1980/__27.html
 [ustdv33]: https://www.gesetze-im-internet.de/ustdv_1980/__33.html

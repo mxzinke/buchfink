@@ -38,8 +38,8 @@ buchfink-jahresabschluss.
 - Bei steuerfreien und nicht steuerbaren Umsätzen (z. B. EU-Kunde mit
   Steuerschuldnerschaft) gibt es keine deutsche Steuer zu berichtigen; der ganze
   Betrag ist Aufwand.
-- Buchfink verlangt eine Begründung und vermerkt die Ausbuchung im Protokoll
-  des offenen Postens.
+- Buchfink bildet die Ausbuchung noch nicht ab, weder als Werkzeug noch in der
+  App.
 
 ## 3. Ablauf
 
@@ -50,12 +50,10 @@ buchfink-jahresabschluss.
    Schreiben des Insolvenzverwalters, Vollstreckungsprotokoll, Vergleich.
 3. Vorlage an den Menschen: Posten, Betrag netto und Steuer, Grund, Beleg,
    Zeitraum der Steuerberichtigung, Wertungsfrage nach Abschnitt 1.
-4. Der Mensch bucht die Forderung in der App beim offenen Posten aus
-   („Forderung ausbuchen“, mit Begründung). Ein Werkzeug dafür gibt es
-   nicht.
-5. Prüfen: `offene_posten` zeigt den Posten nicht mehr; `buchungen_suchen`
-   findet die Ausbuchung mit Steuerkorrektur.
-6. Läuft ein Insolvenzverfahren, erinnere den Menschen, die Forderung beim
+4. Sag dem Menschen, dass Buchfink die Ausbuchung noch nicht bucht. Zum
+   Stichtag kann buchfink-jahresabschluss eine Einzelwertberichtigung buchen;
+   die Steuerberichtigung nach § 17 fehlt dann weiter.
+5. Läuft ein Insolvenzverfahren, erinnere den Menschen, die Forderung beim
    Insolvenzverwalter anzumelden. Das geschieht außerhalb von Buchfink.
 
 ## 4. Teilausfall und Vergleich
@@ -64,7 +62,7 @@ buchfink-jahresabschluss.
   ausgebucht; die Steuer wird anteilig berichtigt
   ([§ 17 Abs. 2 Nr. 1 UStG][ustg17]).
 - Kommt eine Teilzahlung über die Bank, ordnet buchfink-bank sie zu. Den Rest
-  bucht der Mensch danach über „Forderung ausbuchen“ mit dem Restbetrag aus.
+  auszubuchen bildet Buchfink noch nicht ab (Abschnitt 3).
 - Ein Nachlass wegen Mängeln mindert das Entgelt
   ([§ 17 Abs. 1 UStG][ustg17]). Weg: buchfink-bank (Differenz am
   Zahlungseingang) oder Rechnungskorrektur

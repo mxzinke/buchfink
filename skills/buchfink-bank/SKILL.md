@@ -32,8 +32,8 @@ Umsatz gebucht:
 ## 1. Ablauf
 
 1. **Konten kennen.** Rufe `status` auf. Frag den Menschen, welche Bankkonten
-   bestehen, oder suche sie mit `konten art=suche suche=Bank`. Ein neues
-   Bankkonto richtet der Mensch in der App ein (nur App). Fertig, wenn du zu
+   bestehen, oder suche sie mit `konten` (`art: suche`, `suche: Bank`). Ein
+   neues Bankkonto richtet der Mensch in der App ein (nur App). Fertig, wenn du zu
    jeder CAMT-Datei das Sachkonto kennst (1800 bis 1850).
 2. **Importieren.** Auf Anweisung des Menschen: `eingang` zeigt die
    CAMT-Dateien im Eingang. Rufe je Datei `kontoauszug_importieren` mit `pfad`
@@ -137,9 +137,10 @@ Erst wenn Schritt 7 aufgeht, ist der Monat für den Prüflauf bereit
 
 ## 5. Nur der Mensch in der App
 
-- Bankkonten einrichten (IBAN, Sachkonto), auch Tagesgeld oder Festgeld.
-- Den ersten Kontoauszug eines Kontos einlesen, damit Buchfink den Endsaldo
-  kennt und spätere Auszüge als geprüft gelten.
+- Bankkonten einrichten (IBAN, Sachkonto), auch Tagesgeld oder Festgeld. Dazu
+  gehört der erste Kontoauszug eines Kontos: Liest du ihn ein, bleibt er
+  ungeprüft; erst ein Auszug aus der App gibt Buchfink den Endsaldo, an dem
+  spätere Auszüge gemessen werden.
 - Eingang einrichten, weitere Ordner freigeben.
 
 ## 6. Wenn der Import ablehnt

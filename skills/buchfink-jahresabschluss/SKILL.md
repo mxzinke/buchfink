@@ -69,8 +69,9 @@ nächsten Aktion.
 | Anlage aus einer Buchung aktivieren | `abschlussbuchung` mit `art: anlage_aktivieren` |
 | Umbuchungen, etwa auf Restlaufzeitkonten | `buchung_erfassen` mit `abschlussperiode: true` |
 | Ergebnisverwendung nach dem Beschluss | `ergebnisverwendung_buchen` |
-| Außerplanmäßige Abschreibung, Zuschreibung, Anlagenabgang | Mensch in der App (Anlagenkartei); du lieferst Zahlen und Begründung |
-| Saldenvortrag, Aufstellen, Jahr festschreiben, Feststellen, Offenlegen, Wiedereröffnen | nur App |
+| Saldenvortrag | ohne Werkzeug: der Mensch in der App |
+| Außerplanmäßige Abschreibung, Zuschreibung, Anlagenabgang | noch nicht abgebildet; du lieferst dem Menschen Zahlen und Begründung |
+| Aufstellen, Jahr festschreiben, Feststellen, Offenlegen, Wiedereröffnen | nur der Mensch in der App |
 
 Rechne jeden Schritt zuerst mit `nur_vorschau: true` und lege Buchungssatz und
 Erläuterung vor. `abschlussbuchung` führt Buchfinks Karteien mit
@@ -100,8 +101,9 @@ Idempotenz: [references/abschlussbuchungen.md](references/abschlussbuchungen.md)
    offen ist. [references/abschlussbuchungen.md](references/abschlussbuchungen.md).
 4. **Anlagen.** `anlagen` zeigt Verzeichnis, fällige AfA und
    Aktivierungskandidaten. Aktiviere offene Kandidaten, dann
-   `abschlussbuchung` mit `art: afa_lauf`. Abgänge erfasst der Mensch in der
-   App. Prüfe außerplanmäßige Abschreibung und Wertaufholung. Fertig, wenn der
+   `abschlussbuchung` mit `art: afa_lauf`. Prüfe, ob eine außerplanmäßige
+   Abschreibung oder Wertaufholung nötig ist, und leg sie dem Menschen vor.
+   Beide und Abgänge bildet Buchfink noch nicht ab. Fertig, wenn der
    Prüflauf kein `depreciation_missing` mehr meldet.
    [references/abschreibungen.md](references/abschreibungen.md).
 5. **Abgrenzen.** Rechnungsabgrenzungsposten, ausstehende Rechnungen,
@@ -153,8 +155,9 @@ Idempotenz: [references/abschlussbuchungen.md](references/abschlussbuchungen.md)
     beschließen Feststellung und Ergebnisverwendung. Lege den Beschluss mit
     `beleg_ablegen` ab. Der Mensch setzt `festgestellt` in der App. Fertig, wenn
     `status` den Stand zeigt.
-16. **Folgejahr.** Der Mensch führt den Saldenvortrag in der App aus und
-    wiederholt ihn nach späten Abschlussbuchungen; Buchfink meldet Differenzen.
+16. **Folgejahr.** Der Mensch führt den Saldenvortrag in der App aus (noch
+    kein Werkzeug) und wiederholt ihn nach späten Abschlussbuchungen; Buchfink
+    meldet Differenzen.
     Du buchst die Ergebnisverwendung nach dem Ja mit
     `ergebnisverwendung_buchen` und arbeitest die Liste Abschlussposten ab.
     Fertig, wenn der Vortrag ohne Differenz steht und die Liste leer ist.
@@ -187,13 +190,14 @@ Idempotenz: [references/abschlussbuchungen.md](references/abschlussbuchungen.md)
 
 ## 5. Nur der Mensch
 
-- Anlagenabgänge, außerplanmäßige Abschreibung und Zuschreibung in der
-  Anlagenkartei der App.
 - Arbeitnehmerzahl und Stammdaten des Geschäftsjahres in der App.
 - Unterzeichnen, Aufstellen, Jahr festschreiben, Feststellen, Offenlegen,
-  Wiedereröffnen, Saldenvortrag in der App.
+  Wiedereröffnen in der App.
 - Gesellschafterbeschlüsse fassen und unterschreiben.
 - Saldenbestätigungen bei Banken, Kunden, Lieferanten anfordern.
+
+Ohne Werkzeug, deshalb in der App: Saldenvortrag. Noch nicht abgebildet:
+Anlagenabgang, außerplanmäßige Abschreibung und Zuschreibung.
 
 ## 6. Stolperfallen
 

@@ -2,8 +2,7 @@
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von HGB, AktG, GmbHG (Anlage 1) und UStG
 am 17.10.2026 gelesen; KStH über einen Kanzleispiegel; das BMF-Schreiben vom
-25.06.1991 nur über Sekundärquellen (Quellenverzeichnis `skills/QUELLEN.md` im Buchfink-Repository). Buchungsgruppen aus
-`internal/accounting/posting_groups.go`.
+25.06.1991 nur über Sekundärquellen ([Quellenverzeichnis][quellen]).
 
 ## Inhalt
 
@@ -88,6 +87,7 @@ Vorgehen:
   Menschen Belege, Beträge und Datum vor und notiere seine Entscheidung im
   Eigenbeleg oder in der Buchungsbeschreibung.
 
+[quellen]: https://github.com/mxzinke/buchfink/blob/main/skills/QUELLEN.md
 [aktg26]: https://www.gesetze-im-internet.de/aktg/__26.html
 [bfh1287]: https://www.haufe.de/id/entscheidung/bfh-urteil-vom-11101989-i-r-1287-HI62976.html
 [gmbhganl1]: https://www.gesetze-im-internet.de/normengrafiken/bgbl1_2021/j3364_0010.pdf

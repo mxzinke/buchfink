@@ -11,7 +11,7 @@ eBilanz-Online am 17.10.2026 gelesen.
 1. Pflicht und Inhalt
 2. Taxonomie und Mindestumfang
 3. Was Buchfink liefert
-4. Prüfen vor dem Export
+4. Prüfpunkte
 5. Übermittlungsweg
 6. Eröffnungsbilanz
 
@@ -71,22 +71,21 @@ sich ein Mussfeld aus der Buchführung nicht füllen, wird es ohne Wert (NIL)
 - `ebilanz_exportieren` mit `format: susa_csv` schreibt die Summen- und
   Saldenliste mit den Elementnamen der Taxonomie als CSV. Das ist der
   Rückfallweg, wenn ein Dienst die XBRL-Datei nicht vollständig übernimmt.
-- Buchfink bildet die Elementnamen nach der Systematik der Taxonomie 6.9. Alle
-  93 Zuordnungen tragen `verified: false`: Sie sind nicht gegen die amtliche
-  Fassung geprüft (`internal/ebilanz/taxonomy_6.9.json`). Sag das dem Menschen
-  bei jeder E-Bilanz.
+- Vor dem Schreiben prüft `ebilanz_exportieren` die Zuordnung jedes Kontos,
+  die Rechenregeln der Taxonomie, Bilanzsumme und Jahresüberschuss, die
+  Mussfelder der Rechtsform und die Stammdaten. Blockierende `befunde`
+  verhindern den Export.
 
-## 4. Prüfen vor dem Export
+## 4. Prüfpunkte
 
-1. Der Abschluss ist aufgestellt; die Zahlen der Instanz entsprechen `auswertung`
-   (`art: bilanz` und `art: guv`) auf den Cent.
-2. Jedes Sachkonto mit Saldo erscheint im Kontennachweis (Wirtschaftsjahre ab
-   2025).
-3. Steuerliche Abweichungen aus der Überleitung zur Körperschaftsteuer
-   (SKILL.md, Schritt 4) stehen in der Überleitungsrechnung.
-4. Stammdaten (Firma, Steuernummer, Wirtschaftsjahr, Rechtsform) stimmen mit
-   `status` überein.
-5. Die Sendung im Online-Dienst (Abschnitt 5) enthält Kontennachweise und
+1. Der Abschluss ist aufgestellt. Ändert sich danach eine Buchung, exportiere
+   neu.
+2. Jeder blockierende Befund aus `ebilanz_exportieren` ist geklärt: eine
+   falsche Zuordnung über die Buchung, fehlende Stammdaten (Steuernummer,
+   Anschrift) über den Menschen in der App. Warnungen legst du ihm vor.
+3. Abweichungen der Steuerbilanz aus der Körperschaftsteuer (SKILL.md,
+   Schritt 4) sind als Wertungsfrage entschieden.
+4. Die Sendung im Online-Dienst (Abschnitt 5) enthält Kontennachweise und
    Anlagenspiegel. Der Anlagenspiegel ist Mussfeld und zu übermitteln
    ([BMF vom 10.06.2025][bmf69]). Fehlen die Kontennachweise in der Sendung,
    gilt für Taxonomie 6.9 eine Nichtbeanstandung: Kontennachweise auf anderem
@@ -94,8 +93,8 @@ sich ein Mussfeld aus der Buchführung nicht füllen, wird es ohne Wert (NIL)
    warum eine Übermittlung der Kontennachweise noch nicht möglich ist“
    darlegen ([BMF vom 10.06.2025][bmf69]).
 
-Fertig, wenn alle fünf Punkte erfüllt sind und der Mensch die Abweichungen der
-Zuordnung zur Kenntnis genommen hat.
+Fertig, wenn kein blockierender Befund bleibt, der Mensch die Warnungen kennt
+und die Sendung Punkt 4 erfüllt.
 
 ## 5. Übermittlungsweg
 
@@ -114,7 +113,7 @@ neu; ob Kontennachweis, Stammdaten und Überleitung dabei vollständig
 
 Ablauf mit dem Menschen:
 
-1. `ebilanz_exportieren` (`jahr`); Prüfung nach Abschnitt 4.
+1. `ebilanz_exportieren` (`jahr`); Abschnitt 4.
 2. Im Dienst: Unternehmen mit 13-stelliger Steuernummer anlegen, Vorgang für
    das Wirtschaftsjahr anlegen, die XBRL-Datei importieren.
 3. Nach dem Import gleicht ihr die Werte mit dem Buchfink-Bericht ab: Bilanz

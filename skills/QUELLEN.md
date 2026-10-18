@@ -231,7 +231,9 @@ Aussage abgeglichen.
 | `internal/accounting/posting_groups.go` | Gruppen `bewirtung` (6640/6644), `geschenke` (6610/6620), `geschenke_betrieblich` (6625), `repraesentation` (6645), `gwg` (6260), `geldverkehr`, `versicherungen`, `miete` |
 | `internal/accounting/tax_params.go` | datierte Werte: Kleinbetrag 150/250 €, Geschenke 35/50 €, Bewirtung 70 %, § 44 UStDV, Steuersätze 2020 |
 | `internal/accounting/afa_rules.json`, `asset_accounts.go` | GWG/Sammelposten-Grenzen, degressive AfA, Kontenkatalog mit Nutzungsdauervorschlägen |
-| `internal/accounting/vat_period.go` | Zuordnung zum Voranmeldungszeitraum: Vorsteuer nach spätestem Datum (Leistung, Beleg, Eingang); § 13b und Erwerb nach Belegdatum; Storno bleibt im Ursprungszeitraum |
+| `internal/accounting/vat_period.go` | Zuordnung zum Voranmeldungszeitraum: Vorsteuer nach spätestem Datum (Leistung, Beleg, Eingang); § 13b Abs. 1 nach Leistungszeitraum, Abs. 2 und Erwerb nach Rechnungsdatum, spätestens Folgemonat; Storno übernimmt die Daten der Ursprungsbuchung |
+| `internal/accounting/tax_keys.go`, `tax_skr04.go` | Steuerschlüssel je Steuerfall; `reverse_charge_eu` → Kz 46/47, `reverse_charge` → Kz 84/85 |
+| `internal/service/posting_service.go` (`reverseChargeParagraphWarning`) | Warnung `reverse_charge_eu_supplier`; inländische Bauleistung mit `reverse_charge` zulässig |
 | `internal/service/posting_currency.go`, `currency_service.go` | EZB-Tageskurs des Belegdatums, BMF-Monatskurs des Belegmonats, Kursdifferenz 6880/4840 |
 | `internal/service/posting_service.go` | USt-IdNr. am Kontakt für EU-Fälle, Anzahlung erst mit Zahlung, Rückstellungsverbrauch |
 | `internal/service/receipt_findings.go`, `service_proof.go` | Befundklassen, Leistungsnachweis |
@@ -255,10 +257,6 @@ Aussage abgeglichen.
   Original prüfen.
 - Gruppe `geschenke_betrieblich`: Grundlage (Verwaltungsregel, vermutlich R 4.10
   EStR) nicht am Wortlaut geprüft.
-- Buchfink: § 13b-Steuer auf EU-Dienstleistungen entsteht mit Ablauf des
-  Voranmeldungszeitraums der Leistung (§ 13b Abs. 1 UStG); `vat_period.go` ordnet
-  nach Belegdatum. Abweichung bei Rechnungen, die nach dem Leistungsmonat datiert
-  sind.
 - Buchfink: Der USt-Umrechnungskurs wird nach dem Monat des Belegdatums gewählt;
   § 16 Abs. 6 UStG nennt den Monat der Leistung.
 - Werkzeug: Wie eine Gutschrift eines Lieferanten (negative Beträge) mit
@@ -432,12 +430,12 @@ abgeglichen.
 
 | Quelle | Pfad | Wofür |
 |---|---|---|
-| Werkzeugkatalog | `docs/entwicklung/mcp.md` | Felder von `rechnung_vorschau`, `rechnung_ausstellen`, `offene_posten`; keine Werkzeuge für Abschlag, Storno, Ausbuchung |
+| Werkzeugkatalog | `docs/entwicklung/mcp.md` | Felder von `rechnung_vorschau`, `rechnung_ausstellen` (`art` rechnung, abschlag, schlussrechnung), `offene_posten` (`verzugszinsen`, `pauschale`); kein Werkzeug für Storno, Korrektur, Ausbuchung |
 | Rechnungsarten | `internal/domain/invoice.go` | Abschlags-, Schluss-, Korrektur-, Stornorechnung (Typcodes 386/380/384), Zahlungsbedingungen, 60-Tage-Hinweis |
 | Rechnungsverbund | `internal/domain/invoice_group.go`, `internal/service/advance_service.go` | Abschläge, Absetzung in der Schlussrechnung |
 | Ausstellen | `internal/service/invoice_service.go` (`Issue`) | Fälligkeit 14 Tage ohne Angabe, Verbraucherhinweis, USt-IdNr.-Bestätigung, Kleinbetrag |
-| Storno, Korrektur | `internal/service/invoice_correction.go` | Generalumkehr im laufenden Zeitraum |
-| Ausbuchung | `internal/service/writeoff.go` | „Forderung ausbuchen“, Begründungspflicht, Steuerkorrektur |
+| Storno, Korrektur | `internal/service/invoice_correction.go` | Generalumkehr im laufenden Zeitraum; derzeit ohne Aufruf aus App oder Werkzeug |
+| Ausbuchung | `internal/service/writeoff.go` | Begründungspflicht, Steuerkorrektur; derzeit ohne Aufruf aus App oder Werkzeug |
 | Konten | `internal/accounting/advance_accounts.go`, `skr04_2026.json` | 3272/3260/3250, 6930/6931/6936, 4925, 4970, 7110 |
 | Verzugsrechnung | `internal/accounting/default_interest.go`, `tax_params.go` | Zuschläge, 365 Tage, Basiszinstabelle |
 | Voranmeldung, ZM | `internal/accounting/ustva.go`, `zm.go` | `reverse_charge_supply` → Kz 21 und ZM bei EU-Kunden, sonst Kz 45 |
@@ -445,9 +443,9 @@ abgeglichen.
 
 ### Offen
 
-- Kein Werkzeug für Stornorechnung, Rechnungskorrektur, Forderung ausbuchen,
-  Versandvermerk und Verzugsrechnung; Abschlags- und Schlussrechnung stellt
-  `rechnung_ausstellen` aus (`art: abschlag`, `schlussrechnung`).
+- Weder Werkzeug noch App für Stornorechnung, Rechnungskorrektur, Forderung
+  ausbuchen, Versandvermerk und Rückzahlung einer Anzahlung im Verbund; die
+  Skills sagen das dem Menschen.
 - Skonto übergibt `rechnung_ausstellen` als `skonto_promille` und
   `skonto_tage`. Prüfen, ob der Hinweis in den strukturierten Teil (BT-20)
   gelangt.
@@ -540,7 +538,8 @@ Links am 17.10.2026 mit HTTP 200 geprüft.
 | Ergebnisverwendung | `internal/service/appropriation_service.go`, `internal/domain/appropriation.go` | Buchung 2970 an 3519 und 3760; 25 % KapESt und 5,5 % SolZ auf die volle Ausschüttung; keine Kirchensteuer |
 | Konten | `internal/domain/skr04_accounts.go`, `skr04_2026.json` | 1307–1309, 0960, 3640–3643, 3519, 3760, 2928, 7316, 7317, 7790 |
 | Sperre Personengesellschaftskonten | `internal/accounting/legal_form_accounts.go` | 2000–2799 u. a. für GmbH/UG gesperrt |
-| Werkzeugkatalog | `docs/entwicklung/mcp.md` | `auslage` mit `gesellschafter_kontakt_id`, `buchung_erfassen` für Gesellschafterdarlehen |
+| Werkzeugkatalog | `docs/entwicklung/mcp.md` | `auslage` mit `gesellschafter_kontakt_id`; `darlehen_erfassen` und `ergebnisverwendung_buchen` (Rückfrage) |
+| Gesellschafter als Kontakt | `internal/service/shareholder_identity.go` | Rolle Gesellschafter oder Geschäftsführer über den Namen in den Unternehmensdaten |
 
 ### Offen
 
@@ -549,13 +548,10 @@ Links am 17.10.2026 mit HTTP 200 geprüft.
   nicht abrufbar und ist im Skill nicht zitiert.
 - KStR und UStAE nur über Kanzleispiegel gelesen; Abgleich mit dem amtlichen
   KSt-Handbuch und UStAE.
-- Ergebnisverwendung hat kein Werkzeug; der Skill verweist auf die App und auf
-  buchfink-jahresabschluss. Mit dem Jahresabschluss-Skill abgleichen.
+- Parameter von `darlehen_erfassen` und `ergebnisverwendung_buchen` mit dem
+  Werkzeugschema abgleichen, sobald die Werkzeuge im Katalog stehen.
 - Buchfink bildet Kirchensteuer, NV-Bescheinigung, Einlagenrückgewähr und die
   Abrundung der KapESt auf volle Euro (§ 44 Abs. 1 Satz 6 EStG) nicht ab.
-- Wie Gesellschafter als Kontakt geführt werden (`gesellschafter_kontakt_id`),
-  beschreibt der Werkzeugkatalog nicht; `kontakt_anlegen` kennt nur Kunde und
-  Lieferant.
 - Ob eine GmbH ohne geplante Ausschüttung die Kirchensteuer-Regelabfrage
   durchführen muss, ist nicht geklärt (BZSt-Hinweise prüfen).
 - SKR04-Katalog: Für 7316 und 7317 zeigt `position_id` auf
@@ -662,7 +658,7 @@ Aussage abgeglichen.
 
 | Quelle | Link | Wofür | Geprüft | Genutzt in |
 |---|---|---|---|---|
-| GoBD, BMF vom 28.11.2019 (Eintrag oben) | https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf | Rz. 109 (Vorerfassungen bis zum Jahresabschluss offen: unzulässig), Rz. 110 (Festschreibung als Mittel) | Text 17.10.2026 (`bb-dl/gobd/g19.txt`) | festschreibung |
+| GoBD, BMF vom 28.11.2019 (Eintrag oben) | https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf | Rz. 109 (Vorerfassungen bis zum Jahresabschluss offen: unzulässig), Rz. 110 (Festschreibung als Mittel) | Text 17.10.2026 | festschreibung |
 | ELSTER, Liste aller Formulare | https://www.elster.de/eportal/formulare-leistungen/alleformulare | Formulare „Umsatzsteuer-Voranmeldung“, „Dauerfristverlängerung/Sondervorauszahlung (monatlich)“, „Zusammenfassende Meldung“ unter „Umsatzsteuer“ | Text 17.10.2026 (Eintrag pflichten) | monatsabschluss/SKILL, ustva, dauerfristverlaengerung |
 | BZSt, ZM: Elektronische Abgabe | https://www.bzst.de/DE/Unternehmen/Umsatzsteuer/ZusammenfassendeMeldung/ElektronischeAbgabe/elektronischeabgabe_zm_node.html | Übermittlung über ELSTER oder BOP; ELSTER ohne, BOP mit Anmeldung zum Fachverfahren ZM; CSV-Import; bis 1.500 Meldezeilen je Formular | Text 17.10.2026 (erneut geprüft) | monatsabschluss/SKILL, zm |
 | BZSt, ZM: Berichtigung | https://www.bzst.de/DE/Unternehmen/Umsatzsteuer/ZusammenfassendeMeldung/BerichtigungZM/berichtigung_node.html | Abgleich mit VA; je Meldezeitraum eigene Berichtigung; korrekte Zeilen nicht wiederholen; Storno mit Bemessungsgrundlage 0 (die Seite nennt § 26a Abs. 1 Nr. 5; nach Wortlaut Abs. 2 Nr. 5) | Text 17.10.2026 | zm |
@@ -712,24 +708,12 @@ Aussage abgeglichen.
   bundesfinanzministerium.de 503).
 - BMF-Schreiben vom 29.12.2025 (Vordrucke 2026, Kz 500) nur über
   Sekundärquellen; den Vordruck selbst gibt die Buhl-Datei wieder.
-- **Code-Fehler `internal/accounting/ustva.go`:** Kz 46 trägt die Referenz
-  „§ 13b Abs. 1 und Abs. 2 Nr. 1 und 5 UStG“, und `RC19_UST`/`RC7_UST` landen
-  immer in 46/47 (Zeilen 60, 96, 401 f.). Nach dem Vordruck 2026 gehören
-  Drittlandsleistungen und Werklieferungen (§ 13b Abs. 2 Nr. 1) in 84/85.
-  Auch die Bezeichnung von Kz 73 („§ 13b Abs. 2 Nr. 2 bis 4, 6 bis 12“) passt
-  nicht zum Vordruck (nur Nr. 3, GrEStG). Der Skill `ustva.md` warnt, bis der
-  Code korrigiert ist.
 - Summe der Vorauszahlungen für die Sondervorauszahlung: Behandlung von
   Überschussmonaten und der Vorjahres-SVZ im Wortlaut offen.
 - Buchfink: Die berichtigte ZM rechnet den ganzen Zeitraum neu; das BZSt
   verlangt, korrekt gemeldete Zeilen nicht zu wiederholen. Export prüfen.
-- Buchfink: Ob die CSV der ZM dem aktuellen Importformat von ELSTER/BOP
-  entspricht, ist nicht geprüft.
-- Buchfink: Fälligkeitsberechnung ignoriert Feiertage (`vat_period.go`).
-- buchfink-grundlagen, Abschnitt 6 („Er wirkt damit im laufenden Zeitraum“):
-  Für die Umsatzsteuer übernimmt der Storno nach `vat_period.go` Beleg- und
-  Leistungsdatum der Ursprungsbuchung und erscheint als Nachtrag zum alten
-  Zeitraum; nur der Storno einer Ausgangsrechnung wirkt im laufenden.
+- Buchfink: Eine CSV-Datei der ZM bietet weder App noch Werkzeug; der Mensch
+  trägt die Zeilen ein.
 
 ## buchfink-jahresabschluss
 
@@ -958,11 +942,12 @@ Aussage abgeglichen.
 
 | Quelle | Pfad | Wofür |
 |---|---|---|
-| Steuerschätzung | `internal/accounting/closing_tax.go` | Ergebnis + nicht abziehbare Konten, KSt, SolZ, GewSt mit Hebesatz, Abrundung 100 €, kein Verlust, keine Hinzurechnungen |
-| Vorschlag Steuerrückstellung | `internal/service/closing_booking_service.go` (`PreviewTaxProvision`, `taxProvisionLines`) | nicht abziehbar nur Gruppenkonten (6620, 6644, 6645); Konten 7600, 7608, 7610, 3040, 3035 |
-| Steuersätze | `internal/accounting/tax_params.go` | KSt 15 %, SolZ 5,5 %, Messzahl 3,5 % ohne Senkung ab 2028 |
+| Steuerschätzung | `internal/accounting/closing_tax.go` | Ergebnis + nicht abziehbare Aufwendungen, § 8b Abs. 1, 2, 5, Spendenabzug in den Höchstbeträgen, Verlustvortrag mit Mindestbesteuerung, KSt, SolZ, GewSt mit Hebesatz; Hinzurechnungen, Kürzungen, vGA und Verlustvorträge als Eingabe |
+| Vorschlag Steuerrückstellung | `internal/service/closing_tax_provision.go` | Bezüge auf 7005, 7006, 7015, 7104 steuerfrei, auf 7014, 7103 steuerpflichtig; Eingaben `verlustvortrag_kst`, `verlustvortrag_gewst`, `korrekturen`, `hinzurechnungen`, `kuerzungen`; Konten 7600, 7608, 7610, 3040, 3035 |
+| Steuersätze | `internal/accounting/tax_params.go` (`corporateTaxRates`) | KSt 15 % bis 2027, dann 14 % bis 10 % ab 2032; SolZ 5,5 %; Messzahl 3,5 %; Verlustabzug über 1 Mio. € 70 %, ab 2028 60 % |
+| Erklärungen | `internal/declaration/kst.go`, `gewst.go`, `catalog/*.json` | Zeilen mit `status`, `zustaendig`, `herkunft`; § 8b aus Konten und Anlagenkartei, Spenden, Verlustabzug, Einlagekonto, § 8 Nr. 1, 5, 9, § 9 Nr. 1, 2a, 5 |
 | Nicht abziehbare Kategorien | `internal/accounting/non_deductible.go` | Geschenke, Bewirtung, Repräsentation |
-| E-Bilanz | `internal/ebilanz/taxonomy_6.9.json`, `internal/ebilanz/ebilanz.go` | 93 Elemente `verified: false`; Kontennachweis |
+| E-Bilanz | `internal/ebilanz/skr04.go`, `checks.go`, `taxonomy/de-6.9.json`, `taxonomy/de-6.10.json` | Zuordnung gegen die amtliche HGB-Taxonomie (XBRL Deutschland), Prüfung vor dem Export, Kontennachweis |
 | Pflichtenkalender | `internal/service/obligation_catalog.go`, `internal/calendar/holidays.go` | `fristen`: Jahreserklärungen mit und ohne Berater; Vorauszahlungen ab erfasstem Bescheid oder gebuchter Zahlung; Feiertage je Bundesland |
 | SKR04 | `internal/accounting/skr04_2026.json` | 3035, 3040, 6390–6398, 6437, 6620–6622, 6644, 6645, 6875, 7105–7107, 7302, 7304, 7308, 7600–7643 |
 | Werkzeugkatalog | `docs/entwicklung/mcp.md` | `erklaerung`, `erklaerung_exportieren`, Formate, Transferticket nur App |
@@ -976,10 +961,6 @@ Aussage abgeglichen.
   übernehmen, dokumentiert keiner; ein Probeimport im kostenlosen Konto klärt
   es. Rückfallweg: Summen- und Saldenliste mit Elementnamen der Taxonomie
   (`ebilanz_exportieren`, `format: susa_csv`).
-- **Code-Korrektur:** `tax_params.go` führt KSt 15 % für alle Jahre; § 23
-  Abs. 1 KStG senkt ab 2028 stufenweise auf 10 %.
-- **Code-Korrektur:** Die Schätzung berücksichtigt keine nicht abziehbaren
-  Nebenleistungen (6437, 7302, 7304, 7308), Spenden, vGA, § 8b, Hinzurechnungen.
 - Taxonomie 6.10 (BMF 08.06.2026) nur über Sekundärquellen; esteuer.de
   antwortet mit 503.
 - § 10d Abs. 2 EStG: Rückkehr auf 60 % ab VZ 2028 nur Sekundärquellen; die
@@ -1107,7 +1088,6 @@ buchfink-steuererklaerungen stehen (§§ 7 KStG, 5b, 16, 18 UStG, §§ 20, 108,
 | Einrichtungsassistent | `frontend/src/components/SetupAssistantScreen.tsx` | Erfassung der Gründungsangaben (nur App) |
 | Buchungsgruppen | `internal/accounting/posting_groups.go` | `beratung` 6825, `beitraege` 6420 |
 | SKR04 | `internal/accounting/skr04_2026.json` | 1298, 1307, 1800, 2900, 2910, 6420, 6825, 9000, 9008, 9009 |
-| Schnitt der Gründungsoberfläche | Commits `b5a4227`, `051c0af` | Gründungsseite, Fristen und Dokumentenablage entfernt |
 | Fachkonzept | `docs/fachkonzepte/gruendung.md` | Hinweisgeber, teils veraltet (siehe Offen) |
 
 ### Offen
@@ -1234,10 +1214,10 @@ nennt nur die hier genutzten Stellen.
 | Anlagenkonten | `internal/accounting/asset_accounts.go` | Katalog 0800–0990, `AssetIncomeAccount` (7000/7010/7011/7100), `ImpairmentAccount` (7204/7200/7201), `WriteUpAccount` (4913/4912), `DisposalAccountsFor` (4852/4858, 6892/6898, 4851/4857, 6891/6897), `WithholdingTaxAccount` 7630 |
 | Anlagen-Dienst | `internal/service/asset_service.go` | `BookAssetIncome` (eine Zeile 7630, Ausleihungszinsen steuerfrei, Dividenden nicht steuerbar), `AcquisitionCandidates`, `DisposalRequest` (Verkauf, Tilgung, Verschrottung; Zahlungsmittel oder offener Posten), Hinweise zu Finanzanlagen |
 | Anlagegut | `internal/domain/asset.go`, `internal/domain/legalform.go` | `HoldingPermille`, `TaxPrivileged`, `FundClass`, `Quantity`; Anlegerstellung aus der Rechtsform |
-| Oberfläche | `frontend/src/pages/AssetsPage.tsx` | Felder und Schaltflächen der Kartei: „Ertrag buchen“, „Vorabpauschale“, „Außerplanmäßig abschreiben“, „Zuschreiben“, „Währung bewerten“, Hinweis „ab einem Fünftel“ |
+| Oberfläche | `frontend/src/pages/books/AssetsTab.tsx` | Kartei nur lesend (Bestand, Bewegungen, Anlagenspiegel); Pflege, Ertrag, Vorabpauschale, Wertänderung und Abgang bieten weder App noch Werkzeug |
 | SKR04 | `internal/accounting/skr04_2026.json` | 0800–0990, 1260–1297, 1500–1530, 4851–4858, 4904–4916, 6891–6898, 7000–7020, 7100–7110, 7200–7255, 7630–7639 mit Kennzeichen G/K und Fußnote 9 |
 | Werkzeugkatalog | `docs/entwicklung/mcp.md` | `bankumsatz_buchen`, `buchung_erfassen`, `abschlussbuchung` (`anlage_aktivieren`) |
-| Abschlusssteuer | `internal/accounting/closing_tax.go` (über steuererklaerungen/kst) | Schätzung ohne § 8b |
+| Abschlusssteuer, Erklärung | `internal/accounting/closing_tax.go`, `internal/declaration/kst.go` (`participations`, `classifyHoldings`, `investments`), `gewst.go` | § 8b Abs. 1 bis 5 aus Konten und Kartei, Streubesitz nach Quote, § 8 Nr. 5 und § 9 Nr. 2a GewStG, Teilfreistellung |
 
 ### Offen
 
@@ -1277,10 +1257,6 @@ nennt nur die hier genutzten Stellen.
   des Buchwerts nicht belegt.
 - **Finanzholding in Buchfink:** Eine Holding ohne Unternehmereigenschaft gibt
   keine Voranmeldungen ab; wie der Mandant dann einzurichten ist, ist offen.
-- **Nebenbefund steuererklaerungen/kst.md:** Die Überleitung (Abschnitt 2,
-  Zeile 2, und Abschnitt 3) rechnet 7630 und 7633 (Kapitalertragsteuer,
-  Solidaritätszuschlag) nicht ausdrücklich nach § 10 Nr. 2 KStG hinzu.
-  buchfink-beteiligungen führt sie als Beteiligungsposten.
 - **Code-Befunde Buchfink (Korrekturkandidaten):**
   - `firstWorkdayOfYear` zählt den Samstag als Werktag und liefert für 2026
     den 02.01.2027; das BMF nennt den 04.01.2027.
@@ -1293,14 +1269,11 @@ nennt nur die hier genutzten Stellen.
     § 8b Abs. 3 S. 9 KStG); für die Wertaufholung eines Anteils passt 4914
     (§ 8b Abs. 2 KStG) dem Namen nach besser. Mit DATEV-Kontenbeschreibung
     abgleichen.
-  - Hinweistexte „ab einem Fünftel“ (`asset_accounts.go`, `asset_service.go`,
-    `AssetsPage.tsx`); § 271 Abs. 1 Satz 3 HGB verlangt „überschreiten“.
+  - Hinweistexte „ab einem Fünftel“ (`asset_accounts.go`, `asset_service.go`);
+    § 271 Abs. 1 Satz 3 HGB verlangt „überschreiten“.
   - Zwölftelung der Vorabpauschale nur nach dem Erwerbsmonat des Anlageguts;
     Nachkäufe im Jahr werden nicht getrennt gekürzt.
-  - Halbe Teilfreistellung für die Gewerbesteuer (§ 20 Abs. 5 InvStG) und
-    anteiliges Abzugsverbot (§ 21 InvStG) werden nicht gerechnet.
-  - Der Vorschlag zur Steuerrückstellung berücksichtigt § 8b KStG, § 8 Nr. 5
-    und § 9 Nr. 2a GewStG nicht.
+  - Anteiliges Abzugsverbot (§ 21 InvStG) wird nicht gerechnet.
 - UStAE nur über die NWB-Datenbank, KStH/EStH nur über Kanzleispiegel gelesen;
   Abgleich mit den amtlichen Handbüchern.
 
@@ -1398,8 +1371,8 @@ ein Abschnitt je Pflichtart mit Anker `<a id="<art>"></a>`). Alle Links am
 |---|---|---|---|---|
 | AEAO zu § 108 Nr. 1 (Kanzleispiegel) | https://www.steuerschroeder.de/steuergesetze/aeao/108 | „Fälligkeitstermine geben das Ende einer Frist an“, also gilt § 108 Abs. 3 AO für Zahlungstermine; im Skill wörtlich zitiert und als Spiegel gekennzeichnet | Text 17.10.2026 (erneut abgerufen, 200); der Spiegel antwortet bei parallelen Abrufen mit 500/503; amtliche Fassung auf bundesfinanzministerium.de nicht erreichbar | Fristende, Zahlungsanker |
 | AEAO zu § 149 (Kanzleispiegel) | https://www.steuerschroeder.de/steuergesetze/aeao/149 | nur Anwendungsregel; nichts zur Frist der Einlagekonto-Feststellung bei abweichendem Wj | Text 17.10.2026 | kst-erklaerung (Offen) |
-| GoBD, BMF vom 28.11.2019 in der Fassung vom 14.07.2025 | https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf; Änderungen 2024 und 2025 wie Abschnitt 2 | Rz. 52, 87 (Buchung bis Ablauf des Folgemonats), Rz. 107–110 (Unveränderbarkeit, Vorerfassungen, Festschreibung); von den Änderungen 2024 und 2025 nicht berührt | Text (`lawdl/gobd2019.txt`, `pdf/gobd2024.txt`, `pdf/gobd2025.txt`) | Kopf, monatsfestschreibung |
-| BMF vom 10.06.2025 (E-Bilanz, Taxonomien 6.9) | https://betriebs-berater.ruw.de/news/media/2/BMF-Schreiben-17367.pdf (Verlagsspiegel) | Kontennachweise ab Wj nach 31.12.2024; Nichtbeanstandung für 6.9 ohne Kontennachweise mit Begründung in der Position „Erläuterung, warum …“; Anlagenspiegel Mussfeld | Text 17.10.2026 (`pdf/bmf_ebilanz_17367.txt`) | ebilanz |
+| GoBD, BMF vom 28.11.2019 in der Fassung vom 14.07.2025 | https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf; Änderungen 2024 und 2025 wie Abschnitt 2 | Rz. 52, 87 (Buchung bis Ablauf des Folgemonats), Rz. 107–110 (Unveränderbarkeit, Vorerfassungen, Festschreibung); von den Änderungen 2024 und 2025 nicht berührt | Text 17.10.2026 | Kopf, monatsfestschreibung |
+| BMF vom 10.06.2025 (E-Bilanz, Taxonomien 6.9) | https://betriebs-berater.ruw.de/news/media/2/BMF-Schreiben-17367.pdf (Verlagsspiegel) | Kontennachweise ab Wj nach 31.12.2024; Nichtbeanstandung für 6.9 ohne Kontennachweise mit Begründung in der Position „Erläuterung, warum …“; Anlagenspiegel Mussfeld | Text 17.10.2026 | ebilanz |
 | ELSTER, Alle Formulare | https://www.elster.de/eportal/formulare-leistungen/alleformulare | Formularnamen und Gruppen: Umsatzsteuer-Voranmeldung, Dauerfristverlängerung/Sondervorauszahlung (monatlich), Zusammenfassende Meldung, Umsatzsteuererklärung, Körperschaftsteuererklärung (KSt 1), Gewerbesteuererklärung (GewSt 1 A), GewSt 1 D, Lohnsteuer-Anmeldung, Kapitalertragsteuer-Anmeldung nach Einkommensteuergesetz, Fragebogen Gründung Kapitalgesellschaft, Antrag auf Fristverlängerung, Antrag auf Anpassung von Vorauszahlungen; kein Formular für Bilanz oder E-Bilanz | Text | Mein ELSTER, alle ELSTER-Anker, ebilanz; steuererklaerungen/fristen-zuschlaege |
 | eBilanz+, Hilfe XBRL-Import | https://ebilanzplus.de/hilfe/xbrl | Import „XBRL-Datei“ in fünf Schritten; nicht alle Berichtsbestandteile, etwa der Anlagenspiegel | Text 17.10.2026 | pflichten#ebilanz, steuererklaerungen/ebilanz |
 | eBilanz+, Hilfe Import | https://ebilanzplus.de/hilfe/import | Saldenliste als CSV/Excel, Layout mit Taxonomie-Elementnamen | Text 17.10.2026 | pflichten#ebilanz, steuererklaerungen/ebilanz |
@@ -1470,12 +1443,11 @@ Code von Buchfink:
   Monat eines Voranmeldungszeitraums nach der UStVA-Fälligkeit zu planen.
   Produkt: Fälligkeit dieser Festschreibung höchstens auf die UStVA-Fälligkeit
   setzen oder das Transferticket unabhängig von der Festschreibung annehmen.
-- **Nachweis Lohnsteuer-Anmeldung und Sondervorauszahlung.** Buchfink setzt
-  „erledigt“ mit gebuchtem Lohnjournal (3730) bzw. mit Buchung auf 3830.
-  Beides belegt die Anmeldung nicht (§ 41a Abs. 1 Satz 1 EStG, § 48 Abs. 2
-  UStDV). Die Skills lassen den Agenten Protokoll bzw. Transferticket
-  nachfragen. Produkt: aus diesen Daten höchstens „vorbereitet“, erledigt nur
-  mit vom Menschen bestätigtem Transferticket (Lohnsteuer zusätzlich Zahlung).
+- **Nachweis Sondervorauszahlung.** Buchfink setzt „erledigt“ mit einer
+  Buchung auf 3830; das belegt die Anmeldung nicht (§ 48 Abs. 2 UStDV). Die
+  Lohnsteuer-Anmeldung führt ein gebuchtes Lohnjournal nur als vorbereitet.
+  Produkt: auch die Sondervorauszahlung erst mit vom Menschen bestätigtem
+  Transferticket erledigt.
 - **Lohnsteuer-Anmeldungszeitraum.** Die Schätzung aus 3730 enthält
   Kirchensteuer und Solidaritätszuschlag und lässt sich in der App nicht
   korrigieren. Produkt: Zeitraum als Stammdatum oder Schätzung nur aus der

@@ -22,8 +22,9 @@ Rechnungsdokument und die Umsatzsteuer.
 - Beide bekommen eine eigene Nummer aus dem Nummernkreis. Die ursprüngliche
   Nummer wird nie wiederverwendet.
 - Im Datensatz der E-Rechnung tragen beide den Typcode 384 (Korrekturrechnung).
-- Ein Werkzeug dafür gibt es nicht. Der Mensch löst beide in der App an der
-  Rechnung aus. Du bereitest Grund, neue Positionen und Text vor.
+- Buchfink bildet beide noch nicht ab, weder als Werkzeug noch in der App. Du
+  bereitest Grund, neue Positionen und Text vor, damit sie ausgestellt werden
+  können, sobald es den Weg gibt.
 - Eine „Gutschrift“ im Sinne von [§ 14 Abs. 2 Satz 5 UStG][ustg14] ist die
   Abrechnung durch den Kunden. Nenn eine Stornorechnung deshalb nie Gutschrift.
 
@@ -84,11 +85,9 @@ Rechnungsdokument und die Umsatzsteuer.
 2. Fehler einordnen nach Abschnitt 2 und 3. Fertig, wenn der Weg feststeht.
 3. Vorlage an den Menschen: Fehler, Weg, Fundstelle, neue Positionen, Wirkung
    auf Voranmeldung und offenen Posten.
-4. Der Mensch löst Stornorechnung oder Rechnungskorrektur in der App aus.
-5. Prüfen: `offene_posten` für den Kunden; der alte Posten ist ausgeglichen, ein
-   neuer steht offen. Hat der Kunde schon bezahlt, entsteht ein Guthaben des
-   Kunden; Rückzahlung oder Verrechnung regelt buchfink-bank.
-6. Versand der neuen Dokumente außerhalb von Buchfink.
+4. Sag dem Menschen, dass Buchfink Stornorechnung und Rechnungskorrektur noch
+   nicht ausstellt; die Rechnung bleibt bis dahin unverändert stehen. Fertig,
+   wenn er Fehler, Weg und Folgen kennt.
 
 [ustg10]: https://www.gesetze-im-internet.de/ustg_1980/__10.html
 [ustg14]: https://www.gesetze-im-internet.de/ustg_1980/__14.html

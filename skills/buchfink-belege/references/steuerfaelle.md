@@ -22,13 +22,14 @@ sie. Für Eingangsbelege gibt es:
 | Steuerfall | Steuerzeilen, die Buchfink bucht | Typischer Beleg |
 |---|---|---|
 | Inland, steuerpflichtig | Vorsteuer 19 % (1406) oder 7 % (1401) | deutscher Lieferant mit Steuerausweis |
-| § 13b UStG | Vorsteuer (1407) und geschuldete Steuer (3837) in gleicher Höhe | Software-Abo, Werbung, Beratung aus dem Ausland |
+| § 13b Abs. 1 UStG (`reverse_charge_eu`) | Vorsteuer (1407) und geschuldete Steuer (3837) in gleicher Höhe; Kennzahl 46/47 | Software-Abo, Werbung, Beratung aus einem anderen EU-Staat |
+| § 13b Abs. 2 UStG (`reverse_charge`) | wie oben; Kennzahl 84/85 | Leistung aus dem Drittland, Werklieferung, inländische Bauleistung an einen Bauleister |
 | Innergemeinschaftlicher Erwerb | Vorsteuer (1404) und Erwerbsteuer (3804) | Ware aus einem anderen EU-Staat |
 | Nullsteuersatz | keine | Photovoltaik nach § 12 Abs. 3 UStG |
 | Steuerfrei | keine | Versicherung, Kontoführung, Miete ohne Option |
 | Nicht steuerbar | keine | Kammerbeitrag, Behördengebühr, echter Schadenersatz |
 
-Kontonummern aus `internal/accounting/skr04_2026.json` und `tax_keys.go`.
+Kontonummern nach dem SKR04 in Buchfink.
 „Ohne Steuer“ ist kein Steuerfall: Wähle immer den Grund
 ([GoBD Rz. 55][gobd], getrennte Aufzeichnung nach [§ 22 UStG][ustg22]).
 
@@ -66,10 +67,9 @@ Eintritt zu Messen und Kongressen im Inland und Restauration an Bord
 | Dauerleistung über mehr als ein Jahr | spätestens mit Ablauf jedes Kalenderjahres | [§ 13b Abs. 3 UStG][ustg13b] |
 | Zahlung vor der Leistung | mit Ablauf des Voranmeldungszeitraums der Zahlung | [§ 13b Abs. 4 Satz 2 UStG][ustg13b] |
 
-Buchfink ordnet § 13b-Steuer und -Vorsteuer nach dem Belegdatum
-(`internal/accounting/vat_period.go`). Bei EU-Dienstleistungen mit
-Rechnungsdatum nach dem Leistungsmonat weicht das vom Gesetz ab. Melde solche
-Belege vor der Voranmeldung dem Menschen.
+Buchfink ordnet die Steuer nach Abs. 1 dem Leistungszeitraum zu, die nach
+Abs. 2 dem Rechnungsdatum, spätestens dem Folgemonat der Leistung. Ohne
+Leistungszeitraum entscheidet das Belegdatum; trag ihn deshalb immer ein.
 
 **Vorsteuer.** Die Steuer nach § 13b ist als Vorsteuer abziehbar, wenn die
 Leistung für das Unternehmen ausgeführt ist
@@ -82,8 +82,11 @@ Leistungsempfängers“ angeben ([§ 14a Abs. 5 UStG][ustg14a]). Fehlt der Hinwe
 
 **Was Buchfink nicht abbildet.**
 
-- Bauleistungen eines inländischen Unternehmers
-  ([§ 13b Abs. 2 Nr. 4 UStG][ustg13b]) und die Bauabzugsteuer.
+- Ob die GmbH bei einer Bauleistung eines inländischen Unternehmers
+  ([§ 13b Abs. 2 Nr. 4 UStG][ustg13b]) die Steuer schuldet: nur, wenn sie
+  selbst nachhaltig Bauleistungen erbringt ([§ 13b Abs. 5 Satz 2 UStG][ustg13b]).
+  Dann buchst du `reverse_charge`; Buchfink prüft die Voraussetzung nicht.
+  Die Bauabzugsteuer ([§ 48 EStG][estg48]) bildet Buchfink nicht ab.
 - Mobilfunkgeräte, Tablets, Spielekonsolen, Schaltkreise und Metalle: § 13b
   erst ab 5.000 € Entgelt je wirtschaftlichem Vorgang
   ([§ 13b Abs. 2 Nr. 10, 11 UStG][ustg13b]). Buchfink prüft die Grenze nicht.
@@ -178,8 +181,9 @@ Häufige steuerfreie Eingangsleistungen ([§ 4 UStG][ustg4]):
   Steuer ([§ 15 Abs. 1 Satz 1 Nr. 1 UStG][ustg15]).
 - Maßgeblich ist der Tag der Leistung ([§ 27 Abs. 1 Satz 1 UStG][ustg27]).
   Buchfink führt die Sätze datiert, etwa 16 % und 5 % für Leistungen vom
-  01.07. bis 31.12.2020 (`internal/accounting/tax_params.go`).
+  01.07. bis 31.12.2020.
 
+[estg48]: https://www.gesetze-im-internet.de/estg/__48.html
 [gobd]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf
 [ustg1a]: https://www.gesetze-im-internet.de/ustg_1980/__1a.html
 [ustg3a]: https://www.gesetze-im-internet.de/ustg_1980/__3a.html

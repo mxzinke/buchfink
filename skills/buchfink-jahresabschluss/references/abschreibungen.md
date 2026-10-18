@@ -83,15 +83,15 @@ entscheidet. Bei großen Beträgen Steuerberater.
   wird ([§ 6 Abs. 1 Nr. 1 Satz 4 EStG][estg6]).
 - Buchfink führt einen Bericht der Anlagen mit früherer außerplanmäßiger
   Abschreibung. Frag den Menschen je Anlage, ob der Grund fortbesteht. Die
-  Zuschreibung erfasst er in der App, höchstens bis zu den fortgeführten
-  Anschaffungskosten.
+  Zuschreibung, höchstens bis zu den fortgeführten Anschaffungskosten, bildet
+  Buchfink noch nicht ab.
 
 ## 5. Abgang
 
 - Verkauf: Die Rechnung an den Käufer stellt buchfink-rechnungen aus
-  (Umsatzsteuer). Den Abgang aus der Kartei erfasst der Mensch in der App mit
-  Datum; Buchfink bucht den Restbuchwert (SKR04 4855 bei Buchgewinn, 6895 bei
-  Buchverlust).
+  (Umsatzsteuer). Den Abgang aus der Kartei bildet Buchfink noch nicht ab;
+  gebucht würde der Restbuchwert auf SKR04 4855 bei Buchgewinn, 6895 bei
+  Buchverlust.
 - Verschrottung, Diebstahl: Abgang ohne Erlös. Übernimmt ein Gesellschafter
   den Gegenstand ohne angemessenes Entgelt, prüfe eine verdeckte
   Gewinnausschüttung (buchfink-gesellschafter).

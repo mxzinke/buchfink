@@ -17,7 +17,7 @@ Referenz zu Investmentfonds (Liste in SKILL.md).
 4. Steuerbescheinigung und Anrechnung
 5. Sonderfälle
 6. Umsatzsteuer
-7. Beteiligungsposten
+7. Für die Erklärung
 
 ## 1. Anspruch und Zeitpunkt
 
@@ -86,7 +86,7 @@ wie bei Zinsen mit Kapitalertragsteuer (buchfink-bank).
 Die Kapitalertragsteuer wird nach dem Wortlaut auf die Steuer des Jahres
 angerechnet, in dem die Bezüge erfasst sind
 ([§ 36 Abs. 2 Nr. 2 EStG][estg36]), auch wenn du sie erst mit der Zahlung
-buchst. Vermerke im Beteiligungsposten beide Jahre und lass die Zuordnung vom
+buchst. Nenne dem Menschen beide Jahre und lass die Zuordnung vom
 Steuerberater bestätigen.
 
 **Dividendenkonto:**
@@ -99,11 +99,9 @@ Steuerberater bestätigen.
 | 1500 (verbundenes Unternehmen, Umlaufvermögen) | 7104 |
 | 1510 (Umlaufvermögen) | 7103 Erträge aus Anteilen an Kapitalgesellschaften (Umlaufvermögen) § 3 Nr. 40 EStG bzw. § 8b Abs. 1 und 4 KStG |
 
-**Weg über die App:** „Ertrag buchen“ in der Anlagenkartei verknüpft den
-Ertrag mit dem Anlagegut, wählt aber 7000, 7010 oder 7011 und bucht
-Kapitalertragsteuer und Solidaritätszuschlag als eine Zeile auf 7630. Nutzt
-der Mensch diesen Weg, trennst du die Beträge im Beteiligungsposten nach der
-Bescheinigung.
+Steht eine Dividende auf einem anderen Konto, etwa aus einem älteren Import,
+schlägst du die Umbuchung auf das Konto der Tabelle vor (`buchung_erfassen`),
+ebenso Kapitalertragsteuer und Solidaritätszuschlag getrennt auf 7630 und 7633.
 
 ## 4. Steuerbescheinigung und Anrechnung
 
@@ -169,13 +167,14 @@ Dividenden sind kein Entgelt für eine Leistung und damit nicht steuerbar
 ([UStAE 2.3 Abs. 2 Satz 3][ustae23]). Die Zeilen tragen keinen Steuerfall; in
 der Voranmeldung erscheint nichts.
 
-## 7. Beteiligungsposten
+## 7. Für die Erklärung
 
-Je Dividende: Datum des Beschlusses und der Zahlung, Gesellschaft, Quote zu
-Beginn des Kalenderjahres und des Erhebungszeitraums, Konto, Bruttobetrag,
-Kapitalertragsteuer, Solidaritätszuschlag, `beleg_id` der Bescheinigung.
-Die Korrekturen dazu berechnest du mit den Referenzen zu § 8b KStG und zur
-Gewerbesteuer (Liste in SKILL.md).
+Halte je Dividende in der Beteiligungsliste fest: Datum des Beschlusses und
+der Zahlung, Gesellschaft, Quote zu Beginn des Kalenderjahres und des
+Erhebungszeitraums, Konto, Bruttobetrag, Kapitalertragsteuer,
+Solidaritätszuschlag, `beleg_id` der Bescheinigung. Damit prüfst du zum
+Jahresende die Zeilen, die Buchfink aus Konten und Kartei rechnet (SKILL.md,
+Schritt 7).
 
 [bmf2025]: https://www.steuerschroeder.de/blog/wp-content/uploads/2025/05/2025-05-16-kapitalertragSt-steuerbescheinigung.pdf
 [bfh150-95]: https://datenbank.nwb.de/Dokument/97545/

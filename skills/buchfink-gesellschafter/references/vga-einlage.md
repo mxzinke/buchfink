@@ -36,8 +36,10 @@ abrufbar.
 | Gesellschafter | Einkünfte aus Kapitalvermögen | [§ 20 Abs. 1 Nr. 1 Satz 2 EStG][estg20] |
 | Geschäftsführer | Haftung für nicht abgeführte Steuern bei grober Fahrlässigkeit | [§ 69 AO][ao69] |
 
-Buchfink berechnet die vGA-Korrektur nicht. Die Körperschaftsteuererklärung
-regelt buchfink-steuererklaerungen.
+Die Zeile zur vGA in der Körperschaftsteuererklärung verantwortet der Mensch:
+Buchfink meldet `vga_pruefen`, wenn auf typischen Konten für Leistungen an
+Gesellschafter gebucht ist, setzt den Betrag aber nicht selbst. Den Weg in die
+Erklärung regelt buchfink-steuererklaerungen.
 
 ## 3. Prüfliste typischer Fälle
 

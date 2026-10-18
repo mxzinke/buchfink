@@ -3,7 +3,7 @@
 Rechtsstand: 17. Oktober 2026. Wortlaut von UStG, UStDV, AO und OWiG am
 17.10.2026 gelesen. Kennziffern nach dem Vordruck USt 1 A 2026, gelesen in einer
 [Wiedergabe des Vordrucks][ust1a2026] (Formular-ID 2026USt1A561, Stand
-Dezember 2025), und wie Buchfink sie führt (`internal/accounting/ustva.go`).
+Dezember 2025), und wie Buchfink sie führt.
 
 ## Inhalt
 
@@ -104,12 +104,13 @@ Die übrigen Kennziffern des Vordrucks (Lieferungen, Land- und Forstwirtschaft,
 Dreiecksgeschäft, Fahrzeuge) betreffen die Zielgruppe nicht. Ist eine davon
 belegt, frag nach dem Vorgang.
 
-Fehler in Buchfink: `ustva.go` gibt jede Steuer, die die GmbH als
-Leistungsempfängerin nach § 13b schuldet, unter 46/47 aus, auch Leistungen aus
-dem Drittland. Bis der Code korrigiert ist: Prüf jede Buchung hinter 46/47
-(`buchungen_suchen` mit dem Steuerkonto und dem Zeitraum). Stammt die Leistung von einem Unternehmer außerhalb der EU oder
-ist sie eine Werklieferung, gehört sie in 84/85. Nenne dem Menschen die
-Beträge für beide Kennziffern; er überträgt sie so in Mein ELSTER.
+Ob eine § 13b-Steuer unter 46/47 oder 84/85 steht, folgt aus dem Steuerfall
+der Buchung: `reverse_charge_eu` für die sonstige Leistung nach § 3a Abs. 2
+UStG eines Unternehmers aus einem anderen EU-Staat (46/47), `reverse_charge`
+für Drittland, Werklieferung und Bauleistung (84/85). Wählt eine Buchung
+`reverse_charge` für einen EU-Lieferanten, warnt Buchfink mit
+`reverse_charge_eu_supplier`; kläre jede solche Warnung, bevor der Zeitraum
+abgegeben wird.
 
 Ab dem Kalenderjahr 2026 gilt der Vordruck nach dem BMF-Schreiben vom
 29.12.2025 (III C 3 – S 7344/00039/007/036; Wortlaut des Schreibens nicht
@@ -164,7 +165,6 @@ Den Ablauf hält SKILL.md, Abschnitt 3. Für die Felder gilt:
   Der Vordruck ändert sich jährlich; Buchfink zeigt die Kennzahlen des Jahres.
 - Bemessungsgrundlagen in vollen Euro, Steuerbeträge mit Cent, so wie
   Buchfink sie liefert (Abschnitt 4).
-- 46/47 und 84/85 nach deiner Prüfung aus Abschnitt 4 trennen.
 - Kennzahl 39 nur in der letzten Voranmeldung des Jahres; Kennzeichen
   „berichtigte Anmeldung“ (Kennzahl 10) nur bei einer Berichtigung;
   Kennzahl 500 nur nach Rückfrage.

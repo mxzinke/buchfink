@@ -95,10 +95,10 @@ Die Lohnsteuer-Anmeldung führt `fristen` als Pflicht `lohnsteuer-anmeldung`,
 sobald ein Lohnjournal gebucht ist. Anmeldungszeitraum, Frist, Weg ohne
 Lohnbüro und Folgen: [pflichten.md#lohnsteuer-anmeldung](../buchfink-grundlagen/references/pflichten.md#lohnsteuer-anmeldung).
 Verlangt sind Anmeldung und Abführung ([§ 41a Abs. 1 Satz 1 EStG][estg41a]).
-Buchfink führt den Zeitraum heute schon mit gebuchtem Lohnjournal als
-erledigt; das belegt keins von beiden. Prüfe je Zeitraum Übermittlungsprotokoll
-und gebuchte Zahlung, lege das Protokoll aus dem Eingang ab und bitte den
-Menschen, die Übermittlung in der App zu bestätigen.
+Das gebuchte Lohnjournal meldet den Zeitraum nur als vorbereitet. Prüfe je
+Zeitraum Übermittlungsprotokoll und gebuchte Zahlung, lege das Protokoll aus
+dem Eingang ab und bitte den Menschen, die Übermittlung in der App zu
+bestätigen.
 
 Die Sozialversicherung führt `fristen` nicht:
 

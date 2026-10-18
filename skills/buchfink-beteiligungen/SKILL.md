@@ -17,20 +17,23 @@ laufen Handelsbilanz und Steuer auseinander. Dividenden und
 Veräußerungsgewinne stehen voll in der GuV, bleiben bei der
 Körperschaftsteuer aber zu 95 % außer Ansatz. Fondserträge sind teilweise
 steuerfrei, und die Vorabpauschale wird versteuert, ohne dass gebucht wird.
-Du buchst die Vorgänge und führst die Liste **Beteiligungsposten**: jede
-außerbilanzielle Korrektur mit Konto, Betrag und Fundstelle. Sie geht an
-buchfink-steuererklaerungen.
+Du buchst die Vorgänge auf die Konten, an denen Buchfink die steuerliche Folge
+erkennt, hältst die Anlagenkartei vollständig und prüfst zum Jahresende die
+Zeilen der Erklärungen.
 
 Was Buchfink dafür hat:
 
 - Anlagenkartei für Finanzanlagen: Kennung (ISIN, WKN, Registernummer),
-  Beteiligungsquote, Kennzeichen „Anteil an einer Kapitalgesellschaft“ mit
-  eigenen Konten für Abgang, Abschreibung und Zuschreibung, Fondsart,
-  Stückzahl, Notierungswährung. Diese Felder pflegt nur der Mensch in der App.
-- Je Fondsanteil die Vorabpauschale und die Teilfreistellung als Nebenrechnung
-  ohne Buchung.
-- Keine Rechnung zu § 8b KStG, § 8 Nr. 5 und § 9 Nr. 2a GewStG. Der Vorschlag
-  zur Steuerrückstellung setzt Beteiligungserträge voll an.
+  Beteiligungsquote (ohne Stichtag), Kennzeichen „Anteil an einer
+  Kapitalgesellschaft“ mit eigenen Konten für Abgang, Abschreibung und
+  Zuschreibung, Fondsart, Stückzahl, Notierungswährung. Diese Felder und die
+  Bewegungen eines Anlageguts (Abgang, Wertänderung, Ertrag, Vorabpauschale)
+  bildet Buchfink noch nicht ab, weder als Werkzeug noch in der App; vorhandene
+  Werte liest es.
+- Die Rechnung zu § 8b KStG, § 8 Nr. 5 und § 9 Nr. 2a GewStG, Teilfreistellung
+  und Vorabpauschale in `erklaerung` (`art: kst`, `art: gewst`), aus den
+  §-8b-Konten und der Kartei. Sind Bezüge keinem Anteil mit Quote zugeordnet,
+  bleiben die Zeilen zu Streubesitz und § 8 Nr. 5 offen.
 
 | Thema | Skill |
 |---|---|
@@ -65,9 +68,8 @@ Werkzeuge: `beleg_ablegen`, `bankumsatz_buchen` (Rückfrage),
 | Tochter zahlt aus dem Einlagekonto zurück | keine Einnahme; Steuerberater | [dividenden.md](references/dividenden.md) |
 | Holding stellt einer Tochter Leistungen in Rechnung oder fragt nach Vorsteuer | – | [holding-umsatzsteuer.md](references/holding-umsatzsteuer.md) |
 
-Kontonummern stammen aus `internal/accounting/skr04_2026.json`. Welches
-Dividendenkonto zu welchem Anteil gehört, steht in
-[dividenden.md](references/dividenden.md).
+Kontonummern nach dem SKR04 in Buchfink. Welches Dividendenkonto zu welchem
+Anteil gehört, steht in [dividenden.md](references/dividenden.md).
 
 ## 2. Ablauf für jeden Vorgang
 
@@ -98,15 +100,17 @@ Dividendenkonto zu welchem Anteil gehört, steht in
 6. **Kartei.** Buchungen auf Anlagekonten ohne Anlagegut nennt `anlagen` als
    Aktivierungskandidaten. Das Anlagegut legst du nach Rückfrage mit
    `abschlussbuchung` an (`art: anlage_aktivieren`, `klasse: finanzanlage`,
-   `methode: keine`), oder der Mensch legt es in der App an. Kennung, Quote,
-   Kennzeichen, Fondsart und Stückzahl setzt nur der Mensch in der
-   Anlagenkartei; ebenso Abgang, außerplanmäßige Abschreibung, Zuschreibung
-   und Vorabpauschale. Fertig, wenn `anlagen` das Anlagegut zeigt und es zu
-   den Salden aus `auswertung` passt.
-7. **Beteiligungsposten vormerken.** Je Vorgang: Datum, Konto, Betrag,
-   Korrektur Körperschaftsteuer, Korrektur Gewerbesteuer, Fundstelle,
-   `beleg_id`. Fertig, wenn der Posten in der Liste steht und der Mensch sie
-   kennt.
+   `methode: keine`). Kennung, Quote, Kennzeichen, Fondsart, Stückzahl und
+   die Bewegungen des Anlageguts bildet Buchfink noch nicht ab; halte sie in
+   der Beteiligungsliste fest. Fertig, wenn `anlagen` das Anlagegut zeigt und
+   es zu den Salden aus `auswertung` passt.
+7. **Steuerzeilen prüfen.** Zum Jahresende `erklaerung` (`art: kst` und
+   `art: gewst`): Bezüge und Gewinne nach § 8b, Streubesitz, § 8 Nr. 5,
+   Teilfreistellung, Vorabpauschale. Gleiche jede Zeile mit der
+   Beteiligungsliste ab. Offene Zeilen (`kst.gk.8b_streubesitz`, `gewst.8_5`)
+   füllst du aus der Liste, Vorschläge bestätigst du, wenn die Quote zum
+   Stichtag stimmt; beides nach Rückfrage mit `erklaerung_eingabe`. Fertig,
+   wenn keine dieser Zeilen offen ist und jede zur Liste passt.
 
 ## 3. Steuerliche Folgen auf einen Blick
 
@@ -136,7 +140,9 @@ Berechnung, Beispiele und Ausnahmen:
   hinzurechnen.
 - **Dividendenkonto nach Anteil.** Buche Dividenden auf die
   §-8b-Konten (7005, 7006, 7014, 7015, 7103, 7104). Das SKR04 kennzeichnet sie
-  für Körperschaft- und Gewerbesteuer; die Überleitung findet sie dort.
+  für Körperschaft- und Gewerbesteuer; Buchfink rechnet aus ihnen. Steht die
+  Dividende eines Anteils aus der Kartei auf einem anderen Konto, meldet
+  Buchfink `bezuege_ohne_8b_konto`.
 - **Fondsanteile sind keine Kapitalgesellschaftsanteile.** Setze bei einem
   Investmentfonds nie das Kennzeichen „Anteil an einer Kapitalgesellschaft“
   und buche seine Erträge nie auf §-8b-Konten ([§ 16 Abs. 3 InvStG][invstg16]).
@@ -150,14 +156,15 @@ Berechnung, Beispiele und Ausnahmen:
   [§ 31 Abs. 1 KStG][kstg31]). Erinnere an die Bescheinigung.
 - **Getrennte Steuerkonten.** Kapitalertragsteuer auf 7630, Solidaritätszuschlag
   auf 7633. Beide mindern den Jahresüberschuss, sind aber nicht abziehbar
-  ([§ 10 Nr. 2 KStG][kstg10]); vermerke sie als Hinzurechnung.
+  ([§ 10 Nr. 2 KStG][kstg10]); Buchfink rechnet sie in der Überleitung hinzu.
 - **Bewertung zum Stichtag.** Prüfe jede Finanzanlage zum Jahresende auf
   Wertminderung und frühere Abschreibungen auf Wertaufholung
   ([§ 253 Abs. 3 Satz 5, 6, Abs. 5 HGB][hgb253]).
-- **Rückstellungsvorschlag prüfen.** Bei steuerfreien Beteiligungserträgen ist
-  der Vorschlag von Buchfink zu hoch, bei nicht abziehbaren Verlusten und
-  Abschreibungen zu niedrig. Übergib die Beteiligungsposten an
-  buchfink-steuererklaerungen, bevor der Mensch die Rückstellung bestätigt.
+- **Rückstellungsvorschlag prüfen.** Der Vorschlag behandelt Bezüge auf 7005,
+  7006, 7015 und 7104 als steuerfrei nach § 8b Abs. 1 KStG, auf 7014 und 7103
+  als steuerpflichtig, und sagt das im Hinweis. Die Hinzurechnung nach § 8
+  Nr. 5 GewStG nimmt er nur als Eingabe (`hinzurechnungen`); den Betrag
+  liefert die Gewerbesteuererklärung (buchfink-steuererklaerungen).
 
 ## 5. Wertungsfragen
 
@@ -183,9 +190,6 @@ Leite jede mit „Wertungsfrage:“ ein, nenne Grundlage, Optionen und Folgen.
 
 ## 6. Nur der Mensch
 
-- Anlagegut anlegen und ändern: Kennzeichen, Quote, Fondsart, Stückzahl.
-- Vorabpauschale berechnen und festhalten, Abgang, außerplanmäßige
-  Abschreibung, Zuschreibung, Währungsbewertung in der Anlagenkartei.
 - Als Gesellschafter der Tochter beschließen; Notarverträge schließen
   ([§ 15 Abs. 3, 4 GmbHG][gmbhg15]).
 - Steuerbescheinigungen anfordern; eine Freistellung vom Steuerabzug beim
@@ -194,16 +198,16 @@ Leite jede mit „Wertungsfrage:“ ein, nenne Grundlage, Optionen und Folgen.
   Körperschaftsteuererklärung ([§ 138 Abs. 2 Satz 1 Nr. 3, Abs. 5 AO][ao138]).
 - Einen Steuerberater beauftragen.
 
+Noch nicht abgebildet, weder als Werkzeug noch in der App: Felder der
+Anlagenkartei (Kennzeichen, Quote, Fondsart, Stückzahl), Vorabpauschale
+festhalten, Ertrag, Abgang, außerplanmäßige Abschreibung, Zuschreibung und
+Währungsbewertung eines Anlageguts. Leg dem Menschen Sachverhalt und Zahlen
+vor; ein Steuerberater kann die Werte für die Erklärung bestätigen.
+
 ## 7. Stolperfallen
 
 - Die Streubesitzgrenze von 10 % gilt nur für Dividenden, nicht für
   Veräußerungsgewinne ([§ 8b Abs. 4 Satz 1 KStG][kstg8b] nennt nur „Bezüge“).
-- „Ertrag buchen“ in der Anlagenkartei der App wählt 7000, 7010 oder 7011 und
-  bucht Kapitalertragsteuer und Solidaritätszuschlag zusammen auf 7630. Für
-  Überleitung und Anrechnung brauchst du die Aufteilung; nimm den Weg über
-  das Werkzeug oder trenne die Beträge in der Liste.
-- Buchfink nennt als Zuflusstag der Vorabpauschale 2026 den 02.01.2027, das
-  BMF den 04.01.2027 ([investmentfonds.md](references/investmentfonds.md)).
 - Den Basiszins liefert Buchfink nicht mit: 2,53 % für 2025, 3,20 % für 2026
   (BMF vom 10.01.2025 und 13.01.2026). Stand: Oktober 2026; jedes Jahr neu.
 - Die Bank behält auf Fondserträge Kapitalertragsteuer nach der
@@ -222,9 +226,9 @@ Leite jede mit „Wertungsfrage:“ ein, nenne Grundlage, Optionen und Folgen.
 - Wechseln bei einer Tochter innerhalb von fünf Jahren mehr als 50 % der
   Anteile, gehen ihre nicht genutzten Verluste unter
   ([§ 8c Abs. 1 Satz 1 KStG][kstg8c]). Beim Kauf oder Verkauf Steuerberater.
-- Hinzurechnung nach § 8 Nr. 5 und Kürzung nach § 9 Nr. 2a GewStG kennt die
-  Schätzung von Buchfink nicht. Übergib die Beträge je Beteiligung an
-  buchfink-steuererklaerungen; der Mensch trägt sie in Mein ELSTER ein
+- Die Quote der Kartei trägt keinen Stichtag. Für § 8b Abs. 4 KStG zählt der
+  Beginn des Kalenderjahres, für § 9 Nr. 2a GewStG der Beginn des
+  Erhebungszeitraums; prüfe sie an der Gesellschafterliste
   ([gewst-holding.md](references/gewst-holding.md)).
 - Fondserträge: In GewSt 1 A Zeile 48 steht die volle Teilfreistellung; die
   Hälfte nach § 20 Abs. 5 InvStG rechnet das Finanzamt
@@ -239,9 +243,10 @@ Leite jede mit „Wertungsfrage:“ ein, nenne Grundlage, Optionen und Folgen.
   Dividende beschlossen wird oder eingeht, eine Steuerbescheinigung fehlt
   oder eine Einlagenrückgewähr bescheinigt wird.
 - [references/steuerfreistellung.md](references/steuerfreistellung.md): Lies,
-  wenn du Beteiligungsposten für die Körperschaftsteuer berechnest.
+  wenn du die Zeilen zu § 8b KStG prüfst oder ein Vorgang dort einzuordnen
+  ist.
 - [references/gewst-holding.md](references/gewst-holding.md): Lies, wenn du
-  Hinzurechnung oder Kürzung für Beteiligungserträge bestimmst.
+  Hinzurechnung oder Kürzung für Beteiligungserträge prüfst.
 - [references/bewertung-veraeusserung.md](references/bewertung-veraeusserung.md):
   Lies zum Jahresende, bei Kursverlust, Wertaufholung und Verkauf.
 - [references/investmentfonds.md](references/investmentfonds.md): Lies bei

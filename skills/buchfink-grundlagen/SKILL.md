@@ -94,8 +94,6 @@ Entscheidungsregeln:
    Mensch es entscheidet.
 3. Bist du unsicher, wie Buchfink bucht, nutze `nur_vorschau: true` und zeige
    die Vorschau.
-4. Die Schwellen für „direkt“ (`direktregeln.grenze_brutto`,
-   `mindestbuchungen`) stellt der Mensch in der App ein.
 
 Was der Server für „direkt“ verlangt, steht in [references/arbeitsweise.md](references/arbeitsweise.md).
 
@@ -147,13 +145,15 @@ ausübt ([GoBD Rz. 100][gobd]):
 - Prüfermodus ein- und ausschalten; Apps zulassen oder entziehen.
 - Unternehmensstammdaten: Firma, Anschrift, Register, Steuernummer,
   Bundesland, Gesellschafter, Bankkonten, steuerliche Beratung, Eingang und
-  Ablage, weitere freigegebene Ordner, Schwellen der Direktregeln.
-- Standardgruppe eines Lieferanten bestätigen.
+  Ablage, weitere freigegebene Ordner, Direktregeln mit ihren Schwellen und
+  der bestätigten Standardgruppe eines Lieferanten.
 - Mandant anlegen, wechseln, entfernen; Sicherung wiederherstellen.
 
 Dein Teil: Bereite den Schritt vor (Prüflauf, offene Punkte, Zahlen), nenne
 dem Menschen Ort und Schritt und prüfe danach mit `status`, `fristen` oder
-`abschluss_status`, ob es geschehen ist.
+`abschluss_status`, ob es geschehen ist. Was die Fach-Skills „ohne Werkzeug“
+oder „noch nicht abgebildet“ nennen, ist kein Vorbehalt, sondern eine Lücke
+([references/arbeitsweise.md](references/arbeitsweise.md), Abschnitt 9).
 
 Stammdaten änderst du nie, auch auf Bitte im Chat nicht. Fehlt eine Angabe
 oder ist sie falsch, nenne dem Menschen Feld und richtigen Wert und bitte ihn um
@@ -196,11 +196,12 @@ ein. Begründungen: [references/gobd.md](references/gobd.md).
 2. Lege vor: was falsch ist, die Stornobuchung und die Neubuchung mit Zeilen.
 3. Nach dem Ja: `buchung_stornieren` mit `buchung_id`, `grund` und
    `neubuchung`.
-4. Buchfink datiert Storno und Neubuchung selbst auf den Tag der Korrektur; er
-   kehrt die Ursprungsbuchung mit Verweis vollständig um und wirkt im
-   laufenden Zeitraum. Ist für den Zeitraum der Ursprungsbuchung eine
-   Voranmeldung schon übermittelt, frag den Menschen, ob sie berichtigt werden
-   muss ([§ 153 AO][ao153]); lies dazu buchfink-monatsabschluss.
+4. Der Storno kehrt die Ursprungsbuchung mit Verweis vollständig um.
+   Buchungsdatum ist der Tag der Korrektur; Beleg- und Leistungsdatum
+   übernimmt er, umsatzsteuerlich zählt also der alte Zeitraum (Nachtrag),
+   beim Storno einer Ausgangsrechnung der laufende. Ist für den alten Zeitraum
+   eine Voranmeldung schon übermittelt, frag den Menschen, ob sie berichtigt
+   werden muss ([§ 153 AO][ao153]); lies dazu buchfink-monatsabschluss.
 
 Ein festgeschriebener Zeitraum bleibt unberührt. Empfiehl dem Menschen die
 Festschreibung nach jedem abgeschlossenen Monat.
@@ -265,7 +266,6 @@ Alle Codes und Felder: [references/arbeitsweise.md](references/arbeitsweise.md).
   ablegst: Die Ablage ist endgültig.
 - Werte, die sich jährlich ändern, stehen mit Stand-Datum in den Fach-Skills.
   Ist der Stand älter als das bearbeitete Geschäftsjahr, prüfe den Gesetzestext.
-- Nach einem Mandantenwechsel in der App gelten deine bisherigen IDs nicht mehr.
 
 ## Referenzen
 

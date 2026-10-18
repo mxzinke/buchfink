@@ -1,8 +1,7 @@
 # Aufstellen, Feststellen, Offenlegen
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von §§ 243, 245, 264, 267a, 316, 325,
-326, 335 HGB und §§ 42a, 46, 48 GmbHG am 17.10.2026 gelesen. Stände in Buchfink aus
-`internal/service/closing_service.go`.
+326, 335 HGB und §§ 42a, 46, 48 GmbHG am 17.10.2026 gelesen.
 
 ## Inhalt
 

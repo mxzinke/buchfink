@@ -14,7 +14,7 @@ Rechtsstand: 17. Oktober 2026. Wortlaut des GewStG, des EStG und der AO am
 7. Zerlegung
 8. Vorauszahlungen und Abschlusszahlung
 9. Beispiel
-10. Abgabe und Schätzung in Buchfink
+10. Was Buchfink rechnet, Abgabe
 
 ## 1. Steuerpflicht, Erklärung, Bescheide
 
@@ -37,7 +37,7 @@ Rechtsstand: 17. Oktober 2026. Wortlaut des GewStG, des EStG und der AO am
 
 | Nr. | Posten | Grundlage |
 |---|---|---|
-| 1 | Gewinn aus Gewerbebetrieb, wie er für die Körperschaftsteuer ermittelt wurde, vor Verlustabzug (Überleitung zur Körperschaftsteuer, SKILL.md Schritt 4, Zeile 11) | [§ 7 Satz 1 GewStG][gewstg7] |
+| 1 | Gewinn aus Gewerbebetrieb, wie er für die Körperschaftsteuer ermittelt wurde, vor Verlustabzug (Anlage ZVE) | [§ 7 Satz 1 GewStG][gewstg7] |
 | 2 | + Hinzurechnungen | [§ 8 GewStG][gewstg8] |
 | 3 | − Kürzungen | [§ 9 GewStG][gewstg9] |
 | 4 | − Gewerbeverlust aus Vorjahren | [§ 10a GewStG][gewstg10a] |
@@ -73,7 +73,10 @@ nach dem 31.12.2019 und letztmals für den Erhebungszeitraum 2030
 
 Liegt die Summe der Spalte „Anteil“ unter 200.000 €, entsteht keine
 Hinzurechnung nach Nr. 1. Die meisten kleinen Dienstleister bleiben darunter.
-Erhebe die Beträge trotzdem und trag sie ein, wie die Erklärung es verlangt.
+Buchfink rechnet die Summe aus den SKR04-Konten der Buchstaben a bis f mit
+ihrem Anteil. Prüfe deshalb, ob jeder Aufwand auf dem passenden Konto steht;
+die Hinweise der Zeilen nennen Steuerzinsen und Kaufleasing, die zu prüfen
+sind.
 
 Wertungsfrage: Ob ein Aufwand Miete (Buchst. d, e), Lizenz (f) oder eine
 Dienstleistung ohne Hinzurechnung ist, etwa bei SaaS-Abos, Cloud-Hosting oder
@@ -158,15 +161,24 @@ Rechnerisches Beispiel ohne Beratung:
 | Messbetrag 3,5 % | 4.200,00 € |
 | Gewerbesteuer bei Hebesatz 400 % | 16.800,00 € |
 
-## 10. Abgabe und Schätzung in Buchfink
+## 10. Was Buchfink rechnet, Abgabe
 
+- `erklaerung` (`art: gewst`) übernimmt den Gewinn aus der
+  Körperschaftsteuererklärung desselben Jahres und rechnet § 8 Nr. 1, 5 und 9,
+  § 9 Nr. 2a und 5, den Gewerbeverlust mit Mindestbesteuerung, Messbetrag und
+  Steuer mit dem Hebesatz aus den Einstellungen. Hat die
+  Körperschaftsteuer noch offene oder vorgeschlagene Zeilen, meldet Buchfink
+  `kst_nicht_vollstaendig`.
+- Offen bleiben der Gewerbeverlust laut Bescheid (`gewst.verlust_vorjahr`) und
+  die Frage nach Betriebsstätten in mehreren Gemeinden
+  (`gewst.betriebsstaetten`); beide verantwortet der Mensch. Die Kürzung um
+  die Grundsteuer (`gewst.9_1`, aus Konto 7680) und die Hinzurechnung nach
+  § 8 Nr. 5 (`gewst.8_5`, aus der Quote in der Anlagenkartei) schlägt
+  Buchfink vor; fehlt eine Quote, bleibt `gewst.8_5` offen. Vorschläge
+  bestätigst du nach Rückfrage.
 - Der Mensch überträgt die GewSt 1 A in Mein ELSTER, Formular
   „Gewerbesteuererklärung (GewSt 1 A)“ ([Formularliste][elsterformulare]).
-  `erklaerung` (`art: gewst`) zeigt die Zeilen formularnah. Hinzurechnungen
-  und Kürzungen, die Buchfink nicht kennt, ergänzt du in der Tabelle mit
-  Herkunft. Ablauf: SKILL.md, Schritt 9.
-- Buchfink rechnet die Gewerbesteuer in seiner Schätzung auf dieselbe Basis wie
-  die Körperschaftsteuer, ohne Hinzurechnungen, Kürzungen und Gewerbeverlust.
+  Ablauf: SKILL.md, Schritt 9.
 
 [ao184]: https://www.gesetze-im-internet.de/ao_1977/__184.html
 [estg4]: https://www.gesetze-im-internet.de/estg/__4.html

@@ -1,9 +1,8 @@
 # Erwerb und Ausweis von Finanzanlagen
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von HGB, EStG, GmbHG und AO am
-17.10.2026 auf gesetze-im-internet.de gelesen. Konten aus
-`internal/accounting/skr04_2026.json`, Anlagenkatalog aus
-`internal/accounting/asset_accounts.go`.
+17.10.2026 auf gesetze-im-internet.de gelesen. Konten nach dem SKR04 und dem
+Anlagenkatalog von Buchfink.
 
 ## Inhalt
 
@@ -90,12 +89,12 @@ Konto 7000 vor, für Wertpapiere 7010 und für unbekannte Konten 7100
      mit `beleg_id`, Soll Anlagekonto, Haben Verbindlichkeit.
 4. **Kartei:** Das Anlagegut entsteht aus der Zugangsbuchung, nach
    Rückfrage mit `abschlussbuchung` (`art: anlage_aktivieren`,
-   `klasse: finanzanlage`) oder durch den Menschen in der App. Die Felder der
-   Finanzanlage pflegt nur der Mensch in der Anlagenkartei: Kennung (ISIN, WKN
-   oder Handelsregisternummer), Beteiligungsquote, Kennzeichen „Anteil an
-   einer Kapitalgesellschaft“ (für GmbH- und AG-Anteile, nie für Fonds),
-   Fondsart (nur Fonds), Stückzahl, Notierungswährung. Nachkäufe erfasst er
-   als nachträgliche Anschaffungskosten mit Stückzahl.
+   `klasse: finanzanlage`). Die Felder der Finanzanlage bildet Buchfink noch
+   nicht ab, weder als Werkzeug noch in der App: Kennung (ISIN, WKN oder
+   Handelsregisternummer), Beteiligungsquote, Kennzeichen „Anteil an einer
+   Kapitalgesellschaft“ (für GmbH- und AG-Anteile, nie für Fonds), Fondsart
+   (nur Fonds), Stückzahl, Notierungswährung. Halte sie in der
+   Beteiligungsliste fest.
 5. **Beteiligungsliste** fortschreiben (SKILL.md, Schritt 1).
 
 Fertig, wenn Buchung, Anlagegut und Beteiligungsliste übereinstimmen.
@@ -130,9 +129,8 @@ Fertig, wenn Buchung, Anlagegut und Beteiligungsliste übereinstimmen.
 - **Zinsen:** Ertrag auf 7012 (verbundene Unternehmen) oder 7011. Die
   Kreditgewährung ist umsatzsteuerfrei
   ([§ 4 Nr. 8 Buchst. a UStG][ustg4]); die Folgen für die Vorsteuer stehen in
-  der Referenz zur Umsatzsteuer der Holding (Liste in SKILL.md). Bucht der
-  Mensch die Zinsen in der Anlagenkartei der App, führt Buchfink sie als
-  steuerfrei.
+  der Referenz zur Umsatzsteuer der Holding (Liste in SKILL.md). Buche die
+  Zinsen ohne Umsatzsteuer.
 - **Ausfall:** Teilwertabschreibungen auf Darlehen eines zu mehr als einem
   Viertel beteiligten Gesellschafters sind grundsätzlich nicht abziehbar
   ([§ 8b Abs. 3 Satz 4 KStG][kstg8b]); Ausnahme bei Fremdüblichkeit

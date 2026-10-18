@@ -19,7 +19,7 @@ Werkzeug einen Fall mit `fachliche_regel` ab, gilt die Meldung des Servers.
 | Istversteuerung ([§ 20 UStG][ustg20]) | Buchfink lehnt Buchungen ab. Mandant mit Istversteuerung: Mensch und Steuerberater klären. |
 | OSS und IOSS ([§§ 18i][ustg18i], [18j][ustg18j], [18k UStG][ustg18k]) | Meldung außerhalb von Buchfink. |
 | Differenzbesteuerung ([§ 25a UStG][ustg25a]), Reiseleistungen ([§ 25 UStG][ustg25]), Dreiecksgeschäft ([§ 25b UStG][ustg25b]) | Nicht abgebildet. Steuerberater. |
-| Bauleistungen als Leistungsempfänger nach [§ 13b Abs. 2 Nr. 4 UStG][ustg13b] | Nicht abgebildet. Steuerberater. |
+| Bauleistungen als Leistungsempfänger nach [§ 13b Abs. 2 Nr. 4 UStG][ustg13b] | Buchbar als `reverse_charge`; ob die GmbH selbst nachhaltig Bauleistungen erbringt (Abs. 5 Satz 2), prüft Buchfink nicht, die Bauabzugsteuer bildet es nicht ab. Steuerberater. |
 | Verzicht auf Steuerbefreiungen ([§ 9 UStG][ustg9]) | Nicht abgebildet. |
 | Einfuhrumsatzsteuer, unentgeltliche Wertabgaben | Nicht vollständig abgebildet. Vor dem Buchen nachfragen. |
 | Gutschrift im Sinne von [§ 14 Abs. 2 Satz 5 UStG][ustg14] ausstellen (Abrechnung durch den Leistungsempfänger) | Buchfink stellt keine aus. Empfangene Gutschriften lassen sich ablegen. |

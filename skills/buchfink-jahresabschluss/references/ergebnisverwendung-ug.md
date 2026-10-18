@@ -1,9 +1,7 @@
 # UG-Rücklage, Ergebnisverwendung, Vorträge
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von §§ 5, 5a, 29, 42a, 46, 48 GmbHG und
-§§ 268, 270, 275, 285, 288 HGB am 17.10.2026 gelesen. Buchfink-Verhalten aus
-`internal/service/ug_reserve.go`, `closing_service.go` und
-`internal/wailsbridge/festschreibung_service.go`. Die Ausschüttung selbst
+§§ 268, 270, 275, 285, 288 HGB am 17.10.2026 gelesen. Die Ausschüttung selbst
 (Kapitalertragsteuer, Auszahlung, Bescheinigung) regelt buchfink-gesellschafter.
 
 ## Inhalt
@@ -51,7 +49,7 @@ Rechtsstand: 17. Oktober 2026. Wortlaut von §§ 5, 5a, 29, 42a, 46, 48 GmbHG un
   stimmt ihr Betrag nicht, lehnt Buchfink ab.
 - Folge: Bei einer UG verlangt schon die Festschreibung des Dezembers die
   Rücklage, obwohl das Ergebnis erst nach allen Abschlussbuchungen feststeht.
-  Weg, bis Buchfink die Prüfung an die Jahresfestschreibung bindet:
+  So gehst du vor:
   1. Vor der Dezember-Festschreibung die Rücklage aus dem vorläufigen Ergebnis
      buchen (`abschlussbuchung`, `art: ug_ruecklage`, Rückfrage).
   2. Nach der Steuerrückstellung mit `nur_vorschau: true` neu rechnen; die
@@ -87,9 +85,9 @@ Zahlungsfähigkeit, UG-Rücklage) prüft buchfink-gesellschafter.
 
 ## 4. Buchen im Folgejahr
 
-Der Saldenvortrag (nur App) bringt das Jahresergebnis unverwendet auf 2970
-Gewinnvortrag vor Verwendung bzw. 2978 Verlustvortrag vor Verwendung. Der
-Beschluss verteilt es an seinem Datum:
+Der Saldenvortrag (in der App, noch kein Werkzeug) bringt das Jahresergebnis
+unverwendet auf 2970 Gewinnvortrag vor Verwendung bzw. 2978 Verlustvortrag vor
+Verwendung. Der Beschluss verteilt es an seinem Datum:
 
 | Beschluss | Buchung |
 |---|---|

@@ -70,8 +70,8 @@ Zusätzlich in besonderen Fällen ([§ 14a UStG][ustg14a]):
 - Die Kleinbetragsregel gilt nicht für Leistungen nach §§ 3c, 6a und 13b UStG
   (Fernverkäufe, innergemeinschaftliche Lieferungen, Steuerschuld des
   Leistungsempfängers; [§ 33 Satz 3 UStDV][ustdv33]).
-- Die Grenze von 250 € gilt seit 2017; davor 150 €. Buchfink führt sie datiert
-  (`internal/accounting/tax_params.go`). Stand: Oktober 2026.
+- Die Grenze von 250 € gilt seit 2017; davor 150 €. Buchfink führt sie
+  datiert. Stand: Oktober 2026.
 - Fahrausweise im grenzüberschreitenden Verkehr sind nur mit Bescheinigung über
   den Inlandsanteil eine Rechnung ([§ 34 Abs. 2 UStDV][ustdv34]).
 

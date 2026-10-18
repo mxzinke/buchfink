@@ -1,9 +1,7 @@
 # Zahlungen an und von Finanzamt und Gemeinde
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von AO, UStG, UStDV, EStG und KStG am
-17.10.2026 gelesen. Konten aus dem SKR04 (`internal/accounting/skr04_2026.json`)
-und aus der Buchungslogik von Buchfink
-(`internal/service/closing_booking_service.go`).
+17.10.2026 gelesen. Konten aus dem SKR04 und der Buchungslogik von Buchfink.
 
 Wie hoch eine Steuer ist, bestimmen buchfink-monatsabschluss (Umsatzsteuer) und
 buchfink-steuererklaerungen (KSt, GewSt). Hier wird die Zahlung gebucht.

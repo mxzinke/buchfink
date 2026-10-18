@@ -42,8 +42,8 @@ meldet das Werkzeug `freigabe_noetig` mit Gründen wie `auszug_ungeprueft`,
 `kein_exakter_treffer` oder `mehrere_treffer`.
 
 Vorschläge der Art `regel` stammen aus früheren Buchungen desselben Umsatzes
-gegen ein Konto (`internal/service/bank_service.go`), Vorschläge der Art
-`kreditkarte` aus dem Saldo von 3610. Beide sind Rückfrage.
+gegen ein Konto, Vorschläge der Art `kreditkarte` aus dem Saldo von 3610.
+Beide sind Rückfrage.
 
 ## 3. Aufteilung schreiben
 
@@ -63,7 +63,7 @@ gegen ein Konto (`internal/service/bank_service.go`), Vorschläge der Art
 
 Die Zeilen ergeben zusammen den Umsatz. Buchfink zieht beim Ausgleich Skonto,
 Rundung und Kursdifferenz ab und schlägt eine Gebühr auf, bevor es mit dem
-Umsatz vergleicht (`internal/service/payment_service.go`, `cashAmount`).
+Umsatz vergleicht.
 `betrag` ist bei Konto- und Darlehenszeilen positiv, auch bei einer Abbuchung
 (`"4.90"` für eine Gebühr von −4,90 €). Negativ ist er nur als Abzug innerhalb
 der Aufteilung, etwa die Kapitalertragsteuer einer Zinsgutschrift. Die Zeilen
@@ -80,7 +80,7 @@ aufteilung: [
 ```
 
 Buchfink bucht daraus Verbindlichkeit 1.190,00 an Bank 1.166,20, erhaltene
-Skonti 20,00 und Vorsteuerkorrektur 3,80 (`internal/service/payment_service.go`).
+Skonti 20,00 und Vorsteuerkorrektur 3,80.
 
 Schreib `text` so, dass ein Prüfer ohne Chat versteht, was geschah
 („Zinsen Q3 2026 Tagesgeld, Abrechnung vom 30.09.2026“).

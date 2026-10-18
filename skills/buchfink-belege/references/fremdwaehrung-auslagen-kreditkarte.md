@@ -28,7 +28,6 @@ Werkzeugfelder nach Buchfink 0.3.0.
   meldet das.
 - Die Differenz zwischen beiden Kursen bucht Buchfink als Kursaufwand (6880)
   oder Kursertrag (4840).
-- Quelle: `internal/service/posting_currency.go`.
 
 **Was du übergibst.** In `beleg_buchen_mit_rueckfrage`:
 
@@ -59,10 +58,16 @@ erstattet.
    Vorsteuer der GmbH. Lass sie auf die GmbH berichtigen
    ([§ 31 Abs. 5 UStDV][ustdv31]). Bis 250 € ist kein Empfänger nötig
    ([§ 33 UStDV][ustdv33]).
-3. Buche mit `beleg_buchen_mit_rueckfrage`, `bezahlung: auslage` und
+3. Den Kontakt des Gesellschafters findest du mit `kontakte_suchen`
+   (`text`: sein Name). Fehlt er, legst du ihn mit `kontakt_anlegen` an
+   (`typ: lieferant`, Name genau wie in der Gesellschafterliste der
+   Stammdaten): Buchfink erkennt Gesellschafter und Geschäftsführer am Namen
+   und lehnt andere Gläubiger einer Auslage ab.
+4. Buche mit `beleg_buchen_mit_rueckfrage`, `bezahlung: auslage` und
    `gesellschafter_kontakt_id`. Buchfink bucht die Erstattungsschuld gegenüber
-   dem Gesellschafter. Eine Auslage ist nie Routine.
-4. Die Erstattung (Überweisung an den Gesellschafter) ordnet buchfink-bank zu.
+   dem Gesellschafter (3640), bei einem Geschäftsführer ohne Anteil auf 3500.
+   Eine Auslage ist nie Routine.
+5. Die Erstattung (Überweisung an den Gesellschafter) ordnet buchfink-bank zu.
    Verrechnung, Darlehen und Ausweis regelt buchfink-gesellschafter.
 
 ## 3. Auslage eines Arbeitnehmers

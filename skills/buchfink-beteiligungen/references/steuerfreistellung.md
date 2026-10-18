@@ -1,14 +1,14 @@
 # § 8b KStG: Beteiligungserträge bei der Körperschaftsteuer
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von KStG, EStG und InvStG am
-17.10.2026 auf gesetze-im-internet.de gelesen. Konten aus
-`internal/accounting/skr04_2026.json` und `internal/accounting/asset_accounts.go`.
-Die Sätze von 5 % und 10 % gelten seit Jahren unverändert; sie ändern sich nur
-durch Gesetz. Stand: Oktober 2026.
+17.10.2026 auf gesetze-im-internet.de gelesen. Konten nach dem SKR04 in
+Buchfink. Die Sätze von 5 % und 10 % gelten seit Jahren unverändert; sie
+ändern sich nur durch Gesetz. Stand: Oktober 2026.
 
-Die Überleitung zum Einkommen baut buchfink-steuererklaerungen. Hier
-berechnest du die Zeile „steuerfreie Beteiligungserträge, 5 % nicht abziehbare
-Ausgaben“ und die Hinzurechnungen für Verluste.
+Buchfink rechnet § 8b in der Körperschaftsteuererklärung aus den Konten in
+Abschnitt 8 und der Anlagenkartei (buchfink-steuererklaerungen). Diese
+Referenz erklärt die Regeln, damit du die Zeilen prüfst, Vorgänge richtig
+kontierst und Wertungsfragen erkennst.
 
 ## Inhalt
 
@@ -19,7 +19,7 @@ Ausgaben“ und die Hinzurechnungen für Verluste.
 5. Verluste und Teilwertabschreibungen
 6. Darlehen an die Tochter
 7. Was nicht unter § 8b fällt
-8. Beteiligungsposten nach Konten
+8. Konten und ihre Wirkung
 9. Beispiele
 10. Erklärung
 
@@ -67,7 +67,9 @@ Verwaltung) bleiben abziehbar, weil § 3c Abs. 1 EStG nicht anzuwenden ist
 - Die Grenze gilt nur für Bezüge. Veräußerungsgewinne aus Streubesitz bleiben
   nach Abs. 2 außer Ansatz.
 - Das Feld „Beteiligungsquote“ der Anlagenkartei hält einen Wert ohne Datum.
-  Halte die Quote zu Beginn jedes Kalenderjahres in der Beteiligungsliste fest.
+  Buchfink nimmt diesen Wert und bittet in der Zeile um Bestätigung der Quote
+  zu Beginn des Kalenderjahres. Halte sie je Jahr in der Beteiligungsliste
+  fest.
 
 ## 4. Gewinne aus der Veräußerung
 
@@ -94,7 +96,8 @@ Verwaltung) bleiben abziehbar, weil § 3c Abs. 1 EStG nicht anzuwenden ist
 
 - Gewinnminderungen im Zusammenhang mit dem Anteil sind nicht zu
   berücksichtigen ([§ 8b Abs. 3 Satz 3 KStG][kstg8b]): Teilwertabschreibung,
-  Verlust beim Verkauf, Verlust bei Auflösung. Rechne sie hinzu.
+  Verlust beim Verkauf, Verlust bei Auflösung. Buchfink rechnet sie aus den
+  Konten in Abschnitt 8 hinzu.
 - Eine spätere Wertaufholung bleibt nach Abs. 2 Satz 3 außer Ansatz, mit 5 %
   nicht abziehbar (Abschnitt 4).
 
@@ -131,12 +134,13 @@ Verwaltung) bleiben abziehbar, weil § 3c Abs. 1 EStG nicht anzuwenden ist
   Krankenversicherern ([§ 8b Abs. 8 KStG][kstg8b]). Trifft das zu: Grenze,
   Steuerberater.
 
-## 8. Beteiligungsposten nach Konten
+## 8. Konten und ihre Wirkung
 
-Lies die Salden mit `auswertung` (`art: susa`) und prüfe jeden Betrag am
-Kontoblatt (`art: kontoblatt`), bevor du ihn übernimmst.
+Buchfink liest diese Konten für die Erklärung. Prüfe am Kontoblatt
+(`auswertung`, `art: kontoblatt`), dass jeder Vorgang auf dem passenden Konto
+steht.
 
-| Konto (SKR04) | Inhalt | Korrektur Körperschaftsteuer |
+| Konto (SKR04) | Inhalt | Wirkung in der Körperschaftsteuer |
 |---|---|---|
 | 7005, 7006, 7014, 7015, 7103, 7104 | Dividenden | − Betrag und + 5 % ([§ 8b Abs. 1, 5][kstg8b]); bei Quote unter 10 %: keine Korrektur |
 | 4852 Erlöse, 4858 Restbuchwert | Verkauf eines Anteils aus dem Anlagevermögen mit Buchgewinn | − (4852 − 4858 − gebuchte Veräußerungskosten), + 5 % davon ([§ 8b Abs. 2, 3 Satz 1][kstg8b]) |
@@ -177,7 +181,7 @@ Veräußerungsgewinn 145.000,00 €. Korrektur: − 145.000,00 € und + 7.250,0
 
 **C. Streubesitz:** Dividende 1.000,00 € aus Aktien mit 2 % Quote, gebucht auf
 7014. Keine Korrektur nach § 8b; nur Kapitalertragsteuer und
-Solidaritätszuschlag rechnest du hinzu.
+Solidaritätszuschlag werden hinzugerechnet.
 
 ## 10. Erklärung
 
@@ -187,9 +191,9 @@ Die Körperschaftsteuererklärung trägt der Mensch in Mein ELSTER ein
 vergleichbarer Vorschriften (Zeilen 150 bis 195)“; zu Zeile 156 weist sie auf die
 Beteiligungshöhe zu Beginn des Kalenderjahres hin und schließt
 REIT-Ausschüttungen aus. Die einzelnen Zeilen je Posten sind nicht belegt.
-Übergib die Posten getrennt nach Rechtsgrundlage
-(Abs. 1, Abs. 2, Abs. 3 Satz 1, Abs. 3 Satz 3, Abs. 4, Abs. 5) und mit
-Bruttobeträgen; der Mensch folgt der Ausfüllhilfe des Formulars.
+`erklaerung` (`art: kst`) führt die Beträge getrennt nach Rechtsgrundlage
+(Bezüge, Streubesitz, Gewinne, Minderungen, Darlehen, je mit den 5 %); der
+Mensch überträgt sie nach der Ausfüllhilfe des Formulars.
 
 [elsterkst]: https://www.elster.de/eportal/helpGlobal?themaGlobal=help_kst_2025
 [estg20]: https://www.gesetze-im-internet.de/estg/__20.html

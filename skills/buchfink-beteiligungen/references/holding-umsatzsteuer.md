@@ -105,8 +105,7 @@ dem Steuerberater.
   anderen Unternehmer für dessen Unternehmen geht
   ([§ 9 Abs. 1 UStG][ustg9]). Buchfink bildet den Verzicht nicht ab
   (buchfink-grundlagen, Grenzen).
-- Zinsen sind steuerfreie Umsätze. Führt der Mensch sie über die
-  Anlagenkartei, setzt Buchfink den Steuerfall „steuerfrei“. Wie sie in der
+- Zinsen sind steuerfreie Umsätze ohne Steuerausweis. Wie sie in der
   Voranmeldung erscheinen, prüfst du mit `erklaerung`
   (buchfink-monatsabschluss).
 

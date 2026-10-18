@@ -2,8 +2,7 @@
 
 Rechtsstand: 17. Oktober 2026. Grundsätze zur Unveränderbarkeit stehen in
 buchfink-grundlagen (GoBD); hier steht, was Buchfink vor und nach der
-Festschreibung prüft. Quelle der Regeln: `internal/domain/check.go`,
-`internal/service/check_service.go`, `internal/service/month_close_service.go`.
+Festschreibung prüft.
 
 ## Inhalt
 

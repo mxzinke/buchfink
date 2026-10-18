@@ -1,10 +1,8 @@
 # Körperschaftsteuer und steuerliches Einlagekonto
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von KStG, EStG, EStDV, SolZG und AO am
-17.10.2026 auf gesetze-im-internet.de gelesen. Konten aus
-`internal/accounting/skr04_2026.json`, Rechenweg von Buchfink aus
-`internal/accounting/closing_tax.go` und
-`internal/service/closing_booking_service.go`.
+17.10.2026 auf gesetze-im-internet.de gelesen. Konten nach dem SKR04 in
+Buchfink.
 
 ## Inhalt
 
@@ -43,8 +41,9 @@ Rechtsstand: 17. Oktober 2026. Wortlaut von KStG, EStG, EStDV, SolZG und AO am
 ## 2. Überleitung zum zu versteuernden Einkommen
 
 Was als Einkommen gilt, bestimmen EStG und KStG
-([§ 8 Abs. 1 Satz 1 KStG][kstg8]). Baue die Überleitung in dieser
-Reihenfolge und belege jede Zeile mit Konto, Beleg oder Bescheid.
+([§ 8 Abs. 1 Satz 1 KStG][kstg8]). Buchfink rechnet die Überleitung in dieser
+Reihenfolge (Anlagen GK und ZVE). Prüfe jede Zeile gegen ihre `herkunft`: Konto,
+Beleg oder Bescheid.
 
 | Nr. | Posten | Quelle in Buchfink | Grundlage |
 |---|---|---|---|
@@ -63,9 +62,10 @@ Reihenfolge und belege jede Zeile mit Konto, Beleg oder Bescheid.
 | 13 | = zu versteuerndes Einkommen | – | [§ 7 Abs. 1, 2 KStG][kstg7] |
 
 Zeile 4: Eine Erstattung von Steuern, die beim Abzug das Einkommen nicht
-gemindert haben, nimmst du wieder heraus. Die SKR04-Bezeichnungen „nach § 4
-Abs. 5b EStG“ (7641, 7643) kennzeichnen die Gewerbesteuer. Ist der Betrag
-wesentlich, lass die Behandlung vom Steuerberater bestätigen.
+gemindert haben, erhöht es auch nicht. Buchfink saldiert die Erstattungskonten
+in den Zeilen der Steuern. Die SKR04-Bezeichnungen „nach § 4 Abs. 5b EStG“
+(7641, 7643) kennzeichnen die Gewerbesteuer. Ist der Betrag wesentlich, lass
+die Behandlung vom Steuerberater bestätigen.
 
 Erstattungszinsen nach § 233a AO bucht das SKR04 je nach Behandlung auf 7105,
 7106 oder 7107. Die Hinweise zu § 10 KStG verweisen dazu auf die Rechtsprechung
@@ -87,22 +87,26 @@ Steuerberater vor.
 | Geldstrafen | [§ 10 Nr. 3 KStG][kstg10] | Konto aus der Buchung ablesen |
 | Hälfte der Aufsichtsratsvergütung | [§ 10 Nr. 4 KStG][kstg10] | 6875 |
 
-Buchfink rechnet in seiner Schätzung nur die Konten 6620, 6644 und 6645 hinzu
-(Konten der Buchungsgruppen mit nicht abziehbarem Teil). Alle anderen Zeilen
-ergänzt du. Ob eine einzelne Ausgabe hierher gehört, ist oft eine
-Wertungsfrage.
+Buchfink rechnet die Konten der Buchungsgruppen mit nicht abziehbarem Teil
+und die Steuerkonten in eigenen Zeilen hinzu. Geldbußen, Geldstrafen und nicht
+abziehbare Vorsteuer auf anderen Konten gehören in die Zeile der weiteren
+nicht abziehbaren Aufwendungen; Buchfink schlägt dort 0 vor und nennt im
+Hinweis, wenn auf den Vorsteuerkonten 6860 ff. gebucht ist. Ob eine einzelne
+Ausgabe hierher gehört, ist oft eine Wertungsfrage.
 
 ## 4. Verdeckte Gewinnausschüttung und verdeckte Einlage
 
 - Eine verdeckte Gewinnausschüttung mindert das Einkommen nicht
-  ([§ 8 Abs. 3 Satz 2 KStG][kstg8]). Rechne sie in Zeile 6 hinzu, wenn sie
-  den Jahresüberschuss gemindert hat.
+  ([§ 8 Abs. 3 Satz 2 KStG][kstg8]). Sie gehört in Zeile 6, wenn sie den
+  Jahresüberschuss gemindert hat. Ist auf typischen Konten für Leistungen an
+  Gesellschafter gebucht, meldet Buchfink `vga_pruefen`.
 - Eine verdeckte Einlage erhöht das Einkommen nicht
-  ([§ 8 Abs. 3 Satz 3 KStG][kstg8]). Ziehe sie in Zeile 7 ab, wenn sie als
+  ([§ 8 Abs. 3 Satz 3 KStG][kstg8]). Sie gehört in Zeile 7, wenn sie als
   Ertrag gebucht ist (etwa ein Forderungsverzicht eines Gesellschafters).
 - Wann ein Vorgang vGA oder verdeckte Einlage ist, regelt
-  buchfink-gesellschafter. Hier übernimmst du nur Betrag und Fundstelle, die
-  der Mensch bestätigt hat. Jede vGA ist eine Wertungsfrage.
+  buchfink-gesellschafter. Beide Zeilen verantwortet der Mensch: Du trägst
+  nur Betrag und Fundstelle ein, die er bestätigt hat. Jede vGA ist eine
+  Wertungsfrage.
 
 ## 5. Beteiligungserträge
 
@@ -111,8 +115,10 @@ bleiben unter Bedingungen außer Ansatz; 5 % der Bezüge gelten als nicht
 abziehbare Ausgaben ([§ 8b Abs. 1, 2, 5 KStG][kstg8b]). Dividenden aus einer
 Beteiligung, die zu Beginn des Kalenderjahres unmittelbar unter 10 % des
 Stammkapitals lag, sind steuerpflichtig ([§ 8b Abs. 4 Satz 1 KStG][kstg8b]).
-Für Veräußerungsgewinne gilt diese Ausnahme nicht. Die Regeln, Beträge und die
-Kürzung bei der Gewerbesteuer hält buchfink-beteiligungen.
+Für Veräußerungsgewinne gilt diese Ausnahme nicht. Buchfink rechnet § 8b aus
+den Konten für Beteiligungserträge und der Anlagenkartei; fehlt einem Anteil
+die Quote, bleibt die Zeile der steuerpflichtigen Bezüge aus Streubesitz
+offen. Die Regeln und die Gewerbesteuer hält buchfink-beteiligungen.
 
 ## 6. Spenden
 
@@ -127,6 +133,9 @@ Kürzung bei der Gewerbesteuer hält buchfink-beteiligungen.
   ([§ 50 Abs. 1 EStDV][estdv50]). Lege sie als Beleg ab.
 - Konten: 6391 bis 6393 und 6395 bis 6398 je nach Zweck, 6390 für nicht
   abziehbare Zuwendungen, 6394 für Parteispenden (Abschnitt 3).
+- Buchfink rechnet Höchstbetrag, Abzug und Vortrag (Anlage Z) aus den
+  Spendenkonten. Prüfe, dass zu jeder Spende eine Zuwendungsbestätigung
+  abgelegt ist.
 - Wertungsfrage: Steht hinter der Spende ein Interesse des Gesellschafters
   (Verein des Gesellschafters, Familie), droht eine vGA.
 
@@ -152,7 +161,10 @@ Menschen und den Steuerberater.
   Sekundärquellen sinkt der Satz ab 2028 wieder auf 60 %. Stand: Oktober 2026;
   prüfe den Wortlaut für das bearbeitete Jahr.
 - Der verbleibende Verlustvortrag wird gesondert festgestellt
-  ([§ 10d Abs. 4 Satz 1 EStG][estg10d]). Übernimm ihn nur aus diesem Bescheid.
+  ([§ 10d Abs. 4 Satz 1 EStG][estg10d]). Übernimm ihn nur aus diesem Bescheid;
+  den Abzug mit Mindestbesteuerung rechnet Buchfink.
+- Über den Rücktrag entscheidet der Mensch. Ohne Eintrag in der Zeile zum
+  Verlustrücktrag nimmt das Finanzamt ihn in größtmöglicher Höhe vor.
 - Nach einem schädlichen Beteiligungserwerb gehen nicht genutzte Verluste unter
   ([§ 8c Abs. 1 Satz 1 KStG][kstg8c]). Wertungsfrage, Steuerberater.
 
@@ -201,22 +213,29 @@ SKILL.md (Schritt 9) mit der Referenz zur Abgabe.
 
 ## 12. Was Buchfink rechnet
 
-- Der Vorschlag zur Steuerrückstellung nimmt das Ergebnis vor Ertragsteuern,
-  addiert die nicht abziehbaren Konten der Buchungsgruppen (6620, 6644, 6645)
-  und rechnet darauf Körperschaftsteuer, Solidaritätszuschlag und
-  Gewerbesteuer mit dem Hebesatz aus den Einstellungen.
-- Ergebnis: Rückstellung je Steuerart nach Abzug der gebuchten
-  Vorauszahlungen; eine Überzahlung weist Buchfink als Erstattung aus und bucht
-  sie nicht. Konten der Rückstellung: 3040 (Körperschaftsteuer und
-  Solidaritätszuschlag), 3035 (Gewerbesteuer).
-- Bei einem Verlust setzt Buchfink keine Steuer an und bucht keinen
-  Verlustrücktrag.
-- Die Tabelle der Steuersätze (`internal/accounting/tax_params.go`) führt
-  15 % ohne die gesetzliche Senkung ab 2028.
-- `erklaerung` mit `art: kst` und `art: gewst` liefert je Zeile `schluessel`,
-  `wert`, `status`, `zustaendig` und `herkunft`. Lies die Antwort und ordne
-  jede Zahl einer Zeile der Überleitung zu; offene Angaben trägst du nach
-  Rückfrage mit `erklaerung_eingabe` ein.
+`erklaerung` (`art: kst`) rechnet die Anlagen GK, ZVE, Z, Verluste und WA und
+die Erklärung zum Einlagekonto aus Büchern und Anlagenkartei, mit dem
+Steuersatz des Jahres. Jede Zeile nennt `schluessel`, `wert`, `status`,
+`zustaendig` und `herkunft`. Was nicht in den Büchern steht, bleibt `offen`
+oder `vorgeschlagen`:
+
+| Angabe | `schluessel` | Quelle | `zustaendig` |
+|---|---|---|---|
+| Verlustvortrag zum Schluss des Vorjahres | `kst.v.z14` | Feststellungsbescheid | mensch |
+| Verlustrücktrag | `kst.v.z20` | Entscheidung des Menschen | mensch |
+| Einlagekonto zum Schluss des Vorjahres | `kst.f.bestand_vorjahr` | Feststellungsbescheid | mensch |
+| Verdeckte Gewinnausschüttung, verdeckte Einlage | `kst.gk.vga`, `kst.gk.einlage` | Abschnitt 4 | mensch |
+| Schädlicher Beteiligungserwerb | `kst.wa.z11e` | Gesellschafterliste | mensch |
+| Steuerpflichtige Bezüge aus Streubesitz | `kst.gk.8b_streubesitz` | Quote laut Anlagenkartei | agent_rueckfrage |
+| Weitere nicht abziehbare Aufwendungen | `kst.gk.nab_weitere` | Abschnitt 3 | agent_rueckfrage |
+| Abweichungen der Steuerbilanz | `kst.gk.stb` | Abschnitt 7 | agent_rueckfrage |
+
+Den Vorschlag zur Steuerrückstellung (`abschlussbuchung`,
+`art: steuerrueckstellung`) rechnet Buchfink nach denselben Regeln, kennt
+Verlustvorträge, Hinzurechnungen, Kürzungen und eine vGA aber nur als Eingabe.
+Eine Überzahlung weist er als Erstattung aus und bucht sie nicht. Konten der
+Rückstellung: 3040 (Körperschaftsteuer und Solidaritätszuschlag), 3035
+(Gewerbesteuer). Bei einem Verlust setzt Buchfink keine Steuer an.
 
 [ao20]: https://www.gesetze-im-internet.de/ao_1977/__20.html
 [estdv50]: https://www.gesetze-im-internet.de/estdv_1955/__50.html
