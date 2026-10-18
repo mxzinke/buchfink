@@ -1,0 +1,247 @@
+{
+  "aging": {
+    "cutoff": "2026-03-31",
+    "reference": "§ 268 Abs. 4 und 5 HGB",
+    "sides": [
+      {
+        "buckets": [
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "not_due",
+            "label": "Nicht fällig"
+          },
+          {
+            "amount": 119000,
+            "items": 1,
+            "key": "1_30",
+            "label": "1 bis 30 Tage überfällig"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "31_60",
+            "label": "31 bis 60 Tage überfällig"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "61_90",
+            "label": "61 bis 90 Tage überfällig"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "over_90",
+            "label": "Über 90 Tage überfällig"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "no_due_date",
+            "label": "Ohne Fälligkeit"
+          }
+        ],
+        "items": 1,
+        "label": "Forderungen aus Lieferungen und Leistungen",
+        "maturities": [
+          {
+            "amount": 119000,
+            "items": 1,
+            "key": "up_to_1y",
+            "label": "Restlaufzeit bis zu einem Jahr"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "1_to_5y",
+            "label": "Restlaufzeit über ein bis fünf Jahre"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "over_5y",
+            "label": "Restlaufzeit über fünf Jahre"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "undated",
+            "label": "Ohne Fälligkeit"
+          }
+        ],
+        "side": "receivables",
+        "total": 119000
+      },
+      {
+        "buckets": [
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "not_due",
+            "label": "Nicht fällig"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "1_30",
+            "label": "1 bis 30 Tage überfällig"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "31_60",
+            "label": "31 bis 60 Tage überfällig"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "61_90",
+            "label": "61 bis 90 Tage überfällig"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "over_90",
+            "label": "Über 90 Tage überfällig"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "no_due_date",
+            "label": "Ohne Fälligkeit"
+          }
+        ],
+        "items": 0,
+        "label": "Verbindlichkeiten aus Lieferungen und Leistungen",
+        "maturities": [
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "up_to_1y",
+            "label": "Restlaufzeit bis zu einem Jahr"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "1_to_5y",
+            "label": "Restlaufzeit über ein bis fünf Jahre"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "over_5y",
+            "label": "Restlaufzeit über fünf Jahre"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "undated",
+            "label": "Ohne Fälligkeit"
+          }
+        ],
+        "side": "payables",
+        "total": 0
+      }
+    ]
+  },
+  "allocations": [],
+  "audit": [],
+  "bank": [],
+  "beforePayment": [
+    {
+      "contactId": 2,
+      "contactName": "Kunde GmbH",
+      "contactType": "customer",
+      "documentDate": "2026-03-01",
+      "documentNumber": "RE-4711",
+      "dueDate": "2026-03-15",
+      "entryId": 1,
+      "entryNumber": "2026-000001",
+      "grossAmount": 119000,
+      "ledgerAccount": "10000",
+      "openAmount": 119000,
+      "settledAmount": 0,
+      "source": "journal",
+      "taxRate": 1900,
+      "taxTreatment": "domestic"
+    }
+  ],
+  "details": [],
+  "error": "zu jeder Ausbuchung gehört eine Begründung: woran die Forderung gescheitert ist, entscheidet, ob sie uneinbringlich im Sinne des § 17 Abs. 2 Nr. 1 UStG ist",
+  "journal": [
+    {
+      "actor": "\u003cactor\u003e",
+      "appVersion": "dev",
+      "bookingDate": "2026-03-01",
+      "channel": "system",
+      "closingPeriod": false,
+      "contactId": 2,
+      "createdAt": "\u003ccreatedAt\u003e",
+      "currency": "EUR",
+      "description": "Rechnung",
+      "documentDate": "2026-03-01",
+      "documentNumber": "RE-4711",
+      "entryHash": "\u003centryHash\u003e",
+      "entryNumber": "2026-000001",
+      "exchangeRateMicros": 1000000,
+      "fiscalYear": 2026,
+      "id": 1,
+      "kind": "normal",
+      "lines": [
+        {
+          "account": "4400",
+          "amount": 100000,
+          "entryId": 1,
+          "id": 1,
+          "position": 1,
+          "side": "H"
+        },
+        {
+          "account": "3806",
+          "amount": 19000,
+          "entryId": 1,
+          "id": 2,
+          "position": 2,
+          "side": "H",
+          "taxBase": 100000,
+          "taxKey": "UST19"
+        },
+        {
+          "account": "10000",
+          "amount": 119000,
+          "contactId": 2,
+          "entryId": 1,
+          "id": 3,
+          "position": 3,
+          "side": "S"
+        }
+      ],
+      "postingRuleVersion": "2026.1",
+      "previousHash": "\u003cpreviousHash\u003e",
+      "serviceDateFrom": "2026-03-01",
+      "serviceDateTo": "2026-03-01",
+      "source": "manual",
+      "taxTreatment": "domestic"
+    }
+  ],
+  "openItems": [
+    {
+      "contactId": 2,
+      "contactName": "Kunde GmbH",
+      "contactType": "customer",
+      "documentDate": "2026-03-01",
+      "documentNumber": "RE-4711",
+      "dueDate": "2026-03-15",
+      "entryId": 1,
+      "entryNumber": "2026-000001",
+      "grossAmount": 119000,
+      "ledgerAccount": "10000",
+      "openAmount": 119000,
+      "settledAmount": 0,
+      "source": "journal",
+      "taxRate": 1900,
+      "taxTreatment": "domestic"
+    }
+  ]
+}
