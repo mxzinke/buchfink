@@ -1,5 +1,5 @@
 /**
- * Aufnahmen der Einstellungen: Apps verbinden, eine App, Eingang und Ordner mit
+ * Aufnahmen der Einstellungen: Apps verbinden, eine App, Eingang & Ordner mit
  * den Regeln für Buchungen ohne Rückfrage, der Port, Prüfung & GoBD.
  */
 export default [
@@ -31,7 +31,7 @@ export default [
     file: 'einstellungen-eingang.png',
     go: async ({ page, open }) => {
       await open('#/settings/inbox');
-      await page.getByRole('heading', { level: 2, name: 'Eingang und Ordner' }).waitFor();
+      await page.getByRole('heading', { level: 2, name: 'Eingang & Ordner' }).waitFor();
       await page.locator('#einstellungen-inbox').getByRole('button', { name: /^Erweitert/ }).click();
       await page.getByText('/Users/anna/Dokumente/Verträge').waitFor();
       await page.getByRole('heading', { level: 2, name: 'Buchen ohne Rückfrage' }).waitFor();

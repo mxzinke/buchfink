@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useId, useState } from 'react';
 import { FolderOpen, Plus } from 'lucide-react';
 import { Api } from '../../services/api';
 import type { AgentRules, AgentSettings, InboxInfo } from '../../types';
@@ -12,29 +12,37 @@ function message(error: unknown): string {
 
 type Busy = '' | 'open' | 'inbox' | 'export' | 'read';
 
-/** Eine Zeile mit Bezeichnung, Pfad und den Knöpfen dazu, wie der Sicherungsordner. */
+/**
+ * Eine Zeile mit Bezeichnung, Pfad und den Knöpfen dazu, wie der
+ * Sicherungsordner. Die Gruppe trägt den Namen des Ordners für Screenreader.
+ */
 const FolderRow: React.FC<{ label: string; path: string; note?: string; children?: React.ReactNode }> = ({
   label,
   path,
   note,
   children,
-}) => (
-  <div className="flex flex-wrap items-center gap-x-4 py-1">
-    <span className="w-36 text-label text-ink-muted">{label}</span>
-    <span className="min-w-0 flex-1">
-      <FieldValue className="code-num h-auto min-h-9 truncate">{path || '—'}</FieldValue>
-      {note && <span className="block -mt-1.5 pb-1 text-caption text-ink-subtle">{note}</span>}
-    </span>
-    {children && <span className="flex flex-wrap gap-1">{children}</span>}
-  </div>
-);
+}) => {
+  const labelId = useId();
+  return (
+    <div role="group" aria-labelledby={labelId} className="flex flex-wrap items-center gap-x-4 py-1">
+      <span id={labelId} className="w-36 text-label text-ink-muted">
+        {label}
+      </span>
+      <span className="min-w-0 flex-1">
+        <FieldValue className="code-num h-auto min-h-9 truncate">{path || '—'}</FieldValue>
+        {note && <span className="block -mt-1.5 pb-1 text-caption text-ink-subtle">{note}</span>}
+      </span>
+      {children && <span className="flex flex-wrap gap-1">{children}</span>}
+    </div>
+  );
+};
 
 /**
  * Eingang, Exportordner und – unter „Erweitert“ – die weiteren Leseordner.
  * Alle drei stellt nur der Mensch ein. Der Eingang darf auch in einem
  * Cloud-Ordner liegen, damit eine Scanner-App am Telefon dorthin speichern
  * kann; Datenordner und Sicherungen weist das Backend als Lese- oder
- * Eingangsordner ab.
+ * Eingangsordner ab, ebenso einen Leseordner im Eingang oder um ihn herum.
  */
 export const InboxPanel: React.FC<{ id?: string }> = ({ id }) => {
   const writeLock = useWriteLock();
@@ -130,7 +138,7 @@ export const InboxPanel: React.FC<{ id?: string }> = ({ id }) => {
   return (
     <Section
       id={id}
-      title="Eingang und Ordner"
+      title="Eingang & Ordner"
       context="Wo Belege ankommen und wohin Claude exportiert"
       helpSummary="Belege im Eingang legt Claude ab, wenn Sie es sagen."
       explain={
@@ -154,6 +162,7 @@ export const InboxPanel: React.FC<{ id?: string }> = ({ id }) => {
               size="sm"
               loading={busy === 'open'}
               disabled={busy !== ''}
+              aria-label="Eingang im Dateimanager öffnen"
               onClick={() =>
                 void run('open', async () => {
                   await Api.openInbox();
@@ -169,6 +178,7 @@ export const InboxPanel: React.FC<{ id?: string }> = ({ id }) => {
               disabled={locked}
               title={writeLock.hint}
               icon={<FolderOpen className="w-4 h-4" strokeWidth={1.5} />}
+              aria-label="Anderen Ordner für den Eingang wählen"
               onClick={() => void pickInbox()}
             >
               Anderen Ordner wählen
@@ -179,6 +189,7 @@ export const InboxPanel: React.FC<{ id?: string }> = ({ id }) => {
                 size="sm"
                 disabled={locked}
                 title={writeLock.hint}
+                aria-label="Eingang zurück in die Ablage"
                 onClick={() => void setInbox('')}
               >
                 Zurück in die Ablage
@@ -198,6 +209,7 @@ export const InboxPanel: React.FC<{ id?: string }> = ({ id }) => {
               disabled={locked}
               title={writeLock.hint}
               icon={<FolderOpen className="w-4 h-4" strokeWidth={1.5} />}
+              aria-label="Anderen Ordner für Exporte wählen"
               onClick={() => void pickExport()}
             >
               Anderen Ordner wählen
@@ -208,6 +220,7 @@ export const InboxPanel: React.FC<{ id?: string }> = ({ id }) => {
                 size="sm"
                 disabled={locked}
                 title={writeLock.hint}
+                aria-label="Exportordner zurück in die Ablage"
                 onClick={() => void saveRules('export', { exportFolder: '' }, 'Der Exportordner liegt wieder in der Ablage.')}
               >
                 Zurück in die Ablage
@@ -240,6 +253,7 @@ export const InboxPanel: React.FC<{ id?: string }> = ({ id }) => {
                         size="sm"
                         disabled={locked}
                         title={writeLock.hint}
+                        aria-label={`Leseordner ${folder} entfernen`}
                         onClick={() => void removeReadFolder(folder)}
                       >
                         Entfernen

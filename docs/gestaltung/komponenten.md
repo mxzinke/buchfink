@@ -263,7 +263,7 @@ die Seitenleiste schreibt es aus.
 | Bücher | Stimmt, was gebucht ist? | Belege, Bank, Rechnungen, Journal, Konten, Anlagen, Bilanz & GuV |
 | Abschlüsse | Welcher Monat, welches Jahr ist offen? | Monat, Jahr, Erklärungen mit E-Bilanz |
 | Unternehmen | Sind die Stammdaten vollständig? | Stammdaten, Kontakte |
-| Einstellungen | Wer hat Zugriff, ist gesichert? | Apps verbinden, Eingang & Ordner, Sicherung, Mandanten, Prüfung & GoBD, Erweitert |
+| Einstellungen | Wer hat Zugriff, ist gesichert? | Apps verbinden, Eingang & Ordner, Buchen ohne Rückfrage, Sicherung, Mandanten, Prüfung & GoBD, Erweitert |
 
 Was unter einem Bereich liegt, erreicht man innerhalb des Bereichs, nicht über
 die Navigation ([Abschnitt 2](grundlagen.md#2-leitidee-stilles-kontor),

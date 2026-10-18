@@ -36,7 +36,7 @@ export const CompanyArea: React.FC = () => {
   return (
     <PageFrame
       title="Unternehmen"
-      context="Stammdaten pflegen nur Sie, keine verbundene App"
+      context="Firma, Gesellschafter und Bankkonten pflegen nur Sie"
       tabs={TABS}
       tab={tab}
       onTabChange={(next) => navigate({ area: 'company', tab: next })}

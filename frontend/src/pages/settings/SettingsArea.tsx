@@ -13,7 +13,7 @@ import { AuditSection, auditAnchor } from './audit/AuditSection';
 type SettingsSection = TabOf<'settings'>;
 
 /**
- * Die Einstellungen als eine Seite: oben Apps verbinden, Eingang und Ordner,
+ * Die Einstellungen als eine Seite: oben Apps verbinden, Eingang & Ordner,
  * die Regeln für Buchungen ohne Rückfrage und die Sicherung, darunter
  * eingeklappt Prüfung & GoBD und Erweitertes. Der Reiter im Ziel benennt den
  * Abschnitt, der aufgeklappt und angesprungen wird; die Kennung eine Zeile

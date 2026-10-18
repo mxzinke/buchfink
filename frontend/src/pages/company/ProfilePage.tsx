@@ -40,8 +40,10 @@ async function companyDeadlines(years: number[]): Promise<Deadline[]> {
 
 /**
  * Die Stammdaten in fünf Blöcken. Jeder Block zeigt, was fehlt, und die
- * wichtigsten Angaben; bearbeitet wird in der Seitenleiste. Die Stammdaten
- * pflegt nur der Mensch; keine verbundene App ändert sie.
+ * wichtigsten Angaben; bearbeitet wird in der Seitenleiste. Firma, Anschrift,
+ * Steuern, Gesellschafter und Bankkonten pflegt nur der Mensch. Darlehen mit
+ * Gesellschaftern im Block der Gesellschafter erfasst und berichtigt auch
+ * Claude.
  */
 export const ProfilePage: React.FC = () => {
   const workspace = useWorkspace();
