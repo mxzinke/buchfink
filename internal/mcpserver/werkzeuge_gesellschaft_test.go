@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -282,4 +283,17 @@ func TestOrganisationTextTool(t *testing.T) {
 		reset.Texte.Scannen != domain.DefaultOrganisationTexts().Scanning {
 		t.Errorf("Muster zurückgesetzt: %+v", reset)
 	}
+
+	// Lesen braucht nur das Recht zu lesen und geht im Prüfermodus; schreiben
+	// geht dann nicht.
+	reader := h.mustSession(h.login("Nur lesen", "buchfink:lesen").access)
+	if res := callTool(t, reader, "verfahrensdoku_text", a.args(nil)); res.IsError {
+		t.Errorf("Lesen mit buchfink:lesen: %s", resultText(res))
+	}
+	until := time.Now().AddDate(0, 0, 5).Format("2006-01-02")
+	if _, err := h.host.EnableExaminer(uiCtx, until, "Betriebsprüfung"); err != nil {
+		t.Fatal(err)
+	}
+	a.ok("verfahrensdoku_text", a.args(nil), &read)
+	a.fail("verfahrensdoku_text", a.args(map[string]any{"texte": map[string]any{"scannen": "neu"}}), CodeExaminer)
 }

@@ -44,6 +44,10 @@ type verfahrensdokuOut struct {
 
 func (o verfahrensdokuOut) Ref() string { return "verfahrensdoku" }
 
+// readOnly: ohne texte liest das Werkzeug nur, mit dem Recht zu lesen und auch
+// im Prüfermodus.
+func (in verfahrensdokuIn) readOnly() bool { return in.Texte == nil }
+
 // organisationSection verbindet einen Abschnitt der Eingabe mit seinem Feld im
 // Kern.
 type organisationSection struct {
@@ -81,7 +85,8 @@ func registerVerfahrensdoku(tb *Toolbox) {
 		Tier:  TierConfirm, Idempotent: true,
 		Description: "Liest und schreibt die Organisationstexte der Verfahrensdokumentation: Zuständigkeit, " +
 			"Belegfluss, Scannen, Freigabe, Vertretung, Sicherung, Sonstiges. Ohne texte liefert es den Stand und " +
-			"welche Abschnitte noch das Muster tragen, ohne zu schreiben. Vor dem Schreiben dem Menschen den neuen " +
+			"welche Abschnitte noch das Muster tragen, ohne zu schreiben; das braucht nur das Recht zu lesen und " +
+			"geht auch im Prüfermodus. Vor dem Schreiben dem Menschen den neuen " +
 			"Wortlaut jedes Abschnitts vorlegen und sein Ja einholen; die Texte beschreiben, wie sein Unternehmen " +
 			"arbeitet.",
 	}, func(ctx context.Context, c *Call, s *core.Services, in verfahrensdokuIn) (verfahrensdokuOut, error) {

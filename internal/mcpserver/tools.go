@@ -234,6 +234,9 @@ func addWrite[In writeInput, Out any](
 	checkWriteTier(spec)
 	add(tb, spec, func(ctx context.Context, c *Call, in In) (Out, error) {
 		var out Out
+		if r, ok := any(in).(readOnlyInput); ok && r.readOnly() {
+			return readAsWriteTool(ctx, c, in, fn)
+		}
 		if err := c.ensureWritable(in, spec.ExaminerExempt); err != nil {
 			return out, err
 		}
@@ -296,6 +299,34 @@ func addWrite[In writeInput, Out any](
 		}
 		return out, err
 	})
+}
+
+// readOnlyInput ist die Eingabe eines schreibenden Werkzeugs, das ohne Angabe
+// dessen, was sich ändern soll, nur den Stand liefert (verfahrensdoku_text
+// ohne texte).
+type readOnlyInput interface{ readOnly() bool }
+
+// readAsWriteTool führt einen solchen Aufruf wie ein Lesewerkzeug aus: mit
+// dem Recht zu lesen, auch im Prüfermodus, über Tenant.Read und damit ohne
+// Änderungsereignis.
+func readAsWriteTool[In writeInput, Out any](ctx context.Context, c *Call, in In,
+	fn func(ctx context.Context, c *Call, s *core.Services, in In) (Out, error)) (Out, error) {
+	var out Out
+	if err := c.ensureTenant(); err != nil {
+		return out, err
+	}
+	if id := in.tenantID(); id != c.Tenant.ID() {
+		return out, errSwitched(id, c.Tenant.ID())
+	}
+	if !c.Can(oauth.ScopeRead) {
+		return out, errScope(oauth.ScopeRead)
+	}
+	err := c.Tenant.Read(ctx, func(ctx context.Context, s *core.Services) error {
+		var err error
+		out, err = fn(ctx, c, s, in)
+		return err
+	})
+	return out, err
 }
 
 // AddFlow registriert ein schreibendes Werkzeug aus mehreren Schritten, das

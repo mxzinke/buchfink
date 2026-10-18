@@ -121,7 +121,7 @@ aus `Toolbox.OutputSchema`, `TestCatalogStaysSmall` hält den Katalog unter
 | `anlass_erfassen` | rueckfrage | Gesellschafterwechsel, Änderung der wirtschaftlich Berechtigten, Vorauszahlungsbescheid KSt oder GewSt |
 | `darlehen_erfassen` | rueckfrage | Darlehensvertrag mit einem Gesellschafter anlegen oder mit Grund berichtigen, Vertrag als `beleg_id`; `nur_vorschau` zeigt Konten und Befunde zum Fremdvergleich |
 | `ergebnisverwendung_buchen` | rueckfrage | Gesellschafterbeschluss über das Ergebnis im Folgejahr buchen: Rücklagen, Ausschüttung mit Kapitalertragsteuer, Vortrag; erst nach der Feststellung durch den Menschen |
-| `verfahrensdoku_text` | rueckfrage | Organisationstexte der Verfahrensdokumentation lesen und ändern; ohne `texte` nur lesen |
+| `verfahrensdoku_text` | rueckfrage | Organisationstexte der Verfahrensdokumentation lesen und ändern; ohne `texte` nur lesen, dafür genügt `buchfink:lesen`, auch im Prüfermodus |
 
 Eine Auslage eines Gesellschafters bucht `beleg_buchen_mit_rueckfrage` mit
 `bezahlung: auslage`; ein eigenes Werkzeug gibt es dafür nicht.
