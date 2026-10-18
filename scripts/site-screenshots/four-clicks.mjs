@@ -32,7 +32,7 @@ const MAX_CLICKS = 4;
 /** Der Weg, der gemessen wird — mit den Namen aus den Beispieldaten. */
 const ACCOUNT = '1800';
 const POSITION = 'Umlaufvermögen';
-const ENTRY = 'B-2026-0180';
+const ENTRY = 'B-2026-0177';
 const RECEIPT = 'ER-2026-0226';
 
 async function main() {

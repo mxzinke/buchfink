@@ -83,6 +83,11 @@ Fälligkeiten und der laufende Monat passen so zu den Daten.
   `frontend/src/services/bridge.ts` ab: die lesenden mit Beispieldaten, die
   schreibenden als `unsupported`.
 
+- **Ereignisse des Backends spielen die Aufnahmen nach.** Ein Ereignis wie
+  `buchfink:eingang-abgelegt` schickt `window._wails.dispatchWailsEvent`, das die
+  Wails-Laufzeit auch in der Vorschau anlegt; Dateien über dem Fenster sind
+  DOM-Ereignisse mit einem `DataTransfer` (`shots/uebersicht.mjs`).
+
 - **Einrichtung und Zustimmung über Schalter.** Steht `mock:setup` mit dem Wert
   `1` im lokalen Speicher, startet die Vorschau in der Einrichtung; `mock:consent`
   lässt Claude Code um Zustimmung bitten. `shots/einrichtung.mjs` setzt beide

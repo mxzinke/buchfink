@@ -17,9 +17,12 @@ import { JOURNAL, RECEIPT_DOCS, SPECIAL_PREPAYMENT, VAT_DUE, entryByRef, entryNu
 
 // Die Oberfläche prüft die Laufzeit über `window._wails`, bevor sie einen
 // Bridge-Aufruf zulässt (siehe services/api.ts). Für den Screenshot-Lauf wird
-// die Prüfung erfüllt, der Aufruf selbst läuft hier weiter.
+// die Prüfung erfüllt, der Aufruf selbst läuft hier weiter. Ergänzt statt
+// ersetzt: die Wails-Laufzeit hängt dort `dispatchWailsEvent` an, über das die
+// Aufnahmen Ereignisse des Backends nachspielen.
 if (typeof window !== 'undefined') {
-  (window as any)._wails = { screenshotMock: true };
+  const w = window as any;
+  w._wails = Object.assign(w._wails ?? {}, { screenshotMock: true });
 }
 
 const YEAR = 2026;
@@ -166,7 +169,6 @@ const CHART: MockAccount[] = [
   a('1406', 'Abziehbare Vorsteuer 19 %', 'asset', 1, 'Aktiva', 'Bilanz'),
   a('1408', 'Abziehbare Vorsteuer nach § 13b UStG', 'asset', 1, 'Aktiva', 'Bilanz'),
   a('1460', 'Geldtransit', 'asset', 1, 'Aktiva', 'Bilanz'),
-  a('1600', 'Kasse', 'asset', 1, 'Aktiva', 'Bilanz'),
   a('1800', 'Bank', 'asset', 1, 'Aktiva', 'Bilanz'),
   a('1900', 'Aktive Rechnungsabgrenzung', 'asset', 1, 'Aktiva', 'Bilanz'),
   a('2900', 'Gezeichnetes Kapital', 'equity', 2, 'Passiva', 'Bilanz'),
@@ -356,6 +358,29 @@ const CONTACTS = [
   contact(19, 'vendor', '70019', 'Kanzlei Elbufer Rechtsanwälte', 'Elbchaussee 120, 22763 Hamburg', 'DE287700143', 14),
   contact(20, 'vendor', '70020', 'Anna Bauer', 'Isestraße 61, 20149 Hamburg', '', 0, ''),
 ];
+
+/**
+ * Standard-Buchungsgruppen: Miete, Hosting und Telefon hat Anna Bauer
+ * bestätigt; für die freie Mitarbeit und das Fachportal hat Claude eine
+ * Gruppe vorgeschlagen, die sie noch bestätigen muss. Die Gruppen passen zu
+ * den Konten, auf die das Journal die Rechnungen bucht.
+ */
+const POSTING_GROUP_STATE: Record<number, object> = {
+  11: { defaultPostingGroup: 'fremdleistungen', defaultPostingGroupConfirmedAt: `${YEAR}-03-02T09:14:00Z`, defaultPostingGroupConfirmedBy: 'Anna Bauer' },
+  12: { defaultPostingGroup: 'miete', defaultPostingGroupConfirmedAt: `${YEAR}-02-02T08:30:00Z`, defaultPostingGroupConfirmedBy: 'Anna Bauer' },
+  15: { defaultPostingGroup: 'telefon', defaultPostingGroupConfirmedAt: `${YEAR}-02-16T10:05:00Z`, defaultPostingGroupConfirmedBy: 'Anna Bauer' },
+  16: {
+    proposedPostingGroup: 'werbung',
+    proposedPostingGroupNote: 'Fünf Rechnungen 2026, alle auf Werbekosten gebucht.',
+    proposedPostingGroupBy: 'agent:claude-code',
+  },
+  18: {
+    proposedPostingGroup: 'fremdleistungen',
+    proposedPostingGroupNote: 'Sieben Rechnungen 2026 für Entwicklung, alle auf Fremdleistungen gebucht.',
+    proposedPostingGroupBy: 'agent:claude-code',
+  },
+};
+for (const entry of CONTACTS) Object.assign(entry, POSTING_GROUP_STATE[entry.id] ?? {});
 
 /** Zerlegt „Straße 1, 12345 Ort" in die Felder des Kontakts. */
 function postalParts(address: string) {
@@ -2117,7 +2142,6 @@ const EBILANZ_MAPPING: Record<string, [string, string]> = {
   '0675': ['Andere Anlagen, Betriebs- und Geschäftsausstattung', 'bs.ass.fixAss.tan.otherEquipm'],
   '1200': ['Forderungen aus Lieferungen und Leistungen', 'bs.ass.currAss.receiv.trade'],
   '1406': ['Sonstige Vermögensgegenstände', 'bs.ass.currAss.receiv.other'],
-  '1600': ['Kassenbestand, Guthaben bei Kreditinstituten', 'bs.ass.currAss.cashEquiv'],
   '1800': ['Kassenbestand, Guthaben bei Kreditinstituten', 'bs.ass.currAss.cashEquiv'],
   '1900': ['Rechnungsabgrenzungsposten', 'bs.ass.prepaidExp'],
   '2900': ['Gezeichnetes Kapital', 'bs.eqLiab.equity.subscribed'],
@@ -2319,7 +2343,7 @@ const OPEN_YEAR_DETAIL: Record<string, string> = {
   depreciation: 'AfA für 5 Anlagegüter zum 31.12.2026',
   accruals: '2 Verträge reichen über den Stichtag',
   tax_provision: 'Schätzung auf den heutigen Stand',
-  vat_settlement: 'Zahllast von vier Quartalen',
+  vat_settlement: 'Zahllast von zwölf Monaten und Sondervorauszahlung',
 };
 
 function closingSteps(year: number) {
@@ -2582,7 +2606,7 @@ const ORGANISATION_TEXTS = {
 /** Hinweise zu Speicherort und Steuerfällen. */
 const COMPLIANCE_HINTS = {
   cloudWarning: '',
-  dataDir: '/Users/anwender/Buchfink/Pfennig Ventures GmbH',
+  dataDir: TENANTS[0].dataDir,
   systemChangeDate: '',
   systemChangeNote: '',
   taxCaseHints: [
@@ -2641,7 +2665,82 @@ const MCP_STATUS = {
   port: 7465,
   url: 'http://127.0.0.1:7465/mcp',
   error: '',
+  fromEnvironment: false,
 };
+
+// -------------------------------------------------------------------------
+// Eingang, Lese- und Exportordner
+
+const DATA_DIR = TENANTS[0].dataDir;
+
+/**
+ * Drei Dateien im Eingang, die älteste zuerst: ein Foto vom 6. August, das
+ * seit 19 Tagen liegt, eine E-Rechnung der Kanzlei und der Kontoauszug von
+ * heute früh. Keine davon ist schon abgelegt.
+ */
+const INBOX_FILES = [
+  {
+    name: 'Bewirtung Kundentermin Husum.jpg',
+    size: 1_284_311,
+    modifiedAt: `${YEAR}-08-06T18:42:00+02:00`,
+    kind: 'beleg',
+  },
+  {
+    name: 'Kanzlei Elbufer RE-2026-311.pdf',
+    size: 186_402,
+    modifiedAt: `${YEAR}-08-24T16:05:00+02:00`,
+    kind: 'e_rechnung',
+  },
+  {
+    name: 'Kontoauszug DKB 2026-08-24.xml',
+    size: 23_877,
+    modifiedAt: `${YEAR}-08-25T07:58:00+02:00`,
+    kind: 'kontoauszug',
+  },
+].map((file) => ({ ...file, path: `${DATA_DIR}/Eingang/${file.name}` }));
+
+/** Weitere Leseordner: die Verträge, aus denen Claude Darlehen und Mietverträge liest. */
+const READ_FOLDERS = ['/Users/anna/Dokumente/Verträge'];
+
+const INBOX_INFO = {
+  path: `${DATA_DIR}/Eingang`,
+  default: true,
+  count: INBOX_FILES.length,
+  oldestDays: 19,
+  readFolders: READ_FOLDERS,
+  exportFolder: `${DATA_DIR}/Export`,
+};
+
+/** Die Regeln für Claude, wie eingerichtet: Grenzen voreingestellt, ein Leseordner. */
+const AGENT_RULES = {
+  stored: { directMaxGross: 0, directMinBookings: 0, extraReadFolders: READ_FOLDERS, exportFolder: '' },
+  directMaxGross: c(1000),
+  directMinBookings: 3,
+  extraReadFolders: READ_FOLDERS,
+  exportFolder: `${DATA_DIR}/Export`,
+};
+
+/**
+ * Wie `syncdir.Detect`: ein Ordner unter iCloud Drive, Dropbox, OneDrive,
+ * Google Drive oder Nextcloud. Die Einrichtung zeigt den Hinweis zur Ablage.
+ */
+function folderCheck(path: string) {
+  const services: [RegExp, string][] = [
+    [/Library\/Mobile Documents|CloudStorage\/iCloud|iCloudDrive/i, 'iCloud Drive'],
+    [/OneDrive/i, 'OneDrive'],
+    [/Google ?Drive|Meine Ablage/i, 'Google Drive'],
+    [/Dropbox/i, 'Dropbox'],
+    [/Nextcloud|ownCloud/i, 'Nextcloud/ownCloud'],
+  ];
+  const sync = services.find(([pattern]) => pattern.test(path))?.[1] ?? '';
+  return {
+    sync,
+    warning: sync
+      ? `Der Ordner liegt in ${sync}. Die Datenbank verträgt keine Synchronisation, während Buchfink läuft; ` +
+        'besser ist ein lokaler Ordner mit einer Sicherung.'
+      : '',
+  };
+}
 
 /** Zwei zugelassene Apps: Claude Code bucht, Claude Desktop liest nur. */
 const CONNECTED_APPS = [
@@ -2834,6 +2933,17 @@ export const bridge = {
   ConfigureBankAccounts: unsupported('ConfigureBankAccounts'),
   SetInvoiceBankAccount: unsupported('SetInvoiceBankAccount'),
 
+  // Eingang, Regeln für Apps, Standardgruppe
+  GetInbox: () => later(INBOX_INFO),
+  ListInbox: () => later(INBOX_FILES, 60),
+  OpenInbox: () => later(undefined),
+  AddToInbox: unsupported('AddToInbox'),
+  SetInboxFolder: unsupported('SetInboxFolder'),
+  CheckFolder: (path: string) => later(folderCheck(path)),
+  GetAgentRules: () => later(AGENT_RULES),
+  SaveAgentRules: unsupported('SaveAgentRules'),
+  ConfirmDefaultPostingGroup: unsupported('ConfirmDefaultPostingGroup'),
+
   // Verbundene Apps
   GetMCPServerStatus: () => later(MCP_STATUS),
   SetMCPPort: unsupported('SetMCPPort'),
@@ -3011,7 +3121,13 @@ export const bridge = {
   GetAgentBookings: (limit: number) => later(agentBookings(limit), 40),
 
   // E-Bilanz, Audit & Festschreibung
-  SaveEBilanzXBRLAs: (year: number) => later(`/Users/anna/Documents/e-bilanz-${year || YEAR}.xbrl`, 400),
+  SaveEBilanzAs: (year: number, format: string) =>
+    later(
+      format === 'susa_csv'
+        ? `${DATA_DIR}/Export/ebilanz-${year || YEAR}-susa.csv`
+        : `${DATA_DIR}/Export/e-bilanz-${year || YEAR}.xbrl`,
+      400,
+    ),
   GetFestschreibungen: () => later(FESTSCHREIBUNGEN),
   CommitPeriod: unsupported('CommitPeriod'),
   VerifyFestschreibung: (id: number) =>

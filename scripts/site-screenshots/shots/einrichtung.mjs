@@ -28,6 +28,20 @@ export default [
     },
   },
   {
+    // Die Ablage in iCloud Drive: ein ruhiger Hinweis, gesperrt wird nichts.
+    file: 'einrichtung-ablage.png',
+    go: async ({ page }) => {
+      await page.getByRole('button', { name: 'Ordner ändern' }).click();
+      await page
+        .getByLabel('Ordner für Buchungsdaten und Belege')
+        .fill('/Users/anna/Library/Mobile Documents/com~apple~CloudDocs/Buchfink/nordlicht');
+      const warning = page.getByText('Die Datenbank verträgt keine Synchronisation', { exact: false });
+      await warning.waitFor();
+      await warning.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+      await page.waitForTimeout(400);
+    },
+  },
+  {
     file: 'einrichtung-verbinden.png',
     go: async ({ page }) => {
       await page.getByRole('button', { name: 'Weiter' }).click();

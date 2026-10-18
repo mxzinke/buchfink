@@ -51,4 +51,16 @@ export default [
     },
     after: ({ escape }) => escape(),
   },
+  {
+    // Claude schlägt die Standardgruppe eines Lieferanten vor; bestätigen kann
+    // nur der Mensch.
+    file: 'unternehmen-standardgruppe.png',
+    go: async ({ page, open }) => {
+      await open('#/company/contacts/18');
+      await page.getByRole('dialog', { name: 'Kai Lorenz IT-Beratung' }).waitFor();
+      await page.getByText('Vorschlag von Claude Code', { exact: false }).waitFor();
+      await page.waitForTimeout(400);
+    },
+    after: ({ escape }) => escape(),
+  },
 ];

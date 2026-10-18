@@ -99,8 +99,8 @@ export default [
   {
     file: 'buecher-journal.png',
     go: async ({ page, open }) => {
-      await open('#/books/journal/B-2026-0180');
-      await page.getByRole('heading', { name: 'B-2026-0180' }).waitFor();
+      await open('#/books/journal/B-2026-0177');
+      await page.getByRole('heading', { name: 'B-2026-0177' }).waitFor();
       await page.waitForTimeout(300);
     },
     after: closeAll,
@@ -110,7 +110,7 @@ export default [
     viewport: { width: 1024, height: 768 },
     go: async ({ page, open }) => {
       await open('#/books/journal');
-      await page.getByText('B-2026-0183').first().waitFor();
+      await page.getByText('B-2026-0180').first().waitFor();
       await page.waitForTimeout(300);
     },
   },

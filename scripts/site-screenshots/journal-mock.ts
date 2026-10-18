@@ -145,24 +145,23 @@ function payment(date: string, of: Draft | string, vendor: Partner, gross: numbe
 /** Ein Aufwand, der direkt vom Bankkonto abgeht. */
 function direct(
   date: string, vendor: Partner, account: string, net: number, text: string,
-  options: { withVat?: boolean; via?: '1800' | '1600'; channel?: string } = {},
+  options: { withVat?: boolean; channel?: string } = {},
 ): Draft {
   const withVat = options.withVat ?? true;
-  const via = options.via ?? '1800';
   const gross = withVat ? round(net + vat(net)) : net;
   const lines: MockLine[] = withVat
-    ? [['S', account, net], ['S', '1406', vat(net)], ['H', via, gross]]
-    : [['S', account, net], ['H', via, gross]];
+    ? [['S', account, net], ['S', '1406', vat(net)], ['H', '1800', gross]]
+    : [['S', account, net], ['H', '1800', gross]];
   return {
     date, documentDate: date, description: text,
     source: 'receipt', contactId: vendor.id, channel: options.channel ?? 'ui',
     doc: { issuer: vendor.name, subject: text },
-    bank: via === '1800' ? { counterparty: vendor.name, iban: vendor.iban, remittance: text } : undefined,
+    bank: { counterparty: vendor.name, iban: vendor.iban, remittance: text },
     lines,
   };
 }
 
-/** Eine Buchung ohne Beleg eines Geschäftspartners: Gehälter, Steuern, Kasse. */
+/** Eine Buchung ohne Beleg eines Geschäftspartners: Gehälter, Steuern, Erstattungen. */
 function plain(date: string, text: string, lines: MockLine[], bank?: BankInfo, source = 'manual'): Draft {
   return { date, documentDate: date, description: text, source, channel: 'ui', bank, lines };
 }
@@ -213,8 +212,7 @@ export const OPENING: [account: string, side: 'S' | 'H', euro: number][] = [
   ['0650', 'S', 8430.77],
   ['0675', 'S', 3360],
   ['1200', 'S', 17850],
-  ['1600', 'S', 300],
-  ['1800', 'S', 27929.96],
+  ['1800', 'S', 28229.96],
   ['1900', 'S', 2220],
   ['2900', 'H', 25000],
   ['2970', 'H', 61230],
@@ -354,29 +352,23 @@ function monthEntries(): Draft[] {
     out.push(doc, payment(y(paid), doc, VENDORS[key], round(net + vat(net))));
   }
 
-  const paidDirect: [md: string, vendor: keyof typeof VENDORS, account: string, net: number, text: string, via?: '1600'][] = [
+  const paidDirect: [md: string, vendor: keyof typeof VENDORS, account: string, net: number, text: string][] = [
     ['01-14', 'techpartner', '6815', 640, 'Druckerpapier und Toner'],
     ['02-05', 'techpartner', '6260', 1020, 'Bürostühle, 2 Stück'],
-    ['03-11', 'techpartner', '6815', 380, 'Bürobedarf, bar bezahlt', '1600'],
+    ['03-11', 'techpartner', '6815', 380, 'Bürobedarf März'],
     ['03-20', 'reise', '6650', 1284, 'Reisekosten Kundentermin Husum'],
     ['04-20', 'techpartner', '6260', 780, 'Notebook Entwicklung'],
     ['04-21', 'techpartner', '6815', 520, 'Headsets, 4 Stück'],
-    ['05-13', 'techpartner', '6815', 610, 'Bürobedarf, bar bezahlt', '1600'],
+    ['05-13', 'techpartner', '6815', 610, 'Bürobedarf Mai'],
     ['05-22', 'reise', '6650', 2090, 'Reisekosten Messe Bremen'],
     ['06-12', 'reise', '6650', 1124, 'Reisekosten Kundentermin Husum'],
     ['06-16', 'techpartner', '6815', 470, 'Kabel und Adapter'],
     ['07-09', 'techpartner', '6815', 800, 'Whiteboards Besprechungsraum'],
     ['07-21', 'reise', '6650', 900, 'Reisekosten Projektabnahme Werft'],
   ];
-  for (const [md, key, account, net, text, via] of paidDirect) {
-    out.push(direct(y(md), VENDORS[key], account, net, text, { via }));
+  for (const [md, key, account, net, text] of paidDirect) {
+    out.push(direct(y(md), VENDORS[key], account, net, text));
   }
-
-  // Kasse
-  out.push(plain(y('02-02'), 'Bargeld für die Kasse', [['S', '1600', 500], ['H', '1800', 500]],
-    { counterparty: 'Nordlicht Systeme GmbH', iban: OWN_BANK, remittance: 'Barabhebung Kasse' }));
-  out.push(plain(y('05-04'), 'Bargeld für die Kasse', [['S', '1600', 600], ['H', '1800', 600]],
-    { counterparty: 'Nordlicht Systeme GmbH', iban: OWN_BANK, remittance: 'Barabhebung Kasse' }));
 
   // Erstattungen der Krankenkasse aus der Umlage U2.
   for (const md of ['03-25', '04-24', '05-26']) {
