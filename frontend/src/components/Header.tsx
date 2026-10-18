@@ -167,6 +167,13 @@ export const Header: React.FC<HeaderProps> = ({
               type="button"
               onClick={() => onYearChange(year)}
               aria-pressed={isSelected}
+              aria-label={[
+                `Geschäftsjahr ${year}`,
+                isClosed ? 'abgeschlossen' : '',
+                year === currentCalendarYear ? 'aktuelles Kalenderjahr' : '',
+              ]
+                .filter(Boolean)
+                .join(', ')}
               title={
                 isClosed
                   ? `Geschäftsjahr ${year} ist abgeschlossen. Buchungen sind nur im laufenden Jahr möglich.`
@@ -175,6 +182,8 @@ export const Header: React.FC<HeaderProps> = ({
               className={cn(
                 'flex items-center gap-1.5 h-7 px-2.5 shrink-0 rounded-[4px] text-label num',
                 'transition-colors duration-120 ease-quiet',
+                // Die Leiste scrollt seitlich und schneidet einen äußeren Umriss ab.
+                'focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent',
                 isSelected
                   ? 'bg-accent-soft text-accent-text font-semibold'
                   : 'text-ink-subtle hover:bg-sunken hover:text-ink',
@@ -185,11 +194,15 @@ export const Header: React.FC<HeaderProps> = ({
                 <Lock
                   className="w-3 h-3 shrink-0 text-ink-faint"
                   strokeWidth={1.5}
-                  aria-label="abgeschlossen"
+                  aria-hidden="true"
                 />
               )}
               {year === currentCalendarYear && !isSelected && (
-                <span className="mark-diamond bg-ink-faint scale-75" title="Aktuelles Kalenderjahr" />
+                <span
+                  className="mark-diamond bg-ink-faint scale-75"
+                  title="Aktuelles Kalenderjahr"
+                  aria-hidden="true"
+                />
               )}
             </button>
           );
@@ -203,6 +216,7 @@ export const Header: React.FC<HeaderProps> = ({
             aria-label="Geschäftsjahr anlegen"
             className={cn(
               'flex items-center h-7 px-2 shrink-0 rounded-[4px] text-ink-faint',
+              'focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent',
               'transition-colors duration-120 ease-quiet hover:bg-sunken hover:text-ink',
               'disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-ink-faint',
             )}

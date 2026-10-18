@@ -548,7 +548,7 @@ const MonthStrip: React.FC<{
   markOf: (month: string) => MonthMark;
   onSelect: (month: string) => void;
 }> = ({ months, selected, markOf, onSelect }) => (
-  <div
+  <ul
     className="mt-6 grid gap-1.5"
     style={{ gridTemplateColumns: `repeat(${months.length}, minmax(0, 1fr))` }}
     role="list"
@@ -558,28 +558,29 @@ const MonthStrip: React.FC<{
       const mark = markOf(month);
       const active = month === selected;
       return (
-        <button
-          key={month}
-          type="button"
-          role="listitem"
-          aria-current={active ? 'true' : undefined}
-          title={`${monthLabel(month)}: ${MARK_LABEL[mark]}`}
-          onClick={() => onSelect(month)}
-          className={cn(
-            'flex flex-col items-center gap-1.5 rounded-control border px-1 py-2',
-            'transition-colors duration-120 ease-quiet',
-            'focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent',
-            active ? 'border-ink bg-surface' : 'border-line hover:bg-sunken',
-          )}
-        >
-          <span className={cn('text-caption', active ? 'text-ink font-medium' : 'text-ink-muted')}>
-            {monthShort(month)}
-          </span>
-          <span className={cn('mark-diamond', MARK_CLASS[mark])} aria-hidden="true" />
-        </button>
+        <li key={month} className="flex">
+          <button
+            type="button"
+            aria-current={active ? 'true' : undefined}
+            aria-label={`${monthLabel(month)}: ${MARK_LABEL[mark]}`}
+            title={`${monthLabel(month)}: ${MARK_LABEL[mark]}`}
+            onClick={() => onSelect(month)}
+            className={cn(
+              'flex flex-1 flex-col items-center gap-1.5 rounded-control border px-1 py-2',
+              'transition-colors duration-120 ease-quiet',
+              'focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent',
+              active ? 'border-ink bg-surface' : 'border-line hover:bg-sunken',
+            )}
+          >
+            <span className={cn('text-caption', active ? 'text-ink font-medium' : 'text-ink-muted')}>
+              {monthShort(month)}
+            </span>
+            <span className={cn('mark-diamond', MARK_CLASS[mark])} aria-hidden="true" />
+          </button>
+        </li>
       );
     })}
-  </div>
+  </ul>
 );
 
 type FlowState = MonthCloseStep['state'];
