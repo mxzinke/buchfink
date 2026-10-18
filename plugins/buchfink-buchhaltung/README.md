@@ -38,9 +38,12 @@ Die Skills liegen einmal unter [`skills/`](../../skills) im Wurzelordner des
 Repositorys. `skills/<name>` in diesem Ordner ist ein relativer Symlink auf
 `../../../skills/<name>`. Claude Code kopiert beim Installieren aus einem
 Git-Marketplace das Ziel jedes Symlinks in seinen Cache (beobachtet mit Claude
-Code 2.1.302). Die Dokumentation von Claude Code sagt dazu nichts Verbindliches;
-wiederholen Sie deshalb vor jedem Release die Installation aus dem
-Git-Marketplace.
+Code 2.1.302 unter Linux). Die Dokumentation von Claude Code sagt dazu nichts
+Verbindliches; wiederholen Sie deshalb vor jedem Release die Installation aus
+dem Git-Marketplace, auch unter Windows und macOS, und halten Sie das Ergebnis
+hier fest. Unter Windows ungeprüft: Git for Windows legt Symlinks ohne
+`core.symlinks=true` (und Entwicklermodus) als kleine Textdateien an; das
+Plugin hätte dann leere Skill-Ordner.
 
 Nach einem neuen oder umbenannten Skill:
 
