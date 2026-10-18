@@ -210,6 +210,27 @@ func AddWritePrepared[In writeInput, Out any](
 	prepare func(ctx context.Context, c *Call, t *core.Tenant, in In) error,
 	fn func(ctx context.Context, c *Call, s *core.Services, in In) (Out, error),
 ) {
+	addWrite(tb, spec, prepare, fn, nil)
+}
+
+// AddWriteThen ist AddWrite mit einem Nachlauf nach dem Vorgang, außerhalb
+// der Schreibsperre, auch bei einer Wiederholung mit demselben Schlüssel:
+// etwa das Verschieben abgelegter Dateien aus dem Eingang. Der Nachlauf
+// schreibt nicht in die Bücher; was er meldet, steht nur in dieser Antwort.
+func AddWriteThen[In writeInput, Out any](
+	tb *Toolbox, spec Spec,
+	fn func(ctx context.Context, c *Call, s *core.Services, in In) (Out, error),
+	then func(ctx context.Context, c *Call, in In, out *Out),
+) {
+	addWrite(tb, spec, nil, fn, then)
+}
+
+func addWrite[In writeInput, Out any](
+	tb *Toolbox, spec Spec,
+	prepare func(ctx context.Context, c *Call, t *core.Tenant, in In) error,
+	fn func(ctx context.Context, c *Call, s *core.Services, in In) (Out, error),
+	then func(ctx context.Context, c *Call, in In, out *Out),
+) {
 	checkWriteTier(spec)
 	add(tb, spec, func(ctx context.Context, c *Call, in In) (Out, error) {
 		var out Out
@@ -270,6 +291,9 @@ func AddWritePrepared[In writeInput, Out any](
 			}
 			return nil
 		})
+		if err == nil && then != nil && !preview {
+			then(ctx, c, in, &out)
+		}
 		return out, err
 	})
 }

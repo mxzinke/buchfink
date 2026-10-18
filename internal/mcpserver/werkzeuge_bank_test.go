@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/inbox"
 	"github.com/buchfink/buchfink/internal/service"
 )
 
@@ -152,20 +155,31 @@ func TestBankStatementAndMatching(t *testing.T) {
 		"ignorieren": map[string]any{"grund": "Auszug nicht von der Bank"}}), nil)
 
 	var imported struct {
-		BelegID  uint     `json:"beleg_id"`
-		Umsaetze int      `json:"umsaetze"`
-		Neu      int      `json:"neu"`
-		Konten   []string `json:"konten"`
-		Geprueft bool     `json:"salden_geprueft"`
+		BelegID    uint     `json:"beleg_id"`
+		Umsaetze   int      `json:"umsaetze"`
+		Neu        int      `json:"neu"`
+		Konten     []string `json:"konten"`
+		Geprueft   bool     `json:"salden_geprueft"`
+		Verschoben []struct {
+			Von  string `json:"von"`
+			Nach string `json:"nach"`
+		} `json:"verschoben"`
 	}
 	a.ok("kontoauszug_importieren", a.args(map[string]any{"pfad": statement}), &imported)
 	if imported.Umsaetze != 3 || imported.Neu != 3 || imported.BelegID == 0 || len(imported.Konten) != 1 ||
 		imported.Konten[0] != "1800" || !imported.Geprueft {
 		t.Fatalf("Import: %+v", imported)
 	}
-	a.ok("kontoauszug_importieren", a.args(map[string]any{"pfad": statement}), &imported)
-	if imported.Neu != 0 || imported.Umsaetze != 3 {
-		t.Errorf("zweiter Import desselben Auszugs: %+v", imported)
+	// Der Auszug ging aus dem Eingang nach Übernommen/<JJJJ-MM>.
+	if len(imported.Verschoben) != 1 || imported.Verschoben[0].Von != statement ||
+		filepath.Dir(imported.Verschoben[0].Nach) != filepath.Join(filepath.Dir(statement), inbox.DoneDir, time.Now().Format("2006-01")) {
+		t.Fatalf("verschoben: %+v", imported.Verschoben)
+	}
+	again := imported
+	again.Verschoben = nil
+	a.ok("kontoauszug_importieren", a.args(map[string]any{"pfad": imported.Verschoben[0].Nach}), &again)
+	if again.Neu != 0 || again.Umsaetze != 3 || len(again.Verschoben) != 0 {
+		t.Errorf("zweiter Import desselben Auszugs: %+v", again)
 	}
 	a.fail("kontoauszug_importieren", a.args(map[string]any{"pfad": "/etc/passwd"}), CodePathNotAllowed)
 

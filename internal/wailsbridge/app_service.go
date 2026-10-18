@@ -11,6 +11,7 @@ import (
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/core"
+	"github.com/buchfink/buchfink/internal/core/policy"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/einvoice"
 	"github.com/buchfink/buchfink/internal/einvoice/xrechnung"
@@ -38,11 +39,13 @@ func NewBuchfinkBridge() (*BuchfinkBridge, error) {
 		homeDir = "."
 	}
 	baseDir := filepath.Join(homeDir, ".buchfink")
+	changes := newChangeBatcher(changeInterval, emitToWindow)
 	host, err := core.NewHost(context.Background(), core.HostOptions{
 		Config:       repository.NewAppConfigRepository(baseDir),
 		BaseDir:      baseDir,
 		WarmRenderer: true,
 		Jobs:         true,
+		OnChange:     changes.add,
 	})
 	if err != nil {
 		return nil, err
@@ -98,17 +101,29 @@ func (b *BuchfinkBridge) GetAppConfig() domain.AppConfig {
 	return b.host.Config()
 }
 
-// SetupApplication handles initial setup: establishes the data directory and
-// configures the company.
+// SetupApplication richtet einen Mandanten ein: Datenordner (Ablage),
+// Eingang und Unternehmensdaten. Ein leerer Eingang ist <Datenordner>/Eingang;
+// ein gewählter darf keinen Datenordner und keine Sicherung berühren. Der
+// Eingang wird angelegt.
 func (b *BuchfinkBridge) SetupApplication(
 	dataDir string,
+	inboxDir string,
 	settings domain.CompanySettings,
 ) error {
 	name := settings.CompanyName
 	if name == "" {
 		name = "Hauptmandant"
 	}
-	_, err := b.createTenant(name, dataDir, settings)
+	if inboxDir != "" {
+		dir, err := core.CheckTenantDirectory(dataDir)
+		if err != nil {
+			return err
+		}
+		if err := policy.CheckFolders(inboxDir, nil, dir, policy.ProtectedDirs(b.host.Config(), dir)); err != nil {
+			return err
+		}
+	}
+	_, err := b.host.CreateTenant(uiContext(), name, dataDir, settings, core.WithInbox(inboxDir))
 	return err
 }
 
@@ -434,9 +449,10 @@ func (b *BuchfinkBridge) SelectReceiptFilesDialog(title string) ([]string, error
 
 // FileIncomingReceipt files an incoming Beleg away without booking it. The two
 // are separate steps: an XRechnung has to be storable the moment it arrives, and
-// only becomes bookable once a rendering exists.
+// only becomes bookable once a rendering exists. Dateien aus dem Eingang gehen
+// danach nach Übernommen/<JJJJ-MM>.
 func (b *BuchfinkBridge) FileIncomingReceipt(receivedAt, receivedVia string, files []ReceiptFileInput) (*domain.Receipt, error) {
-	return write(b, func(ctx context.Context, s *core.Services) (*domain.Receipt, error) {
+	receipt, err := write(b, func(ctx context.Context, s *core.Services) (*domain.Receipt, error) {
 		return s.Receipts.File(ctx, service.FileReceiptRequest{
 			Direction:   domain.DirectionIncoming,
 			ReceivedAt:  receivedAt,
@@ -444,6 +460,15 @@ func (b *BuchfinkBridge) FileIncomingReceipt(receivedAt, receivedVia string, fil
 			Files:       toNewFiles(files),
 		})
 	})
+	if err != nil {
+		return nil, err
+	}
+	paths := make([]string, 0, len(files))
+	for _, f := range files {
+		paths = append(paths, f.Path)
+	}
+	b.settleInbox(paths)
+	return receipt, nil
 }
 
 // GetReceipts lists the Belege of the active fiscal year. An empty status

@@ -77,6 +77,28 @@ func (r *receiptRepositoryGorm) FindByOriginalHash(ctx context.Context, sha256 s
 	return &receipt, nil
 }
 
+func (r *receiptRepositoryGorm) FindIDsByFileHash(ctx context.Context, sha256s []string) (map[string]uint, error) {
+	out := map[string]uint{}
+	if len(sha256s) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		SHA256    string
+		ReceiptID uint
+	}
+	err := dbFrom(ctx, r.db).Model(&domain.ReceiptFile{}).
+		Select("sha256, MIN(receipt_id) AS receipt_id").
+		Where("sha256 IN ?", sha256s).
+		Group("sha256").Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		out[row.SHA256] = row.ReceiptID
+	}
+	return out, nil
+}
+
 func (r *receiptRepositoryGorm) FindByEInvoiceNumber(ctx context.Context, number string) ([]domain.Receipt, error) {
 	var receipts []domain.Receipt
 	number = strings.TrimSpace(number)

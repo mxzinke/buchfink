@@ -12,6 +12,7 @@ func registerTools(tb *Toolbox) {
 	registerKonten(tb)
 	registerKontakte(tb)
 	registerBelege(tb)
+	registerEingang(tb)
 	registerBuchungen(tb)
 	registerBuchen(tb)
 	registerBank(tb)

@@ -11,9 +11,8 @@ import (
 )
 
 // Die Regeln für verbundene Apps setzt der Mensch in der App. Ohne Eintrag
-// gelten die Voreinstellungen mit dem Eingang als einzigem Belegordner; den
-// Datenordner selbst nimmt die Bridge nicht als Belegordner an, und eine leere
-// Liste sperrt alle Belegordner.
+// gelten die Voreinstellungen ohne weiteren Leseordner; den Datenordner nimmt
+// die Bridge nicht als Leseordner an.
 func TestAgentRulesAreSetInTheApp(t *testing.T) {
 	b := testBridge(t)
 	var dataDir string
@@ -26,35 +25,34 @@ func TestAgentRulesAreSetInTheApp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	inbox := filepath.Join(dataDir, policy.InboxDir)
-	if !rules.ReceiptFoldersDefault || rules.DirectMaxGross != domain.DefaultDirectMaxGross ||
-		rules.DirectMinBookings != domain.DefaultDirectMinBookings ||
-		len(rules.ReceiptFolders) != 1 || rules.ReceiptFolders[0] != inbox ||
-		rules.ExportFolder != filepath.Join(dataDir, policy.ExportDir) || rules.Stored.ReceiptFolders == nil {
+	if rules.DirectMaxGross != domain.DefaultDirectMaxGross || rules.DirectMinBookings != domain.DefaultDirectMinBookings ||
+		rules.ExtraReadFolders == nil || len(rules.ExtraReadFolders) != 0 || rules.Stored.ExtraReadFolders == nil ||
+		rules.ExportFolder != filepath.Join(dataDir, policy.ExportDir) {
 		t.Errorf("Voreinstellung: %+v", rules)
 	}
 
-	if _, err := b.SaveAgentRules(domain.AgentSettings{ReceiptFolders: []string{dataDir}}); err == nil {
-		t.Error("den Datenordner als Belegordner angenommen")
+	for _, folder := range []string{dataDir, filepath.Join(dataDir, policy.InboxDir), filepath.Dir(dataDir)} {
+		if _, err := b.SaveAgentRules(domain.AgentSettings{ExtraReadFolders: []string{folder}}); err == nil {
+			t.Errorf("Leseordner %s angenommen", folder)
+		}
 	}
 
 	own := t.TempDir()
-	rules, err = b.SaveAgentRules(domain.AgentSettings{DirectMaxGross: 50000, ReceiptFolders: []string{own, inbox}})
+	rules, err = b.SaveAgentRules(domain.AgentSettings{DirectMaxGross: 50000, ExtraReadFolders: []string{own}})
 	if err != nil {
 		t.Fatalf("Regeln speichern: %v", err)
 	}
-	if rules.ReceiptFoldersDefault || rules.DirectMaxGross != 50000 ||
-		rules.DirectMinBookings != domain.DefaultDirectMinBookings || len(rules.ReceiptFolders) != 2 {
+	if rules.DirectMaxGross != 50000 || rules.DirectMinBookings != domain.DefaultDirectMinBookings ||
+		len(rules.ExtraReadFolders) != 1 || rules.ExtraReadFolders[0] != own {
 		t.Errorf("eigene Regeln: %+v", rules)
 	}
 
-	rules, err = b.SaveAgentRules(domain.AgentSettings{ReceiptFolders: []string{}})
+	rules, err = b.SaveAgentRules(domain.AgentSettings{})
 	if err != nil {
-		t.Fatalf("Belegordner sperren: %v", err)
+		t.Fatalf("zurücksetzen: %v", err)
 	}
-	if rules.ReceiptFoldersDefault || rules.ReceiptFolders == nil || len(rules.ReceiptFolders) != 0 ||
-		rules.DirectMaxGross != domain.DefaultDirectMaxGross {
-		t.Errorf("alle Belegordner gesperrt: %+v", rules)
+	if len(rules.ExtraReadFolders) != 0 || rules.DirectMaxGross != domain.DefaultDirectMaxGross {
+		t.Errorf("zurückgesetzt: %+v", rules)
 	}
 }
 

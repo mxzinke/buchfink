@@ -567,6 +567,10 @@ type ReceiptRepository interface {
 	// existiert — ein zweites Mal importierter Kontoauszug darf keinen zweiten
 	// Beleg erzeugen.
 	FindByOriginalHash(ctx context.Context, sha256 string) (*Receipt, error)
+	// FindIDsByFileHash ordnet jeder Prüfsumme, die eine abgelegte Datei
+	// gleich welcher Rolle trägt, den ersten Beleg damit zu. Prüfsummen ohne
+	// Beleg fehlen in der Antwort.
+	FindIDsByFileHash(ctx context.Context, sha256s []string) (map[string]uint, error)
 	// FindByEInvoiceNumber liefert alle Belege, deren E-Rechnung diese
 	// Rechnungsnummer trägt, über alle Geschäftsjahre.
 	FindByEInvoiceNumber(ctx context.Context, number string) ([]Receipt, error)

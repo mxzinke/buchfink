@@ -40,8 +40,8 @@ export const bridge = {
   // Einrichtung
   ValidateTenantDirectory: (dataDir: string) => invoke<void>('ValidateTenantDirectory', dataDir),
   GetAppConfig: <T>() => invoke<T>('GetAppConfig'),
-  SetupApplication: (dataDir: string, settings: unknown) =>
-    invoke<void>('SetupApplication', dataDir, settings),
+  SetupApplication: (dataDir: string, inboxDir: string, settings: unknown) =>
+    invoke<void>('SetupApplication', dataDir, inboxDir, settings),
   LoadExistingDatabase: (dbFilePath: string) => invoke<void>('LoadExistingDatabase', dbFilePath),
   SelectDirectoryDialog: (title: string) => invoke<string>('SelectDirectoryDialog', title),
   SelectDatabaseFileDialog: (title: string) => invoke<string>('SelectDatabaseFileDialog', title),

@@ -14,8 +14,8 @@ import (
 )
 
 // AgentSettings liest die Einstellungen für verbundene Agenten so, wie sie
-// gespeichert sind: ein nicht gesetzter Wert bleibt null, nil oder leer und
-// steht damit für die Voreinstellung.
+// gespeichert sind: ein nicht gesetzter Wert bleibt null oder leer und steht
+// damit für die Voreinstellung.
 func (s *SettingsService) AgentSettings(ctx context.Context) (*domain.AgentSettings, error) {
 	out := &domain.AgentSettings{}
 	if raw, ok, err := s.lookup(ctx, domain.SettingAgentDirectMaxGross); err != nil {
@@ -36,14 +36,13 @@ func (s *SettingsService) AgentSettings(ctx context.Context) (*domain.AgentSetti
 		}
 		out.DirectMinBookings = v
 	}
-	if raw, ok, err := s.lookup(ctx, domain.SettingAgentReceiptFolders); err != nil {
+	out.ExtraReadFolders = []string{}
+	if raw, ok, err := s.lookup(ctx, domain.SettingAgentExtraReadFolders); err != nil {
 		return nil, err
 	} else if ok {
-		folders := []string{}
-		if err := json.Unmarshal([]byte(raw), &folders); err != nil {
-			return nil, fmt.Errorf("die Belegordner ließen sich nicht lesen: %w", err)
+		if err := json.Unmarshal([]byte(raw), &out.ExtraReadFolders); err != nil {
+			return nil, fmt.Errorf("die Leseordner ließen sich nicht lesen: %w", err)
 		}
-		out.ReceiptFolders = folders
 	}
 	if raw, ok, err := s.lookup(ctx, domain.SettingAgentExportFolder); err != nil {
 		return nil, err
@@ -81,7 +80,7 @@ func (s *SettingsService) SaveAgentSettings(ctx context.Context, in domain.Agent
 		domain.SettingAgentDirectMaxGross:    "",
 		domain.SettingAgentDirectMinBookings: "",
 		domain.SettingAgentExportFolder:      strings.TrimSpace(in.ExportFolder),
-		domain.SettingAgentReceiptFolders:    "",
+		domain.SettingAgentExtraReadFolders:  "",
 	}
 	if in.DirectMaxGross > 0 {
 		values[domain.SettingAgentDirectMaxGross] = strconv.FormatInt(int64(in.DirectMaxGross), 10)
@@ -92,43 +91,76 @@ func (s *SettingsService) SaveAgentSettings(ctx context.Context, in domain.Agent
 	if ef := values[domain.SettingAgentExportFolder]; ef != "" && !filepath.IsAbs(ef) {
 		return nil, fmt.Errorf("der Exportordner %q ist kein absoluter Pfad", ef)
 	}
-	if in.ReceiptFolders != nil {
-		folders := make([]string, 0, len(in.ReceiptFolders))
-		for _, f := range in.ReceiptFolders {
-			f = strings.TrimSpace(f)
-			if f == "" {
-				continue
-			}
-			if !filepath.IsAbs(f) {
-				return nil, fmt.Errorf("der Belegordner %q ist kein absoluter Pfad", f)
-			}
-			folders = append(folders, filepath.Clean(f))
+	folders := make([]string, 0, len(in.ExtraReadFolders))
+	for _, f := range in.ExtraReadFolders {
+		f = strings.TrimSpace(f)
+		if f == "" {
+			continue
 		}
+		if !filepath.IsAbs(f) {
+			return nil, fmt.Errorf("der Leseordner %q ist kein absoluter Pfad", f)
+		}
+		folders = append(folders, filepath.Clean(f))
+	}
+	if len(folders) > 0 {
 		raw, err := json.Marshal(folders)
 		if err != nil {
 			return nil, err
 		}
-		values[domain.SettingAgentReceiptFolders] = string(raw)
+		values[domain.SettingAgentExtraReadFolders] = string(raw)
 	}
 	for _, key := range []string{
 		domain.SettingAgentDirectMaxGross, domain.SettingAgentDirectMinBookings,
-		domain.SettingAgentReceiptFolders, domain.SettingAgentExportFolder,
+		domain.SettingAgentExtraReadFolders, domain.SettingAgentExportFolder,
 	} {
-		before, _, err := s.lookup(ctx, key)
-		if err != nil {
-			return nil, err
-		}
-		if before == values[key] {
-			continue
-		}
-		if err := s.settingsRepo.Set(ctx, key, values[key]); err != nil {
-			return nil, err
-		}
-		if err := logAuditChange(ctx, s.auditRepo, domain.AuditActionUpdate, "SETTINGS", key,
-			"Regel für verbundene Apps geändert: "+key,
-			map[string]string{key: before}, map[string]string{key: values[key]}); err != nil {
+		if err := s.setLogged(ctx, key, values[key], "Regel für verbundene Apps geändert: "+key); err != nil {
 			return nil, err
 		}
 	}
 	return s.AgentSettings(ctx)
+}
+
+// setLogged schreibt eine Einstellung mit Protokolleintrag, wenn sie sich
+// ändert.
+func (s *SettingsService) setLogged(ctx context.Context, key, value, details string) error {
+	before, _, err := s.lookup(ctx, key)
+	if err != nil {
+		return err
+	}
+	if before == value {
+		return nil
+	}
+	if err := s.settingsRepo.Set(ctx, key, value); err != nil {
+		return err
+	}
+	return logAuditChange(ctx, s.auditRepo, domain.AuditActionUpdate, "SETTINGS", key, details,
+		map[string]string{key: before}, map[string]string{key: value})
+}
+
+// InboxFolder ist der eingestellte Eingang; leer heißt Voreinstellung
+// (<Datenordner>/Eingang).
+func (s *SettingsService) InboxFolder(ctx context.Context) (string, error) {
+	raw, _, err := s.lookup(ctx, domain.SettingInboxFolder)
+	return strings.TrimSpace(raw), err
+}
+
+// SetInboxFolder stellt den Eingang ein; leer heißt Voreinstellung. Nur in der
+// App: aus dem Eingang lesen verbundene Apps Belege und Kontoauszüge. Ob der
+// Ordner einen geschützten umschließt, prüft der Aufrufer
+// (policy.CheckFolders), der die Datenordner aller Mandanten kennt.
+func (s *SettingsService) SetInboxFolder(ctx context.Context, folder string) (string, error) {
+	if err := requireHuman(ctx, "Die Wahl des Eingangs"); err != nil {
+		return "", err
+	}
+	folder = strings.TrimSpace(folder)
+	if folder != "" {
+		if !filepath.IsAbs(folder) {
+			return "", fmt.Errorf("der Eingang %q ist kein absoluter Pfad", folder)
+		}
+		folder = filepath.Clean(folder)
+	}
+	if err := s.setLogged(ctx, domain.SettingInboxFolder, folder, "Eingang geändert"); err != nil {
+		return "", err
+	}
+	return folder, nil
 }

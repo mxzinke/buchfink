@@ -37,6 +37,9 @@ type HostOptions struct {
 	// Clock ist die Uhr der Hintergrundläufe; ohne Angabe die echte.
 	Clock  Clock
 	Logger *slog.Logger
+	// OnChange hört jeden gelungenen Vorgang jedes Mandanten (Change), etwa
+	// um die Oberfläche neu zu laden. Er darf nicht blockieren.
+	OnChange func(Change)
 }
 
 // Host hält die Mandantenliste und genau einen offenen Mandanten. Ein Prozess
@@ -351,6 +354,7 @@ func (h *Host) open(ctx context.Context, tc domain.TenantConfig) (*Tenant, error
 		BackupDir: func() string { return h.backupDirOf(id) },
 		Network:   h.opts.Network,
 		Logger:    h.logger,
+		OnChange:  h.opts.OnChange,
 	})
 }
 
@@ -440,14 +444,35 @@ func (h *Host) switchTo(ctx context.Context, tc domain.TenantConfig) (*Tenant, e
 	return t, nil
 }
 
-// CreateTenant legt einen Mandanten in einem leeren Ordner an und öffnet ihn.
-// Scheitert ein Schritt, bleiben Ordner, Liste und offener Mandant, wie sie
-// waren.
+// TenantOption ergänzt die Einrichtung eines Mandanten.
+type TenantOption func(*tenantSetup)
+
+type tenantSetup struct {
+	inbox string
+}
+
+// WithInbox wählt den Eingang eines neuen Mandanten; leer heißt
+// <Datenordner>/Eingang. Ob er einen geschützten Ordner berührt, prüft der
+// Aufrufer (policy.CheckFolders).
+func WithInbox(path string) TenantOption {
+	return func(s *tenantSetup) { s.inbox = strings.TrimSpace(path) }
+}
+
+// CreateTenant legt einen Mandanten in einem leeren Ordner an, legt seinen
+// Eingang an und öffnet ihn. Scheitert ein Schritt, bleiben Ordner, Liste und
+// offener Mandant, wie sie waren.
 func (h *Host) CreateTenant(
-	ctx context.Context, name, dataDir string, settings domain.CompanySettings,
+	ctx context.Context, name, dataDir string, settings domain.CompanySettings, opts ...TenantOption,
 ) (*domain.TenantConfig, error) {
 	if err := requireApp(ctx); err != nil {
 		return nil, err
+	}
+	var setup tenantSetup
+	for _, opt := range opts {
+		opt(&setup)
+	}
+	if setup.inbox != "" && !filepath.IsAbs(setup.inbox) {
+		return nil, fmt.Errorf("der Eingang %q ist kein absoluter Pfad", setup.inbox)
 	}
 	h.lifecycle.Lock()
 	defer h.lifecycle.Unlock()
@@ -497,14 +522,24 @@ func (h *Host) CreateTenant(
 	if err != nil {
 		return nil, err
 	}
-	err = service.NewSettingsService(repository.NewSettingsRepository(db), repository.NewAuditRepository(db)).
-		UpdateCompanySettings(ctx, &settings)
+	settingsSvc := service.NewSettingsService(repository.NewSettingsRepository(db), repository.NewAuditRepository(db))
+	err = settingsSvc.UpdateCompanySettings(ctx, &settings)
+	if err == nil && setup.inbox != "" {
+		_, err = settingsSvc.SetInboxFolder(ctx, setup.inbox)
+	}
 	closeErr := repository.CloseDB(db)
 	if err != nil {
 		return nil, fmt.Errorf("Unternehmensdaten speichern: %w", err)
 	}
 	if closeErr != nil {
 		return nil, closeErr
+	}
+	inbox := setup.inbox
+	if inbox == "" {
+		inbox = filepath.Join(dataDir, domain.DefaultInboxDir)
+	}
+	if err := os.MkdirAll(inbox, 0o755); err != nil {
+		return nil, fmt.Errorf("der Eingang %s ließ sich nicht anlegen: %w", inbox, err)
 	}
 
 	tc := domain.TenantConfig{ID: id, Name: name, DataDir: dataDir, CreatedAt: time.Now().UTC().Format(time.RFC3339)}

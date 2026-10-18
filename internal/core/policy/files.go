@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -11,30 +10,34 @@ import (
 
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/inbox"
 )
 
-// Ein Agent übergibt Belege nur als Pfad. Buchfink liest sie aus den
-// Belegordnern, die der Mensch in der App freigibt, und schreibt Exporte nur
-// in den Exportordner. Voreingestellt ist allein der Eingang im Datenordner
-// des Mandanten. Downloads gehört nicht dazu: dorthin schreibt jede Webseite
-// und jeder Mailanhang, eine dort abgelegte Datei bleibt als Beleg zehn Jahre
-// im Archiv, und eine gefälschte E-Rechnung oder ein gefälschter Kontoauszug
-// käme ohne Zutun des Menschen in Reichweite des Agenten. Wer Downloads will,
-// nimmt ihn in der App auf.
+// Ein Agent übergibt Belege nur als Pfad. Buchfink liest sie aus dem Eingang
+// des Mandanten und aus weiteren Leseordnern, die der Mensch in der App
+// freigibt, und schreibt Exporte nur in den Exportordner. Voreingestellt ist
+// allein der Eingang im Datenordner. Downloads gehört nicht dazu: dorthin
+// schreibt jede Webseite und jeder Mailanhang, eine dort abgelegte Datei
+// bleibt als Beleg zehn Jahre im Archiv, und eine gefälschte E-Rechnung oder
+// ein gefälschter Kontoauszug käme ohne Zutun des Menschen in Reichweite des
+// Agenten. Wer Downloads will, nimmt ihn in der App als Leseordner auf.
 
 const (
-	// InboxDir ist der Eingangsordner im Datenordner.
-	InboxDir = "Belegeingang"
+	// InboxDir ist der voreingestellte Eingang im Datenordner.
+	InboxDir = domain.DefaultInboxDir
 	// ExportDir ist der voreingestellte Exportordner im Datenordner.
 	ExportDir = "Export"
 	// MaxFileBytes ist die größte Datei, die ein Agent ablegen kann.
-	MaxFileBytes = 50 << 20
+	MaxFileBytes = inbox.MaxFileBytes
 )
 
 // Folders sind die aufgelösten Ordner eines Mandanten.
 type Folders struct {
-	Receipt []string `json:"belegordner"`
-	Export  string   `json:"exportordner"`
+	// Inbox ist der Eingang: genau einer, im Datenordner oder außerhalb.
+	Inbox string `json:"eingang"`
+	// Read sind weitere Leseordner.
+	Read   []string `json:"leseordner"`
+	Export string   `json:"exportordner"`
 	// DataDir ist gesperrt, bis auf den Eingang darin.
 	DataDir string `json:"-"`
 	// Denied sind weitere gesperrte Ordner: die Datenordner der übrigen
@@ -49,12 +52,21 @@ func FoldersFor(ctx context.Context, s *core.Services, dataDir string, denied ..
 	if err != nil {
 		return Folders{}, err
 	}
-	return FoldersFrom(settings, dataDir, denied...), nil
+	inboxFolder, err := s.Settings.InboxFolder(ctx)
+	if err != nil {
+		return Folders{}, err
+	}
+	return FoldersFrom(settings, inboxFolder, dataDir, denied...), nil
 }
 
-// FoldersFrom löst Einstellungen zu Ordnern auf.
-func FoldersFrom(settings *domain.AgentSettings, dataDir string, denied ...string) Folders {
-	f := Folders{DataDir: dataDir, Export: filepath.Join(dataDir, ExportDir)}
+// FoldersFrom löst Einstellungen zu Ordnern auf. Ein leerer Eingang ist
+// <Datenordner>/Eingang.
+func FoldersFrom(settings *domain.AgentSettings, inboxFolder, dataDir string, denied ...string) Folders {
+	f := Folders{Inbox: strings.TrimSpace(inboxFolder), Read: []string{}, DataDir: dataDir,
+		Export: filepath.Join(dataDir, ExportDir)}
+	if f.Inbox == "" {
+		f.Inbox = filepath.Join(dataDir, InboxDir)
+	}
 	for _, d := range denied {
 		if strings.TrimSpace(d) != "" {
 			f.Denied = append(f.Denied, d)
@@ -63,12 +75,15 @@ func FoldersFrom(settings *domain.AgentSettings, dataDir string, denied ...strin
 	if settings != nil && settings.ExportFolder != "" {
 		f.Export = settings.ExportFolder
 	}
-	if settings != nil && settings.ReceiptFolders != nil {
-		f.Receipt = append([]string{}, settings.ReceiptFolders...)
-		return f
+	if settings != nil {
+		f.Read = append(f.Read, settings.ExtraReadFolders...)
 	}
-	f.Receipt = []string{filepath.Join(dataDir, InboxDir)}
 	return f
+}
+
+// roots sind die Ordner, aus denen gelesen wird: Eingang und Leseordner.
+func (f Folders) roots() []string {
+	return append([]string{f.Inbox}, f.Read...)
 }
 
 // ProtectedDirs sind die Ordner, aus denen kein Agent eines Mandanten liest:
@@ -84,25 +99,47 @@ func ProtectedDirs(cfg domain.AppConfig, ownDataDir string) []string {
 	return out
 }
 
-// CheckReceiptFolders weist Belegordner ab, die einen geschützten Ordner
-// enthalten oder in einem liegen. Der eigene Eingang ist erlaubt, auch wenn er
-// im eigenen Datenordner liegt.
-func CheckReceiptFolders(folders []string, ownDataDir string, protected []string) error {
-	inbox := filepath.Join(ownDataDir, InboxDir)
-	guarded := append([]string{ownDataDir}, protected...)
-	for _, folder := range folders {
-		clean := filepath.Clean(folder)
-		if clean == inbox {
+// CheckFolders weist einen Eingang oder Leseordner ab, der einen geschützten
+// Ordner enthält oder in einem liegt: den eigenen Datenordner, die Datenordner
+// der anderen Mandanten, eine Sicherung. Im eigenen Datenordner ist allein
+// der voreingestellte Eingang erlaubt. Leer heißt beim Eingang Voreinstellung.
+func CheckFolders(inboxFolder string, read []string, ownDataDir string, protected []string) error {
+	if strings.TrimSpace(inboxFolder) != "" &&
+		filepath.Clean(inboxFolder) == filepath.Join(filepath.Clean(ownDataDir), InboxDir) {
+		inboxFolder = ""
+	}
+	if err := checkFolder("der Eingang", inboxFolder, ownDataDir, protected); err != nil {
+		return err
+	}
+	for _, folder := range read {
+		if strings.TrimSpace(folder) == "" {
 			continue
 		}
-		for _, p := range guarded {
-			if strings.TrimSpace(p) == "" {
-				continue
-			}
-			p = filepath.Clean(p)
-			if clean == p || within(p, clean) || within(clean, p) {
-				return fmt.Errorf("der Belegordner %s überschneidet sich mit %s (Datenordner eines Mandanten "+
-					"oder Sicherung); er wäre für verbundene Apps lesbar", folder, p)
+		if err := checkFolder("der Leseordner", folder, ownDataDir, protected); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func checkFolder(what, folder, ownDataDir string, protected []string) error {
+	if strings.TrimSpace(folder) == "" {
+		return nil
+	}
+	if !filepath.IsAbs(folder) || remotePath(folder) {
+		return fmt.Errorf("%s %s ist kein lokaler absoluter Pfad", what, folder)
+	}
+	clean := filepath.Clean(folder)
+	for _, p := range append([]string{ownDataDir}, protected...) {
+		if strings.TrimSpace(p) == "" {
+			continue
+		}
+		for _, guarded := range []string{filepath.Clean(p), resolveDir(p)} {
+			for _, candidate := range []string{clean, resolveDir(clean)} {
+				if candidate == guarded || within(guarded, candidate) || within(candidate, guarded) {
+					return fmt.Errorf("%s %s überschneidet sich mit %s (Datenordner eines Mandanten "+
+						"oder Sicherung); er wäre für verbundene Apps lesbar", what, folder, p)
+				}
 			}
 		}
 	}
@@ -126,13 +163,13 @@ func invalidFile(format string, args ...any) error {
 	return &FileError{msg: fmt.Sprintf(format, args...)}
 }
 
-// Kind ist die erkannte Art einer Datei.
-type Kind string
+// Kind ist das erkannte Format einer Datei.
+type Kind = inbox.Format
 
 const (
-	KindPDF   Kind = "pdf"
-	KindImage Kind = "bild"
-	KindXML   Kind = "xml"
+	KindPDF   = inbox.FormatPDF
+	KindImage = inbox.FormatImage
+	KindXML   = inbox.FormatXML
 )
 
 // File ist eine geprüfte und gelesene Datei.
@@ -143,21 +180,17 @@ type File struct {
 	Data []byte
 }
 
-var extensions = map[string]Kind{
-	".pdf": KindPDF, ".png": KindImage, ".jpg": KindImage, ".jpeg": KindImage,
-	".tif": KindImage, ".tiff": KindImage, ".webp": KindImage, ".xml": KindXML,
-}
-
-// ReadFile prüft einen Pfad gegen die Belegordner und liest die Datei
+// ReadFile prüft einen Pfad gegen Eingang und Leseordner und liest die Datei
 // einmal. Zuerst wird der Pfad ohne Zugriff auf das Dateisystem geprüft:
-// liegt er nicht in einem Belegordner, erfährt der Agent nicht einmal, ob es
-// die Datei gibt, und ein Netzwerkpfad wird nie berührt. Danach werden
-// Symlinks aufgelöst und erneut geprüft; gelesen wird nur eine gewöhnliche
-// Datei ohne weiteren harten Verweis, und nach dem Öffnen muss sie noch an
-// derselben Stelle liegen.
+// liegt er weder im Eingang noch in einem Leseordner, erfährt der Agent nicht
+// einmal, ob es die Datei gibt, und ein Netzwerkpfad wird nie berührt. Danach
+// werden Symlinks aufgelöst und erneut geprüft; gelesen wird nur eine
+// gewöhnliche Datei ohne weiteren harten Verweis, und nach dem Öffnen muss sie
+// noch an derselben Stelle liegen.
 func ReadFile(path string, f Folders, allowed ...Kind) (*File, error) {
 	path = strings.TrimSpace(path)
-	refused := notAllowed("%s liegt in keinem freigegebenen Belegordner (%s)", path, strings.Join(f.Receipt, ", "))
+	refused := notAllowed("%s liegt weder im Eingang noch in einem freigegebenen Leseordner (%s)", path,
+		strings.Join(f.roots(), ", "))
 	if path == "" || !filepath.IsAbs(path) || remotePath(path) {
 		return nil, refused
 	}
@@ -177,7 +210,7 @@ func ReadFile(path string, f Folders, allowed ...Kind) (*File, error) {
 	if strings.HasPrefix(name, ".") {
 		return nil, notAllowed("versteckte Dateien werden nicht abgelegt: %s", name)
 	}
-	kind, ok := extensions[strings.ToLower(filepath.Ext(name))]
+	kind, ok := inbox.FormatOf(name)
 	if !ok || (len(allowed) > 0 && !containsKind(allowed, kind)) {
 		return nil, invalidFile("%s hat keine zulässige Endung (%s)", name, allowedList(allowed))
 	}
@@ -203,8 +236,8 @@ func ReadFile(path string, f Folders, allowed ...Kind) (*File, error) {
 	if err != nil || !os.SameFile(info, opened) {
 		return nil, invalidFile("die Datei %s hat sich beim Öffnen geändert", name)
 	}
-	// Ein harter Verweis macht eine Datei außerhalb der Belegordner unter einem
-	// Namen darin lesbar; kein Beleg braucht einen.
+	// Ein harter Verweis macht eine Datei außerhalb von Eingang und
+	// Leseordnern unter einem Namen darin lesbar; kein Beleg braucht einen.
 	if links, err := linkCount(file, opened); err != nil || links > 1 {
 		return nil, notAllowed("%s hat weitere harte Verweise im Dateisystem und wird nicht abgelegt", name)
 	}
@@ -223,7 +256,7 @@ func ReadFile(path string, f Folders, allowed ...Kind) (*File, error) {
 	if len(data) > MaxFileBytes {
 		return nil, invalidFile("%s ist größer als %d MB", name, MaxFileBytes>>20)
 	}
-	if !contentMatches(kind, data) {
+	if !inbox.ContentMatches(kind, data) {
 		return nil, invalidFile("der Inhalt von %s passt nicht zur Endung %s", name, filepath.Ext(name))
 	}
 	return &File{Path: resolved, Name: name, Kind: kind, Data: data}, nil
@@ -241,10 +274,11 @@ func remotePath(path string) bool {
 }
 
 // lexicallyAllows prüft den bereinigten Pfad, ohne das Dateisystem zu fragen:
-// er liegt in einem Belegordner, so wie er eingestellt ist oder aufgelöst.
+// er liegt im Eingang oder einem Leseordner, so wie eingestellt oder
+// aufgelöst.
 func (f Folders) lexicallyAllows(clean string) bool {
-	for _, folder := range f.Receipt {
-		if remotePath(folder) {
+	for _, folder := range f.roots() {
+		if strings.TrimSpace(folder) == "" || remotePath(folder) {
 			continue
 		}
 		raw := filepath.Clean(folder)
@@ -255,13 +289,14 @@ func (f Folders) lexicallyAllows(clean string) bool {
 	return false
 }
 
-// allows meldet, ob ein aufgelöster Pfad in einem Belegordner liegt und in
-// keinem gesperrten. Im eigenen Datenordner ist nur der Eingang offen; ein
-// gesperrter Ordner, der den eigenen Eingang umschließt, sperrt ihn nicht.
+// allows meldet, ob ein aufgelöster Pfad im Eingang oder einem Leseordner
+// liegt und in keinem gesperrten. Im eigenen Datenordner ist nur der
+// voreingestellte Eingang offen, und nur, wenn er der eingestellte ist; ein
+// gesperrter Ordner, der den Eingang umschließt, sperrt ihn nicht.
 func (f Folders) allows(resolved string) bool {
 	inFolder := false
-	for _, folder := range f.Receipt {
-		if remotePath(folder) {
+	for _, folder := range f.roots() {
+		if strings.TrimSpace(folder) == "" || remotePath(folder) {
 			continue
 		}
 		if within(resolveDir(folder), resolved) {
@@ -272,13 +307,14 @@ func (f Folders) allows(resolved string) bool {
 	if !inFolder {
 		return false
 	}
-	inInbox := false
-	var inbox string
+	inboxDir := ""
+	if strings.TrimSpace(f.Inbox) != "" && !remotePath(f.Inbox) {
+		inboxDir = resolveDir(f.Inbox)
+	}
+	inInbox := inboxDir != "" && within(inboxDir, resolved)
 	if f.DataDir != "" {
 		data := resolveDir(f.DataDir)
-		inbox = filepath.Join(data, InboxDir)
-		inInbox = within(inbox, resolved)
-		if within(data, resolved) && !inInbox {
+		if within(data, resolved) && !(inInbox && within(filepath.Join(data, InboxDir), resolved)) {
 			return false
 		}
 	}
@@ -287,7 +323,7 @@ func (f Folders) allows(resolved string) bool {
 		if !within(dir, resolved) {
 			continue
 		}
-		if inInbox && within(dir, inbox) {
+		if inInbox && within(dir, inboxDir) {
 			continue
 		}
 		return false
@@ -317,18 +353,15 @@ func (f Folders) ExportPath(name string) (string, error) {
 	return filepath.Join(f.Export, name), nil
 }
 
-// EnsureInbox legt den Eingang im Datenordner an, damit der Mensch weiß,
-// wohin er Belege legt.
+// EnsureInbox legt den voreingestellten Eingang im Datenordner an, damit der
+// Mensch weiß, wohin er Belege legt. Einen eigenen Eingang legt die App an,
+// wenn der Mensch ihn wählt.
 func (f Folders) EnsureInbox() {
 	if f.DataDir == "" {
 		return
 	}
-	inbox := filepath.Join(f.DataDir, InboxDir)
-	for _, folder := range f.Receipt {
-		if filepath.Clean(folder) == inbox {
-			_ = os.MkdirAll(inbox, 0o755)
-			return
-		}
+	if inbox := filepath.Join(f.DataDir, InboxDir); filepath.Clean(f.Inbox) == inbox {
+		_ = os.MkdirAll(inbox, 0o755)
 	}
 }
 
@@ -362,20 +395,4 @@ func allowedList(allowed []Kind) string {
 		return "xml"
 	}
 	return "pdf, png, jpg, jpeg, tif, tiff, webp, xml"
-}
-
-func contentMatches(kind Kind, data []byte) bool {
-	switch kind {
-	case KindPDF:
-		return bytes.HasPrefix(data, []byte("%PDF-"))
-	case KindImage:
-		return bytes.HasPrefix(data, []byte{0x89, 'P', 'N', 'G'}) ||
-			bytes.HasPrefix(data, []byte{0xFF, 0xD8, 0xFF}) ||
-			bytes.HasPrefix(data, []byte("II*\x00")) || bytes.HasPrefix(data, []byte("MM\x00*")) ||
-			(len(data) > 12 && string(data[:4]) == "RIFF" && string(data[8:12]) == "WEBP")
-	case KindXML:
-		trimmed := bytes.TrimLeft(bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF}), " \t\r\n")
-		return bytes.HasPrefix(trimmed, []byte("<"))
-	}
-	return false
 }

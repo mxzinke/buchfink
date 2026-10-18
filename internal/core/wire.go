@@ -21,7 +21,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	bankRepo := repository.NewBankRepository(db)
 	contactRepo := repository.NewContactRepository(db)
 	invoiceRepo := repository.NewInvoiceRepository(db)
-	auditRepo := repository.NewAuditRepository(db)
+	auditRepo := recordingAudit{repository.NewAuditRepository(db)}
 	settingsRepo := repository.NewSettingsRepository(db)
 	festschreibungRepo := repository.NewFestschreibungRepository(db)
 	allocationRepo := repository.NewPaymentAllocationRepository(db)

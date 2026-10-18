@@ -185,14 +185,13 @@ func (h *harness) eInvoiceXML(seller *domain.CompanySettings, number, date strin
 	return xml
 }
 
-// inboxFile legt eine Datei in den Belegeingang.
+// inboxFile legt eine Datei in den Eingang; name darf Unterordner nennen.
 func (h *harness) inboxFile(name string, data []byte) string {
 	h.t.Helper()
-	dir := filepath.Join(h.tenant.DataDir, policy.InboxDir)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	path := filepath.Join(h.tenant.DataDir, policy.InboxDir, name)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		h.t.Fatal(err)
 	}
-	path := filepath.Join(dir, name)
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		h.t.Fatal(err)
 	}

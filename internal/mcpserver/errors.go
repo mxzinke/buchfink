@@ -70,8 +70,8 @@ func toolError(err error) *ToolError {
 			NaechsterSchritt: "Den Menschen bitten, das in Buchfink selbst zu erledigen.", Werkzeug: "nur_app"}
 	case errors.As(err, &fe) && fe.NotAllowed:
 		return &ToolError{Code: CodePathNotAllowed, Nachricht: err.Error(),
-			NaechsterSchritt: "Den Menschen bitten, die Datei in einen Belegordner zu legen (status nennt sie) oder ins Buchfink-Fenster zu ziehen.",
-			Werkzeug:         "status"}
+			NaechsterSchritt: "Den Menschen bitten, die Datei in den Eingang zu legen oder ins Buchfink-Fenster zu ziehen; eingang nennt den Ordner und seine Dateien.",
+			Werkzeug:         "eingang"}
 	case errors.As(err, &fe):
 		return &ToolError{Code: CodeFileInvalid, Nachricht: err.Error(),
 			NaechsterSchritt: "Die Originaldatei (PDF, Bild oder XML bis 50 MB) anfordern."}

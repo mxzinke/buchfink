@@ -505,12 +505,13 @@ func TestObligationsAndStatus(t *testing.T) {
 	a := h.agent("")
 
 	st := statusResult(t, callTool(t, a.cs, "status", nil))
-	if !st.Bereit || len(st.Belegordner) == 0 || st.Exportordner == "" || st.Direktregeln == nil ||
+	if !st.Bereit || st.Eingang == nil || st.Exportordner == "" || st.Direktregeln == nil ||
 		st.Direktregeln.GrenzeBrutto != Betrag("1000.00") || st.Direktregeln.Mindestbuchungen != 3 {
 		t.Fatalf("status: %+v", st)
 	}
-	if st.Belegordner[0] != filepath.Join(h.tenant.DataDir, "Belegeingang") {
-		t.Errorf("Belegeingang: %v", st.Belegordner)
+	if st.Eingang.Pfad != filepath.Join(h.tenant.DataDir, "Eingang") || st.Eingang.Dateien != 0 || st.Eingang.Hinweis != "" ||
+		len(st.Leseordner) != 0 {
+		t.Errorf("Eingang: %+v, Leseordner %v", st.Eingang, st.Leseordner)
 	}
 
 	type pflicht struct {

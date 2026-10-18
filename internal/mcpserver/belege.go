@@ -29,9 +29,9 @@ func richtungOf(d domain.Direction) Richtung {
 	return "eingang"
 }
 
-// folders sind die Beleg- und Exportordner des geöffneten Mandanten. Die
+// folders sind Eingang, Lese- und Exportordner des geöffneten Mandanten. Die
 // Datenordner der übrigen Mandanten und alle Sicherungen bleiben gesperrt,
-// auch wenn ein Belegordner sie umschließt.
+// auch wenn ein Leseordner sie umschließt.
 func folders(ctx context.Context, c *Call, s *core.Services) (policy.Folders, error) {
 	return policy.FoldersFor(ctx, s, c.Tenant.DataDir(), policy.ProtectedDirs(c.Host.Config(), c.Tenant.DataDir())...)
 }
@@ -182,7 +182,7 @@ func befundeOf(f *domain.ReceiptFindings) belegBefunde {
 // --- beleg_ablegen ----------------------------------------------------------
 
 type belegDateiIn struct {
-	Pfad  string     `json:"pfad" jsonschema:"absoluter Pfad in einem Belegordner (status nennt sie)"`
+	Pfad  string     `json:"pfad" jsonschema:"absoluter Pfad im Eingang (eingang nennt die Dateien) oder in einem Leseordner"`
 	Rolle DateiRolle `json:"rolle,omitempty" jsonschema:"original (Vorgabe für die erste Datei), anhang oder darstellung (PDF-Ansicht einer reinen XRechnung; ohne sie lässt sich eine XRechnung nicht buchen)"`
 }
 
@@ -203,6 +203,7 @@ type belegAblegenOut struct {
 	BereitsVorhanden bool         `json:"bereits_vorhanden" jsonschema:"dieselbe Originaldatei lag schon als Beleg vor; es wurde nichts abgelegt"`
 	ERechnung        bool         `json:"e_rechnung"`
 	Befunde          belegBefunde `json:"befunde"`
+	Verschoben       []verschoben `json:"verschoben,omitempty" jsonschema:"Dateien, die aus dem Eingang nach Übernommen/<JJJJ-MM> gingen; ein weiterer Aufruf nimmt den neuen Pfad"`
 	Hinweise         []string     `json:"hinweise"`
 	NaechsterSchritt string       `json:"naechster_schritt"`
 }
@@ -395,13 +396,14 @@ func registerBelege(tb *Toolbox) {
 		return out, nil
 	})
 
-	AddWrite(tb, Spec{
+	AddWriteThen(tb, Spec{
 		Name:  "beleg_ablegen",
 		Title: "Beleg ablegen",
 		Tier:  TierDirect, Idempotent: true,
-		Description: "Legt Dateien aus einem Belegordner als Eingangsbeleg ab (absoluter Pfad; PDF, Bild oder XML " +
-			"bis 50 MB; kein Dateiinhalt im Aufruf). Nur Dateien ablegen, die der Mensch als Beleg benannt hat: die " +
-			"Ablage ist endgültig, auch ein verworfener Beleg bleibt im Archiv. Eine E-Rechnung wird ausgelesen und " +
+		Description: "Legt Dateien aus dem Eingang (eingang) oder einem Leseordner als Eingangsbeleg ab (absoluter " +
+			"Pfad; PDF, Bild oder XML bis 50 MB; kein Dateiinhalt im Aufruf). Nur Dateien ablegen, die der Mensch " +
+			"als Beleg benannt hat: die Ablage ist endgültig, auch ein verworfener Beleg bleibt im Archiv. Danach " +
+			"verschiebt Buchfink die Dateien aus dem Eingang nach Übernommen/<JJJJ-MM>. Eine E-Rechnung wird ausgelesen und " +
 			"geprüft; Belegdatum, Aussteller, Brutto und Rechnungsnummer kommen dann aus ihr. Bei Fotos und PDF ohne " +
 			"E-Rechnung gehören belegdatum, aussteller und brutto dazu. eingang_am bestimmt den " +
 			"Voranmeldungszeitraum der Vorsteuer. Dieselbe Originaldatei ein zweites Mal liefert den vorhandenen " +
@@ -517,6 +519,14 @@ func registerBelege(tb *Toolbox) {
 		out.NaechsterSchritt = "beleg_lesen mit beleg_id " + fmt.Sprint(receipt.ID)
 		out.Hinweise = append(out.Hinweise, receiptHints(ctx, s, receipt)...)
 		return out, nil
+	}, func(ctx context.Context, c *Call, in belegAblegenIn, out *belegAblegenOut) {
+		paths := make([]string, 0, len(in.Dateien))
+		for _, d := range in.Dateien {
+			paths = append(paths, d.Pfad)
+		}
+		moved, hints := settleInbox(ctx, c, paths)
+		out.Verschoben = moved
+		out.Hinweise = append(out.Hinweise, hints...)
 	})
 
 	AddFlow(tb, Spec{

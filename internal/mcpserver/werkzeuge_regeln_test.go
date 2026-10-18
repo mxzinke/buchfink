@@ -148,9 +148,9 @@ func TestObligationAnchorsAreAccepted(t *testing.T) {
 	}
 }
 
-// Ein Belegordner, der die Datenordner mehrerer Mandanten umschließt, macht
+// Ein Leseordner, der die Datenordner mehrerer Mandanten umschließt, macht
 // die Belege der anderen nicht lesbar.
-func TestReceiptFolderSkipsOtherTenants(t *testing.T) {
+func TestReadFolderSkipsOtherTenants(t *testing.T) {
 	h := newHarness(t)
 	parent := t.TempDir()
 	other, err := h.host.CreateTenant(uiCtx, "Fremd GmbH", filepath.Join(parent, "Fremd GmbH"),
@@ -169,7 +169,7 @@ func TestReceiptFolderSkipsOtherTenants(t *testing.T) {
 		t.Fatal(err)
 	}
 	h.ui(func(ctx context.Context, s *core.Services) error {
-		_, err := s.Settings.SaveAgentSettings(ctx, domain.AgentSettings{ReceiptFolders: []string{parent}})
+		_, err := s.Settings.SaveAgentSettings(ctx, domain.AgentSettings{ExtraReadFolders: []string{parent}})
 		return err
 	})
 	a := h.agent("")
@@ -194,8 +194,13 @@ func TestPureXRechnungGetsItsRendering(t *testing.T) {
 	if e.Werkzeug != "beleg_ablegen" {
 		t.Errorf("ohne Darstellung: %+v", e)
 	}
+	// Die XML ging nach der Ablage nach Übernommen/; von dort nimmt sie das
+	// zweite Ablegen.
+	if len(filed.Verschoben) != 1 || filed.Verschoben[0].Von != xml {
+		t.Fatalf("verschoben: %+v", filed.Verschoben)
+	}
 	var again ablageOut
-	a.ok("beleg_ablegen", a.args(map[string]any{"eingang_am": "2026-05-05", "dateien": []any{map[string]any{"pfad": xml},
+	a.ok("beleg_ablegen", a.args(map[string]any{"eingang_am": "2026-05-05", "dateien": []any{map[string]any{"pfad": filed.Verschoben[0].Nach},
 		map[string]any{"pfad": h.inboxFile("RE-XR-1.pdf", pdf("Darstellung")), "rolle": "darstellung"}}}), &again)
 	if !again.BereitsVorhanden || again.Beleg.ID != filed.Beleg.ID || !again.Befunde.Geprueft {
 		t.Fatalf("Darstellung nachgereicht: %+v", again)

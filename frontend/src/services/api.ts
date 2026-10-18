@@ -408,7 +408,7 @@ export const Api = {
     call(() => Bridge.ValidateTenantDirectory(dataDir)),
 
   setupApplication: (dataDir: string, settings: CompanySettings): Promise<void> =>
-    call(() => Bridge.SetupApplication(dataDir, settings as any) as Promise<void>),
+    call(() => Bridge.SetupApplication(dataDir, '', settings as any) as Promise<void>),
   loadExistingDatabase: (dbFilePath: string): Promise<void> =>
     call(() => Bridge.LoadExistingDatabase(dbFilePath) as Promise<void>),
   selectDirectoryDialog: (title: string): Promise<string> =>

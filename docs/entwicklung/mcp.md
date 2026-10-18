@@ -76,8 +76,9 @@ aus `Toolbox.OutputSchema`, `TestCatalogStaysSmall` hält den Katalog unter
 
 | Werkzeug | Stufe | Zweck |
 |---|---|---|
-| `status` | lesen | Mandant mit USt-Zeitraum, Dauerfrist, festgeschrieben bis, letzter Sicherung; Geschäftsjahre, Prüfermodus, Belegordner, Exportordner, Direktregeln |
-| `aufgaben` | lesen | Arbeitsliste mit dem Werkzeug für den nächsten Schritt |
+| `status` | lesen | Mandant mit USt-Zeitraum, Dauerfrist, festgeschrieben bis, letzter Sicherung; Geschäftsjahre, Prüfermodus, Eingang mit Zahl der Dateien, Leseordner, Exportordner, Direktregeln |
+| `aufgaben` | lesen | Arbeitsliste mit dem Werkzeug für den nächsten Schritt, darunter „N Dateien im Eingang“ |
+| `eingang` | lesen | Dateien im Eingang ohne `Übernommen/`, die älteste zuerst, mit Art und `bereits_abgelegt`; seitenweise |
 | `fristen` | lesen | Pflichtenkalender mit Status, Kanal, Zuständigkeit, `anker` und Verweis auf `pflichten.md#<anker>` |
 | `konten` | lesen | Kontensuche im SKR04, Buchungsgruppen, Steuerfälle |
 | `kontakte_suchen` | lesen | Kunden und Lieferanten mit Saldo und Standardgruppe |
@@ -92,14 +93,14 @@ aus `Toolbox.OutputSchema`, `TestCatalogStaysSmall` hält den Katalog unter
 | `abschluss_status` | lesen | Schritte des Jahresabschlusses mit nächster Aktion |
 | `erklaerung` | lesen | UStVA, ZM, USt-, KSt- und GewSt-Erklärung formularnah mit Herkunft |
 | `rechnung_vorschau` | lesen | Ausgangsrechnung durchrechnen ohne Ausstellen |
-| `beleg_ablegen` | direkt | Dateien aus einem Belegordner ablegen, E-Rechnung auslesen und prüfen, fehlende Dateien an einem offenen Beleg ergänzen |
+| `beleg_ablegen` | direkt | Dateien aus Eingang oder Leseordner ablegen, E-Rechnung auslesen und prüfen, fehlende Dateien an einem offenen Beleg ergänzen; danach geht die Datei aus dem Eingang nach `Übernommen/` |
 | `beleg_datei_exportieren` | direkt | Kopie einer Belegdatei in den Exportordner, zum Lesen oder Versenden |
 | `kontakt_anlegen` | direkt | Kontakt anlegen nach Dublettenprüfung |
-| `kontoauszug_importieren` | direkt | CAMT.053 ablegen, Salden prüfen, Umsätze einlesen |
+| `kontoauszug_importieren` | direkt | CAMT.053 ablegen, Salden prüfen, Umsätze einlesen; danach geht die Datei aus dem Eingang nach `Übernommen/` |
 | `beleg_buchen` | direkt | Eingangsrechnung buchen, nur Routine |
 | `bankumsatz_zuordnen` | direkt | Bankumsatz mit genau einem offenen Posten ausgleichen, nur Routine |
 | `erklaerung_exportieren` | direkt | Jahreserklärung als JSON in den Exportordner |
-| `ebilanz_exportieren` | direkt | E-Bilanz prüfen und als XBRL in den Exportordner |
+| `ebilanz_exportieren` | direkt | E-Bilanz prüfen und in den Exportordner: `format` `xbrl` (Vorgabe) oder `susa_csv` |
 | `pflicht_vorbereitet` | direkt | Pflicht als vorbereitet melden, nie als erledigt |
 | `standardgruppe_vorschlagen` | direkt | Standard-Buchungsgruppe eines Lieferanten vorschlagen |
 | `beleg_buchen_mit_rueckfrage` | rueckfrage | Eingangsbeleg in allen Nicht-Routinefällen, auch Auslage; ergänzt fehlende Kopfdaten und berichtigt `eingang_am` |
@@ -143,8 +144,8 @@ Text, der mit `validating` beginnt.
 | `pruefermodus_aktiv` | Prüfermodus, nur lesen; Exporte laufen weiter |
 | `nur_in_app` | der Vorgang gehört dem Menschen in der App, auch ein Konto mit Fachweg |
 | `freigabe_noetig` | kein Routinefall; `gruende` nennt die Regeln, `werkzeug` das Werkzeug mit Rückfrage |
-| `pfad_nicht_erlaubt` | Pfad liegt außerhalb der Belegordner, in einem gesperrten Ordner oder hat weitere harte Verweise |
-| `datei_ungueltig` | Datei fehlt im Belegordner, Typ, Größe oder Inhalt passt nicht |
+| `pfad_nicht_erlaubt` | Pfad liegt außerhalb von Eingang und Leseordnern, in einem gesperrten Ordner oder hat weitere harte Verweise |
+| `datei_ungueltig` | Datei fehlt, Typ, Größe oder Inhalt passt nicht |
 | `schluessel_wiederverwendet` | Idempotenzschlüssel mit anderer Eingabe |
 | `beschaeftigt` | Schreibsperre länger als 30 Sekunden belegt; wiederholen |
 | `ungueltige_eingabe` | Feld fehlt oder ist falsch, auch ein fehlender oder zu kurzer Idempotenzschlüssel |
@@ -205,47 +206,67 @@ Die Standardgruppe schlägt ein Agent nur vor (`standardgruppe_vorschlagen`,
 `kontakt_anlegen`). Bestätigen kann sie nur der Mensch
 (`ContactService.ConfirmDefaultPostingGroup`, Bridge
 `ConfirmDefaultPostingGroup`). `SaveContact` ändert die Felder nicht. Die
-Schwellen und Ordner stellt der Mensch in der App ein
+Schwellen, Lese- und Exportordner stellt der Mensch in der App ein
 (`SettingsService.SaveAgentSettings`, Bridge `GetAgentRules` und
-`SaveAgentRules`; `receiptFolders: null` heißt Voreinstellung, eine leere
-Liste sperrt alle Belegordner).
+`SaveAgentRules`), den Eingang mit `SetInboxFolder`.
 
 Bekannte Lücke: die Oberfläche für diese drei Bridge-Methoden fehlt noch. Bis
 sie da ist, gibt es keine bestätigte Standardgruppe, und `beleg_buchen` bucht
 nichts direkt; `beleg_buchen_mit_rueckfrage` geht immer. Die Hinweise der
 Werkzeuge sagen das so.
 
-Restrisiko: Buchfink prüft nicht, woher eine Datei im Belegordner kommt. Wer
-dorthin schreiben kann (ein Agent mit Dateizugriff wie Claude Code oder
-Cowork, ein Download), kann eine E-Rechnung im Namen eines Lieferanten
-erzeugen. USt-IdNr., Stammdaten, IBAN und Dublette fangen die plumpe
-Fälschung ab, nicht die genaue. Die Direktgrenze begrenzt den Schaden.
+Restrisiko: Buchfink prüft nicht, woher eine Datei im Eingang oder einem
+Leseordner kommt. Wer dorthin schreiben kann (ein Agent mit Dateizugriff wie
+Claude Code oder Cowork, eine Scanner-App, ein Download), kann eine
+E-Rechnung im Namen eines Lieferanten erzeugen. USt-IdNr., Stammdaten, IBAN
+und Dublette fangen die plumpe Fälschung ab, nicht die genaue. Die
+Direktgrenze begrenzt den Schaden.
 
-## Belegordner und Exportordner
+## Eingang, Leseordner und Exportordner
+
+Jeder Mandant hat genau einen Eingang (`inbox.folder`, voreingestellt
+`<Datenordner>/Eingang`) für Belege, E-Rechnungen und Kontoauszüge. Der Mensch
+wählt ihn in der Einrichtung oder in den Einstellungen (Bridge
+`SetupApplication`, `SetInboxFolder`); er darf auch in einem Sync-Ordner
+liegen, in den eine Scanner-App am Telefon schreibt. Im Datenordner ist er die
+einzige erlaubte Stelle. Daneben gibt es weitere Leseordner
+(`agent.extra_read_folders`, voreingestellt keiner). Eingang und Leseordner
+dürfen weder einen Datenordner noch eine Sicherung enthalten oder in einem
+liegen (`policy.CheckFolders`). Beides stellt nur der Mensch in der App ein.
+
+Buchfink legt nichts von selbst ab und beobachtet den Ordner nicht. Der Agent
+listet den Eingang mit `eingang` und legt ab, wenn der Mensch es sagt. Nach
+einer gelungenen Ablage mit `beleg_ablegen` oder `kontoauszug_importieren`
+verschiebt Buchfink die Datei außerhalb der Schreibsperre nach
+`<Eingang>/Übernommen/<JJJJ-MM>/` (Monat des Ablagetags, bei gleichem Namen
+„Name (2).pdf“), ebenso eine exakte Dublette, deren Inhalt schon im Archiv
+liegt. Die Antwort nennt den neuen Pfad unter `verschoben`; ein zweites
+Ablegen derselben Datei, etwa mit der Darstellung einer reinen XRechnung,
+nimmt ihn. Scheitert das Verschieben, steht ein Hinweis in der Antwort, und
+die Ablage gilt. Dateien in Leseordnern bleiben liegen. Die App verschiebt
+genauso, wenn ein Beleg aus Datei oder ein Kontoauszug aus dem Eingang kommt.
 
 Belege kommen nur als Pfad. `policy.ReadFile` prüft den Pfad zuerst ohne
-Zugriff auf das Dateisystem: er muss bereinigt in einem Belegordner liegen,
-UNC-, Geräte- und Netzwerkpfade weist es ab. Vor diesem Treffer antwortet es
-einheitlich mit `pfad_nicht_erlaubt` und ohne Systemmeldung; ob eine Datei
-außerhalb existiert, erfährt der Agent nicht. Danach löst es Symlinks und `..`
-auf und prüft erneut, öffnet ohne Symlink im letzten Glied, weist Dateien mit
-mehr als einem harten Verweis ab und prüft nach dem Öffnen, dass die Datei
-noch an derselben Stelle liegt. Gelesen wird einmal: PDF, PNG, JPEG, TIFF,
-WebP oder XML bis 50 MB, Inhalt passend zur Endung, keine versteckten
-Dateien. Gesperrt sind der eigene Datenordner bis auf seinen Eingang, die
-Datenordner aller anderen Mandanten und alle Sicherungsordner, auch wenn ein
-Belegordner sie umschließt. `SaveAgentRules` nimmt einen Belegordner nicht an,
-der einen dieser Ordner enthält oder darin liegt.
+Zugriff auf das Dateisystem: er muss bereinigt im Eingang oder einem
+Leseordner liegen, UNC-, Geräte- und Netzwerkpfade weist es ab. Vor diesem
+Treffer antwortet es einheitlich mit `pfad_nicht_erlaubt` und ohne
+Systemmeldung; ob eine Datei außerhalb existiert, erfährt der Agent nicht.
+Danach löst es Symlinks und `..` auf und prüft erneut, öffnet ohne Symlink im
+letzten Glied, weist Dateien mit mehr als einem harten Verweis ab und prüft
+nach dem Öffnen, dass die Datei noch an derselben Stelle liegt. Gelesen wird
+einmal: PDF, PNG, JPEG, TIFF, WebP oder XML bis 50 MB, Inhalt passend zur
+Endung, keine versteckten Dateien. Gesperrt sind der eigene Datenordner bis
+auf den voreingestellten Eingang darin, die Datenordner aller anderen
+Mandanten und alle Sicherungsordner, auch wenn ein Leseordner sie umschließt.
 
-Voreinstellung der Belegordner ist allein `<Datenordner>/Belegeingang`.
-Downloads ist es nicht, obwohl dort Anhänge und Portal-Downloads landen. Jede
-Webseite und jeder Mailanhang schreibt dorthin, und eine abgelegte Datei
-lässt sich nicht zurücknehmen: auch ein verworfener Beleg bleibt zehn Jahre im
-Archiv, in jeder Sicherung und im Prüferexport. Ein Agent ohne eigenen
-Dateizugriff (Claude Desktop) bekommt eine Rechnung, wenn der Mensch sie in
-den Eingang legt; wer Downloads will, nimmt den Ordner in der App auf. Die
-Beschreibung von `beleg_ablegen` verlangt, nur Dateien abzulegen, die der
-Mensch als Beleg benannt hat.
+Downloads ist kein Leseordner, obwohl dort Anhänge und Portal-Downloads
+landen. Jede Webseite und jeder Mailanhang schreibt dorthin, und eine
+abgelegte Datei lässt sich nicht zurücknehmen: auch ein verworfener Beleg
+bleibt zehn Jahre im Archiv, in jeder Sicherung und im Prüferexport. Ein Agent
+ohne eigenen Dateizugriff (Claude Desktop) bekommt eine Rechnung, wenn der
+Mensch sie in den Eingang legt oder ins Fenster zieht; wer Downloads will,
+nimmt ihn in der App als Leseordner auf. Die Beschreibung von `beleg_ablegen`
+verlangt, nur Dateien abzulegen, die der Mensch als Beleg benannt hat.
 
 `eingang_am` ist bei `beleg_ablegen` Pflicht: der Tag des Eingangs bestimmt
 den Voranmeldungszeitraum der Vorsteuer (§ 15 Abs. 1 UStG). Liegt er in einem
@@ -255,6 +276,12 @@ berichtigen lässt er sich mit `beleg_buchen_mit_rueckfrage`.
 Exporte schreiben nur in den Exportordner, voreingestellt
 `<Datenordner>/Export`. Dorthin legt `beleg_datei_exportieren` die Kopie einer
 Belegdatei und `rechnung_ausstellen` PDF und E-Rechnung zum Versand.
+`ebilanz_exportieren` schreibt die XBRL-Instanz oder mit `format: susa_csv`
+die Summen- und Saldenliste `ebilanz-<Jahr>-susa.csv` (UTF-8 mit BOM,
+Semikolon, Dezimalkomma, CRLF; Spalten `Konto;Bezeichnung;Saldo;Taxonomie`,
+Saldo im Soll positiv). `Taxonomie` ist die Position, unter der das Konto im
+Kontennachweis der Instanz steht; Konten und Salden sind dieselben, Konten
+ohne Saldo entfallen.
 
 ## Ein Werkzeug ergänzen
 
@@ -267,9 +294,11 @@ Belegdatei und `rechnung_ausstellen` PDF und E-Rechnung zum Versand.
    eigenen Typ in `auswahl.go` mit Werteliste und Übersetzung in den Kern
    (`pick`, `label`). Listen in der Ausgabe nie `nil`.
 3. Registrieren mit `AddRead`, `AddWrite`, `AddWritePrepared` (Vorlauf ohne
-   Sperre, etwa ein Kurs aus dem Netz) oder `AddFlow` (mehrere Vorgänge) und der
-   Stufe in `Spec.Tier`. Ohne natürlichen Schlüssel `KeyedWriteArgs` statt
-   `WriteArgs`; eine Eingabe mit `nur_vorschau` implementiert `preview()`.
+   Sperre, etwa ein Kurs aus dem Netz), `AddWriteThen` (Nachlauf nach dem
+   Vorgang, etwa das Aufräumen des Eingangs) oder `AddFlow` (mehrere Vorgänge)
+   und der Stufe in `Spec.Tier`. Ohne natürlichen Schlüssel `KeyedWriteArgs`
+   statt `WriteArgs`; eine Eingabe mit `nur_vorschau` implementiert
+   `preview()`.
    Die Beschreibung sagt, wann das Werkzeug passt, wann nicht und welches
    danach kommt.
 4. Ein direktes Werkzeug fragt `internal/core/policy` und antwortet sonst mit

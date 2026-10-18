@@ -130,19 +130,20 @@ func bankRow(tx *domain.BankTransaction) bankumsatz {
 
 type kontoauszugIn struct {
 	TenantArgs
-	Pfad string `json:"pfad" jsonschema:"absoluter Pfad einer CAMT.053-Datei (XML) in einem Belegordner"`
+	Pfad string `json:"pfad" jsonschema:"absoluter Pfad einer CAMT.053-Datei (XML) im Eingang oder einem Leseordner"`
 }
 
 type kontoauszugOut struct {
-	BelegID          uint     `json:"beleg_id" jsonschema:"der abgelegte Kontoauszug"`
-	Umsaetze         int      `json:"umsaetze" jsonschema:"Umsätze in der Datei"`
-	Neu              int      `json:"neu" jsonschema:"neu eingelesen; die übrigen lagen schon vor"`
-	Konten           []string `json:"konten"`
-	Von              string   `json:"von,omitempty"`
-	Bis              string   `json:"bis,omitempty"`
-	Geprueft         bool     `json:"salden_geprueft" jsonschema:"jeder Auszug der Datei hat Anfangs- und Endsaldo, die Umsätze ergeben ihre Differenz, und er schließt an den letzten geprüften an"`
-	Hinweise         []string `json:"hinweise"`
-	NaechsterSchritt string   `json:"naechster_schritt"`
+	BelegID          uint         `json:"beleg_id" jsonschema:"der abgelegte Kontoauszug"`
+	Umsaetze         int          `json:"umsaetze" jsonschema:"Umsätze in der Datei"`
+	Neu              int          `json:"neu" jsonschema:"neu eingelesen; die übrigen lagen schon vor"`
+	Konten           []string     `json:"konten"`
+	Von              string       `json:"von,omitempty"`
+	Bis              string       `json:"bis,omitempty"`
+	Geprueft         bool         `json:"salden_geprueft" jsonschema:"jeder Auszug der Datei hat Anfangs- und Endsaldo, die Umsätze ergeben ihre Differenz, und er schließt an den letzten geprüften an"`
+	Verschoben       []verschoben `json:"verschoben,omitempty" jsonschema:"die Datei, wenn sie aus dem Eingang nach Übernommen/<JJJJ-MM> ging"`
+	Hinweise         []string     `json:"hinweise"`
+	NaechsterSchritt string       `json:"naechster_schritt"`
 }
 
 // --- bankumsatz_zuordnen / bankumsatz_buchen ---------------------------------
@@ -339,8 +340,9 @@ func registerBank(tb *Toolbox) {
 		Name:  "kontoauszug_importieren",
 		Title: "Kontoauszug importieren",
 		Tier:  TierDirect, Idempotent: true,
-		Description: "Liest eine CAMT.053-Datei aus einem Belegordner ein: legt sie als Beleg ab und importiert " +
-			"die Umsätze auf das in der App eingerichtete Bankkonto. Schon vorhandene Umsätze werden übersprungen. " +
+		Description: "Liest eine CAMT.053-Datei aus dem Eingang (eingang, art kontoauszug) oder einem Leseordner " +
+			"ein: legt sie als Beleg ab, importiert die Umsätze auf das in der App eingerichtete Bankkonto und " +
+			"verschiebt sie aus dem Eingang nach Übernommen/<JJJJ-MM>. Schon vorhandene Umsätze werden übersprungen. " +
 			"Buchfink prüft die Salden: schließt der Anfangssaldo nicht an den letzten geprüften Auszug an, geht " +
 			"jede Zuordnung daraus nur mit Rückfrage. Auszüge deshalb in zeitlicher Reihenfolge einlesen. Ein " +
 			"unbekanntes Bankkonto richtet nur der Mensch in der App ein. Danach bankumsaetze.",
@@ -425,6 +427,9 @@ func registerBank(tb *Toolbox) {
 				out.NaechsterSchritt = fmt.Sprintf("bankumsaetze mit status=offen und geschaeftsjahr=%d", year)
 			}
 		}
+		moved, hints := settleInbox(ctx, c, []string{in.Pfad})
+		out.Verschoben = moved
+		out.Hinweise = append(out.Hinweise, hints...)
 		return out, nil
 	})
 

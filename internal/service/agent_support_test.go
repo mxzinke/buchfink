@@ -81,28 +81,52 @@ func TestAgentSettingsAreChangedOnlyInTheApp(t *testing.T) {
 	env := newTestEnv(t)
 	svc := NewSettingsService(repository.NewSettingsRepository(env.db), repository.NewAuditRepository(env.db))
 	got, err := svc.AgentSettings(context.Background())
-	if err != nil || got.DirectMaxGross != 0 || got.ReceiptFolders != nil || got.ExportFolder != "" {
+	if err != nil || got.DirectMaxGross != 0 || got.ExtraReadFolders == nil || len(got.ExtraReadFolders) != 0 || got.ExportFolder != "" {
 		t.Fatalf("ohne Einstellung gilt die Voreinstellung: %+v %v", got, err)
 	}
 	if _, err := svc.SaveAgentSettings(agentContext(t), domain.AgentSettings{DirectMaxGross: 99999999}); !errors.Is(err, actor.ErrAppOnly) {
 		t.Fatalf("ein Agent ändert die Direktgrenze: %v", err)
 	}
-	if _, err := svc.SaveAgentSettings(appContext, domain.AgentSettings{ReceiptFolders: []string{"relativ"}}); err == nil {
-		t.Error("ein relativer Belegordner wird abgewiesen")
+	if _, err := svc.SaveAgentSettings(appContext, domain.AgentSettings{ExtraReadFolders: []string{"relativ"}}); err == nil {
+		t.Error("ein relativer Leseordner wird abgewiesen")
 	}
 	saved, err := svc.SaveAgentSettings(appContext, domain.AgentSettings{
-		DirectMaxGross: 50000, DirectMinBookings: 5, ReceiptFolders: []string{}, ExportFolder: "/tmp/export",
+		DirectMaxGross: 50000, DirectMinBookings: 5, ExtraReadFolders: []string{"/tmp/scans/", " "}, ExportFolder: "/tmp/export",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if saved.DirectMaxGross != 50000 || saved.DirectMinBookings != 5 || saved.ReceiptFolders == nil ||
-		len(saved.ReceiptFolders) != 0 || saved.ExportFolder != "/tmp/export" {
+	if saved.DirectMaxGross != 50000 || saved.DirectMinBookings != 5 || len(saved.ExtraReadFolders) != 1 ||
+		saved.ExtraReadFolders[0] != "/tmp/scans" || saved.ExportFolder != "/tmp/export" {
 		t.Errorf("gespeichert: %+v", saved)
 	}
 	back, err := svc.SaveAgentSettings(appContext, domain.AgentSettings{})
-	if err != nil || back.DirectMaxGross != 0 || back.ReceiptFolders != nil || back.ExportFolder != "" {
+	if err != nil || back.DirectMaxGross != 0 || len(back.ExtraReadFolders) != 0 || back.ExportFolder != "" {
 		t.Errorf("zurück zur Voreinstellung: %+v %v", back, err)
+	}
+}
+
+// Den Eingang wählt der Mensch; leer heißt <Datenordner>/Eingang.
+func TestInboxFolderIsSetOnlyInTheApp(t *testing.T) {
+	env := newTestEnv(t)
+	svc := NewSettingsService(repository.NewSettingsRepository(env.db), repository.NewAuditRepository(env.db))
+	if inbox, err := svc.InboxFolder(context.Background()); err != nil || inbox != "" {
+		t.Fatalf("Voreinstellung: %q %v", inbox, err)
+	}
+	if _, err := svc.SetInboxFolder(agentContext(t), "/tmp/eingang"); !errors.Is(err, actor.ErrAppOnly) {
+		t.Fatalf("ein Agent wählt den Eingang: %v", err)
+	}
+	if _, err := svc.SetInboxFolder(appContext, "relativ"); err == nil {
+		t.Error("ein relativer Eingang wird abgewiesen")
+	}
+	if got, err := svc.SetInboxFolder(appContext, "/tmp/scans/eingang/"); err != nil || got != "/tmp/scans/eingang" {
+		t.Fatalf("Eingang setzen: %q %v", got, err)
+	}
+	if inbox, _ := svc.InboxFolder(context.Background()); inbox != "/tmp/scans/eingang" {
+		t.Errorf("gespeichert: %q", inbox)
+	}
+	if got, err := svc.SetInboxFolder(appContext, ""); err != nil || got != "" {
+		t.Errorf("zurück zur Voreinstellung: %q %v", got, err)
 	}
 }
 
