@@ -192,11 +192,18 @@ export const TaxBlock: React.FC<{
               !settings.vatPeriod || settings.vatPeriod === 'unknown' ? (
                 <Missing>Zeitraum noch nicht geklärt</Missing>
               ) : (
-                `${vatPeriodLabel(settings.vatPeriod)}${settings.permanentExtension ? ' · mit Dauerfristverlängerung' : ''}`
+                vatPeriodLabel(settings.vatPeriod)
               ),
+          },
+          {
+            label: 'Dauerfristverlängerung',
+            value: settings.permanentExtension
+              ? `ja${settings.specialPrepayment ? ` · Sondervorauszahlung ${formatCents(settings.specialPrepayment)}` : ''}`
+              : 'nein',
           },
           { label: 'Hebesatz', value: `${tradeTaxRatePercent} %`, numeric: true },
           { label: 'Beratung', value: advisorLabel(settings.taxAdvisor) },
+          { label: 'Ausschlussmerkmale', value: exclusions.length > 0 ? exclusions.join(', ') : 'keine' },
         ]}
       />
 

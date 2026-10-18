@@ -16,7 +16,6 @@ import { useWriteLock } from '../../components/WriteLock';
 import { formatCentsPlain, formatDate, parseCents } from '../../utils/formatters';
 import {
   Button,
-  ConfirmDialog,
   Disclosure,
   Field,
   FieldValue,
@@ -73,7 +72,6 @@ export const AdvancedSettings: React.FC<{ onManageTenants?: () => void }> = ({ o
   const [checkThreshold, setCheckThreshold] = useState('');
   const [systemChangeDate, setSystemChangeDate] = useState('');
   const [saving, setSaving] = useState(false);
-  const [removing, setRemoving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -152,18 +150,6 @@ export const AdvancedSettings: React.FC<{ onManageTenants?: () => void }> = ({ o
       await Api.deleteBankRule(id);
       setRules(await Api.getBankRules());
       toast.success('Regel gelöscht. Sie entsteht neu, sobald ein solcher Umsatz wieder zugeordnet wird.');
-    } catch (e) {
-      toast.error(message(e));
-    }
-  }
-
-  async function removeTenant() {
-    const tenantId = workspace.appConfig.activeTenantId;
-    if (!tenantId) return;
-    try {
-      await Api.deleteTenant(tenantId);
-      toast.success('Mandant aus der Liste entfernt. Die Dateien bleiben im Datenordner.');
-      await workspace.reload();
     } catch (e) {
       toast.error(message(e));
     }
@@ -325,7 +311,11 @@ export const AdvancedSettings: React.FC<{ onManageTenants?: () => void }> = ({ o
         <Disclosure
           variant="row"
           title="Aufbewahrungsfristen"
-          context={retention ? `${retention.source} · gültig ab ${formatDate(retention.validFrom)}` : 'Gesetzesstand'}
+          context={
+            retention
+              ? `Gesetzesstand ${retention.version} · gültig ab ${formatDate(retention.validFrom)}`
+              : 'Gesetzesstand'
+          }
         >
           {retention === null ? (
             <SkeletonRows rows={3} />
@@ -351,7 +341,7 @@ export const AdvancedSettings: React.FC<{ onManageTenants?: () => void }> = ({ o
           )}
         </Disclosure>
 
-        <Disclosure variant="row" title="Speicherort und Mandant" context="Datenordner, Programmfassung, Mandant entfernen">
+        <Disclosure variant="row" title="Speicherort und Mandant" context="Datenordner, Programmfassung, Mandanten">
           {hints?.cloudWarning && <Notice tone="negative" className="mb-4" text={hints.cloudWarning} />}
           <FormGrid cols={1}>
             <Field label="Ordner für Buchungsdaten und Belege" hint="Steht beim Anlegen fest">
@@ -361,34 +351,16 @@ export const AdvancedSettings: React.FC<{ onManageTenants?: () => void }> = ({ o
               <FieldValue className="code-num">{workspace.appConfig.programVersion || 'dev'}</FieldValue>
             </Field>
           </FormGrid>
-          <div className="mt-5 flex flex-wrap gap-2">
-            {onManageTenants && (
+          {onManageTenants && (
+            <div className="mt-5 flex flex-wrap gap-2">
               <Button variant="secondary" size="sm" onClick={onManageTenants}>
                 Mandanten verwalten
               </Button>
-            )}
-            <Button
-              variant="quiet"
-              size="sm"
-              disabled={writeLock.locked || !workspace.appConfig.activeTenantId}
-              title={writeLock.hint}
-              onClick={() => setRemoving(true)}
-            >
-              Diesen Mandanten aus der Liste entfernen
-            </Button>
-          </div>
+            </div>
+          )}
         </Disclosure>
       </div>
 
-      <ConfirmDialog
-        open={removing}
-        onOpenChange={setRemoving}
-        title={`„${workspace.activeTenant?.name ?? settings.companyName}“ aus der Liste entfernen?`}
-        description="Buchfink zeigt den Mandanten nicht mehr an. Buchungen, Belege und Sicherungen bleiben im Datenordner; über die Einrichtung lässt er sich wieder öffnen."
-        confirmLabel="Aus der Liste entfernen"
-        destructive
-        onConfirm={() => void removeTenant()}
-      />
     </div>
   );
 };

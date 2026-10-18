@@ -417,7 +417,7 @@ export const YearTab: React.FC<YearTabProps> = ({
                 title={writeLock.hint}
                 onClick={() => setReopenOpen(true)}
               >
-                Zurücksetzen
+                Feststellung zurücksetzen
               </Button>
             ) : undefined
           }
@@ -588,7 +588,13 @@ export const YearTab: React.FC<YearTabProps> = ({
         onDone={changed}
       />
 
-      <ReopenDialog open={reopenOpen} year={year} onClose={() => setReopenOpen(false)} onDone={changed} />
+      <ReopenDialog
+        open={reopenOpen}
+        year={year}
+        committedUntil={closing.hasYearCommitment ? closing.committedUntil ?? fy.endDate : undefined}
+        onClose={() => setReopenOpen(false)}
+        onDone={changed}
+      />
 
       <CommitDialog
         target={commitTarget}
@@ -809,9 +815,11 @@ const StatusDialog: React.FC<{
 const ReopenDialog: React.FC<{
   open: boolean;
   year: number;
+  /** Bis wohin das Jahr festgeschrieben ist; die Festschreibung bleibt. */
+  committedUntil?: string;
   onClose: () => void;
   onDone: () => Promise<void>;
-}> = ({ open, year, onClose, onDone }) => {
+}> = ({ open, year, committedUntil, onClose, onDone }) => {
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -852,7 +860,9 @@ const ReopenDialog: React.FC<{
     >
       <div className="flex flex-col gap-4">
         <p className="text-body text-ink">
-          Das Jahr nimmt danach wieder Buchungen an. Die Festschreibungen bleiben bestehen.
+          {committedUntil
+            ? `Der Abschluss gilt danach wieder als aufgestellt und ist neu festzustellen. Die Festschreibung bis ${formatDate(committedUntil)} bleibt: Festgeschriebene Buchungen bleiben unverändert und lassen sich nur per Storno im laufenden Geschäftsjahr korrigieren.`
+            : 'Der Abschluss gilt danach wieder als aufgestellt und ist neu festzustellen. Abschlussbuchungen sind bis dahin wieder möglich.'}
         </p>
         <Field label="Grund" error={error || undefined}>
           <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />

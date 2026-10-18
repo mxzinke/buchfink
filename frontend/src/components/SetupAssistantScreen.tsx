@@ -451,11 +451,11 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                 {step === 1 ? (
                   <div className="py-6 flex flex-col gap-5">
                     <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_14rem] gap-4">
-                      <ShellField label="Firma" hint="Wie im Handelsregister">
+                      <ShellField label="Firma" hint="Mit Rechtsformzusatz, etwa GmbH">
                         <input
                           type="text"
                           value={companyName}
-                          placeholder="Nordlicht Systeme GmbH"
+                          placeholder="Firma wie im Handelsregister"
                           onChange={(e) => setCompanyName(e.target.value)}
                           className={SHELL_CONTROL}
                         />
@@ -675,14 +675,10 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
                     </>
                   ) : (
                     <>
-                      {connectedHere.length === 0 ? (
-                        <button type="button" onClick={onSetupCompleted} className={SHELL_BUTTON.quiet}>
-                          Später verbinden
-                        </button>
-                      ) : (
-                        <span />
-                      )}
-                      <button type="button" onClick={onSetupCompleted} className={SHELL_BUTTON.primary}>
+                      <span className="text-caption text-shell-text-muted">
+                        {connectedHere.length === 0 ? 'Verbinden geht auch später unter Einstellungen.' : ''}
+                      </span>
+                      <button type="button" onClick={onSetupCompleted} className={cn(SHELL_BUTTON.primary, 'shrink-0')}>
                         Zur Übersicht
                         <ArrowRight className="w-4 h-4" strokeWidth={1.5} />
                       </button>

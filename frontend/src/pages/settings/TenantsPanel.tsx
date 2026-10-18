@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, RotateCcw } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Api } from '../../services/api';
 import type { TenantConfig } from '../../types';
 import { useWorkspace } from '../../workspace';
@@ -26,10 +26,9 @@ function message(error: unknown): string {
  * Mandanten; ein Wechsel hier wechselt auch für ihn.
  */
 export const TenantsPanel: React.FC<{ id?: string }> = ({ id }) => {
-  const { tenants, activeTenant, switchTenant, refreshTenants, addTenant } = useWorkspace();
+  const { tenants, activeTenant, switchTenant, refreshTenants, addTenant, reload } = useWorkspace();
   const writeLock = useWriteLock();
   const [removing, setRemoving] = useState<TenantConfig | null>(null);
-  const [restoring, setRestoring] = useState(false);
   const [opening, setOpening] = useState<string | null>(null);
 
   async function open(tenant: TenantConfig) {
@@ -41,30 +40,15 @@ export const TenantsPanel: React.FC<{ id?: string }> = ({ id }) => {
     }
   }
 
+  /** Entfernt einen Mandanten aus der Liste; beim geöffneten lädt der Arbeitsbereich neu. */
   async function remove(tenant: TenantConfig) {
     try {
       await Api.deleteTenant(tenant.id);
-      toast.success(`Mandant ${tenant.name} aus der Liste entfernt.`);
-      await refreshTenants();
+      toast.success(`Mandant ${tenant.name} aus der Liste entfernt. Die Dateien bleiben im Datenordner.`);
+      if (tenant.id === activeTenant?.id) await reload();
+      else await refreshTenants();
     } catch (e) {
       toast.error(message(e));
-    }
-  }
-
-  async function restore() {
-    setRestoring(true);
-    try {
-      const zip = await Api.selectBackupFile('Sicherung zum Wiederherstellen auswählen');
-      if (!zip) return;
-      const target = await Api.selectDirectoryDialog('Leeren Zielordner für die Daten wählen');
-      if (!target) return;
-      const tenant = await Api.restoreFromBackup(zip, target);
-      await refreshTenants();
-      toast.success(`${tenant.name} wiederhergestellt und geprüft.`);
-    } catch (e) {
-      toast.error(message(e));
-    } finally {
-      setRestoring(false);
     }
   }
 
@@ -75,15 +59,6 @@ export const TenantsPanel: React.FC<{ id?: string }> = ({ id }) => {
       context={`${tenants.length} auf diesem Rechner`}
       action={
         <div className="flex gap-2">
-          <Button
-            variant="quiet"
-            size="sm"
-            loading={restoring}
-            icon={<RotateCcw className="w-4 h-4" strokeWidth={1.5} />}
-            onClick={() => void restore()}
-          >
-            Aus Sicherung wiederherstellen
-          </Button>
           <Button
             variant="secondary"
             size="sm"
@@ -113,10 +88,10 @@ export const TenantsPanel: React.FC<{ id?: string }> = ({ id }) => {
                   {tenant.dataDir}
                 </Td>
                 <Td className="text-right pl-0">
-                  {active ? (
-                    <span className="pr-3 text-caption text-ink-subtle">Geöffnet</span>
-                  ) : (
-                    <span className="flex justify-end gap-1">
+                  <span className="flex items-center justify-end gap-1">
+                    {active ? (
+                      <span className="px-2.5 text-caption text-ink-subtle">Geöffnet</span>
+                    ) : (
                       <Button
                         variant="quiet"
                         size="sm"
@@ -126,17 +101,17 @@ export const TenantsPanel: React.FC<{ id?: string }> = ({ id }) => {
                       >
                         Öffnen
                       </Button>
-                      <Button
-                        variant="quiet"
-                        size="sm"
-                        disabled={writeLock.locked}
-                        title={writeLock.hint}
-                        onClick={() => setRemoving(tenant)}
-                      >
-                        Entfernen
-                      </Button>
-                    </span>
-                  )}
+                    )}
+                    <Button
+                      variant="quiet"
+                      size="sm"
+                      disabled={writeLock.locked}
+                      title={writeLock.hint}
+                      onClick={() => setRemoving(tenant)}
+                    >
+                      Entfernen
+                    </Button>
+                  </span>
                 </Td>
               </Tr>
             );
@@ -147,8 +122,8 @@ export const TenantsPanel: React.FC<{ id?: string }> = ({ id }) => {
       <ConfirmDialog
         open={removing !== null}
         onOpenChange={(next) => !next && setRemoving(null)}
-        title="Mandant aus der Liste entfernen"
-        description="Die Buchhaltungsdaten auf der Festplatte bleiben unberührt. Der Mandant lässt sich später über die Einrichtung wieder hinzufügen."
+        title={removing ? `„${removing.name}“ aus der Liste entfernen?` : 'Mandant aus der Liste entfernen'}
+        description="Buchfink zeigt den Mandanten nicht mehr an. Buchungen, Belege und Sicherungen bleiben im Datenordner; über die Einrichtung lässt er sich wieder öffnen."
         confirmLabel="Entfernen"
         destructive
         onConfirm={() => {
