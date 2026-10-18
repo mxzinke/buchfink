@@ -1,0 +1,145 @@
+{
+  "cutoff": "2025-12-31",
+  "doneCount": 0,
+  "fiscalYear": 2025,
+  "openCount": 15,
+  "reopenable": true,
+  "skippedCount": 0,
+  "steps": [
+    {
+      "automatic": true,
+      "hint": "Die planmäßige AfA des Jahres. Sie ist eine Abschlussbuchung und lässt sich später nicht nachholen.",
+      "key": "depreciation",
+      "label": "Abschreibungen",
+      "order": 1,
+      "reference": "§ 253 Abs. 3 HGB, § 7 EStG",
+      "state": "open"
+    },
+    {
+      "automatic": true,
+      "hint": "Für jedes Anlagegut mit außerplanmäßiger Abschreibung: ist der Grund weggefallen? Dann ist zuzuschreiben. Das ist ein Gebot und kein Wahlrecht.",
+      "key": "write_up",
+      "label": "Wertaufholung prüfen",
+      "order": 2,
+      "reference": "§ 253 Abs. 5 Satz 1 HGB",
+      "state": "open"
+    },
+    {
+      "automatic": true,
+      "hint": "Offene Posten in Fremdwährung werden zum Stichtagskurs bewertet. Bei einer Restlaufzeit über einem Jahr wird nur der Verlust erfasst.",
+      "key": "currency_valuation",
+      "label": "Fremdwährungsbewertung",
+      "order": 3,
+      "reference": "§ 256a HGB",
+      "state": "open"
+    },
+    {
+      "automatic": false,
+      "hint": "Forderungen mit Ausfallrisiko werden einzeln, die übrigen pauschal auf den niedrigeren Wert berichtigt, netto: die Umsatzsteuer folgt erst der Uneinbringlichkeit.",
+      "key": "receivable_allowance",
+      "label": "Wertberichtigung auf Forderungen",
+      "order": 4,
+      "reference": "§ 253 Abs. 4 Satz 2 HGB, § 17 Abs. 2 Nr. 1 UStG",
+      "state": "open"
+    },
+    {
+      "automatic": false,
+      "hint": "Begonnene, am Stichtag nicht abgerechnete Projekte werden zu Herstellungskosten aktiviert und im Folgejahr aufgelöst; erhaltene Anzahlungen bleiben unter den Verbindlichkeiten oder werden offen abgesetzt.",
+      "key": "work_in_progress",
+      "label": "Unfertige Leistungen",
+      "order": 5,
+      "reference": "§ 255 Abs. 2 HGB, § 268 Abs. 5 Satz 2 HGB",
+      "state": "open"
+    },
+    {
+      "automatic": false,
+      "hint": "Ausgaben und Einnahmen, die wirtschaftlich ins nächste Jahr gehören.",
+      "key": "accruals",
+      "label": "Rechnungsabgrenzung",
+      "order": 6,
+      "reference": "§ 250 HGB",
+      "state": "open"
+    },
+    {
+      "automatic": false,
+      "hint": "Verpflichtungen, deren Höhe oder Fälligkeit noch offen ist.",
+      "key": "provisions",
+      "label": "Rückstellungen",
+      "order": 7,
+      "reference": "§ 249 HGB",
+      "state": "open"
+    },
+    {
+      "automatic": false,
+      "hint": "Vorsteuer, Umsatzsteuer und Vorauszahlungen werden zu einem Saldo verrechnet.",
+      "key": "vat_settlement",
+      "label": "Umsatzsteuer-Verrechnung",
+      "order": 8,
+      "state": "open"
+    },
+    {
+      "automatic": true,
+      "hint": "Hat sich die Verwendung eines Wirtschaftsguts im Berichtigungszeitraum geändert, ist der Vorsteuerabzug anteilig zu berichtigen. Der Betrag geht in die Kennziffer 64.",
+      "key": "input_tax_correction",
+      "label": "Vorsteuerberichtigung",
+      "order": 9,
+      "reference": "§ 15a UStG",
+      "state": "open"
+    },
+    {
+      "automatic": false,
+      "hint": "Körperschaftsteuer, Solidaritätszuschlag und Gewerbesteuer auf das Ergebnis des Jahres, abzüglich Vorauszahlungen und anrechenbarer Kapitalertragsteuer; eine Überzahlung ist ein Erstattungsanspruch.",
+      "key": "tax_provision",
+      "label": "Steuerrückstellung",
+      "order": 10,
+      "reference": "§ 249 Abs. 1 HGB",
+      "state": "open"
+    },
+    {
+      "automatic": true,
+      "hint": "Der Prüflauf über Buchungen, Belege und Fristen vor der Festschreibung.",
+      "key": "check_run",
+      "label": "Prüfbericht",
+      "order": 11,
+      "reference": "GoBD Rz. 100 ff.",
+      "state": "open"
+    },
+    {
+      "automatic": true,
+      "hint": "Die Gliederung von Bilanz und Gewinn- und Verlustrechnung samt Anhang.",
+      "key": "statement",
+      "label": "Bilanz und GuV",
+      "order": 12,
+      "reference": "§§ 266, 275 HGB",
+      "state": "open"
+    },
+    {
+      "automatic": true,
+      "hint": "Die Aufstellung durch die Geschäftsführung und der Beschluss der Gesellschafter.",
+      "key": "adoption",
+      "label": "Aufstellen und Feststellen",
+      "order": 13,
+      "reference": "§ 264 Abs. 1 HGB, § 46 Nr. 1 GmbHG",
+      "state": "open"
+    },
+    {
+      "automatic": true,
+      "hint": "Die Übermittlung der E-Bilanz an das Finanzamt und die Offenlegung im Unternehmensregister.",
+      "key": "disclosure",
+      "label": "E-Bilanz und Offenlegung",
+      "order": 14,
+      "reference": "§ 5b EStG, § 325 HGB",
+      "state": "open"
+    },
+    {
+      "automatic": false,
+      "hint": "Der Saldenvortrag ins Folgejahr und der Beschluss über das Ergebnis.",
+      "key": "appropriation",
+      "label": "Vortrag und Ergebnisverwendung",
+      "order": 15,
+      "reference": "§ 29 GmbHG",
+      "state": "open"
+    }
+  ],
+  "total": 15
+}
