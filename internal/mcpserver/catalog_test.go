@@ -10,8 +10,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/buchfink/buchfink/internal/goldentest"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+func TestGoldenToolCatalog(t *testing.T) {
+	h := newHarness(t)
+	tools := listTools(t, h.mustSession(h.login("Claude Code", "").access))
+	goldentest.Assert(t, "tool_catalog", tools)
+	tiers := map[string]Tier{}
+	for _, spec := range h.srv.Toolbox().Specs() {
+		if spec.Name != "test_lieferant" {
+			tiers[spec.Name] = spec.Tier
+		}
+	}
+	goldentest.Assert(t, "tool_tiers", tiers)
+}
 
 // catalog ist der Werkzeugkatalog mit seiner Stufe, wie ihn
 // docs/entwicklung/mcp.md führt.
