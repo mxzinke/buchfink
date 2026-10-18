@@ -130,6 +130,9 @@ func TestShareholderLoanTool(t *testing.T) {
 func TestShareholderLoanCorrectionAndInterest(t *testing.T) {
 	h := newHarness(t)
 	h.completeCompany()
+	// Die Zinsbuchung setzt einen Eigenbeleg; das Satzprogramm braucht beim
+	// ersten Lauf länger, als ein Schreibvorgang unter Last warten darf.
+	h.warmRenderer()
 	anna := h.shareholder()
 	a := h.agent("")
 	var contract ablageOut
