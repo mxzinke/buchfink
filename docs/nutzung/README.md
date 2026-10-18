@@ -69,11 +69,28 @@ Wer selbst baut, folgt der [Entwicklungsumgebung](../entwicklung/README.md).
 Beim ersten Start führt Buchfink in zwei Schritten durch die Einrichtung.
 
 **1. Unternehmen.** Sie geben Firma und Rechtsform an (GmbH oder UG), ob Sie
-gerade gründen oder mit bestehenden Büchern umsteigen, den ersten Tag der
-Bücher und einen leeren Ordner für die Daten. Anschrift, Register,
-Steuernummer und Bankkonto tragen Sie ein, soweit Sie sie schon haben. Ist die
-Gesellschaft gemeinnützig, in Liquidation oder Organgesellschaft, rechnet
-Buchfink weder Abschluss noch Steuerrückstellung, siehe [Umfang](umfang.md).
+gerade gründen oder mit bestehenden Büchern umsteigen, und den ersten Tag der
+Bücher. Anschrift, Register, Steuernummer und Bankkonto tragen Sie ein, soweit
+Sie sie schon haben. Ist die Gesellschaft gemeinnützig, in Liquidation oder
+Organgesellschaft, rechnet Buchfink weder Abschluss noch Steuerrückstellung,
+siehe [Umfang](umfang.md).
+
+Darunter stehen zwei Ordner:
+
+- **Ablage.** Ein leerer Ordner für Datenbank und Belege, vorgeschlagen nach
+  der Firma. Mit „Ordner ändern“ wählen Sie einen anderen. Liegt er in iCloud
+  Drive, OneDrive, Google Drive, Dropbox, Nextcloud oder Syncthing, zeigt
+  Buchfink einen Hinweis: Die Datenbank verträgt keine Synchronisation,
+  während Buchfink läuft. Besser ist ein lokaler Ordner mit einer Sicherung
+  ([Datensicherheit](datensicherheit.md#wo-die-daten-liegen)). Weitermachen
+  können Sie trotzdem.
+- **Eingang.** Hier sammeln Sie Belege, E-Rechnungen und Kontoauszüge, bis
+  Ihr Agent sie ablegt. Voreingestellt ist der Ordner `Eingang` in der Ablage.
+  Mit „Anderen Ordner wählen“ legen Sie ihn woanders hin, auch in einen
+  Cloud-Ordner, in den eine Scanner-App auf dem Telefon speichert.
+
+Die Ablage steht nach dem Anlegen fest. Den Eingang ändern Sie später unter
+Einstellungen › „Eingang & Ordner“.
 
 **2. KI-Agent verbinden.** Sie wählen Ihren Client, richten ihn nach der
 [Anleitung](ki-agenten/README.md) ein und lassen die Anmeldung im Fenster von
@@ -88,6 +105,9 @@ Danach:
   [Datensicherheit](datensicherheit.md#sicherung).
 - Mit dem Agenten die **Eröffnung** vorbereiten: bei einer Gründung Stammkapital
   und Einzahlung, beim Umstieg die Eröffnungsbilanz aus den bisherigen Büchern.
+- Die **Standardgruppen** Ihrer regelmäßigen Lieferanten bestätigen, sobald
+  der Agent sie vorschlägt. Erst dann bucht er deren E-Rechnungen ohne
+  Rückfrage ([Was der Agent darf](ki-agenten/README.md#was-der-agent-darf)).
 - Fehlende **Unternehmensdaten** nachtragen, sobald eine Aufgabe danach fragt.
   Das geht nur in der App.
 
@@ -99,21 +119,67 @@ laufen.
 
 | Sie | Der Agent | Buchfink |
 |---|---|---|
-| geben Belege und Kontoauszüge (CAMT.053) als Datei oder Pfad | legt sie ab, liest sie und schlägt die Buchung vor | prüft Pflichtangaben, Steuerfall und Konten |
+| legen Belege und Kontoauszüge (CAMT.053) in den Eingang und sagen „Buche die Belege im Eingang.“ | legt sie ab, liest sie und schlägt die Buchung vor | prüft Pflichtangaben, Steuerfall und Konten und verschiebt die Datei nach `Übernommen/` |
 | beantworten Rückfragen im Chat | bucht Routinefälle direkt, alles andere nach Ihrer Zustimmung | speichert an jeder Buchung, über welchen Weg sie kam |
 | schreiben den Monat in der App fest | bereitet Prüfbericht und Voranmeldung vor | sperrt den Monat und holt einen Zeitstempel |
 | übertragen die Voranmeldung in Mein ELSTER und tragen das Transferticket in der App ein | erinnert an Fristen aus dem Pflichtenkalender | hält die Übermittlung fest |
 | stellen den Jahresabschluss auf, lassen ihn feststellen und legen ihn offen | bucht die Abschlussbausteine nach Ihrer Zustimmung, bereitet Erklärungen und E-Bilanz vor | zeigt Erklärungen formularnah und exportiert sie |
 
-Was nur Sie in der App erledigen, steht unter
-[KI-Agenten](ki-agenten/README.md#was-der-agent-darf). Bis zur Festschreibung
-lässt sich jede Buchung durch Storno und neue Buchung korrigieren.
+Was der Agent direkt, was er mit Rückfrage und was nur Sie in der App
+erledigen, steht unter [KI-Agenten](ki-agenten/README.md#was-der-agent-darf).
+Bis zur Festschreibung lässt sich jede Buchung durch Storno und neue Buchung
+korrigieren.
 
-In der App haben Sie fünf Bereiche: **Übersicht** mit Aufgaben und Fristen,
-**Bücher** mit Belegen, Bank, Rechnungen, Journal, Konten und Anlagen,
+In der App haben Sie fünf Bereiche: **Übersicht** mit Aufgaben, Eingang und
+Fristen, **Bücher** mit Belegen, Bank, Rechnungen, Journal, Konten und Anlagen,
 **Abschlüsse** für Monat, Jahr und Erklärungen, **Unternehmen** mit
-Stammdaten und Kontakten, **Einstellungen** mit verbundenen Apps und
-Sicherung.
+Stammdaten und Kontakten, **Einstellungen** mit Eingang und Ordnern, den
+Regeln für Buchen ohne Rückfrage, verbundenen Apps und Sicherung. Was der
+Agent bucht, erscheint ohne Neuladen in der offenen Ansicht.
+
+## Belege in den Eingang legen
+
+Belege, E-Rechnungen und Kontoauszüge kommen in den Eingang. Dafür gibt es
+zwei Wege:
+
+- Sie legen die Dateien in den Ordner, im Dateimanager oder mit einer
+  Scanner-App. „Ordner öffnen“ in der Übersicht öffnet ihn.
+- Sie ziehen die Dateien ins Fenster von Buchfink oder wählen in der Übersicht
+  „Dateien hinzufügen“. Buchfink kopiert sie in den Eingang und meldet, was es
+  übernommen hat. Angenommen werden PDF, Bilder und XML bis 50 MB; andere
+  Dateien übergeht es und nennt den Grund.
+
+Buchfink legt nichts von selbst ab und beobachtet den Ordner nicht. Sagen Sie
+Ihrem Agenten, wann es so weit ist, etwa „Buche die Belege im Eingang.“ Er
+legt jede Datei als Beleg oder Kontoauszug ab, bucht die Routinefälle und legt
+Ihnen den Rest im Chat vor. Nach der Ablage verschiebt Buchfink die Datei im
+Eingang in den Unterordner `Übernommen/<JJJJ-MM>`, nach dem Monat der Ablage.
+Das Original liegt dann im Belegarchiv. Dasselbe geschieht, wenn Sie in der App
+einen Beleg oder Kontoauszug aus dem Eingang ablegen.
+
+Die Übersicht zeigt, wie viele Dateien im Eingang liegen und seit wann. Liegt
+eine Datei 14 Tage oder länger dort, erinnert sie daran. Legen Sie nur echte
+Belege in den Eingang: eine abgelegte Datei bleibt im Belegarchiv und in jeder
+Sicherung, auch wenn der Beleg später verworfen wird. Was noch im Eingang
+liegt, ist in keiner Sicherung.
+
+## E-Bilanz übermitteln
+
+Mein ELSTER hat kein Formular für die E-Bilanz. Buchfink erzeugt die Datei,
+übermitteln Sie über einen E-Bilanz-Dienst wie ebilanzplus.de oder
+ebilanzonline.de.
+
+1. Unter Abschlüsse › Erklärungen › „E-Bilanz <Jahr>“ wählen Sie „XBRL
+   exportieren“. Ihr Agent kann die Datei auch in den Exportordner schreiben.
+2. Laden Sie die XBRL-Datei beim Dienst hoch, ergänzen Sie dort, was er
+   verlangt, und übermitteln Sie.
+3. Nimmt der Dienst die XBRL-Datei nicht an, wählen Sie „Als Saldenliste
+   (CSV)“ und lesen die Datei bei eBilanz+ über den Import „Summen- und
+   Saldenliste“ ein, mit dem Taxonomie-Layout oder der Zuordnung nach SKR04.
+   Die Saldenliste füllt nur Bilanz und Gewinn- und Verlustrechnung; die
+   übrigen Angaben ergänzen Sie im Dienst.
+4. Bestätigen Sie die Übermittlung in Buchfink mit „Übermittlung bestätigen“
+   und dem Transferticket aus dem Protokoll des Dienstes.
 
 ## Rückmeldung geben
 

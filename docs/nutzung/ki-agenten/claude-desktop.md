@@ -71,6 +71,14 @@ Zugriff jederzeit in Buchfink unter Einstellungen → Apps verbinden.
 Die Antwort auf `status` nennt das geöffnete Unternehmen und `bereit: true`.
 Unter Settings → Extensions steht Buchfink als installiert und eingeschaltet.
 
+## Belege übergeben
+
+Eine Datei, die Sie in den Chat von Claude Desktop ziehen, erreicht Buchfink
+nicht. Buchfink nimmt Belege und Kontoauszüge nur aus seinem Eingang. Legen
+Sie die Dateien dort ab oder ziehen Sie sie ins Fenster von Buchfink und
+schreiben Sie dann: „Buche die Belege im Eingang.“ Mehr unter
+[Belege in den Eingang legen](../README.md#belege-in-den-eingang-legen).
+
 ## Rechte für schreibende Werkzeuge einschränken
 
 Claude Desktop fragt vor dem Aufruf eines Werkzeugs um Erlaubnis. Erteilen Sie

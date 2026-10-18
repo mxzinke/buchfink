@@ -7,16 +7,21 @@ Sie ist keine Sicherheitszertifizierung.
 
 ## Wo die Daten liegen
 
-Jeder Mandant hat einen eigenen Datenordner, den Sie beim Anlegen wählen:
+Jeder Mandant hat einen eigenen Datenordner, den Sie beim Anlegen wählen. Die
+App nennt ihn „Ablage“.
 
 | Inhalt | Ort im Datenordner |
 |---|---|
 | Buchungen, Stammdaten, Änderungsprotokoll | `buchfink.sqlite` |
 | Belegdateien, benannt nach ihrer SHA-256-Prüfsumme | `belege/` |
 | Fassungen der Verfahrensdokumentation | `dokumente/` |
-| Belege, die eine verbundene KI-App ablegen darf | `Belegeingang/` |
-| Dateien, die eine verbundene KI-App erzeugt | `Export/` |
+| Eingang: Dateien, die noch abgelegt werden, und darunter `Übernommen/` mit Abgelegtem | `Eingang/`, sofern Sie keinen anderen Ordner gewählt haben |
+| Dateien, die eine verbundene KI-App erzeugt | `Export/`, sofern Sie keinen anderen Ordner gewählt haben |
 | Sperrdatei, gesperrt, solange Buchfink den Mandanten geöffnet hat | `buchfink.lock` |
+
+Eingang und Exportordner gehören nicht zur Sicherung. Eine Datei im Eingang
+ist erst gesichert, wenn sie als Beleg abgelegt ist; dann liegt das Original
+unter `belege/`.
 
 Die App selbst legt ihre Einstellungen unter `~/.buchfink/` ab: die Liste der
 Mandanten in `config.json`, die verbundenen KI-Apps in `verbindungen.sqlite`.
@@ -25,6 +30,19 @@ Konfigurationsordner des Benutzers unter `Buchfink/mcp-bruecke/`.
 
 Ein Datenordner hat genau einen Schreiber. Öffnet Buchfink einen Mandanten,
 sperrt es den Ordner; ein zweites Buchfink kann ihn dann nicht öffnen.
+
+### Synchronisierte Ordner
+
+Liegt der Datenordner in iCloud Drive, OneDrive, Google Drive, Dropbox,
+Nextcloud, ownCloud oder Syncthing, weist die Einrichtung darauf hin. Ein
+solcher Dienst kann die Datenbank kopieren, während Buchfink in sie schreibt,
+oder eine Konfliktkopie daneben legen. Besser ist ein lokaler Ordner und eine
+Sicherung auf einem anderen Datenträger. Der Hinweis hält die Einrichtung nicht
+auf.
+
+Für den Eingang ist ein synchronisierter Ordner unbedenklich. Dorthin darf
+etwa eine Scanner-App auf dem Telefon speichern. Die Belege liegen dann auch
+beim Anbieter des Dienstes.
 
 ## Keine Verschlüsselung
 
@@ -97,6 +115,11 @@ Buchfink ist dafür selbst Autorisierungsserver nach OAuth 2.1 mit PKCE.
   lediglich einen Abgleichcode. Eine Anfrage verfällt nach fünf Minuten.
 - Apps dürfen sich nur mit Rücksprungadressen auf diesem Rechner registrieren.
 - Die Zulassung gilt je Mandant und mit den Rechten Lesen und Buchen.
+- Dateien liest eine App nur aus dem Eingang und den Leseordnern, die Sie
+  unter Einstellungen › „Eingang & Ordner“ freigeben, und schreibt nur in den
+  Exportordner. Der Datenordner bis auf den Eingang darin, die Datenordner
+  anderer Unternehmen und die Sicherungen bleiben gesperrt, auch wenn ein
+  Leseordner sie enthält.
 - Ein Zugriffstoken gilt zehn Minuten, ein Erneuerungstoken 30 Tage; nach 180
   Tagen ist eine neue Anmeldung nötig. Buchfink speichert Codes und Tokens nur
   als SHA-256-Hash.

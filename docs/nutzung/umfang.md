@@ -22,14 +22,14 @@
 
 | Bereich | Umfang |
 |---|---|
-| Belege | Ablage im Original, Kopfdaten, Eigenbeleg. E-Rechnungen (ZUGFeRD, Factur-X, XRechnung in CII und UBL) liest und prüft Buchfink. |
+| Belege | Ein Eingang je Unternehmen für Belege, E-Rechnungen und Kontoauszüge, auch per Drag & Drop ins Fenster. Ablage im Original, Kopfdaten, Eigenbeleg. E-Rechnungen (ZUGFeRD, Factur-X, XRechnung in CII und UBL) liest und prüft Buchfink. |
 | Zahlungswege | Bankkonten mit Import von CAMT.053, Firmenkreditkarte, Auslage durch Gesellschafter oder Geschäftsführer, Gesellschafterdarlehen. Ein Bankumsatz lässt sich auf mehrere Gegenkonten aufteilen, etwa eine Dividende mit Kapitalertragsteuer oder eine Darlehensrate mit Zins. |
 | Ausgangsrechnungen | ZUGFeRD und XRechnung im CII-Format, Storno und Berichtigung, Anzahlungen mit Schlussrechnung, überfällige Posten mit Verzugszinsen. |
 | Lohn | Das Lohnjournal eines externen Lohnbüros als Monatssumme buchen und die Lohnkonten abstimmen. |
 | Umsatzsteuer | Voranmeldung mit Rückverfolgung bis zur Buchung, Dauerfristverlängerung, Sondervorauszahlung, Zusammenfassende Meldung für sonstige Leistungen, Mindest-Istversteuerung bei Zahlung vor der Leistung, Vorsteuerberichtigung nach § 15a UStG, Bestätigung von USt-IdNrn. |
 | Anlagen | Anlagenkartei, lineare und degressive Abschreibung, geringwertige Wirtschaftsgüter, Sammelposten, Sonderabschreibung nach § 7g EStG, Abgang. |
 | Jahresabschluss | Abschlussperiode zwischen Dezember- und Jahresfestschreibung, Bausteine von der Abschreibung über Wertberichtigung, unfertige Leistungen, Abgrenzung und Rückstellungen bis zur Steuerrückstellung, Bilanz und GuV nach §§ 266, 275 HGB, gesetzliche Rücklage der UG, Ergebnisverwendung und Saldenvortrag. |
-| Erklärungen | Körperschaftsteuer, Gewerbesteuer und Umsatzsteuer-Jahreserklärung formularnah mit der Herkunft jedes Werts, als Eingabehilfe für Mein ELSTER und als JSON. E-Bilanz als XBRL nach der amtlichen Taxonomie 6.9 oder 6.10. |
+| Erklärungen | Körperschaftsteuer, Gewerbesteuer und Umsatzsteuer-Jahreserklärung formularnah mit der Herkunft jedes Werts, als Eingabehilfe für Mein ELSTER und als JSON. E-Bilanz als XBRL nach der amtlichen Taxonomie 6.9 oder 6.10, ersatzweise als Summen- und Saldenliste für eBilanz+. |
 | Pflichten | Pflichtenkalender mit Voranmeldungen, Vorauszahlungen, Festschreibung, Abschluss, Erklärungen, Offenlegung und Registerpflichten. Fristen verschieben sich nach Wochenende und Feiertagen des Bundeslands ([§ 108 Abs. 3 AO][ao108]). |
 | Nachweise | Hash-Ketten, Festschreibung mit Zeitstempel, Änderungsprotokoll, Prüfermodus, Datenüberlassung für die Betriebsprüfung, Verfahrensdokumentation. |
 
@@ -47,7 +47,8 @@ Welche Teile gebaut und geprüft sind, steht im
 | Warenverkehr | Keine innergemeinschaftliche Lieferung, keine Ausfuhr, keine Vorräte und keine Inventur. |
 | Kasse | Kein Kassenbuch. Jede Zahlung läuft über ein Bankkonto, die Firmenkreditkarte oder eine Auslage. |
 | Lohnabrechnung | Buchfink rechnet keine Löhne ab. Lohnsteuer-Anmeldung und Beitragsnachweise kommen vom Lohnbüro. |
-| Übermittlung | Buchfink übermittelt nichts an Finanzamt oder Register. Voranmeldung, Zusammenfassende Meldung und Jahreserklärungen übertragen Sie selbst, etwa in Mein ELSTER. Die E-Bilanz braucht ein Programm mit ERiC, etwa ebilanzonline.de oder ebilanzplus.de, weil Mein ELSTER kein Formular dafür hat. Die Offenlegung geschieht im Unternehmensregister. |
+| Übermittlung | Buchfink übermittelt nichts an Finanzamt oder Register. Voranmeldung, Zusammenfassende Meldung und Jahreserklärungen übertragen Sie selbst, etwa in Mein ELSTER. Die E-Bilanz übermitteln Sie über einen E-Bilanz-Dienst wie ebilanzplus.de oder ebilanzonline.de, weil Mein ELSTER kein Formular dafür hat ([E-Bilanz übermitteln](README.md#e-bilanz-übermitteln)). Die Offenlegung geschieht im Unternehmensregister. |
+| Automatischer Import | Buchfink beobachtet keinen Ordner und holt keine Belege aus Mailpostfach oder Portalen. Was im Eingang liegt, legt der Agent ab, wenn Sie es sagen. |
 | Verschlüsselung | Buchfink verschlüsselt nichts, siehe [Datensicherheit](datensicherheit.md). |
 | Mehrere Bearbeiter | Keine Benutzerverwaltung. Buchfink läuft an einem Rechner, ein Mandant hat einen Schreiber. |
 
