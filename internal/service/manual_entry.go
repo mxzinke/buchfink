@@ -63,6 +63,9 @@ func (s *PostingService) PostManualEntry(
 	if err := ValidateManualTaxLines(&entry); err != nil {
 		return nil, err
 	}
+	if err := requireShareholderContacts(entry.Lines); err != nil {
+		return nil, err
+	}
 	if s.journalSvc == nil {
 		return nil, fmt.Errorf("der Buchungsweg ist nicht eingerichtet")
 	}

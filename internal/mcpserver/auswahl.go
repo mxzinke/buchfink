@@ -48,6 +48,7 @@ type (
 	EBilanzFormat    string
 	Quelle           string
 	DarlehenRichtung string
+	DarlehenArt      string
 	Zinsmethode      string
 	Monat            string
 	Zeitraum         string
@@ -93,6 +94,8 @@ var choices = map[reflect.Type]choice{
 	reflect.TypeFor[DarlehenRichtung](): {choiceKeys(loanDirections),
 		"an_gesellschaft: der Gesellschafter leiht der GmbH; an_gesellschafter: die GmbH leiht ihm"},
 	reflect.TypeFor[Zinsmethode](): {choiceKeys(dayCounts), "Zinsmethode; Vorgabe act/365"},
+	reflect.TypeFor[DarlehenArt](): {[]string{"vertrag", "zinsen"},
+		"vertrag (Vorgabe): Vertrag anlegen oder berichtigen; zinsen: Zinsen eines erfassten Darlehens buchen"},
 }
 
 var patterns = map[reflect.Type]*jsonschema.Schema{

@@ -123,6 +123,109 @@ func TestShareholderLoanTool(t *testing.T) {
 	}
 }
 
+// Eine Berichtigung ändert nur, was der Agent nennt; sind Auszahlungen
+// gebucht, bleibt das Darlehenskonto. Zinsen bucht darlehen_erfassen mit
+// art=zinsen samt Zinsperiode, danach ändert sich der Zinssatz nicht mehr.
+// Eine Zeile auf einem Gesellschafterkonto braucht den Gesellschafter.
+func TestShareholderLoanCorrectionAndInterest(t *testing.T) {
+	h := newHarness(t)
+	h.completeCompany()
+	anna := h.shareholder()
+	a := h.agent("")
+	var contract ablageOut
+	a.ok("beleg_ablegen", a.args(map[string]any{"eingang_am": today(), "dateien": []any{map[string]any{"pfad": h.inboxFile("vertrag.pdf", pdf("Darlehensvertrag kurz"))}},
+		"belegdatum": "2025-12-15", "aussteller": "Anna Bauer", "brutto": "50000.00"}), &contract)
+	var booked darlehenAntwort
+	a.ok("darlehen_erfassen", a.args(map[string]any{"idempotenz_schluessel": "darlehen-kurz", "kontakt_id": anna,
+		"richtung": "an_gesellschaft", "betrag": "50000.00", "zinssatz": "6", "zinsmethode": "30/360",
+		"vertrag_vom": "2025-12-15", "beginn": "2026-01-02", "faellig_am": "2026-12-31", "beleg_id": contract.Beleg.ID}), &booked)
+	if booked.Darlehen.Konto != "3641" {
+		t.Fatalf("Konto bei einem Jahr Laufzeit: %+v", booked.Darlehen)
+	}
+	loanID := booked.Darlehen.ID
+
+	payout := func(key string, line map[string]any) map[string]any {
+		return a.args(map[string]any{"idempotenz_schluessel": key, "buchungsdatum": "2026-02-01",
+			"beschreibung": "Auszahlung Gesellschafterdarlehen Anna Bauer", "steuerfall": "not_taxable",
+			"beleg_id": contract.Beleg.ID,
+			"zeilen":   []any{map[string]any{"konto": "1800", "seite": "S", "betrag": "50000.00"}, line}})
+	}
+	if e := a.fail("buchung_erfassen", payout("auszahlung-ohne", map[string]any{"konto": "3641", "seite": "H", "betrag": "50000.00"}),
+		CodeRule); !strings.Contains(e.Nachricht, "Gesellschafter als Kontakt") {
+		t.Fatalf("Gesellschafterkonto ohne Kontakt: %+v", e)
+	}
+	var entry buchungOut
+	a.ok("buchung_erfassen", payout("auszahlung", map[string]any{"konto": "3641", "seite": "H", "betrag": "50000.00",
+		"kontakt_id": anna}), &entry)
+
+	type darlehenVoll struct {
+		Stichtag string `json:"stichtag"`
+		Darlehen struct {
+			Konto            string `json:"konto"`
+			Zinsmethode      string `json:"zinsmethode"`
+			FaelligAm        string `json:"faellig_am"`
+			BelegID          *uint  `json:"beleg_id"`
+			Stand            string `json:"stand"`
+			ErsteAuszahlung  string `json:"erste_auszahlung"`
+			ZinsenGebuchtBis string `json:"zinsen_gebucht_bis"`
+			Befunde          []struct {
+				Text string `json:"text"`
+			} `json:"befunde"`
+		} `json:"darlehen"`
+		Zinsen *struct {
+			Von       string `json:"von"`
+			Bis       string `json:"bis"`
+			Betrag    string `json:"betrag"`
+			BuchungID *uint  `json:"buchung_id"`
+		} `json:"zinsen"`
+	}
+	var prolonged darlehenVoll
+	a.ok("darlehen_erfassen", a.args(map[string]any{"idempotenz_schluessel": "darlehen-kurz-verlaengert",
+		"darlehen_id": loanID, "grund": "Laufzeit verlängert", "faellig_am": "2028-12-31"}), &prolonged)
+	d := prolonged.Darlehen
+	if d.FaelligAm != "2028-12-31" || d.BelegID == nil || *d.BelegID != contract.Beleg.ID || d.Zinsmethode != "30/360" ||
+		d.Konto != "3641" || d.Stand != "50000.00" || d.ErsteAuszahlung != "2026-02-01" || prolonged.Stichtag != today() {
+		t.Fatalf("Berichtigung nur der Fälligkeit: %+v (Stichtag %s)", d, prolonged.Stichtag)
+	}
+	if e := a.fail("darlehen_erfassen", a.args(map[string]any{"idempotenz_schluessel": "darlehen-kurz-konto",
+		"darlehen_id": loanID, "grund": "Ausweis nach Laufzeit", "konto": "3642"}), CodeRule); !strings.Contains(e.Nachricht, "Darlehenskonto") {
+		t.Errorf("Kontowechsel trotz Auszahlung: %+v", e)
+	}
+
+	var interest darlehenVoll
+	a.ok("darlehen_erfassen", a.args(map[string]any{"idempotenz_schluessel": "zinsen-h1", "art": "zinsen",
+		"darlehen_id": loanID, "zinsen_bis": "2026-06-30", "nur_vorschau": true}), &interest)
+	if interest.Zinsen == nil || interest.Zinsen.Von != "2026-01-02" || interest.Zinsen.BuchungID != nil || interest.Zinsen.Betrag == "0.00" {
+		t.Fatalf("Zinsvorschau: %+v", interest.Zinsen)
+	}
+	a.ok("darlehen_erfassen", a.args(map[string]any{"idempotenz_schluessel": "zinsen-h1", "art": "zinsen",
+		"darlehen_id": loanID, "zinsen_bis": "2026-06-30"}), &interest)
+	if interest.Zinsen == nil || interest.Zinsen.BuchungID == nil || interest.Darlehen.ZinsenGebuchtBis != "2026-06-30" {
+		t.Fatalf("Zinsen gebucht: %+v %+v", interest.Zinsen, interest.Darlehen)
+	}
+	if e := a.fail("darlehen_erfassen", a.args(map[string]any{"idempotenz_schluessel": "darlehen-kurz-zins",
+		"darlehen_id": loanID, "grund": "Zins erhöht", "zinssatz": "9"}), CodeRule); !strings.Contains(e.Nachricht, "Zinsen bis") {
+		t.Errorf("Zinssatz trotz gebuchter Zinsen geändert: %+v", e)
+	}
+	var listed struct {
+		Darlehen []struct {
+			ZinsenGebuchtBis string `json:"zinsen_gebucht_bis"`
+			Befunde          []struct {
+				Text string `json:"text"`
+			} `json:"befunde"`
+		} `json:"darlehen"`
+	}
+	a.ok("auswertung", map[string]any{"art": "darlehen", "bis": "2026-12-31"}, &listed)
+	if len(listed.Darlehen) != 1 || listed.Darlehen[0].ZinsenGebuchtBis != "2026-06-30" ||
+		!slices.ContainsFunc(listed.Darlehen[0].Befunde, func(b struct {
+			Text string `json:"text"`
+		}) bool {
+			return strings.Contains(b.Text, "Zinsen vom 01.07.2026")
+		}) {
+		t.Errorf("Zinsen in der Auswertung: %+v", listed.Darlehen)
+	}
+}
+
 // Die Ergebnisverwendung bucht der Agent erst, wenn der Mensch den Abschluss
 // festgestellt hat, und nicht mit einem Beschluss, der davor liegt.
 func TestAppropriationTool(t *testing.T) {
@@ -196,8 +299,20 @@ func TestAppropriationTool(t *testing.T) {
 
 	early := a.args(decision)
 	early["beschluss_am"] = "2026-05-19"
+	early["nur_vorschau"] = true
+	var earlyShown verwendung
+	a.ok("ergebnisverwendung_buchen", early, &earlyShown)
+	if !slices.ContainsFunc(earlyShown.Hinweise, func(s string) bool { return strings.Contains(s, "vor der Feststellung") }) {
+		t.Errorf("die Vorschau verschweigt einen Beschluss vor der Feststellung: %+v", earlyShown.Hinweise)
+	}
+	delete(early, "nur_vorschau")
 	if e := a.fail("ergebnisverwendung_buchen", early, CodeRule); !strings.Contains(e.Nachricht, "vor der Feststellung") {
 		t.Fatalf("Beschluss vor der Feststellung: %+v", e)
+	}
+	var onTime verwendung
+	a.ok("ergebnisverwendung_buchen", preview, &onTime)
+	if slices.ContainsFunc(onTime.Hinweise, func(s string) bool { return strings.Contains(s, "So bucht Buchfink") }) {
+		t.Errorf("Vorschau nach der Feststellung: %v", onTime.Hinweise)
 	}
 	in := a.args(decision)
 	in["idempotenz_schluessel"] = "ergebnisverwendung-2025"

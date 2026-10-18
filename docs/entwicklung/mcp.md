@@ -39,12 +39,18 @@ Konto des Kontenrahmens:
 | Vorgang | Werkzeug |
 |---|---|
 | Kapital, Rücklagen, Ausschüttung, Gesellschafterkonten, Gründungsbuchungen (Zeichnung, Einforderung) | `buchung_erfassen`, Zahlungen über `bankumsatz_buchen` |
-| Darlehensvertrag mit einem Gesellschafter anlegen oder berichtigen | `darlehen_erfassen` |
+| Darlehensvertrag mit einem Gesellschafter anlegen oder berichtigen, seine Zinsen buchen | `darlehen_erfassen` |
 | Ergebnisverwendung nach der Feststellung durch den Menschen | `ergebnisverwendung_buchen` |
 | Organisationstexte der Verfahrensdokumentation | `verfahrensdoku_text` |
 
 Die Gründung selbst mit Gesellschaftern, Anteilen und Eintragung bleibt
 Stammdatum des Menschen (`FoundationService.Save`, `Register`).
+
+Eine Zeile auf einem Konto, das Beträge je Gesellschafter führt (0960, 1307
+bis 1309, 3640 bis 3643 und die übrigen aus `shareholderAccounts`), braucht den
+Gesellschafter als Kontakt, in der Handbuchung, in der Neubuchung beim Storno
+und in der Aufteilung eines Bankumsatzes. Ohne ihn fehlte sie im Stand des
+Darlehens, in der Zinsrechnung und in den Salden je Gesellschafter.
 
 ## Eingaben und Ausgaben
 
@@ -105,12 +111,12 @@ aus `Toolbox.OutputSchema`, `TestCatalogStaysSmall` hält den Katalog unter
 | `beleg_buchen` | direkt | Eingangsrechnung buchen, nur Routine |
 | `bankumsatz_zuordnen` | direkt | Bankumsatz mit genau einem offenen Posten ausgleichen, nur Routine |
 | `erklaerung_exportieren` | direkt | Jahreserklärung als JSON in den Exportordner |
-| `ebilanz_exportieren` | direkt | E-Bilanz prüfen und in den Exportordner: `format` `xbrl` (Vorgabe) oder `susa_csv` |
+| `ebilanz_exportieren` | direkt | E-Bilanz prüfen und in den Exportordner: `format` `xbrl` (Vorgabe) oder `susa_csv`; bei abweichender Steuerbilanz nennt `ueberleitung`, was die Liste nicht enthält |
 | `pflicht_vorbereitet` | direkt | Pflicht als vorbereitet melden, nie als erledigt |
 | `standardgruppe_vorschlagen` | direkt | Standard-Buchungsgruppe eines Lieferanten vorschlagen |
 | `beleg_buchen_mit_rueckfrage` | rueckfrage | Eingangsbeleg in allen Nicht-Routinefällen, auch Auslage; ergänzt fehlende Kopfdaten und berichtigt `eingang_am` |
 | `bankumsatz_buchen` | rueckfrage | Aufteilung mit Skonto, Gebühren, Darlehen; Kreditkartenabrechnung; Ignorieren mit Grund |
-| `buchung_erfassen` | rueckfrage | Handbuchung mit Beleg oder Eigenbeleg, auch in der Abschlussperiode und für die Gründung (Zeichnung, Einforderung); ein Kontakt an den Personenkontozeilen macht sie zum offenen Posten |
+| `buchung_erfassen` | rueckfrage | Handbuchung mit Beleg oder Eigenbeleg, auch in der Abschlussperiode und für die Gründung (Zeichnung, Einforderung); ein Kontakt an den Personenkontozeilen macht sie zum offenen Posten, an Gesellschafterkonten ist er Pflicht; Darlehenszinsen nicht hier, sondern mit `darlehen_erfassen` |
 | `buchung_stornieren` | rueckfrage | Generalumkehr mit Grund, auf Wunsch mit Neubuchung; `datum` nur beim Saldenvortrag |
 | `lohnjournal_buchen` | rueckfrage | Monatssummen des Lohnbüros |
 | `rechnung_ausstellen` | rueckfrage | Rechnung, Abschlagsrechnung, Schlussrechnung; PDF und E-Rechnung im Exportordner |
@@ -119,7 +125,7 @@ aus `Toolbox.OutputSchema`, `TestCatalogStaysSmall` hält den Katalog unter
 | `erklaerung_eingabe` | rueckfrage | Angabe zu einer Zeile einer Jahreserklärung; was der Mensch gesetzt oder bestätigt hat, ändert nur er |
 | `beleg_verwerfen` | rueckfrage | abgelegten Beleg mit Grund verwerfen; er bleibt im Archiv |
 | `anlass_erfassen` | rueckfrage | Gesellschafterwechsel, Änderung der wirtschaftlich Berechtigten, Vorauszahlungsbescheid KSt oder GewSt |
-| `darlehen_erfassen` | rueckfrage | Darlehensvertrag mit einem Gesellschafter anlegen oder mit Grund berichtigen, Vertrag als `beleg_id`; `nur_vorschau` zeigt Konten und Befunde zum Fremdvergleich |
+| `darlehen_erfassen` | rueckfrage | Darlehensvertrag mit einem Gesellschafter anlegen oder mit Grund berichtigen, Vertrag als `beleg_id`; beim Berichtigen bleibt, was fehlt, und sind Auszahlungen gebucht, bleiben Konto, Gesellschafter und Richtung; `art: zinsen` bucht die Zinsen bis `zinsen_bis` mit Eigenbeleg der Zinsrechnung und vermerkt die Zinsperiode; `nur_vorschau` zeigt Konten, Stand zum heutigen Tag (`stichtag`) und Befunde zum Fremdvergleich |
 | `ergebnisverwendung_buchen` | rueckfrage | Gesellschafterbeschluss über das Ergebnis im Folgejahr buchen: Rücklagen, Ausschüttung mit Kapitalertragsteuer, Vortrag; erst nach der Feststellung durch den Menschen |
 | `verfahrensdoku_text` | rueckfrage | Organisationstexte der Verfahrensdokumentation lesen und ändern; ohne `texte` nur lesen, dafür genügt `buchfink:lesen`, auch im Prüfermodus |
 

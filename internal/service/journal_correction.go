@@ -69,6 +69,9 @@ func (s *JournalService) correctEntry(
 	}
 	id := original.ID
 	mode := postMode{correctsID: &id}
+	if err := requireShareholderContacts(replacement.Lines); err != nil {
+		return nil, fmt.Errorf("die richtige Buchung ist nicht buchbar, deshalb wurde nicht storniert: %w", err)
+	}
 	if err := s.validatePostable(ctx, replacement, mode); err != nil {
 		return nil, fmt.Errorf("die richtige Buchung ist nicht buchbar, deshalb wurde nicht storniert: %w", err)
 	}

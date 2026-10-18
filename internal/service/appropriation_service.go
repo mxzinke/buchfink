@@ -366,6 +366,13 @@ func (s *AppropriationService) bookAppropriation(
 // ensureAdopted verlangt den festgestellten Abschluss des verwendeten Jahres
 // und einen Beschluss, der nicht vor der Feststellung liegt. Beide dürfen auf
 // denselben Tag fallen: meist beschließt dieselbe Versammlung über beides.
+// CheckAdopted prüft ohne zu buchen, ob ein Beschluss vom decisionDate über das
+// Ergebnis des Jahres gebucht werden kann: der Abschluss ist festgestellt, und
+// der Beschluss liegt nicht vor der Feststellung.
+func (s *AppropriationService) CheckAdopted(ctx context.Context, year int, decisionDate string) error {
+	return s.ensureAdopted(ctx, year, decisionDate)
+}
+
 func (s *AppropriationService) ensureAdopted(ctx context.Context, year int, decisionDate string) error {
 	fy, err := s.closingSvc.YearOf(ctx, year)
 	if err != nil {

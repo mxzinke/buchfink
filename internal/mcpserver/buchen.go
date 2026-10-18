@@ -279,7 +279,7 @@ type zeileIn struct {
 	Betrag           Betrag        `json:"betrag"`
 	Steuerschluessel string        `json:"steuerschluessel,omitempty" jsonschema:"an Steuerzeilen, z. B. VST19"`
 	Steuerbasis      Betrag        `json:"steuerbasis,omitempty" jsonschema:"Bemessungsgrundlage an Steuerzeilen"`
-	KontaktID        uint          `json:"kontakt_id,omitempty" jsonschema:"an Personenkonten"`
+	KontaktID        uint          `json:"kontakt_id,omitempty" jsonschema:"an Personenkonten; an Gesellschafterkonten (0960, 1307-1309, 3640-3643 u. a.) Pflicht"`
 	Text             string        `json:"text,omitempty"`
 }
 
@@ -594,7 +594,8 @@ func registerBuchen(tb *Toolbox) {
 			"13. Monat (abschlussperiode) und die Gründung: Zeichnung des Stammkapitals (1298, bei Resteinlage auch " +
 			"2910, an 2900) zum Tag der Beurkundung mit dem Gesellschaftsvertrag als Beleg, Einforderung (1298 an " +
 			"2910) mit dem Beschluss. Eingangsrechnungen über beleg_buchen, Bankumsätze über bankumsatz_buchen, " +
-			"Ergebnisverwendung über ergebnisverwendung_buchen. Vorher Buchungssatz, Beträge und Beleg im Chat " +
+			"Ergebnisverwendung über ergebnisverwendung_buchen, Darlehenszinsen über darlehen_erfassen mit " +
+			"art=zinsen. Vorher Buchungssatz, Beträge und Beleg im Chat " +
 			"vorlegen und bestätigen lassen.",
 	}, func(ctx context.Context, c *Call, s *core.Services, in buchungErfassenIn) (buchungOut, error) {
 		req, err := in.request()

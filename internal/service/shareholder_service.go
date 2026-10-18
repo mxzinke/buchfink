@@ -70,6 +70,21 @@ func isShareholderAccount(account string) bool {
 	return false
 }
 
+// requireShareholderContacts verlangt an jeder Zeile auf einem Konto, das
+// Beträge je Gesellschafter führt, den Gesellschafter als Kontakt. Ohne ihn
+// fehlt die Zeile im Stand des Darlehens, in der Zinsrechnung und in den
+// Salden je Gesellschafter (§ 42 Abs. 3 GmbHG). Die Aufteilung eines
+// Bankumsatzes prüft dasselbe.
+func requireShareholderContacts(lines []domain.JournalLine) error {
+	for _, l := range lines {
+		if isShareholderAccount(l.Account) && (l.ContactID == nil || *l.ContactID == 0) {
+			return fmt.Errorf("Konto %s führt Beträge gegenüber Gesellschaftern; die Zeile braucht den "+
+				"Gesellschafter als Kontakt", l.Account)
+		}
+	}
+	return nil
+}
+
 // loanAccounts sind die zulässigen Darlehenskonten je Richtung.
 var loanAccounts = map[domain.LoanDirection][]string{
 	domain.LoanToCompany: {
@@ -110,6 +125,8 @@ type LoanRequest struct {
 type LoanView struct {
 	Loan        domain.ShareholderLoan `json:"loan"`
 	ContactName string                 `json:"contactName"`
+	// Cutoff ist der Stichtag von Stand und Befunden.
+	Cutoff string `json:"cutoff"`
 	// Outstanding ist der gebuchte Bestand zum Stichtag.
 	Outstanding domain.Cents `json:"outstanding"`
 	// FirstMovement ist der Tag der ersten Auszahlung im Journal.
@@ -137,7 +154,7 @@ func (s *ShareholderService) RegisterLoan(ctx context.Context, req LoanRequest) 
 				domain.GermanDate(loan.StartDate), loan.Account, loan.InterestAccount)); err != nil {
 			return nil, err
 		}
-		return s.view(ctx, loan, contact, cfg, loan.StartDate)
+		return s.view(ctx, loan, contact, cfg, todayLocal())
 	})
 }
 
@@ -164,29 +181,57 @@ func (s *ShareholderService) CorrectLoan(ctx context.Context, id uint, req LoanR
 				contact.LegalName(), reason), before, loan); err != nil {
 			return nil, err
 		}
-		return s.view(ctx, loan, contact, cfg, loan.StartDate)
+		return s.view(ctx, loan, contact, cfg, todayLocal())
 	})
 }
 
 // PreviewLoan prüft einen Vertrag wie RegisterLoan oder, mit id, wie
-// CorrectLoan und rechnet Konten, Stand und Befunde, ohne zu speichern.
+// CorrectLoan und rechnet Konten, Stand und Befunde zum heutigen Tag, ohne zu
+// speichern.
 func (s *ShareholderService) PreviewLoan(ctx context.Context, id uint, req LoanRequest) (*LoanView, error) {
 	if id != 0 {
 		_, loan, contact, cfg, err := s.correctedLoan(ctx, id, req)
 		if err != nil {
 			return nil, err
 		}
-		return s.view(ctx, loan, contact, cfg, loan.StartDate)
+		return s.view(ctx, loan, contact, cfg, todayLocal())
 	}
 	loan, contact, cfg, err := s.loanFrom(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	return s.view(ctx, loan, contact, cfg, loan.StartDate)
+	return s.view(ctx, loan, contact, cfg, todayLocal())
 }
 
-// correctedLoan ist der berichtigte Vertrag neben dem bisherigen. Sind Zinsen
-// gebucht, weist es eine Änderung der Angaben ab, aus denen sie gerechnet sind.
+// LoanRequestOf ist der gespeicherte Vertrag als Anfrage, etwa als
+// Ausgangspunkt einer Berichtigung, die nur einzelne Angaben ändert.
+func (s *ShareholderService) LoanRequestOf(ctx context.Context, id uint) (LoanRequest, error) {
+	loan, err := s.loans.FindByID(ctx, id)
+	if err != nil {
+		return LoanRequest{}, fmt.Errorf("Darlehen %d wurde nicht gefunden: %w", id, err)
+	}
+	req := LoanRequest{
+		ContactID: loan.ContactID, Direction: loan.Direction, Principal: loan.Principal,
+		InterestRateBP: loan.InterestRateBP, DayCount: loan.DayCount, ContractDate: loan.ContractDate,
+		StartDate: loan.StartDate, MaturityDate: loan.MaturityDate, Account: loan.Account,
+		InterestAccount: loan.InterestAccount, Collateral: loan.Collateral, ComparisonSource: loan.ComparisonSource,
+		Subordinated: loan.Subordinated, Note: loan.Note,
+	}
+	if loan.ContractReceiptID != nil {
+		req.ContractReceiptID = *loan.ContractReceiptID
+	}
+	if loan.ComparisonRateBP != nil {
+		rate := *loan.ComparisonRateBP
+		req.ComparisonRateBP = &rate
+	}
+	return req, nil
+}
+
+// correctedLoan ist der berichtigte Vertrag neben dem bisherigen. Sind auf dem
+// Darlehenskonto Bewegungen des Gesellschafters gebucht, bleiben Konto,
+// Gesellschafter und Richtung; ohne genanntes Konto bleibt dann das bisherige,
+// statt nach der neuen Laufzeit zu wechseln. Sind Zinsen gebucht, weist es
+// eine Änderung der Angaben ab, aus denen sie gerechnet sind.
 func (s *ShareholderService) correctedLoan(
 	ctx context.Context, id uint, req LoanRequest,
 ) (*domain.ShareholderLoan, *domain.ShareholderLoan, *domain.Contact, *domain.CompanySettings, error) {
@@ -194,11 +239,25 @@ func (s *ShareholderService) correctedLoan(
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("Darlehen %d wurde nicht gefunden: %w", id, err)
 	}
+	moved, err := s.loanMovements(ctx, before, "9999-12-31")
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	if len(moved) > 0 && strings.TrimSpace(req.Account) == "" && req.Direction == before.Direction {
+		req.Account = before.Account
+	}
 	loan, contact, cfg, err := s.loanFrom(ctx, req)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
 	loan.ID, loan.CreatedAt = before.ID, before.CreatedAt
+	if len(moved) > 0 {
+		if changed := ledgerTermsChanged(before, loan); changed != "" {
+			return nil, nil, nil, nil, fmt.Errorf("auf Konto %s sind Auszahlungen oder Tilgungen des Darlehens "+
+				"gebucht; %s bleibt deshalb. Ein anderer Ausweis braucht eine Umbuchung mit Beleg oder einen "+
+				"neuen Vertrag", before.Account, changed)
+		}
+	}
 	booked, err := s.bookedInterest(ctx, id)
 	if err != nil {
 		return nil, nil, nil, nil, err
@@ -220,6 +279,26 @@ func (s *ShareholderService) correctedLoan(
 		}
 	}
 	return before, loan, contact, cfg, nil
+}
+
+// ledgerTermsChanged nennt die Angaben, nach denen Buchfink die Bewegungen
+// eines Darlehens im Journal findet, und die sich geändert haben; leer, wenn
+// keine.
+func ledgerTermsChanged(before, after *domain.ShareholderLoan) string {
+	var changed []string
+	for _, c := range []struct {
+		label string
+		diff  bool
+	}{
+		{"der Gesellschafter", before.ContactID != after.ContactID},
+		{"die Richtung", before.Direction != after.Direction},
+		{"das Darlehenskonto", before.Account != after.Account},
+	} {
+		if c.diff {
+			changed = append(changed, c.label)
+		}
+	}
+	return strings.Join(changed, ", ")
 }
 
 // interestTermsChanged nennt die Angaben, aus denen gebuchte Zinsen gerechnet
@@ -430,7 +509,8 @@ func (s *ShareholderService) view(
 	if err != nil {
 		return nil, err
 	}
-	view := &LoanView{Loan: *loan, ContactName: contact.LegalName(), Findings: make([]domain.CheckFinding, 0)}
+	view := &LoanView{Loan: *loan, ContactName: contact.LegalName(), Cutoff: cutoff,
+		Findings: make([]domain.CheckFinding, 0)}
 	for _, m := range movements {
 		view.Outstanding += m.Amount
 		if view.FirstMovement == "" && m.Amount > 0 {

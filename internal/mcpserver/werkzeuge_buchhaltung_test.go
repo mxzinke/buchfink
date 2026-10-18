@@ -635,19 +635,34 @@ func TestInvoicePreviewAndIssue(t *testing.T) {
 }
 
 // Kapital, Rücklagen, Ausschüttung und Gesellschafterkonten bucht der Agent
-// von Hand wie jedes andere Konto; ein Fehler lässt sich stornieren.
+// von Hand wie jedes andere Konto; ein Fehler lässt sich stornieren. Eine
+// Zeile auf einem Gesellschafterkonto braucht den Gesellschafter.
 func TestManualEntryReachesEquityAndShareholderAccounts(t *testing.T) {
 	h := newHarness(t)
 	h.completeCompany()
 	h.warmRenderer()
+	anna := h.shareholder()
 	a := h.agent("")
-	for _, lines := range [][2]string{{"2970", "3519"}, {"2970", "2930"}, {"2970", "2960"}, {"1800", "3640"}, {"1298", "2900"}} {
-		var out buchungAntwort
-		a.ok("buchung_erfassen", a.args(map[string]any{"idempotenz_schluessel": "beschluss-" + lines[1], "buchungsdatum": "2026-06-30",
+	entry := func(debit, credit string, contact uint) map[string]any {
+		line := map[string]any{"konto": credit, "seite": "H", "betrag": "1000.00"}
+		if contact != 0 {
+			line["kontakt_id"] = contact
+		}
+		return a.args(map[string]any{"idempotenz_schluessel": "beschluss-" + credit, "buchungsdatum": "2026-06-30",
 			"beschreibung": "Gesellschafterbeschluss", "steuerfall": "not_taxable",
 			"eigenbeleg": map[string]any{"grund": "Gesellschafterbeschluss", "brutto": "1000.00"},
-			"zeilen": []any{map[string]any{"konto": lines[0], "seite": "S", "betrag": "1000.00"},
-				map[string]any{"konto": lines[1], "seite": "H", "betrag": "1000.00"}}}), &out)
+			"zeilen":     []any{map[string]any{"konto": debit, "seite": "S", "betrag": "1000.00"}, line}})
+	}
+	if e := a.fail("buchung_erfassen", entry("1800", "3640", 0), CodeRule); !strings.Contains(e.Nachricht, "Gesellschafter als Kontakt") {
+		t.Errorf("Gesellschafterkonto ohne Kontakt: %+v", e)
+	}
+	for _, lines := range [][2]string{{"2970", "3519"}, {"2970", "2930"}, {"2970", "2960"}, {"1800", "3640"}, {"1298", "2900"}} {
+		var contact uint
+		if lines[1] == "3640" {
+			contact = anna
+		}
+		var out buchungAntwort
+		a.ok("buchung_erfassen", entry(lines[0], lines[1], contact), &out)
 		if out.Buchung == nil || len(out.Buchung.Zeilen) != 2 || out.Buchung.Zeilen[1].Konto != lines[1] {
 			t.Errorf("%v: %+v", lines, out.Buchung)
 		}

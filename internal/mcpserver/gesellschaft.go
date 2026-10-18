@@ -55,45 +55,76 @@ func darlehenOf(v *service.LoanView) darlehenZeile {
 
 type darlehenIn struct {
 	KeyedWriteArgs
-	DarlehenID           uint             `json:"darlehen_id,omitempty" jsonschema:"zu berichtigender Vertrag; ohne Angabe ein neuer"`
-	Grund                string           `json:"grund,omitempty" jsonschema:"Pflicht beim Berichtigen"`
-	KontaktID            uint             `json:"kontakt_id" jsonschema:"Gesellschafter laut Unternehmensdaten"`
-	Richtung             DarlehenRichtung `json:"richtung"`
-	Betrag               Betrag           `json:"betrag"`
-	Zinssatz             Zinssatz         `json:"zinssatz"`
+	Art        DarlehenArt `json:"art,omitempty" jsonschema:"vertrag (Vorgabe) oder zinsen"`
+	DarlehenID uint        `json:"darlehen_id,omitempty" jsonschema:"zu berichtigender Vertrag oder Darlehen der Zinsen; ohne Angabe ein neuer Vertrag"`
+	Grund      string      `json:"grund,omitempty" jsonschema:"Pflicht beim Berichtigen"`
+	KontaktID  uint        `json:"kontakt_id,omitempty" jsonschema:"Gesellschafter laut Unternehmensdaten; Pflicht beim Anlegen"`
+	// Beim Berichtigen bleibt jede Angabe, die fehlt, wie sie ist; die
+	// Zeiger unterscheiden „nicht genannt" von „leeren".
+	Richtung             DarlehenRichtung `json:"richtung,omitempty" jsonschema:"Pflicht beim Anlegen"`
+	Betrag               Betrag           `json:"betrag,omitempty" jsonschema:"Pflicht beim Anlegen"`
+	Zinssatz             Zinssatz         `json:"zinssatz,omitempty" jsonschema:"Pflicht beim Anlegen"`
 	Zinsmethode          Zinsmethode      `json:"zinsmethode,omitempty"`
 	VertragVom           Datum            `json:"vertrag_vom,omitempty"`
-	Beginn               Datum            `json:"beginn"`
-	FaelligAm            Datum            `json:"faellig_am,omitempty" jsonschema:"ohne Angabe unbestimmte Laufzeit"`
-	Konto                Konto            `json:"konto,omitempty" jsonschema:"Vorgabe nach Laufzeit"`
-	Zinskonto            Konto            `json:"zinskonto,omitempty" jsonschema:"Vorgabe nach Beteiligung"`
-	BelegID              uint             `json:"beleg_id,omitempty" jsonschema:"abgelegter Vertrag"`
-	Sicherheiten         string           `json:"sicherheiten,omitempty"`
+	Beginn               Datum            `json:"beginn,omitempty" jsonschema:"Pflicht beim Anlegen"`
+	FaelligAm            Datum            `json:"faellig_am,omitempty" jsonschema:"ohne Angabe beim Anlegen unbestimmte Laufzeit"`
+	Konto                Konto            `json:"konto,omitempty" jsonschema:"Vorgabe beim Anlegen nach Laufzeit"`
+	Zinskonto            Konto            `json:"zinskonto,omitempty" jsonschema:"Vorgabe beim Anlegen nach Beteiligung"`
+	BelegID              uint             `json:"beleg_id,omitempty" jsonschema:"abgelegter Vertrag; bei art zinsen eine Zinsabrechnung, ohne sie ein Eigenbeleg mit der Zinsrechnung"`
+	Sicherheiten         *string          `json:"sicherheiten,omitempty"`
 	Vergleichszins       Zinssatz         `json:"vergleichszins,omitempty" jsonschema:"Zins eines fremden Dritten"`
-	VergleichszinsQuelle string           `json:"vergleichszins_quelle,omitempty" jsonschema:"Nachweis, etwa ein Bankangebot"`
-	Nachrangig           bool             `json:"nachrangig,omitempty" jsonschema:"Rangrücktritt vereinbart"`
-	Notiz                string           `json:"notiz,omitempty"`
-	NurVorschau          bool             `json:"nur_vorschau,omitempty" jsonschema:"prüfen, nicht speichern"`
+	VergleichszinsQuelle *string          `json:"vergleichszins_quelle,omitempty" jsonschema:"Nachweis, etwa ein Bankangebot"`
+	Nachrangig           *bool            `json:"nachrangig,omitempty" jsonschema:"Rangrücktritt vereinbart"`
+	Notiz                *string          `json:"notiz,omitempty"`
+	ZinsenBis            Datum            `json:"zinsen_bis,omitempty" jsonschema:"bei art zinsen: Ende des Zeitraums; er beginnt nach der zuletzt gebuchten Zinsperiode"`
+	Abschlussperiode     bool             `json:"abschlussperiode,omitempty" jsonschema:"bei art zinsen: in der Abschlussperiode des Geschäftsjahres buchen"`
+	NurVorschau          bool             `json:"nur_vorschau,omitempty" jsonschema:"prüfen und rechnen, nicht speichern"`
 }
 
 func (in darlehenIn) preview() bool { return in.NurVorschau }
 
-func (in darlehenIn) request() (service.LoanRequest, error) {
-	req := service.LoanRequest{ContactID: in.KontaktID, Account: string(in.Konto), InterestAccount: string(in.Zinskonto),
-		ContractReceiptID: in.BelegID, Collateral: in.Sicherheiten, ComparisonSource: in.VergleichszinsQuelle,
-		Subordinated: in.Nachrangig, Note: in.Notiz}
+// request legt die genannten Angaben über base: beim Anlegen über eine leere
+// Anfrage, beim Berichtigen über den gespeicherten Vertrag.
+func (in darlehenIn) request(base service.LoanRequest) (service.LoanRequest, error) {
+	req := base
+	creating := in.DarlehenID == 0
+	if creating {
+		for field, missing := range map[string]bool{"kontakt_id": in.KontaktID == 0, "richtung": in.Richtung == "",
+			"betrag": in.Betrag == "", "zinssatz": in.Zinssatz == "", "beginn": in.Beginn == ""} {
+			if missing {
+				return req, inputError(field, "beim Anlegen eines Vertrags ist die Angabe Pflicht")
+			}
+		}
+	}
+	if in.KontaktID != 0 {
+		req.ContactID = in.KontaktID
+	}
 	var err error
-	if req.Direction, err = pick("richtung", in.Richtung, loanDirections); err != nil {
-		return req, err
+	if in.Richtung != "" {
+		direction, err := pick("richtung", in.Richtung, loanDirections)
+		if err != nil {
+			return req, err
+		}
+		if direction != req.Direction && req.Direction != "" {
+			// Eine andere Richtung hat andere Konten; die bisherigen gelten nicht.
+			req.Account, req.InterestAccount = "", ""
+		}
+		req.Direction = direction
 	}
-	if req.DayCount, err = pick("zinsmethode", in.Zinsmethode, dayCounts); err != nil {
-		return req, err
+	if in.Zinsmethode != "" {
+		if req.DayCount, err = pick("zinsmethode", in.Zinsmethode, dayCounts); err != nil {
+			return req, err
+		}
 	}
-	if req.Principal, err = in.Betrag.required("betrag"); err != nil {
-		return req, err
+	if in.Betrag != "" {
+		if req.Principal, err = in.Betrag.required("betrag"); err != nil {
+			return req, err
+		}
 	}
-	if req.InterestRateBP, err = in.Zinssatz.basisPoints("zinssatz"); err != nil {
-		return req, err
+	if in.Zinssatz != "" {
+		if req.InterestRateBP, err = in.Zinssatz.basisPoints("zinssatz"); err != nil {
+			return req, err
+		}
 	}
 	if in.Vergleichszins != "" {
 		rate, err := in.Vergleichszins.basisPoints("vergleichszins")
@@ -102,26 +133,109 @@ func (in darlehenIn) request() (service.LoanRequest, error) {
 		}
 		req.ComparisonRateBP = &rate
 	}
-	if req.StartDate, err = in.Beginn.check("beginn"); err != nil {
-		return req, err
+	for _, d := range []struct {
+		field string
+		in    Datum
+		out   *string
+	}{{"beginn", in.Beginn, &req.StartDate}, {"vertrag_vom", in.VertragVom, &req.ContractDate},
+		{"faellig_am", in.FaelligAm, &req.MaturityDate}} {
+		if d.in == "" {
+			continue
+		}
+		if *d.out, err = d.in.check(d.field); err != nil {
+			return req, err
+		}
 	}
-	if req.ContractDate, err = in.VertragVom.check("vertrag_vom"); err != nil {
-		return req, err
+	if in.Konto != "" {
+		req.Account = string(in.Konto)
 	}
-	if req.MaturityDate, err = in.FaelligAm.check("faellig_am"); err != nil {
-		return req, err
+	if in.Zinskonto != "" {
+		req.InterestAccount = string(in.Zinskonto)
+	}
+	if in.BelegID != 0 {
+		req.ContractReceiptID = in.BelegID
+	}
+	for _, t := range []struct {
+		in  *string
+		out *string
+	}{{in.Sicherheiten, &req.Collateral}, {in.VergleichszinsQuelle, &req.ComparisonSource}, {in.Notiz, &req.Note}} {
+		if t.in != nil {
+			*t.out = *t.in
+		}
+	}
+	if in.Nachrangig != nil {
+		req.Subordinated = *in.Nachrangig
 	}
 	return req, nil
 }
 
-type darlehenOut struct {
-	Wiederholung
-	Vorschau bool          `json:"vorschau"`
-	Darlehen darlehenZeile `json:"darlehen"`
-	Hinweis  string        `json:"hinweis,omitempty"`
+type darlehenZinsen struct {
+	Von          string          `json:"von"`
+	Bis          string          `json:"bis"`
+	Betrag       Betrag          `json:"betrag"`
+	Zeilen       []buchungsZeile `json:"zeilen"`
+	BuchungID    *uint           `json:"buchung_id,omitempty"`
+	Erlaeuterung string          `json:"erlaeuterung" jsonschema:"die Zinsrechnung; ohne beleg_id der Inhalt des Eigenbelegs"`
 }
 
-func (o darlehenOut) Ref() string { return fmt.Sprintf("darlehen:%d", o.Darlehen.ID) }
+type darlehenOut struct {
+	Wiederholung
+	Vorschau bool            `json:"vorschau"`
+	Stichtag string          `json:"stichtag" jsonschema:"Stand und Befunde gelten zu diesem Tag"`
+	Darlehen darlehenZeile   `json:"darlehen"`
+	Zinsen   *darlehenZinsen `json:"zinsen,omitempty" jsonschema:"bei art zinsen"`
+	Hinweis  string          `json:"hinweis,omitempty"`
+}
+
+func (o darlehenOut) Ref() string {
+	if o.Zinsen != nil && o.Zinsen.BuchungID != nil {
+		return fmt.Sprintf("buchung:%d", *o.Zinsen.BuchungID)
+	}
+	return fmt.Sprintf("darlehen:%d", o.Darlehen.ID)
+}
+
+// bookLoanInterest rechnet die Zinsen eines Darlehens bis zinsen_bis und bucht
+// sie, außer in der Vorschau.
+func bookLoanInterest(ctx context.Context, s *core.Services, in darlehenIn) (darlehenOut, error) {
+	if in.DarlehenID == 0 {
+		return darlehenOut{}, inputError("darlehen_id", "art=zinsen braucht das Darlehen")
+	}
+	to, err := in.ZinsenBis.check("zinsen_bis")
+	if err != nil {
+		return darlehenOut{}, err
+	}
+	if to == "" {
+		return darlehenOut{}, inputError("zinsen_bis", "art=zinsen braucht das Ende des Zeitraums")
+	}
+	req := service.InterestRequest{LoanID: in.DarlehenID, To: to, ReceiptID: in.BelegID,
+		ClosingPeriod: in.Abschlussperiode}
+	preview, err := s.Shareholders.PreviewInterest(ctx, req)
+	if err != nil {
+		return darlehenOut{}, err
+	}
+	zinsen := &darlehenZinsen{Von: preview.From, Bis: preview.To, Betrag: betrag(preview.Interest.Amount),
+		Zeilen: zeilenOf(preview.Lines), Erlaeuterung: preview.Explanation}
+	if !in.NurVorschau {
+		entry, err := s.Shareholders.BookInterest(ctx, req)
+		if err != nil {
+			return darlehenOut{}, err
+		}
+		id := entry.ID
+		zinsen.BuchungID = &id
+	}
+	views, err := s.Shareholders.Loans(ctx, today())
+	if err != nil {
+		return darlehenOut{}, err
+	}
+	out := darlehenOut{Vorschau: in.NurVorschau, Stichtag: today(), Zinsen: zinsen,
+		Hinweis: "Die Zahlung der Zinsen ordnet bankumsatz_buchen zu."}
+	for i := range views {
+		if views[i].Loan.ID == in.DarlehenID {
+			out.Darlehen = darlehenOf(&views[i])
+		}
+	}
+	return out, nil
+}
 
 // --- Ergebnisverwendung -----------------------------------------------------
 
@@ -195,12 +309,24 @@ func registerGesellschaft(tb *Toolbox) {
 		Title: "Gesellschafterdarlehen erfassen",
 		Tier:  TierConfirm,
 		Description: "Erfasst einen Darlehensvertrag zwischen der GmbH und einem Gesellschafter oder berichtigt ihn " +
-			"(darlehen_id mit grund). Erst mit nur_vorschau prüfen, dann dem Menschen Gesellschafter, Richtung, " +
-			"Betrag, Zinssatz, Laufzeit, Konten, den Vertrag (beleg_id) und die Befunde zum Fremdvergleich vorlegen " +
-			"und nach seinem Ja erfassen. Auszahlung und Tilgung danach über bankumsatz_buchen mit darlehen_id; " +
+			"(darlehen_id mit grund; fehlende Angaben bleiben, wie sie sind). Erst mit nur_vorschau prüfen, dann dem " +
+			"Menschen Gesellschafter, Richtung, Betrag, Zinssatz, Laufzeit, Konten, den Vertrag (beleg_id) und die " +
+			"Befunde zum Fremdvergleich vorlegen und nach seinem Ja erfassen. art=zinsen bucht die Zinsen bis " +
+			"zinsen_bis mit Eigenbeleg der Zinsrechnung und vermerkt die Zinsperiode; Zinsen nicht mit " +
+			"buchung_erfassen buchen. Auszahlung, Tilgung und Zinszahlung über bankumsatz_buchen mit darlehen_id; " +
 			"den Stand zeigt auswertung mit art=darlehen.",
 	}, func(ctx context.Context, c *Call, s *core.Services, in darlehenIn) (darlehenOut, error) {
-		req, err := in.request()
+		if in.Art == "zinsen" {
+			return bookLoanInterest(ctx, s, in)
+		}
+		base := service.LoanRequest{}
+		if in.DarlehenID != 0 {
+			var err error
+			if base, err = s.Shareholders.LoanRequestOf(ctx, in.DarlehenID); err != nil {
+				return darlehenOut{}, notFound("darlehen_id", in.DarlehenID, err)
+			}
+		}
+		req, err := in.request(base)
 		if err != nil {
 			return darlehenOut{}, err
 		}
@@ -208,8 +334,8 @@ func registerGesellschaft(tb *Toolbox) {
 		if in.DarlehenID != 0 && reason == "" {
 			return darlehenOut{}, inputError("grund", "eine Berichtigung des Vertrags braucht einen Grund")
 		}
-		if _, err := s.Contacts.Contact(ctx, in.KontaktID); err != nil {
-			return darlehenOut{}, notFound("kontakt_id", in.KontaktID, err)
+		if _, err := s.Contacts.Contact(ctx, req.ContactID); err != nil {
+			return darlehenOut{}, notFound("kontakt_id", req.ContactID, err)
 		}
 		var view *service.LoanView
 		switch {
@@ -223,8 +349,9 @@ func registerGesellschaft(tb *Toolbox) {
 		if err != nil {
 			return darlehenOut{}, err
 		}
-		return darlehenOut{Vorschau: in.NurVorschau, Darlehen: darlehenOf(view),
-			Hinweis: "Auszahlung und Tilgung bucht bankumsatz_buchen mit darlehen_id."}, nil
+		return darlehenOut{Vorschau: in.NurVorschau, Stichtag: view.Cutoff, Darlehen: darlehenOf(view),
+			Hinweis: "Auszahlung und Tilgung bucht bankumsatz_buchen mit darlehen_id, die Zinsen dieses Werkzeug " +
+				"mit art=zinsen."}, nil
 	})
 
 	AddWrite(tb, Spec{
@@ -260,9 +387,8 @@ func registerGesellschaft(tb *Toolbox) {
 			out.Festgestellt = fy.IsAdopted()
 		}
 		if in.NurVorschau {
-			if !out.Festgestellt {
-				out.Hinweise = append(out.Hinweise, fmt.Sprintf("Der Abschluss %d ist noch nicht festgestellt; "+
-					"gebucht wird erst, wenn der Mensch die Feststellung in der App erfasst hat.", in.Geschaeftsjahr))
+			if err := s.Appropriation.CheckAdopted(ctx, in.Geschaeftsjahr, preview.BookingDate); err != nil {
+				out.Hinweise = append(out.Hinweise, "So bucht Buchfink den Beschluss nicht: "+err.Error()+".")
 			}
 			return out, nil
 		}
