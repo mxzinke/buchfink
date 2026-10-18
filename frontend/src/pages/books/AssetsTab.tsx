@@ -17,6 +17,7 @@ import {
   DetailPanel,
   Disclosure,
   EmptyState,
+  Help,
   Notice,
   RowButton,
   SkeletonRows,
@@ -31,6 +32,7 @@ import {
   Tr,
 } from '../../components/ui';
 import { PanelHeading, errorText } from './shared';
+import { splitNorms } from '../../utils/norms';
 
 const CLASS_ORDER: AssetClass[] = ['intangible', 'tangible', 'financial'];
 
@@ -462,11 +464,19 @@ const AssetPanel: React.FC<{ assetId: number | undefined; onClose: () => void }>
 
           {detail.notes.length > 0 && (
             <div className="mt-6 space-y-2">
-              {detail.notes.map((note, index) => (
-                <p key={index} className="text-caption text-ink-subtle">
-                  {note}
-                </p>
-              ))}
+              {detail.notes.map((note, index) => {
+                const { text, norms } = splitNorms(note);
+                return (
+                  <p key={index} className="text-caption text-ink-subtle">
+                    {text}
+                    {norms.length > 0 && (
+                      <Help summary="Auf diesen Vorschriften beruht der Hinweis." label="Grundlage des Hinweises">
+                        {norms.join(', ')}
+                      </Help>
+                    )}
+                  </p>
+                );
+              })}
             </div>
           )}
         </>

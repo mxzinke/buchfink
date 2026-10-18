@@ -55,6 +55,7 @@ import {
   loadErrorText,
 } from './shared';
 import { EBilanzView } from './EBilanzView';
+import { splitNorms } from '../../utils/norms';
 
 /**
  * Die Jahreserklärungen: Körperschaftsteuer, Gewerbesteuer, Umsatzsteuer und
@@ -469,7 +470,7 @@ const DeclarationDetail: React.FC<{
             <StatusBadge status="erledigt" />
           ) : (
             <Button
-              variant="primary"
+              variant={blocking.length > 0 ? 'secondary' : 'primary'}
               disabled={writeLock.locked}
               title={writeLock.hint}
               onClick={() => setSubmitOpen(true)}
@@ -487,7 +488,7 @@ const DeclarationDetail: React.FC<{
       ) : blocking.length > 0 ? (
         <Notice
           className="mb-6"
-          text={`${blocking.length} ${blocking.length === 1 ? 'Punkt verhindert' : 'Punkte verhindern'} die Abgabe. Sie stehen unten unter „Zu klären“ und „Befunde“.`}
+          text={`${blocking.length} ${blocking.length === 1 ? 'Punkt sollte' : 'Punkte sollten'} vor der Abgabe geklärt sein. Sie stehen unten unter „Zu klären“ und „Befunde“.`}
         />
       ) : null}
 
@@ -498,7 +499,7 @@ const DeclarationDetail: React.FC<{
             return (
               <Stat
                 key={figure.schluessel}
-                label={figure.bezeichnung}
+                label={figure.kurz || figure.bezeichnung}
                 value={formatDeclarationValue(figure.wert, line?.einheit, line?.rundung) || '—'}
               />
             );
@@ -522,7 +523,9 @@ const DeclarationDetail: React.FC<{
                     className="flex-1 min-w-0 text-left"
                     onClick={() => setLineKey(pending.schluessel)}
                   >
-                    <span className="block text-body text-ink truncate">{pending.bezeichnung}</span>
+                    <span className="block text-body text-ink truncate" title={pending.bezeichnung}>
+                      {splitNorms(pending.bezeichnung).text}
+                    </span>
                     <span className="block text-caption text-ink-subtle">
                       {pending.status === 'vorgeschlagen'
                         ? `Vorschlag ${formatDeclarationValue(pending.wert, line?.einheit, line?.rundung)} · wartet auf Ihre Bestätigung`
