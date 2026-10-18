@@ -342,7 +342,7 @@ export const AdvancedSettings: React.FC<{ onManageTenants?: () => void }> = ({ o
         </Disclosure>
 
         <Disclosure variant="row" title="Speicherort und Mandant" context="Datenordner, Programmfassung, Mandanten">
-          {hints?.cloudWarning && <Notice tone="negative" className="mb-4" text={hints.cloudWarning} />}
+          {hints?.cloudWarning && <Notice className="mb-4" text={hints.cloudWarning} />}
           <FormGrid cols={1}>
             <Field label="Ablage für Buchungsdaten und Belege" hint="Steht beim Anlegen fest">
               <FieldValue className="code-num">{workspace.appConfig.dataDir || '—'}</FieldValue>

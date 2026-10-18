@@ -342,3 +342,21 @@ func TestChangeBatcherMergesPerTenant(t *testing.T) {
 		t.Errorf("nächstes Fenster: %+v", next)
 	}
 }
+
+// Einrichtung, Einstellungen und Verfahrensdokumentation erkennen einen
+// Sync-Ordner gleich: die Einstellungen nennen den Dienst auch an einem
+// Marker, den kein Ordnername verrät.
+func TestComplianceHintsUseTheSyncDetection(t *testing.T) {
+	b := testBridge(t)
+	data := tenantDataDir(t, b)
+	if hints, err := b.GetComplianceHints(); err != nil || hints.CloudWarning != "" {
+		t.Fatalf("lokaler Ordner: %+v %v", hints, err)
+	}
+	if err := os.Mkdir(filepath.Join(data, ".stfolder"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	hints, err := b.GetComplianceHints()
+	if err != nil || hints.CloudWarning == "" || hints.CloudWarning != b.CheckFolder(data).Warning {
+		t.Errorf("Syncthing: %+v %v", hints, err)
+	}
+}

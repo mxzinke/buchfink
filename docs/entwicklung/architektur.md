@@ -115,10 +115,12 @@ Exportordner](mcp.md#eingang-leseordner-und-exportordner)).
 **Sync-Erkennung.** `internal/syncdir` erkennt, ob ein Ordner in iCloud Drive,
 OneDrive, Google Drive, Dropbox, Nextcloud/ownCloud oder Syncthing liegt: am
 Ort unter dem Benutzerordner, an den Umgebungsvariablen von OneDrive und an
-den Markerdateien der Dienste in den Elternordnern. Die Einrichtung warnt,
-wenn die Ablage darin liegt, weil ein Dienst die Datenbank mitten im Schreiben
-kopieren kann. Gesperrt wird nichts; für den Eingang ist ein Sync-Ordner
-gewollt, etwa für eine Scanner-App am Telefon.
+den Markerdateien der Dienste in den Elternordnern; ein führendes `~` steht
+für den Benutzerordner. Einrichtung, Einstellungen und Verfahrensdokumentation
+warnen nach dieser einen Erkennung, wenn die Ablage darin liegt, weil ein
+Dienst die Datenbank mitten im Schreiben kopieren kann. Gesperrt wird nichts;
+für den Eingang ist ein Sync-Ordner gewollt, etwa für eine Scanner-App am
+Telefon.
 
 **Prüfermodus.** Sein Zeitraum steht in der Mandantendatenbank. Solange er
 läuft, weist `Write` jeden Vorgang ab, außer dem Schalter selbst und Nachweisen

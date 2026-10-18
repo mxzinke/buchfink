@@ -13,6 +13,7 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/procdoc"
 	"github.com/buchfink/buchfink/internal/receiptstore"
+	"github.com/buchfink/buchfink/internal/syncdir"
 	"github.com/buchfink/buchfink/internal/timestamp"
 )
 
@@ -343,7 +344,7 @@ func (s *ProcDocService) buildInput(
 		FiscalYearFrom:   from,
 		FiscalYearTo:     to,
 		DataDir:          env.DataDir,
-		CloudWarning:     domain.CloudFolderWarning(env.DataDir),
+		CloudWarning:     syncNote(syncdir.Detect(env.DataDir)),
 		SKR:              settings.SKR,
 		TaxCases:         coveredTaxCases(),
 		ExcludedCases:    domain.TaxCaseHints(),
@@ -567,4 +568,18 @@ func fiscalYearBounds(year, startMonth int) (string, string) {
 	start := time.Date(year, time.Month(startMonth), 1, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(1, 0, -1)
 	return start.Format("2006-01-02"), end.Format("2006-01-02")
+}
+
+// syncNote ist der Hinweis der Verfahrensdokumentation, wenn ein Dienst den
+// Datenordner synchronisiert (syncdir.Detect); leer ohne Dienst.
+func syncNote(service string) string {
+	if service == "" {
+		return ""
+	}
+	return fmt.Sprintf("Der Datenordner liegt in %s. Ein Synchronisationsdienst kann die Datenbank kopieren, "+
+		"während Buchfink schreibt, und er ist kein Sicherungsziel: er spiegelt auch das Löschen. Wo der Dienst die "+
+		"Daten speichert, lässt sich von hier aus nicht feststellen. In einem anderen EU-Mitgliedstaat ist das "+
+		"zulässig, wenn der Datenzugriff vollständig möglich bleibt (§ 146 Abs. 2a AO); in einem Drittstaat braucht "+
+		"es eine Bewilligung des Finanzamts (§ 146 Abs. 2b AO). Die Daten gehören in einen gewöhnlichen Ordner und "+
+		"werden getrennt gesichert.", service)
 }

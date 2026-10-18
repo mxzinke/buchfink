@@ -17,7 +17,7 @@ nutzt Base UI, Tailwind CSS und Lucide; Typst setzt Rechnungen und Berichte
 | Brücke für Claude Desktop | [cmd/buchfink-mcp/](../../cmd/buchfink-mcp), [packaging/claude-desktop/](../../packaging/claude-desktop) |
 | Was ein Agent ohne Rückfrage bucht, welche Pfade er lesen darf, Exportordner | [internal/core/policy/](../../internal/core/policy), [MCP-Server](mcp.md#regeln-für-direkt) |
 | Eingang: Dateien listen, Art erkennen, nach `Übernommen/` verschieben, Dateien aus dem Fenster aufnehmen | [internal/inbox/](../../internal/inbox), [internal/core/policy/settle.go](../../internal/core/policy/settle.go), [internal/wailsbridge/inbox_service.go](../../internal/wailsbridge/inbox_service.go), [MCP-Server](mcp.md#eingang-leseordner-und-exportordner) |
-| Warnung, wenn die Ablage in einem Sync-Ordner liegt | [internal/syncdir/](../../internal/syncdir) |
+| Warnung, wenn die Ablage in einem Sync-Ordner liegt (Einrichtung, Einstellungen, Verfahrensdokumentation) | [internal/syncdir/](../../internal/syncdir) |
 | Ereignis nach einer Änderung, Nachladen der offenen Ansicht | [internal/core/changes.go](../../internal/core/changes.go), [internal/wailsbridge/changes.go](../../internal/wailsbridge/changes.go), [frontend/src/live.tsx](../../frontend/src/live.tsx), [MCP-Server](mcp.md#live-aktualisierung) |
 | Schreibsperre, Transaktion, Prüfermodus, Vorbehalt der App | [internal/core/](../../internal/core) |
 | Anwendungsfall | [internal/service/](../../internal/service) |

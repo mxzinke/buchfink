@@ -12,6 +12,7 @@ import (
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/service"
+	"github.com/buchfink/buchfink/internal/syncdir"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -191,8 +192,8 @@ func (b *BuchfinkBridge) SetSystemChangeDate(date string) error {
 // ComplianceHints sind die Hinweise, die zur Einrichtung und zu den
 // Einstellungen gehören.
 type ComplianceHints struct {
-	// CloudWarning ist belegt, wenn der Datenordner in einem
-	// Synchronisationsordner liegt.
+	// CloudWarning ist belegt, wenn ein Dienst den Datenordner synchronisiert
+	// (syncdir, dieselbe Erkennung wie in der Einrichtung).
 	CloudWarning string `json:"cloudWarning"`
 	// DataDir ist der Speicherort, damit die Oberfläche ihn nennen kann.
 	DataDir string `json:"dataDir"`
@@ -209,7 +210,7 @@ func (b *BuchfinkBridge) GetComplianceHints() (*ComplianceHints, error) {
 	dataDir := b.host.Config().DataDir
 	hints := &ComplianceHints{
 		DataDir:      dataDir,
-		CloudWarning: domain.CloudFolderWarning(dataDir),
+		CloudWarning: syncdir.Warning(syncdir.Detect(dataDir)),
 		TaxCaseHints: domain.TaxCaseHints(),
 	}
 	date, err := read(b, func(ctx context.Context, s *core.Services) (string, error) {

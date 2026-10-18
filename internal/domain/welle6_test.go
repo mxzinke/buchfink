@@ -222,30 +222,6 @@ func TestLetterIsNotBooked(t *testing.T) {
 
 // --- Hinweise -------------------------------------------------------------
 
-func TestCloudFolderWarningRecognisesSyncFolders(t *testing.T) {
-	cases := []struct {
-		path string
-		want bool
-	}{
-		{"/home/anna/OneDrive/Buchfink/data", true},
-		{"/Users/anna/Dropbox/buchhaltung", true},
-		{`C:\Users\Anna\Google Drive\Buchfink`, true},
-		{"/Users/anna/Library/Mobile Documents/com~apple~CloudDocs/iCloud/buchfink", true},
-		{"/home/anna/Nextcloud/daten", true},
-		{"/home/anna/.buchfink/data", false},
-		{"/var/lib/buchfink", false},
-	}
-	for _, tc := range cases {
-		got := CloudFolderWarning(tc.path) != ""
-		if got != tc.want {
-			t.Errorf("CloudFolderWarning(%q) = %v, erwartet %v", tc.path, got, tc.want)
-		}
-	}
-	if warning := CloudFolderWarning("/home/anna/Dropbox/x"); !strings.Contains(warning, "§ 146") {
-		t.Errorf("der Hinweis muss die Norm nennen: %q", warning)
-	}
-}
-
 func TestTaxCaseHintsNameTheGaps(t *testing.T) {
 	hints := TaxCaseHints()
 	if len(hints) == 0 {

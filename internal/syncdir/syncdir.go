@@ -26,14 +26,35 @@ type Probe struct {
 	Glob   func(string) []string
 }
 
-// Detect prüft einen Ordner auf diesem Rechner.
+// Detect prüft einen Ordner auf diesem Rechner. Ein relativer Pfad gilt wie
+// beim Anlegen eines Mandanten vom Arbeitsordner der App aus.
 func Detect(path string) string {
 	home, _ := os.UserHomeDir()
-	return Probe{
+	probe := Probe{
 		OS: runtime.GOOS, Home: home, Getenv: os.Getenv,
 		Exists: func(p string) bool { _, err := os.Lstat(p); return err == nil },
 		Glob:   func(p string) []string { m, _ := filepath.Glob(p); return m },
-	}.Detect(path)
+	}
+	path = probe.expand(path)
+	if abs, err := filepath.Abs(path); err == nil && strings.TrimSpace(path) != "" {
+		path = abs
+	}
+	return probe.Detect(path)
+}
+
+// expand ersetzt ein führendes „~“ durch das Benutzerverzeichnis, wie es die
+// Einrichtung vorschlägt und core.CheckTenantDirectory auflöst.
+func (p Probe) expand(path string) string {
+	if p.Home == "" {
+		return path
+	}
+	switch {
+	case path == "~":
+		return p.Home
+	case strings.HasPrefix(path, "~/"), p.OS == "windows" && strings.HasPrefix(path, `~\`):
+		return filepath.Join(p.Home, path[2:])
+	}
+	return path
 }
 
 // Detect nennt den Dienst, der den Ordner synchronisiert, oder "".
@@ -41,6 +62,7 @@ func (p Probe) Detect(path string) string {
 	if strings.TrimSpace(path) == "" {
 		return ""
 	}
+	path = p.expand(path)
 	target := p.norm(path)
 	home := p.norm(p.Home)
 	under := func(base string) bool {

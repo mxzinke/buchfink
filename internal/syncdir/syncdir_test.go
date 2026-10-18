@@ -47,6 +47,12 @@ func TestDetectByLocation(t *testing.T) {
 		{"Linux unterscheidet Groß- und Kleinschreibung", linux, "/home/anna/dropbox/x", ""},
 		{"anderer Benutzer", mac, "/Users/bernd/Library/Mobile Documents/x", ""},
 		{"leer", linux, "", ""},
+		{"Dropbox mit Tilde", mac, "~/Dropbox/Buchfink/nordlicht", "Dropbox"},
+		{"iCloud mit Tilde", mac, "~/Library/Mobile Documents/com~apple~CloudDocs/Buchfink/nordlicht", "iCloud Drive"},
+		{"OneDrive mit Tilde", mac, "~/Library/CloudStorage/OneDrive-Personal/Buchfink", "OneDrive"},
+		{"OneDrive mit Tilde unter Windows", win, `~\OneDrive\Buchfink`, "OneDrive"},
+		{"lokal mit Tilde", linux, "~/Buchfink/nordlicht", ""},
+		{"Tilde allein", linux, "~", ""},
 	}
 	for _, tc := range cases {
 		if got := tc.probe.Detect(tc.path); got != tc.want {
@@ -93,6 +99,13 @@ func TestDetectByMarker(t *testing.T) {
 		}
 		if got := probe.Detect(target); got != tc.want {
 			t.Errorf("%s: %q, erwartet %q", tc.name, got, tc.want)
+		}
+		// Mit Tilde gilt derselbe Ordner unter dem Benutzerverzeichnis.
+		home := probe
+		home.Home = base
+		rel, _ := filepath.Rel(base, target)
+		if got := home.Detect("~/" + filepath.ToSlash(rel)); got != tc.want {
+			t.Errorf("%s mit Tilde: %q, erwartet %q", tc.name, got, tc.want)
 		}
 		// Ein Ordner, den es noch nicht gibt, erbt den Marker darüber.
 		if got := probe.Detect(filepath.Join(target, "neu")); got != tc.want {
