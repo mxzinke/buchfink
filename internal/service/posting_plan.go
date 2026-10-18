@@ -10,11 +10,12 @@ import (
 // incomingPlan hält Anfrage, Zeilen und Befunde zusammen. Er bleibt intern,
 // damit die Buchung keinen vom Aufrufer veränderten Vorschauzustand übernimmt.
 type incomingPlan struct {
-	request ReceiptRequest
-	preview *PostingPreview
-	lines   []domain.JournalLine
-	contact *domain.Contact
-	receipt *domain.Receipt
+	request  ReceiptRequest
+	specials []string
+	preview  *PostingPreview
+	lines    []domain.JournalLine
+	contact  *domain.Contact
+	receipt  *domain.Receipt
 	// fx ist die Umrechnung eines Fremdwährungsbelegs, nil bei einem in Euro.
 	fx                  *fxContext
 	gifts               []domain.GiftRecord
@@ -79,6 +80,7 @@ func (s *PostingService) planIncomingReceipt(ctx context.Context, req ReceiptReq
 
 	out := &incomingPlan{
 		request:  req,
+		specials: req.Specials(),
 		contact:  contact,
 		receipt:  receipt,
 		fx:       fx,
@@ -130,6 +132,7 @@ func (s *PostingService) completeIncomingPreview(ctx context.Context, built *inc
 		preview.Warnings = append(preview.Warnings, *notice)
 	}
 	preview.InputTaxFindings = built.findings
+	preview.specials = built.specials
 	if built.fx != nil {
 		preview.Conversion = built.fx.conv
 	}

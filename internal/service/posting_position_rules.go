@@ -12,8 +12,9 @@ import (
 // positionRule arbeitet auf einer Position. Die Reihenfolge bestimmt auch,
 // welcher Fehler zuerst gemeldet wird; eine Regel schreibt keine Buchung.
 type positionRule struct {
-	name  string
-	apply func(context.Context, *PostingService, *positionWork) error
+	name     string
+	apply    func(context.Context, *PostingService, *positionWork) error
+	specials func(ReceiptPosition) []receiptSpecial
 }
 
 type positionWork struct {
@@ -27,12 +28,12 @@ type positionWork struct {
 }
 
 var incomingPositionRules = []positionRule{
-	{"fremdwaehrung", applyPositionCurrency},
-	{"anzahlung", applyAdvancePosition},
-	{"vorsteueranteil", applyInputTaxShare},
-	{"buchungsgruppe", applyPostingGroup},
-	{"vorsteuerausschluss", applyInputTaxExclusion},
-	{"geschenk_freigrenze", applyGiftLimit},
+	{"fremdwaehrung", applyPositionCurrency, nil},
+	{"anzahlung", applyAdvancePosition, nil},
+	{"vorsteueranteil", applyInputTaxShare, inputTaxShareSpecials},
+	{"buchungsgruppe", applyPostingGroup, postingGroupSpecials},
+	{"vorsteuerausschluss", applyInputTaxExclusion, nil},
+	{"geschenk_freigrenze", applyGiftLimit, giftSpecials},
 }
 
 func (s *PostingService) prepareIncomingPosition(ctx context.Context, req ReceiptRequest, p ReceiptPosition, fx *fxContext, euroNet domain.Cents, giftTotals map[string]domain.Cents) (preparedPosition, error) {
@@ -176,4 +177,37 @@ func applyGiftLimit(ctx context.Context, s *PostingService, w *positionWork) err
 		}
 	}
 	return nil
+}
+
+func inputTaxShareSpecials(p ReceiptPosition) []receiptSpecial {
+	if p.InputTaxShare != 0 && p.InputTaxShare != 1000 {
+		return []receiptSpecial{specialInputTaxShare}
+	}
+	return nil
+}
+
+func giftSpecials(p ReceiptPosition) []receiptSpecial {
+	if p.Gift != nil {
+		return []receiptSpecial{specialGift}
+	}
+	return nil
+}
+
+func postingGroupSpecials(p ReceiptPosition) []receiptSpecial {
+	var out []receiptSpecial
+	if p.Account != "" {
+		out = append(out, specialAccount)
+	}
+	if p.PostingGroup == "" {
+		return out
+	}
+	g, err := accounting.LookupPostingGroup(p.PostingGroup)
+	if err != nil {
+		return append(out, specialUnknownGroup)
+	}
+	if g.Key == "gwg" || g.RecipientRequired || g.Limit != "" || g.InputTaxExcluded ||
+		g.DeductibleQuota != "" || g.NonDeductibleAccount != "" {
+		out = append(out, specialGroup)
+	}
+	return out
 }

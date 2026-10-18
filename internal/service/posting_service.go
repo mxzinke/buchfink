@@ -185,6 +185,7 @@ type ReceiptRequest struct {
 // computation in the frontend is a second truth that drifts the moment a
 // Steuerfall is added — and the one in the frontend is the one nobody tests.
 type PostingPreview struct {
+	specials        []string
 	IssuingFindings []string             `json:"issuingFindings,omitempty"`
 	Lines           []domain.JournalLine `json:"lines"`
 	// Net is the sum of the expense or revenue lines, Gross what is actually

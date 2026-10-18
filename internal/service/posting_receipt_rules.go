@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -12,8 +13,9 @@ import (
 // Rundung und Steuerbasis benötigen alle Positionen; deshalb folgen die
 // Zeilenregeln erst nach der vollständigen Positionskette.
 type receiptRule struct {
-	name  string
-	apply func(context.Context, *PostingService, *incomingWork) error
+	name     string
+	apply    func(context.Context, *PostingService, *incomingWork) error
+	specials func(ReceiptRequest) []receiptSpecial
 }
 
 type incomingWork struct {
@@ -29,15 +31,15 @@ type incomingWork struct {
 }
 
 var incomingReceiptRules = []receiptRule{
-	{"positionen", applyIncomingPositions},
-	{"aufwand_und_bewirtung", applyExpenseLines},
-	{"bewirtungsnachweis", applyEntertainmentRecord},
-	{"anzahlungen_verrechnen", applyAdvanceDeductions},
-	{"steuerzeilen", applyIncomingTaxLines},
-	{"rueckstellung", applyIncomingProvision},
-	{"gegenzeile_und_auslage", applyIncomingSettlement},
-	{"rechnungspruefung", applyIncomingFindings},
-	{"leistungsnachweis", applyIncomingServiceProof},
+	{"positionen", applyIncomingPositions, nil},
+	{"aufwand_und_bewirtung", applyExpenseLines, nil},
+	{"bewirtungsnachweis", applyEntertainmentRecord, entertainmentSpecials},
+	{"anzahlungen_verrechnen", applyAdvanceDeductions, advanceSpecials},
+	{"steuerzeilen", applyIncomingTaxLines, currencySpecials},
+	{"rueckstellung", applyIncomingProvision, provisionSpecials},
+	{"gegenzeile_und_auslage", applyIncomingSettlement, expenseSpecials},
+	{"rechnungspruefung", applyIncomingFindings, overrideSpecials},
+	{"leistungsnachweis", applyIncomingServiceProof, nil},
 }
 
 // Die Positionsregeln bestimmen Konto, Abzug und Geschenkaufzeichnung
@@ -224,6 +226,9 @@ func applyIncomingFindings(ctx context.Context, s *PostingService, w *incomingWo
 		return err
 	}
 	w.findings = findings
+	if len(findings) > 0 {
+		w.specials = append(w.specials, specialInputTaxFinding.String())
+	}
 	return nil
 }
 
@@ -231,5 +236,47 @@ func applyIncomingFindings(ctx context.Context, s *PostingService, w *incomingWo
 // Die Grenze legt das Unternehmen selbst fest; sie ist keine Gesetzesgrenze.
 func applyIncomingServiceProof(ctx context.Context, s *PostingService, w *incomingWork) error {
 	w.serviceProofWarning = s.serviceProofNotice(ctx, w.receipt)
+	return nil
+}
+
+func entertainmentSpecials(req ReceiptRequest) []receiptSpecial {
+	if req.Entertainment != nil {
+		return []receiptSpecial{specialEntertainment}
+	}
+	return nil
+}
+
+func advanceSpecials(req ReceiptRequest) []receiptSpecial {
+	if req.AdvanceTarget != "" || len(req.SettledAdvanceIDs) > 0 {
+		return []receiptSpecial{specialAdvance}
+	}
+	return nil
+}
+
+func currencySpecials(req ReceiptRequest) []receiptSpecial {
+	if req.ForeignAmount != 0 {
+		return []receiptSpecial{specialForeignAmount}
+	}
+	return nil
+}
+
+func provisionSpecials(req ReceiptRequest) []receiptSpecial {
+	if req.ProvisionID != 0 {
+		return []receiptSpecial{specialProvision}
+	}
+	return nil
+}
+
+func expenseSpecials(req ReceiptRequest) []receiptSpecial {
+	if req.CreditorContactID != 0 {
+		return []receiptSpecial{specialExpense}
+	}
+	return nil
+}
+
+func overrideSpecials(req ReceiptRequest) []receiptSpecial {
+	if strings.TrimSpace(req.OverrideReason) != "" {
+		return []receiptSpecial{specialOverride}
+	}
 	return nil
 }

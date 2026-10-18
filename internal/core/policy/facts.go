@@ -137,24 +137,23 @@ func receiptFacts(ctx context.Context, s *core.Services, req service.ReceiptRequ
 		if p.PostingGroup != "" {
 			f.Groups = append(f.Groups, p.PostingGroup)
 		}
-		f.Special = append(f.Special, positionSpecials(p)...)
 	}
-	f.Special = append(f.Special, requestSpecials(req)...)
 
 	// Eine Fremdwährung ist ohnehin Rückfrage; ihre Vorschau holte einen Kurs
 	// aus dem Netz, und das gehört nicht unter die Schreibsperre.
 	switch {
 	case !preview:
 		f.Gross = f.ProposalGross
+		f.Special = req.Specials()
 	case isEuro(f.Currency):
 		preview, err := s.Posting.PreviewIncomingReceipt(ctx, req)
 		if err != nil {
 			return f, err
 		}
 		f.Gross = preview.Gross
-		if len(preview.InputTaxFindings) > 0 {
-			f.Special = append(f.Special, "befund_vorsteuer")
-		}
+		f.Special = preview.Specials()
+	default:
+		f.Special = req.Specials()
 	}
 	f.DuplicateOf, err = duplicateOf(ctx, s, receipt, contact, proposal)
 	return f, err
@@ -208,54 +207,6 @@ func masterDataMismatch(c *domain.Contact, p *service.EInvoiceProposal) ([]strin
 		}
 	}
 	return out, true
-}
-
-func positionSpecials(p service.ReceiptPosition) []string {
-	var out []string
-	if p.Account != "" {
-		out = append(out, "konto_statt_gruppe")
-	}
-	if p.InputTaxShare != 0 && p.InputTaxShare != 1000 {
-		out = append(out, "vorsteueranteil")
-	}
-	if p.Gift != nil {
-		out = append(out, "geschenk")
-	}
-	if p.PostingGroup == "" {
-		return out
-	}
-	g, err := accounting.LookupPostingGroup(p.PostingGroup)
-	if err != nil {
-		return append(out, "unbekannte_gruppe")
-	}
-	if g.Key == "gwg" || g.RecipientRequired || g.Limit != "" || g.InputTaxExcluded ||
-		g.DeductibleQuota != "" || g.NonDeductibleAccount != "" {
-		out = append(out, "gruppe_mit_sonderregel")
-	}
-	return out
-}
-
-func requestSpecials(req service.ReceiptRequest) []string {
-	var out []string
-	if strings.TrimSpace(req.OverrideReason) != "" {
-		out = append(out, "uebersteuerung")
-	}
-	if req.Entertainment != nil {
-		out = append(out, "bewirtung")
-	}
-	if req.ProvisionID != 0 {
-		out = append(out, "rueckstellung")
-	}
-	if req.AdvanceTarget != "" || len(req.SettledAdvanceIDs) > 0 {
-		out = append(out, "anzahlung")
-	}
-	if req.CreditorContactID != 0 {
-		out = append(out, "auslage")
-	}
-	if req.ForeignAmount != 0 {
-		out = append(out, "fremdbetrag")
-	}
-	return out
 }
 
 // bookingsWithGroup zählt die nicht stornierten Belegbuchungen eines
