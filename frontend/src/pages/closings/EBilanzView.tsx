@@ -129,7 +129,7 @@ export const EBilanzView: React.FC<{
           <div className="flex items-start gap-4 rounded-control border border-line bg-surface px-4 py-3">
             <p className="flex-1 text-body text-ink-muted flex items-center flex-wrap gap-x-1">
               Übermitteln Sie die Datei über einen Dienst wie ebilanzonline.de oder ebilanzplus.de.
-              <Help summary="Mein ELSTER hat kein Formular für die E-Bilanz. Die Datei geht über ein Programm mit ERiC-Anbindung an das Finanzamt." label="Erklärung zur Übermittlung der E-Bilanz">
+              <Help summary="Mein ELSTER hat kein Formular für die E-Bilanz. Die Datei geht über einen E-Bilanz-Dienst an das Finanzamt." label="Erklärung zur Übermittlung der E-Bilanz">
                 Bilanz und Gewinn- und Verlustrechnung sind nach amtlichem Datensatz zu übermitteln (§ 5b
                 EStG). Buchfink erzeugt den Datensatz nach der amtlichen Taxonomie und übermittelt ihn
                 nicht selbst. Das Übermittlungsprotokoll des Dienstes nennt das Transferticket; damit

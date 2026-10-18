@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Api } from '../../services/api';
 import { useWriteLock } from '../../components/WriteLock';
 import { findingRoute, targetLabel } from '../../utils/findings';
-import { channelNote, formatDate } from '../../utils/formatters';
+import { formatDate } from '../../utils/formatters';
+import { channelNote } from '../../utils/actor';
 import type { NavigateFn } from '../../navigation';
 import type {
   CheckFinding,

@@ -2,7 +2,7 @@
  * Formatierung für de-DE. Beträge kommen aus dem Backend als ganze Cent.
  */
 
-import type { Cents, TaxRate } from '../types';
+import type { AccountType, Cents, TaxRate } from '../types';
 
 /**
  * Formatiert einen Cent-Betrag, z. B. 119000 → "1.190,00 €".
@@ -234,15 +234,17 @@ export function formatShortHash(hash: string): string {
 }
 
 /**
- * Benennt den Erfassungsweg einer Buchung oder eines Protokolleintrags.
+ * Ein Kontosaldo mit seiner Seite: „24.500,00 € S“, „25.000,00 € H“.
  *
- * Die Bedienung in der App ist der Regelfall und bekommt keinen Vermerk; nur
- * ein Programmlauf oder ein verbundener Agent wird klein neben dem Bearbeiter
- * genannt.
+ * Das Backend liefert den Saldo in der natürlichen Richtung des Kontos: Aktiva
+ * und Aufwand im Soll, Passiva, Eigenkapital und Ertrag im Haben. Ein negativer
+ * Saldo steht auf der Gegenseite. Ohne Kennzeichen sähe ein Habensaldo aus wie
+ * ein Sollsaldo.
  */
-export function channelNote(channel?: string): string | null {
-  if (!channel || channel === 'ui') return null;
-  if (channel === 'system') return 'Programmlauf';
-  if (channel.startsWith('agent:')) return `über ${channel.slice('agent:'.length)}`;
-  return channel;
+export function formatBalance(balance: Cents, type: AccountType | string | undefined): string {
+  if (!Number.isFinite(balance)) return '—';
+  if (balance === 0) return formatCents(0);
+  const credit = type === 'liability' || type === 'equity' || type === 'revenue';
+  const side = (balance > 0) === credit ? 'H' : 'S';
+  return `${formatCents(Math.abs(balance))} ${side}`;
 }

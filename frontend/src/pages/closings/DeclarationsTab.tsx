@@ -77,7 +77,7 @@ const ENTRIES: Entry[] = [
   { value: 'kst', title: 'Körperschaftsteuererklärung', obligationKind: 'kst-erklaerung', channel: 'Mein ELSTER' },
   { value: 'gewst', title: 'Gewerbesteuererklärung', obligationKind: 'gewst-erklaerung', channel: 'Mein ELSTER' },
   { value: 'ust_jahr', title: 'Umsatzsteuererklärung', obligationKind: 'ust-erklaerung', channel: 'Mein ELSTER' },
-  { value: 'e-bilanz', title: 'E-Bilanz', obligationKind: 'e-bilanz', channel: 'Dienst mit ERiC' },
+  { value: 'e-bilanz', title: 'E-Bilanz', obligationKind: 'e-bilanz', channel: 'E-Bilanz-Dienst' },
 ];
 
 /** Stand der Vorauszahlungen, eine überfällige auch im eingeklappten Zustand. */

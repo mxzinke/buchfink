@@ -62,11 +62,8 @@ export const PostingLines: React.FC<{
         {lines.map((line, index) => (
           <tr key={`${line.position}-${index}`} className="[&>td]:h-8 [&>td]:border-b [&>td]:border-line">
             <td className="code-num text-caption text-ink-muted">{line.account}</td>
-            <td className="text-ink truncate max-w-0">
+            <td className="text-ink truncate max-w-0" title={line.accountName}>
               {line.accountName || '—'}
-              {line.taxKey && (
-                <span className="ml-2 code-num text-caption text-ink-subtle">{line.taxKey}</span>
-              )}
             </td>
             <td className="text-right num">{line.side === 'S' ? formatCents(line.amount, currency) : ''}</td>
             <td className="text-right num">{line.side === 'H' ? formatCents(line.amount, currency) : ''}</td>

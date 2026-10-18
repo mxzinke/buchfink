@@ -10,6 +10,7 @@ import {
   Button,
   ConfirmDialog,
   DetailList,
+  Disclosure,
   DetailPanel,
   Dialog,
   EmptyState,
@@ -220,22 +221,25 @@ export const AppsPanel: React.FC<{ id?: string }> = ({ id }) => {
         }
       >
         {selected && (
-          <DetailList
-            items={[
-              {
-                label: 'Erfassungsweg',
-                value: <span className="code-num">{selected.channel}</span>,
-              },
-              {
-                label: 'Zuletzt',
-                value: selected.lastUsedAt ? formatDateTime(selected.lastUsedAt) : 'nie',
-              },
-              ...selected.tenants.map((tenant) => ({
-                label: tenant.name,
-                value: rightsOf(tenant.scopes),
-              })),
-            ]}
-          />
+          <>
+            <DetailList
+              items={[
+                {
+                  label: 'Zuletzt',
+                  value: selected.lastUsedAt ? formatDateTime(selected.lastUsedAt) : 'nie',
+                },
+                ...selected.tenants.map((tenant) => ({
+                  label: tenant.name,
+                  value: rightsOf(tenant.scopes),
+                })),
+              ]}
+            />
+            <Disclosure title="Prüfdetails" context="Kennung der App in Buchungen und Protokoll">
+              <DetailList
+                items={[{ label: 'Erfassungsweg', value: <span className="code-num">{selected.channel}</span> }]}
+              />
+            </Disclosure>
+          </>
         )}
       </DetailPanel>
 

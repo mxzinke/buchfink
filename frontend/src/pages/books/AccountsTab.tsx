@@ -3,7 +3,7 @@ import type { Account, AccountLedger, OpenItem, SuSaOverview } from '../../types
 import { useNavigation, useRouteObject } from '../../navigation';
 import { useWorkspace } from '../../workspace';
 import { Api } from '../../services/api';
-import { formatCents, formatDate } from '../../utils/formatters';
+import { formatBalance, formatCents, formatDate } from '../../utils/formatters';
 import {
   DetailList,
   DetailPanel,
@@ -115,7 +115,7 @@ export const AccountsTab: React.FC = () => {
                 <Th numeric optional className="w-36">
                   Haben
                 </Th>
-                <Th numeric className="w-40">
+                <Th numeric className="w-44">
                   Saldo
                 </Th>
               </Tr>
@@ -140,7 +140,7 @@ export const AccountsTab: React.FC = () => {
                   <Td numeric optional className="text-ink-subtle">
                     {account.creditSum ? formatCents(account.creditSum) : '—'}
                   </Td>
-                  <Td numeric>{account.bookingsCount > 0 ? formatCents(account.balance) : '—'}</Td>
+                  <Td numeric>{account.bookingsCount > 0 ? formatBalance(account.balance, account.type) : '—'}</Td>
                 </Tr>
               ))}
             </Tbody>
@@ -206,7 +206,7 @@ const SuSa: React.FC<{ onOpen: (account: string) => void }> = ({ onOpen }) => {
                 <Th numeric className="w-36">
                   Haben
                 </Th>
-                <Th numeric className="w-40">
+                <Th numeric className="w-44">
                   Saldo
                 </Th>
               </Tr>
@@ -226,7 +226,7 @@ const SuSa: React.FC<{ onOpen: (account: string) => void }> = ({ onOpen }) => {
                   <Td numeric className="text-ink-subtle">
                     {formatCents(account.creditSum)}
                   </Td>
-                  <Td numeric>{formatCents(account.balance)}</Td>
+                  <Td numeric>{formatBalance(account.balance, account.type)}</Td>
                 </Tr>
               ))}
               <Tr variant="sum">
@@ -369,7 +369,10 @@ const LedgerPanel: React.FC<{ account: string | undefined; onClose: () => void }
         <>
           <DetailList
             items={[
-              { label: 'Saldo', value: formatCents(ledger.closingBalance), numeric: true },
+              { label: 'Saldo', value: formatBalance(ledger.closingBalance, ledger.account?.type), numeric: true },
+              ...(ledger.openingBalance
+                ? [{ label: 'Vortrag', value: formatBalance(ledger.openingBalance, ledger.account?.type), numeric: true }]
+                : []),
               { label: 'Summe Soll', value: formatCents(ledger.totalDebit), numeric: true },
               { label: 'Summe Haben', value: formatCents(ledger.totalCredit), numeric: true },
             ]}
@@ -416,7 +419,9 @@ const LedgerPanel: React.FC<{ account: string | undefined; onClose: () => void }
                     <td className="text-right num">
                       {row.creditAmount ? formatCents(row.creditAmount) : ''}
                     </td>
-                    <td className="text-right num font-medium">{formatCents(row.runningBalance)}</td>
+                    <td className="text-right num font-medium">
+                      {formatBalance(row.runningBalance, ledger.account?.type)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

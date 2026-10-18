@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Download } from 'lucide-react';
 import { Api } from '../services/api';
-import { channelNote, formatCents, formatDate, parseCents } from '../utils/formatters';
+import { formatCents, formatDate, parseCents } from '../utils/formatters';
+import { channelNote } from '../utils/actor';
 import type { Account, JournalFilter, JournalFilterResult } from '../types';
 import type { NavigateFn } from '../navigation';
 import {

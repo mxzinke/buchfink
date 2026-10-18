@@ -53,3 +53,15 @@ export function actorWho(actor?: string, channel?: string): string {
 export function actorLabel(actor?: string, channel?: string): string {
   return `Erfasst von ${actorWho(actor, channel)}`;
 }
+
+/**
+ * Der Vermerk zum Erfassungsweg neben dem Bearbeiter. Die Bedienung in der App
+ * ist der Regelfall und bekommt keinen Vermerk; ein Programmlauf oder eine App
+ * steht mit ihrem Anzeigenamen da.
+ */
+export function channelNote(channel?: string): string | null {
+  if (!channel || channel === 'ui') return null;
+  if (channel === 'system') return 'Programmlauf';
+  if (channel.startsWith(AGENT_PREFIX)) return `über ${agentName(channel)}`;
+  return channel;
+}

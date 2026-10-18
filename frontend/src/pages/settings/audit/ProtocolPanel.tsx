@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight, ShieldCheck } from 'lucide-react';
 import { Api } from '../../../services/api';
 import type { AuditChainResult, AuditFilter, AuditLogEntry } from '../../../types';
-import { channelNote, formatDateTime, formatShortHash } from '../../../utils/formatters';
+import { formatDateTime, formatShortHash } from '../../../utils/formatters';
+import { channelNote } from '../../../utils/actor';
 import {
   Button,
   EmptyState,

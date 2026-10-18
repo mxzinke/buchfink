@@ -75,7 +75,12 @@ export function Combobox<T extends string | number>({
       disabled={disabled}
       name={name}
     >
-      <Base.Input className={cn(CONTROL, className)} placeholder={placeholder} />
+      {/* Ein langer Name endet mit Auslassung; der volle steht im title. */}
+      <Base.Input
+        className={cn(CONTROL, 'text-ellipsis', className)}
+        placeholder={placeholder}
+        title={value != null ? labels[String(value)] : undefined}
+      />
 
       <Base.Portal>
         <Base.Positioner sideOffset={4} className="z-50">

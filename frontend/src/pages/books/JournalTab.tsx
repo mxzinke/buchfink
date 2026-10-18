@@ -335,9 +335,20 @@ const EntryPanel: React.FC<{
 
       {shown.source === 'payment' && <PaymentAllocations entryId={shown.id} currency={shown.currency} />}
 
-      <p className="mt-6 font-mono text-caption text-ink-subtle">
-        {formatShortHash(shown.entryHash)} ← {formatShortHash(shown.previousHash)}
-      </p>
+      <Disclosure title="Prüfdetails" context="Prüfsummen der Buchungskette">
+        <DetailList
+          items={[
+            {
+              label: 'Prüfsumme',
+              value: <span className="font-mono text-caption">{formatShortHash(shown.entryHash)}</span>,
+            },
+            {
+              label: 'Vorgängerin',
+              value: <span className="font-mono text-caption">{formatShortHash(shown.previousHash)}</span>,
+            },
+          ]}
+        />
+      </Disclosure>
     </DetailPanel>
   );
 };
