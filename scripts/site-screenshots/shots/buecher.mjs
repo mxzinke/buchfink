@@ -13,7 +13,17 @@ export default [
     site: 'buecher.png',
     go: async ({ page, open }) => {
       await open('#/books/receipts');
-      await page.getByText('BE-2026-0231').first().waitFor();
+      await page.getByText('ER-2026-0224').first().waitFor();
+      await page.waitForTimeout(300);
+    },
+  },
+  {
+    // Bei 1024 Pixeln treten die Nebenspalten zurück, die Bezeichnung kürzt.
+    file: 'buecher-schmal-belege.png',
+    viewport: { width: 1024, height: 768 },
+    go: async ({ page, open }) => {
+      await open('#/books/receipts');
+      await page.getByText('ER-2026-0224').first().waitFor();
       await page.waitForTimeout(300);
     },
   },
@@ -21,7 +31,7 @@ export default [
     file: 'buecher-beleg.png',
     go: async ({ page, open }) => {
       await open('#/books/receipts/1');
-      await page.getByRole('heading', { name: 'BE-2026-0231' }).waitFor();
+      await page.getByRole('heading', { name: 'ER-2026-0224' }).waitFor();
       await page.locator('img[alt="Beleg"]').waitFor();
       await page.waitForTimeout(300);
     },
@@ -89,11 +99,20 @@ export default [
   {
     file: 'buecher-journal.png',
     go: async ({ page, open }) => {
-      await open('#/books/journal/B-2026-0052');
-      await page.getByRole('heading', { name: 'B-2026-0052' }).waitFor();
+      await open('#/books/journal/B-2026-0180');
+      await page.getByRole('heading', { name: 'B-2026-0180' }).waitFor();
       await page.waitForTimeout(300);
     },
     after: closeAll,
+  },
+  {
+    file: 'buecher-schmal-journal.png',
+    viewport: { width: 1024, height: 768 },
+    go: async ({ page, open }) => {
+      await open('#/books/journal');
+      await page.getByText('B-2026-0183').first().waitFor();
+      await page.waitForTimeout(300);
+    },
   },
   {
     file: 'buecher-konten.png',
@@ -107,7 +126,7 @@ export default [
   {
     file: 'buecher-anlagen.png',
     go: async ({ page, open }) => {
-      await open('#/books/assets/2');
+      await open('#/books/assets/3');
       await page.getByText('Abschreibungsplan', { exact: true }).waitFor();
       await page.waitForTimeout(300);
     },

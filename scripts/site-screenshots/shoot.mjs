@@ -13,6 +13,9 @@
  * Bereiche nach ihrem Dateinamen aus, `SCREENSHOT_DIR` den Zielordner
  * (Vorgabe: website/assets/screenshots). Der Vite-Server wird selbst gestartet
  * und am Ende wieder beendet.
+ *
+ * Eine Aufnahme mit `viewport` entsteht in diesem Fenster, etwa 1024 Pixel
+ * breit für die schmalen Tabellen; danach gilt wieder VIEWPORT.
  */
 
 import { copyFile, readFile, mkdir } from 'node:fs/promises';
@@ -120,11 +123,13 @@ async function main() {
       if (ONLY && !ONLY.includes(area)) continue;
       for (const shot of shots) {
         process.stdout.write(`→ ${shot.file}\n`);
+        if (shot.viewport) await page.setViewportSize(shot.viewport);
         await shot.go(ctx);
         await page.evaluate(() => document.fonts.ready);
         await page.waitForTimeout(250);
         await page.screenshot({ path: resolve(OUT, shot.file) });
         if (shot.site) await copyFile(resolve(OUT, shot.file), resolve(OUT, shot.site));
+        if (shot.viewport) await page.setViewportSize(VIEWPORT);
         count++;
         if (shot.after) await shot.after(ctx);
       }

@@ -2,7 +2,7 @@
 
 /** Schaltet das Geschäftsjahr in der Kopfzeile um. */
 async function year(page, value) {
-  await page.getByRole('button', { name: new RegExp(`^${value}`) }).first().click();
+  await page.getByRole('button', { name: new RegExp(`^Geschäftsjahr ${value}`) }).first().click();
   await page.waitForTimeout(300);
 }
 
@@ -34,7 +34,7 @@ export default [
     after: async ({ escape }) => escape(),
   },
   {
-    file: 'abschluesse-monat-quartal.png',
+    file: 'abschluesse-monat-voranmeldung.png',
     go: async ({ page, open }) => {
       await open('#/closings/month/2026-06');
       await page.getByRole('heading', { name: 'Juni 2026' }).waitFor();

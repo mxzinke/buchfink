@@ -43,6 +43,7 @@ Fälligkeiten und der laufende Monat passen so zu den Daten.
 | `peek.mjs` | Ein Ziel öffnen und ein Bild ablegen, mit den Fehlern des Browsers |
 | `four-clicks.mjs` | Der Klickweg des Prüfszenarios: Bilanz → Konto → Buchung → Beleg, mit Zähler |
 | `dev-server.mjs` | Startet und beendet den Vite-Server; beide Werkzeuge nutzen ihn |
+| `journal-mock.ts` | Das Journal des Beispieljahres mit Saldenvortrag und Belegen; daraus leiten sich Konten, Bank, offene Posten, Rechnungen, Voranmeldungen und Bilanz ab |
 | `mock-bridge.ts` | Die Beispieldaten; tritt an die Stelle der Wails-Bridge |
 | `closings-mock.ts`, `declarations.json` | Pflichtenkalender, Karteien und Jahreserklärungen der Abschlüsse |
 | `demo-receipt.html` | Der Beispielbeleg, der als Bild in der Belegvorschau steht |
@@ -53,7 +54,14 @@ Fälligkeiten und der laufende Monat passen so zu den Daten.
 - **Die Zahlen sind gerechnet, nicht gewürfelt.** Soll gleich Haben, 19 % auf
   das Entgelt, Zahllast gleich Umsatzsteuer minus Vorsteuer, Aktiva gleich
   Passiva plus Jahresergebnis, Summe der Sollsalden gleich Summe der
-  Habensalden. Wer eine Zahl ändert, zieht die verbundenen mit.
+  Habensalden. Eine neue Buchung gehört in `journal-mock.ts`; Konten,
+  Kontoblätter, Bank, Belege und Bilanz ziehen dann von selbst mit. Die
+  Jahreserklärungen in `declarations.json` und die Steuervorschauen in
+  `closings-mock.ts` sind von Hand nachzurechnen.
+- **Buchungs- und Belegnummern vergibt das Journal nach Datum.** Eine neue
+  Buchung verschiebt die Nummern danach; die Wartebedingungen in `shots/` und
+  `four-clicks.mjs` nennen Nummern und sind dann mitzuziehen.
+- **Die Uhr steht am 25.08.2026 um 10:12.** Kein Zeitstempel liegt danach.
 - **Die Kontonummern stammen aus dem Projekt.** `internal/domain/skr04_accounts.go`
   und `internal/accounting/posting_groups.go` sind gegen die DATEV-Vorlage
   geprüft; neue Konten bitte von dort nehmen und nicht aus dem Gedächtnis.
@@ -96,6 +104,6 @@ darauf, dass der Weg Buchung → Beleg im Journal überhaupt besteht.
 Playwright braucht einen Chromium-Build. Ist keiner vorhanden, holt ihn
 `npx playwright install chromium`.
 
-`help.mjs` prüft Hover und Tastaturfokus am Fragezeichen, die Trennung von
-Kurztext und Details, Quellenlinks, Escape, Fokusrückgabe sowie eine Hilfe
-innerhalb eines geöffneten Dialogs.
+`help.mjs` prüft das Popover am Fragezeichen bei Hover, Tastaturfokus und
+Enter, die Trennung von Kurztext und Details, Quellenlinks, Escape,
+Fokusrückgabe sowie eine Hilfe innerhalb eines geöffneten Dialogs.

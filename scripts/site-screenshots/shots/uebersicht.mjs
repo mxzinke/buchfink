@@ -7,7 +7,7 @@ export default [
       await page.getByRole('heading', { level: 1, name: 'Übersicht' }).waitFor();
       await page.getByText('Gewerbesteuer-Vorauszahlung 15.08.2026').waitFor();
       await page.getByText('Monatsfestschreibung Juli 2026').waitFor();
-      await page.getByText('B-2026-0055').first().waitFor();
+      await page.getByText('B-2026-0183').first().waitFor();
       await page.waitForTimeout(400);
     },
   },
@@ -17,7 +17,7 @@ export default [
     go: async ({ page }) => {
       await page.getByRole('button', { name: 'Lohnsteuer-Anmeldung August 2026', exact: true }).click();
       await page.getByRole('dialog', { name: 'Lohnsteuer-Anmeldung August 2026' }).waitFor();
-      await page.getByText('Lohnjournal August gebucht', { exact: false }).waitFor();
+      await page.getByText('Lohnabrechnung August abgelegt', { exact: false }).waitFor();
       await page.waitForTimeout(400);
     },
   },
