@@ -21,6 +21,8 @@ ROOT = Path(__file__).resolve().parent.parent
 LINK = re.compile(r'(?<!!)\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)|^\[[^\]]+\]:\s*(\S+)', re.M)
 FENCE = re.compile(r'```.*?```', re.S)
 HEADING = re.compile(r'^#{1,6}\s+(.*?)\s*#*\s*$', re.M)
+# Feste Anker wie <a id="ustva"></a> im Pflichtenkalender der Skills.
+HTML_ANCHOR = re.compile(r'<a\s+(?:id|name)="([^"]+)"')
 
 # Die Dokumentation verweist auf die Beschreibung des MCP-Servers, die Skills,
 # das Plugin und die Marketplace-Datei. Solange einer dieser Pfade fehlt, dürfen
@@ -50,7 +52,7 @@ _anchors: dict[Path, set[str]] = {}
 def anchors(path: Path) -> set[str]:
     if path not in _anchors:
         text = FENCE.sub('', path.read_text(encoding='utf-8'))
-        found: set[str] = set()
+        found: set[str] = set(HTML_ANCHOR.findall(text))
         seen: dict[str, int] = {}
         for match in HEADING.finditer(text):
             base = slug(match.group(1))
