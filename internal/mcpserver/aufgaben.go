@@ -38,22 +38,31 @@ type aufgabenOut struct {
 }
 
 // taskTool übersetzt das Ziel einer Aufgabe in der Oberfläche in einen
-// Werkzeugaufruf.
+// Werkzeugaufruf. Pflichten führen über ihren Schlüssel zu fristen, gleich
+// welcher Reiter sie in der Oberfläche zeigt.
 func taskTool(t domain.Task) (string, map[string]string) {
-	switch t.Target.Page {
-	case "receipts":
-		return "belege_suchen", map[string]string{"status": "abgelegt"}
-	case "bank":
-		return "bankumsaetze", map[string]string{"status": "offen"}
-	case "deadlines":
-		return "fristen", map[string]string{"schluessel": t.Target.Params["key"]}
-	case "audit", "taxaudit":
-		return "auswertung", map[string]string{"art": "pruefbericht"}
-	case "accounts":
-		return "offene_posten", map[string]string{"richtung": "forderung", "nur_ueberfaellig": "true"}
-	case "contacts":
-		return "kontakte_suchen", nil
-	case "closing":
+	if strings.HasPrefix(t.Key, domain.TaskKeyObligation+".") {
+		return "fristen", map[string]string{"schluessel": t.Target.ID}
+	}
+	switch t.Target.Area {
+	case domain.AreaBooks:
+		switch t.Target.Tab {
+		case "receipts":
+			return "belege_suchen", map[string]string{"status": "abgelegt"}
+		case "bank":
+			return "bankumsaetze", map[string]string{"status": "offen"}
+		case "invoices":
+			return "offene_posten", map[string]string{"richtung": "forderung", "nur_ueberfaellig": "true"}
+		}
+	case domain.AreaSettings:
+		if t.Target.Tab == "audit" {
+			return "auswertung", map[string]string{"art": "pruefbericht"}
+		}
+	case domain.AreaCompany:
+		if t.Target.Tab == "contacts" {
+			return "kontakte_suchen", nil
+		}
+	case domain.AreaClosings:
 		return "abschluss_status", nil
 	}
 	return "nur_app", nil
