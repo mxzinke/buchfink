@@ -14,6 +14,111 @@ import (
 
 const internalImport = "github.com/buchfink/buchfink/internal/"
 
+var storageImportExceptions = map[string]string{
+	"service/backup_service.go:gorm.io/gorm":       "BackupService verwaltet Datenbankhandles für VACUUM INTO und die Wiederherstellungsprüfung.",
+	"mcpserver/oauth/store.go:gorm.io/gorm":        "Store ist die eigene Speicherschicht für OAuth-Zulassungen und Tokens.",
+	"mcpserver/oauth/store.go:gorm.io/gorm/logger": "Store konfiguriert das Datenbankprotokoll beim Öffnen.",
+	"mcpserver/oauth/server.go:gorm.io/gorm":       "issueTokens schreibt Tokens innerhalb der Store-Transaktion für Ausgabe und Rotation.",
+}
+
+func inspectStorageImports(fset *token.FileSet, file *ast.File, path string, exceptions map[string]string) []string {
+	var problems []string
+	for _, imp := range file.Imports {
+		imported, err := strconv.Unquote(imp.Path.Value)
+		if err != nil {
+			problems = append(problems, err.Error())
+			continue
+		}
+		if !strings.HasPrefix(imported, "gorm.io/") {
+			continue
+		}
+		key := path + ":" + imported
+		if reason := exceptions[key]; reason != "" {
+			delete(exceptions, key)
+			continue
+		}
+		problems = append(problems, fmt.Sprintf("%s: verbotener Speicherimport %s; nicht gefunden über domain.ErrNotFound prüfen, Datenbankzugriffe im Repository ausführen", fset.Position(imp.Pos()), imported))
+	}
+	return problems
+}
+
+func TestStorageImportBoundaries(t *testing.T) {
+	exceptions := map[string]string{}
+	for key, reason := range storageImportExceptions {
+		exceptions[key] = reason
+	}
+	fset := token.NewFileSet()
+	for _, layer := range []string{"service", "mcpserver"} {
+		err := filepath.WalkDir(filepath.Join("..", layer), func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() {
+				if d.Name() == "testdata" {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+				return nil
+			}
+			file, err := parser.ParseFile(fset, path, nil, 0)
+			if err != nil {
+				return err
+			}
+			relative, err := filepath.Rel("..", path)
+			if err != nil {
+				return err
+			}
+			for _, problem := range inspectStorageImports(fset, file, filepath.ToSlash(relative), exceptions) {
+				t.Error(problem)
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	for key := range exceptions {
+		t.Errorf("ungenutzte Speicherimport-Ausnahme %s entfernen", key)
+	}
+}
+
+func TestStorageImportScanner(t *testing.T) {
+	for _, tc := range []struct {
+		path, imported string
+		wantError      bool
+	}{
+		{"service/settings_service.go", "gorm.io/gorm", true},
+		{"service/settings_service.go", "gorm.io/driver/sqlite", true},
+		{"mcpserver/errors.go", "gorm.io/gorm", true},
+		{"mcpserver/errors.go", "gorm.io/gorm/logger", true},
+		{"service/backup_service.go", "gorm.io/gorm", false},
+		{"service/backup_service.go", "gorm.io/driver/sqlite", true},
+		{"mcpserver/oauth/store.go", "gorm.io/gorm", false},
+		{"mcpserver/oauth/store.go", "gorm.io/gorm/logger", false},
+		{"mcpserver/oauth/server.go", "gorm.io/gorm", false},
+		{"mcpserver/oauth/other.go", "gorm.io/gorm", true},
+		{"service/settings_service.go", internalImport + "domain", false},
+	} {
+		t.Run(tc.path+":"+tc.imported, func(t *testing.T) {
+			fset := token.NewFileSet()
+			file, err := parser.ParseFile(fset, tc.path, "package example; import alias "+strconv.Quote(tc.imported), 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			exceptions := map[string]string{}
+			for key, reason := range storageImportExceptions {
+				exceptions[key] = reason
+			}
+			problems := inspectStorageImports(fset, file, tc.path, exceptions)
+			if (len(problems) > 0) != tc.wantError {
+				t.Fatalf("Befunde = %v, Fehler erwartet: %t", problems, tc.wantError)
+			}
+		})
+	}
+}
+
 // Kataloge, reine Datentypen und Konstanten, getrennt nach Adapter.
 var catalogSymbols = map[string]map[string]bool{
 	"mcpserver":   symbolSet("PostingGroups", "LookupAssetAccount", "SpecificAllowance", "WorkInProgressProject", "AdvanceTarget", "AdvanceTargetInventory", "AdvanceTargetTangible", "AdvanceTargetIntangible", "MatchScoreDueNear"),
