@@ -8,18 +8,8 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-// Die Ausbuchung eines uneinbringlichen Postens.
-//
-// Sie nutzt nicht Settle, und das ist kein Zufall: Settle ist der
-// Zahlungsweg und verlangt ein Zahlungsmittel und einen Betrag, der bewegt
-// wurde. Bei einer Ausbuchung fließt nichts. Sie über ein Zahlungsmittelkonto
-// mit dem Betrag null zu schleusen hieße, eine Zahlung zu behaupten, die es
-// nicht gab.
-//
-// Zwei Dinge geschehen: der Forderungsverlust wird als Aufwand erfasst, und die
-// Umsatzsteuer wird berichtigt. Die Berichtigung ist keine Kür — § 17 Abs. 2
-// Nr. 1 i. V. m. Abs. 1 UStG verlangt sie, sobald das Entgelt uneinbringlich
-// geworden ist, und zwar im Zeitraum der Uneinbringlichkeit (Abs. 1 Satz 8).
+// Bei Uneinbringlichkeit werden Forderungsverlust und Steuerkorrektur im
+// Zeitraum ihres Eintritts gebucht (§ 17 Abs. 2 Nr. 1 i. V. m. Abs. 1 UStG).
 
 // WriteOffRequest bucht einen offenen Posten als uneinbringlich aus.
 type WriteOffRequest struct {
@@ -28,20 +18,18 @@ type WriteOffRequest struct {
 	// Betrag.
 	Amount domain.Cents `json:"amount"`
 	Date   string       `json:"date"`
-	// Reason ist Pflicht. Eine Ausbuchung ohne Begründung ist von einer
-	// vergessenen Forderung nicht zu unterscheiden, und die Betriebsprüfung
-	// fragt nach dieser Unterscheidung.
+	// Reason begründet die Uneinbringlichkeit.
 	Reason string `json:"reason"`
 }
 
-// WriteOffOpenItem bucht eine uneinbringliche Forderung aus.
-func (s *PaymentService) WriteOffOpenItem(ctx context.Context, req WriteOffRequest) (*domain.JournalEntry, error) {
+// WriteOff bucht eine uneinbringliche Forderung aus.
+func (s *settlement) WriteOff(ctx context.Context, req WriteOffRequest) (*domain.JournalEntry, error) {
 	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.JournalEntry, error) {
-		return s.writeOffOpenItem(ctx, req)
+		return s.writeOff(ctx, req)
 	})
 }
 
-func (s *PaymentService) writeOffOpenItem(ctx context.Context, req WriteOffRequest) (*domain.JournalEntry, error) {
+func (s *settlement) writeOff(ctx context.Context, req WriteOffRequest) (*domain.JournalEntry, error) {
 	if req.Reason == "" {
 		return nil, fmt.Errorf(
 			"zu jeder Ausbuchung gehört eine Begründung: woran die Forderung gescheitert ist, entscheidet, " +
@@ -51,7 +39,7 @@ func (s *PaymentService) writeOffOpenItem(ctx context.Context, req WriteOffReque
 		req.Date = todayLocal()
 	}
 
-	openItems, err := s.OpenItems(ctx)
+	openItems, err := s.OpenItems(ctx, "")
 	if err != nil {
 		return nil, err
 	}
@@ -103,31 +91,19 @@ func (s *PaymentService) writeOffOpenItem(ctx context.Context, req WriteOffReque
 		Text: "Forderungsverlust " + item.DocumentNumber,
 	}}
 
-	// Die Steuerkorrektur kommt aus der Steuerautomatik und nicht aus einer
-	// zweiten Kontentabelle: so folgt sie dem Steuerfall des Belegs und landet
-	// bei § 13b nicht auf dem falschen Konto.
 	legs, err := s.journalSvc.TaxResolver().Resolve(
 		domain.DirectionOutgoing, item.TaxTreatment, item.TaxRate, net)
 	if err != nil {
 		return nil, fmt.Errorf("die Steuerkorrektur der Ausbuchung ließ sich nicht auflösen: %w", err)
 	}
-	// Die Steuerkorrektur trägt die Rundungsdifferenz.
-	//
-	// Ausgeglichen wird das Personenkonto mit dem tatsächlich offenen Betrag;
-	// Netto und Steuer müssen ihn deshalb genau treffen. Aus dem gerundeten
-	// Netto gerechnet tun sie das nicht: eine Teilausbuchung über drei Cent
-	// ergäbe 0,03 € Aufwand und 0,01 € Steuer — vier Cent im Soll gegen drei im
-	// Haben, und die Buchung ginge nicht durch.
+	// Netto und Steuer müssen auch bei Teilausbuchungen den offenen Betrag treffen.
 	legs = absorbRounding(legs, amount-net)
 	for _, leg := range legs {
 		if leg.Amount == 0 {
 			continue
 		}
 		line := taxLegLine(leg)
-		// Gegenseite der ursprünglichen Steuerzeile: was die Rechnung im Haben
-		// geschuldet hat, wird im Soll zurückgenommen. Der Steuerschlüssel
-		// bleibt derselbe — die Voranmeldung muss die Minderung sehen, und ein
-		// eigener Schlüssel fiele aus ihrer Auswertung heraus.
+		// Gegenseite der Rechnung; der Schlüssel bleibt für die Voranmeldung erhalten.
 		line.Side = leg.Side.Opposite()
 		line.Text = "Steuerkorrektur Forderungsverlust (§ 17 Abs. 2 Nr. 1 UStG)"
 		lines = append(lines, line)
@@ -149,9 +125,7 @@ func (s *PaymentService) writeOffOpenItem(ctx context.Context, req WriteOffReque
 		ServiceDateTo:   req.Date,
 		Description: fmt.Sprintf("Ausbuchung %s (%s): %s",
 			item.DocumentNumber, item.ContactName, req.Reason),
-		// Quelle „Zahlung": die Buchung schließt einen offenen Posten und
-		// begründet keinen neuen. Ohne das erschiene sie selbst wieder in der
-		// Liste der offenen Posten.
+		// Der Ausgleich erzeugt keinen eigenen offenen Posten.
 		Source:             domain.EntrySourcePayment,
 		DocumentNumber:     item.DocumentNumber,
 		TaxTreatment:       item.TaxTreatment,
@@ -183,13 +157,8 @@ func (s *PaymentService) writeOffOpenItem(ctx context.Context, req WriteOffReque
 	return entry, nil
 }
 
-// absorbRounding setzt den Steuerbetrag auf die Differenz zwischen Brutto und
-// Netto.
-//
-// Nur wo es genau ein Steuerbein gibt — der steuerpflichtige Inlandsumsatz.
-// Beim Reverse-Charge stehen sich zwei Beine gegenüber, die sich aufheben; dort
-// gibt es keine Differenz zu verteilen, und eine einseitige Anpassung machte
-// aus der ausgeglichenen Buchung eine unausgeglichene.
+// absorbRounding korrigiert eine einzelne Steuerzeile auf Brutto minus Netto.
+// Zwei gegenläufige Steuerzeilen müssen sich unverändert saldieren.
 func absorbRounding(legs []domain.TaxLeg, wanted domain.Cents) []domain.TaxLeg {
 	index, count := -1, 0
 	for i := range legs {

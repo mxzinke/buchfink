@@ -2,38 +2,20 @@ package service
 
 import (
 	"context"
-	"fmt"
-	"sort"
-	"time"
 
-	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-// AllocationRequest assigns part of a payment to one open item.
+// AllocationRequest ordnet einen Teil der Zahlung einem offenen Posten zu.
 type AllocationRequest struct {
 	OpenItemEntryID uint `json:"openItemEntryId"`
-	// SettledAmount is the amount the open item is reduced by. With a Skonto
-	// that is the full remaining amount even though less cash moves.
+	// SettledAmount mindert den offenen Posten einschließlich Skonto.
 	SettledAmount    domain.Cents          `json:"settledAmount"`
 	DifferenceKind   domain.DifferenceKind `json:"differenceKind"`
 	DifferenceAmount domain.Cents          `json:"differenceAmount"`
 }
 
-// cashAmount is what actually moves on the liquid account for this allocation.
-// A Skonto or a rounding difference reduces it, a bank fee increases it.
-func (a AllocationRequest) cashAmount() domain.Cents {
-	switch a.DifferenceKind {
-	case domain.DifferenceSkonto, domain.DifferenceRounding, domain.DifferenceCurrency:
-		return a.SettledAmount - a.DifferenceAmount
-	case domain.DifferenceBankFee:
-		return a.SettledAmount + a.DifferenceAmount
-	default:
-		return a.SettledAmount
-	}
-}
-
-// PaymentRequest settles one or more open items from a single payment.
+// PaymentRequest gleicht mit einer Zahlung einen oder mehrere offene Posten aus.
 type PaymentRequest struct {
 	BankTxID       *uint               `json:"bankTxId,omitempty"`
 	PaymentAccount string              `json:"paymentAccount"`
@@ -43,55 +25,18 @@ type PaymentRequest struct {
 	Allocations    []AllocationRequest `json:"allocations"`
 }
 
-// AssetRegister is the little the Zahlungsflow needs to know about the
-// Anlagenbuchhaltung.
-//
-// Es ist bewusst eine Schnittstelle mit zwei Methoden und kein Verweis auf den
-// ganzen Dienst: der Zahlungsflow soll Anlagegüter nicht verwalten können,
-// sondern nur erkennen, dass eine Rechnung eine war — und die Minderung
-// weiterreichen, die daraus folgt.
+// AssetRegister ordnet Rechnungen einem Anlagegut zu und erfasst die
+// Anschaffungskostenminderung durch Skonto.
 type AssetRegister interface {
 	AssetForEntry(ctx context.Context, entryID uint) (*domain.FixedAsset, error)
 	RecordCostAdjustment(ctx context.Context, req CostAdjustmentRequest) (*domain.FixedAsset, error)
 }
 
-// PaymentService settles open items and books the differences.
+// PaymentService stellt den Ausgleich für Dienste, Bridge und MCP bereit.
 type PaymentService struct {
-	journalSvc     *JournalService
-	journalRepo    domain.JournalRepository
-	allocationRepo domain.PaymentAllocationRepository
-	contactRepo    domain.ContactRepository
-	bankRepo       domain.BankRepository
-	assets         AssetRegister
-	// auditRepo ist optional: ohne es steht die Ausbuchung nur im Protokoll des
-	// Journals. Ein Pflichtparameter im Konstruktor hätte jeden Aufrufer
-	// erfasst.
-	auditRepo domain.AuditRepository
-	// loans liefert Konto und Gesellschafter eines Darlehens für die
-	// Aufteilung eines Bankumsatzes (bank_split.go).
-	loans LoanLineSource
+	settlement *settlement
 }
 
-// SetAuditRepo koppelt das Protokoll an. Die Ausbuchung einer Forderung ist
-// eine Entscheidung über einen offenen Posten und nicht nur eine Buchung; sie
-// gehört mit ihrer Begründung ins Protokoll des Postens.
-func (s *PaymentService) SetAuditRepo(r domain.AuditRepository) { s.auditRepo = r }
-
-// SetAssetRegister couples the payment flow to the Anlagenkartei. Ohne sie
-// bucht ein Skonto wie bisher; das ist für jede Rechnung richtig, die keine
-// Anlagenrechnung ist.
-func (s *PaymentService) SetAssetRegister(register AssetRegister) { s.assets = register }
-
-// assetCostReduction is a Skonto that turned out to lower Anschaffungskosten
-// instead of an expense. Es wird erst nach der Buchung in die Kartei
-// geschrieben: vorher gibt es keine Buchungsnummer, an die es sich hängen ließe.
-type assetCostReduction struct {
-	assetID uint
-	amount  domain.Cents
-	note    string
-}
-
-// NewPaymentService creates the payment matching service.
 func NewPaymentService(
 	journalSvc *JournalService,
 	journalRepo domain.JournalRepository,
@@ -99,613 +44,58 @@ func NewPaymentService(
 	contactRepo domain.ContactRepository,
 	bankRepo domain.BankRepository,
 ) *PaymentService {
-	return &PaymentService{
-		journalSvc:     journalSvc,
-		journalRepo:    journalRepo,
-		allocationRepo: allocationRepo,
-		contactRepo:    contactRepo,
-		bankRepo:       bankRepo,
-	}
+	return &PaymentService{settlement: &settlement{
+		journalSvc: journalSvc, journalRepo: journalRepo, allocationRepo: allocationRepo,
+		contactRepo: contactRepo, bankRepo: bankRepo,
+	}}
 }
 
-// OpenItems lists the unsettled receivables and payables of every fiscal year.
-//
-// Das ist die operative Sicht: was ist heute noch offen, und wogegen darf
-// gebucht werden — gleich, in welchem Jahr der Posten entstand. Der
-// Jahresabschluss fragt anders — siehe OpenItemsAt.
+func (s *PaymentService) SetAuditRepo(repo domain.AuditRepository) { s.settlement.auditRepo = repo }
+func (s *PaymentService) SetAssetRegister(register AssetRegister)  { s.settlement.assets = register }
+func (s *PaymentService) SetLoanSource(source LoanLineSource)      { s.settlement.loans = source }
+
+// OpenItems liefert die aktuell offenen Forderungen und Verbindlichkeiten aller Geschäftsjahre.
 func (s *PaymentService) OpenItems(ctx context.Context) ([]domain.OpenItem, error) {
-	entries, err := s.journalRepo.FindOpenItemCandidates(ctx, 0)
-	if err != nil {
-		return nil, err
-	}
-	settled, err := s.allocationRepo.SettledByOpenItem(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return s.openItemsFrom(ctx, entries, settled)
+	return s.settlement.OpenItems(ctx, "")
 }
 
-// Allocations liefert die Einzelposten einer Zahlungsbuchung.
-//
-// Eine Sammelüberweisung steht im Journal als eine Zeile. Wogegen sie lief,
-// ergibt sich aus dem Journal nicht mehr — die Zuordnungen sind eigene
-// Datensätze, und ohne sie ist der Vorgang nicht in seine Bestandteile
-// zerlegbar (GoBD Rz. 36).
-func (s *PaymentService) Allocations(ctx context.Context, paymentEntryID uint) ([]domain.PaymentAllocationDetail, error) {
-	allocations, err := s.allocationRepo.FindByPayment(ctx, paymentEntryID)
-	if err != nil {
-		return nil, fmt.Errorf("die Zahlungszuordnungen konnten nicht gelesen werden: %w", err)
-	}
-
-	contacts, err := s.contactRepo.FindAll(ctx)
-	if err != nil {
-		return nil, err
-	}
-	byID := make(map[uint]domain.Contact, len(contacts))
-	for _, c := range contacts {
-		byID[c.ID] = c
-	}
-
-	out := make([]domain.PaymentAllocationDetail, 0, len(allocations))
-	for _, a := range allocations {
-		detail := domain.PaymentAllocationDetail{PaymentAllocation: a}
-		if c, ok := byID[a.ContactID]; ok {
-			detail.ContactName = c.LegalName()
-			detail.ContactType = c.Type
-			detail.LedgerAccount = c.LedgerAccount
-		}
-		// Der offene Posten wird einzeln gelesen und nicht über das ganze
-		// Journal gesucht: eine Zahlung gleicht selten mehr als eine Handvoll
-		// Rechnungen aus, und eine davon kann aus einem früheren Jahr stammen.
-		if item, err := s.journalRepo.FindByID(ctx, a.OpenItemEntryID); err == nil && item != nil {
-			detail.OpenItemEntryNumber = item.EntryNumber
-			detail.DocumentNumber = item.DocumentNumber
-			detail.DocumentDate = item.DocumentDate
-			detail.Description = item.Description
-		}
-		out = append(out, detail)
-	}
-	return out, nil
-}
-
-// OpenItemsAt ist dieselbe Liste zu einem Stichtag: welche Posten waren am
-// Bilanzstichtag offen.
-//
-// Der Unterschied ist nicht kosmetisch. Die operative Liste rechnet jede
-// Zahlung mit, die inzwischen gebucht wurde, und lässt einen ausgeglichenen
-// Posten ganz weg. Für die Restlaufzeitengliederung des § 268 Abs. 4 und 5 HGB
-// wäre das eine Angabe über heute, die als Angabe über den Stichtag ausgewiesen
-// wird — und sie fiele umso kleiner aus, je später jemand den Abschluss ansieht.
-// Beide Grenzen — offene Buchung und Ausgleich — liegen deshalb auf dem
-// Buchungsdatum, nicht auf dem Geschäftsjahr.
+// OpenItemsAt berücksichtigt nur Buchungen und Ausgleiche bis zum Stichtag.
 func (s *PaymentService) OpenItemsAt(ctx context.Context, cutoff string) ([]domain.OpenItem, error) {
-	if cutoff == "" {
-		return s.OpenItems(ctx)
-	}
-	entries, err := s.journalRepo.FindOpenItemCandidatesAt(ctx, cutoff)
-	if err != nil {
-		return nil, err
-	}
-	settled, err := s.allocationRepo.SettledByOpenItemAt(ctx, cutoff)
-	if err != nil {
-		return nil, err
-	}
-	return s.openItemsFrom(ctx, entries, settled)
+	return s.settlement.OpenItems(ctx, cutoff)
 }
 
-// openItemsFrom macht aus Buchungen und Ausgleichsständen die offene-Posten-
-// Liste. Beide Sichten teilen sich diese Regeln: welche Buchung überhaupt einen
-// Posten hat, wie der Steuerfall daraus folgt und wie sortiert wird.
-func (s *PaymentService) openItemsFrom(
-	ctx context.Context, entries []domain.JournalEntry, settled map[uint]domain.Cents,
-) ([]domain.OpenItem, error) {
-	contacts, err := s.contactRepo.FindAll(ctx)
-	if err != nil {
-		return nil, err
-	}
-	byID := make(map[uint]domain.Contact, len(contacts))
-	for _, c := range contacts {
-		byID[c.ID] = c
-	}
-
-	// Leer statt nil: die leere OP-Liste ist der Regelfall eines bezahlten
-	// Monats, und `null.length` wirft in der Ansicht.
-	items := make([]domain.OpenItem, 0, len(entries))
-	for i := range entries {
-		entry := &entries[i]
-		// Payments themselves do not create open items.
-		if entry.Source == domain.EntrySourcePayment {
-			continue
-		}
-		// Und der Saldenvortrag auch nicht. Er bucht den offenen Rest des
-		// Vorjahres noch einmal auf dasselbe Personenkonto, damit die Bilanz des
-		// neuen Jahres stimmt — der Posten selbst ist aber weiterhin die
-		// Rechnung von damals, gegen die auch die Zahlung läuft. Ohne diese
-		// Zeile stünde jede Forderung nach dem Jahreswechsel zweimal in der
-		// OP-Liste, und die zweite ließe sich nie ausgleichen.
-		//
-		// Erkannt wird er an seiner Belegnummer, die der Jahresabschluss
-		// vergibt (carryForwardReference). Nicht jede Eröffnungsbuchung ist
-		// nämlich ein Vortrag: die Eröffnungsbilanz des Umsteigers hat
-		// dieselbe Quelle, und sie ist der andere Fall — zu ihr gibt es keine
-		// frühere Rechnung, die Vortragsbuchung *ist* der offene Posten. Fiele
-		// sie hier mit heraus, wäre die Offene-Posten-Liste des ersten Jahres
-		// leer, während in der Bilanz die übernommenen Forderungen stehen, und
-		// keiner von ihnen ließe sich je ausgleichen.
-		if entry.Source == domain.EntrySourceOpening &&
-			entry.DocumentNumber == carryForwardReference(entry.FiscalYear) {
-			continue
-		}
-
-		line, ok := ledgerLine(entry)
-		if !ok || entry.ContactID == nil {
-			continue
-		}
-		contact, ok := byID[*entry.ContactID]
-		if !ok {
-			continue
-		}
-
-		gross := line.Amount
-		alreadySettled := settled[entry.ID]
-		open := gross - alreadySettled
-		if open == 0 {
-			continue
-		}
-
-		// Steuersatz und Steuerfall werden hier bestimmt, nicht erst dort, wo ein
-		// Skonto sie braucht: so gilt für jeden Leser dieselbe Regel, und ein
-		// leerer Steuerfall heißt überall dasselbe — nicht bestimmbar.
-		rate, rateKnown := documentTaxRate(entry)
-		treatment := entry.TaxTreatment
-		switch {
-		case !rateKnown:
-			// Eine Steuerzeile, die zu keinem bekannten Satz passt. Dann ist auch
-			// der Steuerfall nicht bestimmbar.
-			treatment = ""
-		case treatment == "":
-			// Von Hand im Journal erfasste Buchungen haben keinen Steuerfall.
-			// Hat das Dokument eine Steuerzeile, ist es ein steuerpflichtiger
-			// Inlandsumsatz; hat es keine, gibt es nichts zu berichtigen.
-			treatment = domain.TaxTreatmentDomestic
-			if rate == domain.TaxRateNone {
-				treatment = domain.TaxTreatmentNotTaxable
-			}
-		}
-
-		items = append(items, domain.OpenItem{
-			Source:         domain.OpenItemSourceJournal,
-			EntryID:        entry.ID,
-			EntryNumber:    entry.EntryNumber,
-			ContactID:      contact.ID,
-			ContactName:    contact.LegalName(),
-			ContactType:    contact.Type,
-			LedgerAccount:  line.Account,
-			DocumentNumber: entry.DocumentNumber,
-			DocumentDate:   entry.DocumentDate,
-			DueDate:        dueDate(entry, contact),
-			GrossAmount:    gross,
-			SettledAmount:  alreadySettled,
-			OpenAmount:     open,
-			TaxRate:        rate,
-			TaxTreatment:   treatment,
-		})
-	}
-
-	sort.Slice(items, func(i, j int) bool {
-		if items[i].DueDate != items[j].DueDate {
-			return items[i].DueDate < items[j].DueDate
-		}
-		return items[i].EntryNumber < items[j].EntryNumber
-	})
-	return items, nil
+func (s *PaymentService) Allocations(ctx context.Context, paymentEntryID uint) ([]domain.PaymentAllocationDetail, error) {
+	return s.settlement.allocations(ctx, paymentEntryID)
 }
 
-// Settle books a payment against one or more open items.
-//
-// Buchung, Zuordnungen, Vermerk am Bankumsatz und Minderung der
-// Anschaffungskosten stehen in einer Transaktion.
+func (s *PaymentService) AgeOpenItems(items []domain.OpenItem, cutoff string) *domain.OpenItemsAging {
+	return ageOpenItems(items, cutoff)
+}
+
+func (s *PaymentService) OpenItemsAging(ctx context.Context, cutoff string) (*domain.OpenItemsAging, error) {
+	return s.settlement.openItemsAging(ctx, cutoff)
+}
+
 func (s *PaymentService) Settle(ctx context.Context, req PaymentRequest) (*domain.JournalEntry, error) {
-	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.JournalEntry, error) {
-		return s.settle(ctx, req)
-	})
+	return s.settlement.Settle(ctx, req)
 }
 
-func (s *PaymentService) settle(ctx context.Context, req PaymentRequest) (*domain.JournalEntry, error) {
-	if len(req.Allocations) == 0 {
-		return nil, fmt.Errorf("es wurde kein offener Posten ausgewählt")
-	}
-	if req.PaymentDate == "" {
-		req.PaymentDate = todayLocal()
-	}
-
-	// A bank payment takes its account and amount from the statement, so neither
-	// can be mistyped.
-	var bankTx *domain.BankTransaction
-	if req.BankTxID != nil {
-		tx, err := s.openBankTx(ctx, *req.BankTxID)
-		if err != nil {
-			return nil, err
-		}
-		bankTx = tx
-		req.PaymentAccount = tx.LedgerAccount
-		req.PaymentDate = tx.BookingDate
-		req.ValueDate = tx.ValueDate
-	}
-	if req.PaymentAccount == "" {
-		return nil, fmt.Errorf("das Bankkonto der Zahlung fehlt")
-	}
-	if !isLiquidAccount(req.PaymentAccount) {
-		return nil, fmt.Errorf(
-			"Konto %s ist kein Zahlungsmittelkonto (Bank 1800 bis 1850 oder Geldtransit 1460)", req.PaymentAccount)
-	}
-
-	parts, err := s.allocate(ctx, req.Allocations, req.BankTxID)
-	if err != nil {
-		return nil, err
-	}
-
-	// The cash side is what the statement says. Checking it here is what turns a
-	// mis-entered Skonto into an error message instead of a silent wrong booking.
-	if bankTx != nil && parts.cash != bankTx.Amount.Abs() {
-		return nil, fmt.Errorf(
-			"die Zuordnung ergibt %s €, der Bankumsatz lautet aber über %s €",
-			parts.cash, bankTx.Amount.Abs())
-	}
-	if parts.cash == 0 {
-		return nil, fmt.Errorf("die Zahlung hat einen Betrag von null")
-	}
-
-	// Money leaving is a credit on the liquid account, money arriving a debit.
-	lines := append(parts.lines, domain.JournalLine{
-		Side: parts.lines[0].Side.Opposite(), Account: req.PaymentAccount, Amount: parts.cash,
-	})
-
-	description := req.Description
-	if description == "" {
-		description = paymentDescription(req, parts.items)
-	}
-
-	entry := &domain.JournalEntry{
-		BookingDate:        req.PaymentDate,
-		DocumentDate:       req.PaymentDate,
-		ServiceDateFrom:    req.PaymentDate,
-		ServiceDateTo:      req.PaymentDate,
-		ValueDate:          req.ValueDate,
-		Description:        description,
-		Source:             domain.EntrySourcePayment,
-		ContactID:          parts.contactID,
-		BankTxID:           req.BankTxID,
-		PostingRuleVersion: accounting.PostingRuleVersion,
-		Lines:              lines,
-	}
-	return s.postSettlement(ctx, entry, parts, bankTx)
+func (s *PaymentService) BookBankSplit(ctx context.Context, req BankSplitRequest) (*domain.JournalEntry, error) {
+	return s.settlement.Split(ctx, req)
 }
 
-// allocationParts sind die Zeilen und Vermerke, die eine Zahlung auf offene
-// Posten verteilt: Ausgleich je Posten, Differenzzeilen, Zuordnungen und die
-// Minderung von Anschaffungskosten.
-type allocationParts struct {
-	lines       []domain.JournalLine
-	allocations []domain.PaymentAllocation
-	reductions  []assetCostReduction
-	items       map[uint]domain.OpenItem
-	contactID   *uint
-	// cash ist, was auf dem Zahlungsmittelkonto fließt.
-	cash domain.Cents
+func (s *PaymentService) WriteOffOpenItem(ctx context.Context, req WriteOffRequest) (*domain.JournalEntry, error) {
+	return s.settlement.WriteOff(ctx, req)
 }
 
-// openBankTx liest einen Bankumsatz, der noch zu buchen ist.
-func (s *PaymentService) openBankTx(ctx context.Context, id uint) (*domain.BankTransaction, error) {
-	tx, err := s.bankRepo.FindByID(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("Bankumsatz %d wurde nicht gefunden: %w", id, err)
-	}
-	if tx.MatchStatus == domain.MatchStatusMatched {
-		return nil, fmt.Errorf("Bankumsatz %d ist bereits zugeordnet", tx.ID)
-	}
-	return tx, nil
+func (s *PaymentService) CreditCardBalance(ctx context.Context, date string) (domain.Cents, error) {
+	return s.settlement.creditCardBalance(ctx, date)
 }
 
-// allocate verteilt eine Zahlung auf offene Posten.
-func (s *PaymentService) allocate(
-	ctx context.Context, requests []AllocationRequest, bankTxID *uint,
-) (*allocationParts, error) {
-	openItems, err := s.OpenItems(ctx)
-	if err != nil {
-		return nil, err
-	}
-	parts := &allocationParts{items: make(map[uint]domain.OpenItem, len(openItems))}
-	for _, o := range openItems {
-		parts.items[o.EntryID] = o
-	}
-	parts.allocations = make([]domain.PaymentAllocation, 0, len(requests))
-
-	for i, alloc := range requests {
-		item, ok := parts.items[alloc.OpenItemEntryID]
-		if !ok {
-			return nil, fmt.Errorf("Zuordnung %d: die Buchung %d hat keinen offenen Posten", i+1, alloc.OpenItemEntryID)
-		}
-		if alloc.SettledAmount <= 0 {
-			return nil, fmt.Errorf("Zuordnung %d: der Ausgleichsbetrag muss größer als null sein", i+1)
-		}
-		if alloc.SettledAmount > item.OpenAmount {
-			return nil, fmt.Errorf(
-				"Zuordnung %d: %s ist mit %s € offen, zugeordnet wurden aber %s €",
-				i+1, item.DocumentNumber, item.OpenAmount, alloc.SettledAmount)
-		}
-		if alloc.DifferenceKind == "" {
-			alloc.DifferenceKind = domain.DifferenceNone
-		}
-		// Die Ausbuchung steht in derselben Auswahl, gehört aber nicht hierher:
-		// zu ihr fließt kein Geld, und sie bucht keinen Zahlungsausgleich,
-		// sondern den Forderungsverlust samt Steuerkorrektur (§ 17 Abs. 2 Nr. 1
-		// UStG).
-		if alloc.DifferenceKind == domain.DifferenceWriteoff {
-			return nil, fmt.Errorf(
-				"Zuordnung %d: die Ausbuchung ist keine Zahlung. Eine uneinbringliche Forderung wird "+
-					"über „Forderung ausbuchen\" ohne Zahlungsmittel ausgebucht, mit Begründung", i+1)
-		}
-		if alloc.DifferenceKind != domain.DifferenceNone && alloc.DifferenceAmount <= 0 {
-			return nil, fmt.Errorf("Zuordnung %d: für die Differenzart %q fehlt der Betrag", i+1, alloc.DifferenceKind)
-		}
-
-		cid := item.ContactID
-		// Settling a payable is a debit on the Kreditorenkonto, settling a
-		// receivable a credit on the Debitorenkonto — the item knows which.
-		parts.lines = append(parts.lines, domain.JournalLine{
-			Side:      item.SettleSide(),
-			Account:   item.LedgerAccount,
-			ContactID: &cid,
-			Amount:    alloc.SettledAmount,
-			Text:      item.DocumentNumber,
-		})
-		if parts.contactID == nil {
-			parts.contactID = &cid
-		}
-
-		diffLines, reduction, err := s.differenceLines(ctx, alloc, item)
-		if err != nil {
-			return nil, fmt.Errorf("Zuordnung %d: %w", i+1, err)
-		}
-		parts.lines = append(parts.lines, diffLines...)
-		if reduction != nil {
-			parts.reductions = append(parts.reductions, *reduction)
-		}
-
-		cash := alloc.cashAmount()
-		if cash < 0 {
-			return nil, fmt.Errorf("Zuordnung %d: die Differenz ist größer als der Ausgleichsbetrag", i+1)
-		}
-		parts.cash += cash
-
-		parts.allocations = append(parts.allocations, domain.PaymentAllocation{
-			OpenItemEntryID:  item.EntryID,
-			BankTxID:         bankTxID,
-			ContactID:        item.ContactID,
-			SettledAmount:    alloc.SettledAmount,
-			CashAmount:       cash,
-			DifferenceKind:   alloc.DifferenceKind,
-			DifferenceAmount: alloc.DifferenceAmount,
-		})
-	}
-	return parts, nil
+func (s *PaymentService) SettleCreditCard(ctx context.Context, req CreditCardSettlementRequest) (*domain.JournalEntry, error) {
+	return s.settlement.settleCreditCard(ctx, req)
 }
 
-// postSettlement bucht die Zahlung und schreibt, was an ihr hängt:
-// Zuordnungen, Vermerk am Bankumsatz und Minderung der Anschaffungskosten.
-func (s *PaymentService) postSettlement(
-	ctx context.Context, entry *domain.JournalEntry, parts *allocationParts, bankTx *domain.BankTransaction,
-) (*domain.JournalEntry, error) {
-	created, err := s.journalSvc.Post(ctx, entry)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(parts.allocations) > 0 {
-		for i := range parts.allocations {
-			parts.allocations[i].PaymentEntryID = created.ID
-		}
-		if err := s.allocationRepo.Create(ctx, parts.allocations); err != nil {
-			return nil, fmt.Errorf("die Zahlungszuordnung konnte nicht gespeichert werden: %w", err)
-		}
-	}
-
-	if bankTx != nil {
-		if err := s.bankRepo.SetMatchStatus(ctx, bankTx.ID, domain.MatchStatusMatched); err != nil {
-			return nil, fmt.Errorf("der Bankumsatz konnte nicht als zugeordnet markiert werden: %w", err)
-		}
-	}
-
-	// Die Kartei erst jetzt fortschreiben: vorher gibt es die Buchung nicht, an
-	// die sich die Minderung hängen soll.
-	for _, reduction := range parts.reductions {
-		entryID := created.ID
-		if _, err := s.assets.RecordCostAdjustment(ctx, CostAdjustmentRequest{
-			AssetID:        reduction.assetID,
-			Date:           entry.BookingDate,
-			Amount:         reduction.amount,
-			Reduction:      true,
-			Note:           reduction.note,
-			JournalEntryID: &entryID,
-		}); err != nil {
-			return nil, fmt.Errorf(
-				"die Minderung der Anschaffungskosten ließ sich nicht in das Anlagenverzeichnis "+
-					"übernehmen, deshalb wurde die Zahlung nicht gebucht: %w", err)
-		}
-	}
-
-	return created, nil
-}
-
-// differenceLines books the difference between the settled amount and the cash
-// that moved.
-func (s *PaymentService) differenceLines(
-	ctx context.Context,
-	alloc AllocationRequest,
-	item domain.OpenItem,
-) ([]domain.JournalLine, *assetCostReduction, error) {
-	if alloc.DifferenceKind == domain.DifferenceNone {
-		return nil, nil, nil
-	}
-
-	// The difference sits on the side opposite the settlement, except for a bank
-	// fee, which is an additional expense on the same side as the settlement.
-	opposite := item.SettleSide().Opposite()
-
-	switch alloc.DifferenceKind {
-	case domain.DifferenceSkonto:
-		return s.skontoLines(ctx, alloc, item, opposite)
-
-	case domain.DifferenceBankFee:
-		return []domain.JournalLine{{
-			Side: item.SettleSide(), Account: domain.AccountNebenkostenGeld,
-			Amount: alloc.DifferenceAmount, Text: "Bankgebühr",
-		}}, nil, nil
-
-	case domain.DifferenceRounding, domain.DifferenceCurrency:
-		text := "Rundungsdifferenz"
-		if alloc.DifferenceKind == domain.DifferenceCurrency {
-			text = "Kursdifferenz"
-		}
-		// On the credit side the difference is income, on the debit side expense.
-		account := "6300" // Sonstige betriebliche Aufwendungen
-		if opposite == domain.SideCredit {
-			account = "4830" // Sonstige betriebliche Erträge
-		}
-		return []domain.JournalLine{{
-			Side: opposite, Account: account, Amount: alloc.DifferenceAmount, Text: text,
-		}}, nil, nil
-	}
-
-	return nil, nil, fmt.Errorf("unbekannte Differenzart %q", alloc.DifferenceKind)
-}
-
-// skontoLines ordnet die Entgeltminderung aus dem Steuerfall-Katalog dem
-// offenen Posten und gegebenenfalls seinem Anlagegut zu.
-func (s *PaymentService) skontoLines(
-	ctx context.Context,
-	alloc AllocationRequest,
-	item domain.OpenItem,
-	opposite domain.Side,
-) ([]domain.JournalLine, *assetCostReduction, error) {
-	if item.TaxTreatment == "" {
-		return nil, nil, fmt.Errorf(
-			"der Steuerfall von %s lässt sich nicht bestimmen; ein Skonto darauf ließe sich nach § 17 Abs. 1 UStG nicht zutreffend berichtigen",
-			item.DocumentNumber)
-	}
-	direction := item.Direction()
-
-	skonto, err := accounting.TaxCaseFor(item.TaxTreatment).Skonto(direction, item.TaxRate, alloc.DifferenceAmount)
-	if err != nil {
-		return nil, nil, fmt.Errorf("die Steuerkorrektur des Skontos ließ sich nicht auflösen: %w", err)
-	}
-
-	// Anschaffungspreisminderungen senken die Anschaffungskosten (§ 255 Abs. 1
-	// Satz 3 HGB). Die Steuerkorrektur richtet sich weiterhin nach dem Umsatz.
-	account := skonto.Account
-	text := "Skonto"
-	var reduction *assetCostReduction
-	if asset := s.assetForItem(ctx, item, direction); asset != nil {
-		account = asset.Account
-		text = "Skonto: Minderung der Anschaffungskosten " + asset.InventoryNumber
-		reduction = &assetCostReduction{
-			assetID: asset.ID,
-			amount:  skonto.Net,
-			note: fmt.Sprintf("Skonto auf %s: Minderung der Anschaffungskosten "+
-				"(§ 255 Abs. 1 Satz 3 HGB)", item.DocumentNumber),
-		}
-	}
-
-	lines := []domain.JournalLine{
-		{Side: opposite, Account: account, Amount: skonto.Net, Text: text},
-	}
-	for _, leg := range skonto.Legs {
-		line := taxLegLine(leg)
-		line.Text = "Steuerkorrektur Skonto (§ 17 Abs. 1 UStG)"
-		lines = append(lines, line)
-	}
-	return lines, reduction, nil
-}
-
-// assetForItem reports whether an open item is the invoice of an Anlagegut.
-//
-// Nur auf der Eingangsseite: ein Skonto, das wir gewähren, mindert unseren
-// Erlös und nicht die Anschaffungskosten von irgendetwas. Und nur, wenn nichts
-// dazwischenkommt — ist die Kartei nicht angeschlossen oder die Abfrage
-// gescheitert, bleibt es beim gewöhnlichen Skonto statt bei einem Abbruch der
-// Zahlung.
-func (s *PaymentService) assetForItem(
-	ctx context.Context, item domain.OpenItem, direction domain.Direction,
-) *domain.FixedAsset {
-	if s.assets == nil || direction != domain.DirectionIncoming {
-		return nil
-	}
-	asset, err := s.assets.AssetForEntry(ctx, item.EntryID)
-	if err != nil || asset == nil || asset.IsDisposed() {
-		return nil
-	}
-	return asset
-}
-
-// ledgerLine returns the Personenkonto line of an entry, which is the one that
-// carries the open item.
-func ledgerLine(entry *domain.JournalEntry) (domain.JournalLine, bool) {
-	for _, l := range entry.Lines {
-		if domain.IsLedgerAccount(l.Account) {
-			return l, true
-		}
-	}
-	return domain.JournalLine{}, false
-}
-
-// documentTaxRate derives the VAT rate of a document from its tax lines. It is
-// needed to correct the taxable amount when a Skonto is granted later.
-//
-// The second result separates "carried no VAT" from "carried VAT I could not
-// read". Both would be TaxRateNone, and TaxRateNone means "no rate applies" —
-// letting it also mean "unknown" is how a taxable supply ends up booked as a
-// tax-free one.
-func documentTaxRate(entry *domain.JournalEntry) (domain.TaxRate, bool) {
-	for _, l := range entry.Lines {
-		if l.TaxKey == "" || l.TaxBase == 0 {
-			continue
-		}
-		// Recover the rate from base and amount rather than parsing the key.
-		switch {
-		case domain.TaxRateStandard.Tax(l.TaxBase) == l.Amount:
-			return domain.TaxRateStandard, true
-		case domain.TaxRateReduced.Tax(l.TaxBase) == l.Amount:
-			return domain.TaxRateReduced, true
-		}
-		return domain.TaxRateNone, false
-	}
-	return domain.TaxRateNone, true
-}
-
-func dueDate(entry *domain.JournalEntry, contact domain.Contact) string {
-	// Die an der Buchung vermerkte Fälligkeit geht vor: sie wurde vereinbart,
-	// das Zahlungsziel des Kontakts ist nur die Annahme für den Fall, dass
-	// nichts vermerkt ist. Das trifft die übernommenen Posten des Umsteigers.
-	if entry.DueDate != "" {
-		return entry.DueDate
-	}
-	days := contact.PaymentTermsDays
-	if days <= 0 {
-		days = 14
-	}
-	t, err := time.Parse("2006-01-02", entry.DocumentDate)
-	if err != nil {
-		return entry.DocumentDate
-	}
-	return t.AddDate(0, 0, days).Format("2006-01-02")
-}
-
-func paymentDescription(req PaymentRequest, items map[uint]domain.OpenItem) string {
-	if len(req.Allocations) == 1 {
-		if item, ok := items[req.Allocations[0].OpenItemEntryID]; ok {
-			return fmt.Sprintf("Zahlung %s – %s", item.DocumentNumber, item.ContactName)
-		}
-	}
-	return fmt.Sprintf("Sammelzahlung über %d Belege", len(req.Allocations))
+func (s *PaymentService) CreditCardStatementDate(ctx context.Context, debit domain.Cents, debitDate string) (string, error) {
+	return s.settlement.creditCardStatementDate(ctx, debit, debitDate)
 }

@@ -46,26 +46,22 @@ type LoanLineSource interface {
 	LoanLine(ctx context.Context, loanID uint) (account string, contactID uint, label string, err error)
 }
 
-// SetLoanSource hängt die Gesellschafterdarlehen an. Ohne sie kennt die
-// Aufteilung keine Darlehenszeilen.
-func (s *PaymentService) SetLoanSource(src LoanLineSource) { s.loans = src }
-
 // maxSplitLines begrenzt die Aufteilung: mehr Zeilen sind keine Aufteilung
 // eines Umsatzes mehr, sondern ein Sammelauszug, der einzeln zu buchen ist.
 const maxSplitLines = 20
 
-// BookBankSplit bucht einen Bankumsatz auf mehrere Gegenkonten in einer
+// Split bucht einen Bankumsatz auf mehrere Gegenkonten in einer
 // Buchung: Dividende oder Zinsen brutto mit Kapitalertragsteuer und
 // Solidaritätszuschlag, Darlehensrate aus Tilgung und Zins, Steuerlastschrift
 // mehrerer Steuerarten, Sammelüberweisung. Die Zeilen müssen den Umsatz auf
 // den Cent treffen.
-func (s *PaymentService) BookBankSplit(ctx context.Context, req BankSplitRequest) (*domain.JournalEntry, error) {
+func (s *settlement) Split(ctx context.Context, req BankSplitRequest) (*domain.JournalEntry, error) {
 	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.JournalEntry, error) {
-		return s.bookBankSplit(ctx, req)
+		return s.split(ctx, req)
 	})
 }
 
-func (s *PaymentService) bookBankSplit(ctx context.Context, req BankSplitRequest) (*domain.JournalEntry, error) {
+func (s *settlement) split(ctx context.Context, req BankSplitRequest) (*domain.JournalEntry, error) {
 	if len(req.Lines) == 0 {
 		return nil, fmt.Errorf("die Aufteilung hat keine Zeilen")
 	}
@@ -169,11 +165,11 @@ func (s *PaymentService) bookBankSplit(ctx context.Context, req BankSplitRequest
 			entry.ContactID = &cid
 		}
 	}
-	return s.postSettlement(ctx, entry, parts, tx)
+	return s.postSettlement(ctx, entry, parts)
 }
 
 // splitAccountLine baut die Zeile eines Gegenkontos oder Darlehens.
-func (s *PaymentService) splitAccountLine(
+func (s *settlement) splitAccountLine(
 	ctx context.Context, tx *domain.BankTransaction, line BankSplitLine, counterSide domain.Side,
 ) (domain.JournalLine, error) {
 	if line.Amount == 0 {
@@ -225,7 +221,7 @@ func (s *PaymentService) splitAccountLine(
 // checkSplitAccount hält die Konten fern, die über einen anderen Weg gehören.
 // Umsatzsteuer entsteht über Beleg oder Rechnung, nicht über den Kontoauszug;
 // ein offener Posten wird über seine Zeile ausgeglichen.
-func (s *PaymentService) checkSplitAccount(ctx context.Context, tx *domain.BankTransaction, account string) error {
+func (s *settlement) checkSplitAccount(ctx context.Context, tx *domain.BankTransaction, account string) error {
 	if account == tx.LedgerAccount {
 		return fmt.Errorf("Konto %s ist das Bankkonto des Umsatzes selbst", account)
 	}
@@ -260,9 +256,9 @@ type CreditCardSettlementRequest struct {
 	StatementDate string `json:"statementDate"`
 }
 
-// CreditCardBalance ist der offene Saldo der Kreditkartenabrechnung (3610) an
+// creditCardBalance ist der offene Saldo der Kreditkartenabrechnung (3610) an
 // einem Tag, als Verbindlichkeit positiv.
-func (s *PaymentService) CreditCardBalance(ctx context.Context, date string) (domain.Cents, error) {
+func (s *settlement) creditCardBalance(ctx context.Context, date string) (domain.Cents, error) {
 	if err := domain.CheckDate("Stichtag", date); err != nil {
 		return 0, err
 	}
@@ -274,11 +270,11 @@ func (s *PaymentService) CreditCardBalance(ctx context.Context, date string) (do
 	return t.Credit - t.Debit, nil
 }
 
-// SettleCreditCard bucht die Abbuchung der Kartenabrechnung gegen 3610. Sie
+// settleCreditCard bucht die Abbuchung der Kartenabrechnung gegen 3610. Sie
 // muss dem Saldo von 3610 zum Abrechnungsstichtag entsprechen; weicht sie ab
 // (Jahresgebühr, Auslandseinsatzentgelt, Kursdifferenz), gehört der Ausgleich
-// mit einer Zeile je Differenz in BookBankSplit.
-func (s *PaymentService) SettleCreditCard(ctx context.Context, req CreditCardSettlementRequest) (*domain.JournalEntry, error) {
+// mit einer Zeile je Differenz in Split.
+func (s *settlement) settleCreditCard(ctx context.Context, req CreditCardSettlementRequest) (*domain.JournalEntry, error) {
 	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.JournalEntry, error) {
 		tx, err := s.openBankTx(ctx, req.BankTxID)
 		if err != nil {
@@ -291,7 +287,7 @@ func (s *PaymentService) SettleCreditCard(ctx context.Context, req CreditCardSet
 			return nil, fmt.Errorf("der Abrechnungsstichtag muss angegeben sein und darf nicht nach der Abbuchung "+
 				"am %s liegen", domain.GermanDate(tx.BookingDate))
 		}
-		balance, err := s.CreditCardBalance(ctx, req.StatementDate)
+		balance, err := s.creditCardBalance(ctx, req.StatementDate)
 		if err != nil {
 			return nil, err
 		}
@@ -317,7 +313,7 @@ func (s *PaymentService) SettleCreditCard(ctx context.Context, req CreditCardSet
 				{Side: domain.SideCredit, Account: tx.LedgerAccount, Amount: balance},
 			},
 		}
-		return s.postSettlement(ctx, entry, &allocationParts{}, tx)
+		return s.postSettlement(ctx, entry, &allocationParts{})
 	})
 }
 
@@ -325,10 +321,10 @@ func (s *PaymentService) SettleCreditCard(ctx context.Context, req CreditCardSet
 // Abrechnungsstichtag gesucht wird.
 const creditCardWindowDays = 45
 
-// CreditCardStatementDate sucht den Abrechnungsstichtag zu einer Abbuchung: den
+// creditCardStatementDate sucht den Abrechnungsstichtag zu einer Abbuchung: den
 // spätesten Tag vor ihr, an dem 3610 genau mit dem abgebuchten Betrag offen
 // stand. Leer, wenn es keinen gibt.
-func (s *PaymentService) CreditCardStatementDate(ctx context.Context, debit domain.Cents, debitDate string) (string, error) {
+func (s *settlement) creditCardStatementDate(ctx context.Context, debit domain.Cents, debitDate string) (string, error) {
 	if debit <= 0 {
 		return "", nil
 	}
@@ -347,7 +343,7 @@ func (s *PaymentService) CreditCardStatementDate(ctx context.Context, debit doma
 	}
 	sort.Sort(sort.Reverse(sort.StringSlice(candidates)))
 	for _, d := range candidates {
-		balance, err := s.CreditCardBalance(ctx, d)
+		balance, err := s.creditCardBalance(ctx, d)
 		if err != nil {
 			return "", err
 		}

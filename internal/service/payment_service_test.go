@@ -343,7 +343,7 @@ func TestOnePaymentSettlesSeveralOpenItems(t *testing.T) {
 func TestBankAllocationMustMatchStatementAmount(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
-	payments := env.payments(t)
+	payments := env.paymentsWithBank(t)
 	bankRepo := repository.NewBankRepository(env.db)
 	vendor := env.vendor(t, "Lieferant", "DE", "")
 	invoice := env.openPayable(t, vendor.ID, 100000, domain.TaxRateStandard)
