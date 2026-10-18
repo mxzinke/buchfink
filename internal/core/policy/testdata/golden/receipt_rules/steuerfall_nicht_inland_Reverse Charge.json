@@ -1,0 +1,9 @@
+{
+  "gruende": [
+    {
+      "schluessel": "steuerfall_nicht_inland",
+      "text": "Der Steuerfall ist nicht Inland."
+    }
+  ],
+  "stufe": "rueckfrage"
+}

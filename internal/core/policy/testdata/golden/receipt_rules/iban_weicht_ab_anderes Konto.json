@@ -1,0 +1,9 @@
+{
+  "gruende": [
+    {
+      "schluessel": "iban_weicht_ab",
+      "text": "Die E-Rechnung nennt ein anderes Zahlungskonto als die IBAN des Kontakts."
+    }
+  ],
+  "stufe": "rueckfrage"
+}
