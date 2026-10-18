@@ -22,6 +22,7 @@ import {
   RadioGroup,
   SearchInput,
   Select,
+  RowButton,
   SkeletonRows,
   StatusBadge,
   Table,
@@ -263,8 +264,15 @@ export const BankTab: React.FC = () => {
                     className="cursor-pointer"
                     onClick={() => open(String(tx.id))}
                   >
-                    <Td className="text-ink-subtle num">{formatDate(tx.bookingDate)}</Td>
-                    <Td className="max-w-[30rem] truncate">
+                    <Td className="text-ink-subtle num">
+                      <RowButton
+                        aria-label={`Umsatz vom ${formatDate(tx.bookingDate)}, ${tx.counterpartyName || 'ohne Gegenüber'}, ${formatCents(tx.amount, tx.currency)}`}
+                        onOpen={() => open(String(tx.id))}
+                      >
+                        {formatDate(tx.bookingDate)}
+                      </RowButton>
+                    </Td>
+                    <Td fill>
                       {tx.counterpartyName || '—'}
                       <span className="text-ink-subtle"> · {tx.remittanceInfo}</span>
                     </Td>

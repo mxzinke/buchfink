@@ -13,6 +13,7 @@ import {
   DetailPanel,
   EmptyState,
   Notice,
+  RowButton,
   SearchInput,
   Select,
   SkeletonRows,
@@ -245,7 +246,9 @@ export const ReceiptsTab: React.FC = () => {
             <Thead sticky>
               <Tr>
                 <Th className="w-32">Beleg</Th>
-                <Th className="w-28">Belegdatum</Th>
+                <Th optional className="w-28">
+                  Belegdatum
+                </Th>
                 <Th>Aussteller und Betreff</Th>
                 <Th numeric className="w-32">
                   Betrag
@@ -267,11 +270,13 @@ export const ReceiptsTab: React.FC = () => {
                     className="cursor-pointer"
                     onClick={() => open(String(receipt.id))}
                   >
-                    <Td code>{receipt.receiptNumber}</Td>
-                    <Td className="text-ink-subtle num">
+                    <Td code>
+                      <RowButton onOpen={() => open(String(receipt.id))}>{receipt.receiptNumber}</RowButton>
+                    </Td>
+                    <Td optional className="text-ink-subtle num">
                       {receipt.documentDate ? formatDate(receipt.documentDate) : '—'}
                     </Td>
-                    <Td className="max-w-[26rem] truncate">
+                    <Td fill>
                       {receipt.issuerName || KIND_LABELS[kindOf(receipt)]}
                       {receipt.subject && <span className="text-ink-subtle"> · {receipt.subject}</span>}
                     </Td>

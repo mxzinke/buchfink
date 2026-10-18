@@ -18,6 +18,7 @@ import {
   Disclosure,
   EmptyState,
   Notice,
+  RowButton,
   SkeletonRows,
   Stat,
   StatRow,
@@ -175,8 +176,10 @@ export const AssetsTab: React.FC = () => {
               <Tr>
                 <Th className="w-32">Inventarnummer</Th>
                 <Th>Bezeichnung</Th>
-                <Th className="w-28">Anschaffung</Th>
-                <Th numeric className="w-36">
+                <Th optional className="w-28">
+                  Anschaffung
+                </Th>
+                <Th numeric optional className="w-36">
                   Anschaffungskosten
                 </Th>
                 <Th numeric className="w-32">
@@ -201,12 +204,18 @@ export const AssetsTab: React.FC = () => {
                       className="cursor-pointer"
                       onClick={() => open(String(asset.id))}
                     >
-                      <Td code>{asset.inventoryNumber}</Td>
-                      <Td className="max-w-[22rem] truncate" title={asset.name}>
+                      <Td code>
+                        <RowButton onOpen={() => open(String(asset.id))}>{asset.inventoryNumber}</RowButton>
+                      </Td>
+                      <Td fill title={asset.name}>
                         {asset.name}
                       </Td>
-                      <Td className="text-ink-subtle num">{formatDate(asset.acquisitionDate)}</Td>
-                      <Td numeric>{formatCents(asset.cost)}</Td>
+                      <Td optional className="text-ink-subtle num">
+                        {formatDate(asset.acquisitionDate)}
+                      </Td>
+                      <Td numeric optional>
+                        {formatCents(asset.cost)}
+                      </Td>
                       <Td numeric>{formatCents(asset.bookValue)}</Td>
                       <Td numeric>{asset.yearAmount === 0 ? '—' : formatCents(asset.yearAmount)}</Td>
                       <Td>

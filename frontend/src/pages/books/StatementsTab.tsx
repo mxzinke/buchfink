@@ -12,6 +12,7 @@ import {
   EmptyState,
   Help,
   Notice,
+  RowButton,
   Section,
   SkeletonRows,
   Stat,
@@ -379,7 +380,9 @@ const AccountList: React.FC<{
           className="cursor-pointer"
           onClick={() => onOpenAccount(account.number)}
         >
-          <Td code>{account.number}</Td>
+          <Td code>
+            <RowButton onOpen={() => onOpenAccount(account.number)}>{account.number}</RowButton>
+          </Td>
           <Td>{account.name}</Td>
           <Td numeric>{formatCents(account.amount)}</Td>
         </Tr>

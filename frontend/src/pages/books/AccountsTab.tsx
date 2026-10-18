@@ -11,6 +11,7 @@ import {
   EmptyState,
   Notice,
   SearchInput,
+  RowButton,
   SkeletonRows,
   StatusBadge,
   Table,
@@ -108,10 +109,10 @@ export const AccountsTab: React.FC = () => {
               <Tr>
                 <Th className="w-24">Konto</Th>
                 <Th>Bezeichnung</Th>
-                <Th numeric className="w-36">
+                <Th numeric optional className="w-36">
                   Soll
                 </Th>
-                <Th numeric className="w-36">
+                <Th numeric optional className="w-36">
                   Haben
                 </Th>
                 <Th numeric className="w-40">
@@ -127,14 +128,16 @@ export const AccountsTab: React.FC = () => {
                   className="cursor-pointer"
                   onClick={() => open(account.number)}
                 >
-                  <Td code>{account.number}</Td>
-                  <Td className="max-w-[28rem] truncate" title={account.name}>
+                  <Td code>
+                    <RowButton onOpen={() => open(account.number)}>{account.number}</RowButton>
+                  </Td>
+                  <Td fill title={account.name}>
                     {account.name}
                   </Td>
-                  <Td numeric className="text-ink-subtle">
+                  <Td numeric optional className="text-ink-subtle">
                     {account.debitSum ? formatCents(account.debitSum) : '—'}
                   </Td>
-                  <Td numeric className="text-ink-subtle">
+                  <Td numeric optional className="text-ink-subtle">
                     {account.creditSum ? formatCents(account.creditSum) : '—'}
                   </Td>
                   <Td numeric>{account.bookingsCount > 0 ? formatCents(account.balance) : '—'}</Td>
@@ -211,8 +214,12 @@ const SuSa: React.FC<{ onOpen: (account: string) => void }> = ({ onOpen }) => {
             <Tbody>
               {cls.accounts.map((account) => (
                 <Tr key={account.number} className="cursor-pointer" onClick={() => onOpen(account.number)}>
-                  <Td code>{account.number}</Td>
-                  <Td className="max-w-[28rem] truncate">{account.name}</Td>
+                  <Td code>
+                    <RowButton onOpen={() => onOpen(account.number)}>{account.number}</RowButton>
+                  </Td>
+                  <Td fill title={account.name}>
+                    {account.name}
+                  </Td>
                   <Td numeric className="text-ink-subtle">
                     {formatCents(account.debitSum)}
                   </Td>

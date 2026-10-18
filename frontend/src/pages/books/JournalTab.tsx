@@ -21,6 +21,7 @@ import {
   EmptyState,
   Notice,
   SearchInput,
+  RowButton,
   SkeletonRows,
   StatusBadge,
   Table,
@@ -152,7 +153,9 @@ export const JournalTab: React.FC = () => {
                   <Th className="w-32">Buchung</Th>
                   <Th className="w-28">Datum</Th>
                   <Th>Buchungstext</Th>
-                  <Th className="w-48">Soll → Haben</Th>
+                  <Th optional className="w-48">
+                    Soll → Haben
+                  </Th>
                   <Th numeric className="w-32">
                     Betrag
                   </Th>
@@ -175,22 +178,13 @@ export const JournalTab: React.FC = () => {
                       onClick={() => open(entry.entryNumber)}
                     >
                       <Td code>
-                        <button
-                          type="button"
-                          className="code-num hover:underline"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            open(entry.entryNumber);
-                          }}
-                        >
-                          {entry.entryNumber}
-                        </button>
+                        <RowButton onOpen={() => open(entry.entryNumber)}>{entry.entryNumber}</RowButton>
                       </Td>
                       <Td className="text-ink-subtle num">{formatDate(entry.bookingDate)}</Td>
-                      <Td className="max-w-[22rem] truncate" title={entry.description}>
+                      <Td fill title={entry.description}>
                         {entry.description}
                       </Td>
-                      <Td code className="max-w-[12rem] truncate">
+                      <Td code optional className="max-w-[12rem] truncate">
                         {accountPath(entry)}
                       </Td>
                       <Td numeric>{formatCents(grossOf(entry), entry.currency)}</Td>

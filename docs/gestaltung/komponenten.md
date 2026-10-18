@@ -47,7 +47,7 @@ machen gibt.
 | `DetailPanel`, `DetailList` | `DetailPanel.tsx` | Base UI Dialog |
 | `Disclosure` | `Disclosure.tsx` | Base UI Collapsible |
 | `StatRow`, `Stat` | `StatRow.tsx` | eigen |
-| `Table` und Zellen | `Table.tsx` | eigen |
+| `Table`, Zellen und `RowButton` | `Table.tsx` | eigen |
 | `StatusBadge` | `StatusBadge.tsx` | eigen |
 | `EmptyState` | `EmptyState.tsx` | eigen |
 | `cn` | `cn.ts` | Klassen zusammenführen, letzte Angabe gewinnt |
@@ -89,6 +89,15 @@ Aufklappen.
 **Tabelle.** Die Fläche ersetzt nicht die Kopflinie: Der Kopf bleibt ohne
 Füllung. Die Überschrift des Abschnitts steht über der Fläche, nicht darin,
 sonst entsteht wieder eine Karte mit Kopfzeile. Keine Zebrastreifen.
+
+Eine Zeile, die eine Seitenleiste öffnet, trägt ihre Kennung als Knopf in der
+ersten Zelle. So erreicht die Tastatur jede Zeile, und der Klick auf die übrige
+Zeile bleibt eine Abkürzung für die Maus.
+
+Die Textspalte (`fill`) nimmt den freien Platz und kürzt mit Auslassung.
+Spalten mit `optional` treten zurück, wenn die Tabelle schmaler als 56rem wird,
+etwa Belegdatum, Fälligkeit oder Soll → Haben. Kennung, Betrag und Stand sind
+nie optional.
 
 **Status-Badge.** Enthält immer Text, nie nur den Marker. Der Marker ist eine
 Raute, 7 mal 7 px, in der Basisfarbe der Familie. Der Kreis ist die weichste
@@ -294,8 +303,9 @@ Mandanten direkt in der Übersicht.
 
 **Schmale Fenster.** Buchfink ist eine Desktop-Anwendung. Telefone sind kein
 Ziel, und es wird nichts dafür gebaut. Die Oberfläche muss lediglich ein kleines
-Fenster überstehen: Unter 768 px wird die Navigation zur Schublade, Tabellen
-scrollen seitlich in ihrer eigenen Fläche. Eigene Listenlayouts für kleine
-Breiten gibt es nicht.
+Fenster überstehen: Unter 768 px wird die Navigation zur Schublade. Bis
+1024 px Fensterbreite zeigen Tabellen Kennung, Betrag und Stand ohne
+seitliches Scrollen; darunter scrollen sie in ihrer eigenen Fläche. Eigene
+Listenlayouts für kleine Breiten gibt es nicht.
 
 ---

@@ -15,6 +15,7 @@ import {
   Notice,
   SearchInput,
   Select,
+  RowButton,
   SkeletonRows,
   StatusBadge,
   Table,
@@ -194,12 +195,16 @@ export const InvoicesTab: React.FC = () => {
             <Thead sticky>
               <Tr>
                 <Th className="w-36">Rechnung</Th>
-                <Th className="w-28">Datum</Th>
+                <Th optional className="w-28">
+                  Datum
+                </Th>
                 <Th>Kunde</Th>
                 <Th numeric className="w-32">
                   Brutto
                 </Th>
-                <Th className="w-28">Fällig</Th>
+                <Th optional className="w-28">
+                  Fällig
+                </Th>
                 <Th className="w-10">
                   <span className="sr-only">Ausgestellt von</span>
                 </Th>
@@ -224,17 +229,21 @@ export const InvoicesTab: React.FC = () => {
                     onClick={() => open(String(invoice.id))}
                   >
                     <Td code>
-                      {invoice.invoiceNumber || 'Entwurf'}
+                      <RowButton onOpen={() => open(String(invoice.id))}>
+                        {invoice.invoiceNumber || 'Entwurf'}
+                      </RowButton>
                       {kindOf(invoice) !== 'invoice' && (
                         <span className="block text-ink-subtle font-normal">
                           {KIND_LABEL[kindOf(invoice)]}
                         </span>
                       )}
                     </Td>
-                    <Td className="text-ink-subtle num">{formatDate(invoice.date)}</Td>
-                    <Td className="max-w-[22rem] truncate">{invoice.contactName}</Td>
+                    <Td optional className="text-ink-subtle num">
+                      {formatDate(invoice.date)}
+                    </Td>
+                    <Td fill>{invoice.contactName}</Td>
                     <Td numeric>{formatCents(invoice.grossAmount, invoice.currency)}</Td>
-                    <Td className="text-ink-subtle num">
+                    <Td optional className="text-ink-subtle num">
                       {invoice.dueDate ? formatDate(invoice.dueDate) : '—'}
                     </Td>
                     <Td className="px-2">

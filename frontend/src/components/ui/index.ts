@@ -74,12 +74,14 @@ export { Select, type SelectOption, type SelectProps } from './Select';
 export { Stat, StatRow, type StatProps } from './StatRow';
 export { StatusBadge, type Status, type StatusBadgeProps } from './StatusBadge';
 export {
+  RowButton,
   Table,
   Tbody,
   Td,
   Th,
   Thead,
   Tr,
+  type RowButtonProps,
   type RowVariant,
   type TableProps,
   type TdProps,
