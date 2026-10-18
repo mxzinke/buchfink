@@ -1,0 +1,77 @@
+{
+  "balanced": true,
+  "conversion": {
+    "amount": 100000,
+    "currency": "USD",
+    "date": "2026-03-10",
+    "difference": -1364,
+    "foreignAmount": 108500,
+    "note": "Der Aufwand wird mit dem Tageskurs vom 2026-03-10 bewertet, die Bemessungsgrundlage der Umsatzsteuer mit dem Durchschnittskurs des Monats 2026-03 (§ 16 Abs. 6 UStG). Die Differenz von 13,64 € ist Kursaufwand oder Kursertrag.",
+    "rate": {
+      "createdAt": "0001-01-01T00:00:00Z",
+      "currency": "USD",
+      "date": "2026-03-10",
+      "id": 0,
+      "manual": true,
+      "rateMicros": 1085000,
+      "source": "EZB-Referenzkurs aus Testbestand"
+    },
+    "taxBaseAmount": 98636,
+    "vatRate": {
+      "currency": "USD",
+      "month": "2026-03",
+      "rateMicros": 1100000,
+      "source": "BMF-Umsatzsteuer-Umrechnungskurse",
+      "updatedAt": "0001-01-01T00:00:00Z"
+    }
+  },
+  "gross": 119000,
+  "inputTaxFindings": [],
+  "lines": [
+    {
+      "account": "5906",
+      "accountName": "Fremdleistungen 19 % Vorsteuer",
+      "amount": 100000,
+      "entryId": 0,
+      "foreignAmount": 108500,
+      "id": 0,
+      "position": 1,
+      "side": "S"
+    },
+    {
+      "account": "1406",
+      "accountName": "Abziehbare Vorsteuer 19 %",
+      "amount": 18741,
+      "entryId": 0,
+      "foreignAmount": 20334,
+      "id": 0,
+      "position": 2,
+      "side": "S",
+      "taxBase": 98636,
+      "taxKey": "VST19"
+    },
+    {
+      "account": "6880",
+      "accountName": "Aufwendungen aus der Währungsumrechnung",
+      "amount": 259,
+      "entryId": 0,
+      "id": 0,
+      "position": 3,
+      "side": "S",
+      "text": "Kursdifferenz Tageskurs/Umsatzsteuerkurs USD 2026-03 (§ 16 Abs. 6 UStG)"
+    },
+    {
+      "account": "70000",
+      "accountName": "70000",
+      "amount": 119000,
+      "contactId": 1,
+      "entryId": 0,
+      "foreignAmount": 129115,
+      "id": 0,
+      "position": 4,
+      "side": "H"
+    }
+  ],
+  "net": 100259,
+  "tax": 18741
+}

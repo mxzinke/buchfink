@@ -1,0 +1,39 @@
+{
+  "balanced": true,
+  "gross": 4760,
+  "inputTaxFindings": [],
+  "lines": [
+    {
+      "account": "6610",
+      "accountName": "Geschenke abzugsfähig ohne § 37b EStG",
+      "amount": 4000,
+      "entryId": 0,
+      "id": 0,
+      "position": 1,
+      "side": "S"
+    },
+    {
+      "account": "1406",
+      "accountName": "Abziehbare Vorsteuer 19 %",
+      "amount": 760,
+      "entryId": 0,
+      "id": 0,
+      "position": 2,
+      "side": "S",
+      "taxBase": 4000,
+      "taxKey": "VST19"
+    },
+    {
+      "account": "70000",
+      "accountName": "70000",
+      "amount": 4760,
+      "contactId": 1,
+      "entryId": 0,
+      "id": 0,
+      "position": 3,
+      "side": "H"
+    }
+  ],
+  "net": 4000,
+  "tax": 760
+}
