@@ -29,7 +29,16 @@ einer Sicherung; ein Unternehmen wird neu angelegt.
   Erfassungsweg: App, Hintergrundlauf oder verbundene App. Festschreibung,
   Übermittlungsvermerk, Aufstellung, Feststellung, Offenlegung,
   Pflichtbestätigungen, Unternehmensdaten und Prüfermodus nimmt Buchfink nur in
-  der App an.
+  der App an. Was sich per Storno korrigieren lässt, bucht ein verbundener
+  Agent nach Zustimmung im Chat auf jedem Konto, auch Darlehensverträge mit
+  Gesellschaftern, die Ergebnisverwendung nach der Feststellung und die
+  Organisationstexte der Verfahrensdokumentation.
+- Belege, E-Rechnungen und Kontoauszüge kommen in einen Eingang je
+  Unternehmen, voreingestellt im Datenordner, auf Wunsch auch in einem
+  Cloud-Ordner. Dateien lassen sich ins Fenster ziehen. Der Agent legt sie ab,
+  wenn der Mensch es sagt; danach verschiebt Buchfink sie in den Unterordner
+  Übernommen. Liegt der Datenordner in einem synchronisierten Ordner, warnt die
+  Einrichtung.
 - Der Pflichtenkalender führt 21 Pflichtarten einer GmbH mit Frist und
   Nachweis. Die Fristen richten sich nach Bundesland, Dauerfristverlängerung
   und steuerlicher Beratung.
@@ -39,7 +48,8 @@ einer Sicherung; ein Unternehmen wird neu angelegt.
   amtlichen Vordruck geprüft, die von KSt und GewSt nicht.
 - Die E-Bilanz entsteht als XBRL nach der amtlichen Taxonomie 6.9 oder 6.10,
   mit Kontennachweis und Überleitung. Übermittelt wird sie über einen Dienst
-  wie ebilanzonline.de oder ebilanzplus.de.
+  wie ebilanzplus.de oder ebilanzonline.de. Ersatzweise schreibt Buchfink eine
+  Summen- und Saldenliste, die eBilanz+ einliest.
 - Neue Buchungswege: Bankumsatz aufteilen, Firmenkreditkarte, Auslagen,
   Gesellschafterdarlehen mit Zinsen, Lohnjournal als Summenbuchung. Bei Zahlung
   vor der Leistung rechnet Buchfink die Umsatzsteuer dem Zeitraum der Zahlung
