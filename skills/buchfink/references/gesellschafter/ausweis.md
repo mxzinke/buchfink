@@ -1,20 +1,30 @@
 # Ausweis gegenüber Gesellschaftern im Abschluss
 
-Rechtsstand: 17. Oktober 2026. Den Abschluss selbst regelt
-buchfink-jahresabschluss; hier steht nur, was Gesellschafter betrifft.
+Rechtsstand: 17. Oktober 2026.
 
-## Regel
+Den Abschluss selbst regelt
+[jahresabschluss/ablauf.md](../jahresabschluss/ablauf.md); hier steht nur, was
+Gesellschafter betrifft.
+
+## Inhalt
+
+1. Regel
+2. Konten und Bilanzposten
+3. Prüfung vor dem Abschluss
+
+## 1. Regel
 
 - Ausleihungen, Forderungen und Verbindlichkeiten gegenüber Gesellschaftern
   sind in der Regel gesondert auszuweisen oder im Anhang anzugeben; stehen sie
   unter anderen Posten, ist das zu vermerken ([§ 42 Abs. 3 GmbHG][gmbhg42]).
 - Forderungen und Verbindlichkeiten werden nicht miteinander verrechnet
   ([§ 246 Abs. 2 Satz 1 HGB][hgb246]).
-- Restlaufzeiten: Forderungen über einem Jahr und Verbindlichkeiten bis zu
-  einem Jahr sind je Posten zu vermerken
-  ([§ 268 Abs. 4 Satz 1, Abs. 5 Satz 1 HGB][hgb268]).
+- Restlaufzeiten sind je Posten zu vermerken
+  ([jahresabschluss/forderungen.md](../jahresabschluss/forderungen.md)).
 
-## Konten und Bilanzposten (SKR04-Katalog von Buchfink)
+## 2. Konten und Bilanzposten
+
+Konten aus dem SKR04-Katalog von Buchfink:
 
 | Konto | Bezeichnung | Posten laut Katalog |
 |---|---|---|
@@ -29,7 +39,7 @@ buchfink-jahresabschluss; hier steht nur, was Gesellschafter betrifft.
 Den Posten jedes Kontos liest du mit `konten` (`art: suche`) oder in der
 Bilanz aus `auswertung`.
 
-## Prüfung vor dem Abschluss
+## 3. Prüfung vor dem Abschluss
 
 1. `auswertung` (`art: susa`, `geschaeftsjahr`): Salden aller Konten der Tabelle.
 2. Je Gesellschafter: Stimmt der Saldo mit Vertrag, Kontoauszug des
@@ -39,8 +49,8 @@ Bilanz aus `auswertung`.
    (`buchung_erfassen`, Rückfrage).
 4. Rechnungen mit Gesellschaftern als Kunden oder Lieferanten laufen über ihr
    Personenkonto. Ob sie unter „Forderungen gegen Gesellschafter“ zu zeigen
-   sind, klärt buchfink-jahresabschluss bei der Bilanz.
+   sind, klärst du bei der Gliederung der Bilanz
+   ([jahresabschluss/groessenklassen-anhang.md](../jahresabschluss/groessenklassen-anhang.md)).
 
 [gmbhg42]: https://www.gesetze-im-internet.de/gmbhg/__42.html
 [hgb246]: https://www.gesetze-im-internet.de/hgb/__246.html
-[hgb268]: https://www.gesetze-im-internet.de/hgb/__268.html

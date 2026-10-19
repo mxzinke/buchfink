@@ -39,7 +39,7 @@ abrufbar.
 Die Zeile zur vGA in der Körperschaftsteuererklärung verantwortet der Mensch:
 Buchfink meldet `vga_pruefen`, wenn auf typischen Konten für Leistungen an
 Gesellschafter gebucht ist, setzt den Betrag aber nicht selbst. Den Weg in die
-Erklärung regelt buchfink-steuererklaerungen.
+Erklärung regelt [steuererklaerungen/kst.md](../steuererklaerungen/kst.md).
 
 ## 3. Prüfliste typischer Fälle
 
@@ -49,8 +49,8 @@ Leg jeden Treffer als Wertungsfrage vor.
 |---|---|
 | Private Ausgaben über die GmbH (Reise, Möbel, Handy der Familie) | Rückzahlung vereinbart? Sonst vGA-Verdacht |
 | Geschäftsführergehalt, Tantieme, Pensionszusage | Vertrag im Voraus, Höhe im Fremdvergleich, Gehaltsänderung vor dem Zeitraum beschlossen |
-| Firmenwagen privat genutzt | Regelung im Anstellungsvertrag? Mit Regelung ist der Vorteil Arbeitslohn (buchfink-lohn), ohne Regelung vGA-Verdacht |
-| Darlehen an den Gesellschafter | Zins, Sicherheit, Rückzahlung (SKILL.md, Abschnitt 4) |
+| Firmenwagen privat genutzt | Regelung im Anstellungsvertrag? Mit Regelung ist der Vorteil Arbeitslohn ([lohn/ablauf.md](../lohn/ablauf.md)), ohne Regelung vGA-Verdacht |
+| Darlehen an den Gesellschafter | Zins, Sicherheit, Rückzahlung ([bank/darlehen.md](../bank/darlehen.md#9-gmbh-leiht-dem-gesellschafter)) |
 | Darlehen, Miete, Lizenz vom Gesellschafter | Entgelt über Marktniveau |
 | Leistungen der GmbH an den Gesellschafter | Preis unter dem, was Fremde zahlen |
 | Rückwirkende Vereinbarung | beim beherrschenden Gesellschafter in der Regel schädlich ([R 8.5 Abs. 2 KStR 2022][kstr85]) |
@@ -60,7 +60,8 @@ Die Umsatzsteuer folgt eigenen Regeln: Vorsteuer aus privaten Ausgaben ist nicht
 abziehbar ([§ 15 Abs. 1 Satz 1 Nr. 1 UStG][ustg15]). Überlässt die GmbH einem
 Gesellschafter-Geschäftsführer einen Firmenwagen auch privat, ist das in der
 Regel eine entgeltliche Leistung an ihn als Arbeitnehmer
-([UStAE 15.23 Abs. 8 Satz 1, 4][ustae1523]); das bucht buchfink-lohn.
+([UStAE 15.23 Abs. 8 Satz 1, 4][ustae1523]); das bucht das Lohnjournal
+([lohn/ablauf.md](../lohn/ablauf.md)).
 
 ## 4. Wie du mit einem Verdacht umgehst
 
@@ -72,8 +73,8 @@ Regel eine entgeltliche Leistung an ihn als Arbeitnehmer
 4. Gebucht wird der tatsächliche Vorgang (Gehalt, Miete, Zahlung) oder die
    Forderung. Ein eigenes Konto für eine vGA führt Buchfink nicht.
 5. Ist die vGA bestätigt, erinnere an die Kapitalertragsteuer
-   (SKILL.md, Abschnitt 5) und notiere sie für die
-   Körperschaftsteuererklärung.
+   ([ausschuettung.md](ausschuettung.md#4-zufluss-anmeldung-abführung)) und
+   notiere sie für die Körperschaftsteuererklärung.
 
 ## 5. Offene und verdeckte Einlage
 
@@ -107,13 +108,13 @@ Regel eine entgeltliche Leistung an ihn als Arbeitnehmer
   ([§ 27 Abs. 1 Satz 1 KStG][kstg27]). Der Bestand wird gesondert festgestellt;
   die GmbH gibt dazu jährlich eine Erklärung ab
   ([§ 27 Abs. 2 Satz 1, 4 KStG][kstg27]). Das regelt
-  buchfink-steuererklaerungen.
+  [steuererklaerungen/kst.md](../steuererklaerungen/kst.md).
 - Notiere jede Einlage mit Datum, Betrag und Beleg, damit die Erklärung sie
   vollständig enthält.
 - Ausschüttungen aus dem Einlagekonto (Einlagenrückgewähr) sind beim
   Gesellschafter keine Einnahmen ([§ 20 Abs. 1 Nr. 1 Satz 3 EStG][estg20]) und
   brauchen eine eigene Bescheinigung ([§ 27 Abs. 3 KStG][kstg27]); siehe
-  SKILL.md, Abschnitt 5.
+  [ausschuettung.md](ausschuettung.md#6-was-buchfink-nicht-rechnet).
 
 [kstg8]: https://www.gesetze-im-internet.de/kstg_1977/__8.html
 [kstg27]: https://www.gesetze-im-internet.de/kstg_1977/__27.html

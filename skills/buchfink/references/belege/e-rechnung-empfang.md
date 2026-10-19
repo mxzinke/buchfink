@@ -12,7 +12,7 @@ abrufbar; Abgleich offen, [Quellenverzeichnis][quellen]).
 3. Übergangsfristen
 4. Empfang
 5. Folgen für die Vorsteuer
-6. Fehlerarten
+6. Fehlerarten und Befunde
 7. Hybride Rechnung
 8. Aufbewahrung
 
@@ -73,10 +73,10 @@ Die Übergangsregeln gelten nur für den Aussteller
 - Wer eine E-Rechnung nicht annimmt, hat keinen Anspruch auf eine andere Form
   ([BMF vom 15.10.2024, Rn. 42][bmf2024]).
 - In Buchfink: Lege die empfangene Datei unverändert aus dem Eingang mit
-  `beleg_ablegen` ab. Buchfink liest den Datensatz aus und prüft ihn. Zu einer
-  reinen XRechnung gehört eine PDF-Ansicht mit `rolle: darstellung`; ohne sie
-  lässt sich der Beleg nicht buchen. Die Ansicht kommt vom Lieferanten oder aus
-  einem Anzeigeprogramm des Menschen.
+  `beleg_ablegen` ab; Buchfink liest den Datensatz aus und prüft ihn. Eine
+  reine XRechnung braucht eine PDF-Ansicht
+  ([ablauf.md](ablauf.md#1-ablauf), Schritt 2). Die Ansicht kommt vom
+  Lieferanten oder aus einem Anzeigeprogramm des Menschen.
 
 ## 5. Folgen für die Vorsteuer
 
@@ -107,18 +107,29 @@ Lieferanten über 250 €:
 3. Leistung ab 2028: E-Rechnung anfordern lassen. Bis sie da ist, ist die
    Vorsteuer gefährdet; buchen nur nach Entscheidung des Menschen.
 
-## 6. Fehlerarten
+## 6. Fehlerarten und Befunde
 
-| Art | Was sie ist | Folge | Fundstelle |
-|---|---|---|---|
-| Formatfehler | Datei entspricht nicht der Syntax oder lässt keine vollständige Extraktion zu | Die Datei ist eine sonstige Rechnung | [BMF vom 15.10.2025, Rn. 6a][bmf2025] |
-| Geschäftsregelfehler | Regeln des Formats verletzt (z. B. fehlende Buyer reference) | umsatzsteuerlich unbeachtlich, wenn keine Pflichtangabe betroffen ist | Rn. 6b, 35a |
-| Inhaltsfehler | Pflichtangabe nach §§ 14, 14a UStG fehlt oder ist falsch; auch ohne Validierungsfehler möglich (falscher Steuersatz) | Rechnung nicht ordnungsmäßig | Rn. 35a |
+`beleg_lesen` liefert `befunde {geprueft, gesamt, blockierend, liste}`, je
+Befund `klasse`, `regel`, `schwere`, `text`, `norm` und `blockiert`. Die Klassen
+folgen der Verwaltung:
 
-Auf das Ergebnis einer geeigneten Validierung darf sich das Unternehmen bei
-kaufmännischer Sorgfalt verlassen; den Validierungsbericht aufzubewahren bietet
-sich an ([BMF vom 15.10.2025, Rn. 35a][bmf2025]). Buchfink speichert die
-Befunde am Beleg.
+| Klasse | Was sie ist | Folge | Dein Vorgehen | Fundstelle |
+|---|---|---|---|---|
+| Formatfehler | Datei entspricht nicht der Syntax oder lässt keine vollständige Extraktion zu | Die Datei ist eine sonstige Rechnung | Lieferanten um neuen Datensatz bitten lassen. Ob die sonstige Rechnung nach der Übergangsregel genügt, prüfst du nach Abschnitt 3 | [BMF vom 15.10.2025, Rn. 6a][bmf2025] |
+| Geschäftsregelfehler | Regeln des Formats verletzt (EN 16931 oder XRechnung, z. B. fehlende Buyer reference) | umsatzsteuerlich unbeachtlich, wenn keine Pflichtangabe betroffen ist | mit Grund buchen (`uebersteuerung_grund`) | Rn. 6b, 35a |
+| Inhaltsfehler | Pflichtangabe nach §§ 14, 14a UStG fehlt oder ist falsch; auch ohne Validierungsfehler möglich (falscher Steuersatz) | Rechnung nicht ordnungsmäßig; kein Vorsteuerabzug ohne Berichtigung | Berichtigung anfordern ([pflichtangaben.md](pflichtangaben.md#5-fehlende-oder-falsche-angaben)); buchen nur nach Entscheidung des Menschen | Rn. 35a |
+
+- `geprueft: false` heißt: Es gab keinen strukturierten Teil zu prüfen. Das ist
+  kein „ohne Befund“. Prüfe die Pflichtangaben dann selbst an der Datei
+  ([pflichtangaben.md](pflichtangaben.md)).
+- Eine Validierung ersetzt nicht die Prüfung auf Vollständigkeit und
+  Richtigkeit, etwa eines falschen Steuersatzes. Auf das Ergebnis einer
+  geeigneten Validierung darf sich das Unternehmen bei kaufmännischer Sorgfalt
+  verlassen; den Validierungsbericht aufzubewahren bietet sich an
+  ([BMF vom 15.10.2025, Rn. 35a][bmf2025]). Buchfink speichert die Befunde am
+  Beleg.
+- Buchen trotz blockierendem Befund geht nur mit `uebersteuerung_grund`; den
+  Grund entscheidet der Mensch (Wertungsfrage).
 
 ## 7. Hybride Rechnung
 
@@ -133,7 +144,8 @@ Befunde am Beleg.
 ## 8. Aufbewahrung
 
 Bei einer E-Rechnung genügt der strukturierte Teil in seiner ursprünglichen
-Form. Einzelheiten stehen in buchfink-grundlagen (Aufbewahrung).
+Form. Einzelheiten stehen in
+[grundlagen/aufbewahrung.md](../grundlagen/aufbewahrung.md).
 
 [quellen]: https://github.com/mxzinke/buchfink/blob/main/skills/QUELLEN.md
 [ustg14]: https://www.gesetze-im-internet.de/ustg_1980/__14.html

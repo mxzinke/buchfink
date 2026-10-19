@@ -46,14 +46,15 @@ Voraussetzung.
 
 | Ausschluss | Fundstelle | Buchfink |
 |---|---|---|
-| Geschenke über der Freigrenze, Gästehäuser, Jagd, Fischerei, Jachten, unangemessene Repräsentation, Kosten der Lebensführung | [§ 15 Abs. 1a Satz 1 UStG][ustg15] mit [§ 4 Abs. 5 Satz 1 Nr. 1 bis 4, 7 EStG][estg4], [§ 12 Nr. 1 EStG][estg12] | Gruppen `geschenke`, `repraesentation` |
-| Bewirtung: der nicht abziehbare Anteil von 30 % sperrt die Vorsteuer nicht, solange die Kosten angemessen und nachgewiesen sind | [§ 15 Abs. 1a Satz 2 UStG][ustg15] | Gruppe `bewirtung` |
+| Geschenke über der Freigrenze, Gästehäuser, Jagd, Fischerei, Jachten, unangemessene Repräsentation, Kosten der Lebensführung | [§ 15 Abs. 1a Satz 1 UStG][ustg15] mit [§ 4 Abs. 5 Satz 1 Nr. 1 bis 4, 7 EStG][estg4], [§ 12 Nr. 1 EStG][estg12]; Einzelheiten in [bewirtung-geschenke.md](bewirtung-geschenke.md) | Gruppen `geschenke`, `repraesentation` |
+| Bewirtung | [bewirtung-geschenke.md](bewirtung-geschenke.md#1-bewirtung) | Gruppe `bewirtung` |
 | Grundstück teils unternehmensfremd genutzt | [§ 15 Abs. 1b UStG][ustg15] | vorlegen |
 | Eingangsleistung dient steuerfreien Umsätzen (etwa steuerfreie Vermietung, Finanzumsätze einer Holding) | [§ 15 Abs. 2 Satz 1 Nr. 1 UStG][ustg15]; Ausnahmen in Abs. 3 | Vorsteueranteil |
 | Eigenbeleg | Rechnung fehlt | keine Vorsteuer |
 
 Ob eine Ausgabe zur privaten Lebensführung eines Gesellschafters gehört, ist
-eine Wertungsfrage; die Folgen für die GmbH regelt buchfink-gesellschafter.
+eine Wertungsfrage; die Folgen für die GmbH stehen in
+[gesellschafter/vga-einlage.md](../gesellschafter/vga-einlage.md).
 
 ## 4. Aufteilung
 
@@ -77,7 +78,8 @@ eine Wertungsfrage; die Folgen für die GmbH regelt buchfink-gesellschafter.
 - Vorsteuer auf Aufwendungen mit Abzugsverbot nach § 4 Abs. 5 Satz 1 Nr. 1
   bis 4 und 7 oder Abs. 7 EStG ist bei der GmbH nicht abziehbar
   ([§ 10 Nr. 2 KStG][kstg10]). Buchfink bucht sie auf das Konto des nicht
-  abziehbaren Aufwands; die Hinzurechnung macht buchfink-steuererklaerungen.
+  abziehbaren Aufwands; die Hinzurechnung steht in
+  [steuererklaerungen/kst.md](../steuererklaerungen/kst.md).
 
 ## 6. Berichtigung nach § 15a UStG
 
@@ -93,18 +95,21 @@ eine Wertungsfrage; die Folgen für die GmbH regelt buchfink-gesellschafter.
     zehn Prozentpunkte geändert haben, außer der Berichtigungsbetrag übersteigt
     1.000 € (Abs. 2);
   - bis 6.000 € Berichtigungsbetrag erst in der Jahreserklärung (Abs. 3).
-- Buchfink führt ein Verzeichnis der Wirtschaftsgüter mit Vorsteuer über der
-  Grenze (Konten 1396, 1397, 1398, 1399). Den Verwendungsanteil zu erfassen und
-  die Berichtigung zu buchen bildet es noch nicht ab. Dein Teil: Erfährst du,
-  dass sich die Nutzung ändert (Verkauf, steuerfreie Vermietung, private
-  Nutzung), sag es dem Menschen.
+- Über der Grenze sind die Berechnungsgrundlagen aufzuzeichnen
+  ([§ 22 Abs. 4 UStG][ustg22]). Buchfink führt ein Verzeichnis der
+  Wirtschaftsgüter mit Vorsteuer über der Grenze (Konten 1396, 1397, 1398,
+  1399) und übernimmt die Vorsteuer aus der Buchung. Den Verwendungsanteil zu
+  erfassen und die Berichtigung zu buchen bildet es noch nicht ab. Dein Teil:
+  Erfährst du, dass sich die Nutzung ändert (Verkauf, steuerfreie Vermietung,
+  private Nutzung), sag es dem Menschen.
 
 ## 7. Minderung des Entgelts
 
 - Mindert sich das Entgelt (Skonto, Rabatt, Gutschrift, Rückgängigmachung),
   berichtigt die GmbH die Vorsteuer im Zeitraum der Änderung
   ([§ 17 Abs. 1 Satz 2 und 8, Abs. 2 Nr. 3 UStG][ustg17]). Skonto bucht
-  buchfink-bank mit der Zahlung.
+  Buchfink mit der Zahlung
+  ([bank/skonto-differenzen.md](../bank/skonto-differenzen.md#1-skonto)).
 - Zahlt die GmbH eine Verbindlichkeit nicht, weil sie uneinbringlich ist, gilt
   dasselbe ([§ 17 Abs. 2 Nr. 1 UStG][ustg17]). Sag es dem Menschen, wenn eine
   Eingangsrechnung dauerhaft offen bleibt.
@@ -115,6 +120,7 @@ eine Wertungsfrage; die Folgen für die GmbH regelt buchfink-gesellschafter.
 [ustg15a]: https://www.gesetze-im-internet.de/ustg_1980/__15a.html
 [ustg17]: https://www.gesetze-im-internet.de/ustg_1980/__17.html
 [ustdv44]: https://www.gesetze-im-internet.de/ustdv_1980/__44.html
+[ustg22]: https://www.gesetze-im-internet.de/ustg_1980/__22.html
 [estg4]: https://www.gesetze-im-internet.de/estg/__4.html
 [estg9b]: https://www.gesetze-im-internet.de/estg/__9b.html
 [estg12]: https://www.gesetze-im-internet.de/estg/__12.html

@@ -63,12 +63,13 @@ lehnst du deswegen nicht ab, solange der Wortlaut ungeprüft ist.
 3. `beleg_buchen_mit_rueckfrage` mit Gruppe `bewirtung` und
    `bewirtung {ort, tag, teilnehmer, anlass}`. Buchfink teilt 70 % auf 6640 und
    30 % auf 6644 und zieht die volle Vorsteuer.
-4. Fehlen Teilnehmer oder Anlass, buchst du nicht. Ohne Aufzeichnung ist auch
-   der abziehbare Teil verloren.
+4. Fehlen Teilnehmer oder Anlass, buchst du nicht; Teilnehmer erfindest du
+   nie. Ohne Aufzeichnung ist auch der abziehbare Teil verloren.
 
 **Wertungsfragen.** Geschäftlicher Anlass oder private Feier; Bewirtung oder
 Werbung (etwa Verkostung von eigenen Produkten); Feier nur mit Mitarbeitern
-(betrifft auch den Lohn, buchfink-lohn). Leg Optionen und Folgen vor.
+(betrifft auch den Lohn, [lohn/ablauf.md](../lohn/ablauf.md)). Leg Optionen
+und Folgen vor.
 
 ## 2. Geschenke
 
@@ -134,8 +135,8 @@ ebenfalls nicht ([§ 15 Abs. 1a Satz 1 UStG][ustg15]). Gruppe
 berühren, sind ebenfalls nicht abziehbar ([§ 4 Abs. 5 Satz 1 Nr. 7 EStG][estg4]);
 das ist eine Wertungsfrage.
 
-Bei der GmbH ist die Vorsteuer auf solche Aufwendungen außerdem eine nicht
-abziehbare Ausgabe ([§ 10 Nr. 2 KStG][kstg10]).
+Wie Buchfink die nicht abziehbare Vorsteuer darauf bucht, steht in
+[vorsteuer.md](vorsteuer.md#5-nicht-abziehbare-vorsteuer-in-der-buchung).
 
 ## 5. Buchungsgruppen und Konten
 
@@ -146,13 +147,13 @@ abziehbare Ausgabe ([§ 10 Nr. 2 KStG][kstg10]).
 | `geschenke_betrieblich` | 6625 | – | Empfänger |
 | `repraesentation` | 6645 | ganz, Vorsteuer im Aufwand | – |
 
-Diese Konten bebuchst du nur über ihre Gruppe.
+Diese Konten bebuchst du nur über ihre Gruppe, nie mit `buchung_erfassen`:
+Nur die Gruppe hält Empfänger, Aufzeichnung und Freigrenze fest.
 
 [estg4]: https://www.gesetze-im-internet.de/estg/__4.html
 [estg9b]: https://www.gesetze-im-internet.de/estg/__9b.html
 [estg37b]: https://www.gesetze-im-internet.de/estg/__37b.html
 [estg52]: https://www.gesetze-im-internet.de/estg/__52.html
-[kstg10]: https://www.gesetze-im-internet.de/kstg_1977/__10.html
 [kstg31]: https://www.gesetze-im-internet.de/kstg_1977/__31.html
 [ustg12]: https://www.gesetze-im-internet.de/ustg_1980/__12.html
 [ustg14]: https://www.gesetze-im-internet.de/ustg_1980/__14.html

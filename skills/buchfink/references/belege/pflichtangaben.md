@@ -48,6 +48,10 @@ gesetze-im-internet.de gelesen.
 | 9 | Hinweis auf die Aufbewahrungspflicht des Leistungsempfängers in den Fällen des § 14b Abs. 1 Satz 5 | betrifft Grundstücksleistungen an Nichtunternehmer, für die GmbH selten |
 | 10 | Angabe „Gutschrift“, wenn der Leistungsempfänger abrechnet | – |
 
+Nennt eine Rechnung über 250 € den Gesellschafter oder Geschäftsführer
+persönlich statt der GmbH, trägt sie keine Vorsteuer der GmbH. Lass sie auf
+die GmbH berichtigen (Abschnitt 5).
+
 Zusätzlich in besonderen Fällen ([§ 14a UStG][ustg14a]):
 
 - Leistung, für die die GmbH die Steuer nach § 13b schuldet: Angabe
@@ -101,8 +105,8 @@ Zusätzlich in besonderen Fällen ([§ 14a UStG][ustg14a]):
   Satz 1 Nr. 2 und § 233a Abs. 2a AO ([§ 14 Abs. 4 Satz 4 UStG][ustg14]).
 - Ob die Vorsteuer aus der berichtigten Rechnung auf den ursprünglichen
   Zeitraum zurückwirkt, ist eine Wertungsfrage mit Rechtsprechung dazu. Für den
-  Ersatz einer sonstigen Rechnung durch eine E-Rechnung sagt die Verwaltung:
-  Die Berichtigung wirkt zurück ([BMF vom 15.10.2024, Rn. 57][bmf2024]). In
+  Ersatz einer sonstigen Rechnung durch eine E-Rechnung gilt
+  [e-rechnung-empfang.md](e-rechnung-empfang.md#5-folgen-für-die-vorsteuer). In
   anderen Fällen nennst du dem Menschen die Optionen und empfiehlst bei großem
   Betrag einen Steuerberater.
 - Ablauf in Buchfink: Beleg abgelegt lassen, Befund dem Menschen zeigen,
@@ -122,35 +126,19 @@ Zusätzlich in besonderen Fällen ([§ 14a UStG][ustg14a]):
   abziehbare Vorsteuer. Wertungsfrage, vorlegen.
 - Zu niedriger Ausweis: Abziehbar ist höchstens der ausgewiesene Betrag; lass
   berichtigen.
-- Ausländische Umsatzsteuer ist keine abziehbare Vorsteuer; Vorgehen beim
-  Steuerfall (SKILL.md, Abschnitt 3).
+- Ausländische Umsatzsteuer ist keine abziehbare Vorsteuer; Vorgehen in
+  [steuerfaelle.md](steuerfaelle.md#7-ausländische-umsatzsteuer-auf-der-rechnung).
 
-## 7. Befunde in Buchfink und was du tust
+## 7. Befunde in Buchfink
 
-`beleg_lesen` liefert `befunde {geprueft, gesamt, blockierend, liste}`, je
-Befund `klasse`, `regel`, `schwere`, `text`, `norm` und `blockiert`. Die Klassen
-folgen der Verwaltung ([BMF vom 15.10.2025, Rn. 6a, 6b, 35a][bmf2025]):
-
-| Klasse | Bedeutung | Dein Vorgehen |
-|---|---|---|
-| Formatfehler | Datensatz nicht lesbar oder nicht normgerecht. Die Datei ist dann eine sonstige Rechnung | Lieferanten um neuen Datensatz bitten lassen. Ob die sonstige Rechnung nach der Übergangsregel genügt, prüfst du nach [e-rechnung-empfang.md](e-rechnung-empfang.md), Abschnitt 3 ([§ 27 Abs. 38 UStG][ustg27]) |
-| Geschäftsregelfehler | Regel der EN 16931 oder XRechnung verletzt | Betrifft er keine Pflichtangabe, ist er umsatzsteuerlich unbeachtlich. Mit Grund buchen (`uebersteuerung_grund`) |
-| Inhaltsfehler | Pflichtangabe nach §§ 14, 14a fehlt oder ist falsch | Kein Vorsteuerabzug ohne Berichtigung. Berichtigung anfordern; buchen nur nach Entscheidung des Menschen |
-
-- `geprueft: false` heißt: Es gab keinen strukturierten Teil zu prüfen. Das ist
-  kein „ohne Befund“. Prüfe die Pflichtangaben dann selbst an der Datei.
-- Eine Validierung ersetzt nicht die Prüfung auf Vollständigkeit und
-  Richtigkeit, etwa eines falschen Steuersatzes
-  ([BMF vom 15.10.2025, Rn. 35a][bmf2025]).
+Befunde der E-Rechnungsprüfung, ihre Klassen und dein Vorgehen stehen in
+[e-rechnung-empfang.md](e-rechnung-empfang.md#6-fehlerarten-und-befunde).
 
 [ustg14]: https://www.gesetze-im-internet.de/ustg_1980/__14.html
 [ustg14a]: https://www.gesetze-im-internet.de/ustg_1980/__14a.html
 [ustg14c]: https://www.gesetze-im-internet.de/ustg_1980/__14c.html
 [ustg15]: https://www.gesetze-im-internet.de/ustg_1980/__15.html
-[ustg27]: https://www.gesetze-im-internet.de/ustg_1980/__27.html
 [ustdv31]: https://www.gesetze-im-internet.de/ustdv_1980/__31.html
 [ustdv33]: https://www.gesetze-im-internet.de/ustdv_1980/__33.html
 [ustdv34]: https://www.gesetze-im-internet.de/ustdv_1980/__34.html
 [ustdv34a]: https://www.gesetze-im-internet.de/ustdv_1980/__34a.html
-[bmf2024]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/E-Rechnung/2024-10-15-einfuehrung-e-rechnung.pdf
-[bmf2025]: https://www.steuerschroeder.de/blog/wp-content/uploads/2025/10/2025-10-15-einfuehrung-obligatorische-e-rechnung.pdf

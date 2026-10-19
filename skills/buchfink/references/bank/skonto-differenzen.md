@@ -20,7 +20,7 @@ berichtigt seine Steuer, der Empfänger seine Vorsteuer
 Minderung eintritt, also mit der Zahlung (Satz 8). Bei § 13b und beim
 innergemeinschaftlichen Erwerb gilt das sinngemäß (Satz 5): Beide Steuerzeilen
 werden berichtigt. Eine Rechnungsberichtigung ist dafür nicht nötig
-([BMF vom 15.10.2025, Rn. 51a][bmf2025]).
+([belege/vorsteuer.md](../belege/vorsteuer.md#7-minderung-des-entgelts)).
 
 **Was Buchfink bucht.** Mit `differenz {art: skonto, betrag}` (Bruttobetrag des
 Skontos):
@@ -45,7 +45,8 @@ Anlagekonto und schreibt das Anlagenverzeichnis fort.
 - Wurde innerhalb der Frist gezahlt (Bankdatum)?
 - Ausgangsseite: Hat der Kunde Skonto gezogen, obwohl die Frist abgelaufen war,
   ist der Rest eine offene Forderung. Ob die GmbH ihn verlangt, entscheidet der
-  Mensch (Wertungsfrage); Mahnung in buchfink-rechnungen.
+  Mensch (Wertungsfrage); Mahnung in
+  [rechnungen/mahnen-verzug.md](../rechnungen/mahnen-verzug.md).
 - Ausgangsseite, Gewerbesteuer: Skonti, die nicht dem gewöhnlichen
   Geschäftsverkehr entsprechen, gelten als Entgelt für Schulden
   ([§ 8 Nr. 1 Buchst. a Satz 2 GewStG][gewstg8]). Bei ungewöhnlich hohen
@@ -75,18 +76,22 @@ bewusste Kürzung (Abschnitt 5).
 
 Wurde eine Rechnung in Fremdwährung gebucht, weicht der Euro-Betrag der Zahlung
 vom gebuchten Betrag ab. `differenz {art: waehrung}` bucht die realisierte
-Differenz; Buchfink nimmt dafür 6300 bzw. 4830. Die Bewertung offener Posten
-zum Stichtag ([§ 256a HGB][hgb256a]) macht buchfink-jahresabschluss.
+Differenz; Buchfink nimmt dafür 6300 bzw. 4830. Den Beleg in Fremdwährung
+regelt [belege/fremdwaehrung-auslagen.md](../belege/fremdwaehrung-auslagen.md#1-beleg-in-fremdwährung),
+die Bewertung offener Posten zum Stichtag
+[jahresabschluss/forderungen.md](../jahresabschluss/forderungen.md).
 
 ## 5. Kürzung durch den Kunden
 
 Zahlt ein Kunde bewusst weniger (Mängelrüge, Abzug ohne Vereinbarung), ist das
 Teilzahlung oder Minderung des Entgelts.
 
-- Teilzahlung: Rest bleibt offen, Rückfrage, buchfink-rechnungen.
+- Teilzahlung: Rest bleibt offen, Rückfrage
+  ([zuordnung.md](zuordnung.md#4-teilzahlung-sammelzahlung-überzahlung)).
 - Vereinbarte Minderung: Sie ändert die Bemessungsgrundlage; Umsatzsteuer
   berichtigen ([§ 17 Abs. 1 Satz 1 UStG][ustg17]). Den Weg (Gutschrift,
-  Rechnungskorrektur) regelt buchfink-rechnungen.
+  Rechnungskorrektur) regelt
+  [rechnungen/storno-berichtigung.md](../rechnungen/storno-berichtigung.md).
 
 ## 6. Kleine Differenzen ausbuchen
 
@@ -97,9 +102,7 @@ ausgebucht wird. Nenne Betrag, Grund und Folge; schlage keine pauschale Grenze
 vor.
 
 [gobd]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf
-[bmf2025]: https://www.steuerschroeder.de/blog/wp-content/uploads/2025/10/2025-10-15-einfuehrung-obligatorische-e-rechnung.pdf
 [ustg4]: https://www.gesetze-im-internet.de/ustg_1980/__4.html
 [ustg17]: https://www.gesetze-im-internet.de/ustg_1980/__17.html
 [hgb255]: https://www.gesetze-im-internet.de/hgb/__255.html
-[hgb256a]: https://www.gesetze-im-internet.de/hgb/__256a.html
 [gewstg8]: https://www.gesetze-im-internet.de/gewstg/__8.html

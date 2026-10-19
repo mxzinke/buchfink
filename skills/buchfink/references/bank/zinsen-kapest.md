@@ -3,8 +3,10 @@
 Rechtsstand: 17. Oktober 2026. Wortlaut von EStG, KStG und SolZG am 17.10.2026
 gelesen. Sätze mit Stand Oktober 2026; prüfe sie für andere Jahre am Gesetz.
 
-Dividenden, Fonds und Wertpapiere regelt buchfink-beteiligungen. Zinsen des
-Finanzamts und Darlehenszinsen haben eigene Referenzen (Liste in SKILL.md).
+Dividenden, Fonds und Wertpapiere regelt
+[beteiligungen/dividenden.md](../beteiligungen/dividenden.md), Zinsen des
+Finanzamts [steuerzahlungen.md](steuerzahlungen.md), Darlehenszinsen
+[darlehen.md](darlehen.md).
 
 ## Inhalt
 
@@ -24,8 +26,9 @@ Finanzamts und Darlehenszinsen haben eigene Referenzen (Liste in SKILL.md).
   ([§ 44a Abs. 1, 2 EStG][estg44a]). Die Bank behält deshalb bei der GmbH
   regelmäßig die volle Kapitalertragsteuer ein.
 - Zinsen sind Ertrag des Zeitraums, auf den sie entfallen
-  ([§ 252 Abs. 1 Nr. 5 HGB][hgb252]). Zinsen für das alte Jahr, die erst im
-  neuen gutgeschrieben werden, grenzt buchfink-jahresabschluss ab.
+  ([zuordnung.md](zuordnung.md#9-offene-posten-über-den-jahreswechsel)). Zinsen
+  für das alte Jahr, die erst im neuen gutgeschrieben werden, grenzt
+  [jahresabschluss/abgrenzung.md](../jahresabschluss/abgrenzung.md) ab.
 
 ## 2. Kapitalertragsteuer und Solidaritätszuschlag
 
@@ -72,7 +75,8 @@ Kontoauszug der Beleg.
   aus ([§ 45a Abs. 2 EStG][estg45a]). Erinnere den Menschen, sie anzufordern und
   abzulegen.
 - Die Summe auf 7630 und 7633 muss am Jahresende zur Bescheinigung passen.
-  Abgleich und Erklärung: buchfink-steuererklaerungen.
+  Abgleich und Erklärung:
+  [steuererklaerungen/kst.md](../steuererklaerungen/kst.md).
 
 ## 5. Sonderfälle
 
@@ -81,10 +85,11 @@ Kontoauszug der Beleg.
   ausländischen Bank kommen meist ohne deutschen Abzug; vielleicht mit
   ausländischer Quellensteuer. Leg ausländische Quellensteuer vor (Anrechnung,
   Doppelbesteuerungsabkommen: Steuerberater).
-- **Zinsen auf Steuererstattungen:** SKR04 7105 bis 7107; Regel bei den
-  Steuerzahlungen (SKILL.md).
-- **Zinsen von Gesellschafter oder Tochter:** buchfink-gesellschafter bzw.
-  buchfink-beteiligungen.
+- **Zinsen auf Steuererstattungen:** SKR04 7105 bis 7107; Regel in
+  [steuerzahlungen.md](steuerzahlungen.md#4-säumniszuschläge-zinsen-verspätungszuschläge).
+- **Zinsen von Gesellschafter oder Tochter:**
+  [darlehen.md](darlehen.md#10-zinsen-an-und-von-gesellschaftern) bzw.
+  [beteiligungen/erwerb-ausweis.md](../beteiligungen/erwerb-ausweis.md).
 - **Gewerbesteuer:** Hinzurechnungen betreffen Zinsaufwand, nicht Zinsertrag
   ([§ 8 Nr. 1 Buchst. a GewStG][gewstg8]).
 
@@ -100,5 +105,4 @@ Kontoauszug der Beleg.
 [solzg1]: https://www.gesetze-im-internet.de/solzg_1995/__1.html
 [solzg3]: https://www.gesetze-im-internet.de/solzg_1995/__3.html
 [solzg4]: https://www.gesetze-im-internet.de/solzg_1995/__4.html
-[hgb252]: https://www.gesetze-im-internet.de/hgb/__252.html
 [gewstg8]: https://www.gesetze-im-internet.de/gewstg/__8.html

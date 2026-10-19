@@ -35,11 +35,8 @@ Offene Posten siehst du mit `offene_posten` (`richtung: forderung` oder
 
 Routine ist nur der Ausgleich genau eines offenen Postens:
 `bankumsatz_zuordnen` mit `bankumsatz_id` und `buchung_id`. Die Bedingungen
-stehen in buchfink-grundlagen (`references/arbeitsweise.md`, Abschnitt 4):
-ein offener Posten in der Richtung des Umsatzes, centgenau, seine Beleg-,
-Buchungs- oder Rechnungsnummer im Verwendungszweck, Auszug geprüft. Sonst
-meldet das Werkzeug `freigabe_noetig` mit Gründen wie `auszug_ungeprueft`,
-`kein_exakter_treffer` oder `mehrere_treffer`.
+und die Gründe, mit denen das Werkzeug sonst `freigabe_noetig` meldet, stehen
+in [grundlagen/arbeitsweise.md](../grundlagen/arbeitsweise.md#4-wann-der-server-direkt-zulässt).
 
 Vorschläge der Art `regel` stammen aus früheren Buchungen desselben Umsatzes
 gegen ein Konto, Vorschläge der Art `kreditkarte` aus dem Saldo von 3610.
@@ -68,7 +65,7 @@ Umsatz vergleicht.
 (`"4.90"` für eine Gebühr von −4,90 €). Negativ ist er nur als Abzug innerhalb
 der Aufteilung, etwa die Kapitalertragsteuer einer Zinsgutschrift. Die Zeilen
 tragen keine Umsatzsteuer; Vorgänge mit Steuer buchst du über ihren Beleg
-(buchfink-belege).
+([belege/ablauf.md](../belege/ablauf.md)).
 
 Beispiel Skonto auf eine Eingangsrechnung über 1.190,00 €, gezahlt 1.166,20 €:
 
@@ -89,7 +86,9 @@ Schreib `text` so, dass ein Prüfer ohne Chat versteht, was geschah
 
 - **Teilzahlung:** eine Zeile mit `buchung_id` und dem gezahlten Betrag als
   `ausgleich`. Der Rest bleibt offen. Frag, ob eine Ratenvereinbarung besteht oder ob der Rest strittig ist;
-  Mahnung und Ausfall regelt buchfink-rechnungen.
+  Mahnung und Ausfall regeln
+  [rechnungen/mahnen-verzug.md](../rechnungen/mahnen-verzug.md) und
+  [rechnungen/forderungsausfall.md](../rechnungen/forderungsausfall.md).
 - **Sammelzahlung:** je Rechnung eine Zeile mit `buchung_id`. Fehlt im
   Verwendungszweck die Liste, frag nach dem Zahlungsavis.
 - **Überzahlung und Doppelzahlung:** Ein Posten nimmt höchstens seinen offenen
@@ -105,20 +104,23 @@ Schreib `text` so, dass ein Prüfer ohne Chat versteht, was geschah
 - **Eingang ohne Rechnung:** Kann eine Anzahlung sein. Bei Anzahlungen entsteht
   die Umsatzsteuer schon mit der Vereinnahmung
   ([§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG][ustg13]). Leg den Fall vor;
-  Abschläge und Anzahlungen regelt buchfink-rechnungen.
+  Abschläge und Anzahlungen regelt
+  [rechnungen/anzahlungen.md](../rechnungen/anzahlungen.md).
 - **Ausgang ohne Rechnung:** Fordere die Rechnung an und buche sie zuerst
-  (buchfink-belege). Ist es eine Anzahlung an einen Lieferanten, gilt dort
-  `anzahlung_fuer`. Vorsteuer daraus erst mit Rechnung und Zahlung
-  ([§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG][ustg15]).
+  ([belege/ablauf.md](../belege/ablauf.md)). Ist es eine Anzahlung an einen
+  Lieferanten, gilt dort `anzahlung_fuer`; zur Vorsteuer daraus
+  [belege/vorsteuer.md](../belege/vorsteuer.md#2-zeitpunkt).
 - **Erstattung eines Lieferanten:** Ist eine Gutschrift gebucht, gleicht der
   Eingang deren offenen Posten aus. Sonst erst die Gutschrift als Beleg
-  (buchfink-belege).
+  ([belege/ablauf.md](../belege/ablauf.md)).
 
 ## 6. Rücklastschrift und Rücküberweisung
 
 - Eine Rücklastschrift ist ein eigener Umsatz. Die ursprüngliche Zahlung bleibt
-  gebucht; der Kontoauszug zeigt beide ([GoBD Rz. 36][gobd], vollständig und
-  einzeln).
+  gebucht; der Kontoauszug zeigt beide (vollständig und einzeln,
+  [grundlagen/gobd.md](../grundlagen/gobd.md#3-vollständigkeit)). Storniere nie
+  die Zahlungsbuchung eines echten Umsatzes, um einen Posten wieder zu
+  öffnen.
 - Die Forderung lebt wieder auf, meist zuzüglich einer Rücklastschriftgebühr
   der Bank (6855 Nebenkosten des Geldverkehrs). Ob der Kunde die Gebühr tragen muss, ist
   eine Frage des Vertrags; frag den Menschen.
@@ -130,16 +132,16 @@ Schreib `text` so, dass ein Prüfer ohne Chat versteht, was geschah
 ## 7. Umsatz ohne Beleg oder Verwendungszweck
 
 - Für Kontoführung, Überweisungsentgelte, Zinsen und Überträge ist der
-  Kontoauszug der Beleg. Buchfink legt ihn beim Import als Beleg ab; eine
+  Kontoauszug der Beleg. Buchfink legt ihn beim Import als Beleg ab; die
   strukturierte Kontoauszugsdatei erfüllt die Belegfunktion
-  ([GoBD Rz. 76][gobd]).
-- Für alles andere braucht es einen Beleg ([GoBD Rz. 61][gobd]). Fehlt er, frag
-  danach. Gibt es keinen, erfasst der Mensch einen Eigenbeleg
-  (buchfink-grundlagen).
+  ([grundlagen/gobd.md](../grundlagen/gobd.md#8-belegwesen-und-eigenbeleg)).
+- Für alles andere braucht es einen Beleg. Fehlt er, frag danach. Gibt es
+  keinen, erfasst der Mensch einen Eigenbeleg (ebenda).
 - Ist der Zweck unklar, bleibt der Umsatz offen. Rate kein Konto; die
   Entscheidung über die Kontierung trägt der Mensch.
-- Ein Umsatz, der wie eine private Ausgabe aussieht, gehört zu
-  buchfink-gesellschafter.
+- Ein Umsatz, der wie eine private Ausgabe aussieht, ordnest du nach
+  [gesellschafter/ablauf.md](../gesellschafter/ablauf.md#1-vorgang-einordnen)
+  ein.
 
 ## 8. Ignorieren
 
@@ -151,7 +153,8 @@ Geschäftsvorfall schon vollständig im Journal steht, etwa:
 - ein Übertrag wurde auf beiden Konten von Hand gebucht.
 
 Nenne im Grund die Buchungsnummer. Jeder Vorgang wird genau einmal erfasst
-([§ 146 Abs. 1 AO][ao146], [GoBD Rz. 36, 41][gobd]).
+([grundlagen/gobd.md](../grundlagen/gobd.md#3-vollständigkeit)). Unklare
+Umsätze bleiben offen; der Prüflauf meldet sie.
 
 ## 9. Offene Posten über den Jahreswechsel
 
@@ -161,8 +164,5 @@ Nenne im Grund die Buchungsnummer. Jeder Vorgang wird genau einmal erfasst
 - `offene_posten` zeigt Posten aller Jahre. Buche die Zahlung mit ihrem
   Bankdatum; das Jahr des Postens ändert sich dadurch nicht.
 
-[gobd]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf
-[ao146]: https://www.gesetze-im-internet.de/ao_1977/__146.html
 [hgb252]: https://www.gesetze-im-internet.de/hgb/__252.html
 [ustg13]: https://www.gesetze-im-internet.de/ustg_1980/__13.html
-[ustg15]: https://www.gesetze-im-internet.de/ustg_1980/__15.html

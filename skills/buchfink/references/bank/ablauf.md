@@ -1,35 +1,37 @@
----
-name: buchfink-bank
-description: "Kontoauszüge in Buchfink importieren und jeden Bankumsatz buchen, zuordnen oder mit Grund offen lassen. Lade den Skill bei Kontoauszug oder CAMT-Datei, Bankabgleich und offenen Bankumsätzen; wenn ein Zahlungseingang oder -ausgang einer Rechnung zuzuordnen ist; bei Skonto, Teilzahlung, Sammelüberweisung, Überzahlung oder Rücklastschrift; bei Bankgebühren, Zinsen mit Kapitalertragsteuer und Bankdarlehen; bei Zahlung oder Erstattung von Steuern, Säumniszuschlägen und Zinsen des Finanzamts; bei Kreditkartenabrechnung und Umbuchung zwischen eigenen Konten; wenn bankumsatz_zuordnen freigabe_noetig meldet. Den Beleg hinter einer Zahlung bucht buchfink-belege, Dividendeneingänge regelt buchfink-beteiligungen, Zahlungen mit Gesellschaftern buchfink-gesellschafter."
-license: EUPL-1.2
-compatibility: "Benötigt die laufende Buchfink-App mit eingeschaltetem MCP-Server, einem für den Client zugelassenen Mandanten, in der App eingerichteten Bankkonten und einem Eingang für die CAMT-Dateien."
-metadata:
-  buchfink-rechtsstand: "2026-10-17"
-  buchfink-werkzeugstand: "Buchfink 0.3.0"
----
+# Ablauf: Bank
 
-# Buchfink: Bank
+Rechtsstand: 17. Oktober 2026. Werkzeugstand: Buchfink 0.3.0. Voraussetzung:
+Bankkonten und Eingang für die CAMT-Dateien sind in der App eingerichtet.
 
-Setzt buchfink-grundlagen voraus; lade ihn, falls noch nicht geschehen.
+Dieser Ablauf bringt Kontoauszüge in die Bücher. Jeder Bankumsatz endet
+zugeordnet (offener Posten ausgeglichen), gebucht (gegen ein Konto) oder
+ignoriert mit Grund; ein Umsatz mit unklarem Zweck bleibt offen, bis der Mensch
+ihn klärt.
 
-Dieser Skill bringt Kontoauszüge in die Bücher. Jeder Bankumsatz endet in einem
-von drei Zuständen: zugeordnet (offener Posten ausgeglichen), gebucht (gegen ein
-Konto) oder ignoriert mit Grund. Ein Umsatz, dessen Zweck unklar ist, bleibt
-offen, bis der Mensch ihn klärt.
+## Inhalt
 
-Die Regel hinter einem Umsatz hält oft ein anderer Skill; hier wird nur der
-Umsatz gebucht:
+1. Ablauf
+2. Welcher Umsatz wohin
+3. Regeln, die immer gelten
+4. Was du den Menschen fragst
+5. Nur der Mensch in der App
+6. Wenn der Import ablehnt
+7. Stolperfallen
+
+## 1. Ablauf
+
+Die Regel hinter einem Umsatz steht oft in einem anderen Bereich; hier wird nur
+der Umsatz gebucht:
 
 | Umsatz | Regel in |
 |---|---|
-| Beleg zur Zahlung fehlt noch | buchfink-belege |
-| Zahlung an oder von Gesellschaftern, Darlehen, Ausschüttung | buchfink-gesellschafter |
-| Dividenden, Wertpapiere, Fonds | buchfink-beteiligungen |
-| Löhne, Lohnsteuer, Sozialversicherung | buchfink-lohn |
-| Höhe von Umsatzsteuer, KSt, GewSt | buchfink-monatsabschluss, buchfink-steuererklaerungen |
-| Forderung uneinbringlich | buchfink-rechnungen |
-
-## 1. Ablauf
+| Beleg zur Zahlung fehlt noch | [belege/ablauf.md](../belege/ablauf.md) |
+| Zahlung an oder von Gesellschaftern, Ausschüttung | [gesellschafter/ablauf.md](../gesellschafter/ablauf.md) |
+| Darlehen, auch von und an Gesellschafter | [darlehen.md](darlehen.md) |
+| Dividenden, Wertpapiere, Fonds | [beteiligungen/dividenden.md](../beteiligungen/dividenden.md) |
+| Löhne, Lohnsteuer, Sozialversicherung | [lohn/lohnjournal.md](../lohn/lohnjournal.md) |
+| Höhe von Umsatzsteuer, KSt, GewSt | [monatsabschluss/ustva.md](../monatsabschluss/ustva.md), [steuererklaerungen/kst.md](../steuererklaerungen/kst.md), [steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md) |
+| Forderung uneinbringlich | [rechnungen/forderungsausfall.md](../rechnungen/forderungsausfall.md) |
 
 1. **Konten kennen.** Rufe `status` auf. Frag den Menschen, welche Bankkonten
    bestehen, oder suche sie mit `konten` (`art: suche`, `suche: Bank`). Ein
@@ -40,90 +42,90 @@ Umsatz gebucht:
    auf, in zeitlicher Reihenfolge. Buchfink erkennt das Konto an der IBAN, legt
    den Auszug selbst als Beleg ab, übernimmt die Umsätze ohne Dubletten und
    verschiebt die Datei nach `Eingang/Übernommen/<JJJJ-MM>`. Importiere
-   mindestens alle zehn Tage ([GoBD Rz. 47][gobd]). Lehnt der Import ab, gib
-   die Meldung weiter (Abschnitt 6). Fertig, wenn `neu` zu den Erwartungen
-   passt und du `salden_geprueft` gelesen hast. Ungeprüft bleibt der Auszug,
-   wenn die Salden nicht anschließen; das gilt für den ersten Auszug, den du
-   einliest, bis der Mensch einmal einen Auszug in der App eingelesen hat.
+   mindestens alle zehn Tage
+   ([grundlagen/gobd.md](../grundlagen/gobd.md#5-zeitgerechte-erfassung)).
+   Lehnt der Import ab, gib die Meldung weiter (Abschnitt 6). Fertig, wenn
+   `neu` zu den Erwartungen passt und du `salden_geprueft` gelesen hast.
+   Ungeprüft bleibt der Auszug, wenn die Salden nicht anschließen; das gilt für
+   den ersten Auszug, den du einliest, bis der Mensch einmal einen Auszug in der
+   App eingelesen hat
+   ([grundlagen/arbeitsweise.md](../grundlagen/arbeitsweise.md#4-wann-der-server-direkt-zulässt)).
 3. **Sichten.** Rufe `bankumsaetze` auf (Vorgabe `status: offen`). Lies je
    Umsatz `auszug_geprueft` und die `vorschlaege` mit `art`, `posten` und
    `einstufung`. Fertig, wenn du jeden Umsatz einer Zeile der Tabelle in
    Abschnitt 2 zuordnen kannst oder als unklar notiert hast.
 4. **Belege zuerst.** Fehlt zu einer Zahlung die gebuchte Rechnung, buche erst
-   den Beleg nach buchfink-belege (Bezahlung `offen`). Dann gibt es den offenen
-   Posten, gegen den die Zahlung läuft. Fehlt der Beleg ganz, frag danach.
+   den Beleg nach [belege/ablauf.md](../belege/ablauf.md) (Bezahlung `offen`).
+   Dann gibt es den offenen Posten, gegen den die Zahlung läuft. Fehlt der Beleg
+   ganz, frag danach.
 5. **Routine zuordnen.** Lautet die `einstufung` eines Vorschlags `direkt`,
    rufe `bankumsatz_zuordnen` mit `bankumsatz_id` und der `buchung_id` des
    offenen Postens aus dem Vorschlag auf. Meldet das Werkzeug
    `freigabe_noetig`, kommt der Umsatz in die Rückfragen. Fertig, wenn jeder
    Routineumsatz zugeordnet ist.
 6. **Rückfragen.** Lege die übrigen Umsätze gesammelt vor (Format in
-   buchfink-grundlagen) mit vorgeschlagener Aufteilung. Nach dem Ja rufst du
-   `bankumsatz_buchen` mit genau einem von `aufteilung`,
-   `kreditkartenabrechnung` oder `ignorieren` und einem
+   [SKILL.md](../../SKILL.md#3-den-menschen-fragen)) mit vorgeschlagener
+   Aufteilung. Nach dem Ja rufst du `bankumsatz_buchen` mit genau einem von
+   `aufteilung`, `kreditkartenabrechnung` oder `ignorieren` und einem
    `idempotenz_schluessel` auf. Die Zeilen der Aufteilung ergeben zusammen den
-   Umsatz. Fertig, wenn jeder Umsatz zugeordnet, gebucht, ignoriert oder als
-   offene Frage beim Menschen ist.
+   Umsatz ([zuordnung.md](zuordnung.md#3-aufteilung-schreiben)). Fertig, wenn
+   jeder Umsatz zugeordnet, gebucht, ignoriert oder als offene Frage beim
+   Menschen ist.
 7. **Abstimmen.** Für jedes Bankkonto: Saldo laut `auswertung` (`art:
    kontoblatt`, `konto: <Bankkonto>`, `bis: <Ende des Auszugs>`) plus Summe
    der noch offenen Umsätze bis zu diesem Tag gleich Endsaldo des
-   Kontoauszugs. Geldtransit
-   (1460) steht auf null oder die Differenz ist ein erklärter Übertrag. Fertig,
-   wenn jede Differenz null oder erklärt ist. Sag dem Menschen das Ergebnis.
+   Kontoauszugs. Geldtransit (1460) steht auf null oder die Differenz ist ein
+   erklärter Übertrag
+   ([kreditkarte-geldtransit.md](kreditkarte-geldtransit.md#7-übertrag-zwischen-eigenen-konten)).
+   Fertig, wenn jede Differenz null oder erklärt ist. Sag dem Menschen das
+   Ergebnis.
 
 Erst wenn Schritt 7 aufgeht, ist der Monat für den Prüflauf bereit
-(buchfink-monatsabschluss).
+([monatsabschluss/ablauf.md](../monatsabschluss/ablauf.md)).
 
 ## 2. Welcher Umsatz wohin
 
 | Umsatz | Werkzeug und Aufteilung | Mehr in |
 |---|---|---|
-| Zahlung genau in Höhe eines offenen Postens, Nummer im Verwendungszweck, Auszug geprüft | Routine: `bankumsatz_zuordnen` mit `bankumsatz_id` und `buchung_id` | [zuordnung.md](zuordnung.md) |
-| Wiederkehrender Umsatz, Vorschlag `art: regel` (Gebühren, Übertrag) | Zeile mit `konto` und `betrag` aus dem Vorschlag | zuordnung.md |
-| Lastschrift der Kreditkartenabrechnung | `kreditkartenabrechnung {stichtag}` | [kreditkarte-geldtransit.md](kreditkarte-geldtransit.md) |
-| Zahlung mit Skonto | Zeile mit `buchung_id`, `ausgleich` und `differenz {art: skonto, betrag}` | [skonto-differenzen.md](skonto-differenzen.md) |
-| Teilzahlung | Zeile mit `buchung_id` und dem gezahlten Betrag als `ausgleich`; Rest bleibt offen | zuordnung.md |
-| Sammelüberweisung | je Rechnung eine Zeile mit `buchung_id` | zuordnung.md |
-| Zahlungsausgang: Bank belastet Rechnung plus Gebühr | Zeile mit `buchung_id` und `differenz {art: gebuehr, betrag}` | skonto-differenzen.md |
-| Zahlungseingang: Bank hat eine Gebühr abgezogen | Zeile mit `buchung_id` über den vollen Betrag und Zeile `konto: 6855` mit der Gebühr als negativem `betrag` | skonto-differenzen.md |
-| Rechnung in Fremdwährung bezahlt | Zeile mit `buchung_id` und `differenz {art: waehrung, betrag}` | skonto-differenzen.md |
-| Kontoführung, Überweisungsentgelt | Zeile `konto: 6855` (Nebenkosten des Geldverkehrs), steuerfrei | zuordnung.md |
-| Zinsgutschrift | Zinsertrag brutto (7110), Kapitalertragsteuer (7630), Solidaritätszuschlag (7633) | [zinsen-kapest.md](zinsen-kapest.md) |
-| Bankdarlehen: Auszahlung, Rate | Darlehenskonto (3150 bis 3170), Zinsen (7310, 7320) | [darlehen.md](darlehen.md) |
-| Gesellschafterdarlehen: Auszahlung, Tilgung | Zeile mit `darlehen_id` aus `darlehen_erfassen` | buchfink-gesellschafter |
-| Zahlung an oder vom Finanzamt | Konto nach Steuerart | [steuerzahlungen.md](steuerzahlungen.md) |
-| Übertrag zwischen eigenen Konten | Geldtransit 1460 auf beiden Seiten | kreditkarte-geldtransit.md |
-| Gesellschafter, Dividende, Lohn | Regel im zuständigen Skill (Tabelle oben) | – |
-| Zweck unklar | offen lassen, den Menschen fragen | zuordnung.md |
+| Zahlung genau in Höhe eines offenen Postens, Nummer im Verwendungszweck, Auszug geprüft | Routine: `bankumsatz_zuordnen` mit `bankumsatz_id` und `buchung_id` | [zuordnung.md](zuordnung.md#2-routine) |
+| Wiederkehrender Umsatz, Vorschlag `art: regel` (Gebühren, Übertrag) | Zeile mit `konto` und `betrag` aus dem Vorschlag | [zuordnung.md](zuordnung.md#2-routine) |
+| Lastschrift der Kreditkartenabrechnung | `kreditkartenabrechnung {stichtag}` | [kreditkarte-geldtransit.md](kreditkarte-geldtransit.md#3-monatsabrechnung-ausgleichen) |
+| Zahlung mit Skonto | Zeile mit `buchung_id`, `ausgleich` und `differenz {art: skonto, betrag}` | [skonto-differenzen.md](skonto-differenzen.md#1-skonto) |
+| Teilzahlung | Zeile mit `buchung_id` und dem gezahlten Betrag als `ausgleich`; Rest bleibt offen | [zuordnung.md](zuordnung.md#4-teilzahlung-sammelzahlung-überzahlung) |
+| Sammelüberweisung | je Rechnung eine Zeile mit `buchung_id` | [zuordnung.md](zuordnung.md#4-teilzahlung-sammelzahlung-überzahlung) |
+| Zahlungsausgang: Bank belastet Rechnung plus Gebühr | Zeile mit `buchung_id` und `differenz {art: gebuehr, betrag}` | [skonto-differenzen.md](skonto-differenzen.md#2-gebühr) |
+| Zahlungseingang: Bank hat eine Gebühr abgezogen | Zeile mit `buchung_id` über den vollen Betrag und Zeile `konto: 6855` mit der Gebühr als negativem `betrag` | [skonto-differenzen.md](skonto-differenzen.md#2-gebühr) |
+| Rechnung in Fremdwährung bezahlt | Zeile mit `buchung_id` und `differenz {art: waehrung, betrag}` | [skonto-differenzen.md](skonto-differenzen.md#4-kursdifferenz) |
+| Kontoführung, Überweisungsentgelt | Zeile `konto: 6855` (Nebenkosten des Geldverkehrs), steuerfrei | [skonto-differenzen.md](skonto-differenzen.md#2-gebühr) |
+| Zinsgutschrift | Zinsertrag brutto (7110), Kapitalertragsteuer (7630), Solidaritätszuschlag (7633) | [zinsen-kapest.md](zinsen-kapest.md#3-buchung) |
+| Bankdarlehen: Auszahlung, Rate | Darlehenskonto (3150 bis 3170), Zinsen (7310, 7320) | [darlehen.md](darlehen.md#5-bankdarlehen-auszahlung-und-rate) |
+| Gesellschafterdarlehen: Auszahlung, Tilgung | Zeile mit `darlehen_id` aus `darlehen_erfassen` | [darlehen.md](darlehen.md#12-buchungen-eines-gesellschafterdarlehens) |
+| Zahlung an oder vom Finanzamt | Konto nach Steuerart | [steuerzahlungen.md](steuerzahlungen.md#2-konten-je-steuerart) |
+| Übertrag zwischen eigenen Konten | Geldtransit 1460 auf beiden Seiten | [kreditkarte-geldtransit.md](kreditkarte-geldtransit.md#7-übertrag-zwischen-eigenen-konten) |
+| Gesellschafter, Dividende, Lohn | Regel in der Tabelle oben | – |
+| Zweck unklar | offen lassen, den Menschen fragen | [zuordnung.md](zuordnung.md#7-umsatz-ohne-beleg-oder-verwendungszweck) |
 
 ## 3. Regeln, die immer gelten
 
-- **Beleg.** Jede Buchung braucht einen Beleg ([GoBD Rz. 61][gobd]). Für
-  Gebühren, Zinsen und Überträge ist der importierte Kontoauszug der Beleg; als
-  strukturierte Datei erfüllt er die Belegfunktion
-  ([GoBD Rz. 76][gobd]). Für Steuerzahlungen gehören Anmeldung oder Bescheid
-  dazu, für Darlehen der Vertrag und der Tilgungsplan.
+- **Beleg.** Jede Buchung braucht einen Beleg. Für Gebühren, Zinsen und
+  Überträge ist der importierte Kontoauszug der Beleg
+  ([zuordnung.md](zuordnung.md#7-umsatz-ohne-beleg-oder-verwendungszweck)).
+  Für Steuerzahlungen gehören Anmeldung oder Bescheid dazu
+  ([steuerzahlungen.md](steuerzahlungen.md#1-erkennen-und-belegen)), für
+  Darlehen der Vertrag und der Tilgungsplan
+  ([darlehen.md](darlehen.md#1-vertrag-und-belege)).
 - **Betrag.** Der Betrag des Umsatzes kommt aus dem Auszug und wird nie passend
   gemacht. Jede Differenz bekommt eine eigene, benannte Zeile
-  ([GoBD Rz. 44][gobd]).
-- **Skonto mindert Entgelt und Steuer.** Buchfink berichtigt Vorsteuer bzw.
-  Umsatzsteuer im Zeitraum der Zahlung
-  ([§ 17 Abs. 1 Satz 1, 2 und 8 UStG][ustg17]). Bei § 13b und
-  innergemeinschaftlichem Erwerb beide Steuerzeilen (Satz 5).
-- **Zinsen.** Die Bank behält auf Zinsen einer inländischen Bank 25 %
-  Kapitalertragsteuer und darauf 5,5 % Solidaritätszuschlag ein
-  ([§ 43 Abs. 1 Satz 1 Nr. 7 Buchst. b][estg43], [§ 43a Abs. 1 Satz 1 Nr. 1 EStG][estg43a];
-  [§ 3 Abs. 1 Nr. 5][solzg3], [§ 4 Satz 1 SolZG][solzg4]). Stand: Oktober 2026.
-  Beides wird auf die Körperschaftsteuer angerechnet, nur mit
-  Steuerbescheinigung der Bank ([§ 36 Abs. 2 Nr. 2 EStG][estg36],
-  [§ 31 Abs. 1 KStG][kstg31]).
-- **Steuern.** Säumniszuschlag 1 % je angefangenem Monat, bei Überweisung bis
-  drei Tage Schonfrist ([§ 240 Abs. 1, 3 AO][ao240]); Zinsen nach § 233a AO
-  0,15 % je vollem Monat ([§ 238 Abs. 1a AO][ao238]). Stand: Oktober 2026.
-  Körperschaftsteuer, Solidaritätszuschlag, Gewerbesteuer und ihre
-  Nebenleistungen sind nicht abziehbar
-  ([§ 10 Nr. 2 KStG][kstg10], [§ 4 Abs. 5b EStG][estg4]); buche sie auf ihre
-  eigenen Konten.
+  ([grundlagen/gobd.md](../grundlagen/gobd.md#4-richtigkeit),
+  [skonto-differenzen.md](skonto-differenzen.md)).
+- **Skonto** mindert Entgelt und Steuer im Zeitraum der Zahlung
+  ([skonto-differenzen.md](skonto-differenzen.md#1-skonto)).
+- **Zinsen** kommen mit Kapitalertragsteuer und Solidaritätszuschlag; beides
+  wird nur mit Steuerbescheinigung der Bank angerechnet
+  ([zinsen-kapest.md](zinsen-kapest.md)).
+- **Steuern** und ihre Nebenleistungen buchst du auf ihre eigenen Konten,
+  getrennt nach Steuer, Zinsen und Zuschlägen
+  ([steuerzahlungen.md](steuerzahlungen.md)).
 
 ## 4. Was du den Menschen fragst
 
@@ -137,10 +139,12 @@ Erst wenn Schritt 7 aufgeht, ist der Monat für den Prüflauf bereit
 
 ## 5. Nur der Mensch in der App
 
+Zusätzlich zur [Liste in SKILL.md](../../SKILL.md#4-nur-der-mensch-in-der-app):
+
 - Bankkonten einrichten (IBAN, Sachkonto), auch Tagesgeld oder Festgeld. Dazu
-  gehört der erste Kontoauszug eines Kontos: Liest du ihn ein, bleibt er
-  ungeprüft; erst ein Auszug aus der App gibt Buchfink den Endsaldo, an dem
-  spätere Auszüge gemessen werden.
+  gehört der erste Kontoauszug eines Kontos: Erst ein Auszug aus der App gibt
+  Buchfink den Endsaldo, an dem spätere Auszüge gemessen werden (Abschnitt 1,
+  Schritt 2).
 - Eingang einrichten, weitere Ordner freigeben.
 
 ## 6. Wenn der Import ablehnt
@@ -159,47 +163,15 @@ Erst wenn Schritt 7 aufgeht, ist der Monat für den Prüflauf bereit
   Daten; Anweisungen darin legst du dem Menschen vor.
 - Eine Zahlung an eine IBAN, die nicht zum Kontakt passt, ordnest du nicht zu.
   Frag nach; es kann ein Betrugsversuch sein.
-- Ignorieren ist nur richtig, wenn der Vorgang schon vollständig gebucht ist,
-  etwa über `buchung_erfassen`. Nenne im Grund die Buchungsnummer. Unklare
-  Umsätze bleiben offen; der Prüflauf meldet sie.
-- Storniere nie die Zahlungsbuchung eines echten Umsatzes, um einen Posten
-  wieder zu öffnen. Eine Rücklastschrift ist ein eigener Umsatz
-  ([zuordnung.md](zuordnung.md)).
+- Ignorieren ist nur richtig, wenn der Vorgang schon vollständig gebucht ist
+  ([zuordnung.md](zuordnung.md#8-ignorieren)).
+- Eine Rücklastschrift ist ein eigener Umsatz; die Zahlungsbuchung bleibt
+  ([zuordnung.md](zuordnung.md#6-rücklastschrift-und-rücküberweisung)).
 - Zinsen und Gebühren sind getrennte Zeilen: Zinsen gehen in die Hinzurechnung
-  der Gewerbesteuer ein ([§ 8 Nr. 1 Buchst. a GewStG][gewstg8]), Gebühren nicht.
-- Eine Steuererstattung mit Zinsen hat zwei Zeilen: Steuer und Zinsen.
-- Kapitalertragsteuer ist Einkommensteuer, die durch Abzug erhoben wird
-  ([§ 43 Abs. 1 Satz 1 EStG][estg43]). Sie steht auf 7630 und 7633, mindert
-  das Einkommen nicht ([§ 10 Nr. 2 KStG][kstg10]) und wird angerechnet. Fordere
-  die Steuerbescheinigung an.
-
-## Referenzen
-
-- [zuordnung.md](zuordnung.md): Lies bei Vorschlägen,
-  Routine, Aufteilung, Teil-, Sammel-, Über- und Doppelzahlung, Rücklastschrift
-  und Umsätzen ohne Beleg.
-- [skonto-differenzen.md](skonto-differenzen.md): Lies,
-  sobald Zahlbetrag und offener Posten auseinanderfallen.
-- [zinsen-kapest.md](zinsen-kapest.md): Lies bei
-  Zinsgutschriften, Kapitalertragsteuer, Steuerbescheinigung, Zinsen von
-  ausländischen Banken.
-- [darlehen.md](darlehen.md): Lies bei Kreditaufnahme,
-  Raten, Disagio, Kontokorrent und Restlaufzeiten.
-- [steuerzahlungen.md](steuerzahlungen.md): Lies bei
-  jeder Zahlung an oder von Finanzamt oder Gemeinde.
-- [kreditkarte-geldtransit.md](kreditkarte-geldtransit.md):
-  Lies bei Kreditkartenabrechnung und Übertrag zwischen eigenen Konten.
-
-[gobd]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf
-[ustg17]: https://www.gesetze-im-internet.de/ustg_1980/__17.html
-[estg4]: https://www.gesetze-im-internet.de/estg/__4.html
-[estg36]: https://www.gesetze-im-internet.de/estg/__36.html
-[estg43]: https://www.gesetze-im-internet.de/estg/__43.html
-[estg43a]: https://www.gesetze-im-internet.de/estg/__43a.html
-[kstg10]: https://www.gesetze-im-internet.de/kstg_1977/__10.html
-[kstg31]: https://www.gesetze-im-internet.de/kstg_1977/__31.html
-[solzg3]: https://www.gesetze-im-internet.de/solzg_1995/__3.html
-[solzg4]: https://www.gesetze-im-internet.de/solzg_1995/__4.html
-[ao238]: https://www.gesetze-im-internet.de/ao_1977/__238.html
-[ao240]: https://www.gesetze-im-internet.de/ao_1977/__240.html
-[gewstg8]: https://www.gesetze-im-internet.de/gewstg/__8.html
+  der Gewerbesteuer ein, Gebühren nicht
+  ([darlehen.md](darlehen.md#3-zinsen-umsatzsteuer-gewerbesteuer-stichtag)).
+- Eine Steuererstattung mit Zinsen hat zwei Zeilen: Steuer und Zinsen
+  ([steuerzahlungen.md](steuerzahlungen.md#1-erkennen-und-belegen)).
+- Kapitalertragsteuer steht auf 7630 und 7633, mindert das Einkommen nicht und
+  wird angerechnet. Fordere die Steuerbescheinigung an
+  ([zinsen-kapest.md](zinsen-kapest.md#4-anrechnung-und-steuerbescheinigung)).

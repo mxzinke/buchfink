@@ -16,18 +16,22 @@ gelesen (UStG zuletzt geändert durch Art. 5 G v. 29.06.2026).
 
 ## 1. Steuerfälle in Buchfink
 
-Die gültigen Werte zeigt das Schema; `konten` mit `art: steuerfaelle` erklärt
-sie. Für Eingangsbelege gibt es:
+Wähle den Steuerfall aus dem Beleg, nie aus der Gewohnheit. Die gültigen Werte
+zeigt das Schema; `konten` mit `art: steuerfaelle` erklärt sie. Für
+Eingangsbelege gilt:
 
-| Steuerfall | Steuerzeilen, die Buchfink bucht | Typischer Beleg |
-|---|---|---|
-| Inland, steuerpflichtig | Vorsteuer 19 % (1406) oder 7 % (1401) | deutscher Lieferant mit Steuerausweis |
-| § 13b Abs. 1 UStG (`reverse_charge_eu`) | Vorsteuer (1407) und geschuldete Steuer (3837) in gleicher Höhe; Kennzahl 46/47 | Software-Abo, Werbung, Beratung aus einem anderen EU-Staat |
-| § 13b Abs. 2 UStG (`reverse_charge`) | wie oben; Kennzahl 84/85 | Leistung aus dem Drittland, Werklieferung, inländische Bauleistung an einen Bauleister |
-| Innergemeinschaftlicher Erwerb | Vorsteuer (1404) und Erwerbsteuer (3804) | Ware aus einem anderen EU-Staat |
-| Nullsteuersatz | keine | Photovoltaik nach § 12 Abs. 3 UStG |
-| Steuerfrei | keine | Versicherung, Kontoführung, Miete ohne Option |
-| Nicht steuerbar | keine | Kammerbeitrag, Behördengebühr, echter Schadenersatz |
+| Merkmal auf dem Beleg | Steuerfall | Steuerzeilen, die Buchfink bucht | Hinweis |
+|---|---|---|---|
+| Inländischer Lieferant weist 19 % oder 7 % aus | Inland (`domestic`) | Vorsteuer 19 % (1406) oder 7 % (1401) | Satz und Netto je Satz aus dem Beleg; Hotel und Gaststätte weisen oft zwei Sätze aus |
+| Unternehmer aus einem anderen EU-Staat, sonstige Leistung (Software-Abo, Werbung, Beratung), keine deutsche Steuer | § 13b Abs. 1 (`reverse_charge_eu`) | Vorsteuer (1407) und geschuldete Steuer (3837) in gleicher Höhe; Kennzahl 46/47 | USt-IdNr. am Kontakt Pflicht; Abschnitt 2 |
+| Unternehmer aus dem Drittland, sonstige Leistung; Werklieferung eines ausländischen Unternehmers; inländische Bauleistung an einen Bauleister | § 13b Abs. 2 (`reverse_charge`) | wie oben; Kennzahl 84/85 | Abschnitt 2 |
+| Ware aus einem anderen EU-Staat, beide USt-IdNr., keine Steuer | innergemeinschaftlicher Erwerb (`intra_community_acquisition`) | Vorsteuer (1404) und Erwerbsteuer (3804) | USt-IdNr. am Kontakt Pflicht; Abschnitt 3 |
+| Ware aus dem Drittland | Einfuhr | – | vorlegen; Abschnitt 4 |
+| Photovoltaik nach § 12 Abs. 3 UStG | Nullsteuersatz (`zero_rated`) | keine | – |
+| Versicherung, Kontoführung, Miete ohne Steuerausweis | steuerfrei (`exempt`) | keine | Abschnitt 5 |
+| Kammerbeitrag, Behördengebühr, echter Schadenersatz | nicht steuerbar (`not_taxable`) | keine | kein Leistungsaustausch; Abschnitt 5 |
+| Ausländische Umsatzsteuer ausgewiesen | Wertungsfrage | – | keine deutsche Vorsteuer; Abschnitt 7 |
+| Inländischer Lieferant ohne Steuer und ohne Hinweis | offen | – | nachfragen: Kleinunternehmer (Abschnitt 6), Steuerbefreiung oder fehlende Angabe? |
 
 Kontonummern nach dem SKR04 in Buchfink.
 „Ohne Steuer“ ist kein Steuerfall: Wähle immer den Grund
@@ -100,6 +104,10 @@ Leistungsempfängers“ angeben ([§ 14a Abs. 5 UStG][ustg14a]). Fehlt der Hinwe
 **Kontakt.** Für einen EU-Lieferanten verlangt Buchfink die USt-IdNr. am
 Kontakt. Für Drittlandslieferanten nicht.
 
+**Warnung `reverse_charge_eu_supplier`.** Wählt eine Buchung `reverse_charge`
+für einen EU-Lieferanten, warnt Buchfink: Für seine sonstige Leistung gilt
+Abs. 1 (`reverse_charge_eu`).
+
 ## 3. Waren aus einem anderen EU-Staat (innergemeinschaftlicher Erwerb)
 
 - Voraussetzungen: Ware gelangt aus einem anderen Mitgliedstaat ins Inland, die
@@ -118,7 +126,9 @@ Kontakt. Für Drittlandslieferanten nicht.
 
 Die Einfuhr unterliegt der Einfuhrumsatzsteuer; abziehbar ist die entstandene
 Einfuhrumsatzsteuer ([§ 15 Abs. 1 Satz 1 Nr. 2 UStG][ustg15]). Buchfink bildet
-sie nicht vollständig ab (buchfink-grundlagen, Grenzen). Lege Rechnung und
+sie nicht vollständig ab
+([grundlagen/grenzen.md](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet)).
+Lege Rechnung und
 Zollbeleg ab, buche nicht und gib den Fall an den Menschen.
 
 ## 5. Steuerfrei und nicht steuerbar
@@ -127,7 +137,7 @@ Häufige steuerfreie Eingangsleistungen ([§ 4 UStG][ustg4]):
 
 | Leistung | Befreiung | Buchungsgruppe |
 |---|---|---|
-| Kredit, Zinsen | § 4 Nr. 8 Buchst. a | über Bank (buchfink-bank) |
+| Kredit, Zinsen | § 4 Nr. 8 Buchst. a | über Bank ([bank/darlehen.md](../bank/darlehen.md)) |
 | Kontoführung, Zahlungs- und Überweisungsverkehr | § 4 Nr. 8 Buchst. d | `geldverkehr` |
 | Versicherung | § 4 Nr. 10 Buchst. a | `versicherungen` |
 | Miete von Räumen ohne Option | § 4 Nr. 12 Buchst. a | `miete` |

@@ -41,6 +41,8 @@ frontend/node_modules
 *.sqlite3
 data/
 belege/
+# Der Fachbereich Belege des Skills ist Quelltext, keine Belegablage.
+!skills/buchfink/references/belege/
 
 # Environment & IDE
 .env

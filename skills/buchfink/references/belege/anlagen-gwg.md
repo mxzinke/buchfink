@@ -4,7 +4,8 @@ Rechtsstand: 17. Oktober 2026. Wortlaut von EStG und HGB am 17.10.2026 gelesen.
 Die Wertgrenzen ändert der Gesetzgeber von Zeit zu Zeit; für frühere Jahre gilt
 die Fassung des Anschaffungsjahres, so führt sie auch Buchfink.
 
-Abschreibungslauf, Anlagenspiegel und Abgang regelt buchfink-jahresabschluss.
+Abschreibungslauf, Anlagenspiegel und Abgang regelt
+[jahresabschluss/abschreibungen.md](../jahresabschluss/abschreibungen.md).
 Hier geht es um den Zugang.
 
 ## Inhalt
@@ -37,8 +38,8 @@ Hier geht es um den Zugang.
   ([§ 255 Abs. 1 HGB][hgb255]).
 - Abziehbare Vorsteuer gehört nicht dazu ([§ 9b Abs. 1 EStG][estg9b]). Alle
   Wertgrenzen unten gelten deshalb netto, wenn die GmbH die Vorsteuer abzieht.
-- Ein Skonto auf eine Anlagenrechnung mindert die Anschaffungskosten. Buchfink
-  bucht das bei der Zahlung selbst (buchfink-bank).
+- Ein Skonto auf eine Anlagenrechnung bucht Buchfink bei der Zahlung auf das
+  Anlagekonto ([bank/skonto-differenzen.md](../bank/skonto-differenzen.md#1-skonto)).
 
 ## 3. Wertgrenzen
 
@@ -117,12 +118,11 @@ Häufige Konten aus dem Buchfink-Katalog:
    (`buchung_id`, `bezeichnung`, `klasse`, `methode`, `nutzungsdauer_monate`,
    bei Abweichung von der AfA-Tabelle `nutzungsdauer_grund`, `in_betrieb`)
    auf. Erst `nur_vorschau: true`.
-4. Bis 1.000 € Vorsteuer auf ein Wirtschaftsgut entfällt eine Berichtigung
-   nach § 15a UStG ([§ 44 Abs. 1 UStDV][ustdv44]). Darüber kann sie nötig
-   werden; die Berechnungsgrundlagen sind dann aufzuzeichnen
-   ([§ 22 Abs. 4 UStG][ustg22]). Buchfink führt dafür das Verzeichnis der
-   Vorsteuerberichtigung und übernimmt die Vorsteuer aus der Buchung; sag dem
-   Menschen, er möge den Eintrag prüfen.
+4. Übersteigt die Vorsteuer auf das Wirtschaftsgut die Grenze für eine
+   Berichtigung nach § 15a UStG
+   ([vorsteuer.md](vorsteuer.md#6-berichtigung-nach--15a-ustg)), übernimmt
+   Buchfink sie ins Verzeichnis der Vorsteuerberichtigung; sag dem Menschen,
+   er möge den Eintrag prüfen.
 5. Anzahlung auf eine Anlage, die noch nicht geliefert ist:
    `anzahlung_fuer: sachanlage` oder `immateriell`. Die Rechnung über die
    Lieferung buchst du mit `verrechnete_anzahlungen`; die Umbuchung einer
@@ -133,6 +133,4 @@ Häufige Konten aus dem Buchfink-Katalog:
 [estg9b]: https://www.gesetze-im-internet.de/estg/__9b.html
 [hgb253]: https://www.gesetze-im-internet.de/hgb/__253.html
 [hgb255]: https://www.gesetze-im-internet.de/hgb/__255.html
-[ustdv44]: https://www.gesetze-im-internet.de/ustdv_1980/__44.html
-[ustg22]: https://www.gesetze-im-internet.de/ustg_1980/__22.html
 [bmfnd]: https://www.steuerschroeder.de/blog/wp-content/uploads/2022/02/Nutzungsdauer-von-Computerhardware-und-Software-zur-Dateneingabe-und-verarbeitung.pdf

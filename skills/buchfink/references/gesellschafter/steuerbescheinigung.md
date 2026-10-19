@@ -5,7 +5,13 @@ Rechtsstand: 17. Oktober 2026. Verwaltungsauffassung: BMF-Schreiben vom
 von Steuerbescheinigungen nach § 45a Absatz 2 und 3 EStG“. Gelesen über einen
 [nichtamtlichen Spiegel][bmf2025]; das BMF-Original war nicht abrufbar.
 
-## Pflicht
+## Inhalt
+
+1. Pflicht
+2. Form
+3. Ablauf
+
+## 1. Pflicht
 
 - Die GmbH als Schuldnerin der Kapitalerträge stellt dem Gesellschafter auf
   Verlangen eine Bescheinigung nach amtlichem Muster aus
@@ -18,7 +24,7 @@ von Steuerbescheinigungen nach § 45a Absatz 2 und 3 EStG“. Gelesen über eine
   die GmbH die Minderung des Einlagekontos nach
   [§ 27 Abs. 3 KStG][kstg27] (Name, Anschrift, Betrag, Zahlungstag).
 
-## Form
+## 2. Form
 
 - Eine GmbH nutzt **Muster II** ([BMF 16.05.2025, Rn. 43][bmf2025]). Inhalt,
   Aufbau und Reihenfolge des Musters sind verbindlich
@@ -34,7 +40,7 @@ von Steuerbescheinigungen nach § 45a Absatz 2 und 3 EStG“. Gelesen über eine
   gekennzeichnete zu ersetzen; die GmbH meldet das dem Finanzamt
   ([§ 45a Abs. 5 EStG][estg45a]).
 
-## Ablauf
+## 3. Ablauf
 
 1. Prüfe, dass Auszahlung und Abführung gebucht sind (3519 und 3760 auf null,
    `auswertung` mit `art: kontoblatt`).

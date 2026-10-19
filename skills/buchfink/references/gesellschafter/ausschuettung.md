@@ -31,16 +31,14 @@ Tabelle; sie ändern sich nur durch Gesetz.
 
 ## 2. Grenzen der Ausschüttung
 
-- **Kapitalerhaltung:** Das zur Erhaltung des Stammkapitals erforderliche
-  Vermögen darf nicht ausgezahlt werden ([§ 30 Abs. 1 GmbHG][gmbhg30]).
-  Prüfhilfe: Bilanz zum letzten Stichtag und aktuell mit `auswertung`
+- **Kapitalerhaltung** ([Grundregel](ablauf.md#3-grundregeln)): Prüfhilfe ist
+  die Bilanz zum letzten Stichtag und aktuell mit `auswertung`
   (`art: bilanz`). Bleibt das Eigenkapital nach der Auszahlung unter dem
-  Stammkapital, halte an und empfiehl rechtliche Beratung. Verbotene Zahlungen
-  sind zu erstatten ([§ 31 GmbHG][gmbhg31]).
+  Stammkapital, halte an und empfiehl rechtliche Beratung.
 - **UG:** Ein Viertel des um einen Verlustvortrag geminderten
   Jahresüberschusses gehört in die gesetzliche Rücklage und ist nicht
   ausschüttbar ([§ 5a Abs. 3 GmbHG][gmbhg5a]). Das bucht
-  buchfink-jahresabschluss.
+  [jahresabschluss/ergebnisverwendung-ug.md](../jahresabschluss/ergebnisverwendung-ug.md).
 - **Zahlungsfähigkeit:** Zahlungen an Gesellschafter, die zur
   Zahlungsunfähigkeit führen mussten, machen den Geschäftsführer
   ersatzpflichtig ([§ 15b Abs. 5 InsO][inso15b]). Prüfe mit `offene_posten`
@@ -98,8 +96,8 @@ Beispiel ohne Kirchensteuer: Ausschüttung 10.000,00 € → Kapitalertragsteuer
 - **Rundung:** Die zu einem Zeitpunkt abzuführende Kapitalertragsteuer wird auf
   volle Euro abgerundet ([§ 44 Abs. 1 Satz 6 EStG][estg44]). Buchfink bucht auf
   den Cent; lege eine Differenz dem Menschen vor.
-- **Säumnis:** 1 % des abgerundeten Rückstands je angefangenem Monat; bis drei
-  Tage Verspätung wird nicht erhoben ([§ 240 Abs. 1, 3 AO][ao240]).
+- **Säumnis:** Säumniszuschlag nach
+  [grundlagen/pflichten.md](../grundlagen/pflichten.md#fristende-zahlung-verlängerung).
 
 Bereite für den Menschen vor: Beschlussdatum, Zuflusstag, je Gesellschafter
 Bruttobetrag, Kapitalertragsteuer, Solidaritätszuschlag, Kirchensteuer, Summen
@@ -109,9 +107,9 @@ für die Anmeldung, Zahlungsempfänger Finanzamt.
 
 | Schritt | Buchung (SKR04) | Wer |
 |---|---|---|
-| Ergebnisverwendung beschlossen | 2970 Gewinnvortrag vor Verwendung an 3519 Verbindlichkeiten gegenüber Gesellschaftern für offene Ausschüttungen (netto) und 3760 Verbindlichkeiten aus Einbehaltungen (KapESt, SolZ) | du nach dem Ja mit `ergebnisverwendung_buchen` (buchfink-jahresabschluss) |
-| Auszahlung an Gesellschafter | 3519 an Bank | buchfink-bank |
-| Zahlung an das Finanzamt | 3760 an Bank | buchfink-bank |
+| Ergebnisverwendung beschlossen | 2970 Gewinnvortrag vor Verwendung an 3519 Verbindlichkeiten gegenüber Gesellschaftern für offene Ausschüttungen (netto) und 3760 Verbindlichkeiten aus Einbehaltungen (KapESt, SolZ) | du nach dem Ja mit `ergebnisverwendung_buchen` ([jahresabschluss/ergebnisverwendung-ug.md](../jahresabschluss/ergebnisverwendung-ug.md)) |
+| Auszahlung an Gesellschafter | 3519 an Bank | du, [bank/ablauf.md](../bank/ablauf.md) |
+| Zahlung an das Finanzamt | 3760 an Bank | du, [bank/ablauf.md](../bank/ablauf.md) |
 
 Fertig, wenn 3519 und 3760 für diese Ausschüttung auf null stehen
 (`auswertung`, `art: kontoblatt`) und die Anmeldung mit Übermittlungsprotokoll als
@@ -142,8 +140,6 @@ Steuerberater.
 
 [gmbhg5a]: https://www.gesetze-im-internet.de/gmbhg/__5a.html
 [gmbhg29]: https://www.gesetze-im-internet.de/gmbhg/__29.html
-[gmbhg30]: https://www.gesetze-im-internet.de/gmbhg/__30.html
-[gmbhg31]: https://www.gesetze-im-internet.de/gmbhg/__31.html
 [gmbhg46]: https://www.gesetze-im-internet.de/gmbhg/__46.html
 [gmbhg48]: https://www.gesetze-im-internet.de/gmbhg/__48.html
 [estg20]: https://www.gesetze-im-internet.de/estg/__20.html
@@ -158,5 +154,4 @@ Steuerberater.
 [kstg27]: https://www.gesetze-im-internet.de/kstg_1977/__27.html
 [inso15b]: https://www.gesetze-im-internet.de/inso/__15b.html
 [ao69]: https://www.gesetze-im-internet.de/ao_1977/__69.html
-[ao240]: https://www.gesetze-im-internet.de/ao_1977/__240.html
 [elster]: https://www.elster.de/eportal/formulare-leistungen/alleformulare
