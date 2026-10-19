@@ -129,7 +129,7 @@ Bei einer E-Rechnung genügt der strukturierte Teil in seiner ursprünglichen
 Form. Einzelheiten stehen in
 [grundlagen/aufbewahrung.md](../grundlagen/aufbewahrung.md).
 
-[quellen]: https://github.com/mxzinke/buchfink/blob/main/skills/QUELLEN.md
+[quellen]: https://github.com/mxzinke/buchfink/blob/master/skills/QUELLEN.md
 [ustg27]: https://www.gesetze-im-internet.de/ustg_1980/__27.html
 [ustdv34]: https://www.gesetze-im-internet.de/ustdv_1980/__34.html
 [ustdv34a]: https://www.gesetze-im-internet.de/ustdv_1980/__34a.html

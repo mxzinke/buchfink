@@ -92,7 +92,7 @@ Erstattung feststeht.
   zu berichtigen sind, klärt
   [monatsabschluss/berichtigung.md](../monatsabschluss/berichtigung.md#4-nach-der-jahreserklärung).
 
-[quellen]: https://github.com/mxzinke/buchfink/blob/main/skills/QUELLEN.md
+[quellen]: https://github.com/mxzinke/buchfink/blob/master/skills/QUELLEN.md
 [ao168]: https://www.gesetze-im-internet.de/ao_1977/__168.html
 [ustg16]: https://www.gesetze-im-internet.de/ustg_1980/__16.html
 [ustg18]: https://www.gesetze-im-internet.de/ustg_1980/__18.html

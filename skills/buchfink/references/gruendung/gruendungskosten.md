@@ -90,7 +90,7 @@ Vorgehen:
   Menschen Belege, Beträge und Datum vor und notiere seine Entscheidung im
   Eigenbeleg oder in der Buchungsbeschreibung.
 
-[quellen]: https://github.com/mxzinke/buchfink/blob/main/skills/QUELLEN.md
+[quellen]: https://github.com/mxzinke/buchfink/blob/master/skills/QUELLEN.md
 [aktg26]: https://www.gesetze-im-internet.de/aktg/__26.html
 [bfh1287]: https://www.haufe.de/id/entscheidung/bfh-urteil-vom-11101989-i-r-1287-HI62976.html
 [gmbhganl1]: https://www.gesetze-im-internet.de/normengrafiken/bgbl1_2021/j3364_0010.pdf
