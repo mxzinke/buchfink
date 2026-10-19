@@ -71,32 +71,18 @@ hat.
   und [ebilanz-eroeffnung](../grundlagen/pflichten.md#ebilanz-eroeffnung).
   Sind die vier Punkte aus Abschnitt 4 erfüllt, meldest du beide mit
   `pflicht_vorbereitet`.
-- Der Jahresabschluss ist vom Kaufmann mit Datum zu unterzeichnen
-  ([§ 245 HGB][hgb245]); über [§ 242 Abs. 1 Satz 2 HGB][hgb242] gilt das
-  entsprechend für die Eröffnungsbilanz. Für die GmbH unterzeichnen die
-  Geschäftsführer. Das tut der Mensch; danach bestätigt er die Pflicht
-  `eroeffnungsbilanz` in der App.
-- Das Dokument dazu speichert der Mensch in der App: Unternehmen, Stammdaten,
-  Block „Gesellschafter & Kapital“, „Als PDF speichern“ an der Pflicht. Es
-  steht auf dem Gründungsdatum der Unternehmensdaten, wie die E-Bilanz der
-  Eröffnungsbilanz, und hat je Geschäftsführer eine Zeile für Ort, Datum und
-  Unterschrift. Geht die Bilanz nicht auf, weicht das Kapital von der
-  erfassten Gründung ab oder fehlt die Geschäftsführung in den
-  Unternehmensdaten, meldet Buchfink den Befund statt der Datei. Ein Werkzeug
-  für das PDF gibt es nicht.
-- Die Eröffnungsbilanz ist zehn Jahre aufzubewahren
-  ([§ 147 Abs. 1 Nr. 1, Abs. 3 AO][ao147]) und darf nicht nur als Wiedergabe
-  auf einem Bild- oder Datenträger aufbewahrt werden
-  ([§ 147 Abs. 2 AO][ao147], [§ 257 Abs. 3 HGB][hgb257]). Lege die
-  unterzeichnete Fassung mit `beleg_ablegen` ab und erinnere den Menschen an
-  das Original.
-- Bei Eröffnung des Betriebs ist auch die Eröffnungsbilanz elektronisch an das
-  Finanzamt zu übermitteln ([§ 5b Abs. 1 Satz 4 EStG][estg5b]). Taxonomie und
-  Übermittlungsweg regelt [steuererklaerungen/ebilanz.md](../steuererklaerungen/ebilanz.md).
-  `ebilanz_exportieren` mit `bilanzart: eroeffnungsbilanz` und dem
-  Geschäftsjahr der Gründung als `jahr` schreibt sie als XBRL-Datei auf den
-  Beurkundungstag, ohne GuV. Der Mensch übermittelt sie über den Online-Dienst,
-  oder ein Steuerberater übermittelt sie.
+- PDF aus der App, Unterschrift aller Geschäftsführer mit Datum und Ablage der
+  unterzeichneten Fassung: Weg im Abschnitt
+  [eroeffnungsbilanz](../grundlagen/pflichten.md#eroeffnungsbilanz). Ein
+  Werkzeug für das PDF gibt es nicht.
+- Frist und Form der Aufbewahrung, auch dass das unterschriebene Original
+  bleibt: [grundlagen/aufbewahrung.md](../grundlagen/aufbewahrung.md),
+  Abschnitte 1 und 3.
+- Die Eröffnungsbilanz geht auch als E-Bilanz an das Finanzamt: Grundlage und
+  Weg mit `ebilanz_exportieren` im Abschnitt
+  [ebilanz-eroeffnung](../grundlagen/pflichten.md#ebilanz-eroeffnung),
+  Taxonomie und Übermittlungsweg in
+  [steuererklaerungen/ebilanz.md](../steuererklaerungen/ebilanz.md).
 
 ## 6. Bestehende GmbH wechselt zu Buchfink
 
@@ -116,12 +102,8 @@ Dein Teil:
    ersten Tag gleich der Schlussbilanz; die Salden von 9000, 9008 und 9009
    ergeben zusammen null.
 
-[ao147]: https://www.gesetze-im-internet.de/ao_1977/__147.html
-[estg5b]: https://www.gesetze-im-internet.de/estg/__5b.html
 [gmbhg13]: https://www.gesetze-im-internet.de/gmbhg/__13.html
 [hgb6]: https://www.gesetze-im-internet.de/hgb/__6.html
 [hgb240]: https://www.gesetze-im-internet.de/hgb/__240.html
 [hgb242]: https://www.gesetze-im-internet.de/hgb/__242.html
-[hgb245]: https://www.gesetze-im-internet.de/hgb/__245.html
-[hgb257]: https://www.gesetze-im-internet.de/hgb/__257.html
 [hgb272]: https://www.gesetze-im-internet.de/hgb/__272.html

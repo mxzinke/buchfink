@@ -42,8 +42,8 @@ die Liste von oben nach unten durch.
 | § 239 HGB | https://www.gesetze-im-internet.de/hgb/__239.html | lebende Sprache, vollständig/richtig/zeitgerecht/geordnet, Unveränderbarkeit, Datenträger | Text 17.10.2026 | grundlagen/aufbewahrung, gobd, pflichten |
 | § 240 HGB | https://www.gesetze-im-internet.de/hgb/__240.html | Inventar; Geschäftsjahr höchstens zwölf Monate (Abs. 2 Satz 2) | Text 17.10.2026 | grundlagen/arbeitsweise, pflichten; gruendung/eroeffnungsbilanz |
 | § 242 HGB | https://www.gesetze-im-internet.de/hgb/__242.html | Eröffnungsbilanz, Jahresabschluss | Text 17.10.2026 | grundlagen/pflichten; jahresabschluss/ablauf, rueckstellungen; gruendung/eroeffnungsbilanz |
-| § 245 HGB | https://www.gesetze-im-internet.de/hgb/__245.html | Unterzeichnung des Jahresabschlusses | Titel 17.10.2026 | grundlagen/aufbewahrung, pflichten; gruendung/eroeffnungsbilanz |
-| § 257 HGB | https://www.gesetze-im-internet.de/hgb/__257.html | Aufbewahrung: Unterlagen (Abs. 1), Handelsbriefe (Abs. 2), Wiedergabe (Abs. 3), Fristen 10/8/6 Jahre (Abs. 4), Beginn (Abs. 5) | Text 17.10.2026 | grundlagen/aufbewahrung; gruendung/eroeffnungsbilanz |
+| § 245 HGB | https://www.gesetze-im-internet.de/hgb/__245.html | Unterzeichnung des Jahresabschlusses | Titel 17.10.2026 | grundlagen/aufbewahrung, pflichten |
+| § 257 HGB | https://www.gesetze-im-internet.de/hgb/__257.html | Aufbewahrung: Unterlagen (Abs. 1), Handelsbriefe (Abs. 2), Wiedergabe (Abs. 3), Fristen 10/8/6 Jahre (Abs. 4), Beginn (Abs. 5) | Text 17.10.2026 | grundlagen/aufbewahrung |
 | § 264 HGB | https://www.gesetze-im-internet.de/hgb/__264.html | Aufstellung durch gesetzliche Vertreter, Fristen 3/6 Monate | Text 17.10.2026 | grundlagen/arbeitsweise, pflichten; gruendung/rumpfjahr |
 | § 267 HGB | https://www.gesetze-im-internet.de/hgb/__267.html | Größenklassen | Titel 17.10.2026 | grundlagen/grenzen |
 | § 290 HGB | https://www.gesetze-im-internet.de/hgb/__290.html | Konzernabschluss | Titel 17.10.2026 | grundlagen/grenzen; beteiligungen/erwerb-ausweis |
@@ -58,7 +58,7 @@ die Liste von oben nach unten durch.
 | § 140 AO | https://www.gesetze-im-internet.de/ao_1977/__140.html | handelsrechtliche Pflichten gelten für die Besteuerung | Text 17.10.2026 | grundlagen/gobd |
 | § 145 AO | https://www.gesetze-im-internet.de/ao_1977/__145.html | Nachvollziehbarkeit für sachverständige Dritte | Text 17.10.2026 | grundlagen/gobd |
 | § 146 AO | https://www.gesetze-im-internet.de/ao_1977/__146.html | Einzeln, vollständig, richtig, zeitgerecht, geordnet; Kasse täglich; Inland/EU/Drittstaat, Verzögerungsgeld 2.500–250.000 € (Abs. 2–2c); Sprache (Abs. 3); Unveränderbarkeit (Abs. 4) | Text 17.10.2026 | grundlagen/aufbewahrung, gobd, pflichten |
-| § 147 AO | https://www.gesetze-im-internet.de/ao_1977/__147.html | Aufbewahrungspflichtige Unterlagen, Wiedergabe, Fristen 10/8/6, Ablaufhemmung (Abs. 3 Satz 5), Beginn (Abs. 4), Lesbarmachung (Abs. 5), Datenzugriff Z1–Z3 und Systemwechsel (Abs. 6) | Text 17.10.2026 | grundlagen/aufbewahrung; gruendung/eroeffnungsbilanz |
+| § 147 AO | https://www.gesetze-im-internet.de/ao_1977/__147.html | Aufbewahrungspflichtige Unterlagen, Wiedergabe, Fristen 10/8/6, Ablaufhemmung (Abs. 3 Satz 5), Beginn (Abs. 4), Lesbarmachung (Abs. 5), Datenzugriff Z1–Z3 und Systemwechsel (Abs. 6) | Text 17.10.2026 | grundlagen/aufbewahrung |
 | § 153 AO | https://www.gesetze-im-internet.de/ao_1977/__153.html | Berichtigung unrichtiger Erklärungen | Text 17.10.2026 | rechnungen/storno-berichtigung; monatsabschluss/berichtigung |
 | § 158 AO | https://www.gesetze-im-internet.de/ao_1977/__158.html | Beweiskraft der Buchführung | Text 17.10.2026 | grundlagen/gobd |
 | § 162 AO | https://www.gesetze-im-internet.de/ao_1977/__162.html | Schätzung | Text 17.10.2026 | grundlagen/gobd, pflichten |
@@ -858,7 +858,7 @@ Aussage abgeglichen.
 | § 4 SolZG | https://www.gesetze-im-internet.de/solzg_1995/__4.html | 5,5 % (Satz 1), Cent-Bruchteile (Satz 3) | Text | steuererklaerungen/kst |
 | § 4 EStG | https://www.gesetze-im-internet.de/estg/__4.html | Geschenke, Bewirtung, Gästehaus/Jagd/Jacht, Geldbußen (Abs. 5 Satz 1 Nr. 1–4, 8), GewSt keine Betriebsausgabe (Abs. 5b), Parteispenden (Abs. 6) | Text | steuererklaerungen/kst |
 | § 5 EStG | https://www.gesetze-im-internet.de/estg/__5.html | Drohverlustrückstellung steuerlich verboten (Abs. 4a Satz 1) | Text | steuererklaerungen/kst |
-| § 5b EStG | https://www.gesetze-im-internet.de/estg/__5b.html | E-Bilanz mit Kontennachweisen, Anlagenspiegel, -verzeichnis (Abs. 1 Satz 1), Überleitung/Steuerbilanz (Satz 2, 3), Eröffnungsbilanz (Satz 4), Anhang u. a. (Satz 5), Härtefall (Abs. 2) | Text | grundlagen/pflichten; steuererklaerungen/ablauf, ebilanz, kst; gruendung/eroeffnungsbilanz |
+| § 5b EStG | https://www.gesetze-im-internet.de/estg/__5b.html | E-Bilanz mit Kontennachweisen, Anlagenspiegel, -verzeichnis (Abs. 1 Satz 1), Überleitung/Steuerbilanz (Satz 2, 3), Eröffnungsbilanz (Satz 4), Anhang u. a. (Satz 5), Härtefall (Abs. 2) | Text | grundlagen/pflichten; steuererklaerungen/ablauf, ebilanz, kst; gruendung/gruendungsweg |
 | § 10d EStG | https://www.gesetze-im-internet.de/estg/__10d.html | Rücktrag 1 Mio. €, zwei Jahre, Verzicht (Abs. 1 Satz 1, 2, 6), Vortrag 1 Mio. € + 70 % (Abs. 2 Satz 1), Feststellung (Abs. 4 Satz 1) | Text | steuererklaerungen/bescheide, kst |
 | § 36 EStG | https://www.gesetze-im-internet.de/estg/__36.html | Anrechnung Vorauszahlungen und Abzugsteuer, Bescheinigung nötig (Abs. 2 Nr. 1, 2 Satz 2) | Text | steuererklaerungen/kst |
 | § 37 EStG | https://www.gesetze-im-internet.de/estg/__37.html | Vorauszahlungstermine (Abs. 1 Satz 1), Bemessung und Anpassung bis 15. Monat (Abs. 3 Satz 2, 3) | Text | grundlagen/pflichten; steuererklaerungen/bescheide |
@@ -1014,11 +1014,10 @@ Bereich steuererklaerungen stehen (§§ 7 KStG, 5b, 16, 18 UStG, §§ 20, 108,
 | § 9 GmbHG | https://www.gesetze-im-internet.de/gmbhg/__9.html | Differenzhaftung, Verjährung zehn Jahre ab Eintragung | Text | gruendung/kapitalaufbringung |
 | § 9c GmbHG | https://www.gesetze-im-internet.de/gmbhg/__9c.html | Ablehnung der Eintragung (Abs. 1) | Text | gruendung/gruendungsweg |
 | § 10 GmbHG | https://www.gesetze-im-internet.de/gmbhg/__10.html | Inhalt der Eintragung (Abs. 1) | Text | gruendung/gruendungsweg |
-| § 11 GmbHG | https://www.gesetze-im-internet.de/gmbhg/__11.html | GmbH besteht vor Eintragung nicht (Abs. 1), Handelndenhaftung (Abs. 2) | Text | gruendung/ablauf, gruendungsweg |
+| § 11 GmbHG | https://www.gesetze-im-internet.de/gmbhg/__11.html | GmbH besteht vor Eintragung nicht (Abs. 1), Handelndenhaftung (Abs. 2) | Text | grundlagen/pflichten; gruendung/ablauf |
 | § 13 GmbHG | (Zeile unter grundlagen) | juristische Person, Haftung (Abs. 1, 2), Handelsgesellschaft (Abs. 3) | Text | gruendung/ablauf, eroeffnungsbilanz |
 | § 19 GmbHG | https://www.gesetze-im-internet.de/gmbhg/__19.html | Verhältnis (Abs. 1), keine Befreiung (Abs. 2), verdeckte Sacheinlage (Abs. 4), Hin- und Herzahlen (Abs. 5), Verjährung (Abs. 6) | Text | gruendung/kapitalaufbringung |
 | § 35a GmbHG | https://www.gesetze-im-internet.de/gmbhg/__35a.html | Angaben auf Geschäftsbriefen (Abs. 1) | Text (Abs. 1) | gruendung/gruendungsweg |
-| § 40 GmbHG | https://www.gesetze-im-internet.de/gmbhg/__40.html | Gesellschafterliste bei Änderungen (Abs. 1) | Text (Abs. 1) | grundlagen/pflichten; gruendung/gruendungsweg |
 | § 42a GmbHG | (Zeile unter grundlagen) | Feststellung 8/11 Monate (Abs. 2 Satz 1) | Text | gruendung/rumpfjahr |
 | § 46 GmbHG | (Zeile unter gesellschafter) | Einforderung der Einlagen (Nr. 2) | Text | gruendung/kapitalaufbringung |
 | Anlage 1 GmbHG (Musterprotokoll) | https://www.gesetze-im-internet.de/normengrafiken/bgbl1_2021/j3364_0010.pdf (Text nur im PDF; die HTML-Seite https://www.gesetze-im-internet.de/gmbhg/anlage_1.html verweist nur darauf; Skills verlinken das PDF) | Einlage sofort voll oder 50 %, UG nur voll (Nr. 3, Hinweis 3); Gründungskosten bis 300 €, höchstens Stammkapital (Nr. 5) | Text (PDF) 17.10.2026 | gruendung/ablauf, gruendungskosten, kapitalaufbringung |
@@ -1027,9 +1026,7 @@ Bereich steuererklaerungen stehen (§§ 7 KStG, 5b, 16, 18 UStG, §§ 20, 108,
 | § 12 HGB | https://www.gesetze-im-internet.de/hgb/__12.html | Anmeldung elektronisch, öffentlich beglaubigt (Abs. 1) | Text | grundlagen/pflichten; gruendung/gruendungsweg |
 | § 240 HGB | (Zeile unter grundlagen) | Inventar zu Beginn (Abs. 1), höchstens zwölf Monate (Abs. 2) | Text | gruendung/eroeffnungsbilanz, rumpfjahr |
 | § 242 HGB | (Zeile unter grundlagen) | Eröffnungsbilanz, Bilanzvorschriften entsprechend (Abs. 1) | Text | gruendung/eroeffnungsbilanz, rumpfjahr |
-| § 245 HGB | (Zeile unter grundlagen) | Unterzeichnung mit Datum | Text | gruendung/eroeffnungsbilanz |
 | § 248 HGB | https://www.gesetze-im-internet.de/hgb/__248.html | kein Aktivposten für Gründung und Eigenkapitalbeschaffung (Abs. 1 Nr. 1, 2) | Text | gruendung/gruendungskosten |
-| § 257 HGB | (Zeile unter grundlagen) | Eröffnungsbilanz nicht nur als Wiedergabe (Abs. 3) | Text | gruendung/eroeffnungsbilanz |
 | § 264 HGB | (Zeile unter grundlagen) | Aufstellung drei bzw. sechs Monate (Abs. 1 Satz 3, 4) | Text | gruendung/rumpfjahr |
 | § 267 HGB | (Zeile unter grundlagen) | Neugründung: erster Stichtag entscheidet (Abs. 4 Satz 2) | Text | gruendung/rumpfjahr |
 | § 272 HGB | (Zeile unter gesellschafter) | Ausweis gezeichnetes Kapital und ausstehende Einlagen (Abs. 1) | Text | gruendung/ablauf, eroeffnungsbilanz, kapitalaufbringung |
@@ -1040,14 +1037,12 @@ Bereich steuererklaerungen stehen (§§ 7 KStG, 5b, 16, 18 UStG, §§ 20, 108,
 | § 54 EStDV | https://www.gesetze-im-internet.de/estdv_1955/__54.html | Notar sendet Abschrift binnen zwei Wochen an das Finanzamt (Abs. 1, 2) | Text | gruendung/gruendungsweg |
 | § 137 AO | https://www.gesetze-im-internet.de/ao_1977/__137.html | Anzeige der Gründung an Finanzamt und Gemeinde binnen eines Monats | Text | grundlagen/pflichten; gruendung/gruendungsweg, rumpfjahr |
 | § 138 AO | https://www.gesetze-im-internet.de/ao_1977/__138.html | Gewerbe an Gemeinde, Unterrichtung des Finanzamts (Abs. 1 Satz 1), Auskünfte elektronisch, auch für § 137 (Abs. 1b), ein Monat (Abs. 4) | Text | grundlagen/pflichten; gruendung/gruendungsweg, rumpfjahr; beteiligungen/erwerb-ausweis |
-| § 147 AO | (Zeile unter grundlagen) | Eröffnungsbilanz zehn Jahre, nicht als Wiedergabe (Abs. 1 Nr. 1, Abs. 2, 3) | Text | gruendung/eroeffnungsbilanz |
 | § 14 UStG | (Zeile unter belege) | Name/Anschrift, Steuernummer oder USt-IdNr. (Abs. 4 Satz 1 Nr. 1, 2) | Text | gruendung/ablauf, gruendungskosten, steuerliche-erfassung |
 | § 19 UStG | (Zeile unter belege) | Kleinunternehmer 25.000/100.000 € (Abs. 1 Satz 1), Verzicht unwiderruflich, mind. fünf Jahre (Abs. 3) | Text | gruendung/steuerliche-erfassung |
 | § 20 UStG | (Zeile unter grundlagen) | Ist-Versteuerung bis 800.000 € Vorjahresumsatz (Satz 1 Nr. 1) | Text | gruendung/steuerliche-erfassung |
 | § 27a UStG | https://www.gesetze-im-internet.de/ustg_1980/__27a.html | USt-IdNr. durch BZSt auf Antrag, Angaben (Abs. 1 Satz 1, 4, 5) | Text | gruendung/steuerliche-erfassung |
 | § 46 UStDV | (Zeile unter monatsabschluss) | Dauerfristverlängerung auf Antrag | Text | gruendung/steuerliche-erfassung |
 | § 14 GewO | https://www.gesetze-im-internet.de/gewo/__14.html | Gewerbeanzeige gleichzeitig mit dem Beginn (Abs. 1 Satz 1) | Text | grundlagen/pflichten; gruendung/gruendungsweg |
-| § 3 GwG | https://www.gesetze-im-internet.de/gwg_2017/__3.html | wirtschaftlich Berechtigter über 25 % (Abs. 2 Satz 1), fiktiv gesetzlicher Vertreter (Abs. 2 Satz 5) | Text | grundlagen/pflichten; gruendung/gruendungsweg |
 | § 20 GwG | https://www.gesetze-im-internet.de/gwg_2017/__20.html | Mitteilung an das Transparenzregister unverzüglich (Abs. 1 Satz 1) | Text | grundlagen/pflichten; gruendung/gruendungsweg |
 | § 192 SGB VII | https://www.gesetze-im-internet.de/sgb_7/__192.html | Meldung an Unfallversicherungsträger binnen einer Woche, Gewerbeanzeige genügt (Abs. 1) | Text | grundlagen/pflichten; gruendung/gruendungsweg |
 | § 18i SGB IV | https://www.gesetze-im-internet.de/sgb_4/__18i.html | Betriebsnummer beantragen (Abs. 1) | Text | gruendung/gruendungsweg |

@@ -88,7 +88,7 @@ stehen in [grundlagen/pflichten.md](../grundlagen/pflichten.md) im Abschnitt der
 |---|---|---|
 | Fragebogen zur steuerlichen Erfassung ([§ 137 AO][ao137], [§ 138 Abs. 1b, 4 AO][ao138]) | `fragebogen-steuerliche-erfassung` | an das Finanzamt am Ort der Geschäftsleitung ([§ 20 Abs. 1 AO][ao20]); Inhalt: Referenz zur steuerlichen Erfassung |
 | Gewerbeanzeige ([§ 14 Abs. 1 Satz 1 GewO][gewo14]) | `gewerbeanmeldung` | die Gemeinde unterrichtet das Finanzamt ([§ 138 Abs. 1 Satz 1 AO][ao138]); Wertungsfrage bei rein freiberuflichem Gegenstand |
-| Mitteilung an das Transparenzregister ([§ 20 Abs. 1 GwG][gwg20]) | `transparenzregister` | Pflicht der juristischen Person; die GmbH besteht als solche erst mit der Eintragung ([§ 11 Abs. 1 GmbHG][gmbhg11]); Berechtigte nach [§ 3 Abs. 2 GwG][gwg3], unten |
+| Mitteilung an das Transparenzregister ([§ 20 Abs. 1 GwG][gwg20]) | `transparenzregister` | nach der Eintragung; wer wirtschaftlich berechtigt ist: [transparenzregister](../grundlagen/pflichten.md#transparenzregister) |
 | Aufstellung der Eröffnungsbilanz ([§ 242 Abs. 1 HGB][hgb242]) | `eroeffnungsbilanz` | auf den Beurkundungstag; Prüfen und Unterzeichnen: [eroeffnungsbilanz.md](eroeffnungsbilanz.md) |
 | E-Bilanz der Eröffnungsbilanz ([§ 5b Abs. 1 Satz 4 EStG][estg5b]) | `ebilanz-eroeffnung` | `ebilanz_exportieren` mit `bilanzart: eroeffnungsbilanz`; Übermittlung über einen Online-Dienst wie die E-Bilanz des Jahres |
 
@@ -103,23 +103,13 @@ Diese Wege führt `fristen` nicht:
 
 Stand: Oktober 2026.
 
-Wirtschaftlich berechtigt ist jede natürliche Person, die unmittelbar oder
-mittelbar mehr als 25 % der Kapitalanteile hält oder der Stimmrechte
-kontrolliert oder auf vergleichbare Weise Kontrolle ausübt
-([§ 3 Abs. 2 Satz 1 GwG][gwg3]). Lässt sich keine solche Person ermitteln,
-gilt der gesetzliche Vertreter als wirtschaftlich Berechtigter
-([§ 3 Abs. 2 Satz 5 GwG][gwg3]).
-
 ## 5. Nach der Eintragung
 
 - Geschäftsbriefe nennen Rechtsform, Sitz, Registergericht, Registernummer
   und alle Geschäftsführer ([§ 35a Abs. 1 GmbHG][gmbhg35a]). Prüfe
   Rechnungsvorlagen darauf ([rechnungen/ablauf.md](../rechnungen/ablauf.md)).
-- Ändern sich Gesellschafter oder Beteiligungen, reichen die Geschäftsführer
-  unverzüglich eine neue Gesellschafterliste ein ([§ 40 Abs. 1 GmbHG][gmbhg40]).
-  `fristen` führt das als Pflicht `gesellschafterliste`, sobald der Anlass
-  `gesellschafterwechsel` erfasst ist; das tust du nach Rückfrage mit
-  `anlass_erfassen`.
+- Ändern sich Gesellschafter oder Beteiligungen, folgt die Pflicht
+  [gesellschafterliste](../grundlagen/pflichten.md#gesellschafterliste).
 - Registerdaten trägt der Mensch in der App ein; danach entfällt der Zusatz
   „i. G.“ in der Firma.
 
@@ -139,10 +129,7 @@ gilt der gesetzliche Vertreter als wirtschaftlich Berechtigter
 [gmbhg8]: https://www.gesetze-im-internet.de/gmbhg/__8.html
 [gmbhg9c]: https://www.gesetze-im-internet.de/gmbhg/__9c.html
 [gmbhg10]: https://www.gesetze-im-internet.de/gmbhg/__10.html
-[gmbhg11]: https://www.gesetze-im-internet.de/gmbhg/__11.html
 [gmbhg35a]: https://www.gesetze-im-internet.de/gmbhg/__35a.html
-[gmbhg40]: https://www.gesetze-im-internet.de/gmbhg/__40.html
-[gwg3]: https://www.gesetze-im-internet.de/gwg_2017/__3.html
 [gwg20]: https://www.gesetze-im-internet.de/gwg_2017/__20.html
 [hgb12]: https://www.gesetze-im-internet.de/hgb/__12.html
 [hgb242]: https://www.gesetze-im-internet.de/hgb/__242.html

@@ -665,14 +665,19 @@ Mit und ohne Steuerberater:
   Geburtsdatum, Wohnort, Art und Umfang des wirtschaftlichen Interesses, alle
   Staatsangehörigkeiten.
 - **Anlass:** Eintragung der GmbH ins Handelsregister und jede Änderung der
-  wirtschaftlich Berechtigten oder ihrer Angaben. Wirtschaftlich berechtigt ist,
-  wer unmittelbar oder mittelbar mehr als 25 % der Kapitalanteile oder
-  Stimmrechte hält oder kontrolliert; findet sich niemand, gilt der gesetzliche
-  Vertreter als wirtschaftlich Berechtigter ([§ 3 Abs. 2 GwG][gwg3]).
-  Mittelbar berechtigt ist insbesondere, wer eine Vereinigung kontrolliert, die
-  mehr als 25 % hält; Kontrolle heißt beherrschender Einfluss nach § 290 Abs. 2–4 HGB
+  wirtschaftlich Berechtigten oder ihrer Angaben. Mitzuteilen hat die
+  juristische Person ([§ 20 Abs. 1 Satz 1 GwG][gwg20]); als solche besteht die
+  GmbH erst mit der Eintragung ([§ 11 Abs. 1 GmbHG][gmbhg11]).
+- **Wirtschaftlich berechtigt** ist jede natürliche Person, die unmittelbar
+  oder mittelbar mehr als 25 % der Kapitalanteile hält, mehr als 25 % der
+  Stimmrechte kontrolliert oder auf vergleichbare Weise Kontrolle ausübt
+  ([§ 3 Abs. 2 Satz 1 GwG][gwg3]). Mittelbar berechtigt ist insbesondere, wer
+  eine Vereinigung kontrolliert, die solche Anteile hält; Kontrolle heißt
+  beherrschender Einfluss nach § 290 Abs. 2–4 HGB
   ([§ 3 Abs. 2 Satz 2–4 GwG][gwg3]). Prüfe die Kontrolle je Ebene der
-  Holdingkette; multipliziere keine Quoten.
+  Holdingkette; multipliziere keine Quoten. Lässt sich niemand ermitteln,
+  gilt der gesetzliche Vertreter als wirtschaftlich Berechtigter
+  ([§ 3 Abs. 2 Satz 5 GwG][gwg3]).
 - **Frist:** unverzüglich; die Angaben sind aktuell zu halten
   ([§ 20 Abs. 1 Satz 1 GwG][gwg20]). Keine Verschiebung nach § 108 AO.
 - **Zuständig:** Mensch (Geschäftsführung). Kanal: Transparenzregister.
@@ -706,7 +711,8 @@ Mit und ohne Steuerberater:
 - **Gebühr:** Für die Führung des Registers erhebt die registerführende Stelle
   eine Jahresgebühr ([§ 24 Abs. 1 GwG][gwg24]), ab dem Gebührenjahr 2024
   19,80 € ([TrGebV, Anlage Nr. 1][trgebv]).
-- **Vertiefung:** [gruendung/gruendungsweg.md](../gruendung/gruendungsweg.md)
+- **Vertiefung:** Reihenfolge in der Gründung:
+  [gruendung/gruendungsweg.md](../gruendung/gruendungsweg.md#4-behördenwege-mit-fristen)
 
 <a id="gesellschafterliste"></a>
 ## Neue Gesellschafterliste
@@ -728,9 +734,9 @@ Mit und ohne Steuerberater:
   keine hier geprüfte Quelle: Der Mensch klärt ihn mit dem Gericht, im Zweifel
   reicht ein Notar die Liste gegen Gebühr ein. Danach prüfen:
   [transparenzregister](#transparenzregister).
-- **Buchfink liefert:** aus dem Anlass `gesellschafterwechsel` (erfasst mit
-  `anlass_erfassen`) die Pflichten Gesellschafterliste und
-  Transparenzregister. Die Gesellschafter in den Stammdaten ändert nur der
+- **Buchfink liefert:** aus dem Anlass `gesellschafterwechsel`, den du nach
+  Rückfrage mit `anlass_erfassen` erfasst, die Pflichten Gesellschafterliste
+  und Transparenzregister. Die Gesellschafter in den Stammdaten ändert nur der
   Mensch.
 - **Nachweis:** Datum der Einreichung und Abschrift oder Bestätigung des Notars;
   der Mensch bestätigt in der App, du legst die Abschrift ab.
@@ -739,8 +745,8 @@ Mit und ohne Steuerberater:
   Geschäftsführer haften denjenigen, deren Beteiligung sich geändert hat, und
   den Gläubigern der Gesellschaft für den Schaden als Gesamtschuldner
   ([§ 40 Abs. 3 GmbHG][gmbhg40]).
-- **Vertiefung:** [gruendung/gruendungsweg.md](../gruendung/gruendungsweg.md),
-  Abschnitt 5
+- **Vertiefung:** Nach der Eintragung:
+  [gruendung/gruendungsweg.md](../gruendung/gruendungsweg.md#5-nach-der-eintragung)
 
 <a id="fragebogen-steuerliche-erfassung"></a>
 ## Fragebogen zur steuerlichen Erfassung
@@ -965,6 +971,7 @@ Mit und ohne Steuerberater:
 [gmbhg5a]: https://www.gesetze-im-internet.de/gmbhg/__5a.html
 [gmbhg16]: https://www.gesetze-im-internet.de/gmbhg/__16.html
 [gmbhg29]: https://www.gesetze-im-internet.de/gmbhg/__29.html
+[gmbhg11]: https://www.gesetze-im-internet.de/gmbhg/__11.html
 [gmbhg40]: https://www.gesetze-im-internet.de/gmbhg/__40.html
 [gmbhg42a]: https://www.gesetze-im-internet.de/gmbhg/__42a.html
 [gmbhg46]: https://www.gesetze-im-internet.de/gmbhg/__46.html
