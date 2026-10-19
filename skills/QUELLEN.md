@@ -1186,8 +1186,9 @@ nennt nur die hier genutzten Stellen.
 
 | Quelle | Link | Wofür | Geprüft | Genutzt in |
 |---|---|---|---|---|
-| BMF vom 10.01.2025, IV C 1 - S 1980/00230/009/002, BStBl I S. 273 (Fundstelle laut Bezugszeile des Schreibens vom 13.01.2026), Basiszins zum 02.01.2025 | https://bepartners.pro/media/public/files/2025/01/2025-01-10_basiszins_2025.pdf (Spiegel einer Kanzlei; BMF 503) | 2,53 %; Vorabpauschale 2025 gilt am 02.01.2026 als zugeflossen | Text 17.10.2026 (Spiegel, PDF des BMF-Schreibens) | beteiligungen/ablauf, investmentfonds |
-| BMF vom 13.01.2026, IV C 1 - S 1980/00230/012/001, Basiszins zum 02.01.2026; BStBl-Fundstelle nicht geprüft | https://direkt.bvi.de/fileadmin/user_upload/letter/2026/COO.7005.100.4.13897455.pdf (Spiegel beim BVI; BMF 503) | 3,20 %; Vorabpauschale 2026 gilt am 04.01.2027 als zugeflossen | Text 17.10.2026 (Spiegel, PDF des BMF-Schreibens) | beteiligungen/ablauf, investmentfonds |
+| BMF vom 05.01.2024, IV C 1 - S 1980-1/19/10038 :008, BStBl I S. 154 (Fundstelle auch laut Bezugszeile des Schreibens vom 10.01.2025), Basiszins zum 02.01.2024 | https://datenbank.nwb.de/Dokument/1033913/ (Wiedergabe in der NWB-Datenbank; BMF-Original nicht gefunden) | 2,29 % | Text 19.10.2026 (NWB-Wiedergabe) | beteiligungen/investmentfonds |
+| BMF vom 10.01.2025, IV C 1 - S 1980/00230/009/002, BStBl I S. 273 (Fundstelle laut Bezugszeile des Schreibens vom 13.01.2026), Basiszins zum 02.01.2025 | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Investmentsteuer/2025-01-10-basiszins-vorabpauschale-zum-2-1-2025.pdf | 2,53 %; Vorabpauschale 2025 gilt am 02.01.2026 als zugeflossen | Text 19.10.2026 (BMF-Original) | beteiligungen/ablauf, investmentfonds |
+| BMF vom 13.01.2026, IV C 1 - S 1980/00230/012/001, Basiszins zum 02.01.2026; BStBl-Fundstelle nicht geprüft | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Investmentsteuer/2026-01-13-basiszins-berechnung-vorabpauschale.pdf | 3,20 %; Vorabpauschale 2026 gilt am 04.01.2027 als zugeflossen | Text 19.10.2026 (BMF-Original) | beteiligungen/ablauf, investmentfonds |
 | BMF vom 16.05.2025, IV C 1 - S 2401/00008/014/051 (Steuerbescheinigungen) | (Zeile unter gesellschafter) | Rn. 43 (Muster II der leistenden GmbH), 47 (erst nach Zahlung), 57 (Muster III für Körperschaften), 59 (nur Privat-Teilfreistellung beim Abzug; nachrichtlicher Teil mit Vorabpauschalen), 71 (Muster ab 01.01.2026) | Text 17.10.2026 (Kanzleispiegel) | beteiligungen/dividenden, investmentfonds |
 | UStAE Abschnitt 2.3 Abs. 2–4 | https://datenbank.nwb.de/Dokument/378652_2___3/ (NWB-Datenbank, Fassung „VZ 2010–2026 (aktuell)“) | Halten von Beteiligungen keine unternehmerische Tätigkeit, Dividenden kein Entgelt; Finanz-, Führungs-, gemischte Holding; Eingriff durch entgeltliche Leistungen; Zuordnung zum Unternehmen | Text 17.10.2026 (Verlagsdatenbank; amtlicher UStAE 503) | beteiligungen/dividenden, holding-umsatzsteuer |
 | UStAE Abschnitt 15.22 Abs. 1, 2 | https://datenbank.nwb.de/Dokument/378652_15___22/ (NWB-Datenbank, Fassung „VZ 2010–2026 (aktuell)“) | Vorsteuer bei Beteiligungen im Unternehmen, Aufteilung bei gemischter Holding, Ausschluss bei Leistungen für Umsätze der Töchter (BFH XI R 24/22), Veräußerung | Text 17.10.2026 (Verlagsdatenbank) | beteiligungen/bewertung-veraeusserung, holding-umsatzsteuer |
@@ -1202,7 +1203,7 @@ nennt nur die hier genutzten Stellen.
 | § 8b KStG: 5 % nicht abziehbar; Streubesitz unter 10 % zu Beginn des Kalenderjahres; Darlehen bei Beteiligung über 25 % | 17.10.2026 | § 8b Abs. 3, 4, 5 KStG | beteiligungen/ablauf, gewst-holding, steuerfreistellung |
 | GewSt-Kürzung ab 15 % zu Beginn des Erhebungszeitraums (Inland, Ausland); Hinzurechnung Nr. 1 über 200.000 €; Messzahl 3,5 % | 17.10.2026 | § 9 Nr. 2a, 7, § 8 Nr. 1, § 11 Abs. 2 GewStG | beteiligungen/ablauf, gewst-holding |
 | Teilfreistellung KStG-Anleger: Aktienfonds 80 %, Mischfonds 40 %, Immobilienfonds 60 %, Auslands-Immobilienfonds 80 %; GewSt je zur Hälfte; Privatanleger-Satz 30 % beim Abzug | 17.10.2026 | § 20 Abs. 1–3, 5 InvStG, § 43a Abs. 2 Satz 1 EStG | beteiligungen/ablauf, gewst-holding, investmentfonds |
-| Basiszins 2025: 2,53 %; 2026: 3,20 %; Zufluss 02.01.2026 bzw. 04.01.2027 | 17.10.2026 | BMF vom 10.01.2025, 13.01.2026 | beteiligungen/ablauf, investmentfonds |
+| Basiszins 2024: 2,29 %; 2025: 2,53 %; 2026: 3,20 %; Zufluss 02.01.2026 bzw. 04.01.2027 | 19.10.2026 | BMF vom 05.01.2024, 10.01.2025, 13.01.2026 | beteiligungen/ablauf, investmentfonds |
 | § 36a EStG: 45 Tage, 70 %, drei Fünftel, 20.000 €, ein Jahr | 17.10.2026 | § 36a Abs. 1–3, 5 EStG | beteiligungen/dividenden |
 | Mitteilung ausländischer Beteiligungen: 10 % oder 150.000 €, spätestens 14 Monate | 17.10.2026 | § 138 Abs. 2 Satz 1 Nr. 3, Abs. 5 AO | beteiligungen/erwerb-ausweis |
 | Beteiligungsvermutung: mehr als ein Fünftel des Nennkapitals | 17.10.2026 | § 271 Abs. 1 Satz 3 HGB | beteiligungen/ablauf, erwerb-ausweis |
@@ -1211,7 +1212,7 @@ nennt nur die hier genutzten Stellen.
 
 | Quelle | Pfad | Wofür |
 |---|---|---|
-| Investmentrechnung | `internal/accounting/investment.go` | Fondsarten, `PartialExemptionFor` (KSt-Sätze, Anlegerstellung), `ComputeVorabpauschale`, `firstWorkdayOfYear` (Samstag als Werktag) |
+| Investmentrechnung | `internal/accounting/investment.go`, `tax_params.go` | Fondsarten, `PartialExemptionFor` (KSt-Sätze, Anlegerstellung), `ComputeVorabpauschale`, `InvestmentBaseRateFor` (Basiszins 2024–2026), `firstWorkdayOfYear` (Montag bis Freitag, wie BMF 13.01.2026) |
 | Investment-Dienst | `internal/service/asset_investment_service.go` | Vorabpauschale festhalten (Bewegung ohne Buchung, Jahr der Entstehung), Nebenrechnung bei Ertrag und Abgang (Abzug der Vorabpauschalen) |
 | Anlagenkonten | `internal/accounting/asset_accounts.go` | Katalog 0800–0990, `AssetIncomeAccount` (§-8b-Konten 7005/7006/7014 für Anteile an Kapitalgesellschaften, sonst 7000/7010/7011/7100), `ImpairmentAccount` (7204/7200/7201), `WriteUpAccount` (4913/4912), `DisposalAccountsFor` (4852/4858, 6892/6898, 4851/4857, 6891/6897), `WithholdingTaxAccount` 7630 |
 | Anlagen-Dienst | `internal/service/asset_service.go` | `BookAssetIncome` (eine Zeile 7630, Ausleihungszinsen steuerfrei, Dividenden nicht steuerbar), `AcquisitionCandidates`, `DisposalRequest` (Verkauf, Tilgung, Verschrottung; Zahlungsmittel oder offener Posten), Hinweise zu Finanzanlagen |
@@ -1260,8 +1261,6 @@ nennt nur die hier genutzten Stellen.
 - **Finanzholding in Buchfink:** Eine Holding ohne Unternehmereigenschaft gibt
   keine Voranmeldungen ab; wie der Mandant dann einzurichten ist, ist offen.
 - **Code-Befunde Buchfink (Korrekturkandidaten):**
-  - `firstWorkdayOfYear` zählt den Samstag als Werktag und liefert für 2026
-    den 02.01.2027; das BMF nennt den 04.01.2027.
   - `BookAssetIncome` bucht Kapitalertragsteuer und Solidaritätszuschlag als
     eine Zeile auf 7630. Aufrufer in App oder Werkzeug hat der Dienst nicht.
   - `ImpairmentAccount` bucht gekennzeichnete Anteile auch bei
@@ -1272,6 +1271,9 @@ nennt nur die hier genutzten Stellen.
     abgleichen.
   - Zwölftelung der Vorabpauschale nur nach dem Erwerbsmonat des Anlageguts;
     Nachkäufe im Jahr werden nicht getrennt gekürzt.
+  - `AssetService.Vorabpauschale` hat keinen Aufrufer in App oder Werkzeug.
+    Basiszinsen vor 2024 sind nicht hinterlegt; die BMF-Schreiben dazu sind
+    nicht gelesen.
   - Anteiliges Abzugsverbot (§ 21 InvStG) wird nicht gerechnet.
 - UStAE nur über die NWB-Datenbank, KStH/EStH nur über Kanzleispiegel gelesen;
   Abgleich mit den amtlichen Handbüchern.

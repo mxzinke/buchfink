@@ -211,9 +211,11 @@ type VorabpauschaleInput struct {
 	//
 	// Er steht nicht im Gesetz: § 18 Abs. 4 InvStG lässt ihn die Bundesbank auf
 	// den ersten Börsentag des Jahres errechnen, und das Bundesministerium der
-	// Finanzen veröffentlicht ihn im Bundessteuerblatt. Buchfink kann ihn
-	// deshalb nicht mitliefern — er wird eingegeben, mit der Fundstelle daneben.
+	// Finanzen veröffentlicht ihn im Bundessteuerblatt. Null heißt: der Wert aus
+	// InvestmentBaseRateFor. Für die übrigen Jahre wird er eingegeben, mit der
+	// Fundstelle daneben (BasisSource).
 	BasisPoints int
+	BasisSource string
 	// AcquisitionMonth ist der Monat des Erwerbs (1 bis 12), wenn die Anteile in
 	// diesem Kalenderjahr erworben wurden; sonst null. § 18 Abs. 2 InvStG kürzt
 	// die Vorabpauschale dann um ein Zwölftel je vollem Monat davor.
@@ -256,11 +258,22 @@ func ComputeVorabpauschale(in VorabpauschaleInput) (Vorabpauschale, error) {
 	if in.Year <= 0 {
 		return Vorabpauschale{}, fmt.Errorf("ohne Kalenderjahr lässt sich keine Vorabpauschale rechnen")
 	}
+	// Der Basiszins ist bekanntgegeben und keine Schätzung: wo Buchfink ihn
+	// kennt, gilt er, und eine abweichende Eingabe ist ein Tippfehler.
+	if known, ok := InvestmentBaseRateFor(in.Year); ok {
+		if in.BasisPoints != 0 && in.BasisPoints != known.BasisPoints {
+			return Vorabpauschale{}, fmt.Errorf(
+				"der Basiszins für %d beträgt %s (%s), eingegeben sind %s",
+				in.Year, basisPointText(known.BasisPoints), known.Source, basisPointText(in.BasisPoints))
+		}
+		in.BasisPoints, in.BasisSource = known.BasisPoints, known.Source
+	}
 	if in.BasisPoints <= 0 {
 		return Vorabpauschale{}, fmt.Errorf(
-			"für %d fehlt der Basiszins. Er steht nicht im Gesetz: die Bundesbank errechnet ihn auf "+
+			"für %d fehlt der Basiszins; Buchfink kennt ihn für %s. Die Bundesbank errechnet ihn auf "+
 				"den ersten Börsentag des Jahres, das Bundesministerium der Finanzen veröffentlicht "+
-				"ihn im Bundessteuerblatt (§ 18 Abs. 4 InvStG). Von dort ist er einzutragen", in.Year)
+				"ihn im Bundessteuerblatt (§ 18 Abs. 4 InvStG). Von dort ist er einzutragen",
+			in.Year, investmentBaseRateYears())
 	}
 	if in.OpeningPrice < 0 || in.ClosingPrice < 0 || in.Distributions < 0 {
 		return Vorabpauschale{}, fmt.Errorf("Rücknahmepreise und Ausschüttungen können nicht negativ sein")
@@ -323,6 +336,9 @@ func ComputeVorabpauschale(in VorabpauschaleInput) (Vorabpauschale, error) {
 		parts := fmt.Sprintf(
 			"Basisertrag %d: %s € × 70 %% von %s = %s €",
 			in.Year, in.OpeningPrice, basisPointText(in.BasisPoints), out.BasisReturn)
+		if in.BasisSource != "" {
+			parts += fmt.Sprintf(" (Basiszins laut %s)", in.BasisSource)
+		}
 		if out.Capped {
 			parts += fmt.Sprintf(", begrenzt auf den Wertzuwachs von %s € (§ 18 Abs. 1 Satz 3 InvStG)",
 				out.Growth)
@@ -344,12 +360,13 @@ func ComputeVorabpauschale(in VorabpauschaleInput) (Vorabpauschale, error) {
 // firstWorkdayOfYear is the day the Vorabpauschale is deemed to accrue on
 // (§ 18 Abs. 3 InvStG): der erste Werktag des folgenden Kalenderjahres.
 //
-// Werktag heißt Montag bis Samstag; gesetzliche Feiertage sind Landesrecht und
-// bleiben hier außen vor. Der 1. Januar ist bundeseinheitlich Feiertag, deshalb
-// beginnt die Suche am 2. Januar.
+// Werktag heißt hier Montag bis Freitag: für 2026 nennt das BMF-Schreiben vom
+// 13. Januar 2026 den 4. Januar 2027, den Montag nach Samstag, dem 2. Januar.
+// Gesetzliche Feiertage sind Landesrecht und bleiben außen vor. Der 1. Januar
+// ist bundeseinheitlich Feiertag, deshalb beginnt die Suche am 2. Januar.
 func firstWorkdayOfYear(year int) string {
 	day := time.Date(year, time.January, 2, 0, 0, 0, 0, time.UTC)
-	for day.Weekday() == time.Sunday {
+	for day.Weekday() == time.Saturday || day.Weekday() == time.Sunday {
 		day = day.AddDate(0, 0, 1)
 	}
 	return day.Format("2006-01-02")

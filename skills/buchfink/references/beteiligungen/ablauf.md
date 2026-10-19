@@ -190,8 +190,10 @@ Format: [SKILL.md, Abschnitt 3](../../SKILL.md#3-den-menschen-fragen).
 - Die Streubesitzgrenze von 10 % gilt nur für Dividenden, nicht für
   Veräußerungsgewinne
   ([steuerfreistellung.md, Abschnitt 3](steuerfreistellung.md#3-streubesitz-unter-10-)).
-- Den Basiszins für die Vorabpauschale liefert Buchfink nicht mit; er ändert
-  sich jedes Jahr ([investmentfonds.md, Abschnitt 5](investmentfonds.md#5-vorabpauschale)).
+- Den Basiszins für die Vorabpauschale bestimmt jedes Jahr das BMF neu.
+  Buchfink kennt ihn für 2024 bis 2026, rechnet die Vorabpauschale aber weder
+  in der App noch über ein Werkzeug; den Betrag nennt die Bescheinigung der
+  Bank ([investmentfonds.md, Abschnitt 5](investmentfonds.md#5-vorabpauschale)).
 - Die Bank behält auf Fondserträge Kapitalertragsteuer nach der
   Teilfreistellung für Privatanleger ein
   ([investmentfonds.md, Abschnitt 7](investmentfonds.md#7-kapitalertragsteuer-und-bescheinigung)).

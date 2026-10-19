@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -385,6 +386,41 @@ func DefaultBaseRates() []BaseRatePeriod {
 	out := make([]BaseRatePeriod, len(defaultBaseRates))
 	copy(out, defaultBaseRates)
 	return out
+}
+
+// InvestmentBaseRate ist der Basiszins eines Kalenderjahres für die
+// Vorabpauschale (§ 18 Abs. 4 InvStG) mit dem Schreiben, in dem das
+// Bundesministerium der Finanzen ihn bekanntgegeben hat.
+type InvestmentBaseRate struct {
+	Year        int    `json:"year"`
+	BasisPoints int    `json:"basisPoints"`
+	Source      string `json:"source"`
+}
+
+// investmentBaseRates führt nur Jahre, deren Bekanntgabe gelesen wurde.
+var investmentBaseRates = []InvestmentBaseRate{
+	{Year: 2024, BasisPoints: 229, Source: "BMF-Schreiben vom 5. Januar 2024, IV C 1 - S 1980-1/19/10038 :008, BStBl I S. 154"},
+	{Year: 2025, BasisPoints: 253, Source: "BMF-Schreiben vom 10. Januar 2025, IV C 1 - S 1980/00230/009/002, BStBl I S. 273"},
+	{Year: 2026, BasisPoints: 320, Source: "BMF-Schreiben vom 13. Januar 2026, IV C 1 - S 1980/00230/012/001"},
+}
+
+// InvestmentBaseRateFor liefert den Basiszins eines Kalenderjahres, wenn er
+// hinterlegt ist.
+func InvestmentBaseRateFor(year int) (InvestmentBaseRate, bool) {
+	for _, r := range investmentBaseRates {
+		if r.Year == year {
+			return r, true
+		}
+	}
+	return InvestmentBaseRate{}, false
+}
+
+func investmentBaseRateYears() string {
+	years := make([]string, 0, len(investmentBaseRates))
+	for _, r := range investmentBaseRates {
+		years = append(years, fmt.Sprintf("%d", r.Year))
+	}
+	return strings.Join(years, ", ")
 }
 
 // VatRatePeriod ist das Paar aus Regel- und ermäßigtem Steuersatz, das ab

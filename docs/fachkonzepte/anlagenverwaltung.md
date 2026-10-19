@@ -84,8 +84,13 @@ Vorabpauschale (§ 18 InvStG) als Nebenrechnung. Die Vorabpauschale wird nicht
 gebucht, aber festgehalten, weil sie beim Abgang abzuziehen ist. Die
 Teilfreistellung folgt für GmbH und UG aus der Stellung als Körperschaft; für
 die Ausnahmen des § 20 Abs. 1 Sätze 4 und 5 InvStG lässt sich das abweichend
-festlegen. Den Basiszins gibt der Mensch mit Quelle ein, weil er jährlich neu
-veröffentlicht wird.
+festlegen. Den Basiszins ([§ 18 Abs. 4 InvStG][invstg18]) kennt Buchfink für
+die Jahre, deren BMF-Schreiben gelesen wurde (`accounting.InvestmentBaseRateFor`:
+2024 bis 2026); eine abweichende Eingabe weist es ab. Für andere Jahre gibt der
+Mensch ihn mit Quelle ein. Als zugeflossen gilt die Vorabpauschale am ersten
+Werktag des Folgejahres, Samstag ausgenommen, wie das BMF für 2026 den
+4. Januar 2027 nennt. Gerechnet wird im Dienst (`AssetService.Vorabpauschale`);
+weder Oberfläche noch Werkzeug rufen ihn auf.
 
 ## Anlagenspiegel
 
@@ -101,3 +106,4 @@ ist. Kleine Kapitalgesellschaften sind von ihm im Anhang befreit
 [hgb255]: https://www.gesetze-im-internet.de/hgb/__255.html
 [hgb256a]: https://www.gesetze-im-internet.de/hgb/__256a.html
 [hgb288]: https://www.gesetze-im-internet.de/hgb/__288.html
+[invstg18]: https://www.gesetze-im-internet.de/invstg_2018/__18.html

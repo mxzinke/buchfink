@@ -31,7 +31,8 @@ type VorabpauschaleRequest struct {
 	OpeningPrice  domain.Cents `json:"openingPrice"`
 	ClosingPrice  domain.Cents `json:"closingPrice"`
 	Distributions domain.Cents `json:"distributions"`
-	// BasisPoints ist der Basiszins in Basispunkten: 253 sind 2,53 %.
+	// BasisPoints ist der Basiszins in Basispunkten: 253 sind 2,53 %. Null
+	// heißt: der hinterlegte Wert des Jahres (accounting.InvestmentBaseRateFor).
 	BasisPoints int `json:"basisPoints"`
 	// Record sagt, ob das Ergebnis festgehalten wird. Ohne ihn rechnet der
 	// Aufruf nur vor.

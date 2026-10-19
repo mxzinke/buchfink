@@ -136,12 +136,47 @@ func TestVorabpauschaleAccountsForDistributionsAndTheYearOfPurchase(t *testing.T
 // Der Basiszins steht nicht im Gesetz. Ohne ihn wird nicht gerechnet.
 func TestVorabpauschaleNeedsTheBasisRate(t *testing.T) {
 	_, err := ComputeVorabpauschale(VorabpauschaleInput{
-		Year: 2026, OpeningPrice: 10_000_000, ClosingPrice: 11_000_000,
+		Year: 2023, OpeningPrice: 10_000_000, ClosingPrice: 11_000_000,
 	})
 	if err == nil {
 		t.Fatal("ohne Basiszins darf keine Vorabpauschale entstehen")
 	}
 	if !strings.Contains(err.Error(), "Bundessteuerblatt") {
 		t.Errorf("die Meldung nennt die Quelle nicht: %v", err)
+	}
+}
+
+// Die Basiszinsen der Jahre, deren BMF-Schreiben gelesen wurde, kennt Buchfink
+// selbst; eine abweichende Eingabe ist ein Tippfehler. Für 2026 nennt das
+// BMF-Schreiben vom 13. Januar 2026 3,20 % und den 4. Januar 2027 als Zufluss.
+func TestVorabpauschaleUsesThePublishedBasisRate(t *testing.T) {
+	out, err := ComputeVorabpauschale(VorabpauschaleInput{
+		Year: 2026, OpeningPrice: 10_000_000, ClosingPrice: 11_000_000,
+	})
+	if err != nil {
+		t.Fatalf("Vorabpauschale: %v", err)
+	}
+	// 100.000 × 0,7 × 3,20 % = 2.240,00 €.
+	if out.Amount != 224_000 {
+		t.Errorf("Vorabpauschale %s € — erwartet 2.240,00 €", out.Amount)
+	}
+	if out.AccruedOn != "2027-01-04" {
+		t.Errorf("Zufluss %q — das BMF nennt den 4. Januar 2027", out.AccruedOn)
+	}
+	if !strings.Contains(out.Explanation, "13. Januar 2026") {
+		t.Errorf("die Erläuterung nennt die Fundstelle nicht: %s", out.Explanation)
+	}
+
+	if _, err := ComputeVorabpauschale(VorabpauschaleInput{
+		Year: 2025, OpeningPrice: 10_000_000, ClosingPrice: 11_000_000, BasisPoints: 255,
+	}); err == nil {
+		t.Error("2,55 % für 2025 widerspricht dem BMF-Schreiben vom 10. Januar 2025 (2,53 %)")
+	}
+
+	for year, points := range map[int]int{2024: 229, 2025: 253, 2026: 320} {
+		rate, ok := InvestmentBaseRateFor(year)
+		if !ok || rate.BasisPoints != points || rate.Source == "" {
+			t.Errorf("Basiszins %d: %+v", year, rate)
+		}
 	}
 }
