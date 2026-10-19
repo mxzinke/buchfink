@@ -150,8 +150,8 @@ type InterestResult struct {
 	Amount    domain.Cents      `json:"amount"`
 	Segments  []InterestSegment `json:"segments"`
 	// UncoveredFrom ist der erste Tag des Zeitraums, für den die Tabelle keinen
-	// Basiszinssatz belegt (BaseRatesCoveredUntil). Ab dort ist nicht gerechnet;
-	// leer heißt: der ganze Zeitraum ist gerechnet.
+	// Basiszinssatz belegt. Ab dort wird mit dem letzten bekannten Satz
+	// vorläufig weitergerechnet; leer heißt: alle Sätze sind belegt.
 	UncoveredFrom string `json:"uncoveredFrom,omitempty"`
 }
 
@@ -190,18 +190,15 @@ func DefaultInterest(
 		return out, nil
 	}
 
-	// Über das Halbjahr des letzten Eintrags hinaus wird nicht fortgeschrieben:
-	// ein geschätzter Satz ergäbe eine Forderung, die niemand belegen kann.
+	// Nach dem belegten Halbjahr gilt der letzte Satz nur als vorläufig.
 	if covered := BaseRatesCoveredUntil(rates); covered != "" {
 		limit, _ := time.Parse("2006-01-02", covered)
 		limit = limit.AddDate(0, 0, 1)
 		if !start.Before(limit) {
 			out.UncoveredFrom = from
-			return out, nil
 		}
-		if end.After(limit) {
+		if start.Before(limit) && end.After(limit) {
 			out.UncoveredFrom = limit.Format("2006-01-02")
-			end = limit
 		}
 	}
 

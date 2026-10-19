@@ -212,10 +212,8 @@ func (s *OverdueService) Claims(ctx context.Context, today string) ([]OverdueCla
 				row.InterestDays = interest.Days
 				if interest.UncoveredFrom != "" {
 					row.Note = fmt.Sprintf(
-						"Zu %s sind Verzugszinsen nur bis zum %s gerechnet: für die Zeit danach ist in "+
-							"dieser Programmfassung kein Basiszinssatz hinterlegt. Eine neuere Fassung "+
-							"von Buchfink bringt ihn mit.",
-						documentOf(item), germanDay(accounting.BaseRatesCoveredUntil(rates)))
+						"Zu %s sind die Verzugszinsen ab dem %s vorläufig: Für diesen Zeitraum ist kein neuer Basiszinssatz hinterlegt. Gerechnet wird mit dem letzten bekannten Satz.",
+						documentOf(item), germanDay(interest.UncoveredFrom))
 				}
 			}
 			// Die Pauschale richtet sich nach dem Verzug und nicht nach der

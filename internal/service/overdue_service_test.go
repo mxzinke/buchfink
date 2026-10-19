@@ -110,8 +110,8 @@ func TestOverdueClaimComputesInterestAndLumpSum(t *testing.T) {
 }
 
 // Reicht der Verzug über die hinterlegte Tabelle des Basiszinssatzes hinaus,
-// rechnet Buchfink nur bis zu ihrem Ende und sagt es.
-func TestOverdueInterestStopsWhereTheBaseRateTableEnds(t *testing.T) {
+// rechnet Buchfink vorläufig mit dem letzten Satz weiter.
+func TestOverdueInterestContinuesProvisionally(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	customer := env.customer(t, "Langzahler GmbH", "DE", "")
@@ -135,8 +135,8 @@ func TestOverdueInterestStopsWhereTheBaseRateTableEnds(t *testing.T) {
 	if item.Interest <= 0 {
 		t.Error("bis zum Ende der Tabelle sind Zinsen zu rechnen")
 	}
-	if !strings.Contains(item.Note, "kein Basiszinssatz hinterlegt") {
-		t.Errorf("der Hinweis muss sagen, dass ab dem Ende der Tabelle nicht gerechnet ist: %q", item.Note)
+	if !strings.Contains(item.Note, "vorläufig") {
+		t.Errorf("der Hinweis muss sagen, dass ab dem Ende der Tabelle vorläufig gerechnet ist: %q", item.Note)
 	}
 	if item.LumpSum != 4000 {
 		t.Errorf("Pauschale = %s €, erwartet 40,00", item.LumpSum)
