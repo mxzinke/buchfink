@@ -15,8 +15,8 @@ Die Eingangsseite prüft [belege/pflichtangaben.md](../belege/pflichtangaben.md)
 
 ## 1. Wann eine Rechnung Pflicht ist
 
-- Rechnung ist jedes Dokument, mit dem über eine Leistung abgerechnet wird,
-  gleich wie es heißt ([§ 14 Abs. 1 Satz 1 UStG][ustg14]).
+- Was eine Rechnung ist:
+  [belege/pflichtangaben.md, Abschnitt 1](../belege/pflichtangaben.md#1-was-eine-rechnung-ist).
 - Pflicht binnen sechs Monaten nach der Leistung bei Leistungen an ein anderes
   Unternehmen für dessen Unternehmen und an juristische Personen, außer bei
   steuerfreien Umsätzen nach § 4 Nr. 8 bis 29 UStG
@@ -46,27 +46,21 @@ Pflichtangaben nach [§ 14 Abs. 4 Satz 1 UStG][ustg14]:
 | 9 | Hinweis auf die Aufbewahrungspflicht des Empfängers (§ 14b Abs. 1 Satz 5 UStG) | – | nur bei Leistungen im Zusammenhang mit einem Grundstück an Nichtunternehmer; frag den Menschen |
 | 10 | Angabe „Gutschrift“ | – | Buchfink stellt keine Gutschriften aus |
 
-- Name und Anschrift genügen, wenn sich beide eindeutig feststellen lassen;
-  Abkürzungen und Symbole sind zulässig, wenn ihre Bedeutung festgelegt ist
-  ([§ 31 Abs. 2, 3 UStDV][ustdv31]).
-- Eine Rechnung kann aus mehreren Dokumenten bestehen, wenn eines davon Entgelt
-  und Steuer zusammengefasst nennt und auf die anderen verweist
-  ([§ 31 Abs. 1 UStDV][ustdv31]). Für die E-Rechnung gilt das nur eingeschränkt:
-  alle Pflichtangaben gehören in den strukturierten Teil
-  ([BMF 15.10.2025, Rn. 35][bmf2025]).
+- Mehrere Dokumente, Abkürzungen und der Kalendermonat als Leistungszeitpunkt
+  ([§ 31 Abs. 1 bis 4 UStDV][ustdv31]):
+  [belege/pflichtangaben.md, Abschnitt 4](../belege/pflichtangaben.md#4-mehrere-dokumente-abkürzungen-leistungsmonat).
+  Bei der E-Rechnung gehören alle Pflichtangaben in den strukturierten Teil
+  ([e-rechnung-ausgang.md, Abschnitt 5](e-rechnung-ausgang.md#5-inhalt-des-strukturierten-teils)).
 - Fehlt eine Pflichtangabe, kann der Kunde die Vorsteuer nicht abziehen
   ([§ 15 Abs. 1 Satz 1 Nr. 1 Satz 2 UStG][ustg15]). Rechne mit Rückfragen und
   berichtige nach [storno-berichtigung.md](storno-berichtigung.md).
 
 ## 3. Kleinbetragsrechnung
 
-- Rechnungen bis 250 € Gesamtbetrag brauchen nur Name und Anschrift des
-  leistenden Unternehmens, Ausstellungsdatum, Menge und Art der Leistung,
-  Entgelt und Steuer in einer Summe sowie den Steuersatz
-  ([§ 33 Satz 1 UStDV][ustdv33]). Stand: Oktober 2026; die Grenze steht in der
-  UStDV und kann sich durch Verordnung ändern.
-- Nicht zulässig bei Leistungen nach §§ 3c, 6a und 13b UStG
-  ([§ 33 Satz 3 UStDV][ustdv33]).
+- Was eine Rechnung bis 250 € Gesamtbetrag braucht und wann die Erleichterung
+  nicht gilt ([§ 33 UStDV][ustdv33]):
+  [belege/pflichtangaben.md, Abschnitt 3](../belege/pflichtangaben.md#3-erleichterungen).
+  Die Grenze steht in der UStDV und kann sich durch Verordnung ändern.
 - `rechnung_ausstellen` erzeugt immer die vollständige Rechnung. Eine
   Kleinbetragsrechnung brauchst du deshalb nicht; sie ist nur für die
   E-Rechnungspflicht von Bedeutung
@@ -76,14 +70,13 @@ Pflichtangaben nach [§ 14 Abs. 4 Satz 1 UStG][ustg14]:
 
 - Pflichtangabe auch dann, wenn er mit dem Rechnungsdatum übereinstimmt
   ([§ 14 Abs. 4 Satz 1 Nr. 6 UStG][ustg14]).
-- Der Kalendermonat der Leistung genügt ([§ 31 Abs. 4 UStDV][ustdv31]).
 - Sonstige Leistungen sind mit ihrer Vollendung ausgeführt; zeitlich begrenzte
   Dauerleistungen mit Ende des Rechtsverhältnisses, wenn keine Teilleistungen
   vereinbart sind ([UStAE 13.1 Abs. 3][ustae131]).
-- Die Steuer entsteht bei Sollversteuerung mit Ablauf des
-  Voranmeldungszeitraums, in dem die Leistung ausgeführt wurde, unabhängig von
-  Rechnung und Zahlung ([§ 13 Abs. 1 Nr. 1 Buchst. a Satz 1 UStG][ustg13]).
-  Für Anzahlungen gilt [anzahlungen.md, Abschnitt 1](anzahlungen.md#1-wann-die-steuer-entsteht).
+- Der Leistungszeitpunkt bestimmt, in welchem Voranmeldungszeitraum die
+  Steuer entsteht
+  ([monatsabschluss/ustva.md, Abschnitt 1](../monatsabschluss/ustva.md#1-pflicht-und-form));
+  für Anzahlungen gilt [anzahlungen.md, Abschnitt 1](anzahlungen.md#1-wann-die-steuer-entsteht).
 - Wertungsfrage bei Projekten: Abnahme, Übergabe, Go-live oder Ende des
   Leistungszeitraums. Das Datum entscheidet über den Voranmeldungszeitraum der
   Steuer. Frag den Menschen, was vereinbart und was geschehen ist.
@@ -117,7 +110,6 @@ Pflichtangaben nach [§ 14 Abs. 4 Satz 1 UStG][ustg14]:
 | Rechnung an Verbraucher | Hinweis auf den Verzug 30 Tage nach Fälligkeit und Zugang; Buchfink druckt ihn bei `privatperson: true` | [mahnen-verzug.md, Abschnitt 1](mahnen-verzug.md#1-fälligkeit-und-verzug) |
 | Anzahlungsrechnung | Kennzeichnung als Anzahlung | [anzahlungen.md, Abschnitt 3](anzahlungen.md#3-abschlagsrechnung) |
 
-[ustg13]: https://www.gesetze-im-internet.de/ustg_1980/__13.html
 [ustg14]: https://www.gesetze-im-internet.de/ustg_1980/__14.html
 [ustg14a]: https://www.gesetze-im-internet.de/ustg_1980/__14a.html
 [ustg15]: https://www.gesetze-im-internet.de/ustg_1980/__15.html

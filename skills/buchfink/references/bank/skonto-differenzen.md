@@ -16,8 +16,9 @@ gelesen.
 
 **Umsatzsteuer.** Skonto mindert die Bemessungsgrundlage. Der Leistende
 berichtigt seine Steuer, der Empfänger seine Vorsteuer
-([§ 17 Abs. 1 Satz 1 und 2 UStG][ustg17]), und zwar im Zeitraum, in dem die
-Minderung eintritt, also mit der Zahlung (Satz 8). Bei § 13b und beim
+([§ 17 Abs. 1 Satz 1 und 2 UStG][ustg17]), und zwar im Zeitraum der Änderung
+([monatsabschluss/berichtigung.md, Abschnitt 1](../monatsabschluss/berichtigung.md#1-berichtigung-oder-laufender-zeitraum)),
+beim Skonto also mit der Zahlung. Bei § 13b und beim
 innergemeinschaftlichen Erwerb gilt das sinngemäß (Satz 5): Beide Steuerzeilen
 werden berichtigt. Eine Rechnungsberichtigung ist dafür nicht nötig
 ([belege/vorsteuer.md](../belege/vorsteuer.md#7-minderung-des-entgelts)).

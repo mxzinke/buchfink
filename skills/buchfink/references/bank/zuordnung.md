@@ -101,11 +101,10 @@ Schreib `text` so, dass ein Prüfer ohne Chat versteht, was geschah
 
 ## 5. Zahlung ohne Rechnung
 
-- **Eingang ohne Rechnung:** Kann eine Anzahlung sein. Bei Anzahlungen entsteht
-  die Umsatzsteuer schon mit der Vereinnahmung
-  ([§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG][ustg13]). Leg den Fall vor;
-  Abschläge und Anzahlungen regelt
-  [rechnungen/anzahlungen.md](../rechnungen/anzahlungen.md).
+- **Eingang ohne Rechnung:** Kann eine Anzahlung sein; dann entsteht die
+  Umsatzsteuer schon mit der Vereinnahmung
+  ([rechnungen/anzahlungen.md](../rechnungen/anzahlungen.md#1-wann-die-steuer-entsteht)).
+  Leg den Fall vor.
 - **Ausgang ohne Rechnung:** Fordere die Rechnung an und buche sie zuerst
   ([belege/ablauf.md](../belege/ablauf.md)). Ist es eine Anzahlung an einen
   Lieferanten, gilt dort `anzahlung_fuer`; zur Vorsteuer daraus
@@ -165,4 +164,3 @@ Umsätze bleiben offen; der Prüflauf meldet sie.
 - `offene_posten` zeigt Posten aller Jahre. Buche die Zahlung mit ihrem
   Bankdatum; das Jahr des Postens ändert sich dadurch nicht.
 
-[ustg13]: https://www.gesetze-im-internet.de/ustg_1980/__13.html

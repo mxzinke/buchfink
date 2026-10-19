@@ -15,17 +15,12 @@ Tabelle; sie ändern sich nur durch Gesetz.
 
 ## 1. Voraussetzungen
 
-- Die Gesellschafter stellen den Jahresabschluss fest und beschließen über die
-  Verwendung des Ergebnisses ([§ 46 Nr. 1 GmbHG][gmbhg46]). Anspruch besteht auf
-  den Jahresüberschuss zuzüglich Gewinnvortrag und abzüglich Verlustvortrag,
-  soweit Gesetz, Satzung oder Beschluss ihn nicht binden
-  ([§ 29 Abs. 1 GmbHG][gmbhg29]).
-- Verteilt wird nach Geschäftsanteilen, wenn die Satzung nichts anderes
-  bestimmt ([§ 29 Abs. 3 GmbHG][gmbhg29]).
-- Beschluss in der Versammlung oder schriftlich in Textform mit Zustimmung
-  aller ([§ 48 Abs. 1, 2 GmbHG][gmbhg48]). Hält ein Gesellschafter alle Anteile,
-  nimmt er unverzüglich eine Niederschrift auf und unterschreibt sie
-  ([§ 48 Abs. 3 GmbHG][gmbhg48]).
+- Ausgeschüttet wird nur auf einen Beschluss der Gesellschafter über die
+  Ergebnisverwendung. Zuständigkeit und Form des Beschlusses:
+  [jahresabschluss/aufstellen-feststellen-offenlegen.md, Abschnitt 3](../jahresabschluss/aufstellen-feststellen-offenlegen.md#3-feststellen);
+  Frist: [grundlagen/pflichten.md#ergebnisverwendung](../grundlagen/pflichten.md#ergebnisverwendung);
+  Anspruch und Verteilung nach Geschäftsanteilen:
+  [jahresabschluss/ergebnisverwendung-ug.md, Abschnitt 3](../jahresabschluss/ergebnisverwendung-ug.md#3-ergebnisverwendung).
 - Im Beschluss steht der Auszahlungstag. Er bestimmt den Zufluss (Abschnitt 4).
 - Lege Feststellungs- und Verwendungsbeschluss mit `beleg_ablegen` ab.
 
@@ -35,10 +30,8 @@ Tabelle; sie ändern sich nur durch Gesetz.
   die Bilanz zum letzten Stichtag und aktuell mit `auswertung`
   (`art: bilanz`). Bleibt das Eigenkapital nach der Auszahlung unter dem
   Stammkapital, halte an und empfiehl rechtliche Beratung.
-- **UG:** Ein Viertel des um einen Verlustvortrag geminderten
-  Jahresüberschusses gehört in die gesetzliche Rücklage und ist nicht
-  ausschüttbar ([§ 5a Abs. 3 GmbHG][gmbhg5a]). Das bucht
-  [jahresabschluss/ergebnisverwendung-ug.md](../jahresabschluss/ergebnisverwendung-ug.md).
+- **UG:** Die gesetzliche Rücklage ist nicht ausschüttbar
+  ([jahresabschluss/ergebnisverwendung-ug.md, Abschnitt 1](../jahresabschluss/ergebnisverwendung-ug.md#1-gesetzliche-rücklage-der-ug)).
 - **Zahlungsfähigkeit:** Zahlungen an Gesellschafter, die zur
   Zahlungsunfähigkeit führen mussten, machen den Geschäftsführer
   ersatzpflichtig ([§ 15b Abs. 5 InsO][inso15b]). Prüfe mit `offene_posten`
@@ -49,9 +42,7 @@ Tabelle; sie ändern sich nur durch Gesetz.
 
 | Größe | Wert | Grundlage |
 |---|---|---|
-| Kapitalertragsteuer | 25 % des Kapitalertrags | [§ 43a Abs. 1 Satz 1 Nr. 1 EStG][estg43a] |
-| Bemessung | volle Ausschüttung ohne Abzug | [§ 43a Abs. 2 Satz 1 EStG][estg43a] |
-| Solidaritätszuschlag | 5,5 % der Kapitalertragsteuer | [§ 3 Abs. 1 Nr. 5][solzg3], [§ 4 Satz 1 SolZG][solzg4] |
+| Kapitalertragsteuer mit Solidaritätszuschlag | Abzug auf Gewinnanteile; Satz und Bemessung in [bank/zinsen-kapest.md](../bank/zinsen-kapest.md#2-kapitalertragsteuer-und-solidaritätszuschlag) | [§ 43 Abs. 1 Satz 1 Nr. 1 EStG][estg43] |
 | Kirchensteuer | Satz nach Landesrecht; mindert die Kapitalertragsteuer um 25 % der Kirchensteuer | [§ 43a Abs. 1 Satz 2 EStG][estg43a], [§ 51a Abs. 2c EStG][estg51a] |
 
 Beispiel ohne Kirchensteuer: Ausschüttung 10.000,00 € → Kapitalertragsteuer
@@ -138,10 +129,6 @@ ausdrücklich; sie braucht einen Beschluss der Gesellschafter und unterliegt
 dafür keinen eigenen Ablauf (der SKR04 führt 7790 Vorabausschüttung). Grenze:
 Steuerberater.
 
-[gmbhg5a]: https://www.gesetze-im-internet.de/gmbhg/__5a.html
-[gmbhg29]: https://www.gesetze-im-internet.de/gmbhg/__29.html
-[gmbhg46]: https://www.gesetze-im-internet.de/gmbhg/__46.html
-[gmbhg48]: https://www.gesetze-im-internet.de/gmbhg/__48.html
 [estg20]: https://www.gesetze-im-internet.de/estg/__20.html
 [estg43]: https://www.gesetze-im-internet.de/estg/__43.html
 [estg43a]: https://www.gesetze-im-internet.de/estg/__43a.html
@@ -149,8 +136,6 @@ Steuerberater.
 [estg44a]: https://www.gesetze-im-internet.de/estg/__44a.html
 [estg45a]: https://www.gesetze-im-internet.de/estg/__45a.html
 [estg51a]: https://www.gesetze-im-internet.de/estg/__51a.html
-[solzg3]: https://www.gesetze-im-internet.de/solzg_1995/__3.html
-[solzg4]: https://www.gesetze-im-internet.de/solzg_1995/__4.html
 [kstg27]: https://www.gesetze-im-internet.de/kstg_1977/__27.html
 [inso15b]: https://www.gesetze-im-internet.de/inso/__15b.html
 [ao69]: https://www.gesetze-im-internet.de/ao_1977/__69.html

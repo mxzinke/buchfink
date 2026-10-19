@@ -23,10 +23,10 @@ Beteiligungserträge am Gewerbeertrag ändern; Buchfink rechnet es in
 
 ## 1. Ausgangspunkt
 
-Gewerbeertrag ist der nach dem KStG ermittelte Gewinn, vermehrt und
-vermindert um Hinzurechnungen und Kürzungen
-([§ 7 Satz 1 GewStG][gewstg7]). Was § 8b KStG herausnimmt, fehlt also schon im
-Ausgangswert. Die Gewerbesteuer holt Dividenden aus kleinen Beteiligungen
+Gewerbeertrag ist der nach dem KStG ermittelte Gewinn mit Hinzurechnungen und
+Kürzungen
+([steuererklaerungen/gewst.md, Abschnitt 2](../steuererklaerungen/gewst.md#2-rechenweg)).
+Was § 8b KStG herausnimmt, fehlt also schon im Ausgangswert. Die Gewerbesteuer holt Dividenden aus kleinen Beteiligungen
 zurück (§ 8 Nr. 5) und lässt sie bei großen frei (§ 9 Nr. 2a). Veräußerungs-
 gewinne und Teilwertabschreibungen folgen der Körperschaftsteuer; § 8 Nr. 5
 erfasst nur Gewinnanteile.
@@ -77,7 +77,7 @@ Körperschaftsteuer zu 95 % frei und bei der Gewerbesteuer hinzuzurechnen ist.
 ## 4. Verluste und Teilwertabschreibungen
 
 - Hinzugerechnet wird nur, was den Gewinn gemindert hat
-  ([§ 8 Einleitungssatz GewStG][gewstg8]).
+  ([steuererklaerungen/gewst.md, Abschnitt 3](../steuererklaerungen/gewst.md#3-hinzurechnungen)).
 - § 8 Nr. 10 GewStG rechnet ausschüttungsbedingte Teilwertabschreibungen und
   Veräußerungsverluste hinzu, soweit sie auf Ausschüttungen zurückgehen, die
   nach § 9 Nr. 2a, 7 oder 8 gekürzt werden ([§ 8 Nr. 10 GewStG][gewstg8]).
@@ -124,9 +124,8 @@ Rechnerisches Beispiel ohne Beratung. Hebesatz 400 %.
 | Messbetrag 3,5 % | 175,00 € | 350,00 € |
 | Gewerbesteuer | 700,00 € | 1.400,00 € |
 
-Die Steuermesszahl von 3,5 % steht in [§ 11 Abs. 2 GewStG][gewstg11]
-(Stand: Oktober 2026). Abrundung des Gewerbeertrags und Hebesatz:
-[steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md).
+Steuermesszahl, Abrundung des Gewerbeertrags und Hebesatz:
+[steuererklaerungen/gewst.md, Abschnitt 2](../steuererklaerungen/gewst.md#2-rechenweg).
 
 ## 8. Angaben für die Erklärung
 
@@ -141,8 +140,6 @@ Die Steuermesszahl von 3,5 % steht in [§ 11 Abs. 2 GewStG][gewstg11]
   Ausfüllhilfe in Mein ELSTER.
 
 [elstergewst]: https://www.elster.de/eportal/helpGlobal?themaGlobal=help_gewst_ufa_20_2025
-[gewstg7]: https://www.gesetze-im-internet.de/gewstg/__7.html
 [gewstg8]: https://www.gesetze-im-internet.de/gewstg/__8.html
 [gewstg9]: https://www.gesetze-im-internet.de/gewstg/__9.html
-[gewstg11]: https://www.gesetze-im-internet.de/gewstg/__11.html
 [invstg20]: https://www.gesetze-im-internet.de/invstg_2018/__20.html

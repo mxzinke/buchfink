@@ -65,7 +65,7 @@ Kalenderdatum (für 2025: 28.02.2027).
 | zwingend | wenn die Jahreserklärung nicht binnen 14 Monaten nach Ablauf des Kalenderjahres abgegeben ist, oder bis zum Termin einer Vorabanforderung | [§ 152 Abs. 2 Nr. 1, 3 AO][ao152] |
 | Ausnahmen vom Zwang | Fristverlängerung; Steuer null oder negativ; Steuer nicht höher als Vorauszahlungen und Abzugsbeträge | [§ 152 Abs. 3 Nr. 1–3 AO][ao152] |
 | Höhe Jahreserklärungen (KSt, USt) | je angefangenem Monat 0,25 % der festgesetzten Steuer abzüglich Vorauszahlungen und Abzugsbeträgen, mindestens 25 € | [§ 152 Abs. 5 Satz 2 AO][ao152] |
-| Höhe Messbetrag und Feststellungen (GewSt 1 A, Einlagekonto) | 25 € je angefangenem Monat | [§ 152 Abs. 6 AO][ao152] |
+| Höhe Messbetrag und Feststellungen (GewSt 1 A, Einlagekonto) | 25 € je angefangenem Monat; von den Ausnahmen vom Zwang gilt nur die Fristverlängerung (Abs. 3 Nr. 1) | [§ 152 Abs. 6 AO][ao152] |
 | Höchstbetrag | 25.000 €, auf volle Euro abgerundet | [§ 152 Abs. 10 AO][ao152] |
 
 Stand: Oktober 2026.

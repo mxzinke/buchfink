@@ -42,10 +42,10 @@ GewStG, UStG und AO am 17.10.2026 gelesen.
 | Größenklasse | Merkmale schon am ersten Abschlussstichtag | [jahresabschluss/groessenklassen-anhang.md](../jahresabschluss/groessenklassen-anhang.md) |
 | UG: gesetzliche Rücklage | schon aus dem ersten Jahresüberschuss | [jahresabschluss/ergebnisverwendung-ug.md](../jahresabschluss/ergebnisverwendung-ug.md) |
 | Abschreibung | zeitanteilig im Anschaffungsjahr | [jahresabschluss/abschreibungen.md](../jahresabschluss/abschreibungen.md) |
-| Körperschaftsteuer | Zeitraum der Steuerpflicht statt Kalenderjahr | [§ 7 Abs. 3 Satz 3 KStG][kstg7] |
-| Gewerbesteuer | abgekürzter Erhebungszeitraum | [§ 14 Satz 3 GewStG][gewstg14] |
-| Umsatzsteuer | der Teil des Jahres tritt an die Stelle des Kalenderjahres | [§ 16 Abs. 3 UStG][ustg16] |
-| E-Bilanz | auch für die Eröffnungsbilanz | [eroeffnungsbilanz.md, Abschnitt 5](eroeffnungsbilanz.md#5-unterzeichnen-aufbewahren-übermitteln) |
+| Körperschaftsteuer | Zeitraum der Steuerpflicht statt Kalenderjahr | [steuererklaerungen/kst.md, Abschnitt 1](../steuererklaerungen/kst.md#1-steuerpflicht-und-zeitraum) |
+| Gewerbesteuer | abgekürzter Erhebungszeitraum | [steuererklaerungen/gewst.md, Abschnitt 1](../steuererklaerungen/gewst.md#1-steuerpflicht-erklärung-bescheide) |
+| Umsatzsteuer | der Teil des Jahres tritt an die Stelle des Kalenderjahres; Frist im Gründungsjahr | [steuererklaerungen/ust-jahr.md, Abschnitt 1](../steuererklaerungen/ust-jahr.md#1-pflicht-zeitraum-frist) |
+| E-Bilanz | auch für die Eröffnungsbilanz | [steuererklaerungen/ebilanz.md, Abschnitt 6](../steuererklaerungen/ebilanz.md#6-eröffnungsbilanz), [eroeffnungsbilanz.md, Abschnitt 5](eroeffnungsbilanz.md#5-unterzeichnen-aufbewahren-übermitteln) |
 
 Stand: Oktober 2026. Den Abschluss begleitet
 [jahresabschluss/ablauf.md](../jahresabschluss/ablauf.md), die Erklärungen
@@ -77,9 +77,7 @@ Steuerberater liegen die Steuererklärungen später.
 [ao149]: https://www.gesetze-im-internet.de/ao_1977/__149.html
 [estdv8b]: https://www.gesetze-im-internet.de/estdv_1955/__8b.html
 [estg4a]: https://www.gesetze-im-internet.de/estg/__4a.html
-[gewstg14]: https://www.gesetze-im-internet.de/gewstg/__14.html
 [gmbhg42a]: https://www.gesetze-im-internet.de/gmbhg/__42a.html
 [hgb264]: https://www.gesetze-im-internet.de/hgb/__264.html
 [hgb325]: https://www.gesetze-im-internet.de/hgb/__325.html
 [kstg7]: https://www.gesetze-im-internet.de/kstg_1977/__7.html
-[ustg16]: https://www.gesetze-im-internet.de/ustg_1980/__16.html

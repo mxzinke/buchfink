@@ -68,9 +68,11 @@ in den Zeilen der Steuern. Die SKR04-Bezeichnungen „nach § 4 Abs. 5b EStG“
 (7641, 7643) kennzeichnen die Gewerbesteuer. Ist der Betrag wesentlich, lass
 die Behandlung vom Steuerberater bestätigen.
 
-Erstattungszinsen nach § 233a AO bucht das SKR04 je nach Behandlung auf 7105,
-7106 oder 7107. Die Hinweise zu § 10 KStG verweisen dazu auf die Rechtsprechung
-des BFH ([H 10.1 KStH „Erstattungs- und Nachzahlungszinsen“][ksth101]).
+Erstattungszinsen nach § 233a AO: Für ihre Behandlung beim Einkommen
+verweisen die Hinweise zu § 10 KStG auf die Rechtsprechung des BFH
+([H 10.1 KStH „Erstattungs- und Nachzahlungszinsen“][ksth101]); die Konten je
+Behandlung stehen in
+[bank/steuerzahlungen.md, Abschnitt 4](../bank/steuerzahlungen.md#4-säumniszuschläge-zinsen-verspätungszuschläge).
 Wertungsfrage: Welche Behandlung gilt? Lege sie dem Menschen mit Empfehlung
 Steuerberater vor.
 
@@ -79,7 +81,7 @@ Steuerberater vor.
 | Posten | Grundlage | Konto (SKR04) |
 |---|---|---|
 | Geschenke über der Freigrenze | [§ 4 Abs. 5 Satz 1 Nr. 1 EStG][estg4] (Regeln in [belege/bewirtung-geschenke.md](../belege/bewirtung-geschenke.md)) | 6620, 6621, Pauschsteuer 6622 |
-| 30 % der Bewirtungskosten | [§ 4 Abs. 5 Satz 1 Nr. 2 EStG][estg4] | 6644 |
+| 30 % der Bewirtungskosten | [§ 4 Abs. 5 Satz 1 Nr. 2 EStG][estg4] (Regeln in [belege/bewirtung-geschenke.md](../belege/bewirtung-geschenke.md)) | 6644 |
 | Gästehaus, Jagd, Jacht und Ähnliches | [§ 4 Abs. 5 Satz 1 Nr. 3, 4 EStG][estg4] | 6645 |
 | Geldbußen, Ordnungs- und Verwarnungsgelder | [§ 4 Abs. 5 Satz 1 Nr. 8 EStG][estg4] | Konto aus der Buchung ablesen |
 | Gewerbesteuer und ihre Nebenleistungen | [§ 4 Abs. 5b EStG][estg4] | 7610, 7641, 7302 |
@@ -112,18 +114,14 @@ Ausgabe hierher gehört, ist oft eine Wertungsfrage.
 
 ## 5. Beteiligungserträge
 
-Dividenden und Gewinne aus der Veräußerung von Anteilen an Kapitalgesellschaften
-bleiben unter Bedingungen außer Ansatz; 5 % der Bezüge gelten als nicht
-abziehbare Ausgaben ([§ 8b Abs. 1, 2, 5 KStG][kstg8b]). Dividenden aus einer
-Beteiligung, die zu Beginn des Kalenderjahres unmittelbar unter 10 % des
-Stammkapitals lag, sind steuerpflichtig ([§ 8b Abs. 4 Satz 1 KStG][kstg8b]).
-Für Veräußerungsgewinne gilt diese Ausnahme nicht. Buchfink rechnet § 8b aus
-den Konten für Beteiligungserträge und der Anlagenkartei; fehlt einem Anteil
-die Quote, bleibt die Zeile der steuerpflichtigen Bezüge aus Streubesitz
-offen. Die Regeln stehen in
+Welche Dividenden und Veräußerungsgewinne nach § 8b KStG außer Ansatz
+bleiben, was als nicht abziehbar gilt und was für Streubesitz gilt, steht in
 [beteiligungen/steuerfreistellung.md](../beteiligungen/steuerfreistellung.md),
 die Gewerbesteuer in
-[beteiligungen/gewst-holding.md](../beteiligungen/gewst-holding.md).
+[beteiligungen/gewst-holding.md](../beteiligungen/gewst-holding.md). Buchfink
+rechnet § 8b aus den Konten für Beteiligungserträge und der Anlagenkartei;
+fehlt einem Anteil die Quote, bleibt die Zeile der steuerpflichtigen Bezüge
+aus Streubesitz offen.
 
 ## 6. Spenden
 
@@ -171,8 +169,9 @@ Abweichung ist eine Wertungsfrage für den Menschen und den Steuerberater.
 - Über den Rücktrag entscheidet der Mensch. Ohne Eintrag in der Zeile zum
   Verlustrücktrag nimmt das Finanzamt ihn in größtmöglicher Höhe vor.
 - Werden innerhalb von fünf Jahren mehr als 50 % der Anteile an einen
-  Erwerber übertragen (schädlicher Beteiligungserwerb), gehen nicht genutzte
-  Verluste unter ([§ 8c Abs. 1 Satz 1 KStG][kstg8c]). Wertungsfrage;
+  Erwerber oder ihm nahestehende Personen übertragen (schädlicher
+  Beteiligungserwerb), gehen nicht genutzte Verluste unter
+  ([§ 8c Abs. 1 Satz 1 KStG][kstg8c]). Wertungsfrage;
   Ausnahmen prüft ein Steuerberater.
 
 ## 9. Steuer, Rundung, Anrechnung, Vorauszahlungen
@@ -182,13 +181,15 @@ Abweichung ist eine Wertungsfrage für den Menschen und den Steuerberater.
 | Körperschaftsteuer | 15 % bis 2027, 14 % 2028, 13 % 2029, 12 % 2030, 11 % 2031, 10 % ab 2032 | [§ 23 Abs. 1 KStG][kstg23] |
 | Rundung | einzelne Körperschaftsteuerbeträge zugunsten der GmbH auf volle Euro | [§ 31 Abs. 1 Satz 2 KStG][kstg31] |
 | Solidaritätszuschlag | 5,5 % der festgesetzten Körperschaftsteuer; die Freigrenze gilt nur für Einkommensteuerpflichtige; Bruchteile eines Cents bleiben außer Ansatz | [§ 3 Abs. 1 Nr. 1, Abs. 3 SolZG][solzg3], [§ 4 Satz 1, 3 SolZG][solzg4] |
-| Anrechnung | Vorauszahlungen und Kapitalertragsteuer, Letztere nur mit Steuerbescheinigung | [§ 36 Abs. 2 Nr. 1, 2 EStG][estg36] über [§ 31 Abs. 1 Satz 1 KStG][kstg31] |
+| Anrechnung | Vorauszahlungen und Kapitalertragsteuer, Letztere nur mit Steuerbescheinigung; der Solidaritätszuschlag auf die Kapitalertragsteuer entsprechend | [§ 36 Abs. 2 Nr. 1, 2 EStG][estg36] über [§ 31 Abs. 1 Satz 1 KStG][kstg31]; [§ 1 Abs. 2 SolZG][solzg1] |
 | Vorauszahlungen | Termine in [grundlagen/pflichten.md#kst-vorauszahlung](../grundlagen/pflichten.md#kst-vorauszahlung); Höhe nach Bescheid ([bescheide.md](bescheide.md#5-vorauszahlungsbescheide)) | – |
 
 Stand: Oktober 2026. Kapitalertragsteuer und Solidaritätszuschlag auf
-Zinsen und Dividenden stehen auf 7630 und 7633; gleiche die Summe mit den
-Steuerbescheinigungen ab ([bank/zinsen-kapest.md](../bank/zinsen-kapest.md),
-[beteiligungen/dividenden.md](../beteiligungen/dividenden.md)).
+Zinsen und Dividenden stehen auf 7630 und 7633; gleiche die Summe am
+Jahresende mit allen Steuerbescheinigungen ab
+([bank/zinsen-kapest.md](../bank/zinsen-kapest.md),
+[beteiligungen/dividenden.md](../beteiligungen/dividenden.md)). Fertig, wenn
+jede Abweichung erklärt ist.
 
 ## 10. Steuerliches Einlagekonto
 
@@ -266,6 +267,7 @@ Verlust setzt Buchfink keine Steuer an.
 [kstg24]: https://www.gesetze-im-internet.de/kstg_1977/__24.html
 [kstg27]: https://www.gesetze-im-internet.de/kstg_1977/__27.html
 [kstg31]: https://www.gesetze-im-internet.de/kstg_1977/__31.html
+[solzg1]: https://www.gesetze-im-internet.de/solzg_1995/__1.html
 [solzg3]: https://www.gesetze-im-internet.de/solzg_1995/__3.html
 [solzg4]: https://www.gesetze-im-internet.de/solzg_1995/__4.html
 [ksth11]: https://www.steuerschroeder.de/steuergesetze/ksth/1.1

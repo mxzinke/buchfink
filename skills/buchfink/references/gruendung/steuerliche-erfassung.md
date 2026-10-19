@@ -37,7 +37,7 @@ der App.
 | Besteuerung nach vereinbarten oder vereinnahmten Entgelten | Regel sind vereinbarte Entgelte ([§ 16 Abs. 1 Satz 1 UStG][ustg16]); vereinnahmte auf Antrag, unter anderem bei Gesamtumsatz im Vorjahr bis 800.000 € ([§ 20 Satz 1 Nr. 1 UStG][ustg20]) | Buchfink bildet nur vereinbarte Entgelte ab ([grundlagen/grenzen.md](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet)) |
 | Kleinunternehmer | Umsätze sind steuerfrei, wenn der Gesamtumsatz im Vorjahr 25.000 € nicht überschritten hat und im laufenden Jahr 100.000 € nicht überschreitet ([§ 19 Abs. 1 Satz 1 UStG][ustg19]); Verzicht unwiderruflich, bindet mindestens fünf Kalenderjahre ([§ 19 Abs. 3 UStG][ustg19]) | Buchfink setzt voraus, dass die GmbH Umsatzsteuer ausweist ([grundlagen/grenzen.md](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet)) |
 | Voranmeldungszeitraum | Abschnitt 3 | `status.mandant.ust_zeitraum` |
-| Dauerfristverlängerung | auf Antrag, bis zur ersten betroffenen Voranmeldung; bei monatlicher Abgabe mit Sondervorauszahlung ([§ 46 UStDV][ustdv46], [§ 48 Abs. 1 UStDV][ustdv48]) | [monatsabschluss/dauerfristverlaengerung.md](../monatsabschluss/dauerfristverlaengerung.md) |
+| Dauerfristverlängerung | auf Antrag; Wirkung, Antrag und Sondervorauszahlung: [monatsabschluss/dauerfristverlaengerung.md](../monatsabschluss/dauerfristverlaengerung.md) | `status.mandant.dauerfrist` |
 | USt-IdNr. | erteilt das Bundeszentralamt für Steuern auf Antrag; der Antrag nennt Name, Anschrift und Steuernummer ([§ 27a Abs. 1 Satz 1, 4, 5 UStG][ustg27a]) | Pflichtangabe bei EU-Geschäften ([rechnungen/ausland.md](../rechnungen/ausland.md#2-unternehmen-im-übrigen-eu-gebiet)) |
 | Gewerbesteuer-Hebesatz | bestimmt die Gemeinde ([§ 16 Abs. 1 GewStG][gewstg16]) | Einstellungen |
 
@@ -55,17 +55,9 @@ Entgelten, sag ihm, dass Buchfink sie nicht abbildet.
 
 ## 3. Voranmeldungszeitraum
 
-Die Regeln aus [§ 18 Abs. 2 UStG][ustg18], Stand Oktober 2026:
-
-| Fall | Voranmeldungszeitraum | Satz |
-|---|---|---|
-| Regel | Kalendervierteljahr | Satz 1 |
-| Steuer des Vorjahres über 9.000 € | Kalendermonat | Satz 2 |
-| Steuer des Vorjahres nicht über 2.000 € | Befreiung durch das Finanzamt möglich | Satz 3 |
-| Aufnahme der Tätigkeit | im laufenden und im folgenden Kalenderjahr Kalendermonat | Satz 4 |
-| Besteuerungszeiträume 2021 bis 2026 | abweichend von Satz 4: bei Aufnahme im laufenden Jahr zählt die voraussichtliche Steuer des laufenden Jahres, bei Tätigkeit nur in einem Teil des Vorjahres die auf ein Jahr umgerechnete Steuer; dann gelten die Grenzen der Sätze 2 und 3 | Satz 6 |
-
-Folgen für eine Gründung:
+Die Regeln des [§ 18 Abs. 2 UStG][ustg18] stehen in
+[monatsabschluss/ustva.md, Abschnitt 2](../monatsabschluss/ustva.md#2-voranmeldungszeitraum).
+Folgen für eine Gründung, Stand Oktober 2026:
 
 - Gründung 2026: Ausschlaggebend ist die voraussichtliche Steuer 2026. Über
   9.000 € monatlich, sonst vierteljährlich.
@@ -96,8 +88,6 @@ Schätzungen beeinflussen Voranmeldungszeitraum und Vorauszahlungen; frag nach
 Zahlen und nenne die Folgen.
 
 [gewstg16]: https://www.gesetze-im-internet.de/gewstg/__16.html
-[ustdv46]: https://www.gesetze-im-internet.de/ustdv_1980/__46.html
-[ustdv48]: https://www.gesetze-im-internet.de/ustdv_1980/__48.html
 [ustg16]: https://www.gesetze-im-internet.de/ustg_1980/__16.html
 [ustg18]: https://www.gesetze-im-internet.de/ustg_1980/__18.html
 [ustg19]: https://www.gesetze-im-internet.de/ustg_1980/__19.html

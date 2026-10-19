@@ -28,7 +28,7 @@ Frist, Weg, Nachweis und Folgen einer Versäumnis stehen in
   ab. Verkauft die GmbH doch einen Gegenstand an einen EU-Unternehmer, sag das
   dem Menschen und empfiehl einen Steuerberater.
 - In der Voranmeldung erscheinen dieselben Leistungen in Kennziffer 21
-  ([§ 18b Satz 1 Nr. 2 UStG][ustg18b]).
+  ([ustva.md, Abschnitt 1](ustva.md#1-pflicht-und-form)).
 
 ## 2. Meldezeitraum und Frist
 

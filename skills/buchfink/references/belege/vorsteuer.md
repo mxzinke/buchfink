@@ -65,8 +65,9 @@ eine Wertungsfrage; die Folgen für die GmbH stehen in
   nur zulässig, wenn keine präzisere Zuordnung möglich ist (Satz 3). Bei
   Grundstücken gilt grundsätzlich das Verhältnis der Nutzflächen (Satz 4).
 - In Buchfink: je Position `vorsteueranteil_promille` (abziehbarer Anteil,
-  etwa 600 für 60 %; ohne Angabe voll) und `vorsteueranteil_grund` mit dem
-  Maßstab. Den Maßstab wählt der Mensch
+  etwa 600 für 60 %; ohne Angabe und mit 0 voll abziehbar) und
+  `vorsteueranteil_grund` mit dem Maßstab. Ist gar keine Vorsteuer abziehbar,
+  leg den Fall dem Menschen vor, bevor du buchst. Den Maßstab wählt der Mensch
   (Wertungsfrage). Schreib ihn so, dass ein Prüfer ihn ohne Chat versteht
   („Nutzfläche 120 von 400 m² steuerfrei vermietet“).
 
@@ -106,8 +107,9 @@ eine Wertungsfrage; die Folgen für die GmbH stehen in
 ## 7. Minderung des Entgelts
 
 - Mindert sich das Entgelt (Skonto, Rabatt, Gutschrift, Rückgängigmachung),
-  berichtigt die GmbH die Vorsteuer im Zeitraum der Änderung
-  ([§ 17 Abs. 1 Satz 2 und 8, Abs. 2 Nr. 3 UStG][ustg17]). Skonto bucht
+  berichtigt die GmbH die Vorsteuer
+  ([§ 17 Abs. 1 Satz 2, Abs. 2 Nr. 3 UStG][ustg17]), und zwar im Zeitraum der
+  Änderung ([monatsabschluss/berichtigung.md, Abschnitt 1](../monatsabschluss/berichtigung.md#1-berichtigung-oder-laufender-zeitraum)). Skonto bucht
   Buchfink mit der Zahlung
   ([bank/skonto-differenzen.md](../bank/skonto-differenzen.md#1-skonto)).
 - Zahlt die GmbH eine Verbindlichkeit nicht, weil sie uneinbringlich ist, gilt

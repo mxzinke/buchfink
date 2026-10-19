@@ -68,8 +68,8 @@ Vorgehen:
   keine bestätigte Buchungsgruppe hat; meldet Buchfink `freigabe_noetig`,
   buche nach Rückfrage mit `beleg_buchen_mit_rueckfrage`.
 - Vorsteuer setzt eine Rechnung an die GmbH voraus
-  ([§ 14 Abs. 4 Satz 1 Nr. 1 UStG][ustg14]). Ist ein Gesellschafter persönlich
-  Rechnungsempfänger, frag nach. Wertungsfrage: Ob der GmbH die Vorsteuer aus
+  ([belege/pflichtangaben.md, Abschnitt 2](../belege/pflichtangaben.md#2-die-zehn-pflichtangaben)).
+  Ist ein Gesellschafter persönlich Rechnungsempfänger, frag nach. Wertungsfrage: Ob der GmbH die Vorsteuer aus
   Gründungsrechnungen zusteht, beurteilt im Zweifel ein Steuerberater.
 - Zahlt ein Gesellschafter eine Gründungsrechnung privat, buche sie als
   Auslage (`bezahlung: auslage`,
@@ -97,4 +97,3 @@ Vorgehen:
 [hgb248]: https://www.gesetze-im-internet.de/hgb/__248.html
 [ksth11]: https://www.steuerschroeder.de/steuergesetze/ksth/1.1
 [ksth85]: https://www.steuerschroeder.de/steuergesetze/ksth/8.5
-[ustg14]: https://www.gesetze-im-internet.de/ustg_1980/__14.html

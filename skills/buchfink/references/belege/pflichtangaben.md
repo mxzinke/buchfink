@@ -11,15 +11,14 @@ gesetze-im-internet.de gelesen.
 4. Mehrere Dokumente, Abkürzungen, Leistungsmonat
 5. Fehlende oder falsche Angaben
 6. Falscher Steuerausweis
-7. Befunde in Buchfink und was du tust
+7. Befunde in Buchfink
 
 ## 1. Was eine Rechnung ist
 
 - Rechnung ist jedes Dokument, mit dem über eine Leistung abgerechnet wird,
   gleich wie es heißt ([§ 14 Abs. 1 Satz 1 UStG][ustg14]).
-- Sie ist E-Rechnung (strukturiertes Format nach EN 16931 oder vereinbart und
-  interoperabel) oder sonstige Rechnung (Papier oder anderes elektronisches
-  Format) ([§ 14 Abs. 1 Satz 2 bis 6 UStG][ustg14]).
+- Sie ist E-Rechnung oder sonstige Rechnung
+  ([e-rechnung-empfang.md, Abschnitt 1](e-rechnung-empfang.md#1-begriffe)).
 - Gutschrift heißt im Umsatzsteuerrecht: Der Leistungsempfänger rechnet ab, nach
   vorheriger Vereinbarung ([§ 14 Abs. 2 Satz 5 UStG][ustg14]). Ein Dokument
   „Gutschrift“ über einen Preisnachlass ist eine Rechnungskorrektur. Frag den
@@ -33,20 +32,23 @@ gesetze-im-internet.de gelesen.
 
 ## 2. Die zehn Pflichtangaben
 
-[§ 14 Abs. 4 Satz 1 UStG][ustg14]:
+Die zehn Angaben nach [§ 14 Abs. 4 Satz 1 UStG][ustg14] stehen mit ihrer
+Nummer in
+[rechnungen/pflichtangaben-ausgang.md, Abschnitt 2](../rechnungen/pflichtangaben-ausgang.md#2-pflichtangaben-und-woher-buchfink-sie-nimmt).
+Beim Empfang prüfst du je Nummer:
 
-| Nr. | Angabe | Prüfhinweis |
-|---|---|---|
-| 1 | vollständiger Name und Anschrift von Lieferant und Leistungsempfänger | Empfänger ist die GmbH mit ihrer Firma, nicht der Geschäftsführer persönlich |
-| 2 | Steuernummer oder USt-IdNr. des Lieferanten | eine von beiden genügt |
-| 3 | Ausstellungsdatum | wird zum Belegdatum |
-| 4 | fortlaufende, einmalige Rechnungsnummer | Grundlage der Dublettenprüfung |
-| 5 | Menge und handelsübliche Bezeichnung der Gegenstände oder Umfang und Art der Leistung | „Beratung“ ohne Bezug ist dünn; frag nach Angebot oder Leistungsnachweis |
-| 6 | Zeitpunkt der Leistung; bei Anzahlung Zeitpunkt der Vereinnahmung, wenn bekannt und abweichend | wird `leistung_von` / `leistung_bis` |
-| 7 | Entgelt nach Steuersätzen und Befreiungen aufgeschlüsselt, vorab vereinbarte Minderungen (Skonto, Bonus) | Netto je Satz in die Positionen |
-| 8 | Steuersatz und Steuerbetrag oder Hinweis auf die Steuerbefreiung | bei § 13b statt dessen Hinweis nach Nr. 7 unten |
-| 9 | Hinweis auf die Aufbewahrungspflicht des Leistungsempfängers in den Fällen des § 14b Abs. 1 Satz 5 | betrifft Grundstücksleistungen an Nichtunternehmer, für die GmbH selten |
-| 10 | Angabe „Gutschrift“, wenn der Leistungsempfänger abrechnet | – |
+| Nr. | Prüfhinweis |
+|---|---|
+| 1 | Empfänger ist die GmbH mit ihrer Firma, nicht der Geschäftsführer persönlich |
+| 2 | Steuernummer oder USt-IdNr. des Lieferanten; eine von beiden genügt |
+| 3 | Ausstellungsdatum wird zum Belegdatum |
+| 4 | Rechnungsnummer ist Grundlage der Dublettenprüfung |
+| 5 | „Beratung“ ohne Bezug ist dünn; frag nach Angebot oder Leistungsnachweis |
+| 6 | Leistungszeitpunkt wird `leistung_von` / `leistung_bis` (Abschnitt 4) |
+| 7 | Netto je Steuersatz in die Positionen; vorab vereinbarte Minderungen wie Skonto stehen auf der Rechnung |
+| 8 | bei § 13b statt Steuer der Hinweis nach § 14a Abs. 5 (unten) |
+| 9 | betrifft Grundstücksleistungen an Nichtunternehmer, für die GmbH selten |
+| 10 | Angabe „Gutschrift“, wenn der Leistungsempfänger abrechnet |
 
 Nennt eine Rechnung über 250 € den Gesellschafter oder Geschäftsführer
 persönlich statt der GmbH, trägt sie keine Vorsteuer der GmbH. Lass sie auf

@@ -145,8 +145,9 @@ Weitere Wege:
    möglich wäre oder der Steuerpflichtige sie nach seinen Kenntnissen und
    Fähigkeiten nicht oder nur eingeschränkt nutzen kann
    ([§ 150 Abs. 8 AO][ao150]). Dann gehen Bilanz und GuV mit
-   Kontennachweisen und der Anlagenspiegel als Abschrift mit der Erklärung
-   ([§ 60 Abs. 1 EStDV][estdv60]); das Anlagenverzeichnis erst für
+   Kontennachweisen und der Anlagenspiegel als Abschrift mit der Erklärung,
+   die Kontennachweise unverdichtet, bei Eröffnung des Betriebs auch die
+   Eröffnungsbilanz ([§ 60 Abs. 1 EStDV][estdv60]); das Anlagenverzeichnis erst für
    Wirtschaftsjahre, die nach dem 31.12.2027 beginnen
    ([§ 84 Abs. 3f EStDV][estdv84]).
 

@@ -32,10 +32,17 @@ Finanzamts [steuerzahlungen.md](steuerzahlungen.md), Darlehenszinsen
 
 ## 2. Kapitalertragsteuer und Solidaritätszuschlag
 
-| Was | Satz | Fundstelle |
+| Was | Regel | Fundstelle |
 |---|---|---|
-| Kapitalertragsteuer auf Zinsen, wenn der Schuldner ein inländisches Kreditinstitut ist | 25 % des Ertrags | [§ 43 Abs. 1 Satz 1 Nr. 7 Buchst. b][estg43], [§ 43a Abs. 1 Satz 1 Nr. 1 EStG][estg43a] |
+| Kapitalertragsteuer | 25 % des Kapitalertrags, bemessen ohne jeden Abzug | [§ 43a Abs. 1 Satz 1 Nr. 1, Abs. 2 Satz 1 EStG][estg43a] |
 | Solidaritätszuschlag | 5,5 % der Kapitalertragsteuer; Bruchteile eines Cents bleiben außer Ansatz | [§ 3 Abs. 1 Nr. 5][solzg3], [§ 4 Satz 1, 3 SolZG][solzg4] |
+| Abzug auf Zinsen | wenn der Schuldner ein inländisches Kreditinstitut ist | [§ 43 Abs. 1 Satz 1 Nr. 7 Buchst. b EStG][estg43] |
+
+Sätze und Bemessung gelten auch für Dividenden
+([beteiligungen/dividenden.md](../beteiligungen/dividenden.md#2-steuerabzug))
+und die eigene Ausschüttung
+([gesellschafter/ausschuettung.md](../gesellschafter/ausschuettung.md#3-steuerabzug));
+dort steht der jeweilige Abzugstatbestand.
 
 - Kapitalertragsteuer ist Einkommensteuer, die durch Abzug erhoben wird
   ([§ 43 Abs. 1 Satz 1 EStG][estg43]). Bei der GmbH ist sie eine Steuer vom
@@ -67,16 +74,13 @@ Kontoauszug der Beleg.
 
 ## 4. Anrechnung und Steuerbescheinigung
 
-- Die durch Abzug erhobene Steuer wird auf die Körperschaftsteuer angerechnet
-  ([§ 31 Abs. 1 KStG][kstg31] mit [§ 36 Abs. 2 Nr. 2 EStG][estg36]); der
-  Solidaritätszuschlag entsprechend ([§ 1 Abs. 2 SolZG][solzg1]).
-- Ohne Steuerbescheinigung der Bank keine Anrechnung
-  ([§ 36 Abs. 2 Nr. 2 Satz 2 EStG][estg36]). Die Bank stellt sie auf Verlangen
-  aus ([§ 45a Abs. 2 EStG][estg45a]). Erinnere den Menschen, sie anzufordern und
+- Die Steuer wird auf die Körperschaftsteuer angerechnet, nur mit
+  Steuerbescheinigung
+  ([steuererklaerungen/kst.md, Abschnitt 9](../steuererklaerungen/kst.md#9-steuer-rundung-anrechnung-vorauszahlungen),
+  dort auch der Abgleich von 7630 und 7633 am Jahresende).
+- Die Bank stellt die Bescheinigung auf Verlangen aus
+  ([§ 45a Abs. 2 EStG][estg45a]). Erinnere den Menschen, sie anzufordern und
   abzulegen.
-- Die Summe auf 7630 und 7633 muss am Jahresende zur Bescheinigung passen.
-  Abgleich und Erklärung:
-  [steuererklaerungen/kst.md](../steuererklaerungen/kst.md).
 
 ## 5. Sonderfälle
 
@@ -94,15 +98,12 @@ Kontoauszug der Beleg.
   ([§ 8 Nr. 1 Buchst. a GewStG][gewstg8]).
 
 [estg20]: https://www.gesetze-im-internet.de/estg/__20.html
-[estg36]: https://www.gesetze-im-internet.de/estg/__36.html
 [estg43]: https://www.gesetze-im-internet.de/estg/__43.html
 [estg43a]: https://www.gesetze-im-internet.de/estg/__43a.html
 [estg44a]: https://www.gesetze-im-internet.de/estg/__44a.html
 [estg45a]: https://www.gesetze-im-internet.de/estg/__45a.html
 [kstg8]: https://www.gesetze-im-internet.de/kstg_1977/__8.html
 [kstg10]: https://www.gesetze-im-internet.de/kstg_1977/__10.html
-[kstg31]: https://www.gesetze-im-internet.de/kstg_1977/__31.html
-[solzg1]: https://www.gesetze-im-internet.de/solzg_1995/__1.html
 [solzg3]: https://www.gesetze-im-internet.de/solzg_1995/__3.html
 [solzg4]: https://www.gesetze-im-internet.de/solzg_1995/__4.html
 [gewstg8]: https://www.gesetze-im-internet.de/gewstg/__8.html

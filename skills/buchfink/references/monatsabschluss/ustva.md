@@ -29,10 +29,11 @@ Frist, Weg in Mein ELSTER, Nachweis und Folgen einer Versäumnis stehen in
   niedrigere Steuer, gilt das erst mit Zustimmung des Finanzamts
   ([§ 168 AO][ao168]).
 - Buchfink führt nur die Sollversteuerung. Die Steuer entsteht mit Ablauf des
-  Zeitraums, in dem die Leistung ausgeführt wurde; eine vor der Leistung
-  vereinnahmte Anzahlung mit Ablauf des Zeitraums der Vereinnahmung
-  ([§ 13 Abs. 1 Nr. 1 Buchst. a UStG][ustg13]). Eine fehlende Rechnung
-  verschiebt die Steuer nicht.
+  Zeitraums, in dem die Leistung ausgeführt wurde, unabhängig von Rechnung und
+  Zahlung ([§ 13 Abs. 1 Nr. 1 Buchst. a Satz 1 UStG][ustg13]). Eine fehlende
+  Rechnung verschiebt die Steuer nicht. Für eine vor der Leistung
+  vereinnahmte Anzahlung gilt
+  [rechnungen/anzahlungen.md, Abschnitt 1](../rechnungen/anzahlungen.md#1-wann-die-steuer-entsteht).
 - Bemessungsgrundlagen innergemeinschaftlicher Leistungen nach § 3a Abs. 2 UStG
   sind in der Voranmeldung gesondert zu erklären, im Zeitraum der Ausführung
   ([§ 18b Satz 1 Nr. 2, Satz 3 UStG][ustg18b]).

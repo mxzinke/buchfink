@@ -302,10 +302,11 @@ freigeben; Unterschriften und Beschlüsse.
   Vorgangs ab. Das Jahr, das der Mensch gerade in der App ansieht, ist
   Ansichtszustand.
 - Ein Geschäftsjahr dauert höchstens zwölf Monate
-  ([§ 240 Abs. 2 Satz 2 HGB][hgb240]). Ein abweichendes Wirtschaftsjahr wirkt
+  ([§ 240 Abs. 2 Satz 2 HGB][hgb240]). Ein vom Kalenderjahr abweichendes
+  Geschäftsjahr wählt die GmbH bei der Gründung; eine spätere Umstellung wirkt
   steuerlich nur im Einvernehmen mit dem Finanzamt
-  ([§ 4a Abs. 1 Satz 2 Nr. 2 EStG][estg4a], [§ 7 Abs. 4 KStG][kstg7]). Beides
-  stellt der Mensch in der App ein.
+  ([gruendung/rumpfjahr.md, Abschnitt 1](../gruendung/rumpfjahr.md#1-was-ein-rumpfgeschäftsjahr-ist)).
+  Beginn des Geschäftsjahres und Umstellung stellt der Mensch in der App ein.
 - Das Buchungsdatum muss nach `mandant.festgeschrieben_bis` liegen.
 - In das Vorjahr buchst du, solange dessen Abschluss offen ist. Ist er schon
   aufgestellt, ändert jede Buchung den aufgestellten Abschluss: nur nach
@@ -342,5 +343,3 @@ Ein festgeschriebener Zeitraum bleibt unberührt.
 [hgb264]: https://www.gesetze-im-internet.de/hgb/__264.html
 [hgb325]: https://www.gesetze-im-internet.de/hgb/__325.html
 [gmbhg42a]: https://www.gesetze-im-internet.de/gmbhg/__42a.html
-[estg4a]: https://www.gesetze-im-internet.de/estg/__4a.html
-[kstg7]: https://www.gesetze-im-internet.de/kstg_1977/__7.html

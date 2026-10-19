@@ -31,15 +31,10 @@ abrufbar.
 
 | Ebene | Folge | Grundlage |
 |---|---|---|
-| GmbH, Körperschaftsteuer | Die vGA mindert das Einkommen nicht; die Korrektur gehört in die Körperschaftsteuererklärung | [§ 8 Abs. 3 Satz 2 KStG][kstg8] |
+| GmbH, Körperschaftsteuer | Die vGA mindert das Einkommen nicht; Zeile und Weg in der Erklärung: [steuererklaerungen/kst.md, Abschnitt 4](../steuererklaerungen/kst.md#4-verdeckte-gewinnausschüttung-und-verdeckte-einlage) | [§ 8 Abs. 3 Satz 2 KStG][kstg8] |
 | GmbH, Kapitalertragsteuer | Die vGA ist Kapitalertrag; die GmbH hat Kapitalertragsteuer einzubehalten, anzumelden und haftet | [§ 20 Abs. 1 Nr. 1 Satz 2][estg20], [§ 43 Abs. 1 Satz 1 Nr. 1][estg43], [§ 44 Abs. 5 EStG][estg44] |
 | Gesellschafter | Einkünfte aus Kapitalvermögen | [§ 20 Abs. 1 Nr. 1 Satz 2 EStG][estg20] |
 | Geschäftsführer | Haftung für nicht abgeführte Steuern bei grober Fahrlässigkeit | [§ 69 AO][ao69] |
-
-Die Zeile zur vGA in der Körperschaftsteuererklärung verantwortet der Mensch:
-Buchfink meldet `vga_pruefen`, wenn auf typischen Konten für Leistungen an
-Gesellschafter gebucht ist, setzt den Betrag aber nicht selbst. Den Weg in die
-Erklärung regelt [steuererklaerungen/kst.md](../steuererklaerungen/kst.md).
 
 ## 3. Prüfliste typischer Fälle
 
@@ -57,11 +52,10 @@ Leg jeden Treffer als Wertungsfrage vor.
 | Vereinbarung, die nicht gelebt wird | z. B. Gehalt, das nie gezahlt wird; Nichtdurchführung ist schädlich ([R 8.5 Abs. 2 KStR 2022][kstr85]) |
 
 Die Umsatzsteuer folgt eigenen Regeln: Vorsteuer aus privaten Ausgaben ist nicht
-abziehbar ([§ 15 Abs. 1 Satz 1 Nr. 1 UStG][ustg15]). Überlässt die GmbH einem
-Gesellschafter-Geschäftsführer einen Firmenwagen auch privat, ist das in der
-Regel eine entgeltliche Leistung an ihn als Arbeitnehmer
-([UStAE 15.23 Abs. 8 Satz 1, 4][ustae1523]); das bucht das Lohnjournal
-([lohn/ablauf.md](../lohn/ablauf.md)).
+abziehbar ([§ 15 Abs. 1 Satz 1 Nr. 1 UStG][ustg15]). Die Umsatzsteuer auf die
+private Nutzung eines Firmenwagens durch einen Gesellschafter-Geschäftsführer
+steht in
+[lohn/lohnjournal.md, Abschnitt 4](../lohn/lohnjournal.md#4-sonderzeilen-im-journal).
 
 ## 4. Wie du mit einem Verdacht umgehst
 
@@ -90,9 +84,10 @@ Regel eine entgeltliche Leistung an ihn als Arbeitnehmer
   Gesellschaftsverhältnis ([R 8.9 Abs. 1, 3 KStR 2022][kstr89]); etwa durch
   Verzicht auf eine werthaltige Forderung oder Übertragung eines
   Wirtschaftsguts unter Wert. Bewertet wird mit dem Teilwert
-  ([R 8.9 Abs. 4 Satz 1 KStR 2022][kstr89]). Sie
-  erhöht das Einkommen der GmbH nicht ([§ 8 Abs. 3 Satz 3 KStG][kstg8]); beim
-  Gesellschafter erhöhen sich die Anschaffungskosten der Beteiligung um den
+  ([R 8.9 Abs. 4 Satz 1 KStR 2022][kstr89]). Wie sie in der
+  Körperschaftsteuererklärung wirkt, steht in
+  [steuererklaerungen/kst.md, Abschnitt 4](../steuererklaerungen/kst.md#4-verdeckte-gewinnausschüttung-und-verdeckte-einlage);
+  beim Gesellschafter erhöhen sich die Anschaffungskosten der Beteiligung um den
   Teilwert eines eingelegten Wirtschaftsguts ([§ 6 Abs. 6 Satz 2 EStG][estg6]).
 - Wertungsfrage: ob und in welcher Höhe eine Einlage vorliegt (Werthaltigkeit
   einer Forderung). Den Verzicht auf ein Gesellschafterdarlehen bucht der Mensch
@@ -103,21 +98,15 @@ Regel eine entgeltliche Leistung an ihn als Arbeitnehmer
 
 ## 6. Steuerliches Einlagekonto
 
-- Einlagen, die nicht ins Stammkapital gehen, erfasst die GmbH zum Schluss jedes
-  Wirtschaftsjahres auf dem steuerlichen Einlagekonto
-  ([§ 27 Abs. 1 Satz 1 KStG][kstg27]). Der Bestand wird gesondert festgestellt;
-  die GmbH gibt dazu jährlich eine Erklärung ab
-  ([§ 27 Abs. 2 Satz 1, 4 KStG][kstg27]). Das regelt
-  [steuererklaerungen/kst.md](../steuererklaerungen/kst.md).
+- Einlagen, die nicht ins Stammkapital gehen, gehören auf das steuerliche
+  Einlagekonto; Fortschreibung, Feststellung und jährliche Erklärung:
+  [steuererklaerungen/kst.md, Abschnitt 10](../steuererklaerungen/kst.md#10-steuerliches-einlagekonto).
 - Notiere jede Einlage mit Datum, Betrag und Beleg, damit die Erklärung sie
   vollständig enthält.
-- Ausschüttungen aus dem Einlagekonto (Einlagenrückgewähr) sind beim
-  Gesellschafter keine Einnahmen ([§ 20 Abs. 1 Nr. 1 Satz 3 EStG][estg20]) und
-  brauchen eine eigene Bescheinigung ([§ 27 Abs. 3 KStG][kstg27]); siehe
-  [ausschuettung.md](ausschuettung.md#6-was-buchfink-nicht-rechnet).
+- Ausschüttungen aus dem Einlagekonto (Einlagenrückgewähr):
+  [ausschuettung.md, Abschnitt 6](ausschuettung.md#6-was-buchfink-nicht-rechnet).
 
 [kstg8]: https://www.gesetze-im-internet.de/kstg_1977/__8.html
-[kstg27]: https://www.gesetze-im-internet.de/kstg_1977/__27.html
 [estg6]: https://www.gesetze-im-internet.de/estg/__6.html
 [estg20]: https://www.gesetze-im-internet.de/estg/__20.html
 [estg43]: https://www.gesetze-im-internet.de/estg/__43.html
@@ -127,4 +116,3 @@ Regel eine entgeltliche Leistung an ihn als Arbeitnehmer
 [ao69]: https://www.gesetze-im-internet.de/ao_1977/__69.html
 [kstr85]: https://www.steuerschroeder.de/steuergesetze/kstr/8.5
 [kstr89]: https://www.steuerschroeder.de/steuergesetze/kstr/8.9
-[ustae1523]: https://www.steuerschroeder.de/steuergesetze/ustae/15.23

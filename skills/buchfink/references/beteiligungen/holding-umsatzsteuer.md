@@ -75,11 +75,8 @@ dem Steuerberater.
   und dem abziehbaren Anteil je Position nach
   [belege/vorsteuer.md, Abschnitt 4](../belege/vorsteuer.md#4-aufteilung).
   Der Grund nennt Maßstab und Rechnung, z. B.
-  „Beratung Kauf Beteiligung X; 40 % den eigenen Umsätzen zuzuordnen“. Der
-  Wert 0 heißt im Werkzeug „voll abziehbar“; ist gar keine Vorsteuer
-  abziehbar, leg den Fall dem Menschen vor, bevor du buchst.
-- Wertungsfrage: Maßstab der Aufteilung
-  ([§ 15 Abs. 4 Satz 1 bis 3 UStG][ustg15]).
+  „Beratung Kauf Beteiligung X; 40 % den eigenen Umsätzen zuzuordnen“.
+- Wertungsfrage: Maßstab der Aufteilung (ebenda).
 
 ## 4. Leistungen an Tochtergesellschaften
 
@@ -97,17 +94,17 @@ dem Steuerberater.
 
 ## 5. Darlehen an Tochtergesellschaften
 
-- Die Gewährung von Krediten ist steuerfrei
-  ([§ 4 Nr. 8 Buchst. a UStG][ustg4]). Vorsteuer aus Kosten, die diesen
-  Umsätzen dienen, ist ausgeschlossen
+- Die Gewährung von Krediten ist steuerfrei; Zinsen sind steuerfreie Umsätze
+  ohne Steuerausweis
+  ([bank/darlehen.md, Abschnitt 3](../bank/darlehen.md#3-zinsen-umsatzsteuer-gewerbesteuer-stichtag)).
+  Vorsteuer aus Kosten, die diesen Umsätzen dienen, ist ausgeschlossen
   ([§ 15 Abs. 2 Satz 1 Nr. 1 UStG][ustg15]); bei gemeinsamen Kosten wird
   aufgeteilt ([§ 15 Abs. 4 UStG][ustg15]).
 - Auf die Steuerfreiheit kann verzichtet werden, wenn der Kredit an einen
   anderen Unternehmer für dessen Unternehmen geht
   ([§ 9 Abs. 1 UStG][ustg9]). Buchfink bildet den Verzicht nicht ab
   ([grundlagen/grenzen.md](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet)).
-- Zinsen sind steuerfreie Umsätze ohne Steuerausweis. Wie sie in der
-  Voranmeldung erscheinen, prüfst du mit `erklaerung`
+- Wie die Zinsen in der Voranmeldung erscheinen, prüfst du mit `erklaerung`
   ([monatsabschluss/ustva.md](../monatsabschluss/ustva.md)).
 
 ## 6. Verkauf einer Beteiligung

@@ -47,8 +47,8 @@ Die Ausnahmen in Abschnitt 5 gehen dem Grundsatz vor.
   unternehmerischen Verwendung ([UStAE 3a.2 Abs. 11a][ustae3a2]).
 - Der Umsatz geht in die Voranmeldung (Kennzahl 21,
   [monatsabschluss/ustva.md](../monatsabschluss/ustva.md)) und in die
-  Zusammenfassende Meldung ([§ 18a UStG][ustg18a],
-  [monatsabschluss/zm.md](../monatsabschluss/zm.md)).
+  Zusammenfassende Meldung
+  ([monatsabschluss/zm.md](../monatsabschluss/zm.md)).
 - E-Rechnungspflicht: keine, der Kunde ist nicht im Inland ansässig
   ([e-rechnung-ausgang.md, Abschnitt 2](e-rechnung-ausgang.md#2-wann-eine-e-rechnung-pflicht-ist)).
 
@@ -113,7 +113,6 @@ abbildet. Lege den Fall dem Menschen als Grenze vor.
 
 [ustg3a]: https://www.gesetze-im-internet.de/ustg_1980/__3a.html
 [ustg14a]: https://www.gesetze-im-internet.de/ustg_1980/__14a.html
-[ustg18a]: https://www.gesetze-im-internet.de/ustg_1980/__18a.html
 [ustg18e]: https://www.gesetze-im-internet.de/ustg_1980/__18e.html
 [ustg18j]: https://www.gesetze-im-internet.de/ustg_1980/__18j.html
 [ustae3a2]: https://www.steuerschroeder.de/steuergesetze/ustae/3a.2

@@ -73,8 +73,9 @@ Hier geht es um das Rechnungsdokument und die Umsatzsteuer.
 
 - Der Storno einer Ausgangsrechnung wirkt im laufenden Voranmeldungszeitraum
   ([grundlagen/arbeitsweise.md, Abschnitt 11](../grundlagen/arbeitsweise.md#11-eine-buchung-korrigieren)).
-- Minderungen nach § 17 sind im Zeitraum der Änderung zu berücksichtigen
-  ([§ 17 Abs. 1 Satz 8 UStG][ustg17]). Das passt zum Storno.
+- Minderungen nach § 17 UStG gehören in den Zeitraum der Änderung
+  ([monatsabschluss/berichtigung.md, Abschnitt 1](../monatsabschluss/berichtigung.md#1-berichtigung-oder-laufender-zeitraum)).
+  Das passt zum Storno.
 - War die ursprüngliche Voranmeldung schon falsch (z. B. falscher Satz bei
   richtiger Leistung, Leistung im falschen Monat erfasst), frag den Menschen, ob
   sie berichtigt werden muss ([§ 153 AO][ao153]); den Ablauf regelt

@@ -140,11 +140,9 @@ Fertig, wenn Buchung, Anlagegut und Beteiligungsliste übereinstimmen.
 
 ## 7. Pflichten, die aus der Beteiligung folgen
 
-- **Größenklasse:** Eine Gesellschaft, deren einziger Zweck Erwerb,
-  Verwaltung und Verwertung von Beteiligungen ist, ohne in deren Verwaltung
-  einzugreifen, ist keine Kleinstkapitalgesellschaft
-  ([§ 267a Abs. 3 Nr. 3 HGB][hgb267a]). Die Klasse bestimmst du nach
-  [jahresabschluss/groessenklassen-anhang.md](../jahresabschluss/groessenklassen-anhang.md).
+- **Größenklasse:** Eine reine Holding ist keine Kleinstkapitalgesellschaft.
+  Die Klasse und die Regel für Holdings stehen in
+  [jahresabschluss/groessenklassen-anhang.md, Abschnitt 1](../jahresabschluss/groessenklassen-anhang.md#1-merkmale).
 - **Anhang:** Angaben zu Beteiligungen (Name, Sitz, Anteil, Eigenkapital,
   Ergebnis) verlangt [§ 285 Nr. 11 HGB][hgb285]; kleine Kapitalgesellschaften
   sind davon befreit ([§ 288 Abs. 1 Nr. 1 HGB][hgb288]).
@@ -164,8 +162,9 @@ Fertig, wenn Buchung, Anlagegut und Beteiligungsliste übereinstimmen.
 - **Verlustuntergang bei der Tochter:** Wechseln innerhalb von fünf Jahren
   mehr als 50 % der Anteile an der Tochter, etwa weil die GmbH sie erwirbt,
   gehen nicht genutzte Verluste der Tochter unter
-  ([§ 8c Abs. 1 Satz 1 KStG][kstg8c]). Weise beim Kauf und beim Verkauf darauf
-  hin und empfiehl einen Steuerberater.
+  ([steuererklaerungen/kst.md, Abschnitt 8](../steuererklaerungen/kst.md#8-verlustabzug)).
+  Weise beim Kauf und beim Verkauf darauf hin und empfiehl einen
+  Steuerberater.
 
 [ao138]: https://www.gesetze-im-internet.de/ao_1977/__138.html
 [estg6]: https://www.gesetze-im-internet.de/estg/__6.html
@@ -174,10 +173,8 @@ Fertig, wenn Buchung, Anlagegut und Beteiligungsliste übereinstimmen.
 [hgb253]: https://www.gesetze-im-internet.de/hgb/__253.html
 [hgb255]: https://www.gesetze-im-internet.de/hgb/__255.html
 [hgb266]: https://www.gesetze-im-internet.de/hgb/__266.html
-[hgb267a]: https://www.gesetze-im-internet.de/hgb/__267a.html
 [hgb271]: https://www.gesetze-im-internet.de/hgb/__271.html
 [hgb285]: https://www.gesetze-im-internet.de/hgb/__285.html
 [hgb288]: https://www.gesetze-im-internet.de/hgb/__288.html
 [hgb290]: https://www.gesetze-im-internet.de/hgb/__290.html
 [hgb293]: https://www.gesetze-im-internet.de/hgb/__293.html
-[kstg8c]: https://www.gesetze-im-internet.de/kstg_1977/__8c.html

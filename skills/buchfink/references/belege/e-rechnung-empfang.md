@@ -18,45 +18,27 @@ abrufbar; Abgleich offen, [Quellenverzeichnis][quellen]).
 
 ## 1. Begriffe
 
-- **E-Rechnung:** in einem strukturierten elektronischen Format ausgestellt,
-  übermittelt und empfangen, elektronisch verarbeitbar
-  ([§ 14 Abs. 1 Satz 3 UStG][ustg14]). Das Format entspricht der EN 16931 oder
-  ist zwischen den Parteien vereinbart und in ein EN-16931-Format extrahierbar
-  ([§ 14 Abs. 1 Satz 6 UStG][ustg14]). Beispiele: XRechnung, ZUGFeRD ab Profil
-  EN 16931.
-- **Sonstige Rechnung:** Papier oder anderes elektronisches Format
-  ([§ 14 Abs. 1 Satz 4 UStG][ustg14]). Dazu zählen PDF ohne eingebetteten
-  Datensatz, Bilddateien und E-Mails ([BMF vom 15.10.2024, Rn. 7][bmf2024]).
-- Alle Pflichtangaben müssen im strukturierten Teil stehen. Ein Verweis auf eine
-  Anlage oder einen Link genügt nicht; Ergänzungen wie Stundennachweise dürfen
-  als Anhang in der E-Rechnung liegen ([BMF vom 15.10.2025, Rn. 35][bmf2025]).
+- Was eine E-Rechnung und was eine sonstige Rechnung ist, welche Formate
+  genügen und was im strukturierten Teil stehen muss:
+  [rechnungen/e-rechnung-ausgang.md, Abschnitte 1, 4 und 5](../rechnungen/e-rechnung-ausgang.md#1-begriffe).
+- Auf der Eingangsseite zählen zur sonstigen Rechnung auch Bilddateien und
+  E-Mails ([BMF vom 15.10.2024, Rn. 7][bmf2024]).
 
 ## 2. Wer eine E-Rechnung schicken muss
 
-- Pflicht für Leistungen zwischen Unternehmern, die beide im Inland ansässig
-  sind ([§ 14 Abs. 2 Satz 2 Nr. 1, Satz 3 UStG][ustg14]). Das gilt auch für
-  Gutschriften und für Rechnungen über § 13b-Leistungen zwischen Inländern
-  ([BMF vom 15.10.2025, Rn. 17][bmf2025]).
-- Keine Pflicht und damit kein Prüfpunkt:
-  - Lieferant im Ausland.
-  - Leistung nach § 4 Nr. 8 bis 29 UStG steuerfrei, etwa Versicherung,
-    Kontoführung, Miete ohne Option ([§ 14 Abs. 2 Satz 2 UStG][ustg14]).
-  - Rechnung bis 250 € brutto ([§ 33 Satz 4 UStDV][ustdv33]); maßgeblich ist
-    der Gesamtbetrag ([BMF vom 15.10.2024, Rn. 23][bmf2024]).
-  - Fahrausweis ([§ 34 Abs. 1 Satz 2 UStDV][ustdv34]).
-  - Rechnung eines Kleinunternehmers ([§ 34a Satz 4 UStDV][ustdv34a]).
-  - Lieferant ist kein Unternehmer.
+- Wann ein Lieferant eine E-Rechnung ausstellen muss und wann nicht, steht in
+  [rechnungen/e-rechnung-ausgang.md, Abschnitt 2](../rechnungen/e-rechnung-ausgang.md#2-wann-eine-e-rechnung-pflicht-ist).
+  Wo keine Pflicht besteht, ist das Fehlen einer E-Rechnung kein Prüfpunkt.
+- Auf der Eingangsseite kommen hinzu: Lieferant im Ausland oder kein
+  Unternehmer; Fahrausweis ([§ 34 Abs. 1 Satz 2 UStDV][ustdv34]); Rechnung
+  eines Kleinunternehmers ([§ 34a Satz 4 UStDV][ustdv34a]). Für die Grenze von
+  250 € zählt der Gesamtbetrag ([BMF vom 15.10.2024, Rn. 23][bmf2024]).
 
 ## 3. Übergangsfristen
 
-Die Übergangsregeln gelten nur für den Aussteller
-([§ 27 Abs. 38 UStG][ustg27]). Stand: Oktober 2026.
-
-| Leistung ausgeführt | Sonstige Rechnung zulässig? |
-|---|---|
-| 2025 und 2026 | ja, Papier immer; anderes elektronisches Format mit Zustimmung des Empfängers (Nr. 1). Rechnung muss bis 31.12.2026 übermittelt sein |
-| 2027 | nur wenn der Gesamtumsatz des Ausstellers im Vorjahr höchstens 800.000 € betrug (Nr. 2); EDI-Verfahren mit Zustimmung (Nr. 3). Bis 31.12.2027 |
-| ab 2028 | nein |
+Die Übergangsregeln des [§ 27 Abs. 38 UStG][ustg27] gelten nur für den
+Aussteller; die Tabelle steht in
+[rechnungen/e-rechnung-ausgang.md, Abschnitt 3](../rechnungen/e-rechnung-ausgang.md#3-übergang-bis-ende-2027).
 
 - Die Zustimmung zu einem anderen elektronischen Format braucht keine Form und
   kann konkludent erfolgen ([BMF vom 15.10.2024, Rn. 63][bmf2024]).
@@ -148,9 +130,7 @@ Form. Einzelheiten stehen in
 [grundlagen/aufbewahrung.md](../grundlagen/aufbewahrung.md).
 
 [quellen]: https://github.com/mxzinke/buchfink/blob/main/skills/QUELLEN.md
-[ustg14]: https://www.gesetze-im-internet.de/ustg_1980/__14.html
 [ustg27]: https://www.gesetze-im-internet.de/ustg_1980/__27.html
-[ustdv33]: https://www.gesetze-im-internet.de/ustdv_1980/__33.html
 [ustdv34]: https://www.gesetze-im-internet.de/ustdv_1980/__34.html
 [ustdv34a]: https://www.gesetze-im-internet.de/ustdv_1980/__34a.html
 [bmf2024]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/E-Rechnung/2024-10-15-einfuehrung-e-rechnung.pdf

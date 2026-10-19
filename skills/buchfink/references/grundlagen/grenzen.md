@@ -60,10 +60,9 @@ Die Bewertung trifft der Mensch mit Berater.
   Betriebsausgabe, fehlende Erlöse, unrichtige Belege). Buche sie nicht und
   sprich den Menschen an. Ob eine Berichtigung oder eine Selbstanzeige
   ([§ 371 AO][ao371]) in Frage kommt, klärt er mit einem Steuerberater.
-- **Übertragung von mehr als 50 % der Anteile innerhalb von fünf Jahren** an
-  einen Erwerber oder ihm nahestehende Personen. Nicht genutzte Verluste können
-  wegfallen ([§ 8c Abs. 1 KStG][kstg8c];
-  [steuererklaerungen/kst.md, Abschnitt 8](../steuererklaerungen/kst.md#8-verlustabzug)).
+- **Übertragung von mehr als 50 % der Anteile innerhalb von fünf Jahren.**
+  Nicht genutzte Verluste können wegfallen
+  ([steuererklaerungen/kst.md, Abschnitt 8](../steuererklaerungen/kst.md#8-verlustabzug)).
   Hinweis an den Menschen.
 
 ## 3. Wann du einen Steuerberater empfiehlst
@@ -99,7 +98,6 @@ Soll ich eine Aufgabe dafür notieren oder den Beleg mit Hinweis liegen lassen?
 [ustg25]: https://www.gesetze-im-internet.de/ustg_1980/__25.html
 [ustg25a]: https://www.gesetze-im-internet.de/ustg_1980/__25a.html
 [ustg25b]: https://www.gesetze-im-internet.de/ustg_1980/__25b.html
-[kstg8c]: https://www.gesetze-im-internet.de/kstg_1977/__8c.html
 [kstg14]: https://www.gesetze-im-internet.de/kstg_1977/__14.html
 [kstg17]: https://www.gesetze-im-internet.de/kstg_1977/__17.html
 [hgb267]: https://www.gesetze-im-internet.de/hgb/__267.html

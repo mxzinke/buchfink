@@ -51,10 +51,8 @@ Mensch mit dem Steuerberater.
 
 | Größe | Regel | Fundstelle |
 |---|---|---|
-| Kapitalertragsteuer | 25 % der Dividende | [§ 43 Abs. 1 Satz 1 Nr. 1, 1a][estg43], [§ 43a Abs. 1 Satz 1 Nr. 1 EStG][estg43a] |
-| Bemessung | volle Dividende ohne Abzug | [§ 43a Abs. 2 Satz 1 EStG][estg43a] |
+| Kapitalertragsteuer mit Solidaritätszuschlag | Abzug auf Gewinnanteile; Satz und Bemessung in [bank/zinsen-kapest.md](../bank/zinsen-kapest.md#2-kapitalertragsteuer-und-solidaritätszuschlag) | [§ 43 Abs. 1 Satz 1 Nr. 1, 1a EStG][estg43] |
 | Steuerfreiheit nach § 8b KStG | ändert am Abzug nichts | [§ 43 Abs. 1 Satz 3 EStG][estg43] |
-| Solidaritätszuschlag | 5,5 % der Kapitalertragsteuer; Bruchteile eines Cents bleiben außer Ansatz | [§ 3 Abs. 1 Nr. 5][solzg3], [§ 4 Satz 1, 3 SolZG][solzg4] |
 | Wer einbehält | die ausschüttende GmbH; bei Aktien in Sammelverwahrung die auszahlende Bank | [§ 44 Abs. 1 Satz 3 EStG][estg44] |
 
 Beispiel: Die Tochter schüttet 100.000,00 € aus. Kapitalertragsteuer
@@ -106,23 +104,19 @@ ebenso Kapitalertragsteuer und Solidaritätszuschlag getrennt auf 7630 und 7633.
 
 ## 4. Steuerbescheinigung und Anrechnung
 
-- Die ausschüttende GmbH bescheinigt auf Verlangen
-  ([§ 45a Abs. 2 Satz 1 Nr. 1 EStG][estg45a]) nach Muster II
-  ([BMF 16.05.2025, Rn. 43][bmf2025]); erst nach der Zahlung, weil der
-  Zahlungstag zu bescheinigen ist (Rn. 47). Für Aktien im Depot bescheinigt
-  die Bank ([§ 45a Abs. 2 Satz 1 Nr. 2 EStG][estg45a]); für Körperschaften
-  nach Muster III (Rn. 57).
-- Für Zuflüsse ab dem 01.01.2026 gelten die Muster des Schreibens vom
-  16.05.2025, davor die vom 23.05.2022 (Rn. 71).
+- Die ausschüttende Tochter bescheinigt nach denselben Regeln, nach denen die
+  GmbH ihren eigenen Gesellschaftern bescheinigt: auf Verlangen, nach der
+  Zahlung, nach Muster II
+  ([gesellschafter/steuerbescheinigung.md](../gesellschafter/steuerbescheinigung.md)).
+  Für Aktien im Depot bescheinigt die Bank
+  ([§ 45a Abs. 2 Satz 1 Nr. 2 EStG][estg45a]); für Körperschaften nach
+  Muster III ([BMF 16.05.2025, Rn. 57][bmf2025]).
 - Angerechnet wird die einbehaltene Steuer auch, soweit die Bezüge nach § 8b
-  KStG außer Ansatz bleiben ([§ 36 Abs. 2 Nr. 2 Buchst. b EStG][estg36]), und
-  nur mit Bescheinigung ([§ 36 Abs. 2 Nr. 2 Satz 2 EStG][estg36]); bei der GmbH
-  über [§ 31 Abs. 1 KStG][kstg31], der Solidaritätszuschlag entsprechend
-  ([§ 1 Abs. 2 SolZG][solzg1]).
-- Lege jede Bescheinigung mit `beleg_ablegen` ab. Gleiche am Jahresende die
-  Summe auf 7630 und 7633 mit allen Bescheinigungen ab (Dividenden hier,
-  Zinsen in [bank/zinsen-kapest.md](../bank/zinsen-kapest.md)). Fertig, wenn
-  jede Abweichung erklärt ist.
+  KStG außer Ansatz bleiben ([§ 36 Abs. 2 Nr. 2 Buchst. b EStG][estg36]).
+  Voraussetzungen der Anrechnung und Abgleich von 7630 und 7633 am
+  Jahresende:
+  [steuererklaerungen/kst.md, Abschnitt 9](../steuererklaerungen/kst.md#9-steuer-rundung-anrechnung-vorauszahlungen).
+- Lege jede Bescheinigung mit `beleg_ablegen` ab.
 
 ## 5. Sonderfälle
 
@@ -183,7 +177,6 @@ Jahresende die Zeilen, die Buchfink aus Konten und Kartei rechnet
 [estg36]: https://www.gesetze-im-internet.de/estg/__36.html
 [estg36a]: https://www.gesetze-im-internet.de/estg/__36a.html
 [estg43]: https://www.gesetze-im-internet.de/estg/__43.html
-[estg43a]: https://www.gesetze-im-internet.de/estg/__43a.html
 [estg44]: https://www.gesetze-im-internet.de/estg/__44.html
 [estg44a]: https://www.gesetze-im-internet.de/estg/__44a.html
 [estg45a]: https://www.gesetze-im-internet.de/estg/__45a.html
@@ -191,7 +184,4 @@ Jahresende die Zeilen, die Buchfink aus Konten und Kartei rechnet
 [gmbhg46]: https://www.gesetze-im-internet.de/gmbhg/__46.html
 [hgb252]: https://www.gesetze-im-internet.de/hgb/__252.html
 [kstg27]: https://www.gesetze-im-internet.de/kstg_1977/__27.html
-[kstg31]: https://www.gesetze-im-internet.de/kstg_1977/__31.html
 [solzg1]: https://www.gesetze-im-internet.de/solzg_1995/__1.html
-[solzg3]: https://www.gesetze-im-internet.de/solzg_1995/__3.html
-[solzg4]: https://www.gesetze-im-internet.de/solzg_1995/__4.html

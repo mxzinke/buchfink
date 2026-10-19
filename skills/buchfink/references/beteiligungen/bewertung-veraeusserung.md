@@ -21,17 +21,18 @@ Hier geht es um Anteile, Wertpapiere und Ausleihungen.
 
 ## 1. Bewertung zum Stichtag nach HGB
 
-- Anlagevermögen ist bei voraussichtlich dauernder Wertminderung auf den
-  niedrigeren Stichtagswert abzuschreiben
-  ([§ 253 Abs. 3 Satz 5 HGB][hgb253]). Bei Finanzanlagen darf auch bei nicht
-  dauernder Minderung abgeschrieben werden (Satz 6).
+- Anlagevermögen ist bei voraussichtlich dauernder Wertminderung
+  abzuschreiben, Finanzanlagen dürfen es auch bei nicht dauernder Minderung
+  ([jahresabschluss/abschreibungen.md, Abschnitt 3](../jahresabschluss/abschreibungen.md#3-außerplanmäßige-abschreibung)).
 - Wertpapiere des Umlaufvermögens sind auf den niedrigeren Börsen- oder
   Marktpreis am Stichtag abzuschreiben, ob dauernd oder nicht
   ([§ 253 Abs. 4 HGB][hgb253]).
-- Entfällt der Grund, ist zuzuschreiben, höchstens auf die Anschaffungskosten
-  ([§ 253 Abs. 5 Satz 1, Abs. 1 Satz 1 HGB][hgb253]).
-- Vorhersehbare Risiken bis zum Stichtag zählen, auch wenn sie erst bis zur
-  Aufstellung bekannt werden ([§ 252 Abs. 1 Nr. 4 HGB][hgb252]).
+- Entfällt der Grund, ist zuzuschreiben
+  ([jahresabschluss/abschreibungen.md, Abschnitt 4](../jahresabschluss/abschreibungen.md#4-wertaufholung)),
+  höchstens auf die Anschaffungskosten ([§ 253 Abs. 1 Satz 1 HGB][hgb253]).
+- Risiken, die am Stichtag bestanden und bis zur Aufstellung bekannt werden,
+  zählen
+  ([jahresabschluss/ablauf.md, Abschnitt 4](../jahresabschluss/ablauf.md#4-entscheidungsregeln)).
 
 Prüfe zum Jahresende jede Finanzanlage: Kurs am Stichtag (Depotauszug),
 letzter Jahresabschluss und laufende Zahlen der Tochter, Ausfälle bei
@@ -43,9 +44,8 @@ Darlehen. Frag nach früheren Abschreibungen und ob ihr Grund noch besteht.
   Anschaffungskosten in der Steuerbilanz; der niedrigere Teilwert kann bei
   voraussichtlich dauernder Wertminderung angesetzt werden
   ([§ 6 Abs. 1 Nr. 2 Satz 1, 2 EStG][estg6]).
-- Teilwert ist der Betrag, den ein Erwerber des ganzen Betriebs für das
-  einzelne Wirtschaftsgut ansetzen würde
-  ([§ 6 Abs. 1 Nr. 1 Satz 3 EStG][estg6]).
+- Was der Teilwert ist:
+  [jahresabschluss/abschreibungen.md, Abschnitt 3](../jahresabschluss/abschreibungen.md#3-außerplanmäßige-abschreibung).
 - In den Folgejahren gilt wieder der höhere Wert, wenn die GmbH den
   niedrigeren Teilwert nicht erneut nachweist
   ([§ 6 Abs. 1 Nr. 2 Satz 3 mit Nr. 1 Satz 4 EStG][estg6]).
@@ -157,5 +157,4 @@ und die Konten der Tabelle.
 [estg6]: https://www.gesetze-im-internet.de/estg/__6.html
 [estg43]: https://www.gesetze-im-internet.de/estg/__43.html
 [gmbhg15]: https://www.gesetze-im-internet.de/gmbhg/__15.html
-[hgb252]: https://www.gesetze-im-internet.de/hgb/__252.html
 [hgb253]: https://www.gesetze-im-internet.de/hgb/__253.html

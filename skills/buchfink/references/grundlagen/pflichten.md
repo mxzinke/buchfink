@@ -564,8 +564,6 @@ Mit und ohne Steuerberater:
   ([§ 5b Abs. 2 EStG][estg5b] i. V. m. [§ 150 Abs. 8 AO][ao150]); Voraussetzungen
   und Abschriften in
   [steuererklaerungen/ebilanz.md, Abschnitt 5](../steuererklaerungen/ebilanz.md#5-übermittlungsweg).
-  Die Kontennachweise gehen dann unverdichtet mit, bei Eröffnung auch die
-  Eröffnungsbilanz ([§ 60 Abs. 1 EStDV][estdv60]).
 - **Buchfink liefert:** XBRL-Datei nach der amtlichen Taxonomie mit
   Kontennachweis, vor dem Export geprüft (`befunde`); als Rückfallweg die
   Summen- und Saldenliste als CSV.
@@ -604,10 +602,9 @@ Mit und ohne Steuerberater:
 - **Nachweis:** Transferticket; der Mensch bestätigt in der App.
 - **Bei Versäumnis:** Verspätungszuschlag; wann er zwingend ist, Ausnahmen und
   Höhe:
-  [steuererklaerungen/fristen-zuschlaege.md, Abschnitt 4](../steuererklaerungen/fristen-zuschlaege.md#4-verspätungszuschlag).
-  Für die Feststellungserklärungen (Einlagekonto, Verlustvortrag) gilt von den
-  Ausnahmen nur die Fristverlängerung; nach 14 Monaten ist der Zuschlag also
-  auch bei Verlust zwingend ([§ 152 Abs. 6 AO][ao152]). Das Finanzamt kann
+  [steuererklaerungen/fristen-zuschlaege.md, Abschnitt 4](../steuererklaerungen/fristen-zuschlaege.md#4-verspätungszuschlag),
+  auch für die Feststellungserklärungen (Einlagekonto, Verlustvortrag). Das
+  Finanzamt kann
   schätzen; die Pflicht zur Abgabe bleibt ([§ 162 AO][ao162],
   [§ 149 Abs. 1 Satz 4 AO][ao149]). Es kann die Abgabe mit Zwangsgeld
   durchsetzen ([§§ 328, 329 AO][ao328]).
@@ -631,10 +628,7 @@ Mit und ohne Steuerberater:
 - **Nachweis:** Transferticket; der Mensch bestätigt in der App.
 - **Bei Versäumnis:** Verspätungszuschlag nach
   [steuererklaerungen/fristen-zuschlaege.md, Abschnitt 4](../steuererklaerungen/fristen-zuschlaege.md#4-verspätungszuschlag).
-  Wie bei den Feststellungserklärungen gilt von den Ausnahmen nur die
-  Fristverlängerung; Steuer null oder Vorauszahlungen schützen nicht
-  ([§ 152 Abs. 6 AO][ao152]). Schätzung und Zwangsgeld wie bei der
-  Körperschaftsteuererklärung.
+  Schätzung und Zwangsgeld wie bei der Körperschaftsteuererklärung.
 - **Vertiefung:** [steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md)
 
 <a id="ust-erklaerung"></a>

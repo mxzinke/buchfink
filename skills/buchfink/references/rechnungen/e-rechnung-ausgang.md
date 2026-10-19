@@ -78,9 +78,9 @@ Maßgeblich sind der Tag der Leistung und der Tag der Übermittlung. Eine
 Leistung aus 2026, die erst nach dem 31.12.2026 abgerechnet wird, fällt unter
 keine Übergangsregel: Nr. 2 und 3 gelten nur für Umsätze ab 2027. Sie braucht
 eine E-Rechnung, auch beim kleinen Unternehmen. Das betrifft vor allem die
-Abrechnung des Dezembers 2026 im Januar 2027. Für den Empfang von E-Rechnungen
-gibt es keinen Übergang ([BMF 15.10.2024, Rn. 62][bmf2024]). Stand: Oktober
-2026; Fundstelle ist der Gesetzestext.
+Abrechnung des Dezembers 2026 im Januar 2027. Für den Empfang gibt es keinen
+Übergang ([belege/e-rechnung-empfang.md, Abschnitt 4](../belege/e-rechnung-empfang.md#4-empfang)).
+Stand: Oktober 2026; Fundstelle ist der Gesetzestext.
 
 Regel für dich: Stell jede Rechnung an ein inländisches Unternehmen als
 E-Rechnung aus. Ein reines PDF nur, wenn der Mensch es ausdrücklich will, die

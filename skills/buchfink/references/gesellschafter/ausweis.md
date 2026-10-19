@@ -17,10 +17,9 @@ Gesellschafter betrifft.
 - Ausleihungen, Forderungen und Verbindlichkeiten gegenüber Gesellschaftern
   sind in der Regel gesondert auszuweisen oder im Anhang anzugeben; stehen sie
   unter anderen Posten, ist das zu vermerken ([§ 42 Abs. 3 GmbHG][gmbhg42]).
-- Forderungen und Verbindlichkeiten werden nicht miteinander verrechnet
-  ([§ 246 Abs. 2 Satz 1 HGB][hgb246]).
-- Restlaufzeiten sind je Posten zu vermerken
-  ([jahresabschluss/forderungen.md](../jahresabschluss/forderungen.md)).
+- Forderungen und Verbindlichkeiten gegenüber einem Gesellschafter werden
+  nicht verrechnet, und Restlaufzeiten sind je Posten zu vermerken
+  ([jahresabschluss/forderungen.md, Abschnitt 5](../jahresabschluss/forderungen.md#5-ausweis-und-restlaufzeiten)).
 
 ## 2. Konten und Bilanzposten
 
@@ -53,4 +52,3 @@ Bilanz aus `auswertung`.
    ([jahresabschluss/groessenklassen-anhang.md](../jahresabschluss/groessenklassen-anhang.md)).
 
 [gmbhg42]: https://www.gesetze-im-internet.de/gmbhg/__42.html
-[hgb246]: https://www.gesetze-im-internet.de/hgb/__246.html
