@@ -120,7 +120,7 @@ Ein Release entsteht aus einem Tag:
 `release.yml` prüft Tag, Paketdateien und Eintrag, führt die Prüfungen aus,
 baut und veröffentlicht `buchfink-darwin-universal.zip`,
 `buchfink-windows-amd64.exe`, `buchfink-linux-amd64.tar.gz`, die Brücke
-`buchfink-mcp-*`, `buchfink.mcpb`, die Skill-Pakete und `SHA256SUMS`. Es
+`buchfink-mcp-*`, `buchfink.mcpb`, das Skill-Paket `buchfink.zip` und `SHA256SUMS`. Es
 bricht ab, wenn eine Datei fehlt, auf die Dokumentation oder Webseite unter
 `releases/latest/download/` verweisen. Signiert wird nichts.
 

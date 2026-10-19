@@ -48,15 +48,14 @@ prüfen Sie zuerst, ob `buchfink` in der Serverliste vorhanden ist.
 Die Verbindung stellt die Werkzeuge bereit. Die Buchfink-Skills ergänzen
 Fachwissen und Arbeitsschritte für den Agenten.
 
-Laden Sie das [Paket mit den Buchfink-Skills](https://github.com/mxzinke/buchfink/releases/latest/download/buchfink-skills.zip)
-herunter und entpacken Sie die enthaltenen Skill-Ordner in den Ordner
-`.agents/skills` in Ihrem Benutzerordner. Der vollständige Pfad ist unter
-macOS und Linux `~/.agents/skills/`, unter Windows
-`%USERPROFILE%\.agents\skills\`. Jeder Skill liegt dort in einem eigenen
-Unterordner mit seiner `SKILL.md`.
+Laden Sie den [Buchfink-Skill](https://github.com/mxzinke/buchfink/releases/latest/download/buchfink.zip)
+herunter und entpacken Sie ihn in den Ordner `.agents/skills` in Ihrem
+Benutzerordner. Der vollständige Pfad ist unter macOS und Linux
+`~/.agents/skills/`, unter Windows `%USERPROFILE%\.agents\skills\`. Der Skill
+liegt dort im Unterordner `buchfink` mit seiner `SKILL.md`.
 
-Öffnen Sie in ChatGPT Desktop **Skills** und prüfen Sie, ob die
-Buchfink-Skills erscheinen. Starten Sie die App neu, falls sie fehlen.
+Öffnen Sie in ChatGPT Desktop **Skills** und prüfen Sie, ob der
+Buchfink-Skill erscheint. Starten Sie die App neu, falls sie fehlen.
 Alternativ beschreibt die [Codex-Anleitung](codex.md#einrichten), wie Sie
 das Paket mit einem Terminalbefehl installieren.
 
@@ -83,6 +82,7 @@ beschreibt [Was der Agent darf](README.md#was-der-agent-darf).
 | Die Freigabe gilt nicht mehr oder für ein anderes Unternehmen | Öffnen Sie das gewünschte Unternehmen und wählen Sie in ChatGPT Desktop erneut **Authenticate**. |
 | Sie haben in Buchfink den Port geändert | Passen Sie die Zahl `7465` in der Serveradresse an, speichern Sie und melden Sie sich erneut an. |
 | „MCP servers“ fehlt | Prüfen Sie Ihre App-Version und die unten verlinkte OpenAI-Anleitung. Die Weboberfläche liest diese lokale Konfiguration nicht. |
+| Neben `buchfink` erscheinen ältere Buchfink-Skills wie `buchfink-grundlagen` oder `buchfink-belege` | Die früheren elf Skills sind noch installiert, und beide Fassungen stehen nebeneinander. Entfernen Sie in `~/.agents/skills/` alle Ordner, deren Name mit `buchfink-` beginnt; `buchfink` bleibt. |
 
 ## Daten beim KI-Anbieter
 

@@ -1,7 +1,7 @@
 name: Release
 
 # Ein Tag vX.Y.Z baut die App für Linux, Windows und macOS, die Brücke
-# buchfink-mcp, die Erweiterung für Claude Desktop und die Skill-Pakete und
+# buchfink-mcp, die Erweiterung für Claude Desktop und das Skill-Paket und
 # veröffentlicht sie als GitHub-Release; ein Tag mit Zusatz wie -rc.1 als
 # Vorabversion. Veröffentlicht wird nur, wenn die Prüfungen aus ci.yml und
 # ebilanz-xsd.yml grün sind und jede Datei vorliegt, auf die Anleitungen und
@@ -204,13 +204,13 @@ jobs:
           if-no-files-found: error
 
   skills:
-    name: Skill-Pakete
+    name: Skill-Paket
     needs: version
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
-      # Die Anleitungen unter docs/nutzung/ki-agenten verlinken die Pakete.
+      # Die Anleitungen unter docs/nutzung/ki-agenten verlinken buchfink.zip.
       - name: Packen
         run: |
           mkdir -p dist

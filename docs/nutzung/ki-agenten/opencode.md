@@ -43,9 +43,9 @@ sich selbst an. Die Skills installieren Sie getrennt.
    npx skills add mxzinke/buchfink -g -a opencode --skill '*'
    ```
    Ohne Node.js: Laden Sie
-   <https://github.com/mxzinke/buchfink/releases/latest/download/buchfink-skills.zip>
+   <https://github.com/mxzinke/buchfink/releases/latest/download/buchfink.zip>
    und entpacken Sie es in denselben Ordner, unter macOS und Linux mit
-   `mkdir -p ~/.agents/skills && unzip -o buchfink-skills.zip -d ~/.agents/skills`.
+   `mkdir -p ~/.agents/skills && unzip -o buchfink.zip -d ~/.agents/skills`.
 5. Prüfen Sie die Verbindung (siehe unten).
 
 ## Was beim ersten Verbinden passiert
@@ -102,6 +102,7 @@ Das erledigen Sie in Buchfink.
 | `status` antwortet mit `bereit: false` und „In Buchfink ist kein Mandant geöffnet.“; andere Werkzeuge melden `kein_mandant_offen` | In Buchfink ist kein Unternehmen geöffnet. | Unternehmen öffnen, `status` erneut aufrufen. |
 | `status` antwortet mit „Diese App ist für den geöffneten Mandanten nicht freigegeben.“; andere Werkzeuge melden `mandant_nicht_freigegeben` | Die Zulassung gilt für ein anderes Unternehmen. | Anmeldung wiederholen, während das gewünschte Unternehmen geöffnet ist. |
 | Skills erscheinen doppelt | Dieselben Skills liegen in `~/.agents/skills/` und `~/.claude/skills/`. OpenCode liest beide Ordner. | Eine der beiden Kopien entfernen. |
+| Neben `buchfink` erscheinen ältere Buchfink-Skills wie `buchfink-grundlagen` oder `buchfink-belege` | Die früheren elf Skills sind noch installiert; beide Fassungen stehen nebeneinander. | In `~/.agents/skills/` und `~/.claude/skills/` alle Ordner entfernen, deren Name mit `buchfink-` beginnt; `buchfink` bleibt. |
 
 Ob Buchfink auf dem Port antwortet, zeigt
 `curl -s http://127.0.0.1:7465/.well-known/oauth-protected-resource`. Buchfink

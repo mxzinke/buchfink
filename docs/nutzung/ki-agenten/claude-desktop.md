@@ -97,6 +97,7 @@ Sie in Buchfink.
 | `status` antwortet mit `bereit: false` und „In Buchfink ist kein Mandant geöffnet.“; andere Werkzeuge melden `kein_mandant_offen` | In Buchfink ist kein Unternehmen geöffnet. | Unternehmen öffnen, `status` erneut aufrufen. |
 | `status` antwortet mit „Diese App ist für den geöffneten Mandanten nicht freigegeben.“; andere Werkzeuge melden `mandant_nicht_freigegeben` | Die Zulassung gilt für ein anderes Unternehmen. | Unternehmen öffnen, Werkzeug erneut aufrufen und in Buchfink zulassen. |
 | Der Skill-Upload scheitert | ZIP-Datei entpackt und neu gepackt, oder Code-Ausführung aus. | Originaldatei aus dem Release hochladen, Schritt 3 prüfen. |
+| Neben `buchfink` erscheinen ältere Buchfink-Skills wie `buchfink-grundlagen` oder `buchfink-belege` | Die früheren elf Skills sind noch installiert; beide Fassungen stehen nebeneinander. | Unter Customize → Skills alle Skills löschen, deren Name mit `buchfink-` beginnt; `buchfink` bleibt. |
 
 Die Erweiterung speichert ihre Anmeldung unter
 `~/Library/Application Support/Buchfink/mcp-bruecke/` (macOS) bzw.

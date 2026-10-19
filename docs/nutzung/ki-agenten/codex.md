@@ -32,11 +32,11 @@ sich selbst an. Die Skills installieren Sie getrennt.
    npx skills add mxzinke/buchfink -g -a codex --skill '*'
    ```
    Ohne Node.js: Laden Sie
-   <https://github.com/mxzinke/buchfink/releases/latest/download/buchfink-skills.zip>
+   <https://github.com/mxzinke/buchfink/releases/latest/download/buchfink.zip>
    und entpacken Sie es nach `~/.agents/skills/`, unter macOS und Linux mit
-   `mkdir -p ~/.agents/skills && unzip -o buchfink-skills.zip -d ~/.agents/skills`,
+   `mkdir -p ~/.agents/skills && unzip -o buchfink.zip -d ~/.agents/skills`,
    unter Windows in PowerShell mit
-   `Expand-Archive buchfink-skills.zip -DestinationPath "$HOME\.agents\skills" -Force`.
+   `Expand-Archive buchfink.zip -DestinationPath "$HOME\.agents\skills" -Force`.
    Erscheinen die Skills nicht, starten Sie Codex neu.
 5. Prüfen Sie die Verbindung (siehe unten).
 
@@ -90,6 +90,7 @@ Prüfermodus gibt es nicht als Werkzeug. Das erledigen Sie in Buchfink.
 | Anmeldung abgelaufen oder in Buchfink entzogen | Die gespeicherte Anmeldung gilt nicht mehr. | `codex mcp login buchfink` wiederholen. |
 | `status` antwortet mit `bereit: false` und „In Buchfink ist kein Mandant geöffnet.“; andere Werkzeuge melden `kein_mandant_offen` | In Buchfink ist kein Unternehmen geöffnet. | Unternehmen öffnen, `status` erneut aufrufen. |
 | `status` antwortet mit „Diese App ist für den geöffneten Mandanten nicht freigegeben.“; andere Werkzeuge melden `mandant_nicht_freigegeben` | Die Zulassung gilt für ein anderes Unternehmen. | Anmeldung wiederholen, während das gewünschte Unternehmen geöffnet ist. |
+| Neben `buchfink` erscheinen ältere Buchfink-Skills wie `buchfink-grundlagen` oder `buchfink-belege` | Die früheren elf Skills sind noch installiert; beide Fassungen stehen nebeneinander. | In `~/.agents/skills/` alle Ordner entfernen, deren Name mit `buchfink-` beginnt; `buchfink` bleibt. Codex neu starten. |
 
 Ob Buchfink auf dem Port antwortet, zeigt
 `curl -s http://127.0.0.1:7465/.well-known/oauth-protected-resource`. Buchfink

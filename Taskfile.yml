@@ -132,7 +132,7 @@ tasks:
       - python3 -I scripts/package_skills.py --check-only
 
   package:skills:
-    summary: Packs every skill as a ZIP with SHA256SUMS into dist/skills
+    summary: Packs the skill as buchfink.zip with SHA256SUMS into dist/skills
     cmds:
       - python3 -I scripts/package_skills.py --out dist/skills
 

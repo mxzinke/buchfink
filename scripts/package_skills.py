@@ -2,10 +2,9 @@
 """Prüft die Endnutzer-Skills unter skills/ und packt sie für den Upload.
 
 Je Skill entsteht <name>.zip mit dem Ordner <name>/ als oberster Ebene. So
-erwarten Claude Desktop und claude.ai den Upload (Customize > Skills).
-buchfink-skills.zip enthält alle Skill-Ordner zum Entpacken in den
-Skill-Ordner eines Clients, etwa ~/.agents/skills/. SHA256SUMS listet die
-Prüfsummen aller Dateien.
+erwarten Claude Desktop und claude.ai den Upload (Customize > Skills), und so
+lässt es sich in den Skill-Ordner eines Clients entpacken, etwa
+~/.agents/skills/. SHA256SUMS listet die Prüfsummen aller Dateien.
 
 Geprüft wird vor dem Packen:
 - Frontmatter nach dem Agent-Skills-Standard (https://agentskills.io/specification),
@@ -44,7 +43,6 @@ PLUGIN_NAME = "buchfink-buchhaltung"
 MARKETPLACE_NAME = "buchfink"
 MCP_URL = "http://127.0.0.1:7465/mcp"
 LICENSE = "EUPL-1.2"
-BUNDLE_NAME = "buchfink-skills.zip"
 
 # Projektregel; der Standard empfiehlt unter 500.
 MAX_SKILL_LINES = 300
@@ -290,11 +288,6 @@ def package(skill_dirs: list[Path], out: Path) -> list[Path]:
         with zipfile.ZipFile(target, "w") as archive:
             add_skill(archive, skill_dir, stamp)
         written.append(target)
-    bundle = out / BUNDLE_NAME
-    with zipfile.ZipFile(bundle, "w") as archive:
-        for skill_dir in skill_dirs:
-            add_skill(archive, skill_dir, stamp)
-    written.append(bundle)
 
     sums = "".join(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n" for p in written)
     (out / "SHA256SUMS").write_text(sums, encoding="utf-8")

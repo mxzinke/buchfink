@@ -122,6 +122,7 @@ als Werkzeug. Das erledigen Sie in Buchfink.
 | `status` antwortet mit `bereit: false` und „In Buchfink ist kein Mandant geöffnet.“; andere Werkzeuge melden `kein_mandant_offen` | In Buchfink ist kein Unternehmen geöffnet. | Unternehmen öffnen, `status` erneut aufrufen. |
 | `status` antwortet mit „Diese App ist für den geöffneten Mandanten nicht freigegeben.“; andere Werkzeuge melden `mandant_nicht_freigegeben` | Die Zulassung gilt für ein anderes Unternehmen. | Anmeldung wiederholen, während das gewünschte Unternehmen geöffnet ist. |
 | Die Skills fehlen unter `/` | Plugin nicht geladen. | `/reload-plugins` ausführen, Fehler unter `/plugin` → Errors lesen. |
+| Neben `buchfink` erscheinen ältere Buchfink-Skills wie `buchfink-grundlagen` oder `buchfink-belege` | Die früheren elf Skills sind noch installiert; beide Fassungen stehen nebeneinander. | Plugin aktualisieren (siehe oben). Ohne Plugin in `~/.claude/skills/` alle Ordner entfernen, deren Name mit `buchfink-` beginnt; `buchfink` bleibt. |
 
 Ob Buchfink auf dem Port antwortet, zeigt
 `curl -s http://127.0.0.1:7465/.well-known/oauth-protected-resource`. Buchfink

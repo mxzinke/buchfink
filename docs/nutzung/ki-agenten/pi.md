@@ -35,9 +35,9 @@ selbst an. Die Skills installieren Sie getrennt.
    npx skills add mxzinke/buchfink -g -a pi --skill '*'
    ```
    Ohne Node.js: Laden Sie
-   <https://github.com/mxzinke/buchfink/releases/latest/download/buchfink-skills.zip>
+   <https://github.com/mxzinke/buchfink/releases/latest/download/buchfink.zip>
    und entpacken Sie es nach `~/.pi/agent/skills/`, unter macOS und Linux mit
-   `mkdir -p ~/.pi/agent/skills && unzip -o buchfink-skills.zip -d ~/.pi/agent/skills`.
+   `mkdir -p ~/.pi/agent/skills && unzip -o buchfink.zip -d ~/.pi/agent/skills`.
    In einer laufenden Sitzung lädt `/reload` die Skills nach.
 5. Prüfen Sie die Verbindung (siehe unten).
 
@@ -104,6 +104,7 @@ als Werkzeug. Das erledigen Sie in Buchfink.
 | Das Modell findet die Buchfink-Werkzeuge nicht | Der Server steht auf `codemode`. | In `/mcp` die Freigabe auf `direct` stellen. |
 | `status` antwortet mit `bereit: false` und „In Buchfink ist kein Mandant geöffnet.“; andere Werkzeuge melden `kein_mandant_offen` | In Buchfink ist kein Unternehmen geöffnet. | Unternehmen öffnen, `status` erneut aufrufen. |
 | `status` antwortet mit „Diese App ist für den geöffneten Mandanten nicht freigegeben.“; andere Werkzeuge melden `mandant_nicht_freigegeben` | Die Zulassung gilt für ein anderes Unternehmen. | Anmeldung wiederholen, während das gewünschte Unternehmen geöffnet ist. |
+| Neben `buchfink` erscheinen ältere Buchfink-Skills wie `buchfink-grundlagen` oder `buchfink-belege` | Die früheren elf Skills sind noch installiert; beide Fassungen stehen nebeneinander. | In `~/.agents/skills/` und `~/.pi/agent/skills/` alle Ordner entfernen, deren Name mit `buchfink-` beginnt; `buchfink` bleibt. In der Sitzung `/reload`. |
 
 Ob Buchfink auf dem Port antwortet, zeigt
 `curl -s http://127.0.0.1:7465/.well-known/oauth-protected-resource`. Buchfink
