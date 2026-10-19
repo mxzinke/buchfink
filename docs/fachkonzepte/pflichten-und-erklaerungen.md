@@ -22,7 +22,7 @@ Kapitalertragsteuer. Jede Art hat:
 | Weg | Mein ELSTER, BZSt, Unternehmensregister, Transparenzregister, Notar, Gewerbeamt, Lohnbüro oder intern |
 | Zuständigkeit | der Agent bereitet vor, der Mensch handelt selbst, oder der Steuerberater erstellt |
 | Nachweis | aus den Daten, durch Bestätigung des Menschen oder beides |
-| Skill-Verweis | Anker in `buchfink-grundlagen/references/pflichten.md` |
+| Skill-Verweis | Anker in [`skills/buchfink/references/grundlagen/pflichten.md`](../../skills/buchfink/references/grundlagen/pflichten.md), in `fristen` als `buchfink/references/grundlagen/pflichten.md#<anker>` |
 
 Die Regeln (`service/obligation_rules.go`) rechnen daraus die Pflichten je
 Geschäftsjahr und Zeitraum mit ihrer Frist. Fristen, die auf Wochenende oder

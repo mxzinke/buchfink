@@ -11,7 +11,7 @@
 | [Entwicklung](entwicklung/README.md) | Einrichtung, Build, Tests, Architektur, Orientierung im Code |
 | [Gestaltung](gestaltung/README.md) | Gestaltung der Oberfläche und Schreibweise |
 
-Fachwissen für den Agenten mit Quellen und Arbeitsschritten steht in den Skills
-unter [`skills/`](../skills/). Wie Sie Fehler melden oder beitragen, steht unter
+Fachwissen für den Agenten mit Quellen und Arbeitsschritten steht im Skill
+unter [`skills/buchfink/`](../skills/buchfink/SKILL.md). Wie Sie Fehler melden oder beitragen, steht unter
 [Mitwirken](../CONTRIBUTING.md); wo welcher Inhalt gepflegt wird, unter
 [Dokumentationsregeln](entwicklung/dokumentation.md).

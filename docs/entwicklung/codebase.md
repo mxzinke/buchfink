@@ -57,6 +57,6 @@ nutzt Base UI, Tailwind CSS und Lucide; Typst setzt Rechnungen und Berichte
 | [scripts/](../../scripts) | Prüfskripte für `task check`, Erzeugung von Taxonomie-Auszug, SKR04-Positionen und Drittkomponentenhinweisen |
 | [scripts/site-screenshots/](../../scripts/site-screenshots/README.md) | Screenshots der Webseite und Klickweg-Prüfung mit Beispieldaten |
 | [website/](../../website/README.md) | Projektseite |
-| [skills/](../../skills/) | Skills für Endnutzer, eine Quelle für Plugin und Skill-Pakete |
-| [plugins/buchfink-buchhaltung/](../../plugins/buchfink-buchhaltung/) | Claude-Plugin mit MCP-Server und Skills |
+| [skills/](../../skills/) | Skill `buchfink` für Endnutzer (SKILL.md, Referenzen je Fachbereich unter `references/`) und Quellenregister `QUELLEN.md`; eine Quelle für Plugin und Skill-Pakete |
+| [plugins/buchfink-buchhaltung/](../../plugins/buchfink-buchhaltung/) | Claude-Plugin mit MCP-Server und Skill |
 | [.claude-plugin/marketplace.json](../../.claude-plugin/marketplace.json) | Marketplace `buchfink` für Claude Code |

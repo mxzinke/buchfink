@@ -12,7 +12,7 @@ Remote-Connector, weil dieser über die Infrastruktur von Anthropic läuft. Der
 einfachste Weg zu einem lokalen Programm ist eine Erweiterung. Die Erweiterung
 `buchfink.mcpb` enthält ein kleines Brückenprogramm. Es nimmt
 die Anfragen von Claude Desktop entgegen und reicht sie an die laufende
-Buchfink-App weiter. Die Skills laden Sie getrennt als ZIP-Dateien hoch.
+Buchfink-App weiter. Den Skill laden Sie getrennt als ZIP-Datei hoch.
 
 Claude Desktop gibt es für macOS und Windows. Unter Linux verwenden Sie
 [Claude Code](claude-code.md). Der Bereich Code der Desktop-App ist Claude Code;
@@ -37,11 +37,8 @@ dort gilt ebenfalls die Anleitung für Claude Code.
 3. Schalten Sie die Code-Ausführung ein: Settings → Capabilities → „Code
    execution and file creation“. In Team- und Enterprise-Tarifen schaltet sie
    der Inhaber unter Organization settings → Plugins & skills frei.
-4. Laden Sie die Skills hoch. Jede ZIP-Datei ist ein Skill. Beginnen Sie mit
-   `buchfink-grundlagen.zip`; die anderen Skills setzen ihn voraus.
-   Download: `https://github.com/mxzinke/buchfink/releases/latest/download/<skill>.zip`,
-   zum Beispiel
-   <https://github.com/mxzinke/buchfink/releases/latest/download/buchfink-grundlagen.zip>.
+4. Laden Sie den Skill hoch:
+   <https://github.com/mxzinke/buchfink/releases/latest/download/buchfink.zip>.
    In Claude: Customize → Skills → „+“ → „Create skill“ → „Upload a skill“,
    Datei wählen, Skill einschalten. Die ZIP-Datei nicht entpacken.
 5. Verbinden Sie: Schreiben Sie in einem neuen Chat „Rufe das Buchfink-Werkzeug

@@ -1,7 +1,7 @@
 # Buchfink Buchhaltung für Claude Code
 
 Dieses Plugin verbindet Claude Code mit der Buchfink-App auf Ihrem Rechner und
-bringt die Buchfink-Skills mit. Claude übernimmt auf Ihre Anweisung Belege und
+bringt den Buchfink-Skill mit. Claude übernimmt auf Ihre Anweisung Belege und
 Kontoauszüge aus dem Eingang, bucht, ordnet Bankumsätze zu, stellt Rechnungen
 aus und bereitet Abschlüsse und Erklärungen vor. Was keine Routine ist, legt
 es Ihnen vorher im Chat vor. Festschreiben, Übermittlungen bestätigen,
@@ -12,11 +12,9 @@ Ihnen.
 
 - MCP-Server `buchfink` unter `http://127.0.0.1:7465/mcp`. Buchfink startet ihn
   mit der App. Die Anmeldung bestätigen Sie im Fenster von Buchfink.
-- Elf Skills: `buchfink-grundlagen`, `buchfink-belege`, `buchfink-bank`,
-  `buchfink-rechnungen`, `buchfink-monatsabschluss`,
-  `buchfink-jahresabschluss`, `buchfink-steuererklaerungen`,
-  `buchfink-gruendung`, `buchfink-lohn`, `buchfink-gesellschafter`,
-  `buchfink-beteiligungen`.
+- Skill `buchfink` mit den Grundregeln und Referenzen für Belege, Bank,
+  Rechnungen, Monats- und Jahresabschluss, Steuererklärungen, Gründung, Lohn,
+  Gesellschafter und Beteiligungen.
 
 ## Installieren
 
@@ -34,9 +32,9 @@ melden Sie sich an. Die vollständige Anleitung mit Fehlerbildern steht unter
 
 ## Für Mitwirkende
 
-Die Skills liegen einmal unter [`skills/`](../../skills) im Wurzelordner des
-Repositorys. `skills/<name>` in diesem Ordner ist ein relativer Symlink auf
-`../../../skills/<name>`. Claude Code kopiert beim Installieren aus einem
+Der Skill liegt einmal unter [`skills/buchfink/`](../../skills/buchfink) im
+Wurzelordner des Repositorys. `skills/buchfink` in diesem Ordner ist ein
+relativer Symlink auf `../../../skills/buchfink`. Claude Code kopiert beim Installieren aus einem
 Git-Marketplace das Ziel jedes Symlinks in seinen Cache (beobachtet mit Claude
 Code 2.1.302 unter Linux). Die Dokumentation von Claude Code sagt dazu nichts
 Verbindliches; wiederholen Sie deshalb vor jedem Release die Installation aus

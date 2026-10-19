@@ -5,7 +5,7 @@
 
 Die Konzepte erklären, wie Buchfink fachlich arbeitet und warum. Sie beschreiben
 den gebauten Stand. Fachwissen für den Agenten, mit Quellen und Arbeitsschritten,
-steht in den Skills unter `skills/`.
+steht im Skill unter `skills/buchfink/`.
 
 | Thema | Konzept |
 |---|---|

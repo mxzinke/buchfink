@@ -164,7 +164,7 @@ type pflicht struct {
 	Zustaendig       string              `json:"zustaendig" jsonschema:"agent_bereitet_vor, mensch oder steuerberater"`
 	NachweisAus      string              `json:"nachweis_aus" jsonschema:"daten, mensch oder daten_oder_mensch"`
 	Grundlage        string              `json:"grundlage,omitempty"`
-	Verweis          string              `json:"verweis" jsonschema:"Abschnitt in der Skill-Referenz"`
+	Verweis          string              `json:"verweis" jsonschema:"Abschnitt im Pflichtenkalender des Skills buchfink (Skill-Name/Pfad#Anker)"`
 	Anker            string              `json:"anker" jsonschema:"Anker des Abschnitts in pflichten.md; weicht bei einigen Arten von art ab"`
 	Vorbereitet      *pflichtVorbereitet `json:"vorbereitet,omitempty"`
 	Nachweis         *pflichtNachweis    `json:"nachweis,omitempty"`
@@ -269,7 +269,7 @@ func registerFristen(tb *Toolbox) {
 		Title: "Fristen und Pflichten",
 		Description: "Pflichtenkalender: je Pflicht Art, Zeitraum, Fälligkeit, Status (offen, vorbereitet, ueberfaellig, " +
 			"erledigt, entfaellt), Kanal, Zuständigkeit und verweis auf den Abschnitt in " +
-			"buchfink-grundlagen/references/pflichten.md. Ohne Filter alles noch nicht Erledigte bis 180 Tage voraus. " +
+			"references/grundlagen/pflichten.md des Skills buchfink. Ohne Filter alles noch nicht Erledigte bis 180 Tage voraus. " +
 			"Nach dem Vorbereiten pflicht_vorbereitet melden; erledigt setzt nur die App oder der Datenstand.",
 	}, func(ctx context.Context, c *Call, s core.AgentServices, in fristenIn) (fristenOut, error) {
 		out := fristenOut{Stichtag: today(), Pflichten: []pflicht{}}

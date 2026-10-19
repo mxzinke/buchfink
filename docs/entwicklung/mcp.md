@@ -155,7 +155,7 @@ aus `Toolbox.OutputSchema`, `TestCatalogStaysSmall` hält den Katalog unter
 | `status` | lesen | Mandant mit USt-Zeitraum, Dauerfrist, festgeschrieben bis, letzter Sicherung; Geschäftsjahre, Prüfermodus, Eingang mit Zahl der Dateien, Leseordner, Exportordner, Direktregeln |
 | `aufgaben` | lesen | Arbeitsliste mit dem Werkzeug für den nächsten Schritt, darunter „N Dateien im Eingang“ |
 | `eingang` | lesen | Dateien im Eingang ohne `Übernommen/`, die älteste zuerst, mit Art und `bereits_abgelegt`; seitenweise |
-| `fristen` | lesen | Pflichtenkalender mit Status, Kanal, Zuständigkeit, `anker` und Verweis auf `pflichten.md#<anker>` |
+| `fristen` | lesen | Pflichtenkalender mit Status, Kanal, Zuständigkeit, `anker` und Verweis auf `buchfink/references/grundlagen/pflichten.md#<anker>` |
 | `konten` | lesen | Kontensuche im SKR04, Buchungsgruppen, Steuerfälle |
 | `kontakte_suchen` | lesen | Kunden und Lieferanten mit Saldo und Standardgruppe |
 | `belege_suchen` | lesen | Belege nach Status, Art, Richtung, Datum, Text |

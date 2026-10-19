@@ -38,7 +38,7 @@ Operations reserved for the human are refused for agents in the core and the ser
 
 ## Skills
 
-End-user skills live under `skills/<name>/`. They carry domain knowledge and working steps for the agent, and every statement of law cites its source (statute, BMF letter, form). What Buchfink computes or enforces belongs in code, not in a skill.
+The end-user skill lives under `skills/buchfink/`: `SKILL.md` holds the ground rules and a router to the references, `references/<area>/` the domain knowledge and working steps per area. Every statement of law cites its source (statute, BMF letter, form); `skills/QUELLEN.md` lists the sources. What Buchfink computes or enforces belongs in code, not in the skill.
 
 ## Documenting
 

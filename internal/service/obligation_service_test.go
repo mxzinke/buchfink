@@ -1121,7 +1121,7 @@ func TestListFiltersAndNext(t *testing.T) {
 }
 
 // skillAnchors sind die Anker der Abschnitte in
-// buchfink-grundlagen/references/pflichten.md.
+// skills/buchfink/references/grundlagen/pflichten.md.
 var skillAnchors = map[string]bool{
 	"ustva": true, "sondervorauszahlung": true, "zm": true, "kst-vorauszahlung": true,
 	"gewst-vorauszahlung": true, "lohnsteuer-anmeldung": true, "monatsfestschreibung": true,
@@ -1149,7 +1149,7 @@ func TestCatalogCarriesSkillReferences(t *testing.T) {
 			t.Errorf("%s und %s teilen sich den Anker %q", other, typ.Kind, anchor)
 		}
 		anchors[anchor] = typ.Kind
-		if typ.SkillRef != "buchfink-grundlagen/references/pflichten.md#"+anchor {
+		if typ.SkillRef != "buchfink/references/grundlagen/pflichten.md#"+anchor {
 			t.Errorf("%s verweist auf %q", typ.Kind, typ.SkillRef)
 		}
 		if typ.Basis == "" || typ.Title == "" || typ.Channel == "" || typ.Responsibility == "" || typ.Evidence == "" {
