@@ -105,6 +105,10 @@ Danach:
   [Datensicherheit](datensicherheit.md#sicherung).
 - Mit dem Agenten die **Eröffnung** vorbereiten: bei einer Gründung Stammkapital
   und Einzahlung, beim Umstieg die Eröffnungsbilanz aus den bisherigen Büchern.
+  Nach einer Gründung speichern Sie unter Unternehmen › Stammdaten, Block
+  „Gesellschafter & Kapital“, an der Pflicht „Aufstellung der Eröffnungsbilanz“
+  mit „Als PDF speichern“ die Eröffnungsbilanz. Alle Geschäftsführer
+  unterzeichnen sie mit Datum; danach bestätigen Sie dort die Pflicht.
 - Die **Standardgruppen** Ihrer regelmäßigen Lieferanten bestätigen, sobald
   der Agent sie vorschlägt. Erst dann bucht er deren E-Rechnungen ohne
   Rückfrage ([Was der Agent darf](ki-agenten/README.md#was-der-agent-darf)).

@@ -36,7 +36,7 @@ einzelne Kriterien im [Anforderungskatalog](../anforderungen/README.md).
 | Steuererklärungen | KSt 1 mit Anlagen, GewSt 1 A und USt 2 A formularnah mit Herkunft je Wert, Eingaben mit Bestätigung, Export als JSON (`buchfink.erklaerung/1`), Übermittlung mit Transferticket | `internal/declaration`, `service.DeclarationService`, `core.Tenant.ExportDeclaration` |
 | E-Bilanz | XBRL nach Taxonomie 6.9 und 6.10 mit Kontennachweis, Überleitung, Befunden vor dem Export; Eröffnungsbilanz einer Gründung in Buchfink in der App und über `ebilanz_exportieren`; Summen- und Saldenliste mit Taxonomie-Position je Konto für eBilanz+ | `internal/ebilanz`, `ebilanz.SuSaCSV`, `service.EBilanzService` (`EBilanzOptions.Kind`) |
 | Pflichtenkalender | 23 Pflichtarten mit Rechtsgrundlage, Frist und Nachweis, darunter Aufstellung und E-Bilanz der Eröffnungsbilanz einer Gründung; Fristen nach steuerlicher Beratung, Dauerfristverlängerung, Wochenende und Feiertagen des Bundeslands; Stand aus den Daten oder bestätigt in der App | `service/obligation_catalog.go`, `service/obligation_rules.go`, `service.ObligationService`, `internal/calendar` |
-| Gründung | Zeichnung, Einforderung und Einzahlung des Stammkapitals, Halbeinzahlung, Eröffnungsbilanz | `service.FoundationService`, `service/foundation_capital.go`, `service/opening_balance.go` |
+| Gründung | Zeichnung, Einforderung und Einzahlung des Stammkapitals, Halbeinzahlung, Eröffnungsbilanz als PDF zum Unterzeichnen in der App, auf denselben Stichtag wie ihre E-Bilanz | `service.FoundationService`, `service/foundation_capital.go`, `service/foundation_opening.go`, `service/opening_balance.go` |
 | Nachweise | Hash-Ketten für Journal und Protokoll, Änderungsprotokoll mit Vorher und Nachher, Datenüberlassung (Z3), Belegarchiv, Prüferpaket, Verfahrensdokumentation | `accounting/journalhash.go`, `accounting/audithash.go`, `service.ExportService`, `internal/export`, `internal/procdoc` |
 | Sicherung | ZIP mit Prüfsummen, automatisch bei eingerichtetem Ziel, Wiederherstellungstest, Wiederherstellung mit Prüfung | `service.BackupService`, `core.Host.RunDueBackup`, `core.Host.RestoreBackup` |
 
@@ -61,9 +61,11 @@ einzelne Kriterien im [Anforderungskatalog](../anforderungen/README.md).
   und GuV.
 - Offenlegung und Hinterlegung erfasst Buchfink als Stand mit Nachweis. Einen
   Datensatz für das Unternehmensregister erzeugt es nicht.
-- Die Eröffnungsbilanz gibt es als E-Bilanz, aber nicht als Dokument zum
-  Unterzeichnen: `FoundationService.OpeningBalancePDF` ruft weder die App noch
-  ein Werkzeug auf.
+- Gründungsdatum (Unternehmensdaten) und Tag der Beurkundung (Gründung) sind
+  zwei Felder. Stichtag der Eröffnungsbilanz und ihrer E-Bilanz ist das
+  Gründungsdatum; nennt die Gründung einen anderen Tag, setzt Buchfink das PDF
+  nicht, bis eine der Angaben berichtigt ist. Das PDF gibt nur die App aus,
+  kein Werkzeug.
 
 ### Laufende Buchhaltung
 

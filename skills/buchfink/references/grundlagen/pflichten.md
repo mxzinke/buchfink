@@ -819,17 +819,23 @@ Mit und ohne Steuerberater:
   1. Du prüfst die Bilanz zum Beurkundungstag nach
      [gruendung/eroeffnungsbilanz.md](../gruendung/eroeffnungsbilanz.md) und
      meldest `pflicht_vorbereitet`.
-  2. Die Geschäftsführer unterzeichnen sie mit Datum
+  2. Der Mensch speichert sie in der App als PDF (Unternehmen, Stammdaten,
+     Block „Gesellschafter & Kapital“, „Als PDF speichern“ an der Pflicht).
+     Meldet Buchfink einen Befund statt der Datei, klärst du ihn mit ihm.
+  3. Die Geschäftsführer unterzeichnen sie mit Datum
      ([§ 245 HGB][hgb245]).
-  3. Der Mensch speichert die unterzeichnete Fassung in den Eingang, du legst
+  4. Der Mensch speichert die unterzeichnete Fassung in den Eingang, du legst
      sie auf seine Anweisung mit `beleg_ablegen` ab. Das Original bewahrt er
      auf ([§ 257 Abs. 3 HGB][hgb257]).
-  4. Er bestätigt die Pflicht in der App (Unternehmen, Stammdaten, Block
-     „Gesellschafter & Kapital“).
+  5. Er bestätigt die Pflicht in der App, an derselben Stelle.
 - **Buchfink liefert:** Salden der Gründungskonten zum Beurkundungstag über
-  `auswertung`. Ein Dokument zum Unterzeichnen setzt Buchfink nicht; entwirf
-  es aus diesen Salden.
-- **Nachweis:** Bestätigung in der App; du meldest höchstens „vorbereitet“.
+  `auswertung`. Das PDF zum Unterzeichnen gibt nur die App aus. Stichtag ist
+  das Gründungsdatum der Unternehmensdaten, wie bei
+  [ebilanz-eroeffnung](#ebilanz-eroeffnung). Buchfink setzt das PDF nicht,
+  solange die Bilanz nicht aufgeht, das Kapital von der Gründung abweicht oder
+  die Gründung einen anderen Tag der Beurkundung nennt.
+- **Nachweis:** Bestätigung in der App; die unterzeichnete Fassung liegt als
+  Beleg im Archiv. Du meldest höchstens „vorbereitet“.
 - **Bei Versäumnis:** Strafbar ist, wer die Bilanz seines Vermögens nicht in
   der vorgeschriebenen Zeit aufstellt, wenn die Gesellschaft ihre Zahlungen
   einstellt oder ein Insolvenzverfahren eröffnet oder mangels Masse abgelehnt

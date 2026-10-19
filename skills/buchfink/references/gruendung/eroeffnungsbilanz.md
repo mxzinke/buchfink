@@ -76,6 +76,12 @@ hat.
   entsprechend für die Eröffnungsbilanz. Für die GmbH unterzeichnen die
   Geschäftsführer. Das tut der Mensch; danach bestätigt er die Pflicht
   `eroeffnungsbilanz` in der App.
+- Das Dokument dazu speichert der Mensch in der App: Unternehmen, Stammdaten,
+  Block „Gesellschafter & Kapital“, „Als PDF speichern“ an der Pflicht. Es
+  steht auf dem Gründungsdatum der Unternehmensdaten, wie die E-Bilanz der
+  Eröffnungsbilanz. Geht die Bilanz nicht auf oder nennt die erfasste Gründung
+  einen anderen Tag der Beurkundung, meldet Buchfink den Befund statt der
+  Datei. Ein Werkzeug für das PDF gibt es nicht.
 - Die Eröffnungsbilanz ist zehn Jahre aufzubewahren
   ([§ 147 Abs. 1 Nr. 1, Abs. 3 AO][ao147]) und darf nicht nur als Wiedergabe
   auf einem Bild- oder Datenträger aufbewahrt werden

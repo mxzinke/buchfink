@@ -79,11 +79,32 @@ Zahl vorläufig.
 
 Bei einer Gründung stellt Buchfink die Eröffnungsbilanz aus den Buchungen bis
 zum Tag der Beurkundung auf (`FoundationService.OpeningBalance`); gebucht wird
-dafür nichts Zusätzliches. Als E-Bilanz ([§ 5b Abs. 1 Satz 4 EStG][estg5b])
-geben sie die App bei der E-Bilanz des ersten Geschäftsjahres und
-`ebilanz_exportieren` mit `bilanzart: eroeffnungsbilanz` aus. Der
-Pflichtenkalender führt Aufstellung und E-Bilanz der Eröffnungsbilanz als
-Pflichten ([Pflichten und Erklärungen](pflichten-und-erklaerungen.md)).
+dafür nichts Zusätzliches. Stichtag ist das Gründungsdatum der
+Unternehmensdaten, derselbe Tag wie für ihre E-Bilanz und die Pflichten im
+Kalender (`openingBalanceDate`).
+
+Als PDF zum Unterzeichnen gibt sie die App aus: „Als PDF speichern“ an der
+Pflicht unter Unternehmen › Stammdaten, Block „Gesellschafter & Kapital“
+(`FoundationService.OpeningBalancePDF`, Bridge `SaveOpeningBalanceAs`, auch im
+Prüfermodus). Das PDF nennt Firma, Sitz, Stichtag und die Posten mit Betrag;
+alle Geschäftsführer unterzeichnen es mit Datum ([§ 245 HGB][hgb245]).
+Buchfink legt es nicht ab: die Zahlen stehen im Journal, und aus ihnen
+entsteht dasselbe Dokument neu. Es entsteht nicht, solange ein Befund
+besteht:
+
+- Aktiva und Passiva gehen auseinander, oder zum Stichtag ist nichts gebucht.
+- Gezeichnetes oder nicht eingefordertes Kapital zum Stichtag weicht von der
+  erfassten Gründung ab.
+- Firma oder Sitz fehlen in den Unternehmensdaten; nach der Eintragung auch
+  Registergericht und -nummer.
+- Die Gründung nennt einen anderen Tag der Beurkundung als das Gründungsdatum
+  der Unternehmensdaten.
+
+Als E-Bilanz ([§ 5b Abs. 1 Satz 4 EStG][estg5b]) geben sie die App bei der
+E-Bilanz des ersten Geschäftsjahres und `ebilanz_exportieren` mit
+`bilanzart: eroeffnungsbilanz` aus. Der Pflichtenkalender führt Aufstellung
+und E-Bilanz der Eröffnungsbilanz als Pflichten
+([Pflichten und Erklärungen](pflichten-und-erklaerungen.md)).
 
 Beim Umstieg bucht Buchfink die Eröffnungsbilanz gegen die Saldenvortragskonten
 **9000** (Sachkonten), **9008** (Debitoren) und **9009** (Kreditoren). Offene
@@ -96,5 +117,6 @@ ersten Jahr ausgleichen lassen. Die Buchungen entstehen alle oder keine.
 [gmbhg11]: https://www.gesetze-im-internet.de/gmbhg/__11.html
 [gmbhg46]: https://www.gesetze-im-internet.de/gmbhg/__46.html
 [hgb242]: https://www.gesetze-im-internet.de/hgb/__242.html
+[hgb245]: https://www.gesetze-im-internet.de/hgb/__245.html
 [hgb248]: https://www.gesetze-im-internet.de/hgb/__248.html
 [hgb272]: https://www.gesetze-im-internet.de/hgb/__272.html
