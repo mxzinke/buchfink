@@ -199,3 +199,75 @@ Bereichs führen durch die Arbeitsschritte und verlinken die Fachreferenzen.
 | `fristen` oder `aufgaben` nennt eine Pflicht; Abgabe-, Zahlungs- und Registerfristen (Anker aus `fristen`, etwa `pflichten.md#ustva`) | [grundlagen/pflichten.md](references/grundlagen/pflichten.md) |
 | Aufbewahrungsfristen, Löschen, Scannen, Dateiformate, Systemwechsel, Betriebsprüfung | [grundlagen/aufbewahrung.md](references/grundlagen/aufbewahrung.md) |
 | Ungewöhnlicher Fall, Buchfink lehnt ab, Zahlen deuten auf eine Krise | [grundlagen/grenzen.md](references/grundlagen/grenzen.md) |
+| Eingang abarbeiten; Eingangsbeleg ablegen, prüfen, kontieren und buchen, auch Anzahlungs-, Schluss- und Gutschriftsbelege; `beleg_buchen` meldet `freigabe_noetig` | [belege/ablauf.md](references/belege/ablauf.md) |
+| Pflichtangabe fehlt, Rechnung muss berichtigt werden, falscher Steuerausweis, Kleinbetragsrechnung, Fahrausweis | [belege/pflichtangaben.md](references/belege/pflichtangaben.md) |
+| E-Rechnung fehlerhaft oder Befund aus `beleg_lesen`; Lieferant schickt nur ein PDF; Formate und Übergangsfristen beim Empfang | [belege/e-rechnung-empfang.md](references/belege/e-rechnung-empfang.md) |
+| Steuerfall bestimmen, sobald es nicht Inland mit 19 % oder 7 % ist: Lieferant im Ausland, steuerfrei, nicht steuerbar, Kleinunternehmer, ausländische Steuer, Satz unklar | [belege/steuerfaelle.md](references/belege/steuerfaelle.md) |
+| Zeitpunkt, Ausschluss, Aufteilung oder Berichtigung der Vorsteuer (§ 15a UStG), Minderung des Entgelts | [belege/vorsteuer.md](references/belege/vorsteuer.md) |
+| Bewirtung, Geschenk, Pauschalierung nach § 37b EStG, Repräsentation | [belege/bewirtung-geschenke.md](references/belege/bewirtung-geschenke.md) |
+| Anschaffung über 250 € netto, Hardware oder Software, GWG, Sammelposten, Anlage aktivieren | [belege/anlagen-gwg.md](references/belege/anlagen-gwg.md) |
+| Beleg in Fremdwährung; Auslage eines Gesellschafters oder Arbeitnehmers | [belege/fremdwaehrung-auslagen.md](references/belege/fremdwaehrung-auslagen.md) |
+| Kontoauszug (CAMT) importieren, Bankabgleich, offene Bankumsätze buchen; `bankumsatz_zuordnen` meldet `freigabe_noetig` | [bank/ablauf.md](references/bank/ablauf.md) |
+| Vorschläge, Routine, Aufteilung; Teil-, Sammel-, Über- und Doppelzahlung; Rücklastschrift; Umsatz ohne Beleg; Ignorieren | [bank/zuordnung.md](references/bank/zuordnung.md) |
+| Zahlbetrag und offener Posten fallen auseinander: Skonto, Gebühr, Rundung, Kursdifferenz, Kürzung | [bank/skonto-differenzen.md](references/bank/skonto-differenzen.md) |
+| Zinsgutschrift, Kapitalertragsteuer, Steuerbescheinigung der Bank, Zinsen ausländischer Banken | [bank/zinsen-kapest.md](references/bank/zinsen-kapest.md) |
+| Jedes Darlehen: Bankdarlehen mit Raten, Disagio, Kontokorrent; Darlehen zwischen GmbH und Gesellschafter mit Zinsen, Nachrang, Rangrücktritt | [bank/darlehen.md](references/bank/darlehen.md) |
+| Zahlung an oder von Finanzamt oder Gemeinde, Nebenleistungen, Verrechnung durch das Finanzamt | [bank/steuerzahlungen.md](references/bank/steuerzahlungen.md) |
+| Kreditkartenbeleg, Kreditkartenabrechnung, Debitkarte, Übertrag zwischen eigenen Konten | [bank/kreditkarte-geldtransit.md](references/bank/kreditkarte-geldtransit.md) |
+| Ausgangsrechnung oder E-Rechnung schreiben, auch Abschlag und Schlussrechnung; Zahlungseingang überwachen, mahnen | [rechnungen/ablauf.md](references/rechnungen/ablauf.md) |
+| `rechnung_vorschau` vermisst eine Pflichtangabe; Kleinbetrag, Skonto, Zahlungsziel, Leistungszeitpunkt | [rechnungen/pflichtangaben-ausgang.md](references/rechnungen/pflichtangaben-ausgang.md) |
+| Kunde verlangt ein Format, eine Leitweg-ID oder ein PDF; Validierungsfehler; Übergang 2026/2027 | [rechnungen/e-rechnung-ausgang.md](references/rechnungen/e-rechnung-ausgang.md) |
+| Abschlag, Anzahlung, Vorauskasse, Schluss- oder Restrechnung, Teilleistung | [rechnungen/anzahlungen.md](references/rechnungen/anzahlungen.md) |
+| Kunde außerhalb Deutschlands (Reverse Charge, USt-IdNr.) oder Verbraucher im Ausland | [rechnungen/ausland.md](references/rechnungen/ausland.md) |
+| Ausgangsrechnung falsch, stornieren oder berichtigen, falscher Steuerausweis | [rechnungen/storno-berichtigung.md](references/rechnungen/storno-berichtigung.md) |
+| Mahnung, Verzugszinsen, Verzugspauschale, drohende Verjährung | [rechnungen/mahnen-verzug.md](references/rechnungen/mahnen-verzug.md) |
+| Kunde kann nicht zahlen, ist insolvent oder die Forderung verjährt | [rechnungen/forderungsausfall.md](references/rechnungen/forderungsausfall.md) |
+| Monat oder Quartal abschließen; `fristen` meldet Voranmeldung, ZM, Sondervorauszahlung oder Monatsfestschreibung | [monatsabschluss/ablauf.md](references/monatsabschluss/ablauf.md) |
+| Voranmeldungszeitraum, Kennzahlen, Abgleich, Rundung, Verspätungszuschlag der Voranmeldung | [monatsabschluss/ustva.md](references/monatsabschluss/ustva.md) |
+| Leistungen an Unternehmer im EU-Ausland, Zusammenfassende Meldung, ihre Berichtigung | [monatsabschluss/zm.md](references/monatsabschluss/zm.md) |
+| Dauerfristverlängerung, Sondervorauszahlung, Wechsel des Voranmeldungszeitraums | [monatsabschluss/dauerfristverlaengerung.md](references/monatsabschluss/dauerfristverlaengerung.md) |
+| Befunde des Prüflaufs; was nach der Festschreibung gesperrt ist | [monatsabschluss/festschreibung.md](references/monatsabschluss/festschreibung.md) |
+| Fehler in einem schon übermittelten Zeitraum, Anzeigepflicht nach § 153 AO | [monatsabschluss/berichtigung.md](references/monatsabschluss/berichtigung.md) |
+| Jahresende: Jahresabschluss vorbereiten bis Aufstellung, Feststellung und Offenlegung; `fristen` meldet einen dieser Schritte | [jahresabschluss/ablauf.md](references/jahresabschluss/ablauf.md) |
+| Vor der ersten Abschlussbuchung; Inventar und Abstimmung zum Stichtag; Liste Abschlussposten | [jahresabschluss/abschlussbuchungen.md](references/jahresabschluss/abschlussbuchungen.md) |
+| Abschreibungslauf, außerplanmäßige Abschreibung, Wertaufholung, Anlagenabgang, Anlagenspiegel | [jahresabschluss/abschreibungen.md](references/jahresabschluss/abschreibungen.md) |
+| Zahlungen über den Stichtag, Leistungen ohne Rechnung, ausstehende Erträge, Auflösung eines Disagios | [jahresabschluss/abgrenzung.md](references/jahresabschluss/abgrenzung.md) |
+| Rückstellung bilden, abzinsen, verbrauchen oder auflösen | [jahresabschluss/rueckstellungen.md](references/jahresabschluss/rueckstellungen.md) |
+| Überfällige oder zweifelhafte Forderungen, Wertberichtigung, Fremdwährungsposten, Restlaufzeiten zum Stichtag | [jahresabschluss/forderungen.md](references/jahresabschluss/forderungen.md) |
+| Projekte, die über den Stichtag laufen | [jahresabschluss/unfertige-leistungen.md](references/jahresabschluss/unfertige-leistungen.md) |
+| Umsatzsteuer-Verrechnung und Steuerrückstellung im Abschluss | [jahresabschluss/steuern-im-abschluss.md](references/jahresabschluss/steuern-im-abschluss.md) |
+| UG-Rücklage, Ergebnisverwendung, Gewinn- und Verlustvortrag, Verlust | [jahresabschluss/ergebnisverwendung-ug.md](references/jahresabschluss/ergebnisverwendung-ug.md) |
+| Größenklasse, Kleinstgesellschaft und Holding, Gliederung, Anhang, Angaben unter der Bilanz | [jahresabschluss/groessenklassen-anhang.md](references/jahresabschluss/groessenklassen-anhang.md) |
+| Unterzeichnung, Feststellungsbeschluss, Umfang der Offenlegung, Stände in Buchfink, Änderung nach der Feststellung | [jahresabschluss/aufstellen-feststellen-offenlegen.md](references/jahresabschluss/aufstellen-feststellen-offenlegen.md) |
+| Jahreserklärungen und E-Bilanz vorbereiten und abgeben lassen, mit oder ohne Berater; Betrag der Steuerrückstellung | [steuererklaerungen/ablauf.md](references/steuererklaerungen/ablauf.md) |
+| Körperschaftsteuer: Überleitung, nicht abziehbare Ausgaben, verdeckte Gewinnausschüttung, Spenden, Verlustabzug, Anrechnung, Einlagekonto | [steuererklaerungen/kst.md](references/steuererklaerungen/kst.md) |
+| Gewerbesteuer: Gewerbeertrag, Hinzurechnungen, Kürzungen, Gewerbeverlust, Hebesatz, Zerlegung, Abschlusszahlung | [steuererklaerungen/gewst.md](references/steuererklaerungen/gewst.md) |
+| Umsatzsteuer-Jahreserklärung mit den Voranmeldungen abgleichen; Abschlusszahlung, Fehler nach der Abgabe | [steuererklaerungen/ust-jahr.md](references/steuererklaerungen/ust-jahr.md) |
+| Vor jedem XBRL-Export der E-Bilanz; Übermittlungsweg, Härtefall | [steuererklaerungen/ebilanz.md](references/steuererklaerungen/ebilanz.md) |
+| Übergangsjahre, Fristende, Fristverlängerung, Höhe von Verspätungszuschlag und Zinsen nach § 233a AO | [steuererklaerungen/fristen-zuschlaege.md](references/steuererklaerungen/fristen-zuschlaege.md) |
+| Der Mensch überträgt Werte in Mein ELSTER (auch Voranmeldung und ZM); Organisationszertifikat | [steuererklaerungen/abgabe.md](references/steuererklaerungen/abgabe.md) |
+| Steuerbescheid, Messbescheid oder Vorauszahlungsbescheid geht ein; Einspruch | [steuererklaerungen/bescheide.md](references/steuererklaerungen/bescheide.md) |
+| GmbH oder UG wird gegründet oder ist gerade gegründet: Notar bis Eintragung, Stammkapital, Eröffnungsbilanz, erstes Geschäftsjahr | [gruendung/ablauf.md](references/gruendung/ablauf.md) |
+| Vor dem Notartermin; Behördenwege mit Fristen | [gruendung/gruendungsweg.md](references/gruendung/gruendungsweg.md) |
+| Zeichnung, Einzahlung oder Sacheinlage buchen; Hin- und Herzahlen; vor der Eintragung (Unterbilanz) | [gruendung/kapitalaufbringung.md](references/gruendung/kapitalaufbringung.md) |
+| Rechnung aus der Gründungsphase, Kosten vor der Beurkundung | [gruendung/gruendungskosten.md](references/gruendung/gruendungskosten.md) |
+| Eröffnungsbilanz prüfen; eine bestehende GmbH wechselt zu Buchfink | [gruendung/eroeffnungsbilanz.md](references/gruendung/eroeffnungsbilanz.md) |
+| Fragebogen zur steuerlichen Erfassung; Voranmeldungszeitraum, Ist-Versteuerung, Kleinunternehmer, USt-IdNr. nach der Gründung | [gruendung/steuerliche-erfassung.md](references/gruendung/steuerliche-erfassung.md) |
+| Erstes Geschäftsjahr kürzer als zwölf Monate; Fristen des ersten Abschlusses und der ersten Erklärungen | [gruendung/rumpfjahr.md](references/gruendung/rumpfjahr.md) |
+| Lohnjournal, Gehaltsabrechnung oder Beitragsnachweis geht ein; Lohnsteuer-Anmeldung, Minijob, Geschäftsführergehalt | [lohn/ablauf.md](references/lohn/ablauf.md) |
+| Erste Lohnbuchung eines Mandanten, unklares Feld, Sonderzeilen (Vorschuss, Pfändung, Sachbezug, Firmenwagen), Gegenkonten der Zahlungen | [lohn/lohnjournal.md](references/lohn/lohnjournal.md) |
+| Lohnkonto geht nicht auf null; Monatsabschluss und Jahresende; Haftung und Aufbewahrung der Lohnunterlagen | [lohn/abstimmung.md](references/lohn/abstimmung.md) |
+| Geld fließt zwischen GmbH und Gesellschafter; Vertrag mit einem Gesellschafter; Ausschüttung; Gesellschafter oder Anteile wechseln | [gesellschafter/ablauf.md](references/gesellschafter/ablauf.md) |
+| Geld fließt ohne Darlehen oder Ausschüttung; private Rechnung über die GmbH bezahlt | [gesellschafter/verrechnungskonto.md](references/gesellschafter/verrechnungskonto.md) |
+| Verträge mit Gesellschaftern, private Ausgaben, Verzicht, Einlage, Verdacht auf verdeckte Gewinnausschüttung | [gesellschafter/vga-einlage.md](references/gesellschafter/vga-einlage.md) |
+| Vor jeder Ausschüttung; Kapitalertragsteuer, Kirchensteuer, Freistellung | [gesellschafter/ausschuettung.md](references/gesellschafter/ausschuettung.md) |
+| Ein Gesellschafter verlangt eine Steuerbescheinigung | [gesellschafter/steuerbescheinigung.md](references/gesellschafter/steuerbescheinigung.md) |
+| Forderungen, Verbindlichkeiten oder Ausleihungen gegenüber Gesellschaftern im Abschluss | [gesellschafter/ausweis.md](references/gesellschafter/ausweis.md) |
+| Die GmbH kauft, gründet, hält oder verkauft Anteile, Aktien oder Fonds; eine Dividende geht ein | [beteiligungen/ablauf.md](references/beteiligungen/ablauf.md) |
+| Kauf, Gründung einer Tochter, Einlage oder Darlehen an sie; Konto oder Bilanzposten unklar | [beteiligungen/erwerb-ausweis.md](references/beteiligungen/erwerb-ausweis.md) |
+| Dividende beschlossen oder eingegangen; Steuerbescheinigung fehlt; Einlagenrückgewähr | [beteiligungen/dividenden.md](references/beteiligungen/dividenden.md) |
+| Zeilen zu § 8b KStG prüfen oder einen Vorgang dort einordnen | [beteiligungen/steuerfreistellung.md](references/beteiligungen/steuerfreistellung.md) |
+| Hinzurechnung oder Kürzung für Beteiligungserträge bei der Gewerbesteuer | [beteiligungen/gewst-holding.md](references/beteiligungen/gewst-holding.md) |
+| Finanzanlagen zum Jahresende, Kursverlust, Wertaufholung, Verkauf | [beteiligungen/bewertung-veraeusserung.md](references/beteiligungen/bewertung-veraeusserung.md) |
+| ETF, Fondsausschüttung, Vorabpauschale, Teilfreistellung, Fondsverkauf | [beteiligungen/investmentfonds.md](references/beteiligungen/investmentfonds.md) |
+| Holding: Leistungen an Töchter, Vorsteuer aus Kosten der Beteiligung | [beteiligungen/holding-umsatzsteuer.md](references/beteiligungen/holding-umsatzsteuer.md) |
