@@ -1,7 +1,7 @@
 # Gewerbesteuer
 
-Rechtsstand: 17. Oktober 2026. Wortlaut des GewStG, des EStG und der AO am
-17.10.2026 auf gesetze-im-internet.de gelesen.
+Rechtsstand: 17. Oktober 2026. Wortlaut des GewStG am 17.10.2026 auf
+gesetze-im-internet.de gelesen.
 
 ## Inhalt
 
@@ -27,11 +27,10 @@ Rechtsstand: 17. Oktober 2026. Wortlaut des GewStG, des EStG und der AO am
   Jahr, gilt der kürzere Zeitraum ([§ 14 Satz 2, 3 GewStG][gewstg14]). Bei
   abweichendem Wirtschaftsjahr gilt der Gewerbeertrag im Jahr seines Endes als
   bezogen ([§ 10 Abs. 2 GewStG][gewstg10]).
-- Das Finanzamt setzt den Messbetrag durch Messbescheid fest
-  ([§ 184 Abs. 1 AO][ao184]); die Gemeinde setzt mit ihrem Hebesatz die Steuer
-  fest ([§ 16 Abs. 1 GewStG][gewstg16]).
-- Die Gewerbesteuer und ihre Nebenleistungen sind keine Betriebsausgaben
-  ([§ 4 Abs. 5b EStG][estg4]).
+- Messbescheid des Finanzamts und Steuerbescheid der Gemeinde:
+  [bescheide.md](bescheide.md#3-gewerbesteuer-zwei-bescheide).
+- Abziehbarkeit der Gewerbesteuer und ihrer Nebenleistungen:
+  [kst.md](kst.md#3-nicht-abziehbare-aufwendungen).
 
 ## 2. Rechenweg
 
@@ -60,7 +59,7 @@ Beträgen, soweit die Summe 200.000 € übersteigt
 
 | Buchst. | Aufwand | Anteil in der Summe | Hinweis |
 |---|---|---|---|
-| a | Entgelte für Schulden (Zinsen, auch unübliche Skonti) | voll | Zinsen getrennt von Gebühren buchen (buchfink-bank) |
+| a | Entgelte für Schulden (Zinsen, auch unübliche Skonti) | voll | Zinsen getrennt von Gebühren buchen ([bank/darlehen.md](../bank/darlehen.md)) |
 | b | Renten und dauernde Lasten | voll | Pensionszahlungen aus Direktzusage ausgenommen |
 | c | Gewinnanteile stiller Gesellschafter | voll | – |
 | d | Miete, Pacht, Leasing für bewegliches Anlagevermögen | ein Fünftel | Elektro- und bestimmte Hybridfahrzeuge, Fahrräder zur Hälfte davon |
@@ -86,19 +85,20 @@ Coworking, entscheidet der Vertrag. Lege Grenzfälle vor.
 
 - Dividenden aus Streubesitz ([§ 8 Nr. 5 GewStG][gewstg8]) und
   Teilwertabschreibungen auf Anteile ([§ 8 Nr. 10 GewStG][gewstg8]): Regeln in
-  buchfink-beteiligungen.
+  [beteiligungen/gewst-holding.md](../beteiligungen/gewst-holding.md).
 - Die bei der Körperschaftsteuer abgezogenen Spenden im Sinne von § 9 Abs. 1
   Nr. 2 KStG ([§ 8 Nr. 9 GewStG][gewstg8]); sie werden nach § 9 Nr. 5 im
   Rahmen der dortigen Höchstbeträge wieder gekürzt (Abschnitt 4).
 - Verlustanteile an Personengesellschaften ([§ 8 Nr. 8 GewStG][gewstg8]):
-  Buchfink bildet Mitunternehmerschaften nicht ab (buchfink-grundlagen, Grenzen).
+  Buchfink bildet Mitunternehmerschaften nicht ab
+  ([grundlagen/grenzen.md](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet)).
 
 ## 4. Kürzungen
 
 | Kürzung | Grundlage | Hinweis |
 |---|---|---|
 | Grundsteuer für eigenen Grundbesitz im Betriebsvermögen, soweit als Betriebsausgabe erfasst | [§ 9 Nr. 1 Satz 1 GewStG][gewstg9] | Fassung ab Erhebungszeitraum 2025 ([§ 36 Abs. 4b GewStG][gewstg36]) |
-| Gewinnanteile aus Beteiligungen ab 15 % | [§ 9 Nr. 2a GewStG][gewstg9] | buchfink-beteiligungen |
+| Gewinnanteile aus Beteiligungen ab 15 % | [§ 9 Nr. 2a GewStG][gewstg9] | [beteiligungen/gewst-holding.md](../beteiligungen/gewst-holding.md) |
 | Spenden bis 20 % des um die Hinzurechnung nach § 8 Nr. 9 erhöhten Gewinns oder 4 Promille der Umsätze und Löhne | [§ 9 Nr. 5 GewStG][gewstg9] | gleiche Voraussetzungen wie bei der Körperschaftsteuer |
 
 Stand: Oktober 2026. Die erweiterte Kürzung für reine
@@ -115,7 +115,6 @@ Rücktrag gibt es bei der Gewerbesteuer nicht.
 
 ## 6. Messbetrag und Hebesatz
 
-- Messzahl 3,5 % ([§ 11 Abs. 2 GewStG][gewstg11]). Stand: Oktober 2026.
 - Den Hebesatz bestimmt die Gemeinde ([§ 16 Abs. 1 GewStG][gewstg16]). Er
   steht in den Einstellungen von Buchfink; ändern kann ihn nur der Mensch in
   der App. Ab dem Erhebungszeitraum 2027 beträgt er mindestens 280 %
@@ -126,24 +125,25 @@ Rücktrag gibt es bei der Gewerbesteuer nicht.
 
 Unterhält die GmbH im Erhebungszeitraum Betriebsstätten in mehreren Gemeinden,
 wird der Messbetrag zerlegt ([§ 28 Abs. 1 GewStG][gewstg28]); dafür gibt es in
-Mein ELSTER die „Erklärung für die Zerlegung des Gewerbesteuermessbetrages
-(GewSt 1 D)“ ([Formularliste][elsterformulare]). Buchfink rechnet keine
+Mein ELSTER ein eigenes Formular
+([grundlagen/pflichten.md#gewst-erklaerung](../grundlagen/pflichten.md#gewst-erklaerung)).
+Buchfink rechnet keine
 Zerlegung. Wertungsfrage: Begründet ein Homeoffice des Geschäftsführers in einer
 anderen Gemeinde eine Betriebsstätte? Lege das mit Empfehlung Steuerberater vor.
 
 ## 8. Vorauszahlungen und Abschlusszahlung
 
-- Vorauszahlungen am 15. Februar, 15. Mai, 15. August und 15. November, je ein
-  Viertel der Steuer der letzten Veranlagung
-  ([§ 19 Abs. 1 Satz 1, Abs. 2 GewStG][gewstg19]). Stand: Oktober 2026.
-- Die Gemeinde kann sie bis zum Ende des 15. Monats nach dem Erhebungszeitraum
-  anpassen; eine nachträgliche Erhöhung ist binnen eines Monats nach Bekanntgabe
-  fällig ([§ 19 Abs. 3 Satz 1, 2 GewStG][gewstg19]).
+- Termine und Höhe der Vorauszahlungen:
+  [grundlagen/pflichten.md#gewst-vorauszahlung](../grundlagen/pflichten.md#gewst-vorauszahlung);
+  Anpassung durch die Gemeinde:
+  [bescheide.md](bescheide.md#5-vorauszahlungsbescheide).
 - Die Abschlusszahlung ist, soweit sie fällige, nicht gezahlte Vorauszahlungen
   übersteigt, binnen eines Monats nach Bekanntgabe des Steuerbescheids fällig;
   eine Überzahlung wird verrechnet oder erstattet
   ([§ 20 Abs. 2, 3 GewStG][gewstg20]).
-- Buchung der Zahlungen: buchfink-bank (Konto 7610, Vorjahre 7641).
+- Buchung der Zahlungen:
+  [bank/steuerzahlungen.md](../bank/steuerzahlungen.md#2-konten-je-steuerart)
+  (Konto 7610, Vorjahre 7641).
 
 ## 9. Beispiel
 
@@ -176,12 +176,10 @@ Rechnerisches Beispiel ohne Beratung:
   § 8 Nr. 5 (`gewst.8_5`, aus der Quote in der Anlagenkartei) schlägt
   Buchfink vor; fehlt eine Quote, bleibt `gewst.8_5` offen. Vorschläge
   bestätigst du nach Rückfrage.
-- Der Mensch überträgt die GewSt 1 A in Mein ELSTER, Formular
-  „Gewerbesteuererklärung (GewSt 1 A)“ ([Formularliste][elsterformulare]).
-  Ablauf: SKILL.md, Schritt 9.
+- Formular in Mein ELSTER:
+  [grundlagen/pflichten.md#gewst-erklaerung](../grundlagen/pflichten.md#gewst-erklaerung);
+  Eingabe: [abgabe.md](abgabe.md#4-eingabe-in-mein-elster).
 
-[ao184]: https://www.gesetze-im-internet.de/ao_1977/__184.html
-[estg4]: https://www.gesetze-im-internet.de/estg/__4.html
 [gewstg2]: https://www.gesetze-im-internet.de/gewstg/__2.html
 [gewstg7]: https://www.gesetze-im-internet.de/gewstg/__7.html
 [gewstg8]: https://www.gesetze-im-internet.de/gewstg/__8.html
@@ -192,8 +190,6 @@ Rechnerisches Beispiel ohne Beratung:
 [gewstg14]: https://www.gesetze-im-internet.de/gewstg/__14.html
 [gewstg14a]: https://www.gesetze-im-internet.de/gewstg/__14a.html
 [gewstg16]: https://www.gesetze-im-internet.de/gewstg/__16.html
-[gewstg19]: https://www.gesetze-im-internet.de/gewstg/__19.html
 [gewstg20]: https://www.gesetze-im-internet.de/gewstg/__20.html
 [gewstg28]: https://www.gesetze-im-internet.de/gewstg/__28.html
 [gewstg36]: https://www.gesetze-im-internet.de/gewstg/__36.html
-[elsterformulare]: https://www.elster.de/eportal/formulare-leistungen/alleformulare

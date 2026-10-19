@@ -1,26 +1,29 @@
 # Umsatzsteuer-Voranmeldung
 
-Rechtsstand: 17. Oktober 2026. Wortlaut von UStG, UStDV, AO und OWiG am
+Rechtsstand: 17. Oktober 2026. Wortlaut von UStG, UStDV und AO am
 17.10.2026 gelesen. Kennziffern nach dem Vordruck USt 1 A 2026, gelesen in einer
 [Wiedergabe des Vordrucks][ust1a2026] (Formular-ID 2026USt1A561, Stand
 Dezember 2025), und wie Buchfink sie führt.
+
+Frist, Weg in Mein ELSTER, Nachweis und Folgen einer Versäumnis stehen in
+[grundlagen/pflichten.md#ustva](../grundlagen/pflichten.md#ustva).
 
 ## Inhalt
 
 1. Pflicht und Form
 2. Voranmeldungszeitraum
-3. Fristen, Zahlung, Zuschläge
+3. Verspätungszuschlag
 4. Kennziffern
 5. Abgleich vor der Freigabe
 6. Eingabe in Mein ELSTER
 
 ## 1. Pflicht und Form
 
-- Die GmbH übermittelt bis zum 10. Tag nach Ablauf jedes
-  Voranmeldungszeitraums eine Voranmeldung nach amtlich vorgeschriebenem
-  Datensatz über die amtlich bestimmte Schnittstelle und berechnet die
-  Vorauszahlung selbst ([§ 18 Abs. 1 Satz 1 UStG][ustg18]). Papier nur auf
-  Antrag bei unbilliger Härte (Satz 2).
+- Die GmbH übermittelt nach Ablauf jedes Voranmeldungszeitraums eine
+  Voranmeldung nach amtlich vorgeschriebenem Datensatz über die amtlich
+  bestimmte Schnittstelle und berechnet die Vorauszahlung selbst
+  ([§ 18 Abs. 1 Satz 1 UStG][ustg18]). Papier nur auf Antrag bei unbilliger
+  Härte (Satz 2).
 - Die Voranmeldung ist eine Steueranmeldung. Sie steht einer Festsetzung unter
   Vorbehalt der Nachprüfung gleich; ergibt sie einen Überschuss oder eine
   niedrigere Steuer, gilt das erst mit Zustimmung des Finanzamts
@@ -28,7 +31,8 @@ Dezember 2025), und wie Buchfink sie führt.
 - Buchfink führt nur die Sollversteuerung. Die Steuer entsteht mit Ablauf des
   Zeitraums, in dem die Leistung ausgeführt wurde; eine vor der Leistung
   vereinnahmte Anzahlung mit Ablauf des Zeitraums der Vereinnahmung
-  ([§ 13 Abs. 1 Nr. 1 Buchst. a UStG][ustg13]).
+  ([§ 13 Abs. 1 Nr. 1 Buchst. a UStG][ustg13]). Eine fehlende Rechnung
+  verschiebt die Steuer nicht.
 - Bemessungsgrundlagen innergemeinschaftlicher Leistungen nach § 3a Abs. 2 UStG
   sind in der Voranmeldung gesondert zu erklären, im Zeitraum der Ausführung
   ([§ 18b Satz 1 Nr. 2, Satz 3 UStG][ustg18b]).
@@ -54,28 +58,16 @@ der übermittelten Anmeldungen des Vorjahres vor und nennt fehlende Zeiträume.
 Der Mensch stellt den Zeitraum in der App ein. Eine Befreiung oder eine
 abweichende Festlegung des Finanzamts gibt er dort ebenfalls ein.
 
-## 3. Fristen, Zahlung, Zuschläge
+## 3. Verspätungszuschlag
 
-- Abgabe und Zahlung am 10. Tag nach Ablauf des Zeitraums
-  ([§ 18 Abs. 1 Satz 1, 4 UStG][ustg18]); mit Dauerfristverlängerung einen
-  Monat später ([§ 46 UStDV][ustdv46]). Fällt das Fristende auf Samstag,
-  Sonntag oder Feiertag, endet die Frist am nächsten Werktag
-  ([§ 108 Abs. 3 AO][ao108]). Den Fristtag des einzelnen Zeitraums nennt
-  `fristen` (Art `ustva`).
-- Verspätete Abgabe: Ein Verspätungszuschlag kann festgesetzt werden; bei
-  entschuldbarer Verspätung ist davon abzusehen
-  ([§ 152 Abs. 1 AO][ao152]). Für monatliche und vierteljährliche
-  Anmeldungen gilt der Satz von 0,25 % je Monat nicht; maßgeblich sind Dauer
-  und Häufigkeit der Verspätung und die Höhe der Steuer (§ 152 Abs. 8 AO).
-  Höchstens 25.000 € (§ 152 Abs. 10 AO).
-- Verspätete Zahlung: Säumniszuschlag nach [§ 240 AO][ao240]; Höhe und
-  Schonfrist stehen in buchfink-bank. Wer eine Vorauszahlung vorsätzlich nicht
-  oder nicht rechtzeitig entrichtet, handelt ordnungswidrig; Geldbuße bis
-  30.000 € ([§ 26a Abs. 1, 3 UStG][ustg26a]). Abs. 1 nennt keine
-  Leichtfertigkeit; geahndet wird deshalb nur Vorsatz ([§ 10 OWiG][owig10]
-  über [§ 377 Abs. 2 AO][ao377]).
-
-Stand: Oktober 2026.
+Den Fristtag des einzelnen Zeitraums nennt `fristen` (Art `ustva`); Frist und
+Folgen einer Versäumnis stehen in
+[grundlagen/pflichten.md#ustva](../grundlagen/pflichten.md#ustva). Für
+monatliche und vierteljährliche Anmeldungen gilt der Satz von 0,25 % je Monat
+aus
+[steuererklaerungen/fristen-zuschlaege.md](../steuererklaerungen/fristen-zuschlaege.md#4-verspätungszuschlag)
+nicht; maßgeblich sind Dauer und Häufigkeit der Verspätung und die Höhe der
+Steuer ([§ 152 Abs. 8 AO][ao152]). Stand: Oktober 2026.
 
 ## 4. Kennziffern
 
@@ -148,7 +140,7 @@ Zeitraum); die App zeigt die Herkunft in der formularnahen Ansicht. Prüfe:
    Vorsteuerabzug richtig (Vorsteueranteil am Beleg).
 5. **Nachträge.** Meldet `erklaerung` Buchungen zu einem schon übermittelten
    Zeitraum, gehören sie nicht in den laufenden. Behandle sie als Berichtigung
-   des alten Zeitraums (Ablauf in SKILL.md, Abschnitt 4).
+   des alten Zeitraums ([berichtigung.md](berichtigung.md)).
 6. **Vergleich mit dem Vorzeitraum.** Starke Ausschläge bei 81 oder 66 nennst
    du dem Menschen mit den größten Einzelbuchungen.
 7. **Zahllast.** Kennziffer 83 gleich geschuldete Steuer minus Vorsteuer minus
@@ -159,7 +151,8 @@ bestätigt hat.
 
 ## 6. Eingabe in Mein ELSTER
 
-Den Ablauf hält SKILL.md, Abschnitt 3. Für die Felder gilt:
+Den Ablauf hält [ablauf.md](ablauf.md#3-in-mein-elster-übertragen). Für die
+Felder gilt:
 
 - Formular „Umsatzsteuer-Voranmeldung“ des Jahres, in dem der Zeitraum liegt.
   Der Vordruck ändert sich jährlich; Buchfink zeigt die Kennzahlen des Jahres.
@@ -167,20 +160,12 @@ Den Ablauf hält SKILL.md, Abschnitt 3. Für die Felder gilt:
   Buchfink sie liefert (Abschnitt 4).
 - Kennzahl 39 nur in der letzten Voranmeldung des Jahres; Kennzeichen
   „berichtigte Anmeldung“ (Kennzahl 10) nur bei einer Berichtigung;
-  Kennzahl 500 nur nach Rückfrage.
-- Berechnet Mein ELSTER einen Wert anders als Buchfink (auch um Cent), klärt
-  ihr das vor dem Senden.
+  Kennzahl 500 nur nach Rückfrage (Abschnitt 4).
 
 [ustg13]: https://www.gesetze-im-internet.de/ustg_1980/__13.html
 [ustg13b]: https://www.gesetze-im-internet.de/ustg_1980/__13b.html
 [ustg18]: https://www.gesetze-im-internet.de/ustg_1980/__18.html
 [ustg18b]: https://www.gesetze-im-internet.de/ustg_1980/__18b.html
-[ustg26a]: https://www.gesetze-im-internet.de/ustg_1980/__26a.html
-[ustdv46]: https://www.gesetze-im-internet.de/ustdv_1980/__46.html
-[ao108]: https://www.gesetze-im-internet.de/ao_1977/__108.html
 [ao152]: https://www.gesetze-im-internet.de/ao_1977/__152.html
 [ao168]: https://www.gesetze-im-internet.de/ao_1977/__168.html
-[ao240]: https://www.gesetze-im-internet.de/ao_1977/__240.html
-[ao377]: https://www.gesetze-im-internet.de/ao_1977/__377.html
-[owig10]: https://www.gesetze-im-internet.de/owig_1968/__10.html
 [ust1a2026]: https://www.buhl.de/steuer/wp-content/uploads/sites/31/2026/03/formular-dauerfristverlaengerung-2026.pdf

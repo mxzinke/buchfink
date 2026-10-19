@@ -1,9 +1,12 @@
 # Abgabe über Mein ELSTER
 
-Stand: 17. Oktober 2026. ELSTER nach der Formularliste auf elster.de (geprüft
-am 17.10.2026) und dem Registrierungsleitfaden des Landesamts für Steuern
-Rheinland-Pfalz (Stand 09.2025). Fristen je Erklärung nennt `fristen`; die
-Regeln stehen in buchfink-grundlagen, references/pflichten.md.
+Rechtsstand: 17. Oktober 2026. ELSTER nach der Formularliste auf elster.de
+(geprüft am 17.10.2026) und dem Registrierungsleitfaden des Landesamts für
+Steuern Rheinland-Pfalz (Stand 09.2025).
+
+Die Eingabe in Mein ELSTER (Abschnitt 4 und 5) gilt für Voranmeldung, ZM und
+Jahreserklärungen. Fristen je Erklärung nennt `fristen`; die Regeln stehen in
+[grundlagen/pflichten.md](../grundlagen/pflichten.md).
 
 ## Inhalt
 
@@ -17,19 +20,14 @@ Regeln stehen in buchfink-grundlagen, references/pflichten.md.
 
 Buchfink übermittelt nicht. Es zeigt jede Erklärung formularnah; der Mensch
 überträgt die Werte in Mein ELSTER und sendet. Ist ein Steuerberater
-beauftragt, sendet er (SKILL.md, Abschnitt 3).
+beauftragt, sendet er ([ablauf.md](ablauf.md#3-fristen-und-steuerberater)).
 
-| Erklärung | Formular in Mein ELSTER |
+| Erklärung | Formular und Weg |
 |---|---|
-| Umsatzsteuererklärung | „Umsatzsteuererklärung“ |
-| Gewerbesteuererklärung | „Gewerbesteuererklärung (GewSt 1 A)“ |
-| Zerlegung bei Betriebsstätten in mehreren Gemeinden | „Erklärung für die Zerlegung des Gewerbesteuermessbetrages (GewSt 1 D)“ |
-| Körperschaftsteuererklärung mit Einlagekonto | „Körperschaftsteuererklärung (KSt 1)“ mit Anlagen |
-| E-Bilanz | kein Formular; die XBRL-Datei geht über einen Online-Dienst wie eBilanz+ oder eBilanz-Online (SKILL.md, Schritt 7) |
-
-Quelle: [Formularliste][elsterformulare], geprüft am 17.10.2026. Alle Formulare
-liegen unter „Formulare und Leistungen“ → „Alle Formulare“, gruppiert nach
-Steuerart.
+| Umsatzsteuererklärung | [grundlagen/pflichten.md#ust-erklaerung](../grundlagen/pflichten.md#ust-erklaerung) |
+| Gewerbesteuererklärung, Zerlegung bei Betriebsstätten in mehreren Gemeinden | [grundlagen/pflichten.md#gewst-erklaerung](../grundlagen/pflichten.md#gewst-erklaerung) |
+| Körperschaftsteuererklärung mit Einlagekonto | [grundlagen/pflichten.md#kst-erklaerung](../grundlagen/pflichten.md#kst-erklaerung) |
+| E-Bilanz | kein Formular; die XBRL-Datei geht über einen Online-Dienst ([ebilanz.md](ebilanz.md#5-übermittlungsweg)) |
 
 ## 2. Organisationszertifikat
 
@@ -45,19 +43,20 @@ Steuerart.
 
 ## 3. Was Buchfink liefert
 
-| Erklärung | `erklaerung` `art` | Export |
-|---|---|---|
-| Umsatzsteuer | `ust_jahr` | `erklaerung_exportieren` (`art: ust_jahr`, `jahr`), JSON zur Ablage |
-| Gewerbesteuer | `gewst` | `erklaerung_exportieren` (`art: gewst`), JSON zur Ablage |
-| Körperschaftsteuer | `kst` | `erklaerung_exportieren` (`art: kst`), JSON zur Ablage |
-| E-Bilanz | – | `ebilanz_exportieren` (`jahr`), XBRL für den Online-Dienst; `format: susa_csv` als Rückfallweg |
+| Erklärung | Export |
+|---|---|
+| Umsatzsteuer | `erklaerung_exportieren` (`art: ust_jahr`, `jahr`), JSON zur Ablage |
+| Gewerbesteuer | `erklaerung_exportieren` (`art: gewst`), JSON zur Ablage |
+| Körperschaftsteuer | `erklaerung_exportieren` (`art: kst`), JSON zur Ablage |
+| E-Bilanz | `ebilanz_exportieren` (`jahr`), XBRL für den Online-Dienst; `format: susa_csv` als Rückfallweg ([ebilanz.md](ebilanz.md#3-was-buchfink-liefert)) |
 
 `erklaerung` liefert je Zeile Formular, Abschnitt, Zeile (wo belegt),
 Bezeichnung, Wert und Herkunft, in der Reihenfolge der Anlagen. Die App zeigt
 dieselbe Ansicht als Eingabehilfe.
 
 Der Export nennt `pfad`, `sha256`, `zahlen_hash` und `naechster_schritt`.
-Exportiere erst nach der Freigabe der Zahlen (SKILL.md, Schritt 8). Ändert
+Exportiere erst nach der Freigabe der Zahlen ([ablauf.md](ablauf.md#2-ablauf),
+Schritt 8). Ändert
 sich danach eine Buchung, rechne neu und exportiere neu; der Dialog für das
 Transferticket vergleicht den `zahlen_hash` mit dem aktuellen Stand.
 
@@ -74,22 +73,23 @@ Transferticket vergleicht den `zahlen_hash` mit dem aktuellen Stand.
    trägst du die Werte ins geöffnete Formular ein; Anmeldung und Senden bleiben
    bei ihm.
 4. Er lässt Mein ELSTER prüfen und vergleicht die Vorschau mit der Tabelle.
-   Weicht ein von ELSTER berechneter Wert ab, klärt ihr den Grund, bevor er
-   sendet.
+   Weicht ein von ELSTER berechneter Wert ab, auch nur um Cent, nennst du
+   Abweichung und Ursache (etwa Rundung); er sendet erst, wenn die Prüfung
+   ohne Fehler endet und jeder Wert geklärt ist.
 5. Er sendet und nennt dir Zeitpunkt und Transferticket aus dem
    Übermittlungsprotokoll. Bitte ihn, das Protokoll in den Eingang zu
    speichern; lege es dann mit `beleg_ablegen` ab.
 
 ## 5. Nach dem Senden
 
-- Endet ein Senden unklar (Abbruch, Zeitüberschreitung, Fehler nach dem
-  Senden), bitte den Menschen, in Mein ELSTER nachzusehen, ob die Erklärung
-  angekommen ist, bevor er erneut sendet.
-- Der Mensch erfasst das Transferticket in der App (nur App). Prüfe danach mit
-  `erklaerung`, dass der Status `uebermittelt` lautet, und mit `fristen`, dass
-  die Pflicht als erledigt geführt wird.
-- Notiere die erwartete Abschlusszahlung oder Erstattung für buchfink-bank.
+- Jede Erklärung wird genau einmal gesendet. Endet ein Senden unklar
+  (Abbruch, Zeitüberschreitung, Fehler nach dem Senden), bitte den Menschen,
+  in Mein ELSTER nachzusehen, ob die Erklärung angekommen ist, bevor er erneut
+  sendet.
+- Das Transferticket erfasst der Mensch in der App
+  ([ablauf.md](ablauf.md#2-ablauf), Schritt 10).
+- Notiere die erwartete Abschlusszahlung oder Erstattung für die Buchung nach
+  [bank/steuerzahlungen.md](../bank/steuerzahlungen.md).
 
-[elsterformulare]: https://www.elster.de/eportal/formulare-leistungen/alleformulare
 [rlpelster]: https://lfst.rlp.de/fileadmin/lfst.rlp.de/ELSTER/Klickanleitungen/Leitfaden_Registrierung_mit_Zertifikatsdatei_Stand_09.2025.pdf
 [snelster]: https://www.luft.sachsen.de/download/Schritt-fuer-Schritt-Anleitung-ELSTER-Organisationszertifikate-SN-2025.pdf

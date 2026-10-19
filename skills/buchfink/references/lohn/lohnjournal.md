@@ -74,7 +74,8 @@ die Antwort sie, gleiche sie in der Abstimmung mit aus.
 | Minijob-Abgaben und einheitliche Pauschsteuer | Minijob-Zentrale (Deutsche Rentenversicherung Knappschaft-Bahn-See, [§ 40a Abs. 6 Satz 1 EStG][estg40a]) | 3740 |
 | Erstattung nach dem Aufwendungsausgleichsgesetz | von der Krankenkasse | 4972 Erstattungen Aufwendungsausgleichsgesetz |
 
-Die Zuordnung am Bankumsatz macht buchfink-bank. Beitragslastschriften der
+Die Zuordnung am Bankumsatz regelt [bank/zuordnung.md](../bank/zuordnung.md).
+Beitragslastschriften der
 Krankenkassen wiederholen sich monatlich; `bankumsaetze` schlägt sie als
 Vorschlag der Art `regel` vor. Sie bleiben Rückfrage.
 
@@ -86,11 +87,11 @@ Menschen vor; die Umbuchung nach dem Lohnjournal erfasst du mit
 
 | Zeile | Umbuchung nach dem Journal | Hinweis |
 |---|---|---|
-| Vorschuss, früher ausgezahlt | 3720 an 1340 Forderungen gegen Personal aus Lohn- und Gehaltsabrechnung | Den Vorschuss selbst bucht buchfink-bank auf 1340 |
+| Vorschuss, früher ausgezahlt | 3720 an 1340 Forderungen gegen Personal aus Lohn- und Gehaltsabrechnung | Den Vorschuss selbst buchst du am Bankumsatz auf 1340 ([bank/zuordnung.md](../bank/zuordnung.md)) |
 | Pfändung, Abtretung | 3720 an 3725 Verbindlichkeiten für Einbehaltungen von Arbeitnehmern | Zahlung an den Gläubiger gegen 3725 |
 | Sparbetrag vermögenswirksame Leistung | 3720 an 3725 | Zahlung an das Anlageinstitut gegen 3725; der Arbeitgeberzuschuss steckt im Brutto (6080 Vermögenswirksame Leistungen) |
 | Sachbezug, Firmenwagen (Nettoabzug) | 3720 an Ertrag für Sachbezüge (z. B. 4947 Verrechnete sonstige Sachbezüge aus Fahrzeug-Gestellung 19 % USt, 4949 ohne Umsatzsteuer) | Wertungsfrage, siehe unten |
-| Steuerfreie Erstattung (Reisekosten) über die Abrechnung | Aufwand (z. B. 6650 Reisekosten Arbeitnehmer) an 3720 | Belege der Reise bucht buchfink-belege; frag, ob sie schon gebucht sind |
+| Steuerfreie Erstattung (Reisekosten) über die Abrechnung | Aufwand (z. B. 6650 Reisekosten Arbeitnehmer) an 3720 | Belege der Reise nach [belege/ablauf.md](../belege/ablauf.md); frag, ob sie schon gebucht sind |
 
 Sachbezug und Firmenwagen:
 
@@ -104,7 +105,8 @@ Sachbezug und Firmenwagen:
   Bemessungsgrundlage und Satz klärt der Mensch mit Lohnbüro oder
   Steuerberater; Buchfink rechnet sie nicht.
 - Ohne Regelung im Anstellungsvertrag ist die private Nutzung durch einen
-  beherrschenden Gesellschafter vGA-verdächtig; lade buchfink-gesellschafter.
+  beherrschenden Gesellschafter vGA-verdächtig
+  ([gesellschafter/vga-einlage.md](../gesellschafter/vga-einlage.md)).
 
 ## 5. Was Buchfink nicht abbildet
 
@@ -113,7 +115,7 @@ Sachbezug und Firmenwagen:
 - Kurzarbeitergeld, Altersteilzeit, betriebliche Altersversorgung mit
   Pauschalsteuer (6147), Entgeltumwandlung: Rückfrage, im Zweifel Grenze.
 - Personalrückstellungen (Urlaub, Überstunden) zum Stichtag:
-  buchfink-jahresabschluss.
+  [jahresabschluss/rueckstellungen.md](../jahresabschluss/rueckstellungen.md).
 
 [estg8]: https://www.gesetze-im-internet.de/estg/__8.html
 [estg40]: https://www.gesetze-im-internet.de/estg/__40.html

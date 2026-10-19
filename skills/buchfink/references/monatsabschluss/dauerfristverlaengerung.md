@@ -1,7 +1,11 @@
 # Dauerfristverlängerung und Sondervorauszahlung
 
-Rechtsstand: 17. Oktober 2026. Wortlaut von §§ 46 bis 48 UStDV, § 18 UStG und
-§ 152 AO am 17.10.2026 gelesen.
+Rechtsstand: 17. Oktober 2026. Wortlaut von §§ 46 bis 48 UStDV am 17.10.2026
+gelesen.
+
+Frist, Weg, Nachweis und Folgen einer Versäumnis der Sondervorauszahlung
+stehen in
+[grundlagen/pflichten.md#sondervorauszahlung](../grundlagen/pflichten.md#sondervorauszahlung).
 
 ## Inhalt
 
@@ -18,8 +22,8 @@ Rechtsstand: 17. Oktober 2026. Wortlaut von §§ 46 bis 48 UStDV, § 18 UStG und
   Voranmeldungen und Entrichtung der Vorauszahlungen um einen Monat
   ([§ 46 Satz 1 UStDV][ustdv46]). Aus dem 10. Tag nach Ablauf des Zeitraums wird
   der 10. Tag des übernächsten Monats.
-- Sie gilt nur für Voranmeldungen. Die Zusammenfassende Meldung bleibt beim
-  25. Tag.
+- Sie gilt nur für Voranmeldungen, nicht für die Zusammenfassende Meldung
+  ([grundlagen/pflichten.md#zm](../grundlagen/pflichten.md#zm)).
 - Das Finanzamt lehnt ab oder widerruft, wenn der Steueranspruch gefährdet
   erscheint (§ 46 Satz 2 UStDV).
 
@@ -32,9 +36,9 @@ Rechtsstand: 17. Oktober 2026. Wortlaut von §§ 46 bis 48 UStDV, § 18 UStG und
 - Übermittlung nach amtlich vorgeschriebenem Datensatz (§ 48 Abs. 1 Satz 2).
   Der Vordruck heißt USt 1 H; für 2026 gilt das Muster aus dem BMF-Schreiben
   vom 29.12.2025 (nach Sekundärquellen, Wortlaut nicht gelesen).
-- Der Mensch stellt den Antrag in Mein ELSTER, Formular
-  „Dauerfristverlängerung/Sondervorauszahlung (monatlich)“ unter
-  „Umsatzsteuer“ ([Formularliste][elsterformulare]).
+- Der Mensch stellt den Antrag in Mein ELSTER mit demselben Formular wie die
+  Anmeldung der Sondervorauszahlung (Weg in
+  [grundlagen/pflichten.md#sondervorauszahlung](../grundlagen/pflichten.md#sondervorauszahlung)).
 
 ## 3. Sondervorauszahlung
 
@@ -48,15 +52,9 @@ Nur bei monatlicher Voranmeldung ([§ 47 Abs. 1 UStDV][ustdv47]):
 
 - Bei vierteljährlicher Voranmeldung gibt es keine Sondervorauszahlung.
 - Mit dem ersten Antrag berechnet und meldet die GmbH die Sondervorauszahlung
-  selbst an und entrichtet sie gleichzeitig (§ 48 Abs. 1 Satz 4, 5).
-- Solange die Verlängerung gilt, ist die Sondervorauszahlung jedes Jahr bis
-  zum gesetzlichen Abgabetag der ersten Voranmeldung zu berechnen, anzumelden
-  und zu entrichten ([§ 48 Abs. 2 UStDV][ustdv48]); bei Monatszahlern der
-  10. Februar ([§ 18 Abs. 1 Satz 1 UStG][ustg18]).
-- Rechnet die GmbH falsch, kann das Finanzamt festsetzen (§ 48 Abs. 3).
-- Auch für die Anmeldung der Sondervorauszahlung kann ein Verspätungszuschlag
-  festgesetzt werden; die Bemessung richtet sich nach Dauer, Häufigkeit und
-  Höhe ([§ 152 Abs. 8 Nr. 5 AO][ao152]).
+  selbst an und entrichtet sie gleichzeitig (§ 48 Abs. 1 Satz 4, 5); in den
+  Folgejahren gilt der Abgabetag der ersten Voranmeldung
+  ([grundlagen/pflichten.md#sondervorauszahlung](../grundlagen/pflichten.md#sondervorauszahlung)).
 
 Wertungsfrage: Wie Monate mit Überschuss und die Sondervorauszahlung des
 Vorjahres in die „Summe der Vorauszahlungen“ eingehen, regelt der Wortlaut
@@ -96,7 +94,9 @@ Stand: Oktober 2026.
 2. Der Mensch meldet in Mein ELSTER an und nennt dir das Transferticket.
 3. Der Mensch trägt Dauerfristverlängerung und Sondervorauszahlung in der App
    ein (Stammdaten, nur App). Danach verschiebt Buchfink die Fristen.
-4. Zahlung buchen: buchfink-bank (Konto 3830).
+4. Zahlung buchen nach
+   [bank/steuerzahlungen.md](../bank/steuerzahlungen.md#2-konten-je-steuerart)
+   (Konto 3830).
 
 Fertig, wenn Anmeldung übermittelt, Werte in der App eingetragen und Zahlung
 gebucht sind.
@@ -104,6 +104,3 @@ gebucht sind.
 [ustdv46]: https://www.gesetze-im-internet.de/ustdv_1980/__46.html
 [ustdv47]: https://www.gesetze-im-internet.de/ustdv_1980/__47.html
 [ustdv48]: https://www.gesetze-im-internet.de/ustdv_1980/__48.html
-[ustg18]: https://www.gesetze-im-internet.de/ustg_1980/__18.html
-[ao152]: https://www.gesetze-im-internet.de/ao_1977/__152.html
-[elsterformulare]: https://www.elster.de/eportal/formulare-leistungen/alleformulare

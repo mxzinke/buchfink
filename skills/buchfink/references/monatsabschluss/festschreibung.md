@@ -1,8 +1,10 @@
 # Prüflauf und Festschreibung
 
-Rechtsstand: 17. Oktober 2026. Grundsätze zur Unveränderbarkeit stehen in
-buchfink-grundlagen (GoBD); hier steht, was Buchfink vor und nach der
-Festschreibung prüft.
+Rechtsstand: 17. Oktober 2026. Werkzeugstand: Buchfink 0.3.0.
+
+Grundsätze zur Unveränderbarkeit und Festschreibung stehen in
+[grundlagen/gobd.md](../grundlagen/gobd.md#7-unveränderbarkeit-storno-festschreibung);
+hier steht, was Buchfink vor und nach der Festschreibung prüft.
 
 ## Inhalt
 
@@ -14,12 +16,10 @@ Festschreibung prüft.
 
 ## 1. Wozu
 
-Eine Buchung darf nicht so verändert werden, dass der ursprüngliche Inhalt
-nicht mehr feststellbar ist ([§ 146 Abs. 4 AO][ao146]). Vorerfassungen bis zum
-Jahresabschluss offen zu halten ist unzulässig; Festschreibung ist eines der
-Mittel, die Unveränderbarkeit zu sichern ([GoBD Rz. 109–110][gobd]). Buchfink
-schreibt nur fest, was der Prüflauf freigibt oder der Mensch mit Begründung
-übergeht.
+Die Festschreibung sichert die Unveränderbarkeit
+([grundlagen/gobd.md](../grundlagen/gobd.md#7-unveränderbarkeit-storno-festschreibung)).
+Buchfink schreibt nur fest, was der Prüflauf freigibt oder der Mensch mit
+Begründung übergeht.
 
 ## 2. Befunde des Prüflaufs
 
@@ -28,20 +28,20 @@ Blockierend heißt: Die Festschreibung geht nur mit Begründung des Menschen.
 
 | Regel | Schwere | Bedeutung | Vorgehen |
 |---|---|---|---|
-| `entry_without_receipt` | blockierend | Buchung ohne Beleg | Beleg ablegen und verknüpfen oder Eigenbeleg (grundlagen) |
-| `receipt_unbooked` | blockierend bis Stichtag, sonst Hinweis | Beleg abgelegt, nicht gebucht | buchen (belege) oder verwerfen; bei Anzahlungsfällen nur Hinweis |
-| `bank_unmatched` | blockierend | Bankumsatz offen | zuordnen oder mit Grund ignorieren (bank) |
-| `interim_balance` | blockierend | Saldo auf 1460 Geldtransit oder 1370 Durchlaufende Posten | Gegenbuchung finden (bank) |
+| `entry_without_receipt` | blockierend | Buchung ohne Beleg | Beleg ablegen und verknüpfen oder Eigenbeleg ([grundlagen/gobd.md](../grundlagen/gobd.md#8-belegwesen-und-eigenbeleg)) |
+| `receipt_unbooked` | blockierend bis Stichtag, sonst Hinweis | Beleg abgelegt, nicht gebucht | buchen ([belege/ablauf.md](../belege/ablauf.md)) oder verwerfen; bei Anzahlungsfällen nur Hinweis |
+| `bank_unmatched` | blockierend | Bankumsatz offen | zuordnen oder mit Grund ignorieren ([bank/zuordnung.md](../bank/zuordnung.md)) |
+| `interim_balance` | blockierend | Saldo auf 1460 Geldtransit oder 1370 Durchlaufende Posten | Gegenbuchung finden ([bank/kreditkarte-geldtransit.md](../bank/kreditkarte-geldtransit.md)) |
 | `account_unmapped` | blockierend | Konto mit Saldo ohne Bilanz- oder GuV-Posten | Konto prüfen; Fehlbuchung stornieren |
-| `depreciation_missing` | blockierend | Abschreibung des Jahres fehlt (Jahresabschluss) | buchfink-jahresabschluss |
+| `depreciation_missing` | blockierend | Abschreibung des Jahres fehlt (Jahresabschluss) | [jahresabschluss/abschreibungen.md](../jahresabschluss/abschreibungen.md) |
 | `receipt_overdue` | Hinweis | Beleg liegt länger ungebucht | buchen |
 | `duplicate_receipt`, `duplicate_payment` | Hinweis | Dublettenverdacht | prüfen, ggf. verwerfen oder stornieren |
 | `number_gap` | Hinweis | Lücke im Nummernkreis | Ursache nennen |
-| `vat_return_missing` | Hinweis | Voranmeldung fehlt | Ablauf in SKILL.md |
+| `vat_return_missing` | Hinweis | Voranmeldung fehlt | [ablauf.md](ablauf.md#2-ablauf), Schritt 5 |
 | `commit_overdue`, `period_not_committed` | Hinweis | Monat nicht festgeschrieben, ab zwei Monaten nach Monatsende als Rückstand | Festschreibung anstoßen |
-| `vat_id_unconfirmed` | Hinweis | USt-IdNr. des EU-Kunden unbestätigt | buchfink-rechnungen |
+| `vat_id_unconfirmed` | Hinweis | USt-IdNr. des EU-Kunden unbestätigt | [rechnungen/ausland.md](../rechnungen/ausland.md) |
 | `service_proof_missing` | Hinweis | Leistungsnachweis fehlt über der Grenze | Vermerk beim Menschen anfordern |
-| `provision_discount`, `closing_step_skipped`, `size_class_change` | Hinweis | Jahresabschluss | buchfink-jahresabschluss |
+| `provision_discount`, `closing_step_skipped`, `size_class_change` | Hinweis | Jahresabschluss | [jahresabschluss/ablauf.md](../jahresabschluss/ablauf.md) |
 
 Neue Regeln können hinzukommen. Unbekannte Regeln liest du an `meldung` und
 Fundstelle ab.
@@ -65,20 +65,18 @@ ihn nicht mehr) oder der Mensch entschieden hat, ihn zu übergehen.
 
 - Buchfink nimmt keine Buchung mit Datum bis `mandant.festgeschrieben_bis`
   an (`fachliche_regel`). Korrigiert wird per Storno mit heutigem Datum
-  (grundlagen).
-- Die Festschreibung verankert den Stand der Hashkette mit einem Zeitstempel.
+  ([grundlagen/arbeitsweise.md](../grundlagen/arbeitsweise.md#11-eine-buchung-korrigieren)).
 - Nach der Festschreibung des letzten Monats bleiben Abschlussbuchungen in der
   Abschlussperiode möglich, bis das Jahr festgeschrieben ist
-  (buchfink-jahresabschluss).
-- Erst danach nimmt Buchfink das Transferticket der Voranmeldung an.
+  ([jahresabschluss/abschlussbuchungen.md](../jahresabschluss/abschlussbuchungen.md)).
+- Das Transferticket einer Voranmeldung nimmt Buchfink erst nach der
+  Festschreibung ihres Zeitraums an ([ablauf.md](ablauf.md)).
 
 ## 5. Takt
 
-Die GoBD nennen keinen festen Takt. Buchfink führt jeden Monat als Pflicht
-`monatsfestschreibung` in `fristen`; Fälligkeit und Nachfrist:
-buchfink-grundlagen, references/pflichten.md, Abschnitt `monatsfestschreibung`. Bei vierteljährlicher
-Voranmeldung schreibt der Mensch trotzdem jeden Monat fest; die Voranmeldung
-folgt nach dem dritten Monat.
+Buchfink führt jeden Monat als Pflicht `monatsfestschreibung` in `fristen`;
+Fälligkeit und Nachfrist:
+[grundlagen/pflichten.md#monatsfestschreibung](../grundlagen/pflichten.md#monatsfestschreibung).
+Auch bei vierteljährlicher Voranmeldung schreibt der Mensch jeden Monat fest
+([ablauf.md](ablauf.md#2-ablauf), Schritt 1).
 
-[ao146]: https://www.gesetze-im-internet.de/ao_1977/__146.html
-[gobd]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf

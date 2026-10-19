@@ -47,10 +47,9 @@ Gleiche jeden Bescheid Zeile für Zeile mit der freigegebenen Erklärung ab.
 Fertig, wenn jede Abweichung einen Grund hat oder als offene Frage beim
 Menschen liegt.
 
-Eine Umsatzsteuer-Jahreserklärung wirkt ohne Bescheid wie eine Festsetzung
-unter Vorbehalt der Nachprüfung; ergibt sie eine Erstattung, erst mit
-Zustimmung des Finanzamts ([§ 168 AO][ao168]). Ein Bescheid kommt nur, wenn
-das Finanzamt abweicht.
+Wie eine Umsatzsteuer-Jahreserklärung ohne Bescheid wirkt, steht in
+[ust-jahr.md](ust-jahr.md#3-abschlusszahlung-und-erstattung); ein Bescheid
+kommt nur, wenn das Finanzamt abweicht.
 
 ## 3. Gewerbesteuer: zwei Bescheide
 
@@ -81,19 +80,20 @@ das Finanzamt abweicht.
 
 ## 5. Vorauszahlungsbescheide
 
-| Steuer | Termine | Höhe und Anpassung | Grundlage |
-|---|---|---|---|
-| Körperschaftsteuer, Solidaritätszuschlag | 10.03., 10.06., 10.09., 10.12. | grundsätzlich nach der letzten Veranlagung; Anpassung bis zum Ablauf des 15. Monats nach dem Jahr | [§ 37 Abs. 1, 3 EStG][estg37], [§ 31 Abs. 1 KStG][kstg31] |
-| Gewerbesteuer | 15.02., 15.05., 15.08., 15.11. | je ein Viertel der letzten Veranlagung; Anpassung bis zum Ende des 15. Monats nach dem Erhebungszeitraum | [§ 19 Abs. 1–3 GewStG][gewstg19] |
+| Steuer | Höhe und Anpassung | Grundlage |
+|---|---|---|
+| Körperschaftsteuer, Solidaritätszuschlag | grundsätzlich nach der letzten Veranlagung; Anpassung bis zum Ablauf des 15. Monats nach dem Jahr | [§ 37 Abs. 1, 3 EStG][estg37], [§ 31 Abs. 1 KStG][kstg31] |
+| Gewerbesteuer | je ein Viertel der letzten Veranlagung; Anpassung bis zum Ende des 15. Monats nach dem Erhebungszeitraum | [§ 19 Abs. 1–3 GewStG][gewstg19] |
 
-Stand: Oktober 2026.
+Stand: Oktober 2026. Termine, Weg und Nachweis der Zahlungen stehen in
+[grundlagen/pflichten.md#kst-vorauszahlung](../grundlagen/pflichten.md#kst-vorauszahlung)
+und
+[grundlagen/pflichten.md#gewst-vorauszahlung](../grundlagen/pflichten.md#gewst-vorauszahlung).
 
-- `fristen` führt die Termine als Pflichten `kst-vorauszahlung` und
-  `gewst-vorauszahlung`, sobald der Vorauszahlungsbescheid als Anlass erfasst
-  ist oder Vorauszahlungen gebucht sind. Die Höhe steht nur im Bescheid. Geht
-  ein neuer Bescheid ein, lege ihn ab und erfasse ihn nach Rückfrage mit
-  `anlass_erfassen` (`art: vorauszahlungsbescheid-kst` oder
-  `vorauszahlungsbescheid-gewst`, `datum` des Bescheids).
+- Die Höhe steht nur im Bescheid. Geht ein neuer Bescheid ein, lege ihn ab und
+  erfasse ihn nach Rückfrage als Anlass
+  ([grundlagen/pflichten.md](../grundlagen/pflichten.md#arbeiten-mit-fristen),
+  „Anlässe“).
 - Weicht der erwartete Gewinn deutlich ab, kann der Mensch beim Finanzamt
   oder der Gemeinde eine Anpassung anregen ([§ 37 Abs. 3 Satz 3 EStG][estg37],
   [§ 19 Abs. 3 GewStG][gewstg19]). Liegt der Gewinn deutlich über den
@@ -102,17 +102,17 @@ Stand: Oktober 2026.
 
 ## 6. Buchung
 
-Zahlung, Erstattung und die Differenz zur gebuchten Rückstellung bucht
-buchfink-bank (Konten je Steuerart, Vorjahre, Nebenleistungen). Ist der
-Abschluss des Jahres noch offen und weicht der Bescheid von der Rückstellung
-ab, sag es buchfink-jahresabschluss.
+Zahlung, Erstattung und die Differenz zur gebuchten Rückstellung buchst du
+nach [bank/steuerzahlungen.md](../bank/steuerzahlungen.md) (Konten je
+Steuerart, Vorjahre, Nebenleistungen). Ist der Abschluss des Jahres noch offen
+und weicht der Bescheid von der Rückstellung ab, gilt
+[jahresabschluss/steuern-im-abschluss.md](../jahresabschluss/steuern-im-abschluss.md).
 
 [ao122]: https://www.gesetze-im-internet.de/ao_1977/__122.html
 [ao122a]: https://www.gesetze-im-internet.de/ao_1977/__122a.html
 [ao152]: https://www.gesetze-im-internet.de/ao_1977/__152.html
 [ao164]: https://www.gesetze-im-internet.de/ao_1977/__164.html
 [ao165]: https://www.gesetze-im-internet.de/ao_1977/__165.html
-[ao168]: https://www.gesetze-im-internet.de/ao_1977/__168.html
 [ao173]: https://www.gesetze-im-internet.de/ao_1977/__173.html
 [ao182]: https://www.gesetze-im-internet.de/ao_1977/__182.html
 [ao184]: https://www.gesetze-im-internet.de/ao_1977/__184.html

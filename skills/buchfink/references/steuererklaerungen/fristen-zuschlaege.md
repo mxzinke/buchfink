@@ -1,8 +1,12 @@
 # Fristen, Verlängerung, Zuschläge und Zinsen
 
-Rechtsstand: 17. Oktober 2026. Wortlaut von §§ 108, 109, 149, 152, 233a, 238
-AO und Art. 97 § 36 EGAO am 17.10.2026 gelesen. Den Fristtag jeder Erklärung
-des Mandanten nennt `fristen`; diese Referenz erklärt die Regeln dahinter.
+Rechtsstand: 17. Oktober 2026. Wortlaut von §§ 108, 109, 152, 233a, 238 AO
+und Art. 97 § 36 EGAO am 17.10.2026 gelesen.
+
+Den Fristtag jeder Erklärung nennt `fristen`, die Regel je Pflicht der
+Pflichtenkalender ([grundlagen/pflichten.md](../grundlagen/pflichten.md));
+diese Referenz vertieft Übergangsjahre, Fristende, Verlängerung, Zuschläge und
+Zinsen.
 
 ## Inhalt
 
@@ -14,16 +18,12 @@ des Mandanten nennt `fristen`; diese Referenz erklärt die Regeln dahinter.
 
 ## 1. Abgabefristen
 
-| Fall | Frist | Grundlage |
-|---|---|---|
-| Erklärung für ein Kalenderjahr, ohne Berater | sieben Monate nach Ablauf des Kalenderjahres | [§ 149 Abs. 2 Satz 1 AO][ao149] |
-| Erklärung, die ein Steuerberater erstellt | letzter Tag im Februar des zweiten Folgejahres | [§ 149 Abs. 3 Nr. 2–4 AO][ao149] |
-| Vorabanforderung durch das Finanzamt im Berater-Fall | vier Monate nach Bekanntgabe der Anordnung, nie kürzer als die Frist ohne Berater | [§ 149 Abs. 4 Satz 2, 6 AO][ao149] |
-| Umsatzsteuer, Tätigkeit im Jahr beendet | ein Monat nach Ablauf des kürzeren Zeitraums; die Berater-Frist gilt dann nicht | [§ 18 Abs. 3 Satz 2 UStG][ustg18], [§ 149 Abs. 5 AO][ao149] |
-
-Stand: Oktober 2026. Die Fristen gelten für die Körperschaftsteuer, die
-Erklärung zum steuerlichen Einlagekonto, die Gewerbesteuer und die
-Umsatzsteuer gleichermaßen ([§ 149 Abs. 3 Nr. 2–4 AO][ao149]).
+Die Abgabefristen ohne und mit Berater, nach einer Vorabanforderung und bei
+Ende der Tätigkeit stehen in
+[grundlagen/pflichten.md#kst-erklaerung](../grundlagen/pflichten.md#kst-erklaerung)
+und
+[grundlagen/pflichten.md#ust-erklaerung](../grundlagen/pflichten.md#ust-erklaerung);
+die Gewerbesteuer folgt der Körperschaftsteuer.
 
 Übergangsfristen für die Jahre 2020 bis 2024 regelt
 [Art. 97 § 36 Abs. 3 EGAO][egao36]:
@@ -38,27 +38,24 @@ Die Daten mit Wochentag sind nach § 108 Abs. 3 AO gerechnet.
 
 ## 2. Fristende
 
-Fällt das Ende einer Frist auf einen Sonnabend, Sonntag oder gesetzlichen
-Feiertag, endet sie mit Ablauf des nächsten Werktags
-([§ 108 Abs. 3 AO][ao108]). Feiertage sind Landesrecht; maßgebend ist das Land
-des Finanzamts. Beispiele: Der 31.07.2027 ist ein Samstag, die Frist für 2026
-endet am 02.08.2027. Der 28.02.2027 ist ein Sonntag, die Berater-Frist für 2025
+Die Grundregel ([§ 108 Abs. 3 AO][ao108]) steht in
+[grundlagen/pflichten.md](../grundlagen/pflichten.md#fristende-zahlung-verlängerung).
+Feiertage sind Landesrecht; maßgebend ist das Land des Finanzamts. Beispiele:
+Der 31.07.2027 ist ein Samstag, die Frist für 2026 endet am 02.08.2027. Der 28.02.2027 ist ein Sonntag, die Berater-Frist für 2025
 endet am 01.03.2027. Ob § 108 Abs. 3 AO auch die Monatsgrenzen des
 [§ 152 Abs. 2 AO][ao152] verschiebt, ist nicht geprüft; rechne dort mit dem
 Kalenderdatum (für 2025: 28.02.2027).
 
 ## 3. Fristverlängerung
 
-- Erklärungsfristen können verlängert werden, auch rückwirkend, insbesondere
-  wenn die Folgen des Fristablaufs unbillig wären
-  ([§ 109 Abs. 1 AO][ao109]).
-- Im Berater-Fall ist eine Verlängerung über den letzten Februartag hinaus nur
-  möglich, wenn die GmbH ohne Verschulden verhindert war; das Verschulden eines
-  Vertreters wird zugerechnet ([§ 109 Abs. 2 AO][ao109]).
-- Den Antrag stellt der Mensch in Mein ELSTER mit dem Formular „Antrag auf
-  Fristverlängerung“ (Gruppe „Anträge und Nachrichten“,
-  [Formularliste][elsterformulare]). Du formulierst Grund und gewünschtes
-  Datum.
+- Verlängerung auf Antrag, auch rückwirkend, und ihre Grenze im
+  Berater-Fall:
+  [grundlagen/pflichten.md](../grundlagen/pflichten.md#fristende-zahlung-verlängerung).
+  Sie kommt insbesondere in Betracht, wenn die Folgen des Fristablaufs
+  unbillig wären ([§ 109 Abs. 1 AO][ao109]). Im Berater-Fall wird das
+  Verschulden eines Vertreters zugerechnet ([§ 109 Abs. 2 AO][ao109]).
+- Den Antrag stellt der Mensch in Mein ELSTER (Formular im Pflichtenkalender,
+  ebenda). Du formulierst Grund und gewünschtes Datum.
 
 ## 4. Verspätungszuschlag
 
@@ -77,8 +74,8 @@ Rechnerisches Beispiel: Körperschaftsteuer 10.000 €, Vorauszahlungen 6.000 �
 drei angefangene Monate Verspätung. 0,25 % von 4.000 € sind 10 € je Monat; der
 Mindestbetrag von 25 € gilt, also 75 €.
 
-Buchung: Verspätungszuschläge zur Körperschaft- oder Gewerbesteuer auf 6437
-(nicht abziehbar), zu anderen Steuern auf 6436; Einzelheiten in buchfink-bank.
+Buchung:
+[bank/steuerzahlungen.md](../bank/steuerzahlungen.md#4-säumniszuschläge-zinsen-verspätungszuschläge).
 
 ## 5. Zinsen und Säumniszuschläge
 
@@ -87,16 +84,14 @@ Buchung: Verspätungszuschläge zur Körperschaft- oder Gewerbesteuer auf 6437
   dem die Steuer entstanden ist ([§ 233a Abs. 1, 2 Satz 1 AO][ao233a]); der
   Zins beträgt 0,15 % je vollem Monat ([§ 238 Abs. 1 Satz 2, Abs. 1a AO][ao238]).
   Stand: Oktober 2026. Wer früh abgibt, hält den Zinslauf kurz.
-- Säumniszuschläge bei verspäteter Zahlung und ihre Buchung regelt
-  buchfink-bank ([§ 240 AO][ao240]).
+- Säumniszuschläge bei verspäteter Zahlung: Höhe und Schonfrist in
+  [grundlagen/pflichten.md](../grundlagen/pflichten.md#fristende-zahlung-verlängerung),
+  Buchung in
+  [bank/steuerzahlungen.md](../bank/steuerzahlungen.md#4-säumniszuschläge-zinsen-verspätungszuschläge).
 
 [ao108]: https://www.gesetze-im-internet.de/ao_1977/__108.html
 [ao109]: https://www.gesetze-im-internet.de/ao_1977/__109.html
-[ao149]: https://www.gesetze-im-internet.de/ao_1977/__149.html
 [ao152]: https://www.gesetze-im-internet.de/ao_1977/__152.html
 [ao233a]: https://www.gesetze-im-internet.de/ao_1977/__233a.html
 [ao238]: https://www.gesetze-im-internet.de/ao_1977/__238.html
-[ao240]: https://www.gesetze-im-internet.de/ao_1977/__240.html
 [egao36]: https://www.gesetze-im-internet.de/aoeg_1977/art_97__36.html
-[ustg18]: https://www.gesetze-im-internet.de/ustg_1980/__18.html
-[elsterformulare]: https://www.elster.de/eportal/formulare-leistungen/alleformulare

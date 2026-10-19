@@ -27,13 +27,12 @@ Prüfe nach dem Buchen und nach den Zahlungen mit `auswertung`
 
 Zeitversatz ist normal:
 
-- Die Lohnsteuer eines Monats wird bis zum 10. Tag nach Ablauf des
-  Anmeldungszeitraums angemeldet und gezahlt ([§ 41a Abs. 1 Satz 1 EStG][estg41a]).
+- Die Lohnsteuer wird erst nach Ablauf des Anmeldungszeitraums angemeldet und
+  gezahlt
+  ([grundlagen/pflichten.md#lohnsteuer-anmeldung](../grundlagen/pflichten.md#lohnsteuer-anmeldung)).
   Am Monatsende steht sie deshalb noch auf 3730.
-- Sozialversicherungsbeiträge sind am drittletzten Bankarbeitstag des
-  Beschäftigungsmonats in voraussichtlicher Höhe fällig, ein Rest im Folgemonat;
-  statt der voraussichtlichen Höhe darf der Arbeitgeber den Betrag des Vormonats
-  zahlen ([§ 23 Abs. 1 Satz 2, 3 SGB IV][sgb4_23]). Die Zahlung geht oft vor der
+- Sozialversicherungsbeiträge sind noch im Beschäftigungsmonat fällig
+  ([ablauf.md](ablauf.md#4-fristen)). Die Zahlung geht oft vor der
   Lohnbuchung ab; 3740 steht dann bis zur Buchung im Soll.
 
 ## 2. Abgleich mit Anmeldung und Beitragsnachweis
@@ -41,12 +40,12 @@ Zeitversatz ist normal:
 - **Lohnsteuer-Anmeldung:** Summe aus Lohnsteuer, pauschaler Lohnsteuer (außer
   Minijob), Solidaritätszuschlag und Kirchensteuer des Anmeldungszeitraums
   gleich Haben auf 3730 für diesen Zeitraum. Lege die Anmeldung als Beleg ab.
-  Anmeldungszeitraum: Monat; Quartal bei Vorjahreslohnsteuer über 1.080 € bis
-  5.000 €; Jahr bis 1.080 € ([§ 41a Abs. 2 EStG][estg41a]).
+  Den Anmeldungszeitraum nennt
+  [grundlagen/pflichten.md#lohnsteuer-anmeldung](../grundlagen/pflichten.md#lohnsteuer-anmeldung).
 - **Beitragsnachweise:** Summe aller Nachweise der Krankenkassen und der
-  Minijob-Zentrale gleich Haben auf 3740 für den Monat. Der Nachweis geht zwei
-  Arbeitstage vor Fälligkeit an die Einzugsstelle
-  ([§ 28f Abs. 3 Satz 1 SGB IV][sgb4_28f]); fehlt er, kann sie schätzen.
+  Minijob-Zentrale gleich Haben auf 3740 für den Monat. Frist des Nachweises:
+  [ablauf.md](ablauf.md#4-fristen). Fehlt er, kann die Einzugsstelle schätzen
+  ([§ 28f Abs. 3 SGB IV][sgb4_28f]).
 - **Bank:** Jede Zahlung an Finanzamt, Krankenkasse und Minijob-Zentrale ist
   einem Monat zugeordnet. Prüfe offene Bankumsätze mit `bankumsaetze`.
 
@@ -54,16 +53,14 @@ Zeitversatz ist normal:
 
 | Befund | Häufige Ursache | Vorgehen |
 |---|---|---|
-| 3720 Rest nach Auszahlung | Sonderzeile (Vorschuss, Pfändung, Sachbezug) nicht umgebucht | SKILL.md, Abschnitt 2 |
+| 3720 Rest nach Auszahlung | Sonderzeile (Vorschuss, Pfändung, Sachbezug) nicht umgebucht | [lohnjournal.md](lohnjournal.md#4-sonderzeilen-im-journal) |
 | 3720 negativ | Auszahlung doppelt zugeordnet oder Vorschuss auf 3720 gebucht | Bankzuordnung prüfen, Storno nach Rückfrage |
 | 3730 weicht von der Anmeldung ab | Korrektur eines Vormonats im aktuellen Journal; Anmeldung berichtigt | Lohnbüro fragen, Beleg ablegen |
 | 3740 bleibt im Soll | Beitrag gezahlt, Journal noch nicht gebucht | Lohnjournal buchen |
 | 3740 Rest im Haben | Restbeitrag fällig im Folgemonat, Lastschrift fehlt | Fälligkeit prüfen, Mensch informieren |
-| Säumniszuschlag im Kontoauszug | Zahlung zu spät ([§ 240 AO][ao240]) | Buchung regelt buchfink-bank; Ursache mit dem Menschen klären |
+| Säumniszuschlag im Kontoauszug | Zahlung zu spät ([§ 240 AO][ao240]) | Buchung nach [bank/steuerzahlungen.md](../bank/steuerzahlungen.md#4-säumniszuschläge-zinsen-verspätungszuschläge); Ursache mit dem Menschen klären |
 
-Korrigierst du eine Lohnbuchung, gilt der Storno-Ablauf aus
-buchfink-grundlagen. Ändert sich dadurch eine übermittelte Anmeldung, berichtigt
-das Lohnbüro sie.
+Korrigierst du eine Lohnbuchung, gilt [ablauf.md](ablauf.md#7-stolperfallen).
 
 ## 4. Jahresende
 
@@ -74,8 +71,10 @@ das Lohnbüro sie.
 3. 3730 zum 31.12. gleich der Lohnsteuer-Anmeldung Dezember (bzw. des
    letzten Quartals oder des Jahres), fällig am 10. Januar.
 4. 3740 zum 31.12. gleich dem erklärten Restbeitrag.
-5. Personalrückstellungen (Urlaub, Überstunden, Berufsgenossenschaft) und
-   Abgrenzungen regelt buchfink-jahresabschluss.
+5. Personalrückstellungen (Urlaub, Überstunden, Berufsgenossenschaft) regelt
+   [jahresabschluss/rueckstellungen.md](../jahresabschluss/rueckstellungen.md),
+   Abgrenzungen
+   [jahresabschluss/abgrenzung.md](../jahresabschluss/abgrenzung.md).
 
 ## 5. Haftung und Aufbewahrung
 
@@ -86,7 +85,7 @@ das Lohnbüro sie.
 - Wer als Arbeitgeber Arbeitnehmerbeiträge zur Sozialversicherung der
   Einzugsstelle vorenthält, macht sich strafbar ([§ 266a Abs. 1 StGB][stgb266a]).
 - Das Lohnjournal ist Buchungsbeleg; Fristen für Buchungsbelege:
-  buchfink-grundlagen. Lohnkonten: bis zum Ablauf des sechsten Kalenderjahres
+  [grundlagen/aufbewahrung.md](../grundlagen/aufbewahrung.md). Lohnkonten: bis zum Ablauf des sechsten Kalenderjahres
   nach der letzten Lohnzahlung ([§ 41 Abs. 1 Satz 9 EStG][estg41]).
   Entgeltunterlagen und Beitragsabrechnungen: bis zum Ablauf des
   Kalenderjahres nach der letzten Prüfung der Rentenversicherung
@@ -96,9 +95,7 @@ das Lohnbüro sie.
   dass sie verfügbar sind.
 
 [estg41]: https://www.gesetze-im-internet.de/estg/__41.html
-[estg41a]: https://www.gesetze-im-internet.de/estg/__41a.html
 [estg42d]: https://www.gesetze-im-internet.de/estg/__42d.html
-[sgb4_23]: https://www.gesetze-im-internet.de/sgb_4/__23.html
 [sgb4_28f]: https://www.gesetze-im-internet.de/sgb_4/__28f.html
 [ao34]: https://www.gesetze-im-internet.de/ao_1977/__34.html
 [ao69]: https://www.gesetze-im-internet.de/ao_1977/__69.html

@@ -26,7 +26,8 @@ Buchfink.
   Alle Einkünfte gelten als Einkünfte aus Gewerbebetrieb
   ([§ 8 Abs. 2 KStG][kstg8]).
 - Die Steuerpflicht beginnt mit der Vorgesellschaft, also mit der Beurkundung
-  ([H 1.1 KStH „Beginn der Steuerpflicht“][ksth11]; buchfink-gruendung).
+  ([H 1.1 KStH „Beginn der Steuerpflicht“][ksth11];
+  [gruendung/ablauf.md](../gruendung/ablauf.md)).
 - Die Körperschaftsteuer ist eine Jahressteuer für das Kalenderjahr; besteht
   die Steuerpflicht nicht das ganze Jahr, gilt ihr Zeitraum
   ([§ 7 Abs. 3 KStG][kstg7]). Der Gewinn wird nach dem Wirtschaftsjahr
@@ -77,7 +78,7 @@ Steuerberater vor.
 
 | Posten | Grundlage | Konto (SKR04) |
 |---|---|---|
-| Geschenke über der Freigrenze | [§ 4 Abs. 5 Satz 1 Nr. 1 EStG][estg4] (Regeln in buchfink-belege) | 6620, 6621, Pauschsteuer 6622 |
+| Geschenke über der Freigrenze | [§ 4 Abs. 5 Satz 1 Nr. 1 EStG][estg4] (Regeln in [belege/bewirtung-geschenke.md](../belege/bewirtung-geschenke.md)) | 6620, 6621, Pauschsteuer 6622 |
 | 30 % der Bewirtungskosten | [§ 4 Abs. 5 Satz 1 Nr. 2 EStG][estg4] | 6644 |
 | Gästehaus, Jagd, Jacht und Ähnliches | [§ 4 Abs. 5 Satz 1 Nr. 3, 4 EStG][estg4] | 6645 |
 | Geldbußen, Ordnungs- und Verwarnungsgelder | [§ 4 Abs. 5 Satz 1 Nr. 8 EStG][estg4] | Konto aus der Buchung ablesen |
@@ -104,7 +105,8 @@ Ausgabe hierher gehört, ist oft eine Wertungsfrage.
   ([§ 8 Abs. 3 Satz 3 KStG][kstg8]). Sie gehört in Zeile 7, wenn sie als
   Ertrag gebucht ist (etwa ein Forderungsverzicht eines Gesellschafters).
 - Wann ein Vorgang vGA oder verdeckte Einlage ist, regelt
-  buchfink-gesellschafter. Beide Zeilen verantwortet der Mensch: Du trägst
+  [gesellschafter/vga-einlage.md](../gesellschafter/vga-einlage.md). Beide
+  Zeilen verantwortet der Mensch: Du trägst
   nur Betrag und Fundstelle ein, die er bestätigt hat. Jede vGA ist eine
   Wertungsfrage.
 
@@ -118,7 +120,10 @@ Stammkapitals lag, sind steuerpflichtig ([§ 8b Abs. 4 Satz 1 KStG][kstg8b]).
 Für Veräußerungsgewinne gilt diese Ausnahme nicht. Buchfink rechnet § 8b aus
 den Konten für Beteiligungserträge und der Anlagenkartei; fehlt einem Anteil
 die Quote, bleibt die Zeile der steuerpflichtigen Bezüge aus Streubesitz
-offen. Die Regeln und die Gewerbesteuer hält buchfink-beteiligungen.
+offen. Die Regeln stehen in
+[beteiligungen/steuerfreistellung.md](../beteiligungen/steuerfreistellung.md),
+die Gewerbesteuer in
+[beteiligungen/gewst-holding.md](../beteiligungen/gewst-holding.md).
 
 ## 6. Spenden
 
@@ -145,9 +150,9 @@ Weichen Ansätze der Handelsbilanz von steuerlichen Vorschriften ab, sind sie
 durch Zusätze oder Anmerkungen anzupassen oder eine Steuerbilanz zu übermitteln
 ([§ 5b Abs. 1 Satz 2, 3 EStG][estg5b], [§ 60 Abs. 2 EStDV][estdv60]).
 Beispiel: Rückstellungen für drohende Verluste aus schwebenden Geschäften sind
-steuerlich verboten ([§ 5 Abs. 4a Satz 1 EStG][estg5]). Bewertungsfragen hält
-buchfink-jahresabschluss. Jede Abweichung ist eine Wertungsfrage für den
-Menschen und den Steuerberater.
+steuerlich verboten ([§ 5 Abs. 4a Satz 1 EStG][estg5]). Bewertungsfragen
+stehen in [jahresabschluss/ablauf.md](../jahresabschluss/ablauf.md). Jede
+Abweichung ist eine Wertungsfrage für den Menschen und den Steuerberater.
 
 ## 8. Verlustabzug
 
@@ -165,8 +170,10 @@ Menschen und den Steuerberater.
   den Abzug mit Mindestbesteuerung rechnet Buchfink.
 - Über den Rücktrag entscheidet der Mensch. Ohne Eintrag in der Zeile zum
   Verlustrücktrag nimmt das Finanzamt ihn in größtmöglicher Höhe vor.
-- Nach einem schädlichen Beteiligungserwerb gehen nicht genutzte Verluste unter
-  ([§ 8c Abs. 1 Satz 1 KStG][kstg8c]). Wertungsfrage, Steuerberater.
+- Werden innerhalb von fünf Jahren mehr als 50 % der Anteile an einen
+  Erwerber übertragen (schädlicher Beteiligungserwerb), gehen nicht genutzte
+  Verluste unter ([§ 8c Abs. 1 Satz 1 KStG][kstg8c]). Wertungsfrage;
+  Ausnahmen prüft ein Steuerberater.
 
 ## 9. Steuer, Rundung, Anrechnung, Vorauszahlungen
 
@@ -176,11 +183,12 @@ Menschen und den Steuerberater.
 | Rundung | einzelne Körperschaftsteuerbeträge zugunsten der GmbH auf volle Euro | [§ 31 Abs. 1 Satz 2 KStG][kstg31] |
 | Solidaritätszuschlag | 5,5 % der festgesetzten Körperschaftsteuer; die Freigrenze gilt nur für Einkommensteuerpflichtige; Bruchteile eines Cents bleiben außer Ansatz | [§ 3 Abs. 1 Nr. 1, Abs. 3 SolZG][solzg3], [§ 4 Satz 1, 3 SolZG][solzg4] |
 | Anrechnung | Vorauszahlungen und Kapitalertragsteuer, Letztere nur mit Steuerbescheinigung | [§ 36 Abs. 2 Nr. 1, 2 EStG][estg36] über [§ 31 Abs. 1 Satz 1 KStG][kstg31] |
-| Vorauszahlungen | 10. März, 10. Juni, 10. September, 10. Dezember; Höhe nach Bescheid | [§ 37 Abs. 1, 3 EStG][estg37], [§ 31 Abs. 1, 2 KStG][kstg31] |
+| Vorauszahlungen | Termine in [grundlagen/pflichten.md#kst-vorauszahlung](../grundlagen/pflichten.md#kst-vorauszahlung); Höhe nach Bescheid ([bescheide.md](bescheide.md#5-vorauszahlungsbescheide)) | – |
 
 Stand: Oktober 2026. Kapitalertragsteuer und Solidaritätszuschlag auf
 Zinsen und Dividenden stehen auf 7630 und 7633; gleiche die Summe mit den
-Steuerbescheinigungen ab (buchfink-bank, buchfink-beteiligungen).
+Steuerbescheinigungen ab ([bank/zinsen-kapest.md](../bank/zinsen-kapest.md),
+[beteiligungen/dividenden.md](../beteiligungen/dividenden.md)).
 
 ## 10. Steuerliches Einlagekonto
 
@@ -194,7 +202,8 @@ Steuerbescheinigungen ab (buchfink-bank, buchfink-beteiligungen).
   [§ 27 Abs. 1 Satz 3, 5 KStG][kstg27]). Buchfink bildet die Einlagenrückgewähr
   nicht ab; bei Verdacht Steuerberater.
 - Zugänge: Kapitalrücklage aus Zuzahlungen (2928), verdeckte Einlagen,
-  Aufgeld bei der Gründung. Die Liste führt buchfink-gesellschafter.
+  Aufgeld bei der Gründung. Die Liste führt
+  [gesellschafter/vga-einlage.md](../gesellschafter/vga-einlage.md).
 
 ## 11. Formulare in Mein ELSTER
 
@@ -207,9 +216,8 @@ GK, das Einkommen in der Anlage ZVE, dazu nach Bedarf die Anlagen Verluste, Z
 Sekundärquelle). Prüfe die Anlagen im Formular des jeweiligen Jahres.
 
 Die Erklärung ist elektronisch zu übermitteln
-([§ 31 Abs. 1a Satz 1 KStG][kstg31]). Der Mensch meldet sich mit dem
-Organisationszertifikat der GmbH an. Den Ablauf der Abgabe beschreibt die
-SKILL.md (Schritt 9) mit der Referenz zur Abgabe.
+([§ 31 Abs. 1a Satz 1 KStG][kstg31]). Den Ablauf der Abgabe beschreibt
+[abgabe.md](abgabe.md#4-eingabe-in-mein-elster).
 
 ## 12. Was Buchfink rechnet
 
@@ -231,11 +239,11 @@ oder `vorgeschlagen`:
 | Abweichungen der Steuerbilanz | `kst.gk.stb` | Abschnitt 7 | agent_rueckfrage |
 
 Den Vorschlag zur Steuerrückstellung (`abschlussbuchung`,
-`art: steuerrueckstellung`) rechnet Buchfink nach denselben Regeln, kennt
-Verlustvorträge, Hinzurechnungen, Kürzungen und eine vGA aber nur als Eingabe.
-Eine Überzahlung weist er als Erstattung aus und bucht sie nicht. Konten der
-Rückstellung: 3040 (Körperschaftsteuer und Solidaritätszuschlag), 3035
-(Gewerbesteuer). Bei einem Verlust setzt Buchfink keine Steuer an.
+`art: steuerrueckstellung`) rechnet Buchfink nach denselben Regeln; seine
+Eingaben und Konten stehen in
+[jahresabschluss/steuern-im-abschluss.md](../jahresabschluss/steuern-im-abschluss.md).
+Eine Überzahlung weist er als Erstattung aus und bucht sie nicht. Bei einem
+Verlust setzt Buchfink keine Steuer an.
 
 [ao20]: https://www.gesetze-im-internet.de/ao_1977/__20.html
 [estdv50]: https://www.gesetze-im-internet.de/estdv_1955/__50.html
@@ -245,7 +253,6 @@ Rückstellung: 3040 (Körperschaftsteuer und Solidaritätszuschlag), 3035
 [estg5b]: https://www.gesetze-im-internet.de/estg/__5b.html
 [estg10d]: https://www.gesetze-im-internet.de/estg/__10d.html
 [estg36]: https://www.gesetze-im-internet.de/estg/__36.html
-[estg37]: https://www.gesetze-im-internet.de/estg/__37.html
 [estg52]: https://www.gesetze-im-internet.de/estg/__52.html
 [kstg1]: https://www.gesetze-im-internet.de/kstg_1977/__1.html
 [kstg7]: https://www.gesetze-im-internet.de/kstg_1977/__7.html

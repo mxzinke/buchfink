@@ -1,8 +1,11 @@
 # Zusammenfassende Meldung (ZM)
 
-Rechtsstand: 17. Oktober 2026. Wortlaut von § 18a, § 18b, § 26a UStG am
+Rechtsstand: 17. Oktober 2026. Wortlaut von § 18a und § 18b UStG am
 17.10.2026 gelesen; Übermittlungswege nach den Seiten des Bundeszentralamts
 für Steuern (BZSt), abgerufen am 17.10.2026.
+
+Frist, Weg, Nachweis und Folgen einer Versäumnis stehen in
+[grundlagen/pflichten.md#zm](../grundlagen/pflichten.md#zm).
 
 ## Inhalt
 
@@ -18,7 +21,8 @@ für Steuern (BZSt), abgerufen am 17.10.2026.
   Gemeinschaftsgebiet nach § 3a Abs. 2 UStG, für die der Empfänger in seinem
   Mitgliedstaat die Steuer schuldet ([§ 18a Abs. 2 UStG][ustg18a]). Das sind die
   Rechnungen an Unternehmer im EU-Ausland mit Hinweis auf die
-  Steuerschuldnerschaft des Empfängers (buchfink-rechnungen).
+  Steuerschuldnerschaft des Empfängers
+  ([rechnungen/ausland.md](../rechnungen/ausland.md)).
 - Innergemeinschaftliche Warenlieferungen sind ebenfalls meldepflichtig
   (§ 18a Abs. 1). Buchfink bildet den Warenverkehr auf der Ausgangsseite nicht
   ab. Verkauft die GmbH doch einen Gegenstand an einen EU-Unternehmer, sag das
@@ -28,22 +32,16 @@ für Steuern (BZSt), abgerufen am 17.10.2026.
 
 ## 2. Meldezeitraum und Frist
 
-| Fall | Meldezeitraum | Frist | Fundstelle |
-|---|---|---|---|
-| nur sonstige Leistungen | Kalendervierteljahr | 25. Tag nach Quartalsende | [§ 18a Abs. 2 Satz 1 UStG][ustg18a] |
-| Wahl der monatlichen Meldung (Anzeige an das BZSt) | Kalendermonat | 25. Tag nach Monatsende | § 18a Abs. 3 |
-
+- Meldezeitraum ist das Kalendervierteljahr
+  ([§ 18a Abs. 2 Satz 1 UStG][ustg18a]). Zeigt die GmbH dem BZSt die
+  monatliche Meldung an, ist es der Kalendermonat (§ 18a Abs. 3). Frist und
+  Dauerfristverlängerung:
+  [grundlagen/pflichten.md#zm](../grundlagen/pflichten.md#zm).
 - Die Angaben gehören in den Meldezeitraum, in dem die Leistung ausgeführt
   wurde (§ 18a Abs. 8 Satz 2).
-- Die Dauerfristverlängerung gilt nur für Voranmeldungen
-  ([§ 46 UStDV][ustdv46]); das BZSt weist darauf ausdrücklich hin.
-- Fällt der 25. auf Samstag, Sonntag oder Feiertag: nächster Werktag
-  ([§ 108 Abs. 3 AO][ao108]).
 - Für die ZM gelten die Vorschriften der AO über Steuererklärungen, ausgenommen
-  § 152 AO (§ 18a Abs. 11): kein Verspätungszuschlag. Wer sie nicht, falsch
-  oder verspätet abgibt oder nicht rechtzeitig berichtigt, handelt
-  ordnungswidrig, wenn er vorsätzlich oder leichtfertig handelt; Geldbuße bis
-  5.000 € ([§ 26a Abs. 2 Nr. 5, Abs. 3 UStG][ustg26a]).
+  § 152 AO (§ 18a Abs. 11); Bußgeld statt Verspätungszuschlag
+  ([grundlagen/pflichten.md#zm](../grundlagen/pflichten.md#zm)).
 
 Stand: Oktober 2026.
 
@@ -55,8 +53,8 @@ Hinweis auf eine sonstige Leistung (§ 18a Abs. 7 Satz 1 Nr. 3).
 Prüfe mit `erklaerung` (`art: zm`, `zeitraum`):
 
 1. Jede Zeile hat eine USt-IdNr., die Buchfink beim BZSt bestätigt hat. Fehlt
-   die Bestätigung, meldet Buchfink einen Befund; kläre ihn mit
-   buchfink-rechnungen.
+   die Bestätigung, meldet Buchfink einen Befund; kläre ihn nach
+   [rechnungen/ausland.md](../rechnungen/ausland.md).
 2. Summe der Zeilen gleich Summe der Kennziffer 21 aus den Voranmeldungen
    desselben Zeitraums. Buchfink stellt beide gegenüber und speichert
    Differenzen. Eine Differenz bedeutet meist eine Buchung mit falschem
@@ -68,18 +66,12 @@ Abweichungen an (BZSt, Berichtigung einer ZM).
 
 ## 4. Übermittlung
 
-- Die ZM geht elektronisch an das BZSt, entweder über das Formular in
-  Mein ELSTER oder über das BZSt-Online-Portal (BOP). Für das BOP ist eine
-  zusätzliche Anmeldung zum Fachverfahren ZM nötig. Beide Formulare nehmen eine
-  CSV-Datei mit den Meldezeilen an; ein Formular fasst bis zu 1.500
-  Meldezeilen (BZSt, Elektronische Abgabe; Stand Oktober 2026).
-- Buchfink übermittelt nicht; der Mensch sendet. `fristen` führt die ZM als
-  Pflicht `zm` nur für Zeiträume mit Leistungen nach § 3a Abs. 2 UStG an
-  Unternehmer im übrigen Gemeinschaftsgebiet.
-- Ablauf: Du legst die Zeilen aus `erklaerung` als Tabelle vor (eine
-  CSV-Datei bildet Buchfink noch nicht ab) → der Mensch trägt sie im
-  Online-Formular ein, prüft und sendet → er nennt dir Zeitpunkt und
-  Transferticket → er erfasst sie in der App (nur App).
+- Die ZM geht elektronisch an das BZSt, über Mein ELSTER oder das
+  BZSt-Online-Portal (BOP). Weg, Ablauf mit dem Menschen und Nachweis stehen
+  in [grundlagen/pflichten.md#zm](../grundlagen/pflichten.md#zm).
+- Beide Formulare nehmen eine CSV-Datei mit den Meldezeilen an; ein Formular
+  fasst bis zu 1.500 Meldezeilen (BZSt, Elektronische Abgabe; Stand Oktober
+  2026).
 
 ## 5. Berichtigung
 
@@ -98,9 +90,6 @@ Abweichungen an (BZSt, Berichtigung einer ZM).
 
 [ustg18a]: https://www.gesetze-im-internet.de/ustg_1980/__18a.html
 [ustg18b]: https://www.gesetze-im-internet.de/ustg_1980/__18b.html
-[ustg26a]: https://www.gesetze-im-internet.de/ustg_1980/__26a.html
-[ustdv46]: https://www.gesetze-im-internet.de/ustdv_1980/__46.html
-[ao108]: https://www.gesetze-im-internet.de/ao_1977/__108.html
 
 BZSt-Seiten:
 

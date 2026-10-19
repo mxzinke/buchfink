@@ -6,6 +6,9 @@ Taxonomien 6.8 und 6.9 über einen Spiegel gelesen; das Schreiben zur
 Taxonomie 6.10 nur über Sekundärquellen. Seiten von eBilanz+ und
 eBilanz-Online am 17.10.2026 gelesen.
 
+Frist, Nachweis und Folgen einer Versäumnis stehen in
+[grundlagen/pflichten.md#ebilanz](../grundlagen/pflichten.md#ebilanz).
+
 ## Inhalt
 
 1. Pflicht und Inhalt
@@ -83,8 +86,9 @@ sich ein Mussfeld aus der Buchführung nicht füllen, wird es ohne Wert (NIL)
 2. Jeder blockierende Befund aus `ebilanz_exportieren` ist geklärt: eine
    falsche Zuordnung über die Buchung, fehlende Stammdaten (Steuernummer,
    Anschrift) über den Menschen in der App. Warnungen legst du ihm vor.
-3. Abweichungen der Steuerbilanz aus der Körperschaftsteuer (SKILL.md,
-   Schritt 4) sind als Wertungsfrage entschieden.
+3. Abweichungen der Steuerbilanz aus der Körperschaftsteuer
+   ([kst.md](kst.md#7-abweichungen-der-steuerbilanz)) sind als Wertungsfrage
+   entschieden.
 4. Die Sendung im Online-Dienst (Abschnitt 5) enthält Kontennachweise und
    Anlagenspiegel. Der Anlagenspiegel ist Mussfeld und zu übermitteln
    ([BMF vom 10.06.2025][bmf69]). Fehlen die Kontennachweise in der Sendung,
@@ -135,22 +139,21 @@ Weitere Wege:
    liest sie als Saldenliste ein. Prüfe danach wie in Schritt 3.
 2. Ein Steuerberater übermittelt.
 3. Antrag auf Verzicht wegen unbilliger Härte
-     ([§ 5b Abs. 2 EStG][estg5b]). Das Finanzamt muss zustimmen, wenn die
-     elektronische Übermittlung wirtschaftlich oder persönlich unzumutbar ist,
-     insbesondere wenn sie nur mit nicht unerheblichem finanziellem Aufwand
-     möglich wäre oder der Steuerpflichtige sie nach seinen Kenntnissen und
-     Fähigkeiten nicht oder nur eingeschränkt nutzen kann
-     ([§ 150 Abs. 8 AO][ao150]). Dann gehen Bilanz und GuV mit
-     Kontennachweisen und der Anlagenspiegel als Abschrift mit der Erklärung
-     ([§ 60 Abs. 1 EStDV][estdv60]); das Anlagenverzeichnis erst für
-     Wirtschaftsjahre, die nach dem 31.12.2027 beginnen
-     ([§ 84 Abs. 3f EStDV][estdv84]).
+   ([§ 5b Abs. 2 EStG][estg5b]). Das Finanzamt muss zustimmen, wenn die
+   elektronische Übermittlung wirtschaftlich oder persönlich unzumutbar ist,
+   insbesondere wenn sie nur mit nicht unerheblichem finanziellem Aufwand
+   möglich wäre oder der Steuerpflichtige sie nach seinen Kenntnissen und
+   Fähigkeiten nicht oder nur eingeschränkt nutzen kann
+   ([§ 150 Abs. 8 AO][ao150]). Dann gehen Bilanz und GuV mit
+   Kontennachweisen und der Anlagenspiegel als Abschrift mit der Erklärung
+   ([§ 60 Abs. 1 EStDV][estdv60]); das Anlagenverzeichnis erst für
+   Wirtschaftsjahre, die nach dem 31.12.2027 beginnen
+   ([§ 84 Abs. 3f EStDV][estdv84]).
+
 Wertungsfrage: Welcher Dienst passt? Nenne Kosten, Datenschutz
 (Auftragsverarbeitung, Serverstandort laut den Bedingungen des Dienstes) und
 Aufwand; der Mensch entscheidet. Ob ein Dienst die Taxonomie des
-Wirtschaftsjahres annimmt, zeigt seine Validierung. Die Fälligkeit nennt
-`fristen` (Anker `ebilanz`); sie folgt der Körperschaftsteuererklärung, mit
-Berater also der Berater-Frist.
+Wirtschaftsjahres annimmt, zeigt seine Validierung.
 
 ## 6. Eröffnungsbilanz
 
@@ -158,7 +161,8 @@ Bei Eröffnung des Betriebs gilt die Pflicht auch für die Eröffnungsbilanz
 ([§ 5b Abs. 1 Satz 4 EStG][estg5b]). Die Taxonomie eines Jahres gilt für
 Eröffnungsbilanzen, die nach dem jeweiligen Stichtag aufzustellen sind
 ([BMF 10.06.2025][bmf69]). Einen eigenen Abgabetermin nennt § 5b nicht; plane
-sie mit der ersten Steuererklärung ein (buchfink-gruendung).
+sie mit der ersten Steuererklärung ein
+([gruendung/eroeffnungsbilanz.md](../gruendung/eroeffnungsbilanz.md)).
 
 [ao150]: https://www.gesetze-im-internet.de/ao_1977/__150.html
 [estdv60]: https://www.gesetze-im-internet.de/estdv_1955/__60.html
