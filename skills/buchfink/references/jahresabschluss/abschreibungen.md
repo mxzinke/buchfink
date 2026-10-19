@@ -21,17 +21,9 @@ bewertet [beteiligungen/bewertung-veraeusserung.md](../beteiligungen/bewertung-v
 
 - Anlagen mit begrenzter Nutzung werden planmäßig über die voraussichtliche
   Nutzungsdauer abgeschrieben ([§ 253 Abs. 3 Satz 1, 2 HGB][hgb253]).
-- Steuerlich: gleiche Jahresbeträge nach der betriebsgewöhnlichen
-  Nutzungsdauer; im Jahr der Anschaffung für jeden vollen Monat vor dem
-  Anschaffungsmonat ein Zwölftel weniger ([§ 7 Abs. 1 Satz 1, 2, 4 EStG][estg7]).
-- Bewegliche Anlagen, angeschafft nach dem 30.06.2025 und vor dem 01.01.2028:
-  wahlweise fallende Beträge, höchstens das Dreifache des linearen Satzes und
-  höchstens 30 % ([§ 7 Abs. 2 EStG][estg7]). Stand: Oktober 2026.
-- Sammelposten: im Jahr der Bildung und in den vier Folgejahren je ein Fünftel
-  ([§ 6 Abs. 2a Satz 2 EStG][estg6]).
-- Geringwertige Wirtschaftsgüter (bis 800 € netto) gehen im Jahr der
-  Anschaffung voll in den Aufwand ([§ 6 Abs. 2 Satz 1 EStG][estg6]); Stand:
-  Oktober 2026.
+- Steuerliche Abschreibung (linear, degressiv), geringwertige Wirtschaftsgüter
+  und Sammelposten:
+  [belege/anlagen-gwg.md, Abschnitte 3 und 4](../belege/anlagen-gwg.md#3-wertgrenzen).
 - Anlagen im Bau und geleistete Anzahlungen schreibt Buchfink nicht ab.
 
 Wertungsfrage: die Nutzungsdauer. Buchfink schlägt Werte vor; die Regeln zur
@@ -98,9 +90,9 @@ entscheidet. Bei großen Beträgen Steuerberater.
 - Verschrottung, Diebstahl: Abgang ohne Erlös. Übernimmt ein Gesellschafter
   den Gegenstand ohne angemessenes Entgelt, prüfe eine verdeckte
   Gewinnausschüttung ([gesellschafter/vga-einlage.md](../gesellschafter/vga-einlage.md)).
-- Sammelposten: Scheidet ein Wirtschaftsgut aus, wird der Sammelposten nicht
-  vermindert ([§ 6 Abs. 2a Satz 3 EStG][estg6]). Buchfink lehnt einen solchen
-  Abgang ab.
+- Sammelposten: Ein Abgang mindert ihn nicht
+  ([belege/anlagen-gwg.md, Abschnitt 3](../belege/anlagen-gwg.md#3-wertgrenzen));
+  Buchfink lehnt einen solchen Abgang ab.
 
 ## 6. Anlagenspiegel
 
@@ -135,5 +127,4 @@ entscheidet. Bei großen Beträgen Steuerberater.
 [hgb288]: https://www.gesetze-im-internet.de/hgb/__288.html
 [estg5]: https://www.gesetze-im-internet.de/estg/__5.html
 [estg6]: https://www.gesetze-im-internet.de/estg/__6.html
-[estg7]: https://www.gesetze-im-internet.de/estg/__7.html
 [estg7g]: https://www.gesetze-im-internet.de/estg/__7g.html

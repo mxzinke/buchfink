@@ -159,10 +159,10 @@ Umsätze bleiben offen; der Prüflauf meldet sie.
 ## 9. Offene Posten über den Jahreswechsel
 
 - Aufwand und Ertrag gehören in das Jahr der Leistung, unabhängig von der
-  Zahlung ([§ 252 Abs. 1 Nr. 5 HGB][hgb252]). Die Dezemberrechnung, die im
-  Januar bezahlt wird, gleicht im Januar den offenen Posten des Vorjahres aus.
+  Zahlung ([jahresabschluss/abgrenzung.md](../jahresabschluss/abgrenzung.md#1-grundsatz)).
+  Die Dezemberrechnung, die im Januar bezahlt wird, gleicht im Januar den
+  offenen Posten des Vorjahres aus.
 - `offene_posten` zeigt Posten aller Jahre. Buche die Zahlung mit ihrem
   Bankdatum; das Jahr des Postens ändert sich dadurch nicht.
 
-[hgb252]: https://www.gesetze-im-internet.de/hgb/__252.html
 [ustg13]: https://www.gesetze-im-internet.de/ustg_1980/__13.html

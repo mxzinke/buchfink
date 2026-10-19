@@ -36,6 +36,7 @@ Zahlung gebucht.
 |---|---|---|
 | Umsatzsteuer-Vorauszahlung laut Voranmeldung, auch Erstattung | 3820 Umsatzsteuer-Vorauszahlungen | Zahlung im Soll, Erstattung im Haben |
 | Sondervorauszahlung bei Dauerfristverlängerung | 3830 Umsatzsteuer-Vorauszahlungen 1/11 | Pflicht und Höhe: [monatsabschluss/dauerfristverlaengerung.md](../monatsabschluss/dauerfristverlaengerung.md) |
+| Zahlung der letzten Voranmeldung des Vorjahres, nachdem die Umsatzsteuer-Verrechnung gebucht ist | 3841 Umsatzsteuerverbindlichkeiten Vorjahr | Die Verrechnung bringt die offene Vorauszahlung auf 3841 ([jahresabschluss/steuern-im-abschluss.md](../jahresabschluss/steuern-im-abschluss.md#1-umsatzsteuer-verrechnung)); auf 3820 zählte sie in der Verrechnung des neuen Jahres als Vorauszahlung |
 | Umsatzsteuer-Abschlusszahlung für das Vorjahr | 3841 Umsatzsteuerverbindlichkeiten Vorjahr | Buchfink bucht die Jahreszahllast dorthin |
 | Umsatzsteuer-Erstattung für das Vorjahr | 1420 | Buchfink bucht die Jahreserstattung dorthin |
 | Körperschaftsteuer-Vorauszahlung laufendes Jahr | 7600 Körperschaftsteuer | nicht abziehbar ([§ 10 Nr. 2 KStG][kstg10]) |
@@ -83,9 +84,9 @@ Abziehbarkeit und Konto:
 | andere Steuern, etwa Umsatzsteuer | keiner der beiden Ausschlüsse greift | Säumniszuschlag 7303; Zinsen § 233a 7305; Verspätungszuschlag 6436 |
 
 Erstattungszinsen nach § 233a AO bucht das SKR04 je nach steuerlicher
-Behandlung auf 7105, 7106 oder 7107. Welches Konto passt, ist eine Wertungsfrage;
-frag den Menschen und verweise auf
-[steuererklaerungen/kst.md](../steuererklaerungen/kst.md).
+Behandlung auf 7105, 7106 oder 7107. Die Behandlung ist eine Wertungsfrage
+([steuererklaerungen/kst.md, Abschnitt 2](../steuererklaerungen/kst.md#2-überleitung-zum-zu-versteuernden-einkommen));
+frag den Menschen.
 
 ## 5. Fälligkeit und Zahlungstag
 

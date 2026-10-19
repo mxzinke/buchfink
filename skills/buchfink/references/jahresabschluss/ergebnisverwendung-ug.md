@@ -91,7 +91,7 @@ Verwendung. Der Beschluss verteilt es an seinem Datum:
 | Beschluss | Buchung |
 |---|---|
 | Einstellung in andere Gewinnrücklagen | Soll 2970, Haben 2960 Andere Gewinnrücklagen |
-| Ausschüttung | Soll 2970, Haben 3519 (Nettobetrag) und 3760 (einbehaltene Steuern); Beträge nach [gesellschafter/ausschuettung.md](../gesellschafter/ausschuettung.md) |
+| Ausschüttung | Buchung und Beträge nach [gesellschafter/ausschuettung.md, Abschnitt 5](../gesellschafter/ausschuettung.md#5-buchungen-in-buchfink) |
 | Vortrag auf neue Rechnung | keine Buchung, bleibt auf 2970 |
 
 - Buche den Beschluss am Beschlusstag nach Rückfrage mit

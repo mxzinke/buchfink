@@ -37,9 +37,10 @@ Posten erklärt ist.
   Kunde im Januar, bestand am Stichtag kein Ausfallrisiko in dieser Höhe.
 - Steuerlich darf der niedrigere Teilwert nur bei voraussichtlich dauernder
   Wertminderung angesetzt werden ([§ 6 Abs. 1 Nr. 2 Satz 2 EStG][estg6]).
-- Bemessung: der Nettobetrag. Die Umsatzsteuer wird erst berichtigt, wenn das
-  Entgelt uneinbringlich ist ([§ 17 Abs. 2 Nr. 1 UStG][ustg17]); bis dahin ist
-  sie nicht gefährdet, weil die GmbH sie dann zurückbekommt.
+- Bemessung: der Nettobetrag. Die Umsatzsteuer berichtigt die GmbH erst, wenn
+  das Entgelt uneinbringlich ist
+  ([rechnungen/forderungsausfall.md](../rechnungen/forderungsausfall.md)); bis
+  dahin ist sie nicht gefährdet, weil die GmbH sie dann zurückbekommt.
 - Indizien: erfolglose Mahnungen, Mahnbescheid ohne Zahlung, Kunde bestreitet
   die Forderung, bekannte Zahlungsschwierigkeiten, Insolvenzantrag.
   Steht der Ausfall fest (Insolvenzeröffnung, fruchtlose Vollstreckung), wird
@@ -106,10 +107,10 @@ Ausfallgeschichte ist die Einzelbewertung der bessere Weg.
   Vermögensgegenständen oder Verbindlichkeiten sind bei größerem Umfang im
   Anhang zu erläutern (§ 268 Abs. 4 Satz 2, Abs. 5 Satz 3); kleine
   Gesellschaften sind davon befreit ([§ 274a Nr. 1, 2 HGB][hgb274a]).
-- Forderungen und Verbindlichkeiten gegenüber Gesellschaftern sind gesondert
-  auszuweisen oder im Anhang anzugeben ([§ 42 Abs. 3 GmbHG][gmbhg42]). Das gilt
-  auch für Rechnungen an einen Gesellschafter als Kunden. Konten:
-  [gesellschafter/ausweis.md](../gesellschafter/ausweis.md).
+- Für Forderungen und Verbindlichkeiten gegenüber Gesellschaftern gilt die
+  Ausweisregel mit Konten in
+  [gesellschafter/ausweis.md](../gesellschafter/ausweis.md#1-regel); sie
+  erfasst auch Rechnungen an einen Gesellschafter als Kunden.
 - Forderungen und Verbindlichkeiten gegenüber demselben Partner werden nicht
   verrechnet ([§ 246 Abs. 2 Satz 1 HGB][hgb246]). Ein Kunde, der zugleich
   Lieferant ist, steht auf beiden Seiten.
@@ -133,5 +134,3 @@ Ausfallgeschichte ist die Einzelbewertung der bessere Weg.
 [hgb274a]: https://www.gesetze-im-internet.de/hgb/__274a.html
 [hgb277]: https://www.gesetze-im-internet.de/hgb/__277.html
 [estg6]: https://www.gesetze-im-internet.de/estg/__6.html
-[ustg17]: https://www.gesetze-im-internet.de/ustg_1980/__17.html
-[gmbhg42]: https://www.gesetze-im-internet.de/gmbhg/__42.html

@@ -330,8 +330,8 @@ Eine Buchung wird nie geändert. Korrigiert wird durch Storno und Neubuchung
    übernimmt er, umsatzsteuerlich zählt also der alte Zeitraum (Nachtrag),
    beim Storno einer Ausgangsrechnung der laufende. Ist für den alten Zeitraum
    eine Voranmeldung schon übermittelt, frag den Menschen, ob sie berichtigt
-   werden muss ([§ 153 AO][ao153]); lies dazu
-   [monatsabschluss/berichtigung.md](../monatsabschluss/berichtigung.md).
+   werden muss
+   ([monatsabschluss/berichtigung.md](../monatsabschluss/berichtigung.md)).
 
 Ein festgeschriebener Zeitraum bleibt unberührt.
 
@@ -344,4 +344,3 @@ Ein festgeschriebener Zeitraum bleibt unberührt.
 [gmbhg42a]: https://www.gesetze-im-internet.de/gmbhg/__42a.html
 [estg4a]: https://www.gesetze-im-internet.de/estg/__4a.html
 [kstg7]: https://www.gesetze-im-internet.de/kstg_1977/__7.html
-[ao153]: https://www.gesetze-im-internet.de/ao_1977/__153.html

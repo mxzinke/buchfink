@@ -39,9 +39,9 @@ Ablauf:
    nimmt Steuerkonten nicht an.
 4. Prüfe danach: Vorsteuer- und Umsatzsteuerkonten null.
 
-Folgejahr: Die Zahlung der letzten Voranmeldung des alten Jahres und eine
-Abschlusszahlung aus der Jahreserklärung gehören auf 3841, eine Erstattung auf
-1420 ([bank/steuerzahlungen.md](../bank/steuerzahlungen.md#2-konten-je-steuerart)).
+Folgejahr: Konten für die Zahlung der letzten Voranmeldung des alten Jahres,
+die Abschlusszahlung und die Erstattung stehen in
+[bank/steuerzahlungen.md](../bank/steuerzahlungen.md#2-konten-je-steuerart).
 
 ## 2. Vorsteuerberichtigung nach § 15a UStG
 
@@ -62,12 +62,12 @@ Verwendungsanteil zu prüfen. Ihn zu erfassen und die Berichtigung zu buchen
   [steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md)).
 - Rückstellung = Körperschaftsteuer + Solidaritätszuschlag + Gewerbesteuer des
   Jahres − Vorauszahlungen für dieses Jahr − anrechenbare Kapitalertragsteuer
-  und darauf entfallender Solidaritätszuschlag, nur mit Steuerbescheinigung
-  ([§ 36 Abs. 2 Nr. 2 EStG][estg36],
-  [bank/zinsen-kapest.md](../bank/zinsen-kapest.md)).
+  mit Solidaritätszuschlag
+  ([Anrechnung](../steuererklaerungen/kst.md#9-steuer-rundung-anrechnung-vorauszahlungen)).
 - Körperschaftsteuer, Solidaritätszuschlag und Gewerbesteuer mindern das
-  Einkommen nicht ([§ 10 Nr. 2 KStG][kstg10], [§ 4 Abs. 5b EStG][estg4]). Die
-  Rückstellung ändert deshalb die Bemessungsgrundlage nicht; ein Rechengang
+  Einkommen nicht
+  ([steuererklaerungen/kst.md, Abschnitt 2](../steuererklaerungen/kst.md#2-überleitung-zum-zu-versteuernden-einkommen)).
+  Die Rückstellung ändert deshalb die Bemessungsgrundlage nicht; ein Rechengang
   genügt.
 
 Prüfe vor dem Buchen:
@@ -110,6 +110,3 @@ Zahlung, Verbrauch der Rückstellung und die Differenz auf den Konten für
 Vorjahre: [bank/steuerzahlungen.md](../bank/steuerzahlungen.md#3-nachzahlung-und-erstattung-für-vorjahre).
 
 [hgb249]: https://www.gesetze-im-internet.de/hgb/__249.html
-[estg4]: https://www.gesetze-im-internet.de/estg/__4.html
-[estg36]: https://www.gesetze-im-internet.de/estg/__36.html
-[kstg10]: https://www.gesetze-im-internet.de/kstg_1977/__10.html

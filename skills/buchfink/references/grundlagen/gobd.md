@@ -203,9 +203,9 @@ Volltexte: [GoBD 2019][gobd], [Änderung 2024][gobd2024],
   Finanzamt schätzen ([§ 162 Abs. 2 AO][ao162]).
 - Unrichtige Belege, unrichtiges Verbuchen und fehlende Aufbewahrung können
   eine Ordnungswidrigkeit sein ([§ 379 AO][ao379]).
-- Eine abgegebene Erklärung, die sich als unrichtig erweist, ist zu berichtigen;
-  Pflicht und Vorgehen stehen unter
-  [Warnzeichen](grenzen.md#2-warnzeichen-die-du-sofort-meldest).
+- Eine abgegebene Erklärung, die sich als unrichtig erweist, ist zu berichtigen:
+  [monatsabschluss/berichtigung.md, Abschnitt 2](../monatsabschluss/berichtigung.md#2-pflicht-und-recht-zur-berichtigung). Melde den Fund
+  sofort ([Warnzeichen](grenzen.md#2-warnzeichen-die-du-sofort-meldest)).
 
 [gobd]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf
 [gobd2024]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2024-03-11-aenderung-gobd.pdf

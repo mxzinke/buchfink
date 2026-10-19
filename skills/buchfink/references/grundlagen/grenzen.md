@@ -53,16 +53,18 @@ Die Bewertung trifft der Mensch mit Berater.
   ([§ 15a Abs. 1 InsO][inso15a]). Bilanziell negatives Eigenkapital ist nicht
   dasselbe wie Überschuldung; diese hängt auch von der Fortführungsprognose ab
   ([§ 19 Abs. 2 InsO][inso19]). Rate zu sofortiger rechtlicher Beratung.
-- **Fehler in einer übermittelten Erklärung.** Kann er zu einer zu niedrigen
-  Steuer geführt haben, muss das Unternehmen ihn unverzüglich anzeigen und
-  richtigstellen ([§ 153 Abs. 1 AO][ao153]).
+- **Fehler in einer übermittelten Erklärung**, der zu einer zu niedrigen
+  Steuer geführt haben kann. Anzeige- und Berichtigungspflicht:
+  [monatsabschluss/berichtigung.md, Abschnitt 2](../monatsabschluss/berichtigung.md#2-pflicht-und-recht-zur-berichtigung).
 - **Vorgänge, die nach Steuerverkürzung aussehen** (private Ausgaben als
   Betriebsausgabe, fehlende Erlöse, unrichtige Belege). Buche sie nicht und
   sprich den Menschen an. Ob eine Berichtigung oder eine Selbstanzeige
   ([§ 371 AO][ao371]) in Frage kommt, klärt er mit einem Steuerberater.
 - **Übertragung von mehr als 50 % der Anteile innerhalb von fünf Jahren** an
   einen Erwerber oder ihm nahestehende Personen. Nicht genutzte Verluste können
-  wegfallen ([§ 8c Abs. 1 KStG][kstg8c]). Hinweis an den Menschen.
+  wegfallen ([§ 8c Abs. 1 KStG][kstg8c];
+  [steuererklaerungen/kst.md, Abschnitt 8](../steuererklaerungen/kst.md#8-verlustabzug)).
+  Hinweis an den Menschen.
 
 ## 3. Wann du einen Steuerberater empfiehlst
 
@@ -107,6 +109,5 @@ Soll ich eine Aufgabe dafür notieren oder den Beleg mit Hinweis liegen lassen?
 [gmbhg49]: https://www.gesetze-im-internet.de/gmbhg/__49.html
 [inso15a]: https://www.gesetze-im-internet.de/inso/__15a.html
 [inso19]: https://www.gesetze-im-internet.de/inso/__19.html
-[ao153]: https://www.gesetze-im-internet.de/ao_1977/__153.html
 [ao371]: https://www.gesetze-im-internet.de/ao_1977/__371.html
 [astg1]: https://www.gesetze-im-internet.de/astg/__1.html

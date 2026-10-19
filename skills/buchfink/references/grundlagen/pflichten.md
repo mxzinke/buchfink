@@ -153,13 +153,11 @@ Mit und ohne Steuerberater:
   ([§ 109 Abs. 2 Satz 1 Nr. 1, 2 AO][ao109]).
   Antrag in Mein ELSTER: „Antrag auf Fristverlängerung“ im Bereich „Anträge und
   Nachrichten“.
-- **Mein ELSTER:** Anmeldung mit dem Organisationszertifikat der GmbH; jedes
-  Formular unter „Formulare und Leistungen“ → „Alle Formulare“, gruppiert nach
-  Steuerart ([Formularliste][elsterformulare]). Der Mensch überträgt die Werte,
-  lässt prüfen und sendet. Das Übermittlungsprotokoll nennt das Transferticket;
-  er speichert es als PDF in den Eingang, du legst es auf seine Anweisung mit
-  `beleg_ablegen` ab.
-  Zertifikat und Eingabe: [steuererklaerungen/abgabe.md](../steuererklaerungen/abgabe.md).
+- **Mein ELSTER:** Jedes Formular steht unter „Formulare und Leistungen“ →
+  „Alle Formulare“, gruppiert nach Steuerart ([Formularliste][elsterformulare]).
+  Organisationszertifikat, Eingabe, Prüfen, Senden und Ablage des
+  Übermittlungsprotokolls mit dem Transferticket:
+  [steuererklaerungen/abgabe.md](../steuererklaerungen/abgabe.md#4-eingabe-in-mein-elster).
 
 <a id="ustva"></a>
 ## Umsatzsteuer-Voranmeldung
@@ -202,9 +200,9 @@ Mit und ohne Steuerberater:
 
 - **Grundlage:** [§§ 47, 48 UStDV][ustdv47]. Nur bei monatlicher Voranmeldung mit
   Dauerfristverlängerung ([§ 47 Abs. 1 UStDV][ustdv47]).
-- **Höhe:** ein Elftel der Vorauszahlungen des Vorjahres; Teiljahr hochrechnen;
-  im Gründungsjahr nach den erwarteten Vorauszahlungen
-  ([§ 47 Abs. 1–3 UStDV][ustdv47]).
+- **Höhe:** nach [§ 47 UStDV][ustdv47]; Regelfall, Teiljahr und
+  Gründungsjahr in
+  [monatsabschluss/dauerfristverlaengerung.md, Abschnitt 3](../monatsabschluss/dauerfristverlaengerung.md#3-sondervorauszahlung).
 - **Frist:** Mit dem ersten Antrag auf Dauerfristverlängerung, also bis zum
   Abgabetag der ersten Voranmeldung, für die sie gelten soll
   ([§ 48 Abs. 1 UStDV][ustdv48]). In den Folgejahren bis zum gesetzlichen
@@ -550,39 +548,24 @@ Mit und ohne Steuerberater:
   Wirtschaftsjahr endet ([kst-erklaerung](#kst-erklaerung)), mit Berater also
   die Berater-Frist der Körperschaftsteuer. § 108 Abs. 3 AO gilt.
 - **Zuständig:** du bereitest vor; der Mensch übermittelt oder der Berater.
-  Kanal: Online-Dienst mit ELSTER-Anbindung, etwa [eBilanz+][ebilanzplus] oder
-  [eBilanz-Online][ebilanzonline]. Mein ELSTER hat kein Formular für die
-  E-Bilanz ([Formularliste][elsterformulare]).
+  Kanal: Online-Dienst mit ELSTER-Anbindung; Mein ELSTER hat kein Formular für
+  die E-Bilanz
+  ([steuererklaerungen/ebilanz.md, Abschnitt 5](../steuererklaerungen/ebilanz.md#5-übermittlungsweg)).
 - **Weg:**
   1. Abschluss aufgestellt; Bilanz und GuV mit `auswertung` geprüft.
-  2. `ebilanz_exportieren` (`jahr`, `format: xbrl` als Vorgabe): Buchfink prüft
-     und schreibt die XBRL-Datei nach amtlicher Taxonomie in den Exportordner.
-  3. Der Mensch importiert die Datei im Online-Dienst (Import „XBRL-Datei“;
-     [eBilanz+][ebilanzplusxbrl], [eBilanz-Online][ebilanzonlinexbrl]).
-  4. Nach dem Import gleicht ihr Bilanz, GuV, Stammdaten und Kontennachweis im
-     Dienst mit dem Buchfink-Bericht ab. Was der Import nicht füllt (laut
-     eBilanz+ etwa den Anlagenspiegel), ergänzt der Mensch dort.
-  5. Der Mensch validiert im Dienst, bis kein Fehler bleibt, und sendet mit
-     dem ELSTER-Zertifikat.
-  6. Er trägt Protokoll und Transferticket in Buchfink ein.
-- **Vor dem Senden prüfen:** Die Sendung enthält Kontennachweise und
-  Anlagenspiegel. Die Kontennachweise sind für Wirtschaftsjahre, die nach dem
-  31.12.2024 beginnen, Pflicht ([§ 5b Abs. 1 Satz 1 EStG][estg5b],
-  [§ 52 Abs. 11 Satz 2 EStG][estg52]); der Anlagenspiegel ist Mussfeld
-  ([BMF vom 10.06.2025][bmf69]). Fehlen die Kontennachweise, gilt für
-  Taxonomie 6.9 eine Nichtbeanstandung: auf anderem Weg einreichen und in der
-  Position „Erläuterung, warum eine Übermittlung der Kontennachweise noch
-  nicht möglich ist“ begründen ([BMF vom 10.06.2025][bmf69]).
-- **Rückfallweg:** Übernimmt der Dienst die XBRL-Datei nicht vollständig,
-  schreibt `ebilanz_exportieren` mit `format: susa_csv` die Summen- und
-  Saldenliste mit den Elementnamen der Taxonomie; eBilanz+ liest sie als
-  „Taxonomie-Layout“ ein ([Import][ebilanzplusimport]).
+  2. `ebilanz_exportieren` (`jahr`, `format: xbrl` als Vorgabe) schreibt die
+     geprüfte XBRL-Datei in den Exportordner.
+  3. Der Mensch importiert sie im Online-Dienst, gleicht mit dir ab, validiert
+     und sendet; danach trägt er Protokoll und Transferticket in Buchfink ein.
+  Prüfpunkte vor dem Senden (Kontennachweise, Anlagenspiegel), Ablauf im
+  Dienst und Rückfallweg (`format: susa_csv`):
+  [steuererklaerungen/ebilanz.md, Abschnitte 4 und 5](../steuererklaerungen/ebilanz.md#4-prüfpunkte).
 - **Weitere Wege:** Steuerberater; Antrag auf Verzicht wegen unbilliger Härte
-  ([§ 5b Abs. 2 EStG][estg5b] i. V. m. [§ 150 Abs. 8 AO][ao150]). Dann gehen
-  Bilanz und GuV mit unverdichteten Kontennachweisen, der Anlagenspiegel und
-  bei Eröffnung die Eröffnungsbilanz als Abschrift mit der Erklärung
-  ([§ 60 Abs. 1 EStDV][estdv60]); das Anlagenverzeichnis ab Wirtschaftsjahren,
-  die nach dem 31.12.2027 beginnen ([§ 84 Abs. 3f EStDV][estdv84]).
+  ([§ 5b Abs. 2 EStG][estg5b] i. V. m. [§ 150 Abs. 8 AO][ao150]); Voraussetzungen
+  und Abschriften in
+  [steuererklaerungen/ebilanz.md, Abschnitt 5](../steuererklaerungen/ebilanz.md#5-übermittlungsweg).
+  Die Kontennachweise gehen dann unverdichtet mit, bei Eröffnung auch die
+  Eröffnungsbilanz ([§ 60 Abs. 1 EStDV][estdv60]).
 - **Buchfink liefert:** XBRL-Datei nach der amtlichen Taxonomie mit
   Kontennachweis, vor dem Export geprüft (`befunde`); als Rückfallweg die
   Summen- und Saldenliste als CSV.
@@ -619,18 +602,15 @@ Mit und ohne Steuerberater:
   Herkunft; offene Angaben über `erklaerung_eingabe`; `erklaerung_exportieren`
   (`art: kst`, `jahr`) als JSON zur Ablage.
 - **Nachweis:** Transferticket; der Mensch bestätigt in der App.
-- **Bei Versäumnis:** Verspätungszuschlag; zwingend, wenn nicht binnen 14
-  Monaten nach Ablauf des Kalenderjahres oder nicht bis zum Termin einer
-  Vorabanforderung abgegeben ([§ 152 Abs. 2 Nr. 1, 3 AO][ao152]), außer bei
-  Fristverlängerung, Steuer null oder nicht über den Vorauszahlungen
-  ([§ 152 Abs. 3 Nr. 1–3 AO][ao152]). Höhe je angefangenem Monat 0,25 % der
-  Steuer abzüglich Vorauszahlungen und Abzugsbeträgen, mindestens 25 €
-  ([§ 152 Abs. 5 Satz 2 AO][ao152]). Für Feststellungserklärungen
-  (Einlagekonto, Verlustvortrag) 25 € je Monat; dort gilt von den Ausnahmen nur
-  die Fristverlängerung, nach 14 Monaten ist der Zuschlag also auch bei Verlust
-  zwingend ([§ 152 Abs. 6 AO][ao152]). Das Finanzamt kann schätzen; die Pflicht zur
-  Abgabe bleibt ([§ 162 AO][ao162], [§ 149 Abs. 1 Satz 4 AO][ao149]). Es kann
-  die Abgabe mit Zwangsgeld durchsetzen ([§§ 328, 329 AO][ao328]).
+- **Bei Versäumnis:** Verspätungszuschlag; wann er zwingend ist, Ausnahmen und
+  Höhe:
+  [steuererklaerungen/fristen-zuschlaege.md, Abschnitt 4](../steuererklaerungen/fristen-zuschlaege.md#4-verspätungszuschlag).
+  Für die Feststellungserklärungen (Einlagekonto, Verlustvortrag) gilt von den
+  Ausnahmen nur die Fristverlängerung; nach 14 Monaten ist der Zuschlag also
+  auch bei Verlust zwingend ([§ 152 Abs. 6 AO][ao152]). Das Finanzamt kann
+  schätzen; die Pflicht zur Abgabe bleibt ([§ 162 AO][ao162],
+  [§ 149 Abs. 1 Satz 4 AO][ao149]). Es kann die Abgabe mit Zwangsgeld
+  durchsetzen ([§§ 328, 329 AO][ao328]).
 - **Vertiefung:** [steuererklaerungen/kst.md](../steuererklaerungen/kst.md),
   [steuererklaerungen/fristen-zuschlaege.md](../steuererklaerungen/fristen-zuschlaege.md),
   [steuererklaerungen/abgabe.md](../steuererklaerungen/abgabe.md)
@@ -649,11 +629,12 @@ Mit und ohne Steuerberater:
 - **Buchfink liefert:** `erklaerung` (`art: gewst`) formularnah mit Zeilen;
   `erklaerung_exportieren` (`art: gewst`) als JSON zur Ablage.
 - **Nachweis:** Transferticket; der Mensch bestätigt in der App.
-- **Bei Versäumnis:** Verspätungszuschlag 25 € je angefangenem Monat; zwingend
-  nach 14 Monaten oder nach Versäumen einer Vorabanforderung. Von den
-  Ausnahmen gilt nur die Fristverlängerung; Steuer null oder Vorauszahlungen
-  schützen nicht ([§ 152 Abs. 2, 3 Nr. 1, Abs. 6 AO][ao152]). Schätzung und
-  Zwangsgeld wie bei der Körperschaftsteuererklärung.
+- **Bei Versäumnis:** Verspätungszuschlag nach
+  [steuererklaerungen/fristen-zuschlaege.md, Abschnitt 4](../steuererklaerungen/fristen-zuschlaege.md#4-verspätungszuschlag).
+  Wie bei den Feststellungserklärungen gilt von den Ausnahmen nur die
+  Fristverlängerung; Steuer null oder Vorauszahlungen schützen nicht
+  ([§ 152 Abs. 6 AO][ao152]). Schätzung und Zwangsgeld wie bei der
+  Körperschaftsteuererklärung.
 - **Vertiefung:** [steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md)
 
 <a id="ust-erklaerung"></a>
@@ -673,9 +654,10 @@ Mit und ohne Steuerberater:
   und Summe der Vorauszahlungen; `erklaerung_exportieren` (`art: ust_jahr`) als
   JSON zur Ablage.
 - **Nachweis:** Transferticket; der Mensch bestätigt in der App.
-- **Bei Versäumnis:** wie bei der Körperschaftsteuererklärung
-  ([§ 152 Abs. 2, 3, 5 AO][ao152]); Säumniszuschlag auf die Abschlusszahlung
-  ([§ 240 AO][ao240]).
+- **Bei Versäumnis:** Verspätungszuschlag nach
+  [steuererklaerungen/fristen-zuschlaege.md, Abschnitt 4](../steuererklaerungen/fristen-zuschlaege.md#4-verspätungszuschlag);
+  Schätzung und Zwangsgeld wie bei der Körperschaftsteuererklärung;
+  Säumniszuschlag auf die Abschlusszahlung ([§ 240 AO][ao240]).
 - **Vertiefung:** [steuererklaerungen/ust-jahr.md](../steuererklaerungen/ust-jahr.md)
 
 <a id="transparenzregister"></a>
@@ -885,7 +867,6 @@ Mit und ohne Steuerberater:
 [bgb193]: https://www.gesetze-im-internet.de/bgb/__193.html
 [egao36]: https://www.gesetze-im-internet.de/aoeg_1977/art_97__36.html
 [estdv60]: https://www.gesetze-im-internet.de/estdv_1955/__60.html
-[estdv84]: https://www.gesetze-im-internet.de/estdv_1955/__84.html
 [estg5b]: https://www.gesetze-im-internet.de/estg/__5b.html
 [estg37]: https://www.gesetze-im-internet.de/estg/__37.html
 [estg41a]: https://www.gesetze-im-internet.de/estg/__41a.html
@@ -893,7 +874,6 @@ Mit und ohne Steuerberater:
 [estg44]: https://www.gesetze-im-internet.de/estg/__44.html
 [estg45a]: https://www.gesetze-im-internet.de/estg/__45a.html
 [estg51a]: https://www.gesetze-im-internet.de/estg/__51a.html
-[estg52]: https://www.gesetze-im-internet.de/estg/__52.html
 [gewanzv1]: https://www.gesetze-im-internet.de/gewanzv_2014/__1.html
 [gewanzv2]: https://www.gesetze-im-internet.de/gewanzv_2014/__2.html
 [gewo14]: https://www.gesetze-im-internet.de/gewo/__14.html
@@ -943,7 +923,6 @@ Mit und ohne Steuerberater:
 [gobd]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf
 [gobd2024]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2024-03-11-aenderung-gobd.pdf
 [gobd2025]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2025-07-14-GoBD-2-aenderung.pdf
-[bmf69]: https://betriebs-berater.ruw.de/news/media/2/BMF-Schreiben-17367.pdf
 [elsterformulare]: https://www.elster.de/eportal/formulare-leistungen/alleformulare
 [bzstzm]: https://www.bzst.de/DE/Unternehmen/Umsatzsteuer/ZusammenfassendeMeldung/ElektronischeAbgabe/elektronischeabgabe_zm_node.html
 [bzstzmfrist]: https://www.bzst.de/DE/Unternehmen/Umsatzsteuer/ZusammenfassendeMeldung/Fristen/fristen_node.html
@@ -953,8 +932,3 @@ Mit und ohne Steuerberater:
 [ppdaten]: https://publikations-plattform.de/order/de/wissenswertes/sogehts/meinedaten
 [trhilfe]: https://www.transparenzregister.de/hilfe-center
 [trhilfeapi]: https://www.transparenzregister.de/connector/api/help-center
-[ebilanzplus]: https://ebilanzplus.de
-[ebilanzplusxbrl]: https://ebilanzplus.de/hilfe/xbrl
-[ebilanzplusimport]: https://ebilanzplus.de/hilfe/import
-[ebilanzonline]: https://www.ebilanzonline.de
-[ebilanzonlinexbrl]: https://www.ebilanzonline.de/wissen/faq/importmoeglichkeiten/xbrl-datei/

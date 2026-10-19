@@ -85,7 +85,8 @@ Steuerlich gilt dasselbe ([§ 5 Abs. 5 Satz 1 EStG][estg5]).
   ([belege/ablauf.md](../belege/ablauf.md)); du löst die Abgrenzung gegen
   dasselbe Aufwandskonto auf.
 - Zinsen für das alte Jahr, die die Bank im neuen belastet: Soll Zinsaufwand,
-  Haben 3500 ([bank/darlehen.md](../bank/darlehen.md)).
+  Haben 3500 (Zinskonten:
+  [bank/darlehen.md, Abschnitt 4](../bank/darlehen.md#4-bankdarlehen-konten)).
 - Ertrag im alten Jahr, Zahlung im neuen (z. B. Zinsgutschrift, Erstattung
   einer Versicherung): Soll 1300 Sonstige Vermögensgegenstände, Haben
   Ertragskonto.
@@ -98,10 +99,12 @@ Steuerlich gilt dasselbe ([§ 5 Abs. 5 Satz 1 EStG][estg5]).
 
 ## 6. Disagio
 
-- Ein aktiviertes Disagio (1940 Damnum/Disagio, gebucht nach
-  [bank/darlehen.md](../bank/darlehen.md)) wird planmäßig über die Laufzeit
-  des Darlehens abgeschrieben
-  ([§ 250 Abs. 3 Satz 2 HGB][hgb250]). Abschlussbuchung: Soll 7323, Haben 1940,
+- Ein aktiviertes Disagio (1940 Damnum/Disagio; Ansatz nach
+  [bank/darlehen.md, Abschnitt 6](../bank/darlehen.md#6-disagio-und-bearbeitungsentgelt))
+  wird planmäßig über die Laufzeit des Darlehens abgeschrieben
+  ([§ 250 Abs. 3 Satz 2 HGB][hgb250]). Schlag als Zeitraum die Laufzeit oder
+  die Zinsbindung vor. Abschlussbuchung (`abschlussbuchung` mit
+  `art: abgrenzung` und `abgrenzung.art: disagio`): Soll 7323, Haben 1940,
   Jahresanteil.
 - Ausweis gesondert oder im Anhang ([§ 268 Abs. 6 HGB][hgb268]); kleine
   Gesellschaften sind davon befreit ([§ 274a Nr. 3 HGB][hgb274a]).

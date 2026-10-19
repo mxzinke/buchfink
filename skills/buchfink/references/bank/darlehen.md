@@ -108,18 +108,17 @@ sollen (Text, Konto).
 ## 6. Disagio und Bearbeitungsentgelt
 
 - Ist der Rückzahlungsbetrag höher als der Auszahlungsbetrag, darf der
-  Unterschied als aktiver Rechnungsabgrenzungsposten angesetzt und über die
-  Laufzeit planmäßig abgeschrieben werden ([§ 250 Abs. 3 HGB][hgb250]).
+  Unterschied als aktiver Rechnungsabgrenzungsposten angesetzt werden
+  ([§ 250 Abs. 3 Satz 1 HGB][hgb250]).
 - Buchfink führt eine Einheitsbilanz
   ([grundlagen/grenzen.md](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet)).
-  Vorschlag: aktivieren (1940) und über die Laufzeit bzw. Zinsbindung auf 7323
-  auflösen. Ob die Steuerbilanz das verlangt, bestätigt der Steuerberater; die
-  Frage ist hier nicht am Wortlaut geprüft. Wertungsfrage, Rückfrage.
+  Vorschlag: aktivieren (1940). Ob die Steuerbilanz das verlangt, bestätigt der
+  Steuerberater; die Frage ist hier nicht am Wortlaut geprüft. Wertungsfrage,
+  Rückfrage.
 - Bearbeitungsentgelte der Bank: Frag, ob sie laufzeitabhängig sind. Die
   Einordnung (Aufwand oder Abgrenzung) ist eine Wertungsfrage.
-- Die jährliche Auflösung ist eine Abschlussbuchung (`abschlussbuchung` mit
-  `art: abgrenzung` und `abgrenzung.art: disagio`;
-  [jahresabschluss/abgrenzung.md](../jahresabschluss/abgrenzung.md)).
+- Planmäßige Abschreibung über die Laufzeit und die jährliche Abschlussbuchung:
+  [jahresabschluss/abgrenzung.md, Abschnitt 6](../jahresabschluss/abgrenzung.md#6-disagio).
 
 ## 7. Kontokorrent
 
