@@ -1084,6 +1084,7 @@ buchfink-steuererklaerungen stehen (§§ 7 KStG, 5b, 16, 18 UStG, §§ 20, 108,
 | Gründungsregeln | `internal/accounting/gruendung.go` | `FoundationRules`, `RequiredPaidIn` (Viertel, 12.500 €, Sacheinlage voll), `RecommendedVatPeriod` |
 | Gründungsdienst | `internal/service/foundation_service.go`, `internal/domain/foundation.go` | Unterbilanz, Gründungsbuchungen (Bridge ohne Oberfläche), `FoundationCostCap` |
 | Eröffnungsbilanz Gründung und Umsteiger | `internal/service/foundation_opening.go`, `internal/service/opening_balance.go` | Stichtag Beurkundung; Umsteiger gegen 9000, 9008, 9009 mit Schlussbilanz als Beleg |
+| E-Bilanz der Eröffnungsbilanz | `internal/service/ebilanz_service.go` (`EBilanzOptions.Kind`), `internal/mcpserver/erklaerung.go` | `ebilanz_exportieren` mit `bilanzart: eroeffnungsbilanz`: Stichtag Gründungsdatum der Stammdaten, nur im Geschäftsjahr der Gründung und mit Buchungen bis zu diesem Tag |
 | Firmenzusatz | `internal/domain/settings.go` (`FirmName`) | „i. G.“ bis zur Eintragung |
 | Einrichtungsassistent | `frontend/src/components/SetupAssistantScreen.tsx` | Erfassung der Gründungsangaben (nur App) |
 | Buchungsgruppen | `internal/accounting/posting_groups.go` | `beratung` 6825, `beitraege` 6420 |
@@ -1097,9 +1098,6 @@ buchfink-steuererklaerungen stehen (§§ 7 KStG, 5b, 16, 18 UStG, §§ 20, 108,
   Werkzeug gibt es nicht.
 - **Unterbilanz:** `FoundationService.Unterbilanz` rechnet, aber weder App
   noch Werkzeug zeigen das Ergebnis.
-- **Eröffnungsbilanz als E-Bilanz:** Die Bridge hat `ExportOpeningBalanceXBRL`;
-  ob `ebilanz_exportieren` die Bilanzart Eröffnungsbilanz liefert, nennt der
-  Werkzeugkatalog nicht.
 - **Code-Korrektur:** `RecommendedVatPeriod` schlägt für Gründungen 2021–2026
   pauschal das Vierteljahr vor; § 18 Abs. 2 Satz 6 UStG stellt auf die
   voraussichtliche Steuer ab (über 9.000 € monatlich).
@@ -1301,8 +1299,8 @@ ein Abschnitt je Pflichtart mit Anker `<a id="<art>"></a>`). Alle Links am
 | § 162 AO | https://www.gesetze-im-internet.de/ao_1977/__162.html | Schätzung der Besteuerungsgrundlagen | Text | kst-erklaerung, gewst-erklaerung |
 | § 224 AO | https://www.gesetze-im-internet.de/ao_1977/__224.html | Zahlung entrichtet: Bargeld bei Eingang, Scheck drei Tage danach (Abs. 2 Nr. 1); Überweisung bei Gutschrift (Nr. 2); SEPA-Lastschrift am Fälligkeitstag (Nr. 3) | Text | Fristende |
 | § 240 AO | https://www.gesetze-im-internet.de/ao_1977/__240.html | 1 % je angefangenem Monat, Abrundung auf 50 € (Abs. 1); keine Erhebung bis drei Tage, außer § 224 Abs. 2 Nr. 1 (Abs. 3) | Text | Fristende, Zahlungsanker |
-| § 328 AO | https://www.gesetze-im-internet.de/ao_1977/__328.html | Zwangsmittel zur Durchsetzung eines Verwaltungsakts auf Vornahme einer Handlung | Text | ebilanz, fragebogen-steuerliche-erfassung |
-| § 329 AO | https://www.gesetze-im-internet.de/ao_1977/__329.html | Zwangsgeld höchstens 25.000 € je Festsetzung | Text | ebilanz, fragebogen-steuerliche-erfassung |
+| § 328 AO | https://www.gesetze-im-internet.de/ao_1977/__328.html | Zwangsmittel zur Durchsetzung eines Verwaltungsakts auf Vornahme einer Handlung | Text | ebilanz, ebilanz-eroeffnung, fragebogen-steuerliche-erfassung |
+| § 329 AO | https://www.gesetze-im-internet.de/ao_1977/__329.html | Zwangsgeld höchstens 25.000 € je Festsetzung | Text | ebilanz, ebilanz-eroeffnung, fragebogen-steuerliche-erfassung |
 | § 377 AO | https://www.gesetze-im-internet.de/ao_1977/__377.html | Erster Teil des OWiG gilt für Steuerordnungswidrigkeiten (Abs. 2) | Text | ustva; monatsabschluss/ustva |
 | § 380 AO | https://www.gesetze-im-internet.de/ao_1977/__380.html | Gefährdung der Abzugsteuern, Geldbuße bis 25.000 € | Text | lohnsteuer-anmeldung, kapitalertragsteuer |
 | Art. 97 § 36 EGAO | https://www.gesetze-im-internet.de/aoeg_1977/art_97__36.html | Übergangsfristen 2020–2024 (Abs. 3), Berater-Frist 2024: 30.04.2026 | Text | kst-erklaerung |
@@ -1316,7 +1314,7 @@ ein Abschnitt je Pflichtart mit Anker `<a id="<art>"></a>`). Alle Links am
 | § 46 UStDV | https://www.gesetze-im-internet.de/ustdv_1980/__46.html | Dauerfristverlängerung einen Monat | Text | ustva |
 | § 47 UStDV | https://www.gesetze-im-internet.de/ustdv_1980/__47.html | SVZ nur Monatszahler, 1/11, Teiljahr, Beginn (Abs. 1–3) | Text | sondervorauszahlung |
 | § 48 UStDV | https://www.gesetze-im-internet.de/ustdv_1980/__48.html | Antrag bis zur ersten betroffenen VA mit SVZ (Abs. 1); jährlich bis zur ersten VA berechnen, anmelden und entrichten (Abs. 2); Festsetzung (Abs. 3) | Text | sondervorauszahlung |
-| § 5b EStG | https://www.gesetze-im-internet.de/estg/__5b.html | E-Bilanz nach amtlichem Datensatz mit unverdichteten Kontennachweisen (Abs. 1 Satz 1); Verzicht bei Härte, § 150 Abs. 8 AO entsprechend (Abs. 2) | Text | ebilanz |
+| § 5b EStG | https://www.gesetze-im-internet.de/estg/__5b.html | E-Bilanz nach amtlichem Datensatz mit unverdichteten Kontennachweisen (Abs. 1 Satz 1); bei Eröffnung des Betriebs Sätze 1 bis 3 entsprechend, ohne eigene Frist (Abs. 1 Satz 4); Verzicht bei Härte, § 150 Abs. 8 AO entsprechend (Abs. 2) | Text 19.10.2026 | ebilanz, ebilanz-eroeffnung |
 | § 37 EStG | https://www.gesetze-im-internet.de/estg/__37.html | Vorauszahlungstermine 10.03./06./09./12. (Abs. 1); Festsetzung durch Bescheid (Abs. 3) | Text | kst-vorauszahlung |
 | § 41a EStG | https://www.gesetze-im-internet.de/estg/__41a.html | LSt-Anmeldung und Abführung am 10. Tag (Abs. 1 Satz 1 Nr. 1, 2); Befreiung ohne Arbeitnehmer nach Mitteilung (Abs. 1 Satz 4); Zeitraum nach abzuführender Lohnsteuer des Vorjahres, 1.080 € und 5.000 € (Abs. 2) | Text | lohnsteuer-anmeldung; lohn/SKILL |
 | § 43 EStG | https://www.gesetze-im-internet.de/estg/__43.html | Kapitalertragsteuer auf Gewinnanteile (Abs. 1 Satz 1 Nr. 1) | Text | kapitalertragsteuer |
@@ -1335,8 +1333,10 @@ ein Abschnitt je Pflichtart mit Anker `<a id="<art>"></a>`). Alle Links am
 | § 12 HGB | https://www.gesetze-im-internet.de/hgb/__12.html | Dokumente elektronisch einreichen (Abs. 2) | Text | gesellschafterliste |
 | § 239 HGB | https://www.gesetze-im-internet.de/hgb/__239.html | Unveränderbarkeit (Abs. 3) | Text | monatsfestschreibung |
 | § 240 HGB | https://www.gesetze-im-internet.de/hgb/__240.html | Inventar zum Schluss des Geschäftsjahres in angemessener Zeit (Abs. 2) | Text | bilanzstichtag |
-| § 242 HGB | https://www.gesetze-im-internet.de/hgb/__242.html | Bilanz und GuV (Abs. 1, 2) | Text | bilanzstichtag |
-| § 245 HGB | https://www.gesetze-im-internet.de/hgb/__245.html | Unterzeichnung mit Datum | Text | aufstellung |
+| § 242 HGB | https://www.gesetze-im-internet.de/hgb/__242.html | Bilanz und GuV (Abs. 1, 2); Eröffnungsbilanz zu Beginn des Handelsgewerbes, Vorschriften über die Bilanz des Jahresabschlusses entsprechend (Abs. 1 Satz 1, 2) | Text 19.10.2026 | bilanzstichtag, eroeffnungsbilanz |
+| § 243 HGB | https://www.gesetze-im-internet.de/hgb/__243.html | Aufstellung in der einem ordnungsmäßigen Geschäftsgang entsprechenden Zeit (Abs. 3) | Text 19.10.2026 | eroeffnungsbilanz |
+| § 245 HGB | https://www.gesetze-im-internet.de/hgb/__245.html | Unterzeichnung mit Datum | Text | aufstellung, eroeffnungsbilanz |
+| § 257 HGB | https://www.gesetze-im-internet.de/hgb/__257.html | Eröffnungsbilanzen aufbewahren (Abs. 1 Nr. 1), nicht nur als Wiedergabe (Abs. 3), zehn Jahre (Abs. 4) | Text 19.10.2026 | eroeffnungsbilanz |
 | § 264 HGB | https://www.gesetze-im-internet.de/hgb/__264.html | Aufstellung in drei Monaten, kleine bis sechs Monate (Abs. 1 Satz 3, 4) | Text | aufstellung |
 | § 267a HGB | https://www.gesetze-im-internet.de/hgb/__267a.html | Kleinst-Merkmale 450.000/900.000/10 (Abs. 1); kleine Regeln gelten (Abs. 2); Holding ohne Eingriff in die Verwaltung der Töchter keine Kleinstgesellschaft, Gesellschafterrechte zählen nicht (Abs. 3 Nr. 3) | Text | aufstellung, offenlegung; jahresabschluss/SKILL, jahresabschluss/aufstellen-feststellen-offenlegen |
 | § 325 HGB | https://www.gesetze-im-internet.de/hgb/__325.html | festgestellter Abschluss an das Unternehmensregister (Abs. 1); ein Jahr (Abs. 1a); Änderungen (Abs. 1b) | Text | feststellung, offenlegung |
@@ -1363,7 +1363,7 @@ ein Abschnitt je Pflichtart mit Anker `<a id="<art>"></a>`). Alle Links am
 | § 1 GewAnzV | https://www.gesetze-im-internet.de/gewanzv_2014/__1.html | Vordruck Anlage 1 bei Betriebsbeginn (Nr. 1) | Text | gewerbeanmeldung |
 | § 2 GewAnzV | https://www.gesetze-im-internet.de/gewanzv_2014/__2.html | elektronische Gewerbeanzeige, Identitätsprüfung | Text | gewerbeanmeldung |
 | § 283 StGB | https://www.gesetze-im-internet.de/stgb/__283.html | Strafbarkeit nur bei Zahlungseinstellung, Insolvenz oder Abweisung mangels Masse (Abs. 6) | Text | bilanzstichtag |
-| § 283b StGB | https://www.gesetze-im-internet.de/stgb/__283b.html | Bilanz oder Inventar nicht in der vorgeschriebenen Zeit (Abs. 1 Nr. 3 Buchst. b); § 283 Abs. 6 entsprechend (Abs. 3) | Text | bilanzstichtag, aufstellung |
+| § 283b StGB | https://www.gesetze-im-internet.de/stgb/__283b.html | Bilanz oder Inventar nicht in der vorgeschriebenen Zeit (Abs. 1 Nr. 3 Buchst. b); § 283 Abs. 6 entsprechend (Abs. 3) | Text 19.10.2026 | bilanzstichtag, aufstellung, eroeffnungsbilanz |
 
 ### Verwaltungsanweisungen und amtliche Stellen
 
@@ -1422,7 +1422,7 @@ Code von Buchfink:
 |---|---|
 | `internal/domain/obligation.go` | Pflichtarten als Anker-Schlüssel; Status offen/vorbereitet/erledigt/überfällig/entfällt; Kanäle; Zuständigkeit; Nachweisarten; Anlässe |
 | `internal/service/obligation_catalog.go` | je Art Grundlage, Rhythmus, Kanal, Zuständigkeit, Herkunft des Nachweises, Verschiebung nach § 108 AO |
-| `internal/service/obligation_rules.go` | Fälligkeiten: Berater-Frist und Übergangsjahre, Größenklasse für 3/6 und 8/11 Monate, E-Bilanz im Kalenderjahr des Wirtschaftsjahresendes, Kapitalertragsteuer am Tag nach dem Beschluss, Vorauszahlungen nur mit Bescheid oder Zahlungshistorie, LSt-Zeitraum aus 3730 |
+| `internal/service/obligation_rules.go` | Fälligkeiten: Berater-Frist und Übergangsjahre, Größenklasse für 3/6 und 8/11 Monate, E-Bilanz im Kalenderjahr des Wirtschaftsjahresendes, Kapitalertragsteuer am Tag nach dem Beschluss, Vorauszahlungen nur mit Bescheid oder Zahlungshistorie, LSt-Zeitraum aus 3730; Eröffnungsbilanz drei Monate nach der Beurkundung, ihre E-Bilanz mit der Frist der E-Bilanz des ersten Geschäftsjahres, beide nur bei einer Gründung in Buchfink |
 | `internal/service/obligation_service.go` | Bestätigen, Entfallen und Zurücknehmen nur durch den Menschen; „vorbereitet“ auch durch einen verbundenen Agenten |
 | `internal/service/check_service.go` (`CommitDueDate`) | Frist der Monatsfestschreibung: Ende Folgemonat, mit Dauerfristverlängerung + 1 Monat, plus Nachfrist |
 | `internal/service/task_service.go` (`addObligations`, `commitOpenFrom`) | Pflichten in `aufgaben`; Festschreibung ab dem 10. des Folgemonats als offene Aufgabe |

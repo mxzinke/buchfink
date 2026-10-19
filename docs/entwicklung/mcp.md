@@ -176,7 +176,7 @@ aus `Toolbox.OutputSchema`, `TestCatalogStaysSmall` hält den Katalog unter
 | `beleg_buchen` | direkt | Eingangsrechnung buchen, nur Routine |
 | `bankumsatz_zuordnen` | direkt | Bankumsatz mit genau einem offenen Posten ausgleichen, nur Routine |
 | `erklaerung_exportieren` | direkt | Jahreserklärung als JSON in den Exportordner |
-| `ebilanz_exportieren` | direkt | E-Bilanz prüfen und in den Exportordner: `format` `xbrl` (Vorgabe) oder `susa_csv`; bei abweichender Steuerbilanz nennt `ueberleitung`, was die Liste nicht enthält |
+| `ebilanz_exportieren` | direkt | E-Bilanz prüfen und in den Exportordner: `format` `xbrl` (Vorgabe) oder `susa_csv`; bei abweichender Steuerbilanz nennt `ueberleitung`, was die Liste nicht enthält; `bilanzart: eroeffnungsbilanz` schreibt die Eröffnungsbilanz, `jahr` ist dann das Geschäftsjahr der Gründung |
 | `pflicht_vorbereitet` | direkt | Pflicht als vorbereitet melden, nie als erledigt |
 | `standardgruppe_vorschlagen` | direkt | Standard-Buchungsgruppe eines Lieferanten vorschlagen |
 | `beleg_buchen_mit_rueckfrage` | rueckfrage | Eingangsbeleg in allen Nicht-Routinefällen, auch Auslage; ergänzt fehlende Kopfdaten und berichtigt `eingang_am` |
@@ -198,9 +198,10 @@ Eine Auslage eines Gesellschafters bucht `beleg_buchen_mit_rueckfrage` mit
 `bezahlung: auslage`; ein eigenes Werkzeug gibt es dafür nicht.
 
 `fristen` nimmt als Art und im Schlüssel auch den Anker aus `pflichten.md` an.
-Bei vier Arten weicht er ab: `festschreibung` hat den Anker
+Bei fünf Arten weicht er ab: `festschreibung` hat den Anker
 `monatsfestschreibung`, `abschlussbuchungen` `bilanzstichtag`, `e-bilanz`
-`ebilanz` und `steuerliche-erfassung` `fragebogen-steuerliche-erfassung`.
+`ebilanz`, `e-bilanz-eroeffnung` `ebilanz-eroeffnung` und
+`steuerliche-erfassung` `fragebogen-steuerliche-erfassung`.
 
 Als erledigt gilt eine Vorauszahlung erst mit einer Zahlung, die vom Bankkonto
 kommt oder die der Mensch gebucht hat. Eine Handbuchung eines Agenten belegt
@@ -384,7 +385,11 @@ Saldo im Soll positiv). `Taxonomie` ist die Position, unter der das Konto im
 Kontennachweis der Instanz steht; Konten und Salden sind dieselben, Konten
 ohne Saldo entfallen. Weicht die Steuerbilanz ab, hat die Liste die Salden
 der Handelsbilanz; `ueberleitung` und `hinweis` nennen die Abweichungen, die
-der Mensch im Dienst nachträgt.
+der Mensch im Dienst nachträgt. Mit `bilanzart: eroeffnungsbilanz` heißen die
+Dateien `e-bilanz-eroeffnung-<Jahr>-<Hash>.xml` und
+`ebilanz-eroeffnung-<Jahr>-susa.csv`; die Bilanzart steht im Dienst
+(`EBilanzOptions.Kind`), der das Gründungsdatum der Unternehmensdaten als
+Stichtag nimmt und jedes andere Jahr als das der Gründung abweist.
 
 ## Live-Aktualisierung
 

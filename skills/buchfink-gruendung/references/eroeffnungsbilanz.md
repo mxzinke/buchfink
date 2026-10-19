@@ -64,10 +64,18 @@ hat.
 
 ## 5. Unterzeichnen, aufbewahren, übermitteln
 
+- `fristen` führt Aufstellung und Übermittlung als Pflichten
+  `eroeffnungsbilanz` und `e-bilanz-eroeffnung`; Frist, Weg und Nachweis
+  stehen in buchfink-grundlagen, references/pflichten.md, in den Abschnitten
+  [eroeffnungsbilanz](../../buchfink-grundlagen/references/pflichten.md#eroeffnungsbilanz)
+  und [ebilanz-eroeffnung](../../buchfink-grundlagen/references/pflichten.md#ebilanz-eroeffnung).
+  Sind die vier Punkte aus Abschnitt 4 erfüllt, meldest du beide mit
+  `pflicht_vorbereitet`.
 - Der Jahresabschluss ist vom Kaufmann mit Datum zu unterzeichnen
   ([§ 245 HGB][hgb245]); über [§ 242 Abs. 1 Satz 2 HGB][hgb242] gilt das
   entsprechend für die Eröffnungsbilanz. Für die GmbH unterzeichnen die
-  Geschäftsführer. Das tut der Mensch.
+  Geschäftsführer. Das tut der Mensch; danach bestätigt er die Pflicht
+  `eroeffnungsbilanz` in der App.
 - Die Eröffnungsbilanz ist zehn Jahre aufzubewahren
   ([§ 147 Abs. 1 Nr. 1, Abs. 3 AO][ao147]) und darf nicht nur als Wiedergabe
   auf einem Bild- oder Datenträger aufbewahrt werden
@@ -76,10 +84,11 @@ hat.
   das Original.
 - Bei Eröffnung des Betriebs ist auch die Eröffnungsbilanz elektronisch an das
   Finanzamt zu übermitteln ([§ 5b Abs. 1 Satz 4 EStG][estg5b]). Taxonomie und
-  Übermittlungsweg regelt buchfink-steuererklaerungen. `ebilanz_exportieren`
-  schreibt die Bilanz eines Geschäftsjahres; für die Eröffnungsbilanz gibt es
-  noch keinen Export. Der Mensch erfasst sie im Online-Dienst, oder ein
-  Steuerberater übermittelt sie.
+  Übermittlungsweg regelt buchfink-steuererklaerungen.
+  `ebilanz_exportieren` mit `bilanzart: eroeffnungsbilanz` und dem
+  Geschäftsjahr der Gründung als `jahr` schreibt sie als XBRL-Datei auf den
+  Beurkundungstag, ohne GuV. Der Mensch übermittelt sie über den Online-Dienst,
+  oder ein Steuerberater übermittelt sie.
 
 ## 6. Bestehende GmbH wechselt zu Buchfink
 

@@ -77,14 +77,19 @@ Zahl vorläufig.
 ## Eröffnungsbilanz
 
 Bei einer Gründung stellt Buchfink die Eröffnungsbilanz aus den Buchungen bis
-zum Tag der Beurkundung auf und setzt sie als PDF; gebucht wird dafür nichts
-Zusätzliches. Als E-Bilanz lässt sie sich ebenfalls ausgeben.
+zum Tag der Beurkundung auf (`FoundationService.OpeningBalance`); gebucht wird
+dafür nichts Zusätzliches. Als E-Bilanz ([§ 5b Abs. 1 Satz 4 EStG][estg5b])
+geben sie die App bei der E-Bilanz des ersten Geschäftsjahres und
+`ebilanz_exportieren` mit `bilanzart: eroeffnungsbilanz` aus. Der
+Pflichtenkalender führt Aufstellung und E-Bilanz der Eröffnungsbilanz als
+Pflichten ([Pflichten und Erklärungen](pflichten-und-erklaerungen.md)).
 
 Beim Umstieg bucht Buchfink die Eröffnungsbilanz gegen die Saldenvortragskonten
 **9000** (Sachkonten), **9008** (Debitoren) und **9009** (Kreditoren). Offene
 Posten werden einzeln mit Nummer und Fälligkeit übernommen, damit sie sich im
 ersten Jahr ausgleichen lassen. Die Buchungen entstehen alle oder keine.
 
+[estg5b]: https://www.gesetze-im-internet.de/estg/__5b.html
 [gmbhg5a]: https://www.gesetze-im-internet.de/gmbhg/__5a.html
 [gmbhg7]: https://www.gesetze-im-internet.de/gmbhg/__7.html
 [gmbhg11]: https://www.gesetze-im-internet.de/gmbhg/__11.html

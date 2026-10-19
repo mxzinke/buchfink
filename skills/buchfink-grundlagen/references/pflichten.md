@@ -2,7 +2,8 @@
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von AO, EGAO, UStG, UStDV, EStG, EStDV,
 KStG, SolZG, GewStG, HGB, GmbHG, GwG, TrGebV, GewO, GewAnzV, SGB VII, StGB,
-OWiG und BGB am 17.10.2026 gelesen. GoBD: BMF-Schreiben vom 28.11.2019 in der
+OWiG und BGB am 17.10.2026 gelesen, für die Eröffnungsbilanz § 5b EStG,
+§§ 242, 243, 257 HGB und § 283b StGB am 19.10.2026. GoBD: BMF-Schreiben vom 28.11.2019 in der
 Fassung vom 14.07.2025 ([Text 2019][gobd], Änderungen [2024][gobd2024] und
 [2025][gobd2025]); die hier zitierten Randziffern sind unverändert. Wege nach
 den Seiten von ELSTER, BZSt, Publikations-Plattform des Unternehmensregisters,
@@ -11,9 +12,10 @@ Transparenzregister, eBilanz+ und eBilanz-Online vom selben Tag.
 Jeder Abschnitt einer Pflicht beginnt mit einem Anker `<a id="<anker>"></a>`.
 `fristen` nennt ihn je Pflicht im Feld `anker` und im `verweis`
 (`buchfink-grundlagen/references/pflichten.md#<anker>`). Meist ist der Anker
-die Art der Pflicht. Bei vier Arten weicht er ab: `festschreibung` hat den Anker
+die Art der Pflicht. Bei fünf Arten weicht er ab: `festschreibung` hat den Anker
 `monatsfestschreibung`, `abschlussbuchungen` `bilanzstichtag`, `e-bilanz`
-`ebilanz` und `steuerliche-erfassung` `fragebogen-steuerliche-erfassung`.
+`ebilanz`, `e-bilanz-eroeffnung` `ebilanz-eroeffnung` und
+`steuerliche-erfassung` `fragebogen-steuerliche-erfassung`.
 Suche im Text nach `id="<anker>"`.
 
 ## Inhalt
@@ -33,7 +35,8 @@ Suche im Text nach `id="<anker>"`.
 6. Anlässe und Gründung: [transparenzregister](#transparenzregister),
    [gesellschafterliste](#gesellschafterliste),
    [fragebogen-steuerliche-erfassung](#fragebogen-steuerliche-erfassung),
-   [gewerbeanmeldung](#gewerbeanmeldung), [kapitalertragsteuer](#kapitalertragsteuer)
+   [gewerbeanmeldung](#gewerbeanmeldung), [eroeffnungsbilanz](#eroeffnungsbilanz),
+   [ebilanz-eroeffnung](#ebilanz-eroeffnung), [kapitalertragsteuer](#kapitalertragsteuer)
 
 ## Arbeiten mit `fristen`
 
@@ -129,8 +132,8 @@ Mit und ohne Steuerberater:
   gesetzliche Datum. Fällt es auf Samstag, Sonntag oder Feiertag, nenne dem
   Menschen den nächsten Werktag als Fristende.
 - **Fristen aus HGB, GmbHG, GwG und GewO** (Aufstellung, Feststellung,
-  Ergebnisverwendung, Offenlegung, Transparenzregister, Gesellschafterliste,
-  Gewerbeanzeige): § 108 Abs. 3 AO gilt dort nicht. Ob [§ 193 BGB][bgb193]
+  Ergebnisverwendung, Offenlegung, Eröffnungsbilanz, Transparenzregister,
+  Gesellschafterliste, Gewerbeanzeige): § 108 Abs. 3 AO gilt dort nicht. Ob [§ 193 BGB][bgb193]
   das Ende auf den nächsten Werktag verschiebt, ist für diese Pflichten nicht
   geklärt. Buchfink rechnet vorsichtshalber ohne Verschiebung; plane mit dem
   Kalenderdatum.
@@ -824,6 +827,79 @@ Mit und ohne Steuerberater:
 - **Vertiefung:** [buchfink-gruendung/references/gruendungsweg.md](../../buchfink-gruendung/references/gruendungsweg.md),
   Abschnitt 4
 
+<a id="eroeffnungsbilanz"></a>
+## Aufstellung der Eröffnungsbilanz
+
+- **Grundlage:** [§ 242 Abs. 1 HGB][hgb242]; nach Satz 2 gelten die
+  Vorschriften über die Bilanz des Jahresabschlusses entsprechend, darunter
+  [§ 243 Abs. 3 HGB][hgb243] und [§ 245 HGB][hgb245]. Aufbewahrung
+  [§ 147 Abs. 1 Nr. 1, Abs. 3 AO][ao147], [§ 257 HGB][hgb257].
+- **Frist:** in der einem ordnungsmäßigen Geschäftsgang entsprechenden Zeit
+  ([§ 243 Abs. 3 HGB][hgb243]); eine feste Frist nennt das Gesetz nicht.
+  Buchfink setzt in Anlehnung an [§ 264 Abs. 1 Satz 3 HGB][hgb264] drei Monate
+  nach der Beurkundung an und sagt das im Hinweis der Pflicht. Keine
+  Verschiebung nach § 108 AO. Mit Berater gleich. `fristen` führt die Pflicht
+  nur für eine Gesellschaft, die in Buchfink gegründet wurde
+  (`eroeffnungsbilanz.gruendung`), nicht für einen Umsteiger.
+- **Zuständig:** Mensch (Geschäftsführung); du prüfst die Zahlen. Kanal:
+  intern.
+- **Weg:**
+  1. Du prüfst die Bilanz zum Beurkundungstag nach buchfink-gruendung und
+     meldest `pflicht_vorbereitet`.
+  2. Die Geschäftsführer unterzeichnen sie mit Datum
+     ([§ 245 HGB][hgb245]).
+  3. Der Mensch speichert die unterzeichnete Fassung in den Eingang, du legst
+     sie auf seine Anweisung mit `beleg_ablegen` ab. Das Original bewahrt er
+     auf ([§ 257 Abs. 3 HGB][hgb257]).
+  4. Er bestätigt die Pflicht in der App (Unternehmen, Stammdaten, Block
+     „Gesellschafter & Kapital“).
+- **Buchfink liefert:** Salden der Gründungskonten zum Beurkundungstag über
+  `auswertung`. Ein Dokument zum Unterzeichnen setzt Buchfink nicht; entwirf
+  es aus diesen Salden.
+- **Nachweis:** Bestätigung in der App; du meldest höchstens „vorbereitet“.
+- **Bei Versäumnis:** Strafbar ist, wer die Bilanz seines Vermögens nicht in
+  der vorgeschriebenen Zeit aufstellt, wenn die Gesellschaft ihre Zahlungen
+  einstellt oder ein Insolvenzverfahren eröffnet oder mangels Masse abgelehnt
+  wird ([§ 283b Abs. 1 Nr. 3 Buchst. b, Abs. 3 StGB][stgb283b],
+  [§ 283 Abs. 6 StGB][stgb283]). Die Eröffnungsbilanz ist eine solche Bilanz
+  ([§ 242 Abs. 1 Satz 1 HGB][hgb242]). Ohne sie fehlt auch die E-Bilanz der
+  Eröffnungsbilanz ([ebilanz-eroeffnung](#ebilanz-eroeffnung)).
+- **Vertiefung:** [buchfink-gruendung/references/eroeffnungsbilanz.md](../../buchfink-gruendung/references/eroeffnungsbilanz.md)
+
+<a id="ebilanz-eroeffnung"></a>
+## E-Bilanz der Eröffnungsbilanz
+
+- **Grundlage:** [§ 5b Abs. 1 Satz 4 EStG][estg5b]: bei Eröffnung des
+  Betriebs gelten die Sätze 1 bis 3 entsprechend.
+- **Frist:** Eine eigene Frist nennt das Gesetz nicht. Buchfink setzt die
+  Frist der E-Bilanz des ersten Geschäftsjahres an ([ebilanz](#ebilanz)), also
+  die der Körperschaftsteuererklärung des Kalenderjahres, in dem dieses
+  Geschäftsjahr endet, mit Berater die Berater-Frist. Das ist die späteste
+  vertretbare Annahme; früher zu übermitteln ist möglich. § 108 Abs. 3 AO
+  gilt. `fristen` führt die Pflicht wie die Eröffnungsbilanz nur für eine
+  Gründung in Buchfink (`e-bilanz-eroeffnung.gruendung`).
+- **Zuständig:** du bereitest vor; der Mensch übermittelt oder der Berater.
+  Kanal: Online-Dienst mit ELSTER-Anbindung wie bei der [ebilanz](#ebilanz);
+  Mein ELSTER hat kein Formular.
+- **Weg:**
+  1. Die Gründungsbuchungen stehen; die Eröffnungsbilanz geht auf
+     ([eroeffnungsbilanz](#eroeffnungsbilanz)).
+  2. `ebilanz_exportieren` (`jahr`: Geschäftsjahr der Gründung,
+     `bilanzart: eroeffnungsbilanz`): Buchfink prüft und schreibt die
+     XBRL-Datei mit der Bilanzart Eröffnungsbilanz, ohne GuV, in den
+     Exportordner.
+  3. Der Mensch importiert sie im Online-Dienst, validiert und sendet wie bei
+     der [ebilanz](#ebilanz).
+  4. Er trägt das Transferticket in Buchfink ein (Abschlüsse, Erklärungen,
+     Zeile „E-Bilanz der Eröffnungsbilanz“).
+- **Buchfink liefert:** XBRL-Datei der Eröffnungsbilanz auf den
+  Beurkundungstag, vor dem Export geprüft (`befunde`).
+- **Nachweis:** Transferticket; der Mensch bestätigt in der App.
+- **Bei Versäumnis:** Das Finanzamt kann die Übermittlung mit Zwangsgeld
+  durchsetzen, je Festsetzung bis 25.000 € ([§§ 328, 329 AO][ao328]).
+- **Vertiefung:** [buchfink-steuererklaerungen/references/ebilanz.md](../../buchfink-steuererklaerungen/references/ebilanz.md),
+  Abschnitt 6
+
 <a id="kapitalertragsteuer"></a>
 ## Kapitalertragsteuer auf eine Ausschüttung
 
@@ -875,6 +951,7 @@ Mit und ohne Steuerberater:
 [ao137]: https://www.gesetze-im-internet.de/ao_1977/__137.html
 [ao138]: https://www.gesetze-im-internet.de/ao_1977/__138.html
 [ao146]: https://www.gesetze-im-internet.de/ao_1977/__146.html
+[ao147]: https://www.gesetze-im-internet.de/ao_1977/__147.html
 [ao149]: https://www.gesetze-im-internet.de/ao_1977/__149.html
 [ao150]: https://www.gesetze-im-internet.de/ao_1977/__150.html
 [ao152]: https://www.gesetze-im-internet.de/ao_1977/__152.html
@@ -922,7 +999,9 @@ Mit und ohne Steuerberater:
 [hgb239]: https://www.gesetze-im-internet.de/hgb/__239.html
 [hgb240]: https://www.gesetze-im-internet.de/hgb/__240.html
 [hgb242]: https://www.gesetze-im-internet.de/hgb/__242.html
+[hgb243]: https://www.gesetze-im-internet.de/hgb/__243.html
 [hgb245]: https://www.gesetze-im-internet.de/hgb/__245.html
+[hgb257]: https://www.gesetze-im-internet.de/hgb/__257.html
 [hgb264]: https://www.gesetze-im-internet.de/hgb/__264.html
 [hgb267a]: https://www.gesetze-im-internet.de/hgb/__267a.html
 [hgb325]: https://www.gesetze-im-internet.de/hgb/__325.html

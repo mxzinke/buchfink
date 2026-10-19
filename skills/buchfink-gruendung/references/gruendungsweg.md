@@ -1,7 +1,7 @@
 # Gründungsweg und Behördenwege
 
-Rechtsstand: 17. Oktober 2026. Wortlaut von GmbHG, HGB, AO, EStDV, GewO, GwG,
-SGB IV, SGB VII und IHKG am 17.10.2026 gelesen.
+Rechtsstand: 19. Oktober 2026. Wortlaut von GmbHG, HGB, AO, EStDV, GewO, GwG,
+SGB IV, SGB VII und IHKG am 17.10.2026 gelesen, § 5b EStG am 19.10.2026.
 
 ## Inhalt
 
@@ -87,6 +87,8 @@ stehen in buchfink-grundlagen, references/pflichten.md, im Abschnitt der Art:
 | Fragebogen zur steuerlichen Erfassung ([§ 137 AO][ao137], [§ 138 Abs. 1b, 4 AO][ao138]) | `fragebogen-steuerliche-erfassung` | an das Finanzamt am Ort der Geschäftsleitung ([§ 20 Abs. 1 AO][ao20]); Inhalt: Referenz zur steuerlichen Erfassung |
 | Gewerbeanzeige ([§ 14 Abs. 1 Satz 1 GewO][gewo14]) | `gewerbeanmeldung` | die Gemeinde unterrichtet das Finanzamt ([§ 138 Abs. 1 Satz 1 AO][ao138]); Wertungsfrage bei rein freiberuflichem Gegenstand |
 | Mitteilung an das Transparenzregister ([§ 20 Abs. 1 GwG][gwg20]) | `transparenzregister` | Pflicht der juristischen Person; die GmbH besteht als solche erst mit der Eintragung ([§ 11 Abs. 1 GmbHG][gmbhg11]); Berechtigte nach [§ 3 Abs. 2 GwG][gwg3], unten |
+| Aufstellung der Eröffnungsbilanz ([§ 242 Abs. 1 HGB][hgb242]) | `eroeffnungsbilanz` | auf den Beurkundungstag; Prüfen und Unterzeichnen: [eroeffnungsbilanz.md](eroeffnungsbilanz.md) |
+| E-Bilanz der Eröffnungsbilanz ([§ 5b Abs. 1 Satz 4 EStG][estg5b]) | `ebilanz-eroeffnung` | `ebilanz_exportieren` mit `bilanzart: eroeffnungsbilanz`; Übermittlung über einen Online-Dienst wie die E-Bilanz des Jahres |
 
 Diese Wege führt `fristen` nicht:
 
@@ -123,6 +125,7 @@ gilt der gesetzliche Vertreter als wirtschaftlich Berechtigter
 [ao137]: https://www.gesetze-im-internet.de/ao_1977/__137.html
 [ao138]: https://www.gesetze-im-internet.de/ao_1977/__138.html
 [estdv54]: https://www.gesetze-im-internet.de/estdv_1955/__54.html
+[estg5b]: https://www.gesetze-im-internet.de/estg/__5b.html
 [gewo14]: https://www.gesetze-im-internet.de/gewo/__14.html
 [gmbhg2]: https://www.gesetze-im-internet.de/gmbhg/__2.html
 [gmbhg3]: https://www.gesetze-im-internet.de/gmbhg/__3.html
@@ -140,6 +143,7 @@ gilt der gesetzliche Vertreter als wirtschaftlich Berechtigter
 [gwg3]: https://www.gesetze-im-internet.de/gwg_2017/__3.html
 [gwg20]: https://www.gesetze-im-internet.de/gwg_2017/__20.html
 [hgb12]: https://www.gesetze-im-internet.de/hgb/__12.html
+[hgb242]: https://www.gesetze-im-internet.de/hgb/__242.html
 [ihkg2]: https://www.gesetze-im-internet.de/ihkg/__2.html
 [sgb418i]: https://www.gesetze-im-internet.de/sgb_4/__18i.html
 [sgb7192]: https://www.gesetze-im-internet.de/sgb_7/__192.html

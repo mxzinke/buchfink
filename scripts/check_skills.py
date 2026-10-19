@@ -6,7 +6,7 @@ Aufruf: python3 -I scripts/check_skills.py [skills-Ordner]
 Prüft je Skill, dass jede Datei unter references/ aus SKILL.md verlinkt ist.
 Prüft in allen Markdown-Dateien: relative Links zeigen auf vorhandene Dateien
 und Anker, Referenz-Links sind definiert, Verweise `pflichten.md#<art>`
-treffen einen Anker. Prüft die 21 Anker in pflichten.md und meldet verbotene
+treffen einen Anker. Prüft die 23 Anker in pflichten.md und meldet verbotene
 Wörter. Frontmatter, Zeilenzahl, Plugin und Manifeste prüft
 scripts/package_skills.py.
 """
@@ -20,7 +20,8 @@ ANCHORS = [
     "lohnsteuer-anmeldung", "monatsfestschreibung", "bilanzstichtag", "aufstellung",
     "feststellung", "ergebnisverwendung", "ebilanz", "kst-erklaerung", "gewst-erklaerung",
     "ust-erklaerung", "offenlegung", "transparenzregister", "gesellschafterliste",
-    "fragebogen-steuerliche-erfassung", "gewerbeanmeldung", "kapitalertragsteuer",
+    "fragebogen-steuerliche-erfassung", "gewerbeanmeldung", "eroeffnungsbilanz", "ebilanz-eroeffnung",
+    "kapitalertragsteuer",
 ]
 FORBIDDEN = [re.compile(r"viking", re.I), re.compile(r"\bpincmd\b"), re.compile(r"myebilanz", re.I)]
 

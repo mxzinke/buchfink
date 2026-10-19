@@ -157,8 +157,12 @@ Berater also der Berater-Frist.
 Bei Eröffnung des Betriebs gilt die Pflicht auch für die Eröffnungsbilanz
 ([§ 5b Abs. 1 Satz 4 EStG][estg5b]). Die Taxonomie eines Jahres gilt für
 Eröffnungsbilanzen, die nach dem jeweiligen Stichtag aufzustellen sind
-([BMF 10.06.2025][bmf69]). Einen eigenen Abgabetermin nennt § 5b nicht; plane
-sie mit der ersten Steuererklärung ein (buchfink-gruendung).
+([BMF 10.06.2025][bmf69]). Einen eigenen Abgabetermin nennt § 5b nicht;
+`fristen` setzt die Frist der E-Bilanz des ersten Geschäftsjahres an (Anker
+`ebilanz-eroeffnung`). `ebilanz_exportieren` mit `bilanzart:
+eroeffnungsbilanz` und dem Geschäftsjahr der Gründung als `jahr` schreibt die
+XBRL-Datei auf den Beurkundungstag, ohne GuV; Import und Senden wie in
+Abschnitt 5. Die Zahlen prüft buchfink-gruendung.
 
 [ao150]: https://www.gesetze-im-internet.de/ao_1977/__150.html
 [estdv60]: https://www.gesetze-im-internet.de/estdv_1955/__60.html

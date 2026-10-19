@@ -185,6 +185,12 @@ ebilanzonline.de.
 4. Bestätigen Sie die Übermittlung in Buchfink mit „Übermittlung bestätigen“
    und dem Transferticket aus dem Protokoll des Dienstes.
 
+Wurde die Gesellschaft in Buchfink gegründet, geht auch die Eröffnungsbilanz
+an das Finanzamt. Im Geschäftsjahr der Gründung steht sie in derselben Ansicht
+über der E-Bilanz des Jahres: „Als XBRL exportieren“, beim Dienst hochladen und
+übermitteln, danach „Übermittlung bestätigen“. Die Frist steht im
+Pflichtenkalender.
+
 ## Rückmeldung geben
 
 Melden Sie Fehler und unverständliche Abläufe über die

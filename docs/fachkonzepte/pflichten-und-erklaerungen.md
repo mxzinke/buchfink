@@ -10,11 +10,11 @@ E-Bilanz vor. Übermitteln und bestätigen tut der Mensch.
 
 ## Pflichtenkalender
 
-Der Katalog (`service/obligation_catalog.go`) führt 21 Pflichtarten, von der
+Der Katalog (`service/obligation_catalog.go`) führt 23 Pflichtarten, von der
 Umsatzsteuer-Voranmeldung über Vorauszahlungen, Festschreibung, Aufstellung,
 Feststellung, Jahreserklärungen und E-Bilanz bis zu Offenlegung,
-Transparenzregister, Gesellschafterliste, Gründungsanzeigen und
-Kapitalertragsteuer. Jede Art hat:
+Transparenzregister, Gesellschafterliste, Gründungsanzeigen, Eröffnungsbilanz
+und Kapitalertragsteuer. Jede Art hat:
 
 | Merkmal | Inhalt |
 |---|---|
@@ -31,6 +31,18 @@ Feiertag fallen, verschieben sich auf den nächsten Werktag
 Sitzes (`internal/calendar`). Die Dauerfristverlängerung verschiebt
 Voranmeldung und Monatsfestschreibung um einen Monat, nicht aber die
 Zusammenfassende Meldung.
+
+**Gründung.** Liegt die Gründung im Zeitraum der Bücher, stehen
+Fragebogen zur steuerlichen Erfassung, Gewerbeanzeige, nach der Eintragung die
+Mitteilung an das Transparenzregister und die beiden Pflichten der
+Eröffnungsbilanz im Kalender; einem Umsteiger fehlen sie. Die Eröffnungsbilanz steht auf den Tag der Beurkundung. Ihre Aufstellung
+verlangt das Gesetz in der einem ordnungsmäßigen Geschäftsgang entsprechenden
+Zeit ([§ 242 Abs. 1 Satz 2][hgb242], [§ 243 Abs. 3 HGB][hgb243]), ohne feste
+Frist; Buchfink setzt in Anlehnung an [§ 264 Abs. 1 Satz 3 HGB][hgb264] drei
+Monate an, ohne Verschiebung, und erledigt ist sie mit der Bestätigung des
+Menschen. Für ihre E-Bilanz ([§ 5b Abs. 1 Satz 4 EStG][estg5b]) nennt das
+Gesetz ebenfalls keine Frist; Buchfink setzt die der E-Bilanz des ersten
+Geschäftsjahres an. Beide Pflichten nennen die gewählte Frist im Hinweis.
 
 **Steuerliche Beratung.** In den Unternehmensdaten steht, ob ein Steuerberater
 beauftragt ist, ab welchem Jahr und für welche Erklärungen
@@ -103,7 +115,14 @@ Saldenliste mit derselben Zuordnung.
   und zeigt das an. Ohne Auffangposition blockiert der Export.
 - **Inhalt.** Bilanz, GuV (wahlweise in der Form der Kleinstgesellschaft),
   Kontennachweis je Konto, Überleitung bei steuerlichen Abweichungen,
-  Ergebnisverwendung. Auch eine Eröffnungsbilanz lässt sich erzeugen.
+  Ergebnisverwendung.
+- **Eröffnungsbilanz.** Mit `EBilanzOptions.Kind` gleich
+  `ebilanz.KindOpening` erzeugt Buchfink die Bilanz ohne GuV auf das
+  Gründungsdatum der Unternehmensdaten, mit dem Stichtag als Beginn des
+  Wirtschaftsjahres. Sie gehört zum Geschäftsjahr, in das die Gründung fällt,
+  und entsteht nur aus Buchungen bis zu diesem Tag. Die App bietet den Export
+  bei der E-Bilanz dieses Geschäftsjahres an, Agenten über
+  `ebilanz_exportieren` mit `bilanzart: eroeffnungsbilanz`.
 - **Übermittlung.** Mein ELSTER hat kein Formular für die E-Bilanz. Der
   Mensch lädt die XBRL-Datei bei einem E-Bilanz-Dienst wie ebilanzplus.de oder
   ebilanzonline.de hoch und übermittelt dort. Wahlweise bettet Buchfink die
@@ -133,3 +152,6 @@ annimmt und die Finanzverwaltung sie akzeptiert, ist nicht belegt.
 [ao108]: https://www.gesetze-im-internet.de/ao_1977/__108.html
 [ao149]: https://www.gesetze-im-internet.de/ao_1977/__149.html
 [estg5b]: https://www.gesetze-im-internet.de/estg/__5b.html
+[hgb242]: https://www.gesetze-im-internet.de/hgb/__242.html
+[hgb243]: https://www.gesetze-im-internet.de/hgb/__243.html
+[hgb264]: https://www.gesetze-im-internet.de/hgb/__264.html

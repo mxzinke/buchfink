@@ -93,7 +93,7 @@ bleibt.
 | `beleg_buchen` | Eingangsrechnung buchen, nur Routine; `nur_vorschau` möglich |
 | `bankumsatz_zuordnen` | Bankumsatz mit genau einem offenen Posten ausgleichen, nur Routine |
 | `erklaerung_exportieren` | Jahreserklärung (`ust_jahr`, `kst`, `gewst`) als JSON in den Exportordner |
-| `ebilanz_exportieren` | E-Bilanz prüfen und in den Exportordner schreiben; `format`: `xbrl` (Vorgabe) oder `susa_csv` |
+| `ebilanz_exportieren` | E-Bilanz prüfen und in den Exportordner schreiben; `format`: `xbrl` (Vorgabe) oder `susa_csv`; `bilanzart: eroeffnungsbilanz` für die Eröffnungsbilanz einer Gründung |
 | `pflicht_vorbereitet` | Pflicht mit `schluessel` aus `fristen` und `notiz` als vorbereitet melden, nie als erledigt |
 | `standardgruppe_vorschlagen` | Standard-Buchungsgruppe eines Lieferanten vorschlagen; bestätigen kann nur der Mensch |
 
@@ -290,8 +290,7 @@ Rechnungskorrektur, Forderung ausbuchen, Versand vermerken, Rückzahlung einer
 Anzahlung im Rechnungsverbund, Pflege der Anlagenkartei (Kennung, Quote,
 Kennzeichen, Fondsart, Stückzahl; Abgang, außerplanmäßige Abschreibung,
 Zuschreibung, Ertrag, Vorabpauschale, Währung), Verwendungsanteil nach § 15a
-UStG, Eröffnungsbuchungen eines Umsteigers, E-Bilanz der Eröffnungsbilanz,
-CSV-Datei der ZM, Löschen nach Ablauf der Aufbewahrungsfrist. Sag dem
+UStG, Eröffnungsbuchungen eines Umsteigers, CSV-Datei der ZM, Löschen nach Ablauf der Aufbewahrungsfrist. Sag dem
 Menschen, dass Buchfink den Vorgang noch nicht kann, leg Sachverhalt,
 Grundlage und die nötige Buchung vor und weiche nicht auf `buchung_erfassen`
 aus, wo Buchfink ein Dokument oder eine Kartei mitführt.
