@@ -284,7 +284,7 @@ Mit und ohne Steuerberater:
   ([steuererklaerungen/bescheide.md](../steuererklaerungen/bescheide.md)).
 - **Buchfink liefert:** Termine aus `fristen`; Konten 7600 und 7608 über
   `konten`; Zuordnung der Zahlung nach
-  [bank/steuerzahlungen.md](../bank/steuerzahlungen.md).
+  [bank/steuerzahlungen.md](../bank/steuerzahlungen.md#2-konten-je-steuerart).
 - **Nachweis:** Buchung der Zahlung auf 7600 oder 7608 um den Termin (aus den
   Daten) oder Bestätigung durch den Menschen. Als Zahlung zählt nur eine, die
   vom Bankkonto kommt oder die der Mensch gebucht hat; deine Handbuchung belegt

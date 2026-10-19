@@ -242,7 +242,8 @@ Den Vorschlag zur Steuerrückstellung (`abschlussbuchung`,
 `art: steuerrueckstellung`) rechnet Buchfink nach denselben Regeln; seine
 Eingaben und Konten stehen in
 [jahresabschluss/steuern-im-abschluss.md](../jahresabschluss/steuern-im-abschluss.md).
-Eine Überzahlung weist er als Erstattung aus und bucht sie nicht. Bei einem
+Eine Überzahlung bucht er als Erstattungsanspruch, außer du gibst mit
+`kst_betrag` oder `gewst_betrag` einen abweichenden Betrag vor. Bei einem
 Verlust setzt Buchfink keine Steuer an.
 
 [ao20]: https://www.gesetze-im-internet.de/ao_1977/__20.html
