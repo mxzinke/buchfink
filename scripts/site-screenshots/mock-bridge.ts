@@ -3219,6 +3219,7 @@ export const bridge = {
   SubmitDeclaration: unsupported('SubmitDeclaration'),
   ExportDeclarationJSON: unsupported('ExportDeclarationJSON'),
   SaveFoundation: unsupported('SaveFoundation'),
+  SaveOpeningBalanceAs: () => later(`${DATA_DIR}/Export/Eroeffnungsbilanz.pdf`, 400),
   GetFoundationRules: () => later(FOUNDATION_RULES),
   ExportZ3: unsupported('ExportZ3'),
   ExportArchive: unsupported('ExportArchive'),

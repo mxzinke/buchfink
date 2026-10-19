@@ -215,6 +215,7 @@ export const bridge = {
   // Gründung
   GetFoundationState: <T>() => invoke<T>('GetFoundationState'),
   SaveFoundation: <T>(foundation: unknown) => invoke<T>('SaveFoundation', foundation),
+  SaveOpeningBalanceAs: () => invoke<string>('SaveOpeningBalanceAs'),
   GetFoundationRules: <T>() => invoke<T>('GetFoundationRules'),
   GetCountries: <T>() => invoke<T>('GetCountries'),
 

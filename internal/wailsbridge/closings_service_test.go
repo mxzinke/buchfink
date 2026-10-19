@@ -164,6 +164,30 @@ func TestOpeningEBilanzNeedsTheFoundingDate(t *testing.T) {
 	}
 }
 
+// Das PDF der Eröffnungsbilanz entsteht vor dem Speichern-Dialog: was ihr
+// fehlt, meldet sich, bevor jemand einen Ort sucht. Im Prüfermodus bleibt es
+// zu haben wie die E-Bilanz.
+func TestOpeningBalancePDFIsSetBeforeTheDialog(t *testing.T) {
+	b := testBridge(t)
+	if _, err := b.SaveOpeningBalanceAs(); err == nil || !strings.Contains(err.Error(), "Gründungsdatum") {
+		t.Errorf("ohne Gründungsdatum: %v", err)
+	}
+	if _, err := b.SaveFoundation(domain.Foundation{
+		NotarizedOn: "2026-01-15", ShareCapital: 2_500_000,
+		Shareholders: []domain.Shareholder{{Name: "Anna Bauer", ShareCapital: 2_500_000, PaidIn: 1_250_000,
+			Kind: domain.ContributionCash}},
+	}); err != nil {
+		t.Fatalf("Gründung: %v", err)
+	}
+	until := time.Now().AddDate(0, 0, 30).Format("2006-01-02")
+	if _, err := b.EnableReadOnly(until, "Betriebsprüfung 2026"); err != nil {
+		t.Fatalf("Prüfermodus: %v", err)
+	}
+	if _, err := b.SaveOpeningBalanceAs(); err == nil || !strings.Contains(err.Error(), "Zeichnung des Stammkapitals") {
+		t.Errorf("ohne Gründungsbuchungen im Prüfermodus: %v", err)
+	}
+}
+
 // Bestätigen, Entfallen, Übermitteln und das Bestätigen eines Vorschlags sind
 // der App vorbehalten.
 func TestClosingsDecisionsAreAppOnly(t *testing.T) {

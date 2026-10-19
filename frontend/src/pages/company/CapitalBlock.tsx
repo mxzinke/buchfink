@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { FileDown, Plus, Trash2 } from 'lucide-react';
 import { Api } from '../../services/api';
 import type {
   CompanySettings,
@@ -26,6 +26,7 @@ import {
   Thead,
   Tr,
   cn,
+  toast,
 } from '../../components/ui';
 import { EditPanel, Missing, ProfileBlock, PROFILE_LIST } from './ProfileBlock';
 import { capitalGaps } from '../../utils/profileGaps';
@@ -85,6 +86,8 @@ export const CapitalBlock: React.FC<{
   const [loanDialog, setLoanDialog] = useState<{ loan?: ShareholderLoanView } | null>(null);
   const [selectedLoan, setSelectedLoan] = useState<ShareholderLoanView | null>(null);
   const [foundationOpen, setFoundationOpen] = useState(false);
+  const [savingOpening, setSavingOpening] = useState(false);
+  const [openingError, setOpeningError] = useState('');
 
   const loadLoans = useCallback(() => {
     Api.getShareholderLoans()
@@ -120,6 +123,20 @@ export const CapitalBlock: React.FC<{
 
   const f = foundation?.foundation;
   const paidIn = f?.shareholders.reduce((sum, s) => sum + s.paidIn, 0) ?? 0;
+
+  // Ein Lesevorgang: der Knopf bleibt auch im Prüfermodus frei.
+  async function saveOpeningBalance() {
+    setSavingOpening(true);
+    setOpeningError('');
+    try {
+      const path = await Api.saveOpeningBalanceAs();
+      if (path) toast.success(`Eröffnungsbilanz gespeichert unter ${path}`);
+    } catch (e) {
+      setOpeningError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSavingOpening(false);
+    }
+  }
 
   return (
     <ProfileBlock
@@ -289,7 +306,21 @@ export const CapitalBlock: React.FC<{
       <ObligationList
         deadlines={obligationsOf(deadlines, COMPANY_OBLIGATIONS.gesellschafter)}
         onConfirmed={onReload}
+        action={(d) =>
+          d.key.startsWith('eroeffnungsbilanz.') && (
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<FileDown className="w-4 h-4" strokeWidth={1.5} />}
+              loading={savingOpening}
+              onClick={() => void saveOpeningBalance()}
+            >
+              Als PDF speichern
+            </Button>
+          )
+        }
       />
+      {openingError && <Notice tone="negative" className="mt-3" text={openingError} />}
 
       <EditPanel open={editing} title="Gesellschafter & Kapital" onClose={() => setEditing(false)} onSave={save}>
         <FormGrid>

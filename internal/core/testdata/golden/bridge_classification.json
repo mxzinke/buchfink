@@ -819,6 +819,11 @@
     "ExaminerAllowed": false,
     "Guarded": true
   },
+  "SaveOpeningBalanceAs": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
   "SaveOpeningEBilanzAs": {
     "AppOnly": false,
     "ExaminerAllowed": true,

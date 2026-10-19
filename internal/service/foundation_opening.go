@@ -278,7 +278,8 @@ func openingBalanceMarkdown(sheet *OpeningBalanceSheet) string {
 	b.WriteString(
 		"Die Zahlen stammen aus den Buchungen bis zu diesem Tag. Aufwendungen für die Gründung " +
 			"dürfen nicht aktiviert werden (§ 248 Abs. 1 Nr. 1 HGB); sie erscheinen deshalb in " +
-			"keiner Position dieser Aufstellung.\n")
+			"keiner Position dieser Aufstellung.\n\n")
+	b.WriteString("Alle Geschäftsführer unterzeichnen die Eröffnungsbilanz mit Datum (§ 245 HGB).\n")
 	return b.String()
 }
 

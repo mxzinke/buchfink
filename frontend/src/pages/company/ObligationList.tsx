@@ -16,11 +16,14 @@ function today(): string {
 /**
  * Pflichten, die Buchfink nicht aus den Daten erkennt: Anmeldungen bei Behörden
  * und Registern. Der Mensch bestätigt sie mit dem Tag der Erledigung.
+ * `action` setzt vor die Bestätigung, was eine Pflicht zusätzlich braucht,
+ * etwa das Dokument zum Unterzeichnen.
  */
-export const ObligationList: React.FC<{ deadlines: Deadline[]; onConfirmed: () => void }> = ({
-  deadlines,
-  onConfirmed,
-}) => {
+export const ObligationList: React.FC<{
+  deadlines: Deadline[];
+  onConfirmed: () => void;
+  action?: (deadline: Deadline) => React.ReactNode;
+}> = ({ deadlines, onConfirmed, action }) => {
   const writeLock = useWriteLock();
   const [confirming, setConfirming] = useState<Deadline | null>(null);
   const [date, setDate] = useState(today());
@@ -83,6 +86,7 @@ export const ObligationList: React.FC<{ deadlines: Deadline[]; onConfirmed: () =
               </span>
               <span className="flex items-center gap-3">
                 <StatusBadge status={done ? 'erledigt' : overdue ? 'ueberfaellig' : 'offen'} />
+                {action?.(d)}
                 {!done && d.confirmable && (
                   <Button
                     variant="secondary"

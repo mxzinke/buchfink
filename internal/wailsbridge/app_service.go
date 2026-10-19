@@ -659,3 +659,25 @@ func (b *BuchfinkBridge) RegisterCompany(date, court, number string) (*domain.Fo
 		return s.Foundation.Register(ctx, date, court, number)
 	}, core.AppOnly())
 }
+
+// SaveOpeningBalanceAs setzt die Eröffnungsbilanz als PDF zum Unterzeichnen
+// und schreibt sie an einen gewählten Ort. Gesetzt wird vor dem Dialog: eine
+// Bilanz, die nicht aufgeht oder der eine Angabe fehlt, meldet sich, bevor
+// jemand einen Speicherort sucht. Leer heißt: der Dialog wurde abgebrochen.
+func (b *BuchfinkBridge) SaveOpeningBalanceAs() (string, error) {
+	file, err := read(b, func(ctx context.Context, s *core.Services) (*service.OpeningBalanceFile, error) {
+		return s.Foundation.OpeningBalancePDF(ctx)
+	})
+	if err != nil {
+		return "", err
+	}
+	path, err := b.saveFileDialog("Eröffnungsbilanz speichern", file.FileName)
+	if err != nil || path == "" {
+		return "", err
+	}
+	if err := b.handOut(path, file.Data, "GRUENDUNG", "EROEFFNUNGSBILANZ",
+		fmt.Sprintf("Eröffnungsbilanz %s nach %s herausgegeben", file.FileName, path)); err != nil {
+		return "", err
+	}
+	return path, nil
+}

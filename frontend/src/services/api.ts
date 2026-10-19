@@ -945,6 +945,11 @@ export const Api = {
     call(() => Bridge.GetFoundationState() as Promise<FoundationState>),
   saveFoundation: (foundation: Partial<Foundation>): Promise<Foundation> =>
     call(() => Bridge.SaveFoundation(foundation as any) as Promise<Foundation>),
+  /**
+   * Setzt die Eröffnungsbilanz einer in Buchfink gegründeten Gesellschaft als
+   * PDF zum Unterzeichnen. Leer heißt: der Dialog wurde abgebrochen.
+   */
+  saveOpeningBalanceAs: (): Promise<string> => call(() => Bridge.SaveOpeningBalanceAs()),
   /** Die Kapitalaufbringungsregeln der Kapitalgesellschaften. */
   getFoundationRules: (): Promise<FoundationRules[]> =>
     call(() => Bridge.GetFoundationRules() as Promise<FoundationRules[]>),
