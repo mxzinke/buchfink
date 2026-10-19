@@ -320,7 +320,8 @@ func TestVatYearDeclarationFromTheJournal(t *testing.T) {
 }
 
 // Bezüge, die über die Anlagenkartei mit einem Anteil verknüpft sind, gehen
-// in § 8b KStG ein, auch wenn sie auf 7000 statt auf einem §-8b-Konto stehen.
+// in § 8b KStG ein, auch wenn sie auf 7000 statt auf einem §-8b-Konto stehen;
+// die Buchung hier wählt das Konto deshalb ausdrücklich.
 // Die im Jahr erworbene Tochter zeigt die zwei Stichtage: bei der
 // Körperschaftsteuer wirkt der Erwerb auf den Jahresbeginn zurück, bei der
 // Gewerbesteuer nicht (§ 8 Nr. 5 GewStG).
@@ -338,7 +339,7 @@ func TestDeclarationsUseTheAssetRegister(t *testing.T) {
 			return err
 		}
 		_, err = s.Assets.BookAssetIncome(ctx, service.AssetIncomeRequest{
-			AssetID: asset.ID, Date: "2026-05-15", Amount: 1_000_000,
+			AssetID: asset.ID, Date: "2026-05-15", Amount: 1_000_000, Account: "7000",
 			Settlement: service.SettlementPaid, PaymentAccount: domain.AccountBank, WithholdingTax: 263_750,
 		})
 		return err

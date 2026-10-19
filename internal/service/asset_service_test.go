@@ -1539,6 +1539,35 @@ func TestAssetIncomeKeepsTheBookValueAndSplitsTheWithholdingTax(t *testing.T) {
 	}
 }
 
+// Die Dividende einer Tochter-GmbH steht ohne ausdrückliches Konto auf 7005,
+// dem Konto, von dem die Körperschaftsteuererklärung Bezüge nach § 8b KStG
+// liest.
+func TestAssetIncomeOfACorporationShareGoesToTheParticipationAccount(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Tochter GmbH", Class: domain.AssetClassFinancial, Account: "0850",
+		AcquisitionDate: "2026-02-01", AcquisitionCost: 2_500_000, Method: domain.DepreciationNone,
+		TaxPrivileged: true, HoldingPermille: 1000,
+	})
+	if err != nil {
+		t.Fatalf("Beteiligung: %v", err)
+	}
+	entry, err := svc.BookAssetIncome(ctx, AssetIncomeRequest{
+		AssetID: asset.ID, Date: "2026-05-15", Amount: 1_000_000,
+		Settlement: SettlementPaid, PaymentAccount: "1800",
+	})
+	if err != nil {
+		t.Fatalf("Ertrag: %v", err)
+	}
+	assertLines(t, entry, []bookedLine{
+		{domain.SideCredit, "7005", 1_000_000},
+		{domain.SideDebit, "1800", 1_000_000},
+	})
+}
+
 // Laufende Erträge werden für Sachanlagen nicht mit dem Anlagegut verknüpft —
 // dort gibt es sie in diesem Sinn nicht.
 func TestAssetIncomeIsOnlyForFinancialAssets(t *testing.T) {

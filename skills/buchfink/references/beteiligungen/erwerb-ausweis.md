@@ -50,9 +50,11 @@ Anlagenkatalog von Buchfink.
 
 Die Bezeichnungen der Dividendenkonten nennen § 8b KStG; die Konten 7005,
 7006, 7014, 7015, 7103 und 7104 tragen im SKR04 die Kennzeichen für
-Gewerbe- und Körperschaftsteuer. Buchfink selbst schlägt für Anteile das
-Konto 7000 vor, für Wertpapiere 7010 und für unbekannte Konten 7100
-(`AssetIncomeAccount`). Weiche davon ab, wenn du über das Werkzeug buchst.
+Gewerbe- und Körperschaftsteuer. Buchfink wählt für Anteile an
+Kapitalgesellschaften dieselben Konten wie die Tabelle (`AssetIncomeAccount`):
+0804, 0808, 0850 und 0910 schon dem Konto nach, 0800, 0820 und 0900 nur
+mit der Kennzeichnung als Anteil an einer Kapitalgesellschaft. Ohne sie bleibt es bei
+7000 bzw. 7010; ein Investmentanteil geht immer auf 7010.
 
 ## 3. Anschaffungskosten
 

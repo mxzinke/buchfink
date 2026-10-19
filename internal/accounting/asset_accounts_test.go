@@ -112,7 +112,7 @@ func TestDerivedAssetAccountsExistInSKR04(t *testing.T) {
 				t.Errorf("Konto der Sonderabschreibung %s zu %s: %v", account, entry.Number, err)
 			}
 		}
-		if account, err := AssetIncomeAccount(entry.Class, entry.Number); err == nil {
+		if account, err := AssetIncomeAccount(&domain.FixedAsset{Class: entry.Class, Account: entry.Number}); err == nil {
 			if err := chart.EnsurePostable(account); err != nil {
 				t.Errorf("Ertragskonto %s zu %s: %v", account, entry.Number, err)
 			}
@@ -194,5 +194,46 @@ func TestUsefulLifeReasonFlagFollowsTheDigitalProposal(t *testing.T) {
 	}
 	if car.UsefulLifeReasonRequired {
 		t.Error("für einen Erfahrungswert der AfA-Tabelle wird keine Begründung verlangt")
+	}
+}
+
+// Bezüge aus Anteilen an Kapitalgesellschaften gehören auf die Konten, die
+// § 8b KStG im Namen führen; die Körperschaftsteuererklärung liest sie dort.
+// Ein Investmentanteil gehört nie dorthin (§ 16 Abs. 3 InvStG).
+func TestAssetIncomeAccountUsesTheParticipationExemptionAccounts(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		asset domain.FixedAsset
+		want  string
+	}{
+		{"Beteiligung an einer Kapitalgesellschaft", domain.FixedAsset{Account: "0850"}, "7005"},
+		{"Beteiligung, gekennzeichnet", domain.FixedAsset{Account: "0820", TaxPrivileged: true}, "7005"},
+		{"Beteiligung ohne Kennzeichen", domain.FixedAsset{Account: "0820"}, "7000"},
+		{"Tochter-Kapitalgesellschaft", domain.FixedAsset{Account: "0804"}, "7006"},
+		{"verbundenes Unternehmen, gekennzeichnet", domain.FixedAsset{Account: "0800", TaxPrivileged: true}, "7006"},
+		{"Aktien im Teileinkünfteverfahren", domain.FixedAsset{Account: "0910"}, "7014"},
+		{"Wertpapiere, gekennzeichnet", domain.FixedAsset{Account: "0900", TaxPrivileged: true}, "7014"},
+		{"Aktienfonds", domain.FixedAsset{Account: "0900", TaxPrivileged: true, FundClass: string(FundEquity)}, "7010"},
+		{"Anleihe", domain.FixedAsset{Account: "0920"}, "7010"},
+		{"Darlehen", domain.FixedAsset{Account: "0940"}, "7011"},
+	} {
+		tc.asset.Class = domain.AssetClassFinancial
+		got, err := AssetIncomeAccount(&tc.asset)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		if got != tc.want {
+			t.Errorf("%s (%s): Ertragskonto %s, erwartet %s", tc.name, tc.asset.Account, got, tc.want)
+		}
+	}
+
+	chart := chartForTest(t)
+	for asset, income := range corporationShareIncome {
+		if err := chart.EnsurePostable(income); err != nil {
+			t.Errorf("Ertragskonto %s zu %s: %v", income, asset, err)
+		}
+		if adj, ok := TaxAdjustmentFor(income); !ok || adj.Group != GroupDividends {
+			t.Errorf("Ertragskonto %s zu %s ist kein Konto der Bezüge nach § 8b KStG", income, asset)
+		}
 	}
 }

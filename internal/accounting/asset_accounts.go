@@ -457,14 +457,40 @@ func SpecialDepreciationAccount(class domain.AssetClass, account string) (string
 // Der SKR04 trennt die Erträge des Finanzanlagevermögens nach ihrer Herkunft,
 // weil die GuV sie nach § 275 Abs. 2 Nr. 9 bis 11 HGB getrennt ausweist:
 // Erträge aus Beteiligungen, Erträge aus anderen Wertpapieren und Ausleihungen
-// des Finanzanlagevermögens, sonstige Zinsen. Auf ein Sammelkonto gebucht wären
-// sie in der GuV nicht mehr auseinanderzuhalten.
-func AssetIncomeAccount(class domain.AssetClass, account string) (string, error) {
-	if class != domain.AssetClassFinancial {
+// des Finanzanlagevermögens, sonstige Zinsen.
+//
+// Für Bezüge aus Anteilen an Kapitalgesellschaften hat er eigene Konten, die
+// § 8b KStG im Namen führen: 7005 (Beteiligung), 7006 (verbundenes
+// Unternehmen) und 7014 (übrige Anteile im Finanzanlagevermögen, auch
+// Streubesitz nach § 8b Abs. 4 KStG). Von dort liest die
+// Körperschaftsteuererklärung die Bezüge; ob sie steuerfrei sind, entscheidet
+// dort die Quote zu Beginn des Kalenderjahres. Ein Anteil an einer
+// Kapitalgesellschaft ist das Anlagegut, wenn es so gekennzeichnet ist
+// (TaxPrivileged) oder sein Konto es schon dem Namen nach ist. Ein
+// Investmentanteil ist es nie: auf Investmenterträge ist § 8b KStG nicht
+// anzuwenden (§ 16 Abs. 3 InvStG).
+func AssetIncomeAccount(asset *domain.FixedAsset) (string, error) {
+	if asset.Class != domain.AssetClassFinancial {
 		return "", fmt.Errorf(
 			"laufende Erträge werden hier nur für Finanzanlagen mit dem Anlagegut verknüpft")
 	}
-	entry, known := LookupAssetAccount(account)
+	if FundClass(asset.FundClass).IsFund() {
+		return "7010", nil // Erträge aus anderen Wertpapieren und Ausleihungen des Finanzanlagevermögens
+	}
+	if account, ok := corporationShareIncome[asset.Account]; ok {
+		return account, nil
+	}
+	if asset.TaxPrivileged {
+		switch asset.Account {
+		case "0800":
+			return "7006", nil
+		case "0820":
+			return "7005", nil
+		case "0900":
+			return "7014", nil
+		}
+	}
+	entry, known := LookupAssetAccount(asset.Account)
 	if !known {
 		return "7100", nil // Sonstige Zinsen und ähnliche Erträge
 	}
@@ -478,6 +504,15 @@ func AssetIncomeAccount(class domain.AssetClass, account string) (string, error)
 	default:
 		return "7100", nil
 	}
+}
+
+// corporationShareIncome ordnet den Anlagekonten, die schon dem Namen nach
+// Anteile an Kapitalgesellschaften führen, das Ertragskonto nach § 8b KStG zu.
+var corporationShareIncome = map[string]string{
+	"0804": "7006", // Anteile an verbundenen Unternehmen, Kapitalgesellschaften
+	"0808": "7006", // Anteile an herrschender oder mehrheitlich beteiligter Gesellschaft, Kapitalgesellschaften
+	"0850": "7005", // Beteiligungen an Kapitalgesellschaften
+	"0910": "7014", // Wertpapiere mit Gewinnbeteiligungsansprüchen, die dem Teileinkünfteverfahren unterliegen
 }
 
 // CurrencyTranslationAccounts are the two accounts of § 256a HGB: der Aufwand

@@ -1204,7 +1204,7 @@ nennt nur die hier genutzten Stellen.
 |---|---|---|
 | Investmentrechnung | `internal/accounting/investment.go` | Fondsarten, `PartialExemptionFor` (KSt-Sätze, Anlegerstellung), `ComputeVorabpauschale`, `firstWorkdayOfYear` (Samstag als Werktag) |
 | Investment-Dienst | `internal/service/asset_investment_service.go` | Vorabpauschale festhalten (Bewegung ohne Buchung, Jahr der Entstehung), Nebenrechnung bei Ertrag und Abgang (Abzug der Vorabpauschalen) |
-| Anlagenkonten | `internal/accounting/asset_accounts.go` | Katalog 0800–0990, `AssetIncomeAccount` (7000/7010/7011/7100), `ImpairmentAccount` (7204/7200/7201), `WriteUpAccount` (4913/4912), `DisposalAccountsFor` (4852/4858, 6892/6898, 4851/4857, 6891/6897), `WithholdingTaxAccount` 7630 |
+| Anlagenkonten | `internal/accounting/asset_accounts.go` | Katalog 0800–0990, `AssetIncomeAccount` (§-8b-Konten 7005/7006/7014 für Anteile an Kapitalgesellschaften, sonst 7000/7010/7011/7100), `ImpairmentAccount` (7204/7200/7201), `WriteUpAccount` (4913/4912), `DisposalAccountsFor` (4852/4858, 6892/6898, 4851/4857, 6891/6897), `WithholdingTaxAccount` 7630 |
 | Anlagen-Dienst | `internal/service/asset_service.go` | `BookAssetIncome` (eine Zeile 7630, Ausleihungszinsen steuerfrei, Dividenden nicht steuerbar), `AcquisitionCandidates`, `DisposalRequest` (Verkauf, Tilgung, Verschrottung; Zahlungsmittel oder offener Posten), Hinweise zu Finanzanlagen |
 | Anlagegut | `internal/domain/asset.go`, `internal/domain/legalform.go` | `HoldingPermille`, `TaxPrivileged`, `FundClass`, `Quantity`; Anlegerstellung aus der Rechtsform |
 | Oberfläche | `frontend/src/pages/books/AssetsTab.tsx` | Kartei nur lesend (Bestand, Bewegungen, Anlagenspiegel); Pflege, Ertrag, Vorabpauschale, Wertänderung und Abgang bieten weder App noch Werkzeug |
@@ -1253,9 +1253,8 @@ nennt nur die hier genutzten Stellen.
 - **Code-Befunde Buchfink (Korrekturkandidaten):**
   - `firstWorkdayOfYear` zählt den Samstag als Werktag und liefert für 2026
     den 02.01.2027; das BMF nennt den 04.01.2027.
-  - `AssetIncomeAccount` wählt 7000 statt der §-8b-Konten 7005/7006 und für
-    0910 mangels Katalogeintrag 7100; `BookAssetIncome` bucht
-    Kapitalertragsteuer und Solidaritätszuschlag als eine Zeile auf 7630.
+  - `BookAssetIncome` bucht Kapitalertragsteuer und Solidaritätszuschlag als
+    eine Zeile auf 7630. Aufrufer in App oder Werkzeug hat der Dienst nicht.
   - `ImpairmentAccount` bucht gekennzeichnete Anteile auch bei
     vorübergehender Minderung auf 7204 („dauerhaft“).
   - `WriteUpAccount` bucht gekennzeichnete Anteile auf 4913 (SKR04-Name:

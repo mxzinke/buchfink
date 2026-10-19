@@ -1492,7 +1492,7 @@ func (s *AssetService) bookAssetIncome(ctx context.Context, req AssetIncomeReque
 
 	revenue := req.Account
 	if revenue == "" {
-		revenue, err = accounting.AssetIncomeAccount(asset.Class, asset.Account)
+		revenue, err = accounting.AssetIncomeAccount(asset)
 		if err != nil {
 			return nil, err
 		}
