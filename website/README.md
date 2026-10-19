@@ -5,15 +5,16 @@ ausliefert. Es gibt keinen Build-Schritt.
 
 ```text
 website/
-├── index.html             # Was Buchfink ist, Arbeitsteilung, Freigabe, für wen, Daten
+├── index.html             # Was Buchfink ist, Agenten, Ablauf, Gespräch, Leistungen, Freigabe, Verbinden, für wen, Open Source
 ├── so-funktionierts.html  # Verbinden, Belege, Monat, Jahr, Erklärungen, Pflichten, Grenzen
 ├── installation.html      # App je Betriebssystem, Einrichten, KI-Agent verbinden, Hilfe
 ├── roadmap.html           # gebaut, bis Version 1, danach, nicht geplant
 ├── .nojekyll              # Pages soll nichts umbauen
 └── assets/
     ├── site.css           # das komplette Stylesheet
-    ├── site.js            # Menü schließen, Dialoge öffnen
+    ├── site.js            # Menü schließen, Dialoge öffnen, Befehle kopieren
     ├── buchfink-logo.svg
+    ├── agents/            # Logos der KI-Agenten, siehe unten
     ├── fonts/             # Manrope, selbst ausgeliefert (OFL, Lizenz liegt bei)
     └── screenshots/       # Bilder der Oberfläche, siehe unten
 ```
@@ -86,19 +87,33 @@ und Beträge sind erfunden.
 Über jedem Bild steht eine Leiste mit drei Punkten (`.shot__chrome`); sie ist
 Markup und gehört in jede `<figure class="shot">`.
 
+## Logos der Agenten
+
+`assets/agents/` enthält je ein SVG für Claude Code, Claude Desktop, Codex,
+OpenCode und Pi. Sie stehen in den Farben der Anbieter als Kacheln im Kopf der
+Startseite und neben den Verbindungsbefehlen unter „Verbinden“; jede Kachel
+verweist auf die Anleitung unter `docs/nutzung/ki-agenten/`. Die Marken gehören
+ihren Inhabern, der Fuß der Startseite sagt das. Kommt ein Agent hinzu, braucht
+er ein Logo hier, eine Kachel im Kopf, eine Zeile unter „Verbinden“ und eine
+Anleitung in der Dokumentation. Die Befehle in den Zeilen müssen mit dieser
+Anleitung übereinstimmen.
+
 ## Gestaltung und Text
 
 Die Seite benutzt die Tokens der Anwendung aus den
 [visuellen Grundlagen](../docs/gestaltung/grundlagen.md) als CSS-Variablen am
 Anfang von `site.css`, mit drei Abweichungen für eine Leseseite: größere
 Schriftgrade für Fließtext und Titel, Schatten auch am Bild im Kopf der
-Startseite und an einem Bild unter dem Zeiger, und Hinweisstreifen nur mit
-farbiger Leiste.
+Startseite, an einem Bild und an einer Agenten-Kachel unter dem Zeiger, und
+Hinweisstreifen nur mit farbiger Leiste. Das Beispielgespräch auf der Startseite
+liegt auf der dunklen Schale.
 
 Die Texte folgen der [Schreibweise](../docs/gestaltung/schreibweise.md): Sie-Form,
 kurze Sätze, keine Zusagen über Gesetzeskonformität. Die Seite erzählt aus der
-Sicht eines Gründers, der mit seinem KI-Agenten arbeitet: was der Agent tut, was
-nur er selbst freigibt, wo die Grenzen liegen. Grenzen bleiben sichtbar.
+Sicht eines Gründers, der mit seinem KI-Agenten arbeitet: wie leicht die Arbeit
+im Chat von der Hand geht, was nur er selbst freigibt, wo die Grenzen liegen.
+Die Startseite führt mit dem Gespräch mit dem Agenten und mit dem
+Open-Source-Gedanken, nicht mit Sicherheitsmerkmalen. Grenzen bleiben sichtbar.
 Einzelheiten stehen in der Dokumentation auf GitHub, auf die die Seiten
 verlinken.
 

@@ -1,10 +1,11 @@
 /* Buchfink — Projektseite
  *
- * Das einzige Skript der Seite. Es tut zwei Dinge: es schließt ein offenes
- * Menü in der Kopfleiste, und es öffnet die Dialoge, in denen die
- * Vertiefungen stecken. Die Navigation selbst funktioniert ohne das Skript,
- * die Dialoge nicht — für sie steht in jeder Seite ein noscript-Block, der
- * ihren Inhalt stattdessen in den Textfluss stellt. */
+ * Das einzige Skript der Seite. Es schließt ein offenes Menü in der
+ * Kopfleiste, öffnet die Dialoge, in denen die Vertiefungen stecken, und
+ * hängt an Befehlszeilen einen Kopierknopf. Die Navigation selbst und die
+ * Befehle funktionieren ohne das Skript, die Dialoge nicht — für sie steht
+ * in jeder Seite ein noscript-Block, der ihren Inhalt stattdessen in den
+ * Textfluss stellt. */
 (function () {
   var menus = document.querySelectorAll('.topbar details');
 
@@ -63,5 +64,25 @@
         event.clientX <= box.right;
       if (!inside) dialog.close();
     });
+  });
+
+  /* Befehle kopieren */
+
+  document.querySelectorAll('.cmd[data-copy]').forEach(function (cmd) {
+    if (!navigator.clipboard) return;
+    var text = cmd.textContent;
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'cmd__copy';
+    button.textContent = 'Kopieren';
+    button.addEventListener('click', function () {
+      navigator.clipboard.writeText(text).then(function () {
+        button.textContent = 'Kopiert';
+        setTimeout(function () {
+          button.textContent = 'Kopieren';
+        }, 1600);
+      });
+    });
+    cmd.appendChild(button);
   });
 })();

@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Buchfink — Buchhaltung für GmbH und UG mit Ihrem KI-Agenten</title>
-    <meta name="description" content="Buchfink führt die Bücher einer GmbH oder UG auf Ihrem Rechner. Ihr KI-Agent bucht über MCP nach festen Regeln, Sie geben in der App frei. Quelloffen, Vorschau 0.3." />
+    <title>Buchfink — Die quelloffene Buchhaltung, die Ihr KI-Agent führt</title>
+    <meta name="description" content="Sagen Sie Ihrem KI‑Agenten, was zu buchen ist, und geben Sie nur noch frei. Buchfink ist die kostenlose, quelloffene Buchhaltung für GmbH und UG, für Claude, Codex, OpenCode und Pi." />
     <meta name="color-scheme" content="light" />
     <link rel="icon" type="image/svg+xml" href="assets/buchfink-logo.svg" />
-    <link rel="stylesheet" href="assets/site.css?v=87ee239bcae4" />
-    <meta property="og:title" content="Buchfink — Buchhaltung für GmbH und UG mit Ihrem KI-Agenten" />
-    <meta property="og:description" content="Buchfink führt die Bücher einer GmbH oder UG auf Ihrem Rechner. Ihr KI-Agent bucht über MCP nach festen Regeln, Sie geben in der App frei. Quelloffen, Vorschau 0.3." />
+    <link rel="stylesheet" href="assets/site.css?v=fbc6f353d9c9" />
+    <meta property="og:title" content="Buchfink — Die quelloffene Buchhaltung, die Ihr KI-Agent führt" />
+    <meta property="og:description" content="Sagen Sie Ihrem KI‑Agenten, was zu buchen ist, und geben Sie nur noch frei. Buchfink ist die kostenlose, quelloffene Buchhaltung für GmbH und UG, für Claude, Codex, OpenCode und Pi." />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="assets/screenshots/uebersicht.png" />
   </head>
@@ -72,29 +72,59 @@
     <main id="inhalt">
       <section class="hero">
         <div class="wrap wrap--wide">
-          <h1 class="hero__title">Die Buchhaltung Ihrer GmbH.<br />Geführt mit Ihrem KI-Agenten.</h1>
+          <h1 class="hero__title">Buchhaltung für GmbH und UG.<br />Erledigt von Ihrem KI‑Agenten.</h1>
           <p class="hero__lead">
-            Buchfink ist eine Buchhaltung für GmbH und UG, die auf Ihrem Rechner läuft. Ihr
-            KI-Agent legt Belege ab und bucht über MCP, nach den Regeln, die Buchfink vorgibt.
-            Sie sehen in der App, was gebucht ist, und geben frei, was sich nicht rückgängig
-            machen lässt.
-          </p>
-          <p class="hero__lead hero__lead--small">
-            Anleitungen gibt es für Claude Code, Claude Desktop, OpenCode, Codex und Pi.
+            Sie legen Belege in einen Ordner und schreiben im Chat mit Claude, Codex oder einem
+            anderen Agenten. Der bucht, erinnert an Fristen und bereitet Voranmeldung und
+            Jahresabschluss vor. Sie geben nur noch frei. Buchfink ist quelloffen und kostenlos.
           </p>
           <div class="hero__actions">
-            <a class="btn btn--primary" href="so-funktionierts.html">So funktioniert’s</a>
-            <a class="btn btn--secondary" href="installation.html">Installieren</a>
+            <a class="btn btn--primary" href="installation.html">Buchfink installieren</a>
+            <a class="btn btn--secondary" href="so-funktionierts.html">So funktioniert’s</a>
           </div>
           <div class="badges">
             <span class="tag tag--accent">Open Source · EUPL-1.2</span>
+            <span class="tag">Kostenlos, ohne Konto und Abo</span>
             <span class="tag">macOS · Windows · Linux</span>
             <span class="tag tag--attention"><span class="diamond"></span> Vorschau 0.3</span>
           </div>
-          <p class="hero__lead hero__lead--small">
-            Version 0.3 ist eine Vorschau, die Installationsdateien sind nicht signiert.
-            Probieren Sie Buchfink zuerst mit einem Testunternehmen aus.
-          </p>
+
+          <div class="agents">
+            <p class="agents__label">Läuft mit dem Agenten Ihrer Wahl. Zur Anleitung:</p>
+            <ul class="agents__list">
+              <li>
+                <a class="agent" href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/claude-code.md">
+                  <img src="assets/agents/claude-code.svg" alt="" width="32" height="32" />
+                  <span>Claude Code</span>
+                </a>
+              </li>
+              <li>
+                <a class="agent" href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/claude-desktop.md">
+                  <img src="assets/agents/claude-desktop.svg" alt="" width="32" height="32" />
+                  <span>Claude Desktop</span>
+                </a>
+              </li>
+              <li>
+                <a class="agent" href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/codex.md">
+                  <img src="assets/agents/codex.svg" alt="" width="32" height="32" />
+                  <span>Codex</span>
+                </a>
+              </li>
+              <li>
+                <a class="agent" href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/opencode.md">
+                  <img src="assets/agents/opencode.svg" alt="" width="32" height="32" />
+                  <span>OpenCode</span>
+                </a>
+              </li>
+              <li>
+                <a class="agent" href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/pi.md">
+                  <img src="assets/agents/pi.svg" alt="" width="32" height="32" />
+                  <span>Pi</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+
           <figure class="shot hero__shot">
             <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
             <a href="assets/screenshots/uebersicht.png" title="Bild in voller Größe öffnen">
@@ -106,60 +136,269 @@
         </div>
       </section>
 
-      <section class="band band--sunken" id="rollen">
+      <section class="band band--sunken" id="ablauf">
         <div class="wrap wrap--wide">
-          <p class="overline">Arbeitsteilung</p>
-          <h2 class="section__title">Drei Beteiligte, feste Rollen</h2>
+          <p class="overline">Ablauf</p>
+          <h2 class="section__title">Belege hinlegen, Agent fragen, freigeben</h2>
           <p class="section__lead">
-            Sie arbeiten im Chat mit Ihrem Agenten. Buchfink läuft daneben und nimmt nur an,
-            was zu seinen Regeln passt.
+            Sie arbeiten im Chat, den Sie ohnehin kennen. Buchfink läuft daneben und zeigt, was
+            gebucht ist.
           </p>
-          <div class="columns columns--drei">
-            <div>
-              <h3 class="column__title">Sie</h3>
-              <p class="column__body">
-                Sie legen Belege und Kontoauszüge in den Eingang, beantworten Rückfragen und
-                geben in der App frei: Festschreibung, Übermittlungen, Jahresabschluss.
+          <div class="flow">
+            <div class="flow__step">
+              <h3 class="flow__title">Belege ablegen</h3>
+              <p class="flow__body">
+                Ziehen Sie Rechnungen und Kontoauszüge in den Eingang. Die Scanner-App auf dem
+                Telefon speichert auf Wunsch in einen Cloud-Ordner, den Buchfink als Eingang liest.
               </p>
             </div>
-            <div>
-              <h3 class="column__title">Ihr KI-Agent</h3>
-              <p class="column__body">
-                Er legt Belege ab, wenn Sie es sagen, schlägt Buchungen vor und bucht
-                Routinefälle. Was nicht eindeutig ist, fragt er nach. Er erinnert an Fristen und
-                bereitet Meldungen und Erklärungen vor.
+            <div class="flow__step">
+              <h3 class="flow__title">Dem Agenten Bescheid geben</h3>
+              <p class="flow__body">
+                Schreiben Sie „Buche die Belege im Eingang.“ Der Agent liest sie, bucht die
+                Routinefälle und fragt nach, wenn etwas unklar ist.
               </p>
             </div>
-            <div>
-              <h3 class="column__title">Buchfink</h3>
-              <p class="column__body">
-                Buchfink rechnet nach festen Regeln im Kontenrahmen SKR04, prüft Pflichtangaben
-                und Steuerfall und hält an jeder Buchung fest, wer sie über welchen Weg erfasst
-                hat.
+            <div class="flow__step">
+              <h3 class="flow__title">In der App freigeben</h3>
+              <p class="flow__body">
+                Sie sehen den Stand der Bücher und die nächsten Fristen. Monate festschreiben und
+                Meldungen bestätigen Sie in der App.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="band" id="freigabe">
+      <section class="band band--shell" id="gespraech">
+        <div class="wrap wrap--wide">
+          <div class="talk">
+            <div class="talk__text">
+              <p class="overline">Im Gespräch</p>
+              <h2 class="section__title">Fragen Sie, wie Sie eine Buchhalterin fragen würden</h2>
+              <p class="section__lead">
+                Der Agent greift über Buchfink auf Ihre Bücher zu. Er beantwortet Fragen zu Ihren
+                Zahlen, bucht, was eindeutig ist, und legt Ihnen vor, was eine Entscheidung
+                braucht.
+              </p>
+              <ul class="prompts" aria-label="Beispielfragen">
+                <li>„Welche Rechnungen sind noch offen?“</li>
+                <li>„Wie viel Umsatzsteuer fällt für September an?“</li>
+                <li>„Welche Frist kommt als Nächste?“</li>
+                <li>„Bereite den Jahresabschluss vor.“</li>
+              </ul>
+            </div>
+            <figure class="chat" aria-label="Beispielgespräch mit einem KI-Agenten">
+              <div class="chat__msg chat__msg--you">
+                <span class="chat__who">Sie</span>
+                <div class="chat__bubble">Buche die Belege im Eingang.</div>
+              </div>
+              <div class="chat__msg">
+                <span class="chat__who">Agent</span>
+                <div class="chat__bubble">
+                  <span class="chat__tool"><span class="diamond"></span> Buchfink: 14 Belege gelesen, 13 Buchungen angelegt</span>
+                  <span class="chat__line">Ich habe 13 Belege gebucht: Eingangsrechnungen, zwei Software-Abos und eine Bahnfahrt.</span>
+                  <span class="chat__line">Bei einem Beleg brauche ich Sie: Das Restaurant über 86,40 € hat keine Angaben zur Bewirtung. Wer war dabei, und was war der Anlass?</span>
+                </div>
+              </div>
+              <div class="chat__msg chat__msg--you">
+                <span class="chat__who">Sie</span>
+                <div class="chat__bubble">Projektstart mit dem Kunden Nordlicht, zwei Personen.</div>
+              </div>
+              <div class="chat__msg">
+                <span class="chat__who">Agent</span>
+                <div class="chat__bubble">
+                  <span class="chat__tool"><span class="diamond"></span> Buchfink: Bewirtung mit Anlass und Teilnehmern gebucht</span>
+                  <span class="chat__line">Erledigt. Für September ist die Umsatzsteuer-Voranmeldung vorbereitet. Festschreiben und übertragen können Sie sie in Buchfink und in Mein ELSTER.</span>
+                </div>
+              </div>
+              <figcaption>Beispielgespräch mit erfundenen Daten.</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="band" id="leistungen">
+        <div class="wrap wrap--wide">
+          <p class="overline">Was Buchfink übernimmt</p>
+          <h2 class="section__title">Die Routine macht der Agent. Buchfink rechnet nach festen Regeln.</h2>
+          <p class="section__lead">
+            Buchfink kennt den Kontenrahmen SKR04, die Pflichtangaben einer Rechnung und die
+            Fristen einer GmbH. Dadurch muss der Agent nicht raten, und Sie müssen nicht
+            nachrechnen.
+          </p>
+          <div class="duties">
+            <div class="duty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13h6M9 17h6" /></svg>
+              <div>
+                <p class="duty__title">Belege lesen und buchen</p>
+                <p class="duty__body">PDF-Rechnungen, XRechnung und ZUGFeRD. Buchfink prüft Pflichtangaben und Steuerfall, der Agent bucht die Routinefälle.</p>
+              </div>
+            </div>
+            <div class="duty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10l9-6 9 6" /><path d="M5 10v8M9 10v8M15 10v8M19 10v8M3 20h18" /></svg>
+              <div>
+                <p class="duty__title">Bankumsätze zuordnen</p>
+                <p class="duty__body">Kontoauszüge im Format CAMT.053 landen im Eingang. Ein Umsatz lässt sich auch auf mehrere Belege aufteilen.</p>
+              </div>
+            </div>
+            <div class="duty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1-4L16 5l3 3L8 19z" /><path d="M14 7l3 3" /></svg>
+              <div>
+                <p class="duty__title">Rechnungen schreiben</p>
+                <p class="duty__body">Ausgangsrechnungen als ZUGFeRD oder XRechnung, dazu Storno, Anzahlung und Schlussrechnung. Offene Posten behält der Agent im Blick.</p>
+              </div>
+            </div>
+            <div class="duty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 10h16M9 3v4M15 3v4" /></svg>
+              <div>
+                <p class="duty__title">Fristen im Blick behalten</p>
+                <p class="duty__body">Voranmeldungen, Vorauszahlungen, Jahresabschluss und Offenlegung leitet Buchfink aus Ihren Unternehmensdaten ab. Der Agent erinnert Sie.</p>
+              </div>
+            </div>
+            <div class="duty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M8 7h8M8 12h2M12 12h2M8 16h2M12 16h2" /></svg>
+              <div>
+                <p class="duty__title">Steuern vorbereiten</p>
+                <p class="duty__body">Umsatzsteuer-Voranmeldung, KSt, GewSt und E-Bilanz stellt Buchfink formularnah zusammen, jeden Wert mit seiner Herkunft.</p>
+              </div>
+            </div>
+            <div class="duty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5M4 19h16" /><path d="M8 15v-4M12 15V8M16 15v-6" /></svg>
+              <div>
+                <p class="duty__title">Jahresabschluss aufbereiten</p>
+                <p class="duty__body">Bilanz und GuV nach HGB. Der Agent bereitet Abschreibungen, Abgrenzungen und Rückstellungen vor und bucht sie nach Ihrer Zustimmung.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="band band--sunken" id="bilanz">
         <div class="wrap wrap--wide">
           <article class="feature">
             <div class="feature__text">
-              <p class="overline">Freigabe</p>
-              <h2 class="feature__title">Was nur Sie entscheiden</h2>
+              <p class="overline">Bücher</p>
+              <h2 class="feature__title">Jede Buchung zeigt ihren Beleg</h2>
               <p class="feature__body">
-                Diese Schritte nimmt Buchfink nur in der App an. Versucht der Agent sie, weist
-                Buchfink ihn ab.
+                In den Büchern sehen Sie, was der Agent gebucht hat, und finden zu jeder Zeile den
+                Beleg dahinter.
+              </p>
+              <ul class="feature__list">
+                <li>Bücher mit Belegen, Bank und Buchungen an einem Ort</li>
+                <li>Das Original des Belegs bleibt unverändert</li>
+                <li>Korrekturen laufen als Storno und neue Buchung</li>
+              </ul>
+            </div>
+            <figure class="shot">
+              <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
+              <a href="assets/screenshots/buecher.png" title="Bild in voller Größe öffnen">
+                <img src="assets/screenshots/buecher.png" width="2880" height="1800" loading="lazy"
+                  alt="Bücher in Buchfink mit Belegen, Bankumsätzen und Buchungen eines Beispielunternehmens." />
+              </a>
+              <figcaption>In den Büchern steht jede Buchung mit ihrem Beleg.</figcaption>
+            </figure>
+          </article>
+
+          <article class="feature">
+            <div class="feature__text">
+              <p class="overline">Freigabe</p>
+              <h2 class="feature__title">Das letzte Wort geben Sie</h2>
+              <p class="feature__body">
+                Die Entscheidungen mit Folgen treffen Sie in der App. Der Agent bereitet sie vor,
+                Buchfink nimmt sie nur von Ihnen an.
               </p>
               <ul class="feature__list">
                 <li>Monate und Jahre festschreiben</li>
                 <li>Übermittlungen an das Finanzamt bestätigen</li>
                 <li>Jahresabschluss aufstellen, feststellen und offenlegen</li>
                 <li>Unternehmensdaten, Gesellschafter und Bankkonten pflegen</li>
-                <li>Eingang und Ordner wählen und festlegen, was der Agent ohne Rückfrage bucht</li>
-                <li>KI-Apps zulassen und ihnen den Zugriff entziehen</li>
+                <li>Festlegen, was der Agent ohne Rückfrage bucht</li>
               </ul>
+            </div>
+            <figure class="shot">
+              <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
+              <a href="assets/screenshots/abschluesse.png" title="Bild in voller Größe öffnen">
+                <img src="assets/screenshots/abschluesse.png" width="2880" height="1800" loading="lazy"
+                  alt="Abschlüsse in Buchfink: Stand der Monate und des Jahres eines Beispielunternehmens." />
+              </a>
+              <figcaption>Welche Monate festgeschrieben sind und was im Jahr noch offen ist.</figcaption>
+            </figure>
+          </article>
+        </div>
+      </section>
+
+      <section class="band" id="verbinden">
+        <div class="wrap wrap--wide">
+          <p class="overline">Verbinden</p>
+          <h2 class="section__title">Ihr Agent, Ihre Wahl</h2>
+          <p class="section__lead">
+            Buchfink spricht MCP, den offenen Standard für die Werkzeuge von KI-Agenten. Sie nutzen
+            den Agenten, den Sie schon haben, und tragen Buchfink mit einem Befehl ein. Die Skills
+            bringen dem Agenten das Fachwissen mit, jede Aussage mit Quelle.
+          </p>
+          <div class="agentrows">
+            <div class="agentrow">
+              <img src="assets/agents/claude-code.svg" alt="" width="40" height="40" />
+              <div class="agentrow__main">
+                <p class="link__title">Claude Code</p>
+                <p class="link__body">Das Plugin richtet Verbindung und Skills in einem Zug ein.</p>
+                <div class="cmd" data-copy>claude plugin install buchfink-buchhaltung --marketplace mxzinke/buchfink</div>
+              </div>
+              <a class="agentrow__link" href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/claude-code.md">Anleitung</a>
+            </div>
+            <div class="agentrow">
+              <img src="assets/agents/claude-desktop.svg" alt="" width="40" height="40" />
+              <div class="agentrow__main">
+                <p class="link__title">Claude Desktop</p>
+                <p class="link__body">Eine Erweiterung für macOS und Windows. Doppelklick auf die Datei genügt.</p>
+                <div class="agentrow__actions">
+                  <a class="btn btn--secondary" href="https://github.com/mxzinke/buchfink/releases/latest/download/buchfink.mcpb">buchfink.mcpb laden</a>
+                </div>
+              </div>
+              <a class="agentrow__link" href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/claude-desktop.md">Anleitung</a>
+            </div>
+            <div class="agentrow">
+              <img src="assets/agents/codex.svg" alt="" width="40" height="40" />
+              <div class="agentrow__main">
+                <p class="link__title">Codex</p>
+                <p class="link__body">Ein Befehl trägt den Server ein, ein zweiter meldet Sie an.</p>
+                <div class="cmd" data-copy>codex mcp add buchfink --url http://127.0.0.1:7465/mcp</div>
+              </div>
+              <a class="agentrow__link" href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/codex.md">Anleitung</a>
+            </div>
+            <div class="agentrow">
+              <img src="assets/agents/opencode.svg" alt="" width="40" height="40" />
+              <div class="agentrow__main">
+                <p class="link__title">OpenCode</p>
+                <p class="link__body">Ein Eintrag unter <code>mcp</code> in Ihrer <code>opencode.json</code>.</p>
+                <div class="cmd" data-copy>"buchfink": {
+  "type": "remote",
+  "url": "http://127.0.0.1:7465/mcp",
+  "enabled": true
+}</div>
+              </div>
+              <a class="agentrow__link" href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/opencode.md">Anleitung</a>
+            </div>
+            <div class="agentrow">
+              <img src="assets/agents/pi.svg" alt="" width="40" height="40" />
+              <div class="agentrow__main">
+                <p class="link__title">Pi</p>
+                <p class="link__body">Ab Pi 0.99.0, mit Anmeldung über <code>pi mcp login</code>.</p>
+                <div class="cmd" data-copy>pi mcp add buchfink --url http://127.0.0.1:7465/mcp --exposure direct</div>
+              </div>
+              <a class="agentrow__link" href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/pi.md">Anleitung</a>
+            </div>
+          </div>
+
+          <div class="split">
+            <div>
+              <h3 class="column__title" style="margin-top: 0">Beim ersten Mal fragt Buchfink nach</h3>
+              <p class="column__body">
+                Ein neuer Agent bekommt Zugriff, sobald Sie in einem Fenster von Buchfink zustimmen.
+                Dort sehen Sie, welche App für welches Unternehmen Lesen oder Buchen möchte. In den
+                Einstellungen entziehen Sie den Zugriff jederzeit wieder.
+              </p>
             </div>
             <figure class="shot">
               <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -169,7 +408,7 @@
               </a>
               <figcaption>Eine KI-App bekommt erst Zugriff, wenn Sie im Fenster von Buchfink zustimmen.</figcaption>
             </figure>
-          </article>
+          </div>
         </div>
       </section>
 
@@ -208,43 +447,55 @@
         </div>
       </section>
 
-      <section class="band" id="daten">
+      <section class="band" id="open-source">
         <div class="wrap wrap--wide">
-          <p class="overline">Daten</p>
-          <h2 class="section__title">Ihre Bücher liegen auf Ihrem Rechner</h2>
+          <p class="overline">Open Source</p>
+          <h2 class="section__title">Kostenlos, quelloffen, auf Ihrem Rechner</h2>
           <p class="section__lead">
-            Jedes Unternehmen hat einen eigenen Ordner mit Datenbank und Originalbelegen. Sie
-            brauchen kein Benutzerkonto und kein Abo. Buchfink verschlüsselt nicht; schützen
-            Sie den Rechner mit der Festplattenverschlüsselung des Betriebssystems. Neue Belege
-            sammelt ein Eingang, den Sie auch in einen Cloud-Ordner legen können, etwa für die
-            Scanner-App auf dem Telefon.
+            Buchfink gehört niemandem außer der Gemeinschaft, die es nutzt.
           </p>
+          <div class="columns columns--drei">
+            <div>
+              <h3 class="column__title">Kein Abo, kein Konto</h3>
+              <p class="column__body">
+                Buchfink kostet nichts und braucht kein Benutzerkonto. Sie laden die App für macOS,
+                Windows oder Linux und legen los.
+              </p>
+            </div>
+            <div>
+              <h3 class="column__title">Quelltext für alle</h3>
+              <p class="column__body">
+                Die Lizenz ist die EUPL-1.2. Sie lesen nach, wie Buchfink rechnet, passen es an
+                und geben Fehler und Wünsche auf GitHub weiter.
+              </p>
+            </div>
+            <div>
+              <h3 class="column__title">Jeder Agent passt</h3>
+              <p class="column__body">
+                Sie wählen Agent und Sprachmodell selbst und wechseln, wann Sie möchten. Die Bücher
+                bleiben, wo sie sind: in einem Ordner auf Ihrem Rechner.
+              </p>
+            </div>
+          </div>
           <p class="section__lead">
-            Buchungen und Änderungsprotokoll sind verkettet, und jede Buchung trägt den Hash
-            ihres Belegs. Eine geänderte oder entfernte Buchung bricht die Kette. Festgeschriebene
-            Zeiträume sichert ein Zeitstempel nach RFC 3161. Wer Datenbank und Ketten vollständig
-            neu berechnet, fällt erst an diesem Zeitstempel auf.
-          </p>
-          <p class="section__lead">
-            Was Sie Ihrem Agenten zeigen, geht an den Anbieter des Sprachmodells. Dafür sind
-            Sie verantwortlich.
+            Was Sie Ihrem Agenten zeigen, geht an den Anbieter des Sprachmodells. Dafür sind Sie
+            verantwortlich.
             <a href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/datensicherheit.md">Mehr zur Datensicherheit</a>.
           </p>
         </div>
       </section>
 
-      <section class="band band--sunken" id="mitwirken">
-        <div class="wrap wrap--wide">
-          <p class="overline">Mitwirken</p>
-          <h2 class="section__title">Was fehlt Ihnen für Ihre Buchhaltung?</h2>
+      <section class="band band--shell" id="start">
+        <div class="wrap wrap--wide cta">
+          <h2 class="section__title">Probieren Sie es mit einem Testunternehmen</h2>
           <p class="section__lead">
-            Rückmeldungen aus kleinen Unternehmen machen Buchfink verständlicher. Beschreiben
-            Sie, wo Sie oder Ihr Agent nicht weiterkommen. Dafür brauchen Sie keine
-            Programmierkenntnisse.
+            Version 0.3 ist eine Vorschau, die Installationsdateien sind nicht signiert. Legen Sie
+            ein Testunternehmen an, verbinden Sie Ihren Agenten und buchen Sie die ersten Belege.
           </p>
-          <div class="section__actions">
-            <a class="btn btn--primary" href="https://github.com/mxzinke/buchfink/issues">Rückmeldung geben</a>
-            <a class="btn btn--secondary" href="https://github.com/mxzinke/buchfink/blob/master/CONTRIBUTING.md">Mitwirken</a>
+          <div class="cta__actions">
+            <a class="btn btn--onshell" href="installation.html">Buchfink installieren</a>
+            <a class="btn btn--outline-onshell" href="https://github.com/mxzinke/buchfink/issues">Rückmeldung geben</a>
+            <a class="btn btn--outline-onshell" href="https://github.com/mxzinke/buchfink/blob/master/CONTRIBUTING.md">Mitwirken</a>
           </div>
         </div>
       </section>
@@ -296,7 +547,8 @@
           <span>© 2026 Maximilian Pfennig</span>
           <span>
             Alle Zahlen, Firmen und Belege in den Bildern sind erfunden. „SKR04“ und „DATEV“
-            sind Kennzeichen der DATEV eG.
+            sind Kennzeichen der DATEV eG. Claude, Codex, OpenCode und Pi sind Marken ihrer
+            jeweiligen Inhaber; Buchfink steht in keiner Verbindung zu ihnen.
           </span>
         </div>
       </div>

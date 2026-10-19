@@ -383,7 +383,7 @@ code {
   line-height: 1.1;
   font-weight: 600;
   letter-spacing: -0.025em;
-  max-width: 24ch;
+  max-width: 24em;
   text-wrap: balance;
 }
 .hero__lead {
@@ -1967,5 +1967,256 @@ dialog.modal::backdrop {
   .split {
     grid-template-columns: minmax(0, 1fr);
     gap: 36px;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Agenten: Logos im Kopf, Verbindungszeilen im Abschnitt „Verbinden"
+
+   Die Logos gehören den Anbietern und bleiben in ihren Farben. Die Kacheln
+   sind Verweise auf die Anleitung des jeweiligen Agenten und deshalb als
+   Schaltflächen gezeichnet: Rahmen, Radius, Anheben beim Zeigen.
+   ------------------------------------------------------------------------- */
+
+.agents {
+  margin-top: 56px;
+}
+.agents__label {
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--ink-subtle);
+}
+.agents__list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.agent {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  padding-inline: 20px 22px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 500;
+  transition: border-color 160ms var(--ease-quiet), transform 160ms var(--ease-quiet),
+    box-shadow 160ms var(--ease-quiet);
+}
+.agent:hover {
+  border-color: var(--ink-faint);
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px -20px rgba(28, 25, 23, 0.45);
+}
+.agent img {
+  width: 32px;
+  height: 32px;
+  flex: none;
+}
+
+.agentrows {
+  margin-top: 40px;
+  border-top: 1px solid var(--line-strong);
+}
+.agentrow {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 8px 24px;
+  align-items: start;
+  padding-block: 28px;
+  border-bottom: 1px solid var(--line);
+}
+.agentrow > img {
+  width: 40px;
+  height: 40px;
+  margin-top: 2px;
+}
+.agentrow__main .cmd,
+.agentrow__actions {
+  max-width: 720px;
+}
+.agentrow__actions {
+  margin-top: 14px;
+}
+.agentrow__link {
+  margin-top: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.agentrow__link::after {
+  content: ' \2192';
+}
+
+/* Kopierknopf an den Befehlszeilen; das Skript fügt ihn ein. */
+.cmd[data-copy] {
+  position: relative;
+  padding-right: 96px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+.cmd__copy {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  height: 28px;
+  padding-inline: 10px;
+  border: 1px solid var(--shell-line);
+  border-radius: var(--radius-control);
+  background: var(--shell-raised);
+  color: var(--shell-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 120ms var(--ease-quiet), color 120ms var(--ease-quiet);
+}
+.cmd__copy:hover {
+  background: var(--shell-line);
+}
+
+@media (max-width: 720px) {
+  .agentrow {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+  .agentrow__link {
+    grid-column: 2;
+    margin-top: 4px;
+  }
+}
+
+/* Das Beispielgespräch liegt auf der dunklen Schale, so wie ein Codeblock.
+   Die Sprechblasen unterscheiden sich durch Fläche und Seite, nicht durch
+   Farbe. */
+.talk {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 64px;
+  align-items: center;
+}
+.band--shell .overline {
+  color: var(--shell-text-muted);
+}
+.prompts {
+  list-style: none;
+  padding: 0;
+  margin-top: 28px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.prompts li {
+  padding: 5px 12px;
+  border: 1px solid var(--shell-line);
+  border-radius: 999px;
+  color: var(--shell-text);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.chat {
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+  border: 1px solid var(--shell-line);
+  border-radius: 14px;
+  background: var(--shell-raised);
+}
+.chat__msg {
+  display: grid;
+  gap: 6px;
+  max-width: 92%;
+}
+.chat__msg--you {
+  justify-self: end;
+  justify-items: end;
+}
+.chat__who {
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--shell-text-muted);
+}
+.chat__bubble {
+  display: grid;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--shell-line);
+  background: var(--shell);
+  color: var(--shell-text);
+  font-size: 14px;
+  line-height: 23px;
+}
+.chat__msg--you .chat__bubble {
+  background: var(--paper);
+  border-color: var(--paper);
+  color: var(--ink);
+  border-bottom-right-radius: 4px;
+}
+.chat__msg:not(.chat__msg--you) .chat__bubble {
+  border-bottom-left-radius: 4px;
+}
+.chat__tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--accent-light);
+}
+.band--shell .chat figcaption {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--shell-text-muted);
+}
+
+/* Schlussabschnitt auf der dunklen Schale */
+.cta {
+  text-align: center;
+}
+.cta .section__lead {
+  margin-inline: auto;
+}
+.cta__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 32px;
+}
+.btn--outline-onshell {
+  background: transparent;
+  color: var(--shell-text);
+  border-color: var(--shell-text-muted);
+}
+.btn--outline-onshell:hover {
+  background: var(--shell-raised);
+  border-color: var(--shell-text);
+}
+.band--shell a.btn--outline-onshell {
+  color: var(--shell-text);
+}
+
+@media (max-width: 900px) {
+  .talk {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 40px;
+  }
+  .chat {
+    padding: 16px;
+  }
+  .chat__msg {
+    max-width: 100%;
   }
 }
