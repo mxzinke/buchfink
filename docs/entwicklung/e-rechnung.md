@@ -61,7 +61,7 @@ liegt je Position ein bis zwei Cent daneben.
 |---|---|---|
 | **EN 16931** | 223 von 223 Geschäftsregeln | 15 CII- und 20 UBL-Beispiele fehlerfrei; 191 Regeln gegen die Regelsuite der Norm bestätigt, die übrigen 32 über eigene Tests |
 | **XRechnung** | 41 von 59 Regeln, mit den Schweregraden der Spezifikation | neun Testinstanzen von KoSIT – eine gültig, acht ungültig; alle neun Urteile stimmen überein |
-| **ZUGFeRD** | Profilerkennung und Profiltreue | die offiziellen Beispiele nennen ausschließlich erkannte Profile |
+| **ZUGFeRD** | Profilerkennung und Profiltreue; Peppol BIS Billing 3.0 erkennt Buchfink als CIUS, ihre eigenen Regeln (PEPPOL-EN16931-R*) prüft es nicht | die offiziellen Beispiele nennen ausschließlich erkannte Profile |
 
 Was **nicht** geprüft wird, steht abfragbar im Code: `einvoice.RulesUnchecked()`
 und `xrechnung.UncheckedRules()` nennen jede Regel einzeln, letzteres mit

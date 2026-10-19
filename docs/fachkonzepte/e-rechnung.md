@@ -21,8 +21,9 @@ Rechnung gleicht es nicht mit dem XML ab.
 
 ## Empfang
 
-- ZUGFeRD, Factur-X und XRechnung in den Syntaxen CII und UBL werden erkannt
-  und gelesen, bei hybriden PDFs aus dem eingebetteten XML.
+- ZUGFeRD, Factur-X und XRechnung in den Syntaxen CII und UBL sowie Peppol BIS
+  Billing 3.0 werden erkannt und gelesen, bei hybriden PDFs aus dem
+  eingebetteten XML.
 - Geprüft wird gegen alle 223 Geschäftsregeln von EN 16931, eine XRechnung
   zusätzlich gegen die deutschen Regeln. Ergebnis, Zeitpunkt und Regelstand
   stehen am Beleg. Die Prüfung ändert keine Datei und damit nicht den

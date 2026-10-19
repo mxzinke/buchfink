@@ -66,6 +66,16 @@ func TestDescribeSeparatesTheQuestions(t *testing.T) {
 	if !d.IsXRechnung || d.UsesExtension {
 		t.Errorf("XRechnung=%v, Extension=%v", d.IsXRechnung, d.UsesExtension)
 	}
+
+	peppol := &einvoice.Invoice{
+		Syntax:          einvoice.SyntaxUBL,
+		SpecificationID: einvoice.ProfilePeppolBIS3,
+		TypeCode:        "380",
+	}
+	d = Describe(peppol)
+	if d.Profile != zugferd.ProfilePeppolBIS || !d.BookableAsInvoice || !d.FollowsEN16931 || d.IsXRechnung {
+		t.Errorf("Peppol BIS ist eine vollständige Rechnung nach EN 16931 und keine XRechnung: %+v", d)
+	}
 }
 
 // Im Prüfmaterial der Norm und von KoSIT hat keine Rechnung den Code 59
