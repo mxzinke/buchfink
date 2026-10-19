@@ -115,3 +115,66 @@ func TestVatPeriodProposalStaysQuarterlyBelowTheThreshold(t *testing.T) {
 		t.Error("der Hinweis muss sagen, dass die Befreiung das Finanzamt ausspricht")
 	}
 }
+
+// Gründung im Oktober 2025: die Steuer des Gründungsjahres wird für 2026 in
+// eine Jahressteuer umgerechnet (§ 18 Abs. 2 Satz 6 UStG). 3.000 € aus drei
+// Monaten sind 12.000 € im Jahr und damit monatlich. Die Quartale vor der
+// Gründung fehlen nicht.
+func TestVatPeriodProposalAnnualisesTheFoundingYear(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	env.setSettings(t, func(c *domain.CompanySettings) { c.FoundedOn = "2025-10-15" })
+	svc := env.vatReturns(t)
+	repo := repository.NewVatReturnRepository(env.db)
+	if err := repo.Create(ctx, &domain.VatReturn{
+		FiscalYear: 2025, PeriodKey: "2025-Q4", PeriodType: domain.VatPeriodQuarter,
+		Status: domain.VatReturnSubmitted, Payable: 300_000,
+	}); err != nil {
+		t.Fatalf("Voranmeldung: %v", err)
+	}
+
+	proposal, err := svc.SuggestPeriodType(ctx, 2026)
+	if err != nil {
+		t.Fatalf("Vorschlag: %v", err)
+	}
+	if proposal.Proposed != domain.VatPeriodMonth {
+		t.Errorf("Vorschlag %q — umgerechnet 12.000 € sind monatlich: %s", proposal.Proposed, proposal.Note)
+	}
+	if !proposal.Complete || proposal.MissingPeriods != 0 {
+		t.Errorf("vor der Gründung fehlt keine Anmeldung, gemeldet sind %d", proposal.MissingPeriods)
+	}
+	if !strings.Contains(proposal.Note, "aus 3 Monaten") || strings.Contains(proposal.Note, "befreien") {
+		t.Errorf("Begründung: %s", proposal.Note)
+	}
+}
+
+// Im Gründungsjahr 2026 entscheidet die voraussichtliche Steuer, die Buchfink
+// nicht kennt; für ein Jahr nach 2026 gilt wieder die Monatspflicht des
+// § 18 Abs. 2 Satz 4 UStG.
+func TestVatPeriodProposalInTheFoundingYear(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	env.setSettings(t, func(c *domain.CompanySettings) {
+		c.FoundedOn, c.VatPeriod = "2026-03-01", string(domain.VatPeriodUnknown)
+	})
+	svc := env.vatReturns(t)
+
+	proposal, err := svc.SuggestPeriodType(ctx, 2026)
+	if err != nil {
+		t.Fatalf("Vorschlag: %v", err)
+	}
+	if proposal == nil {
+		t.Fatal("eine Gründung ohne festgelegten Zeitraum braucht den Vorschlag")
+	}
+	if proposal.Changes || !strings.Contains(proposal.Note, "voraussichtliche Steuer") {
+		t.Errorf("ohne Schätzung kein Wechsel, aber die Regel: %+v", proposal)
+	}
+
+	next, err := svc.SuggestPeriodType(ctx, 2027)
+	if err != nil {
+		t.Fatalf("Vorschlag 2027: %v", err)
+	}
+	if next.Proposed != domain.VatPeriodMonth || !strings.Contains(next.Note, "Satz 4") {
+		t.Errorf("2027 ist das Folgejahr der Gründung: %+v", next)
+	}
+}

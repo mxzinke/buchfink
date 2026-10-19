@@ -145,40 +145,63 @@ func quotaOf(amount domain.Cents, quota float64) domain.Cents {
 // Umsatzsteuer-Voranmeldung im Gründungsfall
 // -------------------------------------------------------------
 
-// RecommendedVatPeriod is the Voranmeldungszeitraum a company founded in the
-// given year starts with.
+// VatMonthlyThreshold ist die Grenze, über der monatlich anzumelden ist
+// (§ 18 Abs. 2 Satz 2 UStG): mehr als 9.000 € Steuer.
+const VatMonthlyThreshold = domain.Cents(900_000)
+
+// VatPeriodAdvice ist die Empfehlung für den Voranmeldungszeitraum.
+type VatPeriodAdvice struct {
+	// Period ist leer, wenn die Empfehlung an einer Steuer hängt, die nicht
+	// vorliegt.
+	Period domain.VatPeriodType `json:"period"`
+	Reason string               `json:"reason"`
+}
+
+// RecommendedVatPeriod ist der Voranmeldungszeitraum im Jahr year einer
+// Gesellschaft, die ihre Tätigkeit im Jahr foundingYear aufgenommen hat. ok ist
+// falsch, wenn year weder das Gründungsjahr noch das Folgejahr ist; dann gilt
+// die Steuer des Vorjahres.
 //
-// § 18 Abs. 2 Satz 4 UStG verlangt im Gründungsjahr und im folgenden Jahr die
-// monatliche Voranmeldung. Satz 6 hat das für die Besteuerungszeiträume 2021 bis
-// 2026 ausgesetzt; dort gilt der Regelfall des Satzes 2, also das Kalender-
-// vierteljahr. Ab dem Besteuerungszeitraum 2027 lebt die monatliche Pflicht
-// wieder auf.
+// § 18 Abs. 2 Satz 4 UStG verlangt in beiden Jahren die monatliche
+// Voranmeldung. Für die Besteuerungszeiträume 2021 bis 2026 tritt nach Satz 6
+// an ihre Stelle die Grenze des Satzes 2: im Gründungsjahr nach der
+// voraussichtlichen Steuer dieses Jahres, im Folgejahr nach der tatsächlichen
+// Steuer des Gründungsjahres, in eine Jahressteuer umgerechnet. annualTax ist
+// diese Steuer, nil heißt: sie liegt nicht vor. Eine Befreiung nach Satz 3 gibt
+// es in beiden Jahren nicht (UStAE 18.7 Abs. 5 Satz 3).
 //
 // Die Regel steht hier und nicht als Satz in der Oberfläche, weil sie ein
 // Stichjahr hat: ein fest getippter Hinweis wäre seit 2021 falsch gewesen und
 // wäre es ab 2027 wieder.
-func RecommendedVatPeriod(foundingYear int) string {
-	if foundingYear >= 2021 && foundingYear <= 2026 {
-		return "quarter"
+func RecommendedVatPeriod(foundingYear, year int, annualTax *domain.Cents) (VatPeriodAdvice, bool) {
+	followUp := year == foundingYear+1
+	if year != foundingYear && !followUp {
+		return VatPeriodAdvice{}, false
 	}
-	return "month"
-}
-
-// VatPeriodReason explains the recommendation in one sentence.
-func VatPeriodReason(foundingYear int) string {
-	if foundingYear >= 2021 && foundingYear <= 2026 {
-		return fmt.Sprintf(
-			"Für eine Gründung im Jahr %d gilt das Kalendervierteljahr: § 18 Abs. 2 Satz 6 UStG "+
-				"setzt die monatliche Abgabepflicht des Satzes 4 für die Besteuerungszeiträume "+
-				"2021 bis 2026 aus. Ab 2027 gilt sie wieder.",
-			foundingYear,
-		)
+	if year < 2021 || year > 2026 {
+		return VatPeriodAdvice{Period: domain.VatPeriodMonth, Reason: fmt.Sprintf(
+			"Im Jahr der Gründung und im folgenden Kalenderjahr ist die Voranmeldung monatlich "+
+				"abzugeben (§ 18 Abs. 2 Satz 4 UStG); das gilt für %d.", year)}, true
 	}
-	return fmt.Sprintf(
-		"Für eine Gründung im Jahr %d ist die Voranmeldung monatlich abzugeben, im Gründungsjahr "+
-			"und im folgenden Kalenderjahr (§ 18 Abs. 2 Satz 4 UStG).",
-		foundingYear,
-	)
+	basis := fmt.Sprintf("die voraussichtliche Steuer %d", year)
+	if followUp {
+		basis = fmt.Sprintf("die Steuer %d, umgerechnet auf ein volles Jahr", foundingYear)
+	}
+	if annualTax == nil {
+		return VatPeriodAdvice{Reason: fmt.Sprintf(
+			"Für %d entscheidet %s: über %s € monatlich, sonst vierteljährlich (§ 18 Abs. 2 Satz 6 "+
+				"UStG). Die Pflicht zur monatlichen Abgabe für Gründungen ist bis 2026 ausgesetzt.",
+			year, basis, VatMonthlyThreshold)}, true
+	}
+	if *annualTax > VatMonthlyThreshold {
+		return VatPeriodAdvice{Period: domain.VatPeriodMonth, Reason: fmt.Sprintf(
+			"Für %d entscheidet %s. Sie beträgt %s € und damit mehr als %s €: monatlich "+
+				"(§ 18 Abs. 2 Sätze 2 und 6 UStG).", year, basis, *annualTax, VatMonthlyThreshold)}, true
+	}
+	return VatPeriodAdvice{Period: domain.VatPeriodQuarter, Reason: fmt.Sprintf(
+		"Für %d entscheidet %s. Sie beträgt %s € und damit nicht mehr als %s €: vierteljährlich "+
+			"(§ 18 Abs. 2 Sätze 1, 2 und 6 UStG). Eine Befreiung von der Abgabe gibt es im Jahr der "+
+			"Gründung und im Folgejahr nicht.", year, basis, *annualTax, VatMonthlyThreshold)}, true
 }
 
 // addMonths shifts an ISO date by whole months, clamping to the end of the

@@ -60,14 +60,18 @@ Die Regeln des [§ 18 Abs. 2 UStG][ustg18] stehen in
 Folgen für eine Gründung, Stand Oktober 2026:
 
 - Gründung 2026: Ausschlaggebend ist die voraussichtliche Steuer 2026. Über
-  9.000 € monatlich, sonst vierteljährlich.
+  9.000 € monatlich, sonst vierteljährlich. Eine Befreiung von der Abgabe gibt
+  es im Gründungsjahr und im Folgejahr nicht ([UStAE 18.7 Abs. 5 Satz 3][usth187]).
+  Frag den Menschen nach der Schätzung, die er im Fragebogen angibt; Buchfink
+  kennt sie nicht.
 - Gründung ab 2027: monatlich im Gründungsjahr und im Folgejahr.
-- Wertungsfrage: Gilt für eine Gründung 2026 im Jahr 2027 Satz 4 (monatlich als
-  „folgendes Kalenderjahr“) oder die Umrechnung nach Satz 6? Maßgebend ist, was
-  das Finanzamt mitteilt; der Mensch stellt es in der App ein.
-- Buchfink schlägt im Einrichtungsassistenten für Gründungen 2021 bis 2026
-  pauschal das Vierteljahr vor (`accounting.RecommendedVatPeriod`). Das
-  übersieht den Fall einer voraussichtlichen Steuer über 9.000 €; prüfe es.
+- Gründung 2026, Jahr 2027: Satz 6 gilt nur für die Besteuerungszeiträume 2021
+  bis 2026. Für 2027 als „folgendes Kalenderjahr“ gilt nach dem Wortlaut
+  wieder Satz 4, also monatlich; so schlägt es Buchfink vor. Maßgebend ist,
+  was das Finanzamt mitteilt; der Mensch stellt es in der App ein.
+- Buchfink schlägt den Zeitraum unter Unternehmen › Steuern vor
+  (`accounting.RecommendedVatPeriod` über `SuggestPeriodType`); Grundlage ist
+  das Gründungsdatum der Unternehmensdaten.
 
 ## 4. Was du zum Fragebogen beisteuerst
 
@@ -94,3 +98,4 @@ Zahlen und nenne die Folgen.
 [ustg20]: https://www.gesetze-im-internet.de/ustg_1980/__20.html
 [ustg27a]: https://www.gesetze-im-internet.de/ustg_1980/__27a.html
 [nrwmerkblatt]: https://www.finanzverwaltung.nrw.de/sites/default/files/asset/document/merkblatt_fuer_existenzgruenderinnen_und_existenzgruender.pdf
+[usth187]: https://usth.bundesfinanzministerium.de/usth/2023/A-Umsatzsteuergesetz/V-Besteuerung/Paragraf-18/ae-18-7.html

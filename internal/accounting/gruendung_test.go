@@ -109,23 +109,35 @@ func TestRequiredPerShareRoundsUp(t *testing.T) {
 	}
 }
 
-func TestRecommendedVatPeriodAtTheStichjahr(t *testing.T) {
+// § 18 Abs. 2 Satz 4 UStG verlangt im Gründungsjahr und im Folgejahr die
+// monatliche Voranmeldung; Satz 6 ersetzt das für 2021 bis 2026 durch die
+// Grenze von 9.000 € auf die voraussichtliche bzw. umgerechnete Steuer.
+func TestRecommendedVatPeriodFollowsTheFoundingRules(t *testing.T) {
+	tax := func(c domain.Cents) *domain.Cents { return &c }
 	tests := []struct {
-		year int
-		want string
+		name          string
+		founded, year int
+		annualTax     *domain.Cents
+		want          domain.VatPeriodType
+		applies       bool
 	}{
-		{2020, "month"},
-		{2021, "quarter"},
-		{2026, "quarter"},
-		{2027, "month"},
-		{2030, "month"},
+		{"vor der Aussetzung", 2020, 2020, nil, domain.VatPeriodMonth, true},
+		{"Gründung 2026 ohne Schätzung", 2026, 2026, nil, "", true},
+		{"Gründung 2026 über der Grenze", 2026, 2026, tax(900_001), domain.VatPeriodMonth, true},
+		{"Gründung 2026 genau an der Grenze", 2026, 2026, tax(900_000), domain.VatPeriodQuarter, true},
+		{"Folgejahr 2026, umgerechnet über der Grenze", 2025, 2026, tax(1_200_000), domain.VatPeriodMonth, true},
+		{"Folgejahr 2026, unter der Grenze", 2025, 2026, tax(100_000), domain.VatPeriodQuarter, true},
+		{"Folgejahr 2027 einer Gründung 2026", 2026, 2027, tax(100_000), domain.VatPeriodMonth, true},
+		{"Gründung 2027", 2027, 2027, nil, domain.VatPeriodMonth, true},
+		{"zweites Jahr nach der Gründung", 2025, 2027, nil, "", false},
 	}
 	for _, tc := range tests {
-		if got := RecommendedVatPeriod(tc.year); got != tc.want {
-			t.Errorf("RecommendedVatPeriod(%d) = %q, erwartet %q", tc.year, got, tc.want)
+		got, ok := RecommendedVatPeriod(tc.founded, tc.year, tc.annualTax)
+		if ok != tc.applies || got.Period != tc.want {
+			t.Errorf("%s: %q (gilt %v), erwartet %q (gilt %v)", tc.name, got.Period, ok, tc.want, tc.applies)
 		}
-		if VatPeriodReason(tc.year) == "" {
-			t.Errorf("VatPeriodReason(%d) ist leer", tc.year)
+		if ok && got.Reason == "" {
+			t.Errorf("%s: ohne Begründung", tc.name)
 		}
 	}
 }

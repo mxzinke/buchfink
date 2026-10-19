@@ -1059,6 +1059,7 @@ Bereich steuererklaerungen stehen (§§ 7 KStG, 5b, 16, 18 UStG, §§ 20, 108,
 |---|---|---|---|---|
 | H 1.1 KStH „Beginn der Steuerpflicht“, „Vorgründungsgesellschaft“ | https://www.steuerschroeder.de/steuergesetze/ksth/1.1 | Steuerpflicht ab Vorgesellschaft (BFH I R 98-99/86, I R 17/92); Vorgründungsgesellschaft nicht identisch, i. d. R. nicht kstpfl. (BFH I R 174/86) | Text (Kanzleispiegel) | steuererklaerungen/kst; gruendung/ablauf, gruendungskosten |
 | BFH vom 11.10.1989, I R 12/87, BStBl II 1990, 89 | https://www.haufe.de/id/entscheidung/bfh-urteil-vom-11101989-i-r-1287-HI62976.html | Gründungskosten, die die GmbH ohne Festsetzung im Gesellschaftsvertrag trägt, sind keine Betriebsausgabe (Ausschüttung); Lücke des GmbHG durch entsprechende Anwendung von § 26 Abs. 2 AktG geschlossen, mit Verweis auf BGH II ZB 10/88 | Text 17.10.2026 (Haufe-Wiedergabe) | gruendung/gruendungskosten |
+| UStAE 18.7 Abs. 5 (Amtliche Umsatzsteuer-Handausgabe 2023) | https://usth.bundesfinanzministerium.de/usth/2023/A-Umsatzsteuergesetz/V-Besteuerung/Paragraf-18/ae-18-7.html | Neugründungen 2021–2026: Zeitraum nach § 18 Abs. 2 Sätze 1 und 2 UStG, keine Befreiung (Satz 3), Gründungsjahr nach voraussichtlicher Steuer, Folgejahr nach umgerechneter Steuer (Satz 4), Vorratsgesellschaften und Firmenmäntel unberührt (Satz 8) | Text 19.10.2026 | gruendung/steuerliche-erfassung |
 | BGH vom 20.02.1989, II ZB 10/88, GmbHR 1989, 250 | – (Volltext nicht gelesen) | § 26 Abs. 2 AktG entsprechend für die GmbH | nur über BFH I R 12/87 und Sekundärquellen (Haufe „Gründungsaufwand bei UG und GmbH“); Fundstelle BGHZ 107, 1 nicht bestätigt | gruendung/gruendungskosten |
 | H 8.5 KStH „Gründungskosten“ → BMF vom 25.06.1991, IV B 7 - S 2741 - 4/91, BStBl I S. 661 | https://www.steuerschroeder.de/steuergesetze/ksth/8.5 | Verweis der Verwaltung; Inhalt (vGA bei Übernahme ohne Satzungsregel) nur über Sekundärquellen (NWB-Vorschau, Suchergebnisse zu BFH I R 42/96) | Titel; Wortlaut des BMF-Schreibens nicht gelesen | gruendung/gruendungskosten |
 | BGH vom 09.03.1981, II ZR 54/80, BGHZ 80, 129 (Vorbelastungs-/Unterbilanzhaftung) | https://www.haufe.de/id/entscheidung/bgh-urteil-vom-09031981-ii-zr-5480-veroeffentlicht-am-09031981-HI609498.html | Grundlage der Unterbilanzhaftung (laut späterer Rechtsprechung, II ZR 123/94, II ZR 115/81) | Titel über Sekundärquellen | gruendung/kapitalaufbringung |
@@ -1102,9 +1103,11 @@ Bereich steuererklaerungen stehen (§§ 7 KStG, 5b, 16, 18 UStG, §§ 20, 108,
   Werkzeug gibt es nicht.
 - **Unterbilanz:** `FoundationService.Unterbilanz` rechnet, aber weder App
   noch Werkzeug zeigen das Ergebnis.
-- **Code-Korrektur:** `RecommendedVatPeriod` schlägt für Gründungen 2021–2026
-  pauschal das Vierteljahr vor; § 18 Abs. 2 Satz 6 UStG stellt auf die
-  voraussichtliche Steuer ab (über 9.000 € monatlich).
+- **Voranmeldungszeitraum der Gründung:** `RecommendedVatPeriod` kennt die
+  voraussichtliche Steuer des Gründungsjahres nicht und erkennt
+  Vorratsgesellschaften (§ 18 Abs. 2 Satz 5 UStG) nicht. Die Umrechnung des
+  Gründungsjahres in eine Jahressteuer (Satz 6) regelt der Wortlaut nicht;
+  Buchfink rechnet mit vollen Monaten ab dem Gründungsmonat.
 - **Kleinunternehmer:** Seit der Neufassung ist eine GmbH unter den Grenzen
   des § 19 Abs. 1 UStG ohne Verzicht Kleinunternehmerin; die Anwendung im
   Gründungsjahr (aktueller UStAE 19.1) ist nicht gelesen. Buchfink bildet

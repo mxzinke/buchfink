@@ -56,7 +56,13 @@ Wortlaut von § 18 Abs. 2 UStG.
 
 In Buchfink: Buchfink schlägt den Zeitraum aus der Summe der Kennziffer 83
 der übermittelten Anmeldungen des Vorjahres vor und nennt fehlende Zeiträume.
-Der Mensch stellt den Zeitraum in der App ein. Eine Befreiung oder eine
+Liegt das Gründungsdatum der Unternehmensdaten im Jahr oder im Vorjahr, gilt
+die Regel für Neugründungen: ab 2027 monatlich, bis 2026 im Folgejahr nach der
+Steuer des Gründungsjahres, umgerechnet mit vollen Monaten ab dem
+Gründungsmonat. Die voraussichtliche Steuer des Gründungsjahres kennt
+Buchfink nicht; dann bleibt der Vorschlag beim eingestellten Zeitraum und nennt
+die Regel. Eine Vorratsgesellschaft oder einen Firmenmantel erkennt Buchfink
+nicht. Der Mensch stellt den Zeitraum in der App ein. Eine Befreiung oder eine
 abweichende Festlegung des Finanzamts gibt er dort ebenfalls ein.
 
 ## 3. Verspätungszuschlag

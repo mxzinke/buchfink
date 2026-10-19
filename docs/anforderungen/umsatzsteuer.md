@@ -35,6 +35,7 @@ MUSS · § 18 UStG, §§ 46 bis 48 UStDV
 | Kriterium | Stand | Fundstelle oder Grund |
 |---|---|---|
 | Zeitraum aus der Vorjahressteuer vorgeschlagen, überschreibbar | erfüllt | `service.VatReturnService.SuggestPeriodType` |
+| Zeitraum im Gründungsjahr und im Folgejahr nach § 18 Abs. 2 Sätze 4 und 6 UStG | teilweise | `accounting.RecommendedVatPeriod`: ab 2027 monatlich; 2021 bis 2026 im Folgejahr aus der umgerechneten Steuer des Gründungsjahres. Die voraussichtliche Steuer des Gründungsjahres und Vorratsgesellschaften (Satz 5) kennt Buchfink nicht |
 | Amtlicher Datensatz per Datenfernübertragung oder Export für Mein ELSTER | teilweise | Kennziffernblatt nach Vordruck 2026 und CSV (`service.VatReturnService.ExportCSV`) zum Übertragen in Mein ELSTER; keine eigene Übermittlung |
 | Übermittlung mit Zeitpunkt, Transferticket und Status gespeichert | erfüllt | `service.VatReturnService.ConfirmSubmitted`, nur in der App |
 | Dauerfristverlängerung mit Sondervorauszahlung und Anrechnung | erfüllt | `service.VatReturnService.SuggestedSpecialPrepayment` |

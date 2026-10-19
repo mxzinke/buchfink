@@ -24,7 +24,7 @@ import (
 const (
 	// VatMonthlyThreshold ist die Grenze, über der monatlich anzumelden ist
 	// (§ 18 Abs. 2 Satz 2 UStG): mehr als 9.000 € Steuer im Vorjahr.
-	VatMonthlyThreshold = domain.Cents(900_000)
+	VatMonthlyThreshold = accounting.VatMonthlyThreshold
 	// VatExemptionThreshold ist die Grenze, unter der das Finanzamt von der
 	// Abgabe der Voranmeldungen befreien kann (§ 18 Abs. 2 Satz 3 UStG):
 	// nicht mehr als 2.000 € Steuer im Vorjahr.
@@ -66,8 +66,16 @@ func (s *VatReturnService) SuggestPeriodType(ctx context.Context, year int) (*Va
 		Reference: "§ 18 Abs. 2 UStG",
 	}
 
-	if !out.Current.Valid() {
+	founded := s.foundedOn(ctx)
+	foundingYear := yearOfDate(founded)
+	_, founding := accounting.RecommendedVatPeriod(foundingYear, year, nil)
+	// Eine Gründung hat noch keinen festgelegten Zeitraum; gerade dann braucht
+	// sie den Vorschlag.
+	if !out.Current.Valid() && !(founding && out.Current == domain.VatPeriodUnknown) {
 		return nil, nil
+	}
+	if founding && year == foundingYear {
+		return foundingYearProposal(out, foundingYear), nil
 	}
 	saved, err := s.returnRepo.FindByFiscalYear(ctx, prior)
 	if err != nil {
@@ -95,19 +103,26 @@ func (s *VatReturnService) SuggestPeriodType(ctx context.Context, year int) (*Va
 	// gegen vier Quartale gemessen sähe das nach acht überzähligen aus.
 	periods := accounting.VatPeriodsOfYear(prior, periodTypeOfKeys(latest))
 	for _, p := range periods {
+		// Vor der Gründung gab es nichts anzumelden.
+		if founding && p.To < founded {
+			continue
+		}
 		if latest[p.Key] == nil {
 			out.MissingPeriods++
 		}
 	}
 	out.Complete = len(latest) > 0 && out.MissingPeriods == 0
 
+	if founding {
+		return followUpYearProposal(out, foundingYear, founded, len(latest) > 0), nil
+	}
+
 	switch {
 	case len(latest) == 0:
 		out.Proposed = out.Current
 		out.Note = fmt.Sprintf(
 			"Für %d ist keine übermittelte Voranmeldung erfasst. Ohne die Steuer des Vorjahres "+
-				"lässt sich der Zeitraum nicht ableiten; bei einer Neugründung gilt ohnehin die "+
-				"besondere Regel des § 18 Abs. 2 Satz 4 UStG.", prior)
+				"lässt sich der Zeitraum nicht ableiten.", prior)
 		return out, nil
 	case out.PriorYearTax > VatMonthlyThreshold:
 		out.Proposed = domain.VatPeriodMonth
@@ -139,6 +154,63 @@ func (s *VatReturnService) SuggestPeriodType(ctx context.Context, year int) (*Va
 				"deshalb möglicherweise zu niedrig.", out.MissingPeriods, prior)
 	}
 	return out, nil
+}
+
+// foundingYearProposal ist der Vorschlag im Jahr der Gründung. Ohne die
+// voraussichtliche Steuer, die Buchfink nicht kennt, bleibt es in den Jahren
+// mit ausgesetzter Monatspflicht beim eingestellten Zeitraum.
+func foundingYearProposal(out *VatPeriodProposal, foundingYear int) *VatPeriodProposal {
+	advice, _ := accounting.RecommendedVatPeriod(foundingYear, out.Year, nil)
+	out.BasedOnYear = out.Year
+	out.Proposed = out.Current
+	if advice.Period != "" {
+		out.Proposed = advice.Period
+	}
+	out.Note = advice.Reason
+	out.Changes = out.Proposed != out.Current
+	return out
+}
+
+// followUpYearProposal ist der Vorschlag im Jahr nach der Gründung.
+//
+// § 18 Abs. 2 Satz 6 UStG verlangt, die Steuer des Gründungsjahres in eine
+// Jahressteuer umzurechnen, und sagt nicht, wie. Buchfink rechnet mit vollen
+// Monaten ab dem Gründungsmonat und nennt das in der Begründung.
+func followUpYearProposal(out *VatPeriodProposal, foundingYear int, founded string, known bool) *VatPeriodProposal {
+	var annual *domain.Cents
+	months := 13 - int(monthOf(founded))
+	if known && months >= 1 && months <= 12 {
+		v := domain.MulRound(out.PriorYearTax, 12, int64(months))
+		annual = &v
+	}
+	advice, _ := accounting.RecommendedVatPeriod(foundingYear, out.Year, annual)
+	out.Proposed = out.Current
+	if advice.Period != "" {
+		out.Proposed = advice.Period
+	}
+	out.Note = advice.Reason
+	if annual != nil && months < 12 {
+		out.Note += fmt.Sprintf(" Umgerechnet hat Buchfink %s € aus %d Monaten ab dem Gründungsmonat.",
+			out.PriorYearTax, months)
+	}
+	if known && !out.Complete {
+		out.Note += fmt.Sprintf(" Für %d Zeiträume seit der Gründung liegt keine übermittelte Anmeldung "+
+			"vor; die Summe ist deshalb möglicherweise zu niedrig.", out.MissingPeriods)
+	}
+	out.Changes = out.Proposed != out.Current
+	return out
+}
+
+// foundedOn ist der Gründungstag aus den Unternehmensdaten oder leer.
+func (s *VatReturnService) foundedOn(ctx context.Context) string {
+	if s.settingsRepo == nil {
+		return ""
+	}
+	cfg, err := s.settingsRepo.GetCompanySettings(ctx)
+	if err != nil || cfg == nil {
+		return ""
+	}
+	return cfg.FoundedOn
 }
 
 // periodTypeOfKeys erkennt am Zeitraumschlüssel, in welchem Rhythmus im Vorjahr
