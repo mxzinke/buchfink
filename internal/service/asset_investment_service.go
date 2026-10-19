@@ -63,6 +63,10 @@ func (s *AssetService) vorabpauschale(ctx context.Context, req VorabpauschaleReq
 	if req.Year <= 0 {
 		return nil, fmt.Errorf("ohne Kalenderjahr lässt sich keine Vorabpauschale rechnen")
 	}
+	if year := fmt.Sprint(req.Year); asset.AcquisitionDate > year+"-12-31" ||
+		(asset.DisposalDate != "" && asset.DisposalDate < year+"-01-01") {
+		return nil, fmt.Errorf("%s gehörte der Gesellschaft im Kalenderjahr %d nicht", asset.InventoryNumber, req.Year)
+	}
 
 	// § 18 Abs. 2 InvStG kürzt im Jahr des Erwerbs. Der Erwerbsmonat steht am
 	// Anlagegut; nur für dessen eigenes Kalenderjahr ist er von Belang.

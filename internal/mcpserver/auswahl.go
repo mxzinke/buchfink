@@ -43,6 +43,7 @@ type (
 	AbgrenzungArt    string
 	RueckstellungArt string
 	AnlageKlasse     string
+	Fondsart         string
 	AfaMethode       string
 	ErklaerungArt    string
 	JahrArt          string
@@ -87,6 +88,7 @@ var choices = map[reflect.Type]choice{
 	reflect.TypeFor[RueckstellungArt](): {choiceKeys(provisionKinds),
 		"Art der Rückstellung; Steuerrückstellungen über art=steuerrueckstellung"},
 	reflect.TypeFor[AnlageKlasse]():  {choiceKeys(assetClasses), "sachanlage, immateriell oder finanzanlage"},
+	reflect.TypeFor[Fondsart]():      {choiceKeys(fundClasses), "Fondsart nach § 2 InvStG"},
 	reflect.TypeFor[AfaMethode]():    {choiceKeys(depreciationMethods), "Abschreibungsmethode"},
 	reflect.TypeFor[ErklaerungArt](): {[]string{"ustva", "zm", "ust_jahr", "kst", "gewst"}, "Art der Anmeldung oder Erklärung"},
 	reflect.TypeFor[JahrArt]():       {choiceKeys(declarationKinds), "Jahreserklärung"},
@@ -180,6 +182,12 @@ var provisionKinds = map[RueckstellungArt]domain.ProvisionKind{
 var assetClasses = map[AnlageKlasse]domain.AssetClass{
 	"sachanlage": domain.AssetClassTangible, "immateriell": domain.AssetClassIntangible,
 	"finanzanlage": domain.AssetClassFinancial,
+}
+
+var fundClasses = map[Fondsart]accounting.FundClass{
+	"aktienfonds": accounting.FundEquity, "mischfonds": accounting.FundMixed,
+	"immobilienfonds": accounting.FundRealEstate, "auslands_immobilienfonds": accounting.FundForeignRealEstate,
+	"sonstiger_fonds": accounting.FundOther,
 }
 
 var depreciationMethods = map[AfaMethode]domain.DepreciationMethod{

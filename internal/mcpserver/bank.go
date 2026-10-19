@@ -182,11 +182,11 @@ type kreditkarteIn struct {
 }
 
 type kapitalertragIn struct {
-	AnlageID              uint   `json:"anlage_id" jsonschema:"Finanzanlage aus anlagen, aus der der Ertrag stammt"`
-	Brutto                Betrag `json:"brutto" jsonschema:"Ertrag vor Steuern laut Abrechnung der Bank"`
-	Kapitalertragsteuer   Betrag `json:"kapitalertragsteuer,omitempty" jsonschema:"einbehaltene Kapitalertragsteuer, auf 7630"`
-	Solidaritaetszuschlag Betrag `json:"solidaritaetszuschlag,omitempty" jsonschema:"einbehaltener Solidaritätszuschlag, auf 7633"`
-	Konto                 Konto  `json:"konto,omitempty" jsonschema:"Ertragskonto; Vorgabe aus dem Anlagekonto"`
+	AnlageID              uint   `json:"anlage_id" jsonschema:"Finanzanlage aus anlagen"`
+	Brutto                Betrag `json:"brutto" jsonschema:"Ertrag vor Steuern"`
+	Kapitalertragsteuer   Betrag `json:"kapitalertragsteuer,omitempty" jsonschema:"auf 7630"`
+	Solidaritaetszuschlag Betrag `json:"solidaritaetszuschlag,omitempty" jsonschema:"auf 7633"`
+	Konto                 Konto  `json:"konto,omitempty" jsonschema:"Vorgabe aus dem Anlagekonto"`
 }
 
 type bankBuchenIn struct {
@@ -197,7 +197,7 @@ type bankBuchenIn struct {
 	Kreditkarte  *kreditkarteIn `json:"kreditkartenabrechnung,omitempty" jsonschema:"Lastschrift der Kreditkartenabrechnung gegen 3610"`
 	// Kapitalertrag verknüpft den Ertrag mit dem Anlagegut; daraus liest die
 	// Körperschaftsteuererklärung Bezüge nach § 8b KStG und Fondserträge.
-	Kapitalertrag *kapitalertragIn `json:"kapitalertrag,omitempty" jsonschema:"Dividende, Ausschüttung oder Zinsen einer Finanzanlage, mit dem Anlagegut verknüpft"`
+	Kapitalertrag *kapitalertragIn `json:"kapitalertrag,omitempty" jsonschema:"Ertrag einer Finanzanlage, am Anlagegut"`
 	Beschreibung  string           `json:"beschreibung,omitempty"`
 }
 
@@ -501,8 +501,7 @@ func registerBank(tb *Toolbox) {
 		Title: "Bankumsatz buchen (mit Rückfrage)",
 		Description: "Bucht einen Bankumsatz in allen Fällen, die keine Routine sind: aufteilung auf offene Posten " +
 			"(mit Differenz Skonto, Gebühr, Rundung, Währung), Konten und Gesellschafterdarlehen, zusammen genau der " +
-			"Umsatz; kreditkartenabrechnung gegen 3610; kapitalertrag aus einer Finanzanlage (brutto, " +
-			"Kapitalertragsteuer und Solidaritätszuschlag, mit dem Anlagegut verknüpft); oder ignorieren mit Grund. " +
+			"Umsatz; kreditkartenabrechnung gegen 3610; kapitalertrag einer Finanzanlage; oder ignorieren mit Grund. " +
 			"Genau eine der vier Angaben. Vorher dem Menschen vorlegen und sein Ja einholen.",
 	}, nil, func(ctx context.Context, c *Call, s core.AgentServices, in bankBuchenIn) (bankBuchenOut, error) {
 		modes := 0

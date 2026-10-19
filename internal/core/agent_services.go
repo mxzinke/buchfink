@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/declaration"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/ebilanz"
@@ -36,6 +37,7 @@ type AgentServices struct {
 		List(context.Context, int, domain.AssetClass) ([]domain.FixedAsset, error)
 		PendingDepreciation(context.Context, int) ([]service.DepreciationDue, error)
 		Save(context.Context, *domain.FixedAsset) (*domain.FixedAsset, error)
+		Vorabpauschale(context.Context, service.VorabpauschaleRequest) (*accounting.Vorabpauschale, error)
 	}
 	Bank interface {
 		Accounts(context.Context) ([]domain.BankAccount, error)

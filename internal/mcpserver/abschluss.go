@@ -179,6 +179,17 @@ type aktivierenIn struct {
 	NutzungsdauerMonate int          `json:"nutzungsdauer_monate,omitempty" jsonschema:"nach AfA-Tabelle"`
 	NutzungsdauerGrund  string       `json:"nutzungsdauer_grund,omitempty" jsonschema:"bei Abweichung von der AfA-Tabelle"`
 	InBetrieb           Datum        `json:"in_betrieb,omitempty"`
+	Fondsart            Fondsart     `json:"fondsart,omitempty" jsonschema:"nur bei einem Investmentanteil"`
+}
+
+type vorabpauschaleIn struct {
+	AnlageID             uint   `json:"anlage_id"`
+	Kalenderjahr         int    `json:"kalenderjahr"`
+	WertJahresbeginn     Betrag `json:"wert_jahresbeginn" jsonschema:"erster Rücknahmepreis des Jahres für den Bestand"`
+	WertJahresende       Betrag `json:"wert_jahresende" jsonschema:"letzter Rücknahmepreis des Jahres für den Bestand"`
+	Ausschuettungen      Betrag `json:"ausschuettungen,omitempty"`
+	BasiszinsBasispunkte int    `json:"basiszins_basispunkte,omitempty" jsonschema:"320 = 3,20 %; Vorgabe hinterlegt"`
+	Notiz                string `json:"notiz,omitempty"`
 }
 
 type abschlussbuchungIn struct {
@@ -194,6 +205,7 @@ type abschlussbuchungIn struct {
 	Wertberichtigung    *wertberichtigungIn    `json:"wertberichtigung,omitempty"`
 	UnfertigeLeistungen *unfertigeIn           `json:"unfertige_leistungen,omitempty"`
 	Anlage              *aktivierenIn          `json:"anlage,omitempty"`
+	Vorabpauschale      *vorabpauschaleIn      `json:"vorabpauschale,omitempty"`
 }
 
 func (in abschlussbuchungIn) preview() bool { return in.NurVorschau }
@@ -308,8 +320,9 @@ func registerAbschluss(tb *Toolbox) {
 		Name:  "abschlussbuchung",
 		Title: "Abschlussbuchung",
 		Description: "Bucht einen Schritt des Jahresabschlusses: afa_lauf, abgrenzung, rueckstellung, ust_verrechnung, " +
-			"steuerrueckstellung, ug_ruecklage, wertberichtigung, unfertige_leistungen, fremdwaehrung oder " +
-			"anlage_aktivieren, jeweils mit seinen Angaben im gleichnamigen Feld. Erst mit nur_vorschau rechnen, " +
+			"steuerrueckstellung, ug_ruecklage, wertberichtigung, unfertige_leistungen, fremdwaehrung, " +
+			"anlage_aktivieren oder vorabpauschale (ohne Buchung), jeweils mit seinen Angaben im " +
+			"gleichnamigen Feld. Erst mit nur_vorschau rechnen, " +
 			"dem Menschen Buchungssatz und Erläuterung vorlegen, nach seinem Ja buchen. Welcher Schritt offen ist, " +
 			"zeigt abschluss_status.",
 	}, func(ctx context.Context, c *Call, t *core.Tenant, in abschlussbuchungIn) error {
@@ -352,6 +365,7 @@ var closingRuns = map[string]closingRun{
 	"unfertige_leistungen": runWorkInProgress,
 	"fremdwaehrung":        runCurrency,
 	"anlage_aktivieren":    runActivate,
+	"vorabpauschale":       runVorabpauschale,
 }
 
 func addEntry(out *abschlussbuchungOut, e *domain.JournalEntry) {
@@ -718,8 +732,16 @@ func runActivate(ctx context.Context, s core.AgentServices, year int, in abschlu
 			method = domain.DepreciationNone
 		}
 	}
+	fund, err := pick("anlage.fondsart", a.Fondsart, fundClasses)
+	if err != nil {
+		return err
+	}
+	if fund.IsFund() && class != domain.AssetClassFinancial {
+		return inputError("anlage.fondsart", "eine Fondsart hat nur eine Finanzanlage")
+	}
 	entryID := found.EntryID
 	asset := &domain.FixedAsset{Name: a.Bezeichnung, Class: class, Account: found.Account, AcquisitionDate: found.BookingDate,
+		FundClass:       string(fund),
 		AcquisitionCost: found.Amount, InServiceDate: inService, Method: method,
 		DepreciationAccount: account.DepreciationAccount,
 		UsefulLifeMonths:    a.NutzungsdauerMonate, UsefulLifeReason: a.NutzungsdauerGrund, ContactID: found.ContactID,
@@ -729,5 +751,40 @@ func runActivate(ctx context.Context, s core.AgentServices, year int, in abschlu
 		return err
 	}
 	out.AnlageID = &saved.ID
+	return nil
+}
+
+// runVorabpauschale rechnet die Vorabpauschale eines Kalenderjahres (§ 18
+// InvStG) und hält sie ohne Buchung am Anlagegut fest; mit nur_vorschau nur
+// die Rechnung.
+func runVorabpauschale(ctx context.Context, s core.AgentServices, _ int, in abschlussbuchungIn, out *abschlussbuchungOut) error {
+	v := in.Vorabpauschale
+	if v == nil {
+		return inputError("vorabpauschale", "die Angaben der Vorabpauschale fehlen")
+	}
+	if v.AnlageID == 0 {
+		return inputError("vorabpauschale.anlage_id", "der Investmentanteil fehlt")
+	}
+	req := service.VorabpauschaleRequest{AssetID: v.AnlageID, Year: v.Kalenderjahr, BasisPoints: v.BasiszinsBasispunkte,
+		Record: !in.NurVorschau, Note: strings.TrimSpace(v.Notiz)}
+	var err error
+	if req.OpeningPrice, err = v.WertJahresbeginn.required("vorabpauschale.wert_jahresbeginn"); err != nil {
+		return err
+	}
+	if req.ClosingPrice, err = v.WertJahresende.required("vorabpauschale.wert_jahresende"); err != nil {
+		return err
+	}
+	if req.Distributions, err = v.Ausschuettungen.cents("vorabpauschale.ausschuettungen"); err != nil {
+		return err
+	}
+	result, err := s.Assets.Vorabpauschale(ctx, req)
+	if err != nil {
+		return err
+	}
+	out.Betrag = optBetrag(result.Amount)
+	out.Erlaeuterung = result.Explanation
+	out.AnlageID = &v.AnlageID
+	out.Hinweise = append(out.Hinweise, fmt.Sprintf(
+		"Gilt am %s als zugeflossen (§ 18 Abs. 3 InvStG); gebucht wird nichts.", domain.GermanDate(result.AccruedOn)))
 	return nil
 }

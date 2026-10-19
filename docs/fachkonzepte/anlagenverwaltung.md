@@ -101,8 +101,11 @@ die Jahre, deren BMF-Schreiben gelesen wurde (`accounting.InvestmentBaseRateFor`
 2024 bis 2026); eine abweichende Eingabe weist es ab. Für andere Jahre gibt der
 Mensch ihn mit Quelle ein. Als zugeflossen gilt die Vorabpauschale am ersten
 Werktag des Folgejahres, Samstag ausgenommen, wie das BMF für 2026 den
-4. Januar 2027 nennt. Gerechnet wird im Dienst (`AssetService.Vorabpauschale`);
-weder Oberfläche noch Werkzeug rufen ihn auf.
+4. Januar 2027 nennt. Der Agent rechnet und hält sie mit `abschlussbuchung`
+(`art: vorabpauschale`, `AssetService.Vorabpauschale`) fest; die Fondsart
+nimmt die Aktivierung auf (`anlage_aktivieren` mit `fondsart`). Die
+Körperschaftsteuererklärung setzt sie im Geschäftsjahr des fiktiven Zuflusses
+an.
 
 ## Anlagenspiegel
 

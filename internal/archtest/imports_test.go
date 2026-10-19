@@ -121,7 +121,7 @@ func TestStorageImportScanner(t *testing.T) {
 
 // Kataloge, reine Datentypen und Konstanten, getrennt nach Adapter.
 var catalogSymbols = map[string]map[string]bool{
-	"mcpserver":   symbolSet("PostingGroups", "LookupAssetAccount", "SpecificAllowance", "WorkInProgressProject", "AdvanceTarget", "AdvanceTargetInventory", "AdvanceTargetTangible", "AdvanceTargetIntangible", "MatchScoreDueNear"),
+	"mcpserver":   symbolSet("PostingGroups", "LookupAssetAccount", "SpecificAllowance", "WorkInProgressProject", "AdvanceTarget", "AdvanceTargetInventory", "AdvanceTargetTangible", "AdvanceTargetIntangible", "MatchScoreDueNear", "FundClass", "FundEquity", "FundMixed", "FundRealEstate", "FundForeignRealEstate", "FundOther"),
 	"wailsbridge": symbolSet("DegressiveWindows", "AfARuleSet", "SpecialMaxPermille", "SpecialPeriodYears", "DegressiveWindow", "ElectricVehicleWindow", "AllFundClasses", "FundClass", "RetentionRules", "LoadedRetentionRules", "JournalFilter", "JournalFilterResult", "JournalFilterRow", "PostingGroup", "PostingGroups", "FoundationRules", "FoundationLegalForms", "SizeClass", "AfARules", "ProvisionMirror"),
 }
 

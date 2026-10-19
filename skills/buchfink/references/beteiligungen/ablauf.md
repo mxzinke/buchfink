@@ -16,10 +16,12 @@ Was Buchfink dafür hat:
 - Anlagenkartei für Finanzanlagen: Kennung (ISIN, WKN, Registernummer),
   Beteiligungsquote (ohne Stichtag), Kennzeichen „Anteil an einer
   Kapitalgesellschaft“ mit eigenen Konten für Abgang, Abschreibung und
-  Zuschreibung, Fondsart, Stückzahl, Notierungswährung. Diese Felder und die
-  Bewegungen eines Anlageguts (Abgang, Wertänderung, Ertrag, Vorabpauschale,
-  Währungsbewertung) bildet Buchfink noch nicht ab, weder als Werkzeug noch in
-  der App; vorhandene Werte liest es. Leg dem Menschen Sachverhalt und Zahlen
+  Zuschreibung, Fondsart, Stückzahl, Notierungswährung. Die Fondsart nimmt
+  `abschlussbuchung` beim Aktivieren auf (`fondsart`), einen Ertrag
+  `bankumsatz_buchen` (`kapitalertrag`), die Vorabpauschale `abschlussbuchung`
+  (`art: vorabpauschale`). Die übrigen Felder und Bewegungen (Abgang,
+  Wertänderung, Währungsbewertung) bildet Buchfink noch nicht ab, weder als
+  Werkzeug noch in der App; vorhandene Werte liest es. Leg dem Menschen Sachverhalt und Zahlen
   vor; ein Steuerberater kann die Werte für die Erklärung bestätigen.
 - Die Rechnung zu § 8b KStG, § 8 Nr. 5 und § 9 Nr. 2a GewStG, Teilfreistellung
   und Vorabpauschale in `erklaerung` (`art: kst`, `art: gewst`), aus den
@@ -107,7 +109,8 @@ Anteil gehört, steht in [dividenden.md](dividenden.md).
 6. **Kartei.** Buchungen auf Anlagekonten ohne Anlagegut nennt `anlagen` als
    Aktivierungskandidaten. Das Anlagegut legst du nach Rückfrage mit
    `abschlussbuchung` an (`art: anlage_aktivieren`, `klasse: finanzanlage`,
-   `methode: keine`). Die Felder, die Buchfink noch nicht abbildet (oben),
+   `methode: keine`, bei einem Fonds `fondsart`). Die Felder, die Buchfink
+   noch nicht abbildet (oben),
    hältst du in der Beteiligungsliste fest. Fertig, wenn `anlagen` das
    Anlagegut zeigt und es zu den Salden aus `auswertung` passt.
 7. **Steuerzeilen prüfen.** Zum Jahresende `erklaerung` (`art: kst` und

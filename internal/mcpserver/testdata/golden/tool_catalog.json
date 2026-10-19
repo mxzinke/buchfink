@@ -27,7 +27,7 @@
       "readOnlyHint": false,
       "title": "Abschlussbuchung"
     },
-    "description": "Bucht einen Schritt des Jahresabschlusses: afa_lauf, abgrenzung, rueckstellung, ust_verrechnung, steuerrueckstellung, ug_ruecklage, wertberichtigung, unfertige_leistungen, fremdwaehrung oder anlage_aktivieren, jeweils mit seinen Angaben im gleichnamigen Feld. Erst mit nur_vorschau rechnen, dem Menschen Buchungssatz und Erläuterung vorlegen, nach seinem Ja buchen. Welcher Schritt offen ist, zeigt abschluss_status.",
+    "description": "Bucht einen Schritt des Jahresabschlusses: afa_lauf, abgrenzung, rueckstellung, ust_verrechnung, steuerrueckstellung, ug_ruecklage, wertberichtigung, unfertige_leistungen, fremdwaehrung, anlage_aktivieren oder vorabpauschale (ohne Buchung), jeweils mit seinen Angaben im gleichnamigen Feld. Erst mit nur_vorschau rechnen, dem Menschen Buchungssatz und Erläuterung vorlegen, nach seinem Ja buchen. Welcher Schritt offen ist, zeigt abschluss_status.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -100,6 +100,17 @@
               "minimum": 0,
               "type": "integer"
             },
+            "fondsart": {
+              "description": "nur bei einem Investmentanteil",
+              "enum": [
+                "aktienfonds",
+                "auslands_immobilienfonds",
+                "immobilienfonds",
+                "mischfonds",
+                "sonstiger_fonds"
+              ],
+              "type": "string"
+            },
             "in_betrieb": {
               "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
               "type": "string"
@@ -167,6 +178,7 @@
             "ug_ruecklage",
             "unfertige_leistungen",
             "ust_verrechnung",
+            "vorabpauschale",
             "wertberichtigung"
           ],
           "type": "string"
@@ -358,6 +370,50 @@
           "required": [
             "projekte",
             "grund"
+          ],
+          "type": [
+            "null",
+            "object"
+          ]
+        },
+        "vorabpauschale": {
+          "additionalProperties": false,
+          "properties": {
+            "anlage_id": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "ausschuettungen": {
+              "description": "Euro, z. B. \"119.00\"",
+              "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
+              "type": "string"
+            },
+            "basiszins_basispunkte": {
+              "description": "320 = 3,20 %; Vorgabe hinterlegt",
+              "type": "integer"
+            },
+            "kalenderjahr": {
+              "type": "integer"
+            },
+            "notiz": {
+              "type": "string"
+            },
+            "wert_jahresbeginn": {
+              "description": "erster Rücknahmepreis des Jahres für den Bestand",
+              "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
+              "type": "string"
+            },
+            "wert_jahresende": {
+              "description": "letzter Rücknahmepreis des Jahres für den Bestand",
+              "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "anlage_id",
+            "kalenderjahr",
+            "wert_jahresbeginn",
+            "wert_jahresende"
           ],
           "type": [
             "null",
@@ -669,7 +725,7 @@
       "readOnlyHint": false,
       "title": "Bankumsatz buchen (mit Rückfrage)"
     },
-    "description": "Bucht einen Bankumsatz in allen Fällen, die keine Routine sind: aufteilung auf offene Posten (mit Differenz Skonto, Gebühr, Rundung, Währung), Konten und Gesellschafterdarlehen, zusammen genau der Umsatz; kreditkartenabrechnung gegen 3610; kapitalertrag aus einer Finanzanlage (brutto, Kapitalertragsteuer und Solidaritätszuschlag, mit dem Anlagegut verknüpft); oder ignorieren mit Grund. Genau eine der vier Angaben. Vorher dem Menschen vorlegen und sein Ja einholen.",
+    "description": "Bucht einen Bankumsatz in allen Fällen, die keine Routine sind: aufteilung auf offene Posten (mit Differenz Skonto, Gebühr, Rundung, Währung), Konten und Gesellschafterdarlehen, zusammen genau der Umsatz; kreditkartenabrechnung gegen 3610; kapitalertrag einer Finanzanlage; oder ignorieren mit Grund. Genau eine der vier Angaben. Vorher dem Menschen vorlegen und sein Ja einholen.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -776,30 +832,30 @@
         },
         "kapitalertrag": {
           "additionalProperties": false,
-          "description": "Dividende, Ausschüttung oder Zinsen einer Finanzanlage, mit dem Anlagegut verknüpft",
+          "description": "Ertrag einer Finanzanlage, am Anlagegut",
           "properties": {
             "anlage_id": {
-              "description": "Finanzanlage aus anlagen, aus der der Ertrag stammt",
+              "description": "Finanzanlage aus anlagen",
               "minimum": 0,
               "type": "integer"
             },
             "brutto": {
-              "description": "Ertrag vor Steuern laut Abrechnung der Bank",
+              "description": "Ertrag vor Steuern",
               "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
               "type": "string"
             },
             "kapitalertragsteuer": {
-              "description": "einbehaltene Kapitalertragsteuer, auf 7630",
+              "description": "auf 7630",
               "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
               "type": "string"
             },
             "konto": {
-              "description": "Ertragskonto; Vorgabe aus dem Anlagekonto",
+              "description": "Vorgabe aus dem Anlagekonto",
               "pattern": "^[0-9]{4,5}$",
               "type": "string"
             },
             "solidaritaetszuschlag": {
-              "description": "einbehaltener Solidaritätszuschlag, auf 7633",
+              "description": "auf 7633",
               "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
               "type": "string"
             }

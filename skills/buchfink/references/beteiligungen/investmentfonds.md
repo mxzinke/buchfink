@@ -46,15 +46,17 @@ Steuerbescheinigung: BMF-Schreiben vom
 
 - Daueranlage: 0900 Wertpapiere des Anlagevermögens; kurzfristige Anlage: 1510
   Sonstige Wertpapiere.
-- Anlagegut: Fondsart, Stückzahl und ISIN bildet Buchfink noch nicht ab,
-  weder als Werkzeug noch in der App; halte sie in der Beteiligungsliste fest.
-  Ein Fonds ist nie „Anteil an einer Kapitalgesellschaft“.
+- Anlagegut: Die Fondsart nimmst du beim Aktivieren auf (`abschlussbuchung`,
+  `art: anlage_aktivieren`, `klasse: finanzanlage`, `methode: keine`,
+  `fondsart` nach Abschnitt 1). Stückzahl und ISIN bildet Buchfink noch nicht
+  ab, weder als Werkzeug noch in der App; halte sie in der Beteiligungsliste
+  fest. Ein Fonds ist nie „Anteil an einer Kapitalgesellschaft“.
   Buchfink leitet die Anlegerstellung aus der Rechtsform ab; für GmbH und UG
   gilt die Stellung als Anleger, der dem KStG unterliegt.
 - Ausschüttung: `bankumsatz_buchen`, Ertrag brutto auf 7010
   (Anlagevermögen) bzw. 7100 (Umlaufvermögen), Kapitalertragsteuer auf 7630,
-  Solidaritätszuschlag auf 7633. Nie auf die §-8b-Konten. Steht der Fonds als
-  Anlagegut in der Kartei, buche mit `kapitalertrag` (`anlage_id`, `brutto`,
+  Solidaritätszuschlag auf 7633. Nie auf die §-8b-Konten. Steht der Fonds mit
+  Fondsart in der Kartei, buche mit `kapitalertrag` (`anlage_id`, `brutto`,
   `kapitalertragsteuer`, `solidaritaetszuschlag`); erst dann rechnet die
   Erklärung für die Ausschüttung die Teilfreistellung.
 - Vorabpauschale: keine Buchung. Handelsrechtlich fließt nichts zu; sie wirkt
@@ -134,11 +136,18 @@ bilanzierende GmbH sie im Jahr der Entstehung oder im Jahr des fiktiven
 Zuflusses erfasst, klärt der Mensch mit dem Steuerberater; danach gilt die
 Wahl jedes Jahr gleich.
 
-**In Buchfink:** Die Vorabpauschale am Anlagegut festzuhalten bildet Buchfink
-noch nicht ab, weder als Werkzeug noch in der App. Nimm den Betrag aus der
-Bescheinigung der Bank (Abschnitt 7) und trag ihn nach Rückfrage mit
-`erklaerung_eingabe` in die Zeile `kst.gk.inv_vorabpauschale` ein; die
-Teilfreistellung (`kst.gk.inv_teilfreistellung`) ebenso.
+**In Buchfink:** Nach dem Jahresende rechnest du die Vorabpauschale mit
+`abschlussbuchung`, `art: vorabpauschale`: `anlage_id`, `kalenderjahr`,
+`wert_jahresbeginn` und `wert_jahresende` (erster und letzter Rücknahmepreis
+des Jahres für den ganzen Bestand), `ausschuettungen`; den Basiszins kennt
+Buchfink für 2024 bis 2026, für andere Jahre gibst du ihn mit
+`basiszins_basispunkte` an. Erst mit `nur_vorschau`, dann nach dem Ja des
+Menschen ohne; Buchfink hält sie ohne Buchung am Anlagegut fest, einmal je
+Kalenderjahr. Gleiche den Betrag mit der Bescheinigung der Bank ab
+(Abschnitt 7). Die Erklärung schlägt sie im Geschäftsjahr des fiktiven
+Zuflusses vor (`kst.gk.inv_vorabpauschale`) und rechnet die Teilfreistellung
+(`kst.gk.inv_teilfreistellung`). Ohne Fondsart in der Kartei trägst du beide
+Zeilen nach Rückfrage mit `erklaerung_eingabe` ein.
 
 ## 6. Verkauf und Verlust
 
@@ -180,8 +189,8 @@ Teilfreistellung (`kst.gk.inv_teilfreistellung`) ebenso.
 
 | Buchfink rechnet | Buchfink rechnet nicht |
 |---|---|
-| Teilfreistellung je Fondsart aus den Daten der Kartei; Gewerbesteuer nach [gewst-holding.md, Abschnitt 6](gewst-holding.md#6-investmentfonds) | Fondsart, Ertrag, Vorabpauschale und Abgang in der Kartei erfassen: noch nicht abgebildet; ohne diese Daten bleiben die Zeilen offen |
-| | Vorabpauschale; den Betrag nennt die Bescheinigung der Bank |
+| Teilfreistellung je Fondsart aus den Daten der Kartei; Gewerbesteuer nach [gewst-holding.md, Abschnitt 6](gewst-holding.md#6-investmentfonds) | Abgang in der Kartei erfassen: noch nicht abgebildet |
+| Vorabpauschale aus Rücknahmepreisen und Basiszins (`abschlussbuchung`, `art: vorabpauschale`) | Rücknahmepreise; sie nennt die Bank |
 | | anteiliges Abzugsverbot nach § 21 für Verluste und Abschreibungen |
 
 ## 9. Beispiel
