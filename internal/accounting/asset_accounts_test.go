@@ -1,6 +1,8 @@
 package accounting
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/buchfink/buchfink/internal/domain"
@@ -200,6 +202,15 @@ func TestUsefulLifeReasonFlagFollowsTheDigitalProposal(t *testing.T) {
 // Bezüge aus Anteilen an Kapitalgesellschaften gehören auf die Konten, die
 // § 8b KStG im Namen führen; die Körperschaftsteuererklärung liest sie dort.
 // Ein Investmentanteil gehört nie dorthin (§ 16 Abs. 3 InvStG).
+// Genossenschaftsanteile sind keine Beteiligung (§ 271 Abs. 1 Satz 5 HGB).
+// Buchfink schlägt für ihre Erträge kein Konto vor und sagt, warum.
+func TestAssetIncomeAccountRefusesCooperativeShares(t *testing.T) {
+	_, err := AssetIncomeAccount(&domain.FixedAsset{Class: domain.AssetClassFinancial, Account: AccountCooperativeShares})
+	if !errors.Is(err, ErrCooperativeIncome) || !strings.Contains(err.Error(), "§ 271 Abs. 1 Satz 5 HGB") {
+		t.Errorf("Ertragskonto für 0980: %v", err)
+	}
+}
+
 func TestAssetIncomeAccountUsesTheParticipationExemptionAccounts(t *testing.T) {
 	for _, tc := range []struct {
 		name  string

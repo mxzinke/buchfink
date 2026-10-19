@@ -22,7 +22,9 @@ Anlagenkatalog von Buchfink.
 - **Beteiligungen** sind Anteile an anderen Unternehmen, die dem eigenen
   Geschäftsbetrieb durch eine dauernde Verbindung dienen sollen. Eine
   Beteiligung wird vermutet, wenn die Anteile ein Fünftel des Nennkapitals
-  überschreiten ([§ 271 Abs. 1 Satz 1, 3 HGB][hgb271]).
+  überschreiten ([§ 271 Abs. 1 Satz 1, 3 HGB][hgb271]). Die Mitgliedschaft in
+  einer eingetragenen Genossenschaft gilt nicht als Beteiligung
+  ([§ 271 Abs. 1 Satz 5 HGB][hgb271]).
 - **Verbundene Unternehmen** sind Mutter- und Tochterunternehmen nach § 290
   HGB ([§ 271 Abs. 2 HGB][hgb271]). Beherrschender Einfluss besteht stets bei
   der Mehrheit der Stimmrechte ([§ 290 Abs. 2 Nr. 1 HGB][hgb290]).
@@ -47,6 +49,7 @@ Anlagenkatalog von Buchfink.
 | Aktien, Fonds zur kurzfristigen Anlage | 1510 Sonstige Wertpapiere | 7103 (Aktien), 7100 (Fonds) |
 | Anteile an verbundenen Unternehmen im Umlaufvermögen | 1500 | 7104 |
 | Personengesellschaft (GmbH & Co. KG, OHG) | 0803, 0860 | Grenze: Buchfink bildet Mitunternehmerschaften nicht ab |
+| Genossenschaftsanteile (eG) | 0980 Genossenschaftsanteile zum langfristigen Verbleib | Grenze: Buchfink schlägt kein Ertragskonto vor und bucht die Rückvergütung nicht mit `kapitalertrag`; Konto und steuerliche Folge mit dem Menschen klären, im Zweifel Steuerberater, dann von Hand buchen |
 
 Die Bezeichnungen der Dividendenkonten nennen § 8b KStG; die Konten 7005,
 7006, 7014, 7015, 7103 und 7104 tragen im SKR04 die Kennzeichen für

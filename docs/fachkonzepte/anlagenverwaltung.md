@@ -84,6 +84,11 @@ Steuerrückstellung sie getrennt anrechnet. Der Ertrag hängt als Bewegung am
 Anlagegut (`AssetService.BookAssetIncome`); daraus liest die
 Körperschaftsteuererklärung die Bezüge je Anteil und die Fondserträge. Der
 Agent bucht ihn am Bankumsatz (`bankumsatz_buchen` mit `kapitalertrag`).
+Erträge aus Genossenschaftsanteilen (**0980**) bucht Buchfink nicht von selbst
+(`accounting.ErrCooperativeIncome`): die Mitgliedschaft in einer
+eingetragenen Genossenschaft gilt nicht als Beteiligung
+([§ 271 Abs. 1 Satz 5 HGB][hgb271]), Konto und steuerliche Folge klärt der
+Mensch.
 
 ## Fremdwährung und Investmentanteile
 
@@ -120,5 +125,6 @@ ist. Kleine Kapitalgesellschaften sind von ihm im Anhang befreit
 [estg7g]: https://www.gesetze-im-internet.de/estg/__7g.html
 [hgb255]: https://www.gesetze-im-internet.de/hgb/__255.html
 [hgb256a]: https://www.gesetze-im-internet.de/hgb/__256a.html
+[hgb271]: https://www.gesetze-im-internet.de/hgb/__271.html
 [hgb288]: https://www.gesetze-im-internet.de/hgb/__288.html
 [invstg18]: https://www.gesetze-im-internet.de/invstg_2018/__18.html

@@ -1161,7 +1161,7 @@ nennt nur die hier genutzten Stellen.
 | § 255 HGB | (Zeile unter belege) | Abs. 1: Anschaffungskosten, Nebenkosten, nachträgliche Anschaffungskosten | Text 17.10.2026 | beteiligungen/ablauf, erwerb-ausweis |
 | § 266 HGB | (Zeile unter rechnungen) | Abs. 1 Satz 3 (verkürzte Bilanz), Abs. 2 A. III., B. III. (Finanzanlagen, Wertpapiere) | Text 17.10.2026 | beteiligungen/erwerb-ausweis |
 | § 267a HGB | (Zeile unter jahresabschluss) | Abs. 3 Nr. 3: reine Beteiligungsgesellschaft keine Kleinstkapitalgesellschaft | Text 17.10.2026 | beteiligungen/ablauf, erwerb-ausweis |
-| § 271 HGB | https://www.gesetze-im-internet.de/hgb/__271.html | Abs. 1 Satz 1, 3: Beteiligung, Vermutung bei mehr als einem Fünftel; Abs. 2: verbundene Unternehmen | Text 17.10.2026 | beteiligungen/erwerb-ausweis |
+| § 271 HGB | https://www.gesetze-im-internet.de/hgb/__271.html | Abs. 1 Satz 1, 3: Beteiligung, Vermutung bei mehr als einem Fünftel; Satz 5: Mitgliedschaft in einer eingetragenen Genossenschaft keine Beteiligung (Text 19.10.2026); Abs. 2: verbundene Unternehmen | Text 17.10.2026 | beteiligungen/erwerb-ausweis |
 | § 285 HGB | (Zeile unter jahresabschluss) | Nr. 11: Anhangangaben zu Beteiligungen | Text 17.10.2026 | beteiligungen/erwerb-ausweis |
 | § 288 HGB | (Zeile unter jahresabschluss) | Abs. 1 Nr. 1: kleine Kapitalgesellschaften ohne Angabe nach § 285 Nr. 11 | Text 17.10.2026 | beteiligungen/erwerb-ausweis |
 | § 290 HGB | (Zeile unter 1. Gesetze) | Abs. 1, Abs. 2 Nr. 1: Mutterunternehmen, Mehrheit der Stimmrechte | Text 17.10.2026 | beteiligungen/erwerb-ausweis |
@@ -1208,6 +1208,7 @@ nennt nur die hier genutzten Stellen.
 | § 36a EStG: 45 Tage, 70 %, drei Fünftel, 20.000 €, ein Jahr | 17.10.2026 | § 36a Abs. 1–3, 5 EStG | beteiligungen/dividenden |
 | Mitteilung ausländischer Beteiligungen: 10 % oder 150.000 €, spätestens 14 Monate | 17.10.2026 | § 138 Abs. 2 Satz 1 Nr. 3, Abs. 5 AO | beteiligungen/erwerb-ausweis |
 | Beteiligungsvermutung: mehr als ein Fünftel des Nennkapitals | 17.10.2026 | § 271 Abs. 1 Satz 3 HGB | beteiligungen/ablauf, erwerb-ausweis |
+| Mitgliedschaft in einer eingetragenen Genossenschaft gilt nicht als Beteiligung | 19.10.2026 | § 271 Abs. 1 Satz 5 HGB | beteiligungen/erwerb-ausweis |
 
 ### Buchfink-eigene Quellen
 

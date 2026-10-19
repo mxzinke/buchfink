@@ -1,6 +1,7 @@
 package accounting
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/buchfink/buchfink/internal/domain"
@@ -474,6 +475,9 @@ func AssetIncomeAccount(asset *domain.FixedAsset) (string, error) {
 		return "", fmt.Errorf(
 			"laufende Erträge werden hier nur für Finanzanlagen mit dem Anlagegut verknüpft")
 	}
+	if asset.Account == AccountCooperativeShares {
+		return "", ErrCooperativeIncome
+	}
 	if FundClass(asset.FundClass).IsFund() {
 		return "7010", nil // Erträge aus anderen Wertpapieren und Ausleihungen des Finanzanlagevermögens
 	}
@@ -505,6 +509,20 @@ func AssetIncomeAccount(asset *domain.FixedAsset) (string, error) {
 		return "7100", nil
 	}
 }
+
+// AccountCooperativeShares führt Genossenschaftsanteile zum langfristigen
+// Verbleib.
+const AccountCooperativeShares = "0980"
+
+// ErrCooperativeIncome weist die automatische Buchung eines Ertrags aus
+// Genossenschaftsanteilen ab. Die Mitgliedschaft in einer eingetragenen
+// Genossenschaft gilt nicht als Beteiligung (§ 271 Abs. 1 Satz 5 HGB); welches
+// Ertragskonto und welche steuerliche Folge passen, bildet Buchfink nicht ab.
+var ErrCooperativeIncome = errors.New(
+	"Erträge aus Genossenschaftsanteilen (0980) bucht Buchfink nicht von selbst: die Mitgliedschaft in einer " +
+		"eingetragenen Genossenschaft gilt nicht als Beteiligung (§ 271 Abs. 1 Satz 5 HGB), und ein Ertragskonto " +
+		"schlägt Buchfink dafür nicht vor. Die Buchung ist nach Rückfrage von Hand anzulegen, im Zweifel mit dem " +
+		"Steuerberater")
 
 // corporationShareIncome ordnet den Anlagekonten, die schon dem Namen nach
 // Anteile an Kapitalgesellschaften führen, das Ertragskonto nach § 8b KStG zu.

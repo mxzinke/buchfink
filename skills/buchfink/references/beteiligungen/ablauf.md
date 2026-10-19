@@ -60,6 +60,7 @@ Werkzeuge: `beleg_ablegen`, `bankumsatz_buchen` (Rückfrage),
 | Beteiligung an einer GmbH oder AG (dauernde Verbindung) | 0850 Beteiligungen an Kapitalgesellschaften | [erwerb-ausweis.md](erwerb-ausweis.md) |
 | Aktien als Daueranlage ohne Beteiligungsabsicht | 0910 oder 0900 | [erwerb-ausweis.md](erwerb-ausweis.md) |
 | Aktien oder Fonds zur kurzfristigen Anlage | 1510 Sonstige Wertpapiere | [erwerb-ausweis.md](erwerb-ausweis.md) |
+| Anteile an einer Genossenschaft (eG), etwa der Volksbank | 0980; Erträge bildet Buchfink nicht ab | [erwerb-ausweis.md, Abschnitt 2](erwerb-ausweis.md#2-konto-wählen) |
 | ETF oder anderer Investmentfonds als Daueranlage | 0900 Wertpapiere des Anlagevermögens | [investmentfonds.md](investmentfonds.md) |
 | Dividende einer Kapitalgesellschaft geht ein | 7005, 7006, 7014, 7015, 7103 oder 7104 brutto; 7630, 7633 | [dividenden.md](dividenden.md) |
 | Ausschüttung eines Fonds geht ein | 7010 (Anlagevermögen) brutto; 7630, 7633 | [investmentfonds.md](investmentfonds.md) |

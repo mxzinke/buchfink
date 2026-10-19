@@ -1392,6 +1392,11 @@ func (s *AssetService) bookAssetIncome(ctx context.Context, req AssetIncomeReque
 			"Kapitalertragsteuer und Solidaritätszuschlag liegen zusammen zwischen null und dem Bruttoertrag von %s €",
 			req.Amount)
 	}
+	if asset.Account == accounting.AccountCooperativeShares {
+		// Auch mit ausdrücklichem Ertragskonto: die Einordnung gehört dem
+		// Menschen, nicht der Verknüpfung mit dem Anlagegut.
+		return nil, accounting.ErrCooperativeIncome
+	}
 	if tx != nil && req.Amount-withheld != tx.Amount {
 		return nil, fmt.Errorf(
 			"Bruttoertrag %s € abzüglich Kapitalertragsteuer %s € und Solidaritätszuschlag %s € ergibt %s €, "+

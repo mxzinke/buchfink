@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -1585,6 +1586,34 @@ func TestAssetIncomeFromABankTransaction(t *testing.T) {
 	}
 	if !linked {
 		t.Errorf("der Ertrag hängt nicht am Anlagegut: %+v", detail.Movements)
+	}
+}
+
+// Die Rückvergütung einer Genossenschaft bucht Buchfink nicht von selbst,
+// auch nicht mit ausdrücklichem Ertragskonto: die Mitgliedschaft ist keine
+// Beteiligung (§ 271 Abs. 1 Satz 5 HGB), die Einordnung klärt der Mensch.
+func TestAssetIncomeRefusesCooperativeShares(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+	shares, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Anteile Volksbank eG", Class: domain.AssetClassFinancial, Account: accounting.AccountCooperativeShares,
+		AcquisitionDate: "2026-02-01", AcquisitionCost: 50_000, Method: domain.DepreciationNone,
+	})
+	if err != nil {
+		t.Fatalf("Genossenschaftsanteile: %v", err)
+	}
+	for _, account := range []string{"", "7000"} {
+		_, err := svc.BookAssetIncome(ctx, AssetIncomeRequest{
+			AssetID: shares.ID, Date: "2026-06-30", Amount: 2_000, Account: account,
+			Settlement: SettlementPaid, PaymentAccount: domain.AccountBank,
+		})
+		if !errors.Is(err, accounting.ErrCooperativeIncome) {
+			t.Errorf("Ertrag mit Konto %q: %v", account, err)
+		}
+	}
+	if n := env.entryCount(t); n != 0 {
+		t.Errorf("%d Buchungen, erwartet keine", n)
 	}
 }
 

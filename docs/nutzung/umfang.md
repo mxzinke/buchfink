@@ -45,6 +45,7 @@ Welche Teile gebaut und geprüft sind, steht im
 | Besteuerungsart | Nur Sollversteuerung. Ist die Istversteuerung eingetragen, weist Buchfink neue Buchungen ab. |
 | Steuerfälle | Unterstützt sind Inland mit 19 % und 7 %, Nullsteuersatz nach § 12 Abs. 3 UStG, steuerfrei, nicht steuerbar, § 13b UStG als Empfänger, innergemeinschaftlicher Erwerb und sonstige Leistungen mit Steuerschuld des Empfängers. Nicht unterstützt: eigene Kleinunternehmerregelung, OSS und IOSS, Differenzbesteuerung, Reiseleistungen. |
 | Warenverkehr | Keine innergemeinschaftliche Lieferung, keine Ausfuhr, keine Vorräte und keine Inventur. |
+| Genossenschaftsanteile | Erträge aus Anteilen an einer eingetragenen Genossenschaft, etwa einer Volksbank, bucht Buchfink nicht von selbst und schlägt kein Ertragskonto vor. Die Mitgliedschaft gilt nicht als Beteiligung ([§ 271 Abs. 1 Satz 5 HGB][hgb271]); die Buchung legt der Agent Ihnen zur Rückfrage vor, im Zweifel klären Sie sie mit dem Steuerberater. |
 | Kasse | Kein Kassenbuch. Jede Zahlung läuft über ein Bankkonto, die Firmenkreditkarte oder eine Auslage. |
 | Lohnabrechnung | Buchfink rechnet keine Löhne ab. Lohnsteuer-Anmeldung und Beitragsnachweise kommen vom Lohnbüro. |
 | Übermittlung | Buchfink übermittelt nichts an Finanzamt oder Register. Voranmeldung, Zusammenfassende Meldung und Jahreserklärungen übertragen Sie selbst, etwa in Mein ELSTER. Die E-Bilanz übermitteln Sie über einen E-Bilanz-Dienst wie ebilanzplus.de oder ebilanzonline.de, weil Mein ELSTER kein Formular dafür hat ([E-Bilanz übermitteln](README.md#e-bilanz-übermitteln)). Die Offenlegung geschieht im Unternehmensregister. |
@@ -57,3 +58,4 @@ und alles außerhalb der Tabelle oben ist ein Steuerberater der richtige Weg.
 
 [ao108]: https://www.gesetze-im-internet.de/ao_1977/__108.html
 [ao149]: https://www.gesetze-im-internet.de/ao_1977/__149.html
+[hgb271]: https://www.gesetze-im-internet.de/hgb/__271.html
