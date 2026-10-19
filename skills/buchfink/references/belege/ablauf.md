@@ -115,7 +115,7 @@ möglichst unmittelbar nach Eingang ab ([GoBD Rz. 67][gobd]).
   zulässig, wenn sie bis 31.12.2026 übermittelt wird. Für Leistungen aus 2027
   gilt das nur bei Ausstellern mit höchstens 800.000 € Vorjahresumsatz
   ([§ 27 Abs. 38 UStG][ustg27]). Stand: Oktober 2026.
-  Einzelheiten: [references/e-rechnung-empfang.md](references/e-rechnung-empfang.md).
+  Einzelheiten: [e-rechnung-empfang.md](e-rechnung-empfang.md).
 - Bei einer E-Rechnung zählt der strukturierte Teil. Weicht der Bildteil ab,
   meldest du das dem Menschen ([BMF vom 15.10.2025, UStAE 14c.1 Abs. 4a][bmf2025]).
 - Befunde von `beleg_lesen` gibt es in drei Klassen. Ein Inhaltsfehler (fehlende
@@ -131,8 +131,8 @@ möglichst unmittelbar nach Eingang ab ([GoBD Rz. 67][gobd]).
   Vorsteuer in einen falschen Monat; berichtige es mit
   `beleg_buchen_mit_rueckfrage` (`eingang_am`).
 
-Lies [references/pflichtangaben.md](references/pflichtangaben.md) und
-[references/vorsteuer.md](references/vorsteuer.md), wenn ein Befund, eine
+Lies [pflichtangaben.md](pflichtangaben.md) und
+[vorsteuer.md](vorsteuer.md), wenn ein Befund, eine
 fehlende Angabe, ein falscher Steuerausweis oder eine Aufteilung der Vorsteuer
 vorliegt.
 
@@ -156,9 +156,9 @@ Wählt eine Buchung `reverse_charge` für einen EU-Lieferanten, warnt Buchfink
 mit `reverse_charge_eu_supplier`: Für seine sonstige Leistung gilt Abs. 1.
 Ob die Voraussetzungen der inländischen Fälle nach § 13b Abs. 2 Nr. 4 bis 12
 vorliegen, etwa die Grenze von 5.000 € nach Nr. 10 und 11, prüft Buchfink
-nicht ([references/steuerfaelle.md](references/steuerfaelle.md), Abschnitt 2).
+nicht ([steuerfaelle.md](steuerfaelle.md), Abschnitt 2).
 
-Lies [references/steuerfaelle.md](references/steuerfaelle.md), wenn der
+Lies [steuerfaelle.md](steuerfaelle.md), wenn der
 Lieferant im Ausland sitzt, keine deutsche Steuer ausweist, der Satz unklar ist
 oder Steuern verschiedener Staaten auf einem Beleg stehen.
 
@@ -206,9 +206,9 @@ Regeln dazu:
   rechnet mit dem EZB-Referenzkurs des Belegdatums um und die Umsatzsteuer mit
   dem Monatsdurchschnittskurs des BMF ([§ 16 Abs. 6 UStG][ustg16]).
 
-Lies [references/bewirtung-geschenke.md](references/bewirtung-geschenke.md),
-[references/anlagen-gwg.md](references/anlagen-gwg.md) oder
-[references/fremdwaehrung-auslagen-kreditkarte.md](references/fremdwaehrung-auslagen-kreditkarte.md),
+Lies [bewirtung-geschenke.md](bewirtung-geschenke.md),
+[anlagen-gwg.md](anlagen-gwg.md) oder
+[fremdwaehrung-auslagen-kreditkarte.md](fremdwaehrung-auslagen-kreditkarte.md),
 sobald einer dieser Fälle vorliegt.
 
 ## 5. Was du den Menschen fragst
@@ -261,22 +261,22 @@ etwa eine fehlende USt-IdNr. oder eine neue IBAN eintragen.
 
 ## Referenzen
 
-- [references/pflichtangaben.md](references/pflichtangaben.md): Lies, wenn eine
+- [pflichtangaben.md](pflichtangaben.md): Lies, wenn eine
   Pflichtangabe fehlt, ein Befund vorliegt, die Rechnung berichtigt werden muss
   oder der Steuerausweis falsch ist.
-- [references/e-rechnung-empfang.md](references/e-rechnung-empfang.md): Lies,
+- [e-rechnung-empfang.md](e-rechnung-empfang.md): Lies,
   wenn eine E-Rechnung fehlerhaft ist, ein inländischer Lieferant nur ein PDF
   schickt oder nach Formaten und Übergangsfristen gefragt wird.
-- [references/steuerfaelle.md](references/steuerfaelle.md): Lies bei
+- [steuerfaelle.md](steuerfaelle.md): Lies bei
   Lieferanten im Ausland, steuerfreien oder nicht steuerbaren Leistungen,
   Kleinunternehmern und unklarem Steuersatz.
-- [references/vorsteuer.md](references/vorsteuer.md): Lies bei Zeitpunkt,
+- [vorsteuer.md](vorsteuer.md): Lies bei Zeitpunkt,
   Ausschluss, Aufteilung oder Berichtigung der Vorsteuer.
-- [references/bewirtung-geschenke.md](references/bewirtung-geschenke.md): Lies
+- [bewirtung-geschenke.md](bewirtung-geschenke.md): Lies
   bei Bewirtung, Geschenk, Pauschalierung nach § 37b EStG oder Repräsentation.
-- [references/anlagen-gwg.md](references/anlagen-gwg.md): Lies bei jeder
+- [anlagen-gwg.md](anlagen-gwg.md): Lies bei jeder
   Anschaffung über 250 € netto und bei Hardware oder Software.
-- [references/fremdwaehrung-auslagen-kreditkarte.md](references/fremdwaehrung-auslagen-kreditkarte.md):
+- [fremdwaehrung-auslagen-kreditkarte.md](fremdwaehrung-auslagen-kreditkarte.md):
   Lies bei Fremdwährung, Auslagen und Kreditkartenbelegen.
 
 [gobd]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf

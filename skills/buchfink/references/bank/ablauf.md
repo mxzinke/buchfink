@@ -78,20 +78,20 @@ Erst wenn Schritt 7 aufgeht, ist der Monat für den Prüflauf bereit
 
 | Umsatz | Werkzeug und Aufteilung | Mehr in |
 |---|---|---|
-| Zahlung genau in Höhe eines offenen Postens, Nummer im Verwendungszweck, Auszug geprüft | Routine: `bankumsatz_zuordnen` mit `bankumsatz_id` und `buchung_id` | [references/zuordnung.md](references/zuordnung.md) |
+| Zahlung genau in Höhe eines offenen Postens, Nummer im Verwendungszweck, Auszug geprüft | Routine: `bankumsatz_zuordnen` mit `bankumsatz_id` und `buchung_id` | [zuordnung.md](zuordnung.md) |
 | Wiederkehrender Umsatz, Vorschlag `art: regel` (Gebühren, Übertrag) | Zeile mit `konto` und `betrag` aus dem Vorschlag | zuordnung.md |
-| Lastschrift der Kreditkartenabrechnung | `kreditkartenabrechnung {stichtag}` | [references/kreditkarte-geldtransit.md](references/kreditkarte-geldtransit.md) |
-| Zahlung mit Skonto | Zeile mit `buchung_id`, `ausgleich` und `differenz {art: skonto, betrag}` | [references/skonto-differenzen.md](references/skonto-differenzen.md) |
+| Lastschrift der Kreditkartenabrechnung | `kreditkartenabrechnung {stichtag}` | [kreditkarte-geldtransit.md](kreditkarte-geldtransit.md) |
+| Zahlung mit Skonto | Zeile mit `buchung_id`, `ausgleich` und `differenz {art: skonto, betrag}` | [skonto-differenzen.md](skonto-differenzen.md) |
 | Teilzahlung | Zeile mit `buchung_id` und dem gezahlten Betrag als `ausgleich`; Rest bleibt offen | zuordnung.md |
 | Sammelüberweisung | je Rechnung eine Zeile mit `buchung_id` | zuordnung.md |
 | Zahlungsausgang: Bank belastet Rechnung plus Gebühr | Zeile mit `buchung_id` und `differenz {art: gebuehr, betrag}` | skonto-differenzen.md |
 | Zahlungseingang: Bank hat eine Gebühr abgezogen | Zeile mit `buchung_id` über den vollen Betrag und Zeile `konto: 6855` mit der Gebühr als negativem `betrag` | skonto-differenzen.md |
 | Rechnung in Fremdwährung bezahlt | Zeile mit `buchung_id` und `differenz {art: waehrung, betrag}` | skonto-differenzen.md |
 | Kontoführung, Überweisungsentgelt | Zeile `konto: 6855` (Nebenkosten des Geldverkehrs), steuerfrei | zuordnung.md |
-| Zinsgutschrift | Zinsertrag brutto (7110), Kapitalertragsteuer (7630), Solidaritätszuschlag (7633) | [references/zinsen-kapest.md](references/zinsen-kapest.md) |
-| Bankdarlehen: Auszahlung, Rate | Darlehenskonto (3150 bis 3170), Zinsen (7310, 7320) | [references/darlehen.md](references/darlehen.md) |
+| Zinsgutschrift | Zinsertrag brutto (7110), Kapitalertragsteuer (7630), Solidaritätszuschlag (7633) | [zinsen-kapest.md](zinsen-kapest.md) |
+| Bankdarlehen: Auszahlung, Rate | Darlehenskonto (3150 bis 3170), Zinsen (7310, 7320) | [darlehen.md](darlehen.md) |
 | Gesellschafterdarlehen: Auszahlung, Tilgung | Zeile mit `darlehen_id` aus `darlehen_erfassen` | buchfink-gesellschafter |
-| Zahlung an oder vom Finanzamt | Konto nach Steuerart | [references/steuerzahlungen.md](references/steuerzahlungen.md) |
+| Zahlung an oder vom Finanzamt | Konto nach Steuerart | [steuerzahlungen.md](steuerzahlungen.md) |
 | Übertrag zwischen eigenen Konten | Geldtransit 1460 auf beiden Seiten | kreditkarte-geldtransit.md |
 | Gesellschafter, Dividende, Lohn | Regel im zuständigen Skill (Tabelle oben) | – |
 | Zweck unklar | offen lassen, den Menschen fragen | zuordnung.md |
@@ -164,7 +164,7 @@ Erst wenn Schritt 7 aufgeht, ist der Monat für den Prüflauf bereit
   Umsätze bleiben offen; der Prüflauf meldet sie.
 - Storniere nie die Zahlungsbuchung eines echten Umsatzes, um einen Posten
   wieder zu öffnen. Eine Rücklastschrift ist ein eigener Umsatz
-  ([references/zuordnung.md](references/zuordnung.md)).
+  ([zuordnung.md](zuordnung.md)).
 - Zinsen und Gebühren sind getrennte Zeilen: Zinsen gehen in die Hinzurechnung
   der Gewerbesteuer ein ([§ 8 Nr. 1 Buchst. a GewStG][gewstg8]), Gebühren nicht.
 - Eine Steuererstattung mit Zinsen hat zwei Zeilen: Steuer und Zinsen.
@@ -175,19 +175,19 @@ Erst wenn Schritt 7 aufgeht, ist der Monat für den Prüflauf bereit
 
 ## Referenzen
 
-- [references/zuordnung.md](references/zuordnung.md): Lies bei Vorschlägen,
+- [zuordnung.md](zuordnung.md): Lies bei Vorschlägen,
   Routine, Aufteilung, Teil-, Sammel-, Über- und Doppelzahlung, Rücklastschrift
   und Umsätzen ohne Beleg.
-- [references/skonto-differenzen.md](references/skonto-differenzen.md): Lies,
+- [skonto-differenzen.md](skonto-differenzen.md): Lies,
   sobald Zahlbetrag und offener Posten auseinanderfallen.
-- [references/zinsen-kapest.md](references/zinsen-kapest.md): Lies bei
+- [zinsen-kapest.md](zinsen-kapest.md): Lies bei
   Zinsgutschriften, Kapitalertragsteuer, Steuerbescheinigung, Zinsen von
   ausländischen Banken.
-- [references/darlehen.md](references/darlehen.md): Lies bei Kreditaufnahme,
+- [darlehen.md](darlehen.md): Lies bei Kreditaufnahme,
   Raten, Disagio, Kontokorrent und Restlaufzeiten.
-- [references/steuerzahlungen.md](references/steuerzahlungen.md): Lies bei
+- [steuerzahlungen.md](steuerzahlungen.md): Lies bei
   jeder Zahlung an oder von Finanzamt oder Gemeinde.
-- [references/kreditkarte-geldtransit.md](references/kreditkarte-geldtransit.md):
+- [kreditkarte-geldtransit.md](kreditkarte-geldtransit.md):
   Lies bei Kreditkartenabrechnung und Übertrag zwischen eigenen Konten.
 
 [gobd]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf

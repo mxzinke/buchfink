@@ -44,7 +44,7 @@ Werkzeuge: `status`, `aufgaben`, `fristen`, `eingang`, `beleg_ablegen`,
 
 | Phase | Zeitraum | Rechtslage | In Buchfink |
 |---|---|---|---|
-| Vorgründungsgesellschaft | Entschluss bis Beurkundung | nicht identisch mit Vorgesellschaft und GmbH; in der Regel nicht körperschaftsteuerpflichtig ([H 1.1 KStH][ksth11]) | kein Mandant; Kosten nur nach Klärung übernehmen ([gruendungskosten.md](references/gruendungskosten.md)) |
+| Vorgründungsgesellschaft | Entschluss bis Beurkundung | nicht identisch mit Vorgesellschaft und GmbH; in der Regel nicht körperschaftsteuerpflichtig ([H 1.1 KStH][ksth11]) | kein Mandant; Kosten nur nach Klärung übernehmen ([gruendungskosten.md](gruendungskosten.md)) |
 | Vorgesellschaft, GmbH i. G. | Beurkundung bis Eintragung | GmbH besteht als solche noch nicht; wer in ihrem Namen handelt, haftet persönlich ([§ 11 GmbHG][gmbhg11]); körperschaftsteuerpflichtig ([H 1.1 KStH][ksth11]) | erstes Geschäftsjahr beginnt; Zeichnung, Einzahlung, Gründungskosten |
 | GmbH | ab Eintragung | juristische Person; für Schulden haftet nur das Gesellschaftsvermögen ([§ 13 Abs. 1, 2 GmbHG][gmbhg13]) | Registerdaten in der App |
 
@@ -77,21 +77,21 @@ Werkzeuge: `status`, `aufgaben`, `fristen`, `eingang`, `beleg_ablegen`,
    `bankumsatz_buchen` mit einer Zeile `konto: 1298`.
    Ohne importierten Umsatz: `buchung_erfassen` 1800 an 1298 mit dem
    Kontoauszug als Beleg. Prüfe die Mindesteinzahlung nach
-   [kapitalaufbringung.md](references/kapitalaufbringung.md). Fertig, wenn der
+   [kapitalaufbringung.md](kapitalaufbringung.md). Fertig, wenn der
    Saldo von 1298 dem noch offenen eingeforderten Betrag entspricht.
 6. **Gründungskosten buchen.** Rechnungen nach buchfink-belege: Notar mit der
    Buchungsgruppe `beratung` (6825), Gerichtskosten mit `beitraege` (6420,
    nicht steuerbar). Prüfe vorher, ob die GmbH die Kosten nach dem Vertrag
-   tragen darf ([gruendungskosten.md](references/gruendungskosten.md)).
+   tragen darf ([gruendungskosten.md](gruendungskosten.md)).
    Fertig, wenn jede Gründungsrechnung gebucht oder als Kosten eines
    Gesellschafters geklärt ist.
 7. **Behördenwege begleiten.** `fristen` führt ab der Beurkundung die
-   Pflichten [fragebogen-steuerliche-erfassung](../buchfink-grundlagen/references/pflichten.md#fragebogen-steuerliche-erfassung)
-   und [gewerbeanmeldung](../buchfink-grundlagen/references/pflichten.md#gewerbeanmeldung), ab der Eintragung
-   [transparenzregister](../buchfink-grundlagen/references/pflichten.md#transparenzregister); Frist, Weg und Nachweis
+   Pflichten [fragebogen-steuerliche-erfassung](../grundlagen/pflichten.md#fragebogen-steuerliche-erfassung)
+   und [gewerbeanmeldung](../grundlagen/pflichten.md#gewerbeanmeldung), ab der Eintragung
+   [transparenzregister](../grundlagen/pflichten.md#transparenzregister); Frist, Weg und Nachweis
    stehen dort. Die übrigen Wege (Berufsgenossenschaft, Gemeinde, IHK) und die
-   Angaben zum Fragebogen: [gruendungsweg.md](references/gruendungsweg.md),
-   [steuerliche-erfassung.md](references/steuerliche-erfassung.md). Fertig,
+   Angaben zum Fragebogen: [gruendungsweg.md](gruendungsweg.md),
+   [steuerliche-erfassung.md](steuerliche-erfassung.md). Fertig,
    wenn jede Pflicht in `fristen` erledigt ist oder einen Termin hat und die
    übrigen Wege ein Datum haben.
 8. **Eröffnungsbilanz prüfen.** Salden der Gründungskonten zum
@@ -99,15 +99,15 @@ Werkzeuge: `status`, `aufgaben`, `fristen`, `eingang`, `beleg_ablegen`,
    `bis: <Beurkundungstag>`); stehen nur Gründungsbuchungen im Jahr, genügt
    `auswertung` (`art: bilanz`). Fertig, wenn Aktiva und Passiva
    übereinstimmen und der Mensch sie gesehen hat.
-   [eroeffnungsbilanz.md](references/eroeffnungsbilanz.md)
+   [eroeffnungsbilanz.md](eroeffnungsbilanz.md)
 9. **Eintragung nachhalten (nur App).** Der Mensch trägt Datum, Registergericht
    und Nummer in den Unternehmensdaten ein. Prüfe danach die Unterbilanz
-   ([kapitalaufbringung.md](references/kapitalaufbringung.md), Abschnitt 6) und
+   ([kapitalaufbringung.md](kapitalaufbringung.md), Abschnitt 6) und
    mit `fristen`, dass die Mitteilung an das Transparenzregister ansteht.
    Fertig, wenn die Eintragung in der App erfasst und die Unterbilanz geprüft
    ist.
 10. **Erstes Geschäftsjahr planen.** Lies
-    [rumpfjahr.md](references/rumpfjahr.md) und nenne dem Menschen Ende des
+    [rumpfjahr.md](rumpfjahr.md) und nenne dem Menschen Ende des
     Rumpfjahres, Fristen des ersten Abschlusses und der ersten Erklärungen.
     Fertig, wenn `fristen` diese Pflichten mit Fälligkeit zeigt.
 
@@ -159,7 +159,7 @@ Leite jede mit „Wertungsfrage:“ ein, nenne Grundlage und Optionen.
   größere Verträge geschlossen werden.
 - Reicht das Vermögen am Eintragungstag nicht an das Stammkapital heran,
   haften die Gesellschafter für die Differenz (Unterbilanzhaftung,
-  [kapitalaufbringung.md](references/kapitalaufbringung.md)).
+  [kapitalaufbringung.md](kapitalaufbringung.md)).
 - Gründungsaufwand darf nicht aktiviert werden
   ([§ 248 Abs. 1 Nr. 1 HGB][hgb248]); er ist Aufwand des ersten Jahres.
 - Das Musterprotokoll begrenzt die Gründungskosten der Gesellschaft auf 300 €,
@@ -170,7 +170,7 @@ Leite jede mit „Wertungsfrage:“ ein, nenne Grundlage und Optionen.
 - Wer seine Tätigkeit ab 2027 aufnimmt, gibt die Voranmeldung im Gründungsjahr
   und im Folgejahr monatlich ab ([§ 18 Abs. 2 Satz 4, 6 UStG][ustg18]); für
   2021 bis 2026 gilt eine Sonderregel
-  ([steuerliche-erfassung.md](references/steuerliche-erfassung.md)).
+  ([steuerliche-erfassung.md](steuerliche-erfassung.md)).
 - Die UG muss jedes Jahr ein Viertel des Jahresüberschusses in die gesetzliche
   Rücklage stellen ([§ 5a Abs. 3 GmbHG][gmbhg5a]; buchfink-jahresabschluss).
 - Auch die Eröffnungsbilanz ist als E-Bilanz zu übermitteln
@@ -178,19 +178,19 @@ Leite jede mit „Wertungsfrage:“ ein, nenne Grundlage und Optionen.
 
 ## Referenzen
 
-- [references/gruendungsweg.md](references/gruendungsweg.md): Lies vor dem
+- [gruendungsweg.md](gruendungsweg.md): Lies vor dem
   Notartermin und für die Liste der Behördenwege mit Fristen.
-- [references/kapitalaufbringung.md](references/kapitalaufbringung.md): Lies
+- [kapitalaufbringung.md](kapitalaufbringung.md): Lies
   vor jeder Buchung von Zeichnung, Einzahlung oder Sacheinlage und vor der
   Eintragung (Unterbilanz).
-- [references/gruendungskosten.md](references/gruendungskosten.md): Lies bei
+- [gruendungskosten.md](gruendungskosten.md): Lies bei
   jeder Rechnung aus der Gründungsphase und bei Kosten vor der Beurkundung.
-- [references/eroeffnungsbilanz.md](references/eroeffnungsbilanz.md): Lies zur
+- [eroeffnungsbilanz.md](eroeffnungsbilanz.md): Lies zur
   Prüfung der Eröffnungsbilanz und wenn eine bestehende GmbH zu Buchfink wechselt.
-- [references/steuerliche-erfassung.md](references/steuerliche-erfassung.md):
+- [steuerliche-erfassung.md](steuerliche-erfassung.md):
   Lies vor dem Fragebogen zur steuerlichen Erfassung und bei Fragen zu
   Voranmeldungszeitraum, Ist-Versteuerung, Dauerfristverlängerung und USt-IdNr.
-- [references/rumpfjahr.md](references/rumpfjahr.md): Lies, wenn das erste
+- [rumpfjahr.md](rumpfjahr.md): Lies, wenn das erste
   Geschäftsjahr kürzer als zwölf Monate ist, und für die Fristen des ersten
   Abschlusses.
 

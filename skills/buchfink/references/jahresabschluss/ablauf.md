@@ -35,11 +35,11 @@ Pflicht in buchfink-grundlagen:
 
 | Schritt | Wer | Pflicht |
 |---|---|---|
-| Inventar und Abschlussbuchungen | du, nach Ja | [bilanzstichtag](../buchfink-grundlagen/references/pflichten.md#bilanzstichtag) |
-| Aufstellen | Geschäftsführung | [aufstellung](../buchfink-grundlagen/references/pflichten.md#aufstellung) |
-| Feststellen | Gesellschafter | [feststellung](../buchfink-grundlagen/references/pflichten.md#feststellung) |
-| Ergebnisverwendung beschließen; du buchst sie | Gesellschafter | [ergebnisverwendung](../buchfink-grundlagen/references/pflichten.md#ergebnisverwendung) |
-| Offenlegen | Geschäftsführung | [offenlegung](../buchfink-grundlagen/references/pflichten.md#offenlegung) |
+| Inventar und Abschlussbuchungen | du, nach Ja | [bilanzstichtag](../grundlagen/pflichten.md#bilanzstichtag) |
+| Aufstellen | Geschäftsführung | [aufstellung](../grundlagen/pflichten.md#aufstellung) |
+| Feststellen | Gesellschafter | [feststellung](../grundlagen/pflichten.md#feststellung) |
+| Ergebnisverwendung beschließen; du buchst sie | Gesellschafter | [ergebnisverwendung](../grundlagen/pflichten.md#ergebnisverwendung) |
+| Offenlegen | Geschäftsführung | [offenlegung](../grundlagen/pflichten.md#offenlegung) |
 
 Für diese Fristen aus HGB und GmbHG verschiebt sich das Ende nicht auf den
 nächsten Werktag; plane mit dem Kalenderdatum. Kleinstkapitalgesellschaften
@@ -80,7 +80,7 @@ Führe daneben eine Liste **Abschlussposten** für Umbuchungen mit
 `buchung_erfassen` und für steuerliche Abweichungen: Posten, Konto, Betrag,
 Auflösung im Folgejahr, steuerliche Abweichung. Sie geht an den Menschen, an
 buchfink-steuererklaerungen und ins Folgejahr. Felder, Eigenbeleg,
-Idempotenz: [references/abschlussbuchungen.md](references/abschlussbuchungen.md).
+Idempotenz: [abschlussbuchungen.md](abschlussbuchungen.md).
 
 ## 3. Ablauf
 
@@ -98,45 +98,45 @@ Idempotenz: [references/abschlussbuchungen.md](references/abschlussbuchungen.md)
    ([§ 240 Abs. 2 HGB][hgb240]). Weise jedes Bestandskonto mit Saldo nach:
    Bank, offene Posten, Darlehen, Steuer- und Lohnkonten, Gesellschafterkonten,
    Anlagen. Fertig, wenn jeder Saldo einen Nachweis hat oder als Rückfrage
-   offen ist. [references/abschlussbuchungen.md](references/abschlussbuchungen.md).
+   offen ist. [abschlussbuchungen.md](abschlussbuchungen.md).
 4. **Anlagen.** `anlagen` zeigt Verzeichnis, fällige AfA und
    Aktivierungskandidaten. Aktiviere offene Kandidaten, dann
    `abschlussbuchung` mit `art: afa_lauf`. Prüfe, ob eine außerplanmäßige
    Abschreibung oder Wertaufholung nötig ist, und leg sie dem Menschen vor.
    Beide und Abgänge bildet Buchfink noch nicht ab. Fertig, wenn der
    Prüflauf kein `depreciation_missing` mehr meldet.
-   [references/abschreibungen.md](references/abschreibungen.md).
+   [abschreibungen.md](abschreibungen.md).
 5. **Abgrenzen.** Rechnungsabgrenzungsposten, ausstehende Rechnungen,
    sonstige Forderungen. Fertig, wenn jede Zahlung über den Stichtag hinaus und
    jede Leistung ohne Rechnung geprüft ist.
-   [references/abgrenzung.md](references/abgrenzung.md).
+   [abgrenzung.md](abgrenzung.md).
 6. **Rückstellungen.** Ungewisse Verbindlichkeiten, drohende Verluste,
    Abschluss- und Aufbewahrungskosten, Urlaub. Fertig, wenn jede Rückstellung
    mit Grund, Berechnung und Restlaufzeit gebucht oder verworfen ist.
-   [references/rueckstellungen.md](references/rueckstellungen.md).
+   [rueckstellungen.md](rueckstellungen.md).
 7. **Forderungen und Fremdwährung.** Einzel- und Pauschalwertberichtigung,
    Umrechnung zum Stichtag. Fertig, wenn jede überfällige Forderung bewertet
-   ist. [references/forderungen.md](references/forderungen.md).
+   ist. [forderungen.md](forderungen.md).
 8. **Unfertige Leistungen.** Begonnene, nicht abgerechnete Projekte zu
    Herstellungskosten. Fertig, wenn jedes laufende Projekt bewertet oder als
    unwesentlich vermerkt ist.
-   [references/unfertige-leistungen.md](references/unfertige-leistungen.md).
+   [unfertige-leistungen.md](unfertige-leistungen.md).
 9. **Umsatzsteuer-Verrechnung.** Nach der letzten Voranmeldung verrechnet
    `abschlussbuchung` mit `art: ust_verrechnung` die Umsatzsteuer- und
    Vorsteuerkonten auf 3841 oder 1420; du prüfst den Betrag in der Vorschau.
    Fertig, wenn diese Konten null zeigen.
-   [references/steuern-im-abschluss.md](references/steuern-im-abschluss.md).
+   [steuern-im-abschluss.md](steuern-im-abschluss.md).
 10. **Steuerrückstellung.** Erst wenn alle übrigen Buchungen stehen:
     Körperschaftsteuer, Solidaritätszuschlag und Gewerbesteuer des Jahres nach
     buchfink-steuererklaerungen, abzüglich Vorauszahlungen des Jahres;
     `abschlussbuchung` mit `art: steuerrueckstellung`. Fertig, wenn die
     Rückstellung gebucht ist und der Rechenweg in `grund` steht.
-    [references/steuern-im-abschluss.md](references/steuern-im-abschluss.md).
+    [steuern-im-abschluss.md](steuern-im-abschluss.md).
 11. **UG-Rücklage** (nur UG). Ein Viertel des um einen Verlustvortrag
     geminderten Jahresüberschusses ([§ 5a Abs. 3 GmbHG][gmbhg5a]);
     `abschlussbuchung` mit `art: ug_ruecklage`. Fertig, wenn 7765 an 2930
     gebucht ist.
-    [references/ergebnisverwendung-ug.md](references/ergebnisverwendung-ug.md).
+    [ergebnisverwendung-ug.md](ergebnisverwendung-ug.md).
 12. **Prüfen.** `auswertung` (`art: pruefbericht`, dann `bilanz`, `guv`).
     Bilanz geht auf, keine blockierenden Befunde, Abweichungen zum Vorjahr
     erklärt. Prüfe die Warnzeichen aus buchfink-grundlagen (Hälfte des
@@ -144,7 +144,7 @@ Idempotenz: [references/abschlussbuchungen.md](references/abschlussbuchungen.md)
     Fertig, wenn der Mensch Bilanz und GuV mit deinen Erläuterungen gesehen hat.
 13. **Anhang.** Entwirf die Angaben nach Größenklasse. Fertig, wenn der Mensch
     einen Entwurf hat.
-    [references/groessenklassen-anhang.md](references/groessenklassen-anhang.md).
+    [groessenklassen-anhang.md](groessenklassen-anhang.md).
 14. **Aufstellen (nur App).** Die Geschäftsführung unterzeichnet mit Datum
     ([§ 245 HGB][hgb245]) und setzt den Stand `aufgestellt`. Danach schreibt
     der Mensch das Jahr fest; Buchfink verlangt das vor der Feststellung, und
@@ -164,9 +164,9 @@ Idempotenz: [references/abschlussbuchungen.md](references/abschlussbuchungen.md)
 17. **Offenlegen.** Der Mensch übermittelt an das Unternehmensregister und
     setzt `offengelegt` mit dem Beleg aus „Meine Daten“ der Plattform.
     Registrierung, Identifizierung und Upload:
-    [pflichten.md#offenlegung](../buchfink-grundlagen/references/pflichten.md#offenlegung).
+    [grundlagen/pflichten.md#offenlegung](../grundlagen/pflichten.md#offenlegung).
     Fertig, wenn `status` den Stand zeigt.
-    [references/aufstellen-feststellen-offenlegen.md](references/aufstellen-feststellen-offenlegen.md).
+    [aufstellen-feststellen-offenlegen.md](aufstellen-feststellen-offenlegen.md).
 
 ## 4. Entscheidungsregeln
 
@@ -213,7 +213,7 @@ Anlagenabgang, außerplanmäßige Abschreibung und Zuschreibung.
 - Die UG-Rücklage buchst du im Abschluss des Gewinnjahres, vor dem
   Gesellschafterbeschluss. Ohne sie lässt Buchfink weder die Festschreibung bis
   zum Jahresende noch Aufstellen oder Feststellen zu
-  ([references/ergebnisverwendung-ug.md](references/ergebnisverwendung-ug.md)).
+  ([ergebnisverwendung-ug.md](ergebnisverwendung-ug.md)).
 - Nach der Aufstellung ändert jede Buchung ins Jahr den aufgestellten
   Abschluss: nur nach Rückfrage. Nach der Feststellung nimmt das Jahr keine
   Buchung mehr an (`fachliche_regel`).
@@ -222,25 +222,25 @@ Anlagenabgang, außerplanmäßige Abschreibung und Zuschreibung.
 
 ## Referenzen
 
-- [references/abschlussbuchungen.md](references/abschlussbuchungen.md): Lies
+- [abschlussbuchungen.md](abschlussbuchungen.md): Lies
   vor der ersten Abschlussbuchung und für Inventar und Abstimmung.
-- [references/abschreibungen.md](references/abschreibungen.md): Lies bei
+- [abschreibungen.md](abschreibungen.md): Lies bei
   Abschreibungslauf, Wertminderung, Zuschreibung, Abgang, Anlagenspiegel.
-- [references/abgrenzung.md](references/abgrenzung.md): Lies bei Zahlungen
+- [abgrenzung.md](abgrenzung.md): Lies bei Zahlungen
   über den Stichtag, Leistungen ohne Rechnung, Disagio.
-- [references/rueckstellungen.md](references/rueckstellungen.md): Lies bei
+- [rueckstellungen.md](rueckstellungen.md): Lies bei
   jeder Rückstellung, ihrer Abzinsung, ihrem Verbrauch oder ihrer Auflösung.
-- [references/forderungen.md](references/forderungen.md): Lies bei
+- [forderungen.md](forderungen.md): Lies bei
   überfälligen oder zweifelhaften Forderungen und Fremdwährungsposten.
-- [references/unfertige-leistungen.md](references/unfertige-leistungen.md):
+- [unfertige-leistungen.md](unfertige-leistungen.md):
   Lies bei Projekten, die über den Stichtag laufen.
-- [references/steuern-im-abschluss.md](references/steuern-im-abschluss.md):
+- [steuern-im-abschluss.md](steuern-im-abschluss.md):
   Lies bei Umsatzsteuer-Verrechnung und Steuerrückstellung.
-- [references/ergebnisverwendung-ug.md](references/ergebnisverwendung-ug.md):
+- [ergebnisverwendung-ug.md](ergebnisverwendung-ug.md):
   Lies bei UG, Ergebnisverwendung, Vorträgen, Verlust.
-- [references/groessenklassen-anhang.md](references/groessenklassen-anhang.md):
+- [groessenklassen-anhang.md](groessenklassen-anhang.md):
   Lies für Größenklasse, Gliederung, Anhang und Angaben unter der Bilanz.
-- [references/aufstellen-feststellen-offenlegen.md](references/aufstellen-feststellen-offenlegen.md):
+- [aufstellen-feststellen-offenlegen.md](aufstellen-feststellen-offenlegen.md):
   Lies für Unterzeichnung, Beschluss, Offenlegung, Ordnungsgeld, Stand in
   Buchfink.
 

@@ -35,7 +35,7 @@ Zweifeln empfiehl einen Steuerberater (buchfink-grundlagen, Grenzen).
 
 | Thema | Skill |
 |---|---|
-| Fristen, Weg und Nachweis jeder Pflicht | buchfink-grundlagen ([pflichten.md](../buchfink-grundlagen/references/pflichten.md)) |
+| Fristen, Weg und Nachweis jeder Pflicht | buchfink-grundlagen ([grundlagen/pflichten.md](../grundlagen/pflichten.md)) |
 | Umsatzsteuer-Voranmeldung, ZM | buchfink-monatsabschluss |
 | Steuerrückstellung buchen, Bilanz und GuV aufstellen | buchfink-jahresabschluss |
 | Zahlung, Erstattung, Säumniszuschlag, Zinsen buchen | buchfink-bank |
@@ -51,10 +51,10 @@ Werkzeuge: `status`, `aufgaben`, `fristen`, `erklaerung`,
 
 | Erklärung | Pflicht | `erklaerung` `art` | Abgabe | Lies |
 |---|---|---|---|---|
-| Umsatzsteuererklärung für das Kalenderjahr | [§ 18 Abs. 3 UStG][ustg18] | `ust_jahr` | Mein ELSTER, „Umsatzsteuererklärung“ | [ust-jahr.md](references/ust-jahr.md) |
-| Körperschaftsteuererklärung KSt 1, darin die Erklärung zum steuerlichen Einlagekonto | [§ 31 Abs. 1a KStG][kstg31], [§ 27 Abs. 2 Satz 4 KStG][kstg27] | `kst` | Mein ELSTER, „Körperschaftsteuererklärung (KSt 1)“ mit Anlagen | [kst.md](references/kst.md) |
-| Gewerbesteuererklärung GewSt 1 A (Messbetrag) | [§ 14a GewStG][gewstg14a] | `gewst` | Mein ELSTER, „Gewerbesteuererklärung (GewSt 1 A)“; bei Zerlegung GewSt 1 D | [gewst.md](references/gewst.md) |
-| E-Bilanz | [§ 5b Abs. 1 EStG][estg5b] | – (`ebilanz_exportieren`) | XBRL-Datei aus Buchfink, importiert und gesendet in einem Online-Dienst wie eBilanz+ oder eBilanz-Online; Mein ELSTER hat kein Formular | [ebilanz.md](references/ebilanz.md) |
+| Umsatzsteuererklärung für das Kalenderjahr | [§ 18 Abs. 3 UStG][ustg18] | `ust_jahr` | Mein ELSTER, „Umsatzsteuererklärung“ | [ust-jahr.md](ust-jahr.md) |
+| Körperschaftsteuererklärung KSt 1, darin die Erklärung zum steuerlichen Einlagekonto | [§ 31 Abs. 1a KStG][kstg31], [§ 27 Abs. 2 Satz 4 KStG][kstg27] | `kst` | Mein ELSTER, „Körperschaftsteuererklärung (KSt 1)“ mit Anlagen | [kst.md](kst.md) |
+| Gewerbesteuererklärung GewSt 1 A (Messbetrag) | [§ 14a GewStG][gewstg14a] | `gewst` | Mein ELSTER, „Gewerbesteuererklärung (GewSt 1 A)“; bei Zerlegung GewSt 1 D | [gewst.md](gewst.md) |
+| E-Bilanz | [§ 5b Abs. 1 EStG][estg5b] | – (`ebilanz_exportieren`) | XBRL-Datei aus Buchfink, importiert und gesendet in einem Online-Dienst wie eBilanz+ oder eBilanz-Online; Mein ELSTER hat kein Formular | [ebilanz.md](ebilanz.md) |
 
 Alle Erklärungen gehen elektronisch nach amtlichem Datensatz an das Finanzamt.
 Papier gibt es nur auf Antrag wegen unbilliger Härte. `erklaerung` zeigt jede
@@ -84,10 +84,10 @@ Kalenderjahr ([§ 16 Abs. 1 Satz 2 UStG][ustg16]). Prüfe in der Antwort von
    vorliegt oder als fehlend benannt ist.
 3. **Umsatzsteuer-Jahreserklärung.** `erklaerung` (`art: ust_jahr`). Gleiche
    sie mit der Summe der Voranmeldungen und den Konten ab. Fertig, wenn jede
-   Abweichung erklärt ist. [ust-jahr.md](references/ust-jahr.md)
+   Abweichung erklärt ist. [ust-jahr.md](ust-jahr.md)
 4. **Körperschaftsteuer.** `erklaerung` (`art: kst`, erst mit
    `nur_offen: true`). Prüfe jede Zeile `offen` oder `vorgeschlagen` und jeden
-   Eintrag in `befunde` nach [kst.md](references/kst.md); die Zeilen `auto`
+   Eintrag in `befunde` nach [kst.md](kst.md); die Zeilen `auto`
    prüfst du über `herkunft` gegen `auswertung` auf Plausibilität. Angaben aus
    Bescheid, Beschluss oder Beleg trägst du nach Rückfrage mit
    `erklaerung_eingabe` ein (`art`, `jahr`, `schluessel` der Zeile, `wert`,
@@ -99,7 +99,7 @@ Kalenderjahr ([§ 16 Abs. 1 Satz 2 UStG][ustg16]). Prüfe in der Antwort von
 5. **Gewerbesteuer.** `erklaerung` (`art: gewst`) ebenso. Den Gewinn übernimmt
    Buchfink aus der Körperschaftsteuer; Hinzurechnungen nach § 8 Nr. 1 rechnet
    es aus den Konten. Prüfe die Zuordnung von Miete, Leasing und Lizenzen nach
-   [gewst.md](references/gewst.md). Fertig wie Schritt 4 und wenn der Hebesatz
+   [gewst.md](gewst.md). Fertig wie Schritt 4 und wenn der Hebesatz
    zum Bescheid der Gemeinde passt.
 6. **Steuerrückstellung.** Vergleiche den Vorschlag von `abschlussbuchung`
    (`art: steuerrueckstellung`, `nur_vorschau: true`) mit Schritt 4 und 5. Der
@@ -112,12 +112,12 @@ Kalenderjahr ([§ 16 Abs. 1 Satz 2 UStG][ustg16]). Prüfe in der Antwort von
 7. **E-Bilanz.** `ebilanz_exportieren` (`jahr`; `format: xbrl` ist Vorgabe)
    prüft und schreibt die XBRL-Datei in den Exportordner. Fertig, wenn kein
    blockierender Befund bleibt und der Mensch den Online-Dienst gewählt hat.
-   [ebilanz.md](references/ebilanz.md)
+   [ebilanz.md](ebilanz.md)
 8. **Freigabe.** Lege je Erklärung vor: Kennzahlen, Überleitung, Abweichungen
    zum Vorschlag aus Buchfink, Wertungsfragen mit Grundlage und Optionen.
    Fertig, wenn der Mensch die Zahlen ausdrücklich freigibt.
 9. **Abgeben.** Melde jede Erklärung mit `pflicht_vorbereitet` als
-   vorbereitet. Dann nach [abgabe.md](references/abgabe.md): Der Mensch
+   vorbereitet. Dann nach [abgabe.md](abgabe.md): Der Mensch
    überträgt Umsatzsteuer, Körperschaftsteuer und Gewerbesteuer mit deiner
    Tabelle in Mein ELSTER und sendet; die E-Bilanz importiert, prüft und
    sendet er im Online-Dienst. Mit Steuerberater
@@ -129,20 +129,20 @@ Kalenderjahr ([§ 16 Abs. 1 Satz 2 UStG][ustg16]). Prüfe in der Antwort von
 11. **Bescheid prüfen.** Bescheid mit `beleg_ablegen` ablegen, mit der
     Erklärung abgleichen, Einspruchsfrist und Zahltermin nennen. Die Zahlung
     ordnet buchfink-bank zu. Fertig, wenn jede Abweichung erklärt ist.
-    [bescheide.md](references/bescheide.md)
+    [bescheide.md](bescheide.md)
 
 ## 3. Fristen und Steuerberater
 
 `fristen` nennt Fälligkeit, Stand und Zuständigkeit jeder Erklärung. Frist,
 Weg, Nachweis und Folgen stehen je Pflicht in buchfink-grundlagen:
-[kst-erklaerung](../buchfink-grundlagen/references/pflichten.md#kst-erklaerung),
-[gewst-erklaerung](../buchfink-grundlagen/references/pflichten.md#gewst-erklaerung),
-[ust-erklaerung](../buchfink-grundlagen/references/pflichten.md#ust-erklaerung),
-[ebilanz](../buchfink-grundlagen/references/pflichten.md#ebilanz),
-[kst-vorauszahlung](../buchfink-grundlagen/references/pflichten.md#kst-vorauszahlung),
-[gewst-vorauszahlung](../buchfink-grundlagen/references/pflichten.md#gewst-vorauszahlung).
+[kst-erklaerung](../grundlagen/pflichten.md#kst-erklaerung),
+[gewst-erklaerung](../grundlagen/pflichten.md#gewst-erklaerung),
+[ust-erklaerung](../grundlagen/pflichten.md#ust-erklaerung),
+[ebilanz](../grundlagen/pflichten.md#ebilanz),
+[kst-vorauszahlung](../grundlagen/pflichten.md#kst-vorauszahlung),
+[gewst-vorauszahlung](../grundlagen/pflichten.md#gewst-vorauszahlung).
 Übergangsjahre, Fristende, Zuschläge und Zinsen:
-[fristen-zuschlaege.md](references/fristen-zuschlaege.md).
+[fristen-zuschlaege.md](fristen-zuschlaege.md).
 
 Die Fälligkeit hängt davon ab, ob ein Steuerberater mit der Erstellung
 beauftragt ist ([§ 149 Abs. 3 AO][ao149]). Das sagt das Stammdatum
@@ -229,7 +229,7 @@ Leite jede mit „Wertungsfrage:“ ein, nenne Grundlage, Optionen und Folgen.
 - Mein ELSTER führt kein Formular für die E-Bilanz (Formularliste geprüft am
   17.10.2026). Ob der Online-Dienst Kontennachweis und Stammdaten aus der
   XBRL-Datei vollständig übernimmt, ist nicht dokumentiert; prüft es nach
-  jedem Import ([ebilanz.md](references/ebilanz.md)).
+  jedem Import ([ebilanz.md](ebilanz.md)).
 - Ein elektronisch bereitgestellter Bescheid gilt am vierten Tag als bekannt
   gegeben ([§ 122a Abs. 4 AO][ao122a]); ab dann läuft die Einspruchsfrist von
   einem Monat ([§ 355 Abs. 1 AO][ao355]). Ein Einspruch hält die Zahlung nicht
@@ -237,21 +237,21 @@ Leite jede mit „Wertungsfrage:“ ein, nenne Grundlage, Optionen und Folgen.
 
 ## Referenzen
 
-- [references/kst.md](references/kst.md): Lies für die Überleitung zum zu
+- [kst.md](kst.md): Lies für die Überleitung zum zu
   versteuernden Einkommen, nicht abziehbare Ausgaben, Spenden, Verlustabzug,
   Anrechnung, Vorauszahlungen und das steuerliche Einlagekonto.
-- [references/gewst.md](references/gewst.md): Lies für Gewerbeertrag,
+- [gewst.md](gewst.md): Lies für Gewerbeertrag,
   Hinzurechnungen, Kürzungen, Gewerbeverlust, Messbetrag, Hebesatz und
   Zerlegung.
-- [references/ust-jahr.md](references/ust-jahr.md): Lies für den Abgleich der
+- [ust-jahr.md](ust-jahr.md): Lies für den Abgleich der
   Jahreserklärung mit den Voranmeldungen und die Abschlusszahlung.
-- [references/ebilanz.md](references/ebilanz.md): Lies vor jedem XBRL-Export
+- [ebilanz.md](ebilanz.md): Lies vor jedem XBRL-Export
   und wenn der Übermittlungsweg der E-Bilanz offen ist.
-- [references/fristen-zuschlaege.md](references/fristen-zuschlaege.md): Lies bei
+- [fristen-zuschlaege.md](fristen-zuschlaege.md): Lies bei
   Übergangsjahren, Fristverlängerung, Verspätungszuschlag und Zinsen.
-- [references/abgabe.md](references/abgabe.md): Lies, bevor der Mensch Werte in
+- [abgabe.md](abgabe.md): Lies, bevor der Mensch Werte in
   Mein ELSTER überträgt, und zum Organisationszertifikat.
-- [references/bescheide.md](references/bescheide.md): Lies, wenn ein Bescheid
+- [bescheide.md](bescheide.md): Lies, wenn ein Bescheid
   oder Vorauszahlungsbescheid eingeht oder ein Einspruch erwogen wird.
 
 [ao109]: https://www.gesetze-im-internet.de/ao_1977/__109.html

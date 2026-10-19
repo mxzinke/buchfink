@@ -53,23 +53,23 @@ Werkzeuge: `beleg_ablegen`, `bankumsatz_buchen` (Rückfrage),
 
 | Vorgang | Konto (SKR04) | Lies |
 |---|---|---|
-| Anteile an einer Tochter kaufen oder gründen (Mehrheit der Stimmrechte) | 0804 Anteile an verbundenen Unternehmen, Kapitalgesellschaften | [erwerb-ausweis.md](references/erwerb-ausweis.md) |
-| Beteiligung an einer GmbH oder AG (dauernde Verbindung) | 0850 Beteiligungen an Kapitalgesellschaften | [erwerb-ausweis.md](references/erwerb-ausweis.md) |
-| Aktien als Daueranlage ohne Beteiligungsabsicht | 0910 oder 0900 | [erwerb-ausweis.md](references/erwerb-ausweis.md) |
-| Aktien oder Fonds zur kurzfristigen Anlage | 1510 Sonstige Wertpapiere | [erwerb-ausweis.md](references/erwerb-ausweis.md) |
-| ETF oder anderer Investmentfonds als Daueranlage | 0900 Wertpapiere des Anlagevermögens | [investmentfonds.md](references/investmentfonds.md) |
-| Dividende einer Kapitalgesellschaft geht ein | 7005, 7006, 7014, 7015, 7103 oder 7104 brutto; 7630, 7633 | [dividenden.md](references/dividenden.md) |
-| Ausschüttung eines Fonds geht ein | 7010 (Anlagevermögen) brutto; 7630, 7633 | [investmentfonds.md](references/investmentfonds.md) |
-| Bank belastet Kapitalertragsteuer auf die Vorabpauschale | 7630, 7633 an Bank | [investmentfonds.md](references/investmentfonds.md) |
-| Wert gesunken oder wieder gestiegen | 7204, 7200, 7201, 7214; 4912, 4913, 4914 | [bewertung-veraeusserung.md](references/bewertung-veraeusserung.md) |
-| Anteile verkauft | 4852 und 4858 oder 6892 und 6898; Fonds 4851 und 4857 oder 6891 und 6897 | [bewertung-veraeusserung.md](references/bewertung-veraeusserung.md) |
-| Darlehen an eine Tochter | 0814 oder 0885; Zinsen 7012 oder 7011 | [erwerb-ausweis.md](references/erwerb-ausweis.md) |
-| Zuzahlung in die Kapitalrücklage einer Tochter | Beteiligungskonto (nachträgliche Anschaffungskosten) | [erwerb-ausweis.md](references/erwerb-ausweis.md) |
-| Tochter zahlt aus dem Einlagekonto zurück | keine Einnahme; Steuerberater | [dividenden.md](references/dividenden.md) |
-| Holding stellt einer Tochter Leistungen in Rechnung oder fragt nach Vorsteuer | – | [holding-umsatzsteuer.md](references/holding-umsatzsteuer.md) |
+| Anteile an einer Tochter kaufen oder gründen (Mehrheit der Stimmrechte) | 0804 Anteile an verbundenen Unternehmen, Kapitalgesellschaften | [erwerb-ausweis.md](erwerb-ausweis.md) |
+| Beteiligung an einer GmbH oder AG (dauernde Verbindung) | 0850 Beteiligungen an Kapitalgesellschaften | [erwerb-ausweis.md](erwerb-ausweis.md) |
+| Aktien als Daueranlage ohne Beteiligungsabsicht | 0910 oder 0900 | [erwerb-ausweis.md](erwerb-ausweis.md) |
+| Aktien oder Fonds zur kurzfristigen Anlage | 1510 Sonstige Wertpapiere | [erwerb-ausweis.md](erwerb-ausweis.md) |
+| ETF oder anderer Investmentfonds als Daueranlage | 0900 Wertpapiere des Anlagevermögens | [investmentfonds.md](investmentfonds.md) |
+| Dividende einer Kapitalgesellschaft geht ein | 7005, 7006, 7014, 7015, 7103 oder 7104 brutto; 7630, 7633 | [dividenden.md](dividenden.md) |
+| Ausschüttung eines Fonds geht ein | 7010 (Anlagevermögen) brutto; 7630, 7633 | [investmentfonds.md](investmentfonds.md) |
+| Bank belastet Kapitalertragsteuer auf die Vorabpauschale | 7630, 7633 an Bank | [investmentfonds.md](investmentfonds.md) |
+| Wert gesunken oder wieder gestiegen | 7204, 7200, 7201, 7214; 4912, 4913, 4914 | [bewertung-veraeusserung.md](bewertung-veraeusserung.md) |
+| Anteile verkauft | 4852 und 4858 oder 6892 und 6898; Fonds 4851 und 4857 oder 6891 und 6897 | [bewertung-veraeusserung.md](bewertung-veraeusserung.md) |
+| Darlehen an eine Tochter | 0814 oder 0885; Zinsen 7012 oder 7011 | [erwerb-ausweis.md](erwerb-ausweis.md) |
+| Zuzahlung in die Kapitalrücklage einer Tochter | Beteiligungskonto (nachträgliche Anschaffungskosten) | [erwerb-ausweis.md](erwerb-ausweis.md) |
+| Tochter zahlt aus dem Einlagekonto zurück | keine Einnahme; Steuerberater | [dividenden.md](dividenden.md) |
+| Holding stellt einer Tochter Leistungen in Rechnung oder fragt nach Vorsteuer | – | [holding-umsatzsteuer.md](holding-umsatzsteuer.md) |
 
 Kontonummern nach dem SKR04 in Buchfink. Welches Dividendenkonto zu welchem
-Anteil gehört, steht in [dividenden.md](references/dividenden.md).
+Anteil gehört, steht in [dividenden.md](dividenden.md).
 
 ## 2. Ablauf für jeden Vorgang
 
@@ -125,9 +125,9 @@ Anteil gehört, steht in [dividenden.md](references/dividenden.md).
 
 Stand: Oktober 2026. Die Grenzen und Sätze ändern sich nur durch Gesetz.
 Berechnung, Beispiele und Ausnahmen:
-[steuerfreistellung.md](references/steuerfreistellung.md),
-[gewst-holding.md](references/gewst-holding.md),
-[investmentfonds.md](references/investmentfonds.md).
+[steuerfreistellung.md](steuerfreistellung.md),
+[gewst-holding.md](gewst-holding.md),
+[investmentfonds.md](investmentfonds.md).
 
 ## 4. Entscheidungsregeln
 
@@ -177,13 +177,13 @@ Leite jede mit „Wertungsfrage:“ ein, nenne Grundlage, Optionen und Folgen.
   ([§ 253 Abs. 3 Satz 5, 6 HGB][hgb253], [§ 6 Abs. 1 Nr. 2 Satz 2 EStG][estg6])?
 - Darf eine Dividende vor dem Beschluss der Tochter vereinnahmt werden
   (phasengleich)? Steuerlich nach dem BFH nur in seltenen Ausnahmen
-  ([dividenden.md](references/dividenden.md)).
+  ([dividenden.md](dividenden.md)).
 - Ist die Holding Unternehmerin, und welcher Anteil der Vorsteuer ist
   abziehbar ([§ 2 Abs. 1][ustg2], [§ 15 Abs. 4 UStG][ustg15])?
 - Ist ein Darlehen an die Tochter fremdüblich
   ([§ 8b Abs. 3 Satz 7 KStG][kstg8b])?
 - In welchem Jahr setzt die GmbH die Vorabpauschale an
-  ([investmentfonds.md](references/investmentfonds.md))?
+  ([investmentfonds.md](investmentfonds.md))?
 - Welche Fondsart nennen die Anlagebedingungen ([§ 2 Abs. 6, 7, 9 InvStG][invstg2])?
 - Gehören Beratungskosten vor dem Kauf zu den Anschaffungskosten
   ([§ 255 Abs. 1 HGB][hgb255])?
@@ -229,29 +229,29 @@ vor; ein Steuerberater kann die Werte für die Erklärung bestätigen.
 - Die Quote der Kartei trägt keinen Stichtag. Für § 8b Abs. 4 KStG zählt der
   Beginn des Kalenderjahres, für § 9 Nr. 2a GewStG der Beginn des
   Erhebungszeitraums; prüfe sie an der Gesellschafterliste
-  ([gewst-holding.md](references/gewst-holding.md)).
+  ([gewst-holding.md](gewst-holding.md)).
 - Fondserträge: In GewSt 1 A Zeile 48 steht die volle Teilfreistellung; die
   Hälfte nach § 20 Abs. 5 InvStG rechnet das Finanzamt
-  ([gewst-holding.md](references/gewst-holding.md)).
+  ([gewst-holding.md](gewst-holding.md)).
 
 ## Referenzen
 
-- [references/erwerb-ausweis.md](references/erwerb-ausweis.md): Lies beim
+- [erwerb-ausweis.md](erwerb-ausweis.md): Lies beim
   Kauf, bei der Gründung einer Tochter, bei Einlagen in eine Tochter, bei
   einem Darlehen an sie und wenn Konto oder Bilanzposten unklar sind.
-- [references/dividenden.md](references/dividenden.md): Lies, wenn eine
+- [dividenden.md](dividenden.md): Lies, wenn eine
   Dividende beschlossen wird oder eingeht, eine Steuerbescheinigung fehlt
   oder eine Einlagenrückgewähr bescheinigt wird.
-- [references/steuerfreistellung.md](references/steuerfreistellung.md): Lies,
+- [steuerfreistellung.md](steuerfreistellung.md): Lies,
   wenn du die Zeilen zu § 8b KStG prüfst oder ein Vorgang dort einzuordnen
   ist.
-- [references/gewst-holding.md](references/gewst-holding.md): Lies, wenn du
+- [gewst-holding.md](gewst-holding.md): Lies, wenn du
   Hinzurechnung oder Kürzung für Beteiligungserträge prüfst.
-- [references/bewertung-veraeusserung.md](references/bewertung-veraeusserung.md):
+- [bewertung-veraeusserung.md](bewertung-veraeusserung.md):
   Lies zum Jahresende, bei Kursverlust, Wertaufholung und Verkauf.
-- [references/investmentfonds.md](references/investmentfonds.md): Lies bei
+- [investmentfonds.md](investmentfonds.md): Lies bei
   ETF, Fondsausschüttung, Vorabpauschale und Fondsverkauf.
-- [references/holding-umsatzsteuer.md](references/holding-umsatzsteuer.md):
+- [holding-umsatzsteuer.md](holding-umsatzsteuer.md):
   Lies, wenn die GmbH vor allem Beteiligungen hält, Leistungen an Töchter
   abrechnet oder Vorsteuer aus Kosten der Beteiligung abziehen will.
 

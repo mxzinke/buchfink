@@ -32,7 +32,7 @@ Werkzeug einen Fall mit `fachliche_regel` ab, gilt die Meldung des Servers.
 | Mittelgroße oder große Gesellschaft ([§ 267 HGB][hgb267]): Abschlussprüfung ([§ 316 HGB][hgb316]), latente Steuern, Lagebericht | Steuerberater und Wirtschaftsprüfer. |
 | Eigene Steuerbilanz mit abweichenden Werten | Buchfink führt eine Einheitsbilanz; abweichende Steuerwerte nur bei Sonderabschreibungen nach § 7g EStG. |
 | Ersetzendes Scannen | Kein dokumentiertes Verfahren in Buchfink ([GoBD Rz. 136][gobd]). Papierbelege aufheben lassen. |
-| Übermittlung an das Finanzamt | Buchfink übermittelt nicht selbst. Es zeigt die Erklärungen formularnah; der Mensch überträgt sie in Mein ELSTER und sendet (buchfink-monatsabschluss, buchfink-steuererklaerungen). Für die E-Bilanz erzeugt Buchfink eine XBRL-Datei für den Import in einen Online-Dienst wie eBilanz+ oder eBilanz-Online; Weg, Kontennachweise, Anlagenspiegel und Härtefall: buchfink-steuererklaerungen/references/ebilanz.md. |
+| Übermittlung an das Finanzamt | Buchfink übermittelt nicht selbst. Es zeigt die Erklärungen formularnah; der Mensch überträgt sie in Mein ELSTER und sendet (buchfink-monatsabschluss, buchfink-steuererklaerungen). Für die E-Bilanz erzeugt Buchfink eine XBRL-Datei für den Import in einen Online-Dienst wie eBilanz+ oder eBilanz-Online; Weg, Kontennachweise, Anlagenspiegel und Härtefall: [steuererklaerungen/ebilanz.md](../steuererklaerungen/ebilanz.md). |
 | Versand von Rechnungen (E-Mail, Peppol, Portal) | Außerhalb von Buchfink. |
 
 ## 2. Warnzeichen, die du sofort meldest

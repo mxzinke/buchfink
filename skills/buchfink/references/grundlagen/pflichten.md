@@ -159,7 +159,7 @@ Mit und ohne Steuerberater:
   lässt prüfen und sendet. Das Übermittlungsprotokoll nennt das Transferticket;
   er speichert es als PDF in den Eingang, du legst es auf seine Anweisung mit
   `beleg_ablegen` ab.
-  Zertifikat und Eingabe: buchfink-steuererklaerungen/references/abgabe.md.
+  Zertifikat und Eingabe: [steuererklaerungen/abgabe.md](../steuererklaerungen/abgabe.md).
 
 <a id="ustva"></a>
 ## Umsatzsteuer-Voranmeldung
@@ -195,7 +195,7 @@ Mit und ohne Steuerberater:
   rechtzeitig entrichtet wird ([§ 26a Abs. 1, 3 UStG][ustg26a]); Abs. 1 nennt
   keine Leichtfertigkeit, geahndet wird also nur Vorsatz
   ([§ 10 OWiG][owig10] über [§ 377 Abs. 2 AO][ao377]).
-- **Vertiefung:** [buchfink-monatsabschluss/references/ustva.md](../../buchfink-monatsabschluss/references/ustva.md)
+- **Vertiefung:** [monatsabschluss/ustva.md](../monatsabschluss/ustva.md)
 
 <a id="sondervorauszahlung"></a>
 ## Sondervorauszahlung
@@ -230,7 +230,7 @@ Mit und ohne Steuerberater:
   zwingend ([§ 152 Abs. 3 Nr. 4, Abs. 8 Nr. 5 AO][ao152]); das Finanzamt kann
   die Sondervorauszahlung festsetzen ([§ 48 Abs. 3 UStDV][ustdv48]);
   Säumniszuschlag ([§ 240 AO][ao240]).
-- **Vertiefung:** [buchfink-monatsabschluss/references/dauerfristverlaengerung.md](../../buchfink-monatsabschluss/references/dauerfristverlaengerung.md)
+- **Vertiefung:** [monatsabschluss/dauerfristverlaengerung.md](../monatsabschluss/dauerfristverlaengerung.md)
 
 <a id="zm"></a>
 ## Zusammenfassende Meldung
@@ -261,7 +261,7 @@ Mit und ohne Steuerberater:
   Geldbuße bis 5.000 € bei vorsätzlich oder leichtfertig fehlender, falscher,
   verspäteter oder nicht binnen eines Monats berichtigter Meldung
   ([§ 26a Abs. 2 Nr. 5, Abs. 3 UStG][ustg26a], [§ 18a Abs. 10 UStG][ustg18a]).
-- **Vertiefung:** [buchfink-monatsabschluss/references/zm.md](../../buchfink-monatsabschluss/references/zm.md)
+- **Vertiefung:** [monatsabschluss/zm.md](../monatsabschluss/zm.md)
 
 <a id="kst-vorauszahlung"></a>
 ## Körperschaftsteuer-Vorauszahlung
@@ -289,8 +289,8 @@ Mit und ohne Steuerberater:
   vom Bankkonto kommt oder die der Mensch gebucht hat; deine Handbuchung belegt
   keine.
 - **Bei Versäumnis:** Säumniszuschlag ([§ 240 AO][ao240]).
-- **Vertiefung:** [buchfink-steuererklaerungen/references/bescheide.md](../../buchfink-steuererklaerungen/references/bescheide.md),
-  [buchfink-bank/references/steuerzahlungen.md](../../buchfink-bank/references/steuerzahlungen.md)
+- **Vertiefung:** [steuererklaerungen/bescheide.md](../steuererklaerungen/bescheide.md),
+  [bank/steuerzahlungen.md](../bank/steuerzahlungen.md)
 
 <a id="gewst-vorauszahlung"></a>
 ## Gewerbesteuer-Vorauszahlung
@@ -314,8 +314,8 @@ Mit und ohne Steuerberater:
   Bestätigung durch den Menschen. Deine Handbuchung belegt keine Zahlung.
 - **Bei Versäumnis:** Säumniszuschlag ([§ 240 AO][ao240] über
   [§ 1 Abs. 2 Nr. 5 AO][ao1]).
-- **Vertiefung:** [buchfink-steuererklaerungen/references/gewst.md](../../buchfink-steuererklaerungen/references/gewst.md),
-  [buchfink-bank/references/steuerzahlungen.md](../../buchfink-bank/references/steuerzahlungen.md)
+- **Vertiefung:** [steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md),
+  [bank/steuerzahlungen.md](../bank/steuerzahlungen.md)
 
 <a id="lohnsteuer-anmeldung"></a>
 ## Lohnsteuer-Anmeldung
@@ -355,8 +355,8 @@ Mit und ohne Steuerberater:
   Geldbuße bis 25.000 €, wenn Steuerabzugsbeträge vorsätzlich oder leichtfertig
   nicht rechtzeitig abgeführt werden ([§ 380 AO][ao380]); Haftung des
   Geschäftsführers bei grober Fahrlässigkeit ([§ 69 AO][ao69]).
-- **Vertiefung:** [buchfink-lohn/SKILL.md](../../buchfink-lohn/SKILL.md),
-  Abschnitt 4; [buchfink-lohn/references/abstimmung.md](../../buchfink-lohn/references/abstimmung.md)
+- **Vertiefung:** [lohn/ablauf.md](../lohn/ablauf.md),
+  Abschnitt 4; [lohn/abstimmung.md](../lohn/abstimmung.md)
 
 <a id="monatsfestschreibung"></a>
 ## Monatsfestschreibung
@@ -384,7 +384,7 @@ Mit und ohne Steuerberater:
 - **Bei Versäumnis:** Buchfink nimmt das Transferticket der Voranmeldung erst
   nach der Festschreibung an; die Voranmeldung bleibt bis dahin unbestätigt und
   steht nach ihrer Fälligkeit auf überfällig.
-- **Vertiefung:** [buchfink-monatsabschluss/references/festschreibung.md](../../buchfink-monatsabschluss/references/festschreibung.md)
+- **Vertiefung:** [monatsabschluss/festschreibung.md](../monatsabschluss/festschreibung.md)
 
 <a id="bilanzstichtag"></a>
 ## Bilanzstichtag: Inventar und Abschlussbuchungen
@@ -411,7 +411,7 @@ Mit und ohne Steuerberater:
   einstellt oder ein Insolvenzverfahren eröffnet oder mangels Masse abgelehnt
   wird ([§ 283b Abs. 1 Nr. 3 Buchst. b, Abs. 3 StGB][stgb283b],
   [§ 283 Abs. 6 StGB][stgb283]).
-- **Vertiefung:** [buchfink-jahresabschluss/references/abschlussbuchungen.md](../../buchfink-jahresabschluss/references/abschlussbuchungen.md)
+- **Vertiefung:** [jahresabschluss/abschlussbuchungen.md](../jahresabschluss/abschlussbuchungen.md)
 
 <a id="aufstellung"></a>
 ## Aufstellung des Jahresabschlusses
@@ -437,7 +437,7 @@ Mit und ohne Steuerberater:
 - **Bei Versäumnis:** Strafbarkeit wie beim [bilanzstichtag](#bilanzstichtag).
   Das Ordnungsgeldverfahren zur Offenlegung wartet nicht auf die Aufstellung
   ([§ 335 Abs. 1 Satz 3 HGB][hgb335]).
-- **Vertiefung:** [buchfink-jahresabschluss/references/aufstellen-feststellen-offenlegen.md](../../buchfink-jahresabschluss/references/aufstellen-feststellen-offenlegen.md)
+- **Vertiefung:** [jahresabschluss/aufstellen-feststellen-offenlegen.md](../jahresabschluss/aufstellen-feststellen-offenlegen.md)
 
 <a id="feststellung"></a>
 ## Feststellung des Jahresabschlusses
@@ -464,7 +464,7 @@ Mit und ohne Steuerberater:
 - **Bei Versäumnis:** Ohne Feststellung fehlt der Gegenstand der Offenlegung
   ([§ 325 Abs. 1 Satz 1 Nr. 1 HGB][hgb325]); das Ordnungsgeld droht trotzdem
   ([§ 335 Abs. 1 Satz 3 HGB][hgb335]).
-- **Vertiefung:** [buchfink-jahresabschluss/references/aufstellen-feststellen-offenlegen.md](../../buchfink-jahresabschluss/references/aufstellen-feststellen-offenlegen.md)
+- **Vertiefung:** [jahresabschluss/aufstellen-feststellen-offenlegen.md](../jahresabschluss/aufstellen-feststellen-offenlegen.md)
 
 <a id="ergebnisverwendung"></a>
 ## Beschluss über die Ergebnisverwendung
@@ -485,8 +485,8 @@ Mit und ohne Steuerberater:
 - **Nachweis:** gebuchter Beschluss (aus den Daten).
 - **Bei Versäumnis:** Über die Verwendung bestimmen allein die Gesellschafter
   ([§ 46 Nr. 1 GmbHG][gmbhg46]); ohne Beschluss keine Ausschüttung.
-- **Vertiefung:** [buchfink-jahresabschluss/references/ergebnisverwendung-ug.md](../../buchfink-jahresabschluss/references/ergebnisverwendung-ug.md),
-  [buchfink-gesellschafter/references/ausschuettung.md](../../buchfink-gesellschafter/references/ausschuettung.md)
+- **Vertiefung:** [jahresabschluss/ergebnisverwendung-ug.md](../jahresabschluss/ergebnisverwendung-ug.md),
+  [gesellschafter/ausschuettung.md](../gesellschafter/ausschuettung.md)
 
 <a id="offenlegung"></a>
 ## Offenlegung im Unternehmensregister
@@ -544,8 +544,8 @@ Mit und ohne Steuerberater:
   beim Bundesamt beantragen und die Offenlegung binnen sechs Wochen nachholen
   ([§ 335 Abs. 5 HGB][hgb335]). Liegt eine Androhung vor, nenne sofort die
   Sechswochenfrist.
-- **Vertiefung:** [buchfink-jahresabschluss/references/aufstellen-feststellen-offenlegen.md](../../buchfink-jahresabschluss/references/aufstellen-feststellen-offenlegen.md),
-  [buchfink-jahresabschluss/references/groessenklassen-anhang.md](../../buchfink-jahresabschluss/references/groessenklassen-anhang.md)
+- **Vertiefung:** [jahresabschluss/aufstellen-feststellen-offenlegen.md](../jahresabschluss/aufstellen-feststellen-offenlegen.md),
+  [jahresabschluss/groessenklassen-anhang.md](../jahresabschluss/groessenklassen-anhang.md)
 
 <a id="ebilanz"></a>
 ## E-Bilanz
@@ -596,7 +596,7 @@ Mit und ohne Steuerberater:
 - **Bei Versäumnis:** Ohne E-Bilanz ist die Körperschaftsteuererklärung
   unvollständig. Das Finanzamt kann die Übermittlung mit Zwangsgeld
   durchsetzen, je Festsetzung bis 25.000 € ([§§ 328, 329 AO][ao328]).
-- **Vertiefung:** [buchfink-steuererklaerungen/references/ebilanz.md](../../buchfink-steuererklaerungen/references/ebilanz.md)
+- **Vertiefung:** [steuererklaerungen/ebilanz.md](../steuererklaerungen/ebilanz.md)
 
 <a id="kst-erklaerung"></a>
 ## Körperschaftsteuererklärung
@@ -637,9 +637,9 @@ Mit und ohne Steuerberater:
   zwingend ([§ 152 Abs. 6 AO][ao152]). Das Finanzamt kann schätzen; die Pflicht zur
   Abgabe bleibt ([§ 162 AO][ao162], [§ 149 Abs. 1 Satz 4 AO][ao149]). Es kann
   die Abgabe mit Zwangsgeld durchsetzen ([§§ 328, 329 AO][ao328]).
-- **Vertiefung:** [buchfink-steuererklaerungen/references/kst.md](../../buchfink-steuererklaerungen/references/kst.md),
-  [buchfink-steuererklaerungen/references/fristen-zuschlaege.md](../../buchfink-steuererklaerungen/references/fristen-zuschlaege.md),
-  [buchfink-steuererklaerungen/references/abgabe.md](../../buchfink-steuererklaerungen/references/abgabe.md)
+- **Vertiefung:** [steuererklaerungen/kst.md](../steuererklaerungen/kst.md),
+  [steuererklaerungen/fristen-zuschlaege.md](../steuererklaerungen/fristen-zuschlaege.md),
+  [steuererklaerungen/abgabe.md](../steuererklaerungen/abgabe.md)
 
 <a id="gewst-erklaerung"></a>
 ## Gewerbesteuererklärung
@@ -660,7 +660,7 @@ Mit und ohne Steuerberater:
   Ausnahmen gilt nur die Fristverlängerung; Steuer null oder Vorauszahlungen
   schützen nicht ([§ 152 Abs. 2, 3 Nr. 1, Abs. 6 AO][ao152]). Schätzung und
   Zwangsgeld wie bei der Körperschaftsteuererklärung.
-- **Vertiefung:** [buchfink-steuererklaerungen/references/gewst.md](../../buchfink-steuererklaerungen/references/gewst.md)
+- **Vertiefung:** [steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md)
 
 <a id="ust-erklaerung"></a>
 ## Umsatzsteuererklärung
@@ -682,7 +682,7 @@ Mit und ohne Steuerberater:
 - **Bei Versäumnis:** wie bei der Körperschaftsteuererklärung
   ([§ 152 Abs. 2, 3, 5 AO][ao152]); Säumniszuschlag auf die Abschlusszahlung
   ([§ 240 AO][ao240]).
-- **Vertiefung:** [buchfink-steuererklaerungen/references/ust-jahr.md](../../buchfink-steuererklaerungen/references/ust-jahr.md)
+- **Vertiefung:** [steuererklaerungen/ust-jahr.md](../steuererklaerungen/ust-jahr.md)
 
 <a id="transparenzregister"></a>
 ## Mitteilung an das Transparenzregister
@@ -733,7 +733,7 @@ Mit und ohne Steuerberater:
 - **Gebühr:** Für die Führung des Registers erhebt die registerführende Stelle
   eine Jahresgebühr ([§ 24 Abs. 1 GwG][gwg24]), ab dem Gebührenjahr 2024
   19,80 € ([TrGebV, Anlage Nr. 1][trgebv]).
-- **Vertiefung:** [buchfink-gruendung/references/gruendungsweg.md](../../buchfink-gruendung/references/gruendungsweg.md)
+- **Vertiefung:** [gruendung/gruendungsweg.md](../gruendung/gruendungsweg.md)
 
 <a id="gesellschafterliste"></a>
 ## Neue Gesellschafterliste
@@ -766,7 +766,7 @@ Mit und ohne Steuerberater:
   Geschäftsführer haften denjenigen, deren Beteiligung sich geändert hat, und
   den Gläubigern der Gesellschaft für den Schaden als Gesamtschuldner
   ([§ 40 Abs. 3 GmbHG][gmbhg40]).
-- **Vertiefung:** [buchfink-gruendung/references/gruendungsweg.md](../../buchfink-gruendung/references/gruendungsweg.md),
+- **Vertiefung:** [gruendung/gruendungsweg.md](../gruendung/gruendungsweg.md),
   Abschnitt 5
 
 <a id="fragebogen-steuerliche-erfassung"></a>
@@ -792,7 +792,7 @@ Mit und ohne Steuerberater:
   25.000 € je Festsetzung durchsetzen ([§§ 328, 329 AO][ao328]). Ohne
   Steuernummer oder USt-IdNr. fehlt jeder Ausgangsrechnung eine Pflichtangabe
   ([§ 14 Abs. 4 Satz 1 Nr. 2 UStG][ustg14]).
-- **Vertiefung:** [buchfink-gruendung/references/steuerliche-erfassung.md](../../buchfink-gruendung/references/steuerliche-erfassung.md)
+- **Vertiefung:** [gruendung/steuerliche-erfassung.md](../gruendung/steuerliche-erfassung.md)
 
 <a id="gewerbeanmeldung"></a>
 ## Gewerbeanzeige
@@ -821,7 +821,7 @@ Mit und ohne Steuerberater:
   legst sie ab.
 - **Bei Versäumnis:** Geldbuße bis 1.000 €, auch für die weiteren Anlässe
   ([§ 146 Abs. 2 Nr. 2 Buchst. b, Abs. 3 GewO][gewo146]).
-- **Vertiefung:** [buchfink-gruendung/references/gruendungsweg.md](../../buchfink-gruendung/references/gruendungsweg.md),
+- **Vertiefung:** [gruendung/gruendungsweg.md](../gruendung/gruendungsweg.md),
   Abschnitt 4
 
 <a id="kapitalertragsteuer"></a>
@@ -844,7 +844,7 @@ Mit und ohne Steuerberater:
 - **Kirchensteuer:** Die Anlass- und die jährliche Regelabfrage beim BZSt
   (1. September bis 31. Oktober, [§ 51a Abs. 2c Satz 1 Nr. 3 EStG][estg51a])
   führt `fristen` nicht. Hinweis und offene Frage:
-  [buchfink-gesellschafter/references/ausschuettung.md](../../buchfink-gesellschafter/references/ausschuettung.md).
+  [gesellschafter/ausschuettung.md](../gesellschafter/ausschuettung.md).
 - **Zuständig:** du bereitest vor; der Mensch übermittelt und zahlt. Kanal:
   ELSTER.
 - **Weg:**
@@ -865,8 +865,8 @@ Mit und ohne Steuerberater:
   ([§ 44 Abs. 5 EStG][estg44]), der Geschäftsführer bei grober Fahrlässigkeit
   ([§ 69 AO][ao69]); Säumniszuschlag ([§ 240 AO][ao240]); Verspätungszuschlag
   ([§ 152 Abs. 1 AO][ao152]); Geldbuße bis 25.000 € ([§ 380 AO][ao380]).
-- **Vertiefung:** [buchfink-gesellschafter/references/ausschuettung.md](../../buchfink-gesellschafter/references/ausschuettung.md),
-  [buchfink-gesellschafter/references/steuerbescheinigung.md](../../buchfink-gesellschafter/references/steuerbescheinigung.md)
+- **Vertiefung:** [gesellschafter/ausschuettung.md](../gesellschafter/ausschuettung.md),
+  [gesellschafter/steuerbescheinigung.md](../gesellschafter/steuerbescheinigung.md)
 
 [ao1]: https://www.gesetze-im-internet.de/ao_1977/__1.html
 [ao69]: https://www.gesetze-im-internet.de/ao_1977/__69.html

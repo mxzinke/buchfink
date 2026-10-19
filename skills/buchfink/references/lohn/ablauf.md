@@ -45,13 +45,13 @@ und vGA beim Geschäftsführergehalt regelt buchfink-gesellschafter.
 4. **Rückfrage.** Lege vor: Monat, Summen, Probe, Abweichung zum Vormonat,
    Sonderzeilen, erwartete Zahlungen mit Fälligkeit (Abschnitt 4).
 5. **Buchen.** Nach dem Ja: `lohnjournal_buchen` mit `monat`, `beleg_id`,
-   den Summenfeldern ([references/lohnjournal.md](references/lohnjournal.md),
+   den Summenfeldern ([lohnjournal.md](lohnjournal.md),
    Abschnitt 1) und `idempotenz_schluessel`, z. B. `lohn-2026-10`. Fertig,
    wenn die Antwort die `buchung` mit ihren `zeilen` enthält und du die Zeilen
    gegen die Summen geprüft hast.
 6. **Zahlungen.** Netto an die Beschäftigten, Lohnsteuer an das Finanzamt,
    Beiträge an die Krankenkassen und die Minijob-Zentrale ordnet buchfink-bank
-   zu. Die Gegenkonten nennt [references/lohnjournal.md](references/lohnjournal.md).
+   zu. Die Gegenkonten nennt [lohnjournal.md](lohnjournal.md).
 7. **Abstimmen.** Nach Abschnitt 3. Fertig, wenn die Verbindlichkeitskonten des
    Monats nach den Zahlungen null zeigen oder jede Restgröße erklärt ist.
 
@@ -63,7 +63,7 @@ und vGA beim Geschäftsführergehalt regelt buchfink-gesellschafter.
 - Geht die Probe nicht auf, stehen meist weitere Zeilen im Journal:
   Vorschuss, Pfändung, vermögenswirksame Leistung, Sachbezug, Nettoabzug für
   Firmenwagen, Erstattung von Auslagen. Die Summenfelder kennen sie nicht. Lies
-  [references/lohnjournal.md](references/lohnjournal.md), Abschnitt 4, und frag
+  [lohnjournal.md](lohnjournal.md), Abschnitt 4, und frag
   den Menschen.
 - **Arbeitgeberkosten:** Arbeitgeberanteil, Umlagen und Pauschalsteuer werden
   nicht vom Netto abgezogen; sie erhöhen den Aufwand.
@@ -77,7 +77,7 @@ und vGA beim Geschäftsführergehalt regelt buchfink-gesellschafter.
 
 1. `auswertung` (`art: kontoblatt`, `bis: <Monatsende>`) für die Lohnkonten,
    die die Antwort von `lohnjournal_buchen` bebucht hat (Liste in
-   [references/abstimmung.md](references/abstimmung.md)).
+   [abstimmung.md](abstimmung.md)).
 2. Netto: Verbindlichkeit null nach Auszahlung aller Beschäftigten.
 3. Lohnsteuer, Kirchensteuer, Solidaritätszuschlag: Verbindlichkeit gleich der
    Lohnsteuer-Anmeldung; null nach Zahlung an das Finanzamt.
@@ -86,14 +86,14 @@ und vGA beim Geschäftsführergehalt regelt buchfink-gesellschafter.
    laufenden Monats in voraussichtlicher Höhe fällig, ein Rest im Folgemonat
    ([§ 23 Abs. 1 Satz 2 SGB IV][sgb4_23]). Deshalb steht der Zahlungsausgang
    oft vor der Lohnbuchung.
-5. Differenzen: [references/abstimmung.md](references/abstimmung.md),
+5. Differenzen: [abstimmung.md](abstimmung.md),
    Abschnitt 3.
 
 ## 4. Fristen
 
 Die Lohnsteuer-Anmeldung führt `fristen` als Pflicht `lohnsteuer-anmeldung`,
 sobald ein Lohnjournal gebucht ist. Anmeldungszeitraum, Frist, Weg ohne
-Lohnbüro und Folgen: [pflichten.md#lohnsteuer-anmeldung](../buchfink-grundlagen/references/pflichten.md#lohnsteuer-anmeldung).
+Lohnbüro und Folgen: [grundlagen/pflichten.md#lohnsteuer-anmeldung](../grundlagen/pflichten.md#lohnsteuer-anmeldung).
 Verlangt sind Anmeldung und Abführung ([§ 41a Abs. 1 Satz 1 EStG][estg41a]).
 Das gebuchte Lohnjournal meldet den Zeitraum nur als vorbereitet. Prüfe je
 Zeitraum Übermittlungsprotokoll und gebuchte Zahlung, lege das Protokoll aus
@@ -132,7 +132,7 @@ Zahlungen sofort dem Menschen.
 - **Sachbezug, Firmenwagen:** Der Vorteil ist Arbeitslohn
   ([§ 8 Abs. 2 EStG][estg8]); die private Nutzung durch Personal kann
   Umsatzsteuer auslösen ([UStAE 15.23 Abs. 8][ustae1523]). Die Summenfelder
-  bilden das nicht ab: [references/lohnjournal.md](references/lohnjournal.md),
+  bilden das nicht ab: [lohnjournal.md](lohnjournal.md),
   Abschnitt 4.
 - **Erstattungen der Krankenkasse** nach dem Aufwendungsausgleichsgesetz
   (U1, U2) sind Ertrag ([§ 1 AAG][aag1]); SKR04 4972. Buchung am
@@ -171,10 +171,10 @@ Zahlungen sofort dem Menschen.
 
 ## Referenzen
 
-- [references/lohnjournal.md](references/lohnjournal.md): Lies vor der ersten
+- [lohnjournal.md](lohnjournal.md): Lies vor der ersten
   Lohnbuchung eines Mandanten, wenn ein Feld unklar ist, bei Sonderzeilen und
   um Gegenkonten für Zahlungen zu finden.
-- [references/abstimmung.md](references/abstimmung.md): Lies beim
+- [abstimmung.md](abstimmung.md): Lies beim
   Monatsabschluss, wenn ein Lohnkonto nicht auf null geht, und zum Jahresende.
 
 [estg8]: https://www.gesetze-im-internet.de/estg/__8.html

@@ -40,15 +40,15 @@ Weg, Nachweis und Folgen stehen je Pflicht in buchfink-grundlagen:
 
 | Pflicht | Abschnitt |
 |---|---|
-| Umsatzsteuer-Voranmeldung | [pflichten.md#ustva](../buchfink-grundlagen/references/pflichten.md#ustva) |
-| Zusammenfassende Meldung | [pflichten.md#zm](../buchfink-grundlagen/references/pflichten.md#zm) |
-| Sondervorauszahlung | [pflichten.md#sondervorauszahlung](../buchfink-grundlagen/references/pflichten.md#sondervorauszahlung) |
-| Monatsfestschreibung | [pflichten.md#monatsfestschreibung](../buchfink-grundlagen/references/pflichten.md#monatsfestschreibung) |
+| Umsatzsteuer-Voranmeldung | [grundlagen/pflichten.md#ustva](../grundlagen/pflichten.md#ustva) |
+| Zusammenfassende Meldung | [grundlagen/pflichten.md#zm](../grundlagen/pflichten.md#zm) |
+| Sondervorauszahlung | [grundlagen/pflichten.md#sondervorauszahlung](../grundlagen/pflichten.md#sondervorauszahlung) |
+| Monatsfestschreibung | [grundlagen/pflichten.md#monatsfestschreibung](../grundlagen/pflichten.md#monatsfestschreibung) |
 
 Buchfink rechnet die Fälligkeit aus Voranmeldungszeitraum
 (`status` → `mandant.ust_zeitraum`), Dauerfristverlängerung und Bundesland;
 diese Stammdaten stellt der Mensch in der App ein. Regeln für den Zeitraum:
-[references/ustva.md](references/ustva.md). Mit Steuerberater gelten dieselben
+[ustva.md](ustva.md). Mit Steuerberater gelten dieselben
 Fristen.
 
 Beginne gleich nach Monatsende. Dann bleibt Zeit, Befunde zu klären, bevor die
@@ -96,17 +96,17 @@ diesen Monat nach der Fälligkeit der Voranmeldung.
    Hinweise und nenne dem Menschen die, die Zahlen berühren. Fertig, wenn kein
    blockierender Befund bleibt oder der Mensch für jeden verbliebenen
    entschieden hat, ihn bei der Festschreibung mit Begründung zu übergehen.
-   Regeln: [references/festschreibung.md](references/festschreibung.md).
+   Regeln: [festschreibung.md](festschreibung.md).
 5. **Voranmeldung prüfen** (letzter Monat des Voranmeldungszeitraums).
    `erklaerung` (`art: ustva`, `zeitraum: <Zeitraum>`). Prüfe `befunde`, jede
    Kennzahl gegen die Konten dahinter, die `zahllast` und gemeldete Nachträge
    zu früheren Zeiträumen. Fertig, wenn der Mensch die Tabelle Kennziffer → Wert
    mit Zahllast gesehen und bestätigt hat. Abgleich:
-   [references/ustva.md](references/ustva.md).
+   [ustva.md](ustva.md).
 6. **ZM prüfen**, wenn Kennziffer 21 im Quartal belegt ist.
    `erklaerung` (`art: zm`, `zeitraum: <Quartal>`). Summe der Meldezeilen
    gleich Kennziffer 21 der Voranmeldungen des Quartals, jede USt-IdNr.
-   bestätigt. Fertig, wenn beides stimmt. [references/zm.md](references/zm.md).
+   bestätigt. Fertig, wenn beides stimmt. [zm.md](zm.md).
 7. **Festschreiben lassen (nur App).** Nenne dem Menschen Zeitraum, Ergebnis
    des Prüflaufs und den Wortlaut der Begründung für übergangene Befunde. Er
    schreibt in der App fest. Fertig, wenn `status` ein
@@ -116,7 +116,7 @@ diesen Monat nach der Fälligkeit der Voranmeldung.
    bildet Buchfink noch nicht ab; der Mensch überträgt die Zeilen aus deiner
    Tabelle. Melde jede
    Pflicht mit `pflicht_vorbereitet` (`schluessel` aus `fristen`, `notiz`)
-   ([pflichten.md](../buchfink-grundlagen/references/pflichten.md#arbeiten-mit-fristen)).
+   ([grundlagen/pflichten.md](../grundlagen/pflichten.md#arbeiten-mit-fristen)).
    Fertig, wenn der Hash passt und `fristen` die Pflicht als vorbereitet
    führt.
 9. **In Mein ELSTER übertragen** nach Abschnitt 3. Fertig, wenn der Mensch
@@ -140,7 +140,7 @@ die Werte in Mein ELSTER mit deiner Tabelle übereinstimmen.
    Ansicht zeigt die App formularnah.
 2. **Formular öffnen.** Der Mensch meldet sich mit dem Organisationszertifikat
    der GmbH an und öffnet das Formular (Weg in
-   [pflichten.md#ustva](../buchfink-grundlagen/references/pflichten.md#ustva)).
+   [grundlagen/pflichten.md#ustva](../grundlagen/pflichten.md#ustva)).
 3. **Eintragen.** Er trägt Zeitraum und Kennzahlen ein; du gehst die Tabelle
    Zeile für Zeile mit ihm durch. Hat dein Client Zugriff auf seinen Browser
    und bittet er darum, trägst du die Werte ins geöffnete Formular ein;
@@ -153,9 +153,9 @@ die Werte in Mein ELSTER mit deiner Tabelle übereinstimmen.
    du legst es auf seine Anweisung mit `beleg_ablegen` ab.
 
 Feldregeln (volle Euro, Kennzahl 500):
-[references/ustva.md](references/ustva.md), Abschnitt 6. Die ZM geht über
+[ustva.md](ustva.md), Abschnitt 6. Die ZM geht über
 Mein ELSTER oder das BZSt-Online-Portal:
-[references/zm.md](references/zm.md), Abschnitt 4.
+[zm.md](zm.md), Abschnitt 4.
 
 Endet ein Senden unklar (Abbruch, Zeitüberschreitung, Fehler nach dem Senden),
 bitte den Menschen, in Mein ELSTER nachzusehen, ob die Anmeldung angekommen
@@ -179,11 +179,11 @@ Das Transferticket, das er nennt, erfasst der Mensch in der App.
   vorsätzlich nicht rechtzeitiger Entrichtung
   ([§ 26a Abs. 1, 3 UStG][ustg26a]).
 - Ein Fehler in einem übermittelten Zeitraum: lies
-  [references/berichtigung.md](references/berichtigung.md), bevor du etwas
+  [berichtigung.md](berichtigung.md), bevor du etwas
   stornierst.
 - Ergänzende Angaben zur Anmeldung (ab 2026 Kennzahl 500 statt 23) setzt du
   nur nach Rückfrage; sie lösen eine personelle Prüfung aus
-  ([references/ustva.md](references/ustva.md)).
+  ([ustva.md](ustva.md)).
 
 ## 5. Nur der Mensch
 
@@ -192,7 +192,7 @@ Das Transferticket, das er nennt, erfasst der Mensch in der App.
 - Transferticket erfassen (App).
 - Antrag auf Dauerfristverlängerung und Anmeldung der Sondervorauszahlung in
   Mein ELSTER; Voranmeldungszeitraum und Dauerfristverlängerung in der App
-  ([references/dauerfristverlaengerung.md](references/dauerfristverlaengerung.md)).
+  ([dauerfristverlaengerung.md](dauerfristverlaengerung.md)).
 - Einen blockierenden Befund mit Begründung übergehen (App, bei der
   Festschreibung).
 
@@ -218,25 +218,25 @@ Das Transferticket, das er nennt, erfasst der Mensch in der App.
 - Der Steuerfall der Buchung entscheidet zwischen Kennziffer 46/47
   (`reverse_charge_eu`) und 84/85 (`reverse_charge`). Eine Warnung
   `reverse_charge_eu_supplier` klärst du vor der Abgabe
-  ([references/ustva.md](references/ustva.md), Abschnitt 4).
+  ([ustva.md](ustva.md), Abschnitt 4).
 - Für die ZM gilt die Dauerfristverlängerung nicht.
 - Zertifikatsdatei und Passwort für ELSTER bedient nur der Mensch. Lass sie dir
   nie nennen oder schicken.
 
 ## Referenzen
 
-- [references/ustva.md](references/ustva.md): Lies bei Fragen zu Pflicht,
+- [ustva.md](ustva.md): Lies bei Fragen zu Pflicht,
   Voranmeldungszeitraum, Kennzahlen, Abgleich, Rundung, Zuschlägen und vor der
   Eingabe in Mein ELSTER.
-- [references/zm.md](references/zm.md): Lies, sobald Leistungen an
+- [zm.md](zm.md): Lies, sobald Leistungen an
   Unternehmer im EU-Ausland im Zeitraum liegen.
-- [references/dauerfristverlaengerung.md](references/dauerfristverlaengerung.md):
+- [dauerfristverlaengerung.md](dauerfristverlaengerung.md):
   Lies bei Antrag, Sondervorauszahlung, Wechsel des Voranmeldungszeitraums und
   im Januar.
-- [references/festschreibung.md](references/festschreibung.md): Lies bei
+- [festschreibung.md](festschreibung.md): Lies bei
   Befunden des Prüflaufs und bei Fragen, was nach der Festschreibung gesperrt
   ist.
-- [references/berichtigung.md](references/berichtigung.md): Lies, wenn ein
+- [berichtigung.md](berichtigung.md): Lies, wenn ein
   Fehler einen schon übermittelten Zeitraum betrifft.
 
 [ustg13]: https://www.gesetze-im-internet.de/ustg_1980/__13.html

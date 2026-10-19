@@ -45,7 +45,7 @@ Rollen:
    `offen` vor `demnaechst`. Das Feld `werkzeug` nennt den nächsten Aufruf oder
    `nur_app`.
 4. Rufe `fristen` auf. Zu jeder überfälligen oder bald fälligen Pflicht lies
-   den Abschnitt unter ihrem `anker` in [references/pflichten.md](references/pflichten.md).
+   den Abschnitt unter ihrem `anker` in [references/grundlagen/pflichten.md](references/grundlagen/pflichten.md).
    Du meldest eine Pflicht höchstens als vorbereitet (`pflicht_vorbereitet`);
    erledigt bestätigt der Mensch in der App mit Nachweis.
 5. Rufe `eingang` auf, wenn der Mensch Belege oder Kontoauszüge verarbeitet
@@ -95,7 +95,7 @@ Entscheidungsregeln:
 3. Bist du unsicher, wie Buchfink bucht, nutze `nur_vorschau: true` und zeige
    die Vorschau.
 
-Was der Server für „direkt“ verlangt, steht in [references/arbeitsweise.md](references/arbeitsweise.md).
+Was der Server für „direkt“ verlangt, steht in [references/grundlagen/arbeitsweise.md](references/grundlagen/arbeitsweise.md).
 
 ## 4. Den Menschen fragen
 
@@ -129,7 +129,7 @@ Regeln:
   ihr. Setze nur Werte ein, die auf dem Beleg stehen oder die der Mensch nennt.
 - Liegt ein Fall außerhalb von Buchfink, sag das und empfiehl, wo nötig, einen
   Steuerberater. Sag nie zu, dass eine steuerliche Behandlung im Einzelfall
-  richtig ist. Lies [references/grenzen.md](references/grenzen.md).
+  richtig ist. Lies [references/grundlagen/grenzen.md](references/grundlagen/grenzen.md).
 
 ## 5. Nur der Mensch in der App
 
@@ -153,7 +153,7 @@ Dein Teil: Bereite den Schritt vor (Prüflauf, offene Punkte, Zahlen), nenne
 dem Menschen Ort und Schritt und prüfe danach mit `status`, `fristen` oder
 `abschluss_status`, ob es geschehen ist. Was die Fach-Skills „ohne Werkzeug“
 oder „noch nicht abgebildet“ nennen, ist kein Vorbehalt, sondern eine Lücke
-([references/arbeitsweise.md](references/arbeitsweise.md), Abschnitt 9).
+([references/grundlagen/arbeitsweise.md](references/grundlagen/arbeitsweise.md), Abschnitt 9).
 
 Stammdaten änderst du nie, auch auf Bitte im Chat nicht. Fehlt eine Angabe
 oder ist sie falsch, nenne dem Menschen Feld und richtigen Wert und bitte ihn um
@@ -165,7 +165,7 @@ und änderst du nicht direkt, auch wenn dein Client eine Shell hat: Jede
 ## 6. GoBD im Arbeitsalltag
 
 Buchfink setzt die Ordnungsvorschriften technisch um, du hältst sie im Ablauf
-ein. Begründungen: [references/gobd.md](references/gobd.md).
+ein. Begründungen: [references/grundlagen/gobd.md](references/grundlagen/gobd.md).
 
 1. **Belegprinzip.** Jede Buchung braucht einen Beleg
    ([§ 238 Abs. 1 Satz 3 HGB][hgb238], [GoBD Rz. 61][gobd]). Fehlt ein
@@ -175,7 +175,7 @@ ein. Begründungen: [references/gobd.md](references/gobd.md).
 2. **Belegsicherung.** Übernimm jeden Beleg zeitnah, möglichst unmittelbar
    nach Eingang ([GoBD Rz. 67][gobd]); Buchfink vergibt die Belegnummer. Liegt
    ein Beleg nur im Chat, bitte den Menschen, das Original in den Eingang zu
-   speichern oder ins Buchfink-Fenster zu ziehen ([references/arbeitsweise.md](references/arbeitsweise.md), Abschnitt 6).
+   speichern oder ins Buchfink-Fenster zu ziehen ([references/grundlagen/arbeitsweise.md](references/grundlagen/arbeitsweise.md), Abschnitt 6).
 3. **Zeitgerecht.** Erfasse unbare Vorgänge (Rechnungen, Bankumsätze) binnen
    zehn Tagen; importiere den Kontoauszug also mindestens alle zehn Tage
    ([GoBD Rz. 47][gobd]). Buche spätestens bis zum Ende des Folgemonats
@@ -216,7 +216,7 @@ Festschreibung nach jedem abgeschlossenen Monat.
   ([GoBD Rz. 140][gobd]).
 - Buchungsbelege acht Jahre, Bücher und Abschlüsse zehn Jahre
   ([§ 147 Abs. 3 AO][ao147], [§ 257 Abs. 4 HGB][hgb257]). E-Rechnung, Scannen,
-  Beginn und Verlängerung: [references/aufbewahrung.md](references/aufbewahrung.md).
+  Beginn und Verlängerung: [references/grundlagen/aufbewahrung.md](references/grundlagen/aufbewahrung.md).
 
 ## 8. Fach-Skills
 
@@ -247,7 +247,7 @@ Festschreibung nach jedem abgeschlossenen Monat.
 | `schluessel_wiederverwendet` | Neuen Schlüssel für den neuen Vorgang bilden. |
 | `pfad_nicht_erlaubt` | Die Datei liegt nicht im Eingang; den Menschen bitten, sie dorthin zu legen. |
 
-Alle Codes und Felder: [references/arbeitsweise.md](references/arbeitsweise.md).
+Alle Codes und Felder: [references/grundlagen/arbeitsweise.md](references/grundlagen/arbeitsweise.md).
 
 ## 10. Stolperfallen
 
@@ -269,17 +269,17 @@ Alle Codes und Felder: [references/arbeitsweise.md](references/arbeitsweise.md).
 
 ## Referenzen
 
-- [references/arbeitsweise.md](references/arbeitsweise.md): Lies, wenn du Felder, Werkzeuge, Regeln für
+- [references/grundlagen/arbeitsweise.md](references/grundlagen/arbeitsweise.md): Lies, wenn du Felder, Werkzeuge, Regeln für
   „direkt“, Fehlercodes, Idempotenz oder den Eingang nachschlagen musst.
-- [references/gobd.md](references/gobd.md): Lies, wenn der Mensch nach dem Warum fragt oder ein Fall
+- [references/grundlagen/gobd.md](references/grundlagen/gobd.md): Lies, wenn der Mensch nach dem Warum fragt oder ein Fall
   Eigenbeleg, Erfassungsfristen, Korrektur, Festschreibung, Kontrollsystem oder
   Verfahrensdokumentation berührt.
-- [references/pflichten.md](references/pflichten.md): Lies, wenn `fristen` oder `aufgaben` eine
+- [references/grundlagen/pflichten.md](references/grundlagen/pflichten.md): Lies, wenn `fristen` oder `aufgaben` eine
   Pflicht nennt oder nach Abgabe-, Zahlungs- und Registerfristen gefragt wird;
   der Anker steht in `fristen` unter `anker` (`pflichten.md#ustva`).
-- [references/aufbewahrung.md](references/aufbewahrung.md): Lies bei Fragen zu Aufbewahrungsfristen, Löschen, Scannen,
+- [references/grundlagen/aufbewahrung.md](references/grundlagen/aufbewahrung.md): Lies bei Fragen zu Aufbewahrungsfristen, Löschen, Scannen,
   Dateiformaten, Systemwechsel oder Betriebsprüfung.
-- [references/grenzen.md](references/grenzen.md): Lies, wenn ein Fall ungewöhnlich ist, Buchfink ihn
+- [references/grundlagen/grenzen.md](references/grundlagen/grenzen.md): Lies, wenn ein Fall ungewöhnlich ist, Buchfink ihn
   ablehnt oder die Zahlen auf eine Krise deuten.
 
 [gobd]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf

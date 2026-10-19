@@ -86,7 +86,7 @@ Fristen:
 | Inland, Unternehmer oder Verbraucher | Regelfall | `domestic`, Satz 19 oder 7 |
 | Unternehmer im übrigen EU-Gebiet mit bestätigter USt-IdNr. | sonstige Leistung, Ort nach [§ 3a Abs. 2 UStG][ustg3a] beim Kunden | `reverse_charge_supply` |
 | Unternehmer im Drittland, Unternehmereigenschaft nachgewiesen | sonstige Leistung nach [§ 3a Abs. 2 UStG][ustg3a] | `not_taxable` |
-| Verbraucher im EU-Ausland oder Drittland | jede Leistung | erst [references/ausland.md](references/ausland.md) lesen |
+| Verbraucher im EU-Ausland oder Drittland | jede Leistung | erst [ausland.md](ausland.md) lesen |
 | Leistung im Zusammenhang mit einem Grundstück im Ausland | – | Grenze, [§ 3a Abs. 3 Nr. 1 UStG][ustg3a] |
 
 Regeln:
@@ -105,7 +105,7 @@ Regeln:
   werden (Software-Download, SaaS, Online-Kurs ohne Live-Lehrer), können im
   Wohnsitzstaat des Kunden steuerpflichtig sein ([§ 3a Abs. 5 UStG][ustg3a]).
   Buchfink bildet das dafür nötige OSS-Verfahren nicht ab. Lies
-  [references/ausland.md](references/ausland.md) und sprich die Grenze an.
+  [ausland.md](ausland.md) und sprich die Grenze an.
 - Steuerfreie Umsätze nach § 4 UStG (`exempt`) und den Nullsteuersatz
   (`zero_rated`) wählst du nur, wenn der Mensch die Befreiung benennt.
   Wertungsfrage, im Zweifel Steuerberater.
@@ -128,7 +128,7 @@ Regeln:
 - Empfehlung: E-Rechnung an jedes inländische Unternehmen, auch im Übergang.
 
 Einzelheiten, Formate, Zustimmung und Validierung:
-[references/e-rechnung-ausgang.md](references/e-rechnung-ausgang.md).
+[e-rechnung-ausgang.md](e-rechnung-ausgang.md).
 
 ## 5. Abschläge, Anzahlungen, Schlussrechnung
 
@@ -141,7 +141,7 @@ Einzelheiten, Formate, Zustimmung und Validierung:
   ([§ 14 Abs. 5 Satz 2 UStG][ustg14]). Sonst schuldet das Unternehmen die Steuer
   doppelt ([UStAE 14.8 Abs. 10][ustae148]). Buchfink rechnet das im
   Rechnungsverbund selbst. Zur Endrechnung als E-Rechnung lies
-  [references/anzahlungen.md](references/anzahlungen.md), Abschnitt 5.
+  [anzahlungen.md](anzahlungen.md), Abschnitt 5.
 - Abschlagsrechnung: `rechnung_ausstellen` mit `art: abschlag`, `abschlag`
   (`beschreibung`, `netto`, bei schon gezahlter Anzahlung
   `zahlung_erhalten_am`) und `datum`; die erste eines Auftrags mit `verbund`
@@ -149,7 +149,7 @@ Einzelheiten, Formate, Zustimmung und Validierung:
   `verbund_id` der Antwort. Schlussrechnung: `art: schlussrechnung` mit
   `verbund_id` und `rechnung`. Beides ist Rückfrage.
 - Teilleistung, Teilschlussrechnung, Anzahlung ohne Rechnung:
-  [references/anzahlungen.md](references/anzahlungen.md).
+  [anzahlungen.md](anzahlungen.md).
 
 ## 6. Storno und Berichtigung
 
@@ -169,7 +169,7 @@ Einzelheiten, Formate, Zustimmung und Validierung:
   Rechnung über dieselbe Leistung stellst du nicht aus: Forderung und Steuer
   stünden doppelt in den Büchern.
 - Zu hoch oder unberechtigt ausgewiesene Steuer, Folgen für die Voranmeldung:
-  [references/storno-berichtigung.md](references/storno-berichtigung.md).
+  [storno-berichtigung.md](storno-berichtigung.md).
 
 ## 7. Überfällige Forderungen und Mahnung
 
@@ -179,7 +179,7 @@ Einzelheiten, Formate, Zustimmung und Validierung:
 2. Prüfe mit `bankumsaetze` (Status `offen`), ob eine Zahlung nur noch nicht
    zugeordnet ist. Ist sie da, ordne sie mit buchfink-bank zu.
 3. Kläre, ob und seit wann Verzug besteht
-   ([§ 286 BGB][bgb286], [references/mahnen-verzug.md](references/mahnen-verzug.md)).
+   ([§ 286 BGB][bgb286], [mahnen-verzug.md](mahnen-verzug.md)).
 4. Entwirf das Mahnschreiben als Text. Verzugszinsen und Pauschale nimmst du
    aus `offene_posten` auf, wenn der Mensch sie verlangen will. Buchfink
    erzeugt kein Mahnschreiben und bucht nichts beim Mahnen.
@@ -188,7 +188,7 @@ Einzelheiten, Formate, Zustimmung und Validierung:
    `datum` des Zugangs, `stufe`, `notiz` mit Weg und Ablage,
    `idempotenz_schluessel`); daraus folgt der Verzug. Verzugszinsen und
    Pauschale werden erst beim Geldeingang gebucht; die Konten stehen in
-   [references/mahnen-verzug.md](references/mahnen-verzug.md), die Zuordnung am
+   [mahnen-verzug.md](mahnen-verzug.md), die Zuordnung am
    Bankumsatz macht buchfink-bank.
 
 ## 8. Kunde zahlt nicht
@@ -206,7 +206,7 @@ Einzelheiten, Formate, Zustimmung und Validierung:
   bucht buchfink-jahresabschluss eine Einzelwertberichtigung; die
   Steuerberichtigung nach § 17 fehlt dann weiter.
 - Ablauf, Teilausfall, spätere Zahlung, Abgrenzung zur Wertberichtigung:
-  [references/forderungsausfall.md](references/forderungsausfall.md).
+  [forderungsausfall.md](forderungsausfall.md).
 
 ## 9. Wertungsfragen
 
@@ -255,22 +255,22 @@ Rechnungskorrektur, Forderung ausbuchen, Versand vermerken.
 
 ## Referenzen
 
-- [references/pflichtangaben-ausgang.md](references/pflichtangaben-ausgang.md):
+- [pflichtangaben-ausgang.md](pflichtangaben-ausgang.md):
   Lies, wenn `rechnung_vorschau` eine Pflichtangabe vermisst, bei Kleinbetrag, Skonto,
   Leistungszeitpunkt oder wenn der Kunde eine Angabe vermisst.
-- [references/e-rechnung-ausgang.md](references/e-rechnung-ausgang.md): Lies,
+- [e-rechnung-ausgang.md](e-rechnung-ausgang.md): Lies,
   wenn der Kunde ein Format, eine Leitweg-ID oder ein PDF verlangt, bei
   Validierungsfehlern und im Übergang 2026 bis 2027.
-- [references/anzahlungen.md](references/anzahlungen.md): Lies bei Abschlag,
+- [anzahlungen.md](anzahlungen.md): Lies bei Abschlag,
   Anzahlung, Vorauskasse, Schluss- oder Restrechnung und Teilleistung.
-- [references/ausland.md](references/ausland.md): Lies, wenn der Kunde außerhalb
+- [ausland.md](ausland.md): Lies, wenn der Kunde außerhalb
   Deutschlands sitzt oder ein Verbraucher im Ausland ist.
-- [references/storno-berichtigung.md](references/storno-berichtigung.md): Lies,
+- [storno-berichtigung.md](storno-berichtigung.md): Lies,
   wenn eine Rechnung falsch ist, storniert oder berichtigt werden soll oder
   falsche Steuer ausweist.
-- [references/mahnen-verzug.md](references/mahnen-verzug.md): Lies vor jeder
+- [mahnen-verzug.md](mahnen-verzug.md): Lies vor jeder
   Mahnung und jeder Berechnung von Verzugszinsen.
-- [references/forderungsausfall.md](references/forderungsausfall.md): Lies, wenn
+- [forderungsausfall.md](forderungsausfall.md): Lies, wenn
   ein Kunde nicht zahlen kann, insolvent ist oder eine Forderung verjährt.
 
 [ustg3a]: https://www.gesetze-im-internet.de/ustg_1980/__3a.html

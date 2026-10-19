@@ -33,16 +33,16 @@ Kapitalerhaltung und Beschlusslage prüfst du vorher (Abschnitte 3 und 5).
 
 | Vorgang | Einordnung | Konto (SKR04) | Lies |
 |---|---|---|---|
-| GmbH zahlt etwas Privates des Gesellschafters, er zahlt es zurück | Forderung gegen Gesellschafter | 1307 Forderungen gegen GmbH-Gesellschafter | [verrechnungskonto.md](references/verrechnungskonto.md) |
-| GmbH zahlt etwas Privates, keine Rückzahlung vereinbart | vGA-Verdacht | – | [vga-einlage.md](references/vga-einlage.md) |
-| Gesellschafter bezahlt eine Firmenausgabe privat | Erstattungsanspruch des Gesellschafters | 3640 Verbindlichkeiten gegenüber GmbH-Gesellschaftern | [verrechnungskonto.md](references/verrechnungskonto.md) |
-| Gesellschafter leiht der GmbH Geld | Gesellschafterdarlehen | 3641 bis 3643 nach Restlaufzeit | [darlehen.md](references/darlehen.md) |
-| GmbH leiht dem Gesellschafter Geld | Darlehen an Gesellschafter | 1308, 1309 oder 0960 | [darlehen.md](references/darlehen.md) |
-| Gesellschafter zahlt ohne Gegenleistung ins Eigenkapital | Einlage in die Kapitalrücklage | 2928 Kapitalrücklage durch Zuzahlungen in das Eigenkapital | [vga-einlage.md](references/vga-einlage.md) |
-| Gesellschafter verzichtet auf eine Forderung gegen die GmbH | verdeckte Einlage möglich | – | [vga-einlage.md](references/vga-einlage.md) |
-| Gesellschafter vermietet oder liefert an die GmbH mit Rechnung | Lieferant (buchfink-belege) plus Fremdvergleich | – | [vga-einlage.md](references/vga-einlage.md) |
-| Gewinnausschüttung | Beschluss, Kapitalertragsteuer | 3519, 3760 | [ausschuettung.md](references/ausschuettung.md) |
-| Gesellschafter tritt ein oder aus, Anteile wechseln | Anlass `gesellschafterwechsel` (`anlass_erfassen`); Pflichten Gesellschafterliste und Transparenzregister | – | [pflichten.md#gesellschafterliste](../buchfink-grundlagen/references/pflichten.md#gesellschafterliste) |
+| GmbH zahlt etwas Privates des Gesellschafters, er zahlt es zurück | Forderung gegen Gesellschafter | 1307 Forderungen gegen GmbH-Gesellschafter | [verrechnungskonto.md](verrechnungskonto.md) |
+| GmbH zahlt etwas Privates, keine Rückzahlung vereinbart | vGA-Verdacht | – | [vga-einlage.md](vga-einlage.md) |
+| Gesellschafter bezahlt eine Firmenausgabe privat | Erstattungsanspruch des Gesellschafters | 3640 Verbindlichkeiten gegenüber GmbH-Gesellschaftern | [verrechnungskonto.md](verrechnungskonto.md) |
+| Gesellschafter leiht der GmbH Geld | Gesellschafterdarlehen | 3641 bis 3643 nach Restlaufzeit | [darlehen.md](darlehen.md) |
+| GmbH leiht dem Gesellschafter Geld | Darlehen an Gesellschafter | 1308, 1309 oder 0960 | [darlehen.md](darlehen.md) |
+| Gesellschafter zahlt ohne Gegenleistung ins Eigenkapital | Einlage in die Kapitalrücklage | 2928 Kapitalrücklage durch Zuzahlungen in das Eigenkapital | [vga-einlage.md](vga-einlage.md) |
+| Gesellschafter verzichtet auf eine Forderung gegen die GmbH | verdeckte Einlage möglich | – | [vga-einlage.md](vga-einlage.md) |
+| Gesellschafter vermietet oder liefert an die GmbH mit Rechnung | Lieferant (buchfink-belege) plus Fremdvergleich | – | [vga-einlage.md](vga-einlage.md) |
+| Gewinnausschüttung | Beschluss, Kapitalertragsteuer | 3519, 3760 | [ausschuettung.md](ausschuettung.md) |
+| Gesellschafter tritt ein oder aus, Anteile wechseln | Anlass `gesellschafterwechsel` (`anlass_erfassen`); Pflichten Gesellschafterliste und Transparenzregister | – | [grundlagen/pflichten.md#gesellschafterliste](../grundlagen/pflichten.md#gesellschafterliste) |
 
 Kontonummern stammen aus dem SKR04-Katalog von Buchfink. Die Konten der
 Personengesellschaften (z. B. Privatkonten, 2020 Gesellschafter-Darlehen)
@@ -88,7 +88,7 @@ sperrt Buchfink für GmbH und UG.
   ([§ 30 Abs. 1 GmbHG][gmbhg30]). Verbotene Zahlungen sind zu erstatten
   ([§ 31 GmbHG][gmbhg31]).
 - **Fremdvergleich.** Was die GmbH einem fremden Dritten nicht zugestehen würde,
-  ist verdächtig. Wertungsfrage; lies [vga-einlage.md](references/vga-einlage.md).
+  ist verdächtig. Wertungsfrage; lies [vga-einlage.md](vga-einlage.md).
 
 ## 4. Darlehen
 
@@ -114,7 +114,7 @@ sperrt Buchfink für GmbH und UG.
   vor, gib sie als `beleg_id` mit. Zinsen nie mit `buchung_erfassen` buchen,
   sonst bleibt die Zinsperiode offen. Die Zinszahlung bucht `bankumsatz_buchen`
   mit einer Zeile `konto`. Konten, Nachrang und Insolvenzfolgen:
-  [references/darlehen.md](references/darlehen.md).
+  [darlehen.md](darlehen.md).
 
 ## 5. Ausschüttung
 
@@ -134,7 +134,7 @@ sperrt Buchfink für GmbH und UG.
    ([§ 44 Abs. 1 Satz 5, Abs. 2 EStG][estg44], [§ 45a Abs. 1 EStG][estg45a]).
    `fristen` führt das als Pflicht `kapitalertragsteuer`, sobald der Beschluss
    erfasst ist; Frist, Weg und Folgen:
-   [pflichten.md#kapitalertragsteuer](../buchfink-grundlagen/references/pflichten.md#kapitalertragsteuer).
+   [grundlagen/pflichten.md#kapitalertragsteuer](../grundlagen/pflichten.md#kapitalertragsteuer).
    Nennt der Beschluss einen anderen Auszahlungstag, als Buchfink rechnet, gilt
    der Beschluss; nenne dem Menschen das Datum. Du bereitest die Zahlen vor;
    der Mensch sendet die Anmeldung in Mein ELSTER und zahlt.
@@ -142,10 +142,10 @@ sperrt Buchfink für GmbH und UG.
    buchfink-bank zu. Fertig, wenn 3519 und 3760 für diesen Beschluss null sind
    (`auswertung` mit `art: kontoblatt`).
 6. Steuerbescheinigung auf Verlangen
-   ([references/steuerbescheinigung.md](references/steuerbescheinigung.md)).
+   ([steuerbescheinigung.md](steuerbescheinigung.md)).
 
 Sätze, Kirchensteuer, Freistellung, Rundung, Fristen:
-[references/ausschuettung.md](references/ausschuettung.md).
+[ausschuettung.md](ausschuettung.md).
 
 ## 6. Verdeckte Gewinnausschüttung und verdeckte Einlage
 
@@ -204,7 +204,7 @@ entscheidet, bei Zweifel mit Steuerberater.
 - Buchfink rechnet 25 % Kapitalertragsteuer und 5,5 % Solidaritätszuschlag auf
   den vollen Betrag. Kirchensteuer, Nichtveranlagungs-Bescheinigung und
   Einlagenrückgewähr bildet es nicht ab; lies
-  [references/ausschuettung.md](references/ausschuettung.md).
+  [ausschuettung.md](ausschuettung.md).
 - Ein Soll-Saldo auf 1307 über längere Zeit wirkt wie ein zinsloses Darlehen
   an den Gesellschafter ([R 8.5 Abs. 1 KStR 2022][kstr85]). Weise beim
   Monatsabschluss darauf hin.
@@ -217,19 +217,19 @@ entscheidet, bei Zweifel mit Steuerberater.
 
 ## Referenzen
 
-- [references/verrechnungskonto.md](references/verrechnungskonto.md): Lies, wenn
+- [verrechnungskonto.md](verrechnungskonto.md): Lies, wenn
   Geld zwischen GmbH und Gesellschafter fließt, ohne dass ein Darlehen oder
   eine Ausschüttung vereinbart ist.
-- [references/darlehen.md](references/darlehen.md): Lies bei jedem Darlehen
+- [darlehen.md](darlehen.md): Lies bei jedem Darlehen
   zwischen GmbH und Gesellschafter, bei Zinsen, Rangrücktritt und Tilgung.
-- [references/vga-einlage.md](references/vga-einlage.md): Lies bei Verträgen mit
+- [vga-einlage.md](vga-einlage.md): Lies bei Verträgen mit
   Gesellschaftern, privaten Ausgaben, Verzicht, Einlage und jedem
   vGA-Verdacht.
-- [references/ausschuettung.md](references/ausschuettung.md): Lies vor jeder
+- [ausschuettung.md](ausschuettung.md): Lies vor jeder
   Ausschüttung und bei Kapitalertragsteuer, Kirchensteuer und Freistellung.
-- [references/steuerbescheinigung.md](references/steuerbescheinigung.md): Lies,
+- [steuerbescheinigung.md](steuerbescheinigung.md): Lies,
   wenn ein Gesellschafter eine Steuerbescheinigung verlangt.
-- [references/ausweis.md](references/ausweis.md): Lies beim Abschluss, wenn
+- [ausweis.md](ausweis.md): Lies beim Abschluss, wenn
   Forderungen, Verbindlichkeiten oder Ausleihungen gegenüber Gesellschaftern
   auszuweisen sind.
 
