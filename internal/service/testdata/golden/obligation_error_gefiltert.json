@@ -17,7 +17,7 @@
       "periodLabel": "2025",
       "periodTo": "2025-12-31",
       "responsibility": "human_confirms",
-      "skillRef": "buchfink-grundlagen/references/pflichten.md#offenlegung",
+      "skillRef": "buchfink/references/grundlagen/pflichten.md#offenlegung",
       "status": "open",
       "statutoryDate": "2026-12-31",
       "title": "Offenlegung im Unternehmensregister 2025"
@@ -37,7 +37,7 @@
       "periodLabel": "2026",
       "periodTo": "2026-12-31",
       "responsibility": "human_confirms",
-      "skillRef": "buchfink-grundlagen/references/pflichten.md#offenlegung",
+      "skillRef": "buchfink/references/grundlagen/pflichten.md#offenlegung",
       "status": "open",
       "statutoryDate": "2027-12-31",
       "title": "Offenlegung im Unternehmensregister 2026"

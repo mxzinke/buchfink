@@ -1628,7 +1628,7 @@ function obligation(o: {
   return {
     ...o,
     fiscalYear: o.fiscalYear ?? YEAR,
-    skillRef: `buchfink-grundlagen/references/pflichten.md#${o.kind}`,
+    skillRef: `buchfink/references/grundlagen/pflichten.md#${o.kind}`,
     hints: o.hints ?? [],
     target: obligationTarget(o.kind, o.key),
   };

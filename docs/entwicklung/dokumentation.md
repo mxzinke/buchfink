@@ -19,7 +19,7 @@ einer Stelle ist ein Zeichen, dass Code, Name oder Schnitt nicht stimmen.
 | Gestaltung und Sprache | [gestaltung/](../gestaltung/README.md) |
 | Fachliche Abläufe und Entscheidungen | [fachkonzepte/](../fachkonzepte/README.md) |
 | Anforderungen mit Rechtsquelle und Umsetzung | [anforderungen/](../anforderungen/README.md) |
-| Fachwissen für den Agenten, mit Quellen | `skills/<name>/` |
+| Fachwissen für den Agenten, mit Quellen | `skills/buchfink/references/<bereich>/` |
 | Anleitung zu einem Werkzeug im Repository | bei seinem Code, etwa `scripts/`, `website/`, `packaging/` |
 | Begründung einer Änderung | Commit-Text |
 

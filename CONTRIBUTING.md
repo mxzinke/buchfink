@@ -69,10 +69,12 @@ Copyleft-Lizenzen wie GPL, AGPL oder MPL sprechen Sie bitte vorher im Issue an.
 
 ## Skills
 
-Die Skills unter `skills/` geben dem Agenten Fachwissen und Arbeitsschritte.
-Jede fachliche Aussage darin nennt ihre Quelle, etwa Gesetz, BMF-Schreiben
-oder Vordruck. Was Buchfink selbst rechnet und prüft, steht im Code, nicht im
-Skill.
+Der Skill unter `skills/buchfink/` gibt dem Agenten Fachwissen und
+Arbeitsschritte: `SKILL.md` mit den Grundregeln und einem Wegweiser, je
+Fachbereich Referenzen unter `references/<bereich>/`. Jede fachliche Aussage
+darin nennt ihre Quelle, etwa Gesetz, BMF-Schreiben oder Vordruck; das
+Quellenregister ist `skills/QUELLEN.md`. Was Buchfink selbst rechnet und
+prüft, steht im Code, nicht im Skill.
 
 ## Dokumentation
 

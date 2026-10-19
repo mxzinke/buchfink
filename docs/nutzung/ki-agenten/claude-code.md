@@ -36,8 +36,8 @@ installiert die Skills getrennt.
    Browser öffnet sich. Aus der Shell:
    `claude mcp login "plugin:buchfink-buchhaltung:buchfink"`.
 4. Bestätigen Sie die Anmeldung im Fenster von Buchfink (siehe unten).
-5. Prüfen Sie die Verbindung (siehe unten). Die Skills erscheinen unter `/`
-   als `/buchfink-buchhaltung:buchfink-grundlagen` usw.
+5. Prüfen Sie die Verbindung (siehe unten). Der Skill erscheint unter `/`
+   als `/buchfink-buchhaltung:buchfink`.
 
 In der Desktop-App erreichen Sie dieselbe Installation über **+ → Plugins →
 Add plugin**, nachdem der Marketplace hinzugefügt ist.

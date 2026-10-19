@@ -7,7 +7,8 @@ Anforderungen: GOB-01, GOB-06. Code: `service.FoundationService`,
 `service/opening_balance.go`, `internal/accounting/gruendung.go`.
 
 Diese Seite beschreibt den buchhalterischen Teil. Behördenwege und Reihenfolge
-der Gründung begleitet der Agent mit dem Skill `buchfink-gruendung`; die
+der Gründung begleitet der Agent nach
+[`skills/buchfink/references/gruendung/`](../../skills/buchfink/references/gruendung/ablauf.md); die
 Pflichten daraus stehen im [Pflichtenkalender](pflichten-und-erklaerungen.md).
 
 ## Wann die Bücher beginnen

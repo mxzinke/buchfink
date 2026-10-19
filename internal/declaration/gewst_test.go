@@ -14,7 +14,7 @@ func tradeCommon(year int, kstInputs []Input, inputs ...Input) TradeCommon {
 	return TradeCommon{Common: common(year, append(base, inputs...)...), CorporateInputs: kstInputs}
 }
 
-// Beispiel der Referenz zur Gewerbesteuer (buchfink-steuererklaerungen):
+// Beispiel in skills/buchfink/references/steuererklaerungen/gewst.md, Abschnitt 9:
 // Gewinn 120.000 €, Zinsen 8.000 €, Leasing Pkw 6.000 €, Büromiete
 // 24.000 €, befristete Lizenz 10.000 €. Summe der Finanzierungsanteile
 // 23.700 € unter 200.000 €, keine Hinzurechnung. Messbetrag 4.200 €,

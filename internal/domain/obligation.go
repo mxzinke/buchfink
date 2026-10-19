@@ -12,7 +12,7 @@ import (
 
 // ObligationKind ist der stabile Schlüssel einer Pflichtart. Er steht in den
 // Schlüsseln der Pflichten und ändert sich deshalb nicht. Den Abschnitt in
-// buchfink-grundlagen/references/pflichten.md nennt Anchor.
+// skills/buchfink/references/grundlagen/pflichten.md nennt Anchor.
 type ObligationKind string
 
 const (
@@ -41,8 +41,10 @@ const (
 	ObligationWithholdingTax     ObligationKind = "kapitalertragsteuer"
 )
 
-// ObligationSkillFile ist die Skill-Referenz, deren Anker die Pflichtarten sind.
-const ObligationSkillFile = "buchfink-grundlagen/references/pflichten.md"
+// ObligationSkillFile ist die Skill-Referenz, deren Anker die Pflichtarten
+// sind: Skill-Name und Pfad im Skill-Ordner, so wie der Agent den Skill
+// installiert hat.
+const ObligationSkillFile = "buchfink/references/grundlagen/pflichten.md"
 
 // obligationAnchors sind die Pflichtarten, deren Abschnitt in der
 // Skill-Referenz anders heißt als ihr Schlüssel.

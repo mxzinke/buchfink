@@ -16,7 +16,7 @@
     "periodLabel": "(Gründung am 15.09.2025)",
     "periodTo": "2025-09-15",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#gewerbeanmeldung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#gewerbeanmeldung",
     "status": "overdue",
     "statutoryDate": "2025-09-15",
     "title": "Gewerbeanzeige (Gründung am 15.09.2025)"
@@ -38,7 +38,7 @@
     "periodLabel": "(Gründung am 15.09.2025)",
     "periodTo": "2025-09-15",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#fragebogen-steuerliche-erfassung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#fragebogen-steuerliche-erfassung",
     "status": "overdue",
     "statutoryDate": "2025-10-15",
     "title": "Fragebogen zur steuerlichen Erfassung (Gründung am 15.09.2025)"
@@ -59,7 +59,7 @@
     "periodLabel": "(Eintragung am 20.10.2025)",
     "periodTo": "2025-10-20",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#transparenzregister",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#transparenzregister",
     "status": "overdue",
     "statutoryDate": "2025-10-20",
     "title": "Mitteilung an das Transparenzregister (Eintragung am 20.10.2025)"
@@ -81,7 +81,7 @@
     "periodLabel": "September 2025",
     "periodTo": "2025-09-30",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "overdue",
     "statutoryDate": "2025-11-10",
     "title": "Umsatzsteuer-Voranmeldung September 2025"
@@ -101,7 +101,7 @@
     "periodLabel": "September 2025",
     "periodTo": "2025-09-30",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "overdue",
     "statutoryDate": "2025-11-30",
     "title": "Monatsfestschreibung September 2025"
@@ -123,7 +123,7 @@
     "periodLabel": "Oktober 2025",
     "periodTo": "2025-10-31",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "overdue",
     "statutoryDate": "2025-12-10",
     "title": "Umsatzsteuer-Voranmeldung Oktober 2025"
@@ -146,7 +146,7 @@
     "periodLabel": "zum 15.09.2025",
     "periodTo": "2025-09-15",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#eroeffnungsbilanz",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#eroeffnungsbilanz",
     "status": "overdue",
     "statutoryDate": "2025-12-15",
     "title": "Aufstellung der Eröffnungsbilanz zum 15.09.2025"
@@ -166,7 +166,7 @@
     "periodLabel": "Oktober 2025",
     "periodTo": "2025-10-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "overdue",
     "statutoryDate": "2025-12-31",
     "title": "Monatsfestschreibung Oktober 2025"
@@ -190,7 +190,7 @@
     "periodTo": "2025-11-30",
     "responsibility": "agent_prepares",
     "shiftReason": "Sonnabend",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "overdue",
     "statutoryDate": "2026-01-10",
     "title": "Umsatzsteuer-Voranmeldung November 2025"
@@ -210,7 +210,7 @@
     "periodLabel": "November 2025",
     "periodTo": "2025-11-30",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "overdue",
     "statutoryDate": "2026-01-31",
     "title": "Monatsfestschreibung November 2025"
@@ -238,7 +238,7 @@
       "note": "Buchung 2026-000001: Lohnjournal gebucht. Anmeldung und Abführung übernimmt meist der Lohnanbieter; erledigt mit dem Transferticket oder seiner Bestätigung."
     },
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#lohnsteuer-anmeldung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#lohnsteuer-anmeldung",
     "status": "overdue",
     "statutoryDate": "2026-02-10",
     "title": "Lohnsteuer-Anmeldung Januar 2026"
@@ -264,7 +264,7 @@
       "reference": "Buchung 2026-000004"
     },
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#sondervorauszahlung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#sondervorauszahlung",
     "status": "done",
     "statutoryDate": "2026-02-10",
     "title": "Sondervorauszahlung 2026"
@@ -286,7 +286,7 @@
     "periodLabel": "Dezember 2025",
     "periodTo": "2025-12-31",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "overdue",
     "statutoryDate": "2026-02-10",
     "title": "Umsatzsteuer-Voranmeldung Dezember 2025"
@@ -315,7 +315,7 @@
     },
     "responsibility": "human_confirms",
     "shiftReason": "Sonntag",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#gewst-vorauszahlung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#gewst-vorauszahlung",
     "status": "done",
     "statutoryDate": "2026-02-15",
     "title": "Gewerbesteuer-Vorauszahlung 15.02.2026"
@@ -335,7 +335,7 @@
     "periodLabel": "Dezember 2025",
     "periodTo": "2025-12-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "overdue",
     "statutoryDate": "2026-02-28",
     "title": "Monatsfestschreibung Dezember 2025"
@@ -361,7 +361,7 @@
       "reference": "Buchung 2026-000005"
     },
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#kst-vorauszahlung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#kst-vorauszahlung",
     "status": "done",
     "statutoryDate": "2026-03-10",
     "title": "Körperschaftsteuer-Vorauszahlung 10.03.2026"
@@ -383,7 +383,7 @@
     "periodLabel": "Februar 2026",
     "periodTo": "2026-02-28",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#lohnsteuer-anmeldung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#lohnsteuer-anmeldung",
     "status": "overdue",
     "statutoryDate": "2026-03-10",
     "title": "Lohnsteuer-Anmeldung Februar 2026"
@@ -405,7 +405,7 @@
     "periodLabel": "Januar 2026",
     "periodTo": "2026-01-31",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "overdue",
     "statutoryDate": "2026-03-10",
     "title": "Umsatzsteuer-Voranmeldung Januar 2026"
@@ -425,7 +425,7 @@
     "periodLabel": "Januar 2026",
     "periodTo": "2026-01-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "overdue",
     "statutoryDate": "2026-03-31",
     "title": "Monatsfestschreibung Januar 2026"
@@ -447,7 +447,7 @@
     "periodLabel": "März 2026",
     "periodTo": "2026-03-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#lohnsteuer-anmeldung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#lohnsteuer-anmeldung",
     "status": "overdue",
     "statutoryDate": "2026-04-10",
     "title": "Lohnsteuer-Anmeldung März 2026"
@@ -469,7 +469,7 @@
     "periodLabel": "Februar 2026",
     "periodTo": "2026-02-28",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "overdue",
     "statutoryDate": "2026-04-10",
     "title": "Umsatzsteuer-Voranmeldung Februar 2026"
@@ -492,7 +492,7 @@
     "periodTo": "2026-03-31",
     "responsibility": "agent_prepares",
     "shiftReason": "Sonnabend",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#zm",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#zm",
     "status": "overdue",
     "statutoryDate": "2026-04-25",
     "title": "Zusammenfassende Meldung 1. Quartal 2026"
@@ -512,7 +512,7 @@
     "periodLabel": "Februar 2026",
     "periodTo": "2026-02-28",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "overdue",
     "statutoryDate": "2026-04-30",
     "title": "Monatsfestschreibung Februar 2026"
@@ -543,7 +543,7 @@
       "reference": "HR-123"
     },
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#gesellschafterliste",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#gesellschafterliste",
     "status": "done",
     "statutoryDate": "2026-05-04",
     "title": "Neue Gesellschafterliste (Veränderung vom 04.05.2026)"
@@ -567,7 +567,7 @@
     "periodLabel": "(Veränderung vom 04.05.2026)",
     "periodTo": "2026-05-04",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#transparenzregister",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#transparenzregister",
     "status": "overdue",
     "statutoryDate": "2026-05-04",
     "title": "Mitteilung an das Transparenzregister (Veränderung vom 04.05.2026)"
@@ -591,7 +591,7 @@
     "periodLabel": "(Veränderung vom 04.05.2026)",
     "periodTo": "2026-05-04",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#transparenzregister",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#transparenzregister",
     "status": "overdue",
     "statutoryDate": "2026-05-04",
     "title": "Mitteilung an das Transparenzregister (Veränderung vom 04.05.2026)"
@@ -615,7 +615,7 @@
     "periodTo": "2026-04-30",
     "responsibility": "human_confirms",
     "shiftReason": "Sonntag",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#lohnsteuer-anmeldung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#lohnsteuer-anmeldung",
     "status": "overdue",
     "statutoryDate": "2026-05-10",
     "title": "Lohnsteuer-Anmeldung April 2026"
@@ -639,7 +639,7 @@
     "periodTo": "2026-03-31",
     "responsibility": "agent_prepares",
     "shiftReason": "Sonntag",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "overdue",
     "statutoryDate": "2026-05-10",
     "title": "Umsatzsteuer-Voranmeldung März 2026"
@@ -659,7 +659,7 @@
     "periodLabel": "15.05.2026",
     "periodTo": "2026-06-30",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#gewst-vorauszahlung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#gewst-vorauszahlung",
     "status": "overdue",
     "statutoryDate": "2026-05-15",
     "title": "Gewerbesteuer-Vorauszahlung 15.05.2026"
@@ -683,7 +683,7 @@
     "periodLabel": "aus dem Ergebnis 2025",
     "periodTo": "2026-05-20",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#kapitalertragsteuer",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#kapitalertragsteuer",
     "status": "overdue",
     "statutoryDate": "2026-05-21",
     "title": "Kapitalertragsteuer auf die Ausschüttung aus dem Ergebnis 2025"
@@ -703,7 +703,7 @@
     "periodLabel": "März 2026",
     "periodTo": "2026-03-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "overdue",
     "statutoryDate": "2026-05-31",
     "title": "Monatsfestschreibung März 2026"
@@ -723,7 +723,7 @@
     "periodLabel": "10.06.2026",
     "periodTo": "2026-06-30",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#kst-vorauszahlung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#kst-vorauszahlung",
     "status": "overdue",
     "statutoryDate": "2026-06-10",
     "title": "Körperschaftsteuer-Vorauszahlung 10.06.2026"
@@ -745,7 +745,7 @@
     "periodLabel": "Mai 2026",
     "periodTo": "2026-05-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#lohnsteuer-anmeldung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#lohnsteuer-anmeldung",
     "status": "overdue",
     "statutoryDate": "2026-06-10",
     "title": "Lohnsteuer-Anmeldung Mai 2026"
@@ -767,7 +767,7 @@
     "periodLabel": "April 2026",
     "periodTo": "2026-04-30",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "overdue",
     "statutoryDate": "2026-06-10",
     "title": "Umsatzsteuer-Voranmeldung April 2026"
@@ -793,7 +793,7 @@
       "note": "Abschluss aufgestellt"
     },
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#bilanzstichtag",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#bilanzstichtag",
     "status": "done",
     "statutoryDate": "2026-06-30",
     "title": "Abschlussbuchungen zum Bilanzstichtag 31.12.2025"
@@ -821,7 +821,7 @@
       "note": "Abschluss aufgestellt"
     },
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#aufstellung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#aufstellung",
     "status": "done",
     "statutoryDate": "2026-06-30",
     "title": "Aufstellung des Jahresabschlusses 2025"
@@ -841,7 +841,7 @@
     "periodLabel": "April 2026",
     "periodTo": "2026-04-30",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "overdue",
     "statutoryDate": "2026-06-30",
     "title": "Monatsfestschreibung April 2026"
@@ -863,7 +863,7 @@
     "periodLabel": "Juni 2026",
     "periodTo": "2026-06-30",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#lohnsteuer-anmeldung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#lohnsteuer-anmeldung",
     "status": "overdue",
     "statutoryDate": "2026-07-10",
     "title": "Lohnsteuer-Anmeldung Juni 2026"
@@ -885,7 +885,7 @@
     "periodLabel": "Mai 2026",
     "periodTo": "2026-05-31",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "overdue",
     "statutoryDate": "2026-07-10",
     "title": "Umsatzsteuer-Voranmeldung Mai 2026"
@@ -908,7 +908,7 @@
     "periodLabel": "zum 15.09.2025",
     "periodTo": "2025-09-15",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ebilanz-eroeffnung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ebilanz-eroeffnung",
     "status": "overdue",
     "statutoryDate": "2026-07-31",
     "title": "E-Bilanz der Eröffnungsbilanz zum 15.09.2025"
@@ -930,7 +930,7 @@
     "periodLabel": "2025",
     "periodTo": "2025-12-31",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ebilanz",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ebilanz",
     "status": "overdue",
     "statutoryDate": "2026-07-31",
     "title": "E-Bilanz 2025"
@@ -950,7 +950,7 @@
     "periodLabel": "Mai 2026",
     "periodTo": "2026-05-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "overdue",
     "statutoryDate": "2026-07-31",
     "title": "Monatsfestschreibung Mai 2026"
@@ -972,7 +972,7 @@
     "periodLabel": "2025",
     "periodTo": "2025-12-31",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#gewst-erklaerung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#gewst-erklaerung",
     "status": "overdue",
     "statutoryDate": "2026-07-31",
     "title": "Gewerbesteuererklärung 2025"
@@ -994,7 +994,7 @@
     "periodLabel": "2025",
     "periodTo": "2025-12-31",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#kst-erklaerung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#kst-erklaerung",
     "status": "overdue",
     "statutoryDate": "2026-07-31",
     "title": "Körperschaftsteuererklärung 2025"
@@ -1016,7 +1016,7 @@
     "periodLabel": "2025",
     "periodTo": "2025-12-31",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ust-erklaerung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ust-erklaerung",
     "status": "overdue",
     "statutoryDate": "2026-07-31",
     "title": "Umsatzsteuer-Jahreserklärung 2025"
@@ -1038,7 +1038,7 @@
     "periodLabel": "Juli 2026",
     "periodTo": "2026-07-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#lohnsteuer-anmeldung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#lohnsteuer-anmeldung",
     "status": "overdue",
     "statutoryDate": "2026-08-10",
     "title": "Lohnsteuer-Anmeldung Juli 2026"
@@ -1060,7 +1060,7 @@
     "periodLabel": "Juni 2026",
     "periodTo": "2026-06-30",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "overdue",
     "statutoryDate": "2026-08-10",
     "title": "Umsatzsteuer-Voranmeldung Juni 2026"
@@ -1083,7 +1083,7 @@
     "periodTo": "2026-09-30",
     "responsibility": "human_confirms",
     "shiftReason": "Sonnabend",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#gewst-vorauszahlung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#gewst-vorauszahlung",
     "status": "overdue",
     "statutoryDate": "2026-08-15",
     "title": "Gewerbesteuer-Vorauszahlung 15.08.2026"
@@ -1103,7 +1103,7 @@
     "periodLabel": "Juni 2026",
     "periodTo": "2026-06-30",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "overdue",
     "statutoryDate": "2026-08-31",
     "title": "Monatsfestschreibung Juni 2026"
@@ -1123,7 +1123,7 @@
     "periodLabel": "10.09.2026",
     "periodTo": "2026-09-30",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#kst-vorauszahlung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#kst-vorauszahlung",
     "status": "overdue",
     "statutoryDate": "2026-09-10",
     "title": "Körperschaftsteuer-Vorauszahlung 10.09.2026"
@@ -1145,7 +1145,7 @@
     "periodLabel": "August 2026",
     "periodTo": "2026-08-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#lohnsteuer-anmeldung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#lohnsteuer-anmeldung",
     "status": "overdue",
     "statutoryDate": "2026-09-10",
     "title": "Lohnsteuer-Anmeldung August 2026"
@@ -1167,7 +1167,7 @@
     "periodLabel": "Juli 2026",
     "periodTo": "2026-07-31",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "overdue",
     "statutoryDate": "2026-09-10",
     "title": "Umsatzsteuer-Voranmeldung Juli 2026"
@@ -1187,7 +1187,7 @@
     "periodLabel": "Juli 2026",
     "periodTo": "2026-07-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "overdue",
     "statutoryDate": "2026-09-30",
     "title": "Monatsfestschreibung Juli 2026"
@@ -1217,7 +1217,7 @@
     },
     "responsibility": "human_confirms",
     "shiftReason": "Sonnabend",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#lohnsteuer-anmeldung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#lohnsteuer-anmeldung",
     "status": "overdue",
     "statutoryDate": "2026-10-10",
     "title": "Lohnsteuer-Anmeldung September 2026"
@@ -1241,7 +1241,7 @@
     "periodTo": "2026-08-31",
     "responsibility": "agent_prepares",
     "shiftReason": "Sonnabend",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "overdue",
     "statutoryDate": "2026-10-10",
     "title": "Umsatzsteuer-Voranmeldung August 2026"
@@ -1261,7 +1261,7 @@
     "periodLabel": "August 2026",
     "periodTo": "2026-08-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "open",
     "statutoryDate": "2026-10-31",
     "title": "Monatsfestschreibung August 2026"
@@ -1283,7 +1283,7 @@
     "periodLabel": "Oktober 2026",
     "periodTo": "2026-10-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#lohnsteuer-anmeldung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#lohnsteuer-anmeldung",
     "status": "open",
     "statutoryDate": "2026-11-10",
     "title": "Lohnsteuer-Anmeldung Oktober 2026"
@@ -1305,7 +1305,7 @@
     "periodLabel": "September 2026",
     "periodTo": "2026-09-30",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "open",
     "statutoryDate": "2026-11-10",
     "title": "Umsatzsteuer-Voranmeldung September 2026"
@@ -1328,7 +1328,7 @@
     "periodTo": "2026-12-31",
     "responsibility": "human_confirms",
     "shiftReason": "Sonntag",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#gewst-vorauszahlung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#gewst-vorauszahlung",
     "status": "open",
     "statutoryDate": "2026-11-15",
     "title": "Gewerbesteuer-Vorauszahlung 15.11.2026"
@@ -1354,7 +1354,7 @@
       "reference": "Ausschüttung"
     },
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ergebnisverwendung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ergebnisverwendung",
     "status": "done",
     "statutoryDate": "2026-11-30",
     "title": "Beschluss über die Ergebnisverwendung 2025"
@@ -1374,7 +1374,7 @@
     "periodLabel": "September 2026",
     "periodTo": "2026-09-30",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "open",
     "statutoryDate": "2026-11-30",
     "title": "Monatsfestschreibung September 2026"
@@ -1400,7 +1400,7 @@
       "reference": "Beschluss vom 20.05.2026"
     },
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#feststellung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#feststellung",
     "status": "done",
     "statutoryDate": "2026-11-30",
     "title": "Feststellung des Jahresabschlusses 2025"
@@ -1420,7 +1420,7 @@
     "periodLabel": "10.12.2026",
     "periodTo": "2026-12-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#kst-vorauszahlung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#kst-vorauszahlung",
     "status": "open",
     "statutoryDate": "2026-12-10",
     "title": "Körperschaftsteuer-Vorauszahlung 10.12.2026"
@@ -1442,7 +1442,7 @@
     "periodLabel": "Oktober 2026",
     "periodTo": "2026-10-31",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "open",
     "statutoryDate": "2026-12-10",
     "title": "Umsatzsteuer-Voranmeldung Oktober 2026"
@@ -1462,7 +1462,7 @@
     "periodLabel": "Oktober 2026",
     "periodTo": "2026-10-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "open",
     "statutoryDate": "2026-12-31",
     "title": "Monatsfestschreibung Oktober 2026"
@@ -1482,7 +1482,7 @@
     "periodLabel": "2025",
     "periodTo": "2025-12-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#offenlegung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#offenlegung",
     "status": "open",
     "statutoryDate": "2026-12-31",
     "title": "Offenlegung im Unternehmensregister 2025"
@@ -1506,7 +1506,7 @@
     "periodTo": "2026-11-30",
     "responsibility": "agent_prepares",
     "shiftReason": "Sonntag",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "open",
     "statutoryDate": "2027-01-10",
     "title": "Umsatzsteuer-Voranmeldung November 2026"
@@ -1526,7 +1526,7 @@
     "periodLabel": "November 2026",
     "periodTo": "2026-11-30",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "open",
     "statutoryDate": "2027-01-31",
     "title": "Monatsfestschreibung November 2026"
@@ -1546,7 +1546,7 @@
     "periodLabel": "2027",
     "periodTo": "2027-12-31",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#sondervorauszahlung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#sondervorauszahlung",
     "status": "open",
     "statutoryDate": "2027-02-10",
     "title": "Sondervorauszahlung 2027"
@@ -1568,7 +1568,7 @@
     "periodLabel": "Dezember 2026",
     "periodTo": "2026-12-31",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "open",
     "statutoryDate": "2027-02-10",
     "title": "Umsatzsteuer-Voranmeldung Dezember 2026"
@@ -1588,7 +1588,7 @@
     "periodLabel": "15.02.2027",
     "periodTo": "2027-03-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#gewst-vorauszahlung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#gewst-vorauszahlung",
     "status": "open",
     "statutoryDate": "2027-02-15",
     "title": "Gewerbesteuer-Vorauszahlung 15.02.2027"
@@ -1608,7 +1608,7 @@
     "periodLabel": "Dezember 2026",
     "periodTo": "2026-12-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "open",
     "statutoryDate": "2027-02-28",
     "title": "Monatsfestschreibung Dezember 2026"
@@ -1628,7 +1628,7 @@
     "periodLabel": "10.03.2027",
     "periodTo": "2027-03-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#kst-vorauszahlung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#kst-vorauszahlung",
     "status": "open",
     "statutoryDate": "2027-03-10",
     "title": "Körperschaftsteuer-Vorauszahlung 10.03.2027"
@@ -1650,7 +1650,7 @@
     "periodLabel": "Januar 2027",
     "periodTo": "2027-01-31",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "open",
     "statutoryDate": "2027-03-10",
     "title": "Umsatzsteuer-Voranmeldung Januar 2027"
@@ -1670,7 +1670,7 @@
     "periodLabel": "Januar 2027",
     "periodTo": "2027-01-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "open",
     "statutoryDate": "2027-03-31",
     "title": "Monatsfestschreibung Januar 2027"
@@ -1694,7 +1694,7 @@
     "periodTo": "2027-02-28",
     "responsibility": "agent_prepares",
     "shiftReason": "Sonnabend",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "open",
     "statutoryDate": "2027-04-10",
     "title": "Umsatzsteuer-Voranmeldung Februar 2027"
@@ -1714,7 +1714,7 @@
     "periodLabel": "Februar 2027",
     "periodTo": "2027-02-28",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "open",
     "statutoryDate": "2027-04-30",
     "title": "Monatsfestschreibung Februar 2027"
@@ -1736,7 +1736,7 @@
     "periodLabel": "März 2027",
     "periodTo": "2027-03-31",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "open",
     "statutoryDate": "2027-05-10",
     "title": "Umsatzsteuer-Voranmeldung März 2027"
@@ -1759,7 +1759,7 @@
     "periodTo": "2027-06-30",
     "responsibility": "human_confirms",
     "shiftReason": "Sonnabend",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#gewst-vorauszahlung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#gewst-vorauszahlung",
     "status": "open",
     "statutoryDate": "2027-05-15",
     "title": "Gewerbesteuer-Vorauszahlung 15.05.2027"
@@ -1779,7 +1779,7 @@
     "periodLabel": "März 2027",
     "periodTo": "2027-03-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "open",
     "statutoryDate": "2027-05-31",
     "title": "Monatsfestschreibung März 2027"
@@ -1799,7 +1799,7 @@
     "periodLabel": "10.06.2027",
     "periodTo": "2027-06-30",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#kst-vorauszahlung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#kst-vorauszahlung",
     "status": "open",
     "statutoryDate": "2027-06-10",
     "title": "Körperschaftsteuer-Vorauszahlung 10.06.2027"
@@ -1821,7 +1821,7 @@
     "periodLabel": "April 2027",
     "periodTo": "2027-04-30",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "open",
     "statutoryDate": "2027-06-10",
     "title": "Umsatzsteuer-Voranmeldung April 2027"
@@ -1841,7 +1841,7 @@
     "periodLabel": "2026",
     "periodTo": "2026-12-31",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#bilanzstichtag",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#bilanzstichtag",
     "status": "open",
     "statutoryDate": "2027-06-30",
     "title": "Abschlussbuchungen zum Bilanzstichtag 31.12.2026"
@@ -1863,7 +1863,7 @@
     "periodLabel": "2026",
     "periodTo": "2026-12-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#aufstellung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#aufstellung",
     "status": "open",
     "statutoryDate": "2027-06-30",
     "title": "Aufstellung des Jahresabschlusses 2026"
@@ -1883,7 +1883,7 @@
     "periodLabel": "April 2027",
     "periodTo": "2027-04-30",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "open",
     "statutoryDate": "2027-06-30",
     "title": "Monatsfestschreibung April 2027"
@@ -1907,7 +1907,7 @@
     "periodTo": "2027-05-31",
     "responsibility": "agent_prepares",
     "shiftReason": "Sonnabend",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "open",
     "statutoryDate": "2027-07-10",
     "title": "Umsatzsteuer-Voranmeldung Mai 2027"
@@ -1927,7 +1927,7 @@
     "periodLabel": "Mai 2027",
     "periodTo": "2027-05-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "open",
     "statutoryDate": "2027-07-31",
     "title": "Monatsfestschreibung Mai 2027"
@@ -1951,7 +1951,7 @@
     "periodTo": "2026-12-31",
     "responsibility": "agent_prepares",
     "shiftReason": "Sonnabend",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#gewst-erklaerung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#gewst-erklaerung",
     "status": "open",
     "statutoryDate": "2027-07-31",
     "title": "Gewerbesteuererklärung 2026"
@@ -1975,7 +1975,7 @@
     "periodTo": "2026-12-31",
     "responsibility": "agent_prepares",
     "shiftReason": "Sonnabend",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ust-erklaerung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ust-erklaerung",
     "status": "open",
     "statutoryDate": "2027-07-31",
     "title": "Umsatzsteuer-Jahreserklärung 2026"
@@ -1997,7 +1997,7 @@
     "periodLabel": "Juni 2027",
     "periodTo": "2027-06-30",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "open",
     "statutoryDate": "2027-08-10",
     "title": "Umsatzsteuer-Voranmeldung Juni 2027"
@@ -2020,7 +2020,7 @@
     "periodTo": "2027-09-30",
     "responsibility": "human_confirms",
     "shiftReason": "Sonntag",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#gewst-vorauszahlung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#gewst-vorauszahlung",
     "status": "open",
     "statutoryDate": "2027-08-15",
     "title": "Gewerbesteuer-Vorauszahlung 15.08.2027"
@@ -2040,7 +2040,7 @@
     "periodLabel": "Juni 2027",
     "periodTo": "2027-06-30",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "open",
     "statutoryDate": "2027-08-31",
     "title": "Monatsfestschreibung Juni 2027"
@@ -2060,7 +2060,7 @@
     "periodLabel": "10.09.2027",
     "periodTo": "2027-09-30",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#kst-vorauszahlung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#kst-vorauszahlung",
     "status": "open",
     "statutoryDate": "2027-09-10",
     "title": "Körperschaftsteuer-Vorauszahlung 10.09.2027"
@@ -2082,7 +2082,7 @@
     "periodLabel": "Juli 2027",
     "periodTo": "2027-07-31",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "open",
     "statutoryDate": "2027-09-10",
     "title": "Umsatzsteuer-Voranmeldung Juli 2027"
@@ -2102,7 +2102,7 @@
     "periodLabel": "Juli 2027",
     "periodTo": "2027-07-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "open",
     "statutoryDate": "2027-09-30",
     "title": "Monatsfestschreibung Juli 2027"
@@ -2126,7 +2126,7 @@
     "periodTo": "2027-08-31",
     "responsibility": "agent_prepares",
     "shiftReason": "Sonntag",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "open",
     "statutoryDate": "2027-10-10",
     "title": "Umsatzsteuer-Voranmeldung August 2027"
@@ -2146,7 +2146,7 @@
     "periodLabel": "August 2027",
     "periodTo": "2027-08-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "open",
     "statutoryDate": "2027-10-31",
     "title": "Monatsfestschreibung August 2027"
@@ -2168,7 +2168,7 @@
     "periodLabel": "September 2027",
     "periodTo": "2027-09-30",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "open",
     "statutoryDate": "2027-11-10",
     "title": "Umsatzsteuer-Voranmeldung September 2027"
@@ -2188,7 +2188,7 @@
     "periodLabel": "15.11.2027",
     "periodTo": "2027-12-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#gewst-vorauszahlung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#gewst-vorauszahlung",
     "status": "open",
     "statutoryDate": "2027-11-15",
     "title": "Gewerbesteuer-Vorauszahlung 15.11.2027"
@@ -2208,7 +2208,7 @@
     "periodLabel": "2026",
     "periodTo": "2026-12-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ergebnisverwendung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ergebnisverwendung",
     "status": "open",
     "statutoryDate": "2027-11-30",
     "title": "Beschluss über die Ergebnisverwendung 2026"
@@ -2228,7 +2228,7 @@
     "periodLabel": "September 2027",
     "periodTo": "2027-09-30",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "open",
     "statutoryDate": "2027-11-30",
     "title": "Monatsfestschreibung September 2027"
@@ -2248,7 +2248,7 @@
     "periodLabel": "2026",
     "periodTo": "2026-12-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#feststellung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#feststellung",
     "status": "open",
     "statutoryDate": "2027-11-30",
     "title": "Feststellung des Jahresabschlusses 2026"
@@ -2268,7 +2268,7 @@
     "periodLabel": "10.12.2027",
     "periodTo": "2027-12-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#kst-vorauszahlung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#kst-vorauszahlung",
     "status": "open",
     "statutoryDate": "2027-12-10",
     "title": "Körperschaftsteuer-Vorauszahlung 10.12.2027"
@@ -2290,7 +2290,7 @@
     "periodLabel": "Oktober 2027",
     "periodTo": "2027-10-31",
     "responsibility": "agent_prepares",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#ustva",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#ustva",
     "status": "open",
     "statutoryDate": "2027-12-10",
     "title": "Umsatzsteuer-Voranmeldung Oktober 2027"
@@ -2310,7 +2310,7 @@
     "periodLabel": "Oktober 2027",
     "periodTo": "2027-10-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#monatsfestschreibung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#monatsfestschreibung",
     "status": "open",
     "statutoryDate": "2027-12-31",
     "title": "Monatsfestschreibung Oktober 2027"
@@ -2330,7 +2330,7 @@
     "periodLabel": "2026",
     "periodTo": "2026-12-31",
     "responsibility": "human_confirms",
-    "skillRef": "buchfink-grundlagen/references/pflichten.md#offenlegung",
+    "skillRef": "buchfink/references/grundlagen/pflichten.md#offenlegung",
     "status": "open",
     "statutoryDate": "2027-12-31",
     "title": "Offenlegung im Unternehmensregister 2026"

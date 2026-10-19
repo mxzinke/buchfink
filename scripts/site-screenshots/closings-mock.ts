@@ -215,7 +215,7 @@ function obligation(year: number, spec: ObligationSpec, o: Options) {
     channel: spec.channel,
     responsibility: spec.responsibility ?? 'agent_prepares',
     evidenceSource: spec.evidenceSource,
-    skillRef: `buchfink-grundlagen/references/pflichten.md#${spec.kind}`,
+    skillRef: `buchfink/references/grundlagen/pflichten.md#${spec.kind}`,
     periodKey: o.periodKey,
     periodLabel: o.periodLabel,
     periodFrom: o.from,

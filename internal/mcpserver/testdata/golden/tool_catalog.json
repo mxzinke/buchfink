@@ -2438,7 +2438,7 @@
       "readOnlyHint": true,
       "title": "Fristen und Pflichten"
     },
-    "description": "Pflichtenkalender: je Pflicht Art, Zeitraum, Fälligkeit, Status (offen, vorbereitet, ueberfaellig, erledigt, entfaellt), Kanal, Zuständigkeit und verweis auf den Abschnitt in buchfink-grundlagen/references/pflichten.md. Ohne Filter alles noch nicht Erledigte bis 180 Tage voraus. Nach dem Vorbereiten pflicht_vorbereitet melden; erledigt setzt nur die App oder der Datenstand.",
+    "description": "Pflichtenkalender: je Pflicht Art, Zeitraum, Fälligkeit, Status (offen, vorbereitet, ueberfaellig, erledigt, entfaellt), Kanal, Zuständigkeit und verweis auf den Abschnitt in references/grundlagen/pflichten.md des Skills buchfink. Ohne Filter alles noch nicht Erledigte bis 180 Tage voraus. Nach dem Vorbereiten pflicht_vorbereitet melden; erledigt setzt nur die App oder der Datenstand.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {

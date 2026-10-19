@@ -3,11 +3,13 @@
 
 Aufruf: python3 -I scripts/check_skills.py [skills-Ordner]
 
-Prüft je Skill, dass jede Datei unter references/ aus SKILL.md verlinkt ist.
-Prüft in allen Markdown-Dateien: relative Links zeigen auf vorhandene Dateien
-und Anker, Referenz-Links sind definiert, Verweise `pflichten.md#<art>`
-treffen einen Anker. Prüft die 23 Anker in pflichten.md und meldet verbotene
-Wörter. Frontmatter, Zeilenzahl, Plugin und Manifeste prüft
+Prüft je Skill, dass SKILL.md jede Datei unter references/ direkt verlinkt,
+auch in Unterordnern, und dass jede Referenz mit Titel, Rechtsstand oder
+Werkzeugstand und Inhaltsverzeichnis beginnt. Prüft in allen Markdown-Dateien:
+relative Links zeigen auf vorhandene Dateien und Anker, Referenz-Links sind
+definiert, Verweise `pflichten.md#<art>` treffen einen Anker, kein Text nennt
+einen der früheren Skill-Namen. Prüft die 23 Anker in pflichten.md und meldet
+verbotene Wörter. Frontmatter, Zeilenzahl, Plugin und Manifeste prüft
 scripts/package_skills.py.
 """
 import re
@@ -24,11 +26,19 @@ ANCHORS = [
     "kapitalertragsteuer",
 ]
 FORBIDDEN = [re.compile(r"viking", re.I), re.compile(r"\bpincmd\b"), re.compile(r"myebilanz", re.I)]
+# Die Fachbereiche waren früher eigene Skills. Verweise gehen als Link auf die
+# Datei unter references/<bereich>/, nie auf einen Skill-Namen.
+OLD_SKILL = re.compile(
+    r"buchfink-(?:bank|belege|beteiligungen|gesellschafter|gruendung|grundlagen|"
+    r"jahresabschluss|lohn|monatsabschluss|rechnungen|steuererklaerungen)\b"
+)
+PFLICHTEN = Path("buchfink", "references", "grundlagen", "pflichten.md")
+HEAD_LINES = 15
 
 INLINE_LINK = re.compile(r"(?<!\!)\[([^\]]+)\]\(([^)\s]+)\)")
 REF_USE = re.compile(r"\[([^\]]+)\]\[([^\]]*)\]")
 REF_DEF = re.compile(r"^\[([^\]]+)\]:\s*(\S+)", re.M)
-PFLICHT_REF = re.compile(r"pflichten\.md#([A-Za-z0-9_-]+)")
+PFLICHT_REF = re.compile(r"pflichten\.md#([\w-]+)")
 CODE_SPAN = re.compile(r"`[^`\n]*`")
 FENCE = re.compile(r"^```.*?^```", re.M | re.S)
 
@@ -107,7 +117,7 @@ def check_links(path, root):
             if frag not in anchors_of(target):
                 err(path.relative_to(root), f"Anker fehlt: {t}")
     # Verweise auf Pflichten-Anker im Fließtext oder in Codespans
-    pf = root / "buchfink-grundlagen" / "references" / "pflichten.md"
+    pf = root / PFLICHTEN
     if pf.exists():
         anchors = anchors_of(pf)
         for m in PFLICHT_REF.finditer(body):
@@ -117,6 +127,10 @@ def check_links(path, root):
         lines = sorted({text.count("\n", 0, m.start()) + 1 for m in rx.finditer(text)})
         if lines:
             err(path.relative_to(root), f"verbotenes Wort /{rx.pattern}/ in Zeilen {', '.join(map(str, lines))}")
+    if path.name != "QUELLEN.md":
+        lines = sorted({text.count("\n", 0, m.start()) + 1 for m in OLD_SKILL.finditer(text)})
+        if lines:
+            err(path.relative_to(root), f"früherer Skill-Name statt Link in Zeilen {', '.join(map(str, lines))}")
 
 
 def check_skill(d, root):
@@ -126,20 +140,38 @@ def check_skill(d, root):
         return
     rel = skill.relative_to(root)
     text = skill.read_text(encoding="utf-8")
+    linked = {m.group(2).partition("#")[0] for m in INLINE_LINK.finditer(CODE_SPAN.sub("", text))}
     refs = d / "references"
     if refs.is_dir():
-        for f in sorted(refs.glob("*.md")):
-            if f"references/{f.name}" not in text:
-                err(rel, f"references/{f.name} ist aus SKILL.md nicht verlinkt")
-        for f in sorted(refs.iterdir()):
+        for f in sorted(refs.rglob("*")):
+            if f.is_dir():
+                continue
             if f.suffix != ".md":
                 warn(f.relative_to(root), "Datei ohne .md in references/")
+                continue
+            target = f.relative_to(d).as_posix()
+            if target not in linked:
+                err(rel, f"{target} ist aus SKILL.md nicht direkt verlinkt")
+            check_head(f, root)
+
+
+def check_head(path, root):
+    """Kopf einer Referenz: Titel, Rechtsstand oder Werkzeugstand, Inhalt."""
+    lines = path.read_text(encoding="utf-8").splitlines()
+    rel = path.relative_to(root)
+    if not lines or not lines[0].startswith("# "):
+        err(rel, "beginnt nicht mit einem Titel (# …)")
+    head = lines[:HEAD_LINES]
+    if not any(l.startswith(("Rechtsstand:", "Werkzeugstand:")) for l in head):
+        err(rel, f"kein Rechtsstand oder Werkzeugstand in den ersten {HEAD_LINES} Zeilen")
+    if "## Inhalt" not in lines:
+        err(rel, "Inhaltsverzeichnis (## Inhalt) fehlt")
 
 
 def check_pflichten(root):
-    pf = root / "buchfink-grundlagen" / "references" / "pflichten.md"
+    pf = root / PFLICHTEN
     if not pf.exists():
-        err("buchfink-grundlagen/references", "pflichten.md fehlt")
+        err(PFLICHTEN.parent, "pflichten.md fehlt")
         return
     text = pf.read_text(encoding="utf-8")
     ids = re.findall(r'<a\s+id="([^"]+)"\s*>\s*</a>', CODE_SPAN.sub("", FENCE.sub("", text)))
