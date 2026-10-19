@@ -532,68 +532,6 @@ func (s *ProvisionService) bookRelease(ctx context.Context, req ProvisionChangeR
 		fmt.Sprintf("Aufgelöst, weil der Grund entfallen ist: %s", req.Reason))
 }
 
-// BookConsumption verbraucht eine Rückstellung gegen ein Zahlungsmittelkonto.
-//
-// Der Regelfall nutzt den Belegweg — die Rechnung kommt an, wird der
-// Rückstellung zugeordnet und bucht gegen sie statt gegen den Aufwand. Dieser
-// Weg hier ist der zweite: die Zahlung ohne Eingangsrechnung.
-func (s *ProvisionService) BookConsumption(ctx context.Context, req ProvisionChangeRequest) (*domain.Provision, error) {
-	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.Provision, error) {
-		return s.bookConsumption(ctx, req)
-	})
-}
-
-func (s *ProvisionService) bookConsumption(ctx context.Context, req ProvisionChangeRequest) (*domain.Provision, error) {
-	provision, err := s.load(ctx, req.ProvisionID)
-	if err != nil {
-		return nil, err
-	}
-	if req.PaymentAccount == "" {
-		return nil, fmt.Errorf("zum Verbrauch gehört das Konto, von dem gezahlt wurde")
-	}
-	amount := req.Amount
-	if amount <= 0 {
-		return nil, fmt.Errorf("der verbrauchte Betrag muss größer als null sein")
-	}
-	balance := provision.Balance()
-	date := req.Date
-	if err := domain.CheckDate("Buchungsdatum", date); err != nil {
-		return nil, err
-	}
-
-	lines := make([]domain.JournalLine, 0, 3)
-	covered := amount
-	if covered > balance {
-		covered = balance
-	}
-	if covered > 0 {
-		lines = append(lines, domain.JournalLine{
-			Side: domain.SideDebit, Account: provision.BalanceAccount, Amount: covered, Text: provision.Text,
-		})
-	}
-	// Was die Rückstellung nicht deckt, ist Aufwand des laufenden Jahres. Ihn
-	// gegen die Rückstellung zu buchen hieße, sie unter null zu bringen.
-	if excess := amount - covered; excess > 0 {
-		lines = append(lines, domain.JournalLine{
-			Side: domain.SideDebit, Account: provision.ExpenseAccount, Amount: excess,
-			Text: "Mehraufwand über die Rückstellung hinaus",
-		})
-	}
-	lines = append(lines, domain.JournalLine{
-		Side: domain.SideCredit, Account: req.PaymentAccount, Amount: amount, Text: provision.Text,
-	})
-
-	entry := &domain.JournalEntry{
-		BookingDate: date, DocumentDate: date, ServiceDateFrom: date, ServiceDateTo: date,
-		Description:        fmt.Sprintf("Verbrauch Rückstellung: %s", provision.Text),
-		Source:             domain.EntrySourceClosing,
-		PostingRuleVersion: accounting.PostingRuleVersion,
-		Lines:              lines,
-	}
-	return s.applyMovement(ctx, provision, entry, domain.ProvisionConsumption, covered, date, req.Reason,
-		fmt.Sprintf("Verbraucht mit %s €", amount))
-}
-
 // BookUnwinding bucht die Aufzinsung: der Barwert wächst, weil die Fälligkeit
 // näher rückt.
 func (s *ProvisionService) BookUnwinding(ctx context.Context, req ProvisionChangeRequest) (*domain.Provision, error) {

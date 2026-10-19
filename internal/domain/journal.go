@@ -569,38 +569,8 @@ type JournalRepository interface {
 	// mit einem Filter darüber: sie muss die Buchungen nach dem Stichtag
 	// weglassen, bevor summiert wird. Leerer Stichtag heißt: ganzes Jahr.
 	AccountTurnoversUntil(ctx context.Context, fiscalYear int, cutoff string) (map[string]AccountTurnover, error)
-	MonthlyCashflow(ctx context.Context, fiscalYear int, liquidAccounts []string) ([]CashflowDataPoint, error)
 	Count(ctx context.Context, fiscalYear int) (int64, error)
 	GetAvailableFiscalYears(ctx context.Context) ([]int, error)
-}
-
-// CashflowDataPoint aggregates liquid-account movements for one month.
-type CashflowDataPoint struct {
-	Month   string `json:"month"` // "2026-01"
-	Label   string `json:"label"` // "Jan"
-	Inflow  Cents  `json:"inflow"`
-	Outflow Cents  `json:"outflow"`
-	Net     Cents  `json:"net"`
-}
-
-// FinancialSummary contains high-level KPIs for the dashboard.
-type FinancialSummary struct {
-	TotalRevenue    Cents               `json:"totalRevenue"`
-	TotalExpenses   Cents               `json:"totalExpenses"`
-	NetIncome       Cents               `json:"netIncome"`
-	BankBalance     Cents               `json:"bankBalance"`
-	OpenReceivables Cents               `json:"openReceivables"`
-	OpenPayables    Cents               `json:"openPayables"`
-	CashflowHistory []CashflowDataPoint `json:"cashflowHistory"`
-}
-
-// EnsureLists ersetzt die nicht belegte Verlaufsliste durch eine leere: das
-// Diagramm der Startseite liest sie ohne Umweg, und `null.map` nähme den
-// ganzen Baum mit.
-func (f *FinancialSummary) EnsureLists() {
-	if f.CashflowHistory == nil {
-		f.CashflowHistory = make([]CashflowDataPoint, 0)
-	}
 }
 
 // IntegrityBreakReason benennt, woran eine Kette zerbrochen ist.

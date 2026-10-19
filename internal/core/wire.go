@@ -280,7 +280,6 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Bank.SetRuleRepo(bankRuleRepo)
 
 	s.AuditTrail = service.NewAuditTrailService(receiptRepo, journalRepo, allocationRepo, bankRepo, auditRepo)
-	s.AuditTrail.SetRenderer(renderer)
 
 	loanRepo := repository.NewShareholderLoanRepository(db)
 	s.Shareholders = service.NewShareholderService(

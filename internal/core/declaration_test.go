@@ -244,15 +244,15 @@ func TestDeclarationExportWithoutRecordLeavesNoFile(t *testing.T) {
 	for _, f := range files {
 		t.Errorf("nach dem gescheiterten Export liegt %s im Ordner", f.Name())
 	}
-	var records []domain.DeclarationRecord
+	var built *declaration.Declaration
 	if err := tenant.Read(uiCtx, func(ctx context.Context, s *Services) (err error) {
-		records, err = s.Declarations.Records(ctx, declaration.KindVatYear, 2026)
+		built, err = s.Declarations.Build(ctx, declaration.KindVatYear, 2026)
 		return err
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if len(records) != 0 {
-		t.Errorf("Vermerke nach dem gescheiterten Export: %d", len(records))
+	if built.Status != declaration.StatusDraft {
+		t.Errorf("Stand nach dem gescheiterten Export: %s", built.Status)
 	}
 }
 

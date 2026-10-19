@@ -397,7 +397,7 @@ func TestInvoiceCancellationClearsReceivableAndRevenue(t *testing.T) {
 	if err := invoices.Issue(ctx, inv); err != nil {
 		t.Fatalf("Rechnung ausstellen: %v", err)
 	}
-	if err := invoices.Cancel(ctx, inv.ID, "Leistung nicht erbracht"); err != nil {
+	if _, err := invoices.CancelWithDocument(ctx, inv.ID, "Leistung nicht erbracht"); err != nil {
 		t.Fatalf("Rechnung stornieren: %v", err)
 	}
 

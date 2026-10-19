@@ -120,7 +120,7 @@ func TestBookDirectIsAtomic(t *testing.T) {
 	if _, err := ok.BookDirect(ctx, txID, "4830", "Erstattung"); err == nil {
 		t.Error("ein zugeordneter Umsatz darf nicht ein zweites Mal gebucht werden")
 	}
-	if err := ok.Ignore(ctx, txID); err == nil {
+	if err := ok.IgnoreBecause(ctx, txID, "Erstattung schon gebucht"); err == nil {
 		t.Error("ein gebuchter Umsatz darf nicht nachträglich als ignoriert gelten")
 	}
 }

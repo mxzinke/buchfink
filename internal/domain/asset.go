@@ -870,7 +870,6 @@ type AssetRepository interface {
 	FindByID(ctx context.Context, id uint) (*FixedAsset, error)
 	FindPool(ctx context.Context, fiscalYear int) (*FixedAsset, error)
 	Save(ctx context.Context, asset *FixedAsset) error
-	Delete(ctx context.Context, id uint) error
 	AddMovement(ctx context.Context, movement *AssetMovement) error
 	DeleteMovement(ctx context.Context, id uint) error
 	FindMovements(ctx context.Context, assetID uint) ([]AssetMovement, error)

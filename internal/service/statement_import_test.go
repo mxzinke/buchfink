@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/buchfink/buchfink/internal/domain"
@@ -66,7 +65,7 @@ func TestImportCAMT053FileArchivesTheStatement(t *testing.T) {
 		t.Fatalf("Testdatei: %v", err)
 	}
 
-	inserted, err := env.banking(t).ImportCAMT053File(ctx, path, "1800")
+	inserted, err := importCAMTFile(ctx, env.banking(t), path, "1800")
 	if err != nil {
 		t.Fatalf("Kontoauszug importieren: %v", err)
 	}
@@ -128,7 +127,7 @@ func TestUnbookedCheckSkipsBankStatements(t *testing.T) {
 	if err := os.WriteFile(path, []byte(sampleCAMT), 0o600); err != nil {
 		t.Fatalf("Testdatei: %v", err)
 	}
-	if _, err := env.banking(t).ImportCAMT053File(ctx, path, "1800"); err != nil {
+	if _, err := importCAMTFile(ctx, env.banking(t), path, "1800"); err != nil {
 		t.Fatalf("Kontoauszug importieren: %v", err)
 	}
 	// Ein gewöhnlicher Beleg daneben, damit der Test nicht schon deshalb
@@ -197,7 +196,7 @@ func TestImportCAMT053FromContentStillWorks(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 
-	inserted, err := env.banking(t).ImportCAMT053(ctx, strings.NewReader(sampleCAMT), "1800")
+	inserted, err := importCAMT(ctx, env.banking(t), []byte(sampleCAMT), "Kontoauszug.xml", "1800")
 	if err != nil {
 		t.Fatalf("Import über den Inhalt: %v", err)
 	}
@@ -228,10 +227,10 @@ func TestImportingTheSameStatementTwiceKeepsOneReceipt(t *testing.T) {
 		t.Fatal(err)
 	}
 	banking := env.banking(t)
-	if _, err := banking.ImportCAMT053File(ctx, path, "1800"); err != nil {
+	if _, err := importCAMTFile(ctx, banking, path, "1800"); err != nil {
 		t.Fatalf("erster Import: %v", err)
 	}
-	inserted, err := banking.ImportCAMT053File(ctx, path, "1800")
+	inserted, err := importCAMTFile(ctx, banking, path, "1800")
 	if err != nil {
 		t.Fatalf("zweiter Import: %v", err)
 	}
@@ -262,7 +261,7 @@ func TestUnreadableStatementStaysArchived(t *testing.T) {
 	if err := os.WriteFile(path, []byte("<Document>kein CAMT</Document>"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := env.banking(t).ImportCAMT053File(ctx, path, "1800"); err == nil {
+	if _, err := importCAMTFile(ctx, env.banking(t), path, "1800"); err == nil {
 		t.Fatal("eine unlesbare Datei muss gemeldet werden")
 	}
 	receipts, err := env.receipts.List(ctx, 2026, "")
@@ -279,4 +278,23 @@ func TestUnreadableStatementStaysArchived(t *testing.T) {
 	if len(txs) != 0 {
 		t.Errorf("%d Umsätze aus einer unlesbaren Datei", len(txs))
 	}
+}
+
+// importCAMT legt einen Kontoauszug ab und liest ihn ein, in den zwei
+// Schritten von core.Tenant.ImportBankStatement.
+func importCAMT(ctx context.Context, svc *BankService, data []byte, filename, ledgerAccount string) (int, error) {
+	id, err := svc.FileStatement(ctx, data, filename)
+	if err != nil {
+		return 0, err
+	}
+	return svc.ImportStatement(ctx, data, ledgerAccount, id)
+}
+
+// importCAMTFile liest die Datei wie core.Tenant.ImportBankStatement.
+func importCAMTFile(ctx context.Context, svc *BankService, path, ledgerAccount string) (int, error) {
+	data, filename, err := ReadStatementFile(path)
+	if err != nil {
+		return 0, err
+	}
+	return importCAMT(ctx, svc, data, filename, ledgerAccount)
 }

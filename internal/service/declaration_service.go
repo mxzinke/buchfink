@@ -234,16 +234,6 @@ func (s *DeclarationService) DeleteInput(ctx context.Context, kind declaration.K
 		fmt.Sprintf("%s %d, %s: Angabe zurückgenommen", kind.Label(), year, line.Label), rec, nil)
 }
 
-// Inputs liefert die Angaben zu einer Erklärung.
-func (s *DeclarationService) Inputs(ctx context.Context, kind declaration.Kind, year int) ([]declaration.Input, error) {
-	return s.inputs(ctx, kind, year)
-}
-
-// Records liefert die Exporte und Übermittlungen einer Erklärung.
-func (s *DeclarationService) Records(ctx context.Context, kind declaration.Kind, year int) ([]domain.DeclarationRecord, error) {
-	return s.repo.FindRecords(ctx, string(kind), year)
-}
-
 // RecordExport hält einen Export fest. Die Erklärung muss dem heutigen Stand
 // entsprechen: der Kern schreibt die Datei aus einem Lesevorgang und hält sie
 // hier fest, und dazwischen kann sich etwas geändert haben.

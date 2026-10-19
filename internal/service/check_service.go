@@ -413,17 +413,6 @@ func (s *CheckService) Runs(ctx context.Context, year int) ([]domain.CheckRun, e
 	return s.checkRepo.FindByFiscalYear(ctx, year)
 }
 
-// Latest liefert den jüngsten Lauf eines Jahres.
-func (s *CheckService) Latest(ctx context.Context, year int) (*domain.CheckRun, error) {
-	if err := requireYear(year); err != nil {
-		return nil, err
-	}
-	if s.checkRepo == nil {
-		return nil, nil
-	}
-	return s.checkRepo.Latest(ctx, year)
-}
-
 // -------------------------------------------------------------
 // Die einzelnen Regeln
 // -------------------------------------------------------------

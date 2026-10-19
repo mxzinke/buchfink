@@ -76,8 +76,12 @@ npm --prefix frontend run build
 ```
 
 `task check` meldet unformatierte Go-Dateien und führt `go vet`, die Go-Tests
-und die Prüfskripte für Gestaltung, Bridge, Hilfetexte, Abschlussbausteine und
-Dokumentationslinks aus. Formatieren müssen Sie selbst (`gofmt -w`). Der Frontend-Build prüft auch
+und die Prüfskripte für Gestaltung, Bridge, Dienste ohne Aufrufer,
+Hilfetexte, Abschlussbausteine und Dokumentationslinks aus. `task
+check:services` meldet jede exportierte Methode eines Dienstes in
+`internal/service`, die außerhalb der Tests niemand aufruft; was trotzdem
+bleibt, steht mit Grund in den Ausnahmen von
+[`scripts/check_service_callers`](../../scripts/check_service_callers/main.go). Formatieren müssen Sie selbst (`gofmt -w`). Der Frontend-Build prüft auch
 TypeScript.
 
 | Aufgabe | Wann |

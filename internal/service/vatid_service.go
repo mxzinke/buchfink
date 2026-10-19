@@ -111,25 +111,6 @@ func (q *VatIDQuery) Run(ctx context.Context) (*vatid.Result, error) {
 	return q.client.Check(ctx, q.Request)
 }
 
-// Check führt die qualifizierte Bestätigungsanfrage aus und hebt das Ergebnis
-// auf. Der Kern teilt sie in PrepareCheck, Run und RecordCheck, damit das Netz
-// keine Schreibsperre hält.
-func (s *VatIDService) Check(ctx context.Context, contactID uint) (*domain.VatIDCheck, error) {
-	query, err := s.PrepareCheck(ctx, contactID)
-	if err != nil {
-		return nil, err
-	}
-	result, runErr := query.Run(ctx)
-	check, err := s.RecordCheck(ctx, query, result, runErr)
-	if err != nil {
-		return nil, err
-	}
-	if runErr != nil {
-		return nil, runErr
-	}
-	return check, nil
-}
-
 // RecordCheck hebt das Ergebnis einer Anfrage auf.
 //
 // Auch das negative: gerade es ist der Nachweis, dass geprüft wurde. Nur wo gar

@@ -96,21 +96,6 @@ func NewAssetService(
 	}
 }
 
-// AssetSummary aggregates the register for the head of the view.
-type AssetSummary struct {
-	FiscalYear  int          `json:"fiscalYear"`
-	Count       int          `json:"count"`
-	Cost        domain.Cents `json:"cost"`
-	Accumulated domain.Cents `json:"accumulated"`
-	BookValue   domain.Cents `json:"bookValue"`
-	YearAmount  domain.Cents `json:"yearAmount"`
-	DueAmount   domain.Cents `json:"dueAmount"`
-	// SpecialDue ist die offene Sonderabschreibung. Sie steht getrennt, weil sie
-	// auf ein eigenes Aufwandskonto läuft und in der GuV getrennt erscheint.
-	SpecialDue domain.Cents `json:"specialDue"`
-	DueCount   int          `json:"dueCount"`
-}
-
 // AssetDetail is one Anlagegut with everything that explains it: its plan, its
 // movements and the notes that belong to its class.
 type AssetDetail struct {
@@ -374,49 +359,6 @@ func (s *AssetService) List(ctx context.Context, year int, class domain.AssetCla
 	return assets, nil
 }
 
-// Pool returns the Sammelposten of a fiscal year, or nil if none was formed.
-// § 6 Abs. 2a EStG allows exactly one per Wirtschaftsjahr, and further items of
-// that year are added to it rather than to a second one.
-func (s *AssetService) Pool(ctx context.Context, fiscalYear int) (*domain.FixedAsset, error) {
-	if err := requireYear(fiscalYear); err != nil {
-		return nil, err
-	}
-	pool, err := s.assetRepo.FindPool(ctx, fiscalYear)
-	if err != nil || pool == nil {
-		return nil, err
-	}
-	startMonth := s.fiscalYearStartMonth(ctx)
-	s.enrich(pool, fiscalYear, startMonth, s.fiscalPeriods(ctx))
-	return pool, nil
-}
-
-// Summary aggregates the register for one class.
-func (s *AssetService) Summary(ctx context.Context, year int, class domain.AssetClass) (AssetSummary, error) {
-	assets, err := s.List(ctx, year, class)
-	if err != nil {
-		return AssetSummary{}, err
-	}
-	sum := AssetSummary{FiscalYear: year}
-	for _, a := range assets {
-		if a.IsDisposed() && a.BookValue == 0 && a.Cost == 0 {
-			// Ein vollständig ausgebuchter Abgang steht noch im Verzeichnis, aber
-			// nicht mehr im Bestand.
-			continue
-		}
-		sum.Count++
-		sum.Cost += a.Cost
-		sum.Accumulated += a.Accumulated
-		sum.BookValue += a.BookValue
-		sum.YearAmount += a.YearAmount
-		sum.DueAmount += a.DueAmount
-		sum.SpecialDue += a.SpecialDue
-		if a.DueAmount > 0 || a.SpecialDue > 0 {
-			sum.DueCount++
-		}
-	}
-	return sum, nil
-}
-
 // Get returns one Anlagegut with its plan, its movements and the notes that
 // apply to it, the derived figures computed for the fiscal year.
 func (s *AssetService) Get(ctx context.Context, year int, id uint) (*AssetDetail, error) {
@@ -591,40 +533,6 @@ func (s *AssetService) notesFor(asset *domain.FixedAsset) []string {
 			"Anlagenspiegel des Abgangsjahres vollständig bleibt.")
 	}
 	return notes
-}
-
-// PlanRequest is a plan that does not exist yet: what the AfA would look like for
-// these inputs.
-type PlanRequest struct {
-	AcquisitionDate  string                    `json:"acquisitionDate"`
-	Cost             domain.Cents              `json:"cost"`
-	UsefulLifeMonths int                       `json:"usefulLifeMonths"`
-	Method           domain.DepreciationMethod `json:"method"`
-	PoolYear         int                       `json:"poolYear,omitempty"`
-	SpecialPermille  int                       `json:"specialPermille,omitempty"`
-	SpecialYears     int                       `json:"specialYears,omitempty"`
-}
-
-// PreviewPlan computes an AfA schedule for inputs that are still being typed.
-//
-// Es ist dieselbe Rechnung wie im Abschreibungslauf, nur ohne Anlagegut. Damit
-// sieht die Maske, was die Eingabe bedeutet — der erste Jahresbetrag, das letzte
-// Jahr —, bevor gespeichert wird, und die Oberfläche muss dafür nichts
-// nachrechnen.
-func (s *AssetService) PreviewPlan(ctx context.Context, req PlanRequest) ([]accounting.AfAYear, error) {
-	return accounting.BuildAfASchedule(accounting.AfAPlan{
-		// Dieselben Zeiträume wie im Lauf danach: eine Vorschau, die ein Rumpfjahr
-		// als volles Jahr rechnet, verspricht einen Betrag, den der Lauf nicht hält.
-		Periods:              s.fiscalPeriods(ctx),
-		AcquisitionDate:      req.AcquisitionDate,
-		Cost:                 req.Cost,
-		UsefulLifeMonths:     req.UsefulLifeMonths,
-		Method:               req.Method,
-		PoolYear:             req.PoolYear,
-		SpecialPermille:      req.SpecialPermille,
-		SpecialYears:         req.SpecialYears,
-		FiscalYearStartMonth: s.fiscalYearStartMonth(ctx),
-	})
 }
 
 // -------------------------------------------------------------------------
@@ -923,38 +831,6 @@ func (s *AssetService) recordCostAdjustment(ctx context.Context, req CostAdjustm
 	}
 
 	return s.reload(ctx, asset.ID, date)
-}
-
-// Delete removes an Anlagegut that never carried a booking. Once a movement
-// points at a journal entry the register has to keep the item: the booking
-// stands, and a Kartei that loses its explanation is worse than none.
-func (s *AssetService) Delete(ctx context.Context, id uint) error {
-	return s.journalSvc.InTx(ctx, func(ctx context.Context) error {
-		return s.delete(ctx, id)
-	})
-}
-
-func (s *AssetService) delete(ctx context.Context, id uint) error {
-	asset, err := s.assetRepo.FindByID(ctx, id)
-	if err != nil {
-		return fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", id, err)
-	}
-	for _, m := range asset.Movements {
-		if m.JournalEntryID != nil {
-			return fmt.Errorf(
-				"%s ist mit der Buchung zu %s verbunden und kann nicht gelöscht werden. "+
-					"Ein Anlagegut, das gebucht wurde, verlässt das Verzeichnis nur über einen Abgang",
-				asset.InventoryNumber, m.Date)
-		}
-	}
-	if err := s.assetRepo.Delete(ctx, id); err != nil {
-		return fmt.Errorf("Anlagegut konnte nicht gelöscht werden: %w", err)
-	}
-	if err := s.audit(ctx, domain.AuditActionUpdate, id, fmt.Sprintf(
-		"Anlagegut %s gelöscht (ohne Buchungen)", asset.InventoryNumber)); err != nil {
-		return err
-	}
-	return nil
 }
 
 // -------------------------------------------------------------------------
@@ -1649,17 +1525,6 @@ func (s *AssetService) incomeBankTx(ctx context.Context, req AssetIncomeRequest)
 		return nil, fmt.Errorf("Bankumsatz %d lautet auf %s; ein Ertrag in Fremdwährung ist von Hand zu buchen", tx.ID, tx.Currency)
 	}
 	return tx, nil
-}
-
-// InvestmentNoteForIncome is the steuerliche Nebenrechnung zu einer
-// Ausschüttung: die Teilfreistellung gilt für sie ebenso wie für den
-// Veräußerungsgewinn (§ 20 Abs. 1 InvStG spricht von „den Erträgen").
-func (s *AssetService) InvestmentNoteForIncome(ctx context.Context, assetID uint, amount domain.Cents) (*InvestmentTaxNote, error) {
-	asset, err := s.assetRepo.FindByID(ctx, assetID)
-	if err != nil {
-		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", assetID, err)
-	}
-	return s.investmentNote(ctx, asset, amount, false), nil
 }
 
 // settlement closes an entry against a Zahlungsmittelkonto or the partner's

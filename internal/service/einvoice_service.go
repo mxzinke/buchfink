@@ -262,26 +262,6 @@ func (s *EInvoiceService) attachEnclosures(ctx context.Context, receipt *domain.
 	return receipt, nil
 }
 
-// Validate re-runs the rule check against the structured part of a Beleg and
-// records the result.
-//
-// Re-running matters because the rule set is versioned: a document checked under
-// an older version can be checked again without being re-filed.
-func (s *EInvoiceService) Validate(ctx context.Context, receiptID uint) (*domain.ReceiptValidation, error) {
-	content, _, err := s.structuredContent(ctx, receiptID)
-	if err != nil {
-		return nil, err
-	}
-	validation, err := s.reader.ValidateOnly(content)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.receiptSvc.SaveValidation(ctx, receiptID, validation); err != nil {
-		return nil, err
-	}
-	return &validation, nil
-}
-
 // structuredContent loads the structured part of a Beleg.
 func (s *EInvoiceService) structuredContent(ctx context.Context, receiptID uint) ([]byte, *domain.Receipt, error) {
 	receipt, err := s.receiptSvc.Get(ctx, receiptID)

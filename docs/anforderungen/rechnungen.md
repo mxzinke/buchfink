@@ -22,7 +22,7 @@ MUSS · § 14 Abs. 4 UStG
 | Bei Anzahlungen steht der Zeitpunkt der Vereinnahmung | erfüllt | Abschlagsrechnung, [Anzahlungen](../fachkonzepte/anzahlungen.md) |
 | Bei Gutschriften steht „Gutschrift“ | nicht im Umfang | Buchfink stellt keine Abrechnungsgutschrift nach § 14 Abs. 2 S. 2 UStG aus; Storno und Berichtigung tragen das Wort nicht |
 | Ohne vollständige Angaben keine Ausstellung, das fehlende Feld wird benannt | erfüllt | `service.InvoiceService.Issue` |
-| Gleiche Prüfung bei Eingangsrechnungen, mit Klärungsliste | erfüllt | `service.EInvoiceService.Validate`, Befunde am Beleg |
+| Gleiche Prüfung bei Eingangsrechnungen, mit Klärungsliste | erfüllt | beim Auslesen des strukturierten Teils (`service.EInvoiceService.ExtractStructuredPart`), Befunde am Beleg |
 
 ## RECH-03 Fortlaufende Rechnungsnummer
 

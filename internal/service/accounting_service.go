@@ -153,28 +153,6 @@ func applyTurnover(acc *domain.Account, t domain.AccountTurnover) {
 	}
 }
 
-// GetAccountByNumber returns one account including its turnover.
-func (s *AccountingService) GetAccountByNumber(ctx context.Context, year int, number string) (*domain.Account, error) {
-	if err := requireYear(year); err != nil {
-		return nil, err
-	}
-	chart, err := s.chart(ctx)
-	if err != nil {
-		return nil, err
-	}
-	acc, ok := chart.Lookup(number)
-	if !ok {
-		return nil, fmt.Errorf("Konto %s ist im SKR04 nicht vorhanden", number)
-	}
-
-	turnovers, err := s.collectedTurnovers(ctx, year)
-	if err != nil {
-		return nil, err
-	}
-	applyTurnover(&acc, turnovers[number])
-	return &acc, nil
-}
-
 // GetAccountLedger builds the Kontoblatt of a fiscal year: every line touching
 // the account, with its counter accounts and a running balance.
 func (s *AccountingService) GetAccountLedger(ctx context.Context, year int, accountNumber string) (*domain.AccountLedger, error) {
@@ -404,11 +382,6 @@ func (s *AccountingService) GetSuSaOverviewAt(ctx context.Context, year int, cut
 	}, nil
 }
 
-// GetSKR04Catalog returns the complete static SKR04 2026 catalog.
-func (s *AccountingService) GetSKR04Catalog(ctx context.Context) (*accounting.SKR04Catalog, error) {
-	return accounting.GetSKR04Catalog()
-}
-
 // GetEntries returns the journal of the active fiscal year, with account names
 // resolved for display.
 func (s *AccountingService) GetEntries(ctx context.Context, year int) ([]domain.JournalEntry, error) {
@@ -475,62 +448,6 @@ func (s *AccountingService) decorate(ctx context.Context, entries []domain.Journ
 		}
 	}
 	return entries, nil
-}
-
-// GetFinancialSummary aggregates the dashboard KPIs.
-func (s *AccountingService) GetFinancialSummary(ctx context.Context, year int) (*domain.FinancialSummary, error) {
-	accounts, err := s.GetAccounts(ctx, year)
-	if err != nil {
-		return nil, err
-	}
-
-	var revenue, expenses domain.Cents
-	for _, a := range accounts {
-		if accounting.IsResultAppropriation(a) {
-			continue
-		}
-		switch a.Type {
-		case domain.AccountTypeRevenue:
-			revenue += a.Balance
-		case domain.AccountTypeExpense:
-			expenses += a.Balance
-		}
-	}
-
-	turnovers, err := s.collectedTurnovers(ctx, year)
-	if err != nil {
-		return nil, err
-	}
-
-	var bank domain.Cents
-	for _, acc := range domain.LiquidAccounts() {
-		t := turnovers[acc]
-		bank += t.Debit - t.Credit
-	}
-
-	receivable := turnovers[domain.AccountForderungenLuL]
-	payable := turnovers[domain.AccountVerbindlichkeitenLuL]
-	receivables := receivable.Debit - receivable.Credit
-	payables := payable.Credit - payable.Debit
-
-	cashflow, err := s.journalRepo.MonthlyCashflow(ctx, year, domain.LiquidAccounts())
-	if err != nil {
-		return nil, err
-	}
-
-	summary := &domain.FinancialSummary{
-		TotalRevenue:    revenue,
-		TotalExpenses:   expenses,
-		NetIncome:       revenue - expenses,
-		BankBalance:     bank,
-		OpenReceivables: receivables,
-		OpenPayables:    payables,
-		CashflowHistory: cashflow,
-	}
-	// Ein Jahr ohne Zahlungsverkehr liefert keinen Verlauf; die Startseite
-	// liest ihn trotzdem.
-	summary.EnsureLists()
-	return summary, nil
 }
 
 // GetAvailableFiscalYears lists the years that hold bookings, plus the current

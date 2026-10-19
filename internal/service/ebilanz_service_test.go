@@ -40,7 +40,7 @@ func TestEBilanzExportNeedsTheElsterTaxNumber(t *testing.T) {
 	if report.CanExport {
 		t.Fatal("Export ohne Steuernummer zugelassen")
 	}
-	if _, err := svc.ExportXBRL(ctx, 2026); err == nil || !strings.Contains(err.Error(), "Steuernummer") {
+	if _, err := svc.ExportXBRLWith(ctx, 2026, EBilanzOptions{}); err == nil || !strings.Contains(err.Error(), "Steuernummer") {
 		t.Errorf("Fehlermeldung nennt die Steuernummer nicht: %v", err)
 	}
 }

@@ -502,27 +502,6 @@ func TestCostAdjustmentsChangeTheDepreciationBase(t *testing.T) {
 	}
 }
 
-// Ein Anlagegut mit Buchung verlässt das Verzeichnis nicht mehr über das
-// Löschen, sondern nur über einen Abgang.
-func TestDeleteRefusesBookedAssets(t *testing.T) {
-	env := newTestEnv(t)
-	svc := env.assets(t)
-	ctx := context.Background()
-	asset := env.machine(t, svc)
-
-	if err := svc.Delete(ctx, asset.ID); err != nil {
-		t.Fatalf("ein Anlagegut ohne Buchung muss löschbar sein: %v", err)
-	}
-
-	second := env.machine(t, svc)
-	if _, err := svc.BookDepreciation(ctx, BookDepreciationRequest{FiscalYear: 2026}); err != nil {
-		t.Fatalf("AfA buchen: %v", err)
-	}
-	if err := svc.Delete(ctx, second.ID); err == nil {
-		t.Error("ein gebuchtes Anlagegut darf nicht gelöscht werden")
-	}
-}
-
 // Die Festschreibung des Jahres fragt vorher, ob die AfA vollständig gebucht
 // ist. Ohne diese Prüfung schlösse das Jahr mit fehlender Abschlussbuchung.
 func TestPendingDepreciationReportsWhatTheYearIsMissing(t *testing.T) {
@@ -733,26 +712,6 @@ func TestOnlyOnePoolPerFiscalYear(t *testing.T) {
 		AssetID: first.ID, Date: "2026-07-01", Amount: 150_000, Note: "Werkbank",
 	}); err == nil {
 		t.Error("ein Gut über 1.000 € gehört nicht in den Sammelposten")
-	}
-}
-
-// Die Maske rechnet den Plan nicht selbst — sie fragt dieselbe Rechnung, die
-// später auch bucht.
-func TestPreviewPlanAnswersBeforeTheAssetExists(t *testing.T) {
-	env := newTestEnv(t)
-	svc := env.assets(t)
-
-	rows, err := svc.PreviewPlan(context.Background(), PlanRequest{
-		AcquisitionDate:  "2026-09-15",
-		Cost:             1_200_000,
-		UsefulLifeMonths: 48,
-		Method:           domain.DepreciationLinear,
-	})
-	if err != nil {
-		t.Fatalf("Planvorschau: %v", err)
-	}
-	if len(rows) != 5 || rows[0].Amount != 100_000 {
-		t.Fatalf("Vorschau %+v — erwartet fünf Jahre, im ersten 1.000,00 €", rows)
 	}
 }
 

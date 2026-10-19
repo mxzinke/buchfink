@@ -13,7 +13,7 @@ func TestPeriodsState(t *testing.T) {
 	ctx := context.Background()
 	env := newTestEnv(t)
 	closing := env.closing(t)
-	periods := closing.Periods()
+	periods := closing.periods
 	years := repository.NewFiscalYearRepository(env.db)
 	if err := years.Save(ctx, domain.NewFiscalYear(2026, "2026-03-15", "2026-06-30")); err != nil {
 		t.Fatal(err)
@@ -73,7 +73,7 @@ func TestPeriodsFiscalYearDerivesWithoutWriting(t *testing.T) {
 	env := newTestEnv(t)
 	closing := env.closing(t)
 	env.setSettings(t, func(c *domain.CompanySettings) { c.FiscalYearStartMonth = 7; c.FoundedOn = "2026-09-17" })
-	fy, err := closing.Periods().FiscalYear(ctx, 2026)
+	fy, err := closing.periods.FiscalYear(ctx, 2026)
 	if err != nil || fy.StartDate != "2026-09-17" || fy.EndDate != "2027-06-30" || !fy.IsShort {
 		t.Fatalf("abgeleitetes Rumpfjahr: %+v, %v", fy, err)
 	}

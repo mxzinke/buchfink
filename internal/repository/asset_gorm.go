@@ -73,10 +73,6 @@ func (r *assetRepositoryGorm) Save(ctx context.Context, asset *domain.FixedAsset
 	return dbFrom(ctx, r.db).Omit("Movements").Save(asset).Error
 }
 
-func (r *assetRepositoryGorm) Delete(ctx context.Context, id uint) error {
-	return dbFrom(ctx, r.db).Delete(&domain.FixedAsset{}, id).Error
-}
-
 // AddMovement appends a movement — or writes back one that was corrected before
 // any booking hung on it, which is why this is a Save and not a Create.
 func (r *assetRepositoryGorm) AddMovement(ctx context.Context, movement *domain.AssetMovement) error {

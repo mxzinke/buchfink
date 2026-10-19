@@ -63,38 +63,6 @@ func (s *BankService) GetTransactions(ctx context.Context, fiscalYear int) ([]do
 	return s.bankRepo.FindAll(ctx, fiscalYear)
 }
 
-// ImportCAMT053 parses an ISO 20022 CAMT.053 statement and stores its lines.
-func (s *BankService) ImportCAMT053(ctx context.Context, r io.Reader, ledgerAccount string) (int, error) {
-	if s.receipts == nil {
-		return atomically(ctx, s.journalSvc, func(ctx context.Context) (int, error) {
-			return s.importCAMT053(ctx, r, ledgerAccount, nil)
-		})
-	}
-	data, err := io.ReadAll(r)
-	if err != nil {
-		return 0, err
-	}
-	return s.importCAMTBytes(ctx, data, "Kontoauszug.xml", ledgerAccount)
-}
-
-// ImportCAMT053File legt die Datei zuerst als Beleg ab und importiert dann die
-// Umsätze daraus.
-//
-// Die Reihenfolge ist der Punkt: erst der Beleg, dann die Buchungsgrundlage.
-// Scheitert das Parsen, liegt die empfangene Datei trotzdem im Archiv — und
-// das verlangt die Belegsicherung. Der Auszug bekommt die Belegart
-// „Kontoauszug" und wird deshalb vom Prüflauf nicht als ungebucht gemeldet.
-// Beide Schritte sind eigene Transaktionen; in einer äußeren gehörten sie zu
-// ihr, deshalb ruft der Kern sie als zwei Vorgänge
-// (core.Tenant.ImportBankStatement).
-func (s *BankService) ImportCAMT053File(ctx context.Context, path, ledgerAccount string) (int, error) {
-	data, filename, err := ReadStatementFile(path)
-	if err != nil {
-		return 0, err
-	}
-	return s.importCAMTBytes(ctx, data, filename, ledgerAccount)
-}
-
 // ReadStatementFile liest eine Kontoauszugsdatei.
 func ReadStatementFile(path string) ([]byte, string, error) {
 	if path == "" {
@@ -105,14 +73,6 @@ func ReadStatementFile(path string) ([]byte, string, error) {
 		return nil, "", fmt.Errorf("Kontoauszug lesen: %w", err)
 	}
 	return data, filepath.Base(path), nil
-}
-
-func (s *BankService) importCAMTBytes(ctx context.Context, data []byte, filename, ledgerAccount string) (int, error) {
-	statementID, err := s.FileStatement(ctx, data, filename)
-	if err != nil {
-		return 0, err
-	}
-	return s.ImportStatement(ctx, data, ledgerAccount, statementID)
 }
 
 // FileStatement legt einen Kontoauszug als Beleg ab, einmal je Datei, und
@@ -189,13 +149,6 @@ func (s *BankService) fileStatement(ctx context.Context, data []byte, filename s
 	}
 
 	return statementID, nil
-}
-
-func (s *BankService) importCAMT053(
-	ctx context.Context, r io.Reader, ledgerAccount string, statementID *uint,
-) (int, error) {
-	res, err := s.importStatements(ctx, r, ledgerAccount, statementID)
-	return res.Inserted, err
 }
 
 func (s *BankService) importStatements(
@@ -366,11 +319,6 @@ func (s *BankService) Transaction(ctx context.Context, bankTxID uint) (*domain.B
 	return tx, nil
 }
 
-// Ignore marks a bank transaction as deliberately not booked.
-func (s *BankService) Ignore(ctx context.Context, bankTxID uint) error {
-	return s.IgnoreBecause(ctx, bankTxID, "")
-}
-
 // IgnoreBecause markiert einen Bankumsatz als nicht zu buchen und hält den
 // Grund im Protokoll fest.
 func (s *BankService) IgnoreBecause(ctx context.Context, bankTxID uint, reason string) error {
@@ -393,18 +341,4 @@ func (s *BankService) IgnoreBecause(ctx context.Context, bankTxID uint, reason s
 		}
 		return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "BANK_TX", fmt.Sprintf("%d", bankTxID), details)
 	})
-}
-
-// fileSHA256 liest eine Datei und liefert ihre Prüfsumme als Hex.
-func fileSHA256(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(h.Sum(nil)), nil
 }

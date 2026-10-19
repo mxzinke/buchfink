@@ -345,17 +345,6 @@ func TestAssetListsAreEmptyNotNull(t *testing.T) {
 	}
 	assertNoNilSlices(t, "Zugangskandidaten", candidates)
 
-	// Der AfA-Plan wird gerechnet, während die Maske noch gefüllt wird: ohne
-	// Anschaffungskosten gibt es kein Jahr, aber weiterhin eine Liste.
-	plan, err := svc.PreviewPlan(ctx, PlanRequest{
-		AcquisitionDate: "2026-03-15", UsefulLifeMonths: 36,
-		Method: domain.DepreciationLinear,
-	})
-	if err != nil {
-		t.Fatalf("AfA-Vorschau: %v", err)
-	}
-	assertNoNilSlices(t, "AfA-Vorschau ohne Anschaffungskosten", plan)
-
 	// Ein Anlagegut, dessen Klasse keine Erläuterung hat, liefert trotzdem
 	// eine Liste — die Ansicht läuft über sie.
 	asset := env.machine(t, svc)

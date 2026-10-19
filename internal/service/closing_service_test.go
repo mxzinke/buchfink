@@ -1537,7 +1537,7 @@ func TestPriorYearRevenueIsPrefilledAndSettable(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	closing := env.closing(t)
-	closing.SetRevenueSource(env.statements(t))
+	closing.periods.SetRevenueSource(env.statements(t))
 
 	// Umsatzerlöse 2026: 900.000 € netto.
 	env.post(t, "2026-06-30", domain.AccountBank, "4400", 90_000_000)

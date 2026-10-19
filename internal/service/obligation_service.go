@@ -139,9 +139,6 @@ func (s *ObligationService) SetDeclarationSource(src ObligationDeclarationSource
 // SetClock ersetzt die Uhr, gegen die überfällig gerechnet wird.
 func (s *ObligationService) SetClock(now func() time.Time) { s.now = now }
 
-// Catalog liefert die Pflichtarten.
-func (s *ObligationService) Catalog() []domain.ObligationType { return ObligationTypes() }
-
 // ObligationQuery wählt Pflichten aus.
 type ObligationQuery struct {
 	// From und To begrenzen die Fälligkeit (JJJJ-MM-TT, einschließlich);

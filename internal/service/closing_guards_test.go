@@ -178,13 +178,6 @@ func TestReversedProvisionCannotBeReleasedOrConsumed(t *testing.T) {
 		t.Error("eine stornierte Rückstellung darf nicht aufgelöst werden")
 	}
 
-	if _, err := m.provisions.BookConsumption(ctx, ProvisionChangeRequest{
-		ProvisionID: provision.ID, Amount: 100_000, Date: "2027-03-31",
-		PaymentAccount: domain.AccountBank, Reason: "Rechnung der Kanzlei",
-	}); err == nil {
-		t.Error("eine stornierte Rückstellung darf nicht verbraucht werden")
-	}
-
 	if _, _, err := m.provisions.ConsumptionSplit(ctx, provision.ID, 100_000); err == nil {
 		t.Error("der Belegweg darf nicht gegen eine stornierte Rückstellung buchen")
 	}

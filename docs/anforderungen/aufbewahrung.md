@@ -34,7 +34,7 @@ MUSS · § 147 Abs. 2 AO, GoBD Rz 131 bis 135
 | Kriterium | Stand | Fundstelle oder Grund |
 |---|---|---|
 | Eingehende Dateien im Original, zusätzlich zu jeder Ansicht | erfüllt | genau eine Datei in der Rolle `original` (`domain.Receipt.ValidateStructure`) |
-| Strukturierte Formate bleiben strukturiert | erfüllt | `service.EInvoiceService.ExtractStructuredPart` legt das XML als eigene Datei ab; CAMT-Datei als Kontoauszugsbeleg (`service.BankService.ImportCAMT053File`) |
+| Strukturierte Formate bleiben strukturiert | erfüllt | `service.EInvoiceService.ExtractStructuredPart` legt das XML als eigene Datei ab; CAMT-Datei als Kontoauszugsbeleg (`core.Tenant.ImportBankStatement`, `service.BankService.FileStatement`) |
 | Dateiname, Format, Zeitpunkt, Quelle und Prüfsumme gespeichert | erfüllt | `domain.ReceiptFile` |
 | Abgeleitete Dateien gekennzeichnet und mit dem Original verknüpft | erfüllt | `domain.Receipt.DisplayFile` bevorzugt das Original |
 

@@ -45,13 +45,6 @@ func TestUGReserveIsInProfitYearAndCarriedWithoutReducingProfit(t *testing.T) {
 	if got := balances(t, e, 2026)[domain.AccountGesetzlicheRuecklage]; got != -169553 {
 		t.Fatalf("reserve absent in profit year: %d", got)
 	}
-	summary, err := e.accounting.GetFinancialSummary(ctx, 2026)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if summary.NetIncome != 678212 {
-		t.Fatalf("dashboard profit reduced by reserve: %+v", summary)
-	}
 	carry, err := m.closing.CarryForwardState(ctx, 2027)
 	if err != nil || carry.ResultToCarry != 508659 {
 		t.Fatalf("remaining result in carry-forward preview: %+v, %v", carry, err)

@@ -301,36 +301,6 @@ func ensureNotBlocked(contact *domain.Contact) error {
 		contact.Name, reason)
 }
 
-// DeleteContact removes a business partner that carries no bookings.
-func (s *ContactService) DeleteContact(ctx context.Context, id uint) error {
-	contact, err := s.contactRepo.FindByID(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	if s.journalRepo != nil {
-		entries, err := s.journalRepo.FindByAccount(ctx, contact.LedgerAccount, 0)
-		if err != nil {
-			return err
-		}
-		if len(entries) > 0 {
-			return fmt.Errorf(
-				"%s hat %d Buchungen auf Personenkonto %s und kann nicht gelöscht werden",
-				contact.Name, len(entries), contact.LedgerAccount,
-			)
-		}
-	}
-
-	if err := s.contactRepo.Delete(ctx, id); err != nil {
-		return err
-	}
-	if err := logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "CONTACT", fmt.Sprintf("%d", id),
-		fmt.Sprintf("Geschäftspartner %s (Personenkonto %s) gelöscht", contact.Name, contact.LedgerAccount)); err != nil {
-		return err
-	}
-	return nil
-}
-
 // ExemptionCertificateWarning ist eine ablaufende oder abgelaufene
 // Freistellungsbescheinigung nach § 48b EStG.
 //

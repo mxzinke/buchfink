@@ -651,7 +651,7 @@ func TestEBilanzMappingReportCoversTheBookedAccounts(t *testing.T) {
 		}
 	}
 
-	xbrl, err := ebilanzSvc.ExportXBRL(ctx, 2026)
+	xbrl, err := ebilanzSvc.ExportXBRLWith(ctx, 2026, EBilanzOptions{})
 	if err != nil {
 		t.Fatalf("E-Bilanz: %v", err)
 	}

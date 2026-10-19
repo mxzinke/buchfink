@@ -76,11 +76,6 @@ func (s *EBilanzService) Generate(ctx context.Context, year int, opts EBilanzOpt
 	return ebilanz.Generate(in)
 }
 
-// ExportXBRL erzeugt die Instanz für ein Geschäftsjahr mit den Vorgaben.
-func (s *EBilanzService) ExportXBRL(ctx context.Context, year int) (string, error) {
-	return s.ExportXBRLWith(ctx, year, EBilanzOptions{})
-}
-
 // ExportXBRLWith erzeugt die Instanz mit den gewählten Wahlrechten.
 func (s *EBilanzService) ExportXBRLWith(ctx context.Context, year int, opts EBilanzOptions) (string, error) {
 	in, err := s.input(ctx, year, opts)

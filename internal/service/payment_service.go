@@ -92,10 +92,6 @@ func (s *PaymentService) WriteOffOpenItem(ctx context.Context, req WriteOffReque
 	return s.settlement.WriteOff(ctx, req)
 }
 
-func (s *PaymentService) CreditCardBalance(ctx context.Context, date string) (domain.Cents, error) {
-	return s.settlement.creditCardBalance(ctx, date)
-}
-
 func (s *PaymentService) SettleCreditCard(ctx context.Context, req CreditCardSettlementRequest) (*domain.JournalEntry, error) {
 	return s.settlement.settleCreditCard(ctx, req)
 }

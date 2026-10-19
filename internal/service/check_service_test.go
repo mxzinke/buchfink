@@ -554,12 +554,8 @@ func TestCheckRunsArePersisted(t *testing.T) {
 	if len(runs) != 2 {
 		t.Fatalf("erwartet zwei Läufe, erhalten %d", len(runs))
 	}
-	latest, err := svc.Latest(ctx, 2026)
-	if err != nil || latest == nil {
-		t.Fatalf("jüngster Lauf: %v", err)
-	}
-	if latest.CutoffDate != "2026-02-28" {
-		t.Errorf("jüngster Lauf zum %s, erwartet 2026-02-28", latest.CutoffDate)
+	if runs[0].CutoffDate != "2026-02-28" {
+		t.Errorf("jüngster Lauf zum %s, erwartet 2026-02-28", runs[0].CutoffDate)
 	}
 }
 

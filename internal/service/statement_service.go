@@ -188,12 +188,6 @@ func (s *StatementService) Build(ctx context.Context, year int, depth domain.Sta
 	return out, nil
 }
 
-// Notes liefert den Anhang eines Geschäftsjahres — für die Ausgabewege, die
-// nicht den ganzen Abschluss aufbauen, etwa die E-Bilanz.
-func (s *StatementService) Notes(ctx context.Context, year int) domain.StatementNotes {
-	return s.notesFor(ctx, year)
-}
-
 // notesFor stellt den Anhang zusammen.
 //
 // Fällt eine Quelle aus, bleibt ihr Abschnitt leer: ein Abschluss, der wegen

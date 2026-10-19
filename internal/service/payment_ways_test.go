@@ -121,7 +121,7 @@ func TestCreditCardStatementIsMatchedAndSettled(t *testing.T) {
 		{domain.SideCredit, domain.AccountBank, 17850},
 	})
 	env.assertMatch(t, id, domain.MatchStatusMatched)
-	balance, err := payments.CreditCardBalance(ctx, "2026-04-30")
+	balance, err := payments.settlement.creditCardBalance(ctx, "2026-04-30")
 	if err != nil || balance != 2380 {
 		t.Errorf("nach der Abrechnung steht nur der Beleg vom 28.03. offen (23,80 €), erhalten %s €, %v", balance, err)
 	}

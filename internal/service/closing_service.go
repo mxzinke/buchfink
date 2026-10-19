@@ -70,9 +70,6 @@ func NewClosingService(
 	return s
 }
 
-// Periods liefert die Periodenverwaltung des Abschlussdienstes.
-func (s *ClosingService) Periods() *PeriodService { return s.periods }
-
 // SetClock ersetzt die Uhr. Nur für Tests — ab wann sich ein kommendes
 // Geschäftsjahr anlegen lässt, richtet sich nach ihr.
 func (s *ClosingService) SetClock(now func() time.Time) { s.now = now }
@@ -137,10 +134,6 @@ func (s *ClosingService) SetNotesCopier(c NotesCopier) { s.notes = c }
 type RevenueSource interface {
 	RevenueOf(ctx context.Context, year int) (domain.Cents, error)
 }
-
-// SetRevenueSource koppelt die GuV an das Geschäftsjahr. Ohne sie bleibt der
-// Vorjahresumsatz eine reine Eingabe.
-func (s *ClosingService) SetRevenueSource(r RevenueSource) { s.periods.SetRevenueSource(r) }
 
 // -------------------------------------------------------------
 // Geschäftsjahre

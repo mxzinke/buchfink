@@ -71,6 +71,11 @@ jobs:
       - name: go vet
         run: go vet -tags gtk3 ./...
 
+      - name: Dienste ohne Aufrufer
+        run: go run ./scripts/check_service_callers
+        env:
+          GOFLAGS: -tags=gtk3
+
       # internal/... und cmd/... ohne internal/wailsbridge (siehe Taskfile.yml).
       - name: Tests
         run: task test

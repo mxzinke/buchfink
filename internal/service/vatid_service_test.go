@@ -127,7 +127,7 @@ func TestIssuingAnEUServiceGoesThroughTheConfirmation(t *testing.T) {
 		if id, err := invoices.VatIDToConfirm(ctx, inv); err != nil {
 			return inv, err
 		} else if id != 0 {
-			_, _ = vatIDs.Check(ctx, id)
+			_, _ = checkVatID(ctx, vatIDs, id)
 		}
 		return inv, invoices.Issue(ctx, inv)
 	}
@@ -272,7 +272,7 @@ func TestMissingOwnVatIDIsNotAnOverridableOutage(t *testing.T) {
 	if needed, err := svc.NeedsCheck(ctx, customer); err != nil || !needed {
 		t.Fatalf("mit eigener USt-IdNr. ist die Anfrage fällig: %v, %v", needed, err)
 	}
-	if _, err := svc.Check(ctx, customer.ID); err != nil {
+	if _, err := checkVatID(ctx, svc, customer.ID); err != nil {
 		t.Fatal(err)
 	}
 	if err := svc.EnsureConfirmed(ctx, customer, ""); err != nil {
@@ -327,7 +327,7 @@ func TestVatIDConfirmationIsStoredAndCachedForNinetyDays(t *testing.T) {
 	svc := env.vatIDs(t, server.URL)
 	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
 
-	check, err := svc.Check(ctx, customer.ID)
+	check, err := checkVatID(ctx, svc, customer.ID)
 	if err != nil {
 		t.Fatalf("Bestätigungsanfrage: %v", err)
 	}
@@ -374,7 +374,7 @@ func TestVatIDConfirmationIsStoredAndCachedForNinetyDays(t *testing.T) {
 	if *calls != 1 {
 		t.Errorf("%d Aufrufe — die Prüfung vor dem Ausstellen ruft das Netz nicht", *calls)
 	}
-	if _, err := svc.Check(ctx, customer.ID); err != nil {
+	if _, err := checkVatID(ctx, svc, customer.ID); err != nil {
 		t.Fatal(err)
 	}
 	if err := svc.EnsureConfirmed(ctx, customer, ""); err != nil {
@@ -393,7 +393,7 @@ func TestVatIDRejectionBlocksTheEUService(t *testing.T) {
 	server, _ := bzstServer(t, "201", nil)
 	svc := env.vatIDs(t, server.URL)
 	customer := env.customer(t, "Client SARL", "FR", "FR99999999999")
-	if _, err := svc.Check(ctx, customer.ID); err != nil {
+	if _, err := checkVatID(ctx, svc, customer.ID); err != nil {
 		t.Fatalf("eine negative Antwort ist eine Antwort: %v", err)
 	}
 
@@ -431,7 +431,7 @@ func TestVatIDUnavailableNeedsAnOverride(t *testing.T) {
 
 	svc := env.vatIDs(t, url)
 	customer := env.customer(t, "Client SARL", "FR", "FR12345678901")
-	if _, err := svc.Check(ctx, customer.ID); err == nil {
+	if _, err := checkVatID(ctx, svc, customer.ID); err == nil {
 		t.Fatal("ein nicht erreichbares Amt liefert kein Ergebnis")
 	}
 
@@ -447,4 +447,22 @@ func TestVatIDUnavailableNeedsAnOverride(t *testing.T) {
 		"Bundeszentralamt nicht erreichbar, Nummer aus dem Vorjahr bestätigt"); err != nil {
 		t.Fatalf("mit Grund muss Buchfink die Rechnung ausstellen: %v", err)
 	}
+}
+
+// checkVatID führt die Bestätigungsanfrage in den drei Schritten des Kerns aus
+// (core.Tenant.CheckVatID): vorbereiten, ohne Sperre anfragen, festhalten.
+func checkVatID(ctx context.Context, svc *VatIDService, contactID uint) (*domain.VatIDCheck, error) {
+	query, err := svc.PrepareCheck(ctx, contactID)
+	if err != nil {
+		return nil, err
+	}
+	result, runErr := query.Run(ctx)
+	check, err := svc.RecordCheck(ctx, query, result, runErr)
+	if err != nil {
+		return nil, err
+	}
+	if runErr != nil {
+		return nil, runErr
+	}
+	return check, nil
 }

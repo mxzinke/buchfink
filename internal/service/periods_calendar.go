@@ -197,11 +197,6 @@ func (s *PeriodReader) FiscalYears(ctx context.Context) ([]domain.FiscalYear, er
 	return s.fiscalYearRepo.FindAll(ctx)
 }
 
-// HasYearCommitment liest Jahresfestschreibung und jüngsten Stichtag.
-func (s *PeriodReader) HasYearCommitment(ctx context.Context, year int) (bool, string, error) {
-	return s.yearCommitment(ctx, year)
-}
-
 // EarliestFiscalYear liefert das erste Jahr aus Jahresverwaltung und Journal.
 func (s *PeriodReader) EarliestFiscalYear(ctx context.Context) (int, error) {
 	years, err := s.fiscalYearRepo.FindAll(ctx)

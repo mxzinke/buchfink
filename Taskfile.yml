@@ -94,6 +94,14 @@ tasks:
     cmds:
       - python3 scripts/check_bridge_bindings.py
 
+  check:services:
+    summary: Checks that every exported service method has a caller outside the tests
+    # Ein Dienst ohne Aufrufer ist eine Fähigkeit, die weder App noch Agent
+    # erreicht. Die Prüfung typisiert das Modul mit go/types; was bleiben soll,
+    # steht mit Grund in den Ausnahmen des Skripts.
+    cmds:
+      - go run ./scripts/check_service_callers
+
   check:text:
     summary: Checks that the Arbeitsansichten name no Norm outside the Erklärstufen
     # Architektur 6.4: ein Titel sagt, was zu tun ist, und ein Paragraph sagt,
@@ -148,6 +156,7 @@ tasks:
       - task: test
       - task: check:design
       - task: check:bridge
+      - task: check:services
       - task: check:text
       - task: check:steps
       - task: check:links

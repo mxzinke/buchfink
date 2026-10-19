@@ -35,7 +35,7 @@ func TestBankAccountsConfigureAtomicallyAndRouteMultiAccountStatements(t *testin
 	start, end := strings.Index(sampleCAMT, "<Stmt>"), strings.Index(sampleCAMT, "</Stmt>")+len("</Stmt>")
 	second := strings.ReplaceAll(sampleCAMT[start:end], accounts[0].IBAN, accounts[1].IBAN)
 	input := sampleCAMT[:end] + second + sampleCAMT[end:]
-	count, err := svc.ImportCAMT053(ctx, strings.NewReader(input), "")
+	count, err := importCAMT(ctx, svc, []byte(input), "Kontoauszug.xml", "")
 	if err != nil || count != 4 {
 		t.Fatalf("multi-account import: %d, %v", count, err)
 	}
@@ -52,7 +52,7 @@ func TestBankAccountsConfigureAtomicallyAndRouteMultiAccountStatements(t *testin
 			t.Fatalf("wrong account or missing original: %+v", tx)
 		}
 	}
-	count, err = svc.ImportCAMT053(ctx, strings.NewReader(strings.ReplaceAll(input, "<BkToCstmrStmt>", "<BkToCstmrStmt>\n")), "")
+	count, err = importCAMT(ctx, svc, []byte(strings.ReplaceAll(input, "<BkToCstmrStmt>", "<BkToCstmrStmt>\n")), "Kontoauszug.xml", "")
 	if err != nil || count != 0 {
 		t.Fatalf("repackaged original duplicated transactions: %d %v", count, err)
 	}

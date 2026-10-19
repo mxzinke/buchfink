@@ -289,7 +289,7 @@ func TestIgnoredTransactionTakesNoBooking(t *testing.T) {
 	ctx := context.Background()
 	payments := env.paymentsWithBank(t)
 	id := env.bankLine(t, "2026-03-31", -1500, "Hausbank", "Kontoführung")
-	if err := env.banking(t).Ignore(ctx, id); err != nil {
+	if err := env.banking(t).IgnoreBecause(ctx, id, "Gebühr privat erstattet"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := payments.BookBankSplit(ctx, BankSplitRequest{BankTxID: id,

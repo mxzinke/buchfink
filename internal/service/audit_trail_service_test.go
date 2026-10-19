@@ -2,9 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/csv"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -58,26 +55,6 @@ func TestAuditTrailLeadsFromReceiptToBankTransaction(t *testing.T) {
 		if stages[i] != want[i] {
 			t.Errorf("Stufe %d = %q, erwartet %q", i+1, stages[i], want[i])
 		}
-	}
-
-	// Und als CSV: dieselbe Kette in einer Datei.
-	path := filepath.Join(t.TempDir(), "pruefpfad.csv")
-	if _, err := svc.ExportCSV(ctx, receipt.ID, path); err != nil {
-		t.Fatalf("Prüfpfad als CSV: %v", err)
-	}
-	file, err := os.Open(path)
-	if err != nil {
-		t.Fatalf("CSV lesen: %v", err)
-	}
-	defer file.Close()
-	reader := csv.NewReader(file)
-	reader.Comma = ';'
-	rows, err := reader.ReadAll()
-	if err != nil {
-		t.Fatalf("CSV zerlegen: %v", err)
-	}
-	if len(rows) != len(want)+1 {
-		t.Errorf("CSV hat %d Zeilen, erwartet %d samt Kopfzeile", len(rows), len(want)+1)
 	}
 }
 

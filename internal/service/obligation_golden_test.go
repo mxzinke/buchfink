@@ -92,7 +92,7 @@ func TestGoldenObligationCalendar(t *testing.T) {
 			goldentest.Assert(t, "obligation_order_"+tc.name, keys)
 
 			// Jede Art ist auch einzeln über dieselbe öffentliche Abfrage erreichbar.
-			for _, definition := range svc.Catalog() {
+			for _, definition := range ObligationTypes() {
 				filtered := q
 				filtered.Kinds = []domain.ObligationKind{definition.Kind}
 				want := []domain.Obligation{}

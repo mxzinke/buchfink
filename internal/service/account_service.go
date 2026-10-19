@@ -182,21 +182,6 @@ func (s *AccountService) SetBlocked(ctx context.Context, number string, blocked 
 	return account, nil
 }
 
-// CustomAccounts liefert die selbst angelegten Konten.
-func (s *AccountService) CustomAccounts(ctx context.Context) ([]domain.Account, error) {
-	all, err := s.accountRepo.FindAll(ctx)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]domain.Account, 0, 8)
-	for i := range all {
-		if all[i].IsCustom {
-			out = append(out, all[i])
-		}
-	}
-	return out, nil
-}
-
 // AvailablePositions liefert die Gliederungspositionen, unter denen ein eigenes
 // Konto stehen darf: die, die tatsächlich in Bilanz und GuV einfließen.
 func (s *AccountService) AvailablePositions() ([]domain.StatementPositionOption, error) {

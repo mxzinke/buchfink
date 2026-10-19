@@ -389,68 +389,6 @@ func TestValidationResultIsKeptWithTheReceipt(t *testing.T) {
 		t.Errorf("eine von Buchfink erzeugte Rechnung soll fehlerfrei sein, gemeldet sind %d", updated.ValidationErrors)
 	}
 
-	// Und die Prüfung lässt sich wiederholen — das Regelwerk ist versioniert.
-	result, err := env.einvoices().Validate(ctx, receipt.ID)
-	if err != nil {
-		t.Fatalf("erneut prüfen: %v", err)
-	}
-	if result.Errors != 0 {
-		t.Errorf("die erneute Prüfung meldet %d Fehler: %s", result.Errors, result.Findings)
-	}
-}
-
-// Eine Prüfung darf auch nach dem Buchen noch laufen: sie fasst keine Datei an,
-// der Beleg-Hash bleibt unberührt und die Kette damit heil.
-func TestValidationCanRunOnASealedReceipt(t *testing.T) {
-	if testing.Short() {
-		t.Skip("die WASM-Kompilierung ist zu langsam für -short")
-	}
-	env := newTestEnv(t)
-	ctx := context.Background()
-
-	vendor := env.vendor(t, "Netzwerk GmbH", "DE", "DE555666777")
-	receipt := env.hybridReceipt(t, supplierSettings("Netzwerk GmbH", "DE555666777"),
-		domain.TaxTreatmentDomestic, domain.TaxRateStandard, 100000)
-
-	svc := env.einvoices()
-	if _, err := svc.ExtractStructuredPart(ctx, receipt.ID); err != nil {
-		t.Fatalf("strukturierten Teil holen: %v", err)
-	}
-	proposal, err := svc.Propose(ctx, receipt.ID)
-	if err != nil {
-		t.Fatalf("Vorschlag: %v", err)
-	}
-	req := proposal.Request
-	req.ContactID = vendor.ID
-	req.Positions[0].PostingGroup = "fremdleistungen"
-	if _, err := env.posting.PostIncomingReceipt(ctx, req); err != nil {
-		t.Fatalf("buchen: %v", err)
-	}
-
-	before, err := env.receipts.Get(ctx, receipt.ID)
-	if err != nil {
-		t.Fatalf("Beleg laden: %v", err)
-	}
-
-	if _, err := svc.Validate(ctx, receipt.ID); err != nil {
-		t.Fatalf("Prüfung nach dem Buchen: %v", err)
-	}
-
-	after, err := env.receipts.Get(ctx, receipt.ID)
-	if err != nil {
-		t.Fatalf("Beleg laden: %v", err)
-	}
-	if after.ReceiptHash != before.ReceiptHash {
-		t.Error("eine Prüfung darf den Beleg-Hash nicht verändern")
-	}
-
-	result, err := env.journal.VerifyIntegrity(ctx)
-	if err != nil {
-		t.Fatalf("Integritätsprüfung: %v", err)
-	}
-	if !result.IsValid {
-		t.Errorf("die Kette muss nach einer Prüfung heil sein: %s", result.Message)
-	}
 }
 
 // --- Kopfdaten aus der E-Rechnung auf dem Weg, den die Anwendung geht ------

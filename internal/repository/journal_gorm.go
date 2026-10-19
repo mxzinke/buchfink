@@ -338,69 +338,6 @@ func (r *journalRepositoryGorm) AccountTurnoversUntil(ctx context.Context, fisca
 	return result, nil
 }
 
-func (r *journalRepositoryGorm) MonthlyCashflow(ctx context.Context, fiscalYear int, liquidAccounts []string) ([]domain.CashflowDataPoint, error) {
-	if len(liquidAccounts) == 0 {
-		return []domain.CashflowDataPoint{}, nil
-	}
-
-	type row struct {
-		Month string
-		Side  string
-		Total int64
-	}
-
-	var rows []row
-	q := dbFrom(ctx, r.db).Model(&domain.JournalLine{}).
-		Select("substr(e.booking_date, 1, 7) as month, journal_lines.side as side, COALESCE(SUM(journal_lines.amount),0) as total").
-		Joins("JOIN journal_entries e ON e.id = journal_lines.entry_id").
-		Where("journal_lines.account IN ?", liquidAccounts)
-	if fiscalYear > 0 {
-		q = q.Where("e.fiscal_year = ?", fiscalYear)
-	}
-	if err := q.Group("month, side").Order("month asc").Scan(&rows).Error; err != nil {
-		return nil, err
-	}
-
-	byMonth := make(map[string]*domain.CashflowDataPoint)
-	var order []string
-	for _, x := range rows {
-		p, ok := byMonth[x.Month]
-		if !ok {
-			p = &domain.CashflowDataPoint{Month: x.Month, Label: monthLabel(x.Month)}
-			byMonth[x.Month] = p
-			order = append(order, x.Month)
-		}
-		// A debit on a liquid account is money coming in, a credit is money
-		// going out.
-		if domain.Side(x.Side) == domain.SideDebit {
-			p.Inflow += domain.Cents(x.Total)
-		} else {
-			p.Outflow += domain.Cents(x.Total)
-		}
-	}
-
-	result := make([]domain.CashflowDataPoint, 0, len(order))
-	for _, m := range order {
-		p := byMonth[m]
-		p.Net = p.Inflow - p.Outflow
-		result = append(result, *p)
-	}
-	return result, nil
-}
-
-var monthLabels = [...]string{"Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"}
-
-func monthLabel(yyyymm string) string {
-	if len(yyyymm) != 7 {
-		return yyyymm
-	}
-	m := int(yyyymm[5]-'0')*10 + int(yyyymm[6]-'0')
-	if m < 1 || m > 12 {
-		return yyyymm
-	}
-	return monthLabels[m-1]
-}
-
 func (r *journalRepositoryGorm) Count(ctx context.Context, fiscalYear int) (int64, error) {
 	var count int64
 	q := dbFrom(ctx, r.db).Model(&domain.JournalEntry{})
