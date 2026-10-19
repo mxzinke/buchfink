@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/actor"
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/invoice"
 	"github.com/buchfink/buchfink/internal/repository"
@@ -25,6 +26,7 @@ var closeTimeout = 60 * time.Second
 
 // Options beschreibt einen zu öffnenden Mandanten.
 type Options struct {
+	Clock      Clock
 	TenantID   string
 	TenantName string
 	// Generation zählt die Mandantenwechsel des Hosts. Ein Aufrufer, der sich
@@ -53,6 +55,7 @@ func (t *Tenant) backupDirectory() string {
 
 // Tenant ist ein offener Mandant.
 type Tenant struct {
+	clock       Clock
 	info        TenantInfo
 	gen         uint64
 	db          *gorm.DB
@@ -108,9 +111,12 @@ func Open(ctx context.Context, dataDir string, o Options) (*Tenant, error) {
 	if renderer == nil {
 		renderer, own = invoice.NewRenderer(), true
 	}
+	if o.Clock == nil {
+		o.Clock = realClock{}
+	}
 	info := TenantInfo{ID: o.TenantID, Name: o.TenantName, DataDir: dataDir}
 	t := &Tenant{
-		info: info, gen: o.Generation,
+		info: info, gen: o.Generation, clock: o.Clock,
 		db: db, reader: reader, tx: repository.NewTxRunner(db),
 		renderer: renderer, ownRenderer: own,
 		backupDir: o.BackupDir, logger: logger, onChange: o.OnChange,
@@ -121,7 +127,7 @@ func Open(ctx context.Context, dataDir string, o Options) (*Tenant, error) {
 	t.svc, t.repos = wire(db, info, renderer, o)
 
 	t.svc.Backup.SetRecorder(t.recordInWrite)
-	t.startYear = startYear(ctx, repository.NewSettingsRepository(db), time.Now())
+	t.startYear = startYear(ctx, repository.NewSettingsRepository(db), t.clock.Now())
 	if err := t.loadExaminer(ctx); err != nil {
 		_ = t.Close(ctx)
 		return nil, err
@@ -146,9 +152,9 @@ func startYear(ctx context.Context, settings domain.SettingsRepository, now time
 		if s.FiscalYear > 0 {
 			return s.FiscalYear
 		}
-		return domain.GetFiscalYearForDate(now.Format("2006-01-02"), s.FiscalYearStartMonth)
+		return domain.GetFiscalYearForDate(calendar.Day(now), s.FiscalYearStartMonth)
 	}
-	return now.Year()
+	return now.In(calendar.Location()).Year()
 }
 
 // StartYear ist das Geschäftsjahr, mit dem die Ansicht nach dem Öffnen
@@ -297,3 +303,6 @@ func germanDate(iso string) string {
 	}
 	return parsed.Format("02.01.2006")
 }
+
+// Today liefert den Buchhaltungstag aus der Kernuhr.
+func (t *Tenant) Today() string { return calendar.Today(t.clock.Now) }

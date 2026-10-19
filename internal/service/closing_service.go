@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -240,7 +241,7 @@ func (s *ClosingService) FiscalYearCandidates(ctx context.Context) (*FiscalYearC
 		return nil, fmt.Errorf("die vorhandenen Geschäftsjahre konnten nicht gelesen werden: %w", err)
 	}
 	if len(all) == 0 {
-		current := domain.GetFiscalYearForDate(todayLocal(), s.fiscalYearStartMonth(ctx))
+		current := domain.GetFiscalYearForDate(s.today(), s.fiscalYearStartMonth(ctx))
 		all = []domain.FiscalYear{*s.periods.derive(ctx, current)}
 	}
 	first, last := &all[0], &all[0]
@@ -268,7 +269,7 @@ func (s *ClosingService) candidate(ctx context.Context, fy *domain.FiscalYear) F
 	c := FiscalYearCandidate{Year: fy.Year, StartDate: fy.StartDate, EndDate: fy.EndDate}
 	if start, err := time.Parse("2006-01-02", fy.StartDate); err == nil {
 		opensOn := start.AddDate(0, -3, 0).Format("2006-01-02")
-		if s.now().Format("2006-01-02") < opensOn {
+		if calendar.Today(s.now) < opensOn {
 			c.Blocked = fmt.Sprintf(
 				"Das Geschäftsjahr %d beginnt am %s und lässt sich erst im letzten Quartal davor anlegen, ab dem %s.",
 				fy.Year, germanDate(fy.StartDate), germanDate(opensOn))
@@ -1525,3 +1526,5 @@ func (s *ClosingService) ensureStatementReady(ctx context.Context, year int) err
 
 // AdoptionChecks teilt die Abschlussprüfungen mit der Periodenverwaltung.
 func (s *ClosingService) AdoptionChecks() PeriodAdoptionChecks { return s.checks }
+
+func (s *ClosingService) today() string { return calendar.Today(s.now) }

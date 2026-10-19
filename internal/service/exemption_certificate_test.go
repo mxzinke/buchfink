@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/repository"
@@ -19,11 +18,12 @@ import (
 // gegenüber einer Behörde und steht deshalb nicht im Pflichtenkalender.
 func TestExpiringExemptionCertificateShowsUpAmongTheTasks(t *testing.T) {
 	env := newTestEnv(t)
+	env.contacts.SetClock(testNow)
 	ctx := context.Background()
 
 	soon := env.vendor(t, "Bau Bald GmbH", "DE", "")
 	soon.ExemptionCertificateNumber = "FS-2026-002"
-	soon.ExemptionCertificateValidUntil = time.Now().AddDate(0, 0, 20).Format("2006-01-02")
+	soon.ExemptionCertificateValidUntil = testNow().AddDate(0, 0, 20).Format("2006-01-02")
 	if err := env.contacts.SaveContact(ctx, soon); err != nil {
 		t.Fatalf("Lieferant: %v", err)
 	}
@@ -59,6 +59,7 @@ func TestExpiringExemptionCertificateShowsUpAmongTheTasks(t *testing.T) {
 // bei der nächsten Zahlung schon einbehalten müssen.
 func TestExemptionCertificateWarnsBeforeItExpires(t *testing.T) {
 	env := newTestEnv(t)
+	env.contacts.SetClock(testNow)
 	ctx := context.Background()
 
 	valid := env.vendor(t, "Bau Weit GmbH", "DE", "")

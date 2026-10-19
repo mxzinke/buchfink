@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -74,6 +75,7 @@ func newTestEnv(t *testing.T) *testEnv {
 	// im Betrieb nicht gibt — und eine Regel, die nur dort gilt, fiele hier nie
 	// auf.
 	journal.SetReceiptRepo(receiptRepo)
+	journal.SetClock(testNow)
 	posting := NewPostingService(journal, contactRepo)
 	acc := NewAccountingService(accountRepo, journalRepo, contactRepo, settingsRepo, journal)
 	contacts := NewContactService(contactRepo, journalRepo, numberRepo, auditRepo)
@@ -540,6 +542,7 @@ func (e *testEnv) invoices(t *testing.T) *InvoiceService {
 	// Ohne Renderer bleibt der Ausgangsbeleg aus. Die meisten Tests prüfen die
 	// Buchung, und das Übersetzen des WASM-Moduls kostet Sekunden — wer den Beleg
 	// braucht, setzt die Pipeline selbst (siehe invoice_document_test.go).
+	svc.SetClock(testNow)
 	return svc
 }
 
@@ -603,3 +606,5 @@ func TestCollectiveAccountReportsItsSources(t *testing.T) {
 	}
 	t.Error("Konto 3300 wurde in der Kontenliste nicht gefunden")
 }
+
+func testNow() time.Time { return time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC) }

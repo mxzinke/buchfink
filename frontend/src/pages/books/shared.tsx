@@ -9,12 +9,7 @@ export function errorText(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-/** Heute als JJJJ-MM-TT in der Ortszeit. */
-export function todayISO(): string {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-}
+export { todayISO } from "../../utils/calendar";
 
 /** Bruttobetrag einer Buchung, gemessen an der Sollseite. */
 export function grossOf(entry: JournalEntry): number {

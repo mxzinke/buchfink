@@ -22,6 +22,7 @@ import (
 // Payments that settle an open item do not run through here — they go through
 // the payment matching, which needs the open item and the difference handling.
 type BankService struct {
+	serviceClock
 	bankRepo   domain.BankRepository
 	journalSvc *JournalService
 	auditRepo  domain.AuditRepository
@@ -170,7 +171,7 @@ func (s *BankService) fileStatement(ctx context.Context, data []byte, filename s
 		// Parsen scheitert. Der Importtag ist die Angabe, die zu diesem
 		// Zeitpunkt zutrifft; ohne sie wäre der Auszug ein Beleg ohne Datum und
 		// damit nicht zuzuordnen (BEL-02).
-		today := todayLocal()
+		today := s.today()
 		receipt, err := s.receipts.File(ctx, FileReceiptRequest{
 			Direction:    domain.DirectionIncoming,
 			Kind:         domain.ReceiptKindStatement,

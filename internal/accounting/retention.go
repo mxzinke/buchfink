@@ -2,8 +2,8 @@ package accounting
 
 import (
 	"fmt"
-	"time"
 
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -221,7 +221,7 @@ func SystemChangeNote(changeDate, today string) string {
 		return ""
 	}
 	if today == "" {
-		today = time.Now().UTC().Format("2006-01-02")
+		today = calendar.Today(nil)
 	}
 	if today > end {
 		return fmt.Sprintf(

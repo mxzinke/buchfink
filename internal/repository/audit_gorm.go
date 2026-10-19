@@ -7,6 +7,7 @@ import (
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/actor"
 	"github.com/buchfink/buchfink/internal/buildinfo"
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 	"gorm.io/gorm"
 )
@@ -147,10 +148,10 @@ func (r *auditRepositoryGorm) FindFiltered(ctx context.Context, limit int, filte
 	// Die Grenzen sind Tage und werden auf UTC-Zeitpunkte gebracht: die Spalte
 	// hält Zeitpunkte, und ein Vergleich gegen „2026-03-01" träfe sonst nur
 	// Mitternacht.
-	if from, err := time.Parse("2006-01-02", filter.From); err == nil {
+	if from, err := time.ParseInLocation("2006-01-02", filter.From, calendar.Location()); err == nil {
 		query = query.Where("timestamp >= ?", from.UTC())
 	}
-	if to, err := time.Parse("2006-01-02", filter.To); err == nil {
+	if to, err := time.ParseInLocation("2006-01-02", filter.To, calendar.Location()); err == nil {
 		query = query.Where("timestamp < ?", to.AddDate(0, 0, 1).UTC())
 	}
 

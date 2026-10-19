@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -102,3 +103,5 @@ func (s *PaymentService) SettleCreditCard(ctx context.Context, req CreditCardSet
 func (s *PaymentService) CreditCardStatementDate(ctx context.Context, debit domain.Cents, debitDate string) (string, error) {
 	return s.settlement.creditCardStatementDate(ctx, debit, debitDate)
 }
+
+func (s *PaymentService) SetClock(now func() time.Time) { s.settlement.openItemReader.SetClock(now) }

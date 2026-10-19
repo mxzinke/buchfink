@@ -18,6 +18,7 @@ import (
 // Gewinnausschüttung vorliegt, ist eine Wertungsfrage (§ 8 Abs. 3 Satz 2 KStG,
 // R 8.5 KStR 2022).
 type ShareholderService struct {
+	serviceClock
 	loans        domain.ShareholderLoanRepository
 	journalRepo  domain.JournalRepository
 	contactRepo  domain.ContactRepository
@@ -154,7 +155,7 @@ func (s *ShareholderService) RegisterLoan(ctx context.Context, req LoanRequest) 
 				domain.GermanDate(loan.StartDate), loan.Account, loan.InterestAccount)); err != nil {
 			return nil, err
 		}
-		return s.view(ctx, loan, contact, cfg, todayLocal())
+		return s.view(ctx, loan, contact, cfg, s.today())
 	})
 }
 
@@ -181,7 +182,7 @@ func (s *ShareholderService) CorrectLoan(ctx context.Context, id uint, req LoanR
 				contact.LegalName(), reason), before, loan); err != nil {
 			return nil, err
 		}
-		return s.view(ctx, loan, contact, cfg, todayLocal())
+		return s.view(ctx, loan, contact, cfg, s.today())
 	})
 }
 
@@ -194,13 +195,13 @@ func (s *ShareholderService) PreviewLoan(ctx context.Context, id uint, req LoanR
 		if err != nil {
 			return nil, err
 		}
-		return s.view(ctx, loan, contact, cfg, todayLocal())
+		return s.view(ctx, loan, contact, cfg, s.today())
 	}
 	loan, contact, cfg, err := s.loanFrom(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	return s.view(ctx, loan, contact, cfg, todayLocal())
+	return s.view(ctx, loan, contact, cfg, s.today())
 }
 
 // LoanRequestOf ist der gespeicherte Vertrag als Anfrage, etwa als

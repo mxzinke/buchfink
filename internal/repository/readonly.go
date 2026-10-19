@@ -23,6 +23,7 @@ func OpenTenantReader(dataDir string) (*gorm.DB, error) {
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{
 		Logger:  logger.Default.LogMode(logger.Warn),
 		NowFunc: nowUTC,
+		Plugins: map[string]gorm.Plugin{"buchfink:utc": utcTimes{}},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("die Mandantendatei %s ließ sich nicht zum Lesen öffnen: %w", dbPath, err)

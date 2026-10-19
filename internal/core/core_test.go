@@ -47,6 +47,7 @@ func newHostWith(t *testing.T, network Network) *Host {
 		Config:  repository.NewAppConfigRepository(filepath.Join(base, "config")),
 		BaseDir: base,
 		Network: network,
+		Clock:   &fakeClock{now: coreTestNow()},
 	})
 	if err != nil {
 		t.Fatalf("Host: %v", err)
@@ -280,7 +281,7 @@ func TestAppOnlyWritesRefuseEveryOtherChannel(t *testing.T) {
 	if err := tenant.Write(uiCtx, noop, AppOnly()); err != nil {
 		t.Errorf("die App wird abgewiesen: %v", err)
 	}
-	until := time.Now().AddDate(0, 0, 10).Format("2006-01-02")
+	until := coreTestNow().AddDate(0, 0, 10).Format("2006-01-02")
 	if _, err := h.EnableExaminer(agentCtx(t), until, "Prüfung"); !errors.Is(err, ErrAppOnly) {
 		t.Errorf("Prüfermodus durch einen Agenten: %v", err)
 	}
@@ -301,7 +302,7 @@ func TestExaminerModeBlocksWrites(t *testing.T) {
 	tenant := openTenant(t, h)
 	noop := func(context.Context, *Services) error { return nil }
 
-	until := time.Now().AddDate(0, 0, 10).Format("2006-01-02")
+	until := coreTestNow().AddDate(0, 0, 10).Format("2006-01-02")
 	if _, err := h.EnableExaminer(uiCtx, until, "Betriebsprüfung 2024"); err != nil {
 		t.Fatalf("Prüfermodus einschalten: %v", err)
 	}
@@ -588,14 +589,14 @@ func (unsavableConfig) Save(*domain.AppConfig) error {
 func TestExaminerModeExpires(t *testing.T) {
 	h := newHost(t)
 	tc := newTenant(t, h, "Pfennig Ventures GmbH")
-	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+	yesterday := coreTestNow().AddDate(0, 0, -1).Format("2006-01-02")
 	tenant := openTenant(t, h)
 	if tenant.ID() != tc.ID {
 		t.Fatalf("offen ist %s", tenant.ID())
 	}
 	if err := tenant.Write(uiCtx, func(ctx context.Context, s *Services) error {
 		return tenant.repos.examiner.Create(ctx, &domain.ExaminerPeriod{
-			From: time.Now().AddDate(0, 0, -10).Format("2006-01-02"), Until: yesterday,
+			From: coreTestNow().AddDate(0, 0, -10).Format("2006-01-02"), Until: yesterday,
 			Reason: "abgelaufene Prüfung",
 		})
 	}, ExaminerExempt()); err != nil {
@@ -704,7 +705,7 @@ func TestExaminerModeTravelsWithTheDatabase(t *testing.T) {
 	if _, err := h.SetBackupDir(uiCtx, backupDir); err != nil {
 		t.Fatal(err)
 	}
-	until := time.Now().AddDate(0, 0, 30).Format("2006-01-02")
+	until := coreTestNow().AddDate(0, 0, 30).Format("2006-01-02")
 	if _, err := h.EnableExaminer(uiCtx, until, "Betriebsprüfung 2023 bis 2025"); err != nil {
 		t.Fatalf("Prüfermodus einschalten: %v", err)
 	}
@@ -743,8 +744,8 @@ func TestExaminerPeriodsKeepTheirHistory(t *testing.T) {
 	h := newHost(t)
 	newTenant(t, h, "Pfennig Ventures GmbH")
 	tenant := openTenant(t, h)
-	first := time.Now().AddDate(0, 0, 10).Format("2006-01-02")
-	second := time.Now().AddDate(0, 0, 20).Format("2006-01-02")
+	first := coreTestNow().AddDate(0, 0, 10).Format("2006-01-02")
+	second := coreTestNow().AddDate(0, 0, 20).Format("2006-01-02")
 	if _, err := tenant.EnableExaminer(uiCtx, first, "Prüfung"); err != nil {
 		t.Fatal(err)
 	}
@@ -801,3 +802,6 @@ func TestBackupDirStaysOutOfAgentFolders(t *testing.T) {
 		t.Errorf("Sicherung um den Eingang: %v", err)
 	}
 }
+
+func coreTestNow() time.Time { return time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC) }
+func today() string          { return coreTestNow().Format(domain.DateLayout) }

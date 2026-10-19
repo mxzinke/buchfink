@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -92,6 +93,7 @@ type TaskOptions struct {
 
 // TaskService stellt die Aufgabenliste zusammen.
 type TaskService struct {
+	serviceClock
 	settingsRepo domain.SettingsRepository
 
 	checks       TaskCheckSource
@@ -139,7 +141,7 @@ const BackupOverdueDays = 3
 func (s *TaskService) Tasks(ctx context.Context, opts TaskOptions) (*domain.TaskList, error) {
 	today := opts.Today
 	if today == "" {
-		today = todayLocal()
+		today = s.today()
 	}
 	horizon := addDays(today, domain.TaskLookaheadDays)
 
@@ -696,7 +698,7 @@ func (s *TaskService) addBackup(ctx context.Context, list *domain.TaskList, toda
 		})
 		return
 	}
-	lastDay := last.StartedAt.Format("2006-01-02")
+	lastDay := calendar.Day(last.StartedAt)
 	if lastDay >= addDays(today, -BackupOverdueDays) {
 		return
 	}
@@ -737,7 +739,7 @@ func (s *TaskService) addFailedBackup(ctx context.Context, list *domain.TaskList
 	if last.Kind == domain.BackupKindVerify {
 		what = "Der Wiederherstellungstest der Sicherung"
 	}
-	why := fmt.Sprintf("%s vom %s ist fehlgeschlagen.", what, last.StartedAt.Format("2006-01-02"))
+	why := fmt.Sprintf("%s vom %s ist fehlgeschlagen.", what, calendar.Day(last.StartedAt))
 	if last.Message != "" {
 		why += " Grund: " + last.Message
 	}
@@ -747,7 +749,7 @@ func (s *TaskService) addFailedBackup(ctx context.Context, list *domain.TaskList
 		Why: why + " Aufzeichnungen müssen über die Aufbewahrungsfrist lesbar bleiben; " +
 			"ein Zielordner, der nicht mehr beschreibbar ist, fällt sonst erst auf, wenn die Sicherung gebraucht wird.",
 		Reference: "§ 147 Abs. 2 AO, GoBD Rz. 103 ff.",
-		DueDate:   last.StartedAt.Format("2006-01-02"),
+		DueDate:   calendar.Day(last.StartedAt),
 		Target:    domain.TaskTarget{Area: domain.AreaSettings, Tab: "backup"},
 	})
 }

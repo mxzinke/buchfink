@@ -69,7 +69,7 @@ func eventually(t *testing.T, what string, ok func() bool) {
 // Idempotenzschlüssel löschen.
 func TestJobsRunOnTheClockOfTheCore(t *testing.T) {
 	var online atomic.Bool
-	clock := &fakeClock{now: time.Now()}
+	clock := &fakeClock{now: time.Date(2040, 10, 19, 12, 0, 0, 0, time.UTC)}
 	base := t.TempDir()
 	h, err := NewHost(context.Background(), HostOptions{
 		Config:  repository.NewAppConfigRepository(filepath.Join(base, "config")),
@@ -98,16 +98,16 @@ func TestJobsRunOnTheClockOfTheCore(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	until := time.Now().AddDate(0, 0, 5).Format("2006-01-02")
+	until := clock.Now().AddDate(0, 0, 5).Format("2006-01-02")
 	if err := tenant.Write(uiCtx, func(ctx context.Context, s *Services) error {
 		if err := tenant.repos.examiner.Create(ctx, &domain.ExaminerPeriod{
-			From: time.Now().Format("2006-01-02"), Until: until, Reason: "an der App vorbei",
+			From: clock.Now().Format("2006-01-02"), Until: until, Reason: "an der App vorbei",
 		}); err != nil {
 			return err
 		}
 		return repository.NewIdempotencyRepository(tenant.db).Create(ctx, &domain.IdempotencyRecord{
 			ClientID: "agent", Key: "schluessel-1", Operation: "test", RequestHash: "x",
-			ExpiresAt: time.Now().Add(-time.Hour),
+			ExpiresAt: clock.Now().Add(time.Hour),
 		})
 	}); err != nil {
 		t.Fatal(err)
@@ -183,5 +183,39 @@ func TestJobsEndWithTheirTenant(t *testing.T) {
 	})
 	if err := h.Close(context.Background()); err != nil {
 		t.Fatalf("Schließen: %v", err)
+	}
+}
+
+func TestMidnightUsesGermanDST(t *testing.T) {
+	for _, tc := range []struct {
+		start string
+		want  time.Duration
+	}{
+		{"2026-03-28T23:00:00Z", 23*time.Hour + time.Second},
+		{"2026-10-24T22:00:00Z", 25*time.Hour + time.Second},
+	} {
+		at, _ := time.Parse(time.RFC3339, tc.start)
+		if got := untilMidnight(at); got != tc.want {
+			t.Errorf("%s: %s, erwartet %s", tc.start, got, tc.want)
+		}
+	}
+}
+
+func TestCurrentFiscalYearUsesCoreClockInBerlin(t *testing.T) {
+	clock := &fakeClock{now: time.Date(2026, 12, 31, 23, 30, 0, 0, time.UTC)}
+	base := t.TempDir()
+	h, err := NewHost(context.Background(), HostOptions{
+		Config:  repository.NewAppConfigRepository(filepath.Join(base, "config")),
+		BaseDir: base, Clock: clock, Network: OfflineNetwork(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.Close(context.Background())
+	newTenant(t, h, "Kalendertag GmbH")
+	tenant := openTenant(t, h)
+	year, err := tenant.CurrentFiscalYear(uiCtx)
+	if err != nil || year != 2027 || tenant.Today() != "2027-01-01" {
+		t.Fatalf("deutscher Jahreswechsel: %d, %s, %v", year, tenant.Today(), err)
 	}
 }

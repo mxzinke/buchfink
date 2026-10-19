@@ -9,6 +9,7 @@ import (
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/actor"
 	"github.com/buchfink/buchfink/internal/buildinfo"
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/changelog"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/procdoc"
@@ -46,6 +47,7 @@ type ProcDocResult struct {
 
 // ProcDocService erzeugt die Verfahrensdokumentation und legt jede Fassung ab.
 type ProcDocService struct {
+	serviceClock
 	settingsRepo  domain.SettingsRepository
 	numberRepo    domain.NumberRangeRepository
 	procDocRepo   domain.ProcedureDocumentationRepository
@@ -150,7 +152,7 @@ func (s *ProcDocService) Generate(
 	ctx context.Context, year int, env ProcDocEnvironment, now time.Time,
 ) (*ProcDocResult, error) {
 	if now.IsZero() {
-		now = time.Now().UTC()
+		now = s.instant()
 	}
 	now = now.UTC()
 
@@ -387,7 +389,7 @@ func (s *ProcDocService) buildInput(
 
 // nextVersion bildet die Fassungsbezeichnung "YYYY-MM-DD-n".
 func (s *ProcDocService) nextVersion(ctx context.Context, now time.Time) (string, error) {
-	day := now.Format("2006-01-02")
+	day := calendar.Day(now)
 	count, err := s.procDocRepo.CountForDay(ctx, day)
 	if err != nil {
 		return "", fmt.Errorf("die bisherigen Fassungen ließen sich nicht zählen: %w", err)

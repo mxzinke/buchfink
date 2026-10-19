@@ -230,12 +230,7 @@ export function defaultEvidence(channel: string): EvidenceKind {
   }
 }
 
-/** Der heutige Tag in der Zeitzone des Rechners („JJJJ-MM-TT“). */
-export function todayISO(now = new Date()): string {
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${now.getFullYear()}-${month}-${day}`;
-}
+export { todayISO } from './calendar';
 
 /** Kann der Mensch die Pflicht in der App bestätigen oder als entfallen kennzeichnen? */
 export function isConfirmable(o: Obligation): boolean {

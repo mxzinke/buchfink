@@ -19,6 +19,7 @@ func (e *testEnv) gifts(t *testing.T) *GiftService {
 		repository.NewSettingsRepository(e.db),
 		repository.NewAuditRepository(e.db),
 	)
+	svc.SetClock(testNow)
 	e.posting.SetGiftRegister(svc)
 	return svc
 }

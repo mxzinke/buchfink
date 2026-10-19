@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -34,7 +35,7 @@ func (r *appConfigRepositoryJSON) Load() (*domain.AppConfig, error) {
 	data, err := os.ReadFile(r.configPath)
 	if os.IsNotExist(err) {
 		home, _ := os.UserHomeDir()
-		currentYear := time.Now().Year()
+		currentYear := time.Now().In(calendar.Location()).Year()
 		return &domain.AppConfig{
 			Tenants:        []domain.TenantConfig{},
 			ActiveTenantID: "",
@@ -78,7 +79,7 @@ func (r *appConfigRepositoryJSON) Save(cfg *domain.AppConfig) error {
 
 // DiscoverAvailableFiscalYears scans the data directory for existing SQLite files and ensures the current year is included.
 func DiscoverAvailableFiscalYears(dataDir string) []int {
-	currentYear := time.Now().Year()
+	currentYear := time.Now().In(calendar.Location()).Year()
 	yearsMap := map[int]bool{
 		currentYear: true,
 	}

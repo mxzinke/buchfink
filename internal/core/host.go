@@ -13,6 +13,7 @@ import (
 
 	"github.com/buchfink/buchfink/internal/actor"
 	"github.com/buchfink/buchfink/internal/buildinfo"
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/invoice"
 	"github.com/buchfink/buchfink/internal/repository"
@@ -34,7 +35,7 @@ type HostOptions struct {
 	// Jobs startet die Hintergrundläufe je offenem Mandanten (jobs.go) und
 	// sichert beim Schließen, wenn seit der letzten Sicherung gearbeitet wurde.
 	Jobs bool
-	// Clock ist die Uhr der Hintergrundläufe; ohne Angabe die echte.
+	// Clock versorgt Dienste und Hintergrundläufe; ohne Angabe gilt die echte Uhr.
 	Clock  Clock
 	Logger *slog.Logger
 	// OnChange hört jeden gelungenen Vorgang jedes Mandanten (Change), etwa
@@ -292,7 +293,7 @@ func (h *Host) ViewYear() int {
 	if h.cfg.LastFiscalYear > 0 {
 		return h.cfg.LastFiscalYear
 	}
-	return time.Now().Year()
+	return h.clock.Now().In(calendar.Location()).Year()
 }
 
 // SetLastFiscalYear merkt sich das zuletzt angesehene Geschäftsjahr.
@@ -349,7 +350,7 @@ func (h *Host) open(ctx context.Context, tc domain.TenantConfig) (*Tenant, error
 	}
 	id := tc.ID
 	return Open(ctx, tc.DataDir, Options{
-		TenantID: id, TenantName: tc.Name, Generation: gen,
+		TenantID: id, TenantName: tc.Name, Generation: gen, Clock: h.clock,
 		Renderer:  h.renderer,
 		BackupDir: func() string { return h.backupDirOf(id) },
 		Network:   h.opts.Network,
@@ -495,7 +496,7 @@ func (h *Host) CreateTenant(
 	if err != nil {
 		return nil, err
 	}
-	thisYear := time.Now().Year()
+	thisYear := h.clock.Now().In(calendar.Location()).Year()
 	year := settings.FiscalYear
 	if year == 0 {
 		year = thisYear
@@ -769,5 +770,3 @@ func CheckTenantDirectory(dataDir string) (string, error) {
 	}
 	return absolute, nil
 }
-
-func today() string { return time.Now().Format("2006-01-02") }

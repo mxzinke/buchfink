@@ -1,3 +1,4 @@
+import { todayISO } from '../../utils/calendar';
 import React, { useState } from 'react';
 import { Api } from '../../services/api';
 import type { Deadline } from '../../types';
@@ -9,9 +10,7 @@ export function obligationsOf(deadlines: Deadline[], kinds: readonly string[]): 
   return deadlines.filter((d) => kinds.some((kind) => d.key.startsWith(`${kind}.`)));
 }
 
-function today(): string {
-  return new Date().toLocaleDateString('en-CA');
-}
+
 
 /**
  * Pflichten, die Buchfink nicht aus den Daten erkennt: Anmeldungen bei Behörden
@@ -26,7 +25,7 @@ export const ObligationList: React.FC<{
 }> = ({ deadlines, onConfirmed, action }) => {
   const writeLock = useWriteLock();
   const [confirming, setConfirming] = useState<Deadline | null>(null);
-  const [date, setDate] = useState(today());
+  const [date, setDate] = useState(todayISO());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -58,7 +57,7 @@ export const ObligationList: React.FC<{
       <ul className="border-t border-line">
         {deadlines.map((d) => {
           const done = d.isDone || d.status === 'done' || d.status === 'waived';
-          const overdue = !done && (d.status === 'overdue' || (d.dueDate !== '' && d.dueDate < today()));
+          const overdue = !done && (d.status === 'overdue' || (d.dueDate !== '' && d.dueDate < todayISO()));
           return (
             <li
               key={d.key}
@@ -94,7 +93,7 @@ export const ObligationList: React.FC<{
                     disabled={writeLock.locked}
                     title={writeLock.hint}
                     onClick={() => {
-                      setDate(today());
+                      setDate(todayISO());
                       setError('');
                       setConfirming(d);
                     }}
@@ -128,7 +127,7 @@ export const ObligationList: React.FC<{
           Die Bestätigung steht mit dem Tag im Pflichtenkalender und im Änderungsprotokoll.
         </p>
         <Field label="Erledigt am">
-          <Input type="date" value={date} max={today()} onChange={(e) => setDate(e.target.value)} />
+          <Input type="date" value={date} max={todayISO()} onChange={(e) => setDate(e.target.value)} />
         </Field>
         {error && <Notice tone="negative" className="mt-5" text={error} />}
       </Dialog>

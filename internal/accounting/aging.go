@@ -3,6 +3,7 @@ package accounting
 import (
 	"time"
 
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -52,7 +53,7 @@ var maturityBands = []struct {
 // bleibt.
 func AgeOpenItems(items []domain.OpenItem, cutoff string) domain.OpenItemsAging {
 	if cutoff == "" {
-		cutoff = time.Now().UTC().Format("2006-01-02")
+		cutoff = calendar.Today(nil)
 	}
 	result := domain.OpenItemsAging{
 		Cutoff:    cutoff,

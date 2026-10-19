@@ -32,7 +32,7 @@ func (s *settlement) settle(ctx context.Context, req PaymentRequest) (*domain.Jo
 		return nil, fmt.Errorf("es wurde kein offener Posten ausgewählt")
 	}
 	if req.PaymentDate == "" {
-		req.PaymentDate = todayLocal()
+		req.PaymentDate = s.today()
 	}
 
 	// Bankkonto und Zahlungsdatum kommen aus dem Kontoauszug.

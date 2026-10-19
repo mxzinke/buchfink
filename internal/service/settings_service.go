@@ -11,6 +11,7 @@ import (
 
 // SettingsService manages company profile and fiscal year configurations.
 type SettingsService struct {
+	serviceClock
 	settingsRepo       domain.SettingsRepository
 	auditRepo          domain.AuditRepository
 	registrar          FoundationRegistrar
@@ -102,7 +103,7 @@ func (s *SettingsService) UpdateCompanySettings(ctx context.Context, settings *d
 		return err
 	}
 	if s.events != nil && shareholdersChanged(before, settings) {
-		if _, err := s.events.RecordEvent(ctx, domain.EventShareholderChange, todayLocal(),
+		if _, err := s.events.RecordEvent(ctx, domain.EventShareholderChange, s.today(),
 			"Gesellschafterliste in den Unternehmensdaten geändert"); err != nil {
 			return err
 		}

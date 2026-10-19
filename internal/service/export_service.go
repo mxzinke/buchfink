@@ -12,6 +12,7 @@ import (
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/actor"
 	"github.com/buchfink/buchfink/internal/buildinfo"
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/changelog"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/export"
@@ -62,6 +63,7 @@ type ExportLoanSource interface {
 // einer Überlassung gehört festgehalten, weil später niemand mehr sagen kann,
 // was der Prüfer bekommen hat.
 type ExportService struct {
+	serviceClock
 	fiscalCalendar
 	journalRepo    domain.JournalRepository
 	accountRepo    domain.AccountRepository
@@ -342,7 +344,7 @@ func (d *exportData) committedOn(e *domain.JournalEntry) string {
 		}
 		if bestCutoff == "" || c.CutoffDate < bestCutoff {
 			bestCutoff = c.CutoffDate
-			best = c.CreatedAt.Format("2006-01-02")
+			best = calendar.Day(c.CreatedAt)
 		}
 	}
 	return best
@@ -430,7 +432,7 @@ func (s *ExportService) baseData(ctx context.Context) (*exportData, error) {
 		programVersion:   buildinfo.Version,
 		// UTC: der Zeitpunkt steht in der Beschreibungsdatei und im Manifest
 		// und wird dort gegen andere Zeitpunkte gehalten.
-		createdAt: time.Now().UTC().Format(time.RFC3339),
+		createdAt: s.instant().Format(time.RFC3339),
 		actor:     actor.Actor(),
 	}, nil
 }

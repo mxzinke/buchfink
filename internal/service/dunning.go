@@ -69,7 +69,7 @@ func (s *OverdueService) RecordReminder(ctx context.Context, req ReminderRequest
 	if err := domain.CheckDate("Zugang der Mahnung", req.Date); err != nil {
 		return nil, err
 	}
-	if req.Date > todayLocal() {
+	if req.Date > s.today() {
 		return nil, fmt.Errorf("die Mahnung vom %s liegt in der Zukunft; vermerkt wird eine zugegangene Mahnung",
 			domain.GermanDate(req.Date))
 	}

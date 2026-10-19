@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -23,5 +22,5 @@ func (t *Tenant) FiscalYearOf(ctx context.Context, date string) (int, error) {
 // CurrentFiscalYear ist das Geschäftsjahr des heutigen Tages nach Beginnmonat.
 // Es ist die Vorgabe für Agenten, nie das Jahr, das gerade jemand ansieht.
 func (t *Tenant) CurrentFiscalYear(ctx context.Context) (int, error) {
-	return t.FiscalYearOf(ctx, time.Now().Format(domain.DateLayout))
+	return t.FiscalYearOf(ctx, t.Today())
 }

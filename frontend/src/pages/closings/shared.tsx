@@ -1,3 +1,4 @@
+import { todayISO } from "../../utils/calendar";
 import React, { useEffect, useState } from 'react';
 import { Api } from '../../services/api';
 import { useWriteLock } from '../../components/WriteLock';
@@ -41,12 +42,7 @@ export function loadErrorText(...errors: (string | undefined)[]): string {
   return distinct.length > 0 ? `Konnte nicht vollständig geladen werden. ${distinct.join(' ')}` : '';
 }
 
-/** Heute als JJJJ-MM-TT in der Zeitzone des Rechners. */
-export function todayISO(): string {
-  const now = new Date();
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-}
+export { todayISO } from "../../utils/calendar";
 
 const MONTH_NAMES = [
   'Januar',
@@ -112,8 +108,8 @@ export function isManual(o: Obligation): boolean {
 
 /** Tage bis zum Tag; negativ heißt vorbei. */
 function daysUntil(iso: string): number {
-  const today = new Date(`${todayISO()}T00:00:00`);
-  const due = new Date(`${iso}T00:00:00`);
+  const today = new Date(`${todayISO()}T00:00:00Z`);
+  const due = new Date(`${iso}T00:00:00Z`);
   return Math.round((due.getTime() - today.getTime()) / 86_400_000);
 }
 

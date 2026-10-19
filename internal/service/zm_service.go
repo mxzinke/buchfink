@@ -21,6 +21,7 @@ import (
 // vom Journal. Dazu kommen die Stammdaten — eine Meldung ohne USt-IdNr. des
 // Empfängers ist keine Meldung.
 type ZMService struct {
+	serviceClock
 	auditor[uint]
 	journalRepo        domain.JournalRepository
 	contactRepo        domain.ContactRepository
@@ -112,7 +113,7 @@ func (s *ZMService) Periods(ctx context.Context, year int) ([]ZMPeriodStatus, er
 	}
 	lookup := func(id uint) accounting.ZMRecipient { return recipients[id] }
 
-	today := todayLocal()
+	today := s.today()
 	state := s.federalState(ctx)
 	out := make([]ZMPeriodStatus, 0, len(periods))
 	for _, p := range periods {

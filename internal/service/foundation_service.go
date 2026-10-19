@@ -17,6 +17,7 @@ import (
 // sie zusammenzählt und der Gesellschafterin sagt, dass sie am Tag der
 // Eintragung 3.000 € nachschießen wird.
 type FoundationService struct {
+	serviceClock
 	auditor[uint]
 	foundationRepo domain.FoundationRepository
 	accountRepo    domain.AccountRepository
@@ -367,7 +368,7 @@ func (s *FoundationService) Unterbilanz(ctx context.Context, f *domain.Foundatio
 	asOf := f.RegisteredOn
 	final := true
 	if asOf == "" {
-		asOf = todayLocal()
+		asOf = s.today()
 		final = false
 	}
 

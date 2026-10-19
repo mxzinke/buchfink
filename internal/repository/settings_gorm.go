@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 	"gorm.io/gorm"
 )
@@ -390,7 +391,7 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 			}
 		}
 		if since == "" {
-			since = time.Now().Format("2006-01-02")
+			since = calendar.Today(nil)
 		}
 		kv["invoice_check_since"] = since
 	}

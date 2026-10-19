@@ -15,6 +15,7 @@ import (
 // It only reads. Everything that writes goes through JournalService, so the
 // booking rules live in exactly one place.
 type AccountingService struct {
+	serviceClock
 	fiscalCalendar
 	accountRepo domain.AccountRepository
 	journalRepo domain.JournalRepository
@@ -538,7 +539,7 @@ func (s *AccountingService) GetAvailableFiscalYears(ctx context.Context) []int {
 	startMonth := s.fiscalYearStartMonth(ctx)
 
 	years := map[int]bool{
-		domain.GetFiscalYearForDate(todayLocal(), startMonth): true,
+		domain.GetFiscalYearForDate(s.today(), startMonth): true,
 	}
 	if dbYears, err := s.journalRepo.GetAvailableFiscalYears(ctx); err == nil {
 		for _, y := range dbYears {

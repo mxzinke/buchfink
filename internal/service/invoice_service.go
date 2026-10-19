@@ -14,6 +14,7 @@ import (
 // InvoiceService manages outgoing invoices, their booking and the ZUGFeRD /
 // Typst rendering.
 type InvoiceService struct {
+	serviceClock
 	fiscalCalendar
 	invoiceRepo domain.InvoiceRepository
 	contactRepo domain.ContactRepository
@@ -219,7 +220,7 @@ func (s *InvoiceService) prepareForIssue(
 	// zurück, und dort wird sie ohne Umweg gelesen.
 	inv.EnsureLists()
 	if inv.Date == "" {
-		inv.Date = todayLocal()
+		inv.Date = s.today()
 	}
 	if inv.ServiceDateFrom == "" {
 		inv.ServiceDateFrom = inv.Date

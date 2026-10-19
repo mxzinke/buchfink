@@ -1,24 +1,20 @@
 package service
 
-import "time"
+import (
+	"time"
 
-// todayLocal ist der Kalendertag, mit dem Buchfink ein leeres Datumsfeld
-// vorbelegt — in Ortszeit und bewusst nicht in UTC.
-//
-// Zeitstempel werden in UTC gespeichert (QUE-04):
-// wann etwas geschehen ist, wird verglichen, sortiert und über
-// Rechnergrenzen hinweg gelesen, und dafür ist eine Ortszeit ohne Zonenangabe
-// wertlos. Ein Datumsfeld ist etwas anderes als ein Zeitstempel. Buchungstag,
-// Belegdatum, Zahlungstag, Belegeingang und der Tag einer Erledigung sind
-// Kalendertage einer Buchführung, die an einem Ort geführt wird; § 146 Abs. 1
-// AO beurteilt die zeitgerechte Erfassung nach genau diesen Tagen, und die
-// Fristen des Steuerrechts laufen nach deutschem Kalender.
-//
-// In UTC gerechnet hätte ein Beleg, den jemand in Deutschland um 00:30 Uhr
-// ablegt, den Vortag als Datum; im Sommer wäre die Grenze 02:00 Uhr. Der
-// Prüflauf verglich ihn dann mit einem Stichtag, der einen Tag danebenliegt,
-// und eine Zahlung vom Monatsersten fiele in den Vormonat und damit in einen
-// bereits festgeschriebenen Zeitraum. Die Ortszeit ist hier also die richtige
-// Antwort, nicht die unaufgeräumte — sie steht hier an einer Stelle, damit sie
-// eine Entscheidung bleibt und nicht als Versehen aussieht.
-func todayLocal() string { return time.Now().Format("2006-01-02") }
+	"github.com/buchfink/buchfink/internal/calendar"
+)
+
+type serviceClock struct{ now func() time.Time }
+
+// SetClock setzt die Uhr vor der Verwendung des Dienstes.
+func (c *serviceClock) SetClock(now func() time.Time) { c.now = now }
+func (c *serviceClock) today() string                 { return calendar.Today(c.now) }
+
+func (c *serviceClock) instant() time.Time {
+	if c.now == nil {
+		return time.Now().UTC()
+	}
+	return c.now().UTC()
+}

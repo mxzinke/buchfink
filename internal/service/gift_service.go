@@ -18,6 +18,7 @@ import (
 // noch einmal führte, wäre die zweite Wahrheit, die beim ersten Storno von der
 // ersten abweicht.
 type GiftService struct {
+	serviceClock
 	auditor[string]
 	fiscalCalendar
 	journalRepo domain.JournalRepository
@@ -440,7 +441,7 @@ func (s *GiftService) rebookGiftsForRecipient(
 	// nur für den Saldenvortrag zu), und eine Neubuchung an einem anderen Tag
 	// wäre die Hälfte des Vorgangs in einem anderen Zeitraum — mit allem, was
 	// davon abhängt: Voranmeldung, Festschreibung, Abschlussstand.
-	today := todayLocal()
+	today := s.today()
 	date := strings.TrimSpace(req.Date)
 	if date == "" {
 		date = today

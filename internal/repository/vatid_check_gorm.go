@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"gorm.io/gorm"
@@ -46,5 +47,10 @@ func (r *vatIDCheckRepositoryGorm) FindLatestValid(
 }
 
 func (r *vatIDCheckRepositoryGorm) Save(ctx context.Context, check *domain.VatIDCheck) error {
+	at, err := time.Parse(time.RFC3339, check.CheckedAt)
+	if err != nil {
+		return err
+	}
+	check.CheckedAt = at.UTC().Format(time.RFC3339)
 	return dbFrom(ctx, r.db).Save(check).Error
 }

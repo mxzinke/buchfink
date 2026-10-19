@@ -137,13 +137,14 @@ func (f fixedOpenItems) OpenItems(context.Context) ([]domain.OpenItem, error) { 
 // Eine Mahnung nach Fälligkeit setzt den Verbraucher in Verzug, auch wenn
 // die Rechnung keinen Hinweis auf die dreißig Tage trug.
 func TestReminderStartsTheDefault(t *testing.T) {
+	now := func() time.Time { return time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC) }
 	env := newTestEnv(t)
 	consumer := domain.Contact{Type: domain.ContactTypeCustomer, Name: "Erika Muster", IsPrivate: true}
 	if err := env.contacts.SaveContact(appContext, &consumer); err != nil {
 		t.Fatal(err)
 	}
-	today := time.Now().Format("2006-01-02")
-	due := time.Now().AddDate(0, 0, -20).Format("2006-01-02")
+	today := now().Format("2006-01-02")
+	due := now().AddDate(0, 0, -20).Format("2006-01-02")
 	items := fixedOpenItems{{
 		EntryID: 41, DocumentNumber: "RE-2026-0041", ContactID: consumer.ID, ContactName: consumer.Name,
 		ContactType: domain.ContactTypeCustomer, DueDate: due, GrossAmount: 119000, OpenAmount: 119000,
@@ -151,6 +152,7 @@ func TestReminderStartsTheDefault(t *testing.T) {
 		EntryID: 42, DocumentNumber: "ER-2026-0042", ContactType: domain.ContactTypeVendor, DueDate: due, OpenAmount: 5000,
 	}}
 	overdue := NewOverdueService(items, env.contactRepo)
+	overdue.SetClock(now)
 	overdue.SetInvoiceSource(repository.NewInvoiceRepository(env.db))
 	overdue.SetDunning(repository.NewDunningRepository(env.db), repository.NewAuditRepository(env.db))
 
@@ -160,10 +162,10 @@ func TestReminderStartsTheDefault(t *testing.T) {
 		t.Error("eine Verbindlichkeit wird nicht gemahnt")
 	}
 	if _, err := overdue.RecordReminder(agentContext(t), ReminderRequest{EntryID: 41,
-		Date: time.Now().AddDate(0, 0, -30).Format("2006-01-02")}); err == nil {
+		Date: now().AddDate(0, 0, -30).Format("2006-01-02")}); err == nil {
 		t.Error("eine Mahnung vor Fälligkeit setzt nicht in Verzug")
 	}
-	reminded := time.Now().AddDate(0, 0, -10).Format("2006-01-02")
+	reminded := now().AddDate(0, 0, -10).Format("2006-01-02")
 	note, err := overdue.RecordReminder(agentContext(t), ReminderRequest{EntryID: 41, Date: reminded, Level: 1, Note: "per E-Mail"})
 	if err != nil {
 		t.Fatal(err)
@@ -176,7 +178,7 @@ func TestReminderStartsTheDefault(t *testing.T) {
 		t.Fatalf("Forderungen: %+v %v", claims, err)
 	}
 	row := claims[0].Items[0]
-	wantFrom := time.Now().AddDate(0, 0, -9).Format("2006-01-02")
+	wantFrom := now().AddDate(0, 0, -9).Format("2006-01-02")
 	if row.LastReminder != reminded || row.ReminderLevel != 1 || row.DefaultFrom != wantFrom || row.Interest <= 0 {
 		t.Errorf("Verzug nach Mahnung: %+v", row)
 	}

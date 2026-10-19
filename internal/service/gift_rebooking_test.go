@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/repository"
@@ -104,7 +103,7 @@ func TestGiftRebookingStaysOutOfACommittedPeriod(t *testing.T) {
 		t.Fatalf("%d Stornos und %d Neubuchungen — erwartet je eine",
 			len(rebooking.Reversals), len(rebooking.Rebookings))
 	}
-	today := time.Now().Format("2006-01-02")
+	today := testNow().Format("2006-01-02")
 	rebooked := env.entryByNumberAnyYear(t, rebooking.Rebookings[0])
 	if rebooked.BookingDate != today {
 		t.Errorf("Neubuchung zum %s — erwartet den Tag der Korrektur (%s), an dem auch die "+

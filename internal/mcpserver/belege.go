@@ -390,7 +390,7 @@ func registerBelege(tb *Toolbox) {
 		out.AusBeleg = &ausBeleg{Aussteller: proposal.SupplierName, UstID: proposal.SupplierVatID,
 			Steuernummer: proposal.SupplierTaxID, Rechnungsnummer: proposal.InvoiceNumber, Positionstexte: texts}
 		if req.ContactID != 0 && proposal.MatchedContact && r.IsOpen() {
-			out.Einstufung = suggestedVerdict(ctx, s, req)
+			out.Einstufung = suggestedVerdict(ctx, s, req, c.Tenant.Today())
 		}
 		return out, nil
 	})
@@ -588,8 +588,8 @@ func registerBelege(tb *Toolbox) {
 
 // suggestedVerdict stuft die Buchung ein, die der Vorschlag mit der
 // bestätigten Standardgruppe des Lieferanten ergäbe.
-func suggestedVerdict(ctx context.Context, s core.AgentServices, req service.ReceiptRequest) *policy.Verdict {
-	v := policy.ClassifyProposal(ctx, s, req, today())
+func suggestedVerdict(ctx context.Context, s core.AgentServices, req service.ReceiptRequest, day string) *policy.Verdict {
+	v := policy.ClassifyProposal(ctx, s, req, day)
 	return &v
 }
 

@@ -126,7 +126,7 @@ func (s *InvoiceService) cancelWithDocument(ctx context.Context, invoiceID uint,
 		return nil, err
 	}
 
-	storno := buildStorno(original)
+	storno := buildStorno(original, s.today())
 	// Nummer, Stornodokument, Generalumkehr und der Status der
 	// Ursprungsrechnung entstehen in einer Transaktion: entweder alle oder
 	// keines.
@@ -305,7 +305,7 @@ func (s *InvoiceService) correctInvoice(ctx context.Context, invoiceID uint, rea
 		replacement.ContactID = original.ContactID
 	}
 	if replacement.Date == "" {
-		replacement.Date = todayLocal()
+		replacement.Date = s.today()
 	}
 
 	// Die berichtigte Abschlagsrechnung entsteht im Verbund und ohne Buchung —
@@ -349,7 +349,7 @@ func (s *InvoiceService) correctInvoice(ctx context.Context, invoiceID uint, rea
 // Negiert werden die Mengen und damit alle Beträge. Ein Storno mit den
 // ursprünglichen Beträgen und einem Hinweis „bitte nicht beachten" ist kein
 // Storno: das System des Empfängers bucht, was die Zahlen sagen.
-func buildStorno(original *domain.Invoice) *domain.Invoice {
+func buildStorno(original *domain.Invoice, today string) *domain.Invoice {
 	storno := *original
 	storno.ID = 0
 	storno.InvoiceNumber = ""
@@ -365,7 +365,7 @@ func buildStorno(original *domain.Invoice) *domain.Invoice {
 	storno.CorrectsInvoiceDate = original.Date
 	// Das Stornodokument hat den Tag der Korrektur (§ 17 Abs. 1 Satz 8 UStG),
 	// nicht den der Ursprungsrechnung.
-	storno.Date = todayLocal()
+	storno.Date = today
 	storno.DueDate = storno.Date
 	// Ohne Zahlungsbedingungen: „Zahlbar innerhalb von 14 Tagen, bei Zahlung bis
 	// … 2 % Skonto" auf einem Dokument mit negativen Beträgen fordert eine
@@ -429,7 +429,7 @@ func (s *InvoiceService) markSent(ctx context.Context, invoiceID uint, date stri
 		return nil, fmt.Errorf("Rechnung %s ist nicht ausgestellt und kann nicht versendet worden sein", inv.InvoiceNumber)
 	}
 	if date == "" {
-		date = todayLocal()
+		date = s.today()
 	}
 	// Der Vermerk ist der Nachweis des Zugangs; ein Datum, das keines ist, wäre
 	// keiner. Vorher wanderte jeder Text unverändert in das Feld und stand

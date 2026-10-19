@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/buchfink/buchfink/internal/calendar"
 	"io"
 	"net"
 	"net/http"
@@ -141,11 +142,13 @@ func newHarness(t *testing.T, opts ...harnessOption) *harness {
 	for _, o := range opts {
 		o(&hc)
 	}
+	clock := &fakeClock{now: harnessNow()}
 	base := t.TempDir()
 	host, err := core.NewHost(context.Background(), core.HostOptions{
 		Config:  repository.NewAppConfigRepository(filepath.Join(base, "config")),
 		BaseDir: base,
 		Network: core.OfflineNetwork(),
+		Clock:   clock,
 	})
 	if err != nil {
 		t.Fatalf("Host: %v", err)
@@ -488,3 +491,8 @@ func (h *harness) countVendors(name string) int {
 	}
 	return n
 }
+
+func (c *fakeClock) After(d time.Duration) <-chan time.Time { return time.After(d) }
+
+func harnessNow() time.Time { return time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC) }
+func today() string         { return calendar.Today(harnessNow) }

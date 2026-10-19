@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -227,7 +228,7 @@ func (s *CheckService) compute(ctx context.Context, req CheckRequest) (*domain.C
 		// Der Zeitpunkt kommt aus derselben Uhr wie die Fristen des Laufs. Stünde
 		// hier time.Now(), trüge ein Lauf, den ein Test auf einen bestimmten Tag
 		// stellt, ein anderes Datum als seine eigenen Befunde.
-		CreatedAt: s.clock(),
+		CreatedAt: s.clock().UTC(),
 	}
 
 	entries, err := s.journalRepo.FindAll(ctx, year)
@@ -334,8 +335,7 @@ func timelinessOf(entries []domain.JournalEntry, limitDays int) domain.CheckTime
 }
 
 // daysBetweenEntryDates zählt die Tage zwischen einem ISO-Belegdatum und einem
-// Zeitpunkt. Der Zeitpunkt wird in UTC auf seinen Tag gebracht, damit die Zahl
-// nicht von der Stunde abhängt, zu der gebucht wurde.
+// Zeitpunkt. Beide werden als deutsche Kalendertage verglichen.
 func daysBetweenEntryDates(documentDate string, createdAt time.Time) (int, bool) {
 	if documentDate == "" || createdAt.IsZero() {
 		return 0, false
@@ -344,7 +344,7 @@ func daysBetweenEntryDates(documentDate string, createdAt time.Time) (int, bool)
 	if err != nil {
 		return 0, false
 	}
-	to := createdAt.UTC().Truncate(24 * time.Hour)
+	to, _ := calendar.Parse(calendar.Day(createdAt))
 	return int(to.Sub(from).Hours() / 24), true
 }
 
@@ -352,8 +352,8 @@ func daysBetweenTimes(from, to time.Time) (int, bool) {
 	if from.IsZero() || to.IsZero() {
 		return 0, false
 	}
-	a := from.UTC().Truncate(24 * time.Hour)
-	b := to.UTC().Truncate(24 * time.Hour)
+	a, _ := calendar.Parse(calendar.Day(from))
+	b, _ := calendar.Parse(calendar.Day(to))
 	return int(b.Sub(a).Hours() / 24), true
 }
 
@@ -681,7 +681,7 @@ func (s *CheckService) checkReceipts(
 		// und die gibt es hier gerade nicht.
 		relevant := r.ReceivedAt
 		if relevant == "" {
-			relevant = r.CreatedAt.Format("2006-01-02")
+			relevant = calendar.Day(r.CreatedAt)
 		}
 
 		severity := domain.CheckWarning
@@ -769,7 +769,7 @@ func (s *CheckService) checkServiceProof(
 		}
 		relevant := r.ReceivedAt
 		if relevant == "" {
-			relevant = r.CreatedAt.Format("2006-01-02")
+			relevant = calendar.Day(r.CreatedAt)
 		}
 		if relevant > cutoff {
 			continue
@@ -1315,7 +1315,7 @@ func (s *CheckService) referenceDate(cutoff string) string {
 	if s.now == nil {
 		return cutoff
 	}
-	today := s.now().Format("2006-01-02")
+	today := calendar.Today(s.now)
 	if today > cutoff {
 		return today
 	}
@@ -1429,3 +1429,5 @@ func (s *CheckService) checkUnconfirmedVatIDs(ctx context.Context, year int) []d
 	}
 	return out
 }
+
+func (s *CheckService) SetClock(now func() time.Time) { s.now = now }

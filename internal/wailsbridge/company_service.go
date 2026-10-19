@@ -3,8 +3,8 @@ package wailsbridge
 import (
 	"context"
 	"fmt"
-	"time"
 
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/service"
@@ -17,7 +17,7 @@ import (
 // GetShareholderLoans liefert die Darlehensverträge mit Gesellschaftern und
 // ihrem gebuchten Stand von heute.
 func (b *BuchfinkBridge) GetShareholderLoans() ([]service.LoanView, error) {
-	today := time.Now().Format(domain.DateLayout)
+	today := calendar.Today(nil)
 	return readList(b, func(ctx context.Context, s *core.Services) ([]service.LoanView, error) {
 		return s.Shareholders.Loans(ctx, today)
 	})

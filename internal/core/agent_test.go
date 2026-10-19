@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/actor"
 	"github.com/buchfink/buchfink/internal/declaration"
@@ -23,7 +22,7 @@ func TestAgentsAreRefusedForHumanOnlyOperations(t *testing.T) {
 	tc := newTenant(t, h, "Pfennig Ventures GmbH")
 	tenant := openTenant(t, h)
 	agent := agentCtx(t)
-	until := time.Now().AddDate(0, 0, 10).Format("2006-01-02")
+	until := coreTestNow().AddDate(0, 0, 10).Format("2006-01-02")
 	inService := func(fn func(ctx context.Context, s *Services) error) func(context.Context) error {
 		return func(ctx context.Context) error { return tenant.Write(ctx, fn) }
 	}

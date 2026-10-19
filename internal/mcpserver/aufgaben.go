@@ -272,7 +272,7 @@ func registerFristen(tb *Toolbox) {
 			"references/grundlagen/pflichten.md des Skills buchfink. Ohne Filter alles noch nicht Erledigte bis 180 Tage voraus. " +
 			"Nach dem Vorbereiten pflicht_vorbereitet melden; erledigt setzt nur die App oder der Datenstand.",
 	}, func(ctx context.Context, c *Call, s core.AgentServices, in fristenIn) (fristenOut, error) {
-		out := fristenOut{Stichtag: today(), Pflichten: []pflicht{}}
+		out := fristenOut{Stichtag: c.Tenant.Today(), Pflichten: []pflicht{}}
 		if in.Schluessel != "" {
 			o, err := s.Obligations.Get(ctx, obligationKey(in.Schluessel), "")
 			if err != nil {
@@ -291,7 +291,8 @@ func registerFristen(tb *Toolbox) {
 			return out, err
 		}
 		if q.To == "" && q.FiscalYear == 0 {
-			q.To = time.Now().AddDate(0, 0, 180).Format("2006-01-02")
+			start, _ := time.Parse(domain.DateLayout, c.Tenant.Today())
+			q.To = start.AddDate(0, 0, 180).Format(domain.DateLayout)
 		}
 		for _, st := range in.Status {
 			status, ok := statusFromLabel[string(st)]

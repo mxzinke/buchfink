@@ -84,6 +84,7 @@ type FileContent struct {
 
 // ReceiptService files Belege away, hands them out and seals them.
 type ReceiptService struct {
+	serviceClock
 	receiptRepo domain.ReceiptRepository
 	store       *receiptstore.Store
 	auditRepo   domain.AuditRepository
@@ -108,7 +109,7 @@ func (s *ReceiptService) filingYear(ctx context.Context, req FileReceiptRequest)
 		field, date = "Eingangsdatum", req.ReceivedAt
 	}
 	if date == "" {
-		date = todayLocal()
+		date = s.today()
 	}
 	if err := domain.CheckDate(field, date); err != nil {
 		return 0, err
@@ -175,7 +176,7 @@ func (s *ReceiptService) File(ctx context.Context, req FileReceiptRequest) (*dom
 	}
 	applyRetention(receipt)
 	if receipt.ReceivedAt == "" && req.Direction == domain.DirectionIncoming {
-		receipt.ReceivedAt = todayLocal()
+		receipt.ReceivedAt = s.today()
 	}
 	if receipt.ReceivedVia == "" {
 		if req.Direction == domain.DirectionOutgoing {

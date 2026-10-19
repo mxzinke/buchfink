@@ -152,7 +152,7 @@ func registerPosten(tb *Toolbox) {
 			return out, err
 		}
 		if cutoff == "" {
-			cutoff = today()
+			cutoff = c.Tenant.Today()
 		}
 		out.Stichtag = cutoff
 
@@ -214,7 +214,7 @@ func registerPosten(tb *Toolbox) {
 			return mahnungOut{}, err
 		}
 		out := mahnungOut{ID: note.ID, Hinweis: "Verzugszinsen und Pauschale bucht Buchfink nicht; sie sind mit der Zahlung Ertrag."}
-		cutoff := today()
+		cutoff := c.Tenant.Today()
 		items, err := s.Payments.OpenItemsAt(ctx, cutoff)
 		if err != nil {
 			return out, err

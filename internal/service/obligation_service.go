@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/actor"
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -476,7 +477,7 @@ func (s *ObligationService) DeadlinesOf(ctx context.Context, year int, kinds ...
 
 // ---------------------------------------------------------------------------
 
-func (s *ObligationService) today() string { return s.now().Format(domain.DateLayout) }
+func (s *ObligationService) today() string { return calendar.Today(s.now) }
 
 func (s *ObligationService) repoFind(ctx context.Context, key string) (*domain.ObligationRecord, error) {
 	if s.repo == nil {

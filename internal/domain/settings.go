@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"fmt"
+	"github.com/buchfink/buchfink/internal/calendar"
 	"strings"
 	"time"
 )
@@ -255,7 +256,7 @@ func GetFiscalYearForDate(dateStr string, startMonth int) int {
 	}
 	t, err := time.Parse("2006-01-02", dateStr)
 	if err != nil {
-		t = time.Now()
+		t = time.Now().In(calendar.Location())
 	}
 	year := t.Year()
 	month := int(t.Month())

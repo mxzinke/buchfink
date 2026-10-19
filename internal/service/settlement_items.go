@@ -13,6 +13,7 @@ import (
 // openItemReader berechnet offene Posten aus Buchungen, Ausgleichen und Kontakten.
 // Er benötigt keine Zahlungsbuchungen, Anlagen oder Gesellschafterdarlehen.
 type openItemReader struct {
+	serviceClock
 	journalRepo    domain.JournalRepository
 	allocationRepo domain.PaymentAllocationRepository
 	contactRepo    domain.ContactRepository
@@ -223,7 +224,7 @@ func ageOpenItems(items []domain.OpenItem, cutoff string) *domain.OpenItemsAging
 // openItemsAging liefert die Altersstruktur zum Stichtag; leer heißt heute.
 func (s *openItemReader) openItemsAging(ctx context.Context, cutoff string) (*domain.OpenItemsAging, error) {
 	if cutoff == "" {
-		cutoff = time.Now().UTC().Format("2006-01-02")
+		cutoff = s.today()
 	}
 	items, err := s.OpenItems(ctx, cutoff)
 	if err != nil {

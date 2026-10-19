@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/goldentest"
 	"github.com/buchfink/buchfink/internal/ops"
@@ -240,7 +239,7 @@ func TestWriteToolsGuardTheTenant(t *testing.T) {
 			t.Errorf("%s mit Lese-Token: %+v", name, e)
 		}
 	}
-	until := time.Now().AddDate(0, 0, 5).Format("2006-01-02")
+	until := harnessNow().AddDate(0, 0, 5).Format("2006-01-02")
 	if _, err := h.host.EnableExaminer(uiCtx, until, "Betriebsprüfung"); err != nil {
 		t.Fatal(err)
 	}
@@ -262,7 +261,7 @@ func TestReadToolsNeedGrantAndScope(t *testing.T) {
 	h := newHarness(t)
 	full := h.mustSession(h.login("Claude Code", "").access)
 	writeOnly := h.mustSession(h.login("Nur buchen", "buchfink:buchen").access)
-	until := time.Now().AddDate(0, 0, 5).Format("2006-01-02")
+	until := harnessNow().AddDate(0, 0, 5).Format("2006-01-02")
 	if _, err := h.host.EnableExaminer(uiCtx, until, "Betriebsprüfung"); err != nil {
 		t.Fatal(err)
 	}

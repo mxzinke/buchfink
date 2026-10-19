@@ -17,6 +17,7 @@ import (
 // Ein Jahr ohne Rückstellungen sieht sonst aus wie ein Jahr, in dem sie
 // vergessen wurden.
 type ClosingStepsService struct {
+	serviceClock
 	derivers map[domain.ClosingStepKey]closingStepDeriver
 	auditor[int]
 	stepRepo          domain.ClosingStepRepository
@@ -299,7 +300,7 @@ func (s *ClosingStepsService) SetStep(
 	}
 	step := &domain.ClosingStep{
 		Year: year, Key: key, State: state, Reason: reason,
-		ChangedOn: todayLocal(),
+		ChangedOn: s.today(),
 	}
 	if err := step.Validate(); err != nil {
 		return nil, err
@@ -426,7 +427,7 @@ func (s *ClosingStepsService) ReopenStep(
 	// Arbeit wieder aufgenommen wird. Wer später prüft, liest sonst nur, dass
 	// ein Zustand umsprang.
 	step := &domain.ClosingStep{
-		Year: year, Key: key, State: domain.ClosingStepOpen, ChangedOn: todayLocal(),
+		Year: year, Key: key, State: domain.ClosingStepOpen, ChangedOn: s.today(),
 	}
 	if err := step.Validate(); err != nil {
 		return nil, err

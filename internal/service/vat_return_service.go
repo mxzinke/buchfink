@@ -30,6 +30,7 @@ func ProgramVersion() string {
 // Transferticket. Die Entität ist danach unveränderlich — sie *ist* das
 // Übermittlungsprotokoll, und ein Protokoll, das sich ändern lässt, ist keines.
 type VatReturnService struct {
+	serviceClock
 	auditor[uint]
 	journalRepo        domain.JournalRepository
 	receiptRepo        domain.ReceiptRepository
@@ -135,7 +136,7 @@ func (s *VatReturnService) Periods(ctx context.Context, year int) ([]VatPeriodSt
 	if s.festschreibungRepo != nil {
 		cutoff, _ = s.festschreibungRepo.LatestCutoff(ctx, year)
 	}
-	today := todayLocal()
+	today := s.today()
 
 	out := make([]VatPeriodStatus, 0, len(periods))
 	for _, p := range periods {

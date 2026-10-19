@@ -196,7 +196,7 @@ func (o darlehenOut) Ref() string {
 
 // bookLoanInterest rechnet die Zinsen eines Darlehens bis zinsen_bis und bucht
 // sie, außer in der Vorschau.
-func bookLoanInterest(ctx context.Context, s core.AgentServices, in darlehenIn) (darlehenOut, error) {
+func bookLoanInterest(ctx context.Context, s core.AgentServices, in darlehenIn, day string) (darlehenOut, error) {
 	if in.DarlehenID == 0 {
 		return darlehenOut{}, inputError("darlehen_id", "art=zinsen braucht das Darlehen")
 	}
@@ -223,11 +223,11 @@ func bookLoanInterest(ctx context.Context, s core.AgentServices, in darlehenIn) 
 		id := entry.ID
 		zinsen.BuchungID = &id
 	}
-	views, err := s.Shareholders.Loans(ctx, today())
+	views, err := s.Shareholders.Loans(ctx, day)
 	if err != nil {
 		return darlehenOut{}, err
 	}
-	out := darlehenOut{Vorschau: in.NurVorschau, Stichtag: today(), Zinsen: zinsen,
+	out := darlehenOut{Vorschau: in.NurVorschau, Stichtag: day, Zinsen: zinsen,
 		Hinweis: "Die Zahlung der Zinsen ordnet bankumsatz_buchen zu."}
 	for i := range views {
 		if views[i].Loan.ID == in.DarlehenID {
@@ -316,7 +316,7 @@ func registerGesellschaft(tb *Toolbox) {
 			"den Stand zeigt auswertung mit art=darlehen.",
 	}, func(ctx context.Context, c *Call, s core.AgentServices, in darlehenIn) (darlehenOut, error) {
 		if in.Art == "zinsen" {
-			return bookLoanInterest(ctx, s, in)
+			return bookLoanInterest(ctx, s, in, c.Tenant.Today())
 		}
 		base := service.LoanRequest{}
 		if in.DarlehenID != 0 {

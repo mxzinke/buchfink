@@ -8,6 +8,7 @@ import (
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/actor"
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/ebilanz"
 	"github.com/buchfink/buchfink/internal/export"
@@ -180,7 +181,7 @@ func journalTable(d *exportData) (export.Table, error) {
 				committed,
 				committedAt(e),
 				export.OptUint(e.FestschreibungID),
-				daysBetweenISO(e.DocumentDate, e.CreatedAt.UTC().Format("2006-01-02")),
+				daysBetweenISO(e.DocumentDate, calendar.Day(e.CreatedAt)),
 				daysToCommitment(e),
 				export.Int(l.Position),
 				string(l.Side),
@@ -929,8 +930,8 @@ func daysToCommitment(e *domain.JournalEntry) string {
 		return ""
 	}
 	return daysBetweenISO(
-		e.CreatedAt.UTC().Format("2006-01-02"),
-		e.CommittedAt.UTC().Format("2006-01-02"))
+		calendar.Day(e.CreatedAt),
+		calendar.Day(*e.CommittedAt))
 }
 
 func receiptsTable(d *exportData) (export.Table, error) {

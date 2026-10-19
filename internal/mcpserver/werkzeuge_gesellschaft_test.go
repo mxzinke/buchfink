@@ -5,7 +5,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -408,7 +407,7 @@ func TestOrganisationTextTool(t *testing.T) {
 	if res := callTool(t, reader, "verfahrensdoku_text", a.args(nil)); res.IsError {
 		t.Errorf("Lesen mit buchfink:lesen: %s", resultText(res))
 	}
-	until := time.Now().AddDate(0, 0, 5).Format("2006-01-02")
+	until := harnessNow().AddDate(0, 0, 5).Format("2006-01-02")
 	if _, err := h.host.EnableExaminer(uiCtx, until, "Betriebsprüfung"); err != nil {
 		t.Fatal(err)
 	}

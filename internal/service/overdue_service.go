@@ -77,6 +77,7 @@ func (c *OverdueClaim) EnsureLists() {
 
 // OverdueService rechnet die überfälligen Kundenforderungen.
 type OverdueService struct {
+	serviceClock
 	openItems   LiveOpenItemSource
 	contactRepo domain.ContactRepository
 	// invoiceRepo beantwortet, ob eine Rechnung gegenüber einem Verbraucher auf
@@ -120,7 +121,7 @@ func (s *OverdueService) consumerNoticePrinted(ctx context.Context, documentNumb
 // Pauschale zum Stichtag; leer heißt heute.
 func (s *OverdueService) Claims(ctx context.Context, today string) ([]OverdueClaim, error) {
 	if today == "" {
-		today = todayLocal()
+		today = s.today()
 	}
 	claims := make([]OverdueClaim, 0)
 	if s.openItems == nil {

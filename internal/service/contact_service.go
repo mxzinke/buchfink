@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -13,6 +12,7 @@ import (
 
 // ContactService manages debtor/creditor master data and their Personenkonten.
 type ContactService struct {
+	serviceClock
 	contactRepo domain.ContactRepository
 	journalRepo domain.JournalRepository
 	numberRepo  domain.NumberRangeRepository
@@ -241,7 +241,7 @@ func (s *ContactService) BlockContact(ctx context.Context, id uint, reason strin
 
 	before := *contact
 	contact.Blocked = true
-	contact.BlockedAt = time.Now().UTC().Format("2006-01-02")
+	contact.BlockedAt = s.today()
 	contact.BlockedReason = strings.TrimSpace(reason)
 	if err := s.contactRepo.Save(ctx, contact); err != nil {
 		return nil, "", err
@@ -359,7 +359,7 @@ func (s *ContactService) ExemptionCertificateWarnings(
 	ctx context.Context, today string,
 ) ([]ExemptionCertificateWarning, error) {
 	if today == "" {
-		today = todayLocal()
+		today = s.today()
 	}
 	contacts, err := s.contactRepo.FindAll(ctx)
 	if err != nil {

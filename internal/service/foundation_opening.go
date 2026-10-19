@@ -229,7 +229,7 @@ func (s *FoundationService) OpeningBalancePDF(ctx context.Context) (*OpeningBala
 		return nil, fmt.Errorf("der Satz ist nicht verfügbar: die Eröffnungsbilanz kann nicht gesetzt werden")
 	}
 
-	markdown := openingBalanceMarkdown(sheet)
+	markdown := openingBalanceMarkdown(sheet, s.today())
 	title := "Eröffnungsbilanz " + germanDate(sheet.AsOf)
 	pdf, err := s.renderer.RenderDocumentPDF(ctx,
 		procdoc.Typst(markdown, title, parseDayOrNow(sheet.AsOf)), "eroeffnungsbilanz-"+sheet.AsOf)
@@ -243,7 +243,7 @@ func (s *FoundationService) OpeningBalancePDF(ctx context.Context) (*OpeningBala
 //
 // Als Markdown und nicht unmittelbar als Typst — derselbe Weg wie beim
 // Eigenbeleg und bei der Verfahrensdokumentation.
-func openingBalanceMarkdown(sheet *OpeningBalanceSheet) string {
+func openingBalanceMarkdown(sheet *OpeningBalanceSheet, today string) string {
 	var b strings.Builder
 	b.WriteString("# Eröffnungsbilanz\n\n")
 
@@ -256,7 +256,7 @@ func openingBalanceMarkdown(sheet *OpeningBalanceSheet) string {
 
 	b.WriteString("| Angabe | Inhalt |\n| --- | --- |\n")
 	fmt.Fprintf(&b, "| Stichtag | %s |\n", germanDate(sheet.AsOf))
-	fmt.Fprintf(&b, "| Aufgestellt am | %s |\n", germanDate(todayLocal()))
+	fmt.Fprintf(&b, "| Aufgestellt am | %s |\n", germanDate(today))
 	if h.Seat != "" {
 		fmt.Fprintf(&b, "| Sitz | %s |\n", h.Seat)
 	}

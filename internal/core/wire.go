@@ -315,6 +315,33 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 			VatReturns: s.VatReturns, ZM: s.ZM, Statement: s.Statement, TaxRegister: s.TaxRegister,
 		})
 
+	s.Export.SetClock(o.Clock.Now)
+	s.ProcDoc.SetClock(o.Clock.Now)
+	s.Journal.SetClock(o.Clock.Now)
+	s.Idempotency.SetClock(o.Clock.Now)
+	s.Receipts.SetClock(o.Clock.Now)
+	s.Accounting.SetClock(o.Clock.Now)
+	s.Bank.SetClock(o.Clock.Now)
+	s.Payments.SetClock(o.Clock.Now)
+	s.Invoices.SetClock(o.Clock.Now)
+	s.Contacts.SetClock(o.Clock.Now)
+	s.Assets.SetClock(o.Clock.Now)
+	s.Settings.SetClock(o.Clock.Now)
+	s.Foundation.SetClock(o.Clock.Now)
+	s.Closing.SetClock(o.Clock.Now)
+	s.Provisions.SetClock(o.Clock.Now)
+	s.VatIDs.SetClock(o.Clock.Now)
+	s.Gifts.SetClock(o.Clock.Now)
+	s.ClosingSteps.SetClock(o.Clock.Now)
+	s.VatReturns.SetClock(o.Clock.Now)
+	s.ZM.SetClock(o.Clock.Now)
+	s.Checks.SetClock(o.Clock.Now)
+	s.Obligations.SetClock(o.Clock.Now)
+	s.Shareholders.SetClock(o.Clock.Now)
+	s.Overdue.SetClock(o.Clock.Now)
+	s.Tasks.SetClock(o.Clock.Now)
+	s.Declarations.SetClock(o.Clock.Now)
+
 	return s, st
 }
 

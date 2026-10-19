@@ -1389,7 +1389,7 @@ func TestCreateFiscalYearOpensTheNextYearInTheLastQuarter(t *testing.T) {
 		t.Fatalf("Geschäftsjahr 2026: %v", err)
 	}
 
-	closing.SetClock(func() time.Time { return time.Date(2026, 9, 30, 23, 0, 0, 0, time.UTC) })
+	closing.SetClock(func() time.Time { return time.Date(2026, 9, 30, 21, 59, 59, 0, time.UTC) })
 	candidates, err := closing.FiscalYearCandidates(ctx)
 	if err != nil {
 		t.Fatalf("Kandidaten: %v", err)
@@ -1401,7 +1401,7 @@ func TestCreateFiscalYearOpensTheNextYearInTheLastQuarter(t *testing.T) {
 		t.Error("das Geschäftsjahr 2027 wurde im dritten Quartal angelegt")
 	}
 
-	closing.SetClock(func() time.Time { return time.Date(2026, 10, 1, 8, 0, 0, 0, time.UTC) })
+	closing.SetClock(func() time.Time { return time.Date(2026, 9, 30, 22, 0, 0, 0, time.UTC) })
 	if _, err := closing.CreateFiscalYear(ctx, 2027); err != nil {
 		t.Errorf("im letzten Quartal muss sich 2027 anlegen lassen: %v", err)
 	}

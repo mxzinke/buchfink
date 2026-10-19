@@ -834,7 +834,7 @@ func (r *obligationRun) monthCommits(fy domain.FiscalYear, add func(domain.Oblig
 			for _, c := range commitments {
 				if c.CutoffDate >= p.To {
 					proof = &domain.ObligationEvidence{
-						Date: c.CreatedAt.Local().Format(domain.DateLayout), Kind: domain.EvidenceCommitment,
+						Date: calendar.Day(c.CreatedAt), Kind: domain.EvidenceCommitment,
 						Reference: c.PeriodLabel, Automatic: true,
 					}
 					break
@@ -913,7 +913,7 @@ func (r *obligationRun) annualStatement(
 		for _, c := range commitments {
 			if c.PeriodType == domain.PeriodTypeYear {
 				proof = &domain.ObligationEvidence{
-					Date: c.CreatedAt.Local().Format(domain.DateLayout), Kind: domain.EvidenceCommitment,
+					Date: calendar.Day(c.CreatedAt), Kind: domain.EvidenceCommitment,
 					Reference: c.PeriodLabel, Automatic: true,
 				}
 			}

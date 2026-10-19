@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/actor"
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/declaration"
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -303,7 +304,7 @@ func (s *DeclarationService) MarkSubmitted(ctx context.Context, req SubmissionRe
 	if err := domain.CheckDate("Übermittlungsdatum", req.SubmittedAt); err != nil {
 		return nil, err
 	}
-	if req.SubmittedAt > s.now().Format(domain.DateLayout) {
+	if req.SubmittedAt > calendar.Today(s.now) {
 		return nil, fmt.Errorf("das Übermittlungsdatum %s liegt in der Zukunft", req.SubmittedAt)
 	}
 	current, err := s.Build(ctx, req.Kind, req.Year)

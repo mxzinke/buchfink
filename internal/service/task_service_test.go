@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/repository"
@@ -299,17 +298,17 @@ func TestFailingSourceDoesNotBreakTheTaskList(t *testing.T) {
 func TestBackupTaskFollowsTheLastSuccessfulRun(t *testing.T) {
 	env := newTestEnv(t)
 	settings := repository.NewSettingsRepository(env.db)
-	today := time.Now().Format("2006-01-02")
+	today := testNow().Format("2006-01-02")
 
 	fresh := NewTaskService(settings)
-	fresh.SetBackupSource(stubBackupSource{run: &domain.BackupRun{StartedAt: time.Now()}})
+	fresh.SetBackupSource(stubBackupSource{run: &domain.BackupRun{StartedAt: testNow()}})
 	if _, ok := tasksFor(t, fresh, TaskOptions{Today: today})[domain.TaskKeyBackupMissing]; ok {
 		t.Error("nach einer frischen Sicherung darf keine Aufgabe entstehen")
 	}
 
 	stale := NewTaskService(settings)
 	stale.SetBackupSource(stubBackupSource{run: &domain.BackupRun{
-		StartedAt: time.Now().AddDate(0, 0, -7),
+		StartedAt: testNow().AddDate(0, 0, -7),
 	}})
 	if _, ok := tasksFor(t, stale, TaskOptions{Today: today})[domain.TaskKeyBackupMissing]; !ok {
 		t.Error("eine Woche ohne Sicherung muss auffallen")
@@ -420,14 +419,14 @@ func TestCarryForwardSourceProducesItsTask(t *testing.T) {
 func TestFailedBackupRunIsATaskOfItsOwn(t *testing.T) {
 	env := newTestEnv(t)
 	settings := repository.NewSettingsRepository(env.db)
-	today := time.Now().Format("2006-01-02")
-	yesterday := time.Now().AddDate(0, 0, -1)
+	today := testNow().Format("2006-01-02")
+	yesterday := testNow().AddDate(0, 0, -1)
 
 	failed := NewTaskService(settings)
 	failed.SetBackupSource(stubBackupSource{
 		run: &domain.BackupRun{StartedAt: yesterday, Success: true},
 		runs: []domain.BackupRun{{
-			Kind: domain.BackupKindAutomatic, StartedAt: time.Now(), Success: false,
+			Kind: domain.BackupKindAutomatic, StartedAt: testNow(), Success: false,
 			Message: "Zielordner nicht beschreibbar",
 		}},
 	})
@@ -450,8 +449,8 @@ func TestFailedBackupRunIsATaskOfItsOwn(t *testing.T) {
 	// Ein gelungener jüngster Lauf ist keine Aufgabe.
 	fine := NewTaskService(settings)
 	fine.SetBackupSource(stubBackupSource{
-		run:  &domain.BackupRun{StartedAt: time.Now(), Success: true},
-		runs: []domain.BackupRun{{Kind: domain.BackupKindAutomatic, StartedAt: time.Now(), Success: true}},
+		run:  &domain.BackupRun{StartedAt: testNow(), Success: true},
+		runs: []domain.BackupRun{{Kind: domain.BackupKindAutomatic, StartedAt: testNow(), Success: true}},
 	})
 	if _, ok := tasksFor(t, fine, TaskOptions{Today: today})[domain.TaskKeyBackupFailed]; ok {
 		t.Error("nach einem gelungenen Lauf darf keine Aufgabe entstehen")

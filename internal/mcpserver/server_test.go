@@ -809,7 +809,7 @@ func TestExaminerModeBlocksAgentWrites(t *testing.T) {
 	h := newHarness(t)
 	tok := h.login("Claude Code", "")
 	cs := h.mustSession(tok.access)
-	until := time.Now().AddDate(0, 0, 10).Format("2006-01-02")
+	until := harnessNow().AddDate(0, 0, 10).Format("2006-01-02")
 	if _, err := h.host.EnableExaminer(uiCtx, until, "Betriebsprüfung 2024"); err != nil {
 		t.Fatal(err)
 	}
@@ -935,7 +935,7 @@ func TestOutputsMatchTheirSchemas(t *testing.T) {
 		map[string]any{"mandant_id": h.tenant.ID, "name": "Schema GmbH", "idempotenz_schluessel": "schema-0001"}))
 	check(t, "wiederholt", "test_lieferant", callTool(t, cs, "test_lieferant",
 		map[string]any{"mandant_id": h.tenant.ID, "name": "Schema GmbH", "idempotenz_schluessel": "schema-0001"}))
-	until := time.Now().AddDate(0, 0, 3).Format("2006-01-02")
+	until := harnessNow().AddDate(0, 0, 3).Format("2006-01-02")
 	if _, err := h.host.EnableExaminer(uiCtx, until, "Prüfung"); err != nil {
 		t.Fatal(err)
 	}

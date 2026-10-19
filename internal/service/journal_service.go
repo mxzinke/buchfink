@@ -24,6 +24,7 @@ import (
 // bookable accounts, tax accounts reserved for the tax automation, gapless
 // numbering, an unbroken hash chain and respect for committed periods.
 type JournalService struct {
+	serviceClock
 	auditor[uint]
 	periods      *PeriodReader
 	settingsRepo domain.SettingsRepository
@@ -193,7 +194,7 @@ func (s *JournalService) post(ctx context.Context, entry *domain.JournalEntry, m
 			return nil, err
 		}
 
-		entry.CreatedAt = time.Now().UTC()
+		entry.CreatedAt = s.instant()
 
 		if err := s.journalRepo.Append(ctx, entry, s.hashChain.CalculateHash); err != nil {
 			return nil, fmt.Errorf("Buchung konnte nicht gespeichert werden: %w", err)
@@ -313,7 +314,7 @@ func (s *JournalService) reverseOn(ctx context.Context, entryID uint, reason, da
 	// the original period: that is what keeps a committed period untouched.
 	today := date
 	if today == "" {
-		today = todayLocal()
+		today = s.today()
 	}
 
 	lines := make([]domain.JournalLine, 0, len(original.Lines))
@@ -542,7 +543,7 @@ func (s *JournalService) prepare(ctx context.Context, e *domain.JournalEntry, mo
 	}
 
 	if e.BookingDate == "" {
-		e.BookingDate = todayLocal()
+		e.BookingDate = s.today()
 	}
 	if err := domain.CheckDate("Buchungsdatum", e.BookingDate); err != nil {
 		return err

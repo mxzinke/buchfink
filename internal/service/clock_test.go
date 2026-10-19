@@ -110,3 +110,14 @@ func TestPersistedTimestampsAreUTC(t *testing.T) {
 	}
 	utcString("Kettenprüfung", integrity.CheckedAt)
 }
+
+func TestCheckAndExportCountGermanCalendarDays(t *testing.T) {
+	from, _ := time.Parse(time.RFC3339, "2026-03-28T23:30:00Z")
+	to, _ := time.Parse(time.RFC3339, "2026-03-29T22:30:00Z")
+	if days, ok := daysBetweenEntryDates("2026-03-29", from); !ok || days != 0 {
+		t.Fatalf("Erfassungstag: %d, %v", days, ok)
+	}
+	if days, ok := daysBetweenTimes(from, to); !ok || days != 1 {
+		t.Fatalf("Festschreibung nach Sommerzeitwechsel: %d, %v", days, ok)
+	}
+}

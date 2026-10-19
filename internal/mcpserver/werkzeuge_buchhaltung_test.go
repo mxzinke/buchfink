@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/declaration"
@@ -155,7 +154,7 @@ func TestManualEntryReversalAndReminder(t *testing.T) {
 		} `json:"posten"`
 	}
 	a.fail("mahnung_vermerken", a.args(map[string]any{"buchung_id": booked.Buchung.ID, "idempotenz_schluessel": "mahnung-zukunft",
-		"datum": time.Now().AddDate(0, 0, 3).Format("2006-01-02")}), CodeRule)
+		"datum": harnessNow().AddDate(0, 0, 3).Format("2006-01-02")}), CodeRule)
 	reminder := a.args(map[string]any{"buchung_id": booked.Buchung.ID, "datum": "2026-04-20", "notiz": "per E-Mail",
 		"idempotenz_schluessel": "mahnung-17-1"})
 	a.ok("mahnung_vermerken", reminder, &dunned)
@@ -447,7 +446,7 @@ func TestDeclarationsInputsAndExports(t *testing.T) {
 		}
 	}
 
-	until := time.Now().AddDate(0, 0, 5).Format("2006-01-02")
+	until := harnessNow().AddDate(0, 0, 5).Format("2006-01-02")
 	if _, err := h.host.EnableExaminer(uiCtx, until, "Betriebsprüfung"); err != nil {
 		t.Fatal(err)
 	}

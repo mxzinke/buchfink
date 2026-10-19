@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/core"
@@ -377,7 +376,7 @@ func registerKonten(tb *Toolbox) {
 		case "pruefbericht":
 			cutoff := to
 			if cutoff == "" {
-				cutoff = time.Now().Format("2006-01-02")
+				cutoff = c.Tenant.Today()
 			}
 			run, err := s.Checks.Preview(ctx, service.CheckRequest{FiscalYear: year, CutoffDate: cutoff})
 			if err != nil {
@@ -398,7 +397,7 @@ func registerKonten(tb *Toolbox) {
 		case "darlehen":
 			cutoff := to
 			if cutoff == "" {
-				cutoff = today()
+				cutoff = c.Tenant.Today()
 			}
 			loans, err := s.Shareholders.Loans(ctx, cutoff)
 			if err != nil {

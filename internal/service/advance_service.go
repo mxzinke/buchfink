@@ -110,7 +110,7 @@ func (s *InvoiceService) CreateInvoiceGroup(ctx context.Context, req AdvanceGrou
 	}
 	date := req.Date
 	if date == "" {
-		date = todayLocal()
+		date = s.today()
 	}
 	if err := domain.CheckDate("Auftragsdatum", date); err != nil {
 		return nil, err

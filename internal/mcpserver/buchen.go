@@ -484,7 +484,7 @@ func registerBuchen(tb *Toolbox) {
 		if _, err := receiptReady(ctx, s, req); err != nil {
 			return buchungOut{}, err
 		}
-		verdict, err := policy.ClassifyReceiptRequest(ctx, s, req, today())
+		verdict, err := policy.ClassifyReceiptRequest(ctx, s, req, c.Tenant.Today())
 		if err != nil {
 			return buchungOut{}, err
 		}

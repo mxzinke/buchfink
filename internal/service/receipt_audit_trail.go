@@ -37,7 +37,7 @@ func (s *ReceiptService) SaveServiceProof(
 	}
 	proof = strings.TrimSpace(proof)
 	if proof != "" && date == "" {
-		date = todayLocal()
+		date = s.today()
 	}
 	if proof == "" {
 		date = ""

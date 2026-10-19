@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/declaration"
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -109,7 +110,7 @@ func (s *DeclarationService) vatYearData(ctx context.Context, year int, cfg doma
 	periodType := s.src.VatReturns.PeriodType(ctx)
 	expected := []string{}
 	if periodType == domain.VatPeriodMonth || periodType == domain.VatPeriodQuarter {
-		today := s.now().Format(domain.DateLayout)
+		today := calendar.Today(s.now)
 		for _, p := range accounting.VatPeriodsOfYear(year, periodType) {
 			if p.To >= today || (cfg.FoundedOn != "" && p.To < cfg.FoundedOn) {
 				continue
@@ -166,7 +167,7 @@ func (s *DeclarationService) zmData(ctx context.Context, year int, data *declara
 	if err != nil {
 		return err
 	}
-	today := s.now().Format(domain.DateLayout)
+	today := calendar.Today(s.now)
 	for _, p := range periods {
 		if p.Total != 0 && p.Status != domain.VatReturnSubmitted && p.To < today {
 			data.ZMMissing = append(data.ZMMissing, p.Key)

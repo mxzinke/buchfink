@@ -150,7 +150,7 @@ func (s *VatIDService) RecordCheck(
 		ContactID: contact.ID,
 		VatID:     query.Request.VatID,
 		OwnVatID:  query.Request.OwnVatID,
-		CheckedAt: result.CheckedAt.Format(time.RFC3339),
+		CheckedAt: result.CheckedAt.UTC().Format(time.RFC3339),
 		Status:    result.Status,
 		// Der Ergebniscode und der rohe Datensatz sind der Nachweis. Sie werden
 		// aufgehoben, wie sie kamen: eine aufbereitete Zusammenfassung ist gegenüber

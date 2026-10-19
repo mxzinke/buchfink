@@ -1,3 +1,4 @@
+import { todayISO } from "./utils/calendar";
 import React, { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Toaster } from 'sonner';
 import { Sidebar } from './components/Sidebar';
@@ -20,7 +21,7 @@ import { CompanyArea } from './pages/company/CompanyArea';
 import { SettingsArea } from './pages/settings/SettingsArea';
 
 export function App() {
-  const currentCalendarYear = new Date().getFullYear();
+  const currentCalendarYear = Number(todayISO().slice(0, 4));
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [tenants, setTenants] = useState<TenantConfig[]>([]);
   const [activeTenant, setActiveTenant] = useState<TenantConfig | null>(null);

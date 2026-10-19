@@ -1,3 +1,4 @@
+import { todayISO } from "../utils/calendar";
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowLeft, ArrowRight, Check, Database, FolderOpen, HardDrive } from 'lucide-react';
 import type { CompanySettings, ConnectedApp, FolderCheck, MCPServerStatus } from '../types';
@@ -65,7 +66,7 @@ function fiscalYearOf(date: string, startMonth: number): number {
 const DEFAULTS: CompanySettings = {
   companyName: '',
   legalForm: 'GmbH',
-  fiscalYear: new Date().getFullYear(),
+  fiscalYear: Number(todayISO().slice(0, 4)),
   fiscalYearStartMonth: 1,
   taxNumber: '',
   vatId: '',
@@ -261,7 +262,7 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
   const startError =
     dateComplete && start === 'switch' && !startDate.endsWith('-01')
       ? 'Ein Umstieg beginnt am ersten Tag eines Geschäftsjahres.'
-      : dateComplete && Number(startDate.slice(0, 4)) > new Date().getFullYear() + 1
+      : dateComplete && Number(startDate.slice(0, 4)) > Number(todayISO().slice(0, 4)) + 1
         ? 'So weit im Voraus lassen sich keine Bücher anlegen.'
         : '';
   const ready = companyName.trim() !== '' && dateComplete && !startError && federalState !== '' && dirValid;

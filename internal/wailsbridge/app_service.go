@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/core/policy"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -243,7 +244,7 @@ func (b *BuchfinkBridge) SetFiscalYear(year int) error {
 func (b *BuchfinkBridge) GetCompanySettings() (*domain.CompanySettings, error) {
 	return readOr(b, func() (*domain.CompanySettings, error) {
 		return &domain.CompanySettings{
-			FiscalYear: time.Now().Year(), FiscalYearStartMonth: 1, Currency: "EUR",
+			FiscalYear: time.Now().In(calendar.Location()).Year(), FiscalYearStartMonth: 1, Currency: "EUR",
 			SKR: "SKR04", TaxationType: "SOLL", CountryCode: domain.DefaultCountryCode,
 			Shareholders: []domain.CompanyShareholder{},
 		}, nil

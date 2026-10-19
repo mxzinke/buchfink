@@ -148,7 +148,7 @@ func TestQueuedWriterRespectsTheExaminerMode(t *testing.T) {
 	h := newHost(t)
 	newTenant(t, h, "Pfennig Ventures GmbH")
 	tenant := openTenant(t, h)
-	until := time.Now().AddDate(0, 0, 3).Format("2006-01-02")
+	until := coreTestNow().AddDate(0, 0, 3).Format("2006-01-02")
 
 	for round := 0; round < 5; round++ {
 		holding, release := make(chan struct{}), make(chan struct{})

@@ -121,7 +121,7 @@ func settlementSnapshot(t *testing.T, env *testEnv, payments *PaymentService, au
 		if entry.Kind != domain.EntryKindReversal {
 			continue
 		}
-		if entry.BookingDate != todayLocal() {
+		if entry.BookingDate != testNow().Format(domain.DateLayout) {
 			t.Fatalf("Stornotag %s, erwartet heute", entry.BookingDate)
 		}
 		for j := range logs {

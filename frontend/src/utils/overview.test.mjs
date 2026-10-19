@@ -12,7 +12,7 @@ function load(file, imports = {}) {
 }
 
 const { planOverview, monthToClose, appName, onlyClaude, agentWorkSummary } = await import(
-  load('./overview.ts', { './actor': load('./actor.ts') })
+  load('./overview.ts', { './actor': load('./actor.ts'), './calendar': load('./calendar.ts') })
 );
 
 const task = (key, group, dueDate) => ({ key, group, title: key, why: '', target: { area: 'overview' }, count: 0, amount: 0, dueDate });

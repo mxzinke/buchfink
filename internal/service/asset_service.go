@@ -22,6 +22,7 @@ import (
 // Anlagenkartei, which is kept across fiscal years while the journal is
 // organised per year.
 type AssetService struct {
+	serviceClock
 	auditor[uint]
 	fiscalCalendar
 	assetRepo   domain.AssetRepository
@@ -3115,7 +3116,7 @@ func (s *AssetService) reload(ctx context.Context, id uint, date string) (*domai
 		return nil, err
 	}
 	if date == "" {
-		date = todayLocal()
+		date = s.today()
 	}
 	startMonth := s.fiscalYearStartMonth(ctx)
 	s.enrich(asset, domain.GetFiscalYearForDate(date, startMonth), startMonth, s.fiscalPeriods(ctx))

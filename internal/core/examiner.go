@@ -58,7 +58,7 @@ func (t *Tenant) loadExaminer(ctx context.Context) error {
 }
 
 // Examiner liefert den Stand des Prüfermodus am heutigen Tag.
-func (t *Tenant) Examiner() ExaminerState { return t.examiner.state(today()) }
+func (t *Tenant) Examiner() ExaminerState { return t.examiner.state(t.Today()) }
 
 // ensureWritable weist im Prüfermodus einen Schreibvorgang ab. Der Zeitraum
 // wird in dessen Transaktion gelesen, nicht aus dem Speicher: ein Schreiber,
@@ -70,7 +70,7 @@ func (t *Tenant) ensureWritable(ctx context.Context) error {
 		return fmt.Errorf("der Prüfermodus ließ sich nicht prüfen: %w", err)
 	}
 	t.examiner.period.Store(latest)
-	return examinerError(t.examiner.state(today()))
+	return examinerError(t.examiner.state(t.Today()))
 }
 
 func examinerError(state ExaminerState) error {
@@ -100,7 +100,7 @@ func (t *Tenant) EnableExaminer(ctx context.Context, until, reason string) (Exam
 	if err := requireApp(ctx); err != nil {
 		return t.Examiner(), err
 	}
-	day := today()
+	day := t.Today()
 	if strings.TrimSpace(until) == "" {
 		return t.Examiner(), fmt.Errorf("der Prüfermodus braucht ein Datum, bis zu dem er gilt")
 	}
@@ -144,7 +144,7 @@ func (t *Tenant) DisableExaminer(ctx context.Context, reason string) (ExaminerSt
 	if reason == "" {
 		return t.Examiner(), fmt.Errorf("bitte den Grund angeben, aus dem der Prüfermodus beendet wird")
 	}
-	day := today()
+	day := t.Today()
 	return t.changeExaminer(ctx, func(ctx context.Context, s *Services, previous *domain.ExaminerPeriod) (*domain.ExaminerPeriod, string, error) {
 		if !previous.ActiveOn(day) {
 			return nil, "", fmt.Errorf("der Prüfermodus ist nicht eingeschaltet")
@@ -170,13 +170,13 @@ func (t *Tenant) changeExaminer(
 		if err != nil {
 			return err
 		}
-		before := examinerFields(previous, today())
+		before := examinerFields(previous, t.Today())
 		next, details, err := change(ctx, s, previous)
 		if err != nil {
 			return err
 		}
 		if err := t.repos.audit.LogChange(ctx, domain.AuditActionUpdate, domain.AuditEntityReadOnly, t.ID(),
-			details, before, examinerFields(next, today())); err != nil {
+			details, before, examinerFields(next, t.Today())); err != nil {
 			return err
 		}
 		latest, err := t.repos.examiner.Latest(ctx)

@@ -1,3 +1,4 @@
+import { todayISO } from "../utils/calendar";
 import React, { useState } from 'react';
 import { Calendar, Check, ChevronDown, Lock, Menu as MenuIcon, Plus } from 'lucide-react';
 import { CompanySettings, TenantConfig } from '../types';
@@ -111,7 +112,7 @@ export const Header: React.FC<HeaderProps> = ({
   onCreateFiscalYear,
   onToggleMobileSidebar,
 }) => {
-  const currentCalendarYear = new Date().getFullYear();
+  const currentCalendarYear = Number(todayISO().slice(0, 4));
   // Ein Geschäftsjahr anzulegen ist eine Änderung an den Büchern und im
   // Prüfermodus gesperrt; das Umschalten der Ansicht bleibt möglich.
   const writeLock = useWriteLock();

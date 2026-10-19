@@ -36,7 +36,7 @@ func (s *settlement) writeOff(ctx context.Context, req WriteOffRequest) (*domain
 				"ob sie uneinbringlich im Sinne des § 17 Abs. 2 Nr. 1 UStG ist")
 	}
 	if req.Date == "" {
-		req.Date = todayLocal()
+		req.Date = s.today()
 	}
 
 	openItems, err := s.OpenItems(ctx, "")

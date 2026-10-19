@@ -7,9 +7,10 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/actor"
+	"github.com/buchfink/buchfink/internal/calendar"
 )
 
-// Clock ist die Uhr der Hintergrundläufe. Tests setzen eine eigene.
+// Clock ist die gemeinsame Uhr des Kerns und seiner Dienste.
 type Clock interface {
 	Now() time.Time
 	After(d time.Duration) <-chan time.Time
@@ -40,9 +41,10 @@ func every(d time.Duration) func(time.Time) time.Duration {
 	return func(time.Time) time.Duration { return d }
 }
 
-// untilMidnight ist die Zeit bis kurz nach der nächsten Mitternacht in Ortszeit:
+// untilMidnight ist die Zeit bis kurz nach der nächsten Mitternacht in Deutschland:
 // dann endet ein Prüfermodus, dessen letzter Tag gestern war.
 func untilMidnight(now time.Time) time.Duration {
+	now = now.In(calendar.Location())
 	y, m, d := now.Date()
 	next := time.Date(y, m, d+1, 0, 0, 1, 0, now.Location())
 	return next.Sub(now)

@@ -165,7 +165,7 @@ func TestDeclarationExportAndSubmission(t *testing.T) {
 		t.Errorf("Stand nach dem Export: %s", d.Status)
 	}
 
-	today := time.Now().Format(domain.DateLayout)
+	today := coreTestNow().Format(domain.DateLayout)
 	req := service.SubmissionRequest{Kind: declaration.KindVatYear, Year: 2026, SubmittedAt: today,
 		TransferTicket: "et9K2LX4QZ", FiguresHash: exp.FiguresHash}
 	if _, err := tenant.SubmitDeclaration(agent, req); !errors.Is(err, ErrAppOnly) {
@@ -262,7 +262,7 @@ func TestDeclarationsInExaminerMode(t *testing.T) {
 	h := newHost(t)
 	newTenant(t, h, "Pfennig Ventures GmbH")
 	tenant := openTenant(t, h)
-	until := time.Now().AddDate(0, 0, 10).Format(domain.DateLayout)
+	until := coreTestNow().AddDate(0, 0, 10).Format(domain.DateLayout)
 	if _, err := tenant.EnableExaminer(uiCtx, until, "Außenprüfung"); err != nil {
 		t.Fatal(err)
 	}

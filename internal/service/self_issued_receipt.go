@@ -96,7 +96,7 @@ func (s *ReceiptService) CreateSelfIssued(
 	created := actor.Actor()
 	number := s.nextSelfIssuedLabel(ctx, year)
 
-	markdown := selfIssuedMarkdown(req, issuer, created, number, reason)
+	markdown := selfIssuedMarkdown(req, issuer, created, number, reason, s.today())
 	// Der Ident macht zwei Läufe desselben Belegs byteweise vergleichbar; er
 	// darf deshalb nicht die Uhrzeit enthalten.
 	pdf, err := s.renderer.RenderDocumentPDF(ctx,
@@ -120,7 +120,7 @@ func (s *ReceiptService) CreateSelfIssued(
 		FiscalYear:   year,
 		Kind:         domain.ReceiptKindSelfIssued,
 		ReceivedVia:  domain.ReceivedViaSelfIssued,
-		ReceivedAt:   todayLocal(),
+		ReceivedAt:   s.today(),
 		DocumentDate: req.DocumentDate,
 		IssuerName:   issuer,
 		GrossAmount:  req.GrossAmount,
@@ -215,7 +215,7 @@ func (s *ReceiptService) SetNumberRepo(repo domain.NumberRangeRepository) { s.nu
 // Als Markdown und nicht unmittelbar als Typst: derselbe Weg, den die
 // Verfahrensdokumentation geht. Der Satz ist dann eine
 // Übersetzung dieses Textes und keine zweite Quelle, die auseinanderlaufen kann.
-func selfIssuedMarkdown(req SelfIssuedReceiptRequest, issuer, createdBy, number, reason string) string {
+func selfIssuedMarkdown(req SelfIssuedReceiptRequest, issuer, createdBy, number, reason, today string) string {
 	var b strings.Builder
 	b.WriteString("# Eigenbeleg\n\n")
 	if number != "" {
@@ -229,7 +229,7 @@ func selfIssuedMarkdown(req SelfIssuedReceiptRequest, issuer, createdBy, number,
 		fmt.Fprintf(&b, "| davon Umsatzsteuer | %s %s |\n", req.TaxAmount, currencyOrEuro(req.Currency))
 	}
 	fmt.Fprintf(&b, "| Erfasst von | %s |\n", createdBy)
-	fmt.Fprintf(&b, "| Erfasst am | %s |\n", germanDate(todayLocal()))
+	fmt.Fprintf(&b, "| Erfasst am | %s |\n", germanDate(today))
 	b.WriteString("\n## Grund\n\n")
 	b.WriteString(reason + "\n\n")
 	b.WriteString("## Hinweis\n\n")

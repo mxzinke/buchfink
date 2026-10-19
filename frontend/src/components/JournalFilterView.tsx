@@ -1,3 +1,4 @@
+import { todayISO } from "../utils/calendar";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Download } from 'lucide-react';
 import { Api } from '../services/api';
@@ -105,7 +106,7 @@ export const JournalFilterView: React.FC<JournalFilterViewProps> = ({
     try {
       const path = await Api.selectSaveFilePath(
         'Gefilterte Buchungen speichern',
-        `journal-${year ?? new Date().getFullYear()}.csv`,
+        `journal-${year ?? Number(todayISO().slice(0, 4))}.csv`,
       );
       // Leerer Pfad heißt: der Speichern-Dialog wurde abgebrochen.
       if (!path) return;

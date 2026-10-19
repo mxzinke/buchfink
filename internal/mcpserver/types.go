@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -175,8 +174,6 @@ func satzOf(r domain.TaxRate) Satz {
 	}
 	return Satz(fmt.Sprintf("%d.%02d", r/100, r%100))
 }
-
-func today() string { return time.Now().Format("2006-01-02") }
 
 // yearOr ist das angegebene Geschäftsjahr, sonst das des heutigen Tages.
 func yearOr(ctx context.Context, c *Call, year int) (int, error) {

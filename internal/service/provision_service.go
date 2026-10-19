@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -27,6 +27,7 @@ import (
 // im Jahr 2026 gebildet und 2028 verbraucht wird, hat Bewegungen aus drei Jahren,
 // und der Rückstellungsspiegel eines Jahres braucht sie alle.
 type ProvisionService struct {
+	serviceClock
 	auditor[uint]
 	fiscalCalendar
 	provisionRepo domain.ProvisionRepository
@@ -892,7 +893,7 @@ func (s *ProvisionService) DiscountFindings(
 // jüngsten, die es gibt.
 func (s *ProvisionService) DiscountRates(ctx context.Context, month string) ([]domain.DiscountRate, error) {
 	if month == "" {
-		return s.rateRepo.FindLatestUpTo(ctx, time.Now().Format("2006-01"))
+		return s.rateRepo.FindLatestUpTo(ctx, calendar.Today(s.now)[:7])
 	}
 	return s.rateRepo.FindByMonth(ctx, month)
 }
