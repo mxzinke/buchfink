@@ -197,7 +197,7 @@ func TestGoldenSettlementTaxCases(t *testing.T) {
 				if skonto {
 					allocation.DifferenceKind, allocation.DifferenceAmount = domain.DifferenceSkonto, gross/50
 				}
-				cash := allocation.cashAmount()
+				cash := allocation.cashAmount(domain.SideDebit)
 				if tc.direction == domain.DirectionIncoming {
 					cash = -cash
 				}
@@ -266,7 +266,7 @@ func TestGoldenSettlementPaymentWays(t *testing.T) {
 					payments.SetAssetRegister(env.assetsWithAudit(t, "ANLAGE"))
 				}
 			}
-			cash := -allocation.cashAmount()
+			cash := -allocation.cashAmount(domain.SideDebit)
 			date := "2026-03-10"
 			if strings.HasPrefix(name, "kurs") {
 				date = "2026-12-10"

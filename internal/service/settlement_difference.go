@@ -24,7 +24,7 @@ func (s *settlement) differenceLines(
 		return nil, nil, nil
 	}
 
-	// Abzüge stehen dem Ausgleich gegenüber, Gebühren auf derselben Seite.
+	// Abzüge stehen dem Ausgleich gegenüber.
 	opposite := item.SettleSide().Opposite()
 
 	switch alloc.DifferenceKind {
@@ -32,8 +32,10 @@ func (s *settlement) differenceLines(
 		return s.skontoLines(ctx, alloc, item, opposite)
 
 	case domain.DifferenceBankFee:
+		// Die Gebühr ist Aufwand, beim Zahlungsausgang wie beim -eingang. Den
+		// Unterschied macht der Zahlbetrag (cashAmount).
 		return []domain.JournalLine{{
-			Side: item.SettleSide(), Account: domain.AccountNebenkostenGeld,
+			Side: domain.SideDebit, Account: domain.AccountNebenkostenGeld,
 			Amount: alloc.DifferenceAmount, Text: "Bankgebühr",
 		}}, nil, nil
 
@@ -117,12 +119,20 @@ func (s *settlement) assetForItem(
 	return asset
 }
 
-// cashAmount ist der Zahlbetrag nach Abzügen und Gebühren.
-func (a AllocationRequest) cashAmount() domain.Cents {
+// cashAmount ist der Zahlbetrag nach Abzügen und Gebühren. settle ist die
+// Seite, auf der der Posten ausgeglichen wird: Soll beim Zahlungsausgang, Haben
+// beim Zahlungseingang.
+//
+// Eine Bankgebühr belastet beim Ausgang zusätzlich zum Rechnungsbetrag; beim
+// Eingang hat eine Bank in der Kette sie vom Betrag abgezogen.
+func (a AllocationRequest) cashAmount(settle domain.Side) domain.Cents {
 	switch a.DifferenceKind {
 	case domain.DifferenceSkonto, domain.DifferenceRounding, domain.DifferenceCurrency:
 		return a.SettledAmount - a.DifferenceAmount
 	case domain.DifferenceBankFee:
+		if settle == domain.SideCredit {
+			return a.SettledAmount - a.DifferenceAmount
+		}
 		return a.SettledAmount + a.DifferenceAmount
 	default:
 		return a.SettledAmount

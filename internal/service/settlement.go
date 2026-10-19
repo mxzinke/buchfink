@@ -181,7 +181,7 @@ func (s *settlement) allocate(
 			parts.reductions = append(parts.reductions, *reduction)
 		}
 
-		cash := alloc.cashAmount()
+		cash := alloc.cashAmount(item.SettleSide())
 		if cash < 0 {
 			return nil, fmt.Errorf("Zuordnung %d: die Differenz ist größer als der Ausgleichsbetrag", i+1)
 		}

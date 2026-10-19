@@ -273,6 +273,81 @@ func TestBankFeeIsBookedSeparately(t *testing.T) {
 	})
 }
 
+// Bankgebühr beim Zahlungseingang: eine Bank in der Kette hat sie vom Betrag
+// abgezogen. Die Gebühr bleibt Aufwand, die Forderung ist voll ausgeglichen.
+func TestBankFeeOnIncomingPaymentReducesTheCash(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	payments := env.paymentsWithBank(t)
+	customer := env.customer(t, "Kunde", "DE", "")
+
+	inv := &domain.Invoice{
+		ContactID: customer.ID, Date: "2026-03-01",
+		ServiceDateFrom: "2026-03-01", ServiceDateTo: "2026-03-01",
+		TaxTreatment: domain.TaxTreatmentDomestic,
+		Items:        []domain.InvoiceItem{{Description: "Leistung", QuantityMilli: 1000, UnitPrice: 100000, TaxRate: domain.TaxRateStandard}},
+	}
+	if err := env.invoices(t).Issue(ctx, inv); err != nil {
+		t.Fatalf("Rechnung: %v", err)
+	}
+	id := env.bankLine(t, "2026-03-20", 118500, "Kunde", inv.InvoiceNumber)
+
+	entry, err := payments.Settle(ctx, PaymentRequest{
+		BankTxID: &id,
+		Allocations: []AllocationRequest{{
+			OpenItemEntryID:  *inv.JournalEntryID,
+			SettledAmount:    119000,
+			DifferenceKind:   domain.DifferenceBankFee,
+			DifferenceAmount: 500,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Zahlungseingang mit Gebühr: %v", err)
+	}
+
+	assertLines(t, entry, []bookedLine{
+		{domain.SideCredit, customer.LedgerAccount, 119000},
+		{domain.SideDebit, domain.AccountNebenkostenGeld, 500},
+		{domain.SideDebit, domain.AccountBank, 118500},
+	})
+	if items, _ := payments.OpenItems(ctx); len(items) != 0 {
+		t.Errorf("die Forderung muss ausgeglichen sein, es bleiben aber %d Posten offen", len(items))
+	}
+}
+
+// Dieselbe Gebühr in der Aufteilung eines Bankumsatzes (bankumsatz_buchen).
+func TestBankFeeOnIncomingPaymentInASplit(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	payments := env.paymentsWithBank(t)
+	customer := env.customer(t, "Kunde", "DE", "")
+
+	inv := &domain.Invoice{
+		ContactID: customer.ID, Date: "2026-03-01",
+		ServiceDateFrom: "2026-03-01", ServiceDateTo: "2026-03-01",
+		TaxTreatment: domain.TaxTreatmentDomestic,
+		Items:        []domain.InvoiceItem{{Description: "Leistung", QuantityMilli: 1000, UnitPrice: 100000, TaxRate: domain.TaxRateStandard}},
+	}
+	if err := env.invoices(t).Issue(ctx, inv); err != nil {
+		t.Fatalf("Rechnung: %v", err)
+	}
+	id := env.bankLine(t, "2026-03-20", 118500, "Kunde", inv.InvoiceNumber)
+
+	entry, err := payments.BookBankSplit(ctx, BankSplitRequest{BankTxID: id, Lines: []BankSplitLine{{
+		OpenItemEntryID: *inv.JournalEntryID, SettledAmount: 119000,
+		DifferenceKind: domain.DifferenceBankFee, DifferenceAmount: 500,
+	}}})
+	if err != nil {
+		t.Fatalf("Aufteilung mit Gebühr: %v", err)
+	}
+
+	assertLines(t, entry, []bookedLine{
+		{domain.SideCredit, customer.LedgerAccount, 119000},
+		{domain.SideDebit, domain.AccountNebenkostenGeld, 500},
+		{domain.SideDebit, domain.AccountBank, 118500},
+	})
+}
+
 // Kleinbetragsdifferenz: der Rest wird ausgebucht, statt als offener Posten über
 // wenige Cent stehen zu bleiben.
 func TestRoundingDifferenceClosesTheItem(t *testing.T) {

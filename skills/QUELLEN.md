@@ -334,7 +334,7 @@ Quellen des Bereichs `references/bank/` (ablauf.md und Referenzen). Alle Links a
 
 | Quelle | Wofür |
 |---|---|
-| `internal/service/payment_service.go` (`Settle`, `cashAmount`, `differenceLines`, `skontoLines`) | Differenzarten, Skonto nach Steuerfall, Anlage-Skonto, Rundung/Kurs auf 6300/4830, Gebühr auf 6855 |
+| `internal/service/settlement.go` (`Settle`), `internal/service/settlement_difference.go` (`cashAmount`, `differenceLines`, `skontoLines`) | Differenzarten, Skonto nach Steuerfall, Anlage-Skonto, Rundung/Kurs auf 6300/4830, Gebühr auf 6855 bei Zahlungsausgang und -eingang |
 | `internal/domain/payment.go` (`SkontoAccount`) | Skontokonten 5736/5731/5730, 4736/4731/4734 |
 | `internal/service/bank_service.go`, `bank_accounts.go`, `internal/bank/camt.go` | Import, Auszug als Beleg, Ablehnungen (Sammelbuchung, Fremdwährung, unbekannte IBAN, mehrere Konten, nur gebuchte Umsätze), gelernte Regeln |
 | `internal/service/closing_booking_service.go` | Jahresverrechnung USt: Zahllast 3841, Erstattung 1420, Vorauszahlungen 3820/3830 |
@@ -343,11 +343,6 @@ Quellen des Bereichs `references/bank/` (ablauf.md und Referenzen). Alle Links a
 
 ### Offen
 
-- Buchfink: `differenz {art: gebuehr}` ist für Zahlungsausgänge gebaut. Bei einem
-  Zahlungseingang bucht `differenceLines` die Gebühr im Haben (als Ertrag) und
-  `cashAmount` erhöht den Zahlbetrag; eine von der Bank abgezogene Gebühr lässt
-  sich so nicht abbilden. Der Skill weicht auf eine Kontozeile mit negativem
-  Betrag aus; ob das Werkzeug negative Kontozeilen annimmt, ist offen.
 - Buchfink: realisierte Kursdifferenz bei Zahlung auf 6300/4830; das SKR04 hat
   6880/4840 (Währungsumrechnung), die der Belegweg nutzt. Vereinheitlichen?
 - Werkzeug: Ob eine Zeile auf das Personenkonto des Kunden in

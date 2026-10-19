@@ -59,10 +59,9 @@ Anlagekonto und schreibt das Anlagenverzeichnis fort.
   Umsatz. `differenz {art: gebuehr}` bucht die Gebühr auf 6855 Nebenkosten des
   Geldverkehrs.
 - **Zahlungseingang:** Eine Bank in der Kette hat vom Betrag eine Gebühr
-  abgezogen. `differenz {art: gebuehr}` ist im Code für den Ausgang gebaut und
-  würde hier falsch buchen. Schreib zwei Zeilen: `buchung_id` mit dem vollen
-  Betrag als `ausgleich` und `konto: 6855` mit der Gebühr als negativem
-  `betrag`.
+  abgezogen. `ausgleich` ist der volle Rechnungsbetrag, `differenz {art:
+  gebuehr}` die Gebühr. Buchfink gleicht den Posten voll aus und bucht die
+  Gebühr ebenfalls auf 6855.
 - Kontoführung und Überweisungsentgelt sind steuerfrei
   ([§ 4 Nr. 8 Buchst. d UStG][ustg4]); die Zeilen einer Aufteilung tragen
   keine Umsatzsteuer.

@@ -141,7 +141,7 @@ Zahlung zählt nicht als Ausgleich.
 | Differenz | Behandlung |
 |---|---|
 | Skonto | mindert Entgelt und Steuer nach § 17 UStG; bei § 13b und Erwerb werden beide Steuerzeilen berichtigt |
-| Bankgebühr | Aufwand auf 6855 |
+| Bankgebühr | Aufwand auf 6855; beim Zahlungsausgang zusätzlich zum Rechnungsbetrag abgebucht, beim Zahlungseingang vom Betrag abgezogen |
 | Kursdifferenz | realisierter Gewinn oder Verlust beim Ausgleich |
 | Zahlungsausfall | Ausbuchung mit Berichtigung der Umsatzsteuer |
 

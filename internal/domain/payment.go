@@ -49,7 +49,7 @@ func DifferenceKinds() []DifferenceKindInfo {
 		{Kind: DifferenceSkonto, Label: "Skonto",
 			Hint: "Der Rabatt für schnelle Zahlung mindert auch die Umsatz- bzw. Vorsteuer (§ 17 UStG)."},
 		{Kind: DifferenceBankFee, Label: "Bankgebühr",
-			Hint: "Die Bank hat zusätzlich zum Rechnungsbetrag ein Entgelt abgebucht."},
+			Hint: "Ein Entgelt der Bank: beim Zahlungsausgang zusätzlich abgebucht, beim Zahlungseingang vom Betrag abgezogen."},
 		{Kind: DifferenceRounding, Label: "Rundungsdifferenz",
 			Hint: "Kleinbetrag, der als Aufwand oder Ertrag ausgebucht wird."},
 		{Kind: DifferenceCurrency, Label: "Kursdifferenz",
