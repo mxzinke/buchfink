@@ -1568,6 +1568,67 @@ func TestAssetIncomeOfACorporationShareGoesToTheParticipationAccount(t *testing.
 	})
 }
 
+// Die Ausschüttung eines Fonds kommt als Bankumsatz: Buchfink bucht sie brutto
+// mit Datum und Bankkonto des Umsatzes, trennt Kapitalertragsteuer (7630) und
+// Solidaritätszuschlag (7633), beansprucht den Umsatz und hängt den Ertrag an
+// das Anlagegut. Ein Bruttobetrag, der nicht zum Umsatz passt, bucht nichts.
+func TestAssetIncomeFromABankTransaction(t *testing.T) {
+	env := newTestEnv(t)
+	env.paymentsWithBank(t)
+	svc := env.assets(t)
+	svc.SetBankTransactions(repository.NewBankRepository(env.db))
+	ctx := context.Background()
+
+	fund, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Aktien-ETF Welt", Class: domain.AssetClassFinancial, Account: "0900",
+		AcquisitionDate: "2026-01-10", AcquisitionCost: 5_000_000, Method: domain.DepreciationNone,
+		FundClass: string(accounting.FundEquity),
+	})
+	if err != nil {
+		t.Fatalf("Fonds: %v", err)
+	}
+	id := env.bankLine(t, "2026-06-20", 73_625, "Depotbank", "Ausschuettung Aktien-ETF Welt")
+
+	if _, err := svc.BookAssetIncome(ctx, AssetIncomeRequest{
+		AssetID: fund.ID, BankTxID: id, Amount: 100_000, WithholdingTax: 25_000,
+	}); err == nil || !strings.Contains(err.Error(), "Bankumsatz") {
+		t.Fatalf("Brutto ohne den Solidaritätszuschlag passt nicht zum Umsatz: %v", err)
+	}
+	if _, err := svc.BookAssetIncome(ctx, AssetIncomeRequest{
+		AssetID: fund.ID, BankTxID: id, Amount: 100_000, Settlement: SettlementPaid, PaymentAccount: "1800",
+	}); err == nil {
+		t.Fatal("Bankumsatz und Zahlungskonto zugleich")
+	}
+
+	entry, err := svc.BookAssetIncome(ctx, AssetIncomeRequest{
+		AssetID: fund.ID, BankTxID: id, Amount: 100_000, WithholdingTax: 25_000, SolidaritySurcharge: 1_375,
+	})
+	if err != nil {
+		t.Fatalf("Ausschüttung: %v", err)
+	}
+	assertLines(t, entry, []bookedLine{
+		{domain.SideCredit, "7010", 100_000},
+		{domain.SideDebit, "7630", 25_000},
+		{domain.SideDebit, "7633", 1_375},
+		{domain.SideDebit, domain.AccountBank, 73_625},
+	})
+	if entry.BookingDate != "2026-06-20" || entry.BankTxID == nil || *entry.BankTxID != id {
+		t.Errorf("Datum %s, Bankumsatz %v", entry.BookingDate, entry.BankTxID)
+	}
+	env.assertMatch(t, id, domain.MatchStatusMatched)
+	detail, err := svc.Get(ctx, 2026, fund.ID)
+	if err != nil {
+		t.Fatalf("Detailansicht: %v", err)
+	}
+	linked := false
+	for _, m := range detail.Movements {
+		linked = linked || (m.Kind == domain.AssetMovementIncome && m.JournalEntryID != nil && *m.JournalEntryID == entry.ID)
+	}
+	if !linked {
+		t.Errorf("der Ertrag hängt nicht am Anlagegut: %+v", detail.Movements)
+	}
+}
+
 // Laufende Erträge werden für Sachanlagen nicht mit dem Anlagegut verknüpft —
 // dort gibt es sie in diesem Sinn nicht.
 func TestAssetIncomeIsOnlyForFinancialAssets(t *testing.T) {

@@ -111,6 +111,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	)
 	s.Payments.SetAssetRegister(s.Assets)
 	s.Assets.SetFiscalYearRepo(fiscalYearRepo)
+	s.Assets.SetBankTransactions(bankRepo)
 	s.Audit = service.NewAuditService(auditRepo)
 	s.Settings = service.NewSettingsService(settingsRepo, auditRepo)
 	s.Settings.SetBookkeeping(journalRepo, festschreibungRepo)

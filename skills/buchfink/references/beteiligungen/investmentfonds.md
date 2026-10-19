@@ -53,7 +53,10 @@ Steuerbescheinigung: BMF-Schreiben vom
   gilt die Stellung als Anleger, der dem KStG unterliegt.
 - Ausschüttung: `bankumsatz_buchen`, Ertrag brutto auf 7010
   (Anlagevermögen) bzw. 7100 (Umlaufvermögen), Kapitalertragsteuer auf 7630,
-  Solidaritätszuschlag auf 7633. Nie auf die §-8b-Konten.
+  Solidaritätszuschlag auf 7633. Nie auf die §-8b-Konten. Steht der Fonds als
+  Anlagegut in der Kartei, buche mit `kapitalertrag` (`anlage_id`, `brutto`,
+  `kapitalertragsteuer`, `solidaritaetszuschlag`); erst dann rechnet die
+  Erklärung für die Ausschüttung die Teilfreistellung.
 - Vorabpauschale: keine Buchung. Handelsrechtlich fließt nichts zu; sie wirkt
   nur in der Erklärung (Abschnitt 5).
 - Belastet die Bank Anfang Januar Kapitalertragsteuer auf die Vorabpauschale:

@@ -181,13 +181,24 @@ type kreditkarteIn struct {
 	Stichtag Datum `json:"stichtag" jsonschema:"Abrechnungsstichtag der Kreditkarte"`
 }
 
+type kapitalertragIn struct {
+	AnlageID              uint   `json:"anlage_id" jsonschema:"Finanzanlage aus anlagen, aus der der Ertrag stammt"`
+	Brutto                Betrag `json:"brutto" jsonschema:"Ertrag vor Steuern laut Abrechnung der Bank"`
+	Kapitalertragsteuer   Betrag `json:"kapitalertragsteuer,omitempty" jsonschema:"einbehaltene Kapitalertragsteuer, auf 7630"`
+	Solidaritaetszuschlag Betrag `json:"solidaritaetszuschlag,omitempty" jsonschema:"einbehaltener Solidaritätszuschlag, auf 7633"`
+	Konto                 Konto  `json:"konto,omitempty" jsonschema:"Ertragskonto; Vorgabe aus dem Anlagekonto"`
+}
+
 type bankBuchenIn struct {
 	WriteArgs
 	BankumsatzID uint           `json:"bankumsatz_id"`
 	Aufteilung   []aufteilungIn `json:"aufteilung,omitempty" jsonschema:"1 bis 20 Zeilen; zusammen genau der Umsatz"`
 	Ignorieren   *ignorierenIn  `json:"ignorieren,omitempty"`
 	Kreditkarte  *kreditkarteIn `json:"kreditkartenabrechnung,omitempty" jsonschema:"Lastschrift der Kreditkartenabrechnung gegen 3610"`
-	Beschreibung string         `json:"beschreibung,omitempty"`
+	// Kapitalertrag verknüpft den Ertrag mit dem Anlagegut; daraus liest die
+	// Körperschaftsteuererklärung Bezüge nach § 8b KStG und Fondserträge.
+	Kapitalertrag *kapitalertragIn `json:"kapitalertrag,omitempty" jsonschema:"Dividende, Ausschüttung oder Zinsen einer Finanzanlage, mit dem Anlagegut verknüpft"`
+	Beschreibung  string           `json:"beschreibung,omitempty"`
 }
 
 type bankBuchenOut struct {
@@ -234,6 +245,25 @@ func (in bankBuchenIn) split() (service.BankSplitRequest, error) {
 			return req, err
 		}
 		req.Lines = append(req.Lines, line)
+	}
+	return req, nil
+}
+
+func (k kapitalertragIn) request(bankTxID uint, note string) (service.AssetIncomeRequest, error) {
+	req := service.AssetIncomeRequest{AssetID: k.AnlageID, BankTxID: bankTxID, Account: string(k.Konto),
+		Note: strings.TrimSpace(note)}
+	if k.AnlageID == 0 {
+		return req, inputError("kapitalertrag.anlage_id", "die Finanzanlage fehlt")
+	}
+	var err error
+	if req.Amount, err = k.Brutto.required("kapitalertrag.brutto"); err != nil {
+		return req, err
+	}
+	if req.WithholdingTax, err = k.Kapitalertragsteuer.cents("kapitalertrag.kapitalertragsteuer"); err != nil {
+		return req, err
+	}
+	if req.SolidaritySurcharge, err = k.Solidaritaetszuschlag.cents("kapitalertrag.solidaritaetszuschlag"); err != nil {
+		return req, err
 	}
 	return req, nil
 }
@@ -471,17 +501,19 @@ func registerBank(tb *Toolbox) {
 		Title: "Bankumsatz buchen (mit Rückfrage)",
 		Description: "Bucht einen Bankumsatz in allen Fällen, die keine Routine sind: aufteilung auf offene Posten " +
 			"(mit Differenz Skonto, Gebühr, Rundung, Währung), Konten und Gesellschafterdarlehen, zusammen genau der " +
-			"Umsatz; kreditkartenabrechnung gegen 3610; oder ignorieren mit Grund. Genau eine der drei Angaben. " +
-			"Vorher dem Menschen vorlegen und sein Ja einholen.",
+			"Umsatz; kreditkartenabrechnung gegen 3610; kapitalertrag aus einer Finanzanlage (brutto, " +
+			"Kapitalertragsteuer und Solidaritätszuschlag, mit dem Anlagegut verknüpft); oder ignorieren mit Grund. " +
+			"Genau eine der vier Angaben. Vorher dem Menschen vorlegen und sein Ja einholen.",
 	}, nil, func(ctx context.Context, c *Call, s core.AgentServices, in bankBuchenIn) (bankBuchenOut, error) {
 		modes := 0
-		for _, set := range []bool{len(in.Aufteilung) > 0, in.Ignorieren != nil, in.Kreditkarte != nil} {
+		for _, set := range []bool{len(in.Aufteilung) > 0, in.Ignorieren != nil, in.Kreditkarte != nil, in.Kapitalertrag != nil} {
 			if set {
 				modes++
 			}
 		}
 		if modes != 1 {
-			return bankBuchenOut{}, inputError("aufteilung", "genau eine Angabe: aufteilung, ignorieren oder kreditkartenabrechnung")
+			return bankBuchenOut{}, inputError("aufteilung",
+				"genau eine Angabe: aufteilung, ignorieren, kreditkartenabrechnung oder kapitalertrag")
 		}
 		switch {
 		case in.Ignorieren != nil:
@@ -498,6 +530,17 @@ func registerBank(tb *Toolbox) {
 				return bankBuchenOut{}, err
 			}
 			entry, err := s.Payments.SettleCreditCard(ctx, service.CreditCardSettlementRequest{BankTxID: in.BankumsatzID, StatementDate: date})
+			if err != nil {
+				return bankBuchenOut{}, err
+			}
+			b := buchungKurzOf(entry)
+			return bankBuchenOut{Buchung: &b, Status: "zugeordnet"}, nil
+		case in.Kapitalertrag != nil:
+			req, err := in.Kapitalertrag.request(in.BankumsatzID, in.Beschreibung)
+			if err != nil {
+				return bankBuchenOut{}, err
+			}
+			entry, err := s.Assets.BookAssetIncome(ctx, req)
 			if err != nil {
 				return bankBuchenOut{}, err
 			}

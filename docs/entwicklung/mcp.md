@@ -180,7 +180,7 @@ aus `Toolbox.OutputSchema`, `TestCatalogStaysSmall` hält den Katalog unter
 | `pflicht_vorbereitet` | direkt | Pflicht als vorbereitet melden, nie als erledigt |
 | `standardgruppe_vorschlagen` | direkt | Standard-Buchungsgruppe eines Lieferanten vorschlagen |
 | `beleg_buchen_mit_rueckfrage` | rueckfrage | Eingangsbeleg in allen Nicht-Routinefällen, auch Auslage; ergänzt fehlende Kopfdaten und berichtigt `eingang_am` |
-| `bankumsatz_buchen` | rueckfrage | Aufteilung mit Skonto, Gebühren, Darlehen; Kreditkartenabrechnung; Ignorieren mit Grund |
+| `bankumsatz_buchen` | rueckfrage | Aufteilung mit Skonto, Gebühren, Darlehen; Kreditkartenabrechnung; Kapitalertrag einer Finanzanlage, brutto mit Kapitalertragsteuer (7630) und Solidaritätszuschlag (7633), mit dem Anlagegut verknüpft (`AssetService.BookAssetIncome`); Ignorieren mit Grund |
 | `buchung_erfassen` | rueckfrage | Handbuchung mit Beleg oder Eigenbeleg, auch in der Abschlussperiode und für die Gründung (Zeichnung, Einforderung); ein Kontakt an den Personenkontozeilen macht sie zum offenen Posten, an Gesellschafterkonten ist er Pflicht; Darlehenszinsen nicht hier, sondern mit `darlehen_erfassen` |
 | `buchung_stornieren` | rueckfrage | Generalumkehr mit Grund, auf Wunsch mit Neubuchung; `datum` nur beim Saldenvortrag |
 | `lohnjournal_buchen` | rueckfrage | Monatssummen des Lohnbüros |

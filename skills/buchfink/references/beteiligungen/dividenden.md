@@ -60,8 +60,14 @@ Beispiel: Die Tochter schüttet 100.000,00 € aus. Kapitalertragsteuer
 
 ## 3. Buchung
 
-**Fall A: Beschluss und Zahlung im selben Geschäftsjahr.** Buche am
-Bankumsatz mit `bankumsatz_buchen`, drei Zeilen `konto`:
+**Fall A: Beschluss und Zahlung im selben Geschäftsjahr.** Steht der Anteil
+in der Kartei (`anlagen`, `klasse: finanzanlage`), buche am Bankumsatz mit
+`bankumsatz_buchen` und `kapitalertrag`: `anlage_id`, `brutto`,
+`kapitalertragsteuer`, `solidaritaetszuschlag`. Buchfink bucht den Ertrag
+brutto auf das Dividendenkonto nach der Tabelle unten, die Abzüge getrennt auf
+7630 und 7633, und verknüpft den Ertrag mit dem Anteil. Brutto abzüglich der
+Abzüge muss der Bankumsatz sein. Aus der Verknüpfung schlägt die
+Körperschaftsteuererklärung den Streubesitz nach der Quote des Anteils vor.
 
 | Zeile | Konto (SKR04) | Betrag im Beispiel |
 |---|---|---|
@@ -70,17 +76,20 @@ Bankumsatz mit `bankumsatz_buchen`, drei Zeilen `konto`:
 | Solidaritätszuschlag | 7633 Anrechenbarer Solidaritätszuschlag auf Kapitalertragsteuer 25 % | 1.375,00 (Abzug) |
 | Summe = Bankumsatz | – | 73.625,00 |
 
-Der Ertrag hat einen positiven `betrag`, die Abzugszeilen einen negativen,
-wie bei Zinsen mit Kapitalertragsteuer
-([bank/zinsen-kapest.md](../bank/zinsen-kapest.md)).
+Ohne Anteil in der Kartei buchst du dieselben drei Zeilen mit `aufteilung`
+und `konto`: der Ertrag mit positivem `betrag`, die Abzüge mit negativem, wie
+bei Zinsen mit Kapitalertragsteuer
+([bank/zinsen-kapest.md](../bank/zinsen-kapest.md)). Der Streubesitz bleibt
+dann in der Erklärung offen.
 
 **Fall B: Beschluss vor dem Stichtag, Zahlung danach.**
 
 1. Zum Beschluss: `buchung_erfassen` mit dem Beschluss als Beleg, Soll 1260
    Forderungen gegen verbundene Unternehmen (bei Beteiligung ohne Mehrheit
    1280), Haben Dividendenkonto, je mit dem Bruttobetrag.
-2. Zur Zahlung: `bankumsatz_buchen` mit 1260 bzw. 1280 über den
-   Bruttobetrag, 7630 und 7633 als Abzug.
+2. Zur Zahlung: `bankumsatz_buchen` mit `aufteilung`, 1260 bzw. 1280 über
+   den Bruttobetrag, 7630 und 7633 als Abzug. Diesen Weg verknüpft Buchfink
+   nicht mit dem Anteil; der Streubesitz bleibt in der Erklärung offen.
 
 Die Kapitalertragsteuer wird nach dem Wortlaut auf die Steuer des Jahres
 angerechnet, in dem die Bezüge erfasst sind

@@ -669,7 +669,7 @@
       "readOnlyHint": false,
       "title": "Bankumsatz buchen (mit Rückfrage)"
     },
-    "description": "Bucht einen Bankumsatz in allen Fällen, die keine Routine sind: aufteilung auf offene Posten (mit Differenz Skonto, Gebühr, Rundung, Währung), Konten und Gesellschafterdarlehen, zusammen genau der Umsatz; kreditkartenabrechnung gegen 3610; oder ignorieren mit Grund. Genau eine der drei Angaben. Vorher dem Menschen vorlegen und sein Ja einholen.",
+    "description": "Bucht einen Bankumsatz in allen Fällen, die keine Routine sind: aufteilung auf offene Posten (mit Differenz Skonto, Gebühr, Rundung, Währung), Konten und Gesellschafterdarlehen, zusammen genau der Umsatz; kreditkartenabrechnung gegen 3610; kapitalertrag aus einer Finanzanlage (brutto, Kapitalertragsteuer und Solidaritätszuschlag, mit dem Anlagegut verknüpft); oder ignorieren mit Grund. Genau eine der vier Angaben. Vorher dem Menschen vorlegen und sein Ja einholen.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -768,6 +768,45 @@
           },
           "required": [
             "grund"
+          ],
+          "type": [
+            "null",
+            "object"
+          ]
+        },
+        "kapitalertrag": {
+          "additionalProperties": false,
+          "description": "Dividende, Ausschüttung oder Zinsen einer Finanzanlage, mit dem Anlagegut verknüpft",
+          "properties": {
+            "anlage_id": {
+              "description": "Finanzanlage aus anlagen, aus der der Ertrag stammt",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "brutto": {
+              "description": "Ertrag vor Steuern laut Abrechnung der Bank",
+              "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
+              "type": "string"
+            },
+            "kapitalertragsteuer": {
+              "description": "einbehaltene Kapitalertragsteuer, auf 7630",
+              "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
+              "type": "string"
+            },
+            "konto": {
+              "description": "Ertragskonto; Vorgabe aus dem Anlagekonto",
+              "pattern": "^[0-9]{4,5}$",
+              "type": "string"
+            },
+            "solidaritaetszuschlag": {
+              "description": "einbehaltener Solidaritätszuschlag, auf 7633",
+              "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "anlage_id",
+            "brutto"
           ],
           "type": [
             "null",

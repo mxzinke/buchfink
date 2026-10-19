@@ -31,6 +31,7 @@ type AgentServices struct {
 	}
 	Assets interface {
 		AcquisitionCandidates(context.Context, int) ([]service.AcquisitionCandidate, error)
+		BookAssetIncome(context.Context, service.AssetIncomeRequest) (*domain.JournalEntry, error)
 		BookDepreciation(context.Context, service.BookDepreciationRequest) (*service.DepreciationResult, error)
 		List(context.Context, int, domain.AssetClass) ([]domain.FixedAsset, error)
 		PendingDepreciation(context.Context, int) ([]service.DepreciationDue, error)

@@ -73,6 +73,18 @@ Finanzanlagen haben eigene Regeln: keine planmäßige Abschreibung, gemildertes
 Niederstwertprinzip, Teilabgang nach Stückzahl und eine Tilgung von
 Ausleihungen ohne Erlös und ohne Steuerfall.
 
+## Laufende Erträge
+
+Dividenden, Ausschüttungen und Zinsen einer Finanzanlage bucht Buchfink brutto
+auf das Ertragskonto, das aus dem Anlagekonto folgt
+(`accounting.AssetIncomeAccount`): Anteile an Kapitalgesellschaften auf die
+Konten des § 8b KStG, Investmentanteile auf 7010. Kapitalertragsteuer und
+Solidaritätszuschlag stehen getrennt auf **7630** und **7633**, weil die
+Steuerrückstellung sie getrennt anrechnet. Der Ertrag hängt als Bewegung am
+Anlagegut (`AssetService.BookAssetIncome`); daraus liest die
+Körperschaftsteuererklärung die Bezüge je Anteil und die Fondserträge. Der
+Agent bucht ihn am Bankumsatz (`bankumsatz_buchen` mit `kapitalertrag`).
+
 ## Fremdwährung und Investmentanteile
 
 Anlagegüter in Fremdwährung bewertet Buchfink zum Stichtag nach

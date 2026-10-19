@@ -92,9 +92,14 @@ Anteil gehört, steht in [dividenden.md](dividenden.md).
    zusätzlich in einer Zeile die steuerliche Folge, z. B. „95 % steuerfrei
    nach § 8b Abs. 1, 5 KStG; keine Hinzurechnung, Quote 100 %“. Fertig, wenn
    der Mensch Ja gesagt hat.
-5. **Buchen.** Mit Bankumsatz: `bankumsatz_buchen`, Zeilen `konto`: Ertrag
-   brutto mit positivem `betrag`, Kapitalertragsteuer und
-   Solidaritätszuschlag als Abzüge mit negativem `betrag` (wie bei Zinsen in
+5. **Buchen.** Ertrag eines Anteils aus der Kartei mit Bankumsatz:
+   `bankumsatz_buchen` mit `kapitalertrag` (`anlage_id`, `brutto`,
+   `kapitalertragsteuer`, `solidaritaetszuschlag`); Buchfink wählt das
+   Ertragskonto aus dem Anlagekonto und verknüpft den Ertrag mit dem Anteil
+   ([dividenden.md, Abschnitt 3](dividenden.md#3-buchung)). Ohne Anteil in der
+   Kartei: `aufteilung` mit Zeilen `konto`, Ertrag brutto mit positivem
+   `betrag`, Kapitalertragsteuer und Solidaritätszuschlag als Abzüge mit
+   negativem `betrag` (wie bei Zinsen in
    [bank/zinsen-kapest.md](../bank/zinsen-kapest.md)). Ohne
    Bankumsatz (Forderung aus Beschluss, Umbuchung, Einlage):
    `buchung_erfassen` mit `beleg_id`. Fertig, wenn die Antwort die vorgelegten

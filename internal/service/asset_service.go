@@ -34,7 +34,17 @@ type AssetService struct {
 	// inputTax ist das Verzeichnis nach § 15a UStG. Ohne es legt die Aktivierung
 	// keinen Eintrag an — mit ihm tut sie es von allein.
 	inputTax inputTaxRegistrar
+	// bankTx liest den Bankumsatz, mit dem ein laufender Ertrag zufließt.
+	bankTx bankTransactionReader
 }
+
+// bankTransactionReader liest einen Bankumsatz.
+type bankTransactionReader interface {
+	FindByID(ctx context.Context, id uint) (*domain.BankTransaction, error)
+}
+
+// SetBankTransactions koppelt die Bankumsätze an die laufenden Erträge.
+func (s *AssetService) SetBankTransactions(r bankTransactionReader) { s.bankTx = r }
 
 // SetFiscalYearRepo koppelt die Geschäftsjahre an den Abschreibungsplan.
 //
@@ -1444,20 +1454,28 @@ func (s *AssetService) writeUpCeiling(
 // -------------------------------------------------------------------------
 
 // AssetIncomeRequest bucht einen laufenden Ertrag aus einer Finanzanlage.
+//
+// Der Zufluss kommt aus einem Bankumsatz (BankTxID; Datum und Bankkonto sind
+// dann die des Umsatzes) oder aus Settlement mit Zahlungskonto oder
+// Personenkonto.
 type AssetIncomeRequest struct {
-	AssetID uint         `json:"assetId"`
-	Date    string       `json:"date"`
-	Amount  domain.Cents `json:"amount"`
+	AssetID  uint         `json:"assetId"`
+	BankTxID uint         `json:"bankTxId,omitempty"`
+	Date     string       `json:"date"`
+	Amount   domain.Cents `json:"amount"`
 	// Account überschreibt das aus dem Anlagekonto abgeleitete Ertragskonto.
 	Account        string              `json:"account,omitempty"`
 	TaxTreatment   domain.TaxTreatment `json:"taxTreatment,omitempty"`
 	Settlement     SettlementKind      `json:"settlement"`
 	PaymentAccount string              `json:"paymentAccount,omitempty"`
 	ContactID      uint                `json:"contactId,omitempty"`
-	// WithholdingTax ist die einbehaltene Kapitalertragsteuer samt
-	// Solidaritätszuschlag. Sie mindert den Zufluss, nicht den Ertrag.
-	WithholdingTax domain.Cents `json:"withholdingTax,omitempty"`
-	Note           string       `json:"note,omitempty"`
+	// WithholdingTax ist die einbehaltene Kapitalertragsteuer (7630),
+	// SolidaritySurcharge der Solidaritätszuschlag darauf (7633). Beide
+	// mindern den Zufluss, nicht den Ertrag; angerechnet werden sie getrennt
+	// auf Körperschaftsteuer und Solidaritätszuschlag.
+	WithholdingTax      domain.Cents `json:"withholdingTax,omitempty"`
+	SolidaritySurcharge domain.Cents `json:"solidaritySurcharge,omitempty"`
+	Note                string       `json:"note,omitempty"`
 }
 
 // BookAssetIncome writes a Dividende, Ausschüttung oder Zins and links it to the
@@ -1479,16 +1497,30 @@ func (s *AssetService) bookAssetIncome(ctx context.Context, req AssetIncomeReque
 	if err != nil {
 		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", req.AssetID, err)
 	}
+	var tx *domain.BankTransaction
+	if req.BankTxID != 0 {
+		if tx, err = s.incomeBankTx(ctx, req); err != nil {
+			return nil, err
+		}
+		req.Date = tx.BookingDate
+	}
 	if len(req.Date) != 10 {
 		return nil, fmt.Errorf("das Datum fehlt oder ist unvollständig (erwartet JJJJ-MM-TT)")
 	}
 	if req.Amount <= 0 {
 		return nil, fmt.Errorf("der Betrag muss größer als null sein")
 	}
-	if req.WithholdingTax < 0 || req.WithholdingTax > req.Amount {
+	withheld := req.WithholdingTax + req.SolidaritySurcharge
+	if req.WithholdingTax < 0 || req.SolidaritySurcharge < 0 || withheld > req.Amount {
 		return nil, fmt.Errorf(
-			"die einbehaltene Kapitalertragsteuer liegt zwischen null und dem Bruttoertrag von %s €",
+			"Kapitalertragsteuer und Solidaritätszuschlag liegen zusammen zwischen null und dem Bruttoertrag von %s €",
 			req.Amount)
+	}
+	if tx != nil && req.Amount-withheld != tx.Amount {
+		return nil, fmt.Errorf(
+			"Bruttoertrag %s € abzüglich Kapitalertragsteuer %s € und Solidaritätszuschlag %s € ergibt %s €, "+
+				"der Bankumsatz %d lautet über %s €",
+			req.Amount, req.WithholdingTax, req.SolidaritySurcharge, req.Amount-withheld, tx.ID, tx.Amount)
 	}
 
 	revenue := req.Account
@@ -1521,21 +1553,35 @@ func (s *AssetService) bookAssetIncome(ctx context.Context, req AssetIncomeReque
 	lines := []domain.JournalLine{
 		{Side: domain.SideCredit, Account: revenue, Amount: req.Amount, Text: asset.InventoryNumber},
 	}
-	if req.WithholdingTax > 0 {
-		// Die Kapitalertragsteuer ist eine Vorauszahlung auf die eigene Steuer,
-		// kein Aufwand: sie mindert den Zufluss und steht als Forderung gegen das
-		// Finanzamt in den Büchern.
-		lines = append(lines, domain.JournalLine{
-			Side: domain.SideDebit, Account: accounting.WithholdingTaxAccount,
-			Amount: req.WithholdingTax, Text: "Kapitalertragsteuer " + asset.InventoryNumber,
-		})
+	// Kapitalertragsteuer und Solidaritätszuschlag sind Vorauszahlungen auf die
+	// eigenen Steuern, kein Aufwand des Ertrags; die Steuerrückstellung rechnet
+	// sie getrennt an.
+	for _, withholding := range []struct {
+		account, text string
+		amount        domain.Cents
+	}{
+		{accounting.AccountKapitalertragsteuer25, "Kapitalertragsteuer ", req.WithholdingTax},
+		{accounting.AccountSoliKapitalertragsteuer, "Solidaritätszuschlag ", req.SolidaritySurcharge},
+	} {
+		if withholding.amount > 0 {
+			lines = append(lines, domain.JournalLine{
+				Side: domain.SideDebit, Account: withholding.account,
+				Amount: withholding.amount, Text: withholding.text + asset.InventoryNumber,
+			})
+		}
 	}
-	settlement, err := s.settlement(ctx, lines, req.Settlement, req.PaymentAccount, req.ContactID,
-		domain.ContactTypeCustomer)
-	if err != nil {
-		return nil, err
+	source := domain.EntrySourceManual
+	if tx != nil {
+		lines = append(lines, domain.JournalLine{Side: domain.SideDebit, Account: tx.LedgerAccount, Amount: tx.Amount})
+		source = domain.EntrySourcePayment
+	} else {
+		settlement, err := s.settlement(ctx, lines, req.Settlement, req.PaymentAccount, req.ContactID,
+			domain.ContactTypeCustomer)
+		if err != nil {
+			return nil, err
+		}
+		lines = append(lines, settlement)
 	}
-	lines = append(lines, settlement)
 
 	description := fmt.Sprintf("Ertrag aus %s", asset.Name)
 	if req.Note != "" {
@@ -1547,11 +1593,14 @@ func (s *AssetService) bookAssetIncome(ctx context.Context, req AssetIncomeReque
 		ServiceDateFrom:    req.Date,
 		ServiceDateTo:      req.Date,
 		Description:        description,
-		Source:             domain.EntrySourceManual,
+		Source:             source,
 		DocumentNumber:     asset.InventoryNumber,
 		TaxTreatment:       treatment,
 		PostingRuleVersion: accounting.PostingRuleVersion,
 		Lines:              lines,
+	}
+	if tx != nil {
+		entry.ValueDate, entry.BankTxID, entry.Currency = tx.ValueDate, &tx.ID, tx.Currency
 	}
 	if req.ContactID != 0 {
 		contactID := req.ContactID
@@ -1576,6 +1625,30 @@ func (s *AssetService) bookAssetIncome(ctx context.Context, req AssetIncomeReque
 		return nil, err
 	}
 	return created, nil
+}
+
+// incomeBankTx liest den Bankumsatz eines laufenden Ertrags: ein offener
+// Zahlungseingang in Euro, und kein zweiter Zahlungsweg daneben.
+func (s *AssetService) incomeBankTx(ctx context.Context, req AssetIncomeRequest) (*domain.BankTransaction, error) {
+	if req.Settlement != "" || req.PaymentAccount != "" || req.ContactID != 0 {
+		return nil, fmt.Errorf("der Ertrag fließt über den Bankumsatz zu; ein Zahlungskonto oder Personenkonto daneben gibt es nicht")
+	}
+	if s.bankTx == nil {
+		return nil, fmt.Errorf("die Bankumsätze sind nicht verfügbar")
+	}
+	tx, err := s.bankTx.FindByID(ctx, req.BankTxID)
+	if err != nil {
+		return nil, fmt.Errorf("Bankumsatz %d wurde nicht gefunden: %w", req.BankTxID, err)
+	}
+	switch {
+	case tx.MatchStatus != domain.MatchStatusUnmatched:
+		return nil, fmt.Errorf("Bankumsatz %d ist nicht mehr offen", tx.ID)
+	case tx.Amount <= 0:
+		return nil, fmt.Errorf("Bankumsatz %d ist kein Zahlungseingang", tx.ID)
+	case tx.Currency != "" && tx.Currency != "EUR":
+		return nil, fmt.Errorf("Bankumsatz %d lautet auf %s; ein Ertrag in Fremdwährung ist von Hand zu buchen", tx.ID, tx.Currency)
+	}
+	return tx, nil
 }
 
 // InvestmentNoteForIncome is the steuerliche Nebenrechnung zu einer
