@@ -42,6 +42,10 @@ func (s *EBilanzService) SetAdjustmentSource(src AdjustmentSource) { s.adjustmen
 
 // EBilanzOptions sind die Wahlrechte der Übermittlung.
 type EBilanzOptions struct {
+	// Kind ist die Bilanzart; leer heißt Jahresabschluss. Die
+	// Eröffnungsbilanz (ebilanz.KindOpening) steht auf den Gründungstag aus
+	// den Unternehmensdaten und gehört zum Geschäftsjahr, in das er fällt.
+	Kind ebilanz.Kind `json:"kind"`
 	// Version ist die Taxonomie; leer heißt Regelfassung für das
 	// Wirtschaftsjahr.
 	Version string `json:"version"`
@@ -61,8 +65,9 @@ func (s *EBilanzService) MappingReport(ctx context.Context, year int) (*ebilanz.
 	return res.Report, nil
 }
 
-// Generate prüft und erzeugt die E-Bilanz eines Geschäftsjahres, ohne sie zu
-// protokollieren. Die Instanz ist leer, solange Befunde sie verhindern.
+// Generate prüft und erzeugt die E-Bilanz eines Geschäftsjahres oder seine
+// Eröffnungsbilanz, ohne sie zu protokollieren. Die Instanz ist leer, solange
+// Befunde sie verhindern.
 func (s *EBilanzService) Generate(ctx context.Context, year int, opts EBilanzOptions) (*ebilanz.Result, error) {
 	in, err := s.input(ctx, year, opts)
 	if err != nil {
@@ -95,12 +100,14 @@ func (s *EBilanzService) ExportXBRLWith(ctx context.Context, year int, opts EBil
 			return "", err
 		}
 	}
-	if err := logAudit(ctx, s.auditRepo, domain.AuditActionExport,
-		"EBILANZ",
-		fmt.Sprintf("%d", year),
-		fmt.Sprintf("E-Bilanz %d als XBRL-Instanz erzeugt (Taxonomie %s, %s)",
-			year, res.Version.Version, res.Report.AccountingStandard),
-	); err != nil {
+	entity, details := fmt.Sprintf("%d", year), fmt.Sprintf("E-Bilanz %d als XBRL-Instanz erzeugt (Taxonomie %s, %s)",
+		year, res.Version.Version, res.Report.AccountingStandard)
+	if in.Kind == ebilanz.KindOpening {
+		entity, details = in.ClosingDate, fmt.Sprintf(
+			"Eröffnungsbilanz zum %s als XBRL-Instanz erzeugt (Taxonomie %s, § 5b Abs. 1 Satz 4 EStG)",
+			germanDate(in.ClosingDate), res.Version.Version)
+	}
+	if err := logAudit(ctx, s.auditRepo, domain.AuditActionExport, "EBILANZ", entity, details); err != nil {
 		return "", err
 	}
 	return string(instance), nil
@@ -109,7 +116,11 @@ func (s *EBilanzService) ExportXBRLWith(ctx context.Context, year int, opts EBil
 // ExportSuSaCSV erzeugt die Summen- und Saldenliste zur E-Bilanz mit
 // denselben Konten und Salden wie die Instanz (ebilanz.SuSaCSV).
 func (s *EBilanzService) ExportSuSaCSV(ctx context.Context, year int, opts EBilanzOptions) ([]byte, error) {
-	res, err := s.Generate(ctx, year, opts)
+	in, err := s.input(ctx, year, opts)
+	if err != nil {
+		return nil, err
+	}
+	res, err := ebilanz.Generate(in)
 	if err != nil {
 		return nil, err
 	}
@@ -117,58 +128,17 @@ func (s *EBilanzService) ExportSuSaCSV(ctx context.Context, year int, opts EBila
 	if err != nil {
 		return nil, err
 	}
-	if err := logAudit(ctx, s.auditRepo, domain.AuditActionExport, "EBILANZ", fmt.Sprintf("%d", year),
-		fmt.Sprintf("E-Bilanz %d als Summen- und Saldenliste (CSV) erzeugt (Taxonomie %s)", year, res.Version.Version),
-	); err != nil {
+	entity, details := fmt.Sprintf("%d", year),
+		fmt.Sprintf("E-Bilanz %d als Summen- und Saldenliste (CSV) erzeugt (Taxonomie %s)", year, res.Version.Version)
+	if in.Kind == ebilanz.KindOpening {
+		entity, details = in.ClosingDate, fmt.Sprintf(
+			"Eröffnungsbilanz zum %s als Summen- und Saldenliste (CSV) erzeugt (Taxonomie %s)",
+			germanDate(in.ClosingDate), res.Version.Version)
+	}
+	if err := logAudit(ctx, s.auditRepo, domain.AuditActionExport, "EBILANZ", entity, details); err != nil {
 		return nil, err
 	}
 	return data, nil
-}
-
-// ExportOpeningXBRL erzeugt die Instanz der Eröffnungsbilanz (§ 5b Abs. 1
-// EStG, § 242 Abs. 1 HGB): Bilanz ohne GuV auf den Tag, an dem das
-// Handelsgewerbe beginnt.
-func (s *EBilanzService) ExportOpeningXBRL(ctx context.Context, cutoff string) (string, error) {
-	if len(cutoff) != 10 {
-		return "", fmt.Errorf("der Stichtag fehlt oder ist unvollständig (erwartet JJJJ-MM-TT)")
-	}
-	if s.statementSvc == nil {
-		return "", fmt.Errorf("die Gliederung ist nicht verfügbar")
-	}
-	settings, err := s.settings(ctx)
-	if err != nil {
-		return "", err
-	}
-	stmt, err := s.statementSvc.StatementAt(ctx, cutoff, domain.DepthFull)
-	if err != nil {
-		return "", err
-	}
-	accounts, err := s.statementSvc.AccountsAt(ctx, cutoff)
-	if err != nil {
-		return "", err
-	}
-	fy, err := s.statementSvc.period(ctx, stmt.FiscalYear)
-	if err != nil {
-		return "", err
-	}
-	res, err := ebilanz.Generate(ebilanz.Input{
-		Settings: settings, Statement: stmt, Accounts: accounts, Kind: ebilanz.KindOpening,
-		ClosingDate: cutoff, FiscalYearBegin: cutoff, FiscalYearEnd: fy.EndDate,
-	})
-	if err != nil {
-		return "", err
-	}
-	if err := res.Report.BlockingError(); err != nil {
-		return "", err
-	}
-	if err := logAudit(ctx, s.auditRepo, domain.AuditActionExport,
-		"EBILANZ",
-		cutoff,
-		fmt.Sprintf("Eröffnungsbilanz auf den %s als XBRL-Instanz erzeugt (§ 5b Abs. 1 EStG)", cutoff),
-	); err != nil {
-		return "", err
-	}
-	return string(res.Instance), nil
 }
 
 func (s *EBilanzService) settings(ctx context.Context) (*domain.CompanySettings, error) {
@@ -179,7 +149,8 @@ func (s *EBilanzService) settings(ctx context.Context) (*domain.CompanySettings,
 	return settings, nil
 }
 
-// input beschafft alles, was in die E-Bilanz eines Geschäftsjahres eingeht.
+// input beschafft alles, was in die E-Bilanz eines Geschäftsjahres oder
+// seine Eröffnungsbilanz eingeht.
 func (s *EBilanzService) input(ctx context.Context, year int, opts EBilanzOptions) (ebilanz.Input, error) {
 	if err := requireYear(year); err != nil {
 		return ebilanz.Input{}, err
@@ -190,6 +161,14 @@ func (s *EBilanzService) input(ctx context.Context, year int, opts EBilanzOption
 	settings, err := s.settings(ctx)
 	if err != nil {
 		return ebilanz.Input{}, err
+	}
+	switch opts.Kind {
+	case "", ebilanz.KindAnnual:
+	case ebilanz.KindOpening:
+		return s.openingInput(ctx, year, settings, opts)
+	default:
+		return ebilanz.Input{}, fmt.Errorf("unbekannte Bilanzart %q (erwartet %s oder %s)",
+			opts.Kind, ebilanz.KindAnnual, ebilanz.KindOpening)
 	}
 	stmt, err := s.statementSvc.Statement(ctx, year, domain.DepthFull)
 	if err != nil {
@@ -244,4 +223,51 @@ func (s *EBilanzService) input(ctx context.Context, year int, opts EBilanzOption
 		in.PriorEquity, in.PriorPaidIn = &equity, &paidIn
 	}
 	return in, nil
+}
+
+// openingInput beschafft die Eröffnungsbilanz (§ 242 Abs. 1 HGB): Bilanz ohne
+// GuV auf den Gründungstag, mit der E-Bilanz zu übermitteln nach § 5b Abs. 1
+// Satz 4 EStG. Sie entsteht aus den Buchungen bis zu diesem Tag und gehört zum
+// Geschäftsjahr, in das er fällt.
+func (s *EBilanzService) openingInput(
+	ctx context.Context, year int, settings *domain.CompanySettings, opts EBilanzOptions,
+) (ebilanz.Input, error) {
+	cutoff := settings.FoundedOn
+	if len(cutoff) != 10 {
+		return ebilanz.Input{}, fmt.Errorf("in den Unternehmensdaten fehlt das Gründungsdatum; " +
+			"die Eröffnungsbilanz steht auf den Tag der Beurkundung")
+	}
+	stmt, err := s.statementSvc.StatementAt(ctx, cutoff, domain.DepthFull)
+	if err != nil {
+		return ebilanz.Input{}, err
+	}
+	if stmt.FiscalYear != year {
+		return ebilanz.Input{}, fmt.Errorf("die Eröffnungsbilanz zum %s gehört zum Geschäftsjahr %d",
+			germanDate(cutoff), stmt.FiscalYear)
+	}
+	accounts, err := s.statementSvc.AccountsAt(ctx, cutoff)
+	if err != nil {
+		return ebilanz.Input{}, err
+	}
+	if !anyBalance(accounts) {
+		return ebilanz.Input{}, fmt.Errorf("zum %s steht keine Buchung in den Büchern; die Eröffnungsbilanz "+
+			"entsteht aus den Gründungsbuchungen", germanDate(cutoff))
+	}
+	fy, err := s.statementSvc.period(ctx, year)
+	if err != nil {
+		return ebilanz.Input{}, err
+	}
+	return ebilanz.Input{
+		Settings: settings, Statement: stmt, Accounts: accounts, Kind: ebilanz.KindOpening,
+		ClosingDate: cutoff, FiscalYearBegin: cutoff, FiscalYearEnd: fy.EndDate, Version: opts.Version,
+	}, nil
+}
+
+func anyBalance(accounts []domain.Account) bool {
+	for _, a := range accounts {
+		if a.Balance != 0 {
+			return true
+		}
+	}
+	return false
 }

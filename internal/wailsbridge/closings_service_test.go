@@ -1,6 +1,7 @@
 package wailsbridge
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -151,6 +152,15 @@ func TestEBilanzIsSavedThroughTheDialog(t *testing.T) {
 	}
 	if _, err := b.SaveEBilanzAs(2026, "pdf"); err == nil {
 		t.Error("ein unbekanntes Format wurde angenommen")
+	}
+}
+
+// Die E-Bilanz der Eröffnungsbilanz steht auf dem Gründungstag aus den
+// Unternehmensdaten; ohne ihn entsteht sie nicht.
+func TestOpeningEBilanzNeedsTheFoundingDate(t *testing.T) {
+	b := testBridge(t)
+	if _, err := b.SaveOpeningEBilanzAs(2026); err == nil || !strings.Contains(err.Error(), "Gründungsdatum") {
+		t.Errorf("ohne Gründungsdatum: %v", err)
 	}
 }
 

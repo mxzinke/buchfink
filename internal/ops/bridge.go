@@ -134,6 +134,7 @@ func BridgeExaminerAllowed() map[string]bool {
 		"RevokeConnectedApp":            true,
 		"SaveEBilanzAs":                 true,
 		"SaveFilteredJournalCSV":        true,
+		"SaveOpeningEBilanzAs":          true,
 		"SaveProcedureDocumentationAs":  true,
 		"SaveReceiptFileAs":             true,
 		"SelectBackupDirDialog":         true,

@@ -657,6 +657,13 @@ export const Api = {
   saveEBilanzAs: (year: number, format: 'xbrl' | 'susa_csv'): Promise<string> =>
     call(() => Bridge.SaveEBilanzAs(year, format) as Promise<string>),
   /**
+   * Erzeugt die E-Bilanz der Eröffnungsbilanz einer in Buchfink gegründeten
+   * Gesellschaft als XBRL-Instanz; `year` ist das Geschäftsjahr der Gründung.
+   * Leer heißt: der Dialog wurde abgebrochen.
+   */
+  saveOpeningEBilanzAs: (year: number): Promise<string> =>
+    call(() => Bridge.SaveOpeningEBilanzAs(year) as Promise<string>),
+  /**
    * Welches Konto unter welcher Gliederungsposition und welchem
    * Taxonomie-Element erscheint — und was die Erzeugung verhindert.
    */

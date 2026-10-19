@@ -8,6 +8,7 @@ import (
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/declaration"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/ebilanz"
 	"github.com/buchfink/buchfink/internal/service"
 	"github.com/google/jsonschema-go/jsonschema"
 )
@@ -46,6 +47,7 @@ type (
 	ErklaerungArt    string
 	JahrArt          string
 	EBilanzFormat    string
+	Bilanzart        string
 	Quelle           string
 	DarlehenRichtung string
 	DarlehenArt      string
@@ -90,6 +92,8 @@ var choices = map[reflect.Type]choice{
 	reflect.TypeFor[JahrArt]():       {choiceKeys(declarationKinds), "Jahreserklärung"},
 	reflect.TypeFor[EBilanzFormat](): {[]string{"xbrl", "susa_csv"},
 		"xbrl (Vorgabe): die Instanz zur Übermittlung; susa_csv: Summen- und Saldenliste mit Taxonomie-Position je Konto, etwa für eBilanz+"},
+	reflect.TypeFor[Bilanzart](): {choiceKeys(balanceKinds),
+		"jahresabschluss (Vorgabe): Bilanz und GuV des Geschäftsjahres; eroeffnungsbilanz: Bilanz auf den Gründungstag, nur im Geschäftsjahr der Gründung"},
 	reflect.TypeFor[Quelle](): {choiceKeys(inputSources), "Herkunft der Angabe; Vorgabe mensch"},
 	reflect.TypeFor[DarlehenRichtung](): {choiceKeys(loanDirections),
 		"an_gesellschaft: der Gesellschafter leiht der GmbH; an_gesellschafter: die GmbH leiht ihm"},
@@ -205,6 +209,10 @@ var loanDirections = map[DarlehenRichtung]domain.LoanDirection{
 
 var dayCounts = map[Zinsmethode]domain.DayCount{
 	"act/365": domain.DayCountAct365, "act/360": domain.DayCountAct360, "30/360": domain.DayCount30E360,
+}
+
+var balanceKinds = map[Bilanzart]ebilanz.Kind{
+	"jahresabschluss": ebilanz.KindAnnual, "eroeffnungsbilanz": ebilanz.KindOpening,
 }
 
 var inputSources = map[Quelle]declaration.InputSource{

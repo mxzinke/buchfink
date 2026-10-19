@@ -66,13 +66,15 @@ import { splitNorms } from '../../utils/norms';
  * für Mein ELSTER.
  */
 
-type Selection = DeclarationKind | 'e-bilanz';
+type Selection = DeclarationKind | 'e-bilanz' | 'e-bilanz-eroeffnung';
 
 interface Entry {
   value: Selection;
   title: string;
   obligationKind: string;
   channel: string;
+  /** Steht nur in der Liste, wenn das Jahr die Pflicht hat. */
+  optional?: boolean;
 }
 
 const ENTRIES: Entry[] = [
@@ -80,6 +82,13 @@ const ENTRIES: Entry[] = [
   { value: 'gewst', title: 'Gewerbesteuererklärung', obligationKind: 'gewst-erklaerung', channel: 'Mein ELSTER' },
   { value: 'ust_jahr', title: 'Umsatzsteuererklärung', obligationKind: 'ust-erklaerung', channel: 'Mein ELSTER' },
   { value: 'e-bilanz', title: 'E-Bilanz', obligationKind: 'e-bilanz', channel: 'E-Bilanz-Dienst' },
+  {
+    value: 'e-bilanz-eroeffnung',
+    title: 'E-Bilanz der Eröffnungsbilanz',
+    obligationKind: 'e-bilanz-eroeffnung',
+    channel: 'E-Bilanz-Dienst',
+    optional: true,
+  },
 ];
 
 /** Stand der Vorauszahlungen, eine überfällige auch im eingeklappten Zustand. */
@@ -105,12 +114,14 @@ function selectionOf(id: string | undefined): Selection | null {
       return 'ust_jahr';
     case 'e-bilanz':
       return 'e-bilanz';
+    case 'e-bilanz-eroeffnung':
+      return 'e-bilanz-eroeffnung';
     default:
       return null;
   }
 }
 
-const DECLARATION_KINDS = ['kst-erklaerung', 'gewst-erklaerung', 'ust-erklaerung', 'e-bilanz'];
+const DECLARATION_KINDS = ['kst-erklaerung', 'gewst-erklaerung', 'ust-erklaerung', 'e-bilanz', 'e-bilanz-eroeffnung'];
 
 export interface DeclarationsTabProps {
   year: number;
@@ -203,6 +214,7 @@ export const DeclarationsTab: React.FC<DeclarationsTabProps> = ({
           <Tbody>
             {ENTRIES.map((entry) => {
               const o = byKind(entry.obligationKind);
+              if (!o && entry.optional) return null;
               return (
                 <Tr key={entry.value} variant={selected === entry.value ? 'selected' : 'default'}>
                   <Td>
@@ -256,10 +268,11 @@ export const DeclarationsTab: React.FC<DeclarationsTabProps> = ({
 
       {selected && (
         <div id="erklaerung" className="scroll-mt-6">
-          {selected === 'e-bilanz' ? (
+          {selected === 'e-bilanz' || selected === 'e-bilanz-eroeffnung' ? (
             <EBilanzView
               year={year}
               obligation={byKind('e-bilanz')}
+              opening={byKind('e-bilanz-eroeffnung')}
               onObligationsChanged={onObligationsChanged}
             />
           ) : (

@@ -32,16 +32,20 @@ import { ObligationDecisionDialog, ObligationState, isManual, message } from './
  * E-Bilanz-Dienst wie ebilanzplus.de oder ebilanzonline.de. Die Summen- und
  * Saldenliste ist der Ausweichweg, wenn der Dienst die XBRL-Datei nicht
  * annimmt: eBilanz+ liest sie als Summen- und Saldenliste ein.
+ *
+ * Im Geschäftsjahr einer Gründung in Buchfink steht darüber die E-Bilanz der
+ * Eröffnungsbilanz (§ 5b Abs. 1 Satz 4 EStG); `opening` ist ihre Pflicht.
  */
 export const EBilanzView: React.FC<{
   year: number;
   obligation?: Obligation;
+  opening?: Obligation;
   onObligationsChanged: () => Promise<void>;
-}> = ({ year, obligation, onObligationsChanged }) => {
+}> = ({ year, obligation, opening, onObligationsChanged }) => {
   const writeLock = useWriteLock();
   const [report, setReport] = useState<MappingReport | null>(null);
   const [error, setError] = useState('');
-  const [saving, setSaving] = useState<'xbrl' | 'susa_csv' | null>(null);
+  const [saving, setSaving] = useState<'xbrl' | 'susa_csv' | 'opening' | null>(null);
   const [deciding, setDeciding] = useState<Obligation | null>(null);
 
   const begin = useLatestRequest();
@@ -72,6 +76,18 @@ export const EBilanzView: React.FC<{
     try {
       const path = await Api.saveEBilanzAs(year, format);
       if (path) toast.success(`E-Bilanz gespeichert unter ${path}`);
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function saveOpening() {
+    setSaving('opening');
+    try {
+      const path = await Api.saveOpeningEBilanzAs(year);
+      if (path) toast.success(`Eröffnungsbilanz gespeichert unter ${path}`);
     } catch (e) {
       setError(message(e));
     } finally {
@@ -118,6 +134,51 @@ export const EBilanzView: React.FC<{
       }
     >
       {error && <Notice tone="negative" className="mb-6" text={error} />}
+      {opening && (
+        <div className="mb-6 flex flex-wrap items-start gap-4 rounded-control border border-line bg-surface px-4 py-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-body text-ink flex items-center flex-wrap gap-x-1">
+              {opening.title}
+              <Help
+                summary="Zur Gründung geht auch die Eröffnungsbilanz an das Finanzamt, über denselben Dienst wie die E-Bilanz des Jahres."
+                label="Erklärung zur E-Bilanz der Eröffnungsbilanz"
+              >
+                Bei Eröffnung des Betriebs ist auch die Eröffnungsbilanz nach amtlichem Datensatz zu
+                übermitteln (§ 5b Abs. 1 Satz 4 EStG). Buchfink erzeugt die Bilanz auf den Tag der
+                Beurkundung aus den Gründungsbuchungen, ohne Gewinn- und Verlustrechnung. Eine eigene
+                Frist nennt das Gesetz nicht; Buchfink setzt die Frist der E-Bilanz des ersten
+                Geschäftsjahres an. Mit dem Transferticket aus dem Übermittlungsprotokoll des Dienstes
+                bestätigen Sie die Übermittlung hier.
+              </Help>
+            </p>
+            <p className="text-caption text-ink-subtle">Bilanz auf den Tag der Gründung, ohne Gewinn- und Verlustrechnung</p>
+          </div>
+          <div className="shrink-0 flex items-center gap-3">
+            <ObligationState obligation={opening} />
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<FileDown className="w-4 h-4" strokeWidth={1.5} />}
+              loading={saving === 'opening'}
+              disabled={saving !== null}
+              onClick={() => void saveOpening()}
+            >
+              Als XBRL exportieren
+            </Button>
+            {isManual(opening) && (
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={writeLock.locked}
+                title={writeLock.hint}
+                onClick={() => setDeciding(opening)}
+              >
+                Übermittlung bestätigen
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
       {!report ? (
         !error && <SkeletonRows rows={6} />
       ) : (

@@ -2101,10 +2101,18 @@
       "readOnlyHint": false,
       "title": "E-Bilanz exportieren"
     },
-    "description": "Prüft die E-Bilanz eines Geschäftsjahres (Zuordnung der Konten, Pflichtfelder der Taxonomie) und schreibt sie in den Exportordner: als XBRL-Instanz (Vorgabe) oder mit format=susa_csv als Summen- und Saldenliste mit der Taxonomie-Position je Konto, der Ausweichweg für eBilanz+, das daraus nur Bilanz und GuV füllt; bei abweichender Steuerbilanz nennt ueberleitung, was der Mensch dort nachträgt. Liefert Pfad und Befunde. Blockierende Befunde verhindern beides. Übermitteln kann nur der Mensch, über einen E-Bilanz-Dienst wie ebilanzplus.de oder ebilanzonline.de.",
+    "description": "Prüft die E-Bilanz eines Geschäftsjahres (Zuordnung der Konten, Pflichtfelder der Taxonomie) und schreibt sie in den Exportordner: als XBRL-Instanz (Vorgabe) oder mit format=susa_csv als Summen- und Saldenliste mit der Taxonomie-Position je Konto, der Ausweichweg für eBilanz+, das daraus nur Bilanz und GuV füllt; bei abweichender Steuerbilanz nennt ueberleitung, was der Mensch dort nachträgt. bilanzart=eroeffnungsbilanz liefert die Eröffnungsbilanz einer in Buchfink gegründeten Gesellschaft (Pflicht e-bilanz-eroeffnung), jahr ist dann das Geschäftsjahr der Gründung. Liefert Pfad und Befunde. Blockierende Befunde verhindern beides. Übermitteln kann nur der Mensch, über einen E-Bilanz-Dienst wie ebilanzplus.de oder ebilanzonline.de.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
+        "bilanzart": {
+          "description": "jahresabschluss (Vorgabe): Bilanz und GuV des Geschäftsjahres; eroeffnungsbilanz: Bilanz auf den Gründungstag, nur im Geschäftsjahr der Gründung",
+          "enum": [
+            "eroeffnungsbilanz",
+            "jahresabschluss"
+          ],
+          "type": "string"
+        },
         "format": {
           "description": "xbrl (Vorgabe): die Instanz zur Übermittlung; susa_csv: Summen- und Saldenliste mit Taxonomie-Position je Konto, etwa für eBilanz+",
           "enum": [

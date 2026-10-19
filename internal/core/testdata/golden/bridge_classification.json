@@ -819,6 +819,11 @@
     "ExaminerAllowed": false,
     "Guarded": true
   },
+  "SaveOpeningEBilanzAs": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
   "SaveOrganisationTexts": {
     "AppOnly": false,
     "ExaminerAllowed": false,

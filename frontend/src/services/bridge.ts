@@ -126,6 +126,7 @@ export const bridge = {
 
   // E-Bilanz, Audit & Festschreibung
   SaveEBilanzAs: (year: number, format: string) => invoke<string>('SaveEBilanzAs', year, format),
+  SaveOpeningEBilanzAs: (year: number) => invoke<string>('SaveOpeningEBilanzAs', year),
   GetEBilanzMappingReport: <T>(year: number) => invoke<T>('GetEBilanzMappingReport', year),
   GetFestschreibungen: <T>() => invoke<T>('GetFestschreibungen'),
   CommitPeriod: <T>(

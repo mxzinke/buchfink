@@ -3133,6 +3133,7 @@ export const bridge = {
         : `${DATA_DIR}/Export/e-bilanz-${year || YEAR}.xbrl`,
       400,
     ),
+  SaveOpeningEBilanzAs: (year: number) => later(`${DATA_DIR}/Export/e-bilanz-eroeffnung-${year || YEAR}.xbrl`, 400),
   GetFestschreibungen: () => later(FESTSCHREIBUNGEN),
   CommitPeriod: unsupported('CommitPeriod'),
   VerifyFestschreibung: (id: number) =>

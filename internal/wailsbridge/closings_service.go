@@ -108,9 +108,7 @@ func (b *BuchfinkBridge) ExportDeclarationJSON(kind string, year int) (*core.Dec
 // SaveEBilanzAs erzeugt die E-Bilanz eines Geschäftsjahres und schreibt sie an
 // einen gewählten Ort: als XBRL-Instanz (format xbrl oder leer) oder als
 // Summen- und Saldenliste mit Taxonomie-Position je Konto (susa_csv), etwa für
-// eBilanz+. Erzeugt wird vor dem Dialog: blockierende Befunde melden sich,
-// bevor jemand einen Speicherort sucht. Leer heißt: der Dialog wurde
-// abgebrochen.
+// eBilanz+. Leer heißt: der Dialog wurde abgebrochen.
 func (b *BuchfinkBridge) SaveEBilanzAs(year int, format string) (string, error) {
 	year = b.yearOr(year)
 	name, label := fmt.Sprintf("e-bilanz-%d.xbrl", year), "XBRL-Instanz"
@@ -121,15 +119,35 @@ func (b *BuchfinkBridge) SaveEBilanzAs(year int, format string) (string, error) 
 	default:
 		return "", fmt.Errorf("unbekanntes Format %q; xbrl oder susa_csv", format)
 	}
+	return b.saveEBilanz(year, service.EBilanzOptions{}, format == "susa_csv",
+		"E-Bilanz speichern", name, fmt.Sprintf("E-Bilanz %d als %s", year, label))
+}
+
+// SaveOpeningEBilanzAs erzeugt die E-Bilanz der Eröffnungsbilanz (§ 5b Abs. 1
+// Satz 4 EStG) als XBRL-Instanz und schreibt sie an einen gewählten Ort. year
+// ist das Geschäftsjahr, in das die Gründung fällt. Leer heißt: der Dialog
+// wurde abgebrochen.
+func (b *BuchfinkBridge) SaveOpeningEBilanzAs(year int) (string, error) {
+	year = b.yearOr(year)
+	return b.saveEBilanz(year, service.EBilanzOptions{Kind: ebilanz.KindOpening}, false,
+		"Eröffnungsbilanz als E-Bilanz speichern", fmt.Sprintf("e-bilanz-eroeffnung-%d.xbrl", year),
+		fmt.Sprintf("E-Bilanz der Eröffnungsbilanz %d als XBRL-Instanz", year))
+}
+
+// saveEBilanz erzeugt vor dem Dialog: blockierende Befunde melden sich, bevor
+// jemand einen Speicherort sucht.
+func (b *BuchfinkBridge) saveEBilanz(
+	year int, opts service.EBilanzOptions, susa bool, title, name, what string,
+) (string, error) {
 	data, err := read(b, func(ctx context.Context, s *core.Services) ([]byte, error) {
-		res, err := s.EBilanz.Generate(ctx, year, service.EBilanzOptions{})
+		res, err := s.EBilanz.Generate(ctx, year, opts)
 		if err != nil {
 			return nil, err
 		}
 		if err := res.Report.BlockingError(); err != nil {
 			return nil, err
 		}
-		if format == "susa_csv" {
+		if susa {
 			return ebilanz.SuSaCSV(res)
 		}
 		return res.Instance, nil
@@ -137,12 +155,12 @@ func (b *BuchfinkBridge) SaveEBilanzAs(year int, format string) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	path, err := b.saveFileDialog("E-Bilanz speichern", name)
+	path, err := b.saveFileDialog(title, name)
 	if err != nil || path == "" {
 		return "", err
 	}
 	if err := b.handOut(path, data, "EBILANZ", strconv.Itoa(year),
-		fmt.Sprintf("E-Bilanz %d als %s nach %s herausgegeben", year, label, path)); err != nil {
+		fmt.Sprintf("%s nach %s herausgegeben", what, path)); err != nil {
 		return "", err
 	}
 	return path, nil

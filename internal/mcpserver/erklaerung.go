@@ -275,6 +275,7 @@ type ueberleitung struct {
 type ebilanzExportIn struct {
 	TenantArgs
 	Jahr      int           `json:"jahr"`
+	Bilanzart Bilanzart     `json:"bilanzart,omitempty"`
 	Format    EBilanzFormat `json:"format,omitempty"`
 	Taxonomie string        `json:"taxonomie,omitempty" jsonschema:"z. B. 6.9 oder 6.10; Vorgabe die Regelfassung des Wirtschaftsjahres"`
 	Kleinst   bool          `json:"kleinstkapitalgesellschaft,omitempty" jsonschema:"GuV nach § 275 Abs. 5 HGB"`
@@ -440,7 +441,9 @@ func registerErklaerung(tb *Toolbox) {
 		Description: "Prüft die E-Bilanz eines Geschäftsjahres (Zuordnung der Konten, Pflichtfelder der Taxonomie) " +
 			"und schreibt sie in den Exportordner: als XBRL-Instanz (Vorgabe) oder mit format=susa_csv als Summen- und " +
 			"Saldenliste mit der Taxonomie-Position je Konto, der Ausweichweg für eBilanz+, das daraus nur Bilanz und " +
-			"GuV füllt; bei abweichender Steuerbilanz nennt ueberleitung, was der Mensch dort nachträgt. Liefert Pfad und " +
+			"GuV füllt; bei abweichender Steuerbilanz nennt ueberleitung, was der Mensch dort nachträgt. " +
+			"bilanzart=eroeffnungsbilanz liefert die Eröffnungsbilanz einer in Buchfink gegründeten Gesellschaft " +
+			"(Pflicht e-bilanz-eroeffnung), jahr ist dann das Geschäftsjahr der Gründung. Liefert Pfad und " +
 			"Befunde. Blockierende Befunde verhindern beides. Übermitteln kann nur der " +
 			"Mensch, über einen E-Bilanz-Dienst wie ebilanzplus.de oder ebilanzonline.de.",
 	}, func(ctx context.Context, c *Call, t *core.Tenant, in ebilanzExportIn) (exportOut, error) {
@@ -449,9 +452,20 @@ func registerErklaerung(tb *Toolbox) {
 			format = "xbrl"
 		}
 		out := exportOut{Format: format, Befunde: []erklaerungBefund{}}
-		opts := service.EBilanzOptions{Version: in.Taxonomie, MicroBilG: in.Kleinst, Envelope: in.Umschlag}
+		kind, err := pick("bilanzart", in.Bilanzart, balanceKinds)
+		if err != nil {
+			return out, err
+		}
+		opts := service.EBilanzOptions{Kind: kind, Version: in.Taxonomie, MicroBilG: in.Kleinst, Envelope: in.Umschlag}
 		if format == "susa_csv" && in.Umschlag {
 			return out, inputError("umschlag", "den ELSTER-Umschlag gibt es nur für xbrl")
+		}
+		if kind == ebilanz.KindOpening && in.Kleinst {
+			return out, inputError("kleinstkapitalgesellschaft", "die Eröffnungsbilanz hat keine GuV")
+		}
+		name := fmt.Sprintf("%d", in.Jahr)
+		if kind == ebilanz.KindOpening {
+			name = fmt.Sprintf("eroeffnung-%d", in.Jahr)
 		}
 		var data []byte
 		var path string
@@ -480,7 +494,7 @@ func registerErklaerung(tb *Toolbox) {
 					out.Ueberleitung = append(out.Ueberleitung, ueberleitung{Grund: tr.Reason, Konto: tr.Account,
 						Position: tr.Element, Betrag: betrag(tr.Current), Vorjahr: betrag(tr.Prior)})
 				}
-				path, err = dirs.ExportPath(fmt.Sprintf("ebilanz-%d-susa.csv", in.Jahr))
+				path, err = dirs.ExportPath(fmt.Sprintf("ebilanz-%s-susa.csv", name))
 				return err
 			}
 			xml, err := s.EBilanz.ExportXBRLWith(ctx, in.Jahr, opts)
@@ -489,7 +503,7 @@ func registerErklaerung(tb *Toolbox) {
 			}
 			data = []byte(xml)
 			sum := sha256.Sum256(data)
-			path, err = dirs.ExportPath(fmt.Sprintf("e-bilanz-%d-%s.xml", in.Jahr, hex.EncodeToString(sum[:])[:12]))
+			path, err = dirs.ExportPath(fmt.Sprintf("e-bilanz-%s-%s.xml", name, hex.EncodeToString(sum[:])[:12]))
 			return err
 		}); err != nil {
 			return out, err
