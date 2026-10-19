@@ -13,7 +13,7 @@ vars:
   # Brücke). Sie steht an jeder Buchung, in jedem Export, jeder Sicherung und
   # jeder Voranmeldung. Auf einem sauberen Stand mit Tag vX.Y.Z ist sie X.Y.Z,
   # sonst dev+<Commit>, bei ungesicherten Änderungen mit -dirty; ohne Git „dev“.
-  # Der Release-Workflow setzt sie ausdrücklich: task linux:build VERSION=0.3.0.
+  # scripts/release.sh setzt sie ausdrücklich: task linux:build VERSION=0.3.0.
   VERSION:
     sh: v=$(git describe --tags --exact-match --match 'v[0-9]*.[0-9]*.[0-9]*' --dirty 2>/dev/null) || v=; case "$v" in v*-dirty|"") c=$(git describe --always --dirty --abbrev=12 --exclude='*' 2>/dev/null) && echo "dev+$c" || echo dev ;; *) echo "${v#v}" ;; esac
 
@@ -151,7 +151,7 @@ tasks:
     # headers, and `task check` has to work on a plain checkout. On a machine
     # that can build the app, run `task test:bridge` alongside it.
     cmds:
-      - gofmt -l internal main.go
+      - task: check:gofmt
       - task: vet
       - task: test
       - task: check:design
@@ -161,6 +161,46 @@ tasks:
       - task: check:steps
       - task: check:links
       - task: check:skills
+      - task: check:version
+
+  check:gofmt:
+    summary: Fails if a Go file is not formatted with gofmt
+    cmds:
+      - |
+        files=$(git ls-files -z '*.go' | xargs -0 gofmt -l)
+        if [ -n "$files" ]; then
+          echo "Nicht mit gofmt formatiert:"
+          echo "$files"
+          exit 1
+        fi
+
+  check:version:
+    summary: Checks that the package files carry the version from build/config.yml
+    cmds:
+      - python3 scripts/version.py check
+
+  release:check:
+    summary: "Runs every check before tagging a release: task release:check VERSION=X.Y.Z"
+    # Alles, was vor einem Release grün sein muss, auch die langsamen Läufe
+    # (Bridge, Zeitzonen, amtliche E-Bilanz-Schemata). Ablauf in
+    # docs/entwicklung/README.md.
+    cmds:
+      - bash scripts/release.sh check {{.VERSION}}
+
+  release:build:
+    summary: "Builds the macOS and Windows apps, the bridge, the extension and the skill on macOS: task release:build VERSION=X.Y.Z"
+    cmds:
+      - bash scripts/release.sh build {{.VERSION}}
+
+  release:build:linux:
+    summary: "Builds the Linux app on Linux amd64 or in Docker: task release:build:linux VERSION=X.Y.Z"
+    cmds:
+      - bash scripts/release.sh build-linux {{.VERSION}}
+
+  release:publish:
+    summary: "Writes SHA256SUMS and publishes the GitHub release: task release:publish VERSION=X.Y.Z"
+    cmds:
+      - bash scripts/release.sh publish {{.VERSION}}
 
   build:
     summary: Builds the application
@@ -209,8 +249,8 @@ tasks:
     summary: Publishes website/ to the gh-pages branch
     # Schiebt den Inhalt von website/ als Wurzel des Zweigs gh-pages. In den
     # Repository-Einstellungen steht Pages auf „Deploy from a branch", Zweig
-    # gh-pages, Ordner „/ (root)" — die Veröffentlichung läuft damit von Hand
-    # und ohne CI. Nach jeder Änderung an der Seite ausführen.
+    # gh-pages, Ordner „/ (root)" — die Veröffentlichung läuft damit von Hand.
+    # Nach jeder Änderung an der Seite ausführen.
     #
     # Weist der Push zurück, weil gh-pages auseinandergelaufen ist, hilft die
     # ausdrückliche Form:

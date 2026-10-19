@@ -75,12 +75,12 @@ npm --prefix frontend test
 npm --prefix frontend run build
 ```
 
-`task check` meldet unformatierte Go-Dateien und führt `go vet`, die Go-Tests
-und die Prüfskripte für Gestaltung, Bridge, Dienste ohne Aufrufer,
-Hilfetexte, Abschlussbausteine und Dokumentationslinks aus. `task
-check:services` meldet jede exportierte Methode eines Dienstes in
-`internal/service`, die außerhalb der Tests niemand aufruft; was trotzdem
-bleibt, steht mit Grund in den Ausnahmen von
+`task check` scheitert an unformatierten Go-Dateien und führt `go vet`, die
+Go-Tests, die Prüfskripte für Gestaltung, Bridge, Dienste ohne Aufrufer,
+Hilfetexte, Abschlussbausteine, Dokumentationslinks und Skill sowie die
+Prüfung der Fassung in den Paketdateien aus. `task check:services` meldet jede
+exportierte Methode eines Dienstes in `internal/service`, die außerhalb der
+Tests niemand aufruft; was trotzdem bleibt, steht mit Grund in den Ausnahmen von
 [`scripts/check_service_callers`](../../scripts/check_service_callers/main.go). Formatieren müssen Sie selbst (`gofmt -w`). Der Frontend-Build prüft auch
 TypeScript.
 
@@ -88,6 +88,7 @@ TypeScript.
 |---|---|
 | `task test` | Go-Tests aller Pakete unter `internal/` und `cmd/` außer der Bridge |
 | `task test:bridge` | Bridge-Tests; brauchen GTK, siehe oben |
+| `task test:timezones` | Go-Tests unter `Pacific/Kiritimati` und `America/Los_Angeles`, rund acht Minuten |
 | `task test:ebilanz-xsd` | E-Bilanz-Instanzen gegen die amtlichen Schemata 6.9 und 6.10; lädt die Pakete mit Prüfsumme nach `.cache/ebilanz-xsd/`, braucht bash, curl, unzip und Java ab 11 |
 | `task check:clicks` | Klickweg von der Bilanz zum Beleg, braucht Chromium für Playwright ([Prüfszenarien](pruefszenarien.md)) |
 | `task build` | Desktop-Build für das eigene Betriebssystem nach `bin/` |
@@ -101,28 +102,35 @@ Die Brücke für Claude Desktop baut `task build:mcp` ohne Wails und ohne CGO,
 für `GOOS` und `GOARCH` aus der Umgebung. Wie daraus die Erweiterung entsteht,
 steht unter [packaging/claude-desktop](../../packaging/claude-desktop/README.md).
 
-## CI und Release
+## Release
 
-`.github/workflows/ci.yml` prüft jeden Pull Request und jeden Push auf
-`master`: Go mit Tests, Frontend und alle `scripts/check_*.py`.
-`ebilanz-xsd.yml` läuft bei Änderungen an der E-Bilanz und ihren Paketen,
-wöchentlich und vor jedem Release.
-
-Ein Release entsteht aus einem Tag:
+Es gibt keine CI. Geprüft, gebaut und veröffentlicht wird von Hand mit
+[`scripts/release.sh`](../../scripts/release.sh), aufgerufen über das Taskfile:
 
 1. `python3 scripts/version.py set X.Y.Z` schreibt die Fassung in alle
-   Paketdateien.
-2. In [internal/changelog/CHANGELOG.md](../../internal/changelog/CHANGELOG.md)
-   einen Eintrag `## vX.Y.Z — JJJJ-MM-TT` anlegen. Er ist der Text des Release.
-3. Committen, `vX.Y.Z` taggen und den Tag pushen. Ein Tag wie `vX.Y.Z-rc.1`
-   wird Vorabversion.
+   Paketdateien. In [internal/changelog/CHANGELOG.md](../../internal/changelog/CHANGELOG.md)
+   einen Eintrag `## vX.Y.Z — JJJJ-MM-TT` anlegen; er ist der Text des Release.
+   Committen.
+2. `task release:check VERSION=X.Y.Z` prüft Fassung und Eintrag, `go mod tidy`,
+   das Frontend mit TypeScript, `task check`, die Bridge-Tests, die Tests unter
+   extremen Zeitzonen, die E-Bilanz gegen die amtlichen Schemata und das
+   Skill-Paket. Braucht einen sauberen Stand, Java ab 11 und Netz.
+3. `git tag -a vX.Y.Z -m "Buchfink X.Y.Z"`. Eine Fassung wie `X.Y.Z-rc.1` wird
+   Vorabversion.
+4. `task release:build VERSION=X.Y.Z` baut auf macOS
+   `buchfink-darwin-universal.zip` (Ad-hoc-Signatur), `buchfink-windows-amd64.exe`,
+   die Brücke `buchfink-mcp-*` für macOS, Windows und Linux, `buchfink.mcpb`
+   und das Skill-Paket `buchfink.zip` nach `dist/release/vX.Y.Z/`.
+5. `task release:build:linux VERSION=X.Y.Z` baut `buchfink-linux-amd64.tar.gz`,
+   auf Linux amd64 direkt, sonst in einem `linux/amd64`-Container mit Docker aus
+   dem Stand des Tags.
+6. `git push origin master vX.Y.Z`, dann `task release:publish VERSION=X.Y.Z`:
+   prüft, dass jede Datei vorliegt, auch jede, auf die Dokumentation oder
+   Webseite unter `releases/latest/download/` verweisen, schreibt `SHA256SUMS`
+   und legt das GitHub-Release mit `gh` an.
 
-`release.yml` prüft Tag, Paketdateien und Eintrag, führt die Prüfungen aus,
-baut und veröffentlicht `buchfink-darwin-universal.zip`,
-`buchfink-windows-amd64.exe`, `buchfink-linux-amd64.tar.gz`, die Brücke
-`buchfink-mcp-*`, `buchfink.mcpb`, das Skill-Paket `buchfink.zip` und `SHA256SUMS`. Es
-bricht ab, wenn eine Datei fehlt, auf die Dokumentation oder Webseite unter
-`releases/latest/download/` verweisen. Signiert wird nichts.
+Signiert wird nichts. Die Dateinamen enthalten keine Fassung, damit die Links
+auf `releases/latest/download/<datei>` stabil bleiben.
 
 ## Abhängigkeiten und Webseite
 

@@ -3,8 +3,8 @@
 
 Die Fassung im Programm kommt aus dem Git-Tag (Taskfile.yml, VERSION). Daneben
 tragen Paketdateien eine feste Fassung: Info.plist, die Windows-Ressourcen,
-MSIX, NSIS, nfpm, das MCPB-Manifest und das Claude-Plugin. Der Release-Workflow
-bricht ab, wenn eine davon oder die Änderungshistorie nicht zum Tag passt.
+MSIX, NSIS, nfpm, das MCPB-Manifest und das Claude-Plugin. `task release:check`
+bricht ab, wenn eine davon oder die Änderungshistorie nicht zur Fassung passt.
 
     python3 scripts/version.py set 0.3.1      Fassung in alle Paketdateien schreiben
     python3 scripts/version.py check [0.3.1]  Paketdateien und Änderungshistorie prüfen;
