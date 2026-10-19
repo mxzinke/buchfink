@@ -415,3 +415,68 @@ func TestOrganisationTextTool(t *testing.T) {
 	a.ok("verfahrensdoku_text", a.args(nil), &read)
 	a.fail("verfahrensdoku_text", a.args(map[string]any{"texte": map[string]any{"scannen": "neu"}}), CodeExaminer)
 }
+
+// Die Unterbilanz rechnet der Gründungsdienst; auswertung zeigt sie dem
+// Agenten. Notarkosten von 3.000 € mindern das Reinvermögen, die Satzung
+// übernimmt 1.000 € als Gründungsaufwand, die Gesellschafterin haftet für
+// 2.000 €. Vor der Eintragung ist die Zahl vorläufig.
+func TestAuswertungShowsTheUnterbilanz(t *testing.T) {
+	h := newHarness(t)
+	h.completeCompany()
+	a := h.agent("")
+
+	var none struct {
+		Unterbilanz *struct{} `json:"unterbilanz"`
+		Hinweis     string    `json:"hinweis"`
+	}
+	a.ok("auswertung", map[string]any{"art": "unterbilanz"}, &none)
+	if none.Unterbilanz != nil || !strings.Contains(none.Hinweis, "keine Gründung") {
+		t.Fatalf("ohne Gründung: %+v", none)
+	}
+
+	h.ui(func(ctx context.Context, s *core.Services) error {
+		if _, err := s.Foundation.Save(ctx, &domain.Foundation{
+			NotarizedOn: "2026-01-15", ShareCapital: 2_500_000, FoundationCostCap: 100_000,
+			Shareholders: []domain.Shareholder{
+				{Name: "Anna Bauer", ShareCapital: 2_500_000, PaidIn: 1_250_000, Kind: domain.ContributionCash},
+			},
+		}); err != nil {
+			return err
+		}
+		if _, err := s.Foundation.BookPostings(ctx); err != nil {
+			return err
+		}
+		_, err := s.Journal.Post(ctx, &domain.JournalEntry{BookingDate: "2026-01-20", DocumentDate: "2026-01-20",
+			ServiceDateFrom: "2026-01-20", ServiceDateTo: "2026-01-20", Description: "Notarkosten Gründung",
+			Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
+			Lines: []domain.JournalLine{
+				{Side: domain.SideDebit, Account: "6825", Amount: 300_000},
+				{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 300_000}}})
+		return err
+	})
+
+	var got struct {
+		Stichtag    string `json:"stichtag"`
+		Unterbilanz struct {
+			Endgueltig     bool   `json:"endgueltig"`
+			Stammkapital   string `json:"stammkapital"`
+			Reinvermoegen  string `json:"reinvermoegen"`
+			Unterdeckung   string `json:"unterdeckung"`
+			Gedeckt        string `json:"gedeckt"`
+			Haftung        string `json:"haftung"`
+			Gesellschafter []struct {
+				Name    string `json:"name"`
+				Haftung string `json:"haftung"`
+			} `json:"gesellschafter"`
+		} `json:"unterbilanz"`
+	}
+	a.ok("auswertung", map[string]any{"art": "unterbilanz"}, &got)
+	u := got.Unterbilanz
+	if u.Endgueltig || u.Stammkapital != "25000.00" || u.Reinvermoegen != "22000.00" || u.Unterdeckung != "3000.00" ||
+		u.Gedeckt != "1000.00" || u.Haftung != "2000.00" || got.Stichtag == "" {
+		t.Fatalf("Unterbilanz: %+v", got)
+	}
+	if len(u.Gesellschafter) != 1 || u.Gesellschafter[0].Name != "Anna Bauer" || u.Gesellschafter[0].Haftung != "2000.00" {
+		t.Errorf("Anteile: %+v", u.Gesellschafter)
+	}
+}

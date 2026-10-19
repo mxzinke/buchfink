@@ -34,6 +34,7 @@ import { ObligationList, obligationsOf } from './ObligationList';
 import { COMPANY_OBLIGATIONS } from '../../utils/obligations';
 import { FoundationDialog } from './FoundationDialog';
 import { LoanDialog } from './LoanDialog';
+import { UnterbilanzSection } from './UnterbilanzSection';
 
 interface ShareRow {
   key: number;
@@ -240,6 +241,8 @@ export const CapitalBlock: React.FC<{
           }
         />
       )}
+
+      <UnterbilanzSection foundation={foundation} />
 
       <div className="mt-8 mb-3 flex items-end justify-between gap-4">
         <div>

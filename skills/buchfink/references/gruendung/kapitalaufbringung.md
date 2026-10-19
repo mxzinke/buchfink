@@ -123,19 +123,25 @@ Bitte wähle: (a) so buchen  (b) Teil nicht eingefordert (2910)  (c) zurückstel
   Differenz (Unterbilanz- oder Vorbelastungshaftung; grundlegend
   BGH vom 09.03.1981, II ZR 54/80, BGHZ 80, 129; Fundstelle über
   Sekundärquellen geprüft). Eine Norm im GmbHG gibt es dafür nicht.
-- Prüfe zur Eintragung die Salden zum Eintragungstag: `auswertung`
-  (`art: susa`) nennt die bebuchten Konten, `auswertung` (`art: kontoblatt`,
-  `bis: <Eintragungstag>`) den Saldo je Konto. Reinvermögen = Vermögensgegenstände
-  einschließlich ausstehender Einlagen minus Schulden. Liegt es unter dem
-  Stammkapital, nenne dem Menschen die Differenz und empfiehl Notar oder
-  Steuerberater.
+- Prüfe zur Eintragung die Unterbilanz mit `auswertung`
+  (`art: unterbilanz`). Buchfink rechnet aus den Buchungen bis zum
+  Eintragungstag: Reinvermögen = Vermögensgegenstände einschließlich
+  ausstehender Einlagen minus Schulden; `unterdeckung` ist der Abstand zum
+  Stammkapital, `gedeckt` der Teil, den der Gründungsaufwand laut Satzung
+  trägt, `haftung` der Rest, verteilt nach Geschäftsanteilen. Vor der
+  Eintragung rechnet Buchfink auf heute (`endgueltig: false`). Ist `haftung`
+  größer als null, nenne dem Menschen Betrag und Anteile und empfiehl Notar
+  oder Steuerberater. Der Mensch sieht dieselbe Rechnung unter Unternehmen ›
+  Stammdaten im Block „Gesellschafter & Kapital“.
 - Gründungsaufwand mindert das Reinvermögen sofort
   ([gruendungskosten.md, Abschnitt 1](gruendungskosten.md#1-bilanz-kein-aktivposten)).
-  Wertungsfrage: Ob der im Vertrag übernommene Gründungsaufwand die Haftung
+  Buchfink rechnet den im Vertrag übernommenen Gründungsaufwand gegen die
+  Unterdeckung (`gedeckt`). Wertungsfrage: Ob er die Haftung im Einzelfall
   mindert, beurteilt ein Berater.
-- Buchfink kann die Unterbilanz aus den Gründungsangaben intern rechnen
-  (`FoundationService.Unterbilanz`). Die App zeigt sie nicht an, und ein
-  Werkzeug dafür gibt es nicht; rechne deshalb selbst.
+- Ohne erfasste Gründung (Gesellschafter, Einzahlungen, Gründungsaufwand
+  laut Satzung, nur in der App) liefert `art: unterbilanz` nur einen Hinweis;
+  dann prüfe die Salden selbst mit `auswertung` (`art: kontoblatt`,
+  `bis: <Eintragungstag>`).
 
 [gmbhg5]: https://www.gesetze-im-internet.de/gmbhg/__5.html
 [gmbhg5a]: https://www.gesetze-im-internet.de/gmbhg/__5a.html

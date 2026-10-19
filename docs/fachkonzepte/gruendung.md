@@ -73,7 +73,9 @@ Haftung      = Unterdeckung − gedeckt, verteilt nach Geschäftsanteilen
 
 Ausstehende Einlagen zählen zum Reinvermögen, weil sie Ansprüche gegen die
 Gesellschafter sind. Vor der Eintragung rechnet Buchfink auf heute und nennt die
-Zahl vorläufig.
+Zahl vorläufig. Die App zeigt die Rechnung unter Unternehmen › Stammdaten im
+Block „Gesellschafter & Kapital“, ein Agent liest sie mit `auswertung`
+(`art: unterbilanz`).
 
 ## Eröffnungsbilanz
 

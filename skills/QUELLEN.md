@@ -1089,7 +1089,7 @@ Bereich steuererklaerungen stehen (§§ 7 KStG, 5b, 16, 18 UStG, §§ 20, 108,
 | Quelle | Pfad | Wofür |
 |---|---|---|
 | Gründungsregeln | `internal/accounting/gruendung.go` | `FoundationRules`, `RequiredPaidIn` (Viertel, 12.500 €, Sacheinlage voll), `RecommendedVatPeriod` |
-| Gründungsdienst | `internal/service/foundation_service.go`, `internal/domain/foundation.go` | Unterbilanz, Gründungsbuchungen (Bridge ohne Oberfläche), `FoundationCostCap` |
+| Gründungsdienst | `internal/service/foundation_service.go`, `internal/domain/foundation.go` | Unterbilanz (App: `frontend/src/pages/company/UnterbilanzSection.tsx`; Werkzeug: `auswertung` mit `art: unterbilanz`), Gründungsbuchungen (Bridge ohne Oberfläche), `FoundationCostCap` |
 | Eröffnungsbilanz Gründung und Umsteiger | `internal/service/foundation_opening.go`, `internal/service/opening_balance.go` | Stichtag Beurkundung; Umsteiger gegen 9000, 9008, 9009 mit Schlussbilanz als Beleg |
 | E-Bilanz der Eröffnungsbilanz | `internal/service/ebilanz_service.go` (`EBilanzOptions.Kind`), `internal/mcpserver/erklaerung.go` | `ebilanz_exportieren` mit `bilanzart: eroeffnungsbilanz`: Stichtag Gründungsdatum der Stammdaten, nur im Geschäftsjahr der Gründung und mit Buchungen bis zu diesem Tag |
 | Firmenzusatz | `internal/domain/settings.go` (`FirmName`) | „i. G.“ bis zur Eintragung |
@@ -1103,8 +1103,6 @@ Bereich steuererklaerungen stehen (§§ 7 KStG, 5b, 16, 18 UStG, §§ 20, 108,
 - **Gründungsbuchungen:** Zeichnung und Einzahlung bucht der Agent nach
   Rückfrage mit `buchung_erfassen` bzw. `bankumsatz_buchen`; ein eigenes
   Werkzeug gibt es nicht.
-- **Unterbilanz:** `FoundationService.Unterbilanz` rechnet, aber weder App
-  noch Werkzeug zeigen das Ergebnis.
 - **Voranmeldungszeitraum der Gründung:** `RecommendedVatPeriod` kennt die
   voraussichtliche Steuer des Gründungsjahres nicht und erkennt
   Vorratsgesellschaften (§ 18 Abs. 2 Satz 5 UStG) nicht. Die Umrechnung des

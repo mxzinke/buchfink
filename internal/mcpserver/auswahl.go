@@ -64,7 +64,7 @@ type choice struct {
 var choices = map[reflect.Type]choice{
 	reflect.TypeFor[KontenArt]():       {[]string{"suche", "buchungsgruppen", "steuerfaelle"}, "suche: Konten des SKR04; buchungsgruppen; steuerfaelle"},
 	reflect.TypeFor[Richtung]():        {[]string{"eingang", "ausgang"}, "eingang oder ausgang"},
-	reflect.TypeFor[AuswertungArt]():   {[]string{"susa", "kontoblatt", "bilanz", "guv", "ust", "pruefbericht", "darlehen"}, "Art der Auswertung"},
+	reflect.TypeFor[AuswertungArt]():   {[]string{"susa", "kontoblatt", "bilanz", "guv", "ust", "pruefbericht", "darlehen", "unterbilanz"}, "Art der Auswertung"},
 	reflect.TypeFor[Gliederung]():      {[]string{"voll", "kurz", "buchstaben"}, "Tiefe der Gliederung; Vorgabe voll"},
 	reflect.TypeFor[BelegStatus]():     {[]string{"abgelegt", "gebucht", "verworfen"}, "abgelegt (noch nicht gebucht), gebucht oder verworfen"},
 	reflect.TypeFor[BelegArt]():        {choiceKeys(receiptKinds), "Belegart"},

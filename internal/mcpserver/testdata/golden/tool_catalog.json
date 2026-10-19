@@ -539,12 +539,12 @@
       "readOnlyHint": true,
       "title": "Auswertung"
     },
-    "description": "Zahlen der Bücher: susa (Summen und Salden je Konto), kontoblatt (Buchungen eines Kontos mit laufendem Saldo), bilanz, guv (mit Vorjahr), ust (Umsatzsteuer-Übersicht eines Zeitraums), pruefbericht (Befunde des Prüflaufs, ohne ihn zu speichern), darlehen (Gesellschafterdarlehen mit Stand und Befunden zum Fremdvergleich). Listen seitenweise. Für einzelne Buchungen buchung_lesen.",
+    "description": "Zahlen der Bücher: susa (Summen und Salden je Konto), kontoblatt (Buchungen eines Kontos mit laufendem Saldo), bilanz, guv (mit Vorjahr), ust (Umsatzsteuer-Übersicht eines Zeitraums), pruefbericht (Befunde des Prüflaufs, ohne ihn zu speichern), darlehen (Gesellschafterdarlehen mit Stand und Befunden zum Fremdvergleich), unterbilanz (Haftung der Gesellschafter, wenn das Reinvermögen am Eintragungstag unter dem Stammkapital liegt). Listen seitenweise. Für einzelne Buchungen buchung_lesen.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
         "art": {
-          "description": "susa (Summen und Salden), kontoblatt, bilanz, guv, ust (Umsatzsteuer-Übersicht), pruefbericht oder darlehen (Gesellschafterdarlehen mit Stand)",
+          "description": "susa (Summen und Salden), kontoblatt, bilanz, guv, ust (Umsatzsteuer-Übersicht), pruefbericht, darlehen (Gesellschafterdarlehen mit Stand) oder unterbilanz (Gründung: Reinvermögen gegen Stammkapital am Eintragungstag)",
           "enum": [
             "susa",
             "kontoblatt",
@@ -552,7 +552,8 @@
             "guv",
             "ust",
             "pruefbericht",
-            "darlehen"
+            "darlehen",
+            "unterbilanz"
           ],
           "type": "string"
         },

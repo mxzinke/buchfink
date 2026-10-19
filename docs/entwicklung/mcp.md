@@ -164,7 +164,7 @@ aus `Toolbox.OutputSchema`, `TestCatalogStaysSmall` hält den Katalog unter
 | `buchung_lesen` | lesen | eine Buchung mit allen Zeilen und Storno-Bezügen |
 | `offene_posten` | lesen | Forderungen und Verbindlichkeiten, Altersstruktur, Verzugszinsen, Mahnstand |
 | `bankumsaetze` | lesen | Bankumsätze mit den besten Zuordnungsvorschlägen, Einstufung und Prüfstand des Auszugs |
-| `auswertung` | lesen | Summen und Salden, Kontoblatt eines Sachkontos, Bilanz, GuV, USt-Übersicht, Prüfbericht, Gesellschafterdarlehen mit Stand und Befunden |
+| `auswertung` | lesen | Summen und Salden, Kontoblatt eines Sachkontos, Bilanz, GuV, USt-Übersicht, Prüfbericht, Gesellschafterdarlehen mit Stand und Befunden, Unterbilanz der Gründung (`FoundationService.GetState`) |
 | `anlagen` | lesen | Anlagenverzeichnis, fällige AfA, Aktivierungskandidaten |
 | `abschluss_status` | lesen | Schritte des Jahresabschlusses mit nächster Aktion |
 | `erklaerung` | lesen | UStVA, ZM, USt-, KSt- und GewSt-Erklärung formularnah mit Herkunft |

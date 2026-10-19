@@ -91,6 +91,9 @@ type AgentServices struct {
 		ExtractStructuredPart(context.Context, uint) (*domain.Receipt, error)
 		Propose(context.Context, uint) (*service.EInvoiceProposal, error)
 	}
+	Foundation interface {
+		GetState(context.Context) (*service.FoundationState, error)
+	}
 	Idempotency interface {
 		Run(context.Context, service.IdempotentCall, func(context.Context) (string, any, error)) (*service.IdempotentOutcome, error)
 	}
@@ -206,6 +209,7 @@ func (s *Services) AgentServices() AgentServices {
 		Declarations:    s.Declarations,
 		EBilanz:         s.EBilanz,
 		EInvoice:        s.EInvoice,
+		Foundation:      s.Foundation,
 		Idempotency:     s.Idempotency,
 		Invoices:        s.Invoices,
 		Journal:         s.Journal,

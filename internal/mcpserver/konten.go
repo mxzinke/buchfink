@@ -69,7 +69,7 @@ func direction(s Richtung) domain.Direction {
 // --- auswertung -------------------------------------------------------------
 
 type auswertungIn struct {
-	Art            AuswertungArt `json:"art" jsonschema:"susa (Summen und Salden), kontoblatt, bilanz, guv, ust (Umsatzsteuer-Übersicht), pruefbericht oder darlehen (Gesellschafterdarlehen mit Stand)"`
+	Art            AuswertungArt `json:"art" jsonschema:"susa (Summen und Salden), kontoblatt, bilanz, guv, ust (Umsatzsteuer-Übersicht), pruefbericht, darlehen (Gesellschafterdarlehen mit Stand) oder unterbilanz (Gründung: Reinvermögen gegen Stammkapital am Eintragungstag)"`
 	Geschaeftsjahr int           `json:"geschaeftsjahr,omitempty"`
 	Konto          Konto         `json:"konto,omitempty" jsonschema:"Sachkonto des SKR04 für art=kontoblatt; Buchungen eines Personenkontos liefert buchungen_suchen mit kontakt_id"`
 	Von            Datum         `json:"von,omitempty" jsonschema:"kontoblatt, ust: Beginn; Vorgabe Beginn des Geschäftsjahres"`
@@ -150,8 +150,28 @@ type auswertungOut struct {
 	Zahllast       *Betrag          `json:"zahllast,omitempty"`
 	Befunde        []befundZeile    `json:"befunde"`
 	Darlehen       []darlehenZeile  `json:"darlehen"`
+	Unterbilanz    *unterbilanz     `json:"unterbilanz,omitempty"`
 	Hinweis        string           `json:"hinweis,omitempty"`
 	Seitenende
+}
+
+type unterbilanz struct {
+	Stichtag       string              `json:"stichtag" jsonschema:"Eintragungstag; vor der Eintragung heute"`
+	Endgueltig     bool                `json:"endgueltig" jsonschema:"falsch, solange die Eintragung fehlt"`
+	Stammkapital   Betrag              `json:"stammkapital"`
+	Vermoegen      Betrag              `json:"vermoegen" jsonschema:"Aktiva einschließlich ausstehender Einlagen"`
+	Schulden       Betrag              `json:"schulden"`
+	Reinvermoegen  Betrag              `json:"reinvermoegen"`
+	Unterdeckung   Betrag              `json:"unterdeckung" jsonschema:"Stammkapital minus Reinvermögen, nie negativ"`
+	Gedeckt        Betrag              `json:"gedeckt" jsonschema:"davon durch den Gründungsaufwand laut Satzung"`
+	Haftung        Betrag              `json:"haftung" jsonschema:"Unterdeckung minus gedeckt"`
+	Gesellschafter []unterbilanzAnteil `json:"gesellschafter"`
+}
+
+type unterbilanzAnteil struct {
+	Name       string `json:"name"`
+	Nennbetrag Betrag `json:"nennbetrag"`
+	Haftung    Betrag `json:"haftung"`
 }
 
 func emptyAuswertung(art string, year int) auswertungOut {
@@ -237,7 +257,8 @@ func registerKonten(tb *Toolbox) {
 		Description: "Zahlen der Bücher: susa (Summen und Salden je Konto), kontoblatt (Buchungen eines Kontos mit " +
 			"laufendem Saldo), bilanz, guv (mit Vorjahr), ust (Umsatzsteuer-Übersicht eines Zeitraums), pruefbericht " +
 			"(Befunde des Prüflaufs, ohne ihn zu speichern), darlehen (Gesellschafterdarlehen mit Stand und Befunden " +
-			"zum Fremdvergleich). Listen seitenweise. Für einzelne Buchungen buchung_lesen.",
+			"zum Fremdvergleich), unterbilanz (Haftung der Gesellschafter, wenn das Reinvermögen am Eintragungstag " +
+			"unter dem Stammkapital liegt). Listen seitenweise. Für einzelne Buchungen buchung_lesen.",
 	}, func(ctx context.Context, c *Call, s core.AgentServices, in auswertungIn) (auswertungOut, error) {
 		year, err := yearOr(ctx, c, in.Geschaeftsjahr)
 		if err != nil {
@@ -390,9 +411,34 @@ func registerKonten(tb *Toolbox) {
 			out.Stichtag = cutoff
 			out.Darlehen, out.Seitenende, err = Paginate(rows, in.Seite)
 			return out, err
+		case "unterbilanz":
+			state, err := s.Foundation.GetState(ctx)
+			if err != nil {
+				return out, err
+			}
+			if state.Unterbilanz == nil {
+				out.Hinweis = "In diesen Büchern ist keine Gründung erfasst. Die Unterbilanz rechnet Buchfink für " +
+					"eine Gründung, die der Mensch in der App unter Unternehmen › Stammdaten erfasst hat."
+				return out, nil
+			}
+			out.Unterbilanz = unterbilanzOf(state.Unterbilanz)
+			out.Stichtag = state.Unterbilanz.AsOf
+			return out, nil
 		}
-		return out, inputError("art", "unbekannte Art %q (susa, kontoblatt, bilanz, guv, ust, pruefbericht, darlehen)", in.Art)
+		return out, inputError("art", "unbekannte Art %q (susa, kontoblatt, bilanz, guv, ust, pruefbericht, darlehen, unterbilanz)", in.Art)
 	})
+}
+
+func unterbilanzOf(u *domain.Unterbilanz) *unterbilanz {
+	out := &unterbilanz{Stichtag: u.AsOf, Endgueltig: u.IsFinal, Stammkapital: betrag(u.ShareCapital),
+		Vermoegen: betrag(u.Assets), Schulden: betrag(u.Liabilities), Reinvermoegen: betrag(u.NetAssets),
+		Unterdeckung: betrag(u.Shortfall), Gedeckt: betrag(u.Covered), Haftung: betrag(u.Amount),
+		Gesellschafter: make([]unterbilanzAnteil, 0, len(u.Shares))}
+	for _, sh := range u.Shares {
+		out.Gesellschafter = append(out.Gesellschafter, unterbilanzAnteil{Name: sh.Name,
+			Nennbetrag: betrag(sh.ShareCapital), Haftung: betrag(sh.Amount)})
+	}
+	return out
 }
 
 func vatLines(sum *domain.VatSummary) []ustZeile {
