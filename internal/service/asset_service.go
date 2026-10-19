@@ -504,10 +504,7 @@ func (s *AssetService) notesFor(asset *domain.FixedAsset) []string {
 					"bzw. § 3 Nr. 40 EStG stellen sie außerbilanziell wieder glatt.")
 		}
 		if asset.HoldingPermille > 0 {
-			notes = append(notes, fmt.Sprintf(
-				"Beteiligungsquote %s %%. Ab 20 %% vermutet § 271 Abs. 1 Satz 3 HGB eine Beteiligung; "+
-					"darunter gehören Anteile regelmäßig unter die Wertpapiere des Anlagevermögens.",
-				permilleLabel(asset.HoldingPermille)))
+			notes = append(notes, holdingPresumptionNote(asset.HoldingPermille))
 		}
 	case domain.AssetClassIntangible:
 		notes = append(notes,
@@ -3224,6 +3221,24 @@ func disposedBefore(asset *domain.FixedAsset, fiscalYear int) bool {
 		}
 	}
 	return false
+}
+
+// holdingPresumptionPermille ist die Quote, die Anteile überschreiten müssen,
+// damit § 271 Abs. 1 Satz 3 HGB eine Beteiligung vermutet: ein Fünftel des
+// Nennkapitals.
+const holdingPresumptionPermille = 200
+
+// holdingPresumptionNote sagt, ob die Quote die Beteiligungsvermutung auslöst.
+func holdingPresumptionNote(permille int) string {
+	if permille > holdingPresumptionPermille {
+		return fmt.Sprintf(
+			"Beteiligungsquote %s %%. Über 20 %% vermutet § 271 Abs. 1 Satz 3 HGB eine Beteiligung.",
+			permilleLabel(permille))
+	}
+	return fmt.Sprintf(
+		"Beteiligungsquote %s %%. Die Vermutung des § 271 Abs. 1 Satz 3 HGB greift erst über 20 %%; "+
+			"ohne dauernde Verbindung gehören die Anteile unter die Wertpapiere des Anlagevermögens.",
+		permilleLabel(permille))
 }
 
 func permilleLabel(permille int) string {

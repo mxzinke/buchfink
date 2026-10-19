@@ -2294,3 +2294,27 @@ func TestAssetPlanUsesTheRealFiscalYearPeriod(t *testing.T) {
 		}
 	}
 }
+
+// § 271 Abs. 1 Satz 3 HGB vermutet eine Beteiligung erst, wenn die Anteile ein
+// Fünftel des Nennkapitals überschreiten. Genau 20 % lösen sie nicht aus.
+func TestHoldingPresumptionNeedsMoreThanAFifth(t *testing.T) {
+	for _, tc := range []struct {
+		permille int
+		presumed bool
+	}{
+		{199, false},
+		{200, false},
+		{201, true},
+		{1000, true},
+	} {
+		note := holdingPresumptionNote(tc.permille)
+		presumed := strings.Contains(note, "vermutet § 271")
+		if presumed != tc.presumed {
+			t.Errorf("Quote %d ‰: %q", tc.permille, note)
+		}
+	}
+	entry, ok := accounting.LookupAssetAccount("0820")
+	if !ok || !strings.Contains(entry.Hint, "Übersteigen sie ein Fünftel") {
+		t.Errorf("Hinweis zu 0820 nennt die Schwelle nicht als Überschreiten: %q", entry.Hint)
+	}
+}

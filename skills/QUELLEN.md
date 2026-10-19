@@ -1262,8 +1262,6 @@ nennt nur die hier genutzten Stellen.
     § 8b Abs. 3 S. 9 KStG); für die Wertaufholung eines Anteils passt 4914
     (§ 8b Abs. 2 KStG) dem Namen nach besser. Mit DATEV-Kontenbeschreibung
     abgleichen.
-  - Hinweistexte „ab einem Fünftel“ (`asset_accounts.go`, `asset_service.go`);
-    § 271 Abs. 1 Satz 3 HGB verlangt „überschreiten“.
   - Zwölftelung der Vorabpauschale nur nach dem Erwerbsmonat des Anlageguts;
     Nachkäufe im Jahr werden nicht getrennt gekürzt.
   - Anteiliges Abzugsverbot (§ 21 InvStG) wird nicht gerechnet.

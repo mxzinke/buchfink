@@ -199,9 +199,7 @@ Format: [SKILL.md, Abschnitt 3](../../SKILL.md#3-den-menschen-fragen).
   inländische Bank bei der GmbH keine Kapitalertragsteuer ein
   ([bewertung-veraeusserung.md, Abschnitt 7](bewertung-veraeusserung.md#7-verkauf-steuer)).
 - Wann eine Beteiligung vermutet wird:
-  [erwerb-ausweis.md, Abschnitt 1](erwerb-ausweis.md#1-begriffe). Der
-  Hinweistext der App sagt „ab einem Fünftel“; das Gesetz verlangt, dass die
-  Anteile ein Fünftel überschreiten.
+  [erwerb-ausweis.md, Abschnitt 1](erwerb-ausweis.md#1-begriffe).
 - Eine reine Beteiligungsholding ist keine Kleinstkapitalgesellschaft; eine
   Führungsholding kann es sein
   ([erwerb-ausweis.md, Abschnitt 7](erwerb-ausweis.md#7-pflichten-die-aus-der-beteiligung-folgen)).

@@ -541,7 +541,7 @@ type FixedAsset struct {
 	// Finanzanlage the way an Inventarnummer identifies a machine.
 	Identifier string `gorm:"size:60" json:"identifier,omitempty"`
 	// HoldingPermille is the Beteiligungsquote in Promille. § 271 Abs. 1 Satz 3
-	// HGB vermutet eine Beteiligung ab einem Anteil von einem Fünftel — die Quote
+	// HGB vermutet eine Beteiligung, wenn der Anteil ein Fünftel übersteigt — die Quote
 	// entscheidet also mit darüber, ob der Anteil unter "Beteiligungen" oder
 	// unter "Wertpapiere des Anlagevermögens" auszuweisen ist.
 	HoldingPermille int `gorm:"default:0" json:"holdingPermille,omitempty"`

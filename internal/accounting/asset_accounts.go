@@ -191,7 +191,7 @@ var assetAccounts = []AssetAccount{
 	{Number: "0820", Name: "Beteiligungen", Class: domain.AssetClassFinancial,
 		Group: "Anteile und Beteiligungen", Depreciable: false,
 		Hint: "Als Beteiligung gelten Anteile, die dem eigenen Geschäftsbetrieb dauernd dienen sollen. " +
-			"Ab einem Fünftel des Kapitals vermutet § 271 Abs. 1 Satz 3 HGB das."},
+			"Übersteigen sie ein Fünftel des Kapitals, vermutet § 271 Abs. 1 Satz 3 HGB das."},
 	{Number: "0850", Name: "Beteiligungen an Kapitalgesellschaften", Class: domain.AssetClassFinancial,
 		Group: "Anteile und Beteiligungen", Depreciable: false},
 	{Number: "0860", Name: "Beteiligungen an Personengesellschaften", Class: domain.AssetClassFinancial,
