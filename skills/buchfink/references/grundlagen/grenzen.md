@@ -24,15 +24,15 @@ Werkzeug einen Fall mit `fachliche_regel` ab, gilt die Meldung des Servers.
 | Einfuhrumsatzsteuer, unentgeltliche Wertabgaben | Nicht vollständig abgebildet. Vor dem Buchen nachfragen. |
 | Gutschrift im Sinne von [§ 14 Abs. 2 Satz 5 UStG][ustg14] ausstellen (Abrechnung durch den Leistungsempfänger) | Buchfink stellt keine aus. Empfangene Gutschriften lassen sich ablegen. |
 | Organschaft ([§§ 14][kstg14], [17 KStG][kstg17], [§ 2 Abs. 2 Nr. 2 UStG][ustg2]) | Nicht abgebildet. Steuerberater. |
-| Reine Holding ohne eigene Umsätze | Ob sie Unternehmer im Sinne des [§ 2 Abs. 1 UStG][ustg2] ist und Vorsteuer abziehen darf, ist eine Wertungsfrage. Buchfink geht von einem Unternehmer aus. Nachfragen, siehe buchfink-beteiligungen. |
+| Reine Holding ohne eigene Umsätze | Ob sie Unternehmer im Sinne des [§ 2 Abs. 1 UStG][ustg2] ist und Vorsteuer abziehen darf, ist eine Wertungsfrage. Buchfink geht von einem Unternehmer aus. Nachfragen, siehe [beteiligungen/holding-umsatzsteuer.md](../beteiligungen/holding-umsatzsteuer.md). |
 | Kasse, Bargeschäfte mit Kassensystem, Warenlager | Nicht im Funktionsumfang. |
-| Lohnabrechnung, Reisekostenabrechnung | Extern. Buchfink bucht die Summen aus dem Lohnjournal (buchfink-lohn). |
+| Lohnabrechnung, Reisekostenabrechnung | Extern. Buchfink bucht die Summen aus dem Lohnjournal ([lohn/ablauf.md](../lohn/ablauf.md)). |
 | Bankkonto in Fremdwährung, CAMT-Sammeleinträge mit mehreren Einzelumsätzen | Der Import lehnt sie ab. Mensch informieren. |
 | Konzernabschluss ([§ 290 HGB][hgb290]), IFRS, kapitalmarktorientierte Gesellschaft | Nicht abgebildet. |
 | Mittelgroße oder große Gesellschaft ([§ 267 HGB][hgb267]): Abschlussprüfung ([§ 316 HGB][hgb316]), latente Steuern, Lagebericht | Steuerberater und Wirtschaftsprüfer. |
 | Eigene Steuerbilanz mit abweichenden Werten | Buchfink führt eine Einheitsbilanz; abweichende Steuerwerte nur bei Sonderabschreibungen nach § 7g EStG. |
-| Ersetzendes Scannen | Kein dokumentiertes Verfahren in Buchfink ([GoBD Rz. 136][gobd]). Papierbelege aufheben lassen. |
-| Übermittlung an das Finanzamt | Buchfink übermittelt nicht selbst. Es zeigt die Erklärungen formularnah; der Mensch überträgt sie in Mein ELSTER und sendet (buchfink-monatsabschluss, buchfink-steuererklaerungen). Für die E-Bilanz erzeugt Buchfink eine XBRL-Datei für den Import in einen Online-Dienst wie eBilanz+ oder eBilanz-Online; Weg, Kontennachweise, Anlagenspiegel und Härtefall: [steuererklaerungen/ebilanz.md](../steuererklaerungen/ebilanz.md). |
+| Ersetzendes Scannen | Kein dokumentiertes Verfahren in Buchfink; Papierbelege aufheben lassen ([aufbewahrung.md, Abschnitt 4](aufbewahrung.md#4-papierbelege-und-scannen)). |
+| Übermittlung an das Finanzamt | Buchfink übermittelt nicht selbst. Es zeigt die Erklärungen formularnah; der Mensch überträgt sie in Mein ELSTER und sendet ([monatsabschluss/ablauf.md](../monatsabschluss/ablauf.md), [steuererklaerungen/abgabe.md](../steuererklaerungen/abgabe.md)). Für die E-Bilanz erzeugt Buchfink eine XBRL-Datei für den Import in einen Online-Dienst wie eBilanz+ oder eBilanz-Online; Weg, Kontennachweise, Anlagenspiegel und Härtefall: [steuererklaerungen/ebilanz.md](../steuererklaerungen/ebilanz.md). |
 | Versand von Rechnungen (E-Mail, Peppol, Portal) | Außerhalb von Buchfink. |
 
 ## 2. Warnzeichen, die du sofort meldest
@@ -85,7 +85,6 @@ Vorschlag: Beleg ist abgelegt und bleibt ungebucht; <externer Weg oder Steuerber
 Soll ich eine Aufgabe dafür notieren oder den Beleg mit Hinweis liegen lassen?
 ```
 
-[gobd]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf
 [ustg2]: https://www.gesetze-im-internet.de/ustg_1980/__2.html
 [ustg9]: https://www.gesetze-im-internet.de/ustg_1980/__9.html
 [ustg13b]: https://www.gesetze-im-internet.de/ustg_1980/__13b.html

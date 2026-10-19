@@ -10,7 +10,7 @@ Transparenzregister, eBilanz+ und eBilanz-Online vom selben Tag.
 
 Jeder Abschnitt einer Pflicht beginnt mit einem Anker `<a id="<anker>"></a>`.
 `fristen` nennt ihn je Pflicht im Feld `anker` und im `verweis`
-(`buchfink-grundlagen/references/pflichten.md#<anker>`). Meist ist der Anker
+(`buchfink/references/grundlagen/pflichten.md#<anker>`). Meist ist der Anker
 die Art der Pflicht. Bei vier Arten weicht er ab: `festschreibung` hat den Anker
 `monatsfestschreibung`, `abschlussbuchungen` `bilanzstichtag`, `e-bilanz`
 `ebilanz` und `steuerliche-erfassung` `fragebogen-steuerliche-erfassung`.
@@ -66,9 +66,9 @@ Ablauf:
 1. **Abrufen.** Rufe `fristen` zu Sitzungsbeginn nach `status` und `aufgaben`
    auf und jedes Mal, wenn der Mensch nach Terminen fragt.
 2. **Wählen.** Überfällig vor offen, innerhalb davon nach Fälligkeit.
-3. **Nachschlagen.** Lies den Abschnitt aus dem Verweis und lade den dort
-   genannten Fach-Skill.
-4. **Vorbereiten.** Nach dem Fach-Skill. Fertig, wenn jede Zahl geprüft ist,
+3. **Nachschlagen.** Lies den Abschnitt aus dem Verweis und die dort unter
+   „Vertiefung“ genannte Referenz.
+4. **Vorbereiten.** Nach der Referenz. Fertig, wenn jede Zahl geprüft ist,
    der Mensch die Zahlen bestätigt hat und Exportdateien im Exportordner liegen.
 5. **Vorbereitet melden.** `pflicht_vorbereitet` mit dem `schluessel` aus
    `fristen` und einer `notiz`: was vorbereitet ist, wo die Datei liegt.
@@ -143,9 +143,9 @@ Mit und ohne Steuerberater:
 - **Säumniszuschlag:** 1 % je angefangenem Monat auf den auf 50 € abgerundeten
   Rückstand. Bei einer Säumnis bis zu drei Tagen wird er nicht erhoben, außer
   bei Zahlung mit Bargeld oder Scheck ([§ 240 Abs. 1, 3 AO][ao240]).
-- **Verspätungszuschlag:** bei verspäteter Erklärung oder Anmeldung nach
-  Ermessen, entfällt bei entschuldbarer Verspätung, höchstens 25.000 €
-  ([§ 152 Abs. 1, 10 AO][ao152]). Einzelheiten je Pflicht stehen im Abschnitt.
+- **Verspätungszuschlag:** Regeln und Höhe stehen in
+  [steuererklaerungen/fristen-zuschlaege.md](../steuererklaerungen/fristen-zuschlaege.md#4-verspätungszuschlag),
+  Einzelheiten je Pflicht im Abschnitt.
 - **Verlängerung:** Erklärungsfristen verlängert das Finanzamt auf Antrag, auch
   rückwirkend ([§ 109 Abs. 1 AO][ao109]). Im Berater-Fall geht das über den
   letzten Februartag hinaus nur ohne Verschulden, nach einer Vorabanforderung
@@ -281,9 +281,10 @@ Mit und ohne Steuerberater:
 - **Weg:** Überweisung an die Finanzkasse mit Steuernummer und Angaben aus dem
   Bescheid, oder SEPA-Lastschriftmandat beim Finanzamt. Anpassung beantragen:
   Mein ELSTER, „Antrag auf Anpassung von Vorauszahlungen“
-  (buchfink-steuererklaerungen).
+  ([steuererklaerungen/bescheide.md](../steuererklaerungen/bescheide.md)).
 - **Buchfink liefert:** Termine aus `fristen`; Konten 7600 und 7608 über
-  `konten`; Zuordnung der Zahlung über buchfink-bank.
+  `konten`; Zuordnung der Zahlung nach
+  [bank/steuerzahlungen.md](../bank/steuerzahlungen.md).
 - **Nachweis:** Buchung der Zahlung auf 7600 oder 7608 um den Termin (aus den
   Daten) oder Bestätigung durch den Menschen. Als Zahlung zählt nur eine, die
   vom Bankkonto kommt oder die der Mensch gebucht hat; deine Handbuchung belegt
@@ -343,7 +344,8 @@ Mit und ohne Steuerberater:
   „Formulare und Leistungen“ → „Alle Formulare“ → „Lohnsteuer Arbeitgeber“ →
   „Lohnsteuer-Anmeldung“. Zahlung bis zur Fälligkeit.
 - **Buchfink liefert:** Zeitraum und Fälligkeit aus `fristen`; Lohnkonten über
-  `auswertung` (`art: kontoblatt`); Abstimmung nach buchfink-lohn.
+  `auswertung` (`art: kontoblatt`); Abstimmung nach
+  [lohn/abstimmung.md](../lohn/abstimmung.md).
 - **Nachweis:** Übermittlungsprotokoll mit Transferticket, vom Menschen in der
   App bestätigt, und die gebuchte Zahlung zum Fälligkeitstag. Verlangt sind
   Anmeldung und Abführung ([§ 41a Abs. 1 Satz 1 Nr. 1, 2 EStG][estg41a]); ein
@@ -399,7 +401,8 @@ Mit und ohne Steuerberater:
   liefert Nachweise wie Saldenbestätigungen. Kanal: intern.
 - **Weg:** Inventar aus Saldenliste und Nachweisen, Abschlussbuchungen
   (Abschreibung, Abgrenzung, Rückstellungen, Umsatzsteuer-Verrechnung,
-  Steuerrückstellung) nach buchfink-jahresabschluss; danach schreibt der
+  Steuerrückstellung) nach
+  [jahresabschluss/ablauf.md](../jahresabschluss/ablauf.md); danach schreibt der
   Mensch das Geschäftsjahr fest.
 - **Buchfink liefert:** `auswertung` (`art: susa`, `bilanz`, `guv`),
   `offene_posten`, `anlagen`, `abschluss_status`; die Abschlussbuchungen über
@@ -470,9 +473,9 @@ Mit und ohne Steuerberater:
 ## Beschluss über die Ergebnisverwendung
 
 - **Grundlage:** [§ 42a Abs. 2 GmbHG][gmbhg42a], [§ 46 Nr. 1 GmbHG][gmbhg46],
-  [§ 29 GmbHG][gmbhg29]; UG: ein Viertel des um einen Verlustvortrag
-  geminderten Jahresüberschusses in die gesetzliche Rücklage
-  ([§ 5a Abs. 3 GmbHG][gmbhg5a]).
+  [§ 29 GmbHG][gmbhg29]; UG: gesetzliche Rücklage nach
+  [§ 5a Abs. 3 GmbHG][gmbhg5a]
+  ([jahresabschluss/ergebnisverwendung-ug.md](../jahresabschluss/ergebnisverwendung-ug.md#1-gesetzliche-rücklage-der-ug)).
 - **Frist:** wie die Feststellung. Keine Verschiebung nach § 108 AO.
 - **Zuständig:** Mensch (die Gesellschafter beschließen); du buchst den
   Beschluss. Kanal: intern.
@@ -496,18 +499,9 @@ Mit und ohne Steuerberater:
   ([§ 325 Abs. 1a Satz 1 HGB][hgb325]). Eine spätere Änderung des Abschlusses
   ist ebenfalls offenzulegen ([§ 325 Abs. 1b HGB][hgb325]). Keine Verschiebung
   nach § 108 AO. Mit Berater gleich.
-- **Umfang:** festgestellter Abschluss in deutscher Sprache. Klein: Bilanz und
-  Anhang ohne GuV-Angaben. Kleinst: nur die Bilanz; dauerhafte Hinterlegung
-  statt Veröffentlichung, wenn die Gesellschaft mitteilt, dass sie zwei der drei
-  Merkmale des § 267a Abs. 1 HGB nicht überschreitet
-  ([§ 326 Abs. 1, 2 HGB][hgb326]). Keine Kleinstkapitalgesellschaft ist eine
-  Holding, deren einziger Zweck Erwerb, Verwaltung und Verwertung von
-  Beteiligungen ist, ohne in die Verwaltung der Töchter einzugreifen; die
-  Ausübung der Gesellschafterrechte zählt dabei nicht
-  ([§ 267a Abs. 3 Nr. 3 HGB][hgb267a]). Sie kann nicht hinterlegen.
-  Wertungsfrage: Greift die Holding durch Geschäftsführung oder Dienstleistungen
-  in die Verwaltung der Tochter ein? Dann kann sie Kleinstkapitalgesellschaft
-  sein.
+- **Umfang:** festgestellter Abschluss in deutscher Sprache; was je
+  Größenklasse offenzulegen ist und wer hinterlegen darf, steht in
+  [jahresabschluss/aufstellen-feststellen-offenlegen.md](../jahresabschluss/aufstellen-feststellen-offenlegen.md#4-offenlegen).
 - **Zuständig:** Mensch (Geschäftsführung). Kanal: Unternehmensregister.
 - **Weg** ([Publikations-Plattform][pp], [So geht's][ppveroeff]):
   1. Einmal registrieren auf publikations-plattform.de.
@@ -532,8 +526,8 @@ Mit und ohne Steuerberater:
   mit Datum. Der Mensch setzt damit in der App „offengelegt“; die Pflicht steht
   dann aus den Daten auf erledigt. Du legst den Beleg mit `beleg_ablegen` ab.
 - **Bei Versäumnis:** Ordnungsgeldverfahren des Bundesamts für Justiz gegen
-  Geschäftsführer oder Gesellschaft; Androhung mit Frist von sechs Wochen und
-  Kosten des Verfahrens; Ordnungsgeld 2.500 € bis 25.000 €; bei Erfüllung nach
+  Geschäftsführer oder Gesellschaft; Androhung mit Frist von sechs Wochen, die
+  Pflicht zu erfüllen oder Einspruch einzulegen, und Kosten des Verfahrens; Ordnungsgeld 2.500 € bis 25.000 €; bei Erfüllung nach
   den sechs Wochen herabgesetzt auf 500 € (hinterlegende Kleinstgesellschaft),
   1.000 € (kleine Gesellschaft), sonst 2.500 €, bei nur geringfügiger
   Überschreitung weniger ([§ 335 Abs. 1, 3, 4 HGB][hgb335]). Mit der
@@ -542,8 +536,8 @@ Mit und ohne Steuerberater:
   ([§ 335 Abs. 4 Satz 1 HGB][hgb335]). War die Frist unverschuldet versäumt:
   Wiedereinsetzung binnen zwei Wochen nach Wegfall des Hindernisses schriftlich
   beim Bundesamt beantragen und die Offenlegung binnen sechs Wochen nachholen
-  ([§ 335 Abs. 5 HGB][hgb335]). Liegt eine Androhung vor, nenne sofort die
-  Sechswochenfrist.
+  ([§ 335 Abs. 5 HGB][hgb335]). Liegt eine Androhung vor, lege sie ab und nenne
+  dem Menschen sofort die Sechswochenfrist.
 - **Vertiefung:** [jahresabschluss/aufstellen-feststellen-offenlegen.md](../jahresabschluss/aufstellen-feststellen-offenlegen.md),
   [jahresabschluss/groessenklassen-anhang.md](../jahresabschluss/groessenklassen-anhang.md)
 
@@ -782,11 +776,12 @@ Mit und ohne Steuerberater:
   Erfassung: Gründung einer Kapitalgesellschaft beziehungsweise
   Genossenschaft“ ([Formularliste][elsterformulare]). Ohne Zertifikat
   registriert sich die GmbH nur mit E-Mail-Adresse; das reicht für Fragebögen
-  (buchfink-gruendung). Die Steuernummer aus dem Antwortschreiben trägt der
+  ([gruendung/steuerliche-erfassung.md](../gruendung/steuerliche-erfassung.md)).
+  Die Steuernummer aus dem Antwortschreiben trägt der
   Mensch in der App ein.
 - **Buchfink liefert:** Firma, Sitz, Geschäftsjahr und Bankverbindung aus den
   Stammdaten; die Eröffnungsbilanz aus den Gründungsbuchungen
-  (buchfink-gruendung).
+  ([gruendung/eroeffnungsbilanz.md](../gruendung/eroeffnungsbilanz.md)).
 - **Nachweis:** Transferticket; der Mensch bestätigt in der App.
 - **Bei Versäumnis:** Das Finanzamt kann die Angaben mit Zwangsgeld bis
   25.000 € je Festsetzung durchsetzen ([§§ 328, 329 AO][ao328]). Ohne
@@ -812,7 +807,8 @@ Mit und ohne Steuerberater:
   Die Behörde bescheinigt den Empfang binnen drei Tagen
   ([§ 15 Abs. 1 GewO][gewo15]). Die Meldung an die Berufsgenossenschaft gilt
   als erfüllt, wenn die Gewerbeanzeige binnen einer Woche nach Beginn erstattet
-  ist ([§ 192 Abs. 1 Satz 2 SGB VII][sgb7_192]; buchfink-gruendung).
+  ist ([§ 192 Abs. 1 Satz 2 SGB VII][sgb7_192];
+  [gruendung/gruendungsweg.md](../gruendung/gruendungsweg.md)).
 - **Wertungsfrage:** rein freiberuflicher Unternehmensgegenstand. Der Mensch
   klärt mit dem Gewerbeamt, ob eine Anzeige nötig ist, und kennzeichnet die
   Pflicht sonst mit Grund als entfallen.

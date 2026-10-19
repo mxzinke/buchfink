@@ -37,7 +37,7 @@ HEAD_LINES = 15
 INLINE_LINK = re.compile(r"(?<!\!)\[([^\]]+)\]\(([^)\s]+)\)")
 REF_USE = re.compile(r"\[([^\]]+)\]\[([^\]]*)\]")
 REF_DEF = re.compile(r"^\[([^\]]+)\]:\s*(\S+)", re.M)
-PFLICHT_REF = re.compile(r"pflichten\.md#([A-Za-z0-9_-]+)")
+PFLICHT_REF = re.compile(r"pflichten\.md#([\w-]+)")
 CODE_SPAN = re.compile(r"`[^`\n]*`")
 FENCE = re.compile(r"^```.*?^```", re.M | re.S)
 

@@ -36,8 +36,7 @@ Volltexte: [GoBD 2019][gobd], [Änderung 2024][gobd2024],
 - Für die Ordnungsmäßigkeit elektronischer Bücher ist allein der
   Steuerpflichtige verantwortlich, auch wenn er Aufgaben an Dritte gibt
   ([GoBD Rz. 21][gobd]).
-- Folge für dich: Du arbeitest zu, der Mensch verantwortet. Formuliere
-  Ergebnisse als Vorschlag mit Begründung.
+- Was daraus für dich folgt, beschreiben die Rollen in [SKILL.md](../../SKILL.md).
 
 ## 2. Nachvollziehbarkeit
 
@@ -98,9 +97,8 @@ Volltexte: [GoBD 2019][gobd], [Änderung 2024][gobd2024],
   Dateien, die lange im Eingang liegen, meldet Buchfink als Hinweis. Der
   Prüflauf meldet abgelegte, nicht gebuchte Belege und hält damit die
   Festschreibung auf.
-- Arbeitstakt, der diese Fristen einhält: Eingang am Eingangstag übernehmen,
-  Kontoauszug mindestens alle zehn Tage importieren, alles bis Ende des
-  Folgemonats buchen, danach den Monat festschreiben lassen.
+- Den Arbeitstakt, der diese Fristen einhält, nennt
+  [SKILL.md, Grundregeln](../../SKILL.md#5-grundregeln).
 
 ## 6. Ordnung
 
@@ -134,8 +132,9 @@ Volltexte: [GoBD 2019][gobd], [Änderung 2024][gobd2024],
   Ursprungsbuchung. Die Festschreibung eines Zeitraums verankert den
   Kettenstand mit dem Zeitstempel eines externen Dienstes (RFC 3161); danach nimmt der Zeitraum
   keine Buchung mehr an.
-- Die GoBD nennen keinen festen Takt für die Festschreibung. Buchfink empfiehlt,
-  jeden Monat nach Prüflauf und Voranmeldung festzuschreiben. Die
+- Die GoBD nennen keinen festen Takt für die Festschreibung. Buchfink sieht
+  sie monatlich nach Prüflauf und Voranmeldung vor
+  ([monatsabschluss/ablauf.md](../monatsabschluss/ablauf.md)). Die
   Festschreibung löst nur der Mensch in der App aus.
 
 ## 8. Belegwesen und Eigenbeleg
@@ -147,7 +146,7 @@ Volltexte: [GoBD 2019][gobd], [Änderung 2024][gobd2024],
   Fremdwährung, hinreichende Erläuterung, Belegdatum
   ([GoBD Rz. 77][gobd]). Für die Umsatzsteuer kommen die Rechnungsangaben
   nach §§ 14, 14a UStG und § 33 UStDV hinzu ([GoBD Rz. 78][gobd]); siehe
-  buchfink-belege.
+  [belege/pflichtangaben.md](../belege/pflichtangaben.md).
 - Belege werden zeitnah gegen Verlust gesichert, z. B. durch laufende
   Nummerierung ([GoBD Rz. 67–69][gobd]); Beleg und Buchung sind über eindeutige
   Merkmale verknüpft ([GoBD Rz. 71–72][gobd]).
@@ -204,10 +203,9 @@ Volltexte: [GoBD 2019][gobd], [Änderung 2024][gobd2024],
   Finanzamt schätzen ([§ 162 Abs. 2 AO][ao162]).
 - Unrichtige Belege, unrichtiges Verbuchen und fehlende Aufbewahrung können
   eine Ordnungswidrigkeit sein ([§ 379 AO][ao379]).
-- Erkennt das Unternehmen nachträglich, dass eine abgegebene Erklärung
-  unrichtig ist und Steuer verkürzt sein kann, muss es das unverzüglich anzeigen
-  und richtigstellen ([§ 153 Abs. 1 AO][ao153]). Melde solche Funde sofort dem
-  Menschen.
+- Eine abgegebene Erklärung, die sich als unrichtig erweist, ist zu berichtigen;
+  Pflicht und Vorgehen stehen unter
+  [Warnzeichen](grenzen.md#2-warnzeichen-die-du-sofort-meldest).
 
 [gobd]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf
 [gobd2024]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2024-03-11-aenderung-gobd.pdf
@@ -218,7 +216,6 @@ Volltexte: [GoBD 2019][gobd], [Änderung 2024][gobd2024],
 [ao140]: https://www.gesetze-im-internet.de/ao_1977/__140.html
 [ao145]: https://www.gesetze-im-internet.de/ao_1977/__145.html
 [ao146]: https://www.gesetze-im-internet.de/ao_1977/__146.html
-[ao153]: https://www.gesetze-im-internet.de/ao_1977/__153.html
 [ao158]: https://www.gesetze-im-internet.de/ao_1977/__158.html
 [ao162]: https://www.gesetze-im-internet.de/ao_1977/__162.html
 [ao379]: https://www.gesetze-im-internet.de/ao_1977/__379.html

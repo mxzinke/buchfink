@@ -141,9 +141,11 @@ Rechtsstand: 17. Oktober 2026. GoBD in der Fassung vom 14.07.2025
 
 - Lege Originaldateien ab, keine Ausdrucke und keine selbst erzeugten
   Umwandlungen.
-- Nach der Übernahme verschiebt Buchfink die Quelldatei nach
-  `Eingang/Übernommen/<JJJJ-MM>`. Verändere, verschiebe oder lösche sie nicht
-  selbst. Ob sie gelöscht wird, entscheidet der Mensch.
+- Die Quelldatei, die Buchfink nach der Übernahme nach
+  `Eingang/Übernommen/<JJJJ-MM>` verschiebt
+  ([arbeitsweise.md, Abschnitt 6](arbeitsweise.md#6-eingang-ablage-exportordner)),
+  veränderst, verschiebst und löschst du nicht selbst. Ob sie gelöscht wird,
+  entscheidet der Mensch.
 - Fragt der Mensch, ob er etwas löschen darf, prüf Art der Unterlage, Frist,
   Beginn und offene Festsetzungsfristen und antworte mit Datum und Fundstelle.
   Ein Löschen nach Fristablauf bildet Buchfink noch nicht ab.
