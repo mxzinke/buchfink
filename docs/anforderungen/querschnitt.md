@@ -66,5 +66,5 @@ SOLL · § 259 BGB, §§ 42a, 51a GmbHG
 | Kriterium | Stand | Fundstelle oder Grund |
 |---|---|---|
 | Lesender Zugang für Gesellschafter, Umfang einstellbar, protokolliert | teilweise | Prüfermodus wie PRF-01; der Umfang ist nicht je Person einstellbar |
-| Zusammenstellung der Einnahmen und Ausgaben mit Belegverweisen | erfüllt | `service.ExportService.ExportJournalCSV` mit Belegnummer und Beleg-Hash |
+| Zusammenstellung der Einnahmen und Ausgaben mit Belegverweisen | erfüllt | `journal.csv` der Datenüberlassung eines Geschäftsjahres (`service.ExportService.ExportZ3`) mit Belegnummer und Beleg-Hash; für einen anderen Zeitraum der Journalfilter der App mit Belegnummer (`service.AccountingService.FilterEntriesCSV`) |
 | Jahresabschluss in der Frist des § 42a GmbHG | teilweise | Pflichten `aufstellung` und `feststellung` im Pflichtenkalender; die Vorlage an die Gesellschafter geschieht außerhalb |

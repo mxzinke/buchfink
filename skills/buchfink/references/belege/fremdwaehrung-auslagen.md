@@ -21,7 +21,9 @@ Kartenbelege und die Kreditkartenabrechnung regelt
 
 - Aufwand und Verbindlichkeit: EZB-Referenzkurs des Belegdatums. Ohne Kurs
   bucht Buchfink nicht (Fehler `fachliche_regel`, bei fehlendem Netz mit
-  `wiederholbar: true`); einen Kurs rät Buchfink nie.
+  `wiederholbar: true`); einen Kurs rät Buchfink nie. Ist der Kursdienst nicht
+  erreichbar, verweist die Meldung auf einen Kurs von Hand mit Quelle; ihn
+  einzutragen bildet Buchfink noch nicht ab, weder als Werkzeug noch in der App.
 - Umsatzsteuer und Vorsteuer: Durchschnittskurs, den das BMF für den Monat
   bekannt gibt, in dem die Leistung ausgeführt oder das Entgelt vor der
   Ausführung vereinnahmt wird ([§ 16 Abs. 6 Satz 1 UStG][ustg16]). Den Tageskurs

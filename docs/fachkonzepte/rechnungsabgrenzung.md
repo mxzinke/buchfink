@@ -34,14 +34,18 @@ wird, steht als Forderung oder Verbindlichkeit in der Bilanz.
 
 ## Wie Buchfink abgrenzt
 
-1. Zum Bilanzstichtag sucht Buchfink die Buchungen des Jahres, deren
+1. Zum Bilanzstichtag sucht der Agent die Buchungen des Jahres, deren
    Leistungszeitraum über den Stichtag hinausreicht. Der Leistungszeitraum
    steht an jeder Buchung.
-2. Es rechnet den abzugrenzenden Anteil und schlägt die Buchung vor.
-   Unterhalb einer einstellbaren Schwelle schlägt es nichts vor.
+2. Aus Gesamtbetrag und Zeitraum rechnet Buchfink den abzugrenzenden Anteil
+   (`abschlussbuchung` mit `art: abgrenzung`).
 3. Die Abgrenzung wird mit Eigenbeleg gebucht und gehört zur Abschlussperiode.
 4. Die Auflösung ist an die Abgrenzung gekoppelt und läuft ins Folgejahr,
    einmal zum Jahresbeginn oder monatlich.
+
+Eine Suche mit Vorschlag rechnet `service.AccrualService.Propose`; unter einer
+einstellbaren Schwelle schlägt sie nichts vor. Weder App noch MCP rufen sie
+ab, die Schwelle in den Einstellungen wirkt deshalb nicht.
 
 Das Verfahren, monatsgenau oder taggenau, ist eine Einstellung des Mandanten,
 weil [§ 252 Abs. 1 Nr. 6 HGB][hgb252] die Stetigkeit der Bewertungsmethoden

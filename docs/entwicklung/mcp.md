@@ -73,7 +73,7 @@ Eine Zeile auf einem Konto, das Beträge je Gesellschafter führt (0960, 1307
 bis 1309, 3640 bis 3643 und die übrigen aus `shareholderAccounts`), braucht den
 Gesellschafter als Kontakt, in der Handbuchung, in der Neubuchung beim Storno
 und in der Aufteilung eines Bankumsatzes. Ohne ihn fehlte sie im Stand des
-Darlehens, in der Zinsrechnung und in den Salden je Gesellschafter.
+Darlehens und in der Zinsrechnung.
 
 ### Vorgänge nur in der App
 

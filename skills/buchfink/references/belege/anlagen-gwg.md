@@ -124,9 +124,13 @@ Häufige Konten aus dem Buchfink-Katalog:
    Buchfink sie ins Verzeichnis der Vorsteuerberichtigung; sag dem Menschen,
    er möge den Eintrag prüfen.
 5. Anzahlung auf eine Anlage, die noch nicht geliefert ist:
-   `anzahlung_fuer: sachanlage` oder `immateriell`. Die Rechnung über die
-   Lieferung buchst du mit `verrechnete_anzahlungen`; die Umbuchung einer
-   Anzahlung ohne Schlussrechnung legst du als `buchung_erfassen` vor.
+   `anzahlung_fuer: sachanlage` oder `immateriell`. Für die Rechnung über die
+   Lieferung erwartet `verrechnete_anzahlungen` die Kennungen der Anzahlungen;
+   sie liefert kein Werkzeug. Diese Verrechnung bildet Buchfink damit noch
+   nicht ab, weder als Werkzeug noch in der App; geh vor wie in
+   [grundlagen/arbeitsweise.md, Abschnitt 9](../grundlagen/arbeitsweise.md#9-vorgänge-ohne-werkzeug).
+   Die Umbuchung einer Anzahlung ohne Schlussrechnung legst du als
+   `buchung_erfassen` vor.
 
 [estg6]: https://www.gesetze-im-internet.de/estg/__6.html
 [estg7]: https://www.gesetze-im-internet.de/estg/__7.html

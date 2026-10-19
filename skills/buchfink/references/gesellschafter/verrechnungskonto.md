@@ -64,7 +64,9 @@ Auszahlungsbetrag. Lege die Vereinbarung als Beleg ab.
 ## 4. Laufende Kontrolle
 
 - Prüfe beim Monatsabschluss mit `auswertung` (`art: susa` oder `kontoblatt`)
-  die Salden von 1307 bis 1309 und 3640 bis 3643 je Gesellschafter.
+  die Salden von 1307 bis 1309 und 3640 bis 3643. Salden je Gesellschafter
+  liefert kein Werkzeug; ordne die Zeilen des Kontoblatts mit
+  `buchungen_suchen` (`konto`, `kontakt_id`) den Gesellschaftern zu.
 - Ein Soll-Saldo, der über Monate stehen bleibt, wirkt wie ein zinsloses
   Darlehen. Eine verhinderte Vermögensmehrung, die durch das
   Gesellschaftsverhältnis veranlasst ist, kann eine vGA sein

@@ -143,7 +143,7 @@ Zahlung zählt nicht als Ausgleich.
 | Skonto | mindert Entgelt und Steuer nach § 17 UStG; bei § 13b und Erwerb werden beide Steuerzeilen berichtigt |
 | Bankgebühr | Aufwand auf 6855; beim Zahlungsausgang zusätzlich zum Rechnungsbetrag abgebucht, beim Zahlungseingang vom Betrag abgezogen |
 | Kursdifferenz | realisierter Gewinn oder Verlust beim Ausgleich |
-| Zahlungsausfall | Ausbuchung mit Berichtigung der Umsatzsteuer |
+| Zahlungsausfall | Ausbuchung mit Berichtigung der Umsatzsteuer (`service.PaymentService.WriteOffOpenItem`); weder App noch MCP bieten sie an |
 
 Ein Bankumsatz ohne Beleg, etwa Zinsen oder eine Steuerlastschrift, wird gegen
 ein Konto gebucht oder auf mehrere aufgeteilt. Der Import schlägt dafür kein

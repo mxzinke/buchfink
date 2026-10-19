@@ -23,10 +23,18 @@ das sind, entscheidet der Verbund, nicht die Auswahl des Menschen.
 
 | Schritt | Buchung |
 |---|---|
-| Abschlagsrechnung ausstellen | keine; Nummer und Dokument wie jede Rechnung, der offene Posten kommt aus dem Verbund |
+| Abschlagsrechnung ausstellen | keine; Nummer und Dokument wie jede Rechnung |
 | Zahlung geht ein | **1800** Bank an **3272** Erhaltene, versteuerte Anzahlungen 19 % + **3806** Umsatzsteuer |
 | Schlussrechnung | Debitor (Rest) + **3272** + **3806** an **4400** Erlöse (gesamt) + **3806** Umsatzsteuer (gesamt) |
 | Rückzahlung | **3272** + **3806** an **1800** Bank, im Zeitraum der Rückzahlung |
+
+Den offenen Posten eines Abschlags rechnet `service.InvoiceService.OpenAdvanceItems`,
+die Rückzahlung bucht `service.InvoiceService.RefundAdvance`; weder App noch MCP
+erreichen sie. Ein gestellter Abschlag fehlt deshalb in `offene_posten` und in
+den Bankvorschlägen. Den Zahlungseingang bucht die App
+(`service.InvoiceService.SettleAdvance`) nur aus einem solchen Vorschlag, und
+solange ein Abschlag nicht vereinnahmt ist, lehnt Buchfink die Schlussrechnung
+ab.
 
 Die Anzahlungsrechnung ist eine vollwertige Rechnung nach § 14 UStG mit Nummer
 aus demselben Kreis. Statt des Leistungszeitpunkts nennt sie den Zeitpunkt der
@@ -47,6 +55,10 @@ was auf Vorräte angezahlt wurde ([§ 268 Abs. 5 Satz 2 HGB][hgb268]).
   UStG).
 - Das Storno einer Schlussrechnung öffnet den Verbund wieder, in derselben
   Transaktion.
+
+Die Regeln zu Storno und Rückzahlung stehen im Dienst. Storno
+(`service.InvoiceService.CorrectInvoice`) und Rückzahlung haben keinen
+Erfassungsweg in App oder MCP.
 
 ## Geleistete Anzahlungen
 

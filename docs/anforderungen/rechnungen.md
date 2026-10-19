@@ -68,8 +68,8 @@ MUSS / TERMIN · § 14 Abs. 1 S. 3 bis 6 UStG, § 27 Abs. 38 UStG, EN 16931, BMF
 | Validierung gegen Schema und Geschäftsregeln, Bericht gespeichert | erfüllt | die erzeugte Datei wird wieder eingelesen und gegen EN 16931 und XRechnung geprüft (Paket `einvoice`) |
 | Alle Pflichtangaben im strukturierten Teil | erfüllt | Datensatz aus dem semantischen Modell, Einheiten nach UN/ECE Rec. 20 |
 | Bei Hybridformaten stimmen XML und Bild überein | erfüllt | `invoice.VerifyEmbeddedRecord` vor der Ablage |
-| Vorjahresumsatz über 800.000 Euro steuert die Übergangsregel | erfüllt | `accounting.EInvoiceIssueTransitionFor` |
-| Übertragungsweg, Versandzeitpunkt, Empfangsnachweis | nicht im Umfang | Kein Peppol, EDI oder Portal. Der Versand wird an der Rechnung vermerkt (`service.InvoiceService.MarkSent`) |
+| Vorjahresumsatz über 800.000 Euro steuert die Übergangsregel | teilweise | `accounting.EInvoiceIssueTransitionFor` mit dem Vorjahresumsatz, den Buchfink aus der GuV des Vorjahres vorbelegt; die Berichtigung auf den Gesamtumsatz nimmt `service.ClosingService.SetPriorYearRevenue` auf, ohne Erfassungsweg in App oder MCP |
+| Übertragungsweg, Versandzeitpunkt, Empfangsnachweis | nicht im Umfang | Kein Peppol, EDI oder Portal. Den Versandvermerk an der Rechnung (`service.InvoiceService.MarkSent`) erreicht weder App noch MCP |
 
 ## RECH-07 E-Rechnung empfangen und prüfen
 
@@ -100,11 +100,11 @@ MUSS · § 14 Abs. 6 UStG, § 31 Abs. 5 UStDV, § 14c UStG
 
 | Kriterium | Stand | Fundstelle oder Grund |
 |---|---|---|
-| Berichtigung als neues Dokument mit Nummer und Datum der Ursprungsrechnung | erfüllt | `service.InvoiceService.CancelWithDocument`, `service.InvoiceService.CorrectInvoice` |
+| Berichtigung als neues Dokument mit Nummer und Datum der Ursprungsrechnung | teilweise | Die Regel steht in `service.InvoiceService.CancelWithDocument` und `service.InvoiceService.CorrectInvoice`; Storno und Berichtigung haben keinen Erfassungsweg in App oder MCP |
 | Ursprungsrechnung bleibt unverändert | erfüllt | nur Status und Verweis ändern sich |
-| Berichtigung im selben strukturierten Format | erfüllt | Format der Ursprungsrechnung |
-| Storno allein oder Storno mit neuer Rechnung, verkettet | erfüllt | wie oben |
-| Steuerliche Wirkung im richtigen Zeitraum | erfüllt | Storno auf den Korrekturtag datiert, `accounting.VatPeriodFor` |
+| Berichtigung im selben strukturierten Format | teilweise | Format der Ursprungsrechnung; ohne Erfassungsweg wie oben |
+| Storno allein oder Storno mit neuer Rechnung, verkettet | teilweise | wie oben |
+| Steuerliche Wirkung im richtigen Zeitraum | teilweise | Storno auf den Korrekturtag datiert, `accounting.VatPeriodFor`; ohne Erfassungsweg wie oben |
 
 ## RECH-10 Unrichtiger und unberechtigter Steuerausweis
 

@@ -133,6 +133,10 @@ deine Wahl in Abschnitt 3 dort.
   (`titel`, `gesamt_netto`, `satz`) und `kontakt_id`, jede weitere mit der
   `verbund_id` der Antwort. Schlussrechnung: `art: schlussrechnung` mit
   `verbund_id` und `rechnung`. Beides ist Rückfrage.
+- Den Zahlungseingang auf einen Abschlag bildet Buchfink noch nicht ab, und
+  ohne ihn entsteht keine Schlussrechnung
+  ([anzahlungen.md, Abschnitt 4](anzahlungen.md#4-wie-buchfink-bucht)). Sag das
+  dem Menschen vor der ersten Abschlagsrechnung eines Verbunds.
 - Teilleistung, Teilschlussrechnung, Anzahlung ohne Rechnung:
   [anzahlungen.md](anzahlungen.md).
 

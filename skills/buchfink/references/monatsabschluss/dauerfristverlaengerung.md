@@ -58,8 +58,9 @@ Nur bei monatlicher Voranmeldung ([§ 47 Abs. 1 UStDV][ustdv47]):
 
 Wertungsfrage: Wie Monate mit Überschuss und die Sondervorauszahlung des
 Vorjahres in die „Summe der Vorauszahlungen“ eingehen, regelt der Wortlaut
-nicht. Zeig dem Menschen die Zeiträume, aus denen Buchfink die Summe bildet,
-und verweise auf die amtliche Anleitung zu USt 1 H.
+nicht. Zeig dem Menschen die Zeiträume, aus denen du die Summe bildest, nenne,
+wie du diese Fälle behandelst, und verweise auf die amtliche Anleitung zu
+USt 1 H.
 
 Stand: Oktober 2026.
 
@@ -89,8 +90,10 @@ Stand: Oktober 2026.
 
 1. `fristen` zeigt die Pflicht `sondervorauszahlung` mit Fälligkeit, sobald
    die GmbH monatlich anmeldet und die Dauerfristverlängerung in den
-   Stammdaten steht. Nenne dem Menschen den Betrag, den Buchfink vorschlägt,
-   mit den Zeiträumen, aus denen er stammt.
+   Stammdaten steht. Einen Vorschlag für den Betrag bildet Buchfink noch nicht
+   ab, weder als Werkzeug noch in der App. Rechne ihn nach Abschnitt 3 aus den
+   Voranmeldungen des Vorjahres (`erklaerung`, `art: ustva`, je `zeitraum`) und
+   nenne dem Menschen Betrag und Zeiträume.
 2. Der Mensch meldet in Mein ELSTER an und nennt dir das Transferticket.
 3. Der Mensch trägt Dauerfristverlängerung und Sondervorauszahlung in der App
    ein (Stammdaten, nur App). Danach verschiebt Buchfink die Fristen.

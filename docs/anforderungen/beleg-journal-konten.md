@@ -53,7 +53,7 @@ MUSS · § 239 Abs. 2 HGB, § 146 Abs. 1 AO, GoBD Rz 94 bis 99
 |---|---|---|
 | Jede Buchung genau einmal, chronologisch, lückenlos nummeriert | erfüllt | Nummer und Kettenkopf in einer Transaktion |
 | Nummer spätestens bei der Festschreibung, danach unveränderlich | erfüllt | vergeben bei der Erfassung, Teil des Hashs (`accounting.HashChain`) |
-| Journal für jeden Zeitraum als Bericht und Datei | erfüllt | `service.ExportService.ExportJournalCSV` |
+| Journal für jeden Zeitraum als Bericht und Datei | erfüllt | Journalfilter der App mit Zeitraum und CSV-Datei (`service.AccountingService.FilterEntriesCSV`); das Journal im Spaltenaufbau der Datenüberlassung (`service.ExportService.ExportJournalCSV`) erreicht weder App noch MCP |
 | Storno als eigene Buchung | erfüllt | `service.JournalService.ReverseOn` |
 
 ## BEL-06 Konten und Kontenrahmen
@@ -62,7 +62,7 @@ MUSS · § 238 HGB, GoBD Rz 96 bis 99
 
 | Kriterium | Stand | Fundstelle oder Grund |
 |---|---|---|
-| Standardkontenrahmen, je Mandant erweiterbar | erfüllt | SKR04 2026 (`accounting/skr04_2026.json`), `service.AccountService.CreateCustom` |
+| Standardkontenrahmen, je Mandant erweiterbar | teilweise | SKR04 2026 (`accounting/skr04_2026.json`); eigene Konten legt `service.AccountService.CreateCustom` an, ohne Erfassungsweg in App oder MCP |
 | Jedes Konto einer Position nach §§ 266, 275 HGB und der E-Bilanz zugeordnet | erfüllt | `accounting/statement_mapping.go`, `ebilanz.ElementForAccount` |
 | Konten ohne Zuordnung werden vor dem Abschluss gemeldet | erfüllt | Prüfregel `account_unmapped`; die E-Bilanz blockiert |
 | Kontensalden gleich Journalsummen | erfüllt | Salden und Summen aus denselben Verkehrszahlen (`service.AccountingService`) |
@@ -76,7 +76,7 @@ MUSS · §§ 238, 240 HGB, GoBD Rz 49
 | Personenkonten rollen auf die Sammelkonten auf | erfüllt | Verdichtung auf 1200/3300; direkte Buchung auf das Sammelkonto wird abgewiesen |
 | Offene Posten je Partner zu jedem Stichtag, mit Fälligkeit und Altersstruktur | erfüllt | `service.PaymentService.OpenItemsAt`, `accounting.AgeOpenItems` |
 | Restlaufzeiten für §§ 268 Abs. 4, 5 und 285 Nr. 1 HGB | erfüllt | Restlaufzeitbänder in `accounting.AgeOpenItems` |
-| Teilzahlung, Skonto, Ausbuchung je Posten dokumentiert | erfüllt | `service.PaymentService.Settle`, `service.PaymentService.WriteOffOpenItem` |
+| Teilzahlung, Skonto, Ausbuchung je Posten dokumentiert | teilweise | Teilzahlung und Skonto mit `service.PaymentService.Settle`; die Ausbuchung bucht `service.PaymentService.WriteOffOpenItem`, ohne Erfassungsweg in App oder MCP |
 
 ## BEL-08 Ersetzendes Scannen
 

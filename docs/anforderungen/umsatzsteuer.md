@@ -38,7 +38,7 @@ MUSS · § 18 UStG, §§ 46 bis 48 UStDV
 | Zeitraum im Gründungsjahr und im Folgejahr nach § 18 Abs. 2 Sätze 4 und 6 UStG | teilweise | `accounting.RecommendedVatPeriod`: ab 2027 monatlich; 2021 bis 2026 im Folgejahr aus der umgerechneten Steuer des Gründungsjahres. Die voraussichtliche Steuer des Gründungsjahres und Vorratsgesellschaften (Satz 5) kennt Buchfink nicht |
 | Amtlicher Datensatz per Datenfernübertragung oder Export für Mein ELSTER | teilweise | Kennziffernblatt nach Vordruck 2026 und CSV (`service.VatReturnService.ExportCSV`) zum Übertragen in Mein ELSTER; keine eigene Übermittlung |
 | Übermittlung mit Zeitpunkt, Transferticket und Status gespeichert | erfüllt | `service.VatReturnService.ConfirmSubmitted`, nur in der App |
-| Dauerfristverlängerung mit Sondervorauszahlung und Anrechnung | erfüllt | `service.VatReturnService.SuggestedSpecialPrepayment` |
+| Dauerfristverlängerung mit Sondervorauszahlung und Anrechnung | teilweise | Beides trägt der Mensch in der App ein; die letzte Voranmeldung des Jahres rechnet die Sondervorauszahlung in Kennziffer 39 an. Den Vorschlag des Betrags rechnet `service.VatReturnService.SuggestedSpecialPrepayment`, weder App noch MCP rufen ihn ab |
 | Berichtigte Anmeldung gekennzeichnet und verknüpft | erfüllt | `service.VatReturnService.CreateCorrection` |
 | Übermittlung erst nach Festschreibung des Zeitraums | erfüllt | Bestätigung setzt den festgeschriebenen Zeitraum und den aktuellen Journalstand voraus |
 
@@ -52,7 +52,7 @@ MUSS* · § 18a UStG
 | Lieferungen, Dreiecksgeschäfte, 50.000-Euro-Grenze und Monatsmeldung | nicht im Umfang | Keine Warenlieferungen ins übrige Gemeinschaftsgebiet |
 | Sonstige Leistungen quartalsweise | erfüllt | `accounting.ZMPeriodsOfYear` |
 | Summen stimmen mit Kennziffer 21 der Voranmeldung überein, Abweichung angezeigt | erfüllt | Abstimmung in `service.ZMService` |
-| Berichtigung möglich und protokolliert | erfüllt | `service.ZMService.CreateCorrection`, `service.ZMService.ConfirmSubmitted` |
+| Berichtigung möglich und protokolliert | teilweise | Übermittlung protokolliert (`service.ZMService.ConfirmSubmitted`); die berichtigte Meldung legt `service.ZMService.CreateCorrection` an, ohne Erfassungsweg in App oder MCP |
 
 ## UST-05 Reverse Charge
 
@@ -84,9 +84,9 @@ MUSS · §§ 15, 15a UStG, § 44 UStDV
 |---|---|---|
 | Vorsteuerabzug an eine geprüfte Rechnung gebunden | erfüllt | Prüfung der Rechnungsangaben beim Buchen (`service.PostingService`) |
 | Gemischt genutzte Güter mit Aufteilungsmaßstab und Begründung | erfüllt | abziehbarer Anteil in Promille je Position, Maßstab Pflicht |
-| Verzeichnis berichtigungspflichtiger Wirtschaftsgüter | erfüllt | `service.InputTaxService.Register`, `service.InputTaxService.SaveUsage` |
+| Verzeichnis berichtigungspflichtiger Wirtschaftsgüter | teilweise | `service.InputTaxService.Register`, in der App sichtbar; den Verwendungsanteil der Folgejahre nimmt `service.InputTaxService.SaveUsage` auf, ohne Erfassungsweg in App oder MCP |
 | Bagatellgrenzen des § 44 UStDV | erfüllt | `accounting.AssessInputTaxCorrection` |
-| Berichtigung fließt in Voranmeldung und Jahreserklärung | erfüllt | `service.InputTaxService.BookYear` |
+| Berichtigung fließt in Voranmeldung und Jahreserklärung | teilweise | Die App zeigt den Berichtigungsbetrag des Jahres (`service.InputTaxService.Year`); die Buchung rechnet `service.InputTaxService.BookYear`, ohne Erfassungsweg in App oder MCP |
 
 ## UST-08 OSS und IOSS
 

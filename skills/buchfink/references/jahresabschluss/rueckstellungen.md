@@ -119,6 +119,15 @@ zeigt Zeilen, Betrag und Befunde, etwa zur Abzinsung.
 - `grund`: Rechtsgrund, Prüffragen, Berechnung, Restlaufzeit, Zinssatz mit
   Monat der Veröffentlichung.
 
+Die Abzinsungssätze der Bundesbank einzulesen bildet Buchfink noch nicht ab,
+weder als Werkzeug noch in der App. Bei einer Restlaufzeit über einem Jahr
+bucht `abschlussbuchung` deshalb den Erfüllungsbetrag ohne Abzinsung, und die
+Vorschau meldet, dass der Satz fehlt. Sag das dem Menschen und trag den
+abgezinsten Betrag mit Satz und Quelle in die
+[Liste Abschlussposten](abschlussbuchungen.md#4-liste-abschlussposten) ein.
+Zuführung und Aufzinsung einer Rückstellung aus Buchfinks Kartei bildet
+Buchfink ebenfalls noch nicht ab.
+
 `abschlussbuchung` führt die Rückstellung in Buchfinks Kartei
 (Rückstellungsspiegel). Eine Rückstellung, die nur mit `buchung_erfassen`
 gebucht ist, fehlt dort; trag sie in die Liste Abschlussposten ein.
@@ -133,6 +142,10 @@ gebucht ist, fehlt dort; trag sie in die Liste Abschlussposten ein.
 - Bleibt ein Rest, weil weniger anfiel: Soll Rückstellung, Haben 4930 Erträge
   aus der Auflösung von Rückstellungen. Fiel mehr an, ist der Rest Aufwand des
   neuen Jahres.
+- Die Auflösung einer Rückstellung aus Buchfinks Kartei, auch die eines Rests,
+  bildet Buchfink noch nicht ab, weder als Werkzeug noch in der App. Leg dem
+  Menschen Rückstellung, Betrag und den entfallenen Grund vor, wie in
+  [grundlagen/arbeitsweise.md, Abschnitt 9](../grundlagen/arbeitsweise.md#9-vorgänge-ohne-werkzeug).
 - Aufgelöst wird nur, wenn der Grund entfallen ist
   ([§ 249 Abs. 2 Satz 2 HGB][hgb249]). Prüfe zu jedem Stichtag jede bestehende
   Rückstellung (`auswertung`, `art: kontoblatt`, Konten 3070 bis 3096).

@@ -282,11 +282,14 @@ Kontakt ändern (USt-IdNr., IBAN, E-Rechnungsformat, Leitweg-ID), den
 Saldenvortrag ausführen.
 
 Noch nicht abgebildet, weder als Werkzeug noch in der App: Stornorechnung und
-Rechnungskorrektur, Forderung ausbuchen, Versand vermerken, Rückzahlung einer
-Anzahlung im Rechnungsverbund, Pflege der Anlagenkartei (Kennung, Quote,
-Kennzeichen, Fondsart, Stückzahl; Abgang, außerplanmäßige Abschreibung,
-Zuschreibung, Ertrag, Vorabpauschale, Währung), Verwendungsanteil nach § 15a
-UStG, Eröffnungsbuchungen eines Umsteigers, CSV-Datei der ZM, Löschen nach Ablauf der Aufbewahrungsfrist. Sag dem
+Rechnungskorrektur, Forderung ausbuchen, Versand vermerken, offene Posten und
+Rückzahlung von Abschlagsrechnungen, Pflege der Anlagenkartei (Kennung, Quote,
+Kennzeichen, Stückzahl; Abgang, Fertigstellung einer Anlage im Bau,
+außerplanmäßige Abschreibung, Zuschreibung, Währung), Verwendungsanteil nach
+§ 15a UStG, Eröffnungsbuchungen eines Umsteigers, berichtigte ZM und
+CSV-Datei der ZM, Anhangtexte des Jahresabschlusses, Zuführung, Aufzinsung
+und Auflösung einer gebildeten Rückstellung samt Abzinsungssätzen, Löschen nach
+Ablauf der Aufbewahrungsfrist. Sag dem
 Menschen, dass Buchfink den Vorgang noch nicht kann, leg Sachverhalt,
 Grundlage und die nötige Buchung vor und weiche nicht auf `buchung_erfassen`
 aus, wo Buchfink ein Dokument oder eine Kartei mitführt.

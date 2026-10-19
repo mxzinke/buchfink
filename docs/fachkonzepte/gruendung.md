@@ -22,7 +22,8 @@ Aufwand ([§ 248 Abs. 1 Nr. 1 HGB][hgb248]), etwa auf **6825** Rechts- und
 Beratungskosten.
 
 Wer mit bestehenden Büchern umsteigt, beginnt mit der Eröffnungsbilanz aus dem
-Altsystem.
+Altsystem. Ihre Eröffnungsbuchungen rechnet
+`service.JournalService.BookOpeningBalance`; weder App noch MCP rufen sie auf.
 
 ## Kapitalaufbringung
 

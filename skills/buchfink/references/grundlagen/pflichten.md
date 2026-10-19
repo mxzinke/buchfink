@@ -219,8 +219,10 @@ Mit und ohne Steuerberater:
      „Umsatzsteuer“ → „Dauerfristverlängerung/Sondervorauszahlung (monatlich)“.
   3. Der Mensch sendet und zahlt.
   4. Er trägt Dauerfristverlängerung und Betrag in der App ein (Stammdaten).
-- **Buchfink liefert:** Vorschlag des Betrags aus den Voranmeldungen des
-  Vorjahres; Konto 3830 über `konten`.
+- **Buchfink liefert:** die Voranmeldungen des Vorjahres über `erklaerung`,
+  aus denen du den Betrag rechnest
+  ([monatsabschluss/dauerfristverlaengerung.md](../monatsabschluss/dauerfristverlaengerung.md#3-sondervorauszahlung));
+  Konto 3830 über `konten`. Einen Vorschlag des Betrags gibt kein Werkzeug.
 - **Nachweis:** Transferticket der Anmeldung, vom Menschen in der App
   bestätigt, und die Zahlung auf 3830. Die Sondervorauszahlung ist zu
   berechnen, anzumelden und zu entrichten ([§ 48 Abs. 2 UStDV][ustdv48]); die

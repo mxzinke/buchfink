@@ -34,7 +34,7 @@ MUSS · §§ 284 bis 289 HGB, §§ 274a, 288 HGB
 | Kriterium | Stand | Fundstelle oder Grund |
 |---|---|---|
 | Aus den Daten: Anlagenspiegel, Restlaufzeiten, Rückstellungen, Haftungsverhältnisse, Verpflichtungen, Beteiligungen | teilweise | Aus den Daten: Anlagenspiegel (`service.AssetService.Anlagenspiegel`), Restlaufzeiten und Rückstellungsspiegel (`domain.FinancialStatement`). Haftungsverhältnisse, Verpflichtungen und Beteiligungen sind Freitext |
-| Freitexte erfassbar und ins Folgejahr übernommen | erfüllt | `domain.NotesSection`, `service.AppropriationService.CopyNotesInto` |
+| Freitexte erfassbar und ins Folgejahr übernommen | teilweise | `domain.NotesSection`, Übernahme mit `service.AppropriationService.CopyNotesInto`; die Texte nimmt `service.AppropriationService.SaveNotesText` auf, ohne Erfassungsweg in App oder MCP |
 | Anhangumfang nach Größenklasse | teilweise | `accounting.ObligationsFor` entscheidet über Anhang und Lagebericht; die Größenerleichterungen der einzelnen Angaben sind nicht abgebildet; einen Lagebericht erzeugt Buchfink nicht |
 | Kleinstgesellschaft: Angaben unter der Bilanz | teilweise | eigener Abschnitt in Ansicht und PDF; ob die Angaben vollständig sind, prüft Buchfink nicht |
 
@@ -44,7 +44,7 @@ MUSS · § 245 HGB, § 42a GmbHG
 
 | Kriterium | Stand | Fundstelle oder Grund |
 |---|---|---|
-| Stand offen, aufgestellt, festgestellt, offengelegt, je Wechsel Datum, Person und Beschlussbezug | erfüllt | `domain.FiscalYear`, `service.ClosingService.SetFiscalYearStatus`, nur in der App |
+| Stand offen, aufgestellt, festgestellt, offengelegt, je Wechsel Datum, Person und Beschlussbezug | teilweise | `domain.FiscalYear`, `service.ClosingService.SetFiscalYearStatus`, nur in der App. Buchfink lehnt das Aufstellen ab, solange ein Pflichtabschnitt der Anhangtexte leer ist; die Texte lassen sich nicht erfassen (JAB-03) |
 | Nach der Feststellung keine Buchung mehr | erfüllt | `service.JournalService.Post` weist sie ab |
 | Begründete Rücknahme | erfüllt | `service.ClosingService.ReopenFiscalYear` |
 | Feststellungsbeschluss mit dem Abschluss verknüpft | teilweise | Beschlussbezug als Text am Geschäftsjahr; das Dokument selbst wird nicht abgelegt |

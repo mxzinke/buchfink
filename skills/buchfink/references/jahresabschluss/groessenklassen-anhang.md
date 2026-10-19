@@ -121,8 +121,15 @@ zum beizulegenden Zeitwert ([§ 253 Abs. 1 Satz 5, 6 HGB][hgb253]).
 - Buchfink erzeugt Restlaufzeiten aus den offenen Posten und führt
   Anhang-Textabschnitte. Der Umfang folgt noch nicht der Größenklasse: Filtere
   selbst nach Abschnitt 4 und 5.
-- Für die Anhangtexte gibt es kein Werkzeug. Gib dem Menschen den Entwurf als
-  Text; er übernimmt ihn.
+- Anhangtexte zu erfassen bildet Buchfink noch nicht ab, weder als Werkzeug
+  noch in der App; die App zeigt die Abschnitte nur an. Solange ein
+  Pflichtabschnitt leer ist (Haftungsverhältnisse, Vorschüsse und Kredite an
+  Organmitglieder, weitere wesentliche Angaben, mit Anhangpflicht auch die
+  Bilanzierungs- und Bewertungsmethoden), lehnt Buchfink das Aufstellen ab;
+  damit lassen sich auch Feststellung und Ergebnisverwendung in Buchfink nicht
+  erfassen. Gib dem Menschen den Entwurf als Text und sag ihm das. Wie er den
+  Abschluss ohne diesen Schritt aufstellt, klärt er mit einem
+  [Steuerberater](../grundlagen/grenzen.md#3-wann-du-einen-steuerberater-empfiehlst).
 
 [hgb251]: https://www.gesetze-im-internet.de/hgb/__251.html
 [hgb253]: https://www.gesetze-im-internet.de/hgb/__253.html

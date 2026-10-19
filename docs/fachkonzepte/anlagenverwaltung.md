@@ -6,8 +6,8 @@ Anforderungen: BEW-02 bis BEW-06, BEW-10, JAB-05. Code: `internal/domain/asset.g
 `internal/accounting/afa.go`, `internal/accounting/asset_accounts.go`,
 `service.AssetService`. Die Oberfläche (Bücher → Anlagen,
 `frontend/src/pages/books/AssetsTab.tsx`) zeigt Verzeichnis,
-Abschreibungsplan und Anlagenspiegel nur an; erfasst, abgeschrieben und
-abgegangen wird über einen verbundenen Agenten.
+Abschreibungsplan und Anlagenspiegel nur an; erfasst und abgeschrieben wird
+über einen verbundenen Agenten.
 
 ## Sofortabzug, Sammelposten oder Aktivierung
 
@@ -38,8 +38,10 @@ ihrem Jahr auf die Restnutzungsdauer. Erhaltungsaufwand geht sofort in die GuV
 und wird nur mit dem Anlagegut verknüpft. Die Abgrenzung ist eine Einschätzung;
 Buchfink fragt sie ab.
 
-Anzahlungen und Anlagen im Bau stehen auf **0700**. Die Fertigstellung bucht um,
-setzt das Datum der Betriebsbereitschaft und startet damit die Abschreibung.
+Anzahlungen und Anlagen im Bau stehen auf **0700**. Die Fertigstellung
+(`service.AssetService.Transfer`) bucht um, setzt das Datum der
+Betriebsbereitschaft und startet damit die Abschreibung. Weder App noch MCP
+bieten sie an.
 
 ## Abschreibung
 
@@ -58,20 +60,26 @@ setzt das Datum der Betriebsbereitschaft und startet damit die Abschreibung.
 - Außerplanmäßige Abschreibung bei dauernder Wertminderung (§ 253 Abs. 3 HGB)
   auf **6230**, nur mit Grund. Fällt der Grund weg, ist zuzuschreiben
   (§ 253 Abs. 5 HGB); der Jahresabschluss fragt das in einem eigenen Baustein.
+  Beide Buchungen rechnet der Dienst (`AssetService.BookImpairment`,
+  `AssetService.BookWriteUp`); weder App noch MCP bieten sie an.
 
 Die Abschreibung ist eine Abschlussbuchung zum Bilanzstichtag. Fehlt sie für
 ein Anlagegut, blockiert der Prüflauf die Jahresfestschreibung.
 
 ## Abgang
 
-Beim Abgang wird die Abschreibung bis zum Abgangsmonat nachgeholt, der
-Restbuchwert ausgebucht und der Erlös mit Umsatzsteuer erfasst. Der SKR04
-wählt das Erlöskonto nach dem Ergebnis: **4845** bei Buchgewinn, **6885** bei
-Buchverlust. Buchfink rechnet das Ergebnis deshalb, bevor es das Konto wählt.
+Die Regeln für den Abgang stehen in `service.AssetService.Dispose`: die
+Abschreibung bis zum Abgangsmonat nachholen, den Restbuchwert ausbuchen und
+den Erlös mit Umsatzsteuer erfassen. Der SKR04 wählt das Erlöskonto nach dem
+Ergebnis: **4845** bei Buchgewinn, **6885** bei Buchverlust. Der Dienst rechnet
+das Ergebnis deshalb, bevor er das Konto wählt.
 
 Finanzanlagen haben eigene Regeln: keine planmäßige Abschreibung, gemildertes
 Niederstwertprinzip, Teilabgang nach Stückzahl und eine Tilgung von
 Ausleihungen ohne Erlös und ohne Steuerfall.
+
+Weder App noch MCP bieten den Abgang an, auch nicht Teilabgang und Tilgung.
+Ein verkauftes Anlagegut bleibt in der Kartei.
 
 ## Laufende Erträge
 
@@ -92,9 +100,11 @@ Mensch.
 
 ## Fremdwährung und Investmentanteile
 
-Anlagegüter in Fremdwährung bewertet Buchfink zum Stichtag nach
-[§ 256a HGB][hgb256a], nach oben durch die Anschaffungskosten gedeckelt.
-Gebucht wird über außerplanmäßige Abschreibung oder Zuschreibung.
+Die Stichtagsbewertung von Anlagegütern in Fremdwährung nach
+[§ 256a HGB][hgb256a], nach oben durch die Anschaffungskosten gedeckelt,
+rechnet `service.AssetService.BookCurrencyValuation` und bucht sie über
+außerplanmäßige Abschreibung oder Zuschreibung. Weder App noch MCP rufen sie
+auf.
 
 Für Investmentanteile rechnet Buchfink Teilfreistellung (§ 20 InvStG) und
 Vorabpauschale (§ 18 InvStG) als Nebenrechnung. Die Vorabpauschale wird nicht

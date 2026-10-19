@@ -97,7 +97,10 @@ Jahresfestschreibung muss sie gebucht sein.
 ## Aufstellen, Feststellen, Offenlegen
 
 Das Geschäftsjahr durchläuft die Stände offen, aufgestellt, festgestellt und
-offengelegt. Jeden Wechsel nimmt der Mensch in der App vor. Ab „festgestellt“
+offengelegt. Jeden Wechsel nimmt der Mensch in der App vor. Das Aufstellen
+lehnt Buchfink ab, solange ein Pflichtabschnitt der Anhangtexte leer ist; die
+Texte nimmt `service.AppropriationService.SaveNotesText` auf, ohne
+Erfassungsweg in App oder MCP. Ab „festgestellt“
 nimmt das Jahr keine Buchung mehr an; die Feststellung lässt sich mit Grund
 zurücknehmen, ebenfalls nur in der App. Die Fristen für Aufstellung und
 Feststellung richten sich nach der Größenklasse ([§ 267 HGB][hgb267], zwei

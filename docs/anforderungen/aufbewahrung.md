@@ -14,7 +14,7 @@ MUSS · § 257 Abs. 4 HGB, § 147 Abs. 3 AO, § 14b Abs. 1 UStG, Art. 95 EGHGB, 
 | Kriterium | Stand | Fundstelle oder Grund |
 |---|---|---|
 | Jedes Objekt hat eine Fristenklasse und ein frühestes Löschdatum | erfüllt | `accounting.RetentionFor`, gesetzt beim Ablegen eines Belegs |
-| Klasse aus der Belegart abgeleitet, Verlängerung mit Grund und Protokoll | erfüllt | `domain.RetentionKindOf`, `service.ReceiptService.OverrideRetention` (nur nach oben) |
+| Klasse aus der Belegart abgeleitet, Verlängerung mit Grund und Protokoll | teilweise | Klasse aus `domain.RetentionKindOf`; die Verlängerung (nur nach oben) nimmt `service.ReceiptService.OverrideRetention` auf, ohne Erfassungsweg in App oder MCP |
 | Löschen vor Fristablauf ausgeschlossen | erfüllt | Buchfink kennt keinen Löschweg für Buchführungsdaten |
 | Fristen ohne Codeänderung anpassbar | teilweise | Fristen als datierte Regeln in `accounting/retention_rules.json`; eine neue Fassung kommt mit einem Programmupdate |
 
@@ -56,7 +56,7 @@ MUSS · § 147 Abs. 6 S. 5 AO, GoBD Rz 142 bis 144
 |---|---|---|
 | Migrationsprotokoll mit Quelle, Ziel, Umfang je Objektart, Zeitpunkt | erfüllt | `core.Host.recordMigration` beim Anmelden einer übernommenen oder wiederhergestellten Datei |
 | Abstimmung von Salden und Zahlen vor und nach der Migration | teilweise | Zählung je Objektart und Soll-Haben-Probe nach der Übernahme; einen Vergleich mit den Zahlen des Altsystems gibt es nicht |
-| Übernommene Datensätze gekennzeichnet, mit Herkunft im Altsystem | erfüllt | `domain.JournalEntry.LegacyRef` aus der Eröffnungsbilanz des Umsteigers |
+| Übernommene Datensätze gekennzeichnet, mit Herkunft im Altsystem | teilweise | `domain.JournalEntry.LegacyRef`, gesetzt von den Eröffnungsbuchungen des Umsteigers (`service.JournalService.BookOpeningBalance`); diese haben keinen Erfassungsweg in App oder MCP |
 | Umstellungszeitpunkt hinterlegt, Fünfjahresfrist berechnet | erfüllt | `wailsbridge.BuchfinkBridge.SetSystemChangeDate`, `accounting.SystemChangeNote` |
 
 ## ARC-06 Speicherort und Verlagerung ins Ausland

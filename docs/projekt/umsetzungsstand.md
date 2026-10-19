@@ -27,9 +27,9 @@ einzelne Kriterien im [Anforderungskatalog](../anforderungen/README.md).
 | Buchen und korrigieren | ein Schreibweg ins Journal, Steuerzeilen aus dem Steuerfall, Konten nach Rechtsform, Storno per Generalumkehr | `service.JournalService.Post`, `service.PostingService`, `accounting.SKR04TaxResolver` |
 | Zahlungswege | CAMT.053-Import, Zuordnung zu offenen Posten mit Teilzahlung und Skonto, Aufteilung eines Umsatzes, Firmenkreditkarte (3610), Auslage, Gesellschafterdarlehen | `internal/bank`, `service.PaymentService`, `service/settlement_split.go`, `service.ShareholderService` |
 | Lohnjournal | Monatssummen eines externen Lohnbüros buchen und abstimmen | `service.PayrollService` |
-| Ausgangsrechnungen | Nummer, Buchung und Dokument in einer Transaktion, ZUGFeRD und XRechnung (CII), Storno und Berichtigung, Anzahlungen mit Schlussrechnung, Verzugszinsen | `service.InvoiceService`, `service/advance_service.go`, `service/overdue_service.go`, `internal/invoice` |
-| Umsatzsteuer | Voranmeldung nach Vordruck USt 1 A 2026 mit Drill-down, Dauerfristverlängerung, Sondervorauszahlung, Zusammenfassende Meldung, Mindest-Istversteuerung, § 13b nach Absätzen, Vorsteuerberichtigung § 15a, USt-IdNr.-Bestätigung | `accounting/ustva.go`, `accounting/vat_prepayment.go`, `service.VatReturnService`, `service.ZMService`, `internal/vatid` |
-| Anlagen | Kartei, AfA linear und degressiv, GWG, Sammelposten, § 7g, außerplanmäßige Abschreibung und Wertaufholung, Abgang | `service.AssetService`, `accounting/afa.go` |
+| Ausgangsrechnungen | Nummer, Buchung und Dokument in einer Transaktion, ZUGFeRD und XRechnung (CII), Abschlagsrechnungen, Verzugszinsen | `service.InvoiceService`, `service/advance_service.go`, `service/overdue_service.go`, `internal/invoice` |
+| Umsatzsteuer | Voranmeldung nach Vordruck USt 1 A 2026 mit Drill-down, Dauerfristverlängerung, Sondervorauszahlung, Zusammenfassende Meldung, Mindest-Istversteuerung, § 13b nach Absätzen, Verzeichnis nach § 15a, USt-IdNr.-Bestätigung | `accounting/ustva.go`, `accounting/vat_prepayment.go`, `service.VatReturnService`, `service.ZMService`, `internal/vatid` |
+| Anlagen | Kartei, AfA linear und degressiv, GWG, Sammelposten, § 7g | `service.AssetService`, `accounting/afa.go` |
 | Monatsabschluss | Prüflauf, Festschreibung mit Zeitstempel, Voranmeldung als Eingabehilfe | `service.CheckService`, `core.Tenant.CommitPeriod`, `service.MonthCloseService` |
 | Jahresabschluss | 15 Bausteine in fester Reihenfolge, Abschlussperiode zwischen Dezember- und Jahresfestschreibung, Wertberichtigung auf Forderungen, unfertige Leistungen, Steuerrückstellung mit Hebesatz, Verlustvortrag und KSt-Satz nach § 23 KStG, UG-Rücklage, Statuskette aufgestellt, festgestellt, offengelegt, Saldenvortrag | `domain.AllClosingSteps`, `service.ClosingStepsService`, `service/closing_tax_provision.go`, `service/closing_receivables.go`, `service/closing_work_in_progress.go` |
 | Bilanz und GuV | Gliederung nach §§ 266, 275 HGB mit Vorjahr, Größenklasse, Anhangangaben | `service.StatementService`, `accounting/statement.go`, `accounting/groessenklasse.go` |
@@ -62,6 +62,13 @@ einzelne Kriterien im [Anforderungskatalog](../anforderungen/README.md).
 - Offenlegung und Hinterlegung erfasst Buchfink als Stand mit Nachweis. Einen
   Datensatz für das Unternehmensregister erzeugt es nicht.
 - Die Eröffnungsbilanz als PDF gibt nur die App aus, kein Werkzeug.
+- Aufstellen verlangt Text in den Pflichtabschnitten des Anhangs
+  (Haftungsverhältnisse, Vorschüsse und Kredite an Organmitglieder, weitere
+  wesentliche Angaben; ohne Befreiung auch Bilanzierungs- und
+  Bewertungsmethoden). Diese Texte nimmt
+  `service.AppropriationService.SaveNotesText` auf, das weder App noch
+  Werkzeug erreicht. Aufstellen, Feststellen und die Ergebnisverwendung
+  lassen sich deshalb in Buchfink nicht abschließen.
 - Kapitalertragsteuer auf eine Ausschüttung rechnet Buchfink auf die ganze
   Ausschüttung und nennt zur Abführung den auf volle Euro abgerundeten Betrag
   ([§ 44 Abs. 1 Satz 6 EStG](https://www.gesetze-im-internet.de/estg/__44.html)).

@@ -66,16 +66,24 @@ Abschlagsrechnungen, Zahlungsstand, Schlussrechnung.
 
 | Schritt | Buchung (SKR04) |
 |---|---|
-| Abschlagsrechnung ausstellen | keine Buchung; der Abschlag erscheint als offener Posten |
+| Abschlagsrechnung ausstellen | keine Buchung |
 | Zahlung geht ein | Bank an 3272 Erhaltene, versteuerte Anzahlungen 19 % USt und 3806 Umsatzsteuer 19 % (bei 7 %: 3260, 3801) |
 | Schlussrechnung | Debitor (Rest), 3272 und 3806 (Auflösung) an Erlöse (gesamt netto) und 3806 (Steuer auf das Gesamtentgelt) |
 
 Abschlag und Schlussrechnung stellst du nach Rückfrage mit
 `rechnung_ausstellen` aus; die Angaben stehen in
 [ablauf.md, Abschnitt 5](ablauf.md#5-abschläge-anzahlungen-schlussrechnung).
-Den Zahlungseingang ordnet [bank/zuordnung.md](../bank/zuordnung.md) dem
-offenen Abschlag zu; prüfe danach mit `buchungen_suchen` (Konto 3272), ob die
-Anzahlung versteuert ist.
+
+Den Zahlungseingang auf einen Abschlag bildet Buchfink noch nicht ab, weder
+als Werkzeug noch in der App: der offene Abschlag fehlt in `offene_posten` und
+in den Bankvorschlägen. Solange ein Abschlag nicht vereinnahmt ist, lehnt
+Buchfink die Schlussrechnung ab, und stornieren lässt sich die
+Abschlagsrechnung auch nicht
+([storno-berichtigung.md, Abschnitt 1](storno-berichtigung.md#1-was-buchfink-anbietet)).
+Sag das dem Menschen, bevor du die erste Abschlagsrechnung eines Verbunds
+ausstellst. Geht die Zahlung ein, weiche nicht auf `bankumsatz_buchen` oder
+`buchung_erfassen` aus
+([grundlagen/arbeitsweise.md, Abschnitt 9](../grundlagen/arbeitsweise.md#9-vorgänge-ohne-werkzeug)).
 
 ## 5. Schlussrechnung und Restrechnung
 
@@ -101,16 +109,17 @@ Anzahlung versteuert ist.
   Punkt dem Menschen vor, wenn der Kunde die Schlussrechnung beanstandet.
 - Buchfink setzt in der Schlussrechnung alle berechneten und vereinnahmten
   Abschläge des Verbunds ab. Ein bezahlter Abschlag ohne Abschlagsrechnung fehlt
-  dort; prüfe vor der Schlussrechnung mit `offene_posten` und dem Menschen, ob
-  jede Zahlung im Verbund steht.
+  dort; prüfe vor der Schlussrechnung mit dem Menschen, ob jede Zahlung im
+  Verbund steht. `offene_posten` zeigt die Abschläge nicht (Abschnitt 4).
 
 ## 6. Sonderfälle
 
 - **Anzahlung ohne Rechnung.** Die Steuer entsteht trotzdem mit der
   Vereinnahmung (Abschnitt 1). Frist für die Rechnung:
   [pflichtangaben-ausgang.md, Abschnitt 1](pflichtangaben-ausgang.md#1-wann-eine-rechnung-pflicht-ist).
-  Weg: Der Mensch erfasst die Abschlagsrechnung nachträglich im Verbund,
-  danach ordnet [bank/zuordnung.md](../bank/zuordnung.md) die Zahlung zu.
+  Weg: Du stellst die Abschlagsrechnung nachträglich im Verbund aus
+  (`zahlung_erhalten_am`). Die Zahlung ihr zuzuordnen bildet Buchfink noch
+  nicht ab (Abschnitt 4).
 - **Auftrag fällt weg, Anzahlung wird zurückgezahlt.** Die Steuer auf die
   Anzahlung wird im Zeitraum der Rückzahlung berichtigt
   ([§ 17 Abs. 2 Nr. 2 UStG][ustg17], [UStAE 17.1 Abs. 7][ustae171]). Die

@@ -24,7 +24,9 @@ bewertet [beteiligungen/bewertung-veraeusserung.md](../beteiligungen/bewertung-v
 - Steuerliche Abschreibung (linear, degressiv), geringwertige Wirtschaftsgüter
   und Sammelposten:
   [belege/anlagen-gwg.md, Abschnitte 3 und 4](../belege/anlagen-gwg.md#3-wertgrenzen).
-- Anlagen im Bau und geleistete Anzahlungen schreibt Buchfink nicht ab.
+- Anlagen im Bau und geleistete Anzahlungen schreibt Buchfink nicht ab. Die
+  Fertigstellung, die auf das Anlagekonto umbucht, bildet Buchfink noch nicht
+  ab, weder als Werkzeug noch in der App.
 
 Wertungsfrage: die Nutzungsdauer. Buchfink schlägt Werte vor; die Regeln zur
 Wahl stehen in [belege/anlagen-gwg.md](../belege/anlagen-gwg.md#4-nutzungsdauer-und-methode).
@@ -62,9 +64,11 @@ der Anlagenkonten (`auswertung`, `art: susa`) passt.
   ansetzen würde (Satz 3).
 - Typische Fälle: Gerät defekt und nicht reparabel, Software nicht mehr
   nutzbar, Gegenstand nur noch eingeschränkt verwendbar.
-- Buchfink verlangt einen Grund. Formuliere ihn mit Tatsache und Datum
-  (z. B. „Notebook INV-0042 am 12.11.2026 irreparabel beschädigt,
-  Kostenvoranschlag liegt als Beleg vor“).
+- Die außerplanmäßige Abschreibung bildet Buchfink noch nicht ab, weder als
+  Werkzeug noch in der App. Leg dem Menschen Betrag, Stichtag und den Grund
+  mit Tatsache und Datum vor (z. B. „Notebook INV-0042 am 12.11.2026
+  irreparabel beschädigt, Kostenvoranschlag liegt als Beleg vor“), wie in
+  [grundlagen/arbeitsweise.md, Abschnitt 9](../grundlagen/arbeitsweise.md#9-vorgänge-ohne-werkzeug).
 
 Wertungsfrage: ob die Minderung dauernd ist. Leg die Tatsachen vor; der Mensch
 entscheidet. Bei großen Beträgen Steuerberater.
@@ -76,10 +80,11 @@ entscheidet. Bei großen Beträgen Steuerberater.
   Firmenwert ([§ 253 Abs. 5 HGB][hgb253]).
 - Steuerlich bleibt der niedrigere Teilwert nur, wenn er jedes Jahr nachgewiesen
   wird ([§ 6 Abs. 1 Nr. 1 Satz 4 EStG][estg6]).
-- Buchfink führt einen Bericht der Anlagen mit früherer außerplanmäßiger
+- Die App zeigt einen Bericht der Anlagen mit früherer außerplanmäßiger
   Abschreibung. Frag den Menschen je Anlage, ob der Grund fortbesteht. Die
-  Zuschreibung, höchstens bis zu den fortgeführten Anschaffungskosten, bildet
-  Buchfink noch nicht ab.
+  Zuschreibung, höchstens bis zu den fortgeführten Anschaffungskosten, und die
+  Bestätigung, dass der Grund fortbesteht, bildet Buchfink noch nicht ab,
+  weder als Werkzeug noch in der App.
 
 ## 5. Abgang
 
@@ -92,7 +97,7 @@ entscheidet. Bei großen Beträgen Steuerberater.
   Gewinnausschüttung ([gesellschafter/vga-einlage.md](../gesellschafter/vga-einlage.md)).
 - Sammelposten: Ein Abgang mindert ihn nicht
   ([belege/anlagen-gwg.md, Abschnitt 3](../belege/anlagen-gwg.md#3-wertgrenzen));
-  Buchfink lehnt einen solchen Abgang ab.
+  an der Kartei ist nichts zu ändern.
 
 ## 6. Anlagenspiegel
 

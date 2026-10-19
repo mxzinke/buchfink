@@ -26,6 +26,9 @@ lehnt ab:
   Aufstellung; eine Offenlegung vor der Feststellung;
 - Aufstellen oder Feststellen, solange bei einer UG die gesetzliche Rücklage
   fehlt oder Bilanz und GuV nicht stimmig sind;
+- Aufstellen oder Feststellen, solange ein Pflichtabschnitt der Anhangtexte
+  leer ist; erfassen lassen sich die Texte nicht
+  ([groessenklassen-anhang.md, Abschnitt 6](groessenklassen-anhang.md#6-in-buchfink));
 - die Feststellung ohne Festschreibung des ganzen Jahres;
 - die Offenlegung ohne Übermittlungsnachweis oder Auftragsnummer.
 

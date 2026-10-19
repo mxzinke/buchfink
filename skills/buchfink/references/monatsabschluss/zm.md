@@ -83,10 +83,14 @@ Abweichungen an (BZSt, Berichtigung einer ZM).
   (BZSt, Berichtigung einer ZM).
 - Ist Kennziffer 21 einer Voranmeldung falsch, ist auch die Voranmeldung
   unverzüglich zu berichtigen ([§ 18b Satz 5 UStG][ustg18b]).
-- In Buchfink: Die Berichtigung rechnet den Zeitraum vollständig neu und
-  verknüpft sie mit der übermittelten Meldung. `erklaerung` zeigt deshalb auch
-  unveränderte Zeilen. Leg dem Menschen nur die Zeilen vor, die sich ändern
-  oder storniert werden; nur diese übernimmt er in die berichtigte ZM.
+- In Buchfink: Eine berichtigte ZM bildet Buchfink noch nicht ab, weder als
+  Werkzeug noch in der App. Für einen übermittelten Zeitraum nimmt die App
+  keinen neuen Entwurf an und verweist auf eine berichtigte Meldung, die sich
+  nicht anlegen lässt. `erklaerung` rechnet den Zeitraum aus den Buchungen
+  vollständig neu und zeigt deshalb auch unveränderte Zeilen. Leg dem Menschen
+  nur die Zeilen vor, die sich ändern oder storniert werden; nur diese trägt er
+  in die berichtigte ZM in Mein ELSTER oder im BZSt-Online-Portal ein. Ihr
+  Transferticket hält Buchfink nicht fest; der Mensch bewahrt es selbst auf.
 
 [ustg18a]: https://www.gesetze-im-internet.de/ustg_1980/__18a.html
 [ustg18b]: https://www.gesetze-im-internet.de/ustg_1980/__18b.html

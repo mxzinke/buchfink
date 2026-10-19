@@ -37,11 +37,11 @@ MUSS · § 253 Abs. 3 HGB, § 284 Abs. 3 HGB, § 5b Abs. 1 EStG
 
 | Kriterium | Stand | Fundstelle oder Grund |
 |---|---|---|
-| Je Wirtschaftsgut Bezeichnung, Nummer, Datum, Kosten, Nutzungsdauer, Methode, Abschreibungen, Buchwert, Abgang | erfüllt | `domain.FixedAsset`; Abschreibung und Buchwert aus den Bewegungen |
+| Je Wirtschaftsgut Bezeichnung, Nummer, Datum, Kosten, Nutzungsdauer, Methode, Abschreibungen, Buchwert, Abgang | teilweise | `domain.FixedAsset`; Abschreibung und Buchwert aus den Bewegungen. Den Abgang bucht `service.AssetService.Dispose`, ohne Erfassungsweg in App oder MCP |
 | Anlagenspiegel mit allen Spalten und Vorjahresvergleich | teilweise | `service.AssetService.Anlagenspiegel`; ein vollständiger Vorjahresspiegel fehlt |
 | Handels- und steuerrechtlicher Anlagenspiegel getrennt | nicht im Umfang | Einheitsbilanz; § 7g über das Verzeichnis nach BEW-06 |
 | Anlagenspiegel in der Struktur der E-Bilanz | offen | Die E-Bilanz enthält noch keinen Anlagenspiegel (Pflicht ab Wirtschaftsjahr 2028) |
-| Anlagen im Bau und Anzahlungen als eigene Position, umbuchbar | erfüllt | `service.AssetService.Transfer` |
+| Anlagen im Bau und Anzahlungen als eigene Position, umbuchbar | teilweise | eigene Konten wie 0700; die Umbuchung bei Fertigstellung bucht `service.AssetService.Transfer`, ohne Erfassungsweg in App oder MCP |
 
 ## BEW-04 Abschreibungen
 
@@ -53,7 +53,7 @@ MUSS · § 253 Abs. 3 HGB, § 7 EStG, AfA-Tabellen
 | Befristete Regeln datiert, ohne Codeänderung | teilweise | `accounting/afa_rules.json`; neue Regeln kommen mit einem Programmupdate |
 | Wechsel von degressiv zu linear dokumentiert | teilweise | automatisch im günstigsten Jahr, vermerkt im Plan, nicht wählbar |
 | Unterschiedliche Nutzungsdauer und Methode in Handels- und Steuerbilanz | teilweise | nur die Sonderabschreibung nach § 7g Abs. 5 EStG als steuerlicher Wert |
-| Außerplanmäßige Abschreibung und Zuschreibung mit Begründung, Bericht zur Wertaufholung | erfüllt | `service.AssetService.BookImpairment`, `service.AssetService.BookWriteUp`, `service.AssetService.WriteUpReport` |
+| Außerplanmäßige Abschreibung und Zuschreibung mit Begründung, Bericht zur Wertaufholung | teilweise | Bericht zur Wertaufholung in der App (`service.AssetService.WriteUpReport`); beide Buchungen rechnen `service.AssetService.BookImpairment` und `service.AssetService.BookWriteUp`, ohne Erfassungsweg in App oder MCP |
 | AfA-Tabellenwerte als Vorschlag mit Begründungsfeld | teilweise | Vorschlagswerte für einen Teil der Anlagekonten (`accounting/asset_accounts.go`) |
 
 ## BEW-05 Geringwertige Wirtschaftsgüter und Sammelposten
@@ -66,7 +66,7 @@ MUSS · § 6 Abs. 2, Abs. 2a EStG, R 6.13 EStR
 | Wertgrenzen und Auflösungsdauer datiert | teilweise | `accounting/afa_rules.json`; Änderungen mit einem Programmupdate |
 | Verzeichnis für Wirtschaftsgüter über 250 Euro netto | erfüllt | auch der Sofortabzug bleibt im Anlagenverzeichnis |
 | Wahlrecht je Wirtschaftsjahr einheitlich | erfüllt | `service.AssetService.PoolConsistency` |
-| Abgang aus dem Sammelposten mindert ihn nicht | erfüllt | `service.AssetService.Dispose` weist den Abgang ab |
+| Abgang aus dem Sammelposten mindert ihn nicht | erfüllt | Einen Abgang bucht weder App noch MCP; `service.AssetService.Dispose` weist ihn beim Sammelposten ab |
 
 ## BEW-06 Verzeichnis steuerlicher Wahlrechte
 
@@ -86,10 +86,10 @@ MUSS · §§ 249, 253 Abs. 1 und 2 HGB, § 6 Abs. 1 Nr. 3a EStG
 | Kriterium | Stand | Fundstelle oder Grund |
 |---|---|---|
 | Rückstellungsarten nach § 249 HGB | erfüllt | `domain.Provision`; Steuerrückstellung als eigener Abschlussbaustein (`service.ClosingBookingService.BookTaxProvision`) |
-| Erfüllungsbetrag, Restlaufzeit, Zinssatz und Barwert je Rückstellung | erfüllt | `service.ProvisionService.Preview` |
-| Abzinsungssätze der Bundesbank pflegbar | erfüllt | `domain.DiscountRate` |
+| Erfüllungsbetrag, Restlaufzeit, Zinssatz und Barwert je Rückstellung | teilweise | `service.ProvisionService.Preview`; Zinssatz und handelsrechtlichen Barwert nur mit Abzinsungssätzen, die sich nicht einlesen lassen (nächste Zeile) |
+| Abzinsungssätze der Bundesbank pflegbar | teilweise | `domain.DiscountRate`; das Einlesen übernimmt `service.ProvisionService.ImportDiscountRatesCSV`, ohne Erfassungsweg in App oder MCP. Handelsrechtlich bleiben Rückstellungen deshalb unabgezinst |
 | Handels- und steuerrechtlicher Wert parallel | erfüllt | steuerlich 5,5 % nach § 6 Abs. 1 Nr. 3a Buchst. e EStG; die Differenz geht in die Überleitung |
-| Auflösung nur mit Grund | erfüllt | `service.ProvisionService.BookRelease` |
+| Auflösung nur mit Grund | teilweise | Die Regel steht in `service.ProvisionService.BookRelease` und `service.ProvisionService.Settle`; die Auflösung hat keinen Erfassungsweg in App oder MCP |
 
 ## BEW-08 Rechnungsabgrenzung
 
@@ -99,7 +99,7 @@ MUSS · § 250 HGB, § 252 Abs. 1 Nr. 5 HGB, § 5 Abs. 5 EStG
 |---|---|---|
 | Aktive und passive Posten als eigene Bilanzpositionen | erfüllt | 1900 und 3900 (`domain.Accrual`) |
 | Beginn, Ende, Verteilung, automatische Auflösung | erfüllt | `accounting.AccrualReleasePlanFor` |
-| Bestand zu jedem Stichtag mit Restlaufzeit | erfüllt | `service.AccrualService.Report` |
+| Bestand zu jedem Stichtag mit Restlaufzeit | teilweise | Die App listet die im Jahr gebildeten Posten (`service.AccrualService.List`); den Bestand zum Stichtag rechnet `service.AccrualService.Report`, weder App noch MCP rufen ihn ab |
 | Disagio als eigener Fall | erfüllt | eigene Art an `domain.Accrual` |
 
 ## BEW-09 Inventar und Vorratsbewertung
@@ -119,7 +119,7 @@ MUSS* · §§ 244, 256a HGB
 |---|---|---|
 | Originalbetrag, Währung, Kurs, Quelle und Kursdatum je Buchung | erfüllt | `domain.JournalLine.ForeignAmount`; Teil des Hashs |
 | Kurse aus nachvollziehbarer Quelle, gespeichert | erfüllt | EZB-Referenzkurs (`currency` Paket), `service.CurrencyService.RateAt` |
-| Stichtagsbewertung, realisiert und unrealisiert getrennt | erfüllt | `service.CurrencyService.PreviewCurrencyValuation`, `service.CurrencyService.BookCurrencyValuation` |
+| Stichtagsbewertung, realisiert und unrealisiert getrennt | teilweise | offene Posten mit `service.CurrencyService.PreviewCurrencyValuation`, `service.CurrencyService.BookCurrencyValuation`; Anlagegüter in Fremdwährung bewertet `service.AssetService.BookCurrencyValuation`, ohne Erfassungsweg in App oder MCP |
 | Sonderregel bis ein Jahr Restlaufzeit | erfüllt | Restlaufzeit am Zahlungsziel |
 | Umrechnung nach § 16 Abs. 6 UStG je Beleg | teilweise | Durchschnittskurs des Monats, in dem die Leistung ausgeführt ist, bei Zahlung vor der Ausführung des Zahlungsmonats (`service.vatRateDateOf`, `service.CurrencyService.VatRateFor`, `service.CurrencyService.ImportVatRatesCSV`). Die BMF-Kurse liest der Mensch in der App als CSV-Datei ein (Einstellungen › Erweitert, Bridge `ImportVatExchangeRates`), ein Werkzeug dafür gibt es nicht; ohne Kurs des Monats rechnet Buchfink mit dem Tageskurs und sagt es. Eine Zahlung vor der Leistung erkennt Buchfink nur, wenn der Beleg mit ihr gebucht wird |
 

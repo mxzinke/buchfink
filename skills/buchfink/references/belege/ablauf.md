@@ -150,7 +150,7 @@ Jeder dieser Fälle ist Rückfrage. Die Sonderangabe gehört in
 | Teilweise unternehmensfremde oder steuerfreie Verwendung | `vorsteueranteil_promille`, `vorsteueranteil_grund` je Position | Maßstab der Aufteilung (Wertungsfrage) | [vorsteuer.md](vorsteuer.md#4-aufteilung) |
 | Rechnung für eine zurückgestellte Verpflichtung | `rueckstellung_id` | Welche Rückstellung | [jahresabschluss/rueckstellungen.md](../jahresabschluss/rueckstellungen.md) |
 | Anzahlungsrechnung des Lieferanten | `anzahlung_fuer` (`vorraete`, `sachanlage`, `immateriell`) | Zahlung ist geleistet | [vorsteuer.md](vorsteuer.md#2-zeitpunkt) |
-| Schlussrechnung nach Anzahlungen | `verrechnete_anzahlungen` | Welche Anzahlungen abgesetzt sind | [anlagen-gwg.md](anlagen-gwg.md#5-weg-in-buchfink) |
+| Schlussrechnung nach Anzahlungen | `verrechnete_anzahlungen`; ihre Kennungen liefert kein Werkzeug | Welche Anzahlungen abgesetzt sind | [anlagen-gwg.md](anlagen-gwg.md#5-weg-in-buchfink) |
 | Beleg über der Nachweisgrenze | `leistungsnachweis`, `leistungsnachweis_am` | Der Mensch nennt, gegen welche Bestellung geprüft wurde | [pflichtangaben.md](pflichtangaben.md#1-was-eine-rechnung-ist) |
 | Buchen trotz blockierendem Befund der Rechnungsprüfung | `uebersteuerung_grund` | Grund, den der Mensch trägt | [e-rechnung-empfang.md](e-rechnung-empfang.md#6-fehlerarten-und-befunde) |
 
