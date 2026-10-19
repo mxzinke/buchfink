@@ -22,9 +22,20 @@ import (
 // den Stand, kein Geschäftsvorfall. Die Buchungen, aus denen sie entsteht,
 // stehen bereits im Journal.
 
+// openingBalanceDate ist der Stichtag der Eröffnungsbilanz: das Gründungsdatum
+// der Unternehmensdaten. Das PDF, die E-Bilanz der Eröffnungsbilanz und die
+// Pflichten im Kalender stehen auf diesem Tag.
+func openingBalanceDate(settings *domain.CompanySettings) (string, error) {
+	if settings == nil || len(settings.FoundedOn) != 10 {
+		return "", fmt.Errorf("in den Unternehmensdaten fehlt das Gründungsdatum; " +
+			"die Eröffnungsbilanz steht auf den Tag der Beurkundung")
+	}
+	return settings.FoundedOn, nil
+}
+
 // OpeningBalanceSheet ist die Eröffnungsbilanz mit allem, was ihr Kopf braucht.
 type OpeningBalanceSheet struct {
-	// AsOf ist der Stichtag: der Tag der Beurkundung.
+	// AsOf ist der Stichtag (openingBalanceDate).
 	AsOf      string                 `json:"asOf"`
 	Header    domain.StatementHeader `json:"header"`
 	Statement domain.Statement       `json:"statement"`
@@ -53,32 +64,50 @@ func (s *FoundationService) SetRenderer(r DocumentRenderer) { s.renderer = r }
 
 // OpeningBalance stellt die Eröffnungsbilanz auf, ohne sie abzulegen.
 func (s *FoundationService) OpeningBalance(ctx context.Context) (*OpeningBalanceSheet, error) {
+	settings, err := s.settingsRepo.GetCompanySettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	asOf, err := openingBalanceDate(settings)
+	if err != nil {
+		return nil, err
+	}
 	f, err := s.foundationRepo.Get(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if f == nil || len(f.NotarizedOn) != 10 {
-		return nil, fmt.Errorf("für diesen Mandanten ist keine Gründung erfasst")
+		return nil, fmt.Errorf("für diesen Mandanten ist keine Gründung erfasst; " +
+			"erfassen Sie sie unter Unternehmen, Stammdaten, Gesellschafter & Kapital")
 	}
 	if s.statements == nil {
 		return nil, fmt.Errorf("die Gliederung ist nicht verfügbar")
 	}
 
-	stmt, err := s.statements.StatementAt(ctx, f.NotarizedOn, domain.DepthFull)
+	stmt, err := s.statements.StatementAt(ctx, asOf, domain.DepthFull)
 	if err != nil {
 		return nil, err
 	}
 
 	out := &OpeningBalanceSheet{
-		AsOf: f.NotarizedOn, Statement: *stmt, Findings: []string{},
+		AsOf: asOf, Statement: *stmt, Findings: []string{},
+	}
+	// Beide Felder meinen den Tag der Beurkundung. Weichen sie ab, prüfte die
+	// Aufstellung das Kapital der Gründung an einem anderen Tag als dem, auf
+	// den sie steht.
+	if f.NotarizedOn != asOf {
+		out.Findings = append(out.Findings, fmt.Sprintf(
+			"Die Gründung nennt als Tag der Beurkundung den %s, die Unternehmensdaten als Gründungsdatum "+
+				"den %s. Die Eröffnungsbilanz und ihre E-Bilanz stehen auf dem Gründungsdatum; bitte eine "+
+				"der beiden Angaben berichtigen.", germanDate(f.NotarizedOn), germanDate(asOf)))
 	}
 
 	// Der Kopf des Geschäftsjahres, in das die Beurkundung fällt — Firma, Sitz,
 	// Register. Der Stichtag wird darin auf den Beurkundungstag gesetzt: der
 	// Abschlussstichtag des Jahres ist nicht der Stichtag dieser Aufstellung.
 	if header, err := s.statements.Header(ctx, stmt.FiscalYear); err == nil {
-		header.ClosingDate = f.NotarizedOn
-		header.StartDate = f.NotarizedOn
+		header.ClosingDate = asOf
+		header.StartDate = asOf
 		header.Reference = "§ 242 Abs. 1 HGB"
 		out.Header = header
 		for _, missing := range header.Missing {
@@ -102,16 +131,16 @@ func (s *FoundationService) OpeningBalance(ctx context.Context) (*OpeningBalance
 		out.Findings = append(out.Findings, fmt.Sprintf(
 			"Aktiva %s € und Passiva %s € gehen auseinander. Die Eröffnungsbilanz entsteht aus den "+
 				"Buchungen bis zum %s — solange sie nicht aufgeht, fehlt eine davon.",
-			out.Assets, out.Equity, germanDate(f.NotarizedOn)))
+			out.Assets, out.Equity, germanDate(asOf)))
 	}
 	if out.Assets == 0 {
 		out.Findings = append(out.Findings, fmt.Sprintf(
 			"Zum %s steht keine Buchung in den Büchern. Die Zeichnung des Stammkapitals gehört auf "+
 				"den Tag der Beurkundung — sie entsteht mit den Gründungsbuchungen.",
-			germanDate(f.NotarizedOn)))
+			germanDate(asOf)))
 	}
 
-	subscribed, err := s.balanceUntil(ctx, domain.AccountGezeichnetesKapital, f.NotarizedOn)
+	subscribed, err := s.balanceUntil(ctx, domain.AccountGezeichnetesKapital, asOf)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +151,7 @@ func (s *FoundationService) OpeningBalance(ctx context.Context) (*OpeningBalance
 	// Der nicht eingeforderte Teil wird vom gezeichneten Kapital offen
 	// abgesetzt (§ 272 Abs. 1 Satz 2 HGB). Die Einzahlung zählt hier nicht: sie
 	// bucht der Bankumsatz, meist nach der Beurkundung.
-	uncalled, err := s.balanceUntil(ctx, domain.AccountAusstehendeEinlagenOffen, f.NotarizedOn)
+	uncalled, err := s.balanceUntil(ctx, domain.AccountAusstehendeEinlagenOffen, asOf)
 	if err != nil {
 		return nil, err
 	}

@@ -232,10 +232,9 @@ func (s *EBilanzService) input(ctx context.Context, year int, opts EBilanzOption
 func (s *EBilanzService) openingInput(
 	ctx context.Context, year int, settings *domain.CompanySettings, opts EBilanzOptions,
 ) (ebilanz.Input, error) {
-	cutoff := settings.FoundedOn
-	if len(cutoff) != 10 {
-		return ebilanz.Input{}, fmt.Errorf("in den Unternehmensdaten fehlt das Gründungsdatum; " +
-			"die Eröffnungsbilanz steht auf den Tag der Beurkundung")
+	cutoff, err := openingBalanceDate(settings)
+	if err != nil {
+		return ebilanz.Input{}, err
 	}
 	stmt, err := s.statementSvc.StatementAt(ctx, cutoff, domain.DepthFull)
 	if err != nil {
