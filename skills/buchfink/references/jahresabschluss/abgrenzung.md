@@ -50,10 +50,12 @@ Steuerlich gilt dasselbe ([§ 5 Abs. 5 Satz 1 EStG][estg5]).
 - Typisch: Jahreslizenz, Wartung oder Abonnement, im Voraus berechnet und
   bezahlt.
 - Steht die Vorauszahlung in Buchfink als erhaltene Anzahlung (Abschlag,
-  buchfink-rechnungen), ist sie schon eine Verbindlichkeit; dann entfällt der
-  Posten. Steht sie als Erlös, grenze den Anteil nach dem Stichtag ab.
-- Die Umsatzsteuer auf Vorauszahlungen regelt buchfink-rechnungen
-  (Mindest-Istversteuerung); die Abgrenzung betrifft nur den Nettoerlös.
+  [rechnungen/anzahlungen.md](../rechnungen/anzahlungen.md)), ist sie schon
+  eine Verbindlichkeit; dann entfällt der Posten. Steht sie als Erlös, grenze
+  den Anteil nach dem Stichtag ab.
+- Die Umsatzsteuer auf Vorauszahlungen (Mindest-Istversteuerung) regelt
+  [rechnungen/anzahlungen.md](../rechnungen/anzahlungen.md); die Abgrenzung
+  betrifft nur den Nettoerlös.
 - Buchung: Soll das Erlöskonto der Rechnung, Haben 3900 Passive
   Rechnungsabgrenzung. Keine Steuerzeile. Werkzeug: `abschlussbuchung` mit
   `art: abgrenzung` und `abgrenzung.art: passiv`.
@@ -66,22 +68,24 @@ Steuerlich gilt dasselbe ([§ 5 Abs. 5 Satz 1 EStG][estg5]).
   Stand: Oktober 2026.
 - Handelsrecht: § 250 HGB kennt keine Grenze.
 - Wertungsfrage: ob kleine Posten im Abschluss unterbleiben. Buchfink führt eine
-  Bilanz für beide Rechte. Leg dem Menschen Anzahl und Summe der Posten bis
-  800 € vor; er entscheidet einheitlich. Halte die Entscheidung in der Liste
-  Abschlussposten fest und wende sie im Folgejahr wieder an
-  ([§ 246 Abs. 3 HGB][hgb246]).
+  Bilanz für beide Rechte ([ablauf.md](ablauf.md#4-entscheidungsregeln)). Leg
+  dem Menschen Anzahl und Summe der Posten bis 800 € vor; er entscheidet
+  einheitlich. Halte die Entscheidung in der
+  [Liste Abschlussposten](abschlussbuchungen.md#4-liste-abschlussposten) fest
+  und wende sie im Folgejahr wieder an ([§ 246 Abs. 3 HGB][hgb246]).
 
 ## 5. Ausstehende Rechnungen und Erträge
 
 - Leistung im alten Jahr bezogen, Rechnung fehlt: Ist der Betrag sicher
   (Vertrag, Angebot, Monatspauschale), Soll Aufwandskonto, Haben 3500 Sonstige
-  Verbindlichkeiten, netto. Ist er unsicher, Rückstellung (SKILL.md,
-  Schritt 6).
+  Verbindlichkeiten, netto. Ist er unsicher, Rückstellung
+  ([rueckstellungen.md](rueckstellungen.md)).
 - Die Vorsteuer entsteht erst mit der Rechnung; sie gehört nicht in die
-  Abgrenzung. Kommt die Rechnung, bucht buchfink-belege sie normal; du löst die
-  Abgrenzung gegen dasselbe Aufwandskonto auf.
+  Abgrenzung. Kommt die Rechnung, buchst du sie als Eingangsbeleg
+  ([belege/ablauf.md](../belege/ablauf.md)); du löst die Abgrenzung gegen
+  dasselbe Aufwandskonto auf.
 - Zinsen für das alte Jahr, die die Bank im neuen belastet: Soll Zinsaufwand,
-  Haben 3500 (buchfink-bank, Darlehen).
+  Haben 3500 ([bank/darlehen.md](../bank/darlehen.md)).
 - Ertrag im alten Jahr, Zahlung im neuen (z. B. Zinsgutschrift, Erstattung
   einer Versicherung): Soll 1300 Sonstige Vermögensgegenstände, Haben
   Ertragskonto.
@@ -90,12 +94,13 @@ Steuerlich gilt dasselbe ([§ 5 Abs. 5 Satz 1 EStG][estg5]).
   Steht er im neuen Jahr, gehört er nach § 252 Abs. 1 Nr. 4, 5 HGB ins alte.
   Leg dem Menschen die Abgrenzung vor; das Konto klärt ihr gemeinsam. Die
   Umsatzsteuer ordnet Buchfink nach dem Leistungsdatum dem alten Zeitraum zu
-  (buchfink-monatsabschluss).
+  ([monatsabschluss/ablauf.md](../monatsabschluss/ablauf.md)).
 
 ## 6. Disagio
 
-- Ein aktiviertes Disagio (1940 Damnum/Disagio, gebucht nach buchfink-bank)
-  wird planmäßig über die Laufzeit des Darlehens abgeschrieben
+- Ein aktiviertes Disagio (1940 Damnum/Disagio, gebucht nach
+  [bank/darlehen.md](../bank/darlehen.md)) wird planmäßig über die Laufzeit
+  des Darlehens abgeschrieben
   ([§ 250 Abs. 3 Satz 2 HGB][hgb250]). Abschlussbuchung: Soll 7323, Haben 1940,
   Jahresanteil.
 - Ausweis gesondert oder im Anhang ([§ 268 Abs. 6 HGB][hgb268]); kleine
@@ -104,7 +109,8 @@ Steuerlich gilt dasselbe ([§ 5 Abs. 5 Satz 1 EStG][estg5]).
 ## 7. Folgejahr
 
 Buchfink löst Abgrenzungen, die nicht über seine Kartei gebucht wurden, nicht
-von selbst auf. Trag jeden Posten in die Liste Abschlussposten ein. Nach dem
+von selbst auf. Trag jeden Posten in die
+[Liste Abschlussposten](abschlussbuchungen.md#4-liste-abschlussposten) ein. Nach dem
 Saldenvortrag buchst du die Auflösung mit `buchung_erfassen` (Rückfrage):
 
 - aktiv: Soll Aufwandskonto, Haben 1900, zum Beginn des Jahres oder über die

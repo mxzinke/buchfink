@@ -34,10 +34,16 @@ werden:
   gedeckten Fehlbetrag (§ 267 Abs. 4a).
 - Arbeitnehmer: Viertel der Summe der Beschäftigten am 31.03., 30.06., 30.09.
   und 31.12., ohne Auszubildende (§ 267 Abs. 5). Frag den Menschen danach.
+- Kleinstkapitalgesellschaften gelten als klein, soweit nichts anderes
+  geregelt ist ([§ 267a Abs. 2 HGB][hgb267a]).
 - Keine Kleinstkapitalgesellschaft ist eine Gesellschaft, deren einziger Zweck
   der Erwerb, die Verwaltung und Verwertung von Beteiligungen ist, ohne in die
-  Verwaltung dieser Unternehmen einzugreifen ([§ 267a Abs. 3 Nr. 3 HGB][hgb267a]).
-  Eine reine Holding ist deshalb mindestens klein.
+  Verwaltung dieser Unternehmen einzugreifen; die Ausübung der
+  Gesellschafterrechte zählt dabei nicht ([§ 267a Abs. 3 Nr. 3 HGB][hgb267a]).
+  Eine reine Holding ist deshalb mindestens klein und kann ihren Abschluss
+  nicht hinterlegen. Wertungsfrage: Greift die Holding durch Geschäftsführung
+  oder Dienstleistungen in die Verwaltung der Tochter ein? Dann kann sie
+  Kleinstkapitalgesellschaft sein.
 
 ## 2. Wann die Klasse wechselt
 
@@ -57,15 +63,15 @@ werden:
 | Anhang | entfällt bei Angaben unter der Bilanz | mit Erleichterungen | [§ 264 Abs. 1 Satz 5][hgb264], [§ 288 Abs. 1 HGB][hgb288] |
 | Lagebericht | nein | nein | [§ 264 Abs. 1 Satz 4 HGB][hgb264] |
 | Latente Steuern | nein | nein | [§ 274a Nr. 4 HGB][hgb274a] |
-| Aufstellung | bis sechs Monate | bis sechs Monate | § 264 Abs. 1 Satz 4 |
-| Feststellung | elf Monate | elf Monate | [§ 42a Abs. 2 GmbHG][gmbhg42a] |
-| Offenlegung | nur Bilanz; Hinterlegung möglich | Bilanz und Anhang ohne GuV-Angaben | [§ 326 HGB][hgb326] |
-| Ordnungsgeld nach Herabsetzung | 500 € bei Hinterlegung | 1.000 € | [§ 335 Abs. 4 Satz 2 HGB][hgb335] |
 
-Ab mittelgroß: Lagebericht, Aufstellung in drei Monaten, Feststellung in acht
-Monaten und Pflichtprüfung durch einen Abschlussprüfer; ohne Prüfung kann der
-Abschluss nicht festgestellt werden ([§ 316 Abs. 1 HGB][hgb316]). Das bildet
-Buchfink nicht ab: buchfink-grundlagen, Grenzen.
+Fristen für Aufstellung und Feststellung, Umfang der Offenlegung und
+Ordnungsgeld je Größenklasse:
+[aufstellen-feststellen-offenlegen.md](aufstellen-feststellen-offenlegen.md).
+
+Ab mittelgroß: Lagebericht, kürzere Fristen und Pflichtprüfung durch einen
+Abschlussprüfer; ohne Prüfung kann der Abschluss nicht festgestellt werden
+([§ 316 Abs. 1 HGB][hgb316]). Das bildet Buchfink nicht ab:
+[Grenzen](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet).
 
 ## 4. Anhang einer kleinen GmbH
 
@@ -78,14 +84,14 @@ Sachverhalt vorliegt:
 | Bilanzierungs- und Bewertungsmethoden | [§ 284 Abs. 2 Nr. 1 HGB][hgb284] | Vorjahrestext, Liste Abschlussposten |
 | Abweichungen von Methoden, begründet, mit Einfluss | § 284 Abs. 2 Nr. 2 | Mensch |
 | Haftungsverhältnisse (Bürgschaften, Sicherheiten für fremde Verbindlichkeiten) | [§ 268 Abs. 7][hgb268], [§ 251 HGB][hgb251] | Mensch |
-| Verbindlichkeiten mit Restlaufzeit über fünf Jahre; gesicherte Verbindlichkeiten | [§ 285 Nr. 1 HGB][hgb285] | Darlehensverträge (buchfink-bank) |
+| Verbindlichkeiten mit Restlaufzeit über fünf Jahre; gesicherte Verbindlichkeiten | [§ 285 Nr. 1 HGB][hgb285] | Darlehensverträge ([bank/darlehen.md](../bank/darlehen.md)) |
 | Sonstige finanzielle Verpflichtungen (Miete, Leasing), wenn für die Finanzlage bedeutsam | § 285 Nr. 3a | Verträge, Mensch |
-| Durchschnittliche Zahl der Arbeitnehmer, ohne Gruppen | § 285 Nr. 7, § 288 Abs. 1 Nr. 2 | Mensch, buchfink-lohn |
-| Vorschüsse und Kredite an Geschäftsführer | § 285 Nr. 9 Buchst. c | buchfink-gesellschafter |
+| Durchschnittliche Zahl der Arbeitnehmer, ohne Gruppen | § 285 Nr. 7, § 288 Abs. 1 Nr. 2 | Mensch, [lohn/ablauf.md](../lohn/ablauf.md) |
+| Vorschüsse und Kredite an Geschäftsführer | § 285 Nr. 9 Buchst. c | [bank/darlehen.md](../bank/darlehen.md) |
 | Erträge und Aufwendungen von außergewöhnlicher Größe oder Bedeutung | § 285 Nr. 31 | GuV, Mensch |
 | Außerplanmäßige Abschreibungen, wenn nicht gesondert in der GuV | [§ 277 Abs. 3 Satz 1 HGB][hgb277] | Anlagenspiegel |
 | Abschreibungsdauer eines erworbenen Firmenwerts | § 285 Nr. 13 | Anlagenkartei |
-| Ausleihungen, Forderungen, Verbindlichkeiten gegenüber Gesellschaftern, wenn nicht in der Bilanz gesondert | [§ 42 Abs. 3 GmbHG][gmbhg42] | buchfink-gesellschafter |
+| Ausleihungen, Forderungen, Verbindlichkeiten gegenüber Gesellschaftern, wenn nicht in der Bilanz gesondert | [§ 42 Abs. 3 GmbHG][gmbhg42] | [gesellschafter/ausweis.md](../gesellschafter/ausweis.md) |
 | Zusätzliche Angaben, wenn der Abschluss sonst kein zutreffendes Bild gibt | [§ 264 Abs. 2 Satz 2 HGB][hgb264] | Mensch |
 
 Firma, Sitz, Registergericht und Registernummer stehen im Jahresabschluss
@@ -133,8 +139,5 @@ zum beizulegenden Zeitwert ([§ 253 Abs. 1 Satz 5, 6 HGB][hgb253]).
 [hgb285]: https://www.gesetze-im-internet.de/hgb/__285.html
 [hgb288]: https://www.gesetze-im-internet.de/hgb/__288.html
 [hgb316]: https://www.gesetze-im-internet.de/hgb/__316.html
-[hgb326]: https://www.gesetze-im-internet.de/hgb/__326.html
-[hgb335]: https://www.gesetze-im-internet.de/hgb/__335.html
 [eghgb93]: https://www.gesetze-im-internet.de/hgbeg/art_93.html
 [gmbhg42]: https://www.gesetze-im-internet.de/gmbhg/__42.html
-[gmbhg42a]: https://www.gesetze-im-internet.de/gmbhg/__42a.html

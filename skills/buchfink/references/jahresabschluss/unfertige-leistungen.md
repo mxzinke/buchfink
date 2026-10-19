@@ -1,8 +1,10 @@
 # Unfertige Leistungen
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von §§ 252, 253, 255, 266, 268 HGB,
-§ 6 Abs. 1 Nr. 1b EStG und §§ 640, 641 BGB am 17.10.2026 gelesen. Abschläge,
-Anzahlungen und Schlussrechnung regelt buchfink-rechnungen.
+§ 6 Abs. 1 Nr. 1b EStG und §§ 640, 641 BGB am 17.10.2026 gelesen.
+
+Abschläge, Anzahlungen und Schlussrechnung regelt
+[rechnungen/anzahlungen.md](../rechnungen/anzahlungen.md).
 
 ## Inhalt
 
@@ -15,8 +17,9 @@ Anzahlungen und Schlussrechnung regelt buchfink-rechnungen.
 
 ## 1. Wann der Posten entsteht
 
-- Gewinne sind nur zu berücksichtigen, wenn sie am Stichtag realisiert sind
-  ([§ 252 Abs. 1 Nr. 4 HGB][hgb252]). Bei einem Werkvertrag ist die Vergütung
+- Gewinne zählen erst, wenn sie am Stichtag realisiert sind
+  ([Realisationsprinzip](ablauf.md#4-entscheidungsregeln)). Bei einem
+  Werkvertrag ist die Vergütung
   mit der Abnahme zu entrichten, bei Teilabnahme je Teil
   ([§ 641 Abs. 1 BGB][bgb641], [§ 640 BGB][bgb640]).
 - Ein Projekt, das am Stichtag begonnen, aber weder abgenommen noch als
@@ -25,7 +28,8 @@ Anzahlungen und Schlussrechnung regelt buchfink-rechnungen.
   Erzeugnisse, unfertige Leistungen“, [§ 266 Abs. 2 B. I. 2. HGB][hgb266]).
 - Bei Dienstverträgen mit laufender Abrechnung (Stunden, Monatspauschale)
   entsteht in der Regel kein Bestand. Noch nicht abgerechnete Stunden des alten
-  Jahres sind Erlös des alten Jahres (SKILL.md, Schritt 5).
+  Jahres sind Erlös des alten Jahres
+  ([abgrenzung.md](abgrenzung.md#5-ausstehende-rechnungen-und-erträge)).
 
 Wertungsfrage: ob ein Projekt am Stichtag abgenommen, eine Teilleistung
 abgerechnet oder ein Dienstvertrag ist. Frag nach Vertrag, Abnahmeprotokoll und
@@ -46,7 +50,7 @@ beizulegenden Wert (Abschnitt 3):
 | Gewinnanteil | nie |
 
 - Einmal gewählt, gilt die Methode in den Folgejahren weiter
-  ([§ 252 Abs. 1 Nr. 6 HGB][hgb252]).
+  ([Stetigkeit](ablauf.md#4-entscheidungsregeln)).
 - Wertungsfragen: Höhe und Schlüssel der Gemeinkosten; ob die Arbeit des
   Geschäftsführers mit einem Anteil seines Gehalts eingeht, wenn er selbst im
   Projekt arbeitet. Leg Rechenweg und Annahmen offen.
@@ -59,14 +63,15 @@ beizulegenden Wert (Abschnitt 3):
 - Ist der erwartete Verlust größer als der aktivierte Bestand, ist für den
   Rest eine Rückstellung für drohende Verluste zu bilden
   ([§ 249 Abs. 1 Satz 1 HGB][hgb249]); steuerlich ist sie nicht zulässig
-  (Liste Abschlussposten; SKILL.md, Schritt 6).
+  ([rueckstellungen.md](rueckstellungen.md#4-abzinsung)) und kommt in die
+  [Liste Abschlussposten](abschlussbuchungen.md#4-liste-abschlussposten).
 
 ## 4. Erhaltene Anzahlungen
 
 Erhaltene Anzahlungen stehen unter den Verbindlichkeiten oder werden vom Posten
 Vorräte offen abgesetzt ([§ 268 Abs. 5 Satz 2 HGB][hgb268]). Buchfink führt sie
-auf eigenen Konten (buchfink-rechnungen). Verrechne sie nicht mit dem Bestand
-der unfertigen Leistung.
+auf eigenen Konten ([rechnungen/anzahlungen.md](../rechnungen/anzahlungen.md)).
+Verrechne sie nicht mit dem Bestand der unfertigen Leistung.
 
 ## 5. Buchen
 
@@ -96,7 +101,6 @@ Fertig, wenn jedes laufende Projekt bewertet oder vom Menschen als unwesentlich
 festgehalten ist.
 
 [hgb249]: https://www.gesetze-im-internet.de/hgb/__249.html
-[hgb252]: https://www.gesetze-im-internet.de/hgb/__252.html
 [hgb253]: https://www.gesetze-im-internet.de/hgb/__253.html
 [hgb255]: https://www.gesetze-im-internet.de/hgb/__255.html
 [hgb266]: https://www.gesetze-im-internet.de/hgb/__266.html

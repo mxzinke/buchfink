@@ -1,8 +1,10 @@
 # Forderungen, Verbindlichkeiten und Fremdwährung zum Stichtag
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von §§ 252, 253, 256a, 268, 274a, 277
-HGB, § 6 EStG, § 17 UStG und § 42 GmbHG am 17.10.2026 gelesen. Den Ausfall
-einer Forderung im laufenden Jahr regelt buchfink-rechnungen.
+HGB, § 6 EStG, § 17 UStG und § 42 GmbHG am 17.10.2026 gelesen.
+
+Den Ausfall einer Forderung im laufenden Jahr regelt
+[rechnungen/forderungsausfall.md](../rechnungen/forderungsausfall.md).
 
 ## Inhalt
 
@@ -31,9 +33,8 @@ Posten erklärt ist.
   Stichtag niedriger, ist auf diesen Wert abzuschreiben
   ([§ 253 Abs. 4 Satz 2 HGB][hgb253]). Bewertet wird jede Forderung einzeln
   ([§ 252 Abs. 1 Nr. 3 HGB][hgb252]).
-- Risiken, die am Stichtag bestanden und bis zur Aufstellung bekannt werden,
-  zählen mit ([§ 252 Abs. 1 Nr. 4 HGB][hgb252]). Zahlt der Kunde im Januar,
-  bestand am Stichtag kein Ausfallrisiko in dieser Höhe.
+- Es gilt die [Wertaufhellung](ablauf.md#4-entscheidungsregeln): Zahlt der
+  Kunde im Januar, bestand am Stichtag kein Ausfallrisiko in dieser Höhe.
 - Steuerlich darf der niedrigere Teilwert nur bei voraussichtlich dauernder
   Wertminderung angesetzt werden ([§ 6 Abs. 1 Nr. 2 Satz 2 EStG][estg6]).
 - Bemessung: der Nettobetrag. Die Umsatzsteuer wird erst berichtigt, wenn das
@@ -42,7 +43,8 @@ Posten erklärt ist.
 - Indizien: erfolglose Mahnungen, Mahnbescheid ohne Zahlung, Kunde bestreitet
   die Forderung, bekannte Zahlungsschwierigkeiten, Insolvenzantrag.
   Steht der Ausfall fest (Insolvenzeröffnung, fruchtlose Vollstreckung), wird
-  die Forderung mit Umsatzsteuerkorrektur ausgebucht (buchfink-rechnungen).
+  die Forderung mit Umsatzsteuerkorrektur ausgebucht
+  ([rechnungen/forderungsausfall.md](../rechnungen/forderungsausfall.md)).
 - Buchung: Soll 6923 Einstellung in die Einzelwertberichtigung, Haben 1246
   (Restlaufzeit bis ein Jahr) oder 1247 (über ein Jahr). Die Forderung bleibt
   auf dem Personenkonto des Kunden. Werkzeug: `abschlussbuchung` mit
@@ -87,16 +89,19 @@ Ausfallgeschichte ist die Einzelbewertung der bessere Weg.
   Betrag. Die Auflösung kommt mit dem Saldenvortrag.
 - Steuerlich bleibt es bei den Anschaffungskosten als Obergrenze
   ([§ 6 Abs. 1 Nr. 2 Satz 1, Nr. 3 EStG][estg6]); ein gebuchter Kursgewinn über
-  die Anschaffungskosten hinaus kommt in die Liste Abschlussposten.
+  die Anschaffungskosten hinaus kommt in die
+  [Liste Abschlussposten](abschlussbuchungen.md#4-liste-abschlussposten).
 - Im Folgejahr löst du die Bewertung zum 1.1. auf (Gegenbuchung); der
-  Zahlungsausgleich bucht dann die realisierte Differenz (buchfink-bank).
+  Zahlungsausgleich bucht dann die realisierte Differenz
+  ([bank/skonto-differenzen.md](../bank/skonto-differenzen.md)).
 
 ## 5. Ausweis und Restlaufzeiten
 
 - Forderungen mit Restlaufzeit über einem Jahr und Verbindlichkeiten mit
   Restlaufzeit bis zu einem Jahr und über einem Jahr sind je Posten zu
   vermerken ([§ 268 Abs. 4 Satz 1, Abs. 5 Satz 1 HGB][hgb268]). Buchfink rechnet
-  sie aus den offenen Posten; Darlehen ordnest du nach buchfink-bank zu.
+  sie aus den offenen Posten; Darlehen ordnest du nach
+  [bank/darlehen.md](../bank/darlehen.md) zu.
 - Erst nach dem Stichtag rechtlich entstehende Beträge unter den sonstigen
   Vermögensgegenständen oder Verbindlichkeiten sind bei größerem Umfang im
   Anhang zu erläutern (§ 268 Abs. 4 Satz 2, Abs. 5 Satz 3); kleine
@@ -104,16 +109,18 @@ Ausfallgeschichte ist die Einzelbewertung der bessere Weg.
 - Forderungen und Verbindlichkeiten gegenüber Gesellschaftern sind gesondert
   auszuweisen oder im Anhang anzugeben ([§ 42 Abs. 3 GmbHG][gmbhg42]). Das gilt
   auch für Rechnungen an einen Gesellschafter als Kunden. Konten:
-  buchfink-gesellschafter.
+  [gesellschafter/ausweis.md](../gesellschafter/ausweis.md).
 - Forderungen und Verbindlichkeiten gegenüber demselben Partner werden nicht
-  verrechnet ([§ 246 Abs. 2 Satz 1 HGB][hgb246]).
+  verrechnet ([§ 246 Abs. 2 Satz 1 HGB][hgb246]). Ein Kunde, der zugleich
+  Lieferant ist, steht auf beiden Seiten.
 
 ## 6. Folgejahr
 
 - Einzelwertberichtigung: Zahlt der Kunde oder fällt die Forderung aus,
   entfällt der Grund; die Berichtigung wird aufgelöst (Soll 1246, Haben 4923
   Erträge aus der Herabsetzung der Einzelwertberichtigung) und der Ausfall nach
-  buchfink-rechnungen gebucht.
+  [rechnungen/forderungsausfall.md](../rechnungen/forderungsausfall.md)
+  gebucht.
 - Pauschalwertberichtigung: zum nächsten Stichtag neu berechnen; die
   Differenz geht auf 6920 oder 4920.
 - Fremdwährung: Auflösung nach Abschnitt 4.

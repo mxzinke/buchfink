@@ -1,9 +1,11 @@
 # Abschreibungen, Wertaufholung, Abgang
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von HGB und EStG am 17.10.2026
-gelesen. Ob ein Zugang Aufwand, geringwertiges Wirtschaftsgut, Sammelposten
-oder Anlage ist, regelt buchfink-belege. Finanzanlagen bewertet
-buchfink-beteiligungen.
+gelesen.
+
+Ob ein Zugang Aufwand, geringwertiges Wirtschaftsgut, Sammelposten oder Anlage
+ist, regelt [belege/anlagen-gwg.md](../belege/anlagen-gwg.md). Finanzanlagen
+bewertet [beteiligungen/bewertung-veraeusserung.md](../beteiligungen/bewertung-veraeusserung.md).
 
 ## Inhalt
 
@@ -33,10 +35,11 @@ buchfink-beteiligungen.
 - Anlagen im Bau und geleistete Anzahlungen schreibt Buchfink nicht ab.
 
 Wertungsfrage: die Nutzungsdauer. Buchfink schlägt Werte vor; die Regeln zur
-Wahl stehen in buchfink-belege. Eine Änderung bei einem vorhandenen Anlagegut
-braucht einen Grund ([§ 252 Abs. 1 Nr. 6, Abs. 2 HGB][hgb252]). Ob sie im
-Anhang zu erläutern ist ([§ 284 Abs. 2 Nr. 2 HGB][hgb284]), entscheidet der
-Mensch.
+Wahl stehen in [belege/anlagen-gwg.md](../belege/anlagen-gwg.md#4-nutzungsdauer-und-methode).
+Eine Änderung bei einem vorhandenen Anlagegut weicht von der
+Bewertungsmethode ab und braucht einen Grund
+([Stetigkeit](ablauf.md#4-entscheidungsregeln)). Ob sie im Anhang zu
+erläutern ist ([§ 284 Abs. 2 Nr. 2 HGB][hgb284]), entscheidet der Mensch.
 
 ## 2. Abschreibungslauf in Buchfink
 
@@ -60,7 +63,7 @@ der Anlagenkonten (`auswertung`, `art: susa`) passt.
   niedrigeren Stichtagswert abzuschreiben, auch bei nicht abnutzbaren Anlagen
   ([§ 253 Abs. 3 Satz 5 HGB][hgb253]). Bei Finanzanlagen darf auch bei
   vorübergehender Minderung abgeschrieben werden (Satz 6;
-  buchfink-beteiligungen).
+  [beteiligungen/bewertung-veraeusserung.md](../beteiligungen/bewertung-veraeusserung.md)).
 - Steuerrecht: Der niedrigere Teilwert kann bei voraussichtlich dauernder
   Wertminderung angesetzt werden ([§ 6 Abs. 1 Nr. 1 Satz 2 EStG][estg6]). Teilwert
   ist der Betrag, den ein Erwerber des ganzen Betriebs für das Wirtschaftsgut
@@ -88,13 +91,13 @@ entscheidet. Bei großen Beträgen Steuerberater.
 
 ## 5. Abgang
 
-- Verkauf: Die Rechnung an den Käufer stellt buchfink-rechnungen aus
-  (Umsatzsteuer). Den Abgang aus der Kartei bildet Buchfink noch nicht ab;
-  gebucht würde der Restbuchwert auf SKR04 4855 bei Buchgewinn, 6895 bei
-  Buchverlust.
+- Verkauf: Die Rechnung an den Käufer stellst du als Ausgangsrechnung aus
+  ([rechnungen/ablauf.md](../rechnungen/ablauf.md); Umsatzsteuer). Den Abgang
+  aus der Kartei bildet Buchfink noch nicht ab; gebucht würde der Restbuchwert
+  auf SKR04 4855 bei Buchgewinn, 6895 bei Buchverlust.
 - Verschrottung, Diebstahl: Abgang ohne Erlös. Übernimmt ein Gesellschafter
   den Gegenstand ohne angemessenes Entgelt, prüfe eine verdeckte
-  Gewinnausschüttung (buchfink-gesellschafter).
+  Gewinnausschüttung ([gesellschafter/vga-einlage.md](../gesellschafter/vga-einlage.md)).
 - Sammelposten: Scheidet ein Wirtschaftsgut aus, wird der Sammelposten nicht
   vermindert ([§ 6 Abs. 2a Satz 3 EStG][estg6]). Buchfink lehnt einen solchen
   Abgang ab.
@@ -116,16 +119,17 @@ entscheidet. Bei großen Beträgen Steuerberater.
   Abschreibung; Stand: Oktober 2026) bucht Buchfink nicht in den
   handelsrechtlichen Abschluss. Sie steht als steuerlicher Wert an der Anlage, im
   Verzeichnis nach [§ 5 Abs. 1 Satz 2, 3 EStG][estg5] und in der Überleitung
-  (buchfink-steuererklaerungen). Voraussetzungen nach § 7g Abs. 6 EStG: Der
-  Gewinn im Wirtschaftsjahr vor der Anschaffung überschreitet 200.000 € nicht
+  ([steuererklaerungen/kst.md](../steuererklaerungen/kst.md)). Voraussetzungen
+  nach § 7g Abs. 6 EStG: Der Gewinn im Wirtschaftsjahr vor der Anschaffung
+  überschreitet 200.000 € nicht
   (Abs. 6 Nr. 1 mit Abs. 1 Satz 2 Nr. 1), und das Wirtschaftsgut wird im Jahr
   der Anschaffung und im Folgejahr vermietet oder fast ausschließlich
   betrieblich in einer inländischen Betriebsstätte genutzt (Abs. 6 Nr. 2). Ob
-  sie vorliegen, klärt der Mensch mit buchfink-steuererklaerungen.
+  sie vorliegen, klärt der Mensch.
 - Eine handelsrechtliche außerplanmäßige Abschreibung, die steuerlich nicht
-  angesetzt wird, kommt in die Liste Abschlussposten.
+  angesetzt wird, kommt in die
+  [Liste Abschlussposten](abschlussbuchungen.md#4-liste-abschlussposten).
 
-[hgb252]: https://www.gesetze-im-internet.de/hgb/__252.html
 [hgb253]: https://www.gesetze-im-internet.de/hgb/__253.html
 [hgb284]: https://www.gesetze-im-internet.de/hgb/__284.html
 [hgb288]: https://www.gesetze-im-internet.de/hgb/__288.html

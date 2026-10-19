@@ -1,8 +1,12 @@
 # Umsatzsteuer-Verrechnung und Steuerrückstellung
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von § 249 HGB, § 4 Abs. 5b und § 36
-EStG, § 10 KStG am 17.10.2026 gelesen. Die Steuern rechnet Buchfink in den
-Erklärungen (buchfink-steuererklaerungen); Zahlungen bucht buchfink-bank.
+EStG, § 10 KStG am 17.10.2026 gelesen.
+
+Die Steuern rechnet Buchfink in den Erklärungen
+([steuererklaerungen/kst.md](../steuererklaerungen/kst.md),
+[steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md)); Zahlungen
+buchst du nach [bank/steuerzahlungen.md](../bank/steuerzahlungen.md).
 
 ## Inhalt
 
@@ -23,7 +27,8 @@ Voranmeldung.
 
 Ablauf:
 
-1. Die letzte Voranmeldung des Jahres ist geprüft (buchfink-monatsabschluss).
+1. Die letzte Voranmeldung des Jahres ist geprüft
+   ([monatsabschluss/ablauf.md](../monatsabschluss/ablauf.md)).
 2. Vorab-Prüfung: `auswertung` (`art: susa`) für die Steuerkonten, 3820 und
    3830. Nach der Verrechnung sollte auf 3841 etwa die
    noch nicht gezahlte Vorauszahlung des letzten Zeitraums stehen. Weicht der
@@ -36,12 +41,13 @@ Ablauf:
 
 Folgejahr: Die Zahlung der letzten Voranmeldung des alten Jahres und eine
 Abschlusszahlung aus der Jahreserklärung gehören auf 3841, eine Erstattung auf
-1420 (buchfink-bank).
+1420 ([bank/steuerzahlungen.md](../bank/steuerzahlungen.md#2-konten-je-steuerart)).
 
 ## 2. Vorsteuerberichtigung nach § 15a UStG
 
 Führt Buchfink Wirtschaftsgüter im Verzeichnis nach § 15a UStG (Regeln:
-buchfink-belege), ist vor der letzten Voranmeldung des Jahres der
+[belege/vorsteuer.md](../belege/vorsteuer.md)), ist vor der letzten
+Voranmeldung des Jahres der
 Verwendungsanteil zu prüfen. Ihn zu erfassen und die Berichtigung zu buchen
 (Kennziffer 64) bildet Buchfink noch nicht ab; sag das dem Menschen.
 
@@ -50,12 +56,15 @@ Verwendungsanteil zu prüfen. Ihn zu erfassen und die Berichtigung zu buchen
 - Noch nicht festgesetzte Steuern für das abgelaufene Jahr sind ungewisse
   Verbindlichkeiten ([§ 249 Abs. 1 Satz 1 HGB][hgb249]) und stehen unter den
   Steuerrückstellungen.
-- Die Jahressteuer liefert buchfink-steuererklaerungen (`erklaerung`,
-  `art: kst` und `art: gewst`, `zeitraum: <Jahr>`).
+- Die Jahressteuer liefern die Erklärungen (`erklaerung`, `art: kst` und
+  `art: gewst`, `zeitraum: <Jahr>`;
+  [steuererklaerungen/kst.md](../steuererklaerungen/kst.md),
+  [steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md)).
 - Rückstellung = Körperschaftsteuer + Solidaritätszuschlag + Gewerbesteuer des
   Jahres − Vorauszahlungen für dieses Jahr − anrechenbare Kapitalertragsteuer
   und darauf entfallender Solidaritätszuschlag, nur mit Steuerbescheinigung
-  ([§ 36 Abs. 2 Nr. 2 EStG][estg36], buchfink-bank).
+  ([§ 36 Abs. 2 Nr. 2 EStG][estg36],
+  [bank/zinsen-kapest.md](../bank/zinsen-kapest.md)).
 - Körperschaftsteuer, Solidaritätszuschlag und Gewerbesteuer mindern das
   Einkommen nicht ([§ 10 Nr. 2 KStG][kstg10], [§ 4 Abs. 5b EStG][estg4]). Die
   Rückstellung ändert deshalb die Bemessungsgrundlage nicht; ein Rechengang
@@ -64,20 +73,22 @@ Verwendungsanteil zu prüfen. Ihn zu erfassen und die Berichtigung zu buchen
 Prüfe vor dem Buchen:
 
 1. Auf 7600, 7608 und 7610 stehen nur Vorauszahlungen für dieses Jahr
-   (`auswertung`, `art: kontoblatt`). Nachzahlungen für Vorjahre gehören auf 7603,
-   7609 bzw. 7641; schlag die Umbuchung vor.
+   (`auswertung`, `art: kontoblatt`). Nachzahlungen für Vorjahre gehören auf
+   die Konten für Vorjahre
+   ([bank/steuerzahlungen.md](../bank/steuerzahlungen.md#3-nachzahlung-und-erstattung-für-vorjahre));
+   schlag die Umbuchung vor.
 2. Der Hebesatz der Gemeinde stimmt mit dem Gewerbesteuerbescheid überein.
 3. Ein Verlustvortrag aus Vorjahren ist berücksichtigt.
 
 Der Vorschlag zur Steuerrückstellung nimmt die Vorauszahlungen von 7600, 7608
 und 7610, den Hebesatz aus den Einstellungen und Verlustvorträge,
 Hinzurechnungen und Kürzungen nur als Eingabe. Nimm diese Werte aus den
-Erklärungen (buchfink-steuererklaerungen).
+Erklärungen.
 
 ## 4. Steuerrückstellung: Buchung
 
-`abschlussbuchung` mit `art: steuerrueckstellung`. Gib die Zahlen aus
-buchfink-steuererklaerungen mit: `hebesatz`, `verlustvortrag_kst`,
+`abschlussbuchung` mit `art: steuerrueckstellung`. Gib die Zahlen aus den
+Erklärungen mit: `hebesatz`, `verlustvortrag_kst`,
 `verlustvortrag_gewst`, `korrekturen` (etwa eine verdeckte
 Gewinnausschüttung), `hinzurechnungen`, `kuerzungen`; weichen die Beträge ab,
 `kst_betrag` und `gewst_betrag` mit Rechenweg in `grund`. Vergleiche die
@@ -93,10 +104,10 @@ Buchfink selbst bucht Körperschaftsteuer und Solidaritätszuschlag zusammen auf
 
 ## 5. Folgejahr
 
-Kommt der Bescheid, legt der Mensch ihn ab; den Abgleich macht
-buchfink-steuererklaerungen, die Zahlung und den Verbrauch der Rückstellung
-bucht buchfink-bank. Eine Differenz zur Rückstellung geht auf die Konten für
-Vorjahre (7603, 7604, 7607, 7609, 7641, 7643).
+Kommt der Bescheid, legt der Mensch ihn ab; den Abgleich beschreibt
+[steuererklaerungen/bescheide.md](../steuererklaerungen/bescheide.md).
+Zahlung, Verbrauch der Rückstellung und die Differenz auf den Konten für
+Vorjahre: [bank/steuerzahlungen.md](../bank/steuerzahlungen.md#3-nachzahlung-und-erstattung-für-vorjahre).
 
 [hgb249]: https://www.gesetze-im-internet.de/hgb/__249.html
 [estg4]: https://www.gesetze-im-internet.de/estg/__4.html

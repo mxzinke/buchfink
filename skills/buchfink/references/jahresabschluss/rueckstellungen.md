@@ -2,7 +2,10 @@
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von §§ 249, 253, 277, 285, 288 HGB,
 § 5 Abs. 4a und § 6 Abs. 1 Nr. 3a EStG und der Rückstellungsabzinsungsverordnung
-(RückAbzinsV) am 17.10.2026 gelesen. Steuerrückstellungen: SKILL.md, Schritt 10.
+(RückAbzinsV) am 17.10.2026 gelesen.
+
+Steuerrückstellungen bucht Schritt 10 des [Ablaufs](ablauf.md#3-ablauf) nach
+[steuern-im-abschluss.md](steuern-im-abschluss.md).
 
 ## Inhalt
 
@@ -34,7 +37,7 @@ sein:
 2. Hat sie ihre Ursache im abgelaufenen Jahr?
 3. Ist ernsthaft damit zu rechnen, dass die GmbH in Anspruch genommen wird?
 4. Ist Höhe oder Zeitpunkt ungewiss? Steht beides fest, ist es eine
-   Verbindlichkeit (SKILL.md, Schritt 5).
+   Verbindlichkeit ([abgrenzung.md](abgrenzung.md#5-ausstehende-rechnungen-und-erträge)).
 
 Wertungsfrage: jede der vier Antworten. Leg Tatsachen und Belege vor; der Mensch
 entscheidet.
@@ -47,7 +50,7 @@ Konten aus dem SKR04-Katalog von Buchfink:
 |---|---|---|---|
 | Kosten des Jahresabschlusses, der Offenlegung und der Steuererklärungen für das abgelaufene Jahr | 3095 | 6827 | gesetzliche Pflicht ([§ 242][hgb242], [§ 325 HGB][hgb325]); Wertungsfrage, ob interne Kosten zählen |
 | Aufbewahrung der Unterlagen des Jahres | 3096 | nach Kostenart | Wertungsfrage: Berechnung der künftigen Kosten mit dem Menschen |
-| Nicht genommener Urlaub, Überstunden, Boni | 3079 Urlaub, 3074 Personal | 6076 Urlaub, sonst Personalaufwand | Daten vom Lohnbüro (buchfink-lohn) |
+| Nicht genommener Urlaub, Überstunden, Boni | 3079 Urlaub, 3074 Personal | 6076 Urlaub, sonst Personalaufwand | Daten vom Lohnbüro ([lohn/ablauf.md](../lohn/ablauf.md)) |
 | Rechnung erwartet, Höhe unsicher | 3070 | Aufwandskonto der Leistung | netto, ohne Vorsteuer |
 | Gewährleistung, Nacharbeit | 3090 | 6790 | Erfahrungswerte vergangener Jahre |
 | Prozess, Schadensersatz, Vertragsstrafe | 3070 | 6825 Rechts- und Beratungskosten, sonst 6300 | Anwaltsschreiben als Beleg |
@@ -55,7 +58,7 @@ Konten aus dem SKR04-Katalog von Buchfink:
 | Unterlassene Instandhaltung, Nachholung bis Ende März | 3075 | Instandhaltung | nur bei Nachholung in drei Monaten |
 
 Pensionsrückstellungen bildet Buchfink nicht ohne Gutachten. Bei einer
-Pensionszusage: Steuerberater (buchfink-grundlagen, Grenzen).
+Pensionszusage: [Steuerberater](../grundlagen/grenzen.md#3-wann-du-einen-steuerberater-empfiehlst).
 
 ## 3. Höhe
 
@@ -69,7 +72,8 @@ Pensionszusage: Steuerberater (buchfink-grundlagen, Grenzen).
   - Wertverhältnisse am Stichtag, ohne künftige Preis- und Kostensteigerungen
     (Buchst. f).
 - Weichen beide Werte ab, bucht Buchfink den handelsrechtlichen. Den
-  steuerlichen trägst du in die Liste Abschlussposten ein.
+  steuerlichen trägst du in die
+  [Liste Abschlussposten](abschlussbuchungen.md#4-liste-abschlussposten) ein.
 - Rechenweg und Quellen (Angebot, Vorjahreswert, Stundenliste) gehören in den
   Eigenbeleg.
 
@@ -121,8 +125,9 @@ gebucht ist, fehlt dort; trag sie in die Liste Abschlussposten ein.
 
 ## 6. Verbrauch und Auflösung
 
-- Kommt im Folgejahr die Rechnung, bucht buchfink-belege sie. Führt Buchfink
-  die Rückstellung in seiner Kartei, verbraucht `rueckstellung_id` sie dabei.
+- Kommt im Folgejahr die Rechnung, buchst du sie als Eingangsbeleg
+  ([belege/ablauf.md](../belege/ablauf.md)). Führt Buchfink die Rückstellung in
+  seiner Kartei, verbraucht `rueckstellung_id` sie dabei.
   Sonst löst du die Rückstellung mit `buchung_erfassen` gegen dasselbe
   Aufwandskonto auf, bis zur Höhe der Rechnung.
 - Bleibt ein Rest, weil weniger anfiel: Soll Rückstellung, Haben 4930 Erträge

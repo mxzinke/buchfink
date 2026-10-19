@@ -1,8 +1,10 @@
 # UG-Rücklage, Ergebnisverwendung, Vorträge
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von §§ 5, 5a, 29, 42a, 46, 48 GmbHG und
-§§ 268, 270, 275, 285, 288 HGB am 17.10.2026 gelesen. Die Ausschüttung selbst
-(Kapitalertragsteuer, Auszahlung, Bescheinigung) regelt buchfink-gesellschafter.
+§§ 268, 270, 275, 285, 288 HGB am 17.10.2026 gelesen.
+
+Die Ausschüttung selbst (Kapitalertragsteuer, Auszahlung, Bescheinigung)
+regelt [gesellschafter/ausschuettung.md](../gesellschafter/ausschuettung.md).
 
 ## Inhalt
 
@@ -60,10 +62,9 @@ Rechtsstand: 17. Oktober 2026. Wortlaut von §§ 5, 5a, 29, 42a, 46, 48 GmbHG un
 
 ## 3. Ergebnisverwendung
 
-- Die Gesellschafter beschließen über die Feststellung und die Verwendung des
-  Ergebnisses ([§ 46 Nr. 1 GmbHG][gmbhg46]), spätestens acht bzw. bei kleinen
-  Gesellschaften elf Monate nach Ende des Geschäftsjahres
-  ([§ 42a Abs. 2 GmbHG][gmbhg42a]).
+- Die Gesellschafter beschließen über die Verwendung des Ergebnisses
+  zusammen mit der Feststellung; Zuständigkeit, Frist und Form des Beschlusses:
+  [aufstellen-feststellen-offenlegen.md](aufstellen-feststellen-offenlegen.md#3-feststellen).
 - Anspruch haben sie auf den Jahresüberschuss zuzüglich Gewinnvortrag und
   abzüglich Verlustvortrag, bei teilweiser Ergebnisverwendung auf den
   Bilanzgewinn, soweit Gesetz, Satzung oder Beschluss nichts anderes bestimmen
@@ -71,17 +72,15 @@ Rechtsstand: 17. Oktober 2026. Wortlaut von §§ 5, 5a, 29, 42a, 46, 48 GmbHG un
 - Der Beschluss kann Beträge in Gewinnrücklagen einstellen oder als Gewinn
   vortragen, wenn die Satzung nichts anderes bestimmt (§ 29 Abs. 2). Verteilt
   wird nach Geschäftsanteilen, sofern die Satzung keinen anderen Maßstab nennt
-  (§ 29 Abs. 3).
-- Form: Versammlung, Textform mit Zustimmung aller oder bei einem
-  Alleingesellschafter eine unverzüglich unterschriebene Niederschrift
-  ([§ 48 GmbHG][gmbhg48]). Lies die Satzung, wenn der Mensch sie ablegt.
+  (§ 29 Abs. 3). Lies die Satzung, wenn der Mensch sie ablegt.
 - Anhang: Vorschlag oder Beschluss über die Ergebnisverwendung
   ([§ 285 Nr. 34 HGB][hgb285]); kleine Gesellschaften sind davon befreit
   ([§ 288 Abs. 1 Nr. 1 HGB][hgb288]).
 
 Wertungsfrage: Ausschüttung, Rücklage oder Vortrag. Die Entscheidung treffen
 die Gesellschafter; Grenzen der Ausschüttung (Kapitalerhaltung,
-Zahlungsfähigkeit, UG-Rücklage) prüft buchfink-gesellschafter.
+Zahlungsfähigkeit, UG-Rücklage) stehen in
+[gesellschafter/ausschuettung.md](../gesellschafter/ausschuettung.md).
 
 ## 4. Buchen im Folgejahr
 
@@ -92,7 +91,7 @@ Verwendung. Der Beschluss verteilt es an seinem Datum:
 | Beschluss | Buchung |
 |---|---|
 | Einstellung in andere Gewinnrücklagen | Soll 2970, Haben 2960 Andere Gewinnrücklagen |
-| Ausschüttung | Soll 2970, Haben 3519 (Nettobetrag) und 3760 (einbehaltene Steuern); Beträge nach buchfink-gesellschafter |
+| Ausschüttung | Soll 2970, Haben 3519 (Nettobetrag) und 3760 (einbehaltene Steuern); Beträge nach [gesellschafter/ausschuettung.md](../gesellschafter/ausschuettung.md) |
 | Vortrag auf neue Rechnung | keine Buchung, bleibt auf 2970 |
 
 - Buche den Beschluss am Beschlusstag nach Rückfrage mit
@@ -111,15 +110,13 @@ Verwendung. Der Beschluss verteilt es an seinem Datum:
   vor.
 - Übersteigen die Verluste das Eigenkapital, steht auf der Aktivseite ein nicht
   durch Eigenkapital gedeckter Fehlbetrag ([§ 268 Abs. 3 HGB][hgb268]).
-  Warnzeichen und Pflichten (Einberufung, Insolvenzantrag): buchfink-grundlagen,
-  Grenzen. Melde sie sofort.
+  Warnzeichen und Pflichten (Einberufung, Insolvenzantrag):
+  [Grenzen](../grundlagen/grenzen.md#2-warnzeichen-die-du-sofort-meldest).
+  Melde sie sofort.
 
 [gmbhg5]: https://www.gesetze-im-internet.de/gmbhg/__5.html
 [gmbhg5a]: https://www.gesetze-im-internet.de/gmbhg/__5a.html
 [gmbhg29]: https://www.gesetze-im-internet.de/gmbhg/__29.html
-[gmbhg42a]: https://www.gesetze-im-internet.de/gmbhg/__42a.html
-[gmbhg46]: https://www.gesetze-im-internet.de/gmbhg/__46.html
-[gmbhg48]: https://www.gesetze-im-internet.de/gmbhg/__48.html
 [hgb268]: https://www.gesetze-im-internet.de/hgb/__268.html
 [hgb270]: https://www.gesetze-im-internet.de/hgb/__270.html
 [hgb275]: https://www.gesetze-im-internet.de/hgb/__275.html
