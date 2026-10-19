@@ -43,6 +43,10 @@ EXTRA_TAGS=gtk3 task dev
 `task test` und `task vet` übersetzen die Bridge nicht und brauchen weder GTK
 noch das Tag.
 
+`task test:timezones` führt die Go-Tests ohne Cache unter `Pacific/Kiritimati`
+und `America/Los_Angeles` aus. Die zwei vollständigen Zusatzläufe stehen wegen
+ihrer Laufzeit separat neben `task check`.
+
 ## Lokal starten
 
 ```sh

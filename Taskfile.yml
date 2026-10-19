@@ -40,6 +40,12 @@ tasks:
     cmds:
       - go test {{without (splitLines .PACKAGES) "github.com/buchfink/buchfink/internal/wailsbridge" | join " "}} {{.CLI_ARGS}}
 
+  test:timezones:
+    summary: Prüft die Go-Tests unter extremen Zeitzonen ohne Testcache
+    cmds:
+      - TZ=Pacific/Kiritimati task test -- -count=1
+      - TZ=America/Los_Angeles task test -- -count=1
+
   vet:
     summary: Runs go vet over the same packages as the test suite
     vars:

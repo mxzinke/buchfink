@@ -67,7 +67,12 @@ Regeln, die diese Schichtung stützen:
 4. **Formatmodule lesen ein neutrales Modell.** E-Rechnung, E-Bilanz,
    Erklärungen und Datenüberlassung kennen weder Kern noch Oberfläche.
 5. **Zeitpunkte in UTC.** Gespeichert wird jeder Zeitpunkt in UTC, angezeigt in
-   Ortszeit. Ein Datum ohne Uhrzeit ist ein Kalendertag (`JJJJ-MM-TT`).
+   Ortszeit. Kalendertage (`JJJJ-MM-TT`) richten sich nach `Europe/Berlin`,
+   unabhängig von der Rechnerzeitzone. `calendar.Today` verwendet eine
+   injizierbare Uhr; Zeitpunkte werden vor der Datumsbildung mit `calendar.Day`
+   nach Deutschland umgerechnet. Die Kernuhr versorgt Dienste und Hintergrundläufe.
+   Beim Schreiben in die Mandantendatenbank normalisiert GORM alle
+   `time.Time`-Felder in UTC.
 
 `JournalService.check` führt für `Post` und `ValidatePostable` dieselbe
 geordnete Regelliste aus. Ausgleich und Pflichtfelder, bebuchbare Konten nach
