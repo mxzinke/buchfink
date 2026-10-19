@@ -71,3 +71,6 @@ website/assets/screenshots/*
 !website/assets/screenshots/abschluesse.png
 !website/assets/screenshots/erklaerungen.png
 !website/assets/screenshots/unternehmen.png
+
+# Arbeitskopien der Agenten
+.claude/worktrees/
