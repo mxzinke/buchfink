@@ -4,12 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>So funktioniert’s — Buchfink</title>
-    <meta name="description" content="Ein Geschäftsjahr mit Buchfink und Ihrem KI-Agenten: Belege, Monatsabschluss, Jahresabschluss, Erklärungen und Pflichtenkalender." />
+    <meta name="description" content="Weniger Buchhaltungsroutine für Ihre GmbH oder UG: Belege im Chat buchen, Fristen im Blick behalten und Abschlüsse vorbereiten." />
     <meta name="color-scheme" content="light" />
     <link rel="icon" type="image/svg+xml" href="assets/buchfink-logo.svg" />
     <link rel="stylesheet" href="assets/site.css?v=fbc6f353d9c9" />
     <meta property="og:title" content="So funktioniert’s — Buchfink" />
-    <meta property="og:description" content="Ein Geschäftsjahr mit Buchfink und Ihrem KI-Agenten: Belege, Monatsabschluss, Jahresabschluss, Erklärungen und Pflichtenkalender." />
+    <meta property="og:description" content="Weniger Buchhaltungsroutine für Ihre GmbH oder UG: Belege im Chat buchen, Fristen im Blick behalten und Abschlüsse vorbereiten." />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="assets/screenshots/uebersicht.png" />
   </head>
@@ -53,7 +53,7 @@
               </a>
               <a href="so-funktionierts.html" aria-current="page">
                 <span class="menu__name">So funktioniert’s</span>
-                <span class="menu__hint">Vom Beleg bis zur Erklärung</span>
+                <span class="menu__hint">Vom Beleg bis zur Steuererklärung</span>
               </a>
               <a href="installation.html">
                 <span class="menu__name">Installation</span>
@@ -61,7 +61,7 @@
               </a>
               <a href="roadmap.html">
                 <span class="menu__name">Roadmap</span>
-                <span class="menu__hint">Was steht, was bis Version 1 fehlt</span>
+                <span class="menu__hint">Was verfügbar ist und was noch kommt</span>
               </a>
             </div>
           </details>
@@ -73,23 +73,22 @@
       <section class="pagehead">
         <div class="wrap wrap--wide">
           <p class="overline">So funktioniert’s</p>
-          <h1 class="pagehead__title">Vom Beleg bis zur Erklärung</h1>
+          <h1 class="pagehead__title">Mehr Zeit für Ihr Unternehmen</h1>
           <p class="pagehead__lead">
-            Ein Geschäftsjahr mit Buchfink, Schritt für Schritt. Der Agent erledigt die Routine
-            im Chat. Sie sehen den Stand in der App und geben frei.
+            Ihr KI-Agent übernimmt die Buchhaltungsroutine. Buchfink zeigt Ihnen die Ergebnisse
+            und was als Nächstes zu tun ist.
           </p>
           <p class="pagehead__note">
-            Die Bilder zeigen die Oberfläche mit erfundenen Daten; ein Klick öffnet ein Bild in
-            voller Größe.
+            Einblicke in die App mit erfundenen Beispieldaten.
           </p>
           <nav class="toc" aria-label="Auf dieser Seite">
             <a href="#verbinden">Verbinden</a>
             <a href="#buchen">Belege und Bank</a>
             <a href="#monat">Monatsabschluss</a>
             <a href="#jahr">Jahresabschluss</a>
-            <a href="#erklaerungen">Erklärungen</a>
-            <a href="#pflichten">Pflichtenkalender</a>
-            <a href="#grenzen">Grenzen</a>
+            <a href="#erklaerungen">Steuererklärungen</a>
+            <a href="#pflichten">Fristen</a>
+            <a href="#grenzen">Ausprobieren</a>
           </nav>
         </div>
       </section>
@@ -100,16 +99,10 @@
           <article class="feature" id="verbinden">
             <div class="feature__text">
               <p class="overline">Verbinden</p>
-              <h2 class="feature__title">Den Agenten zulassen</h2>
+              <h2 class="feature__title">Mit der KI-App arbeiten, die Sie kennen</h2>
               <p class="feature__body">
-                Solange Buchfink geöffnet ist, läuft ein MCP-Server auf Ihrem Rechner, erreichbar
-                nur unter 127.0.0.1. Ihr KI-Client meldet sich dort an. Buchfink zeigt im eigenen
-                Fenster, welche App für welches Unternehmen mit welchen Rechten anfragt: Lesen
-                oder Buchen. Erst Ihre Zustimmung gibt den Zugang frei.
-              </p>
-              <p class="feature__body">
-                Die Zulassung gilt für das geöffnete Unternehmen. In den Einstellungen sehen Sie
-                die verbundenen Apps und entziehen den Zugriff mit einem Klick.
+                Nutzen Sie Claude, ChatGPT Desktop oder einen anderen unterstützten Agenten.
+                Sie bestimmen, wer auf Ihre Buchhaltung zugreift, und können die Verbindung jederzeit trennen.
               </p>
             </div>
             <figure class="shot">
@@ -118,7 +111,7 @@
                 <img src="assets/screenshots/einstellungen-apps.png" width="2880" height="1800" loading="lazy"
                   alt="Einstellungen von Buchfink mit der Liste der verbundenen KI-Apps und ihren Rechten." />
               </a>
-              <figcaption>Verbundene Apps mit ihren Rechten; jede lässt sich hier trennen.</figcaption>
+              <figcaption>Sie bestimmen, welche KI-App Zugriff hat.</figcaption>
             </figure>
           </article>
 
@@ -126,22 +119,11 @@
           <article class="feature" id="buchen">
             <div class="feature__text">
               <p class="overline">Belege und Bank</p>
-              <h2 class="feature__title">Beleg ablegen, Buchung prüfen</h2>
+              <h2 class="feature__title">Weniger abtippen und zuordnen</h2>
               <p class="feature__body">
-                Rechnungen als PDF oder E-Rechnung und Kontoauszüge im Format CAMT.053 legen Sie
-                in den Eingang von Buchfink oder ziehen sie ins Fenster. Sagen Sie „Buche die
-                Belege im Eingang.“, legt der Agent sie in Buchfink ab; das Original bleibt
-                unverändert. Buchfink liest XRechnung und ZUGFeRD, prüft Pflichtangaben und
-                Steuerfall und rechnet die Buchung. Routinefälle bucht der Agent selbst, alles
-                andere legt er Ihnen im Chat vor.
+                Ihr Agent bucht abgelegte Rechnungen und ordnet Zahlungen zu.
+                Sie klären Rückfragen im Chat.
               </p>
-              <ul class="feature__list">
-                <li>Ein Eingang je Unternehmen, auch in einem Cloud-Ordner für die Scanner-App</li>
-                <li>Bankumsätze zuordnen, auch einen Umsatz auf mehrere Belege aufteilen</li>
-                <li>Firmenkreditkarte, Auslagen, Gesellschafterdarlehen und Lohnjournal</li>
-                <li>Ausgangsrechnungen als ZUGFeRD oder XRechnung</li>
-                <li>Korrekturen als Storno und neue Buchung; nichts wird gelöscht</li>
-              </ul>
             </div>
             <figure class="shot">
               <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -149,7 +131,7 @@
                 <img src="assets/screenshots/buecher.png" width="2880" height="1800" loading="lazy"
                   alt="Bereich Bücher mit Belegen, Bankumsätzen und Buchungen eines Beispielunternehmens." />
               </a>
-              <figcaption>In den Büchern steht jede Buchung mit ihrem Beleg.</figcaption>
+              <figcaption>Gebuchte und offene Belege auf einen Blick.</figcaption>
             </figure>
           </article>
 
@@ -157,16 +139,10 @@
           <article class="feature" id="monat">
             <div class="feature__text">
               <p class="overline">Monatsabschluss</p>
-              <h2 class="feature__title">Den Monat festschreiben</h2>
+              <h2 class="feature__title">Mit geprüftem Stand in den nächsten Monat</h2>
               <p class="feature__body">
-                Am Monatsende läuft ein Prüfbericht: Belege ohne Buchung, offene Bankumsätze,
-                Lücken in den Nummernkreisen. Danach schreiben Sie den Monat in der App fest.
-                Buchfink sperrt ihn und sichert den Stand mit einem Zeitstempel.
-              </p>
-              <p class="feature__body">
-                Die Umsatzsteuer-Voranmeldung rechnet Buchfink nach dem amtlichen Vordruck. Sie
-                übertragen die Kennziffern in Mein ELSTER und tragen das Transferticket in der App
-                ein.
+                Buchfink zeigt, welche Belege und Zahlungen noch zu klären sind.
+                Ihr Agent bereitet den Monatsabschluss vor, Sie prüfen und geben frei.
               </p>
             </div>
             <figure class="shot">
@@ -175,7 +151,7 @@
                 <img src="assets/screenshots/abschluesse.png" width="2880" height="1800" loading="lazy"
                   alt="Bereich Abschlüsse mit dem Stand der Monate und des Geschäftsjahres." />
               </a>
-              <figcaption>Welche Monate festgeschrieben sind und was im Jahr noch offen ist.</figcaption>
+              <figcaption>Offene Aufgaben und abgeschlossene Monate auf einen Blick.</figcaption>
             </figure>
           </article>
         </div>
@@ -184,22 +160,10 @@
       <section class="band band--sunken" id="jahr">
         <div class="wrap wrap--wide">
           <p class="overline">Jahresabschluss</p>
-          <h2 class="section__title">Bilanz und GuV nach HGB</h2>
+          <h2 class="section__title">Den Jahresabschluss vorbereiten lassen</h2>
           <p class="section__lead">
-            Nach dem Dezember bleibt eine Abschlussperiode offen. Der Agent bereitet die
-            Abschlussbuchungen vor; gebucht wird nach Ihrer Zustimmung:
-          </p>
-          <ul class="plain-list">
-            <li>Abschreibungen, Rechnungsabgrenzung und Rückstellungen</li>
-            <li>Wertberichtigungen auf Forderungen und unfertige Leistungen</li>
-            <li>Steuerrückstellung für Körperschaft- und Gewerbesteuer</li>
-            <li>bei der UG die gesetzliche Rücklage</li>
-          </ul>
-          <p class="section__lead">
-            Bilanz und GuV entstehen aus den Konten, gegliedert nach der Größenklasse. Aufstellen,
-            Feststellen und Offenlegen halten Sie in der App fest; ab der Feststellung nimmt das
-            Jahr keine Buchung mehr an. Den Beschluss über die Ergebnisverwendung bucht der
-            Agent danach im Folgejahr, nach Ihrer Zustimmung.
+            Ihr Agent bereitet den Jahresabschluss vor, Buchfink stellt die Zahlen zusammen.
+            Sie sehen, was noch fehlt und was Sie freigeben müssen.
           </p>
         </div>
       </section>
@@ -209,59 +173,40 @@
           <!-- ----------------------------------------------------------- -->
           <article class="feature" id="erklaerungen">
             <div class="feature__text">
-              <p class="overline">Erklärungen</p>
-              <h2 class="feature__title">KSt, GewSt, USt und E-Bilanz vorbereiten</h2>
+              <p class="overline">Steuererklärungen</p>
+              <h2 class="feature__title">Zahlen fürs Finanzamt vorbereitet</h2>
               <p class="feature__body">
-                Für Körperschaftsteuer, Gewerbesteuer und Umsatzsteuer stellt Buchfink die Werte
-                formularnah zusammen, jeden mit seiner Herkunft. Sie übertragen sie in Mein ELSTER
-                oder geben die Exportdatei an Ihre Steuerberatung.
-              </p>
-              <p class="feature__body">
-                Die E-Bilanz entsteht als XBRL-Datei nach der Taxonomie 6.9 oder 6.10. Mein ELSTER
-                hat dafür kein Formular; übermittelt wird sie über einen Dienst wie
-                ebilanzplus.de oder ebilanzonline.de. Nimmt der Dienst die Datei nicht an, liest
-                eBilanz+ ersatzweise eine Summen- und Saldenliste ein, die Bilanz und GuV füllt.
-              </p>
-              <p class="feature__body">
-                Der Zeilenkatalog liegt für das Vordruckjahr 2025 vor. Bei der Umsatzsteuer ist jede
-                Zeile am amtlichen Vordruck geprüft, bei KSt und GewSt keine. Jede Zeile trägt
-                einen Prüfvermerk mit ihrer Quelle.
+                Buchfink bereitet Ihre Steuermeldungen vor und zeigt, woher die Zahlen kommen.
+                Sie reichen die Meldungen selbst oder über Ihre Steuerberatung ein.
               </p>
             </div>
             <figure class="shot">
               <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
               <a href="assets/screenshots/erklaerungen.png" title="Bild in voller Größe öffnen">
                 <img src="assets/screenshots/erklaerungen.png" width="2880" height="1800" loading="lazy"
-                  alt="Steuererklärung formularnah mit Zeilen, Werten und der Herkunft jedes Werts." />
+                  alt="Übersicht der Steuererklärungen mit ihrem Bearbeitungsstand." />
               </a>
-              <figcaption>Jede Zeile nennt, woher ihr Wert kommt.</figcaption>
+              <figcaption>Sie sehen, welche Steuererklärungen noch zu bearbeiten sind.</figcaption>
             </figure>
           </article>
 
           <!-- ----------------------------------------------------------- -->
           <article class="feature" id="pflichten">
             <div class="feature__text">
-              <p class="overline">Pflichtenkalender</p>
-              <h2 class="feature__title">Jede Frist aus Ihren Unternehmensdaten</h2>
+              <p class="overline">Fristen</p>
+              <h2 class="feature__title">Wissen, was als Nächstes ansteht</h2>
               <p class="feature__body">
-                Buchfink kennt die Pflichten einer GmbH: Voranmeldungen, Zusammenfassende Meldung,
-                Lohnsteuer-Anmeldung, Vorauszahlungen, Jahresabschluss, Erklärungen, E-Bilanz,
-                Offenlegung, Transparenzregister und Gesellschafterliste.
-              </p>
-              <p class="feature__body">
-                Die Fristen richten sich nach Ihren Angaben: Bundesland für die Feiertage,
-                Dauerfristverlängerung, steuerliche Beratung für die längeren Abgabefristen.
-                Erledigt ist eine Pflicht, wenn Ihre Daten es zeigen oder Sie sie in der App
-                bestätigen.
+                Steuermeldungen, Zahlungen und Abschlüsse an einem Ort. Sie sehen, was fällig
+                ist, was Ihr Agent vorbereitet hat und wo Sie noch gefragt sind.
               </p>
             </div>
             <figure class="shot">
               <div class="shot__chrome" aria-hidden="true"><span></span><span></span><span></span></div>
-              <a href="assets/screenshots/unternehmen.png" title="Bild in voller Größe öffnen">
-                <img src="assets/screenshots/unternehmen.png" width="2880" height="1800" loading="lazy"
-                  alt="Unternehmensdaten mit Sitz, Register, Steuernummer und steuerlicher Beratung." />
+              <a href="assets/screenshots/uebersicht.png" title="Bild in voller Größe öffnen">
+                <img src="assets/screenshots/uebersicht.png" width="2880" height="1800" loading="lazy"
+                  alt="Aufgabenübersicht mit Fälligkeiten und dem Bearbeitungsstand von Steuermeldungen und Zahlungen." />
               </a>
-              <figcaption>Aus den Unternehmensdaten folgen die Fristen.</figcaption>
+              <figcaption>Ihre nächsten Aufgaben mit Fälligkeit und Bearbeitungsstand.</figcaption>
             </figure>
           </article>
         </div>
@@ -269,31 +214,13 @@
 
       <section class="band band--sunken" id="grenzen">
         <div class="wrap wrap--wide">
-          <p class="overline">Grenzen</p>
-          <h2 class="section__title">Was Buchfink nicht übernimmt</h2>
-          <ul class="plain-list">
-            <li>
-              <strong>Übermittlung.</strong> Buchfink sendet nichts an die Finanzverwaltung oder
-              das Unternehmensregister. Sie übertragen selbst oder über Ihre Steuerberatung.
-            </li>
-            <li>
-              <strong>Besteuerung.</strong> Nur Sollversteuerung. Keine Kleinunternehmerregelung,
-              keine Warenlieferungen ins Ausland, kein OSS.
-            </li>
-            <li>
-              <strong>Kasse und Lohn.</strong> Kein Kassenbuch, keine Lohnabrechnung. Das
-              Lohnjournal Ihres Lohnbüros wird gebucht.
-            </li>
-            <li>
-              <strong>Besondere Gesellschaften.</strong> Für gemeinnützige Gesellschaften,
-              Gesellschaften in Liquidation und Organgesellschaften rechnet Buchfink weder
-              Abschluss noch Steuerrückstellung.
-            </li>
-            <li>
-              <strong>Ein Bearbeiter.</strong> Ein Unternehmen ist immer nur in einem Buchfink
-              geöffnet. Benutzerkonten und Rollen gibt es nicht.
-            </li>
-          </ul>
+          <p class="overline">Ausprobieren</p>
+          <h2 class="section__title">Passt Buchfink zu Ihrer Firma?</h2>
+          <p class="section__lead">
+            Buchfink ist eine Vorschau für kleine GmbH und UG. Probieren Sie es mit einem
+            Testunternehmen aus. Unterstützte Geschäftsfälle und offene Prüfungen finden Sie
+            in der Dokumentation.
+          </p>
           <div class="section__actions">
             <a class="btn btn--primary" href="installation.html">Installieren</a>
             <a class="btn btn--secondary" href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/umfang.md">Umfang und Grenzen</a>
@@ -309,7 +236,7 @@
             <p class="foot__title">Buchfink</p>
             <p>
               Quelloffene Buchhaltung für GmbH und UG in Deutschland. Läuft auf dem eigenen
-              Rechner; ein KI-Agent arbeitet über MCP mit.
+              Rechner. Ihr KI-Agent hilft beim Buchen.
             </p>
           </div>
           <div>
