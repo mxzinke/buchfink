@@ -19,8 +19,10 @@ import (
 //     schulden die Gesellschafter die Differenz. Die Zahlen dafür stehen bereits
 //     im Journal; was fehlte, war die Rechnung.
 //
-// Gespeichert wird deshalb nur, was nicht aus den Buchungen folgt: die Daten der
-// Gründung, das gezeichnete Kapital und wer es übernommen hat.
+// Gespeichert wird deshalb nur, was nicht aus den Buchungen folgt: die
+// Eintragung, das gezeichnete Kapital und wer es übernommen hat. Den Tag der
+// Beurkundung führen die Unternehmensdaten als Gründungsdatum
+// (CompanySettings.FoundedOn).
 
 // FoundationStage ist die Phase der Gründung.
 //
@@ -83,11 +85,6 @@ func (k ContributionKind) Valid() bool {
 // noch mit einem Fremdschlüssel verbinden lässt.
 type Foundation struct {
 	ID uint `gorm:"primaryKey" json:"id"`
-
-	// NotarizedOn ist der Tag der notariellen Beurkundung des
-	// Gesellschaftsvertrags (§ 2 Abs. 1 GmbHG). Mit ihm entsteht die
-	// Vorgesellschaft und beginnt die Buchführungspflicht.
-	NotarizedOn string `gorm:"size:10;not null" json:"notarizedOn"` // YYYY-MM-DD
 
 	// RegisteredOn ist der Tag der Eintragung ins Handelsregister. Leer heißt:
 	// die Gesellschaft ist noch Vorgesellschaft. Auf dieses Datum wird die

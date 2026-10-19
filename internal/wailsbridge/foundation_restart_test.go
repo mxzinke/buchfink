@@ -21,8 +21,8 @@ func TestFoundationRestartKeepsShortYearDeadlines(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.SaveFoundation(domain.Foundation{
-		NotarizedOn: "2026-08-15", RegisteredOn: "2026-08-25", ShareCapital: 2500000,
+	if _, err := b.SaveFoundation("2026-08-15", domain.Foundation{
+		RegisteredOn: "2026-08-25", ShareCapital: 2500000,
 		Shareholders: []domain.Shareholder{{Name: "Anna", ShareCapital: 2500000, PaidIn: 1250000, Kind: domain.ContributionCash}},
 	}); err != nil {
 		t.Fatal(err)
@@ -35,8 +35,12 @@ func TestFoundationRestartKeepsShortYearDeadlines(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !state.HasFoundation || state.Foundation.NotarizedOn != "2026-08-15" {
-		t.Fatalf("Gründung nach Neustart: %+v", state)
+	settings, err := restarted.GetCompanySettings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !state.HasFoundation || settings.FoundedOn != "2026-08-15" {
+		t.Fatalf("Gründung nach Neustart: %+v, Gründungsdatum %q", state, settings.FoundedOn)
 	}
 	years, err := restarted.GetFiscalYears()
 	if err != nil {

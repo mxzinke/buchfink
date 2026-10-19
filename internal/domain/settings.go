@@ -55,7 +55,10 @@ type CompanySettings struct {
 	CountryCode     string `json:"countryCode"` // ISO 3166-1 Alpha-2
 
 	// FoundedOn ist der Tag der Gründung (JJJJ-MM-TT): die notarielle
-	// Beurkundung des Gesellschaftsvertrags.
+	// Beurkundung des Gesellschaftsvertrags (§ 2 Abs. 1 GmbHG). Mit ihr
+	// entsteht die Vorgesellschaft und beginnt die Buchführungspflicht. Die
+	// einzige Quelle für Gründungsjahr, Gründungsbuchungen, Eröffnungsbilanz,
+	// Pflichten und Erklärungen; die Erfassung der Gründung schreibt sie.
 	FoundedOn string `json:"foundedOn"`
 	// Notary und DeedNumber bezeichnen die Urkunde des Gesellschaftsvertrags.
 	Notary     string `json:"notary"`

@@ -77,13 +77,6 @@ func (s *ClosingService) Periods() *PeriodService { return s.periods }
 // Geschäftsjahr anlegen lässt, richtet sich nach ihr.
 func (s *ClosingService) SetClock(now func() time.Time) { s.now = now }
 
-// SetFoundationRepo koppelt die Gründung an. Sie entscheidet über das
-// Rumpfgeschäftsjahr: eine Gesellschaft, die im März beurkundet wurde, hat kein
-// Geschäftsjahr, das im Januar begonnen hätte.
-func (s *ClosingService) SetFoundationRepo(r domain.FoundationRepository) {
-	s.periods.foundationRepo = r
-}
-
 // AccrualCarrier ist der Ausschnitt der Rechnungsabgrenzung, den der
 // Saldenvortrag braucht.
 //

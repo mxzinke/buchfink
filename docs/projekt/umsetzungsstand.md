@@ -61,11 +61,7 @@ einzelne Kriterien im [Anforderungskatalog](../anforderungen/README.md).
   und GuV.
 - Offenlegung und Hinterlegung erfasst Buchfink als Stand mit Nachweis. Einen
   Datensatz für das Unternehmensregister erzeugt es nicht.
-- Gründungsdatum (Unternehmensdaten) und Tag der Beurkundung (Gründung) sind
-  zwei Felder. Stichtag der Eröffnungsbilanz und ihrer E-Bilanz ist das
-  Gründungsdatum; nennt die Gründung einen anderen Tag, setzt Buchfink das PDF
-  nicht, bis eine der Angaben berichtigt ist. Das PDF gibt nur die App aus,
-  kein Werkzeug.
+- Die Eröffnungsbilanz als PDF gibt nur die App aus, kein Werkzeug.
 
 ### Laufende Buchhaltung
 

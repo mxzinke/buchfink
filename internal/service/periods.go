@@ -14,7 +14,6 @@ type PeriodReader struct {
 	fiscalCalendar
 	journalRepo        domain.JournalRepository
 	festschreibungRepo domain.FestschreibungRepository
-	foundationRepo     domain.FoundationRepository
 }
 
 // PeriodSource liefert den Zeitraum, ohne ein Geschäftsjahr anzulegen.
@@ -49,9 +48,9 @@ func newPeriodReader(journal domain.JournalRepository, settings domain.SettingsR
 // NewPeriodService verbindet Jahresverwaltung und Festschreibung mit ihrer Transaktion.
 func NewPeriodService(years domain.FiscalYearRepository, journal domain.JournalRepository,
 	settings domain.SettingsRepository, commitments domain.FestschreibungRepository,
-	foundation domain.FoundationRepository, audit domain.AuditRepository, tx domain.TxRunner) *PeriodService {
+	audit domain.AuditRepository, tx domain.TxRunner) *PeriodService {
 	reader := newPeriodReader(journal, settings)
-	reader.fiscalYearRepo, reader.festschreibungRepo, reader.foundationRepo = years, commitments, foundation
+	reader.fiscalYearRepo, reader.festschreibungRepo = years, commitments
 	return &PeriodService{PeriodReader: reader, auditor: auditor[int]{auditRepo: audit, entity: "FISCAL_YEAR"}, tx: tx}
 }
 

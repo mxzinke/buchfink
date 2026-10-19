@@ -45,13 +45,13 @@ function rowsOf(foundation: Foundation | undefined, fallback: { name: string; sh
 export const FoundationDialog: React.FC<{
   foundation?: Foundation;
   rules: FoundationRules;
-  /** Vorbelegung aus den Stammdaten, wenn noch keine Gründung erfasst ist. */
-  defaults: { notarizedOn: string; shareCapital: number; shareholders: { name: string; shareCapital: number }[] };
+  /** Gründungsdatum der Stammdaten; Kapital und Gesellschafter als Vorbelegung ohne erfasste Gründung. */
+  defaults: { foundedOn: string; shareCapital: number; shareholders: { name: string; shareCapital: number }[] };
   onClose: () => void;
   onSaved: () => void;
 }> = ({ foundation, rules, defaults, onClose, onSaved }) => {
   const writeLock = useWriteLock();
-  const [notarizedOn, setNotarizedOn] = useState(foundation?.notarizedOn ?? defaults.notarizedOn);
+  const [notarizedOn, setNotarizedOn] = useState(defaults.foundedOn);
   const [capital, setCapital] = useState(() => {
     const cents = foundation?.shareCapital ?? defaults.shareCapital;
     return cents ? formatCentsPlain(cents) : '';
@@ -72,9 +72,8 @@ export const FoundationDialog: React.FC<{
     setBusy(true);
     setError('');
     try {
-      await Api.saveFoundation({
+      await Api.saveFoundation(notarizedOn, {
         ...(foundation ?? {}),
-        notarizedOn,
         registeredOn: foundation?.registeredOn ?? '',
         registerCourt: foundation?.registerCourt ?? '',
         registerNumber: foundation?.registerNumber ?? '',

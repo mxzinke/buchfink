@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -144,16 +145,18 @@ func (s *FoundationService) GetState(ctx context.Context) (*FoundationState, err
 }
 
 // Save writes the Gründung after checking what only this service can check.
-func (s *FoundationService) Save(ctx context.Context, f *domain.Foundation) (*domain.Foundation, error) {
+// notarizedOn ist der Tag der Beurkundung; er wird zum Gründungsdatum der
+// Unternehmensdaten.
+func (s *FoundationService) Save(ctx context.Context, notarizedOn string, f *domain.Foundation) (*domain.Foundation, error) {
 	if err := requireHuman(ctx, "Die Erfassung der Gründung"); err != nil {
 		return nil, err
 	}
 	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.Foundation, error) {
-		return s.save(ctx, f)
+		return s.save(ctx, notarizedOn, f)
 	})
 }
 
-func (s *FoundationService) save(ctx context.Context, f *domain.Foundation) (*domain.Foundation, error) {
+func (s *FoundationService) save(ctx context.Context, notarizedOn string, f *domain.Foundation) (*domain.Foundation, error) {
 	settings, err := s.settingsRepo.GetCompanySettings(ctx)
 	if err != nil {
 		return nil, err
@@ -162,7 +165,7 @@ func (s *FoundationService) save(ctx context.Context, f *domain.Foundation) (*do
 	if err != nil {
 		return nil, err
 	}
-	if err := validateFoundation(f, rules); err != nil {
+	if err := validateFoundation(notarizedOn, f, rules); err != nil {
 		return nil, err
 	}
 
@@ -175,10 +178,10 @@ func (s *FoundationService) save(ctx context.Context, f *domain.Foundation) (*do
 	}
 	if err := s.audit(ctx, domain.AuditActionUpdate, f.ID, fmt.Sprintf(
 		"Gründung erfasst: Beurkundung %s, Stammkapital %s €, %d Gesellschafter",
-		f.NotarizedOn, f.ShareCapital, len(f.Shareholders))); err != nil {
+		notarizedOn, f.ShareCapital, len(f.Shareholders))); err != nil {
 		return nil, err
 	}
-	if err := s.adoptFoundingSettings(ctx, existing, f); err != nil {
+	if err := s.adoptFoundingSettings(ctx, notarizedOn, existing, f); err != nil {
 		return nil, err
 	}
 
@@ -199,18 +202,18 @@ func (s *FoundationService) save(ctx context.Context, f *domain.Foundation) (*do
 }
 
 // validateFoundation checks what the Gesellschaftsvertrag itself has to satisfy.
-func validateFoundation(f *domain.Foundation, rules accounting.FoundationRules) error {
-	if len(f.NotarizedOn) != 10 {
+func validateFoundation(notarizedOn string, f *domain.Foundation, rules accounting.FoundationRules) error {
+	if _, err := calendar.Parse(notarizedOn); err != nil {
 		return fmt.Errorf("das Datum der Beurkundung fehlt oder ist unvollständig (erwartet JJJJ-MM-TT)")
 	}
 	if f.RegisteredOn != "" {
 		if len(f.RegisteredOn) != 10 {
 			return fmt.Errorf("das Datum der Eintragung ist unvollständig (erwartet JJJJ-MM-TT)")
 		}
-		if f.RegisteredOn < f.NotarizedOn {
+		if f.RegisteredOn < notarizedOn {
 			return fmt.Errorf(
 				"die Eintragung (%s) kann nicht vor der Beurkundung (%s) liegen",
-				f.RegisteredOn, f.NotarizedOn)
+				f.RegisteredOn, notarizedOn)
 		}
 	}
 	if f.ShareCapital < rules.MinShareCapital {
@@ -569,6 +572,10 @@ func (s *FoundationService) PreviewPostings(ctx context.Context) (*FoundationPos
 	if f == nil {
 		return nil, fmt.Errorf("für diesen Mandanten ist keine Gründung erfasst")
 	}
+	notarizedOn, err := s.notarizedOn(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	booked, err := s.postingsBooked(ctx)
 	if err != nil {
@@ -599,7 +606,7 @@ func (s *FoundationService) PreviewPostings(ctx context.Context) (*FoundationPos
 	})
 	preview.Postings = append(preview.Postings, FoundationPosting{
 		Title:       "Zeichnung des Stammkapitals",
-		Date:        f.NotarizedOn,
+		Date:        notarizedOn,
 		Description: "Übernahme der Geschäftsanteile laut Gesellschaftsvertrag",
 		Reference:   "§ 272 Abs. 1 HGB",
 		Amount:      f.ShareCapital,
@@ -720,9 +727,13 @@ func (s *FoundationService) register(ctx context.Context, date, court, number st
 	if len(date) != 10 {
 		return nil, fmt.Errorf("das Datum der Eintragung fehlt oder ist unvollständig (erwartet JJJJ-MM-TT)")
 	}
-	if date < f.NotarizedOn {
+	notarizedOn, err := s.notarizedOn(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if date < notarizedOn {
 		return nil, fmt.Errorf(
-			"die Eintragung (%s) kann nicht vor der Beurkundung (%s) liegen", date, f.NotarizedOn)
+			"die Eintragung (%s) kann nicht vor der Beurkundung (%s) liegen", date, notarizedOn)
 	}
 	if strings.TrimSpace(number) == "" {
 		return nil, fmt.Errorf("die Registernummer fehlt")
@@ -771,13 +782,24 @@ func (s *FoundationService) registerFromSettings(ctx context.Context, date, cour
 	return err
 }
 
-// adoptFoundingSettings trägt Gründungsdatum, Stammkapital und Gesellschafter in
-// die Stammdaten ein, solange dort nichts steht oder noch der vorige Stand der
-// Gründung. Was jemand in den Stammdaten davon abweichend gepflegt hat, bleibt.
-func (s *FoundationService) adoptFoundingSettings(ctx context.Context, previous, f *domain.Foundation) error {
-	if s.settingsRepo == nil {
-		return nil
+// notarizedOn ist der Tag der Beurkundung: das Gründungsdatum der
+// Unternehmensdaten.
+func (s *FoundationService) notarizedOn(ctx context.Context) (string, error) {
+	settings, err := s.settingsRepo.GetCompanySettings(ctx)
+	if err != nil {
+		return "", err
 	}
+	if settings == nil || len(settings.FoundedOn) != 10 {
+		return "", fmt.Errorf("in den Unternehmensdaten fehlt das Gründungsdatum, der Tag der Beurkundung")
+	}
+	return settings.FoundedOn, nil
+}
+
+// adoptFoundingSettings schreibt den Tag der Beurkundung als Gründungsdatum in
+// die Stammdaten. Stammkapital und Gesellschafter übernimmt es, solange dort
+// nichts steht oder noch der vorige Stand der Gründung; was jemand in den
+// Stammdaten davon abweichend gepflegt hat, bleibt.
+func (s *FoundationService) adoptFoundingSettings(ctx context.Context, notarizedOn string, previous, f *domain.Foundation) error {
 	settings, err := s.settingsRepo.GetCompanySettings(ctx)
 	if err != nil || settings == nil {
 		return err
@@ -787,8 +809,8 @@ func (s *FoundationService) adoptFoundingSettings(ctx context.Context, previous,
 		before = *previous
 	}
 	changed := false
-	if (settings.FoundedOn == "" || settings.FoundedOn == before.NotarizedOn) && settings.FoundedOn != f.NotarizedOn {
-		settings.FoundedOn = f.NotarizedOn
+	if settings.FoundedOn != notarizedOn {
+		settings.FoundedOn = notarizedOn
 		changed = true
 	}
 	if (settings.ShareCapital == 0 || settings.ShareCapital == before.ShareCapital) && settings.ShareCapital != f.ShareCapital {

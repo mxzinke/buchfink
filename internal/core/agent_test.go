@@ -92,7 +92,7 @@ func TestAgentsAreRefusedForHumanOnlyOperations(t *testing.T) {
 			return s.Bank.SetInvoiceAccount(ctx, "DE02120300000000202051")
 		}),
 		"service.FoundationService.Save": inService(func(ctx context.Context, s *Services) error {
-			_, err := s.Foundation.Save(ctx, &domain.Foundation{NotarizedOn: "2026-01-10", ShareCapital: 2_500_000})
+			_, err := s.Foundation.Save(ctx, "2026-01-10", &domain.Foundation{ShareCapital: 2_500_000})
 			return err
 		}),
 		"service.FoundationService.Register": inService(func(ctx context.Context, s *Services) error {

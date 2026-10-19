@@ -50,15 +50,10 @@ func (s *PeriodReader) derive(ctx context.Context, year int) *domain.FiscalYear 
 	return domain.NewFiscalYear(year, startDate, endDate)
 }
 
-// foundingDate ist der Tag der Beurkundung: aus der erfassten Gründung, sonst
-// das Gründungsdatum der Unternehmensdaten. Die Einrichtung setzt es bei einer
-// Gründung als Starttag der Bücher, bevor die Gründung selbst erfasst ist.
+// foundingDate ist der Tag der Beurkundung: das Gründungsdatum der
+// Unternehmensdaten. Die Einrichtung setzt es bei einer Gründung als Starttag
+// der Bücher, die Erfassung der Gründung schreibt es fort.
 func (s *PeriodReader) foundingDate(ctx context.Context) string {
-	if s.foundationRepo != nil {
-		if f, err := s.foundationRepo.Get(ctx); err == nil && f != nil && len(f.NotarizedOn) == 10 {
-			return f.NotarizedOn
-		}
-	}
 	if s.settingsRepo != nil {
 		if cfg, err := s.settingsRepo.GetCompanySettings(ctx); err == nil && cfg != nil && len(cfg.FoundedOn) == 10 {
 			return cfg.FoundedOn
@@ -115,17 +110,13 @@ func (s *PeriodReader) carryForwardDate(ctx context.Context, fy *domain.FiscalYe
 }
 
 func (s *PeriodService) alignFoundingYear(ctx context.Context) error {
-	if s.foundationRepo == nil {
-		return nil
-	}
-	f, err := s.foundationRepo.Get(ctx)
-	if err != nil || f == nil || len(f.NotarizedOn) != 10 {
-		// Kein Gründungsfall: nichts anzugleichen. Ein Lesefehler ist hier kein
-		// Grund, das Speichern der Gründung scheitern zu lassen.
+	founded := s.foundingDate(ctx)
+	if founded == "" {
+		// Ohne Gründungsdatum ist nichts anzugleichen.
 		return nil
 	}
 
-	year := domain.GetFiscalYearForDate(f.NotarizedOn, s.closingCalendar().fiscalYearStartMonth(ctx))
+	year := domain.GetFiscalYearForDate(founded, s.closingCalendar().fiscalYearStartMonth(ctx))
 	fy, err := s.fiscalYearRepo.FindByYear(ctx, year)
 	if err != nil {
 		return err
@@ -135,13 +126,11 @@ func (s *PeriodService) alignFoundingYear(ctx context.Context) error {
 		// `derive`, und das kennt die Beurkundung bereits.
 		return nil
 	}
-	if fy.StartDate == f.NotarizedOn {
-		return nil
-	}
-	// Die Beurkundung muss in das Jahr fallen, dessen Beginn sie setzen soll.
-	// Liegt sie davor, ist das Unternehmen älter als dieses Geschäftsjahr, und
-	// der Beginn hat mit ihr nichts zu tun.
-	if f.NotarizedOn <= fy.StartDate || f.NotarizedOn > fy.EndDate {
+	// Das Gründungsjahr beginnt mit der Beurkundung, frühestens mit seinem
+	// regulären Beginn (`derive`). Ein berichtigtes Gründungsdatum zieht den
+	// Beginn deshalb in beide Richtungen nach.
+	start := s.derive(ctx, year).StartDate
+	if fy.StartDate == start || founded > fy.EndDate {
 		return nil
 	}
 
@@ -163,9 +152,9 @@ func (s *PeriodService) alignFoundingYear(ctx context.Context) error {
 				year, germanDate(cutoff))
 		}
 	}
-	// Eine Buchung vor der Beurkundung wäre nach der Angleichung außerhalb ihres
-	// Geschäftsjahres — sie gehörte dann zu keinem Zeitraum mehr.
-	before, err := s.journalRepo.FindByBookingDateRange(ctx, year, "", previousDay(f.NotarizedOn))
+	// Eine Buchung vor dem neuen Beginn wäre nach der Angleichung außerhalb
+	// ihres Geschäftsjahres — sie gehörte dann zu keinem Zeitraum mehr.
+	before, err := s.journalRepo.FindByBookingDateRange(ctx, year, "", previousDay(start))
 	if err != nil {
 		return fmt.Errorf("die Buchungen des Geschäftsjahres %d konnten nicht gelesen werden: %w", year, err)
 	}
@@ -173,12 +162,12 @@ func (s *PeriodService) alignFoundingYear(ctx context.Context) error {
 		return fmt.Errorf(
 			"im Geschäftsjahr %d stehen %d Buchungen vor dem Beurkundungstag %s. Sie lägen nach der "+
 				"Umstellung außerhalb ihres Geschäftsjahres — prüfen Sie, ob das Beurkundungsdatum stimmt",
-			year, len(before), germanDate(f.NotarizedOn))
+			year, len(before), germanDate(start))
 	}
 
 	previous := fy.StartDate
 	snapshot := *fy
-	aligned := domain.NewFiscalYear(year, f.NotarizedOn, fy.EndDate)
+	aligned := domain.NewFiscalYear(year, start, fy.EndDate)
 	if err := aligned.Validate(); err != nil {
 		return err
 	}
@@ -191,8 +180,8 @@ func (s *PeriodService) alignFoundingYear(ctx context.Context) error {
 		return err
 	}
 	if err := s.logChange(ctx, domain.AuditActionUpdate, year, fmt.Sprintf(
-		"Beginn des Geschäftsjahres %d von %s auf den Beurkundungstag %s gesetzt%s",
-		year, germanDate(previous), germanDate(f.NotarizedOn), shortSuffix(fy)), &snapshot, fy); err != nil {
+		"Beginn des Geschäftsjahres %d von %s auf den %s gesetzt (Gründungsdatum %s)%s",
+		year, germanDate(previous), germanDate(start), germanDate(founded), shortSuffix(fy)), &snapshot, fy); err != nil {
 		return err
 	}
 	return nil

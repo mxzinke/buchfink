@@ -202,7 +202,7 @@ export const CapitalBlock: React.FC<{
                   value: (
                     <span className="flex flex-wrap items-center gap-x-3">
                       <span className="num">
-                        Beurkundet am {formatDate(f.notarizedOn)} · {formatCents(paidIn)} von{' '}
+                        Beurkundet am {formatDate(settings.foundedOn)} · {formatCents(paidIn)} von{' '}
                         {formatCents(f.shareCapital)} eingezahlt
                       </span>
                       <Button
@@ -490,7 +490,7 @@ export const CapitalBlock: React.FC<{
         <FoundationDialog
           foundation={f}
           rules={rules}
-          defaults={{ notarizedOn: settings.foundedOn, shareCapital: capital, shareholders }}
+          defaults={{ foundedOn: settings.foundedOn, shareCapital: capital, shareholders }}
           onClose={() => setFoundationOpen(false)}
           onSaved={() => {
             setFoundationOpen(false);

@@ -172,8 +172,8 @@ func TestOpeningBalancePDFIsSetBeforeTheDialog(t *testing.T) {
 	if _, err := b.SaveOpeningBalanceAs(); err == nil || !strings.Contains(err.Error(), "Gründungsdatum") {
 		t.Errorf("ohne Gründungsdatum: %v", err)
 	}
-	if _, err := b.SaveFoundation(domain.Foundation{
-		NotarizedOn: "2026-01-15", ShareCapital: 2_500_000,
+	if _, err := b.SaveFoundation("2026-01-15", domain.Foundation{
+		ShareCapital: 2_500_000,
 		Shareholders: []domain.Shareholder{{Name: "Anna Bauer", ShareCapital: 2_500_000, PaidIn: 1_250_000,
 			Kind: domain.ContributionCash}},
 	}); err != nil {

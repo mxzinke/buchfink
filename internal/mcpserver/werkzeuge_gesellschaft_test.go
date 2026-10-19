@@ -434,8 +434,8 @@ func TestAuswertungShowsTheUnterbilanz(t *testing.T) {
 	}
 
 	h.ui(func(ctx context.Context, s *core.Services) error {
-		if _, err := s.Foundation.Save(ctx, &domain.Foundation{
-			NotarizedOn: "2026-01-15", ShareCapital: 2_500_000, FoundationCostCap: 100_000,
+		if _, err := s.Foundation.Save(ctx, "2026-01-15", &domain.Foundation{
+			ShareCapital: 2_500_000, FoundationCostCap: 100_000,
 			Shareholders: []domain.Shareholder{
 				{Name: "Anna Bauer", ShareCapital: 2_500_000, PaidIn: 1_250_000, Kind: domain.ContributionCash},
 			},

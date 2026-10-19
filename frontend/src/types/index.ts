@@ -1547,10 +1547,9 @@ export interface Shareholder {
   kind: ContributionKind;
 }
 
+/** Die Gründung. Den Tag der Beurkundung führen die Stammdaten als `foundedOn`. */
 export interface Foundation {
   id: number;
-  /** Tag der notariellen Beurkundung. Mit ihm entsteht die Vorgesellschaft. */
-  notarizedOn: string;
   /** Tag der Eintragung. Leer heißt: noch Vorgesellschaft. */
   registeredOn: string;
   registerCourt: string;

@@ -58,6 +58,14 @@ Zeichnung und Einforderung bucht ein Agent nach Zustimmung im Chat
 Anteile und Eintragung ins Handelsregister pflegt der Mensch in der App
 (`FoundationService.Save`, `FoundationService.Register`).
 
+Den Tag der Beurkundung führt Buchfink an einer Stelle: als Gründungsdatum der
+Unternehmensdaten (`CompanySettings.FoundedOn`). Die Erfassung der Gründung
+schreibt ihn dorthin, die Stammdaten berichtigen ihn. Beginn des
+Gründungsjahres, Zeichnung, Eröffnungsbilanz, Pflichten und Erklärungen lesen
+ihn von dort. Ändert er sich, zieht Buchfink den Beginn des Gründungsjahres
+nach, solange es weder festgestellt noch festgeschrieben ist und keine Buchung
+vor dem neuen Beginn liegt.
+
 ## Unterbilanz
 
 Bleibt das Reinvermögen am Tag der Eintragung hinter dem Stammkapital zurück,
@@ -99,8 +107,6 @@ besteht:
   erfassten Gründung ab.
 - Firma oder Sitz fehlen in den Unternehmensdaten; nach der Eintragung auch
   Registergericht und -nummer.
-- Die Gründung nennt einen anderen Tag der Beurkundung als das Gründungsdatum
-  der Unternehmensdaten.
 
 Als E-Bilanz ([§ 5b Abs. 1 Satz 4 EStG][estg5b]) geben sie die App bei der
 E-Bilanz des ersten Geschäftsjahres und `ebilanz_exportieren` mit

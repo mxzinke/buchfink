@@ -76,7 +76,7 @@ func (s *FoundationService) OpeningBalance(ctx context.Context) (*OpeningBalance
 	if err != nil {
 		return nil, err
 	}
-	if f == nil || len(f.NotarizedOn) != 10 {
+	if f == nil {
 		return nil, fmt.Errorf("für diesen Mandanten ist keine Gründung erfasst; " +
 			"erfassen Sie sie unter Unternehmen, Stammdaten, Gesellschafter & Kapital")
 	}
@@ -91,15 +91,6 @@ func (s *FoundationService) OpeningBalance(ctx context.Context) (*OpeningBalance
 
 	out := &OpeningBalanceSheet{
 		AsOf: asOf, Statement: *stmt, Findings: []string{},
-	}
-	// Beide Felder meinen den Tag der Beurkundung. Weichen sie ab, prüfte die
-	// Aufstellung das Kapital der Gründung an einem anderen Tag als dem, auf
-	// den sie steht.
-	if f.NotarizedOn != asOf {
-		out.Findings = append(out.Findings, fmt.Sprintf(
-			"Die Gründung nennt als Tag der Beurkundung den %s, die Unternehmensdaten als Gründungsdatum "+
-				"den %s. Die Eröffnungsbilanz und ihre E-Bilanz stehen auf dem Gründungsdatum; bitte eine "+
-				"der beiden Angaben berichtigen.", germanDate(f.NotarizedOn), germanDate(asOf)))
 	}
 
 	// Der Kopf des Geschäftsjahres, in das die Beurkundung fällt — Firma, Sitz,

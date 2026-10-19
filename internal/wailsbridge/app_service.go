@@ -634,10 +634,11 @@ func (b *BuchfinkBridge) GetFoundationState() (*service.FoundationState, error) 
 	})
 }
 
-// SaveFoundation records or updates the Gründung of the active tenant.
-func (b *BuchfinkBridge) SaveFoundation(f domain.Foundation) (*domain.Foundation, error) {
+// SaveFoundation records or updates the Gründung of the active tenant. Der Tag
+// der Beurkundung wird zum Gründungsdatum der Unternehmensdaten.
+func (b *BuchfinkBridge) SaveFoundation(notarizedOn string, f domain.Foundation) (*domain.Foundation, error) {
 	return write(b, func(ctx context.Context, s *core.Services) (*domain.Foundation, error) {
-		return s.Foundation.Save(ctx, &f)
+		return s.Foundation.Save(ctx, notarizedOn, &f)
 	}, core.AppOnly())
 }
 

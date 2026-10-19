@@ -99,7 +99,7 @@ func refusesAppOnlyOperations(t *testing.T, ctx context.Context) {
 			return (&BankService{}).SetInvoiceAccount(ctx, "DE02120300000000202051")
 		},
 		"Gründung samt Gesellschaftern erfassen": func() error {
-			_, err := (&FoundationService{}).Save(ctx, &domain.Foundation{})
+			_, err := (&FoundationService{}).Save(ctx, "", &domain.Foundation{})
 			return err
 		},
 		"Eintragung ins Handelsregister": func() error {

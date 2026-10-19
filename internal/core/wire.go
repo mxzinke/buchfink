@@ -67,7 +67,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 
 	// Der Journaldienst ist der einzige Schreibweg ins Journal und hält die
 	// Transaktion aller Vorgänge, die über ihn buchen.
-	s.Periods = service.NewPeriodService(fiscalYearRepo, journalRepo, settingsRepo, festschreibungRepo, foundationRepo, auditRepo, txRunner)
+	s.Periods = service.NewPeriodService(fiscalYearRepo, journalRepo, settingsRepo, festschreibungRepo, auditRepo, txRunner)
 	s.Journal = service.NewJournalService(journalRepo, accountRepo, contactRepo, auditRepo, settingsRepo, txRunner)
 	s.Journal.SetPeriods(s.Periods)
 	s.Journal.AddEntryRules(taxrules.EntryRules()...)
@@ -134,6 +134,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	adoptionChecks := s.Closing.AdoptionChecks()
 	s.Periods.SetAdoptionChecks(adoptionChecks)
 	s.Foundation.SetFoundingYearAligner(s.Closing)
+	s.Settings.SetFoundingYearAligner(s.Closing)
 	s.ClosingSettings = service.NewClosingSettingsService(settingsRepo, auditRepo)
 
 	s.Accruals = service.NewAccrualService(

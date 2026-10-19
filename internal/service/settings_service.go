@@ -15,6 +15,7 @@ type SettingsService struct {
 	settingsRepo       domain.SettingsRepository
 	auditRepo          domain.AuditRepository
 	registrar          FoundationRegistrar
+	yearAligner        FoundingYearAligner
 	journalRepo        domain.JournalRepository
 	festschreibungRepo domain.FestschreibungRepository
 	events             ObligationEventRecorder
@@ -38,6 +39,10 @@ type FoundationRegistrar interface {
 
 // SetFoundationRegistrar koppelt die Stammdaten an die Gründung.
 func (s *SettingsService) SetFoundationRegistrar(r FoundationRegistrar) { s.registrar = r }
+
+// SetFoundingYearAligner zieht den Beginn des Gründungsjahres nach, wenn sich
+// das Gründungsdatum ändert. Ohne ihn bleibt der Zeitraum, wie er war.
+func (s *SettingsService) SetFoundingYearAligner(a FoundingYearAligner) { s.yearAligner = a }
 
 // SetBookkeeping gibt den Stammdaten den Stand der Bücher. Mit ihm hält
 // UpdateCompanySettings den Beginn des Geschäftsjahres fest, sobald gebucht
@@ -88,8 +93,13 @@ func (s *SettingsService) UpdateCompanySettings(ctx context.Context, settings *d
 			domain.LegalFormGmbH, domain.LegalFormUG, settings.LegalForm)
 	}
 
+	if err := s.settingsRepo.UpdateCompanySettings(ctx, settings); err != nil {
+		return err
+	}
 	// Die Eintragung wird in den Stammdaten erfasst; die Gründung muss sie
-	// kennen, sonst bleibt die Gesellschaft dort Vorgesellschaft.
+	// kennen, sonst bleibt die Gesellschaft dort Vorgesellschaft. Erst nach dem
+	// Schreiben, damit die Gründung ein im selben Zug berichtigtes
+	// Gründungsdatum sieht.
 	registeredNow := settings.RegisteredOn != "" && (before == nil || before.RegisteredOn != settings.RegisteredOn)
 	if s.registrar != nil && registeredNow {
 		if err := s.registrar.RegisterFromSettings(
@@ -97,10 +107,6 @@ func (s *SettingsService) UpdateCompanySettings(ctx context.Context, settings *d
 		); err != nil {
 			return err
 		}
-	}
-
-	if err := s.settingsRepo.UpdateCompanySettings(ctx, settings); err != nil {
-		return err
 	}
 	if s.events != nil && shareholdersChanged(before, settings) {
 		if _, err := s.events.RecordEvent(ctx, domain.EventShareholderChange, s.today(),
@@ -118,6 +124,14 @@ func (s *SettingsService) UpdateCompanySettings(ctx context.Context, settings *d
 		return err
 	}
 
+	// Wie beim Erfassen der Gründung: das Gründungsdatum bleibt gespeichert,
+	// auch wenn sich der Beginn des Gründungsjahres nicht mehr verschieben lässt.
+	if s.yearAligner != nil && (before == nil || before.FoundedOn != settings.FoundedOn) {
+		if err := s.yearAligner.AlignFoundingYear(ctx); err != nil {
+			return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "SETTINGS", "COMPANY", fmt.Sprintf(
+				"Der Beginn des Gründungsjahres konnte nicht auf das Gründungsdatum gesetzt werden: %v", err))
+		}
+	}
 	return nil
 }
 

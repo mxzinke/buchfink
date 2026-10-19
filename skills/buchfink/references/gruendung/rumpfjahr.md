@@ -27,9 +27,10 @@ GewStG, UStG und AO am 17.10.2026 gelesen.
 ## 2. In Buchfink
 
 - Buchfink beginnt das erste Geschäftsjahr am Beurkundungstag, wenn der Mensch
-  die Gründung im Einrichtungsassistenten erfasst. Den Beginn zieht Buchfink nur
-  nach, solange der Abschluss nicht festgestellt, kein Zeitraum festgeschrieben
-  und keine Buchung vor dem Beurkundungstag vorhanden ist.
+  die Gründung im Einrichtungsassistenten erfasst. Berichtigt er das
+  Gründungsdatum später in den Stammdaten, zieht Buchfink den Beginn nach,
+  solange der Abschluss nicht festgestellt, kein Zeitraum festgeschrieben und
+  keine Buchung vor dem neuen Beginn vorhanden ist.
 - Prüfe mit `status`: `geschaeftsjahre[]` mit `von` gleich Beurkundungstag und
   `bis` gleich Ende laut Vertrag. Weicht es ab, sag es dem Menschen; ein
   Werkzeug zum Ändern gibt es nicht.

@@ -14,7 +14,6 @@ import (
 // Beschluss.
 func halfPaidFoundation() *domain.Foundation {
 	return &domain.Foundation{
-		NotarizedOn:  "2026-01-15",
 		ShareCapital: 2_500_000,
 		Shareholders: []domain.Shareholder{
 			{Name: "Anna Bauer", ShareCapital: 2_500_000, PaidIn: 1_250_000, Uncalled: 1_250_000,
@@ -106,7 +105,7 @@ func TestUncalledCapitalIsLimitedByWhatTheRegistrationNeeds(t *testing.T) {
 		svc := env.foundations(t)
 		f := halfPaidFoundation()
 		change(f)
-		if _, err := svc.Save(context.Background(), f); err == nil {
+		if _, err := svc.Save(context.Background(), notarizedOn, f); err == nil {
 			t.Errorf("%s: angenommen", name)
 		}
 	}
@@ -114,8 +113,8 @@ func TestUncalledCapitalIsLimitedByWhatTheRegistrationNeeds(t *testing.T) {
 	env := newTestEnv(t)
 	env.setSetting(t, "legal_form", "UG (haftungsbeschränkt)")
 	svc := env.foundations(t)
-	_, err := svc.Save(context.Background(), &domain.Foundation{
-		NotarizedOn: "2026-01-15", ShareCapital: 100_000,
+	_, err := svc.Save(context.Background(), notarizedOn, &domain.Foundation{
+		ShareCapital: 100_000,
 		Shareholders: []domain.Shareholder{{Name: "Anna Bauer", ShareCapital: 100_000, PaidIn: 50_000,
 			Uncalled: 50_000, Kind: domain.ContributionCash}},
 	})

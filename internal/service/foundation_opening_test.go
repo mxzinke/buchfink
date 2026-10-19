@@ -16,6 +16,14 @@ import (
 // Anwendung tut.
 func openingEnv(t *testing.T, env *testEnv) *FoundationService {
 	t.Helper()
+	svc := env.foundations(t)
+	wireOpening(t, env, svc)
+	return svc
+}
+
+// wireOpening gibt der Gründung Sitz, Gliederung und Satz.
+func wireOpening(t *testing.T, env *testEnv, svc *FoundationService) {
+	t.Helper()
 	// Der Sitz ist Pflichtangabe im Kopf (§ 264 Abs. 1a Nr. 2 HGB). Die
 	// Testumgebung setzt ihn nicht — hier steht er, damit die Prüfung auf
 	// fehlende Angaben nicht jede Aufstellung beanstandet.
@@ -29,12 +37,10 @@ func openingEnv(t *testing.T, env *testEnv) *FoundationService {
 		t.Fatalf("Sitz setzen: %v", err)
 	}
 
-	svc := env.foundations(t)
 	svc.SetStatementSource(env.statements(t))
 	// Der echte Satz: die Eröffnungsbilanz entsteht als PDF, und ein
 	// Attrappen-Renderer prüfte nur die Verkabelung.
 	svc.SetRenderer(sharedRenderer())
-	return svc
 }
 
 // Die Eröffnungsbilanz steht auf den Tag der Beurkundung (§ 242 Abs. 1 HGB) und
@@ -238,50 +244,77 @@ func TestOpeningBalancePDFAndEBilanzShowTheSameBalance(t *testing.T) {
 	}
 }
 
-// Stichtag ist das Gründungsdatum der Unternehmensdaten, wie für die E-Bilanz
-// und den Pflichtenkalender. Nennt die Gründung einen anderen Tag, stehen beide
-// trotzdem auf demselben, und das PDF entsteht erst, wenn die Angaben
-// übereinstimmen.
-func TestOpeningBalanceStandsOnTheFoundingDateOfTheSettings(t *testing.T) {
+// Der Tag der Beurkundung hat eine Quelle: das Gründungsdatum der
+// Unternehmensdaten. Die Gründung schreibt es, die Stammdaten berichtigen es,
+// und Geschäftsjahr, Gründungsbuchung, Eröffnungsbilanz als PDF und E-Bilanz
+// sowie die Pflichten stehen danach auf demselben Tag.
+func TestFoundingDateIsTheSameForYearOpeningBalanceAndObligations(t *testing.T) {
 	env := newTestEnv(t)
-	svc := openingEnv(t, env)
+	closing, svc := alignEnv(t, env)
+	wireOpening(t, env, svc)
 	ctx := context.Background()
 	withElsterTaxNumber(t, env)
-
-	env.saveFoundation(t, svc, gmbhFoundation()) // Beurkundung 15.01.2026
-	if _, err := svc.BookPostings(ctx); err != nil {
-		t.Fatalf("Gründungsbuchungen: %v", err)
+	if err := closing.EnsureFiscalYears(ctx, 2026); err != nil {
+		t.Fatalf("Geschäftsjahre anlegen: %v", err)
 	}
-	env.book(t, "2026-01-18", "Einzahlung Anna Bauer", "1800", "1298", 750_000)
 
-	settings := repository.NewSettingsRepository(env.db)
+	env.saveFoundationOn(t, svc, "2026-03-10", gmbhFoundation())
+	settings := NewSettingsService(repository.NewSettingsRepository(env.db), repository.NewAuditRepository(env.db))
+	settings.SetFoundingYearAligner(closing)
 	cfg, err := settings.GetCompanySettings(ctx)
 	if err != nil {
 		t.Fatalf("Unternehmensdaten: %v", err)
 	}
-	cfg.FoundedOn = "2026-01-20"
+	if cfg.FoundedOn != "2026-03-10" {
+		t.Fatalf("Gründungsdatum %q, erwartet den Beurkundungstag der Gründung", cfg.FoundedOn)
+	}
+	cfg.FoundedOn = "2026-03-12"
 	if err := settings.UpdateCompanySettings(ctx, cfg); err != nil {
-		t.Fatalf("Gründungsdatum: %v", err)
+		t.Fatalf("Gründungsdatum berichtigen: %v", err)
 	}
 
+	preview, err := svc.PreviewPostings(ctx)
+	if err != nil || len(preview.Postings) == 0 {
+		t.Fatalf("Gründungsbuchungen: %+v (%v)", preview, err)
+	}
+	if _, err := svc.BookPostings(ctx); err != nil {
+		t.Fatalf("Gründungsbuchungen: %v", err)
+	}
+	fy, err := closing.PeriodOf(ctx, 2026)
+	if err != nil {
+		t.Fatalf("Geschäftsjahr 2026: %v", err)
+	}
 	sheet, err := svc.OpeningBalance(ctx)
 	if err != nil {
 		t.Fatalf("Eröffnungsbilanz: %v", err)
 	}
-	closing, assets, _ := openingEBilanz(t, env, 2026)
-	if sheet.AsOf != "2026-01-20" || closing != sheet.AsOf || assets != xbrlAmount(sheet.Assets) {
-		t.Errorf("Aufstellung %s mit Aktiva %s, E-Bilanz %s mit Aktiva %s",
-			sheet.AsOf, xbrlAmount(sheet.Assets), closing, assets)
+	file, err := svc.OpeningBalancePDF(ctx)
+	if err != nil {
+		t.Fatalf("Eröffnungsbilanz setzen: %v", err)
 	}
-	if _, err := svc.OpeningBalancePDF(ctx); err == nil || !strings.Contains(err.Error(), "Gründungsdatum") {
-		t.Errorf("abweichende Daten: %v", err)
+	ebilanzDay, _, _ := openingEBilanz(t, env, 2026)
+	obligations := env.obligations(t)
+	var obligationDays []string
+	for _, key := range []string{"eroeffnungsbilanz.gruendung", "e-bilanz-eroeffnung.gruendung"} {
+		o, err := obligations.Get(ctx, key, "2026-10-17")
+		if err != nil {
+			t.Fatalf("Pflicht %s: %v", key, err)
+		}
+		obligationDays = append(obligationDays, o.PeriodFrom)
 	}
 
-	cfg.FoundedOn = "2026-01-15"
-	if err := settings.UpdateCompanySettings(ctx, cfg); err != nil {
-		t.Fatalf("Gründungsdatum: %v", err)
-	}
-	if _, err := svc.OpeningBalancePDF(ctx); err != nil {
-		t.Errorf("übereinstimmende Daten: %v", err)
+	const want = "2026-03-12"
+	for label, got := range map[string]string{
+		"Beginn des Geschäftsjahres": fy.StartDate,
+		"Gründungsbuchung":           preview.Postings[0].Date,
+		"Eröffnungsbilanz":           sheet.AsOf,
+		"PDF":                        strings.TrimSuffix(strings.TrimPrefix(file.FileName, "Eroeffnungsbilanz_"), ".pdf"),
+		"E-Bilanz":                   ebilanzDay,
+		"Pflicht Eröffnungsbilanz":   obligationDays[0],
+		"Pflicht E-Bilanz":           obligationDays[1],
+	} {
+		if got != want {
+			t.Errorf("%s steht auf %q, erwartet %s", label, got, want)
+		}
 	}
 }

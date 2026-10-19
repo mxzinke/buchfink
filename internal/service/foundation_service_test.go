@@ -26,7 +26,6 @@ func (e *testEnv) foundations(t *testing.T) *FoundationService {
 // je die Hälfte ihrer Einlage geleistet.
 func gmbhFoundation() *domain.Foundation {
 	return &domain.Foundation{
-		NotarizedOn:  "2026-01-15",
 		ShareCapital: 2_500_000,
 		Shareholders: []domain.Shareholder{
 			{Name: "Anna Bauer", ShareCapital: 1_500_000, PaidIn: 750_000, Kind: domain.ContributionCash},
@@ -35,9 +34,18 @@ func gmbhFoundation() *domain.Foundation {
 	}
 }
 
+// notarizedOn ist der Beurkundungstag der Testgründungen.
+const notarizedOn = "2026-01-15"
+
 func (e *testEnv) saveFoundation(t *testing.T, svc *FoundationService, f *domain.Foundation) *domain.Foundation {
 	t.Helper()
-	saved, err := svc.Save(context.Background(), f)
+	return e.saveFoundationOn(t, svc, notarizedOn, f)
+}
+
+// saveFoundationOn erfasst die Gründung mit einem anderen Beurkundungstag.
+func (e *testEnv) saveFoundationOn(t *testing.T, svc *FoundationService, date string, f *domain.Foundation) *domain.Foundation {
+	t.Helper()
+	saved, err := svc.Save(context.Background(), date, f)
 	if err != nil {
 		t.Fatalf("Gründung konnte nicht gespeichert werden: %v", err)
 	}
@@ -67,7 +75,7 @@ func TestSaveFoundationRejectsMismatchedShares(t *testing.T) {
 	f := gmbhFoundation()
 	f.Shareholders[1].ShareCapital = 900_000 // Summe 24.000 statt 25.000
 
-	_, err := svc.Save(context.Background(), f)
+	_, err := svc.Save(context.Background(), notarizedOn, f)
 	if err == nil {
 		t.Fatal("eine Gesellschafterliste, die das Stammkapital verfehlt, muss abgelehnt werden")
 	}
@@ -84,7 +92,7 @@ func TestSaveFoundationRejectsCapitalBelowMinimum(t *testing.T) {
 	f.ShareCapital = 1_000_000
 	f.Shareholders = []domain.Shareholder{{Name: "Anna Bauer", ShareCapital: 1_000_000, Kind: domain.ContributionCash}}
 
-	if _, err := svc.Save(context.Background(), f); err == nil {
+	if _, err := svc.Save(context.Background(), notarizedOn, f); err == nil {
 		t.Fatal("eine GmbH mit 10.000 € Stammkapital verstößt gegen § 5 Abs. 1 GmbHG")
 	}
 }
@@ -100,13 +108,12 @@ func TestSaveFoundationRejectsSacheinlageAtUG(t *testing.T) {
 	svc := env.foundations(t)
 
 	f := &domain.Foundation{
-		NotarizedOn:  "2026-01-15",
 		ShareCapital: 100_000,
 		Shareholders: []domain.Shareholder{
 			{Name: "Anna Bauer", ShareCapital: 100_000, PaidIn: 100_000, Kind: domain.ContributionInKind},
 		},
 	}
-	_, err := svc.Save(context.Background(), f)
+	_, err := svc.Save(context.Background(), notarizedOn, f)
 	if err == nil {
 		t.Fatal("§ 5a Abs. 2 Satz 2 GmbHG schließt Sacheinlagen bei der UG aus")
 	}
@@ -522,7 +529,6 @@ func TestSaveFoundationReplacesShareholderList(t *testing.T) {
 
 	// Ein Gesellschafter übernimmt alles.
 	f := &domain.Foundation{
-		NotarizedOn:  "2026-01-15",
 		ShareCapital: 2_500_000,
 		Shareholders: []domain.Shareholder{
 			{Name: "Anna Bauer", ShareCapital: 2_500_000, PaidIn: 1_250_000, Kind: domain.ContributionCash},
@@ -604,9 +610,8 @@ func TestFoundationFillsCompanyProfileWithoutOverridingIt(t *testing.T) {
 		t.Fatalf("Gründung nicht in die Stammdaten übernommen: %+v", cfg)
 	}
 
-	// Eine Korrektur der Gründung folgt, solange die Stammdaten ihr gleichen.
-	f.NotarizedOn = "2026-01-16"
-	env.saveFoundation(t, svc, f)
+	// Der Beurkundungstag der Gründung ist das Gründungsdatum der Stammdaten.
+	env.saveFoundationOn(t, svc, "2026-01-16", f)
 	if cfg, _ = settings.GetCompanySettings(ctx); cfg.FoundedOn != "2026-01-16" {
 		t.Fatalf("korrigierte Beurkundung nicht übernommen: %q", cfg.FoundedOn)
 	}
