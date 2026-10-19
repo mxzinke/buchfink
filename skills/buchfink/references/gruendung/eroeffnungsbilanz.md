@@ -79,9 +79,11 @@ hat.
 - Das Dokument dazu speichert der Mensch in der App: Unternehmen, Stammdaten,
   Block „Gesellschafter & Kapital“, „Als PDF speichern“ an der Pflicht. Es
   steht auf dem Gründungsdatum der Unternehmensdaten, wie die E-Bilanz der
-  Eröffnungsbilanz. Geht die Bilanz nicht auf oder weicht das Kapital von der
-  erfassten Gründung ab, meldet Buchfink den Befund statt der Datei. Ein
-  Werkzeug für das PDF gibt es nicht.
+  Eröffnungsbilanz, und hat je Geschäftsführer eine Zeile für Ort, Datum und
+  Unterschrift. Geht die Bilanz nicht auf, weicht das Kapital von der
+  erfassten Gründung ab oder fehlt die Geschäftsführung in den
+  Unternehmensdaten, meldet Buchfink den Befund statt der Datei. Ein Werkzeug
+  für das PDF gibt es nicht.
 - Die Eröffnungsbilanz ist zehn Jahre aufzubewahren
   ([§ 147 Abs. 1 Nr. 1, Abs. 3 AO][ao147]) und darf nicht nur als Wiedergabe
   auf einem Bild- oder Datenträger aufbewahrt werden

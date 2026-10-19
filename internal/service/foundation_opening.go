@@ -44,6 +44,9 @@ type OpeningBalanceSheet struct {
 	Balances bool         `json:"balances"`
 	Assets   domain.Cents `json:"assets"`
 	Equity   domain.Cents `json:"equity"`
+	// Signatories sind die Geschäftsführer aus den Unternehmensdaten; sie
+	// unterzeichnen mit Datum (§ 245 HGB über § 242 Abs. 1 Satz 2 HGB).
+	Signatories []string `json:"signatories"`
 	// Findings nennen, was der Aufstellung entgegensteht — je Befund ein Satz.
 	Findings []string `json:"findings"`
 }
@@ -90,7 +93,12 @@ func (s *FoundationService) OpeningBalance(ctx context.Context) (*OpeningBalance
 	}
 
 	out := &OpeningBalanceSheet{
-		AsOf: asOf, Statement: *stmt, Findings: []string{},
+		AsOf: asOf, Statement: *stmt, Signatories: splitDirectors(settings.ManagingDirectors), Findings: []string{},
+	}
+	if len(out.Signatories) == 0 {
+		out.Findings = append(out.Findings,
+			"In den Unternehmensdaten fehlt die Geschäftsführung; alle Geschäftsführer unterzeichnen die "+
+				"Eröffnungsbilanz mit Datum (§ 245 HGB).")
 	}
 
 	// Der Kopf des Geschäftsjahres, in das die Beurkundung fällt — Firma, Sitz,
@@ -270,7 +278,13 @@ func openingBalanceMarkdown(sheet *OpeningBalanceSheet, today string) string {
 		"Die Zahlen stammen aus den Buchungen bis zu diesem Tag. Aufwendungen für die Gründung " +
 			"dürfen nicht aktiviert werden (§ 248 Abs. 1 Nr. 1 HGB); sie erscheinen deshalb in " +
 			"keiner Position dieser Aufstellung.\n\n")
-	b.WriteString("Alle Geschäftsführer unterzeichnen die Eröffnungsbilanz mit Datum (§ 245 HGB).\n")
+	b.WriteString("## Unterschriften\n\n")
+	b.WriteString("Alle Geschäftsführer unterzeichnen die Eröffnungsbilanz mit Datum (§ 245 HGB).\n\n")
+	b.WriteString("::: unterschrift\n")
+	for _, name := range sheet.Signatories {
+		b.WriteString(name + "\n")
+	}
+	b.WriteString(":::\n")
 	return b.String()
 }
 

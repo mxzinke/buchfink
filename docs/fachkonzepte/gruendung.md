@@ -96,8 +96,10 @@ Kalender (`openingBalanceDate`).
 Als PDF zum Unterzeichnen gibt sie die App aus: „Als PDF speichern“ an der
 Pflicht unter Unternehmen › Stammdaten, Block „Gesellschafter & Kapital“
 (`FoundationService.OpeningBalancePDF`, Bridge `SaveOpeningBalanceAs`, auch im
-Prüfermodus). Das PDF nennt Firma, Sitz, Stichtag und die Posten mit Betrag;
-alle Geschäftsführer unterzeichnen es mit Datum ([§ 245 HGB][hgb245]).
+Prüfermodus). Das PDF nennt Firma, Sitz, Stichtag und die Posten mit Betrag
+und hat je Geschäftsführer aus den Unternehmensdaten eine Zeile für Ort und
+Datum und eine für die Unterschrift: alle Geschäftsführer unterzeichnen es mit
+Datum ([§ 245 HGB][hgb245]).
 Buchfink legt es nicht ab: die Zahlen stehen im Journal, und aus ihnen
 entsteht dasselbe Dokument neu. Es entsteht nicht, solange ein Befund
 besteht:
@@ -105,8 +107,8 @@ besteht:
 - Aktiva und Passiva gehen auseinander, oder zum Stichtag ist nichts gebucht.
 - Gezeichnetes oder nicht eingefordertes Kapital zum Stichtag weicht von der
   erfassten Gründung ab.
-- Firma oder Sitz fehlen in den Unternehmensdaten; nach der Eintragung auch
-  Registergericht und -nummer.
+- Firma, Sitz oder Geschäftsführung fehlen in den Unternehmensdaten; nach der
+  Eintragung auch Registergericht und -nummer.
 
 Als E-Bilanz ([§ 5b Abs. 1 Satz 4 EStG][estg5b]) geben sie die App bei der
 E-Bilanz des ersten Geschäftsjahres und `ebilanz_exportieren` mit

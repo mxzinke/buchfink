@@ -6,9 +6,11 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/ebilanz"
+	"github.com/buchfink/buchfink/internal/procdoc"
 	"github.com/buchfink/buchfink/internal/repository"
 )
 
@@ -33,6 +35,7 @@ func wireOpening(t *testing.T, env *testEnv, svc *FoundationService) {
 		t.Fatalf("Unternehmensdaten: %v", err)
 	}
 	cfg.Seat = "München"
+	cfg.ManagingDirectors = "Anna Bauer und Ben Conrad"
 	if err := settings.UpdateCompanySettings(context.Background(), cfg); err != nil {
 		t.Fatalf("Sitz setzen: %v", err)
 	}
@@ -177,6 +180,40 @@ func TestOpeningBalancePDFIsSetOnTheNotarizationDay(t *testing.T) {
 	}
 	if len(file.Data) < 4 || !strings.HasPrefix(string(file.Data[:4]), "%PDF") {
 		t.Error("die Eröffnungsbilanz ist kein PDF")
+	}
+}
+
+// Unter der Eröffnungsbilanz steht je Geschäftsführer eine Zeile für Ort und
+// Datum und eine für die Unterschrift (§ 245 HGB); die Namen kommen aus den
+// Unternehmensdaten. Ohne Geschäftsführung entsteht kein PDF.
+func TestOpeningBalancePDFHasASignatureLineForEveryDirector(t *testing.T) {
+	env := newTestEnv(t)
+	svc := openingEnv(t, env)
+	ctx := context.Background()
+	env.saveFoundation(t, svc, gmbhFoundation())
+	if _, err := svc.BookPostings(ctx); err != nil {
+		t.Fatalf("Gründungsbuchungen: %v", err)
+	}
+
+	sheet, err := svc.OpeningBalance(ctx)
+	if err != nil {
+		t.Fatalf("Eröffnungsbilanz: %v", err)
+	}
+	if strings.Join(sheet.Signatories, "|") != "Anna Bauer|Ben Conrad" {
+		t.Errorf("Unterzeichner %q", sheet.Signatories)
+	}
+	typst := procdoc.Typst(openingBalanceMarkdown(sheet, "2026-01-20"), "Eröffnungsbilanz", time.Time{})
+	if strings.Count(typst, "#line(length: 100%") != 4 || !strings.Contains(typst, "[Anna Bauer]") ||
+		!strings.Contains(typst, "[Ben Conrad]") {
+		t.Errorf("Unterschriftsblock im Satz: %s", typst)
+	}
+	if _, err := svc.OpeningBalancePDF(ctx); err != nil {
+		t.Fatalf("Eröffnungsbilanz setzen: %v", err)
+	}
+
+	env.setSettings(t, func(c *domain.CompanySettings) { c.ManagingDirectors = "" })
+	if _, err := svc.OpeningBalancePDF(ctx); err == nil || !strings.Contains(err.Error(), "Geschäftsführung") {
+		t.Errorf("ohne Geschäftsführung: %v", err)
 	}
 }
 

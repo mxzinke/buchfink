@@ -831,8 +831,11 @@ Mit und ohne Steuerberater:
 - **Buchfink liefert:** Salden der Gründungskonten zum Beurkundungstag über
   `auswertung`. Das PDF zum Unterzeichnen gibt nur die App aus. Stichtag ist
   das Gründungsdatum der Unternehmensdaten, wie bei
-  [ebilanz-eroeffnung](#ebilanz-eroeffnung). Buchfink setzt das PDF nicht,
-  solange die Bilanz nicht aufgeht oder das Kapital von der Gründung abweicht.
+  [ebilanz-eroeffnung](#ebilanz-eroeffnung). Das PDF hat je Geschäftsführer
+  aus den Unternehmensdaten eine Zeile für Ort, Datum und Unterschrift.
+  Buchfink setzt es nicht, solange die Bilanz nicht aufgeht, das Kapital von
+  der Gründung abweicht oder die Geschäftsführung in den Unternehmensdaten
+  fehlt.
 - **Nachweis:** Bestätigung in der App; die unterzeichnete Fassung liegt als
   Beleg im Archiv. Du meldest höchstens „vorbereitet“.
 - **Bei Versäumnis:** Strafbar ist, wer die Bilanz seines Vermögens nicht in

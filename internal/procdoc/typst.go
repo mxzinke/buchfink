@@ -20,11 +20,12 @@ func PDFFileName(company, version string) string {
 // beantworten. So ist das PDF der Satz des Textes, der auch als Markdown
 // im Belegspeicher liegt; beide sind aus einer Quelle.
 //
-// Der Umfang der Übersetzung ist der Umfang der Vorlage: Überschriften,
-// Absätze, Aufzählungen, nummerierte Schritte, Tabellen, fetter Text und
-// Textstellen in fester Breite. Was die Vorlage nicht verwendet, kann sie auch
-// nicht erzeugen; unbekannte Zeilen laufen als Absatz durch, statt verloren zu
-// gehen.
+// Der Umfang der Übersetzung ist der Umfang der Vorlagen: Überschriften,
+// Absätze, Aufzählungen, nummerierte Schritte, Tabellen, fetter Text,
+// Textstellen in fester Breite und ein Unterschriftsblock (`::: unterschrift`,
+// je Zeile ein Name, bis `:::`). Was die Vorlagen nicht verwenden, können sie
+// auch nicht erzeugen; unbekannte Zeilen laufen als Absatz durch, statt
+// verloren zu gehen.
 func Typst(markdown, title string, date time.Time) string {
 	var b strings.Builder
 	b.WriteString(`#set page(paper: "a4", margin: (x: 2cm, y: 2cm), numbering: "1 / 1")
@@ -45,6 +46,15 @@ func Typst(markdown, title string, date time.Time) string {
 		switch {
 		case trimmed == "":
 			b.WriteString("\n")
+
+		case trimmed == signatureFence:
+			var names []string
+			for i++; i < len(lines) && strings.TrimSpace(lines[i]) != ":::"; i++ {
+				if name := strings.TrimSpace(lines[i]); name != "" {
+					names = append(names, name)
+				}
+			}
+			writeTypstSignatures(&b, names)
 
 		case strings.HasPrefix(trimmed, "|"):
 			// Eine Tabelle reicht so weit, wie Zeilen mit Strich beginnen.
@@ -87,6 +97,27 @@ func Typst(markdown, title string, date time.Time) string {
 		}
 	}
 	return b.String()
+}
+
+// signatureFence eröffnet den Unterschriftsblock.
+const signatureFence = "::: unterschrift"
+
+// writeTypstSignatures setzt je Name eine Zeile für Ort und Datum und eine für
+// die Unterschrift, mit Platz zum Schreiben darüber. Gezogene Linien statt
+// Unterstrichen: eine Tabellenzelle wäre so breit wie ihr Kopf, und eine Reihe
+// Unterstriche bricht um.
+func writeTypstSignatures(b *strings.Builder, names []string) {
+	if len(names) == 0 {
+		return
+	}
+	cell := func(label string) string {
+		return "[#v(2.4em) #line(length: 100%, stroke: 0.5pt) #text(size: 8.5pt)[" + inlineTypst(label) + "]]"
+	}
+	b.WriteString("#block(breakable: false, above: 1.6em)[#grid(\n  columns: (1fr, 1.4fr),\n  column-gutter: 1.5cm,\n  row-gutter: 1.2em,\n")
+	for _, name := range names {
+		fmt.Fprintf(b, "  %s, %s,\n", cell("Ort, Datum"), cell(name))
+	}
+	b.WriteString(")]\n")
 }
 
 // writeTypstTable setzt eine Markdown-Tabelle. Die Trennzeile aus Strichen
