@@ -30,7 +30,12 @@ func (r *idempotencyRepositoryGorm) Find(ctx context.Context, clientID, key stri
 	return &rec, nil
 }
 
+// Create legt die Zeitpunkte in UTC ab. SQLite hält sie als Text mit
+// Zonenversatz, und DeleteExpired vergleicht diesen Text: nur in einer Zone
+// folgt die Textordnung der Zeit.
 func (r *idempotencyRepositoryGorm) Create(ctx context.Context, record *domain.IdempotencyRecord) error {
+	record.CreatedAt = record.CreatedAt.UTC()
+	record.ExpiresAt = record.ExpiresAt.UTC()
 	return dbFrom(ctx, r.db).Create(record).Error
 }
 
