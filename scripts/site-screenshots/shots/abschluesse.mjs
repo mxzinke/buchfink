@@ -73,6 +73,7 @@ export default [
   },
   {
     file: 'abschluesse-erklaerungen.png',
+    site: 'erklaerungen.png',
     go: async ({ page, open }) => {
       await open('#/closings/declarations');
       await page.getByRole('heading', { name: 'Steuererklärungen 2026' }).waitFor();
@@ -90,7 +91,6 @@ export default [
   },
   {
     file: 'abschluesse-kst-zeile.png',
-    site: 'erklaerungen.png',
     go: async ({ page }) => {
       await page.getByRole('button', { name: /^Jahresüberschuss \/ Jahresfehlbetrag/ }).click();
       await page.getByText('Herkunft').first().waitFor();

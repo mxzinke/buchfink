@@ -83,7 +83,7 @@
               </a>
               <a href="so-funktionierts.html">
                 <span class="menu__name">So funktioniert’s</span>
-                <span class="menu__hint">Vom Beleg bis zur Erklärung</span>
+                <span class="menu__hint">Vom Beleg bis zur Steuererklärung</span>
               </a>
               <a href="installation.html" aria-current="page">
                 <span class="menu__name">Installation</span>
@@ -91,7 +91,7 @@
               </a>
               <a href="roadmap.html">
                 <span class="menu__name">Roadmap</span>
-                <span class="menu__hint">Was steht, was bis Version 1 fehlt</span>
+                <span class="menu__hint">Was verfügbar ist und was noch kommt</span>
               </a>
             </div>
           </details>
@@ -105,8 +105,8 @@
           <p class="overline">Installation</p>
           <h1 class="pagehead__title">App installieren, Agent verbinden</h1>
           <p class="pagehead__lead">
-            Zwei Teile: die App Buchfink auf Ihrem Rechner und ein KI-Client, der über MCP mit ihr
-            spricht. Die ausführlichen Anleitungen stehen in der
+            Sie brauchen Buchfink auf Ihrem Rechner und eine KI-App, etwa Claude Desktop oder
+            ChatGPT Desktop. Diese verbinden Sie mit Buchfink. Die ausführlichen Anleitungen stehen in der
             <a href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/README.md">Dokumentation</a>.
           </p>
         </div>
@@ -263,7 +263,7 @@
               und Steuernummer tragen Sie ein, soweit Sie sie haben.
             </li>
             <li>
-              <strong>KI-Agent verbinden.</strong> Sie wählen Ihren Client und richten ihn nach
+              <strong>KI-Agent verbinden.</strong> Sie wählen Ihre KI-App und richten sie nach
               der Anleitung unten ein. Verbinden können Sie auch später.
             </li>
           </ul>
@@ -286,31 +286,35 @@
           <p class="overline">KI-Agent</p>
           <h2 class="section__title">3. Den Agenten verbinden</h2>
           <p class="section__lead">
-            Solange Buchfink geöffnet ist, erreicht Ihr Client es unter
-            <code>http://127.0.0.1:7465/mcp</code>. Bei der ersten Anmeldung öffnet sich der
-            Browser; zustimmen tun Sie im Fenster von Buchfink. Die Skills bringen dem Agenten das
-            Fachwissen mit, mit Quellen.
+            Wählen Sie unten Ihre KI-App und folgen Sie der Anleitung. Beim ersten Verbinden
+            öffnet sich der Browser. Buchfink bittet Sie in einem eigenen Fenster um Zustimmung.
+            Die Anleitungen zeigen auch, wie Sie die Buchhaltungsanleitungen für Ihren Agenten
+            hinzufügen. Diese sogenannten Skills enthalten Arbeitsschritte und Fachwissen mit Quellen.
           </p>
           <div class="links links--paired">
             <div>
               <p class="link__title"><a href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/claude-code.md">Claude Code</a></p>
-              <p class="link__body">Plugin <code>buchfink-buchhaltung</code> mit Verbindung und Skills, oder <code>claude mcp add</code>.</p>
+              <p class="link__body">Das Buchfink-Plugin richtet die Verbindung ein und enthält die Buchhaltungsanleitungen für den Agenten.</p>
             </div>
             <div>
               <p class="link__title"><a href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/claude-desktop.md">Claude Desktop</a></p>
-              <p class="link__body">Erweiterung <code>buchfink.mcpb</code> für macOS und Windows.</p>
+              <p class="link__body">Die Buchfink-Erweiterung herunterladen und per Doppelklick installieren. Für macOS und Windows.</p>
+            </div>
+            <div>
+              <p class="link__title"><a href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/chatgpt-desktop.md">ChatGPT Desktop</a></p>
+              <p class="link__body">In den Einstellungen unter „MCP servers“ hinzufügen. Wählen Sie Streamable HTTP und tragen Sie <code>http://127.0.0.1:7465/mcp</code> ein.</p>
             </div>
             <div>
               <p class="link__title"><a href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/opencode.md">OpenCode</a></p>
-              <p class="link__body">Eintrag in <code>opencode.json</code>, Skills mit <code>npx skills add</code>.</p>
+              <p class="link__body">Die Verbindung in der Einstellungsdatei eintragen und die Buchhaltungsanleitungen hinzufügen.</p>
             </div>
             <div>
               <p class="link__title"><a href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/codex.md">Codex</a></p>
-              <p class="link__body"><code>codex mcp add</code>, Skills mit <code>npx skills add</code>.</p>
+              <p class="link__body">Mit einem Terminalbefehl verbinden, anschließend anmelden und die Buchhaltungsanleitungen hinzufügen.</p>
             </div>
             <div>
               <p class="link__title"><a href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/pi.md">Pi</a></p>
-              <p class="link__body"><code>pi mcp add</code>, Skills mit <code>npx skills add</code>.</p>
+              <p class="link__body">Mit einem Terminalbefehl verbinden, anschließend anmelden und die Buchhaltungsanleitungen hinzufügen.</p>
             </div>
           </div>
           <p class="section__lead" style="margin-top: 40px">
@@ -327,9 +331,9 @@
           <h2 class="section__title">Wenn etwas nicht klappt</h2>
           <ul class="plain-list">
             <li>
-              <strong>Der Client erreicht Buchfink nicht.</strong> Buchfink muss laufen und ein
+              <strong>Die KI-App erreicht Buchfink nicht.</strong> Buchfink muss laufen und ein
               Unternehmen geöffnet haben. Ist Port 7465 belegt, ändern Sie ihn in den Einstellungen
-              und im Client.
+              und in der KI-App.
             </li>
             <li>
               <strong>Die Anmeldung hängt.</strong> Schauen Sie ins Fenster von Buchfink: Dort
@@ -338,7 +342,7 @@
             <li>
               <strong>Es bleibt dabei.</strong> Melden Sie den Fehler unter
               <a href="https://github.com/mxzinke/buchfink/issues">GitHub Issues</a>, mit
-              Programmversion, Betriebssystem, Client und den Schritten bis zum Fehler.
+              Programmversion, Betriebssystem, KI-App und den Schritten bis zum Fehler.
             </li>
           </ul>
         </div>
@@ -382,7 +386,7 @@
             <p class="foot__title">Buchfink</p>
             <p>
               Quelloffene Buchhaltung für GmbH und UG in Deutschland. Läuft auf dem eigenen
-              Rechner; ein KI-Agent arbeitet über MCP mit.
+              Rechner. Ihr KI-Agent hilft beim Buchen.
             </p>
           </div>
           <div>

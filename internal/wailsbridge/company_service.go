@@ -46,17 +46,18 @@ func (b *BuchfinkBridge) FormatElsterTaxNumber(taxNumber, federalState string) (
 }
 
 // agentGuideBase ist der Ordner der Anleitungen je KI-App im Repository.
-const agentGuideBase = "https://github.com/mxzinke/buchfink/blob/main/docs/nutzung/ki-agenten/"
+const agentGuideBase = "https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/"
 
 // agentGuides sind die Anleitungen, die die App öffnen darf. Eine feste
 // Liste: die Oberfläche nennt nur den Schlüssel, nie eine Adresse.
 var agentGuides = map[string]string{
-	"":               "README.md",
-	"claude-code":    "claude-code.md",
-	"claude-desktop": "claude-desktop.md",
-	"opencode":       "opencode.md",
-	"codex":          "codex.md",
-	"pi":             "pi.md",
+	"":                "README.md",
+	"claude-code":     "claude-code.md",
+	"claude-desktop":  "claude-desktop.md",
+	"chatgpt-desktop": "chatgpt-desktop.md",
+	"opencode":        "opencode.md",
+	"codex":           "codex.md",
+	"pi":              "pi.md",
 }
 
 // agentGuideURL ist die Adresse der Anleitung zu einer KI-App.

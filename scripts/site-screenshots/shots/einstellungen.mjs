@@ -12,6 +12,7 @@ export default [
       await page.getByText('Erreichbar unter', { exact: false }).waitFor();
       await page.getByText('claude mcp add', { exact: false }).waitFor();
       await page.getByRole('button', { name: 'Claude Code', exact: true }).waitFor();
+      await page.getByRole('radio', { name: 'ChatGPT Desktop', exact: true }).click();
       await page.waitForTimeout(400);
     },
   },

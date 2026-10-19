@@ -102,7 +102,7 @@ export const AppsPanel: React.FC<{ id?: string }> = ({ id }) => {
       helpSummary="Eine KI-App wie Claude erledigt die Buchhaltung über diese Verbindung."
       explain={
         <>
-          Tragen Sie Buchfink mit dem Befehl Ihrer App ein und melden Sie sich an. Die Zustimmung
+          Folgen Sie den Schritten für Ihre KI-App und melden Sie sich an. Die Zustimmung
           erteilen Sie danach in diesem Fenster, nie im Browser. Buchungen einer App speichern ihren
           Namen und lassen sich bis zur Festschreibung stornieren. Was ein Werkzeug zurückgibt,
           schickt die App an den Anbieter ihres Sprachmodells; klären Sie vorher, ob Ihr Vertrag mit

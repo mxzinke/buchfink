@@ -46,6 +46,15 @@ export const AGENT_CLIENTS: ClientInfo[] = [
     ],
   },
   {
+    id: 'chatgpt-desktop',
+    name: 'ChatGPT Desktop',
+    steps: [
+      { label: 'In ChatGPT', text: 'Settings → MCP servers → Add server öffnen und Streamable HTTP wählen' },
+      { label: 'Serveradresse', command: (url) => url },
+      { label: 'Anmelden', text: 'Speichern, Restart und dann Authenticate wählen. Die Anfrage in Buchfink bestätigen.' },
+    ],
+  },
+  {
     id: 'opencode',
     name: 'OpenCode',
     steps: [
@@ -165,7 +174,7 @@ export interface AgentClientCommandsProps {
 }
 
 /**
- * Die fünf Apps als Umschalter, darunter für die gewählte die Befehle zum
+ * Die Apps als Umschalter, darunter für die gewählte die Befehle zum
  * Kopieren und der Weg zur Anleitung.
  */
 export const AgentClientCommands: React.FC<AgentClientCommandsProps> = ({

@@ -16,6 +16,7 @@ die neue Adresse in Ihrer App ein und starten Sie sie neu.
 |---|---|---|---|
 | Claude Code | Plugin `buchfink-buchhaltung` oder `claude mcp add` | im Plugin enthalten | [claude-code.md](claude-code.md) |
 | Claude Desktop (macOS, Windows) | Erweiterung `buchfink.mcpb` | ZIP-Upload | [claude-desktop.md](claude-desktop.md) |
+| ChatGPT Desktop | Einstellungen → MCP servers → Streamable HTTP | Skill-Ordner unter `~/.agents/skills/` | [chatgpt-desktop.md](chatgpt-desktop.md) |
 | OpenCode | Eintrag in `opencode.json` | `npx skills add` | [opencode.md](opencode.md) |
 | Codex | `codex mcp add` | `npx skills add` | [codex.md](codex.md) |
 | Pi | `pi mcp add` | `npx skills add` | [pi.md](pi.md) |

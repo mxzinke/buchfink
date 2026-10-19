@@ -114,7 +114,7 @@ func TestFormatElsterTaxNumber(t *testing.T) {
 
 // Die App öffnet nur die Anleitungen aus der festen Liste.
 func TestAgentGuidesAreFixed(t *testing.T) {
-	for _, client := range []string{"", "claude-code", "claude-desktop", "opencode", "codex", "pi"} {
+	for _, client := range []string{"", "claude-code", "claude-desktop", "chatgpt-desktop", "opencode", "codex", "pi"} {
 		url, err := agentGuideURL(client)
 		if err != nil || !strings.HasPrefix(url, agentGuideBase) || !strings.HasSuffix(url, ".md") {
 			t.Errorf("%q: %q %v", client, url, err)

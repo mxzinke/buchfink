@@ -22,11 +22,11 @@ Das Skript startet den Vite-Server selbst, macht die Bilder und beendet ihn
 wieder. Ergebnis: PNG in `website/assets/screenshots/`, 2880 × 1800 (1440 × 900
 bei doppelter Pixeldichte), je Bereich der Navigation mit dessen Namen
 vorn (`buecher-journal.png`). Eine Aufnahme mit `site` liegt zusätzlich unter
-dem Namen, den die Projektseite einbindet (`buecher.png`); die sieben Namen
+dem Namen, den die Projektseite einbindet (`buecher.png`); die verwendeten Namen
 stehen in [`website/README.md`](../../website/README.md#screenshots).
 `uebersicht.png` und `zustimmung.png` entstehen direkt unter ihrem Seitennamen.
-Git nimmt nur die sieben Bilder der Projektseite auf; die übrigen Aufnahmen
-schließt `.gitignore` aus.
+Git nimmt nur die in `.gitignore` freigegebenen Bilder auf; die übrigen
+Aufnahmen sind ausgeschlossen.
 
 Die Uhr des Browsers steht auf dem 25.08.2026, dem Stand der Beispieldaten.
 Fälligkeiten und der laufende Monat passen so zu den Daten.

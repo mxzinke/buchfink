@@ -59,17 +59,16 @@ verweist.
 
 ## Screenshots
 
-Die Seiten zeigen sieben Bilder, alle 2880 × 1800 Pixel:
+Die Seiten zeigen sechs Bilder, alle 2880 × 1800 Pixel:
 
 | Datei | Seite | Inhalt |
 |---|---|---|
-| `uebersicht.png` | Start | Übersicht mit Aufgaben, Eingang und Fristen |
+| `uebersicht.png` | Start, So funktioniert’s | Aufgaben mit Fälligkeiten und Bearbeitungsstand |
 | `zustimmung.png` | Start | Zustimmungsdialog für eine KI-App |
 | `einstellungen-apps.png` | So funktioniert’s | verbundene Apps mit ihren Rechten |
-| `buecher.png` | So funktioniert’s | Bücher mit Belegen, Bank und Buchungen |
-| `abschluesse.png` | So funktioniert’s | Stand der Monate und des Jahres |
-| `erklaerungen.png` | So funktioniert’s | Erklärung formularnah mit Herkunft je Wert |
-| `unternehmen.png` | So funktioniert’s | Unternehmensdaten mit steuerlicher Beratung |
+| `buecher.png` | Start, So funktioniert’s | Bücher mit Belegen, Bank und Buchungen |
+| `abschluesse.png` | Start, So funktioniert’s | Stand der Monate und des Jahres |
+| `erklaerungen.png` | So funktioniert’s | Übersicht der Steuererklärungen mit Bearbeitungsstand |
 
 Sie entstehen aus der echten Oberfläche in `frontend/`; nur die Wails-Bridge ist
 durch Beispieldaten ersetzt. Ablauf und Dateinamen beschreibt
@@ -89,14 +88,16 @@ Markup und gehört in jede `<figure class="shot">`.
 
 ## Logos der Agenten
 
-`assets/agents/` enthält je ein SVG für Claude Code, Claude Desktop, Codex,
-OpenCode und Pi. Sie stehen in den Farben der Anbieter als Kacheln im Kopf der
-Startseite und neben den Verbindungsbefehlen unter „Verbinden“; jede Kachel
-verweist auf die Anleitung unter `docs/nutzung/ki-agenten/`. Die Marken gehören
+`assets/agents/` enthält je ein SVG für Claude Code, Claude Desktop, ChatGPT,
+Codex, OpenCode und Pi. Sie stehen als Kacheln im Kopf der Startseite;
+jede Kachel verweist auf die Anleitung unter `docs/nutzung/ki-agenten/`. Die Marken gehören
 ihren Inhabern, der Fuß der Startseite sagt das. Kommt ein Agent hinzu, braucht
-er ein Logo hier, eine Kachel im Kopf, eine Zeile unter „Verbinden“ und eine
-Anleitung in der Dokumentation. Die Befehle in den Zeilen müssen mit dieser
-Anleitung übereinstimmen.
+er ein Logo hier, eine Kachel im Kopf, einen Eintrag unter „Installation“ und eine
+Anleitung in der Dokumentation.
+
+Das OpenAI-Logo für ChatGPT stammt aus
+[Lobe Icons](https://github.com/lobehub/lobe-icons/blob/master/packages/static-svg/icons/openai.svg),
+veröffentlicht unter der [MIT-Lizenz](assets/agents/Lobe-Icons-LICENSE.txt).
 
 ## Gestaltung und Text
 
@@ -109,7 +110,10 @@ Hinweisstreifen nur mit farbiger Leiste. Das Beispielgespräch auf der Startseit
 liegt auf der dunklen Schale.
 
 Die Texte folgen der [Schreibweise](../docs/gestaltung/schreibweise.md): Sie-Form,
-kurze Sätze, keine Zusagen über Gesetzeskonformität. Die Seite erzählt aus der
+kurze Sätze, keine Zusagen über Gesetzeskonformität. Funktionsübersichten nennen
+je Funktion den Nutzen in höchstens zwei Sätzen. Dateiformate, Einrichtungsschritte
+und fachliche Einzelheiten stehen in Installation und Dokumentation. Jeder
+Screenshot zeigt die beschriebene Funktion. Die Seite erzählt aus der
 Sicht eines Gründers, der mit seinem KI-Agenten arbeitet: wie leicht die Arbeit
 im Chat von der Hand geht, was nur er selbst freigibt, wo die Grenzen liegen.
 Die Startseite führt mit dem Gespräch mit dem Agenten und mit dem

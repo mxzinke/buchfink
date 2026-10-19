@@ -3909,7 +3909,7 @@ export interface DeclarationRecord {
 }
 
 /** Eine KI-App, zu der es eine Anleitung gibt (internal/wailsbridge/company_service.go). */
-export type AgentClient = 'claude-code' | 'claude-desktop' | 'opencode' | 'codex' | 'pi';
+export type AgentClient = 'claude-code' | 'claude-desktop' | 'chatgpt-desktop' | 'opencode' | 'codex' | 'pi';
 
 // -------------------------------------------------------------
 // Gesellschafterdarlehen (internal/domain/shareholder.go,
