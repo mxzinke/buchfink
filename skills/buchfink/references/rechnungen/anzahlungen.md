@@ -1,7 +1,9 @@
 # Anzahlungen, Abschläge, Schlussrechnung
 
-Rechtsstand: 17. Oktober 2026. Geleistete Anzahlungen an Lieferanten regelt
-buchfink-belege; dieser Text betrifft Geld, das Kunden vor der Leistung zahlen.
+Rechtsstand: 17. Oktober 2026.
+
+Anzahlungen an Lieferanten bucht [belege/ablauf.md](../belege/ablauf.md); diese
+Referenz betrifft Geld, das Kunden vor der Leistung zahlen.
 
 ## Inhalt
 
@@ -42,17 +44,17 @@ buchfink-belege; dieser Text betrifft Geld, das Kunden vor der Leistung zahlen.
 
 ## 3. Abschlagsrechnung
 
-- Sie ist eine vollwertige Rechnung mit allen Pflichtangaben. § 14 Abs. 1 bis 4
-  UStG gilt sinngemäß, also auch die E-Rechnungspflicht an ein inländisches
-  Unternehmen ([§ 14 Abs. 5 Satz 1 UStG][ustg14],
-  [§ 14 Abs. 2 Satz 2 Nr. 1 UStG][ustg14],
-  [UStAE 14.1 Abs. 4 Satz 1 i. d. F. vom 15.10.2025][bmf2025]).
+- Sie ist eine vollwertige Rechnung mit allen Pflichtangaben
+  ([§ 14 Abs. 5 Satz 1 UStG][ustg14]). Auch die E-Rechnungspflicht an ein
+  inländisches Unternehmen gilt für sie
+  ([e-rechnung-ausgang.md, Abschnitt 2](e-rechnung-ausgang.md#2-wann-eine-e-rechnung-pflicht-ist)).
 - Sie zeigt, dass eine Anzahlung abgerechnet wird, z. B. durch den
   voraussichtlichen Leistungszeitpunkt ([UStAE 14.8 Abs. 1][ustae148]).
 - Statt des Leistungszeitpunkts steht der voraussichtliche Zeitpunkt oder
   Kalendermonat der Leistung darin ([UStAE 14.8 Abs. 4 Satz 3 bis 5][ustae148]);
-  steht der Tag der Vereinnahmung fest und weicht er vom Rechnungsdatum ab, auch
-  dieser ([§ 14 Abs. 4 Satz 1 Nr. 6 UStG][ustg14]).
+  zum Tag der Vereinnahmung siehe
+  [pflichtangaben-ausgang.md, Abschnitt 2](pflichtangaben-ausgang.md#2-pflichtangaben-und-woher-buchfink-sie-nimmt),
+  Nr. 6.
 - Sie darf vor dem Geldeingang ausgestellt werden. Zahlt der Kunde weniger,
   entsteht Steuer nur auf den gezahlten Teil; zahlt er gar nicht, wird keine
   Steuer nach § 14c geschuldet ([UStAE 14.8 Abs. 2, Abs. 5 Satz 3 bis 5][ustae148]).
@@ -68,11 +70,12 @@ Abschlagsrechnungen, Zahlungsstand, Schlussrechnung.
 | Zahlung geht ein | Bank an 3272 Erhaltene, versteuerte Anzahlungen 19 % USt und 3806 Umsatzsteuer 19 % (bei 7 %: 3260, 3801) |
 | Schlussrechnung | Debitor (Rest), 3272 und 3806 (Auflösung) an Erlöse (gesamt netto) und 3806 (Steuer auf das Gesamtentgelt) |
 
-In Buchfink: `rechnung_ausstellen` mit `art: abschlag` (die erste mit
-`verbund` und `kontakt_id`, jede weitere mit `verbund_id`) und
-`art: schlussrechnung`, jeweils nach Rückfrage. Den Zahlungseingang ordnet
-buchfink-bank dem offenen Abschlag zu; prüfe danach mit `buchungen_suchen`
-(Konto 3272), ob die Anzahlung versteuert ist.
+Abschlag und Schlussrechnung stellst du nach Rückfrage mit
+`rechnung_ausstellen` aus; die Angaben stehen in
+[ablauf.md, Abschnitt 5](ablauf.md#5-abschläge-anzahlungen-schlussrechnung).
+Den Zahlungseingang ordnet [bank/zuordnung.md](../bank/zuordnung.md) dem
+offenen Abschlag zu; prüfe danach mit `buchungen_suchen` (Konto 3272), ob die
+Anzahlung versteuert ist.
 
 ## 5. Schlussrechnung und Restrechnung
 
@@ -104,37 +107,35 @@ buchfink-bank dem offenen Abschlag zu; prüfe danach mit `buchungen_suchen`
 ## 6. Sonderfälle
 
 - **Anzahlung ohne Rechnung.** Die Steuer entsteht trotzdem mit der
-  Vereinnahmung ([§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG][ustg13]). Die
-  Rechnung ist binnen sechs Monaten nach Vereinnahmung auszustellen
-  ([UStAE 14.1 Abs. 3 Satz 4 i. d. F. vom 15.10.2025][bmf2025]). Weg: Der Mensch
-  erfasst die Abschlagsrechnung nachträglich im Verbund, danach ordnet
-  buchfink-bank die Zahlung zu.
+  Vereinnahmung (Abschnitt 1). Frist für die Rechnung:
+  [pflichtangaben-ausgang.md, Abschnitt 1](pflichtangaben-ausgang.md#1-wann-eine-rechnung-pflicht-ist).
+  Weg: Der Mensch erfasst die Abschlagsrechnung nachträglich im Verbund,
+  danach ordnet [bank/zuordnung.md](../bank/zuordnung.md) die Zahlung zu.
 - **Auftrag fällt weg, Anzahlung wird zurückgezahlt.** Die Steuer auf die
   Anzahlung wird im Zeitraum der Rückzahlung berichtigt
   ([§ 17 Abs. 2 Nr. 2 UStG][ustg17], [UStAE 17.1 Abs. 7][ustae171]). Die
   Rückzahlung im Verbund bildet Buchfink noch nicht ab; sag das dem Menschen.
 - **Leistung an Unternehmen im EU-Ausland.** Keine deutsche Steuer auf die
-  Anzahlung, Steuerfall wie die Leistung
-  (SKILL.md, Abschnitt 3).
+  Anzahlung (Abschnitt 1), Steuerfall wie die Leistung
+  ([ablauf.md, Abschnitt 3](ablauf.md#3-steuerfall)).
 
 ## 7. Bilanz und Verzug
 
 - Erhaltene Anzahlungen stehen unter den Verbindlichkeiten
   ([§ 266 Abs. 3 C. Nr. 3 HGB][hgb266], [§ 268 Abs. 5 Satz 2 HGB][hgb268]).
-  Unfertige Leistungen zum Stichtag regelt buchfink-jahresabschluss.
-- Die Verzugspauschale von 40 € gilt auch für Abschlagszahlungen
-  ([§ 288 Abs. 5 Satz 2 BGB][bgb288]). Die 60-Tage-Grenze für Zahlungsfristen
-  gilt für Abschläge nicht ([§ 271a Abs. 5 Nr. 1 BGB][bgb271a]).
+  Unfertige Leistungen zum Stichtag regelt
+  [jahresabschluss/unfertige-leistungen.md](../jahresabschluss/unfertige-leistungen.md).
+- Verzugspauschale bei Abschlagszahlungen:
+  [mahnen-verzug.md, Abschnitt 3](mahnen-verzug.md#3-pauschale-und-weitere-kosten);
+  die 60-Tage-Grenze für Zahlungsfristen bei Abschlägen:
+  [pflichtangaben-ausgang.md, Abschnitt 5](pflichtangaben-ausgang.md#5-entgelt-skonto-zahlungsziel).
 
 [ustg13]: https://www.gesetze-im-internet.de/ustg_1980/__13.html
 [ustg14]: https://www.gesetze-im-internet.de/ustg_1980/__14.html
 [ustg17]: https://www.gesetze-im-internet.de/ustg_1980/__17.html
 [hgb266]: https://www.gesetze-im-internet.de/hgb/__266.html
 [hgb268]: https://www.gesetze-im-internet.de/hgb/__268.html
-[bgb271a]: https://www.gesetze-im-internet.de/bgb/__271a.html
-[bgb288]: https://www.gesetze-im-internet.de/bgb/__288.html
 [bmf2024]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/E-Rechnung/2024-10-15-einfuehrung-e-rechnung.pdf
-[bmf2025]: https://www.steuerschroeder.de/blog/wp-content/uploads/2025/10/2025-10-15-einfuehrung-obligatorische-e-rechnung.pdf
 [ustae134]: https://www.steuerschroeder.de/steuergesetze/ustae/13.4
 [ustae135]: https://www.steuerschroeder.de/steuergesetze/ustae/13.5
 [ustae148]: https://www.steuerschroeder.de/steuergesetze/ustae/14.8

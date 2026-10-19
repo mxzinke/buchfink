@@ -33,9 +33,9 @@ ein:
   davon ab, ob es vereinbart wurde (Vertrag, AGB) oder nur auf der Rechnung
   steht. Im Zweifel: mahnen. Die Mahnung nach Fälligkeit begründet Verzug
   ([§ 286 Abs. 1 BGB][bgb286]).
-- Buchfink druckt auf Rechnungen an Verbraucher den Hinweis nach § 286 Abs. 3
-  Satz 1 BGB. Fehlt er auf einer älteren Rechnung, beginnt Verzug erst mit der
-  Mahnung.
+- Den Hinweis nach § 286 Abs. 3 Satz 1 BGB druckt Buchfink auf Rechnungen an
+  Verbraucher ([pflichtangaben-ausgang.md, Abschnitt 6](pflichtangaben-ausgang.md#6-hinweise-in-sonderfällen)).
+  Fehlt er auf einer älteren Rechnung, beginnt Verzug erst mit der Mahnung.
 
 ## 2. Verzugszinsen
 
@@ -119,8 +119,8 @@ und Zugang nachweisbar sind.
   ([UStAE 1.3 Abs. 6][ustae13]).
 - Konten (SKR04): Verzugszinsen 7110 Sonstige Zinserträge; Pauschale,
   Mahngebühren 4970 Versicherungsentschädigungen und Schadenersatzleistungen.
-  Die Zuordnung am Bankumsatz macht buchfink-bank mit `bankumsatz_buchen`
-  (Aufteilung in Posten und Konten).
+  Die Zuordnung am Bankumsatz macht [bank/zuordnung.md](../bank/zuordnung.md)
+  mit `bankumsatz_buchen` (Aufteilung in Posten und Konten).
 
 ## 7. Verjährung
 

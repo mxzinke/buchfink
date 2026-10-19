@@ -2,6 +2,8 @@
 
 Rechtsstand: 17. Oktober 2026.
 
+Die Eingangsseite prüft [belege/pflichtangaben.md](../belege/pflichtangaben.md).
+
 ## Inhalt
 
 1. Wann eine Rechnung Pflicht ist
@@ -40,7 +42,7 @@ Pflichtangaben nach [§ 14 Abs. 4 Satz 1 UStG][ustg14]:
 | 5 | Menge und Art der Leistung, Umfang und Art der sonstigen Leistung | `positionen[].text`, `menge`, `einheit` | so genau, dass die Leistung eindeutig feststeht |
 | 6 | Zeitpunkt der Leistung; bei Anzahlung Tag der Vereinnahmung, wenn bekannt und abweichend vom Rechnungsdatum | `leistung_von`, `leistung_bis` | Abschnitt 4 |
 | 7 | Entgelt nach Steuersätzen und Befreiungen aufgeschlüsselt, jede im Voraus vereinbarte Minderung | Positionen, Zahlungsbedingungen | Abschnitt 5 |
-| 8 | Steuersatz und Steuerbetrag oder Hinweis auf die Befreiung | `satz`, `steuerfall` | Steuerfall nach SKILL.md Abschnitt 3 |
+| 8 | Steuersatz und Steuerbetrag oder Hinweis auf die Befreiung | `satz`, `steuerfall` | Steuerfall nach [ablauf.md, Abschnitt 3](ablauf.md#3-steuerfall) |
 | 9 | Hinweis auf die Aufbewahrungspflicht des Empfängers (§ 14b Abs. 1 Satz 5 UStG) | – | nur bei Leistungen im Zusammenhang mit einem Grundstück an Nichtunternehmer; frag den Menschen |
 | 10 | Angabe „Gutschrift“ | – | Buchfink stellt keine Gutschriften aus |
 
@@ -54,7 +56,7 @@ Pflichtangaben nach [§ 14 Abs. 4 Satz 1 UStG][ustg14]:
   ([BMF 15.10.2025, Rn. 35][bmf2025]).
 - Fehlt eine Pflichtangabe, kann der Kunde die Vorsteuer nicht abziehen
   ([§ 15 Abs. 1 Satz 1 Nr. 1 Satz 2 UStG][ustg15]). Rechne mit Rückfragen und
-  berichtige nach SKILL.md, Abschnitt 6.
+  berichtige nach [storno-berichtigung.md](storno-berichtigung.md).
 
 ## 3. Kleinbetragsrechnung
 
@@ -67,7 +69,8 @@ Pflichtangaben nach [§ 14 Abs. 4 Satz 1 UStG][ustg14]:
   ([§ 33 Satz 3 UStDV][ustdv33]).
 - `rechnung_ausstellen` erzeugt immer die vollständige Rechnung. Eine
   Kleinbetragsrechnung brauchst du deshalb nicht; sie ist nur für die
-  E-Rechnungspflicht von Bedeutung (SKILL.md, Abschnitt 4).
+  E-Rechnungspflicht von Bedeutung
+  ([e-rechnung-ausgang.md, Abschnitt 2](e-rechnung-ausgang.md#2-wann-eine-e-rechnung-pflicht-ist)).
 
 ## 4. Leistungszeitpunkt
 
@@ -77,10 +80,13 @@ Pflichtangaben nach [§ 14 Abs. 4 Satz 1 UStG][ustg14]:
 - Sonstige Leistungen sind mit ihrer Vollendung ausgeführt; zeitlich begrenzte
   Dauerleistungen mit Ende des Rechtsverhältnisses, wenn keine Teilleistungen
   vereinbart sind ([UStAE 13.1 Abs. 3][ustae131]).
+- Die Steuer entsteht bei Sollversteuerung mit Ablauf des
+  Voranmeldungszeitraums, in dem die Leistung ausgeführt wurde, unabhängig von
+  Rechnung und Zahlung ([§ 13 Abs. 1 Nr. 1 Buchst. a Satz 1 UStG][ustg13]).
+  Für Anzahlungen gilt [anzahlungen.md, Abschnitt 1](anzahlungen.md#1-wann-die-steuer-entsteht).
 - Wertungsfrage bei Projekten: Abnahme, Übergabe, Go-live oder Ende des
   Leistungszeitraums. Das Datum entscheidet über den Voranmeldungszeitraum der
-  Steuer ([§ 13 Abs. 1 Nr. 1 Buchst. a Satz 1 UStG][ustg13]). Frag den
-  Menschen, was vereinbart und was geschehen ist.
+  Steuer. Frag den Menschen, was vereinbart und was geschehen ist.
 
 ## 5. Entgelt, Skonto, Zahlungsziel
 
@@ -90,14 +96,16 @@ Pflichtangaben nach [§ 14 Abs. 4 Satz 1 UStG][ustg14]:
   `skonto_promille` (20 für 2 %) und `skonto_tage`, wenn der Mensch Skonto
   gewährt.
 - Ein Skontoabzug ändert die Bemessungsgrundlage erst, wenn der Kunde ihn
-  zieht ([§ 17 Abs. 1 UStG][ustg17]); die Rechnung wird dann nicht berichtigt
-  ([UStAE 14.11 Abs. 4 i. d. F. vom 15.10.2025][bmf2025]). Den Abzug bucht
-  buchfink-bank am Zahlungseingang.
+  zieht ([§ 17 Abs. 1 UStG][ustg17]); berichtigt wird die Rechnung dann nicht
+  ([storno-berichtigung.md, Abschnitt 2](storno-berichtigung.md#2-welcher-weg-für-welchen-fehler)).
+  Den Abzug bucht [bank/skonto-differenzen.md](../bank/skonto-differenzen.md)
+  am Zahlungseingang.
 - `zahlungsziel_tage`: Fälligkeit ab Rechnungsdatum. Eine vereinbarte
   Zahlungsfrist von mehr als 60 Tagen nach Empfang der Leistung ist gegenüber
   einem Unternehmen nur wirksam, wenn sie ausdrücklich getroffen und nicht grob
-  unbillig ist ([§ 271a Abs. 1 BGB][bgb271a]). Das gilt nicht für Abschläge und
-  nicht gegenüber Verbrauchern ([§ 271a Abs. 5 BGB][bgb271a]).
+  unbillig ist ([§ 271a Abs. 1 BGB][bgb271a]). Das gilt nicht für Abschläge
+  ([§ 271a Abs. 5 Nr. 1 BGB][bgb271a]) und nicht gegenüber Verbrauchern
+  ([§ 271a Abs. 5 BGB][bgb271a]).
 
 ## 6. Hinweise in Sonderfällen
 
@@ -106,8 +114,8 @@ Pflichtangaben nach [§ 14 Abs. 4 Satz 1 UStG][ustg14]:
 | Leistung an Unternehmen im EU-Ausland, Kunde schuldet die Steuer | „Steuerschuldnerschaft des Leistungsempfängers“, USt-IdNr. beider Seiten | [§ 14a Abs. 1 UStG][ustg14a] |
 | Inländische Leistung nach § 13b Abs. 2 UStG an Unternehmer | „Steuerschuldnerschaft des Leistungsempfängers“, keine Steuer | [§ 14a Abs. 5 UStG][ustg14a]; Bauleistungen bildet Buchfink nicht ab |
 | Steuerfreie Leistung | Hinweis auf die Steuerbefreiung | [§ 14 Abs. 4 Satz 1 Nr. 8 UStG][ustg14] |
-| Rechnung an Verbraucher | Verzug 30 Tage nach Fälligkeit und Zugang ohne Mahnung nur mit besonderem Hinweis | [§ 286 Abs. 3 Satz 1 BGB][bgb286]; Buchfink druckt ihn bei `privatperson: true` |
-| Anzahlungsrechnung | erkennbar als Anzahlung, voraussichtlicher Leistungszeitpunkt | [UStAE 14.8 Abs. 1, 4][ustae148] |
+| Rechnung an Verbraucher | Hinweis auf den Verzug 30 Tage nach Fälligkeit und Zugang; Buchfink druckt ihn bei `privatperson: true` | [mahnen-verzug.md, Abschnitt 1](mahnen-verzug.md#1-fälligkeit-und-verzug) |
+| Anzahlungsrechnung | Kennzeichnung als Anzahlung | [anzahlungen.md, Abschnitt 3](anzahlungen.md#3-abschlagsrechnung) |
 
 [ustg13]: https://www.gesetze-im-internet.de/ustg_1980/__13.html
 [ustg14]: https://www.gesetze-im-internet.de/ustg_1980/__14.html
@@ -118,7 +126,5 @@ Pflichtangaben nach [§ 14 Abs. 4 Satz 1 UStG][ustg14]:
 [ustdv33]: https://www.gesetze-im-internet.de/ustdv_1980/__33.html
 [hgb238]: https://www.gesetze-im-internet.de/hgb/__238.html
 [bgb271a]: https://www.gesetze-im-internet.de/bgb/__271a.html
-[bgb286]: https://www.gesetze-im-internet.de/bgb/__286.html
 [bmf2025]: https://www.steuerschroeder.de/blog/wp-content/uploads/2025/10/2025-10-15-einfuehrung-obligatorische-e-rechnung.pdf
 [ustae131]: https://www.steuerschroeder.de/steuergesetze/ustae/13.1
-[ustae148]: https://www.steuerschroeder.de/steuergesetze/ustae/14.8

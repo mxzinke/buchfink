@@ -5,9 +5,10 @@ Rechtsstand: 17. Oktober 2026. Wortlaut von GewStG, KStG und InvStG am
 Gewerbesteuererklärung 2025. Die Grenzen von 15 %
 gelten unverändert; sie ändern sich nur durch Gesetz. Stand: Oktober 2026.
 
-Rechenweg, Messzahl, Hebesatz und Abgabe regelt buchfink-steuererklaerungen.
-Hier steht, was Beteiligungserträge am Gewerbeertrag ändern; Buchfink rechnet
-es in `erklaerung` (`art: gewst`), du prüfst es.
+Rechenweg, Messzahl, Hebesatz und Abgabe regelt
+[steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md). Hier steht, was
+Beteiligungserträge am Gewerbeertrag ändern; Buchfink rechnet es in
+`erklaerung` (`art: gewst`), du prüfst es.
 
 ## Inhalt
 
@@ -34,8 +35,8 @@ erfasst nur Gewinnanteile.
 
 | Quote | Körperschaftsteuer | Gewerbesteuer |
 |---|---|---|
-| unter 10 % zu Beginn des Kalenderjahres | Dividende voll angesetzt ([§ 8b Abs. 4 KStG][kstg8b]) | bleibt voll; keine Hinzurechnung, weil nichts außer Ansatz blieb |
-| mindestens 10 %, aber zu Beginn des Erhebungszeitraums unter 15 % | 95 % frei | Hinzurechnung nach [§ 8 Nr. 5 GewStG][gewstg8] |
+| unter 10 % zu Beginn des Kalenderjahres | Dividende voll angesetzt ([steuerfreistellung.md, Abschnitt 3](steuerfreistellung.md#3-streubesitz-unter-10-)) | bleibt voll; keine Hinzurechnung, weil nichts außer Ansatz blieb |
+| mindestens 10 %, aber zu Beginn des Erhebungszeitraums unter 15 % | 95 % frei ([steuerfreistellung.md, Abschnitt 2](steuerfreistellung.md#2-dividenden-und-andere-bezüge)) | Hinzurechnung nach [§ 8 Nr. 5 GewStG][gewstg8] |
 | zu Beginn des Erhebungszeitraums mindestens 15 %, inländische nicht steuerbefreite Kapitalgesellschaft | 95 % frei | keine Hinzurechnung; die 5 % bleiben im Gewerbeertrag ([§ 9 Nr. 2a Satz 4 GewStG][gewstg9]) |
 
 **§ 8 Nr. 5 GewStG** rechnet die nach § 8b Abs. 1 KStG außer Ansatz
@@ -55,10 +56,10 @@ kürzen; der Nutzen der Vorschrift liegt darin, dass § 8 Nr. 5 nicht greift.
 
 **Stichtage.** § 8b Abs. 4 KStG stellt auf den Beginn des Kalenderjahres ab
 und lässt einen Erwerb von mindestens 10 % auf diesen Tag zurückwirken
-([§ 8b Abs. 4 Satz 6 KStG][kstg8b]). § 9 Nr. 2a GewStG kennt diese
-Rückwirkung nicht. Eine im Laufe des Jahres erworbene Tochter liefert im
-Erwerbsjahr eine Dividende, die bei der Körperschaftsteuer zu 95 % frei und
-bei der Gewerbesteuer hinzuzurechnen ist.
+([steuerfreistellung.md, Abschnitt 3](steuerfreistellung.md#3-streubesitz-unter-10-)).
+§ 9 Nr. 2a GewStG kennt diese Rückwirkung nicht. Eine im Laufe des Jahres
+erworbene Tochter liefert im Erwerbsjahr eine Dividende, die bei der
+Körperschaftsteuer zu 95 % frei und bei der Gewerbesteuer hinzuzurechnen ist.
 
 ## 3. Ausländische Gesellschaften
 
@@ -87,8 +88,8 @@ bei der Gewerbesteuer hinzuzurechnen ist.
 ## 5. Finanzierungskosten der Beteiligung
 
 - Zinsen für den Kaufpreis gehören zu den Entgelten für Schulden
-  ([§ 8 Nr. 1 Buchst. a GewStG][gewstg8]); über 200.000 € Summe wird ein
-  Viertel hinzugerechnet (buchfink-steuererklaerungen).
+  ([§ 8 Nr. 1 Buchst. a GewStG][gewstg8]); wie viel davon hinzugerechnet
+  wird, steht in [steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md).
 - Aufwendungen in unmittelbarem Zusammenhang mit Gewinnanteilen mindern den
   Kürzungsbetrag nach § 9 Nr. 2a; insoweit gilt § 8 Nr. 1 nicht
   ([§ 9 Nr. 2a Satz 3 GewStG][gewstg9]).
@@ -107,8 +108,8 @@ unmittelbaren Beteiligungen in GewSt 1 A Zeile 48; den Korrekturbetrag nach
 § 20 Abs. 5 rechnet das Finanzamt selbst
 ([ELSTER-Anleitung GewSt 2025][elstergewst]). So führt es auch Buchfink: Zeile
 48 mit dem vollen Betrag, die Hälfte nur in seiner Rechnung des Gewerbeertrags.
-Sätze je Fondsart stehen in der Referenz zu Investmentfonds (Liste in
-SKILL.md).
+Sätze je Fondsart stehen in
+[investmentfonds.md, Abschnitt 4](investmentfonds.md#4-teilfreistellung).
 
 ## 7. Beispiel
 
@@ -125,7 +126,7 @@ Rechnerisches Beispiel ohne Beratung. Hebesatz 400 %.
 
 Die Steuermesszahl von 3,5 % steht in [§ 11 Abs. 2 GewStG][gewstg11]
 (Stand: Oktober 2026). Abrundung des Gewerbeertrags und Hebesatz:
-buchfink-steuererklaerungen.
+[steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md).
 
 ## 8. Angaben für die Erklärung
 
@@ -145,4 +146,3 @@ buchfink-steuererklaerungen.
 [gewstg9]: https://www.gesetze-im-internet.de/gewstg/__9.html
 [gewstg11]: https://www.gesetze-im-internet.de/gewstg/__11.html
 [invstg20]: https://www.gesetze-im-internet.de/invstg_2018/__20.html
-[kstg8b]: https://www.gesetze-im-internet.de/kstg_1977/__8b.html

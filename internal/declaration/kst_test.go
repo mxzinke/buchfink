@@ -26,10 +26,10 @@ func confirmedWithholding(kapest, solz domain.Cents) []Input {
 	return []Input{confirmed("kst.wa.kapest", Cents(kapest)), confirmed("kst.wa.solz", Cents(solz))}
 }
 
-// Beispiel A der Referenz § 8b KStG (buchfink-beteiligungen): Dividende einer
-// 100-%-Tochter 100.000 € auf 7006, Kapitalertragsteuer 25.000 € auf 7630,
-// Solidaritätszuschlag 1.375 € auf 7633. Wirkung auf das Einkommen gegenüber
-// dem Jahresüberschuss: − 68.625 €.
+// Beispiel A in skills/buchfink/references/beteiligungen/steuerfreistellung.md,
+// Abschnitt 9: Dividende einer 100-%-Tochter 100.000 € auf 7006,
+// Kapitalertragsteuer 25.000 € auf 7630, Solidaritätszuschlag 1.375 € auf
+// 7633. Wirkung auf das Einkommen gegenüber dem Jahresüberschuss: − 68.625 €.
 func subsidiaryDividend() CorporateData {
 	l := Ledger{}
 	book(l, "7006", -eur(100000))

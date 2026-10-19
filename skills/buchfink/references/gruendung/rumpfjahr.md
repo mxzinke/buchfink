@@ -13,8 +13,8 @@ GewStG, UStG und AO am 17.10.2026 gelesen.
 ## 1. Was ein Rumpfgeschäftsjahr ist
 
 - Ein Geschäftsjahr dauert höchstens zwölf Monate
-  ([§ 240 Abs. 2 Satz 2 HGB][hgb240]). Ein erstes Geschäftsjahr, das länger
-  liefe, ist nicht zulässig.
+  ([grundlagen/arbeitsweise.md, Abschnitt 10](../grundlagen/arbeitsweise.md#10-geschäftsjahr-und-zeiträume)).
+  Ein erstes Geschäftsjahr, das länger liefe, ist deshalb nicht zulässig.
 - Steuerlich umfasst das Wirtschaftsjahr zwölf Monate; kürzer darf es sein,
   wenn ein Betrieb eröffnet wird ([§ 8b Satz 1, 2 Nr. 1 EStDV][estdv8b]).
 - Beginnt die GmbH ihre Tätigkeit im Laufe eines Jahres und endet das
@@ -36,22 +36,20 @@ GewStG, UStG und AO am 17.10.2026 gelesen.
 
 ## 3. Pflichten zum Ende des ersten Geschäftsjahres
 
-| Pflicht | Regel | Grundlage |
+| Pflicht | Im ersten Geschäftsjahr | Regel |
 |---|---|---|
-| Inventar und Jahresabschluss | zum Schluss des Geschäftsjahres | [§ 240 Abs. 2 Satz 1 HGB][hgb240], [§ 242 Abs. 1, 2 HGB][hgb242] |
-| Aufstellung | in den ersten drei Monaten des neuen Geschäftsjahres; kleine Kapitalgesellschaft bis sechs Monate, wenn das einem ordnungsgemäßen Geschäftsgang entspricht | [§ 264 Abs. 1 Satz 3, 4 HGB][hgb264] |
-| Größenklasse | bei Neugründung entscheiden schon die Merkmale am ersten Abschlussstichtag | [§ 267 Abs. 4 Satz 2 HGB][hgb267] |
-| Feststellung und Ergebnisverwendung | binnen acht Monaten, kleine Gesellschaft elf Monate des neuen Geschäftsjahres | [§ 42a Abs. 2 Satz 1 GmbHG][gmbhg42a] |
-| Offenlegung | spätestens ein Jahr nach dem Abschlussstichtag | [§ 325 Abs. 1a Satz 1 HGB][hgb325] |
-| UG: gesetzliche Rücklage | ein Viertel des um einen Verlustvortrag geminderten Jahresüberschusses | [§ 5a Abs. 3 Satz 1 GmbHG][gmbhg5a] |
-| Abschreibung | im Jahr der Anschaffung um ein Zwölftel je vollem Monat vor dem Anschaffungsmonat gekürzt | [§ 7 Abs. 1 Satz 4 EStG][estg7] |
+| Inventar und Jahresabschluss, Aufstellung, Feststellung und Ergebnisverwendung, Offenlegung | Fristen wie in jedem Jahr, gerechnet ab dem Ende des Rumpfgeschäftsjahres | [bilanzstichtag](../grundlagen/pflichten.md#bilanzstichtag), [aufstellung](../grundlagen/pflichten.md#aufstellung), [feststellung](../grundlagen/pflichten.md#feststellung), [ergebnisverwendung](../grundlagen/pflichten.md#ergebnisverwendung), [offenlegung](../grundlagen/pflichten.md#offenlegung) |
+| Größenklasse | Merkmale schon am ersten Abschlussstichtag | [jahresabschluss/groessenklassen-anhang.md](../jahresabschluss/groessenklassen-anhang.md) |
+| UG: gesetzliche Rücklage | schon aus dem ersten Jahresüberschuss | [jahresabschluss/ergebnisverwendung-ug.md](../jahresabschluss/ergebnisverwendung-ug.md) |
+| Abschreibung | zeitanteilig im Anschaffungsjahr | [jahresabschluss/abschreibungen.md](../jahresabschluss/abschreibungen.md) |
 | Körperschaftsteuer | Zeitraum der Steuerpflicht statt Kalenderjahr | [§ 7 Abs. 3 Satz 3 KStG][kstg7] |
 | Gewerbesteuer | abgekürzter Erhebungszeitraum | [§ 14 Satz 3 GewStG][gewstg14] |
 | Umsatzsteuer | der Teil des Jahres tritt an die Stelle des Kalenderjahres | [§ 16 Abs. 3 UStG][ustg16] |
-| E-Bilanz | auch für die Eröffnungsbilanz | [§ 5b Abs. 1 Satz 4 EStG][estg5b] |
+| E-Bilanz | auch für die Eröffnungsbilanz | [eroeffnungsbilanz.md, Abschnitt 5](eroeffnungsbilanz.md#5-unterzeichnen-aufbewahren-übermitteln) |
 
-Stand: Oktober 2026. Den Abschluss begleitet buchfink-jahresabschluss, die
-Erklärungen buchfink-steuererklaerungen.
+Stand: Oktober 2026. Den Abschluss begleitet
+[jahresabschluss/ablauf.md](../jahresabschluss/ablauf.md), die Erklärungen
+[steuererklaerungen/ablauf.md](../steuererklaerungen/ablauf.md).
 
 ## 4. Beispiel mit Terminen
 
@@ -68,10 +66,10 @@ Kalenderjahr, kleine GmbH, ohne Steuerberater.
 | Offenlegung | bis 31.12.2027 | [§ 325 Abs. 1a HGB][hgb325] |
 
 Fristen nach Monaten rechnest du nach den Regeln des BGB
-([§ 108 Abs. 1 AO][ao108]); fällt ein Fristende der AO auf Wochenende oder
-Feiertag, gilt der nächste Werktag ([§ 108 Abs. 3 AO][ao108]). Die Fälligkeiten
-des Mandanten nennt `fristen`; mit beauftragtem Steuerberater liegen die
-Steuererklärungen später.
+([§ 108 Abs. 1 AO][ao108]); Fristende an Wochenende oder Feiertag:
+[pflichten.md#fristende-zahlung-verlängerung](../grundlagen/pflichten.md#fristende-zahlung-verlängerung).
+Die Fälligkeiten des Mandanten nennt `fristen`; mit beauftragtem
+Steuerberater liegen die Steuererklärungen später.
 
 [ao108]: https://www.gesetze-im-internet.de/ao_1977/__108.html
 [ao137]: https://www.gesetze-im-internet.de/ao_1977/__137.html
@@ -79,15 +77,9 @@ Steuererklärungen später.
 [ao149]: https://www.gesetze-im-internet.de/ao_1977/__149.html
 [estdv8b]: https://www.gesetze-im-internet.de/estdv_1955/__8b.html
 [estg4a]: https://www.gesetze-im-internet.de/estg/__4a.html
-[estg5b]: https://www.gesetze-im-internet.de/estg/__5b.html
-[estg7]: https://www.gesetze-im-internet.de/estg/__7.html
 [gewstg14]: https://www.gesetze-im-internet.de/gewstg/__14.html
-[gmbhg5a]: https://www.gesetze-im-internet.de/gmbhg/__5a.html
 [gmbhg42a]: https://www.gesetze-im-internet.de/gmbhg/__42a.html
-[hgb240]: https://www.gesetze-im-internet.de/hgb/__240.html
-[hgb242]: https://www.gesetze-im-internet.de/hgb/__242.html
 [hgb264]: https://www.gesetze-im-internet.de/hgb/__264.html
-[hgb267]: https://www.gesetze-im-internet.de/hgb/__267.html
 [hgb325]: https://www.gesetze-im-internet.de/hgb/__325.html
 [kstg7]: https://www.gesetze-im-internet.de/kstg_1977/__7.html
 [ustg16]: https://www.gesetze-im-internet.de/ustg_1980/__16.html

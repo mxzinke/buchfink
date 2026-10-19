@@ -147,11 +147,11 @@ Teilfreistellung (`kst.gk.inv_teilfreistellung`) ebenso.
 - Ein Verlust ist bei einem Aktienfonds für die GmbH nur zu 20 % abziehbar
   ([§ 21 InvStG][invstg21] mit [§ 20 Abs. 1 Satz 3 InvStG][invstg20]); ebenso
   eine Teilwertabschreibung. Die übrigen 80 % rechnet Buchfink nicht hinzu;
-  leg den Betrag dem Menschen vor. Die ELSTER-Anleitung zur
-  Gewerbesteuererklärung 2025 lässt in Zeile 48 die gesamten Teilfreistellungen
-  „nach den §§ 20 und 21 InvStG“ eintragen und den Korrekturbetrag nach § 20
-  Abs. 5 vom Finanzamt rechnen. Ob § 21 damit bei der Gewerbesteuer nur zur
-  Hälfte wirkt, sagt das Gesetz nicht ausdrücklich; Steuerberater.
+  leg den Betrag dem Menschen vor. Zeile 48 der Gewerbesteuererklärung nimmt
+  die gesamten Teilfreistellungen „nach den §§ 20 und 21 InvStG“ auf
+  ([gewst-holding.md, Abschnitt 6](gewst-holding.md#6-investmentfonds)). Ob
+  § 21 damit bei der Gewerbesteuer nur zur Hälfte wirkt, sagt das Gesetz nicht
+  ausdrücklich; Steuerberater.
 
 ## 7. Kapitalertragsteuer und Bescheinigung
 
@@ -162,8 +162,8 @@ Teilfreistellung (`kst.gk.inv_teilfreistellung`) ebenso.
 - Beim Abzug berücksichtigt sie nur die Teilfreistellung für Privatanleger
   (30 % bei Aktienfonds); die 80 % der GmbH wirken erst in der Veranlagung
   ([§ 43a Abs. 2 Satz 1 EStG][estg43a]; [BMF 16.05.2025, Rn. 59][bmf2025]).
-- Auf Gewinne aus dem Verkauf behält die Bank bei der GmbH nichts ein
-  ([§ 43 Abs. 2 Satz 3 Nr. 1 EStG][estg43] mit Abs. 1 Satz 1 Nr. 9).
+- Gewinne aus dem Verkauf:
+  [bewertung-veraeusserung.md, Abschnitt 7](bewertung-veraeusserung.md#7-verkauf-steuer).
 - Die Bank bescheinigt Körperschaften nach Muster III
   ([BMF 16.05.2025, Rn. 57][bmf2025]). Der nachrichtliche Teil gliedert die
   Investmenterträge vor Teilfreistellung und die als zugeflossen geltenden
@@ -174,7 +174,7 @@ Teilfreistellung (`kst.gk.inv_teilfreistellung`) ebenso.
 
 | Buchfink rechnet | Buchfink rechnet nicht |
 |---|---|
-| Teilfreistellung je Fondsart aus den Daten der Kartei; in der Gewerbesteuer die volle Teilfreistellung in Zeile 48 und die Hälfte im Gewerbeertrag (§ 20 Abs. 5) | Fondsart, Ertrag, Vorabpauschale und Abgang in der Kartei erfassen: noch nicht abgebildet; ohne diese Daten bleiben die Zeilen offen |
+| Teilfreistellung je Fondsart aus den Daten der Kartei; Gewerbesteuer nach [gewst-holding.md, Abschnitt 6](gewst-holding.md#6-investmentfonds) | Fondsart, Ertrag, Vorabpauschale und Abgang in der Kartei erfassen: noch nicht abgebildet; ohne diese Daten bleiben die Zeilen offen |
 | | Vorabpauschale; den Betrag nennt die Bescheinigung der Bank |
 | | anteiliges Abzugsverbot nach § 21 für Verluste und Abschreibungen |
 

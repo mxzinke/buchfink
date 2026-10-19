@@ -67,8 +67,8 @@ Konto 7000 vor, für Wertpapiere 7010 und für unbekannte Konten 7100
   mit Empfehlung Steuerberater vor; bei kleinen Beträgen entscheidet der
   Mensch.
 - Abziehbare Vorsteuer gehört nicht zu den Anschaffungskosten. Ob die Holding
-  sie abziehen darf, regelt die Referenz zur Umsatzsteuer der Holding (Liste
-  in SKILL.md).
+  sie abziehen darf, regelt
+  [holding-umsatzsteuer.md, Abschnitt 3](holding-umsatzsteuer.md#3-vorsteuer-aus-kosten-der-beteiligung).
 - Finanzanlagen nutzen sich nicht ab und werden nicht planmäßig
   abgeschrieben ([§ 253 Abs. 3 Satz 1 HGB][hgb253]: nur bei zeitlich
   begrenzter Nutzung).
@@ -95,7 +95,8 @@ Konto 7000 vor, für Wertpapiere 7010 und für unbekannte Konten 7100
    Kapitalgesellschaft“ (für GmbH- und AG-Anteile, nie für Fonds), Fondsart
    (nur Fonds), Stückzahl, Notierungswährung. Halte sie in der
    Beteiligungsliste fest.
-5. **Beteiligungsliste** fortschreiben (SKILL.md, Schritt 1).
+5. **Beteiligungsliste** fortschreiben
+   ([ablauf.md, Abschnitt 2](ablauf.md#2-ablauf-für-jeden-vorgang), Schritt 1).
 
 Fertig, wenn Buchung, Anlagegut und Beteiligungsliste übereinstimmen.
 
@@ -103,17 +104,18 @@ Fertig, wenn Buchung, Anlagegut und Beteiligungsliste übereinstimmen.
 
 - **Gründung einer Tochter-GmbH:** Die übernommene Stammeinlage (und ein
   Aufgeld) sind Anschaffungskosten. Buchung nach Einzahlung: Anlagekonto an
-  Bank. Die Tochter ist ein eigener Mandant; ihre Gründung bucht
-  buchfink-gruendung.
+  Bank. Die Tochter ist ein eigener Mandant; ihre Gründung buchst du dort nach
+  [gruendung/ablauf.md](../gruendung/ablauf.md).
 - **Zuzahlung in die Kapitalrücklage der Tochter, Kapitalerhöhung:**
   nachträgliche Anschaffungskosten ([§ 255 Abs. 1 Satz 2 HGB][hgb255]).
   Buchung: Anlagekonto an Bank. Beleg: Beschluss oder schriftliche Erklärung.
 - **Verdeckte Einlage** (die Holding überträgt der Tochter ein Wirtschaftsgut
   ohne angemessenes Entgelt, aus Gründen des Gesellschaftsverhältnisses):
   Die Anschaffungskosten der Beteiligung erhöhen sich um den Teilwert des
-  eingelegten Wirtschaftsguts ([§ 6 Abs. 6 Satz 2 EStG][estg6]). Die
-  verdeckte Einlage eines Anteils gilt als Veräußerung
-  ([§ 8b Abs. 2 Satz 6 KStG][kstg8b]). Wertungsfrage, Steuerberater.
+  eingelegten Wirtschaftsguts ([§ 6 Abs. 6 Satz 2 EStG][estg6]). Legt die
+  Holding einen Anteil ein, folgt daraus eine Veräußerung nach § 8b KStG
+  ([steuerfreistellung.md, Abschnitt 4](steuerfreistellung.md#4-gewinne-aus-der-veräußerung)).
+  Wertungsfrage, Steuerberater.
 - **Verzicht auf eine Forderung gegen die Tochter:** Ob und in welcher Höhe
   eine Einlage vorliegt, hängt von der Werthaltigkeit ab. Wertungsfrage,
   Steuerberater; gebucht wird erst nach der Klärung.
@@ -126,16 +128,13 @@ Fertig, wenn Buchung, Anlagegut und Beteiligungsliste übereinstimmen.
   (1260 bis 1265 bzw. 1280 bis 1285).
 - **Beleg:** schriftlicher Darlehensvertrag mit Betrag, Zins, Laufzeit,
   Tilgung und Sicherheiten. Buchung der Auszahlung: Ausleihung an Bank.
-- **Zinsen:** Ertrag auf 7012 (verbundene Unternehmen) oder 7011. Die
-  Kreditgewährung ist umsatzsteuerfrei
-  ([§ 4 Nr. 8 Buchst. a UStG][ustg4]); die Folgen für die Vorsteuer stehen in
-  der Referenz zur Umsatzsteuer der Holding (Liste in SKILL.md). Buche die
-  Zinsen ohne Umsatzsteuer.
-- **Ausfall:** Teilwertabschreibungen auf Darlehen eines zu mehr als einem
-  Viertel beteiligten Gesellschafters sind grundsätzlich nicht abziehbar
-  ([§ 8b Abs. 3 Satz 4 KStG][kstg8b]); Ausnahme bei Fremdüblichkeit
-  (Satz 7). Einzelheiten in der Referenz zu Bewertung und Veräußerung (Liste
-  in SKILL.md).
+- **Zinsen:** Ertrag auf 7012 (verbundene Unternehmen) oder 7011. Buche die
+  Zinsen ohne Umsatzsteuer; Steuerfreiheit der Kreditgewährung und Folgen für
+  die Vorsteuer:
+  [holding-umsatzsteuer.md, Abschnitt 5](holding-umsatzsteuer.md#5-darlehen-an-tochtergesellschaften).
+- **Ausfall:** Ob Teilwertabschreibung und Ausfall das Einkommen mindern:
+  [steuerfreistellung.md, Abschnitt 6](steuerfreistellung.md#6-darlehen-an-die-tochter);
+  Bewertung: [bewertung-veraeusserung.md, Abschnitt 4](bewertung-veraeusserung.md#4-darlehen-an-die-tochter).
 - Wertungsfrage: Sind Zins und Sicherheiten fremdüblich? Nur dann greift die
   Ausnahme. Lass den Menschen die Gründe im Vertrag festhalten.
 
@@ -144,8 +143,8 @@ Fertig, wenn Buchung, Anlagegut und Beteiligungsliste übereinstimmen.
 - **Größenklasse:** Eine Gesellschaft, deren einziger Zweck Erwerb,
   Verwaltung und Verwertung von Beteiligungen ist, ohne in deren Verwaltung
   einzugreifen, ist keine Kleinstkapitalgesellschaft
-  ([§ 267a Abs. 3 Nr. 3 HGB][hgb267a]). buchfink-jahresabschluss bestimmt die
-  Klasse.
+  ([§ 267a Abs. 3 Nr. 3 HGB][hgb267a]). Die Klasse bestimmst du nach
+  [jahresabschluss/groessenklassen-anhang.md](../jahresabschluss/groessenklassen-anhang.md).
 - **Anhang:** Angaben zu Beteiligungen (Name, Sitz, Anteil, Eigenkapital,
   Ergebnis) verlangt [§ 285 Nr. 11 HGB][hgb285]; kleine Kapitalgesellschaften
   sind davon befreit ([§ 288 Abs. 1 Nr. 1 HGB][hgb288]).
@@ -153,7 +152,8 @@ Fertig, wenn Buchung, Anlagegut und Beteiligungsliste übereinstimmen.
   Einfluss ausüben, ist sie Mutterunternehmen
   ([§ 290 Abs. 1, 2 HGB][hgb290]); größenabhängige Befreiungen regelt
   [§ 293 HGB][hgb293]. Buchfink erstellt keinen Konzernabschluss
-  (buchfink-grundlagen, Grenzen). Lass die Pflicht vom Steuerberater prüfen.
+  ([grundlagen/grenzen.md](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet)).
+  Lass die Pflicht vom Steuerberater prüfen.
 - **Ausländische Beteiligungen:** Erwerb oder Veräußerung von Anteilen an
   einer Körperschaft mit Sitz und Geschäftsleitung im Ausland ist dem
   Finanzamt mitzuteilen, wenn damit mindestens 10 % erreicht werden oder die
@@ -161,9 +161,11 @@ Fertig, wenn Buchung, Anlagegut und Beteiligungsliste übereinstimmen.
   ([§ 138 Abs. 2 Satz 1 Nr. 3 AO][ao138]); die Mitteilung geht mit der
   Körperschaftsteuererklärung, spätestens 14 Monate nach Ablauf des Jahres
   ([§ 138 Abs. 5 AO][ao138]). Stand: Oktober 2026.
-- **Verlustuntergang bei der Tochter:** Erwirbt die GmbH innerhalb von fünf
-  Jahren mehr als 50 % der Anteile, gehen nicht genutzte Verluste der Tochter
-  unter ([§ 8c Abs. 1 Satz 1 KStG][kstg8c]). Weise beim Kauf darauf hin.
+- **Verlustuntergang bei der Tochter:** Wechseln innerhalb von fünf Jahren
+  mehr als 50 % der Anteile an der Tochter, etwa weil die GmbH sie erwirbt,
+  gehen nicht genutzte Verluste der Tochter unter
+  ([§ 8c Abs. 1 Satz 1 KStG][kstg8c]). Weise beim Kauf und beim Verkauf darauf
+  hin und empfiehl einen Steuerberater.
 
 [ao138]: https://www.gesetze-im-internet.de/ao_1977/__138.html
 [estg6]: https://www.gesetze-im-internet.de/estg/__6.html
@@ -178,6 +180,4 @@ Fertig, wenn Buchung, Anlagegut und Beteiligungsliste übereinstimmen.
 [hgb288]: https://www.gesetze-im-internet.de/hgb/__288.html
 [hgb290]: https://www.gesetze-im-internet.de/hgb/__290.html
 [hgb293]: https://www.gesetze-im-internet.de/hgb/__293.html
-[kstg8b]: https://www.gesetze-im-internet.de/kstg_1977/__8b.html
 [kstg8c]: https://www.gesetze-im-internet.de/kstg_1977/__8c.html
-[ustg4]: https://www.gesetze-im-internet.de/ustg_1980/__4.html

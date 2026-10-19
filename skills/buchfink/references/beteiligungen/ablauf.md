@@ -1,16 +1,6 @@
----
-name: buchfink-beteiligungen
-description: "GmbH oder UG als Anteilseignerin in Buchfink: Beteiligungen, Tochtergesellschaften, Aktien und Investmentfonds erwerben, bewerten und veräußern, Erträge daraus buchen und die außerbilanziellen Korrekturen für Körperschaft- und Gewerbesteuer vormerken; dazu die Umsatzsteuer der Holding. Lade den Skill, wenn die GmbH Anteile kauft, gründet oder verkauft; wenn eine Dividende oder Ausschüttung einer Tochter oder aus einem Depot eingeht; bei Steuerbescheinigung, Kapitalertragsteuer und Solidaritätszuschlag auf Dividenden; bei § 8b KStG, Schachtelprivileg, Streubesitz, Hinzurechnung nach § 8 Nr. 5 oder Kürzung nach § 9 Nr. 2a GewStG; bei Teilwertabschreibung oder Zuschreibung auf Anteile; bei einem Darlehen an eine Tochter; bei ETF, Investmentfonds, Vorabpauschale oder Teilfreistellung; bei Einlagenrückgewähr; wenn eine Holding fragt, ob sie Vorsteuer abziehen darf. Ausschüttungen der eigenen GmbH regelt buchfink-gesellschafter, die Erklärungen buchfink-steuererklaerungen."
-license: EUPL-1.2
-compatibility: "Benötigt die laufende Buchfink-App mit eingeschaltetem MCP-Server und einem für den Client zugelassenen Mandanten. Setzt den Skill buchfink-grundlagen voraus."
-metadata:
-  buchfink-rechtsstand: "2026-10-17"
-  buchfink-werkzeugstand: "Buchfink 0.3.0"
----
+# Ablauf: Beteiligungen
 
-# Buchfink: Beteiligungen
-
-Setzt buchfink-grundlagen voraus; lade ihn, falls noch nicht geschehen.
+Rechtsstand: 17. Oktober 2026. Werkzeugstand: Buchfink 0.3.0.
 
 Hält die GmbH Anteile an anderen Gesellschaften, Aktien oder Fondsanteile,
 laufen Handelsbilanz und Steuer auseinander. Dividenden und
@@ -27,27 +17,38 @@ Was Buchfink dafür hat:
   Beteiligungsquote (ohne Stichtag), Kennzeichen „Anteil an einer
   Kapitalgesellschaft“ mit eigenen Konten für Abgang, Abschreibung und
   Zuschreibung, Fondsart, Stückzahl, Notierungswährung. Diese Felder und die
-  Bewegungen eines Anlageguts (Abgang, Wertänderung, Ertrag, Vorabpauschale)
-  bildet Buchfink noch nicht ab, weder als Werkzeug noch in der App; vorhandene
-  Werte liest es.
+  Bewegungen eines Anlageguts (Abgang, Wertänderung, Ertrag, Vorabpauschale,
+  Währungsbewertung) bildet Buchfink noch nicht ab, weder als Werkzeug noch in
+  der App; vorhandene Werte liest es. Leg dem Menschen Sachverhalt und Zahlen
+  vor; ein Steuerberater kann die Werte für die Erklärung bestätigen.
 - Die Rechnung zu § 8b KStG, § 8 Nr. 5 und § 9 Nr. 2a GewStG, Teilfreistellung
   und Vorabpauschale in `erklaerung` (`art: kst`, `art: gewst`), aus den
   §-8b-Konten und der Kartei. Sind Bezüge keinem Anteil mit Quote zugeordnet,
   bleiben die Zeilen zu Streubesitz und § 8 Nr. 5 offen.
 
-| Thema | Skill |
+| Thema | Regel in |
 |---|---|
-| Ausschüttung der eigenen GmbH an ihre Gesellschafter | buchfink-gesellschafter |
-| Zinsen der Bank mit Kapitalertragsteuer, Bankdarlehen | buchfink-bank |
-| Eingangsrechnung (Notar, Berater) kontieren, Vorsteueranteil | buchfink-belege |
-| Rechnung der Holding an eine Tochter | buchfink-rechnungen |
-| Abschlussbuchungen, Anlagenspiegel, Größenklasse | buchfink-jahresabschluss |
-| Überleitung, Erklärungen, Steuerrückstellung | buchfink-steuererklaerungen |
-| Organschaft, Konzernabschluss, Mitunternehmerschaft | buchfink-grundlagen (Grenzen) |
+| Ausschüttung der eigenen GmbH an ihre Gesellschafter | [gesellschafter/ausschuettung.md](../gesellschafter/ausschuettung.md) |
+| Zinsen der Bank mit Kapitalertragsteuer, Bankdarlehen | [bank/zinsen-kapest.md](../bank/zinsen-kapest.md), [bank/darlehen.md](../bank/darlehen.md) |
+| Eingangsrechnung (Notar, Berater) kontieren, Vorsteueranteil | [belege/ablauf.md](../belege/ablauf.md), [belege/vorsteuer.md](../belege/vorsteuer.md) |
+| Rechnung der Holding an eine Tochter | [rechnungen/ablauf.md](../rechnungen/ablauf.md) |
+| Abschlussbuchungen, Anlagenspiegel, Größenklasse | [jahresabschluss/ablauf.md](../jahresabschluss/ablauf.md), [jahresabschluss/groessenklassen-anhang.md](../jahresabschluss/groessenklassen-anhang.md) |
+| Überleitung, Erklärungen, Steuerrückstellung | [steuererklaerungen/kst.md](../steuererklaerungen/kst.md), [steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md), [jahresabschluss/steuern-im-abschluss.md](../jahresabschluss/steuern-im-abschluss.md) |
+| Organschaft, Konzernabschluss, Mitunternehmerschaft | [grundlagen/grenzen.md](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet) |
 
 Werkzeuge: `beleg_ablegen`, `bankumsatz_buchen` (Rückfrage),
 `buchung_erfassen` (Rückfrage), `abschlussbuchung` (Rückfrage), `anlagen`,
 `konten`, `buchungen_suchen`, `auswertung`, `belege_suchen`.
+
+## Inhalt
+
+1. Vorgang einordnen
+2. Ablauf für jeden Vorgang
+3. Steuerliche Folgen
+4. Entscheidungsregeln
+5. Wertungsfragen
+6. Nur der Mensch
+7. Stolperfallen
 
 ## 1. Vorgang einordnen
 
@@ -86,24 +87,24 @@ Anteil gehört, steht in [dividenden.md](dividenden.md).
 3. **Einordnen** nach Abschnitt 1 und 3. Bestimme die Quote zu Beginn des
    Kalenderjahres. Fertig, wenn Konto, Betrag und steuerliche Folge feststehen
    oder eine Wertungsfrage (Abschnitt 5) benannt ist.
-4. **Rückfrage** im Format aus buchfink-grundlagen. Nenne zusätzlich in einer
-   Zeile die steuerliche Folge, z. B. „95 % steuerfrei nach § 8b Abs. 1, 5
-   KStG; keine Hinzurechnung, Quote 100 %“. Fertig, wenn der Mensch Ja gesagt
-   hat.
+4. **Rückfrage** im Format aus
+   [SKILL.md, Abschnitt 3](../../SKILL.md#3-den-menschen-fragen). Nenne
+   zusätzlich in einer Zeile die steuerliche Folge, z. B. „95 % steuerfrei
+   nach § 8b Abs. 1, 5 KStG; keine Hinzurechnung, Quote 100 %“. Fertig, wenn
+   der Mensch Ja gesagt hat.
 5. **Buchen.** Mit Bankumsatz: `bankumsatz_buchen`, Zeilen `konto`: Ertrag
    brutto mit positivem `betrag`, Kapitalertragsteuer und
    Solidaritätszuschlag als Abzüge mit negativem `betrag` (wie bei Zinsen in
-   buchfink-bank). Ohne
+   [bank/zinsen-kapest.md](../bank/zinsen-kapest.md)). Ohne
    Bankumsatz (Forderung aus Beschluss, Umbuchung, Einlage):
    `buchung_erfassen` mit `beleg_id`. Fertig, wenn die Antwort die vorgelegten
    Zeilen zeigt.
 6. **Kartei.** Buchungen auf Anlagekonten ohne Anlagegut nennt `anlagen` als
    Aktivierungskandidaten. Das Anlagegut legst du nach Rückfrage mit
    `abschlussbuchung` an (`art: anlage_aktivieren`, `klasse: finanzanlage`,
-   `methode: keine`). Kennung, Quote, Kennzeichen, Fondsart, Stückzahl und
-   die Bewegungen des Anlageguts bildet Buchfink noch nicht ab; halte sie in
-   der Beteiligungsliste fest. Fertig, wenn `anlagen` das Anlagegut zeigt und
-   es zu den Salden aus `auswertung` passt.
+   `methode: keine`). Die Felder, die Buchfink noch nicht abbildet (oben),
+   hältst du in der Beteiligungsliste fest. Fertig, wenn `anlagen` das
+   Anlagegut zeigt und es zu den Salden aus `auswertung` passt.
 7. **Steuerzeilen prüfen.** Zum Jahresende `erklaerung` (`art: kst` und
    `art: gewst`): Bezüge und Gewinne nach § 8b, Streubesitz, § 8 Nr. 5,
    Teilfreistellung, Vorabpauschale. Gleiche jede Zeile mit der
@@ -112,172 +113,103 @@ Anteil gehört, steht in [dividenden.md](dividenden.md).
    Stichtag stimmt; beides nach Rückfrage mit `erklaerung_eingabe`. Fertig,
    wenn keine dieser Zeilen offen ist und jede zur Liste passt.
 
-## 3. Steuerliche Folgen auf einen Blick
+## 3. Steuerliche Folgen
 
 | Vorgang | Körperschaftsteuer | Gewerbesteuer |
 |---|---|---|
-| Dividende, Quote zu Beginn des Kalenderjahres unter 10 % | voll steuerpflichtig, kein 5-%-Zuschlag ([§ 8b Abs. 4 Satz 1, 7 KStG][kstg8b]) | voll steuerpflichtig |
-| Dividende, Quote mindestens 10 %, zu Beginn des Erhebungszeitraums unter 15 % | außer Ansatz, 5 % nicht abziehbar ([§ 8b Abs. 1, 5 KStG][kstg8b]) | Hinzurechnung der freien 95 % ([§ 8 Nr. 5 GewStG][gewstg8]) |
-| Dividende einer inländischen Kapitalgesellschaft, Quote zu Beginn des Erhebungszeitraums mindestens 15 % | außer Ansatz, 5 % nicht abziehbar | keine weitere Korrektur; die 5 % bleiben ([§ 9 Nr. 2a Satz 4 GewStG][gewstg9]) |
-| Gewinn aus dem Verkauf eines Anteils, jede Quote | außer Ansatz, 5 % des Gewinns nicht abziehbar ([§ 8b Abs. 2, 3 Satz 1 KStG][kstg8b]) | folgt der Körperschaftsteuer ([§ 7 Satz 1 GewStG][gewstg7]) |
-| Verlust, Teilwertabschreibung auf einen Anteil | nicht abziehbar ([§ 8b Abs. 3 Satz 3 KStG][kstg8b]) | folgt der Körperschaftsteuer |
-| Erträge aus Investmentfonds | kein § 8b ([§ 16 Abs. 3 InvStG][invstg16]); Teilfreistellung, für die GmbH bei Aktienfonds 80 % ([§ 20 Abs. 1 Satz 3 InvStG][invstg20]) | Teilfreistellung nur zur Hälfte ([§ 20 Abs. 5 InvStG][invstg20]) |
+| Dividende, Gewinn aus Verkauf, Verlust oder Teilwertabschreibung beim Anteil | [steuerfreistellung.md, Abschnitt 1](steuerfreistellung.md#1-übersicht) | [gewst-holding.md, Abschnitte 1 und 2](gewst-holding.md#2-dividenden-nach-quote) |
+| Erträge, Verkauf und Verlust bei Investmentfonds | [investmentfonds.md, Abschnitte 3 und 4](investmentfonds.md#4-teilfreistellung) | [gewst-holding.md, Abschnitt 6](gewst-holding.md#6-investmentfonds) |
 
-Stand: Oktober 2026. Die Grenzen und Sätze ändern sich nur durch Gesetz.
-Berechnung, Beispiele und Ausnahmen:
-[steuerfreistellung.md](steuerfreistellung.md),
-[gewst-holding.md](gewst-holding.md),
-[investmentfonds.md](investmentfonds.md).
+Die Grenzen (10 % für Streubesitz, 15 % für die Kürzung) und die Stichtage
+der Quote stehen in [gewst-holding.md, Abschnitt 2](gewst-holding.md#2-dividenden-nach-quote).
 
 ## 4. Entscheidungsregeln
 
-- **Zwei Stichtage.** Für § 8b Abs. 4 KStG zählt die unmittelbare Quote zu
-  Beginn des Kalenderjahres; ein Erwerb von mindestens 10 % gilt als zu
-  Beginn erfolgt ([§ 8b Abs. 4 Satz 1, 6 KStG][kstg8b]). Für § 9 Nr. 2a GewStG
-  zählt die Quote zu Beginn des Erhebungszeitraums ohne diese Rückbeziehung.
-  Wer im Juni 100 % kauft, bekommt die Dividende desselben Jahres bei der
-  Körperschaftsteuer zu 95 % frei und muss sie bei der Gewerbesteuer
-  hinzurechnen.
-- **Dividendenkonto nach Anteil.** Buche Dividenden auf die
-  §-8b-Konten (7005, 7006, 7014, 7015, 7103, 7104). Das SKR04 kennzeichnet sie
-  für Körperschaft- und Gewerbesteuer; Buchfink rechnet aus ihnen. Steht die
-  Dividende eines Anteils aus der Kartei auf einem anderen Konto, meldet
-  Buchfink `bezuege_ohne_8b_konto`.
+- **Zwei Stichtage.** § 8b Abs. 4 KStG und § 9 Nr. 2a GewStG messen die Quote
+  an verschiedenen Tagen; ein Erwerb im Laufe des Jahres wirkt bei beiden
+  Steuern verschieden
+  ([gewst-holding.md, Abschnitt 2](gewst-holding.md#2-dividenden-nach-quote)).
+- **Dividendenkonto nach Anteil.** Buche Dividenden auf die §-8b-Konten nach
+  der Tabelle in [dividenden.md, Abschnitt 3](dividenden.md#3-buchung);
+  Buchfink rechnet aus ihnen. Steht die Dividende eines Anteils aus der Kartei
+  auf einem anderen Konto, meldet Buchfink `bezuege_ohne_8b_konto`.
 - **Fondsanteile sind keine Kapitalgesellschaftsanteile.** Setze bei einem
   Investmentfonds nie das Kennzeichen „Anteil an einer Kapitalgesellschaft“
-  und buche seine Erträge nie auf §-8b-Konten ([§ 16 Abs. 3 InvStG][invstg16]).
-- **Kapitalertragsteuer trotz Steuerfreiheit.** Die Tochter oder die Bank
-  behält 25 % Kapitalertragsteuer und 5,5 % Solidaritätszuschlag darauf ein,
-  ungeachtet § 8b KStG ([§ 43 Abs. 1 Satz 3][estg43],
-  [§ 43a Abs. 1 Satz 1 Nr. 1 EStG][estg43a], [§ 3 Abs. 1 Nr. 5][solzg3],
-  [§ 4 Satz 1 SolZG][solzg4]). Stand: Oktober 2026. Sie wird angerechnet, auch
-  soweit die Bezüge außer Ansatz bleiben, aber nur mit Steuerbescheinigung
-  ([§ 36 Abs. 2 Nr. 2 Buchst. b, Satz 2 EStG][estg36] über
-  [§ 31 Abs. 1 KStG][kstg31]). Erinnere an die Bescheinigung.
-- **Getrennte Steuerkonten.** Kapitalertragsteuer auf 7630, Solidaritätszuschlag
-  auf 7633. Beide mindern den Jahresüberschuss, sind aber nicht abziehbar
-  ([§ 10 Nr. 2 KStG][kstg10]); Buchfink rechnet sie in der Überleitung hinzu.
-- **Bewertung zum Stichtag.** Prüfe jede Finanzanlage zum Jahresende auf
-  Wertminderung und frühere Abschreibungen auf Wertaufholung
-  ([§ 253 Abs. 3 Satz 5, 6, Abs. 5 HGB][hgb253]).
+  und buche seine Erträge nie auf §-8b-Konten
+  ([investmentfonds.md, Abschnitte 2 und 3](investmentfonds.md#3-steuerliche-grundregeln)).
+- **Kapitalertragsteuer trotz Steuerfreiheit.** Abzug, Anrechnung und die
+  nötige Steuerbescheinigung:
+  [dividenden.md, Abschnitte 2 und 4](dividenden.md#4-steuerbescheinigung-und-anrechnung).
+  Erinnere an die Bescheinigung. Kapitalertragsteuer und
+  Solidaritätszuschlag stehen getrennt auf 7630 und 7633; Buchfink rechnet
+  sie in der Überleitung hinzu
+  ([steuerfreistellung.md, Abschnitt 8](steuerfreistellung.md#8-konten-und-ihre-wirkung)).
+- **Bewertung zum Stichtag.** Prüfe jede Finanzanlage zum Jahresende nach
+  [bewertung-veraeusserung.md, Abschnitt 1](bewertung-veraeusserung.md#1-bewertung-zum-stichtag-nach-hgb).
 - **Rückstellungsvorschlag prüfen.** Der Vorschlag behandelt Bezüge auf 7005,
   7006, 7015 und 7104 als steuerfrei nach § 8b Abs. 1 KStG, auf 7014 und 7103
   als steuerpflichtig, und sagt das im Hinweis. Die Hinzurechnung nach § 8
   Nr. 5 GewStG nimmt er nur als Eingabe (`hinzurechnungen`); den Betrag
-  liefert die Gewerbesteuererklärung (buchfink-steuererklaerungen).
+  liefert die Gewerbesteuererklärung
+  ([steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md)).
 
 ## 5. Wertungsfragen
 
-Leite jede mit „Wertungsfrage:“ ein, nenne Grundlage, Optionen und Folgen.
+Format: [SKILL.md, Abschnitt 3](../../SKILL.md#3-den-menschen-fragen).
 
-- Beteiligung oder Wertpapier, Anlage- oder Umlaufvermögen: Soll der Anteil
-  dauernd dem Geschäftsbetrieb dienen
-  ([§ 247 Abs. 2][hgb247], [§ 271 Abs. 1 HGB][hgb271])?
+- Beteiligung oder Wertpapier, Anlage- oder Umlaufvermögen
+  ([erwerb-ausweis.md, Abschnitt 1](erwerb-ausweis.md#1-begriffe))?
 - Ist eine Wertminderung voraussichtlich dauernd
-  ([§ 253 Abs. 3 Satz 5, 6 HGB][hgb253], [§ 6 Abs. 1 Nr. 2 Satz 2 EStG][estg6])?
+  ([bewertung-veraeusserung.md, Abschnitte 1 und 2](bewertung-veraeusserung.md#2-teilwert-nach-estg))?
 - Darf eine Dividende vor dem Beschluss der Tochter vereinnahmt werden
-  (phasengleich)? Steuerlich nach dem BFH nur in seltenen Ausnahmen
-  ([dividenden.md](dividenden.md)).
+  (phasengleich; [dividenden.md, Abschnitt 1](dividenden.md#1-anspruch-und-zeitpunkt))?
 - Ist die Holding Unternehmerin, und welcher Anteil der Vorsteuer ist
-  abziehbar ([§ 2 Abs. 1][ustg2], [§ 15 Abs. 4 UStG][ustg15])?
+  abziehbar ([holding-umsatzsteuer.md](holding-umsatzsteuer.md))?
 - Ist ein Darlehen an die Tochter fremdüblich
-  ([§ 8b Abs. 3 Satz 7 KStG][kstg8b])?
+  ([steuerfreistellung.md, Abschnitt 6](steuerfreistellung.md#6-darlehen-an-die-tochter))?
 - In welchem Jahr setzt die GmbH die Vorabpauschale an
-  ([investmentfonds.md](investmentfonds.md))?
-- Welche Fondsart nennen die Anlagebedingungen ([§ 2 Abs. 6, 7, 9 InvStG][invstg2])?
+  ([investmentfonds.md, Abschnitt 5](investmentfonds.md#5-vorabpauschale))?
+- Welche Fondsart nennen die Anlagebedingungen
+  ([investmentfonds.md, Abschnitt 1](investmentfonds.md#1-was-ein-investmentfonds-ist))?
 - Gehören Beratungskosten vor dem Kauf zu den Anschaffungskosten
-  ([§ 255 Abs. 1 HGB][hgb255])?
+  ([erwerb-ausweis.md, Abschnitt 3](erwerb-ausweis.md#3-anschaffungskosten))?
 
 ## 6. Nur der Mensch
 
 - Als Gesellschafter der Tochter beschließen; Notarverträge schließen
-  ([§ 15 Abs. 3, 4 GmbHG][gmbhg15]).
+  ([erwerb-ausweis.md, Abschnitt 4](erwerb-ausweis.md#4-erwerb-buchen)).
 - Steuerbescheinigungen anfordern; eine Freistellung vom Steuerabzug beim
-  Finanzamt beantragen ([§ 44a Abs. 5 EStG][estg44a]).
+  Finanzamt beantragen ([dividenden.md, Abschnitt 5](dividenden.md#5-sonderfälle)).
 - Mitteilung über ausländische Beteiligungen mit der
-  Körperschaftsteuererklärung ([§ 138 Abs. 2 Satz 1 Nr. 3, Abs. 5 AO][ao138]).
+  Körperschaftsteuererklärung
+  ([erwerb-ausweis.md, Abschnitt 7](erwerb-ausweis.md#7-pflichten-die-aus-der-beteiligung-folgen)).
 - Einen Steuerberater beauftragen.
-
-Noch nicht abgebildet, weder als Werkzeug noch in der App: Felder der
-Anlagenkartei (Kennzeichen, Quote, Fondsart, Stückzahl), Vorabpauschale
-festhalten, Ertrag, Abgang, außerplanmäßige Abschreibung, Zuschreibung und
-Währungsbewertung eines Anlageguts. Leg dem Menschen Sachverhalt und Zahlen
-vor; ein Steuerberater kann die Werte für die Erklärung bestätigen.
 
 ## 7. Stolperfallen
 
 - Die Streubesitzgrenze von 10 % gilt nur für Dividenden, nicht für
-  Veräußerungsgewinne ([§ 8b Abs. 4 Satz 1 KStG][kstg8b] nennt nur „Bezüge“).
-- Den Basiszins liefert Buchfink nicht mit: 2,53 % für 2025, 3,20 % für 2026
-  (BMF vom 10.01.2025 und 13.01.2026). Stand: Oktober 2026; jedes Jahr neu.
+  Veräußerungsgewinne
+  ([steuerfreistellung.md, Abschnitt 3](steuerfreistellung.md#3-streubesitz-unter-10-)).
+- Den Basiszins für die Vorabpauschale liefert Buchfink nicht mit; er ändert
+  sich jedes Jahr ([investmentfonds.md, Abschnitt 5](investmentfonds.md#5-vorabpauschale)).
 - Die Bank behält auf Fondserträge Kapitalertragsteuer nach der
-  Teilfreistellung für Privatanleger ein; die 80 % für die GmbH wirken erst in
-  der Veranlagung ([§ 43a Abs. 2 Satz 1 EStG][estg43a]).
+  Teilfreistellung für Privatanleger ein
+  ([investmentfonds.md, Abschnitt 7](investmentfonds.md#7-kapitalertragsteuer-und-bescheinigung)).
 - Auf Gewinne aus dem Verkauf von Aktien und Fondsanteilen behält eine
   inländische Bank bei der GmbH keine Kapitalertragsteuer ein
-  ([§ 43 Abs. 2 Satz 3 Nr. 1 EStG][estg43]).
-- Eine Beteiligung wird erst vermutet, wenn die Anteile ein Fünftel des
-  Nennkapitals überschreiten ([§ 271 Abs. 1 Satz 3 HGB][hgb271]); der
-  Hinweistext der App sagt „ab einem Fünftel“.
-- Eine Holding, deren einziger Zweck Erwerb, Verwaltung und Verwertung von
-  Beteiligungen ist, ohne in die Verwaltung der Töchter einzugreifen, ist keine
-  Kleinstkapitalgesellschaft ([§ 267a Abs. 3 Nr. 3 HGB][hgb267a]). Eine
-  Führungsholding fällt nicht darunter; buchfink-jahresabschluss.
-- Wechseln bei einer Tochter innerhalb von fünf Jahren mehr als 50 % der
-  Anteile, gehen ihre nicht genutzten Verluste unter
-  ([§ 8c Abs. 1 Satz 1 KStG][kstg8c]). Beim Kauf oder Verkauf Steuerberater.
-- Die Quote der Kartei trägt keinen Stichtag. Für § 8b Abs. 4 KStG zählt der
-  Beginn des Kalenderjahres, für § 9 Nr. 2a GewStG der Beginn des
-  Erhebungszeitraums; prüfe sie an der Gesellschafterliste
-  ([gewst-holding.md](gewst-holding.md)).
-- Fondserträge: In GewSt 1 A Zeile 48 steht die volle Teilfreistellung; die
-  Hälfte nach § 20 Abs. 5 InvStG rechnet das Finanzamt
-  ([gewst-holding.md](gewst-holding.md)).
-
-## Referenzen
-
-- [erwerb-ausweis.md](erwerb-ausweis.md): Lies beim
-  Kauf, bei der Gründung einer Tochter, bei Einlagen in eine Tochter, bei
-  einem Darlehen an sie und wenn Konto oder Bilanzposten unklar sind.
-- [dividenden.md](dividenden.md): Lies, wenn eine
-  Dividende beschlossen wird oder eingeht, eine Steuerbescheinigung fehlt
-  oder eine Einlagenrückgewähr bescheinigt wird.
-- [steuerfreistellung.md](steuerfreistellung.md): Lies,
-  wenn du die Zeilen zu § 8b KStG prüfst oder ein Vorgang dort einzuordnen
-  ist.
-- [gewst-holding.md](gewst-holding.md): Lies, wenn du
-  Hinzurechnung oder Kürzung für Beteiligungserträge prüfst.
-- [bewertung-veraeusserung.md](bewertung-veraeusserung.md):
-  Lies zum Jahresende, bei Kursverlust, Wertaufholung und Verkauf.
-- [investmentfonds.md](investmentfonds.md): Lies bei
-  ETF, Fondsausschüttung, Vorabpauschale und Fondsverkauf.
-- [holding-umsatzsteuer.md](holding-umsatzsteuer.md):
-  Lies, wenn die GmbH vor allem Beteiligungen hält, Leistungen an Töchter
-  abrechnet oder Vorsteuer aus Kosten der Beteiligung abziehen will.
-
-[ao138]: https://www.gesetze-im-internet.de/ao_1977/__138.html
-[estg6]: https://www.gesetze-im-internet.de/estg/__6.html
-[estg36]: https://www.gesetze-im-internet.de/estg/__36.html
-[estg43]: https://www.gesetze-im-internet.de/estg/__43.html
-[estg43a]: https://www.gesetze-im-internet.de/estg/__43a.html
-[estg44a]: https://www.gesetze-im-internet.de/estg/__44a.html
-[gewstg7]: https://www.gesetze-im-internet.de/gewstg/__7.html
-[gewstg8]: https://www.gesetze-im-internet.de/gewstg/__8.html
-[gewstg9]: https://www.gesetze-im-internet.de/gewstg/__9.html
-[gmbhg15]: https://www.gesetze-im-internet.de/gmbhg/__15.html
-[hgb247]: https://www.gesetze-im-internet.de/hgb/__247.html
-[hgb253]: https://www.gesetze-im-internet.de/hgb/__253.html
-[hgb255]: https://www.gesetze-im-internet.de/hgb/__255.html
-[hgb267a]: https://www.gesetze-im-internet.de/hgb/__267a.html
-[hgb271]: https://www.gesetze-im-internet.de/hgb/__271.html
-[invstg2]: https://www.gesetze-im-internet.de/invstg_2018/__2.html
-[invstg16]: https://www.gesetze-im-internet.de/invstg_2018/__16.html
-[invstg20]: https://www.gesetze-im-internet.de/invstg_2018/__20.html
-[kstg8b]: https://www.gesetze-im-internet.de/kstg_1977/__8b.html
-[kstg8c]: https://www.gesetze-im-internet.de/kstg_1977/__8c.html
-[kstg10]: https://www.gesetze-im-internet.de/kstg_1977/__10.html
-[kstg31]: https://www.gesetze-im-internet.de/kstg_1977/__31.html
-[solzg3]: https://www.gesetze-im-internet.de/solzg_1995/__3.html
-[solzg4]: https://www.gesetze-im-internet.de/solzg_1995/__4.html
-[ustg2]: https://www.gesetze-im-internet.de/ustg_1980/__2.html
-[ustg15]: https://www.gesetze-im-internet.de/ustg_1980/__15.html
+  ([bewertung-veraeusserung.md, Abschnitt 7](bewertung-veraeusserung.md#7-verkauf-steuer)).
+- Wann eine Beteiligung vermutet wird:
+  [erwerb-ausweis.md, Abschnitt 1](erwerb-ausweis.md#1-begriffe). Der
+  Hinweistext der App sagt „ab einem Fünftel“; das Gesetz verlangt, dass die
+  Anteile ein Fünftel überschreiten.
+- Eine reine Beteiligungsholding ist keine Kleinstkapitalgesellschaft; eine
+  Führungsholding kann es sein
+  ([erwerb-ausweis.md, Abschnitt 7](erwerb-ausweis.md#7-pflichten-die-aus-der-beteiligung-folgen)).
+- Verlustuntergang bei der Tochter nach einem Anteilswechsel: Weise beim Kauf
+  oder Verkauf darauf hin und empfiehl einen Steuerberater
+  ([erwerb-ausweis.md, Abschnitt 7](erwerb-ausweis.md#7-pflichten-die-aus-der-beteiligung-folgen)).
+- Die Quote der Kartei trägt keinen Stichtag; prüfe sie je Steuer an der
+  Gesellschafterliste
+  ([gewst-holding.md, Abschnitt 8](gewst-holding.md#8-angaben-für-die-erklärung)).
+- Fondserträge in GewSt 1 A Zeile 48:
+  [gewst-holding.md, Abschnitt 6](gewst-holding.md#6-investmentfonds).

@@ -16,7 +16,7 @@ am 17.10.2026 gelesen; KStH über einen Kanzleispiegel; das BMF-Schreiben vom
 Aufwendungen für die Gründung und für die Beschaffung des Eigenkapitals dürfen
 nicht aktiviert werden ([§ 248 Abs. 1 Nr. 1, 2 HGB][hgb248]). Sie sind Aufwand
 des ersten Geschäftsjahres und mindern das Reinvermögen sofort (Unterbilanz:
-Referenz zur Kapitalaufbringung).
+[kapitalaufbringung.md, Abschnitt 6](kapitalaufbringung.md#6-unterbilanz-am-eintragungstag)).
 
 ## 2. Wer die Gründungskosten trägt
 
@@ -49,9 +49,11 @@ Vorgehen:
    Gründungszeitraum, dazu offene Belege).
 3. Liegt die Summe über dem Betrag laut Vertrag oder fehlt die Klausel:
    Wertungsfrage. Optionen: (a) der Gesellschafter erstattet den Überschuss,
-   Forderung auf 1307 (buchfink-gesellschafter); (b) die GmbH trägt ihn, mit
-   dem Risiko einer verdeckten Gewinnausschüttung; (c) Rücksprache mit Notar
-   oder Steuerberater. Der Mensch entscheidet.
+   Forderung auf 1307
+   ([gesellschafter/verrechnungskonto.md](../gesellschafter/verrechnungskonto.md));
+   (b) die GmbH trägt ihn, mit dem Risiko einer verdeckten
+   Gewinnausschüttung ([gesellschafter/vga-einlage.md](../gesellschafter/vga-einlage.md));
+   (c) Rücksprache mit Notar oder Steuerberater. Der Mensch entscheidet.
 
 ## 3. Buchen
 
@@ -61,16 +63,17 @@ Vorgehen:
 | Steuerberatung zur Gründung | `beratung` | 6825 | Regelsatz laut Rechnung |
 | Registergericht, Behördengebühren | `beitraege` | 6420 Beiträge | meist nicht steuerbar |
 
-- Den Beleg prüft und bucht buchfink-belege. Gründungsbelege sind meist keine
-  Routine, weil der Kontakt neu ist und noch keine bestätigte Buchungsgruppe
-  hat; meldet Buchfink `freigabe_noetig`, buche nach Rückfrage mit
-  `beleg_buchen_mit_rueckfrage`.
+- Den Beleg prüfst und buchst du nach [belege/ablauf.md](../belege/ablauf.md).
+  Gründungsbelege sind meist keine Routine, weil der Kontakt neu ist und noch
+  keine bestätigte Buchungsgruppe hat; meldet Buchfink `freigabe_noetig`,
+  buche nach Rückfrage mit `beleg_buchen_mit_rueckfrage`.
 - Vorsteuer setzt eine Rechnung an die GmbH voraus
   ([§ 14 Abs. 4 Satz 1 Nr. 1 UStG][ustg14]). Ist ein Gesellschafter persönlich
   Rechnungsempfänger, frag nach. Wertungsfrage: Ob der GmbH die Vorsteuer aus
   Gründungsrechnungen zusteht, beurteilt im Zweifel ein Steuerberater.
 - Zahlt ein Gesellschafter eine Gründungsrechnung privat, buche sie als
-  Auslage (`bezahlung: auslage`, buchfink-belege).
+  Auslage (`bezahlung: auslage`,
+  [belege/fremdwaehrung-auslagen.md](../belege/fremdwaehrung-auslagen.md)).
 
 ## 4. Kosten vor der Beurkundung
 

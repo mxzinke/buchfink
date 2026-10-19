@@ -114,7 +114,7 @@ Bitte wähle: (a) so buchen  (b) Teil nicht eingefordert (2910)  (c) zurückstel
   ([§ 19 Abs. 5 GmbHG][gmbhg19]).
 - Erkennst du kurz nach der Einzahlung eine Zahlung an einen Gesellschafter
   oder einen Kauf von ihm, halte an und lege den Fall vor. Darlehen an
-  Gesellschafter regelt buchfink-gesellschafter.
+  Gesellschafter: [bank/darlehen.md](../bank/darlehen.md).
 
 ## 6. Unterbilanz am Eintragungstag
 
@@ -129,13 +129,13 @@ Bitte wähle: (a) so buchen  (b) Teil nicht eingefordert (2910)  (c) zurückstel
   einschließlich ausstehender Einlagen minus Schulden. Liegt es unter dem
   Stammkapital, nenne dem Menschen die Differenz und empfiehl Notar oder
   Steuerberater.
-- Gründungsaufwand mindert das Reinvermögen sofort, weil er nicht aktiviert
-  werden darf ([§ 248 Abs. 1 Nr. 1 HGB][hgb248]). Wertungsfrage: Ob der im
-  Vertrag übernommene Gründungsaufwand die Haftung mindert, beurteilt ein
-  Berater.
+- Gründungsaufwand mindert das Reinvermögen sofort
+  ([gruendungskosten.md, Abschnitt 1](gruendungskosten.md#1-bilanz-kein-aktivposten)).
+  Wertungsfrage: Ob der im Vertrag übernommene Gründungsaufwand die Haftung
+  mindert, beurteilt ein Berater.
 - Buchfink kann die Unterbilanz aus den Gründungsangaben intern rechnen
-  (`FoundationService.Unterbilanz`). Die App zeigt sie seit dem Umbau nicht
-  mehr an, und ein Werkzeug dafür gibt es nicht; rechne deshalb selbst.
+  (`FoundationService.Unterbilanz`). Die App zeigt sie nicht an, und ein
+  Werkzeug dafür gibt es nicht; rechne deshalb selbst.
 
 [gmbhg5]: https://www.gesetze-im-internet.de/gmbhg/__5.html
 [gmbhg5a]: https://www.gesetze-im-internet.de/gmbhg/__5a.html
@@ -145,5 +145,4 @@ Bitte wähle: (a) so buchen  (b) Teil nicht eingefordert (2910)  (c) zurückstel
 [gmbhg19]: https://www.gesetze-im-internet.de/gmbhg/__19.html
 [gmbhg46]: https://www.gesetze-im-internet.de/gmbhg/__46.html
 [gmbhganl1]: https://www.gesetze-im-internet.de/normengrafiken/bgbl1_2021/j3364_0010.pdf
-[hgb248]: https://www.gesetze-im-internet.de/hgb/__248.html
 [hgb272]: https://www.gesetze-im-internet.de/hgb/__272.html

@@ -6,8 +6,8 @@ BMF-Schreiben vom 16.05.2025, IV C 1 - S 2401/00008/014/051, gelesen über einen
 [nichtamtlichen Spiegel][bmf2025]; das BMF-Original war nicht abrufbar.
 Sätze: Stand Oktober 2026; sie ändern sich nur durch Gesetz.
 
-Dividenden aus Investmentfonds sind Investmenterträge; sie regelt die
-Referenz zu Investmentfonds (Liste in SKILL.md).
+Dividenden aus Investmentfonds sind Investmenterträge; sie regelt
+[investmentfonds.md](investmentfonds.md).
 
 ## Inhalt
 
@@ -73,7 +73,8 @@ Bankumsatz mit `bankumsatz_buchen`, drei Zeilen `konto`:
 | Summe = Bankumsatz | – | 73.625,00 |
 
 Der Ertrag hat einen positiven `betrag`, die Abzugszeilen einen negativen,
-wie bei Zinsen mit Kapitalertragsteuer (buchfink-bank).
+wie bei Zinsen mit Kapitalertragsteuer
+([bank/zinsen-kapest.md](../bank/zinsen-kapest.md)).
 
 **Fall B: Beschluss vor dem Stichtag, Zahlung danach.**
 
@@ -120,7 +121,8 @@ ebenso Kapitalertragsteuer und Solidaritätszuschlag getrennt auf 7630 und 7633.
   ([§ 1 Abs. 2 SolZG][solzg1]).
 - Lege jede Bescheinigung mit `beleg_ablegen` ab. Gleiche am Jahresende die
   Summe auf 7630 und 7633 mit allen Bescheinigungen ab (Dividenden hier,
-  Zinsen in buchfink-bank). Fertig, wenn jede Abweichung erklärt ist.
+  Zinsen in [bank/zinsen-kapest.md](../bank/zinsen-kapest.md)). Fertig, wenn
+  jede Abweichung erklärt ist.
 
 ## 5. Sonderfälle
 
@@ -142,17 +144,16 @@ ebenso Kapitalertragsteuer und Solidaritätszuschlag getrennt auf 7630 und 7633.
   Sammelverwahrung). Den Antrag stellt der Mensch, am besten mit Steuerberater.
 - **Einlagenrückgewähr:** Zahlt die Tochter aus dem steuerlichen
   Einlagekonto, sind das keine Einnahmen
-  ([§ 20 Abs. 1 Nr. 1 Satz 3 EStG][estg20]); die Tochter bescheinigt den
-  Betrag ([§ 27 Abs. 3 KStG][kstg27]). Buche nicht auf ein Dividendenkonto,
-  bevor der Steuerberater die Buchung (Ertrag oder Minderung der
-  Anschaffungskosten) und die Folgen bei Übersteigen des Buchwerts geklärt hat.
-- **Verdeckte Gewinnausschüttung der Tochter an die Holding:** Sie ist ein
-  sonstiger Bezug ([§ 20 Abs. 1 Nr. 1 Satz 2 EStG][estg20]). Bei der Holding
-  bleibt sie nur außer Ansatz, soweit sie das Einkommen der Tochter nicht
-  gemindert hat ([§ 8b Abs. 1 Satz 2 KStG][kstg8b]). Steuerberater.
-- **Liquidation oder Kapitalherabsetzung der Tochter:** Bezüge nach
-  [§ 20 Abs. 1 Nr. 2 EStG][estg20] fallen unter [§ 8b Abs. 1][kstg8b], Gewinne
-  aus Auflösung oder Herabsetzung unter § 8b Abs. 2 Satz 3 KStG.
+  ([§ 20 Abs. 1 Nr. 1 Satz 3 EStG][estg20]) und keine Bezüge nach § 8b KStG;
+  die Tochter bescheinigt den Betrag ([§ 27 Abs. 3 KStG][kstg27]). Buche nicht
+  auf ein Dividendenkonto, bevor der Steuerberater die Buchung (Ertrag oder
+  Minderung der Anschaffungskosten) und die Folgen bei Übersteigen des
+  Buchwerts geklärt hat.
+- **Verdeckte Gewinnausschüttung der Tochter an die Holding:**
+  [steuerfreistellung.md, Abschnitt 2](steuerfreistellung.md#2-dividenden-und-andere-bezüge).
+  Steuerberater.
+- **Liquidation oder Kapitalherabsetzung der Tochter:**
+  [steuerfreistellung.md, Abschnitte 2 und 4](steuerfreistellung.md#4-gewinne-aus-der-veräußerung).
   Steuerberater.
 - **Ausländische Dividenden:** Eine inländische Bank behält bei einer
   unbeschränkt steuerpflichtigen GmbH auf ausländische Dividenden keine
@@ -163,9 +164,9 @@ ebenso Kapitalertragsteuer und Solidaritätszuschlag getrennt auf 7630 und 7633.
 
 ## 6. Umsatzsteuer
 
-Dividenden sind kein Entgelt für eine Leistung und damit nicht steuerbar
-([UStAE 2.3 Abs. 2 Satz 3][ustae23]). Die Zeilen tragen keinen Steuerfall; in
-der Voranmeldung erscheint nichts.
+Dividenden sind nicht steuerbar
+([holding-umsatzsteuer.md, Abschnitt 1](holding-umsatzsteuer.md#1-unternehmerin-oder-nicht)).
+Die Zeilen tragen keinen Steuerfall; in der Voranmeldung erscheint nichts.
 
 ## 7. Für die Erklärung
 
@@ -173,12 +174,11 @@ Halte je Dividende in der Beteiligungsliste fest: Datum des Beschlusses und
 der Zahlung, Gesellschaft, Quote zu Beginn des Kalenderjahres und des
 Erhebungszeitraums, Konto, Bruttobetrag, Kapitalertragsteuer,
 Solidaritätszuschlag, `beleg_id` der Bescheinigung. Damit prüfst du zum
-Jahresende die Zeilen, die Buchfink aus Konten und Kartei rechnet (SKILL.md,
-Schritt 7).
+Jahresende die Zeilen, die Buchfink aus Konten und Kartei rechnet
+([ablauf.md, Abschnitt 2](ablauf.md#2-ablauf-für-jeden-vorgang), Schritt 7).
 
 [bmf2025]: https://www.steuerschroeder.de/blog/wp-content/uploads/2025/05/2025-05-16-kapitalertragSt-steuerbescheinigung.pdf
 [bfh150-95]: https://datenbank.nwb.de/Dokument/97545/
-[ustae23]: https://datenbank.nwb.de/Dokument/378652_2___3/
 [estg20]: https://www.gesetze-im-internet.de/estg/__20.html
 [estg36]: https://www.gesetze-im-internet.de/estg/__36.html
 [estg36a]: https://www.gesetze-im-internet.de/estg/__36a.html
@@ -190,7 +190,6 @@ Schritt 7).
 [gmbhg29]: https://www.gesetze-im-internet.de/gmbhg/__29.html
 [gmbhg46]: https://www.gesetze-im-internet.de/gmbhg/__46.html
 [hgb252]: https://www.gesetze-im-internet.de/hgb/__252.html
-[kstg8b]: https://www.gesetze-im-internet.de/kstg_1977/__8b.html
 [kstg27]: https://www.gesetze-im-internet.de/kstg_1977/__27.html
 [kstg31]: https://www.gesetze-im-internet.de/kstg_1977/__31.html
 [solzg1]: https://www.gesetze-im-internet.de/solzg_1995/__1.html

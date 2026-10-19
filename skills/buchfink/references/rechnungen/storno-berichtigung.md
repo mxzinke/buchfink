@@ -1,8 +1,10 @@
 # Ausgangsrechnung stornieren oder berichtigen
 
-Rechtsstand: 17. Oktober 2026. Wie eine Buchung korrigiert wird (Storno mit
-heutigem Datum, Neubuchung), steht in buchfink-grundlagen. Hier geht es um das
-Rechnungsdokument und die Umsatzsteuer.
+Rechtsstand: 17. Oktober 2026.
+
+Wie eine Buchung korrigiert wird (Storno, Neubuchung), steht in
+[grundlagen/arbeitsweise.md, Abschnitt 11](../grundlagen/arbeitsweise.md#11-eine-buchung-korrigieren).
+Hier geht es um das Rechnungsdokument und die Umsatzsteuer.
 
 ## Inhalt
 
@@ -39,9 +41,10 @@ Rechnungsdokument und die Umsatzsteuer.
 | Leistung findet nicht statt | Stornorechnung | [§ 17 Abs. 2 Nr. 2 UStG][ustg17] |
 | Falscher Steuersatz oder Steuerfall | Abschnitt 3 | [§ 14c UStG][ustg14c] |
 
-- Eine E-Rechnung wird wieder als E-Rechnung berichtigt; Angaben per E-Mail
-  oder PDF reichen nicht ([UStAE 14.11 Abs. 1 Satz 7, 8 i. d. F. vom 15.10.2025][bmf2025]).
-- Nachlässe wegen Mängeln und Skonto am Zahlungseingang bucht buchfink-bank.
+- Berichtigung einer E-Rechnung:
+  [e-rechnung-ausgang.md, Abschnitt 8](e-rechnung-ausgang.md#8-berichtigung-und-aufbewahrung).
+- Nachlässe wegen Mängeln und Skonto am Zahlungseingang bucht
+  [bank/skonto-differenzen.md](../bank/skonto-differenzen.md).
 
 ## 3. Falsch ausgewiesene Umsatzsteuer
 
@@ -68,14 +71,14 @@ Rechnungsdokument und die Umsatzsteuer.
 
 ## 4. Wirkung auf die Voranmeldung
 
-- Der Storno trägt das heutige Datum und wirkt im laufenden
-  Voranmeldungszeitraum (buchfink-grundlagen).
+- Der Storno einer Ausgangsrechnung wirkt im laufenden Voranmeldungszeitraum
+  ([grundlagen/arbeitsweise.md, Abschnitt 11](../grundlagen/arbeitsweise.md#11-eine-buchung-korrigieren)).
 - Minderungen nach § 17 sind im Zeitraum der Änderung zu berücksichtigen
   ([§ 17 Abs. 1 Satz 8 UStG][ustg17]). Das passt zum Storno.
 - War die ursprüngliche Voranmeldung schon falsch (z. B. falscher Satz bei
   richtiger Leistung, Leistung im falschen Monat erfasst), frag den Menschen, ob
   sie berichtigt werden muss ([§ 153 AO][ao153]); den Ablauf regelt
-  buchfink-monatsabschluss.
+  [monatsabschluss/berichtigung.md](../monatsabschluss/berichtigung.md).
 
 ## 5. Ablauf
 

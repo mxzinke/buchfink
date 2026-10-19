@@ -5,8 +5,8 @@ Rechtsstand: 17. Oktober 2026. Wortlaut von HGB, EStG, KStG, GmbHG und UStG am
 Anlagenkartei von Buchfink.
 
 Planmäßige Abschreibung, Anlagenspiegel und den Abschreibungslauf regelt
-buchfink-jahresabschluss. Hier geht es um Anteile, Wertpapiere und
-Ausleihungen.
+[jahresabschluss/abschreibungen.md](../jahresabschluss/abschreibungen.md).
+Hier geht es um Anteile, Wertpapiere und Ausleihungen.
 
 ## Inhalt
 
@@ -61,25 +61,20 @@ Darlehen. Frag nach früheren Abschreibungen und ob ihr Grund noch besteht.
 
 ## 3. Folgen bei Anteilen an Kapitalgesellschaften
 
-- Teilwertabschreibung und andere Gewinnminderungen beim Anteil mindern das
-  Einkommen nicht ([§ 8b Abs. 3 Satz 3 KStG][kstg8b]). Buchfink rechnet sie
-  aus 7204 und den Verlustkonten hinzu.
-- Eine spätere Wertaufholung bleibt außer Ansatz; 5 % davon gelten als nicht
-  abziehbar ([§ 8b Abs. 2 Satz 3, Abs. 3 Satz 1 KStG][kstg8b]).
-- Bei der Gewerbesteuer wirkt das über den Gewinn mit
-  ([§ 7 Satz 1 GewStG][gewstg7]).
+- Teilwertabschreibung, Verlust und spätere Wertaufholung beim Anteil
+  rechnet die Körperschaftsteuer heraus
+  ([steuerfreistellung.md, Abschnitte 4 und 5](steuerfreistellung.md#5-verluste-und-teilwertabschreibungen)),
+  die Gewerbesteuer folgt ihr
+  ([gewst-holding.md, Abschnitt 1](gewst-holding.md#1-ausgangspunkt)).
+  Buchfink rechnet sie aus 7204 und den Verlustkonten hinzu.
 - Die Frage „dauernd oder vorübergehend“ entscheidet deshalb über die
   Handelsbilanz, nicht über die Körperschaftsteuer.
 
 ## 4. Darlehen an die Tochter
 
 - Ausleihungen sind Finanzanlagen; es gelten Abschnitt 1 und 2.
-- Ist die GmbH zu mehr als einem Viertel an der Tochter beteiligt, mindern
-  Teilwertabschreibung, Ausfall oder Inanspruchnahme aus einer Sicherheit das
-  Einkommen nicht, außer ein fremder Dritter hätte das Darlehen ebenso gewährt
-  oder stehen lassen ([§ 8b Abs. 3 Satz 4, 7 KStG][kstg8b]).
-- Wertaufholung: außer Ansatz, soweit die Abschreibung nicht abgezogen wurde,
-  ohne 5-%-Zuschlag ([§ 8b Abs. 3 Satz 9 KStG][kstg8b]).
+- Ob Teilwertabschreibung, Ausfall und Wertaufholung das Einkommen ändern:
+  [steuerfreistellung.md, Abschnitt 6](steuerfreistellung.md#6-darlehen-an-die-tochter).
 - Wertungsfrage: Fremdüblichkeit. Sammle Vertrag, Zins, Sicherheiten,
   Zahlungsverlauf und die Lage der Tochter bei Hingabe.
 
@@ -105,7 +100,7 @@ und die Konten der Tabelle.
   auf 4916 bzw. 4915. Eigenbeleg mit Kursnachweis.
 - Notiert ein Papier in Fremdwährung, gehört der Euro-Wert zum Stichtag auf
   6880 oder 4840; die Bewertung am Anlagegut bildet Buchfink noch nicht ab.
-  Regeln in buchfink-jahresabschluss.
+  Regeln in [jahresabschluss/forderungen.md](../jahresabschluss/forderungen.md).
 - Teilwertabschreibungen und Zuschreibungen liest Buchfink aus den Konten in
   die Körperschaftsteuererklärung ([steuerfreistellung.md](steuerfreistellung.md),
   Abschnitt 8).
@@ -114,7 +109,8 @@ und die Konten der Tabelle.
 
 1. **Belege:** notarieller Vertrag bei GmbH-Anteilen
    ([§ 15 Abs. 3, 4 GmbHG][gmbhg15]), Verkaufsabrechnung der Bank bei
-   Wertpapieren; Rechnungen von Notar und Beratern über buchfink-belege.
+   Wertpapieren; Rechnungen von Notar und Beratern nach
+   [belege/ablauf.md](../belege/ablauf.md).
    Fertig, wenn alle Belege abgelegt sind.
 2. **Rechnung vorlegen:** Erlös, Veräußerungskosten, Buchwert laut
    Anlagenspiegel, Buchgewinn oder -verlust, steuerliche Folge
@@ -134,25 +130,18 @@ und die Konten der Tabelle.
 
 ## 7. Verkauf: Steuer
 
-- Der Gewinn bleibt bei der Körperschaftsteuer außer Ansatz, 5 % gelten als
-  nicht abziehbar, unabhängig von der Quote
-  ([§ 8b Abs. 2, 3 Satz 1, Abs. 4 Satz 1 KStG][kstg8b]); ein Verlust ist nicht
-  abziehbar ([§ 8b Abs. 3 Satz 3 KStG][kstg8b]). Veräußerungskosten mindern
-  den Gewinn ([§ 8b Abs. 2 Satz 2 KStG][kstg8b]).
-- Gewerbesteuer: folgt dem Gewinn ([§ 7 Satz 1 GewStG][gewstg7]); § 8 Nr. 5
-  GewStG erfasst nur Gewinnanteile.
+- Körperschaftsteuer auf Gewinn oder Verlust, auch bei Streubesitz:
+  [steuerfreistellung.md, Abschnitte 3 bis 5](steuerfreistellung.md#4-gewinne-aus-der-veräußerung).
+- Gewerbesteuer: [gewst-holding.md, Abschnitt 1](gewst-holding.md#1-ausgangspunkt).
 - Kapitalertragsteuer: Eine inländische Bank behält auf Gewinne aus dem
   Verkauf von Aktien und Fondsanteilen bei einer unbeschränkt
   steuerpflichtigen GmbH nichts ein
   ([§ 43 Abs. 2 Satz 3 Nr. 1 EStG][estg43] mit Abs. 1 Satz 1 Nr. 9).
-- Umsatzsteuer: Der Verkauf von Anteilen ist nicht steuerbar oder nach
-  [§ 4 Nr. 8 Buchst. e, f UStG][ustg4] steuerfrei; Vorsteuer aus den Kosten
-  des Verkaufs ist in beiden Fällen nicht abziehbar
-  ([UStAE 15.22 Abs. 2][ustae1522]), außer beim Verzicht auf die
-  Steuerfreiheit nach § 9 Abs. 1 UStG, den Buchfink nicht abbildet. Der
-  Verkauf trägt deshalb keine Umsatzsteuer.
+- Umsatzsteuer: Der Verkauf trägt keine Umsatzsteuer, Vorsteuer aus seinen
+  Kosten ist nicht abziehbar
+  ([holding-umsatzsteuer.md, Abschnitt 6](holding-umsatzsteuer.md#6-verkauf-einer-beteiligung)).
 - Ausländische Gesellschaft: Mitteilung an das Finanzamt
-  ([§ 138 Abs. 2 Satz 1 Nr. 3 AO][ao138]).
+  ([erwerb-ausweis.md, Abschnitt 7](erwerb-ausweis.md#7-pflichten-die-aus-der-beteiligung-folgen)).
 
 ## 8. Teilverkauf, Tilgung, Fonds
 
@@ -161,17 +150,12 @@ und die Konten der Tabelle.
 - **Tilgung einer Ausleihung:** gebucht wird Geld an Ausleihung, ohne
   Erlöskonto; ein Abgang aus der Kartei ist das nicht.
 - **Fondsanteile:** nie als Anteil an einer Kapitalgesellschaft gekennzeichnet.
-  Zur Steuer beim Verkauf siehe die Referenz zu Investmentfonds (Liste in
-  SKILL.md).
+  Zur Steuer beim Verkauf siehe
+  [investmentfonds.md, Abschnitt 6](investmentfonds.md#6-verkauf-und-verlust).
 
-[ao138]: https://www.gesetze-im-internet.de/ao_1977/__138.html
 [esth67]: https://www.steuerschroeder.de/steuergesetze/esth/6.7
 [estg6]: https://www.gesetze-im-internet.de/estg/__6.html
 [estg43]: https://www.gesetze-im-internet.de/estg/__43.html
-[gewstg7]: https://www.gesetze-im-internet.de/gewstg/__7.html
 [gmbhg15]: https://www.gesetze-im-internet.de/gmbhg/__15.html
 [hgb252]: https://www.gesetze-im-internet.de/hgb/__252.html
 [hgb253]: https://www.gesetze-im-internet.de/hgb/__253.html
-[kstg8b]: https://www.gesetze-im-internet.de/kstg_1977/__8b.html
-[ustae1522]: https://datenbank.nwb.de/Dokument/378652_15___22/
-[ustg4]: https://www.gesetze-im-internet.de/ustg_1980/__4.html

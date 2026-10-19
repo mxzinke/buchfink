@@ -46,7 +46,7 @@ und auf der Aktivseite die eingeforderte Einlage 12.500 €
 ([§ 272 Abs. 1 HGB][hgb272]).
 
 Gründungsaufwand erscheint nicht als Aktivposten
-([§ 248 Abs. 1 Nr. 1 HGB][hgb248]).
+([gruendungskosten.md, Abschnitt 1](gruendungskosten.md#1-bilanz-kein-aktivposten)).
 
 ## 4. Prüfen
 
@@ -76,7 +76,7 @@ hat.
   das Original.
 - Bei Eröffnung des Betriebs ist auch die Eröffnungsbilanz elektronisch an das
   Finanzamt zu übermitteln ([§ 5b Abs. 1 Satz 4 EStG][estg5b]). Taxonomie und
-  Übermittlungsweg regelt buchfink-steuererklaerungen. `ebilanz_exportieren`
+  Übermittlungsweg regelt [steuererklaerungen/ebilanz.md](../steuererklaerungen/ebilanz.md). `ebilanz_exportieren`
   schreibt die Bilanz eines Geschäftsjahres; für die Eröffnungsbilanz gibt es
   noch keinen Export. Der Mensch erfasst sie im Online-Dienst, oder ein
   Steuerberater übermittelt sie.
@@ -106,6 +106,5 @@ Dein Teil:
 [hgb240]: https://www.gesetze-im-internet.de/hgb/__240.html
 [hgb242]: https://www.gesetze-im-internet.de/hgb/__242.html
 [hgb245]: https://www.gesetze-im-internet.de/hgb/__245.html
-[hgb248]: https://www.gesetze-im-internet.de/hgb/__248.html
 [hgb257]: https://www.gesetze-im-internet.de/hgb/__257.html
 [hgb272]: https://www.gesetze-im-internet.de/hgb/__272.html

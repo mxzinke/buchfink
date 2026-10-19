@@ -6,9 +6,10 @@ Buchfink. Die Sätze von 5 % und 10 % gelten seit Jahren unverändert; sie
 ändern sich nur durch Gesetz. Stand: Oktober 2026.
 
 Buchfink rechnet § 8b in der Körperschaftsteuererklärung aus den Konten in
-Abschnitt 8 und der Anlagenkartei (buchfink-steuererklaerungen). Diese
-Referenz erklärt die Regeln, damit du die Zeilen prüfst, Vorgänge richtig
-kontierst und Wertungsfragen erkennst.
+Abschnitt 8 und der Anlagenkartei
+([steuererklaerungen/kst.md](../steuererklaerungen/kst.md)). Diese Referenz
+erklärt die Regeln, damit du die Zeilen prüfst, Vorgänge richtig kontierst
+und Wertungsfragen erkennst.
 
 ## Inhalt
 
@@ -48,8 +49,8 @@ Verwaltung) bleiben abziehbar, weil § 3c Abs. 1 EStG nicht anzuwenden ist
   Steuerberater.
 - 5 % der außer Ansatz bleibenden Bezüge gelten als nicht abziehbare
   Betriebsausgaben ([§ 8b Abs. 5 Satz 1 KStG][kstg8b]).
-- Eine Einlagenrückgewähr ist kein Bezug
-  ([§ 20 Abs. 1 Nr. 1 Satz 3 EStG][estg20]); sie gehört nicht in diese Zeile.
+- Eine Einlagenrückgewähr gehört nicht in diese Zeile
+  ([dividenden.md, Abschnitt 5](dividenden.md#5-sonderfälle)).
 
 ## 3. Streubesitz unter 10 %
 
@@ -121,9 +122,9 @@ Verwaltung) bleiben abziehbar, weil § 3c Abs. 1 EStG nicht anzuwenden ist
 
 ## 7. Was nicht unter § 8b fällt
 
-- Erträge aus Investmentfonds, auch aus Aktien-ETF
-  ([§ 16 Abs. 3 InvStG][invstg16]); dort gilt die Teilfreistellung (Referenz
-  zu Investmentfonds, Liste in SKILL.md).
+- Erträge aus Investmentfonds, auch aus Aktien-ETF; dort gilt die
+  Teilfreistellung
+  ([investmentfonds.md, Abschnitte 3 und 4](investmentfonds.md#3-steuerliche-grundregeln)).
 - Zinsen, auch aus Darlehen an die Tochter.
 - Gewinnanteile aus Personengesellschaften; § 8b Abs. 6 KStG regelt
   Mitunternehmerschaften, die Buchfink nicht abbildet.
@@ -186,7 +187,7 @@ Solidaritätszuschlag werden hinzugerechnet.
 ## 10. Erklärung
 
 Die Körperschaftsteuererklärung trägt der Mensch in Mein ELSTER ein
-(buchfink-steuererklaerungen). Die
+([steuererklaerungen/kst.md](../steuererklaerungen/kst.md)). Die
 [ELSTER-Anleitung zur Körperschaftsteuer 2025][elsterkst] nennt für die Anlage GK den Abschnitt „Anwendung des § 8b KStG und
 vergleichbarer Vorschriften (Zeilen 150 bis 195)“; zu Zeile 156 weist sie auf die
 Beteiligungshöhe zu Beginn des Kalenderjahres hin und schließt
@@ -197,6 +198,5 @@ Mensch überträgt sie nach der Ausfüllhilfe des Formulars.
 
 [elsterkst]: https://www.elster.de/eportal/helpGlobal?themaGlobal=help_kst_2025
 [estg20]: https://www.gesetze-im-internet.de/estg/__20.html
-[invstg16]: https://www.gesetze-im-internet.de/invstg_2018/__16.html
 [kstg8b]: https://www.gesetze-im-internet.de/kstg_1977/__8b.html
 [kstg10]: https://www.gesetze-im-internet.de/kstg_1977/__10.html

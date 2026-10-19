@@ -1,8 +1,10 @@
 # Forderungsausfall im laufenden Jahr
 
-Rechtsstand: 17. Oktober 2026. Die Bewertung zweifelhafter Forderungen zum
-Abschlussstichtag (Einzel- und Pauschalwertberichtigung) regelt
-buchfink-jahresabschluss.
+Rechtsstand: 17. Oktober 2026.
+
+Die Bewertung zweifelhafter Forderungen zum Abschlussstichtag (Einzel- und
+Pauschalwertberichtigung) regelt
+[jahresabschluss/forderungen.md](../jahresabschluss/forderungen.md).
 
 ## Inhalt
 
@@ -22,7 +24,8 @@ buchfink-jahresabschluss.
   ([UStAE 17.1 Abs. 5][ustae171]).
 - **Zweifelhaft** ist eine Forderung, deren Ausfall möglich, aber offen ist
   (Kunde zahlt schleppend, Mahnverfahren läuft). Sie bleibt im Jahr stehen; zum
-  Stichtag prüft buchfink-jahresabschluss eine Wertberichtigung.
+  Stichtag prüfst du eine Wertberichtigung nach
+  [jahresabschluss/forderungen.md](../jahresabschluss/forderungen.md).
 - Wertungsfrage: die Einordnung. Typische Belege für Uneinbringlichkeit:
   Eröffnung des Insolvenzverfahrens über den Kunden, Abweisung mangels Masse,
   fruchtlose Vollstreckung, Vergleich mit Verzicht. Der Mensch entscheidet und
@@ -51,8 +54,9 @@ buchfink-jahresabschluss.
 3. Vorlage an den Menschen: Posten, Betrag netto und Steuer, Grund, Beleg,
    Zeitraum der Steuerberichtigung, Wertungsfrage nach Abschnitt 1.
 4. Sag dem Menschen, dass Buchfink die Ausbuchung noch nicht bucht. Zum
-   Stichtag kann buchfink-jahresabschluss eine Einzelwertberichtigung buchen;
-   die Steuerberichtigung nach § 17 fehlt dann weiter.
+   Stichtag lässt sich eine Einzelwertberichtigung buchen
+   ([jahresabschluss/forderungen.md](../jahresabschluss/forderungen.md)); die
+   Steuerberichtigung nach § 17 fehlt dann weiter.
 5. Läuft ein Insolvenzverfahren, erinnere den Menschen, die Forderung beim
    Insolvenzverwalter anzumelden. Das geschieht außerhalb von Buchfink.
 
@@ -61,12 +65,13 @@ buchfink-jahresabschluss.
 - Zahlt der Kunde einen Teil und ist der Rest uneinbringlich, wird nur der Rest
   ausgebucht; die Steuer wird anteilig berichtigt
   ([§ 17 Abs. 2 Nr. 1 UStG][ustg17]).
-- Kommt eine Teilzahlung über die Bank, ordnet buchfink-bank sie zu. Den Rest
-  auszubuchen bildet Buchfink noch nicht ab (Abschnitt 3).
+- Kommt eine Teilzahlung über die Bank, ordnest du sie nach
+  [bank/zuordnung.md](../bank/zuordnung.md) zu. Den Rest auszubuchen bildet
+  Buchfink noch nicht ab (Abschnitt 3).
 - Ein Nachlass wegen Mängeln mindert das Entgelt
-  ([§ 17 Abs. 1 UStG][ustg17]). Weg: buchfink-bank (Differenz am
-  Zahlungseingang) oder Rechnungskorrektur
-  (SKILL.md, Abschnitt 6).
+  ([§ 17 Abs. 1 UStG][ustg17]). Weg: Differenz am Zahlungseingang
+  ([bank/skonto-differenzen.md](../bank/skonto-differenzen.md)) oder
+  Rechnungskorrektur ([storno-berichtigung.md](storno-berichtigung.md)).
 
 ## 5. Geld kommt doch noch
 
@@ -74,7 +79,8 @@ buchfink-jahresabschluss.
   erneut zu berichtigen ([§ 17 Abs. 2 Nr. 1 Satz 2 UStG][ustg17]).
 - Konto (SKR04): 4925 Erträge aus abgeschriebenen Forderungen, mit
   Umsatzsteuer zum ursprünglichen Satz. Lege die Aufteilung dem Menschen vor;
-  die Buchung am Bankumsatz macht buchfink-bank mit `bankumsatz_buchen`.
+  am Bankumsatz buchst du sie nach [bank/zuordnung.md](../bank/zuordnung.md)
+  mit `bankumsatz_buchen`.
 
 [ustg17]: https://www.gesetze-im-internet.de/ustg_1980/__17.html
 [ustae171]: https://www.steuerschroeder.de/steuergesetze/ustae/17.1

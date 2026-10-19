@@ -26,8 +26,9 @@ SGB IV, SGB VII und IHKG am 17.10.2026 gelesen.
    natürliche, unbeschränkt geschäftsfähige Person sein, bestellt im Vertrag
    oder durch Beschluss ([§ 6 Abs. 1–3 GmbHG][gmbhg6]).
 4. **Konto und Einlage.** Der Mensch eröffnet ein Konto der GmbH i. G. Die
-   Gesellschafter zahlen mindestens die Beträge nach der Referenz zur
-   Kapitalaufbringung ein (SKILL.md, Schritt 5).
+   Gesellschafter zahlen mindestens die Beträge nach
+   [kapitalaufbringung.md, Abschnitt 2](kapitalaufbringung.md#2-was-vor-der-anmeldung-eingezahlt-sein-muss)
+   ein ([ablauf.md, Abschnitt 2](ablauf.md#2-ablauf), Schritt 5).
 5. **Anmeldung.** Die Geschäftsführer melden die GmbH beim Registergericht des
    Sitzes an ([§ 7 Abs. 1 GmbHG][gmbhg7]), elektronisch in öffentlich
    beglaubigter Form, also über den Notar ([§ 12 Abs. 1 HGB][hgb12]).
@@ -59,8 +60,9 @@ Fragebogen zur steuerlichen Erfassung nicht.
   ([§ 5 Abs. 2, 3 GmbHG][gmbhg5]).
 - Sacheinlagen müssen mit Gegenstand und Nennbetrag im Vertrag stehen
   ([§ 5 Abs. 4 Satz 1 GmbHG][gmbhg5]).
-- Für Buchfink wichtig: Klausel zum Gründungsaufwand (Referenz zu den
-  Gründungskosten) und ein abweichendes Geschäftsjahr, falls vereinbart.
+- Für Buchfink wichtig: Klausel zum Gründungsaufwand
+  ([gruendungskosten.md, Abschnitt 2](gruendungskosten.md#2-wer-die-gründungskosten-trägt))
+  und ein abweichendes Geschäftsjahr, falls vereinbart.
 
 ## 3. Anmeldung und Eintragung
 
@@ -80,7 +82,7 @@ Beträge zu den Buchungen passen.
 ## 4. Behördenwege mit Fristen
 
 `fristen` führt diese Wege als Pflichten. Frist, Weg, Nachweis und Folgen
-stehen in buchfink-grundlagen, references/pflichten.md, im Abschnitt der Art:
+stehen in [grundlagen/pflichten.md](../grundlagen/pflichten.md) im Abschnitt der Art:
 
 | Pflicht | Art in `fristen` | Hinweis für die Gründung |
 |---|---|---|
@@ -94,7 +96,7 @@ Diese Wege führt `fristen` nicht:
 |---|---|---|---|---|
 | Anzeige an die Gemeinde (Realsteuern) | Gemeinde | ein Monat | [§ 137 Abs. 1, 2 AO][ao137] | frag beim Gewerbeamt, ob die Gewerbeanzeige genügt |
 | Meldung an den Unfallversicherungsträger (Berufsgenossenschaft) | zuständige Berufsgenossenschaft | binnen einer Woche nach Beginn des Unternehmens | [§ 192 Abs. 1 Satz 1 SGB VII][sgb7192] | gilt als erfüllt, wenn die Gewerbeanzeige binnen einer Woche erstattet wurde (Satz 2) |
-| Betriebsnummer | Bundesagentur für Arbeit | vor der ersten Meldung zur Sozialversicherung | [§ 18i Abs. 1 SGB IV][sgb418i] | nur mit Beschäftigten; Lohn: buchfink-lohn |
+| Betriebsnummer | Bundesagentur für Arbeit | vor der ersten Meldung zur Sozialversicherung | [§ 18i Abs. 1 SGB IV][sgb418i] | nur mit Beschäftigten; Lohn: [lohn/ablauf.md](../lohn/ablauf.md) |
 | Kammerzugehörigkeit | Industrie- und Handelskammer | – | [§ 2 Abs. 1 IHKG][ihkg2] | entsteht mit Veranlagung zur Gewerbesteuer und Betriebsstätte im Bezirk; Beitragsbescheid als Beleg (Gruppe `beitraege`) |
 
 Stand: Oktober 2026.
@@ -110,7 +112,7 @@ gilt der gesetzliche Vertreter als wirtschaftlich Berechtigter
 
 - Geschäftsbriefe nennen Rechtsform, Sitz, Registergericht, Registernummer
   und alle Geschäftsführer ([§ 35a Abs. 1 GmbHG][gmbhg35a]). Prüfe
-  Rechnungsvorlagen darauf (buchfink-rechnungen).
+  Rechnungsvorlagen darauf ([rechnungen/ablauf.md](../rechnungen/ablauf.md)).
 - Ändern sich Gesellschafter oder Beteiligungen, reichen die Geschäftsführer
   unverzüglich eine neue Gesellschafterliste ein ([§ 40 Abs. 1 GmbHG][gmbhg40]).
   `fristen` führt das als Pflicht `gesellschafterliste`, sobald der Anlass

@@ -8,6 +8,8 @@ das zugleich den UStAE anpasst. Das Schreiben von 2025 wurde über einen
 [nichtamtlichen Spiegel][bmf2025] gelesen; das BMF-Original war nicht
 abrufbar.
 
+Den Empfang regelt [belege/e-rechnung-empfang.md](../belege/e-rechnung-empfang.md).
+
 ## Inhalt
 
 1. Begriffe
@@ -49,7 +51,8 @@ Keine Pflicht:
 | Kleinbetragsrechnung bis 250 € | [§ 33 Satz 4 UStDV][ustdv33] |
 
 Die Pflicht gilt auch für Anzahlungsrechnungen, weil § 14 Abs. 1 bis 4 UStG für
-sie sinngemäß gilt ([§ 14 Abs. 5 Satz 1 UStG][ustg14]). Sie gilt ebenso für
+sie sinngemäß gilt ([§ 14 Abs. 5 Satz 1 UStG][ustg14],
+[UStAE 14.1 Abs. 4 Satz 1 i. d. F. vom 15.10.2025][bmf2025]). Sie gilt ebenso für
 Gutschriften und für Rechnungen mit Steuerschuldnerschaft des
 Leistungsempfängers zwischen Inländern ([UStAE 14.1 Abs. 4 Satz 8][bmf2025],
 [BMF 15.10.2025, Rn. 17][bmf2025]).
@@ -144,7 +147,8 @@ E-Rechnung aus. Ein reines PDF nur, wenn der Mensch es ausdrücklich will, die
   ([UStAE 14.11 Abs. 1 Satz 7 bis 9 i. d. F. vom 15.10.2025][bmf2025]).
 - Aufbewahrt wird mindestens der strukturierte Teil in seiner ursprünglichen
   Form ([BMF 15.10.2025, Rn. 60][bmf2025]). Buchfink legt die ausgestellte Datei
-  unverändert ab. Fristen: buchfink-grundlagen.
+  unverändert ab. Fristen:
+  [grundlagen/aufbewahrung.md](../grundlagen/aufbewahrung.md).
 
 [ustg14]: https://www.gesetze-im-internet.de/ustg_1980/__14.html
 [ustg27]: https://www.gesetze-im-internet.de/ustg_1980/__27.html

@@ -8,8 +8,8 @@ NWB-Datenbank gelesen; der amtliche UStAE war nicht abrufbar.
 Ob eine GmbH, die Beteiligungen hält, Unternehmerin ist und Vorsteuer abziehen
 darf, ist eine **Wertungsfrage**. Du nennst Grundlage, Optionen und Folgen;
 der Mensch entscheidet, bei Zweifeln mit Steuerberater. Buchfink geht von
-einer Unternehmerin aus, die Umsatzsteuer anmeldet (buchfink-grundlagen,
-Grenzen).
+einer Unternehmerin aus, die Umsatzsteuer anmeldet
+([grundlagen/grenzen.md](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet)).
 
 ## Inhalt
 
@@ -71,10 +71,10 @@ dem Steuerberater.
   und nicht mit eigenen Umsätzen der Holding, ist die Vorsteuer bei der
   Holding nicht abziehbar ([UStAE 15.22 Abs. 1 Satz 6][ustae1522] mit BFH vom
   15.02.2023, XI R 24/22).
-- In Buchfink buchst du solche Rechnungen nach buchfink-belege mit
-  `beleg_buchen_mit_rueckfrage` und je Position `vorsteueranteil_promille`
-  (abziehbarer Anteil in Promille, etwa 400 für 40 %; ohne Angabe voll) samt
-  `vorsteueranteil_grund`. Der Grund nennt Maßstab und Rechnung, z. B.
+- In Buchfink buchst du solche Rechnungen mit `beleg_buchen_mit_rueckfrage`
+  und dem abziehbaren Anteil je Position nach
+  [belege/vorsteuer.md, Abschnitt 4](../belege/vorsteuer.md#4-aufteilung).
+  Der Grund nennt Maßstab und Rechnung, z. B.
   „Beratung Kauf Beteiligung X; 40 % den eigenen Umsätzen zuzuordnen“. Der
   Wert 0 heißt im Werkzeug „voll abziehbar“; ist gar keine Vorsteuer
   abziehbar, leg den Fall dem Menschen vor, bevor du buchst.
@@ -85,14 +85,15 @@ dem Steuerberater.
 
 - Leitungs-, Buchhaltungs-, IT- oder Personalleistungen gegen Entgelt machen
   die Holding zur Unternehmerin (Abschnitt 1). Sie stellt dafür Rechnungen mit
-  Umsatzsteuer aus (buchfink-rechnungen).
+  Umsatzsteuer aus ([rechnungen/ablauf.md](../rechnungen/ablauf.md)).
 - Halte die Leistungen in einem schriftlichen Vertrag fest und lege ihn als
   Beleg ab. Die Eingriffe in die Verwaltung der Tochter müssen durch
   unternehmerische Leistungen erfolgen ([UStAE 2.3 Abs. 3][ustae23]); die
   Führungsrolle allein reicht nicht.
 - Wertungsfrage: Ist das Entgelt angemessen? Ein zu hohes oder zu niedriges
   Entgelt zwischen verbundenen Gesellschaften kann ertragsteuerlich eine
-  verdeckte Gewinnausschüttung oder Einlage sein (buchfink-gesellschafter).
+  verdeckte Gewinnausschüttung oder Einlage sein
+  ([gesellschafter/vga-einlage.md](../gesellschafter/vga-einlage.md)).
 
 ## 5. Darlehen an Tochtergesellschaften
 
@@ -104,10 +105,10 @@ dem Steuerberater.
 - Auf die Steuerfreiheit kann verzichtet werden, wenn der Kredit an einen
   anderen Unternehmer für dessen Unternehmen geht
   ([§ 9 Abs. 1 UStG][ustg9]). Buchfink bildet den Verzicht nicht ab
-  (buchfink-grundlagen, Grenzen).
+  ([grundlagen/grenzen.md](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet)).
 - Zinsen sind steuerfreie Umsätze ohne Steuerausweis. Wie sie in der
   Voranmeldung erscheinen, prüfst du mit `erklaerung`
-  (buchfink-monatsabschluss).
+  ([monatsabschluss/ustva.md](../monatsabschluss/ustva.md)).
 
 ## 6. Verkauf einer Beteiligung
 
