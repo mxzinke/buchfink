@@ -314,13 +314,13 @@ func validationOf(inv *einvoice.Invoice, result einvoice.Result) domain.ReceiptV
 // coverage says how far the check reached.
 //
 // EN 16931 is covered completely, so a plain invoice is fully checked. An
-// XRechnung is not: its extension rules concern business terms the semantic
-// model does not carry, and saying "geprüft" without that caveat would be the
-// one failure worse than the gap.
+// XRechnung or a Peppol BIS Billing 3.0 invoice is not: both add their own
+// rules (BR-DE-*, PEPPOL-EN16931-R*) that Buchfink does not check, and saying
+// "geprüft" without that caveat would be the one failure worse than the gap.
 //
 // xrechnung.UncheckedRules benennt die nicht geprüften Extension- und Syntaxregeln.
 func coverage(inv *einvoice.Invoice) string {
-	if inv.IsXRechnung() {
+	if inv.IsXRechnung() || inv.IsPeppol() {
 		return "partial"
 	}
 	return "full"

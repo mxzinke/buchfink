@@ -77,6 +77,41 @@ func TestDirectDebitSurvivesTheRoundTrip(t *testing.T) {
 	}
 }
 
+// Steht die Gläubiger-ID (BT-90) nur am Mandat, schreibt Buchfink sie in den
+// Kopf der Abrechnung, und der Leser legt sie von dort wieder ans Mandat.
+func TestCreditorIDOfTheMandateIsWritten(t *testing.T) {
+	inv := validInvoice()
+	inv.Totals.TaxTotalCurrency = inv.Currency
+	inv.PaymentMeans = []PaymentMeans{{
+		TypeCode:       "59",
+		RemittanceInfo: "RE-2026-0001",
+		DirectDebit: &DirectDebit{
+			MandateReference: "M-2026-01",
+			CreditorID:       "DE98ZZZ09999999999",
+			DebitedAccount:   "DE02120300000000202051",
+		},
+	}}
+
+	written, err := RenderCII(inv)
+	if err != nil {
+		t.Fatalf("schreiben: %v", err)
+	}
+	reread, err := ParseCII(written)
+	if err != nil {
+		t.Fatalf("zurücklesen: %v\n%s", err, written)
+	}
+	if reread.CreditorReference != "DE98ZZZ09999999999" {
+		t.Errorf("BT-90 im Kopf der Abrechnung: %q", reread.CreditorReference)
+	}
+	if len(reread.PaymentMeans) != 1 || reread.PaymentMeans[0].DirectDebit == nil ||
+		*reread.PaymentMeans[0].DirectDebit != *inv.PaymentMeans[0].DirectDebit {
+		t.Errorf("Mandat nach dem Rundlauf: %+v", reread.PaymentMeans)
+	}
+	for _, f := range Validate(reread).Findings {
+		t.Errorf("%s %s: %s", f.Rule, f.Where, f.Message)
+	}
+}
+
 // Was Buchfink schreibt, muss die eigene Prüfung bestehen. Täte es das nicht,
 // wäre entweder der Schreiber falsch oder die Prüfung — und man wüsste nicht,
 // welches von beidem.

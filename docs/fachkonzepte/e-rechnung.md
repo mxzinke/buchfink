@@ -26,7 +26,9 @@ Rechnung gleicht es nicht mit dem XML ab.
   eingebetteten XML.
 - Geprüft wird gegen alle 223 Geschäftsregeln von EN 16931, eine XRechnung
   zusätzlich gegen die deutschen Regeln. Ergebnis, Zeitpunkt und Regelstand
-  stehen am Beleg. Die Prüfung ändert keine Datei und damit nicht den
+  stehen am Beleg. Bei XRechnung und Peppol BIS Billing 3.0 heißt der
+  Prüfumfang „teilweise“: Extension- und Syntaxregeln der XRechnung und die
+  Peppol-Regeln (PEPPOL-EN16931-R*) prüft Buchfink nicht. Die Prüfung ändert keine Datei und damit nicht den
   Beleg-Hash.
 - Die Profile MINIMUM und BASIC WL enthalten keine vollständige Rechnung und
   gelten nicht als E-Rechnung (UStAE 14.1 Abs. 14).
