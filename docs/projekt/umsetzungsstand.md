@@ -62,6 +62,15 @@ einzelne Kriterien im [Anforderungskatalog](../anforderungen/README.md).
 - Offenlegung und Hinterlegung erfasst Buchfink als Stand mit Nachweis. Einen
   Datensatz für das Unternehmensregister erzeugt es nicht.
 - Die Eröffnungsbilanz als PDF gibt nur die App aus, kein Werkzeug.
+- Kapitalertragsteuer auf eine Ausschüttung rechnet Buchfink auf die ganze
+  Ausschüttung und nennt zur Abführung den auf volle Euro abgerundeten Betrag
+  ([§ 44 Abs. 1 Satz 6 EStG](https://www.gesetze-im-internet.de/estg/__44.html)).
+  Ungeklärt und nicht gebaut: wem der Abrundungsrest auf 3760 nach der
+  Abführung zusteht, ob die Abrundung über
+  [§ 1 Abs. 2 SolZG](https://www.gesetze-im-internet.de/solzg_1995/__1.html)
+  auch für den Solidaritätszuschlag gilt und ob je Gesellschafter statt auf
+  die ganze Ausschüttung zu rechnen ist. Den Rest bucht Buchfink nicht aus;
+  die Antworten gehören zur steuerlichen Beratung.
 
 ### Laufende Buchhaltung
 

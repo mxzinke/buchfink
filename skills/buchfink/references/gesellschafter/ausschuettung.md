@@ -90,13 +90,20 @@ Beispiel ohne Kirchensteuer: Ausschüttung 10.000,00 € → Kapitalertragsteuer
   beides auf 3760. Die zu einem Zeitpunkt abzuführende Kapitalertragsteuer wird
   auf volle Euro abgerundet ([§ 44 Abs. 1 Satz 6 EStG][estg44]); die Pflicht
   `kapitalertragsteuer` in `fristen` nennt den Betrag. Nach der Zahlung bleibt
-  der Abrundungsrest auf 3760 stehen. Wem er zusteht und ob die Abrundung auch
-  den Solidaritätszuschlag erfasst, regelt der Wortlaut nicht ausdrücklich:
-  Wertungsfrage, Steuerberater; die Ausbuchung erst nach seiner Antwort mit
-  `buchung_erfassen`.
-- **Je Gesellschafter:** Buchfink rechnet die Steuer auf die ganze
-  Ausschüttung. Rechnest du sie für die Anmeldung je Gesellschafter, kann die
-  Summe um Cent abweichen; lege die Abweichung vor.
+  der Abrundungsrest auf 3760 stehen.
+- **Bekannte Grenze:** Drei Fragen beantwortet Buchfink nicht, und der
+  Wortlaut regelt sie nicht ausdrücklich:
+  1. Wem der Abrundungsrest auf 3760 nach der Abführung zusteht.
+  2. Ob die Abrundung auch für den Solidaritätszuschlag gilt;
+     [§ 1 Abs. 2 Satz 1 SolZG][solzg1] erklärt die Vorschriften des EStG für
+     entsprechend anwendbar.
+  3. Ob je Gesellschafter statt auf die ganze Ausschüttung zu rechnen ist.
+     Buchfink rechnet auf die ganze Ausschüttung; je Gesellschafter gerechnet
+     kann die Summe der Anmeldung um Cent abweichen.
+
+  Lege dem Menschen die Frage vor, die seinen Fall betrifft, und rate zur
+  steuerlichen Beratung. Den Rest auf 3760 buchst du erst nach der Antwort mit
+  `buchung_erfassen` aus; eine Abweichung je Gesellschafter legst du vor.
 - **Säumnis:** Säumniszuschlag nach
   [grundlagen/pflichten.md](../grundlagen/pflichten.md#fristende-zahlung-verlängerung).
 
@@ -150,4 +157,5 @@ Steuerberater.
 [inso15b]: https://www.gesetze-im-internet.de/inso/__15b.html
 [ao69]: https://www.gesetze-im-internet.de/ao_1977/__69.html
 [elster]: https://www.elster.de/eportal/formulare-leistungen/alleformulare
+[solzg1]: https://www.gesetze-im-internet.de/solzg_1995/__1.html
 [solzg4]: https://www.gesetze-im-internet.de/solzg_1995/__4.html
