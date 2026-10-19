@@ -84,9 +84,19 @@ Beispiel ohne Kirchensteuer: Ausschüttung 10.000,00 € → Kapitalertragsteuer
   `kapitalertragsteuer` mit dem Zuflusstag als Fälligkeit.
   Unterbleibt der Abzug ganz oder teilweise, ist trotzdem anzumelden und der
   Grund anzugeben ([§ 45a Abs. 1 Satz 2, 3 EStG][estg45a]).
-- **Rundung:** Die zu einem Zeitpunkt abzuführende Kapitalertragsteuer wird auf
-  volle Euro abgerundet ([§ 44 Abs. 1 Satz 6 EStG][estg44]). Buchfink bucht auf
-  den Cent; lege eine Differenz dem Menschen vor.
+- **Rundung:** Einbehalten wird für Rechnung des Gesellschafters auf den Cent
+  ([§ 44 Abs. 1 Satz 3 EStG][estg44]); den Solidaritätszuschlag rechnet
+  Buchfink ohne Bruchteile eines Cents ([§ 4 Satz 3 SolZG][solzg4]) und bucht
+  beides auf 3760. Die zu einem Zeitpunkt abzuführende Kapitalertragsteuer wird
+  auf volle Euro abgerundet ([§ 44 Abs. 1 Satz 6 EStG][estg44]); die Pflicht
+  `kapitalertragsteuer` in `fristen` nennt den Betrag. Nach der Zahlung bleibt
+  der Abrundungsrest auf 3760 stehen. Wem er zusteht und ob die Abrundung auch
+  den Solidaritätszuschlag erfasst, regelt der Wortlaut nicht ausdrücklich:
+  Wertungsfrage, Steuerberater; die Ausbuchung erst nach seiner Antwort mit
+  `buchung_erfassen`.
+- **Je Gesellschafter:** Buchfink rechnet die Steuer auf die ganze
+  Ausschüttung. Rechnest du sie für die Anmeldung je Gesellschafter, kann die
+  Summe um Cent abweichen; lege die Abweichung vor.
 - **Säumnis:** Säumniszuschlag nach
   [grundlagen/pflichten.md](../grundlagen/pflichten.md#fristende-zahlung-verlängerung).
 
@@ -102,8 +112,8 @@ für die Anmeldung, Zahlungsempfänger Finanzamt.
 | Auszahlung an Gesellschafter | 3519 an Bank | du, [bank/ablauf.md](../bank/ablauf.md) |
 | Zahlung an das Finanzamt | 3760 an Bank | du, [bank/ablauf.md](../bank/ablauf.md) |
 
-Fertig, wenn 3519 und 3760 für diese Ausschüttung auf null stehen
-(`auswertung`, `art: kontoblatt`) und die Anmeldung mit Übermittlungsprotokoll als
+Fertig, wenn 3519 für diese Ausschüttung auf null steht, 3760 bis auf den
+Abrundungsrest (`auswertung`, `art: kontoblatt`), und die Anmeldung mit Übermittlungsprotokoll als
 Beleg abgelegt ist.
 
 ## 6. Was Buchfink nicht rechnet
@@ -140,3 +150,4 @@ Steuerberater.
 [inso15b]: https://www.gesetze-im-internet.de/inso/__15b.html
 [ao69]: https://www.gesetze-im-internet.de/ao_1977/__69.html
 [elster]: https://www.elster.de/eportal/formulare-leistungen/alleformulare
+[solzg4]: https://www.gesetze-im-internet.de/solzg_1995/__4.html

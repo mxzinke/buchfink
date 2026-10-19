@@ -910,7 +910,8 @@ Mit und ohne Steuerberater:
      Einkommensteuergesetz“. Auch ohne Steuerabzug anmelden und den Grund
      angeben ([§ 45a Abs. 1 Satz 2, 3 EStG][estg45a]).
   3. Zahlung am Zuflusstag an das Finanzamt der GmbH; die abzuführende Steuer
-     auf volle Euro abrunden ([§ 44 Abs. 1 Satz 6 EStG][estg44]).
+     auf volle Euro abrunden ([§ 44 Abs. 1 Satz 6 EStG][estg44]). Den Betrag
+     nennen die Hinweise der Pflicht.
   4. Auf Verlangen Steuerbescheinigung ausstellen
      ([§ 45a Abs. 2 EStG][estg45a]).
 - **Buchfink liefert:** Beträge aus dem erfassten Ergebnisverwendungsbeschluss

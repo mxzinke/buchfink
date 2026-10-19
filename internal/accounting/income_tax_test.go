@@ -81,3 +81,15 @@ func TestTradeTaxOn(t *testing.T) {
 		t.Errorf("Gewerbeverlust: %+v", got)
 	}
 }
+
+// Abzuführen ist die Kapitalertragsteuer auf volle Euro abgerundet (§ 44
+// Abs. 1 Satz 6 EStG).
+func TestWithholdingTaxPayableRoundsDownToFullEuros(t *testing.T) {
+	for withheld, want := range map[domain.Cents]domain.Cents{
+		250_038: 250_000, 250_000: 250_000, 99: 0, 0: 0,
+	} {
+		if got := WithholdingTaxPayable(withheld); got != want {
+			t.Errorf("WithholdingTaxPayable(%s) = %s, erwartet %s", withheld, got, want)
+		}
+	}
+}

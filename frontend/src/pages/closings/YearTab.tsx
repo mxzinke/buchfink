@@ -1042,7 +1042,9 @@ const AppropriationDialog: React.FC<{
                 Kapitalertragsteuer
                 <Help summary="Bei einer Ausschüttung behält die Gesellschaft Steuern ein und führt sie ab." label="Erklärung zur Kapitalertragsteuer">
                   Einbehalten werden 25 % Kapitalertragsteuer und darauf 5,5 % Solidaritätszuschlag (§ 43a
-                  Abs. 1 EStG). Die Anmeldung ist bis zum 10. des Folgemonats fällig.
+                  Abs. 1 EStG). Anzumelden und abzuführen ist die Steuer am Tag des Zuflusses: am
+                  Auszahlungstag laut Beschluss, sonst am Tag nach dem Beschluss (§ 44 Abs. 1 Satz 5, Abs. 2
+                  EStG). Abgeführt wird sie auf volle Euro abgerundet (§ 44 Abs. 1 Satz 6 EStG).
                 </Help>
               </>
             }

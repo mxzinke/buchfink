@@ -53,13 +53,24 @@ func CorporateTaxOn(taxable domain.Cents, p TaxParameters) domain.Cents {
 	return tax - tax%100
 }
 
-// SolidarityOn ist der Solidaritätszuschlag auf die Körperschaftsteuer; Bruchteile
-// eines Cents bleiben außer Ansatz (§ 4 Satz 1 und 3 SolZG).
-func SolidarityOn(corporateTax domain.Cents, p TaxParameters) domain.Cents {
-	if corporateTax <= 0 {
+// SolidarityOn ist der Solidaritätszuschlag auf die Körperschaftsteuer oder die
+// Kapitalertragsteuer (§ 3 Abs. 1 Nr. 1 und 5 SolZG); Bruchteile eines Cents
+// bleiben außer Ansatz (§ 4 Satz 1 und 3 SolZG).
+func SolidarityOn(tax domain.Cents, p TaxParameters) domain.Cents {
+	if tax <= 0 {
 		return 0
 	}
-	return truncPermille(corporateTax, p.SolidarityPermille)
+	return truncPermille(tax, p.SolidarityPermille)
+}
+
+// WithholdingTaxPayable ist die Kapitalertragsteuer, die zu einem Zeitpunkt
+// abzuführen ist: die einbehaltene, auf volle Euro abgerundet (§ 44 Abs. 1
+// Satz 6 EStG). Einbehalten wird sie je Gläubiger auf den Cent.
+func WithholdingTaxPayable(withheld domain.Cents) domain.Cents {
+	if withheld <= 0 {
+		return 0
+	}
+	return withheld - withheld%100
 }
 
 // CreditableWithholding ist die anrechenbare Kapitalertragsteuer, auf volle

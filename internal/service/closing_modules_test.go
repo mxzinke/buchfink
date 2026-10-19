@@ -847,6 +847,48 @@ func TestAppropriationCarryForwardNeedsNoBooking(t *testing.T) {
 	}
 }
 
+// Der Solidaritätszuschlag auf die Kapitalertragsteuer lässt Bruchteile eines
+// Cents außer Ansatz (§ 4 Satz 3 SolZG): 5,5 % von 100,10 € sind 5,5055 € und
+// damit 5,50 €. Abzuführen ist die Kapitalertragsteuer auf volle Euro
+// abgerundet (§ 44 Abs. 1 Satz 6 EStG); einbehalten wird sie auf den Cent.
+func TestAppropriationWithholdingCentsFollowTheLaw(t *testing.T) {
+	env := newTestEnv(t)
+	m := env.closingModules(t)
+	ctx := context.Background()
+
+	opening := &domain.JournalEntry{
+		BookingDate: "2027-01-01", DocumentDate: "2027-01-01",
+		ServiceDateFrom: "2027-01-01", ServiceDateTo: "2027-01-01",
+		Description: "Saldenvortrag", Source: domain.EntrySourceOpening,
+		Lines: []domain.JournalLine{
+			{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 400_000},
+			{Side: domain.SideCredit, Account: domain.AccountGewinnvortrag, Amount: 400_000},
+		},
+	}
+	if _, err := env.journal.Post(ctx, opening); err != nil {
+		t.Fatalf("Vortrag buchen: %v", err)
+	}
+	preview, err := m.appropriation.PreviewAppropriation(ctx, 2026, AppropriationRequest{
+		DecisionDate: "2027-05-20", Distribution: 40_040,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := preview.Appropriation.WithholdingTax; got != 10_010 {
+		t.Errorf("Kapitalertragsteuer %s € — erwartet 100,10 €", got)
+	}
+	if got := preview.Appropriation.SolidarityOnWithholding; got != 550 {
+		t.Errorf("Solidaritätszuschlag %s € — erwartet 5,50 €", got)
+	}
+	payable := false
+	for _, w := range preview.Warnings {
+		payable = payable || strings.Contains(w, "Abzuführen sind 100,00 € Kapitalertragsteuer")
+	}
+	if !payable {
+		t.Errorf("der Abführungsbetrag fehlt in den Hinweisen: %q", preview.Warnings)
+	}
+}
+
 // -------------------------------------------------------------------------
 // Verzeichnis und Überleitung
 // -------------------------------------------------------------------------

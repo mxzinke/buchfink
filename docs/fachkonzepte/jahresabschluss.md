@@ -112,7 +112,12 @@ beschließen über das Ergebnis des festgestellten Abschlusses ([§ 42a Abs. 2][
 [§ 46 Nr. 1 GmbHG][gmbhg46]); `service.AppropriationService` bucht deshalb erst
 nach der Feststellung und weist einen Beschluss ab, der vor ihr liegt. Ein
 zweiter Beschluss zum selben Jahr setzt das Storno der ersten Buchung voraus.
-Eine Ausschüttung löst die Pflicht zur Kapitalertragsteuer-Anmeldung aus. Der
+Eine Ausschüttung löst die Pflicht zur Kapitalertragsteuer-Anmeldung aus.
+Buchfink rechnet 25 % Kapitalertragsteuer auf den Cent und darauf 5,5 %
+Solidaritätszuschlag ohne Bruchteile eines Cents ([§ 4 Satz 3 SolZG][solzg4])
+und bucht beides als Verbindlichkeit auf 3760. Abzuführen ist die
+Kapitalertragsteuer auf volle Euro abgerundet ([§ 44 Abs. 1 Satz 6 EStG][estg44]);
+die Pflicht nennt diesen Betrag. Der
 Saldenvortrag bringt Bestandskonten und offene Posten ins Folgejahr und weist
 eine Differenz aus.
 
@@ -124,4 +129,6 @@ eine Differenz aus.
 [gmbhg42a]: https://www.gesetze-im-internet.de/gmbhg/__42a.html
 [gmbhg5a]: https://www.gesetze-im-internet.de/gmbhg/__5a.html
 [gmbhg46]: https://www.gesetze-im-internet.de/gmbhg/__46.html
+[estg44]: https://www.gesetze-im-internet.de/estg/__44.html
+[solzg4]: https://www.gesetze-im-internet.de/solzg_1995/__4.html
 [kstg23]: https://www.gesetze-im-internet.de/kstg_1977/__23.html

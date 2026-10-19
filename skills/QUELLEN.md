@@ -497,7 +497,7 @@ Links am 17.10.2026 mit HTTP 200 geprüft.
 | § 45a EStG | https://www.gesetze-im-internet.de/estg/__45a.html | Anmeldung elektronisch, auch ohne Abzug mit Grund (Abs. 1 Satz 1–3); Bescheinigung auf Verlangen, elektronisch, ohne Unterschrift (Abs. 2 Satz 1–3); Berichtigung (Abs. 5) | Text 17.10.2026 | gesellschafter/ausschuettung, steuerbescheinigung |
 | § 51a EStG | https://www.gesetze-im-internet.de/estg/__51a.html | Kirchensteuerabzug, Anlass- und Regelabfrage 1.9.–31.10., Stichtag 31.8. (Abs. 2c Satz 1 Nr. 3) | Text 17.10.2026 | grundlagen/pflichten; gesellschafter/ausschuettung |
 | § 3 SolZG | https://www.gesetze-im-internet.de/solzg_1995/__3.html | Bemessung nach KapESt (Abs. 1 Nr. 5) | Text 17.10.2026 | grundlagen/pflichten; bank/zinsen-kapest; steuererklaerungen/kst |
-| § 4 SolZG | https://www.gesetze-im-internet.de/solzg_1995/__4.html | 5,5 % (Satz 1) | Text 17.10.2026 | bank/zinsen-kapest; steuererklaerungen/kst |
+| § 4 SolZG | https://www.gesetze-im-internet.de/solzg_1995/__4.html | 5,5 % (Satz 1), Cent-Bruchteile außer Ansatz (Satz 3) | Text 19.10.2026 | bank/zinsen-kapest; steuererklaerungen/kst; gesellschafter/ausschuettung |
 | § 15b InsO | https://www.gesetze-im-internet.de/inso/__15b.html | Zahlungen an Gesellschafter, die zur Zahlungsunfähigkeit führen mussten (Abs. 5) | Text 17.10.2026 | gesellschafter/ausschuettung |
 | § 19 InsO | (Eintrag grundlagen) | Rangrücktritt aus der Überschuldung (Abs. 2 Satz 2) | Text 17.10.2026 | bank/darlehen |
 | § 39 InsO | https://www.gesetze-im-internet.de/inso/__39.html | Nachrang Gesellschafterdarlehen (Abs. 1 Satz 1 Nr. 5), Ausnahme ≤ 10 % ohne Geschäftsführung (Abs. 5) | Text 17.10.2026 | bank/darlehen |
@@ -533,7 +533,7 @@ Links am 17.10.2026 mit HTTP 200 geprüft.
 
 | Quelle | Pfad | Wofür |
 |---|---|---|
-| Ergebnisverwendung | `internal/service/appropriation_service.go`, `internal/domain/appropriation.go` | Buchung 2970 an 3519 und 3760; 25 % KapESt und 5,5 % SolZ auf die volle Ausschüttung; keine Kirchensteuer |
+| Ergebnisverwendung | `internal/service/appropriation_service.go`, `internal/domain/appropriation.go` | Buchung 2970 an 3519 und 3760; 25 % KapESt auf den Cent und 5,5 % SolZ ohne Cent-Bruchteile auf die volle Ausschüttung; abzuführender Betrag auf volle Euro abgerundet in Vorschau und Pflicht (`accounting.WithholdingTaxPayable`); keine Kirchensteuer |
 | Konten | `internal/domain/skr04_accounts.go`, `skr04_2026.json` | 1307–1309, 0960, 3640–3643, 3519, 3760, 2928, 7316, 7317, 7790 |
 | Sperre Personengesellschaftskonten | `internal/accounting/legal_form_accounts.go` | 2000–2799 u. a. für GmbH/UG gesperrt |
 | Werkzeugkatalog | `docs/entwicklung/mcp.md` | `auslage` mit `gesellschafter_kontakt_id`; `darlehen_erfassen` und `ergebnisverwendung_buchen` (Rückfrage) |
@@ -548,8 +548,17 @@ Links am 17.10.2026 mit HTTP 200 geprüft.
   KSt-Handbuch und UStAE.
 - Parameter von `darlehen_erfassen` und `ergebnisverwendung_buchen` mit dem
   Werkzeugschema abgleichen, sobald die Werkzeuge im Katalog stehen.
-- Buchfink bildet Kirchensteuer, NV-Bescheinigung, Einlagenrückgewähr und die
-  Abrundung der KapESt auf volle Euro (§ 44 Abs. 1 Satz 6 EStG) nicht ab.
+- Buchfink bildet Kirchensteuer, NV-Bescheinigung und Einlagenrückgewähr nicht
+  ab.
+- Abrundung der KapESt (§ 44 Abs. 1 Satz 6 EStG): Buchfink nennt den
+  abzuführenden Betrag, bucht aber die einbehaltene Steuer auf den Cent auf
+  3760. Wem der Abrundungsrest zusteht und wie er auszubuchen ist, sagt der
+  Wortlaut nicht; ebenso, ob die Abrundung über § 1 Abs. 2 SolZG auch für den
+  Solidaritätszuschlag gilt. Kommentar oder Verwaltungsanweisung nicht
+  gelesen.
+- Buchfink rechnet die KapESt auf die ganze Ausschüttung, nicht je
+  Gesellschafter (§ 44 Abs. 1 Satz 3 EStG); bei mehreren Gesellschaftern
+  können die Summen um Cent abweichen.
 - Ob eine GmbH ohne geplante Ausschüttung die Kirchensteuer-Regelabfrage
   durchführen muss, ist nicht geklärt (BZSt-Hinweise prüfen).
 - SKR04-Katalog: Für 7316 und 7317 zeigt `position_id` auf

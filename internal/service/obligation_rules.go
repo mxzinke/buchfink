@@ -1025,7 +1025,8 @@ func (r *obligationRun) withholdingTax(
 			decision.SolidarityOnWithholding),
 		"Bestimmt der Beschluss einen Tag der Auszahlung, fließt der Ertrag an diesem Tag zu (§ 44 Abs. 2 Satz 1 EStG); "+
 			"Buchfink rechnet mit dem Tag nach dem Beschluss.",
-		"Die zu einem Zeitpunkt abzuführende Kapitalertragsteuer wird auf volle Euro abgerundet (§ 44 Abs. 1 Satz 6 EStG).")
+		fmt.Sprintf("Abzuführen sind %s € Kapitalertragsteuer: die zu einem Zeitpunkt abzuführende Kapitalertragsteuer "+
+			"wird auf volle Euro abgerundet (§ 44 Abs. 1 Satz 6 EStG).", accounting.WithholdingTaxPayable(decision.WithholdingTax)))
 	add(o, nil)
 }
 

@@ -164,8 +164,7 @@ func (s *AppropriationService) PreviewAppropriation(
 		}
 		appropriation.WithholdingTax = domain.MulRound(
 			appropriation.Distribution, params.WithholdingTaxPermille, 1000)
-		appropriation.SolidarityOnWithholding = domain.MulRound(
-			appropriation.WithholdingTax, params.SolidarityPermille, 1000)
+		appropriation.SolidarityOnWithholding = accounting.SolidarityOn(appropriation.WithholdingTax, params)
 	}
 	if err := appropriation.Validate(); err != nil {
 		return nil, err
@@ -209,6 +208,8 @@ func (s *AppropriationService) PreviewAppropriation(
 					"des Zuflusses anzumelden und abzuführen (§ 44 Abs. 1 Satz 5, § 45a Abs. 1 EStG). "+
 					"Maßgeblich ist grundsätzlich der im Beschluss bestimmte Auszahlungstag; fehlt er, "+
 					"gilt grundsätzlich der Tag nach dem Beschluss (§ 44 Abs. 2 EStG). "+
+					fmt.Sprintf("Abzuführen sind %s € Kapitalertragsteuer, auf volle Euro abgerundet "+
+						"(§ 44 Abs. 1 Satz 6 EStG). ", accounting.WithholdingTaxPayable(appropriation.WithholdingTax))+
 					"Buchfink erstellt die Steueranmeldung nicht.")
 		}
 	}
