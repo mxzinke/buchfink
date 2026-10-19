@@ -749,7 +749,8 @@ func (s *PostingService) prepareInvoiceCurrency(
 			"der Kursdienst ist nicht eingerichtet. Eine Rechnung über %s ließe sich nur mit einem "+
 				"geratenen Kurs buchen, und geraten wird keiner", code)
 	}
-	conv, err := s.currency.Convert(ctx, code, inv.Date, total)
+	conv, err := s.currency.Convert(ctx, code, inv.Date,
+		vatRateDateOf(inv.ServiceDateFrom, inv.ServiceDateTo, inv.Date, ""), total)
 	if err != nil {
 		return nil, fmt.Errorf("für die Rechnung %s in %s: %w", inv.InvoiceNumber, code, err)
 	}

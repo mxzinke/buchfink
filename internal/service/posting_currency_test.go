@@ -177,3 +177,84 @@ func TestForeignCurrencyControlTotalIsChecked(t *testing.T) {
 		t.Fatal("die Endsumme des Belegs muss zu seinen Positionen passen")
 	}
 }
+
+// § 16 Abs. 6 Satz 1 UStG nimmt den Durchschnittskurs des Monats, in dem die
+// Leistung ausgeführt oder das Entgelt vor der Ausführung vereinnahmt wird.
+// Eine Rechnung in USD vom 15.07.2026 über den Zeitraum 15.07. bis 14.08.2026
+// ist im August ausgeführt; mit der Karte am 15.07. bezahlt, gilt der Juli.
+func TestForeignCurrencyVatRateFollowsTheService(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	server, _ := ecbServer(t, "1.1500", "2026-07-15")
+	svc := env.currencyPosting(t, server.URL)
+	for month, micros := range map[string]int64{"2026-07": 1_100_000, "2026-08": 1_200_000} {
+		if _, err := svc.SaveVatRate(ctx, domain.VatExchangeRate{Month: month, Currency: "USD", RateMicros: micros}); err != nil {
+			t.Fatalf("Durchschnittskurs %s: %v", month, err)
+		}
+	}
+	vendor := env.vendor(t, "Supplier Inc.", "US", "")
+
+	req := env.receipt(t, vendor.ID, "fremdleistungen", 120_000,
+		domain.TaxRateStandard, domain.TaxTreatmentDomestic)
+	req.Currency = "USD"
+	req.BookingDate, req.DocumentDate = "2026-07-15", "2026-07-15"
+	req.ServiceDateFrom, req.ServiceDateTo = "2026-07-15", "2026-08-14"
+
+	open, err := env.posting.PreviewIncomingReceipt(ctx, req)
+	if err != nil {
+		t.Fatalf("Vorschau: %v", err)
+	}
+	if open.Conversion == nil || open.Conversion.VatRate == nil || open.Conversion.VatRate.Month != "2026-08" {
+		t.Fatalf("auf Ziel gebucht gilt der Monat des Leistungsendes: %+v", open.Conversion)
+	}
+	if open.Conversion.Rate.Date != "2026-07-15" {
+		t.Errorf("der Tageskurs bleibt der des Belegdatums, nicht %q", open.Conversion.Rate.Date)
+	}
+
+	req.Settlement = SettlementCreditCard
+	paid, err := env.posting.PreviewIncomingReceipt(ctx, req)
+	if err != nil {
+		t.Fatalf("Vorschau bezahlt: %v", err)
+	}
+	if paid.Conversion == nil || paid.Conversion.VatRate == nil || paid.Conversion.VatRate.Month != "2026-07" {
+		t.Fatalf("vor der Ausführung bezahlt gilt der Monat der Zahlung: %+v", paid.Conversion)
+	}
+}
+
+// Fehlt der Durchschnittskurs des Monats, rechnet Buchfink mit dem Tageskurs
+// und sagt, dass § 16 Abs. 6 UStG den Durchschnittskurs verlangt.
+func TestForeignCurrencyWithoutVatRateSaysSo(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	server, _ := ecbServer(t, "1.1500", "2026-07-15")
+	svc := env.currencyPosting(t, server.URL)
+
+	conv, err := svc.Convert(ctx, "USD", "2026-07-15", "2026-08-14", 115_000)
+	if err != nil {
+		t.Fatalf("Umrechnung: %v", err)
+	}
+	if conv.VatRate != nil || conv.TaxBaseAmount != conv.Amount {
+		t.Errorf("ohne Durchschnittskurs bleibt es beim Tageskurs: %+v", conv)
+	}
+	if !strings.Contains(conv.Note, "2026-08") || !strings.Contains(conv.Note, "gestattet") ||
+		strings.Contains(conv.Note, "Satz 1") {
+		t.Errorf("Hinweis: %s", conv.Note)
+	}
+}
+
+func TestVatRateDateOf(t *testing.T) {
+	for _, tc := range []struct {
+		name                           string
+		from, to, document, paid, want string
+	}{
+		{"Leistungszeitraum", "2026-07-15", "2026-08-14", "2026-07-15", "", "2026-08-14"},
+		{"nur Leistungstag", "2026-07-20", "", "2026-07-15", "", "2026-07-20"},
+		{"ohne Leistungsdatum", "", "", "2026-07-15", "", "2026-07-15"},
+		{"vor der Ausführung bezahlt", "2026-07-15", "2026-08-14", "2026-07-15", "2026-07-15", "2026-07-15"},
+		{"nach der Ausführung bezahlt", "2026-07-01", "2026-07-31", "2026-08-02", "2026-08-02", "2026-07-31"},
+	} {
+		if got := vatRateDateOf(tc.from, tc.to, tc.document, tc.paid); got != tc.want {
+			t.Errorf("%s: %s, erwartet %s", tc.name, got, tc.want)
+		}
+	}
+}

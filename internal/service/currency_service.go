@@ -184,9 +184,8 @@ func (s *CurrencyService) Rates(ctx context.Context, currency, from, to string) 
 
 // VatRateFor liefert den Durchschnittskurs eines Monats oder nil.
 //
-// Nil ist ein gültiges Ergebnis und kein Fehler: liegt kein amtlicher
-// Durchschnittskurs vor, wird nach § 16 Abs. 6 Satz 1 UStG mit dem Tageskurs
-// gerechnet. Der Aufrufer sagt das dann dazu.
+// Nil ist ein gültiges Ergebnis und kein Fehler: ist kein Kurs erfasst,
+// rechnet Convert mit dem Tageskurs und sagt das dazu.
 func (s *CurrencyService) VatRateFor(ctx context.Context, currency, date string) (*domain.VatExchangeRate, error) {
 	if s.rates == nil {
 		return nil, nil
@@ -343,6 +342,9 @@ func parseExchangeRateMicros(text string) (int64, error) {
 type Conversion struct {
 	Currency string `json:"currency"`
 	Date     string `json:"date"`
+	// VatDate ist der Tag, dessen Monat den Umsatzsteuerkurs bestimmt
+	// (vatRateDateOf).
+	VatDate string `json:"vatDate"`
 
 	// Rate ist der Tageskurs, mit dem der Aufwand bewertet wird.
 	Rate domain.ExchangeRate `json:"rate"`
@@ -362,24 +364,29 @@ type Conversion struct {
 	Note       string       `json:"note"`
 }
 
-// Convert rechnet einen Fremdwährungsbetrag zu einem Belegdatum um.
+// Convert rechnet einen Fremdwährungsbetrag um: mit dem Tageskurs von date und
+// für die Umsatzsteuer mit dem Durchschnittskurs des Monats von vatDate.
 func (s *CurrencyService) Convert(
-	ctx context.Context, currency, date string, foreign domain.Cents,
+	ctx context.Context, currency, date, vatDate string, foreign domain.Cents,
 ) (*Conversion, error) {
 	rate, err := s.RateAt(ctx, currency, date)
 	if err != nil {
 		return nil, err
 	}
+	if vatDate == "" {
+		vatDate = date
+	}
 	out := &Conversion{
 		Currency:      strings.ToUpper(strings.TrimSpace(currency)),
 		Date:          date,
+		VatDate:       vatDate,
 		Rate:          *rate,
 		ForeignAmount: foreign,
 		Amount:        domain.ConvertToEuro(foreign, rate.RateMicros),
 	}
 	out.TaxBaseAmount = out.Amount
 
-	vatRate, err := s.VatRateFor(ctx, currency, date)
+	vatRate, err := s.VatRateFor(ctx, currency, vatDate)
 	if err != nil {
 		return nil, err
 	}
@@ -395,9 +402,10 @@ func (s *CurrencyService) Convert(
 		return out, nil
 	}
 	out.Note = fmt.Sprintf(
-		"Für %s liegt im Monat %s kein amtlicher Durchschnittskurs vor. Nach § 16 Abs. 6 Satz 1 UStG "+
-			"wird dann mit dem Tageskurs gerechnet — auch für die Umsatzsteuer.",
-		out.Currency, domain.MonthOf(date))
+		"Für %s ist der Umsatzsteuer-Umrechnungskurs des BMF für den Monat %s nicht erfasst; die "+
+			"Umsatzsteuer ist deshalb mit dem Tageskurs gerechnet. § 16 Abs. 6 UStG verlangt den "+
+			"Durchschnittskurs dieses Monats, den Tageskurs nur, wenn das Finanzamt ihn gestattet.",
+		out.Currency, domain.MonthOf(vatDate))
 	return out, nil
 }
 

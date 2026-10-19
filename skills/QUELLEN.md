@@ -170,7 +170,7 @@ Aussage abgeglichen.
 | § 14c UStG | https://www.gesetze-im-internet.de/ustg_1980/__14c.html | unrichtiger (Abs. 1) und unberechtigter (Abs. 2) Steuerausweis | Text 17.10.2026 | belege/pflichtangaben, steuerfaelle |
 | § 15 UStG | https://www.gesetze-im-internet.de/ustg_1980/__15.html | Vorsteuer: Abs. 1 Satz 1 Nr. 1 (Satz 2 Rechnung besitzen, Satz 3 Anzahlung), Nr. 2–4; Satz 2 (10 %); Abs. 1a (Ausschluss, Bewirtung Satz 2), 1b, 2, 3, 4 (Aufteilung) | Text 17.10.2026 | belege/bewirtung-geschenke, pflichtangaben, steuerfaelle, vorsteuer |
 | § 15a UStG | https://www.gesetze-im-internet.de/ustg_1980/__15a.html | Vorsteuerberichtigung, 5/10 Jahre (Abs. 1), Fünftel/Zehntel (Abs. 5) | Text 17.10.2026 | belege/vorsteuer |
-| § 16 UStG | https://www.gesetze-im-internet.de/ustg_1980/__16.html | Umrechnung Fremdwährung mit BMF-Monatskurs, Tageskurs auf Gestattung (Abs. 6 Satz 1, 3) | Text 17.10.2026 | belege/fremdwaehrung-auslagen |
+| § 16 UStG | https://www.gesetze-im-internet.de/ustg_1980/__16.html | Umrechnung Fremdwährung mit dem BMF-Durchschnittskurs des Monats der Leistung oder der Vereinnahmung davor, Tageskurs auf Gestattung (Abs. 6 Satz 1, 3) | Text 19.10.2026 | belege/fremdwaehrung-auslagen |
 | § 17 UStG | https://www.gesetze-im-internet.de/ustg_1980/__17.html | Minderung der Bemessungsgrundlage (Abs. 1 Satz 2, 8), Uneinbringlichkeit (Abs. 2 Nr. 1), Rückgängigmachung (Nr. 3), Aufwendungen § 15 Abs. 1a (Nr. 5) | Text 17.10.2026 | belege/bewirtung-geschenke, vorsteuer |
 | § 18g UStG | https://www.gesetze-im-internet.de/ustg_1980/__18g.html | Vorsteuervergütung in anderem Mitgliedstaat über BZSt | Text 17.10.2026 | belege/steuerfaelle |
 | § 19 UStG | https://www.gesetze-im-internet.de/ustg_1980/__19.html | Kleinunternehmer: steuerfrei, 25.000 € Vorjahr / 100.000 € laufendes Jahr (Abs. 1) | Text 17.10.2026 | belege/steuerfaelle |
@@ -237,7 +237,7 @@ Aussage abgeglichen.
 | `internal/accounting/vat_period.go` | Zuordnung zum Voranmeldungszeitraum: Vorsteuer nach spätestem Datum (Leistung, Beleg, Eingang); § 13b Abs. 1 nach Leistungszeitraum, Abs. 2 und Erwerb nach Rechnungsdatum, spätestens Folgemonat; Storno übernimmt die Daten der Ursprungsbuchung |
 | `internal/accounting/tax_keys.go`, `tax_skr04.go` | Steuerschlüssel je Steuerfall; `reverse_charge_eu` → Kz 46/47, `reverse_charge` → Kz 84/85 |
 | `internal/service/posting_service.go` (`reverseChargeParagraphWarning`) | Warnung `reverse_charge_eu_supplier`; inländische Bauleistung mit `reverse_charge` zulässig |
-| `internal/service/posting_currency.go`, `currency_service.go` | EZB-Tageskurs des Belegdatums, BMF-Monatskurs des Belegmonats, Kursdifferenz 6880/4840 |
+| `internal/service/posting_currency.go` (`vatRateDateOf`), `currency_service.go` | EZB-Tageskurs des Belegdatums, BMF-Kurs des Monats des Leistungsendes oder der früheren Zahlung, Kursdifferenz 6880/4840 |
 | `internal/service/posting_service.go` | USt-IdNr. am Kontakt für EU-Fälle, Anzahlung erst mit Zahlung, Rückstellungsverbrauch |
 | `internal/service/receipt_findings.go`, `service_proof.go` | Befundklassen, Leistungsnachweis |
 | `internal/accounting/tax_skr04.go`, `input_tax_correction.go` | geschützte Steuerkonten, Konten 1396–1399 |
@@ -260,8 +260,10 @@ Aussage abgeglichen.
   Original prüfen.
 - Gruppe `geschenke_betrieblich`: Grundlage (Verwaltungsregel, vermutlich R 4.10
   EStR) nicht am Wortlaut geprüft.
-- Buchfink: Der USt-Umrechnungskurs wird nach dem Monat des Belegdatums gewählt;
-  § 16 Abs. 6 UStG nennt den Monat der Leistung.
+- Buchfink: BMF-Kurse lassen sich weder in der App noch über ein Werkzeug
+  erfassen (`SaveVatRate`, `ImportVatRatesCSV` ohne Aufrufer); die
+  Umsatzsteuer folgt deshalb dem EZB-Tageskurs. Eine Zahlung vor der Leistung
+  erkennt Buchfink nur, wenn der Beleg mit ihr gebucht wird.
 - Werkzeug: Wie eine Gutschrift eines Lieferanten (negative Beträge) mit
   `beleg_buchen_mit_rueckfrage` gebucht wird, ist nicht beschrieben.
 

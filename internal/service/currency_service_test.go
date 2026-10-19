@@ -124,7 +124,7 @@ func TestVatAverageRateSplitsBaseFromExpense(t *testing.T) {
 	svc := env.currency(t, server.URL)
 
 	// Ohne Durchschnittskurs bleibt es beim Tageskurs.
-	plain, err := svc.Convert(ctx, "USD", "2026-03-10", 1_085_000)
+	plain, err := svc.Convert(ctx, "USD", "2026-03-10", "", 1_085_000)
 	if err != nil {
 		t.Fatalf("Umrechnung: %v", err)
 	}
@@ -145,7 +145,7 @@ func TestVatAverageRateSplitsBaseFromExpense(t *testing.T) {
 		t.Fatalf("Durchschnittskurs: %v", err)
 	}
 
-	withVat, err := svc.Convert(ctx, "USD", "2026-03-10", 1_085_000)
+	withVat, err := svc.Convert(ctx, "USD", "2026-03-10", "", 1_085_000)
 	if err != nil {
 		t.Fatalf("Umrechnung: %v", err)
 	}

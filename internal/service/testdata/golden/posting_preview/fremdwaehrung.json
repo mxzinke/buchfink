@@ -17,6 +17,7 @@
       "source": "EZB-Referenzkurs aus Testbestand"
     },
     "taxBaseAmount": 98636,
+    "vatDate": "2026-03-31",
     "vatRate": {
       "currency": "USD",
       "month": "2026-03",

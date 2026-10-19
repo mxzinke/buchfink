@@ -121,7 +121,7 @@ MUSS* · §§ 244, 256a HGB
 | Kurse aus nachvollziehbarer Quelle, gespeichert | erfüllt | EZB-Referenzkurs (`currency` Paket), `service.CurrencyService.RateAt` |
 | Stichtagsbewertung, realisiert und unrealisiert getrennt | erfüllt | `service.CurrencyService.PreviewCurrencyValuation`, `service.CurrencyService.BookCurrencyValuation` |
 | Sonderregel bis ein Jahr Restlaufzeit | erfüllt | Restlaufzeit am Zahlungsziel |
-| Umrechnung nach § 16 Abs. 6 UStG je Beleg | erfüllt | `service.CurrencyService.VatRateFor`, `service.CurrencyService.ImportVatRatesCSV` |
+| Umrechnung nach § 16 Abs. 6 UStG je Beleg | teilweise | Durchschnittskurs des Monats, in dem die Leistung ausgeführt ist, bei Zahlung vor der Ausführung des Zahlungsmonats (`service.vatRateDateOf`, `service.CurrencyService.VatRateFor`, `service.CurrencyService.ImportVatRatesCSV`). Die BMF-Kurse lassen sich weder in der App noch über ein Werkzeug erfassen, nur im Dienst (`SaveVatRate`, `ImportVatRatesCSV`); ohne Kurs rechnet Buchfink mit dem Tageskurs und sagt es. Eine Zahlung vor der Leistung erkennt Buchfink nur, wenn der Beleg mit ihr gebucht wird |
 
 ## BEW-11 Latente Steuern
 

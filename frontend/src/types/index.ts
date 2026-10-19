@@ -452,11 +452,14 @@ export interface InputTaxFinding {
 export interface Conversion {
   currency: string;
   date: string;
+  /** Der Tag, dessen Monat den Umsatzsteuerkurs bestimmt: Leistungsende oder frühere Zahlung. */
+  vatDate: string;
   /** Der Tageskurs, mit dem der Aufwand bewertet wird. */
   rate: ExchangeRate;
   /**
    * Der Durchschnittskurs, mit dem die Bemessungsgrundlage der Umsatzsteuer
-   * gerechnet wird (§ 16 Abs. 6 UStG). Fehlt er, bleibt es beim Tageskurs.
+   * gerechnet wird (§ 16 Abs. 6 UStG). Fehlt er, ist mit dem Tageskurs
+   * gerechnet, und `note` sagt das.
    */
   vatRate?: VatExchangeRate;
   foreignAmount: Cents;

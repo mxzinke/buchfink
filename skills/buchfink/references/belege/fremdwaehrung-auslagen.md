@@ -22,12 +22,21 @@ Kartenbelege und die Kreditkartenabrechnung regelt
 - Aufwand und Verbindlichkeit: EZB-Referenzkurs des Belegdatums. Ohne Kurs
   bucht Buchfink nicht (Fehler `fachliche_regel`, bei fehlendem Netz mit
   `wiederholbar: true`); einen Kurs rät Buchfink nie.
-- Umsatzsteuer und Vorsteuer: Monatsdurchschnittskurs, den das BMF für den
-  Monat der Leistung bekannt gibt ([§ 16 Abs. 6 Satz 1 UStG][ustg16]). Das
-  Finanzamt kann den Tageskurs gestatten (Satz 3). Buchfink nimmt den Kurs des
-  Monats des Belegdatums; liegt die Leistung in einem anderen Monat, sag es dem
-  Menschen. Fehlt der amtliche Monatskurs, nimmt Buchfink den Tageskurs und
-  meldet das.
+- Umsatzsteuer und Vorsteuer: Durchschnittskurs, den das BMF für den Monat
+  bekannt gibt, in dem die Leistung ausgeführt oder das Entgelt vor der
+  Ausführung vereinnahmt wird ([§ 16 Abs. 6 Satz 1 UStG][ustg16]). Den Tageskurs
+  nur, wenn das Finanzamt ihn gestattet (Satz 3). Buchfink nimmt den Monat des
+  Leistungsendes (`leistung_bis`, sonst `leistung_von`). Wird der Beleg mit der
+  Zahlung gebucht (`bezahlt`, `kreditkarte`, `auslage`, Anzahlung) und liegt
+  der Buchungstag davor, nimmt es den Monat der Zahlung. Ist der Beleg vor der
+  Leistung bezahlt, aber `offen` gebucht, sieht Buchfink das nicht; sag es dem
+  Menschen.
+- Die BMF-Kurse lassen sich in Buchfink weder in der App noch über ein
+  Werkzeug erfassen. Ohne sie rechnet Buchfink die Steuer mit dem
+  EZB-Tageskurs des Belegdatums, und der Hinweis der Vorschau sagt es. Das
+  trägt § 16 Abs. 6 UStG nur, wenn das Finanzamt den Tageskurs gestattet;
+  frag den Menschen danach und lege sonst die Abweichung zum BMF-Kurs des
+  Monats vor (Wertungsfrage, Steuerberater).
 - Die Differenz zwischen beiden Kursen bucht Buchfink als Kursaufwand (6880)
   oder Kursertrag (4840).
 
