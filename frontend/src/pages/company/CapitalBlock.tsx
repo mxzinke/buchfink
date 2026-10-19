@@ -29,7 +29,8 @@ import {
 } from '../../components/ui';
 import { EditPanel, Missing, ProfileBlock, PROFILE_LIST } from './ProfileBlock';
 import { capitalGaps } from '../../utils/profileGaps';
-import { COMPANY_OBLIGATIONS, ObligationList, obligationsOf } from './ObligationList';
+import { ObligationList, obligationsOf } from './ObligationList';
+import { COMPANY_OBLIGATIONS } from '../../utils/obligations';
 import { FoundationDialog } from './FoundationDialog';
 import { LoanDialog } from './LoanDialog';
 

@@ -129,6 +129,29 @@
     "title": "Umsatzsteuer-Voranmeldung Oktober 2025"
   },
   {
+    "basis": "§ 242 Abs. 1, § 243 Abs. 3, § 245 HGB",
+    "channel": "intern",
+    "description": "Bilanz auf den Tag der Beurkundung, von den Geschäftsführern mit Datum unterzeichnet. Aufzustellen in der einem ordnungsmäßigen Geschäftsgang entsprechenden Zeit; eine feste Frist nennt das Gesetz nicht, Buchfink setzt drei Monate an. Erledigt mit der Bestätigung in der App.",
+    "dueDate": "2025-12-15",
+    "evidenceSource": "human",
+    "fiscalYear": 2025,
+    "hints": [
+      "Eine feste Frist nennt das Gesetz nicht: aufzustellen ist in der einem ordnungsmäßigen Geschäftsgang entsprechenden Zeit (§ 242 Abs. 1 Satz 2, § 243 Abs. 3 HGB). Buchfink setzt in Anlehnung an § 264 Abs. 1 Satz 3 HGB drei Monate nach der Beurkundung an.",
+      "Die Geschäftsführer unterzeichnen sie mit Datum (§ 245 HGB). Aufzubewahren ist sie zehn Jahre (§ 147 Abs. 1 Nr. 1, Abs. 3 AO; § 257 HGB)."
+    ],
+    "key": "eroeffnungsbilanz.gruendung",
+    "kind": "eroeffnungsbilanz",
+    "periodFrom": "2025-09-15",
+    "periodKey": "gruendung",
+    "periodLabel": "zum 15.09.2025",
+    "periodTo": "2025-09-15",
+    "responsibility": "human_confirms",
+    "skillRef": "buchfink-grundlagen/references/pflichten.md#eroeffnungsbilanz",
+    "status": "overdue",
+    "statutoryDate": "2025-12-15",
+    "title": "Aufstellung der Eröffnungsbilanz zum 15.09.2025"
+  },
+  {
     "basis": "§ 146 Abs. 4 AO, GoBD Rz. 107",
     "channel": "intern",
     "description": "Bis zum Ende des Folgemonats, mit Dauerfristverlängerung einen Monat später, zuzüglich der Nachfrist aus den Einstellungen. Nach der Festschreibung nimmt der Monat keine Buchung mehr auf.",
@@ -866,6 +889,29 @@
     "status": "overdue",
     "statutoryDate": "2026-07-10",
     "title": "Umsatzsteuer-Voranmeldung Mai 2026"
+  },
+  {
+    "basis": "§ 5b Abs. 1 Satz 4 EStG",
+    "channel": "elster",
+    "description": "Die Eröffnungsbilanz nach amtlichem Datensatz, ohne Gewinn- und Verlustrechnung. Eine eigene Frist nennt das Gesetz nicht; Buchfink setzt die Frist der E-Bilanz des ersten Geschäftsjahres an. Buchfink exportiert die XBRL-Datei; übermittelt wird sie über einen E-Bilanz-Dienst wie ebilanzplus.de oder ebilanzonline.de.",
+    "dueDate": "2026-07-31",
+    "evidenceSource": "human",
+    "fiscalYear": 2025,
+    "hints": [
+      "Eine eigene Frist nennt das Gesetz nicht (§ 5b Abs. 1 Satz 4 EStG). Buchfink setzt die Frist der E-Bilanz für das Geschäftsjahr 2025 an; das ist die späteste vertretbare Annahme.",
+      "Mein ELSTER führt kein Formular für die E-Bilanz; übermittelt wird sie über einen E-Bilanz-Dienst wie ebilanzplus.de oder ebilanzonline.de oder vom Steuerberater."
+    ],
+    "key": "e-bilanz-eroeffnung.gruendung",
+    "kind": "e-bilanz-eroeffnung",
+    "periodFrom": "2025-09-15",
+    "periodKey": "gruendung",
+    "periodLabel": "zum 15.09.2025",
+    "periodTo": "2025-09-15",
+    "responsibility": "agent_prepares",
+    "skillRef": "buchfink-grundlagen/references/pflichten.md#ebilanz-eroeffnung",
+    "status": "overdue",
+    "statutoryDate": "2026-07-31",
+    "title": "E-Bilanz der Eröffnungsbilanz zum 15.09.2025"
   },
   {
     "basis": "§ 5b Abs. 1 EStG, § 60 Abs. 1 EStDV",

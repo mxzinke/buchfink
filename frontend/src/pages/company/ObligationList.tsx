@@ -5,12 +5,6 @@ import { useWriteLock } from '../../components/WriteLock';
 import { formatDate } from '../../utils/formatters';
 import { Button, Dialog, Field, Help, Input, Notice, StatusBadge, toast } from '../../components/ui';
 
-/** Die Pflichten, die zu den Stammdaten gehören, nach dem Block, der sie zeigt. */
-export const COMPANY_OBLIGATIONS = {
-  firma: ['steuerliche-erfassung', 'gewerbeanmeldung'],
-  gesellschafter: ['transparenzregister', 'gesellschafterliste'],
-} as const;
-
 export function obligationsOf(deadlines: Deadline[], kinds: readonly string[]): Deadline[] {
   return deadlines.filter((d) => kinds.some((kind) => d.key.startsWith(`${kind}.`)));
 }

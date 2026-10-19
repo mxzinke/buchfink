@@ -8,7 +8,8 @@ import { PageFrame, type FrameTab } from '../../components/ui';
 import { DeclarationsTab } from './DeclarationsTab';
 import { MonthTab } from './MonthTab';
 import { YearTab } from './YearTab';
-import { message, obligationTab } from './shared';
+import { message } from './shared';
+import { obligationTab } from '../../utils/obligations';
 
 type ClosingsTab = TabOf<'closings'>;
 

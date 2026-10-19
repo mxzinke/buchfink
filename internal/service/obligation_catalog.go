@@ -187,6 +187,27 @@ var obligationCatalog = []domain.ObligationType{
 		Description: "Anzeige an das Gewerbeamt gleichzeitig mit dem Beginn des Betriebs.",
 	},
 	{
+		Kind: domain.ObligationOpeningBalance, Title: "Aufstellung der Eröffnungsbilanz",
+		Basis:   "§ 242 Abs. 1, § 243 Abs. 3, § 245 HGB",
+		Rhythm:  "einmalig zu Beginn des Handelsgewerbes",
+		Channel: domain.ChannelInternal, Responsibility: domain.ResponsibilityHumanConfirms,
+		Evidence: domain.EvidenceFromHuman,
+		Description: "Bilanz auf den Tag der Beurkundung, von den Geschäftsführern mit Datum unterzeichnet. " +
+			"Aufzustellen in der einem ordnungsmäßigen Geschäftsgang entsprechenden Zeit; eine feste Frist nennt " +
+			"das Gesetz nicht, Buchfink setzt drei Monate an. Erledigt mit der Bestätigung in der App.",
+	},
+	{
+		Kind: domain.ObligationOpeningEBilanz, Title: "E-Bilanz der Eröffnungsbilanz",
+		Basis:   "§ 5b Abs. 1 Satz 4 EStG",
+		Rhythm:  "einmalig bei Eröffnung des Betriebs",
+		Channel: domain.ChannelElster, Responsibility: domain.ResponsibilityAgentPrepares,
+		Evidence: domain.EvidenceFromHuman, ShiftsToWorkday: true,
+		Description: "Die Eröffnungsbilanz nach amtlichem Datensatz, ohne Gewinn- und Verlustrechnung. Eine eigene " +
+			"Frist nennt das Gesetz nicht; Buchfink setzt die Frist der E-Bilanz des ersten Geschäftsjahres an. " +
+			"Buchfink exportiert die XBRL-Datei; übermittelt wird sie über einen E-Bilanz-Dienst wie " +
+			"ebilanzplus.de oder ebilanzonline.de.",
+	},
+	{
 		Kind: domain.ObligationWithholdingTax, Title: "Kapitalertragsteuer auf die Ausschüttung",
 		Basis:   "§ 43 Abs. 1 Satz 1 Nr. 1, § 44 Abs. 1 Satz 5, Abs. 2, § 45a Abs. 1 EStG",
 		Rhythm:  "bei jeder Ausschüttung",

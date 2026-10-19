@@ -70,7 +70,11 @@ func (r *obligationRun) generators(
 			},
 		},
 		{
-			kinds: []domain.ObligationKind{domain.ObligationTaxRegistration, domain.ObligationTradeRegistration, domain.ObligationTransparency}, axis: obligationOnce,
+			kinds: []domain.ObligationKind{
+				domain.ObligationTaxRegistration, domain.ObligationTradeRegistration, domain.ObligationTransparency,
+				domain.ObligationOpeningBalance, domain.ObligationOpeningEBilanz,
+			},
+			axis: obligationOnce,
 			generate: func(obligationPeriod) error {
 				r.foundingObligations(want, add)
 				return nil

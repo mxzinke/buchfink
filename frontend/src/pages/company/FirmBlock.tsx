@@ -18,7 +18,8 @@ import {
 } from '../../components/ui';
 import { EditPanel, Missing, ProfileBlock, PROFILE_LIST } from './ProfileBlock';
 import { firmGaps } from '../../utils/profileGaps';
-import { COMPANY_OBLIGATIONS, ObligationList, obligationsOf } from './ObligationList';
+import { ObligationList, obligationsOf } from './ObligationList';
+import { COMPANY_OBLIGATIONS } from '../../utils/obligations';
 
 interface FirmBlockProps {
   settings: CompanySettings;

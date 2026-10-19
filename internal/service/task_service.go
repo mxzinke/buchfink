@@ -420,7 +420,7 @@ func obligationTarget(o domain.Obligation) domain.TaskTarget {
 	target := domain.TaskTarget{Area: domain.AreaClosings, Tab: "month", ID: o.Key}
 	switch o.Kind {
 	case domain.ObligationCorporateTaxReturn, domain.ObligationTradeTaxReturn,
-		domain.ObligationAnnualVatReturn, domain.ObligationEBilanz,
+		domain.ObligationAnnualVatReturn, domain.ObligationEBilanz, domain.ObligationOpeningEBilanz,
 		domain.ObligationCorporatePrepay, domain.ObligationTradePrepay:
 		target.Tab = "declarations"
 	case domain.ObligationClosingBookings, domain.ObligationStatementPrep,
@@ -428,7 +428,7 @@ func obligationTarget(o domain.Obligation) domain.TaskTarget {
 		domain.ObligationDisclosure, domain.ObligationWithholdingTax:
 		target.Tab = "year"
 	case domain.ObligationTransparency, domain.ObligationShareholderList,
-		domain.ObligationTaxRegistration, domain.ObligationTradeRegistration:
+		domain.ObligationTaxRegistration, domain.ObligationTradeRegistration, domain.ObligationOpeningBalance:
 		target.Area, target.Tab = domain.AreaCompany, "profile"
 	}
 	return target

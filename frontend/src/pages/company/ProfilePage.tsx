@@ -14,7 +14,7 @@ import { AddressBlock } from './AddressBlock';
 import { BankBlock } from './BankBlock';
 import { CapitalBlock } from './CapitalBlock';
 import { FirmBlock } from './FirmBlock';
-import { COMPANY_OBLIGATIONS } from './ObligationList';
+import { COMPANY_OBLIGATIONS } from '../../utils/obligations';
 import { TaxBlock } from './TaxBlock';
 
 interface ProfileData {

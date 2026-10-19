@@ -860,6 +860,9 @@ func (r *obligationRun) sizeOf(year int) *domain.SizeClass {
 	return size
 }
 
+const ebilanzChannelHint = "Mein ELSTER führt kein Formular für die E-Bilanz; übermittelt wird sie über einen " +
+	"E-Bilanz-Dienst wie ebilanzplus.de oder ebilanzonline.de oder vom Steuerberater."
+
 // annualStatement bildet Abschlussbuchungen, Aufstellung, Feststellung,
 // Ergebnisverwendung, Offenlegung, E-Bilanz und die Kapitalertragsteuer auf
 // eine Ausschüttung. Die handelsrechtlichen Fristen verschieben sich nicht.
@@ -993,8 +996,7 @@ func (r *obligationRun) annualStatement(
 		if r.cfg.TaxAdvisor.Prepares(domain.DeclarationEBilanz, vz) {
 			o.Responsibility = domain.ResponsibilityTaxAdvisor
 		}
-		o.Hints = append(o.Hints, "Mein ELSTER führt kein Formular für die E-Bilanz; übermittelt wird sie über einen "+
-			"E-Bilanz-Dienst wie ebilanzplus.de oder ebilanzonline.de oder vom Steuerberater.")
+		o.Hints = append(o.Hints, ebilanzChannelHint)
 		add(o, nil)
 	}
 	if want(domain.ObligationWithholdingTax) && decision != nil && decision.Distribution > 0 {
@@ -1091,6 +1093,9 @@ func (r *obligationRun) foundingObligations(
 			"Bei rein freiberuflichem Gegenstand ist zu klären, ob ein Gewerbe vorliegt; sonst als entfallen kennzeichnen.")
 		add(o, nil)
 	}
+	if want(domain.ObligationOpeningBalance) || want(domain.ObligationOpeningEBilanz) {
+		r.openingBalance(founded, want, add)
+	}
 	if want(domain.ObligationTransparency) && r.cfg.RegisteredOn != "" {
 		registered, err := calendar.Parse(r.cfg.RegisteredOn)
 		if err != nil {
@@ -1103,6 +1108,66 @@ func (r *obligationRun) foundingObligations(
 		r.setDue(&o, registered)
 		add(o, nil)
 	}
+}
+
+// openingBalance bildet Aufstellung und E-Bilanz der Eröffnungsbilanz auf den
+// Tag der Beurkundung. Beide gehören zum Geschäftsjahr, in das die Gründung
+// fällt.
+//
+// Die Eröffnungsbilanz ist zu Beginn des Handelsgewerbes aufzustellen
+// (§ 242 Abs. 1 Satz 1 HGB), nach Satz 2 i. V. m. § 243 Abs. 3 HGB in der
+// einem ordnungsmäßigen Geschäftsgang entsprechenden Zeit. Eine feste Frist
+// gibt es nicht; Buchfink setzt in Anlehnung an § 264 Abs. 1 Satz 3 HGB drei
+// Monate an. Als handelsrechtliche Frist verschiebt sie sich nicht.
+//
+// Ihre E-Bilanz verlangt § 5b Abs. 1 Satz 4 EStG ohne eigene Frist. Buchfink
+// setzt die Frist der E-Bilanz des ersten Geschäftsjahres an, wie in
+// annualStatement aus der Körperschaftsteuererklärung des Kalenderjahres, in
+// dem es endet.
+func (r *obligationRun) openingBalance(
+	founded time.Time, want func(domain.ObligationKind) bool,
+	add func(domain.Obligation, *domain.ObligationEvidence),
+) {
+	fy, ok := r.foundingYear()
+	if !ok {
+		return
+	}
+	label := "zum " + domain.GermanDate(r.cfg.FoundedOn)
+	if want(domain.ObligationOpeningBalance) {
+		o := r.base(domain.ObligationOpeningBalance, "gruendung", label, r.cfg.FoundedOn, r.cfg.FoundedOn, fy.Year)
+		r.setDue(&o, calendar.AddMonths(founded, 3))
+		o.Hints = append(o.Hints,
+			"Eine feste Frist nennt das Gesetz nicht: aufzustellen ist in der einem ordnungsmäßigen Geschäftsgang "+
+				"entsprechenden Zeit (§ 242 Abs. 1 Satz 2, § 243 Abs. 3 HGB). Buchfink setzt in Anlehnung an "+
+				"§ 264 Abs. 1 Satz 3 HGB drei Monate nach der Beurkundung an.",
+			"Die Geschäftsführer unterzeichnen sie mit Datum (§ 245 HGB). Aufzubewahren ist sie zehn Jahre "+
+				"(§ 147 Abs. 1 Nr. 1, Abs. 3 AO; § 257 HGB).")
+		add(o, nil)
+	}
+	if want(domain.ObligationOpeningEBilanz) {
+		vz := yearOfDate(fy.EndDate)
+		o := r.base(domain.ObligationOpeningEBilanz, "gruendung", label, r.cfg.FoundedOn, r.cfg.FoundedOn, fy.Year)
+		r.setDue(&o, annualReturnDeadline(vz, r.cfg.TaxAdvisor.Prepares(domain.DeclarationCorporateTax, vz)))
+		if r.cfg.TaxAdvisor.Prepares(domain.DeclarationEBilanz, vz) {
+			o.Responsibility = domain.ResponsibilityTaxAdvisor
+		}
+		o.Hints = append(o.Hints,
+			fmt.Sprintf("Eine eigene Frist nennt das Gesetz nicht (§ 5b Abs. 1 Satz 4 EStG). Buchfink setzt die Frist "+
+				"der E-Bilanz für das Geschäftsjahr %s an; das ist die späteste vertretbare Annahme.", fiscalYearLabel(fy)),
+			ebilanzChannelHint)
+		add(o, nil)
+	}
+}
+
+// foundingYear ist das Geschäftsjahr, in das die Gründung fällt.
+func (r *obligationRun) foundingYear() (domain.FiscalYear, bool) {
+	year := domain.GetFiscalYearForDate(r.cfg.FoundedOn, r.cfg.FiscalYearStartMonth)
+	for _, fy := range r.fiscalYearsIn(year, year) {
+		if fy.Year == year {
+			return fy, true
+		}
+	}
+	return domain.FiscalYear{}, false
 }
 
 // ---------------------------------------------------------------------------

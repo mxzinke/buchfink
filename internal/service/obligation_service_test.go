@@ -1026,9 +1026,100 @@ func TestFoundingObligations(t *testing.T) {
 		t.Fatalf("Geschäftsjahre: %v", err)
 	}
 	none := listObligations(t, old.obligations(t), ObligationQuery{Kinds: []domain.ObligationKind{
-		domain.ObligationTaxRegistration, domain.ObligationTradeRegistration}})
+		domain.ObligationTaxRegistration, domain.ObligationTradeRegistration,
+		domain.ObligationOpeningBalance, domain.ObligationOpeningEBilanz}})
 	if len(none) != 0 {
 		t.Errorf("eine 2010 gegründete Gesellschaft hat keine offenen Gründungspflichten: %+v", none)
+	}
+}
+
+// Die Eröffnungsbilanz auf den Tag der Beurkundung: aufzustellen nach drei
+// Monaten ohne Verschiebung (§ 242 Abs. 1, § 243 Abs. 3 HGB), ihre E-Bilanz mit
+// der Frist der E-Bilanz des ersten Geschäftsjahres (§ 5b Abs. 1 Satz 4 EStG).
+// Erledigt meldet nur der Mensch; ein Agent meldet vorbereitet.
+func TestOpeningBalanceObligations(t *testing.T) {
+	kinds := []domain.ObligationKind{domain.ObligationOpeningBalance, domain.ObligationOpeningEBilanz}
+	for _, tc := range []struct {
+		name             string
+		founded          string
+		startMonth       int
+		advisor          bool
+		fiscalYear       int
+		opening, ebilanz string
+		statutoryEBilanz string
+		responsibility   domain.ObligationResponsibility
+	}{
+		// Der 31.07.2027 ist ein Samstag; die E-Bilanz folgt § 108 Abs. 3 AO.
+		{name: "Kalenderjahr", founded: "2026-08-03", startMonth: 1, fiscalYear: 2026,
+			opening: "2026-11-03", ebilanz: "2027-08-02", statutoryEBilanz: "2027-07-31",
+			responsibility: domain.ResponsibilityAgentPrepares},
+		{name: "mit Steuerberater", founded: "2026-08-03", startMonth: 1, advisor: true, fiscalYear: 2026,
+			opening: "2026-11-03", ebilanz: "2028-02-29", statutoryEBilanz: "2028-02-29",
+			responsibility: domain.ResponsibilityTaxAdvisor},
+		// Das erste Wirtschaftsjahr endet am 30.06.2027; maßgeblich ist der
+		// Veranlagungszeitraum 2027.
+		{name: "abweichendes Geschäftsjahr", founded: "2026-08-03", startMonth: 7, fiscalYear: 2026,
+			opening: "2026-11-03", ebilanz: "2028-07-31", statutoryEBilanz: "2028-07-31",
+			responsibility: domain.ResponsibilityAgentPrepares},
+		// Die Gründung im März fällt in das Geschäftsjahr 2025, das am
+		// 30.06.2026 endet.
+		{name: "Gründung vor dem Beginnmonat", founded: "2026-03-02", startMonth: 7, fiscalYear: 2025,
+			opening: "2026-06-02", ebilanz: "2027-08-02", statutoryEBilanz: "2027-07-31",
+			responsibility: domain.ResponsibilityAgentPrepares},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			env := newTestEnv(t)
+			env.setSettings(t, func(c *domain.CompanySettings) {
+				c.FoundedOn, c.FederalState, c.FiscalYearStartMonth = tc.founded, "HH", tc.startMonth
+				c.TaxNumber = "43/815/08151"
+				if tc.advisor {
+					c.TaxAdvisor = domain.TaxAdvisor{Engaged: true, SinceYear: 2026,
+						Declarations: []string{domain.DeclarationCorporateTax, domain.DeclarationEBilanz}}
+				}
+			})
+			svc := env.obligations(t)
+			list := listObligations(t, svc, ObligationQuery{FiscalYear: tc.fiscalYear, Kinds: kinds})
+			if len(list) != 2 {
+				t.Fatalf("%d Pflichten, erwartet zwei: %+v", len(list), list)
+			}
+			opening, ok := obligationByKey(list, "eroeffnungsbilanz.gruendung")
+			if !ok || opening.DueDate != tc.opening || opening.StatutoryDate != tc.opening ||
+				opening.Responsibility != domain.ResponsibilityHumanConfirms || opening.Evidence != domain.EvidenceFromHuman {
+				t.Errorf("Eröffnungsbilanz: %+v", opening)
+			}
+			if opening.PeriodFrom != tc.founded || opening.FiscalYear != tc.fiscalYear ||
+				opening.SkillRef != domain.ObligationSkillFile+"#eroeffnungsbilanz" ||
+				!strings.Contains(strings.Join(opening.Hints, " "), "feste Frist nennt das Gesetz nicht") {
+				t.Errorf("Eröffnungsbilanz: %+v", opening)
+			}
+			eb, ok := obligationByKey(list, "e-bilanz-eroeffnung.gruendung")
+			if !ok || eb.DueDate != tc.ebilanz || eb.StatutoryDate != tc.statutoryEBilanz ||
+				eb.Responsibility != tc.responsibility || eb.Evidence != domain.EvidenceFromHuman ||
+				eb.SkillRef != domain.ObligationSkillFile+"#ebilanz-eroeffnung" {
+				t.Errorf("E-Bilanz der Eröffnungsbilanz: %+v", eb)
+			}
+			if !strings.Contains(strings.Join(eb.Hints, " "), "späteste vertretbare Annahme") {
+				t.Errorf("Hinweise: %v", eb.Hints)
+			}
+		})
+	}
+
+	env := newTestEnv(t)
+	env.setSettings(t, func(c *domain.CompanySettings) { c.FoundedOn = "2026-08-03" })
+	svc := env.obligations(t)
+	for _, key := range []string{"eroeffnungsbilanz.gruendung", "e-bilanz-eroeffnung.gruendung"} {
+		if _, err := svc.Confirm(agentCtx, key, ConfirmInput{Date: "2026-10-01"}); err == nil ||
+			!strings.Contains(err.Error(), "vorbehalten") {
+			t.Errorf("%s: ein Agent bestätigt nicht: %v", key, err)
+		}
+		prepared, err := svc.MarkPrepared(agentCtx, key, "Bilanz geprüft")
+		if err != nil || prepared.Status != domain.ObligationPrepared {
+			t.Fatalf("%s vorbereitet: %v %+v", key, err, prepared)
+		}
+		done, err := svc.Confirm(appCtx, key, ConfirmInput{Date: "2026-10-01"})
+		if err != nil || done.Status != domain.ObligationDone {
+			t.Errorf("%s bestätigt: %v %+v", key, err, done)
+		}
 	}
 }
 
@@ -1128,7 +1219,8 @@ var skillAnchors = map[string]bool{
 	"bilanzstichtag": true, "aufstellung": true, "feststellung": true, "ergebnisverwendung": true,
 	"ebilanz": true, "kst-erklaerung": true, "gewst-erklaerung": true, "ust-erklaerung": true,
 	"offenlegung": true, "transparenzregister": true, "gesellschafterliste": true,
-	"fragebogen-steuerliche-erfassung": true, "gewerbeanmeldung": true, "kapitalertragsteuer": true,
+	"fragebogen-steuerliche-erfassung": true, "gewerbeanmeldung": true, "eroeffnungsbilanz": true,
+	"ebilanz-eroeffnung": true, "kapitalertragsteuer": true,
 }
 
 // Jede Pflichtart des Katalogs verweist auf ihren Anker in der Skill-Referenz,
@@ -1159,8 +1251,8 @@ func TestCatalogCarriesSkillReferences(t *testing.T) {
 			t.Errorf("der Titel von %s nennt eine Norm", typ.Kind)
 		}
 	}
-	if len(seen) != 21 {
-		t.Errorf("%d Pflichtarten im Katalog, erwartet 21", len(seen))
+	if len(seen) != 23 {
+		t.Errorf("%d Pflichtarten im Katalog, erwartet 23", len(seen))
 	}
 	for anchor := range skillAnchors {
 		if _, ok := anchors[anchor]; !ok {

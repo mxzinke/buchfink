@@ -1588,14 +1588,16 @@ const OBLIGATIONS = [
 /** Ziele wie service.ObligationTarget: Monat, Jahr, Erklärungen oder Stammdaten. */
 function obligationTarget(kind: string, key: string) {
   const declarations = [
-    'kst-erklaerung', 'gewst-erklaerung', 'ust-erklaerung', 'e-bilanz',
+    'kst-erklaerung', 'gewst-erklaerung', 'ust-erklaerung', 'e-bilanz', 'e-bilanz-eroeffnung',
     'kst-vorauszahlung', 'gewst-vorauszahlung',
   ];
   const year = [
     'abschlussbuchungen', 'aufstellung', 'feststellung', 'ergebnisverwendung',
     'offenlegung', 'kapitalertragsteuer',
   ];
-  const company = ['transparenzregister', 'gesellschafterliste', 'steuerliche-erfassung', 'gewerbeanmeldung'];
+  const company = [
+    'transparenzregister', 'gesellschafterliste', 'steuerliche-erfassung', 'gewerbeanmeldung', 'eroeffnungsbilanz',
+  ];
   if (declarations.includes(kind)) return { area: 'closings', tab: 'declarations', id: key };
   if (year.includes(kind)) return { area: 'closings', tab: 'year', id: key };
   if (company.includes(kind)) return { area: 'company', tab: 'profile', id: key };

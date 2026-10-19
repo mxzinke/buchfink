@@ -100,37 +100,6 @@ export function monthsBetween(from: string, to: string): string[] {
   return out;
 }
 
-/**
- * Der Reiter, unter dem eine Pflicht steht. Spiegelt `obligationTarget` in
- * internal/service/task_service.go, damit ein Verweis aus der Übersicht
- * dort landet, wo die Pflicht erledigt wird.
- */
-export function obligationTab(kind: string): 'month' | 'year' | 'declarations' | 'company' {
-  switch (kind) {
-    case 'kst-erklaerung':
-    case 'gewst-erklaerung':
-    case 'ust-erklaerung':
-    case 'e-bilanz':
-    case 'kst-vorauszahlung':
-    case 'gewst-vorauszahlung':
-      return 'declarations';
-    case 'abschlussbuchungen':
-    case 'aufstellung':
-    case 'feststellung':
-    case 'ergebnisverwendung':
-    case 'offenlegung':
-    case 'kapitalertragsteuer':
-      return 'year';
-    case 'transparenzregister':
-    case 'gesellschafterliste':
-    case 'steuerliche-erfassung':
-    case 'gewerbeanmeldung':
-      return 'company';
-    default:
-      return 'month';
-  }
-}
-
 /** Die Pflichtart aus dem Schlüssel „ustva.2026-Q3". */
 export function obligationKindOf(key: string): string {
   return key.split('.')[0] ?? '';

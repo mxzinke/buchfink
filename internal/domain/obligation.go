@@ -36,6 +36,8 @@ const (
 	ObligationShareholderList    ObligationKind = "gesellschafterliste"
 	ObligationTaxRegistration    ObligationKind = "steuerliche-erfassung"
 	ObligationTradeRegistration  ObligationKind = "gewerbeanmeldung"
+	ObligationOpeningBalance     ObligationKind = "eroeffnungsbilanz"
+	ObligationOpeningEBilanz     ObligationKind = "e-bilanz-eroeffnung"
 	ObligationWithholdingTax     ObligationKind = "kapitalertragsteuer"
 )
 
@@ -48,6 +50,7 @@ var obligationAnchors = map[ObligationKind]string{
 	ObligationMonthCommit:     "monatsfestschreibung",
 	ObligationClosingBookings: "bilanzstichtag",
 	ObligationEBilanz:         "ebilanz",
+	ObligationOpeningEBilanz:  "ebilanz-eroeffnung",
 	ObligationTaxRegistration: "fragebogen-steuerliche-erfassung",
 }
 
@@ -58,7 +61,7 @@ func ObligationKinds() []ObligationKind {
 		ObligationClosingBookings, ObligationStatementPrep, ObligationAdoption, ObligationAppropriation,
 		ObligationEBilanz, ObligationCorporateTaxReturn, ObligationTradeTaxReturn, ObligationAnnualVatReturn,
 		ObligationDisclosure, ObligationTransparency, ObligationShareholderList, ObligationTaxRegistration,
-		ObligationTradeRegistration, ObligationWithholdingTax}
+		ObligationTradeRegistration, ObligationOpeningBalance, ObligationOpeningEBilanz, ObligationWithholdingTax}
 }
 
 // ObligationKindOf liest eine Pflichtart, auch unter dem Anker ihres

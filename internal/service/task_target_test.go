@@ -18,6 +18,7 @@ func TestObligationTargetsAreValidRoutes(t *testing.T) {
 		domain.ObligationCorporatePrepay:    {Area: domain.AreaClosings, Tab: "declarations"},
 		domain.ObligationTradePrepay:        {Area: domain.AreaClosings, Tab: "declarations"},
 		domain.ObligationEBilanz:            {Area: domain.AreaClosings, Tab: "declarations"},
+		domain.ObligationOpeningEBilanz:     {Area: domain.AreaClosings, Tab: "declarations"},
 		domain.ObligationCorporateTaxReturn: {Area: domain.AreaClosings, Tab: "declarations"},
 		domain.ObligationTradeTaxReturn:     {Area: domain.AreaClosings, Tab: "declarations"},
 		domain.ObligationAnnualVatReturn:    {Area: domain.AreaClosings, Tab: "declarations"},
@@ -31,6 +32,10 @@ func TestObligationTargetsAreValidRoutes(t *testing.T) {
 		domain.ObligationShareholderList:    {Area: domain.AreaCompany, Tab: "profile"},
 		domain.ObligationTaxRegistration:    {Area: domain.AreaCompany, Tab: "profile"},
 		domain.ObligationTradeRegistration:  {Area: domain.AreaCompany, Tab: "profile"},
+		domain.ObligationOpeningBalance:     {Area: domain.AreaCompany, Tab: "profile"},
+	}
+	if len(cases) != len(domain.ObligationKinds()) {
+		t.Errorf("%d Pflichtarten geprüft, der Katalog hat %d", len(cases), len(domain.ObligationKinds()))
 	}
 	for kind, want := range cases {
 		key := string(kind) + ".2026"
