@@ -31,12 +31,14 @@ Kartenbelege und die Kreditkartenabrechnung regelt
   der Buchungstag davor, nimmt es den Monat der Zahlung. Ist der Beleg vor der
   Leistung bezahlt, aber `offen` gebucht, sieht Buchfink das nicht; sag es dem
   Menschen.
-- Die BMF-Kurse lassen sich in Buchfink weder in der App noch über ein
-  Werkzeug erfassen. Ohne sie rechnet Buchfink die Steuer mit dem
+- Die BMF-Kurse liest der Mensch in der App als CSV-Datei ein (Einstellungen,
+  Erweitert, „Umsatzsteuer-Umrechnungskurse“: je Zeile Monat `JJJJ-MM`,
+  Währung, Kurs in Fremdwährung je Euro). Ein Werkzeug dafür gibt es nicht.
+  Fehlt der Kurs des Monats, rechnet Buchfink die Steuer mit dem
   EZB-Tageskurs des Belegdatums, und der Hinweis der Vorschau sagt es. Das
-  trägt § 16 Abs. 6 UStG nur, wenn das Finanzamt den Tageskurs gestattet;
-  frag den Menschen danach und lege sonst die Abweichung zum BMF-Kurs des
-  Monats vor (Wertungsfrage, Steuerberater).
+  trägt § 16 Abs. 6 UStG nur, wenn das Finanzamt den Tageskurs gestattet.
+  Bitte den Menschen dann, die Kurse des Monats einzulesen, bevor du buchst,
+  oder frag, ob das Finanzamt den Tageskurs gestattet hat.
 - Die Differenz zwischen beiden Kursen bucht Buchfink als Kursaufwand (6880)
   oder Kursertrag (4840).
 

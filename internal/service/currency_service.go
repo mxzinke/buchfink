@@ -205,29 +205,6 @@ func (s *CurrencyService) VatRates(ctx context.Context, from, to string) ([]doma
 	return s.rates.FindVatRates(ctx, from, to)
 }
 
-// SaveVatRate nimmt einen Durchschnittskurs auf.
-func (s *CurrencyService) SaveVatRate(ctx context.Context, rate domain.VatExchangeRate) (*domain.VatExchangeRate, error) {
-	if s.rates == nil {
-		return nil, fmt.Errorf("die Kurstabelle ist nicht eingerichtet")
-	}
-	rate.Currency = strings.ToUpper(strings.TrimSpace(rate.Currency))
-	if strings.TrimSpace(rate.Source) == "" {
-		rate.Source = "BMF-Umsatzsteuer-Umrechnungskurse"
-	}
-	if err := rate.Validate(); err != nil {
-		return nil, err
-	}
-	if err := s.rates.SaveVatRate(ctx, &rate); err != nil {
-		return nil, fmt.Errorf("der Durchschnittskurs ließ sich nicht speichern: %w", err)
-	}
-	if err := s.audit(ctx, domain.AuditActionCreate, "", fmt.Sprintf(
-		"Umsatzsteuer-Umrechnungskurs %s für %s erfasst: %.6f (%s)",
-		rate.Currency, rate.Month, rate.Rate(), rate.Source)); err != nil {
-		return nil, err
-	}
-	return &rate, nil
-}
-
 // VatRateImport ist das Ergebnis eines CSV-Imports.
 type VatRateImport struct {
 	Imported int      `json:"imported"`
@@ -236,9 +213,11 @@ type VatRateImport struct {
 }
 
 // ImportVatRatesCSV liest die Umsatzsteuer-Umrechnungskurse aus einer CSV-Datei.
+// Der Mensch liest sie in der App ein (Einstellungen › Erweitert); ein Kurs
+// ersetzt den gespeicherten derselben Währung und desselben Monats.
 //
-// Erwartet werden drei Spalten: Monat (JJJJ-MM), Währung, Kurs. Eine Kopfzeile
-// wird erkannt und übergangen. Das Format ist absichtlich das einfachste
+// Erwartet werden drei Spalten: Monat (JJJJ-MM), Währung, Kurs in
+// Fremdwährung je Euro. Eine Kopfzeile wird erkannt und übergangen. Das Format ist absichtlich das einfachste
 // mögliche — die amtliche Veröffentlichung ist ein PDF, und was daraus wird,
 // tippt oder kopiert jemand. Ein Importer, der ein Amtsformat zu parsen
 // versucht, das jedes Jahr anders aussieht, ist ein Importer, der jedes Jahr

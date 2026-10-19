@@ -98,9 +98,7 @@ func incomingGoldenFixture(t *testing.T, name string) (*testEnv, ReceiptRequest)
 		if _, err := currency.SaveRate(ctx, domain.ExchangeRate{Currency: "USD", Date: "2026-03-10", RateMicros: 1085000, Source: "EZB-Referenzkurs aus Testbestand"}); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := currency.SaveVatRate(ctx, domain.VatExchangeRate{Month: "2026-03", Currency: "USD", RateMicros: 1100000}); err != nil {
-			t.Fatal(err)
-		}
+		saveVatRate(t, currency, domain.VatExchangeRate{Month: "2026-03", Currency: "USD", RateMicros: 1100000})
 		req.Currency, req.ForeignAmount, req.Positions[0].Net = "USD", 108500, 108500
 		t.Cleanup(func() {
 			if *calls != 0 {

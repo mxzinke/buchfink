@@ -659,6 +659,11 @@
     "ExaminerAllowed": false,
     "Guarded": true
   },
+  "ImportVatExchangeRates": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
   "IssueInvoice": {
     "AppOnly": false,
     "ExaminerAllowed": false,
@@ -895,6 +900,11 @@
     "Guarded": false
   },
   "SelectStatementFileDialog": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "SelectVatRatesFileDialog": {
     "AppOnly": false,
     "ExaminerAllowed": true,
     "Guarded": false

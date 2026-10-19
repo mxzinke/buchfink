@@ -139,11 +139,9 @@ func TestVatAverageRateSplitsBaseFromExpense(t *testing.T) {
 		t.Errorf("der Hinweis muss die Vorschrift nennen: %s", plain.Note)
 	}
 
-	if _, err := svc.SaveVatRate(ctx, domain.VatExchangeRate{
+	saveVatRate(t, svc, domain.VatExchangeRate{
 		Month: "2026-03", Currency: "USD", RateMicros: 1_100_000,
-	}); err != nil {
-		t.Fatalf("Durchschnittskurs: %v", err)
-	}
+	})
 
 	withVat, err := svc.Convert(ctx, "USD", "2026-03-10", "", 1_085_000)
 	if err != nil {
@@ -371,4 +369,15 @@ func (e *testEnv) entryByNumber(t *testing.T, year int, number string) *domain.J
 	}
 	t.Fatalf("die Buchung %s steht nicht im Journal %d", number, year)
 	return nil
+}
+
+// saveVatRate legt einen Durchschnittskurs an, wie ihn der CSV-Import speichert.
+func saveVatRate(t *testing.T, svc *CurrencyService, rate domain.VatExchangeRate) {
+	t.Helper()
+	if rate.Source == "" {
+		rate.Source = "BMF-Umsatzsteuer-Umrechnungskurse"
+	}
+	if err := svc.rates.SaveVatRate(context.Background(), &rate); err != nil {
+		t.Fatalf("Durchschnittskurs %s %s: %v", rate.Currency, rate.Month, err)
+	}
 }

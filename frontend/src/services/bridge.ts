@@ -263,8 +263,11 @@ export const bridge = {
   // Nicht abziehbare Betriebsausgaben (§ 4 Abs. 5 EStG)
   GetNonDeductibleReport: <T>(year: number) => invoke<T>('GetNonDeductibleReport', year),
 
-  // Fremdwährung: Stichtagsbewertung
+  // Fremdwährung: Stichtagsbewertung und Umsatzsteuer-Umrechnungskurse
   PreviewCurrencyValuation: <T>(year: number) => invoke<T>('PreviewCurrencyValuation', year),
+  GetVatExchangeRates: <T>(from: string, to: string) => invoke<T>('GetVatExchangeRates', from, to),
+  ImportVatExchangeRates: <T>(path: string) => invoke<T>('ImportVatExchangeRates', path),
+  SelectVatRatesFileDialog: (title: string) => invoke<string>('SelectVatRatesFileDialog', title),
 
   // Anlagen: Wertaufholung
   GetWriteUpReport: <T>(year: number) => invoke<T>('GetWriteUpReport', year),

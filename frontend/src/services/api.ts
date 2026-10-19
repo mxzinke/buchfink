@@ -117,6 +117,8 @@ import type {
   VatIDStatus,
   VatPeriodProposal,
   VatReturn,
+  VatExchangeRate,
+  VatRateImport,
   VatSettlement,
   WriteUpReport,
   ZMPeriodStatus,
@@ -1027,6 +1029,17 @@ export const Api = {
     call(() => Bridge.PreviewCurrencyValuation(year) as Promise<ForeignCurrencyValuation>).then(
       normalizeCurrencyValuation,
     ),
+  /** Die eingelesenen Umsatzsteuer-Umrechnungskurse, Monate als JJJJ-MM; leer heißt ohne Grenze. */
+  getVatExchangeRates: (from = '', to = ''): Promise<VatExchangeRate[]> =>
+    call(() => Bridge.GetVatExchangeRates(from, to) as Promise<VatExchangeRate[] | null>).then((r) => r ?? []),
+  /** Liest die Umsatzsteuer-Umrechnungskurse des BMF aus einer CSV-Datei (§ 16 Abs. 6 UStG). */
+  importVatExchangeRates: (path: string): Promise<VatRateImport> =>
+    call(() => Bridge.ImportVatExchangeRates(path) as Promise<VatRateImport>).then((r) => ({
+      ...r,
+      problems: r.problems ?? [],
+    })),
+  selectVatRatesFile: (title = 'Umsatzsteuer-Umrechnungskurse (CSV) auswählen'): Promise<string> =>
+    call(() => Bridge.SelectVatRatesFileDialog(title)),
 
   // --- Anlagen: Wertaufholung -------------------------------------------
 

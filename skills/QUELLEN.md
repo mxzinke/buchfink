@@ -237,7 +237,7 @@ Aussage abgeglichen.
 | `internal/accounting/vat_period.go` | Zuordnung zum Voranmeldungszeitraum: Vorsteuer nach spätestem Datum (Leistung, Beleg, Eingang); § 13b Abs. 1 nach Leistungszeitraum, Abs. 2 und Erwerb nach Rechnungsdatum, spätestens Folgemonat; Storno übernimmt die Daten der Ursprungsbuchung |
 | `internal/accounting/tax_keys.go`, `tax_skr04.go` | Steuerschlüssel je Steuerfall; `reverse_charge_eu` → Kz 46/47, `reverse_charge` → Kz 84/85 |
 | `internal/service/posting_service.go` (`reverseChargeParagraphWarning`) | Warnung `reverse_charge_eu_supplier`; inländische Bauleistung mit `reverse_charge` zulässig |
-| `internal/service/posting_currency.go` (`vatRateDateOf`), `currency_service.go` | EZB-Tageskurs des Belegdatums, BMF-Kurs des Monats des Leistungsendes oder der früheren Zahlung, Kursdifferenz 6880/4840 |
+| `internal/service/posting_currency.go` (`vatRateDateOf`), `currency_service.go` (`ImportVatRatesCSV`, Bridge `ImportVatExchangeRates`) | EZB-Tageskurs des Belegdatums, BMF-Kurs des Monats des Leistungsendes oder der früheren Zahlung aus dem CSV-Import der App, Kursdifferenz 6880/4840 |
 | `internal/service/posting_service.go` | USt-IdNr. am Kontakt für EU-Fälle, Anzahlung erst mit Zahlung, Rückstellungsverbrauch |
 | `internal/service/receipt_findings.go`, `service_proof.go` | Befundklassen, Leistungsnachweis |
 | `internal/accounting/tax_skr04.go`, `input_tax_correction.go` | geschützte Steuerkonten, Konten 1396–1399 |
@@ -260,10 +260,8 @@ Aussage abgeglichen.
   Original prüfen.
 - Gruppe `geschenke_betrieblich`: Grundlage (Verwaltungsregel, vermutlich R 4.10
   EStR) nicht am Wortlaut geprüft.
-- Buchfink: BMF-Kurse lassen sich weder in der App noch über ein Werkzeug
-  erfassen (`SaveVatRate`, `ImportVatRatesCSV` ohne Aufrufer); die
-  Umsatzsteuer folgt deshalb dem EZB-Tageskurs. Eine Zahlung vor der Leistung
-  erkennt Buchfink nur, wenn der Beleg mit ihr gebucht wird.
+- Buchfink: Eine Zahlung vor der Leistung erkennt Buchfink nur, wenn der Beleg
+  mit ihr gebucht wird.
 - Werkzeug: Wie eine Gutschrift eines Lieferanten (negative Beträge) mit
   `beleg_buchen_mit_rueckfrage` gebucht wird, ist nicht beschrieben.
 

@@ -3028,6 +3028,14 @@ export interface VatExchangeRate {
   updatedAt: string;
 }
 
+/** Ergebnis des CSV-Imports der Umsatzsteuer-Umrechnungskurse. */
+export interface VatRateImport {
+  imported: number;
+  skipped: number;
+  /** Je übergangener Zeile ein Satz mit der Zeilennummer. */
+  problems: string[];
+}
+
 export interface ForeignCurrencyValuationItem {
   /** „open_item" ist eine Forderung oder Verbindlichkeit, „bank" ein Guthaben. */
   kind: string;

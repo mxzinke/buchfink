@@ -115,6 +115,18 @@ export function formatQuantity(quantityMilli: number): string {
   return value.toLocaleString('de-DE', { maximumFractionDigits: 3 });
 }
 
+const MONTHS = [
+  'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+];
+
+/** Formatiert einen Monat JJJJ-MM: "2026-03" → "März 2026". */
+export function formatMonth(month: string): string {
+  const match = /^(\d{4})-(\d{2})$/.exec(month);
+  const index = match ? Number(match[2]) - 1 : -1;
+  return match && index >= 0 && index < 12 ? `${MONTHS[index]} ${match[1]}` : month || '—';
+}
+
 export function formatDate(dateStr: string): string {
   if (!dateStr) return '—';
   const parts = dateStr.split('T')[0].split('-');

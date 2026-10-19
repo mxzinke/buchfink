@@ -31,11 +31,9 @@ func TestForeignCurrencyReceiptBooksBothRates(t *testing.T) {
 	ctx := context.Background()
 	server, _ := ecbServer(t, "1.0850", "2026-03-10")
 	svc := env.currencyPosting(t, server.URL)
-	if _, err := svc.SaveVatRate(ctx, domain.VatExchangeRate{
+	saveVatRate(t, svc, domain.VatExchangeRate{
 		Month: "2026-03", Currency: "USD", RateMicros: 1_100_000,
-	}); err != nil {
-		t.Fatalf("Durchschnittskurs: %v", err)
-	}
+	})
 	vendor := env.vendor(t, "Supplier Inc.", "US", "")
 
 	req := env.receipt(t, vendor.ID, "fremdleistungen", 108_500,
@@ -188,9 +186,7 @@ func TestForeignCurrencyVatRateFollowsTheService(t *testing.T) {
 	server, _ := ecbServer(t, "1.1500", "2026-07-15")
 	svc := env.currencyPosting(t, server.URL)
 	for month, micros := range map[string]int64{"2026-07": 1_100_000, "2026-08": 1_200_000} {
-		if _, err := svc.SaveVatRate(ctx, domain.VatExchangeRate{Month: month, Currency: "USD", RateMicros: micros}); err != nil {
-			t.Fatalf("Durchschnittskurs %s: %v", month, err)
-		}
+		saveVatRate(t, svc, domain.VatExchangeRate{Month: month, Currency: "USD", RateMicros: micros})
 	}
 	vendor := env.vendor(t, "Supplier Inc.", "US", "")
 

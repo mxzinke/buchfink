@@ -6,6 +6,7 @@ import (
 	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/service"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // GetExchangeRate liefert den Kurs eines Tages und speichert einen fehlenden
@@ -36,6 +37,32 @@ func (b *BuchfinkBridge) GetVatExchangeRates(from, to string) ([]domain.VatExcha
 	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.VatExchangeRate, error) {
 		return s.Currency.VatRates(ctx, from, to)
 	})
+}
+
+// ImportVatExchangeRates liest die Umsatzsteuer-Umrechnungskurse des BMF aus
+// einer CSV-Datei, die der Mensch im Dateidialog gewählt hat.
+func (b *BuchfinkBridge) ImportVatExchangeRates(path string) (*service.VatRateImport, error) {
+	return write(b, func(ctx context.Context, s *core.Services) (*service.VatRateImport, error) {
+		return s.Currency.ImportVatRatesCSV(ctx, path)
+	})
+}
+
+// SelectVatRatesFileDialog öffnet den Dateidialog für die CSV-Datei der
+// Umsatzsteuer-Umrechnungskurse.
+func (b *BuchfinkBridge) SelectVatRatesFileDialog(title string) (string, error) {
+	if title == "" {
+		title = "Umsatzsteuer-Umrechnungskurse (CSV) auswählen"
+	}
+	app := application.Get()
+	if app == nil || app.Dialog == nil {
+		return "", nil
+	}
+	return app.Dialog.OpenFile().
+		CanChooseFiles(true).
+		CanChooseDirectories(false).
+		AddFilter("CSV-Dateien (*.csv)", "*.csv").
+		SetTitle(title).
+		PromptForSingleSelection()
 }
 
 // PreviewCurrencyValuation rechnet die Stichtagsbewertung, ohne sie zu buchen.

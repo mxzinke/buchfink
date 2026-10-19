@@ -146,6 +146,7 @@ func BridgeExaminerAllowed() map[string]bool {
 		"SelectReceiptFilesDialog":      true,
 		"SelectSaveFileDialog":          true,
 		"SelectStatementFileDialog":     true,
+		"SelectVatRatesFileDialog":      true,
 		"ServiceShutdown":               true,
 		"ServiceStartup":                true,
 		"SetBackupDir":                  true,

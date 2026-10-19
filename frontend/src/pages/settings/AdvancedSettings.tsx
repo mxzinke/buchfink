@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Save } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { FileUp, Save } from 'lucide-react';
 import { Api } from '../../services/api';
 import type {
   AccrualMethod,
@@ -9,17 +9,19 @@ import type {
   CompanySettings,
   ComplianceHints,
   RetentionRules,
+  VatExchangeRate,
 } from '../../types';
 import { RETENTION_CLASS_LABELS } from '../../types';
 import { useWorkspace } from '../../workspace';
 import { useWriteLock } from '../../components/WriteLock';
-import { formatCentsPlain, formatDate, parseCents } from '../../utils/formatters';
+import { formatCentsPlain, formatDate, formatMonth, parseCents } from '../../utils/formatters';
 import {
   Button,
   Disclosure,
   Field,
   FieldValue,
   FormGrid,
+  Help,
   Input,
   Notice,
   Select,
@@ -47,6 +49,15 @@ const ACCRUAL_RELEASES = [
   { value: 'monthly', label: 'Monatlich · für unterjährige Auswertungen' },
 ];
 
+/** Die eingelesenen Monate mit ihren Währungen, der jüngste zuerst. */
+function vatRateMonths(rates: VatExchangeRate[]): { month: string; currencies: string[] }[] {
+  const byMonth = new Map<string, string[]>();
+  for (const rate of rates) byMonth.set(rate.month, [...(byMonth.get(rate.month) ?? []), rate.currency]);
+  return Array.from(byMonth, ([month, currencies]) => ({ month, currencies: currencies.sort() })).sort((a, b) =>
+    b.month.localeCompare(a.month),
+  );
+}
+
 /** Eine Zahl aus einem Textfeld; leer oder ungültig ergibt den Ersatzwert. */
 function wholeNumber(text: string, fallback: number, min: number): number {
   const value = Math.trunc(Number(text));
@@ -55,8 +66,9 @@ function wholeNumber(text: string, fallback: number, min: number): number {
 
 /**
  * Was selten jemand anfasst: Fristen der Prüfläufe, Verfahren der Abgrenzung,
- * die Grenze des Leistungsnachweises, gelernte Bankregeln, Aufbewahrungsfristen
- * und Speicherort. Gespeichert wird über einen Knopf.
+ * die Grenze des Leistungsnachweises, Umsatzsteuer-Umrechnungskurse, gelernte
+ * Bankregeln, Aufbewahrungsfristen und Speicherort. Gespeichert wird über einen
+ * Knopf; die Kurse liest ein eigener Knopf ein.
  */
 export const AdvancedSettings: React.FC<{ onManageTenants?: () => void }> = ({ onManageTenants }) => {
   const workspace = useWorkspace();
@@ -66,6 +78,10 @@ export const AdvancedSettings: React.FC<{ onManageTenants?: () => void }> = ({ o
   const [hints, setHints] = useState<ComplianceHints | null>(null);
   const [retention, setRetention] = useState<RetentionRules | null>(null);
   const [rules, setRules] = useState<BankRule[]>([]);
+  const [vatRates, setVatRates] = useState<VatExchangeRate[] | null>(null);
+  const [vatImporting, setVatImporting] = useState(false);
+  const [vatError, setVatError] = useState('');
+  const vatMonths = useMemo(() => vatRateMonths(vatRates ?? []), [vatRates]);
   const [captureDays, setCaptureDays] = useState('10');
   const [graceDays, setGraceDays] = useState('0');
   const [threshold, setThreshold] = useState('');
@@ -103,6 +119,13 @@ export const AdvancedSettings: React.FC<{ onManageTenants?: () => void }> = ({ o
       Api.getBankRules()
         .then((r) => active && setRules(r))
         .catch(() => undefined);
+      Api.getVatExchangeRates()
+        .then((r) => active && setVatRates(r))
+        .catch((e) => {
+          if (!active) return;
+          setVatRates([]);
+          setVatError(message(e));
+        });
     })();
     return () => {
       active = false;
@@ -142,6 +165,26 @@ export const AdvancedSettings: React.FC<{ onManageTenants?: () => void }> = ({ o
       setError(message(e));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function importVatRates() {
+    if (vatImporting || writeLock.locked) return;
+    setVatError('');
+    try {
+      const path = await Api.selectVatRatesFile();
+      if (!path) return;
+      setVatImporting(true);
+      const result = await Api.importVatExchangeRates(path);
+      setVatRates(await Api.getVatExchangeRates());
+      toast.success(
+        `${result.imported} Kurse eingelesen.`,
+        result.skipped > 0 ? `${result.skipped} Zeilen übergangen. ${result.problems.slice(0, 3).join(' ')}` : undefined,
+      );
+    } catch (e) {
+      setVatError(message(e));
+    } finally {
+      setVatImporting(false);
     }
   }
 
@@ -263,6 +306,76 @@ export const AdvancedSettings: React.FC<{ onManageTenants?: () => void }> = ({ o
       </div>
 
       <div className="mt-8 border-t border-line">
+        <Disclosure
+          variant="row"
+          title="Umsatzsteuer-Umrechnungskurse"
+          context={
+            vatMonths.length === 0
+              ? 'Noch keine Monatskurse eingelesen'
+              : `${vatMonths.length} Monate, zuletzt ${formatMonth(vatMonths[0].month)}`
+          }
+        >
+          {vatError && <Notice tone="negative" className="mb-4" text={vatError} />}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={vatImporting}
+              disabled={writeLock.locked}
+              title={writeLock.hint}
+              icon={<FileUp className="w-4 h-4" strokeWidth={1.5} />}
+              onClick={() => void importVatRates()}
+            >
+              CSV einlesen
+            </Button>
+            <Help
+              label="Umsatzsteuer-Umrechnungskurse"
+              summary="Mit diesen Monatskursen rechnet Buchfink die Umsatzsteuer auf Rechnungen in fremder Währung um."
+            >
+              <p>
+                Das Bundesministerium der Finanzen gibt jeden Monat Durchschnittskurse bekannt. Mit ihnen ist die
+                Umsatzsteuer auf Beträge in fremder Währung umzurechnen, den Tageskurs nur, wenn das Finanzamt es
+                gestattet (§ 16 Abs. 6 UStG). Buchfink nimmt den Kurs des Monats, in dem die Leistung ausgeführt
+                wurde, bei einer Zahlung vor der Leistung den Monat der Zahlung. Fehlt der Monat, rechnet Buchfink
+                mit dem Tageskurs der EZB und sagt das in der Vorschau der Buchung.
+              </p>
+              <p className="mt-3">
+                Die CSV-Datei hat je Zeile Monat, Währung und Kurs, getrennt durch Semikolon, etwa
+                „2026-03;USD;1,0823“. Der Kurs ist der Betrag in fremder Währung für einen Euro. Ein neuer Kurs
+                ersetzt den gespeicherten derselben Währung und desselben Monats.
+              </p>
+            </Help>
+          </div>
+          {vatRates === null ? (
+            <SkeletonRows rows={3} />
+          ) : vatMonths.length === 0 ? (
+            <p className="mt-4 text-body text-ink-muted">Ohne Monatskurs rechnet Buchfink mit dem Tageskurs der EZB.</p>
+          ) : (
+            <div className="mt-4">
+              <Table density="kompakt">
+                <Thead>
+                  <Tr>
+                    <Th className="w-40">Monat</Th>
+                    <Th>Währungen</Th>
+                    <Th numeric className="w-20">Kurse</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {vatMonths.map((entry) => (
+                    <Tr key={entry.month}>
+                      <Td className="num">{formatMonth(entry.month)}</Td>
+                      <Td code className="max-w-[28rem] truncate" title={entry.currencies.join(', ')}>
+                        {entry.currencies.join(', ')}
+                      </Td>
+                      <Td numeric>{entry.currencies.length}</Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </div>
+          )}
+        </Disclosure>
+
         <Disclosure
           variant="row"
           title="Gelernte Bankregeln"

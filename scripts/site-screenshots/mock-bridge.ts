@@ -3239,6 +3239,20 @@ export const bridge = {
   GetVatIDStatus: (contactId: number) => later({ ...VAT_ID_STATUS, contactId }),
   GetNonDeductibleReport: (year: number) => later(closings.nonDeductibleReport(year || YEAR)),
   PreviewCurrencyValuation: (year: number) => later(closings.currencyValuation(year || YEAR)),
+  GetVatExchangeRates: () =>
+    later(
+      ['2026-07', '2026-08', '2026-09'].flatMap((month) =>
+        ['CHF', 'GBP', 'USD'].map((currency) => ({
+          month,
+          currency,
+          rateMicros: currency === 'USD' ? 1_160_000 : currency === 'GBP' ? 860_000 : 935_000,
+          source: 'BMF-Umsatzsteuer-Umrechnungskurse',
+          updatedAt: `${month}-28T08:00:00Z`,
+        })),
+      ),
+    ),
+  ImportVatExchangeRates: unsupported('ImportVatExchangeRates'),
+  SelectVatRatesFileDialog: () => later(''),
   GetWriteUpReport: (year: number) => later(closings.writeUpReport(year || YEAR)),
   GetSchemaMigrations: () => later(SCHEMA_MIGRATIONS),
   GetMigrationRecords: () => later([]),
