@@ -39,6 +39,44 @@ func TestCIIRoundTripKeepsTheModel(t *testing.T) {
 	}
 }
 
+// Eine Lastschrift steht in CII an drei Stellen: das Mandat (BT-89) bei den
+// Zahlungsbedingungen, die Gläubiger-ID (BT-90) im Kopf der Abrechnung, das
+// belastete Konto (BT-91) beim Zahlungsmittel. Der Rundlauf über den Korpus
+// kann nicht zeigen, dass der Leser sie alle liest: Was er übergeht, fehlt vor
+// und nach dem Schreiben gleichermaßen. Deshalb beginnt dieser Rundlauf beim
+// Modell.
+func TestDirectDebitSurvivesTheRoundTrip(t *testing.T) {
+	inv := validInvoice()
+	// Der Schreiber gibt BT-110 immer mit Währung aus, der Leser liefert sie mit.
+	inv.Totals.TaxTotalCurrency = inv.Currency
+	inv.CreditorReference = "DE98ZZZ09999999999"
+	inv.PaymentMeans = []PaymentMeans{{
+		TypeCode:       "59",
+		RemittanceInfo: "RE-2026-0001",
+		DirectDebit: &DirectDebit{
+			MandateReference: "M-2026-01",
+			CreditorID:       "DE98ZZZ09999999999",
+			DebitedAccount:   "DE02120300000000202051",
+		},
+	}}
+
+	written, err := RenderCII(inv)
+	if err != nil {
+		t.Fatalf("schreiben: %v", err)
+	}
+	reread, err := ParseCII(written)
+	if err != nil {
+		t.Fatalf("zurücklesen: %v\n%s", err, written)
+	}
+
+	for _, diff := range compareInvoices(inv, reread) {
+		t.Errorf("Rundlauf verliert %s", diff)
+	}
+	for _, f := range Validate(reread).Findings {
+		t.Errorf("%s %s: %s", f.Rule, f.Where, f.Message)
+	}
+}
+
 // Was Buchfink schreibt, muss die eigene Prüfung bestehen. Täte es das nicht,
 // wäre entweder der Schreiber falsch oder die Prüfung — und man wüsste nicht,
 // welches von beidem.
@@ -164,6 +202,8 @@ func compareInvoices(before, after *Invoice) []string {
 	check("BG-11 Steuervertreter", before.TaxRepresentative, after.TaxRepresentative)
 	check("BG-13 Lieferinformationen", before.Delivery, after.Delivery)
 	check("BG-14 Rechnungszeitraum", before.Period, after.Period)
+	check("BG-16 Zahlungsanweisungen", before.PaymentMeans, after.PaymentMeans)
+	check("BT-90 Gläubiger-ID", before.CreditorReference, after.CreditorReference)
 	check("BG-20 Nachlässe", before.Allowances, after.Allowances)
 	check("BG-21 Zuschläge", before.Charges, after.Charges)
 	check("BG-22 Summen", before.Totals, after.Totals)
