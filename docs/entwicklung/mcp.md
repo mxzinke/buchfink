@@ -174,7 +174,7 @@ aus `Toolbox.OutputSchema`, `TestCatalogStaysSmall` hält den Katalog unter
 | `rechnung_vorschau` | lesen | Ausgangsrechnung durchrechnen ohne Ausstellen |
 | `beleg_ablegen` | direkt | Dateien aus Eingang oder Leseordner ablegen, E-Rechnung auslesen und prüfen, fehlende Dateien an einem offenen Beleg ergänzen; `art: brief` legt ein Schreiben ohne Buchung ab, `art: sonstiges` einen Vertrag oder Beschluss für `buchung_erfassen`; danach geht die Datei aus dem Eingang nach `Übernommen/` |
 | `beleg_datei_exportieren` | direkt | Kopie einer Belegdatei in den Exportordner, zum Lesen oder Versenden |
-| `kontakt_anlegen` | direkt | Kontakt anlegen nach Dublettenprüfung |
+| `kontakt_anlegen` | direkt | Kontakt anlegen nach Dublettenprüfung; mit `leitweg_id` bekommt ein Kunde XRechnung |
 | `kontoauszug_importieren` | direkt | CAMT.053 ablegen, Salden prüfen, Umsätze einlesen; danach geht die Datei aus dem Eingang nach `Übernommen/` |
 | `beleg_buchen` | direkt | Eingangsrechnung buchen, nur Routine |
 | `bankumsatz_zuordnen` | direkt | Bankumsatz mit genau einem offenen Posten ausgleichen, nur Routine |

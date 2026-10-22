@@ -2673,6 +2673,10 @@
           "description": "ISO-Ländercode, Vorgabe DE",
           "type": "string"
         },
+        "leitweg_id": {
+          "description": "Kunde ist eine Behörde; seine Rechnungen gehen als XRechnung",
+          "type": "string"
+        },
         "mandant_id": {
           "description": "id aus status; ist ein anderer Mandant geöffnet, wird nichts geschrieben",
           "type": "string"

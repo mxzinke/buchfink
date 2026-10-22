@@ -105,6 +105,7 @@ type kontaktAnlegenIn struct {
 	ZahlungszielTage        int            `json:"zahlungsziel_tage,omitempty"`
 	Privatperson            bool           `json:"privatperson,omitempty" jsonschema:"Verbraucher, kein Unternehmer"`
 	Kleinunternehmer        bool           `json:"kleinunternehmer,omitempty" jsonschema:"Lieferant nach § 19 UStG"`
+	LeitwegID               string         `json:"leitweg_id,omitempty" jsonschema:"Kunde ist eine Behörde; seine Rechnungen gehen als XRechnung"`
 	StandardgruppeVorschlag Buchungsgruppe `json:"standardgruppe_vorschlag,omitempty" jsonschema:"Vorschlag für Lieferanten; bestätigt erst der Mensch in der App"`
 }
 
@@ -206,6 +207,12 @@ func registerKontakte(tb *Toolbox) {
 		}
 		if contact.PaymentTermsDays == 0 {
 			contact.PaymentTermsDays = 14
+		}
+		if leitweg := strings.TrimSpace(in.LeitwegID); leitweg != "" {
+			if typ != domain.ContactTypeCustomer {
+				return out, inputError("leitweg_id", "eine Leitweg-ID hat nur ein Kunde")
+			}
+			contact.LeitwegID, contact.EInvoiceProfile = leitweg, domain.EInvoiceProfileXRechnungCII
 		}
 		if in.StandardgruppeVorschlag != "" {
 			if typ != domain.ContactTypeVendor {

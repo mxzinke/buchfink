@@ -68,6 +68,21 @@ func TestContactsAreNotDuplicated(t *testing.T) {
 	if vendor.BereitsVorhanden || vendor.Kontakt.Standardgruppe.Vorschlag != "software" || vendor.Kontakt.Standardgruppe.Gruppe != "" {
 		t.Errorf("Lieferant gleichen Namens mit Vorschlag: %+v", vendor)
 	}
+	// Eine Behörde bekommt XRechnung an ihre Leitweg-ID.
+	var authority kontaktOut
+	a.ok("kontakt_anlegen", a.args(map[string]any{"typ": "kunde", "name": "Bezirksamt Hamburg-Nord", "plz": "20249",
+		"leitweg_id": "02000000-BAN0417-94"}), &authority)
+	h.read(func(ctx context.Context, s *core.Services) error {
+		c, err := s.Contacts.Contact(ctx, authority.Kontakt.ID)
+		if err != nil {
+			return err
+		}
+		if c.LeitwegID != "02000000-BAN0417-94" || c.EInvoiceProfile != domain.EInvoiceProfileXRechnungCII {
+			t.Errorf("Behörde: %q %q", c.LeitwegID, c.EInvoiceProfile)
+		}
+		return nil
+	})
+	a.fail("kontakt_anlegen", a.args(map[string]any{"typ": "lieferant", "name": "Amt", "leitweg_id": "991-1"}), CodeInvalidInput)
 	a.rejected("kontakt_anlegen", a.args(map[string]any{"typ": "partner", "name": "X"}))
 	a.fail("kontakt_anlegen", a.args(map[string]any{"typ": "kunde", "name": "Kurz GmbH", "idempotenz_schluessel": "kurz"}), CodeInvalidInput)
 
