@@ -404,6 +404,32 @@ func TestCheckVatReturnMissing(t *testing.T) {
 	assertRule(t, runChecks(t, env.checks(t), "2026-04-30"), domain.CheckRuleVatReturnMissing, 0, domain.CheckWarning)
 }
 
+// Vor der Gründung gibt es keine Voranmeldung. Beginnt das erste
+// Geschäftsjahr am 03.08., fehlt im Oktober nur die des dritten Quartals.
+func TestCheckVatReturnMissingStartsWithTheFiscalYear(t *testing.T) {
+	env := newTestEnv(t)
+	env.setSettings(t, func(c *domain.CompanySettings) { c.VatPeriod = "quarter" })
+	customer := env.customer(t, "Kunde", "DE", "")
+	env.domesticInvoice(t, customer.ID, "2026-09-10", 100000)
+
+	svc := env.checksOn(t, "2026-10-22")
+	svc.SetFiscalYearSource(stubYear{Year: 2026, StartDate: "2026-08-03", EndDate: "2026-12-31"})
+	found := findingsFor(runChecks(t, svc, "2026-10-22"), domain.CheckRuleVatReturnMissing)
+	if len(found) != 1 || found[0].ObjectID != "2026-Q3" {
+		t.Fatalf("erwartet nur 2026-Q3, erhalten %+v", found)
+	}
+}
+
+type stubYear domain.FiscalYear
+
+func (y stubYear) FindByYear(_ context.Context, year int) (*domain.FiscalYear, error) {
+	if year != y.Year {
+		return nil, nil
+	}
+	fy := domain.FiscalYear(y)
+	return &fy, nil
+}
+
 // Wer vom Voranmeldungsverfahren befreit ist (§ 18 Abs. 2 Satz 3 UStG), gibt
 // keine Voranmeldung ab — der Prüflauf darf ihm keine fehlende anmahnen.
 //

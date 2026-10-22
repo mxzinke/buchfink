@@ -979,10 +979,19 @@ func (s *CheckService) checkVatReturns(
 		}
 	}
 
+	// Vor dem Beginn des Geschäftsjahres, etwa vor der Gründung, gibt es nichts
+	// anzumelden; der Pflichtenkalender lässt diese Zeiträume ebenso weg.
+	start := ""
+	if s.years != nil {
+		if fy, err := s.years.FindByYear(ctx, year); err == nil && fy != nil {
+			start = fy.StartDate
+		}
+	}
+
 	var out []domain.CheckFinding
 	for _, p := range accounting.VatPeriodsOfYear(year, periodType) {
 		due := accounting.VatDueDateIn(p, cfg.PermanentExtension, cfg.FederalState)
-		if p.To > cutoff || submitted[p.Key] || due == "" || due >= reference {
+		if p.To > cutoff || p.To < start || submitted[p.Key] || due == "" || due >= reference {
 			continue
 		}
 		out = append(out, domain.CheckFinding{
