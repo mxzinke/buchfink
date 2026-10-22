@@ -136,7 +136,7 @@ func TestBankStatementAndMatching(t *testing.T) {
 		Hinweise []string `json:"hinweise"`
 	}
 	a.ok("kontoauszug_importieren", a.args(map[string]any{"pfad": fake}), &forged)
-	if forged.Geprueft || len(forged.Hinweise) == 0 {
+	if forged.Geprueft || len(forged.Hinweise) == 0 || !strings.Contains(forged.Hinweise[0], "keinen Anfangs- und Endsaldo") {
 		t.Fatalf("Auszug ohne Salden: %+v", forged)
 	}
 	var forgedList struct {

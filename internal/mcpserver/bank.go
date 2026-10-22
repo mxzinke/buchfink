@@ -443,13 +443,16 @@ func registerBank(tb *Toolbox) {
 			return out, err
 		}
 		out.Neu, out.Geprueft = imported.Inserted, len(imported.Checked) > 0
-		for _, ok := range imported.Checked {
+		for i, ok := range imported.Checked {
 			out.Geprueft = out.Geprueft && ok
+			if !ok && imported.Unchecked[i] != "" {
+				out.Hinweise = append(out.Hinweise, imported.Unchecked[i])
+			}
 		}
 		if !out.Geprueft {
-			out.Hinweise = append(out.Hinweise, "Die Salden des Auszugs fehlen oder schließen nicht an den letzten geprüften "+
-				"Auszug an. Zuordnungen daraus gehen nur über bankumsatz_buchen mit Rückfrage. Liest der Mensch den Auszug "+
-				"in der App ein, gilt er als geprüft und der nächste kann anschließen.")
+			out.Hinweise = append(out.Hinweise, "Zuordnungen aus diesem Auszug gehen nur über bankumsatz_buchen mit "+
+				"Rückfrage. Liest der Mensch den Auszug in der App ein (Bücher › Bank), gilt sein Saldo als geprüft, "+
+				"und der nächste Auszug kann anschließen.")
 		}
 		out.NaechsterSchritt = "bankumsaetze mit status=offen"
 		if out.Von != "" {

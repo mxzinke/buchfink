@@ -90,10 +90,12 @@ func (s *BankService) ImportStatement(ctx context.Context, data []byte, ledgerAc
 }
 
 // StatementImport ist das Ergebnis eines Imports: neu eingelesene Umsätze und
-// je Auszug der Datei, ob er geprüft ist (siehe BankTransaction.StatementChecked).
+// je Auszug der Datei, ob er geprüft ist (siehe BankTransaction.StatementChecked)
+// und, wenn nicht, warum.
 type StatementImport struct {
-	Inserted int
-	Checked  []bool
+	Inserted  int
+	Checked   []bool
+	Unchecked []string
 }
 
 // ImportStatementChecked ist ImportStatement mit dem Ergebnis der Saldenprüfung.
@@ -166,7 +168,7 @@ func (s *BankService) importStatements(
 	if err := s.routeTransactions(ctx, parsed, ledgerAccount); err != nil {
 		return StatementImport{}, err
 	}
-	checked, err := s.checkStatements(ctx, statements)
+	checked, unchecked, err := s.checkStatements(ctx, statements)
 	if err != nil {
 		return StatementImport{}, err
 	}
@@ -195,7 +197,7 @@ func (s *BankService) importStatements(
 			inserted, ledgerAccount, archived)); err != nil {
 		return StatementImport{}, err
 	}
-	return StatementImport{Inserted: inserted, Checked: checked}, nil
+	return StatementImport{Inserted: inserted, Checked: checked, Unchecked: unchecked}, nil
 }
 
 // checkStatements prüft jeden Auszug: beide Salden, Umsätze gleich ihrer
@@ -203,14 +205,15 @@ func (s *BankService) importStatements(
 // Endsaldo merkt sich das Konto aus einem geprüften Auszug oder aus einem,
 // den der Mensch eingelesen hat; ein ungeprüfter Auszug eines Agenten
 // verschiebt den Anschluss nicht.
-func (s *BankService) checkStatements(ctx context.Context, statements []bank.Statement) ([]bool, error) {
+func (s *BankService) checkStatements(ctx context.Context, statements []bank.Statement) ([]bool, []string, error) {
 	checked := make([]bool, len(statements))
+	unchecked := make([]string, len(statements))
 	if s.accounts == nil {
-		return checked, nil
+		return checked, unchecked, nil
 	}
 	known, err := s.accounts.FindAll(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	accounts := map[string]domain.BankAccount{}
 	for _, a := range known {
@@ -219,21 +222,45 @@ func (s *BankService) checkStatements(ctx context.Context, statements []bank.Sta
 	human := !actor.RecordedChannel(ctx).IsAgent()
 	for i, st := range statements {
 		account, ok := accounts[st.IBAN]
-		if !ok || !st.Consistent() {
+		if !ok {
+			unchecked[i] = fmt.Sprintf("Das Konto %s ist nicht angelegt.", st.IBAN)
+			continue
+		}
+		if !st.Consistent() {
+			unchecked[i] = "Der Auszug nennt keinen Anfangs- und Endsaldo, oder die Umsätze ergeben nicht ihre Differenz."
 			continue
 		}
 		checked[i] = account.ClosingDate != "" && account.ClosingBalance == *st.Opening &&
 			st.OpeningDate >= account.ClosingDate
+		if !checked[i] {
+			unchecked[i] = statementGap(account, st)
+		}
 		if (!checked[i] && !human) || st.ClosingDate < account.ClosingDate {
 			continue
 		}
 		account.ClosingBalance, account.ClosingDate = *st.Closing, st.ClosingDate
 		if err := s.accounts.Save(ctx, &account); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		accounts[st.IBAN] = account
 	}
-	return checked, nil
+	return checked, unchecked, nil
+}
+
+// statementGap sagt, warum ein Auszug mit stimmigen Salden nicht an den
+// zuletzt geprüften anschließt.
+func statementGap(account domain.BankAccount, st bank.Statement) string {
+	switch {
+	case account.ClosingDate == "":
+		return fmt.Sprintf("Für Konto %s gibt es noch keinen geprüften Saldo.", account.LedgerAccount)
+	case st.OpeningDate < account.ClosingDate:
+		return fmt.Sprintf("Der Auszug beginnt am %s, vor dem Ende des zuletzt geprüften Auszugs am %s.",
+			domain.GermanDate(st.OpeningDate), domain.GermanDate(account.ClosingDate))
+	default:
+		return fmt.Sprintf("Der Anfangssaldo %s € schließt nicht an den Endsaldo %s € des zuletzt geprüften "+
+			"Auszugs vom %s an.", st.Opening.String(), account.ClosingBalance.String(),
+			domain.GermanDate(account.ClosingDate))
+	}
 }
 
 // BookDirect books a bank transaction that has no document behind it against a
