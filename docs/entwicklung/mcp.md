@@ -93,6 +93,7 @@ wird angelegt.
 | `apps_entziehen` | nur App | Apps den Zugriff entziehen | strukturell: private API der Bridge |
 | `apps_zulassen` | nur App | Apps zulassen | strukturell: private API der Bridge |
 | `bankkonten_einrichten` | nur App | Bankkonten einrichten | Erfassungsweg ui im Kern oder Dienst |
+| `erster_kontoauszug` | nur App | Ersten Kontoauszug eines Kontos einlesen | Erfassungsweg ui im Kern oder Dienst |
 | `datenbank_anmelden` | nur App | Bestehende Datenbank als Mandant anmelden | Erfassungsweg ui im Kern oder Dienst |
 | `eingang_waehlen` | nur App | Eingang wählen | Erfassungsweg ui im Kern oder Dienst |
 | `eintragung_erfassen` | nur App | Eintragung ins Handelsregister erfassen | Erfassungsweg ui im Kern oder Dienst |
@@ -281,10 +282,12 @@ ist (`policy.ClassifyBankMatch`; Gründe `umsatz_nicht_offen`,
 in der App eingelesen hat, oder einer, dessen Salden stimmen: Anfangs- und
 Endsaldo stehen darin, die Umsätze ergeben ihre Differenz, und der
 Anfangssaldo ist der gemerkte Endsaldo des Kontos. Den Endsaldo merkt sich
-das Konto nur aus einem Auszug des Menschen oder einem geprüften. Der erste
-Auszug, den ein Agent einliest, ist deshalb ungeprüft, bis der Mensch einmal
-einen Auszug in der App eingelesen hat. Auszüge in zeitlicher Reihenfolge
-einlesen.
+das Konto nur aus einem Auszug des Menschen oder einem geprüften. Den ersten
+Auszug eines Kontos liest deshalb der Mensch ein; `kontoauszug_importieren`
+lehnt ihn mit `nur_app` ab, bevor er abgelegt ist
+(`BankService.requireHumanAnchor`). Warum ein späterer Auszug ungeprüft bleibt,
+nennt das Werkzeug in `hinweise` (`BankService.checkStatements`). Auszüge in
+zeitlicher Reihenfolge einlesen.
 
 Die Standardgruppe schlägt ein Agent nur vor (`standardgruppe_vorschlagen`,
 `kontakt_anlegen`). Bestätigen kann sie nur der Mensch

@@ -79,8 +79,37 @@ func ReadStatementFile(path string) ([]byte, string, error) {
 // liefert dessen Kennung (nil ohne Belegablage).
 func (s *BankService) FileStatement(ctx context.Context, data []byte, filename string) (*uint, error) {
 	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*uint, error) {
+		// Eine unlesbare Datei wird trotzdem abgelegt; den Fehler meldet der
+		// Import.
+		if statements, err := bank.ParseCAMT053Statements(bytes.NewReader(data)); err == nil {
+			if err := s.requireHumanAnchor(ctx, statements); err != nil {
+				return nil, err
+			}
+		}
 		return s.fileStatement(ctx, data, filename)
 	})
+}
+
+// requireHumanAnchor behält den ersten Auszug eines Kontos dem Menschen vor.
+// Erst ein Auszug aus der App legt den Saldo fest, an dem Buchfink spätere
+// Auszüge prüft; liest ein Agent den ersten ein, gäbe es keinen Stand, an dem
+// sich seine Salden messen ließen.
+func (s *BankService) requireHumanAnchor(ctx context.Context, statements []bank.Statement) error {
+	if s.accounts == nil {
+		return nil
+	}
+	known, err := s.accounts.FindAll(ctx)
+	if err != nil {
+		return err
+	}
+	for _, st := range statements {
+		for _, a := range known {
+			if a.IBAN == st.IBAN && a.ClosingDate == "" {
+				return requireHuman(ctx, fmt.Sprintf("Der erste Kontoauszug von Konto %s (Bücher › Bank)", a.LedgerAccount))
+			}
+		}
+	}
+	return nil
 }
 
 // ImportStatement importiert die Umsätze eines abgelegten Kontoauszugs.
@@ -166,6 +195,9 @@ func (s *BankService) importStatements(
 	}
 
 	if err := s.routeTransactions(ctx, parsed, ledgerAccount); err != nil {
+		return StatementImport{}, err
+	}
+	if err := s.requireHumanAnchor(ctx, statements); err != nil {
 		return StatementImport{}, err
 	}
 	checked, unchecked, err := s.checkStatements(ctx, statements)

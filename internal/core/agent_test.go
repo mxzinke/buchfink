@@ -156,6 +156,21 @@ func TestAgentsAreRefusedForHumanOnlyOperations(t *testing.T) {
 			return err
 		},
 	}
+	// Ein Konto ohne Auszug aus der App: seinen ersten liest nur der Mensch ein.
+	if err := tenant.Write(uiCtx, func(ctx context.Context, s *Services) error {
+		return s.Bank.ConfigureAccounts(ctx, []domain.BankAccount{{IBAN: "DE89370400440532013000", Name: "Bank",
+			LedgerAccount: "1810", Currency: "EUR"}})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	cases["service.BankService.requireHumanAnchor"] = inService(func(ctx context.Context, s *Services) error {
+		_, err := s.Bank.ImportStatementChecked(ctx, []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02"><BkToCstmrStmt><Stmt>
+<Acct><Id><IBAN>DE89370400440532013000</IBAN></Id></Acct>
+<Ntry><Amt Ccy="EUR">10.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><BookgDt><Dt>2026-04-10</Dt></BookgDt><ValDt><Dt>2026-04-10</Dt></ValDt></Ntry>
+</Stmt></BkToCstmrStmt></Document>`), "", nil)
+		return err
+	})
 	confirmed := service.InputRequest{Kind: declaration.KindCorporateTax, Year: 2026,
 		Key: "kst.v.z14", Value: declaration.Cents(500000)}
 	if _, err := tenant.SetDeclarationInput(uiCtx, confirmed); err != nil {

@@ -374,8 +374,8 @@ func registerBank(tb *Toolbox) {
 			"ein: legt sie als Beleg ab, importiert die Umsätze auf das in der App eingerichtete Bankkonto und " +
 			"verschiebt sie aus dem Eingang nach Übernommen/<JJJJ-MM>. Schon vorhandene Umsätze werden übersprungen. " +
 			"Buchfink prüft die Salden: schließt der Anfangssaldo nicht an den letzten geprüften Auszug an, geht " +
-			"jede Zuordnung daraus nur mit Rückfrage. Auszüge deshalb in zeitlicher Reihenfolge einlesen. Ein " +
-			"unbekanntes Bankkonto richtet nur der Mensch in der App ein. Danach bankumsaetze.",
+			"jede Zuordnung daraus nur mit Rückfrage. Auszüge deshalb in zeitlicher Reihenfolge einlesen. Den " +
+			"ersten Auszug eines Kontos liest der Mensch in der App ein. Danach bankumsaetze.",
 	}, func(ctx context.Context, c *Call, t *core.Tenant, in kontoauszugIn) (kontoauszugOut, error) {
 		out := kontoauszugOut{Konten: []string{}, Hinweise: []string{}}
 		var file *policy.File

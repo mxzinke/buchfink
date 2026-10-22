@@ -251,6 +251,44 @@ func TestBankStatementAndMatching(t *testing.T) {
 // Viele offene Posten eines Lieferanten und viele Umsätze: bankumsaetze
 // bleibt knapp. Je Umsatz höchstens drei Vorschläge, kein Vorschlag allein
 // wegen der Fälligkeit, und die volle Liste gibt es je Umsatz.
+// Den ersten Auszug eines Kontos liest der Mensch in der App ein; erst er legt
+// den Saldo fest, an dem Buchfink die Auszüge des Agenten prüft. Der Agent
+// bekommt nur_app, und es bleibt kein Beleg zurück.
+func TestFirstStatementWaitsForTheHuman(t *testing.T) {
+	h := newHarness(t)
+	a := h.agent("")
+	h.ui(func(ctx context.Context, s *core.Services) error {
+		return s.Bank.ConfigureAccounts(ctx, []domain.BankAccount{{IBAN: ownIBAN, Name: "Geschäftskonto",
+			LedgerAccount: "1800", Currency: "EUR"}})
+	})
+	first := h.inboxFile("auszug.xml", []byte(camt(ownIBAN, "0.00", "2026-08-03", "100.00", "2026-08-31",
+		camtEntry{"100.00", "2026-08-06", "E-1", "Jana Petersen", "Stammeinlage"})))
+	if e := a.fail("kontoauszug_importieren", a.args(map[string]any{"pfad": first}), CodeAppOnly); !strings.Contains(e.Nachricht, "Konto 1800") {
+		t.Fatalf("erster Auszug: %+v", e)
+	}
+	var none belegeOut
+	a.ok("belege_suchen", nil, &none)
+	if len(none.Belege) != 0 {
+		t.Fatalf("Beleg ohne Import: %+v", none.Belege)
+	}
+
+	// Hat der Mensch ihn eingelesen, schließt der nächste geprüft an.
+	h.ui(func(ctx context.Context, s *core.Services) error {
+		_, err := s.Bank.ImportStatement(ctx, []byte(camt(ownIBAN, "0.00", "2026-08-03", "100.00", "2026-08-31",
+			camtEntry{"100.00", "2026-08-06", "E-1", "Jana Petersen", "Stammeinlage"})), "", nil)
+		return err
+	})
+	next := h.inboxFile("auszug-09.xml", []byte(camt(ownIBAN, "100.00", "2026-09-01", "90.10", "2026-09-30",
+		camtEntry{"-9.90", "2026-09-30", "E-2", "Testbank", "Kontofuehrung"})))
+	var out struct {
+		Geprueft bool `json:"salden_geprueft"`
+	}
+	a.ok("kontoauszug_importieren", a.args(map[string]any{"pfad": next}), &out)
+	if !out.Geprueft {
+		t.Fatalf("zweiter Auszug: %+v", out)
+	}
+}
+
 func TestBankTransactionsStayCompact(t *testing.T) {
 	h := newHarness(t)
 	h.completeCompany()

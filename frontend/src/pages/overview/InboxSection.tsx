@@ -42,7 +42,7 @@ export const InboxSection: React.FC<{ tenantId: string | undefined; onNavigate: 
   const [files, setFiles] = useState<InboxFile[] | null>(null);
   const [filesOpen, setFilesOpen] = useState(false);
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState<'' | 'open' | 'add'>('');
+  const [busy, setBusy] = useState<string>('');
 
   const load = useCallback(async () => {
     try {
@@ -114,6 +114,22 @@ export const InboxSection: React.FC<{ tenantId: string | undefined; onNavigate: 
     }
   }
 
+  // Den Kontoauszug liest der Mensch hier selbst ein; den ersten eines Kontos
+  // darf nur er einlesen, weil erst er den Saldo festlegt, an dem Buchfink die
+  // Auszüge des Agenten prüft.
+  async function importStatement(file: InboxFile) {
+    setBusy(file.path);
+    try {
+      const count = await Api.importCAMTFile(file.path, '');
+      toast.success(`${file.name}: ${count} ${count === 1 ? 'Umsatz' : 'Umsätze'} eingelesen.`);
+      reload();
+    } catch (e) {
+      toast.error(message(e));
+    } finally {
+      setBusy('');
+    }
+  }
+
   const stale = info ? inboxStale(info) : false;
 
   return (
@@ -128,7 +144,8 @@ export const InboxSection: React.FC<{ tenantId: string | undefined; onNavigate: 
           Scanner-App oder indem Sie die Dateien in dieses Fenster ziehen. Buchfink legt nichts von
           selbst ab. Sagen Sie Claude, wann es so weit ist, etwa „{INBOX_PROMPT}“ Was Claude
           abgelegt hat, verschiebt Buchfink in den Unterordner Übernommen, nach Monaten sortiert. Den
-          Ordner wählen Sie in den Einstellungen.
+          ersten Kontoauszug eines Bankkontos lesen Sie selbst mit „Einlesen“ ein; erst er legt den Saldo
+          fest, an dem Buchfink spätere Auszüge prüft. Den Ordner wählen Sie in den Einstellungen.
         </>
       }
       action={
@@ -213,6 +230,18 @@ export const InboxSection: React.FC<{ tenantId: string | undefined; onNavigate: 
                             {formatBytes(file.size)}
                           </Td>
                           <Td className="pl-0 text-right">
+                            {file.kind === 'kontoauszug' && file.receiptId === undefined && (
+                              <Button
+                                variant="quiet"
+                                size="sm"
+                                loading={busy === file.path}
+                                disabled={busy !== ''}
+                                title="Liest die Umsätze ein und legt den Auszug als Beleg ab."
+                                onClick={() => void importStatement(file)}
+                              >
+                                Einlesen
+                              </Button>
+                            )}
                             {file.receiptId !== undefined && (
                               <Button
                                 variant="quiet"

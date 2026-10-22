@@ -2876,7 +2876,7 @@
       "readOnlyHint": false,
       "title": "Kontoauszug importieren"
     },
-    "description": "Liest eine CAMT.053-Datei aus dem Eingang (eingang, art kontoauszug) oder einem Leseordner ein: legt sie als Beleg ab, importiert die Umsätze auf das in der App eingerichtete Bankkonto und verschiebt sie aus dem Eingang nach Übernommen/\u003cJJJJ-MM\u003e. Schon vorhandene Umsätze werden übersprungen. Buchfink prüft die Salden: schließt der Anfangssaldo nicht an den letzten geprüften Auszug an, geht jede Zuordnung daraus nur mit Rückfrage. Auszüge deshalb in zeitlicher Reihenfolge einlesen. Ein unbekanntes Bankkonto richtet nur der Mensch in der App ein. Danach bankumsaetze.",
+    "description": "Liest eine CAMT.053-Datei aus dem Eingang (eingang, art kontoauszug) oder einem Leseordner ein: legt sie als Beleg ab, importiert die Umsätze auf das in der App eingerichtete Bankkonto und verschiebt sie aus dem Eingang nach Übernommen/\u003cJJJJ-MM\u003e. Schon vorhandene Umsätze werden übersprungen. Buchfink prüft die Salden: schließt der Anfangssaldo nicht an den letzten geprüften Auszug an, geht jede Zuordnung daraus nur mit Rückfrage. Auszüge deshalb in zeitlicher Reihenfolge einlesen. Den ersten Auszug eines Kontos liest der Mensch in der App ein. Danach bankumsaetze.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {

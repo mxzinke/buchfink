@@ -39,6 +39,8 @@ var reserved = []Operation{
 		[]string{"AcceptMasterDataProposal", "RejectMasterDataProposal"}),
 	reserve("bankkonten_einrichten", "Bankkonten einrichten", Channel,
 		[]string{"service.BankService.ConfigureAccounts"}, []string{"ConfigureBankAccounts"}),
+	reserve("erster_kontoauszug", "Ersten Kontoauszug eines Kontos einlesen", Channel,
+		[]string{"service.BankService.requireHumanAnchor"}, nil),
 	reserve("rechnungskonto_waehlen", "Bankkonto für Rechnungen wählen", Channel,
 		[]string{"service.BankService.SetInvoiceAccount"}, []string{"SetInvoiceBankAccount"}),
 	reserve("gruendung_erfassen", "Gründung mit Gesellschaftern erfassen", Channel,

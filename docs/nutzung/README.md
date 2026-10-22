@@ -161,6 +161,11 @@ Eingang in den Unterordner `Übernommen/<JJJJ-MM>`, nach dem Monat der Ablage.
 Das Original liegt dann im Belegarchiv. Dasselbe geschieht, wenn Sie in der App
 einen Beleg oder Kontoauszug aus dem Eingang ablegen.
 
+Den ersten Kontoauszug eines Bankkontos lesen Sie selbst ein: in der Übersicht
+unter „Dateien im Eingang“ mit „Einlesen“ oder unter Bücher › Bank. Erst er legt
+den Saldo fest, an dem Buchfink die Auszüge prüft, die Ihr Agent danach
+einliest; den ersten lehnt Buchfink für den Agenten ab.
+
 Die Übersicht zeigt, wie viele Dateien im Eingang liegen und wie alt die
 älteste ist, gemessen am Änderungsdatum der Datei. Ist sie 14 Tage oder älter,
 erinnert die Übersicht daran; eine alte Rechnung aus den Downloads tut das also

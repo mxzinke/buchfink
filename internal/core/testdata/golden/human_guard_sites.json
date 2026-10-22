@@ -45,6 +45,9 @@
   "service.BankService.SetInvoiceAccount": [
     "requireHuman"
   ],
+  "service.BankService.requireHumanAnchor": [
+    "requireHuman"
+  ],
   "service.ClosingService.ReopenFiscalYear": [
     "requireHuman"
   ],
