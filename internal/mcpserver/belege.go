@@ -227,13 +227,18 @@ type exportDatei struct {
 }
 
 // exportReceiptFile liest eine Belegdatei und legt eine Kopie in den
-// Exportordner. Der Name beginnt mit der Belegnummer.
+// Exportordner. Der Name beginnt mit der Belegnummer, auch wenn die Datei
+// schon so heißt wie die PDF einer Ausgangsrechnung.
 func exportReceiptFile(ctx context.Context, s core.AgentServices, dirs policy.Folders, r *domain.Receipt, f *domain.ReceiptFile) (exportDatei, error) {
 	content, err := s.Receipts.Content(ctx, r.ID, f.ID)
 	if err != nil {
 		return exportDatei{}, err
 	}
-	name := safeFileName(r.ReceiptNumber + "-" + f.FileName)
+	name := f.FileName
+	if !strings.HasPrefix(name, r.ReceiptNumber) {
+		name = r.ReceiptNumber + "-" + name
+	}
+	name = safeFileName(name)
 	path, err := dirs.ExportPath(name)
 	if err != nil {
 		return exportDatei{}, err

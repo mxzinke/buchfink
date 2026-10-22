@@ -603,6 +603,7 @@ func TestInvoicePreviewAndIssue(t *testing.T) {
 		Wiederholt bool   `json:"wiederholt"`
 		Dateien    []struct {
 			Pfad string `json:"pfad"`
+			Name string `json:"name"`
 			Mime string `json:"mime"`
 		} `json:"dateien"`
 	}
@@ -618,6 +619,9 @@ func TestInvoicePreviewAndIssue(t *testing.T) {
 		}
 		if f.Mime == "application/pdf" {
 			pdfs++
+			if f.Name != issued.Nummer+".pdf" {
+				t.Errorf("Name der PDF: %s", f.Name)
+			}
 		}
 	}
 	if pdfs != 1 {
