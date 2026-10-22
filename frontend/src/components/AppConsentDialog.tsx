@@ -15,7 +15,7 @@ const ARM_DELAY_MS = 2000;
 /** Was ein Recht in der Sprache des Anwenders bedeutet. */
 const SCOPE_RIGHTS: Record<string, string> = {
   'buchfink:lesen': 'Bücher, Belege und Auswertungen lesen',
-  'buchfink:buchen': 'Routinefälle buchen und Rückfragen für Sie vorbereiten',
+  'buchfink:buchen': 'Routinefälle buchen, Rückfragen und Stammdaten für Sie vorbereiten',
 };
 
 /** Der Abgleichcode in Vierergruppen, damit er sich laut vergleichen lässt. */
@@ -175,7 +175,7 @@ export function AppConsentDialog() {
           },
           {
             label: 'Bleibt bei Ihnen',
-            value: 'Festschreiben, Übermitteln, Stammdaten, Prüfermodus',
+            value: 'Festschreiben, Übermitteln, Stammdaten übernehmen, Prüfermodus',
           },
         ]}
       />

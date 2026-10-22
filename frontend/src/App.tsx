@@ -6,6 +6,7 @@ import { Header } from './components/Header';
 import { SetupAssistantScreen } from './components/SetupAssistantScreen';
 import { PostingLockProvider, WriteLockProvider } from './components/WriteLock';
 import { AppConsentDialog } from './components/AppConsentDialog';
+import { MasterDataProposalDialog } from './components/MasterDataProposalDialog';
 import { DROP_TARGET, InboxDropZone } from './components/InboxDrop';
 import { IntegrityCheckResult, CompanySettings, AppConfig, TenantConfig, FiscalYear } from './types';
 import { Api } from './services/api';
@@ -287,6 +288,7 @@ export function App() {
           <ChangesProvider tenantId={activeTenant?.id}>
             <NavigationProvider value={{ route, navigate }}>
               <LiveWorkspace onSettings={reloadSettings} onClosings={refreshFiscalYearSelection} />
+              <MasterDataProposalDialog />
               {/* Das ganze Fenster nimmt Dateien für den Eingang an. Die
                   Klasse bleibt fest: die Wails-Laufzeit setzt während des
                   Ziehens eine eigene dazu. */}

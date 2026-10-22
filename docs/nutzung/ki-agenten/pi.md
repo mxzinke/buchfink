@@ -91,8 +91,8 @@ export default function (pi: ExtensionAPI) {
 
 Einzelne Werkzeuge blenden Sie in `~/.pi/agent/mcp.json` mit
 `"toolExposure": { "<werkzeug>": "hidden" }` aus. Festschreiben, Übermitteln,
-Aufstellen, Feststellen, Offenlegen, Stammdaten und Prüfermodus gibt es nicht
-als Werkzeug. Das erledigen Sie in Buchfink.
+Aufstellen, Feststellen, Offenlegen, das Übernehmen von Stammdaten und der
+Prüfermodus gibt es nicht als Werkzeug. Das erledigen Sie in Buchfink.
 
 ## Wenn es nicht geht
 

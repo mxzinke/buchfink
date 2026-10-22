@@ -29,6 +29,15 @@ type statusOut struct {
 	Leseordner       []string         `json:"leseordner,omitempty" jsonschema:"weitere Ordner, aus denen gelesen werden darf"`
 	Exportordner     string           `json:"exportordner,omitempty" jsonschema:"Ordner, in den die Exporte schreiben"`
 	Direktregeln     *statusRules     `json:"direktregeln,omitempty" jsonschema:"Schwellen, bis zu denen beleg_buchen ohne Rückfrage bucht"`
+	Vorschlaege      []statusProposal `json:"stammdaten_vorschlaege,omitempty" jsonschema:"offene und in den letzten 14 Tagen entschiedene Vorschläge aus stammdaten_vorschlagen"`
+}
+
+type statusProposal struct {
+	ID            uint   `json:"id"`
+	Stand         string `json:"stand" jsonschema:"offen, uebernommen oder abgelehnt"`
+	Begruendung   string `json:"begruendung"`
+	EntschiedenAm string `json:"entschieden_am,omitempty"`
+	Vermerk       string `json:"vermerk,omitempty" jsonschema:"Grund der Ablehnung"`
 }
 
 type statusRules struct {
@@ -158,7 +167,8 @@ func registerStatus(tb *Toolbox) {
 				return err
 			}
 			out.Direktregeln = &statusRules{GrenzeBrutto: betrag(limits.MaxGross), Mindestbuchungen: limits.MinBookings}
-			return nil
+			out.Vorschlaege, err = statusProposals(ctx, s, time.Now())
+			return err
 		})
 		if err != nil {
 			return out, err
@@ -180,4 +190,25 @@ func scopesOrEmpty(scopes []string) []string {
 		return []string{}
 	}
 	return scopes
+}
+
+// statusProposals nennt die offenen Vorschläge für die Stammdaten und die,
+// über die der Mensch in den letzten 14 Tagen entschieden hat.
+func statusProposals(ctx context.Context, s core.AgentServices, now time.Time) ([]statusProposal, error) {
+	recent, err := s.MasterData.Recent(ctx, 20)
+	if err != nil {
+		return nil, err
+	}
+	var out []statusProposal
+	for _, p := range recent {
+		entry := statusProposal{ID: p.ID, Stand: string(p.Status), Begruendung: p.Reason, Vermerk: p.DecisionNote}
+		if p.DecidedAt != nil {
+			if now.Sub(*p.DecidedAt) > 14*24*time.Hour {
+				continue
+			}
+			entry.EntschiedenAm = p.DecidedAt.UTC().Format(time.RFC3339)
+		}
+		out = append(out, entry)
+	}
+	return out, nil
 }

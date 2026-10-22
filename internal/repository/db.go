@@ -224,6 +224,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.DeclarationInput{},
 		&domain.DeclarationRecord{},
 		&domain.DunningNote{},
+		&domain.MasterDataProposal{},
 	)
 }
 

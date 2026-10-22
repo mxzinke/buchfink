@@ -89,8 +89,8 @@ Datei:
 
 Mit `"deny"` statt `"ask"` sperren Sie Werkzeuge ganz. Buchfink sichert
 Unumkehrbares zusätzlich ab: Festschreiben, Übermitteln, Aufstellen,
-Feststellen, Offenlegen, Stammdaten und Prüfermodus gibt es nicht als Werkzeug.
-Das erledigen Sie in Buchfink.
+Feststellen, Offenlegen, das Übernehmen von Stammdaten und der Prüfermodus gibt
+es nicht als Werkzeug. Das erledigen Sie in Buchfink.
 
 ## Wenn es nicht geht
 

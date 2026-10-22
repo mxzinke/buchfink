@@ -80,10 +80,10 @@ schreiben Sie dann: „Buche die Belege im Eingang.“ Mehr unter
 
 Claude Desktop fragt vor dem Aufruf eines Werkzeugs um Erlaubnis. Erteilen Sie
 eine dauerhafte Erlaubnis nur für lesende Werkzeuge. Buchfink kennzeichnet
-lesende und schreibende Werkzeuge; Werkzeuge mit Rückfrage sind als
-folgenreich markiert. Festschreiben, Übermitteln, Aufstellen, Feststellen,
-Offenlegen, Stammdaten und Prüfermodus gibt es nicht als Werkzeug. Das erledigen
-Sie in Buchfink.
+lesende und schreibende Werkzeuge; Werkzeuge mit Rückfrage sind als folgenreich
+markiert. Festschreiben, Übermitteln, Aufstellen, Feststellen, Offenlegen, das
+Übernehmen von Stammdaten und der Prüfermodus gibt es nicht als Werkzeug. Das
+erledigen Sie in Buchfink.
 
 ## Wenn es nicht geht
 

@@ -77,6 +77,11 @@ type TaskCarryForwardSource interface {
 	CarryForwardState(ctx context.Context, toYear int) (*CarryForwardPreview, error)
 }
 
+// TaskMasterDataSource liefert die offenen Vorschläge für die Stammdaten.
+type TaskMasterDataSource interface {
+	Pending(ctx context.Context) ([]MasterDataProposalView, error)
+}
+
 // TaskOptions sind die Angaben, die nicht aus einem Dienst kommen. Den
 // Prüfermodus führt der Kern; er wird übergeben.
 type TaskOptions struct {
@@ -104,6 +109,7 @@ type TaskService struct {
 	exemptions   ExemptionDeadlineSource
 	backups      TaskBackupSource
 	carryForward TaskCarryForwardSource
+	masterData   TaskMasterDataSource
 }
 
 // NewTaskService baut die Aufgabenliste über den Einstellungen auf; die Quellen
@@ -126,6 +132,7 @@ func (s *TaskService) SetBackupSource(src TaskBackupSource)           { s.backup
 func (s *TaskService) SetCarryForwardSource(src TaskCarryForwardSource) {
 	s.carryForward = src
 }
+func (s *TaskService) SetMasterDataSource(src TaskMasterDataSource) { s.masterData = src }
 
 // BackupOverdueDays ist der Abstand, nach dem eine fehlende Sicherung zur
 // Aufgabe wird. Buchfink sichert täglich (Architektur 6.6); nach drei Tagen ohne
@@ -169,6 +176,7 @@ func (s *TaskService) Tasks(ctx context.Context, opts TaskOptions) (*domain.Task
 	s.addExemptions(ctx, list, today)
 	s.addBackup(ctx, list, today)
 	s.addCarryForward(ctx, year, list)
+	s.addMasterDataProposals(ctx, list)
 
 	list.Sort()
 	list.EnsureLists()
@@ -796,4 +804,28 @@ func (s *TaskService) addCarryForward(ctx context.Context, year int, list *domai
 			Target:    domain.TaskTarget{Area: domain.AreaClosings, Tab: "year"},
 		})
 	}
+}
+
+// addMasterDataProposals meldet die Vorschläge eines Agenten für die
+// Stammdaten. Sie gelten erst, wenn der Mensch sie übernimmt.
+func (s *TaskService) addMasterDataProposals(ctx context.Context, list *domain.TaskList) {
+	if s.masterData == nil {
+		return
+	}
+	pending, err := s.masterData.Pending(ctx)
+	if err != nil || len(pending) == 0 {
+		return
+	}
+	title := "Vorschlag für die Stammdaten prüfen"
+	if len(pending) > 1 {
+		title = fmt.Sprintf("%d Vorschläge für die Stammdaten prüfen", len(pending))
+	}
+	list.Add(domain.Task{
+		Key: domain.TaskKeyMasterDataProposal, Group: domain.TaskGroupOpen,
+		Title: title,
+		Why: "Ein verbundener Agent hat Änderungen an Unternehmensdaten, Gründung oder Bankkonten vorgeschlagen. " +
+			"Sie gelten erst, wenn Sie sie nach der Vorschau übernehmen.",
+		Count:  len(pending),
+		Target: domain.TaskTarget{Area: domain.AreaCompany, Tab: "profile", ID: "vorschlaege"},
+	})
 }

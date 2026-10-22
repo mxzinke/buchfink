@@ -122,6 +122,14 @@ func refusesAppOnlyOperations(t *testing.T, ctx context.Context) {
 			_, err := (&ContactService{}).ConfirmDefaultPostingGroup(ctx, 1, "software")
 			return err
 		},
+		"Vorschlag für die Stammdaten übernehmen": func() error {
+			_, err := (&MasterDataProposalService{}).Accept(ctx, 1, "")
+			return err
+		},
+		"Vorschlag für die Stammdaten ablehnen": func() error {
+			_, err := (&MasterDataProposalService{}).Reject(ctx, 1, "")
+			return err
+		},
 		"USt-Jahreserklärung bestätigen": func() error {
 			_, err := (&ObligationService{}).Confirm(ctx, "ust-erklaerung.2025", ConfirmInput{Date: "2026-03-01"})
 			return err

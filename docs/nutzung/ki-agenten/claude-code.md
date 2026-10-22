@@ -109,8 +109,8 @@ Soll Claude Code vor jedem Buchfink-Werkzeug fragen, tragen Sie in
 
 Ohne Plugin heißt die Regel `mcp__buchfink__*`. Früher erteilte Erlaubnisse
 sehen und entfernen Sie mit `/permissions`. Festschreiben, Übermitteln,
-Aufstellen, Feststellen, Offenlegen, Stammdaten und Prüfermodus gibt es nicht
-als Werkzeug. Das erledigen Sie in Buchfink.
+Aufstellen, Feststellen, Offenlegen, das Übernehmen von Stammdaten und der
+Prüfermodus gibt es nicht als Werkzeug. Das erledigen Sie in Buchfink.
 
 ## Wenn es nicht geht
 

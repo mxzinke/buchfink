@@ -74,6 +74,7 @@ func BridgeExaminerAllowed() map[string]bool {
 		"GetJournalEntries":             true,
 		"GetMCPServerStatus":            true,
 		"GetMigrationRecords":           true,
+		"GetMasterDataProposals":        true,
 		"GetMonthCloseState":            true,
 		"GetNextObligations":            true,
 		"GetNonDeductibleReport":        true,

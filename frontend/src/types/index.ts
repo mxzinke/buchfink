@@ -3574,6 +3574,33 @@ export interface AppConsentRequest {
   expiresAt: string;
 }
 
+/** Eine Zeile der Vorschau: ein Feld heute und wie vorgeschlagen (`service.MasterDataChangeLine`). */
+export interface MasterDataChangeLine {
+  area: string;
+  field: string;
+  before: string;
+  after: string;
+}
+
+/**
+ * Ein Vorschlag eines Agenten für die Stammdaten mit Vorschau gegen den
+ * heutigen Stand (`service.MasterDataProposalView`). Übernommen wird nur mit
+ * dem Fingerabdruck der Vorschau, die der Mensch gesehen hat.
+ */
+export interface MasterDataProposal {
+  id: number;
+  status: 'offen' | 'uebernommen' | 'abgelehnt';
+  reason: string;
+  receiptId?: number;
+  receiptNumber?: string;
+  channel: string;
+  createdAt: string;
+  lines: MasterDataChangeLine[];
+  fingerprint: string;
+  /** Warum sich der Vorschlag nicht übernehmen lässt. */
+  problem?: string;
+}
+
 // --- Übersicht: Pflichtenkalender und Buchungen der Apps ------------------
 
 /** Stand einer Pflicht im Pflichtenkalender (`domain.ObligationStatus`). */

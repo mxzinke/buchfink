@@ -112,6 +112,14 @@ func TestAgentsAreRefusedForHumanOnlyOperations(t *testing.T) {
 			_, err := s.Settings.SetInboxFolder(ctx, t.TempDir())
 			return err
 		}),
+		"service.MasterDataProposalService.Accept": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.MasterData.Accept(ctx, 1, "")
+			return err
+		}),
+		"service.MasterDataProposalService.Reject": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.MasterData.Reject(ctx, 1, "")
+			return err
+		}),
 		"service.ContactService.ConfirmDefaultPostingGroup": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.Contacts.ConfirmDefaultPostingGroup(ctx, 1, "software")
 			return err

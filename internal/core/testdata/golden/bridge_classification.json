@@ -1,4 +1,9 @@
 {
+  "AcceptMasterDataProposal": {
+    "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
   "AddToInbox": {
     "AppOnly": false,
     "ExaminerAllowed": true,
@@ -439,6 +444,11 @@
     "ExaminerAllowed": true,
     "Guarded": false
   },
+  "GetMasterDataProposals": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
   "GetMigrationRecords": {
     "AppOnly": false,
     "ExaminerAllowed": true,
@@ -756,6 +766,11 @@
   },
   "RegisterShareholderLoan": {
     "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "RejectMasterDataProposal": {
+    "AppOnly": true,
     "ExaminerAllowed": false,
     "Guarded": true
   },

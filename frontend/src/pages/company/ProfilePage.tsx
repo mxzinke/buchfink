@@ -9,7 +9,8 @@ import type {
   FoundationState,
 } from '../../types';
 import { useWorkspace } from '../../workspace';
-import { Notice, SkeletonRows } from '../../components/ui';
+import { Button, Notice, SkeletonRows } from '../../components/ui';
+import { OPEN_MASTER_DATA_PROPOSALS } from '../../components/MasterDataProposalDialog';
 import { AddressBlock } from './AddressBlock';
 import { BankBlock } from './BankBlock';
 import { CapitalBlock } from './CapitalBlock';
@@ -24,6 +25,8 @@ interface ProfileData {
   rules: FoundationRules[];
   countries: Country[];
   deadlines: Deadline[];
+  /** Offene Vorschläge eines Agenten; sie zeigt der Dialog. */
+  proposals: number;
 }
 
 const COMPANY_KINDS = [...COMPANY_OBLIGATIONS.firma, ...COMPANY_OBLIGATIONS.gesellschafter];
@@ -41,7 +44,8 @@ async function companyDeadlines(years: number[]): Promise<Deadline[]> {
 /**
  * Die Stammdaten in fünf Blöcken. Jeder Block zeigt, was fehlt, und die
  * wichtigsten Angaben; bearbeitet wird in der Seitenleiste. Firma, Anschrift,
- * Steuern, Gesellschafter und Bankkonten pflegt nur der Mensch. Darlehen mit
+ * Steuern, Gesellschafter und Bankkonten ändert nur der Mensch; Claude schlägt
+ * Änderungen vor, die er nach der Vorschau übernimmt. Darlehen mit
  * Gesellschaftern im Block der Gesellschafter erfasst und berichtigt auch
  * Claude.
  */
@@ -58,9 +62,10 @@ export const ProfilePage: React.FC = () => {
         Api.getFoundationRules(),
         Api.getCountries(),
       ]);
-      const [foundation, deadlines] = await Promise.all([
+      const [foundation, deadlines, proposals] = await Promise.all([
         Api.getFoundationState().catch(() => null),
         companyDeadlines(workspace.availableYears),
+        Api.getMasterDataProposals().catch(() => []),
       ]);
       setData({
         settings,
@@ -69,6 +74,7 @@ export const ProfilePage: React.FC = () => {
         rules,
         countries,
         deadlines,
+        proposals: proposals.length,
       });
       setError('');
     } catch (e) {
@@ -118,6 +124,22 @@ export const ProfilePage: React.FC = () => {
 
   return (
     <div key={workspace.activeTenant?.id}>
+      {data.proposals > 0 && (
+        <div id="vorschlaege" className="mb-6 scroll-mt-4">
+          <Notice
+            text={
+              data.proposals === 1
+                ? 'Ein Vorschlag für die Stammdaten wartet auf Ihre Entscheidung.'
+                : `${data.proposals} Vorschläge für die Stammdaten warten auf Ihre Entscheidung.`
+            }
+            action={
+              <Button size="sm" onClick={() => window.dispatchEvent(new Event(OPEN_MASTER_DATA_PROPOSALS))}>
+                Vorschau ansehen
+              </Button>
+            }
+          />
+        </div>
+      )}
       <FirmBlock
         settings={settings}
         foundation={data.foundation}

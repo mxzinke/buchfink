@@ -113,6 +113,10 @@ type AgentServices struct {
 		CorrectionOf(context.Context, uint) (*domain.JournalEntry, error)
 		ReverseOn(context.Context, uint, string, string) (*domain.JournalEntry, error)
 	}
+	MasterData interface {
+		Propose(context.Context, service.MasterDataProposalRequest) (*service.MasterDataProposalView, error)
+		Recent(context.Context, int) ([]domain.MasterDataProposal, error)
+	}
 	Obligations interface {
 		Get(context.Context, string, string) (*domain.Obligation, error)
 		List(context.Context, service.ObligationQuery) ([]domain.Obligation, error)
@@ -216,6 +220,7 @@ func (s *Services) AgentServices() AgentServices {
 		Idempotency:     s.Idempotency,
 		Invoices:        s.Invoices,
 		Journal:         s.Journal,
+		MasterData:      s.MasterData,
 		Obligations:     s.Obligations,
 		Overdue:         s.Overdue,
 		Payments:        s.Payments,

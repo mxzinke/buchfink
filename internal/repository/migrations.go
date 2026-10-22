@@ -19,7 +19,7 @@ import (
 // Frage, ob überhaupt migriert werden musste: eine Anpassung, die bei jedem
 // Start läuft und nichts protokolliert, lässt sich später nicht von einer
 // unterscheiden, die etwas verändert hat (ARC-05, GoBD Rz. 34).
-const SchemaVersion = 1
+const SchemaVersion = 2
 
 // ApplyMigrations bringt das Schema auf den Stand des Codes und protokolliert
 // den Lauf.

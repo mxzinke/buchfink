@@ -20,7 +20,7 @@ const TABS: FrameTab<CompanyTab>[] = AREA_TABS.company.map((value) => ({
 }));
 
 /**
- * Das Unternehmen: Stammdaten, die nur der Mensch pflegt, und die Kontakte.
+ * Das Unternehmen: Stammdaten, die nur der Mensch ändert, und die Kontakte.
  * Die Kennung im Reiter „Stammdaten" ist der Block oder die Pflicht, zu der
  * gesprungen wird (firma, anschrift, steuern, bankkonten, gesellschafter); bei
  * den Kontakten die Kennung des Kontakts.
@@ -36,7 +36,7 @@ export const CompanyArea: React.FC = () => {
   return (
     <PageFrame
       title="Unternehmen"
-      context="Firma, Gesellschafter und Bankkonten pflegen nur Sie"
+      context="Firma, Gesellschafter und Bankkonten ändern nur Sie; Claude kann Änderungen vorschlagen"
       tabs={TABS}
       tab={tab}
       onTabChange={(next) => navigate({ area: 'company', tab: next })}

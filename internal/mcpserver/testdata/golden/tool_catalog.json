@@ -3499,6 +3499,156 @@
     "name": "rechnung_vorschau",
     "title": "Rechnung durchrechnen"
   },
+  "stammdaten_vorschlagen": {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false,
+      "title": "Stammdaten vorschlagen"
+    },
+    "description": "Schlägt Unternehmensdaten, Gründung oder Bankkonten vor, etwa aus einem Schreiben von Notar, Registergericht, Finanzamt oder Bank. Ändert nichts: der Mensch prüft die Vorschau in der App und übernimmt oder lehnt ab; die Entscheidung steht in status.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "bankkonten": {
+          "description": "erkannt an der IBAN",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "bank": {
+                "type": "string"
+              },
+              "bic": {
+                "type": "string"
+              },
+              "fuer_rechnungen": {
+                "type": "boolean"
+              },
+              "iban": {
+                "type": "string"
+              },
+              "konto": {
+                "description": "Vorgabe: erstes freie von 1800 bis 1850",
+                "pattern": "^[0-9]{4,5}$",
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "iban",
+              "name"
+            ],
+            "type": "object"
+          },
+          "type": [
+            "null",
+            "array"
+          ]
+        },
+        "begruendung": {
+          "description": "Quelle, z. B. Schreiben des Finanzamts vom 02.09.2026",
+          "type": "string"
+        },
+        "beleg_id": {
+          "description": "abgelegtes Schreiben",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "gruendung": {
+          "additionalProperties": false,
+          "description": "laut Gesellschaftsvertrag",
+          "properties": {
+            "beurkundet_am": {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+              "type": "string"
+            },
+            "gesellschafter": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "anteil": {
+                    "description": "Euro, z. B. \"119.00\"",
+                    "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
+                    "type": "string"
+                  },
+                  "eingezahlt": {
+                    "description": "Euro, z. B. \"119.00\"",
+                    "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "nicht_eingefordert": {
+                    "description": "erst auf Beschluss fällig",
+                    "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
+                    "type": "string"
+                  },
+                  "sacheinlage": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "name",
+                  "anteil"
+                ],
+                "type": "object"
+              },
+              "type": [
+                "null",
+                "array"
+              ]
+            },
+            "gruendungsaufwand_bis": {
+              "description": "laut Satzung",
+              "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
+              "type": "string"
+            },
+            "stammkapital": {
+              "description": "Euro, z. B. \"119.00\"",
+              "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "beurkundet_am",
+            "stammkapital",
+            "gesellschafter"
+          ],
+          "type": [
+            "null",
+            "object"
+          ]
+        },
+        "idempotenz_schluessel": {
+          "description": "Pflicht, einer je Vorgang: 8 bis 100 Zeichen (A-Z a-z 0-9 - _ . :); gleicher Schlüssel und gleiche Eingabe liefern das erste Ergebnis; eine Vorschau verbraucht ihn nicht",
+          "type": "string"
+        },
+        "mandant_id": {
+          "description": "id aus status; ist ein anderer Mandant geöffnet, wird nichts geschrieben",
+          "type": "string"
+        },
+        "unternehmen": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "nur was sich ändert, Feld → Wert: firma, geschaeftsfuehrung, aufsichtsrat_vorsitz, strasse, hausnummer, adresszusatz, plz, ort, land (DE), ansprechpartner, telefon, email, notar, urkundennummer, sitz, registergericht, registernummer, eingetragen_am (JJJJ-MM-TT), steuernummer, finanzamt, bundesland (HH), ust_id, ust_zeitraum (monat, quartal, jahr, keiner), besteuerung (SOLL, IST), dauerfrist (ja, nein), sondervorauszahlung, stammkapital (119.00)",
+          "type": "object"
+        }
+      },
+      "required": [
+        "mandant_id",
+        "idempotenz_schluessel",
+        "begruendung"
+      ],
+      "type": "object"
+    },
+    "name": "stammdaten_vorschlagen",
+    "title": "Stammdaten vorschlagen"
+  },
   "standardgruppe_vorschlagen": {
     "annotations": {
       "destructiveHint": false,

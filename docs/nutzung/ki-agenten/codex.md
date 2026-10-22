@@ -78,8 +78,9 @@ default_tools_approval_mode = "writes"
 
 Mit `writes` fragt Codex vor jedem Werkzeug, das Buchfink nicht als lesend
 kennzeichnet. Einzelne Werkzeuge sperren Sie mit `disabled_tools = ["…"]`.
-Festschreiben, Übermitteln, Aufstellen, Feststellen, Offenlegen, Stammdaten und
-Prüfermodus gibt es nicht als Werkzeug. Das erledigen Sie in Buchfink.
+Festschreiben, Übermitteln, Aufstellen, Feststellen, Offenlegen, das Übernehmen
+von Stammdaten und der Prüfermodus gibt es nicht als Werkzeug. Das erledigen Sie
+in Buchfink.
 
 ## Wenn es nicht geht
 

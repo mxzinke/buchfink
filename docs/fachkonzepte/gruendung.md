@@ -57,7 +57,9 @@ auf welches Konto der Gegenstand gehört.
 Zeichnung und Einforderung bucht ein Agent nach Zustimmung im Chat
 (`buchung_erfassen`), die Einzahlungen über den Bankumsatz. Gesellschafter,
 Anteile und Eintragung ins Handelsregister pflegt der Mensch in der App
-(`FoundationService.Save`, `FoundationService.Register`).
+(`FoundationService.Save`, `FoundationService.Register`); ein Agent schlägt sie
+aus Gesellschaftsvertrag und Eintragungsnachricht vor, und der Mensch übernimmt
+den Vorschlag nach der Vorschau ([MCP-Server](../entwicklung/mcp.md)).
 
 Den Tag der Beurkundung führt Buchfink an einer Stelle: als Gründungsdatum der
 Unternehmensdaten (`CompanySettings.FoundedOn`). Die Erfassung der Gründung

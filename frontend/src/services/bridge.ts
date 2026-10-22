@@ -339,6 +339,12 @@ export const bridge = {
   ConfirmDefaultPostingGroup: <T>(contactId: number, group: string) =>
     invoke<T>('ConfirmDefaultPostingGroup', contactId, group),
 
+  // Vorschläge eines Agenten für die Stammdaten (internal/wailsbridge/master_data_proposals.go)
+  GetMasterDataProposals: <T>() => invoke<T>('GetMasterDataProposals'),
+  AcceptMasterDataProposal: (id: number, fingerprint: string) =>
+    invoke<void>('AcceptMasterDataProposal', id, fingerprint),
+  RejectMasterDataProposal: (id: number, note: string) => invoke<void>('RejectMasterDataProposal', id, note),
+
   // Verbundene Apps (internal/wailsbridge/mcp_service.go)
   GetMCPServerStatus: <T>() => invoke<T>('GetMCPServerStatus'),
   SetMCPPort: <T>(port: number) => invoke<T>('SetMCPPort', port),

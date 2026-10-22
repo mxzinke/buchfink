@@ -82,6 +82,7 @@ var tools = []Operation{
 	Define("pflicht_vorbereitet", Direct),
 	Define("rechnung_ausstellen", Confirm),
 	Define("rechnung_vorschau", Read),
+	Define("stammdaten_vorschlagen", Direct),
 	Define("standardgruppe_vorschlagen", Direct),
 	Define("status", Read),
 	Define("verfahrensdoku_text", Confirm),

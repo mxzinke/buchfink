@@ -12,6 +12,7 @@ import type {
   Anlagenspiegel,
   AppConfig,
   AppConsentRequest,
+  MasterDataProposal,
   Appropriation,
   AppropriationPreview,
   AppropriationRequest,
@@ -451,6 +452,19 @@ export const Api = {
     await call(() => Bridge.UpdateCompanySettings(settings as any) as Promise<void>);
     window.dispatchEvent(new Event(COMPANY_SETTINGS_CHANGED));
   },
+  /** Offene Vorschläge eines Agenten für die Stammdaten mit Vorschau. */
+  getMasterDataProposals: (): Promise<MasterDataProposal[]> =>
+    call(() => Bridge.GetMasterDataProposals() as Promise<MasterDataProposal[]>).then((proposals) =>
+      list(proposals).map((p) => ({ ...p, lines: list(p.lines) })),
+    ),
+  /** Übernimmt einen Vorschlag so, wie die Vorschau mit diesem Fingerabdruck ihn zeigt. */
+  acceptMasterDataProposal: async (id: number, fingerprint: string): Promise<void> => {
+    await call(() => Bridge.AcceptMasterDataProposal(id, fingerprint));
+    window.dispatchEvent(new Event(COMPANY_SETTINGS_CHANGED));
+  },
+  /** Lehnt einen Vorschlag ab; die Notiz sieht der Agent. */
+  rejectMasterDataProposal: (id: number, note: string): Promise<void> =>
+    call(() => Bridge.RejectMasterDataProposal(id, note)),
 
   // --- Konten ------------------------------------------------------------
 

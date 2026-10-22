@@ -33,7 +33,7 @@ in der App, ein Hintergrundlauf von Buchfink oder eine verbundene App mit ihrem
 Kurznamen. Bis zur Festschreibung lässt sich jede Buchung durch Storno und
 neue Buchung korrigieren. Was sich so korrigieren lässt, darf der Agent:
 Routine ohne Rückfrage, alles andere nach Ihrer Zustimmung im Chat. Was sich
-nicht zurücknehmen lässt, und die Stammdaten bleiben bei Ihnen.
+nicht zurücknehmen lässt, bleibt bei Ihnen; Stammdaten schlägt der Agent nur vor.
 
 **Direkt, ohne Rückfrage:**
 
@@ -42,6 +42,11 @@ nicht zurücknehmen lässt, und die Stammdaten bleiben bei Ihnen.
   Kontakte anlegen
 - Exporte in den Exportordner schreiben: Belegkopien, Erklärungen, E-Bilanz
 - eine Pflicht als vorbereitet melden und eine Standardgruppe vorschlagen
+- Unternehmensdaten, Gründung und Bankkonten vorschlagen, etwa aus dem
+  Schreiben des Finanzamts mit der Steuernummer. Der Vorschlag ändert nichts:
+  Buchfink zeigt Ihnen die Vorschau mit bisherigem und neuem Wert, und erst
+  wenn Sie „Übernehmen“ wählen, gilt er. Lehnen Sie ab, sieht der Agent Ihren
+  Grund.
 - Routinefälle buchen: eine geprüfte E-Rechnung eines bekannten Lieferanten
   mit der Standardgruppe, die Sie bestätigt haben, und einen Bankumsatz, der
   genau zu einem offenen Posten passt
@@ -78,8 +83,9 @@ sie erst aus, wenn Sie zugestimmt haben:
   Jahreserklärungen und E-Bilanz bestätigen und das Transferticket eintragen
 - Pflichten als erledigt bestätigen
 - Jahresabschluss aufstellen, feststellen und offenlegen
-- Unternehmensdaten pflegen: Firma, Anschrift, Register, Steuernummer,
-  Bankkonten, Gesellschafter, Gründung, steuerliche Beratung
+- Unternehmensdaten pflegen und Vorschläge des Agenten dazu übernehmen oder
+  ablehnen: Firma, Anschrift, Register, Steuernummer, Bankkonten,
+  Gesellschafter, Gründung, steuerliche Beratung
 - Angaben zur Steuererklärung bestätigen, die Ihnen vorbehalten sind
 - Einstellungen zum Jahresabschluss ändern, etwa den Hebesatz
 - Ablage, Eingang, Exportordner und weitere Leseordner wählen
@@ -88,7 +94,8 @@ sie erst aus, wenn Sie zugestimmt haben:
 - Prüfermodus ein- und ausschalten
 - Apps zulassen und Zugriff entziehen
 
-Ein Werkzeug für diese Vorgänge gibt es nicht. Versucht ein Agent sie über
+Ein Werkzeug für diese Vorgänge gibt es nicht, für Stammdaten nur das
+Vorschlagen. Versucht ein Agent sie über
 einen anderen Weg, weist der Kern von Buchfink den Vorgang ab.
 
 ## Eingang und Exporte

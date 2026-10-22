@@ -70,6 +70,8 @@ var writeFixtures = map[string]map[string]any{
 		"beginn": "2026-05-04", "idempotenz_schluessel": "matrix-darlehen"},
 	"ergebnisverwendung_buchen": {"geschaeftsjahr": 2025, "beschluss_am": "2026-05-04", "nur_vorschau": true},
 	"verfahrensdoku_text":       {"texte": map[string]any{"sonstiges": "Matrix"}},
+	"stammdaten_vorschlagen": {"begruendung": "Schreiben des Finanzamts", "unternehmen": map[string]any{"telefon": "040 1"},
+		"idempotenz_schluessel": "matrix-stammdaten"},
 }
 
 // readFixtures sind gültige Mindesteingaben der lesenden Werkzeuge.
@@ -289,8 +291,10 @@ func TestReadToolsNeedGrantAndScope(t *testing.T) {
 }
 
 // Was nur der Mensch in der App tut, hat kein Werkzeug: weder unter eigenem
-// Namen noch als Eingabe eines anderen Werkzeugs.
+// Namen noch als Eingabe eines anderen Werkzeugs. Ein Vorschlag ändert nichts;
+// übernehmen kann ihn nur der Mensch in der App.
 func TestAppOnlyOperationsHaveNoTool(t *testing.T) {
+	proposals := map[string]bool{"stammdaten_vorschlagen": true}
 	h := newHarness(t)
 	tools := listTools(t, h.mustSession(h.login("Claude Code", "").access))
 	appOnly := []string{"festschreib", "uebermitt", "transferticket", "erledigt", "aufstell", "feststell", "offenleg",
@@ -303,7 +307,7 @@ func TestAppOnlyOperationsHaveNoTool(t *testing.T) {
 		}
 		_ = json.Unmarshal(schema, &in)
 		for _, word := range appOnly {
-			if strings.Contains(name, word) {
+			if strings.Contains(name, word) && !proposals[name] {
 				t.Errorf("Werkzeug %s für einen Vorgang der App", name)
 			}
 			for prop := range in.Properties {
@@ -324,7 +328,7 @@ func TestWriteToolsTakeAnIdempotencyKey(t *testing.T) {
 	flows := map[string]bool{"kontoauszug_importieren": true, "erklaerung_exportieren": true, "ebilanz_exportieren": true,
 		"beleg_datei_exportieren": true}
 	keyed := map[string]bool{"buchung_erfassen": true, "rechnung_ausstellen": true, "abschlussbuchung": true,
-		"mahnung_vermerken": true, "anlass_erfassen": true, "darlehen_erfassen": true}
+		"mahnung_vermerken": true, "anlass_erfassen": true, "darlehen_erfassen": true, "stammdaten_vorschlagen": true}
 	for name, tier := range catalog {
 		if tier == TierRead {
 			continue
@@ -353,7 +357,7 @@ func TestCatalogStaysSmall(t *testing.T) {
 			t.Errorf("%s veröffentlicht ein Ausgabeschema", name)
 		}
 	}
-	if total > 80_000 {
+	if total > 84_000 {
 		t.Errorf("der Katalog hat %d Bytes", total)
 	}
 }

@@ -13,7 +13,7 @@ warum.
 | Entscheidung | Folge |
 |---|---|
 | **Ein Prozess, ein Schreiber.** Der MCP-Server läuft im Prozess der App. | Ohne geöffnete App keine Werkzeuge. Oberfläche und Agent schreiben über denselben Kern und dieselbe Sperre. |
-| **Freigabe nach Risiko.** Routine bucht der Agent direkt nach festen Regeln, was sich per Storno korrigieren lässt nach Zustimmung im Chat, Unumkehrbares und Stammdaten nur der Mensch in der App. | Der Kern weist Vorgänge, die der App vorbehalten sind, für jeden anderen Erfassungsweg ab. Ein Werkzeug dafür gibt es nicht. Einzelne Konten sperrt Buchfink für Agenten nicht. |
+| **Freigabe nach Risiko.** Routine bucht der Agent direkt nach festen Regeln, was sich per Storno korrigieren lässt nach Zustimmung im Chat, Unumkehrbares und Stammdaten nur der Mensch in der App. | Der Kern weist Vorgänge, die der App vorbehalten sind, für jeden anderen Erfassungsweg ab. Ein Werkzeug dafür gibt es nicht; Stammdaten schlägt ein Agent nur vor, der Mensch übernimmt sie nach der Vorschau in der App. Einzelne Konten sperrt Buchfink für Agenten nicht. |
 | **Ablage auf Anweisung.** Belege, E-Rechnungen und Kontoauszüge kommen in einen Eingang je Mandant. | Buchfink beobachtet keinen Ordner und legt nichts von selbst ab. Der Agent legt ab, wenn der Mensch es sagt; danach verschiebt Buchfink die Datei in den Unterordner `Übernommen/`. |
 | **Lokal und unverschlüsselt.** Alle Daten liegen im Datenordner des Mandanten. | Schutz am Rechner über das Betriebssystem, Integrität über Hash-Ketten und Zeitstempel ([Datensicherheit](../nutzung/datensicherheit.md)). |
 | **Keine Übermittlung.** Buchfink sendet nichts an Finanzamt oder Register. | Voranmeldung und Erklärungen sind Eingabehilfen für Mein ELSTER. Die E-Bilanz ist eine XBRL-Datei für einen E-Bilanz-Dienst wie ebilanzplus.de oder ebilanzonline.de, ersatzweise eine Saldenliste für eBilanz+. Die Übermittlung bestätigt der Mensch mit Transferticket. |
@@ -173,7 +173,7 @@ Kurzname einer App ändert sich deshalb nach der ersten Zustimmung nie.
 
 **Vorbehalt der App.** Festschreibung, Übermittlungsbestätigung, Aufstellen,
 Feststellen und Offenlegen, Stammdaten samt Gesellschaftern und Gründung,
-Bankkonten, Eingang und Ordner, Regeln für Apps, Bestätigung von Pflichten,
+Bankkonten, das Übernehmen oder Ablehnen eines Vorschlags dafür, Eingang und Ordner, Regeln für Apps, Bestätigung von Pflichten,
 Standardgruppen und Erklärungsangaben und der Prüfermodus laufen nur über `ui`.
 Zwei Stellen prüfen das: `core.AppOnly` am Schreibvorgang und `requireHuman`
 in den Diensten; `requireApp` schützt die Mandantenverwaltung und weitere

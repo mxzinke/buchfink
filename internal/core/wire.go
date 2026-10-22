@@ -309,6 +309,11 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Tasks.SetBackupSource(s.Backup)
 	s.Tasks.SetCarryForwardSource(s.Closing)
 
+	s.MasterData = service.NewMasterDataProposalService(
+		repository.NewMasterDataProposalRepository(db), auditRepo, txRunner, s.Settings, s.Foundation, s.Bank)
+	s.MasterData.SetReceiptSource(s.Receipts)
+	s.Tasks.SetMasterDataSource(s.MasterData)
+
 	s.Declarations = service.NewDeclarationService(declarationRepo, auditRepo,
 		service.DeclarationSources{
 			Journal: journalRepo, Settings: settingsRepo, FiscalYears: fiscalYearRepo,
@@ -342,6 +347,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Overdue.SetClock(o.Clock.Now)
 	s.Tasks.SetClock(o.Clock.Now)
 	s.Declarations.SetClock(o.Clock.Now)
+	s.MasterData.SetClock(o.Clock.Now)
 
 	return s, st
 }

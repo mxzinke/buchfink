@@ -67,7 +67,9 @@ Konto des Kontenrahmens:
 | Organisationstexte der Verfahrensdokumentation | `verfahrensdoku_text` |
 
 Die Gründung selbst mit Gesellschaftern, Anteilen und Eintragung bleibt
-Stammdatum des Menschen (`FoundationService.Save`, `Register`).
+Stammdatum des Menschen (`FoundationService.Save`, `Register`). Ein Agent
+schlägt sie mit `stammdaten_vorschlagen` vor; geschrieben wird erst, wenn der
+Mensch den Vorschlag in der App übernimmt.
 
 Eine Zeile auf einem Konto, das Beträge je Gesellschafter führt (0960, 1307
 bis 1309, 3640 bis 3643 und die übrigen aus `shareholderAccounts`), braucht den
@@ -112,6 +114,7 @@ wird angelegt.
 | `rechnungskonto_waehlen` | nur App | Bankkonto für Rechnungen wählen | Erfassungsweg ui im Kern oder Dienst |
 | `sicherung_wiederherstellen` | nur App | Sicherung wiederherstellen | Erfassungsweg ui im Kern oder Dienst |
 | `sicherungsordner_waehlen` | nur App | Sicherungsordner wählen | Erfassungsweg ui im Kern oder Dienst |
+| `stammdatenvorschlag_entscheiden` | nur App | Vorschlag eines Agenten für die Stammdaten übernehmen oder ablehnen | Erfassungsweg ui im Kern oder Dienst |
 | `standardgruppe_bestaetigen` | nur App | Standardgruppe bestätigen, auch beim Anlegen eines Kontakts | Erfassungsweg ui im Kern oder Dienst |
 | `unternehmensdaten_aendern` | nur App | Unternehmensstammdaten einschließlich Gesellschaftern und steuerlicher Beratung ändern | Erfassungsweg ui im Kern oder Dienst |
 | `ustva_uebermittlung_bestaetigen` | nur App | Übermittlung der UStVA mit Transferticket bestätigen | Erfassungsweg ui im Kern oder Dienst |
@@ -125,7 +128,7 @@ Derselbe Schlüssel mit derselben Eingabe liefert das erste Ergebnis mit
 `wiederholt: true`, mit anderer Eingabe `schluessel_wiederverwendet`. Pflicht
 ist er bei den Werkzeugen ohne natürlichen Schlüssel: `buchung_erfassen`,
 `rechnung_ausstellen`, `abschlussbuchung`, `mahnung_vermerken`,
-`anlass_erfassen` und `darlehen_erfassen`. Ein Aufruf mit `nur_vorschau`
+`anlass_erfassen`, `darlehen_erfassen` und `stammdaten_vorschlagen`. Ein Aufruf mit `nur_vorschau`
 verbraucht den Schlüssel nicht; derselbe Schlüssel bucht danach. Die Werkzeuge
 aus mehreren Schritten (`kontoauszug_importieren`, die drei Exporte) nehmen
 keinen Schlüssel, sie schreiben von sich aus nichts doppelt.
@@ -146,13 +149,13 @@ Der Katalog veröffentlicht keine Ausgabeschemas. Er liegt in jedem Gespräch im
 Kontext des Agenten, und die Ausgaben machten mehr als die Hälfte davon aus.
 Die Antworten sind trotzdem festgelegt: die Tests prüfen jede gegen das Schema
 aus `Toolbox.OutputSchema`, `TestCatalogStaysSmall` hält den Katalog unter
-80 KB.
+84 KB.
 
 ## Werkzeuge
 
 | Werkzeug | Stufe | Zweck |
 |---|---|---|
-| `status` | lesen | Mandant mit USt-Zeitraum, Dauerfrist, festgeschrieben bis, letzter Sicherung; Geschäftsjahre, Prüfermodus, Eingang mit Zahl der Dateien, Leseordner, Exportordner, Direktregeln |
+| `status` | lesen | Mandant mit USt-Zeitraum, Dauerfrist, festgeschrieben bis, letzter Sicherung; Geschäftsjahre, Prüfermodus, Eingang mit Zahl der Dateien, Leseordner, Exportordner, Direktregeln, offene und in den letzten 14 Tagen entschiedene Vorschläge für die Stammdaten |
 | `aufgaben` | lesen | Arbeitsliste mit dem Werkzeug für den nächsten Schritt, darunter „N Dateien im Eingang“ |
 | `eingang` | lesen | Dateien im Eingang ohne `Übernommen/`, die älteste zuerst, mit Art und `bereits_abgelegt`; seitenweise |
 | `fristen` | lesen | Pflichtenkalender mit Status, Kanal, Zuständigkeit, `anker` und Verweis auf `buchfink/references/grundlagen/pflichten.md#<anker>` |
@@ -178,6 +181,7 @@ aus `Toolbox.OutputSchema`, `TestCatalogStaysSmall` hält den Katalog unter
 | `erklaerung_exportieren` | direkt | Jahreserklärung als JSON in den Exportordner |
 | `ebilanz_exportieren` | direkt | E-Bilanz prüfen und in den Exportordner: `format` `xbrl` (Vorgabe) oder `susa_csv`; bei abweichender Steuerbilanz nennt `ueberleitung`, was die Liste nicht enthält; `bilanzart: eroeffnungsbilanz` schreibt die Eröffnungsbilanz, `jahr` ist dann das Geschäftsjahr der Gründung |
 | `pflicht_vorbereitet` | direkt | Pflicht als vorbereitet melden, nie als erledigt |
+| `stammdaten_vorschlagen` | direkt | Unternehmensdaten, Gründung oder Bankkonten vorschlagen; ändert nichts, der Mensch übernimmt nach der Vorschau in der App |
 | `standardgruppe_vorschlagen` | direkt | Standard-Buchungsgruppe eines Lieferanten vorschlagen |
 | `beleg_buchen_mit_rueckfrage` | rueckfrage | Eingangsbeleg in allen Nicht-Routinefällen, auch Auslage; ergänzt fehlende Kopfdaten und berichtigt `eingang_am` |
 | `bankumsatz_buchen` | rueckfrage | Aufteilung mit Skonto, Gebühren, Darlehen; Kreditkartenabrechnung; Kapitalertrag einer Finanzanlage, brutto mit Kapitalertragsteuer (7630) und Solidaritätszuschlag (7633), mit dem Anlagegut verknüpft (`AssetService.BookAssetIncome`); Ignorieren mit Grund |
@@ -289,6 +293,21 @@ Die Standardgruppe schlägt ein Agent nur vor (`standardgruppe_vorschlagen`,
 Seitenleiste des Lieferanten. `SaveContact` ändert die Felder nicht. Bis zur
 Bestätigung bucht `beleg_buchen` diesen Lieferanten nicht direkt;
 `beleg_buchen_mit_rueckfrage` geht immer.
+
+Unternehmensdaten, Gründung und Bankkonten schlägt ein Agent ebenfalls nur vor
+(`stammdaten_vorschlagen`, `MasterDataProposalService.Propose`); der Vorschlag
+ändert nichts. Die App zeigt ihn als Vorschau „bisher → neu“ gegen den
+heutigen Stand, in einem Dialog und unter Unternehmen › Stammdaten. Übernehmen
+oder ablehnen kann nur der Mensch (`Accept`, `Reject`, Bridge
+`AcceptMasterDataProposal`, `RejectMasterDataProposal`). Übernommen wird nur
+die Vorschau, die er gesehen hat: die Bridge gibt ihren Fingerabdruck mit, und
+hat sich der Stand inzwischen geändert, weist `Accept` ab. Geschrieben wird in
+einer Transaktion über dieselben Dienstmethoden wie aus den Formularen
+(`FoundationService.Save`, `BankService.ConfigureAccounts` und
+`SetInvoiceAccount`, `SettingsService.UpdateCompanySettings`), mit ihren
+Prüfungen. Rechtsform, Geschäftsjahr, Nummernkreise und Prüfregeln kann ein
+Agent nicht vorschlagen. Die Entscheidung, bei einer Ablehnung mit Grund, steht
+in `status` unter `stammdaten_vorschlaege`.
 
 Betragsgrenze und Mindestzahl früherer Buchungen stellt der Mensch unter
 Einstellungen › „Buchen ohne Rückfrage“ ein, Eingang, Exportordner und weitere

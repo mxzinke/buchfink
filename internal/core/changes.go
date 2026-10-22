@@ -48,6 +48,7 @@ var changeKinds = map[string]ChangeKind{
 	"VAT_ID_CHECK": ChangeMasterData, "PROCEDURE_DOC": ChangeMasterData, "BACKUP_DIR": ChangeMasterData,
 	domain.AuditEntityReadOnly: ChangeMasterData,
 	"MIGRATION":                ChangeMasterData, "RESTORE": ChangeMasterData,
+	"STAMMDATEN_VORSCHLAG": ChangeMasterData,
 
 	"FISCAL_YEAR": ChangeClosing, "JAHRESABSCHLUSS": ChangeClosing, "CLOSING_STEP": ChangeClosing,
 	"ACCRUAL": ChangeClosing, "PROVISION": ChangeClosing, "TAX_PROVISION": ChangeClosing,

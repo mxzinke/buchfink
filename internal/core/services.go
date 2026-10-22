@@ -65,6 +65,7 @@ type Services struct {
 	Payroll         *service.PayrollService
 	Declarations    *service.DeclarationService
 	Overdue         *service.OverdueService
+	MasterData      *service.MasterDataProposalService
 }
 
 // Repos sind lesende Zugänge für Aufrufer, die ohne Dienst lesen. Geschrieben
