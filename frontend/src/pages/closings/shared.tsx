@@ -1,5 +1,6 @@
 import { todayISO } from "../../utils/calendar";
 import React, { useEffect, useState } from 'react';
+import { CheckCircle2 } from 'lucide-react';
 import { Api } from '../../services/api';
 import { useWriteLock } from '../../components/WriteLock';
 import { findingRoute, targetLabel } from '../../utils/findings';
@@ -21,8 +22,6 @@ import {
   Notice,
   Select,
   SkeletonRows,
-  Stat,
-  StatRow,
   StatusBadge,
   Textarea,
   cn,
@@ -497,21 +496,21 @@ export const CommitDialog: React.FC<{
           <SkeletonRows rows={3} />
         ) : run ? (
           <>
-            <StatRow>
-              <Stat label="Geprüfte Buchungen" value={String(run.checkedEntries)} />
-              <Stat label="Belege" value={String(run.checkedReceipts)} />
-              <Stat label="Bankumsätze" value={String(run.checkedBankTx)} />
-              <Stat
-                label="Befunde"
-                value={`${blocking.length} · ${warnings.length}`}
-                context="blockierend · Hinweise"
-                tone={blocking.length > 0 ? 'negative' : 'neutral'}
-              />
-            </StatRow>
-            {findings.length === 0 ? (
-              <p className="text-body text-ink-muted">Der Prüfbericht ist ohne Befund.</p>
-            ) : (
-              <FindingRows findings={[...blocking, ...warnings]} onNavigate={onNavigate} onLeave={onClose} />
+            <CommitVerdict blocking={blocking.length} warnings={warnings.length} />
+            <p className="text-caption text-ink-subtle num">
+              {`Geprüft bis ${formatDate(run.cutoffDate)}: ${count(run.checkedEntries, 'Buchung', 'Buchungen')}, ${count(run.checkedReceipts, 'Beleg', 'Belege')}, ${count(run.checkedBankTx, 'Bankumsatz', 'Bankumsätze')}`}
+            </p>
+            {blocking.length > 0 && (
+              <section>
+                <h3 className="text-label text-ink-muted mb-1">Muss vorher geklärt werden</h3>
+                <FindingRows findings={blocking} onNavigate={onNavigate} onLeave={onClose} />
+              </section>
+            )}
+            {warnings.length > 0 && (
+              <section>
+                <h3 className="text-label text-ink-muted mb-1">Zur Kenntnis</h3>
+                <FindingRows findings={warnings} onNavigate={onNavigate} onLeave={onClose} />
+              </section>
             )}
             {blocking.length > 0 && (
               <Field
@@ -535,6 +534,30 @@ export const CommitDialog: React.FC<{
         {error && <Notice tone="negative" text={error} />}
       </div>
     </Dialog>
+  );
+};
+
+function count(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
+/** Das Urteil des Prüflaufs in einem Satz, vor den Einzelheiten. */
+const CommitVerdict: React.FC<{ blocking: number; warnings: number }> = ({ blocking, warnings }) => {
+  if (blocking > 0) {
+    return (
+      <Notice
+        tone="negative"
+        text={`${count(blocking, 'blockierender Befund', 'blockierende Befunde')}. Festschreiben lässt sich der Zeitraum dann nur mit Begründung.`}
+      />
+    );
+  }
+  return (
+    <p className="flex items-center gap-2 text-body text-ink">
+      <CheckCircle2 className="w-4 h-4 shrink-0 text-positive-text" strokeWidth={1.5} aria-hidden />
+      {warnings > 0
+        ? `Bereit zum Festschreiben. ${count(warnings, 'Hinweis', 'Hinweise')} zur Kenntnis.`
+        : 'Bereit zum Festschreiben. Der Prüfbericht ist ohne Befund.'}
+    </p>
   );
 };
 

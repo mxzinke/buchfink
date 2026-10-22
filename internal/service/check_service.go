@@ -250,7 +250,11 @@ func (s *CheckService) compute(ctx context.Context, req CheckRequest) (*domain.C
 		year: year, cutoff: req.CutoffDate, reference: reference, cfg: cfg,
 		entries: upToCutoff, receipts: receipts, withReceipt: entriesWithReceipt(receipts),
 	}
-	run.CheckedReceipts = len(receipts)
+	for i := range receipts {
+		if receiptDay(&receipts[i]) <= req.CutoffDate {
+			run.CheckedReceipts++
+		}
+	}
 
 	// Leer statt nil: der Lauf geht als JSON an die Oberfläche.
 	findings := make([]domain.CheckFinding, 0, 8)
@@ -665,13 +669,7 @@ func (s *CheckService) checkReceipts(
 		if !r.Kind.RequiresBooking() {
 			continue
 		}
-		// Maßgeblich ist der Belegeingang, hilfsweise das Ablagedatum.
-		// domain.Receipt hat kein Belegdatum; das steht erst an der Buchung —
-		// und die gibt es hier gerade nicht.
-		relevant := r.ReceivedAt
-		if relevant == "" {
-			relevant = calendar.Day(r.CreatedAt)
-		}
+		relevant := receiptDay(r)
 
 		severity := domain.CheckWarning
 		if relevant <= cutoff {
@@ -788,9 +786,14 @@ func (s *CheckService) checkBank(ctx context.Context, year int, cutoff string) (
 		return nil, 0
 	}
 	var out []domain.CheckFinding
+	checked := 0
 	for i := range transactions {
 		tx := &transactions[i]
-		if tx.BookingDate > cutoff || tx.MatchStatus != domain.MatchStatusUnmatched {
+		if tx.BookingDate > cutoff {
+			continue
+		}
+		checked++
+		if tx.MatchStatus != domain.MatchStatusUnmatched {
 			continue
 		}
 		out = append(out, domain.CheckFinding{
@@ -804,7 +807,16 @@ func (s *CheckService) checkBank(ctx context.Context, year int, cutoff string) (
 			Reference: "§ 146 Abs. 1 AO",
 		})
 	}
-	return out, len(transactions)
+	return out, checked
+}
+
+// receiptDay ordnet einen Beleg dem Prüfzeitraum zu: maßgeblich ist der
+// Belegeingang, hilfsweise der Tag der Ablage.
+func receiptDay(r *domain.Receipt) string {
+	if r.ReceivedAt != "" {
+		return r.ReceivedAt
+	}
+	return calendar.Day(r.CreatedAt)
 }
 
 // checkNumberGaps vergleicht den Zähler gegen die vorhandenen Nummern.

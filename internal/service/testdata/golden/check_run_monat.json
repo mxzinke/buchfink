@@ -1,8 +1,8 @@
 {
   "Run": {
-    "checkedBankTx": 2,
+    "checkedBankTx": 1,
     "checkedEntries": 2,
-    "checkedReceipts": 2,
+    "checkedReceipts": 1,
     "createdAt": "2026-03-31T00:00:00Z",
     "cutoffDate": "2026-03-31",
     "findings": [
@@ -159,9 +159,9 @@
     }
   },
   "Stored": {
-    "checkedBankTx": 2,
+    "checkedBankTx": 1,
     "checkedEntries": 2,
-    "checkedReceipts": 2,
+    "checkedReceipts": 1,
     "createdAt": "2026-03-31T00:00:00Z",
     "cutoffDate": "2026-03-31",
     "findings": [
