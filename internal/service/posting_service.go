@@ -603,12 +603,13 @@ func (s *PostingService) PostOutgoingInvoice(ctx context.Context, inv *domain.In
 		return nil, err
 	}
 
+	bookingDate, _ := s.realizationDate(ctx, inv)
 	entry := &domain.JournalEntry{
-		FiscalYear:      inv.FiscalYear,
-		BookingDate:     inv.Date,
+		BookingDate:     bookingDate,
 		DocumentDate:    inv.Date,
 		ServiceDateFrom: inv.ServiceDateFrom,
 		ServiceDateTo:   inv.ServiceDateTo,
+		DueDate:         inv.DueDate,
 		Description:     fmt.Sprintf("Rechnung %s an %s", inv.InvoiceNumber, contact.Name),
 		// Der Ausgangsbeleg entsteht vor der Buchung (siehe
 		// InvoiceService.issueDocument); die Buchung verweist auf ihn.
@@ -639,7 +640,59 @@ func (s *PostingService) PreviewOutgoingInvoice(ctx context.Context, inv *domain
 	if fx != nil {
 		preview.Conversion = fx.conv
 	}
+	date, locked := s.realizationDate(ctx, inv)
+	preview.BookingDate, preview.DueDate = date, inv.DueDate
+	switch {
+	case locked:
+		preview.Warnings = append(preview.Warnings, PostingWarning{
+			Code: warningServiceDayLocked, Severity: "warning",
+			Title: "Leistung im festgeschriebenen Zeitraum",
+			Detail: fmt.Sprintf("Die Leistung endete am %s, dieser Tag ist nicht mehr bebuchbar. Erlös und Forderung "+
+				"bucht Buchfink deshalb zum Rechnungsdatum %s. Die Umsatzsteuer gehört trotzdem in den "+
+				"Voranmeldungszeitraum der Leistung (§ 13 Abs. 1 Nr. 1 Buchst. a UStG); ist dessen Voranmeldung "+
+				"übermittelt, ist sie zu berichtigen.", domain.GermanDate(serviceEnd(inv)), domain.GermanDate(inv.Date)),
+		})
+	case date != inv.Date:
+		preview.Warnings = append(preview.Warnings, PostingWarning{
+			Code: warningBookedOnServiceDay, Severity: "info",
+			Title: "Gebucht zum Leistungstag " + domain.GermanDate(date),
+			Detail: "Erlös und Forderung entstehen mit der Leistung, nicht mit dem Rechnungsdatum " +
+				"(§ 252 Abs. 1 Nr. 4 HGB).",
+		})
+	}
 	return preview, nil
+}
+
+const (
+	warningBookedOnServiceDay = "buchung_zum_leistungstag"
+	warningServiceDayLocked   = "leistungstag_festgeschrieben"
+)
+
+// serviceEnd ist der letzte Tag der Leistung einer Rechnung, leer ohne Angabe.
+func serviceEnd(inv *domain.Invoice) string {
+	if inv.ServiceDateTo != "" {
+		return inv.ServiceDateTo
+	}
+	return inv.ServiceDateFrom
+}
+
+// realizationDate ist der Buchungstag einer Ausgangsrechnung: der Tag, an dem
+// die Leistung erbracht und der Ertrag realisiert ist (§ 252 Abs. 1 Nr. 4 HGB),
+// also das Ende des Leistungszeitraums. Eine Rechnung vor dem Ende der Leistung
+// bucht am Rechnungsdatum. Ist der Leistungstag nicht mehr bebuchbar, ebenfalls;
+// locked sagt das.
+func (s *PostingService) realizationDate(ctx context.Context, inv *domain.Invoice) (date string, locked bool) {
+	day := serviceEnd(inv)
+	if day == "" || day >= inv.Date {
+		return inv.Date, false
+	}
+	if periods := s.journalSvc.periods; periods != nil {
+		state, err := periods.State(ctx, day)
+		if err != nil || !state.Open {
+			return inv.Date, true
+		}
+	}
+	return day, false
 }
 
 // buildOutgoingLines produces the journal lines of an Ausgangsrechnung, shared by
@@ -1256,12 +1309,13 @@ func (s *PostingService) PostFinalInvoice(
 	}
 	lines = append(lines, settlement)
 
+	bookingDate, _ := s.realizationDate(ctx, inv)
 	return s.journalSvc.Post(ctx, &domain.JournalEntry{
-		FiscalYear:         inv.FiscalYear,
-		BookingDate:        inv.Date,
+		BookingDate:        bookingDate,
 		DocumentDate:       inv.Date,
 		ServiceDateFrom:    inv.ServiceDateFrom,
 		ServiceDateTo:      inv.ServiceDateTo,
+		DueDate:            inv.DueDate,
 		Description:        fmt.Sprintf("Schlussrechnung %s an %s", inv.InvoiceNumber, contact.Name),
 		Source:             domain.EntrySourceInvoice,
 		DocumentNumber:     inv.InvoiceNumber,

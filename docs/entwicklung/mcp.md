@@ -189,7 +189,7 @@ aus `Toolbox.OutputSchema`, `TestCatalogStaysSmall` hält den Katalog unter
 | `buchung_erfassen` | rueckfrage | Handbuchung mit Beleg oder Eigenbeleg, auch in der Abschlussperiode und für die Gründung (Zeichnung, Einforderung); ein Kontakt an den Personenkontozeilen macht sie zum offenen Posten, an Gesellschafterkonten ist er Pflicht; Darlehenszinsen nicht hier, sondern mit `darlehen_erfassen` |
 | `buchung_stornieren` | rueckfrage | Generalumkehr mit Grund, auf Wunsch mit Neubuchung; `datum` nur beim Saldenvortrag |
 | `lohnjournal_buchen` | rueckfrage | Monatssummen des Lohnbüros |
-| `rechnung_ausstellen` | rueckfrage | Rechnung, Abschlagsrechnung, Schlussrechnung; PDF und E-Rechnung im Exportordner |
+| `rechnung_ausstellen` | rueckfrage | Rechnung, Abschlagsrechnung, Schlussrechnung; PDF und E-Rechnung im Exportordner; gebucht zum Ende des Leistungszeitraums (§ 252 Abs. 1 Nr. 4 HGB), bei festgeschriebenem Leistungstag zum Rechnungsdatum |
 | `mahnung_vermerken` | rueckfrage | Zugang einer Mahnung festhalten; daraus folgt der Verzug |
 | `abschlussbuchung` | rueckfrage | AfA-Lauf, Abgrenzung, Rückstellung, USt-Verrechnung, Steuerrückstellung, UG-Rücklage, Wertberichtigung, unfertige Leistungen, Fremdwährung, Anlage aktivieren (bei einem Investmentanteil mit Fondsart), Vorabpauschale eines Investmentanteils (ohne Buchung am Anlagegut festgehalten) |
 | `erklaerung_eingabe` | rueckfrage | Angabe zu einer Zeile einer Jahreserklärung; was der Mensch gesetzt oder bestätigt hat, ändert nur er |

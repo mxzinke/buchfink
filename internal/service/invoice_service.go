@@ -275,18 +275,7 @@ func (s *InvoiceService) prepareForIssue(
 	}
 
 	if inv.DueDate == "" {
-		days := inv.Terms.DueDays
-		if days <= 0 {
-			days = contact.PaymentTermsDays
-		}
-		if days <= 0 {
-			days = 14
-		}
-		if t, err := time.Parse("2006-01-02", inv.Date); err == nil {
-			inv.DueDate = t.AddDate(0, 0, days).Format("2006-01-02")
-		} else {
-			inv.DueDate = inv.Date
-		}
+		inv.DueDate = invoiceDueDate(inv, contact)
 	}
 
 	for i := range inv.Items {
@@ -896,6 +885,9 @@ func (s *InvoiceService) Preview(ctx context.Context, inv *domain.Invoice) (*Pos
 	if err := ensureNoUnlawfulTax(&draft); err != nil {
 		return nil, err
 	}
+	if draft.DueDate == "" {
+		draft.DueDate = invoiceDueDate(&draft, contact)
+	}
 	preview, err := s.postingSvc.PreviewOutgoingInvoice(ctx, &draft, contact)
 	if err != nil {
 		return nil, err
@@ -920,4 +912,21 @@ func (s *InvoiceService) Preview(ctx context.Context, inv *domain.Invoice) (*Pos
 		preview.SmallAmountLimit = params.SmallAmountInvoiceLimit
 	}
 	return preview, nil
+}
+
+// invoiceDueDate ist die Fälligkeit einer Rechnung ohne vorgegebenes Datum:
+// Rechnungsdatum plus Zahlungsziel der Rechnung, sonst des Kunden, sonst 14 Tage.
+func invoiceDueDate(inv *domain.Invoice, contact *domain.Contact) string {
+	days := inv.Terms.DueDays
+	if days <= 0 {
+		days = contact.PaymentTermsDays
+	}
+	if days <= 0 {
+		days = 14
+	}
+	t, err := time.Parse("2006-01-02", inv.Date)
+	if err != nil {
+		return inv.Date
+	}
+	return t.AddDate(0, 0, days).Format("2006-01-02")
 }
