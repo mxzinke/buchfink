@@ -16,160 +16,121 @@ Anlagenkatalog von Buchfink.
 
 ## 1. Begriffe
 
-- **Anlagevermögen** sind nur Gegenstände, die dauernd dem Geschäftsbetrieb
-  dienen sollen ([§ 247 Abs. 2 HGB][hgb247]). Alles andere ist
+- **Anlagevermögen:** nur Gegenstände, die dauernd dem Geschäftsbetrieb
+  dienen sollen ([§ 247 Abs. 2 HGB][hgb247]); alles andere ist
   Umlaufvermögen.
-- **Beteiligungen** sind Anteile an anderen Unternehmen, die dem eigenen
-  Geschäftsbetrieb durch eine dauernde Verbindung dienen sollen. Eine
-  Beteiligung wird vermutet, wenn die Anteile ein Fünftel des Nennkapitals
-  überschreiten ([§ 271 Abs. 1 Satz 1, 3 HGB][hgb271]). Die Mitgliedschaft in
-  einer eingetragenen Genossenschaft gilt nicht als Beteiligung
-  ([§ 271 Abs. 1 Satz 5 HGB][hgb271]).
-- **Verbundene Unternehmen** sind Mutter- und Tochterunternehmen nach § 290
-  HGB ([§ 271 Abs. 2 HGB][hgb271]). Beherrschender Einfluss besteht stets bei
-  der Mehrheit der Stimmrechte ([§ 290 Abs. 2 Nr. 1 HGB][hgb290]).
-- **Bilanzposten:** Finanzanlagen gliedern sich in Anteile an verbundenen
-  Unternehmen, Ausleihungen an verbundene Unternehmen, Beteiligungen,
-  Ausleihungen an Unternehmen mit Beteiligungsverhältnis, Wertpapiere des
-  Anlagevermögens und sonstige Ausleihungen ([§ 266 Abs. 2 A. III. HGB][hgb266]).
-  Im Umlaufvermögen stehen Anteile an verbundenen Unternehmen und sonstige
-  Wertpapiere (B. III.). Eine kleine GmbH zeigt nur die Posten mit Buchstaben
-  und römischen Zahlen ([§ 266 Abs. 1 Satz 3 HGB][hgb266]); die Konten trennen
-  trotzdem fein, weil GuV und Überleitung es brauchen.
+- **Beteiligung:** Anteile, die durch eine dauernde Verbindung dem eigenen
+  Geschäftsbetrieb dienen sollen; vermutet ab mehr als einem Fünftel des
+  Nennkapitals ([§ 271 Abs. 1 Satz 1, 3 HGB][hgb271]). Genossenschaftsanteile
+  gelten nicht als Beteiligung (Satz 5).
+- **Verbundenes Unternehmen:** Tochter nach § 290 HGB
+  ([§ 271 Abs. 2 HGB][hgb271]), stets bei Mehrheit der Stimmrechte
+  ([§ 290 Abs. 2 Nr. 1 HGB][hgb290]).
 
 ## 2. Konto wählen
 
-| Anteil | Konto (SKR04) | Dividenden auf |
-|---|---|---|
-| Kapitalgesellschaft, Mehrheit der Stimmrechte (Tochter) | 0804 Anteile an verbundenen Unternehmen, Kapitalgesellschaften | 7006 |
-| Kapitalgesellschaft, dauernde Verbindung ohne Mehrheit | 0850 Beteiligungen an Kapitalgesellschaften | 7005 |
-| Aktien als Daueranlage, keine Beteiligung | 0910 Wertpapiere mit Gewinnbeteiligungsansprüchen, die dem Teileinkünfteverfahren unterliegen | 7014 |
-| Investmentfonds als Daueranlage | 0900 Wertpapiere des Anlagevermögens | 7010 |
-| Festverzinsliche Wertpapiere als Daueranlage | 0920 Festverzinsliche Wertpapiere | 7010 |
-| Aktien, Fonds zur kurzfristigen Anlage | 1510 Sonstige Wertpapiere | 7103 (Aktien), 7100 (Fonds) |
-| Anteile an verbundenen Unternehmen im Umlaufvermögen | 1500 | 7104 |
-| Personengesellschaft (GmbH & Co. KG, OHG) | 0803, 0860 | Grenze: Buchfink bildet Mitunternehmerschaften nicht ab |
-| Genossenschaftsanteile (eG) | 0980 Genossenschaftsanteile zum langfristigen Verbleib | Grenze: Buchfink schlägt kein Ertragskonto vor und bucht die Rückvergütung nicht mit `kapitalertrag`; Konto und steuerliche Folge mit dem Menschen klären, im Zweifel Steuerberater, dann von Hand buchen |
+| Anteil | Konto (SKR04) |
+|---|---|
+| Kapitalgesellschaft, Mehrheit der Stimmrechte (Tochter) | 0804 Anteile an verbundenen Unternehmen, Kapitalgesellschaften |
+| Kapitalgesellschaft, dauernde Verbindung ohne Mehrheit | 0850 Beteiligungen an Kapitalgesellschaften |
+| Aktien als Daueranlage, keine Beteiligung | 0910 Wertpapiere mit Gewinnbeteiligungsansprüchen, die dem Teileinkünfteverfahren unterliegen |
+| Investmentfonds als Daueranlage | 0900 Wertpapiere des Anlagevermögens |
+| Festverzinsliche Wertpapiere als Daueranlage | 0920 Festverzinsliche Wertpapiere; Zinsen auf 7010 |
+| Aktien, Fonds zur kurzfristigen Anlage | 1510 Sonstige Wertpapiere |
+| Anteile an verbundenen Unternehmen im Umlaufvermögen | 1500 |
+| Personengesellschaft (GmbH & Co. KG, OHG) | 0803, 0860; Grenze: Buchfink bildet Mitunternehmerschaften nicht ab |
+| Genossenschaftsanteile (eG) | 0980 Genossenschaftsanteile zum langfristigen Verbleib; die Rückvergütung bucht `kapitalertrag` nicht: Konto und Steuerfolge mit dem Menschen klären, dann von Hand buchen |
 
-Die Bezeichnungen der Dividendenkonten nennen § 8b KStG; die Konten 7005,
-7006, 7014, 7015, 7103 und 7104 tragen im SKR04 die Kennzeichen für
-Gewerbe- und Körperschaftsteuer. Buchfink wählt für Anteile an
-Kapitalgesellschaften dieselben Konten wie die Tabelle (`AssetIncomeAccount`):
-0804, 0808, 0850 und 0910 schon dem Konto nach, 0800, 0820 und 0900 nur
-mit der Kennzeichnung als Anteil an einer Kapitalgesellschaft. Ohne sie bleibt es bei
-7000 bzw. 7010; ein Investmentanteil geht immer auf 7010.
+Dividendenkonten: [dividenden.md, Abschnitt 3](dividenden.md#3-buchung);
+Fondserträge: [investmentfonds.md, Abschnitt 2](investmentfonds.md#2-ausweis-und-buchung).
 
 ## 3. Anschaffungskosten
 
-- Anschaffungskosten sind die Aufwendungen, um den Gegenstand zu erwerben,
-  einschließlich der Nebenkosten und der nachträglichen Anschaffungskosten;
-  einzeln zuordenbare Minderungen sind abzusetzen
-  ([§ 255 Abs. 1 HGB][hgb255]).
-- Typische Nebenkosten: Notargebühren für den Kaufvertrag, Bankgebühren und
-  Provisionen beim Wertpapierkauf.
-- Wertungsfrage: Gehören Beratungs- und Prüfungskosten vor der
-  Kaufentscheidung zu den Anschaffungskosten oder sind sie Aufwand? Lege das
-  mit Empfehlung Steuerberater vor; bei kleinen Beträgen entscheidet der
-  Mensch.
-- Abziehbare Vorsteuer gehört nicht zu den Anschaffungskosten. Ob die Holding
-  sie abziehen darf, regelt
-  [holding-umsatzsteuer.md, Abschnitt 3](holding-umsatzsteuer.md#3-vorsteuer-aus-kosten-der-beteiligung).
-- Finanzanlagen nutzen sich nicht ab und werden nicht planmäßig
-  abgeschrieben ([§ 253 Abs. 3 Satz 1 HGB][hgb253]: nur bei zeitlich
-  begrenzter Nutzung).
+- Kaufpreis mit Nebenkosten und nachträglichen Anschaffungskosten, abzüglich
+  einzeln zuordenbarer Minderungen ([§ 255 Abs. 1 HGB][hgb255]); Nebenkosten
+  sind etwa Notar beim Kaufvertrag, Bankgebühren und Provisionen.
+- Abziehbare Vorsteuer gehört nicht dazu
+  ([holding-umsatzsteuer.md, Abschnitt 3](holding-umsatzsteuer.md#3-vorsteuer-aus-kosten-der-beteiligung)).
+- Wertungsfrage: Beratungs- und Prüfungskosten vor der Kaufentscheidung,
+  Anschaffungskosten oder Aufwand? Empfehlung Steuerberater; bei kleinen
+  Beträgen entscheidet der Mensch.
+- Keine planmäßige Abschreibung; sie gilt nur bei zeitlich begrenzter
+  Nutzung ([§ 253 Abs. 3 Satz 1 HGB][hgb253]).
 
 ## 4. Erwerb buchen
 
-1. **Belege:** Für GmbH-Anteile den notariellen Abtretungsvertrag
-   ([§ 15 Abs. 3, 4 GmbHG][gmbhg15]); für Wertpapiere die Kaufabrechnung der
-   Bank; bei Gründung die Gründungsurkunde. Lege sie mit `beleg_ablegen` ab.
+1. **Belege** mit `beleg_ablegen`: notarieller Abtretungsvertrag bei
+   GmbH-Anteilen ([§ 15 Abs. 3, 4 GmbHG][gmbhg15]), Kaufabrechnung der Bank,
+   bei Gründung die Gründungsurkunde.
 2. **Rückfrage** mit Konto aus Abschnitt 2, Anschaffungskosten und
    Gegenkonto.
 3. **Buchung:**
    - Kaufpreis über die Bank: `bankumsatz_buchen`, Zeile `konto` auf das
-     Anlagekonto. Mehrere Zeilen, wenn die Abrechnung
-     Kurswert und Nebenkosten getrennt zeigt; beide gehören auf das
-     Anlagekonto.
-   - Kaufpreis noch offen oder an den Verkäufer direkt: `buchung_erfassen`
-     mit `beleg_id`, Soll Anlagekonto, Haben Verbindlichkeit.
-4. **Kartei:** Das Anlagegut entsteht aus der Zugangsbuchung, nach
-   Rückfrage mit `abschlussbuchung` (`art: anlage_aktivieren`,
-   `klasse: finanzanlage`). Die Felder der Finanzanlage bildet Buchfink noch
-   nicht ab, weder als Werkzeug noch in der App: Kennung (ISIN, WKN oder
-   Handelsregisternummer), Beteiligungsquote, Kennzeichen „Anteil an einer
-   Kapitalgesellschaft“ (für GmbH- und AG-Anteile, nie für Fonds), Fondsart
-   (nur Fonds), Stückzahl, Notierungswährung. Halte sie in der
-   Beteiligungsliste fest.
-5. **Beteiligungsliste** fortschreiben
-   ([ablauf.md, Abschnitt 2](ablauf.md#2-ablauf-für-jeden-vorgang), Schritt 1).
+     Anlagekonto; Kurswert und Nebenkosten bei getrennter Abrechnung in
+     mehreren Zeilen, beide auf das Anlagekonto.
+   - Kaufpreis offen oder direkt an den Verkäufer: `buchung_erfassen` mit
+     `beleg_id`, Soll Anlagekonto, Haben Verbindlichkeit.
+4. **Kartei und Beteiligungsliste** nach
+   [ablauf.md, Abschnitt 2](ablauf.md#2-ablauf-für-jeden-vorgang), Schritte 1
+   und 6.
 
 Fertig, wenn Buchung, Anlagegut und Beteiligungsliste übereinstimmen.
 
 ## 5. Gründung, Kapitalerhöhung, Einlage in eine Tochter
 
-- **Gründung einer Tochter-GmbH:** Die übernommene Stammeinlage (und ein
-  Aufgeld) sind Anschaffungskosten. Buchung nach Einzahlung: Anlagekonto an
-  Bank. Die Tochter ist ein eigener Mandant; ihre Gründung buchst du dort nach
-  [gruendung/ablauf.md](../gruendung/ablauf.md).
-- **Zuzahlung in die Kapitalrücklage der Tochter, Kapitalerhöhung:**
-  nachträgliche Anschaffungskosten ([§ 255 Abs. 1 Satz 2 HGB][hgb255]).
-  Buchung: Anlagekonto an Bank. Beleg: Beschluss oder schriftliche Erklärung.
-- **Verdeckte Einlage** (die Holding überträgt der Tochter ein Wirtschaftsgut
-  ohne angemessenes Entgelt, aus Gründen des Gesellschaftsverhältnisses):
-  Die Anschaffungskosten der Beteiligung erhöhen sich um den Teilwert des
-  eingelegten Wirtschaftsguts ([§ 6 Abs. 6 Satz 2 EStG][estg6]). Legt die
-  Holding einen Anteil ein, folgt daraus eine Veräußerung nach § 8b KStG
+- **Gründung einer Tochter-GmbH:** Stammeinlage und Aufgeld sind
+  Anschaffungskosten; nach Einzahlung Anlagekonto an Bank. Die Tochter ist
+  ein eigener Mandant ([gruendung/ablauf.md](../gruendung/ablauf.md)).
+- **Zuzahlung in die Kapitalrücklage, Kapitalerhöhung:** nachträgliche
+  Anschaffungskosten ([§ 255 Abs. 1 Satz 2 HGB][hgb255]); Anlagekonto an
+  Bank, Beleg Beschluss oder schriftliche Erklärung.
+- **Verdeckte Einlage** eines Wirtschaftsguts in die Tochter: Die
+  Anschaffungskosten der Beteiligung erhöhen sich um dessen Teilwert
+  ([§ 6 Abs. 6 Satz 2 EStG][estg6]); bei einem Anteil gilt sie als
+  Veräußerung
   ([steuerfreistellung.md, Abschnitt 4](steuerfreistellung.md#4-gewinne-aus-der-veräußerung)).
   Wertungsfrage, Steuerberater.
-- **Verzicht auf eine Forderung gegen die Tochter:** Ob und in welcher Höhe
-  eine Einlage vorliegt, hängt von der Werthaltigkeit ab. Wertungsfrage,
-  Steuerberater; gebucht wird erst nach der Klärung.
+- **Verzicht auf eine Forderung gegen die Tochter:** Einlage nach
+  Werthaltigkeit; Wertungsfrage, Steuerberater, gebucht wird erst danach.
 
 ## 6. Darlehen an eine Tochter
 
-- **Ausweis:** Ausleihungen an verbundene Unternehmen
-  (0814 Kapitalgesellschaften) oder an Unternehmen mit Beteiligungsverhältnis
-  (0885), wenn sie dauernd dienen sollen; kurzfristige Darlehen als Forderung
-  (1260 bis 1265 bzw. 1280 bis 1285).
-- **Beleg:** schriftlicher Darlehensvertrag mit Betrag, Zins, Laufzeit,
-  Tilgung und Sicherheiten. Buchung der Auszahlung: Ausleihung an Bank.
-- **Zinsen:** Ertrag auf 7012 (verbundene Unternehmen) oder 7011. Buche die
-  Zinsen ohne Umsatzsteuer; Steuerfreiheit der Kreditgewährung und Folgen für
-  die Vorsteuer:
-  [holding-umsatzsteuer.md, Abschnitt 5](holding-umsatzsteuer.md#5-darlehen-an-tochtergesellschaften).
-- **Ausfall:** Ob Teilwertabschreibung und Ausfall das Einkommen mindern:
-  [steuerfreistellung.md, Abschnitt 6](steuerfreistellung.md#6-darlehen-an-die-tochter);
-  Bewertung: [bewertung-veraeusserung.md, Abschnitt 4](bewertung-veraeusserung.md#4-darlehen-an-die-tochter).
-- Wertungsfrage: Sind Zins und Sicherheiten fremdüblich? Nur dann greift die
-  Ausnahme. Lass den Menschen die Gründe im Vertrag festhalten.
+- **Ausweis:** dauernd dienend als Ausleihung an verbundene Unternehmen
+  (0814) oder an Unternehmen mit Beteiligungsverhältnis (0885), kurzfristig
+  als Forderung (1260 bis 1265 bzw. 1280 bis 1285).
+- **Beleg:** schriftlicher Vertrag mit Betrag, Zins, Laufzeit, Tilgung,
+  Sicherheiten. Auszahlung: Ausleihung an Bank.
+- **Zinsen** auf 7012 (verbundene Unternehmen) oder 7011, ohne Umsatzsteuer
+  ([holding-umsatzsteuer.md, Abschnitt 5](holding-umsatzsteuer.md#5-darlehen-an-tochtergesellschaften)).
+- **Ausfall:** steuerlich
+  [steuerfreistellung.md, Abschnitt 6](steuerfreistellung.md#6-darlehen-an-die-tochter),
+  Bewertung
+  [bewertung-veraeusserung.md, Abschnitt 4](bewertung-veraeusserung.md#4-darlehen-an-die-tochter).
+  Zur Fremdüblichkeit lass den Menschen Zins und Sicherheiten im Vertrag
+  begründen.
 
 ## 7. Pflichten, die aus der Beteiligung folgen
 
-- **Größenklasse:** Eine reine Holding ist keine Kleinstkapitalgesellschaft.
-  Die Klasse und die Regel für Holdings stehen in
-  [jahresabschluss/groessenklassen-anhang.md, Abschnitt 1](../jahresabschluss/groessenklassen-anhang.md#1-merkmale).
-- **Anhang:** Angaben zu Beteiligungen (Name, Sitz, Anteil, Eigenkapital,
-  Ergebnis) verlangt [§ 285 Nr. 11 HGB][hgb285]; kleine Kapitalgesellschaften
-  sind davon befreit ([§ 288 Abs. 1 Nr. 1 HGB][hgb288]).
-- **Konzernabschluss:** Kann die GmbH auf eine Tochter beherrschenden
-  Einfluss ausüben, ist sie Mutterunternehmen
-  ([§ 290 Abs. 1, 2 HGB][hgb290]); größenabhängige Befreiungen regelt
-  [§ 293 HGB][hgb293]. Buchfink erstellt keinen Konzernabschluss
-  ([grundlagen/grenzen.md](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet)).
-  Lass die Pflicht vom Steuerberater prüfen.
+- **Größenklasse:** Eine reine Holding ist keine Kleinstkapitalgesellschaft
+  ([jahresabschluss/groessenklassen-anhang.md, Abschnitt 1](../jahresabschluss/groessenklassen-anhang.md#1-merkmale)).
+- **Anhang:** Beteiligungsangaben nach [§ 285 Nr. 11 HGB][hgb285]; kleine
+  Kapitalgesellschaften sind befreit ([§ 288 Abs. 1 Nr. 1 HGB][hgb288]).
+- **Konzernabschluss** bei beherrschendem Einfluss
+  ([§ 290 Abs. 1, 2 HGB][hgb290]), größenabhängig befreit
+  ([§ 293 HGB][hgb293]): Buchfink erstellt keinen
+  ([grundlagen/grenzen.md](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet));
+  die Pflicht prüft der Steuerberater.
 - **Ausländische Beteiligungen:** Erwerb oder Veräußerung von Anteilen an
-  einer Körperschaft mit Sitz und Geschäftsleitung im Ausland ist dem
-  Finanzamt mitzuteilen, wenn damit mindestens 10 % erreicht werden oder die
+  einer Körperschaft mit Sitz und Geschäftsleitung im Ausland ist
+  mitzuteilen, wenn damit mindestens 10 % erreicht werden oder die
   Anschaffungskosten aller solchen Beteiligungen 150.000 € übersteigen
-  ([§ 138 Abs. 2 Satz 1 Nr. 3 AO][ao138]); die Mitteilung geht mit der
+  ([§ 138 Abs. 2 Satz 1 Nr. 3 AO][ao138]); mit der
   Körperschaftsteuererklärung, spätestens 14 Monate nach Ablauf des Jahres
-  ([§ 138 Abs. 5 AO][ao138]). Stand: Oktober 2026.
+  ([§ 138 Abs. 5 AO][ao138]).
 - **Verlustuntergang bei der Tochter:** Wechseln innerhalb von fünf Jahren
-  mehr als 50 % der Anteile an der Tochter, etwa weil die GmbH sie erwirbt,
-  gehen nicht genutzte Verluste der Tochter unter
+  mehr als 50 % ihrer Anteile, gehen ihre nicht genutzten Verluste unter
   ([steuererklaerungen/kst.md, Abschnitt 8](../steuererklaerungen/kst.md#8-verlustabzug)).
-  Weise beim Kauf und beim Verkauf darauf hin und empfiehl einen
-  Steuerberater.
+  Weise bei Kauf und Verkauf darauf hin und empfiehl einen Steuerberater.
 
 [ao138]: https://www.gesetze-im-internet.de/ao_1977/__138.html
 [estg6]: https://www.gesetze-im-internet.de/estg/__6.html
@@ -177,7 +138,6 @@ Fertig, wenn Buchung, Anlagegut und Beteiligungsliste übereinstimmen.
 [hgb247]: https://www.gesetze-im-internet.de/hgb/__247.html
 [hgb253]: https://www.gesetze-im-internet.de/hgb/__253.html
 [hgb255]: https://www.gesetze-im-internet.de/hgb/__255.html
-[hgb266]: https://www.gesetze-im-internet.de/hgb/__266.html
 [hgb271]: https://www.gesetze-im-internet.de/hgb/__271.html
 [hgb285]: https://www.gesetze-im-internet.de/hgb/__285.html
 [hgb288]: https://www.gesetze-im-internet.de/hgb/__288.html

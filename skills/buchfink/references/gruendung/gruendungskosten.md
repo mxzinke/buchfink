@@ -1,8 +1,7 @@
 # Gründungskosten und Vorgründungskosten
 
-Rechtsstand: 17. Oktober 2026. Wortlaut von HGB, AktG, GmbHG (Anlage 1) und UStG
-am 17.10.2026 gelesen; KStH über einen Kanzleispiegel; das BMF-Schreiben vom
-25.06.1991 nur über Sekundärquellen ([Quellenverzeichnis][quellen]).
+Rechtsstand: 17. Oktober 2026. Prüfstand der Quellen:
+[Quellenverzeichnis][quellen].
 
 ## Inhalt
 
@@ -13,82 +12,69 @@ am 17.10.2026 gelesen; KStH über einen Kanzleispiegel; das BMF-Schreiben vom
 
 ## 1. Bilanz: kein Aktivposten
 
-Aufwendungen für die Gründung und für die Beschaffung des Eigenkapitals dürfen
-nicht aktiviert werden ([§ 248 Abs. 1 Nr. 1, 2 HGB][hgb248]). Sie sind Aufwand
-des ersten Geschäftsjahres und mindern das Reinvermögen sofort (Unterbilanz:
+Aufwendungen für die Gründung und die Beschaffung des Eigenkapitals sind nicht
+aktivierbar ([§ 248 Abs. 1 Nr. 1, 2 HGB][hgb248]). Sie sind Aufwand des
+ersten Geschäftsjahres und mindern das Reinvermögen sofort (Unterbilanz:
 [kapitalaufbringung.md, Abschnitt 6](kapitalaufbringung.md#6-unterbilanz-am-eintragungstag)).
 
 ## 2. Wer die Gründungskosten trägt
 
-- Für die AG verlangt das Gesetz, den Gründungsaufwand zu Lasten der
-  Gesellschaft in der Satzung gesondert festzusetzen; ohne Festsetzung sind die
-  Verträge der Gesellschaft gegenüber unwirksam
-  ([§ 26 Abs. 2, 3 AktG][aktg26]). Das GmbHG hat keine eigene Vorschrift. Für
-  die GmbH gilt § 26 Abs. 2 AktG nach der Rechtsprechung entsprechend (BGH vom
-  20.02.1989, II ZB 10/88, GmbHR 1989, 250; übernommen von
-  [BFH vom 11.10.1989, I R 12/87, BStBl II 1990, 89][bfh1287]). Die GmbH trägt
-  Gründungsaufwand also nur, soweit der Gesellschaftsvertrag ihn festsetzt.
-- Steuerlich: Zahlt die GmbH Gründungskosten, die nach dem Vertrag die
-  Gesellschafter tragen, sind sie keine Betriebsausgabe; der BFH nahm eine
-  Ausschüttung an ([BFH I R 12/87][bfh1287]). Die Finanzverwaltung verweist auf
-  das BMF-Schreiben vom 25.06.1991, IV B 7 - S 2741 - 4/91, BStBl I S. 661
-  ([H 8.5 KStH „Gründungskosten“][ksth85]); nach Sekundärquellen sieht es darin
-  eine verdeckte Gewinnausschüttung. Den Wortlaut des Schreibens haben wir
-  nicht gelesen.
-- Das Musterprotokoll legt fest: Die Gesellschaft trägt die Gründungskosten bis
-  300 €, höchstens bis zum Betrag ihres Stammkapitals; darüber hinaus trägt sie
-  der Gesellschafter ([Anlage 1 GmbHG][gmbhganl1], Nr. 5). Stand: Oktober 2026.
-- Buchfink speichert den Betrag aus dem Vertrag als „Gründungsaufwand laut
-  Satzung“; der Mensch erfasst ihn im Einrichtungsassistenten.
+- Die GmbH trägt Gründungsaufwand nur, soweit der Gesellschaftsvertrag ihn
+  festsetzt ([§ 26 Abs. 2 AktG][aktg26] entsprechend: BGH vom 20.02.1989,
+  II ZB 10/88; [BFH vom 11.10.1989, I R 12/87, BStBl II 1990, 89][bfh1287]).
+- Zahlt die GmbH Gründungskosten, die laut Vertrag die Gesellschafter tragen,
+  ist das keine Betriebsausgabe, sondern verdeckte Gewinnausschüttung
+  ([BFH I R 12/87][bfh1287]; [H 8.5 KStH „Gründungskosten“][ksth85] mit
+  BMF-Schreiben vom 25.06.1991, IV B 7 - S 2741 - 4/91, BStBl I S. 661).
+- Musterprotokoll: Die Gesellschaft trägt die Gründungskosten bis 300 €,
+  höchstens bis zu ihrem Stammkapital; den Rest trägt der Gesellschafter
+  ([Anlage 1 GmbHG][gmbhganl1], Nr. 5).
 
 Vorgehen:
 
 1. Lies die Klausel im abgelegten Gesellschaftsvertrag oder frag den Menschen
-   danach. Fertig, wenn Betrag oder „keine Klausel“ feststeht.
-2. Summiere die Gründungsrechnungen (`buchungen_suchen` auf 6825 und 6420 im
+   danach. Fertig, wenn Betrag oder „keine Klausel“ feststeht; den Betrag
+   schlägst du als `gruendungsaufwand_bis` vor
+   ([ablauf.md, Abschnitt 2](ablauf.md#2-ablauf), Schritt 3).
+2. Summiere die Gründungsrechnungen (`buchungen_suchen` auf 6825 und 6430 im
    Gründungszeitraum, dazu offene Belege).
-3. Liegt die Summe über dem Betrag laut Vertrag oder fehlt die Klausel:
-   Wertungsfrage. Optionen: (a) der Gesellschafter erstattet den Überschuss,
-   Forderung auf 1307
-   ([gesellschafter/verrechnungskonto.md](../gesellschafter/verrechnungskonto.md));
-   (b) die GmbH trägt ihn, mit dem Risiko einer verdeckten
-   Gewinnausschüttung ([gesellschafter/vga-einlage.md](../gesellschafter/vga-einlage.md));
+3. Liegt die Summe über der Klausel oder fehlt die Klausel: Wertungsfrage mit
+   den Optionen (a) der Gesellschafter erstattet den Überschuss, Forderung auf
+   1307 ([gesellschafter/verrechnungskonto.md](../gesellschafter/verrechnungskonto.md));
+   (b) die GmbH trägt ihn mit dem Risiko einer verdeckten Gewinnausschüttung
+   ([gesellschafter/vga-einlage.md](../gesellschafter/vga-einlage.md));
    (c) Rücksprache mit Notar oder Steuerberater. Der Mensch entscheidet.
 
 ## 3. Buchen
 
-| Kosten | Buchungsgruppe | Konto | Steuer |
-|---|---|---|---|
-| Notar (Beurkundung, Anmeldung, Beglaubigung) | `beratung` | 6825 Rechts- und Beratungskosten | Regelsatz laut Rechnung |
-| Steuerberatung zur Gründung | `beratung` | 6825 | Regelsatz laut Rechnung |
-| Registergericht, Behördengebühren | `beitraege` | 6420 Beiträge | meist nicht steuerbar |
+Notar und Steuerberatung zur Gründung gehören in die Gruppe `beratung`
+(6825 Rechts- und Beratungskosten), Gebühren von Registergericht und Behörden
+in `gebuehren` (6430 Sonstige Abgaben, nicht steuerbar), nicht unter die
+Beiträge. Den Beleg buchst du
+nach [belege/ablauf.md](../belege/ablauf.md).
 
-- Den Beleg prüfst und buchst du nach [belege/ablauf.md](../belege/ablauf.md).
-  Gründungsbelege sind meist keine Routine, weil der Kontakt neu ist und noch
-  keine bestätigte Buchungsgruppe hat; meldet Buchfink `freigabe_noetig`,
-  buche nach Rückfrage mit `beleg_buchen_mit_rueckfrage`.
 - Vorsteuer setzt eine Rechnung an die GmbH voraus
-  ([belege/pflichtangaben.md, Abschnitt 2](../belege/pflichtangaben.md#2-die-zehn-pflichtangaben)).
-  Ist ein Gesellschafter persönlich Rechnungsempfänger, frag nach. Wertungsfrage: Ob der GmbH die Vorsteuer aus
-  Gründungsrechnungen zusteht, beurteilt im Zweifel ein Steuerberater.
+  ([belege/pflichtangaben.md, Abschnitt 2](../belege/pflichtangaben.md#2-die-zehn-pflichtangaben));
+  ist ein Gesellschafter Rechnungsempfänger, frag nach. Ob der GmbH die
+  Vorsteuer aus Gründungsrechnungen zusteht, ist im Zweifel eine Wertungsfrage
+  für den Steuerberater.
 - Zahlt ein Gesellschafter eine Gründungsrechnung privat, buche sie als
-  Auslage (`bezahlung: auslage`,
-  [belege/fremdwaehrung-auslagen.md](../belege/fremdwaehrung-auslagen.md)).
+  Auslage
+  ([belege/fremdwaehrung-auslagen.md](../belege/fremdwaehrung-auslagen.md)).
 
 ## 4. Kosten vor der Beurkundung
 
-- Die Vorgründungsgesellschaft besteht vom Entschluss bis zur Beurkundung. Sie
-  ist weder mit der Vorgesellschaft noch mit der späteren GmbH identisch und in
-  der Regel nicht körperschaftsteuerpflichtig
-  ([H 1.1 KStH „Vorgründungsgesellschaft“][ksth11]).
-- Ihre Verträge und Schulden gehen nicht von selbst auf die GmbH über. Rechnungen
-  aus dieser Zeit (Beratung, Domain, Logo, Miete) buchst du deshalb nicht ohne
-  Klärung in die GmbH.
+- Die Vorgründungsgesellschaft (Entschluss bis Beurkundung) ist weder mit der
+  Vorgesellschaft noch mit der GmbH identisch und in der Regel nicht
+  körperschaftsteuerpflichtig
+  ([H 1.1 KStH „Vorgründungsgesellschaft“][ksth11]). Ihre Verträge und
+  Schulden gehen nicht von selbst auf die GmbH über; Rechnungen aus dieser
+  Zeit (Beratung, Domain, Logo, Miete) buchst du erst nach Klärung.
 - Wertungsfrage: Übernimmt die GmbH Kosten oder Verträge aus der
-  Vorgründungszeit, braucht es dafür eine Vereinbarung; steuerlich (Vorsteuer,
-  Betriebsausgabe, mögliche vGA) prüft das ein Steuerberater. Lege dem
-  Menschen Belege, Beträge und Datum vor und notiere seine Entscheidung im
-  Eigenbeleg oder in der Buchungsbeschreibung.
+  Vorgründungszeit, braucht es eine Vereinbarung; Vorsteuer, Betriebsausgabe
+  und mögliche vGA prüft ein Steuerberater. Lege Belege, Beträge und Datum
+  vor und halte die Entscheidung im Eigenbeleg oder in der
+  Buchungsbeschreibung fest.
 
 [quellen]: https://github.com/mxzinke/buchfink/blob/master/skills/QUELLEN.md
 [aktg26]: https://www.gesetze-im-internet.de/aktg/__26.html

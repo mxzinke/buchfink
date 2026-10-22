@@ -1,9 +1,8 @@
 # Umsatzsteuer-Verrechnung und Steuerrückstellung
 
-Rechtsstand: 17. Oktober 2026. Wortlaut von § 249 HGB, § 4 Abs. 5b und § 36
-EStG, § 10 KStG am 17.10.2026 gelesen.
+Rechtsstand: 17. Oktober 2026.
 
-Die Steuern rechnet Buchfink in den Erklärungen
+Die Jahressteuern rechnet Buchfink in den Erklärungen
 ([steuererklaerungen/kst.md](../steuererklaerungen/kst.md),
 [steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md)); Zahlungen
 buchst du nach [bank/steuerzahlungen.md](../bank/steuerzahlungen.md).
@@ -18,57 +17,41 @@ buchst du nach [bank/steuerzahlungen.md](../bank/steuerzahlungen.md).
 
 ## 1. Umsatzsteuer-Verrechnung
 
-Was Buchfink bucht: Zum Stichtag werden die Salden aller Vorsteuer- und
-Umsatzsteuerkonten sowie 3820 Umsatzsteuer-Vorauszahlungen und 3830
-Sondervorauszahlung gegeneinander verrechnet. Ein Überhang der Steuer geht auf
-3841 Umsatzsteuerverbindlichkeiten Vorjahr, ein Überhang zugunsten der GmbH auf
-1420. Die Buchung trägt den Verweis `USTV <Jahr>` und zählt nicht in die
+`abschlussbuchung` mit `art: ust_verrechnung` bucht zum Stichtag die Salden
+aller Vorsteuer- und Umsatzsteuerkonten mit 3820 Umsatzsteuer-Vorauszahlungen
+und 3830 Sondervorauszahlung auf 3841 Umsatzsteuerverbindlichkeiten Vorjahr,
+bei einem Überhang zugunsten der GmbH auf 1420. Sie zählt nicht in die
 Voranmeldung.
-
-Ablauf:
 
 1. Die letzte Voranmeldung des Jahres ist geprüft
    ([monatsabschluss/ablauf.md](../monatsabschluss/ablauf.md)).
-2. Vorab-Prüfung: `auswertung` (`art: susa`) für die Steuerkonten, 3820 und
-   3830. Nach der Verrechnung sollte auf 3841 etwa die
-   noch nicht gezahlte Vorauszahlung des letzten Zeitraums stehen. Weicht der
-   Betrag ab, such nach unbezahlten, doppelt gebuchten oder falsch
-   zugeordneten Vorauszahlungen auf 3820.
-3. `abschlussbuchung` mit `art: ust_verrechnung`: erst `nur_vorschau: true`,
-   Betrag und Erläuterung vorlegen, nach dem Ja buchen. `buchung_erfassen`
-   nimmt Steuerkonten nicht an.
-4. Prüfe danach: Vorsteuer- und Umsatzsteuerkonten null.
+2. Mit `auswertung` (`art: susa`) vorab prüfen: Nach der Verrechnung steht
+   auf 3841 etwa die unbezahlte Vorauszahlung des letzten Zeitraums; sonst such
+   unbezahlte, doppelte oder falsch zugeordnete Vorauszahlungen auf 3820.
+3. Verrechnung buchen. Fertig, wenn Vorsteuer- und Umsatzsteuerkonten null
+   zeigen.
 
-Folgejahr: Konten für die Zahlung der letzten Voranmeldung des alten Jahres,
-die Abschlusszahlung und die Erstattung stehen in
+Konten für die Zahlungen im Folgejahr:
 [bank/steuerzahlungen.md](../bank/steuerzahlungen.md#2-konten-je-steuerart).
 
 ## 2. Vorsteuerberichtigung nach § 15a UStG
 
-Führt Buchfink Wirtschaftsgüter im Verzeichnis nach § 15a UStG (Regeln:
-[belege/vorsteuer.md](../belege/vorsteuer.md)), ist vor der letzten
-Voranmeldung des Jahres der
-Verwendungsanteil zu prüfen. Ihn zu erfassen und die Berichtigung zu buchen
-(Kennziffer 64) bildet Buchfink noch nicht ab; sag das dem Menschen.
+Für Wirtschaftsgüter im Verzeichnis nach § 15a UStG
+([belege/vorsteuer.md](../belege/vorsteuer.md)) prüfst du vor der letzten
+Voranmeldung den Verwendungsanteil. Ihn zu erfassen und die Berichtigung zu
+buchen (Kennziffer 64) bildet Buchfink nicht ab; sag das dem Menschen.
 
 ## 3. Steuerrückstellung: Betrag
 
-- Noch nicht festgesetzte Steuern für das abgelaufene Jahr sind ungewisse
-  Verbindlichkeiten ([§ 249 Abs. 1 Satz 1 HGB][hgb249]) und stehen unter den
-  Steuerrückstellungen.
-- Die Jahressteuer liefern die Erklärungen (`erklaerung`, `art: kst` und
-  `art: gewst`, `zeitraum: <Jahr>`;
-  [steuererklaerungen/kst.md](../steuererklaerungen/kst.md),
-  [steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md)).
+- Noch nicht festgesetzte Steuern des abgelaufenen Jahres sind ungewisse
+  Verbindlichkeiten ([§ 249 Abs. 1 Satz 1 HGB][hgb249]).
 - Rückstellung = Körperschaftsteuer + Solidaritätszuschlag + Gewerbesteuer des
-  Jahres − Vorauszahlungen für dieses Jahr − anrechenbare Kapitalertragsteuer
-  mit Solidaritätszuschlag
+  Jahres (`erklaerung`, `art: kst` und `art: gewst`) − Vorauszahlungen für
+  dieses Jahr − anrechenbare Kapitalertragsteuer mit Solidaritätszuschlag
   ([Anrechnung](../steuererklaerungen/kst.md#9-steuer-rundung-anrechnung-vorauszahlungen)).
-- Körperschaftsteuer, Solidaritätszuschlag und Gewerbesteuer mindern das
-  Einkommen nicht
-  ([steuererklaerungen/kst.md, Abschnitt 2](../steuererklaerungen/kst.md#2-überleitung-zum-zu-versteuernden-einkommen)).
-  Die Rückstellung ändert deshalb die Bemessungsgrundlage nicht; ein Rechengang
-  genügt.
+- Diese Steuern mindern das Einkommen nicht
+  ([kst.md, Abschnitt 2](../steuererklaerungen/kst.md#2-überleitung-zum-zu-versteuernden-einkommen));
+  ein Rechengang genügt.
 
 Prüfe vor dem Buchen:
 
@@ -77,36 +60,23 @@ Prüfe vor dem Buchen:
    die Konten für Vorjahre
    ([bank/steuerzahlungen.md](../bank/steuerzahlungen.md#3-nachzahlung-und-erstattung-für-vorjahre));
    schlag die Umbuchung vor.
-2. Der Hebesatz der Gemeinde stimmt mit dem Gewerbesteuerbescheid überein.
+2. Der Hebesatz stimmt mit dem Gewerbesteuerbescheid überein.
 3. Ein Verlustvortrag aus Vorjahren ist berücksichtigt.
-
-Der Vorschlag zur Steuerrückstellung nimmt die Vorauszahlungen von 7600, 7608
-und 7610, den Hebesatz aus den Einstellungen und Verlustvorträge,
-Hinzurechnungen und Kürzungen nur als Eingabe. Nimm diese Werte aus den
-Erklärungen.
 
 ## 4. Steuerrückstellung: Buchung
 
-`abschlussbuchung` mit `art: steuerrueckstellung`. Gib die Zahlen aus den
-Erklärungen mit: `hebesatz`, `verlustvortrag_kst`,
-`verlustvortrag_gewst`, `korrekturen` (etwa eine verdeckte
-Gewinnausschüttung), `hinzurechnungen`, `kuerzungen`; weichen die Beträge ab,
-`kst_betrag` und `gewst_betrag` mit Rechenweg in `grund`. Vergleiche die
-Vorschau mit den Erklärungen, bevor du buchst. Die Buchung:
-
-| Steuer | Nachzahlung erwartet | Vorauszahlungen zu hoch |
-|---|---|---|
-| Körperschaftsteuer und Solidaritätszuschlag | Soll 7600 und 7608, Haben 3040 Körperschaftsteuerrückstellung | Soll 1450 Körperschaftsteuerrückforderung, Haben 7600 und 7608 |
-| Gewerbesteuer | Soll 7610, Haben 3035 Gewerbesteuerrückstellung nach § 4 Abs. 5b EStG | Soll 1435 Forderungen aus Gewerbesteuerüberzahlungen, Haben 7610 |
-
-Buchfink selbst bucht Körperschaftsteuer und Solidaritätszuschlag zusammen auf
-3040. Halte dich daran, damit das Kontoblatt eine Rückstellung je Steuer zeigt.
+`abschlussbuchung` mit `art: steuerrueckstellung` nimmt die Vorauszahlungen
+von 7600, 7608 und 7610; Hebesatz, Verlustvorträge, Korrekturen (etwa eine
+verdeckte Gewinnausschüttung), Hinzurechnungen und Kürzungen gibst du aus den
+Erklärungen mit. Vergleiche die Vorschau mit den Erklärungen; weichen sie ab,
+nenne `kst_betrag` und `gewst_betrag` mit Rechenweg in `grund`. Konten:
+Körperschaftsteuer mit Solidaritätszuschlag 3040, Gewerbesteuer 3035,
+Überzahlung 1450 bzw. 1435.
 
 ## 5. Folgejahr
 
-Kommt der Bescheid, legt der Mensch ihn ab; den Abgleich beschreibt
-[steuererklaerungen/bescheide.md](../steuererklaerungen/bescheide.md).
-Zahlung, Verbrauch der Rückstellung und die Differenz auf den Konten für
-Vorjahre: [bank/steuerzahlungen.md](../bank/steuerzahlungen.md#3-nachzahlung-und-erstattung-für-vorjahre).
+Bescheid: [steuererklaerungen/bescheide.md](../steuererklaerungen/bescheide.md).
+Zahlung, Verbrauch der Rückstellung und Differenz:
+[bank/steuerzahlungen.md](../bank/steuerzahlungen.md#3-nachzahlung-und-erstattung-für-vorjahre).
 
 [hgb249]: https://www.gesetze-im-internet.de/hgb/__249.html

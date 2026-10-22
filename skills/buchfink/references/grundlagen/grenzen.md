@@ -12,27 +12,24 @@ Werkzeug einen Fall mit `fachliche_regel` ab, gilt die Meldung des Servers.
 
 ## 1. Was Buchfink nicht abbildet
 
+Was hier nicht buchbar ist, sprichst du nach Abschnitt 4 an.
+
 | Fall | Was du tust |
 |---|---|
-| Andere Rechtsform als GmbH oder UG, Einnahmenüberschussrechnung | Buchfink ist dafür nicht gebaut. Nicht buchen, den Menschen informieren. |
-| Eigene Kleinunternehmerregelung ([§ 19 UStG][ustg19]) | Buchfink setzt voraus, dass das Unternehmen Umsatzsteuer ausweist und anmeldet. Ein Lieferant, der Kleinunternehmer ist, lässt sich erfassen. |
-| Istversteuerung ([§ 20 UStG][ustg20]) | Buchfink lehnt Buchungen ab. Mandant mit Istversteuerung: Mensch und Steuerberater klären. |
+| Andere Rechtsform als GmbH oder UG, Einnahmenüberschussrechnung; Kasse, Bargeschäfte mit Kassensystem, Warenlager; Konzernabschluss ([§ 290 HGB][hgb290]), IFRS, kapitalmarktorientierte Gesellschaft | Nicht abgebildet. |
+| Differenzbesteuerung ([§ 25a UStG][ustg25a]), Reiseleistungen ([§ 25 UStG][ustg25]), Dreiecksgeschäft ([§ 25b UStG][ustg25b]), Verzicht auf Steuerbefreiungen ([§ 9 UStG][ustg9]), Organschaft ([§§ 14][kstg14], [17 KStG][kstg17], [§ 2 Abs. 2 Nr. 2 UStG][ustg2]) | Nicht abgebildet. Steuerberater. |
+| Eigene Kleinunternehmerregelung ([§ 19 UStG][ustg19]) | Nicht abgebildet; Buchfink setzt Ausweis und Anmeldung der Umsatzsteuer voraus. Rechnungen von Kleinunternehmern lassen sich erfassen. |
+| Istversteuerung ([§ 20 UStG][ustg20]) | Buchfink lehnt Buchungen ab; der Mensch klärt den Fall mit dem Steuerberater. |
 | OSS und IOSS ([§§ 18i][ustg18i], [18j][ustg18j], [18k UStG][ustg18k]) | Meldung außerhalb von Buchfink. |
-| Differenzbesteuerung ([§ 25a UStG][ustg25a]), Reiseleistungen ([§ 25 UStG][ustg25]), Dreiecksgeschäft ([§ 25b UStG][ustg25b]) | Nicht abgebildet. Steuerberater. |
-| Bauleistungen als Leistungsempfänger nach [§ 13b Abs. 2 Nr. 4 UStG][ustg13b] | Buchbar als `reverse_charge`; ob die GmbH selbst nachhaltig Bauleistungen erbringt (Abs. 5 Satz 2), prüft Buchfink nicht, die Bauabzugsteuer bildet es nicht ab. Steuerberater. |
-| Verzicht auf Steuerbefreiungen ([§ 9 UStG][ustg9]) | Nicht abgebildet. |
-| Einfuhrumsatzsteuer, unentgeltliche Wertabgaben | Nicht vollständig abgebildet. Vor dem Buchen nachfragen. |
-| Gutschrift im Sinne von [§ 14 Abs. 2 Satz 5 UStG][ustg14] ausstellen (Abrechnung durch den Leistungsempfänger) | Buchfink stellt keine aus. Empfangene Gutschriften lassen sich ablegen. |
-| Organschaft ([§§ 14][kstg14], [17 KStG][kstg17], [§ 2 Abs. 2 Nr. 2 UStG][ustg2]) | Nicht abgebildet. Steuerberater. |
-| Reine Holding ohne eigene Umsätze | Ob sie Unternehmer im Sinne des [§ 2 Abs. 1 UStG][ustg2] ist und Vorsteuer abziehen darf, ist eine Wertungsfrage. Buchfink geht von einem Unternehmer aus. Nachfragen, siehe [beteiligungen/holding-umsatzsteuer.md](../beteiligungen/holding-umsatzsteuer.md). |
-| Kasse, Bargeschäfte mit Kassensystem, Warenlager | Nicht im Funktionsumfang. |
+| Bauleistungen als Leistungsempfänger nach [§ 13b Abs. 2 Nr. 4 UStG][ustg13b] | Buchbar als `reverse_charge`. Ob die GmbH selbst nachhaltig Bauleistungen erbringt (Abs. 5 Satz 2), prüft Buchfink nicht; die Bauabzugsteuer fehlt. Steuerberater. |
+| Einfuhrumsatzsteuer, unentgeltliche Wertabgaben | Nur teilweise abgebildet; vor dem Buchen nachfragen. |
+| Gutschrift im Sinne von [§ 14 Abs. 2 Satz 5 UStG][ustg14] ausstellen | Nicht abgebildet; empfangene Gutschriften lassen sich ablegen. |
+| Reine Holding ohne eigene Umsätze | Buchfink behandelt sie als Unternehmer mit Vorsteuerabzug ([§ 2 Abs. 1 UStG][ustg2]); ob das zutrifft, ist eine Wertungsfrage ([beteiligungen/holding-umsatzsteuer.md](../beteiligungen/holding-umsatzsteuer.md)). |
 | Lohnabrechnung, Reisekostenabrechnung | Extern. Buchfink bucht die Summen aus dem Lohnjournal ([lohn/ablauf.md](../lohn/ablauf.md)). |
-| Bankkonto in Fremdwährung, CAMT-Sammeleinträge mit mehreren Einzelumsätzen | Der Import lehnt sie ab. Mensch informieren. |
-| Konzernabschluss ([§ 290 HGB][hgb290]), IFRS, kapitalmarktorientierte Gesellschaft | Nicht abgebildet. |
+| Bankkonto in Fremdwährung, CAMT-Sammeleinträge mit mehreren Einzelumsätzen | Der Import lehnt sie ab. |
 | Mittelgroße oder große Gesellschaft ([§ 267 HGB][hgb267]): Abschlussprüfung ([§ 316 HGB][hgb316]), latente Steuern, Lagebericht | Steuerberater und Wirtschaftsprüfer. |
 | Eigene Steuerbilanz mit abweichenden Werten | Buchfink führt eine Einheitsbilanz; abweichende Steuerwerte nur bei Sonderabschreibungen nach § 7g EStG. |
-| Ersetzendes Scannen | Kein dokumentiertes Verfahren in Buchfink; Papierbelege aufheben lassen ([aufbewahrung.md, Abschnitt 4](aufbewahrung.md#4-papierbelege-und-scannen)). |
-| Übermittlung an das Finanzamt | Buchfink übermittelt nicht selbst. Es zeigt die Erklärungen formularnah; der Mensch überträgt sie in Mein ELSTER und sendet ([monatsabschluss/ablauf.md](../monatsabschluss/ablauf.md), [steuererklaerungen/abgabe.md](../steuererklaerungen/abgabe.md)). Für die E-Bilanz erzeugt Buchfink eine XBRL-Datei für den Import in einen Online-Dienst wie eBilanz+ oder eBilanz-Online; Weg, Kontennachweise, Anlagenspiegel und Härtefall: [steuererklaerungen/ebilanz.md](../steuererklaerungen/ebilanz.md). |
+| Ersetzendes Scannen | Papierbelege aufheben lassen ([aufbewahrung.md, Abschnitt 4](aufbewahrung.md#4-papierbelege-und-scannen)). |
 | Versand von Rechnungen (E-Mail, Peppol, Portal) | Außerhalb von Buchfink. |
 
 ## 2. Warnzeichen, die du sofort meldest
@@ -41,41 +38,39 @@ Melde diese Funde unabhängig von deinem Auftrag, mit Zahlen und Fundstelle.
 Die Bewertung trifft der Mensch mit Berater.
 
 - **Hälfte des Stammkapitals verloren.** Zeigt eine Bilanz, auch eine
-  unterjährige, dass die Hälfte des Stammkapitals verloren ist (Eigenkapital
-  unter der Hälfte des Stammkapitals), muss die Geschäftsführung einer GmbH die
-  Gesellschafterversammlung unverzüglich einberufen
-  ([§ 49 Abs. 3 GmbHG][gmbhg49]). Bei der UG gilt das bei drohender
+  unterjährige, ein Eigenkapital unter der Hälfte des Stammkapitals, beruft
+  die Geschäftsführung einer GmbH unverzüglich die Gesellschafterversammlung
+  ein ([§ 49 Abs. 3 GmbHG][gmbhg49]); bei der UG gilt das bei drohender
   Zahlungsunfähigkeit ([§ 5a Abs. 4 GmbHG][gmbhg5a]).
 - **Negatives Eigenkapital oder Zahlungsschwierigkeiten.** Bei
-  Zahlungsunfähigkeit oder Überschuldung muss die Geschäftsführung ohne
-  schuldhaftes Zögern Insolvenz beantragen, spätestens drei Wochen nach Eintritt
-  der Zahlungsunfähigkeit und sechs Wochen nach Eintritt der Überschuldung
-  ([§ 15a Abs. 1 InsO][inso15a]). Bilanziell negatives Eigenkapital ist nicht
-  dasselbe wie Überschuldung; diese hängt auch von der Fortführungsprognose ab
+  Zahlungsunfähigkeit oder Überschuldung beantragt die Geschäftsführung ohne
+  schuldhaftes Zögern Insolvenz, spätestens drei Wochen nach Eintritt der
+  Zahlungsunfähigkeit, sechs Wochen nach Eintritt der Überschuldung
+  ([§ 15a Abs. 1 InsO][inso15a]). Negatives Eigenkapital ist noch keine
+  Überschuldung; diese hängt auch von der Fortführungsprognose ab
   ([§ 19 Abs. 2 InsO][inso19]). Rate zu sofortiger rechtlicher Beratung.
 - **Fehler in einer übermittelten Erklärung**, der zu einer zu niedrigen
-  Steuer geführt haben kann. Anzeige- und Berichtigungspflicht:
+  Steuer geführt haben kann:
   [monatsabschluss/berichtigung.md, Abschnitt 2](../monatsabschluss/berichtigung.md#2-pflicht-und-recht-zur-berichtigung).
 - **Vorgänge, die nach Steuerverkürzung aussehen** (private Ausgaben als
-  Betriebsausgabe, fehlende Erlöse, unrichtige Belege). Buche sie nicht und
-  sprich den Menschen an. Ob eine Berichtigung oder eine Selbstanzeige
-  ([§ 371 AO][ao371]) in Frage kommt, klärt er mit einem Steuerberater.
-- **Übertragung von mehr als 50 % der Anteile innerhalb von fünf Jahren.**
-  Nicht genutzte Verluste können wegfallen
+  Betriebsausgabe, fehlende Erlöse, unrichtige Belege): Buche sie nicht und
+  sprich den Menschen an. Berichtigung oder Selbstanzeige
+  ([§ 371 AO][ao371]) klärt er mit einem Steuerberater.
+- **Mehr als 50 % der Anteile innerhalb von fünf Jahren übertragen.** Nicht
+  genutzte Verluste können wegfallen
   ([steuererklaerungen/kst.md, Abschnitt 8](../steuererklaerungen/kst.md#8-verlustabzug)).
-  Hinweis an den Menschen.
 
 ## 3. Wann du einen Steuerberater empfiehlst
 
 - Eine Betriebsprüfung ist angekündigt.
-- Umwandlung, Verschmelzung, Kapitalerhöhung oder -herabsetzung, Verkauf oder
-  Kauf von Anteilen.
+- Umwandlung, Verschmelzung, Kapitalerhöhung oder -herabsetzung, Kauf oder
+  Verkauf von Anteilen.
 - Auslandssachverhalte über Reverse Charge und innergemeinschaftlichen Erwerb
   hinaus, etwa eine Betriebsstätte oder Leistungen zwischen nahestehenden
   Unternehmen im Ausland ([§ 1 AStG][astg1]).
 - Einspruch gegen einen Steuerbescheid.
-- Eine Wertungsfrage mit großem Betrag oder mit Wirkung über mehrere Jahre.
-- Der Mensch ist unsicher und will eine verbindliche Auskunft.
+- Eine Wertungsfrage mit großem Betrag oder Wirkung über mehrere Jahre.
+- Der Mensch will eine verbindliche Auskunft.
 
 ## 4. Wie du eine Grenze ansprichst
 

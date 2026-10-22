@@ -1,7 +1,7 @@
 # Abstimmung der Lohnkonten
 
-Rechtsstand: 17. Oktober 2026. Konten nach SKR04-Bezeichnung; maßgeblich sind
-die Konten, die `lohnjournal_buchen` bebucht.
+Rechtsstand: 17. Oktober 2026. Maßgeblich sind die Konten, die
+`lohnjournal_buchen` bebucht.
 
 ## Inhalt
 
@@ -23,31 +23,26 @@ Prüfe nach dem Buchen und nach den Zahlungen mit `auswertung`
 | 3730 Verbindlichkeiten aus Lohn- und Kirchensteuer | Betrag der noch nicht fälligen Lohnsteuer-Anmeldung, sonst null |
 | 3740 Verbindlichkeiten im Rahmen der sozialen Sicherheit | null oder ein erklärter Restbeitrag für den Folgemonat |
 | 1340 Forderungen gegen Personal aus Lohn- und Gehaltsabrechnung | offene Vorschüsse |
-| 3759, 3790 | null, falls die Antwort sie nutzt |
+| 3790 Lohn- und Gehaltsverrechnungskonto | null, falls die Lohnbuchung es nutzt |
 
-Zeitversatz ist normal:
-
-- Die Lohnsteuer wird erst nach Ablauf des Anmeldungszeitraums angemeldet und
-  gezahlt
-  ([grundlagen/pflichten.md#lohnsteuer-anmeldung](../grundlagen/pflichten.md#lohnsteuer-anmeldung)).
-  Am Monatsende steht sie deshalb noch auf 3730.
-- Sozialversicherungsbeiträge sind noch im Beschäftigungsmonat fällig
-  ([ablauf.md](ablauf.md#4-fristen)). Die Zahlung geht oft vor der
-  Lohnbuchung ab; 3740 steht dann bis zur Buchung im Soll.
+Zeitversatz ist normal: Die Lohnsteuer wird nach Ablauf des
+Anmeldungszeitraums gezahlt
+([grundlagen/pflichten.md#lohnsteuer-anmeldung](../grundlagen/pflichten.md#lohnsteuer-anmeldung))
+und steht am Monatsende noch auf 3730. Sozialversicherungsbeiträge sind im
+Beschäftigungsmonat fällig ([ablauf.md](ablauf.md#3-fristen)); geht die
+Zahlung vor der Lohnbuchung ab, steht 3740 bis dahin im Soll.
 
 ## 2. Abgleich mit Anmeldung und Beitragsnachweis
 
-- **Lohnsteuer-Anmeldung:** Summe aus Lohnsteuer, pauschaler Lohnsteuer (außer
+- **Lohnsteuer-Anmeldung:** Lohnsteuer, pauschale Lohnsteuer (außer
   Minijob), Solidaritätszuschlag und Kirchensteuer des Anmeldungszeitraums
-  gleich Haben auf 3730 für diesen Zeitraum. Lege die Anmeldung als Beleg ab.
-  Den Anmeldungszeitraum nennt
-  [grundlagen/pflichten.md#lohnsteuer-anmeldung](../grundlagen/pflichten.md#lohnsteuer-anmeldung).
-- **Beitragsnachweise:** Summe aller Nachweise der Krankenkassen und der
-  Minijob-Zentrale gleich Haben auf 3740 für den Monat. Frist des Nachweises:
-  [ablauf.md](ablauf.md#4-fristen). Fehlt er, kann die Einzugsstelle schätzen
-  ([§ 28f Abs. 3 SGB IV][sgb4_28f]).
+  ergeben das Haben auf 3730 für diesen Zeitraum. Lege die Anmeldung als Beleg
+  ab.
+- **Beitragsnachweise:** Die Nachweise der Krankenkassen und der
+  Minijob-Zentrale ergeben das Haben auf 3740 für den Monat. Fehlt ein
+  Nachweis, kann die Einzugsstelle schätzen ([§ 28f Abs. 3 SGB IV][sgb4_28f]).
 - **Bank:** Jede Zahlung an Finanzamt, Krankenkasse und Minijob-Zentrale ist
-  einem Monat zugeordnet. Prüfe offene Bankumsätze mit `bankumsaetze`.
+  einem Monat zugeordnet; offene Bankumsätze zeigt `bankumsaetze`.
 
 ## 3. Differenzen und ihre Ursachen
 
@@ -60,20 +55,20 @@ Zeitversatz ist normal:
 | 3740 Rest im Haben | Restbeitrag fällig im Folgemonat, Lastschrift fehlt | Fälligkeit prüfen, Mensch informieren |
 | Säumniszuschlag im Kontoauszug | Zahlung zu spät ([§ 240 AO][ao240]) | Buchung nach [bank/steuerzahlungen.md](../bank/steuerzahlungen.md#4-säumniszuschläge-zinsen-verspätungszuschläge); Ursache mit dem Menschen klären |
 
-Korrigierst du eine Lohnbuchung, gilt [ablauf.md](ablauf.md#7-stolperfallen).
+Korrigierst du eine Lohnbuchung, gilt
+[ablauf.md, Abschnitt 2](ablauf.md#2-prüfungen-vor-der-buchung).
 
 ## 4. Jahresende
 
 1. Lohnjournal Dezember gebucht, alle Zahlungen bis Jahresende zugeordnet.
-2. Jahressumme der Lohnjournale gleich Jahressumme der Aufwandskonten, die
-   die Lohnbuchungen bebucht haben (`auswertung`, `art: susa`). Weicht
-   sie ab, finde den Monat.
-3. 3730 zum 31.12. gleich der Lohnsteuer-Anmeldung Dezember (bzw. des
-   letzten Quartals oder des Jahres), fällig am 10. Januar.
+2. Jahressumme der Lohnjournale gleich Jahressumme der bebuchten
+   Aufwandskonten (`auswertung`, `art: susa`); sonst finde den Monat.
+3. 3730 zum 31.12. gleich der letzten Lohnsteuer-Anmeldung des Jahres,
+   fällig am 10. Januar.
 4. 3740 zum 31.12. gleich dem erklärten Restbeitrag.
-5. Personalrückstellungen (Urlaub, Überstunden, Berufsgenossenschaft) regelt
-   [jahresabschluss/rueckstellungen.md](../jahresabschluss/rueckstellungen.md),
-   Abgrenzungen
+5. Personalrückstellungen (Urlaub, Überstunden, Berufsgenossenschaft):
+   [jahresabschluss/rueckstellungen.md](../jahresabschluss/rueckstellungen.md);
+   Abgrenzungen:
    [jahresabschluss/abgrenzung.md](../jahresabschluss/abgrenzung.md).
 
 ## 5. Haftung und Aufbewahrung
@@ -82,17 +77,17 @@ Korrigierst du eine Lohnbuchung, gilt [ablauf.md](ablauf.md#7-stolperfallen).
   abzuführen hat ([§ 42d Abs. 1 Nr. 1 EStG][estg42d]); der Geschäftsführer bei
   vorsätzlicher oder grob fahrlässiger Pflichtverletzung
   ([§ 34 Abs. 1][ao34], [§ 69 AO][ao69]).
-- Wer als Arbeitgeber Arbeitnehmerbeiträge zur Sozialversicherung der
-  Einzugsstelle vorenthält, macht sich strafbar ([§ 266a Abs. 1 StGB][stgb266a]).
-- Das Lohnjournal ist Buchungsbeleg; Fristen für Buchungsbelege:
-  [grundlagen/aufbewahrung.md](../grundlagen/aufbewahrung.md). Lohnkonten: bis zum Ablauf des sechsten Kalenderjahres
-  nach der letzten Lohnzahlung ([§ 41 Abs. 1 Satz 9 EStG][estg41]).
-  Entgeltunterlagen und Beitragsabrechnungen: bis zum Ablauf des
-  Kalenderjahres nach der letzten Prüfung der Rentenversicherung
-  ([§ 28f Abs. 1 Satz 1, 4 SGB IV][sgb4_28f]).
-- Bei einer Außenprüfung umfasst der Datenzugriff auch die Lohnbuchhaltung
-  ([GoBD Rz. 159][gobd]). Die Daten liegen beim Lohnbüro; der Mensch sorgt dafür,
-  dass sie verfügbar sind.
+- Vorenthaltene Arbeitnehmerbeiträge zur Sozialversicherung sind strafbar
+  ([§ 266a Abs. 1 StGB][stgb266a]).
+- Aufbewahrung: Lohnjournal als Buchungsbeleg nach
+  [grundlagen/aufbewahrung.md](../grundlagen/aufbewahrung.md); Lohnkonten bis
+  zum Ablauf des sechsten Kalenderjahres nach der letzten Lohnzahlung
+  ([§ 41 Abs. 1 Satz 9 EStG][estg41]); Entgeltunterlagen und
+  Beitragsabrechnungen bis zum Ablauf des Kalenderjahres nach der letzten
+  Prüfung der Rentenversicherung ([§ 28f Abs. 1 Satz 1, 4 SGB IV][sgb4_28f]).
+- Der Datenzugriff einer Außenprüfung umfasst die Lohnbuchhaltung
+  ([GoBD Rz. 159][gobd]); der Mensch sorgt dafür, dass das Lohnbüro die Daten
+  bereitstellt.
 
 [estg41]: https://www.gesetze-im-internet.de/estg/__41.html
 [estg42d]: https://www.gesetze-im-internet.de/estg/__42d.html

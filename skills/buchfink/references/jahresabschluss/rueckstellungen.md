@@ -1,11 +1,8 @@
 # Rückstellungen
 
-Rechtsstand: 17. Oktober 2026. Wortlaut von §§ 249, 253, 277, 285, 288 HGB,
-§ 5 Abs. 4a und § 6 Abs. 1 Nr. 3a EStG und der Rückstellungsabzinsungsverordnung
-(RückAbzinsV) am 17.10.2026 gelesen.
+Rechtsstand: 17. Oktober 2026.
 
-Steuerrückstellungen bucht Schritt 10 des [Ablaufs](ablauf.md#3-ablauf) nach
-[steuern-im-abschluss.md](steuern-im-abschluss.md).
+Steuerrückstellungen: [steuern-im-abschluss.md](steuern-im-abschluss.md).
 
 ## Inhalt
 
@@ -19,142 +16,108 @@ Steuerrückstellungen bucht Schritt 10 des [Ablaufs](ablauf.md#3-ablauf) nach
 
 ## 1. Wann eine Rückstellung zu bilden ist
 
-Pflicht ([§ 249 Abs. 1 HGB][hgb249]):
+Pflicht ([§ 249 Abs. 1 HGB][hgb249]) für ungewisse Verbindlichkeiten, drohende
+Verluste aus schwebenden Geschäften, im Geschäftsjahr unterlassene
+Instandhaltung, die im Folgejahr innerhalb von drei Monaten nachgeholt wird,
+und Gewährleistungen ohne rechtliche Verpflichtung. Für andere Zwecke sind
+Rückstellungen verboten; aufgelöst wird nur, soweit der Grund entfallen ist
+([§ 249 Abs. 2 HGB][hgb249]).
 
-- ungewisse Verbindlichkeiten;
-- drohende Verluste aus schwebenden Geschäften;
-- im Geschäftsjahr unterlassene Instandhaltung, die im folgenden Geschäftsjahr
-  innerhalb von drei Monaten nachgeholt wird;
-- Gewährleistungen ohne rechtliche Verpflichtung.
+Ungewisse Verbindlichkeit, wenn alle vier Prüffragen mit Ja beantwortet sind:
 
-Für andere Zwecke sind Rückstellungen verboten. Aufgelöst wird nur, soweit der
-Grund entfallen ist ([§ 249 Abs. 2 HGB][hgb249]).
-
-Prüffragen für eine ungewisse Verbindlichkeit; alle müssen mit Ja beantwortet
-sein:
-
-1. Besteht eine Pflicht gegenüber einem Dritten, aus Vertrag oder Gesetz?
-2. Hat sie ihre Ursache im abgelaufenen Jahr?
-3. Ist ernsthaft damit zu rechnen, dass die GmbH in Anspruch genommen wird?
-4. Ist Höhe oder Zeitpunkt ungewiss? Steht beides fest, ist es eine
+1. Pflicht gegenüber einem Dritten aus Vertrag oder Gesetz?
+2. Ursache im abgelaufenen Jahr?
+3. Inanspruchnahme ernsthaft zu erwarten?
+4. Höhe oder Zeitpunkt ungewiss? Steht beides fest, ist es eine
    Verbindlichkeit ([abgrenzung.md](abgrenzung.md#5-ausstehende-rechnungen-und-erträge)).
 
-Wertungsfrage: jede der vier Antworten. Leg Tatsachen und Belege vor; der Mensch
+Jede Antwort ist Wertungsfrage: Leg Tatsachen und Belege vor, der Mensch
 entscheidet.
 
 ## 2. Typische Fälle und Konten
 
-Konten aus dem SKR04-Katalog von Buchfink:
-
 | Fall | Rückstellung | Aufwand | Hinweis |
 |---|---|---|---|
-| Kosten des Jahresabschlusses, der Offenlegung und der Steuererklärungen für das abgelaufene Jahr | 3095 | 6827 | gesetzliche Pflicht ([§ 242][hgb242], [§ 325 HGB][hgb325]); Wertungsfrage, ob interne Kosten zählen |
-| Aufbewahrung der Unterlagen des Jahres | 3096 | nach Kostenart | Wertungsfrage: Berechnung der künftigen Kosten mit dem Menschen |
-| Nicht genommener Urlaub, Überstunden, Boni | 3079 Urlaub, 3074 Personal | 6076 Urlaub, sonst Personalaufwand | Daten vom Lohnbüro ([lohn/ablauf.md](../lohn/ablauf.md)) |
-| Rechnung erwartet, Höhe unsicher | 3070 | Aufwandskonto der Leistung | netto, ohne Vorsteuer |
-| Gewährleistung, Nacharbeit | 3090 | 6790 | Erfahrungswerte vergangener Jahre |
-| Prozess, Schadensersatz, Vertragsstrafe | 3070 | 6825 Rechts- und Beratungskosten, sonst 6300 | Anwaltsschreiben als Beleg |
-| Drohender Verlust aus einem Festpreisauftrag | 3092 | 6300 | steuerlich verboten (Abschnitt 4) |
-| Unterlassene Instandhaltung, Nachholung bis Ende März | 3075 | Instandhaltung | nur bei Nachholung in drei Monaten |
+| Abschluss, Offenlegung, Steuererklärungen des Jahres | 3095 | 6827 | [§ 242][hgb242], [§ 325 HGB][hgb325]; ob interne Kosten zählen, ist Wertungsfrage |
+| Aufbewahrung der Unterlagen des Jahres | 3096 | nach Kostenart | Kosten mit dem Menschen rechnen |
+| Urlaub, Überstunden, Boni | 3079 Urlaub, 3074 Personal | 6076 Urlaub, sonst Personalaufwand | Daten vom [Lohnbüro](../lohn/ablauf.md) |
+| Rechnung erwartet, Höhe unsicher | 3070 | Konto der Leistung | netto |
+| Gewährleistung, Nacharbeit | 3090 | 6790 | Erfahrungswerte |
+| Prozess, Schadensersatz, Vertragsstrafe | 3070 | 6825, sonst 6300 | Anwaltsschreiben |
+| Drohverlust aus Festpreisauftrag | 3092 | 6300 | steuerlich verboten |
+| Unterlassene Instandhaltung | 3075 | Instandhaltung | Nachholung bis Ende März |
 
-Pensionsrückstellungen bildet Buchfink nicht ohne Gutachten. Bei einer
 Pensionszusage: [Steuerberater](../grundlagen/grenzen.md#3-wann-du-einen-steuerberater-empfiehlst).
 
 ## 3. Höhe
 
-- Anzusetzen ist der nach vernünftiger kaufmännischer Beurteilung notwendige
-  Erfüllungsbetrag ([§ 253 Abs. 1 Satz 2 HGB][hgb253]). Handelsrechtlich zählen
-  Preise und Kosten im Zeitpunkt der Erfüllung.
-- Steuerlich gilt höchstens ([§ 6 Abs. 1 Nr. 3a EStG][estg6]):
-  - gleichartige Verpflichtungen nach Erfahrung der Vergangenheit (Buchst. a);
-  - Sachleistungen mit Einzelkosten und angemessenen Gemeinkosten (Buchst. b);
-  - künftige Vorteile mindern (Buchst. c);
-  - Wertverhältnisse am Stichtag, ohne künftige Preis- und Kostensteigerungen
-    (Buchst. f).
-- Weichen beide Werte ab, bucht Buchfink den handelsrechtlichen. Den
-  steuerlichen trägst du in die
+- Handelsrecht: der nach vernünftiger kaufmännischer Beurteilung notwendige
+  Erfüllungsbetrag, mit Preisen und Kosten im Zeitpunkt der Erfüllung
+  ([§ 253 Abs. 1 Satz 2 HGB][hgb253]).
+- Steuerlich höchstens ([§ 6 Abs. 1 Nr. 3a EStG][estg6]): gleichartige
+  Verpflichtungen nach Erfahrung (Buchst. a), Sachleistungen mit Einzel- und
+  angemessenen Gemeinkosten (Buchst. b), gemindert um künftige Vorteile
+  (Buchst. c), nach den Wertverhältnissen am Stichtag ohne Preis- und
+  Kostensteigerungen (Buchst. f).
+- Buchfink bucht den handelsrechtlichen Wert; einen abweichenden steuerlichen
+  trägst du in die
   [Liste Abschlussposten](abschlussbuchungen.md#4-liste-abschlussposten) ein.
-- Rechenweg und Quellen (Angebot, Vorjahreswert, Stundenliste) gehören in den
-  Eigenbeleg.
+  Rechenweg und Quellen gehören in den Eigenbeleg.
 
 ## 4. Abzinsung
 
-Handelsrecht ([§ 253 Abs. 2 Satz 1, 4 HGB][hgb253], [§ 1, § 7 RückAbzinsV][rueckabzinsv]):
-
-- Restlaufzeit über einem Jahr: abzinsen mit dem durchschnittlichen
-  Marktzinssatz der vergangenen sieben Geschäftsjahre für diese Restlaufzeit
-  (Pensionen: zehn Jahre).
-- Die Deutsche Bundesbank ermittelt die Sätze und veröffentlicht sie monatlich
-  für Restlaufzeiten von einem bis 50 Jahren:
-  [Abzinsungszinssätze, 7-Jahresdurchschnitt][bbk7]. Nimm den Satz des Monats,
-  in dem der Stichtag liegt, für die auf ganze Jahre bezogene Restlaufzeit.
-  Werte ändern sich jeden Monat; lies den Satz an der Quelle.
-- Restlaufzeit bis ein Jahr: keine Abzinsung.
-
-Steuerrecht ([§ 6 Abs. 1 Nr. 3a Buchst. e EStG][estg6]):
-
-- 5,5 % für Verpflichtungen mit einer Laufzeit am Stichtag von mindestens zwölf
-  Monaten. Ausgenommen sind verzinsliche Verpflichtungen und solche aus
-  Anzahlungen oder Vorausleistungen. Bei Sachleistungen zählt die Zeit bis zum
-  Beginn der Erfüllung. Stand: Oktober 2026.
-
-Drohverlustrückstellungen sind steuerlich nicht zulässig
-([§ 5 Abs. 4a Satz 1 EStG][estg5]). Rückstellungen für künftige
-Anschaffungs- oder Herstellungskosten ebenfalls nicht (§ 5 Abs. 4b Satz 1
-EStG). Beides gehört in die Liste Abschlussposten.
+- Handelsrecht: Restlaufzeit über einem Jahr mit dem Durchschnittszins der
+  vergangenen sieben Geschäftsjahre abzinsen
+  ([§ 253 Abs. 2 Satz 1, 4 HGB][hgb253], [§ 1, § 7 RückAbzinsV][rueckabzinsv]);
+  Satz der [Bundesbank][bbk7] für den Stichtagsmonat und die Restlaufzeit in
+  ganzen Jahren.
+- Steuerrecht: 5,5 % bei einer Laufzeit am Stichtag von mindestens zwölf
+  Monaten; ausgenommen verzinsliche Verpflichtungen und solche aus Anzahlungen
+  oder Vorausleistungen; bei Sachleistungen zählt die Zeit bis zum Beginn der
+  Erfüllung ([§ 6 Abs. 1 Nr. 3a Buchst. e EStG][estg6]).
+- Steuerlich unzulässig, daher in die Liste Abschlussposten:
+  Drohverlustrückstellungen ([§ 5 Abs. 4a Satz 1 EStG][estg5]) und
+  Rückstellungen für künftige Anschaffungs- oder Herstellungskosten (§ 5
+  Abs. 4b Satz 1 EStG).
 
 ## 5. Buchen
 
-Rückfrage, dann `abschlussbuchung` mit `art: rueckstellung` und
-`rueckstellung` (`art`, `text`, `betrag` als Erfüllungsbetrag, `erwartet_am`,
-`grund`, `aufwandskonto`). Rechne erst mit `nur_vorschau: true`; die Vorschau
-zeigt Zeilen, Betrag und Befunde, etwa zur Abzinsung.
+Rückfrage, dann `abschlussbuchung` mit `art: rueckstellung`: Soll
+Aufwandskonto, Haben Rückstellungskonto. `grund`: Rechtsgrund, Prüffragen,
+Berechnung, Restlaufzeit, Zinssatz mit Monat der Veröffentlichung.
 
-- Bildung: Soll Aufwandskonto, Haben Rückstellungskonto, Betrag nach
-  Abzinsung.
-- Aufzinsung in den Folgejahren: Soll 7362 Zinsaufwendungen aus der Abzinsung
-  von Rückstellungen, Haben Rückstellungskonto. Ein Ertrag aus der Abzinsung
-  geht auf 7142. Beides steht gesondert unter den Zinsen
-  ([§ 277 Abs. 5 Satz 1 HGB][hgb277]).
-- `grund`: Rechtsgrund, Prüffragen, Berechnung, Restlaufzeit, Zinssatz mit
-  Monat der Veröffentlichung.
-
-Die Abzinsungssätze der Bundesbank einzulesen bildet Buchfink noch nicht ab,
-weder als Werkzeug noch in der App. Bei einer Restlaufzeit über einem Jahr
-bucht `abschlussbuchung` deshalb den Erfüllungsbetrag ohne Abzinsung, und die
-Vorschau meldet, dass der Satz fehlt. Sag das dem Menschen und trag den
-abgezinsten Betrag mit Satz und Quelle in die
-[Liste Abschlussposten](abschlussbuchungen.md#4-liste-abschlussposten) ein.
-Zuführung und Aufzinsung einer Rückstellung aus Buchfinks Kartei bildet
-Buchfink ebenfalls noch nicht ab.
-
-`abschlussbuchung` führt die Rückstellung in Buchfinks Kartei
-(Rückstellungsspiegel). Eine Rückstellung, die nur mit `buchung_erfassen`
-gebucht ist, fehlt dort; trag sie in die Liste Abschlussposten ein.
+- Buchfink zinst nur mit hinterlegten Sätzen der Bundesbank ab; fehlen sie,
+  bucht es den Erfüllungsbetrag. Sag das dem Menschen und trag den
+  abgezinsten Betrag mit Satz und Quelle in die
+  [Liste Abschlussposten](abschlussbuchungen.md#4-liste-abschlussposten) ein.
+- Aufzinsung in Folgejahren: Soll 7362, Haben Rückstellungskonto; Ertrag aus
+  Abzinsung auf 7142; beides gesondert unter den Zinsen
+  ([§ 277 Abs. 5 Satz 1 HGB][hgb277]). Für Rückstellungen aus Buchfinks Kartei
+  bildet Buchfink Zuführung und Aufzinsung nicht ab.
+- Eine nur mit `buchung_erfassen` gebuchte Rückstellung fehlt im
+  Rückstellungsspiegel; trag sie in die Liste Abschlussposten ein.
 
 ## 6. Verbrauch und Auflösung
 
-- Kommt im Folgejahr die Rechnung, buchst du sie als Eingangsbeleg
-  ([belege/ablauf.md](../belege/ablauf.md)). Führt Buchfink die Rückstellung in
-  seiner Kartei, verbraucht `rueckstellung_id` sie dabei.
-  Sonst löst du die Rückstellung mit `buchung_erfassen` gegen dasselbe
-  Aufwandskonto auf, bis zur Höhe der Rechnung.
-- Bleibt ein Rest, weil weniger anfiel: Soll Rückstellung, Haben 4930 Erträge
-  aus der Auflösung von Rückstellungen. Fiel mehr an, ist der Rest Aufwand des
-  neuen Jahres.
-- Die Auflösung einer Rückstellung aus Buchfinks Kartei, auch die eines Rests,
-  bildet Buchfink noch nicht ab, weder als Werkzeug noch in der App. Leg dem
-  Menschen Rückstellung, Betrag und den entfallenen Grund vor, wie in
-  [grundlagen/arbeitsweise.md, Abschnitt 9](../grundlagen/arbeitsweise.md#9-vorgänge-ohne-werkzeug).
-- Aufgelöst wird nur, wenn der Grund entfallen ist
-  ([§ 249 Abs. 2 Satz 2 HGB][hgb249]). Prüfe zu jedem Stichtag jede bestehende
-  Rückstellung (`auswertung`, `art: kontoblatt`, Konten 3070 bis 3096).
+- Die Rechnung im Folgejahr buchst du als
+  [Eingangsbeleg](../belege/ablauf.md); `beleg_buchen_mit_rueckfrage` mit
+  `rueckstellung_id` verbraucht eine Rückstellung aus Buchfinks Kartei. Sonst
+  löst du sie mit `buchung_erfassen` gegen dasselbe Aufwandskonto auf, bis zur
+  Höhe der Rechnung.
+- Fiel weniger an: Rest Soll Rückstellung, Haben 4930; fiel mehr an, ist der
+  Rest Aufwand des neuen Jahres.
+- Die Auflösung einer Rückstellung aus Buchfinks Kartei, auch eines Rests,
+  bildet Buchfink nicht ab; leg dem Menschen Rückstellung, Betrag und
+  entfallenen Grund vor
+  ([grundlagen/arbeitsweise.md, Abschnitt 9](../grundlagen/arbeitsweise.md#9-vorgänge-ohne-werkzeug)).
+- Aufgelöst wird nur bei entfallenem Grund ([§ 249 Abs. 2 Satz 2 HGB][hgb249]);
+  prüfe jede bestehende Rückstellung zu jedem Stichtag (Konten 3070 bis
+  3096).
 
 ## 7. Anhang
 
-Sonstige Rückstellungen von nicht unerheblichem Umfang sind zu erläutern
-([§ 285 Nr. 12 HGB][hgb285]); kleine Gesellschaften sind davon befreit
-([§ 288 Abs. 1 Nr. 1 HGB][hgb288]).
+Kleine Gesellschaften erläutern sonstige Rückstellungen nicht
+([§ 285 Nr. 12][hgb285], [§ 288 Abs. 1 Nr. 1 HGB][hgb288]).
 
 [hgb242]: https://www.gesetze-im-internet.de/hgb/__242.html
 [hgb249]: https://www.gesetze-im-internet.de/hgb/__249.html

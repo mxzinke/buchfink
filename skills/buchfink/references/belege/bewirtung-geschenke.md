@@ -1,8 +1,7 @@
 # Bewirtung, Geschenke, Repräsentation
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von EStG, KStG und UStG am 17.10.2026
-gelesen. Werte mit Stand Oktober 2026; sie ändern sich durch Gesetz, prüfe sie
-für frühere Wirtschaftsjahre am Gesetzestext der Zeit.
+gelesen. Werte mit Stand Oktober 2026.
 
 ## Inhalt
 
@@ -14,128 +13,83 @@ für frühere Wirtschaftsjahre am Gesetzestext der Zeit.
 
 ## 1. Bewirtung
 
-**Regel.** Aufwendungen für die Bewirtung von Personen aus geschäftlichem
-Anlass mindern den Gewinn nur zu 70 % der angemessenen Aufwendungen, deren Höhe
-und betriebliche Veranlassung nachgewiesen sind
-([§ 4 Abs. 5 Satz 1 Nr. 2 Satz 1 EStG][estg4]).
+- Bewirtung aus geschäftlichem Anlass ist zu 70 % der angemessenen,
+  nachgewiesenen Aufwendungen abziehbar
+  ([§ 4 Abs. 5 Satz 1 Nr. 2 Satz 1 EStG][estg4]). Nachweis: Ort, Tag,
+  Teilnehmer, Anlass und Höhe; in der Gaststätte Anlass und Teilnehmer mit
+  der Rechnung (Sätze 2, 3). Ohne einzelne, getrennte Aufzeichnung entfällt
+  der Abzug ganz ([§ 4 Abs. 7 EStG][estg4]).
+- Vorsteuer voll, soweit angemessen und nachgewiesen
+  ([§ 15 Abs. 1a Satz 2 UStG][ustg15]); ein Verstoß nur gegen § 4 Abs. 7 EStG
+  schadet nicht ([UStAE 15.6 Abs. 2 Satz 5][ustae156]). Fehlen Teilnehmer oder
+  Anlass, ist sie strittig ([FG Berlin-Brandenburg, 5 K 5119/18][fgbb]: ja;
+  [FG Münster, 5 K 1722/18 U][fgms]: nein): Wertungsfrage.
+- Rechnung über 250 € brutto an die GmbH ([§ 14 Abs. 4 Satz 1 Nr. 1 UStG][ustg14]),
+  bis 250 € Kleinbetragsrechnung ([§ 33 UStDV][ustdv33]). Speisen 7 %,
+  Getränke 19 % ([§ 12 Abs. 2 Nr. 15 UStG][ustg12]).
+- BMF-Schreiben vom 19.11.2025 (IV C 6 - S 2145/00026/005/033) für
+  Bewirtungen ab 2025, Wortlaut nicht abrufbar; nach [Deloitte][deloittebew]
+  und [PwC][pwcbew]: maschinelle Rechnung (bei Kassensystem mit TSE), über
+  250 € Name des Bewirtenden, Leistung genauer als „Speisen und Getränke“,
+  Trinkgeld mit Nachweis; digitaler Eigenbeleg zulässig, wenn mit der Rechnung
+  verknüpft. Nutze das nur für Rückfragen; der Beleg bleibt buchbar.
 
-**Nachweis.** Schriftlich: Ort, Tag, Teilnehmer, Anlass, Höhe der Aufwendungen.
-In einer Gaststätte genügen Anlass und Teilnehmer; die Rechnung ist beizufügen
-(Sätze 2 und 3). Die Aufwendungen sind einzeln und getrennt aufzuzeichnen, sonst
-entfällt der Abzug ganz ([§ 4 Abs. 7 EStG][estg4]).
+Ablauf:
 
-**Vorsteuer.** Voll abziehbar, soweit die Kosten angemessen und nachgewiesen
-sind ([§ 15 Abs. 1a Satz 2 UStG][ustg15]). Unangemessene Bewirtungskosten
-sperren die Vorsteuer (Satz 1). Ein Verstoß nur gegen die einzelne und
-getrennte Aufzeichnung nach § 4 Abs. 7 EStG schließt die Vorsteuer für
-angemessene Bewirtungskosten nicht aus ([UStAE 15.6 Abs. 2 Satz 5][ustae156]).
-Fehlen Teilnehmer oder Anlass, ist die Vorsteuer strittig: FG
-Berlin-Brandenburg vom 09.04.2019, 5 K 5119/18, ließ sie zu ([Haufe][fgbb]);
-FG Münster vom 27.04.2020, 5 K 1722/18 U, verlangt den Nachweis in der Form
-des § 4 Abs. 5 Satz 1 Nr. 2 Satz 2, 3 EStG ([NWB][fgms]). Wertungsfrage: leg sie
-dem Menschen vor.
+1. Rechnung und Bewirtungsbeleg zusammen ablegen, den Bewirtungsbeleg als
+   `anhang`.
+2. Frag nach Teilnehmern (Namen, bei Gästen Firma) und Anlass.
+3. `beleg_buchen_mit_rueckfrage` mit Gruppe `bewirtung` und Angabe
+   `bewirtung`. Fehlen Teilnehmer oder Anlass, buchst du nicht; Teilnehmer
+   erfindest du nie.
 
-**Rechnung.** Über 250 € brutto muss die Rechnung die GmbH als
-Leistungsempfänger nennen ([§ 14 Abs. 4 Satz 1 Nr. 1 UStG][ustg14]); bis 250 €
-genügt eine Kleinbetragsrechnung ([§ 33 UStDV][ustdv33]). In der Gaststätte
-gelten für Speisen 7 % und für Getränke 19 %
-([§ 12 Abs. 2 Nr. 15 UStG][ustg12], Wortlaut am 17.10.2026); übernimm beide
-Sätze aus der Rechnung.
-
-**Verwaltungsanweisung.** Für Bewirtungen ab 2025 gibt es das BMF-Schreiben vom
-19.11.2025 (IV C 6 - S 2145/00026/005/033) mit Anforderungen an die Rechnung
-der Gaststätte. Sein Wortlaut war am 17.10.2026 nicht abrufbar. Nach
-Sekundärquellen ([Deloitte Tax-News][deloittebew], [PwC-Blog][pwcbew]) ersetzt
-es das Schreiben vom 30.06.2021, das für Bewirtungen bis 31.12.2024 gilt, und
-verlangt: maschinell erstellte, elektronisch aufgezeichnete Rechnung, bei
-einem Kassensystem mit TSE; über 250 € den Namen des Bewirtenden; eine
-genauere Leistungsbeschreibung als „Speisen und Getränke“; Trinkgeld mit
-Nachweis. Ein digitaler Eigenbeleg ist zulässig, wenn er mit der Rechnung
-verknüpft ist. Nutze diese Punkte als Prüfliste für Rückfragen; einen Beleg
-lehnst du deswegen nicht ab, solange der Wortlaut ungeprüft ist.
-
-**Ablauf in Buchfink.**
-
-1. Rechnung und Bewirtungsbeleg (falls schon erstellt) zusammen ablegen; den
-   Bewirtungsbeleg als `anhang`.
-2. Den Menschen nach Teilnehmern (Namen, bei Gästen Firma) und Anlass fragen.
-   Ort und Tag stehen meist auf der Rechnung.
-3. `beleg_buchen_mit_rueckfrage` mit Gruppe `bewirtung` und
-   `bewirtung {ort, tag, teilnehmer, anlass}`. Buchfink teilt 70 % auf 6640 und
-   30 % auf 6644 und zieht die volle Vorsteuer.
-4. Fehlen Teilnehmer oder Anlass, buchst du nicht; Teilnehmer erfindest du
-   nie. Ohne Aufzeichnung ist auch der abziehbare Teil verloren.
-
-**Wertungsfragen.** Geschäftlicher Anlass oder private Feier; Bewirtung oder
-Werbung (etwa Verkostung von eigenen Produkten); Feier nur mit Mitarbeitern
-(betrifft auch den Lohn, [lohn/ablauf.md](../lohn/ablauf.md)). Leg Optionen
-und Folgen vor.
+Wertungsfragen: geschäftlicher Anlass oder private Feier; Bewirtung oder
+Werbung (Verkostung eigener Produkte); Feier nur mit Mitarbeitern (auch Lohn,
+[lohn/ablauf.md](../lohn/ablauf.md)).
 
 ## 2. Geschenke
 
-**Regel.** Geschenke an Personen, die nicht Arbeitnehmer der GmbH sind, mindern
-den Gewinn nicht. Ausnahme: Die Anschaffungs- oder Herstellungskosten der dem
-Empfänger im Wirtschaftsjahr zugewendeten Gegenstände übersteigen insgesamt
-50 € nicht ([§ 4 Abs. 5 Satz 1 Nr. 1 EStG][estg4]). Stand: Oktober 2026.
+- Geschenke an Nicht-Arbeitnehmer sind nicht abziehbar, außer die Kosten je
+  Empfänger und Wirtschaftsjahr übersteigen 50 € nicht
+  ([§ 4 Abs. 5 Satz 1 Nr. 1 EStG][estg4]; Stand: Oktober 2026). Freigrenze:
+  Darüber ist der ganze Betrag nicht abziehbar. Kosten ohne abziehbare
+  Vorsteuer ([§ 9b Abs. 1 EStG][estg9b]).
+- Über der Grenze entfällt die Vorsteuer ([§ 15 Abs. 1a Satz 1 UStG][ustg15]);
+  eine schon gezogene wird berichtigt ([§ 17 Abs. 2 Nr. 5 UStG][ustg17]).
+- Empfänger und Aufwendungen einzeln aufzeichnen ([§ 4 Abs. 7 EStG][estg4]).
 
-- Es ist eine **Freigrenze**: Wird sie überschritten, ist der ganze Betrag an
-  diesen Empfänger nicht abziehbar.
-- Anschaffungskosten ohne abziehbare Vorsteuer
-  ([§ 9b Abs. 1 EStG][estg9b]).
-- Über der Grenze entfällt auch die Vorsteuer
-  ([§ 15 Abs. 1a Satz 1 UStG][ustg15]). Wurde sie schon gezogen, wird sie
-  berichtigt ([§ 17 Abs. 2 Nr. 5 UStG][ustg17]).
-- Empfänger und Aufwendungen sind einzeln aufzuzeichnen
-  ([§ 4 Abs. 7 EStG][estg4]).
-- Die Grenze von 50 € gilt für Wirtschaftsjahre, die nach dem 31.12.2023
-  beginnen ([§ 52 Abs. 6 Satz 10 EStG][estg52]); davor 35 €. Buchfink führt sie
-  datiert.
+Ablauf:
 
-**Ablauf in Buchfink.**
+1. Je Empfänger eine Angabe `geschenk`; ein Präsentkorb für drei Personen sind
+   drei Empfänger.
+2. Frag, ob der Empfänger in diesem Wirtschaftsjahr schon etwas bekam, auch
+   über andere Belege. Buchfink summiert je Empfänger und Jahr und wendet die
+   Freigrenze an.
+3. Nur betrieblich nutzbare Gegenstände: Gruppe `geschenke_betrieblich`,
+   außerhalb der Freigrenze. Die Einordnung ist eine Wertungsfrage nach einer
+   hier nicht am Wortlaut geprüften Verwaltungsregel; im Zweifel
+   Steuerberater.
 
-1. Je Empfänger eine Angabe `geschenk {kontakt_id oder name, anlass}`. Ein
-   Präsentkorb für drei Personen sind drei Empfänger.
-2. Frag den Menschen, ob der Empfänger in diesem Wirtschaftsjahr schon etwas
-   bekommen hat, auch über andere Belege.
-3. Buchfink summiert je Empfänger und Wirtschaftsjahr und bucht über der
-   Freigrenze auf 6620 ohne Vorsteuer, sonst auf 6610.
-4. Gegenstände, die der Empfänger nur betrieblich nutzen kann, führt Buchfink in
-   der Gruppe `geschenke_betrieblich` (6625) außerhalb der Freigrenze. Ob ein
-   Gegenstand so einzuordnen ist, ist eine Wertungsfrage; die Grundlage ist eine
-   Verwaltungsregel, die hier nicht am Wortlaut geprüft ist. Frag im Zweifel
-   einen Steuerberater.
-
-**Wertungsfragen.** Geschenk oder Gegenleistung (etwa Provision in Sachform);
-Kunde oder Arbeitnehmer; Streuartikel mit Werbeaufdruck.
+Wertungsfragen: Geschenk oder Gegenleistung (Provision in Sachform); Kunde
+oder Arbeitnehmer; Streuartikel mit Werbeaufdruck.
 
 ## 3. Pauschalierung nach § 37b EStG
 
-- Die GmbH kann die Einkommensteuer der Empfänger für Sachzuwendungen und
-  Geschenke pauschal mit 30 % übernehmen; Bemessungsgrundlage sind die
-  Aufwendungen einschließlich Umsatzsteuer
-  ([§ 37b Abs. 1 Satz 1 und 2 EStG][estg37b]; für Körperschaften
-  [§ 31 Abs. 1 Satz 3 KStG][kstg31]). Stand: Oktober 2026.
-- Die Wahl gilt einheitlich für alle Zuwendungen eines Wirtschaftsjahres
-  (Satz 1). Ausgeschlossen über 10.000 € je Empfänger und Jahr oder je
-  Zuwendung (Satz 3). Geldgeschenke fallen nicht darunter.
-- Die Pauschsteuer gilt als Lohnsteuer und wird in der
-  Lohnsteuer-Anmeldung angemeldet ([§ 37b Abs. 4 EStG][estg37b]); der Empfänger
-  ist zu unterrichten (Abs. 3 Satz 3).
-- Buchfink bildet § 37b in der Gruppe `geschenke` nicht ab. Das SKR04 hat dafür
-  eigene Konten (6611, 6621, 6612, 6622). Will der Mensch pauschalieren, leg
-  den Fall vor und verweise auf Lohnbüro oder Steuerberater.
+Die Pauschsteuer von 30 % auf Sachzuwendungen, einheitlich je Jahr und als
+Lohnsteuer anzumelden ([§ 37b Abs. 1, 4 EStG][estg37b];
+[§ 31 Abs. 1 Satz 3 KStG][kstg31]; Stand: Oktober 2026), bildet Buchfink nicht
+ab (SKR04 6611, 6612, 6621, 6622). Will der Mensch pauschalieren, leg den Fall
+vor und verweise auf Lohnbüro oder Steuerberater.
 
 ## 4. Repräsentation
 
-Aufwendungen für Gästehäuser außerhalb des Betriebsorts sowie für Jagd,
-Fischerei, Segel- oder Motorjachten und die zugehörigen Bewirtungen sind nicht
-abziehbar ([§ 4 Abs. 5 Satz 1 Nr. 3 und 4 EStG][estg4]), die Vorsteuer darauf
-ebenfalls nicht ([§ 15 Abs. 1a Satz 1 UStG][ustg15]). Gruppe
-`repraesentation` (6645). Unangemessene Aufwendungen, die die Lebensführung
-berühren, sind ebenfalls nicht abziehbar ([§ 4 Abs. 5 Satz 1 Nr. 7 EStG][estg4]);
-das ist eine Wertungsfrage.
-
-Wie Buchfink die nicht abziehbare Vorsteuer darauf bucht, steht in
+Gästehäuser außerhalb des Betriebsorts, Jagd, Fischerei, Jachten und die
+zugehörigen Bewirtungen sind nicht abziehbar
+([§ 4 Abs. 5 Satz 1 Nr. 3, 4 EStG][estg4]), die Vorsteuer ebenfalls nicht
+([§ 15 Abs. 1a Satz 1 UStG][ustg15]): Gruppe `repraesentation`. Ebenso
+unangemessene Aufwendungen, die die Lebensführung berühren
+([§ 4 Abs. 5 Satz 1 Nr. 7 EStG][estg4]; Wertungsfrage). Buchung der nicht
+abziehbaren Vorsteuer:
 [vorsteuer.md](vorsteuer.md#5-nicht-abziehbare-vorsteuer-in-der-buchung).
 
 ## 5. Buchungsgruppen und Konten
@@ -147,13 +101,12 @@ Wie Buchfink die nicht abziehbare Vorsteuer darauf bucht, steht in
 | `geschenke_betrieblich` | 6625 | – | Empfänger |
 | `repraesentation` | 6645 | ganz, Vorsteuer im Aufwand | – |
 
-Diese Konten bebuchst du nur über ihre Gruppe, nie mit `buchung_erfassen`:
-Nur die Gruppe hält Empfänger, Aufzeichnung und Freigrenze fest.
+Diese Konten bebuchst du nur über ihre Gruppe; nur sie hält Empfänger,
+Aufzeichnung und Freigrenze fest.
 
 [estg4]: https://www.gesetze-im-internet.de/estg/__4.html
 [estg9b]: https://www.gesetze-im-internet.de/estg/__9b.html
 [estg37b]: https://www.gesetze-im-internet.de/estg/__37b.html
-[estg52]: https://www.gesetze-im-internet.de/estg/__52.html
 [kstg31]: https://www.gesetze-im-internet.de/kstg_1977/__31.html
 [ustg12]: https://www.gesetze-im-internet.de/ustg_1980/__12.html
 [ustg14]: https://www.gesetze-im-internet.de/ustg_1980/__14.html

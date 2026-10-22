@@ -1,14 +1,14 @@
 # Umsatzsteuer der Holding
 
 Rechtsstand: 17. Oktober 2026. Wortlaut des UStG am 17.10.2026 auf
-gesetze-im-internet.de gelesen. Umsatzsteuer-Anwendungserlass (UStAE)
-Abschnitte 2.3 und 15.22 in der Fassung „VZ 2010–2026 (aktuell)“ über die
-NWB-Datenbank gelesen; der amtliche UStAE war nicht abrufbar.
+gesetze-im-internet.de gelesen. UStAE Abschnitte 2.3 und 15.22 in der Fassung
+„VZ 2010–2026 (aktuell)“ über die NWB-Datenbank gelesen; der amtliche UStAE
+war nicht abrufbar.
 
-Ob eine GmbH, die Beteiligungen hält, Unternehmerin ist und Vorsteuer abziehen
-darf, ist eine **Wertungsfrage**. Du nennst Grundlage, Optionen und Folgen;
-der Mensch entscheidet, bei Zweifeln mit Steuerberater. Buchfink geht von
-einer Unternehmerin aus, die Umsatzsteuer anmeldet
+Ob eine GmbH mit Beteiligungen Unternehmerin ist und Vorsteuer abziehen darf,
+ist eine **Wertungsfrage**: Leg die Formen aus Abschnitt 2 mit ihrer Folge
+vor; der Mensch entscheidet, bei Zweifeln mit Steuerberater. Buchfink geht von
+einer Unternehmerin aus
 ([grundlagen/grenzen.md](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet)).
 
 ## Inhalt
@@ -20,129 +20,95 @@ einer Unternehmerin aus, die Umsatzsteuer anmeldet
 5. Darlehen an Tochtergesellschaften
 6. Verkauf einer Beteiligung
 7. Organschaft
-8. Rückfrage an den Menschen
 
 ## 1. Unternehmerin oder nicht
 
-- Unternehmer ist, wer eine gewerbliche oder berufliche Tätigkeit
-  selbstständig ausübt; gewerblich ist jede nachhaltige Tätigkeit zur
-  Erzielung von Einnahmen ([§ 2 Abs. 1 UStG][ustg2]).
-- Das bloße Erwerben, Halten und Veräußern von Beteiligungen ist keine
-  unternehmerische Tätigkeit; Dividenden sind kein Entgelt für eine Leistung
+- Erwerben, Halten und Veräußern von Beteiligungen ist keine
+  unternehmerische Tätigkeit; Dividenden sind kein Entgelt
   ([UStAE 2.3 Abs. 2 Satz 1 bis 3][ustae23]).
-- Unternehmerisch wird es, wenn die Beteiligung gewerbsmäßig gehandelt wird,
-  der eigenen unternehmerischen Tätigkeit dient (etwa Einkaufs- oder
-  Absatzkonditionen sichert) oder die Holding durch entgeltliche Leistungen in
-  die Verwaltung der Tochter eingreift, etwa mit administrativen,
-  finanziellen, kaufmännischen oder technischen Dienstleistungen
+- Unternehmerisch wird es bei gewerbsmäßigem Handel, wenn die Beteiligung der
+  eigenen unternehmerischen Tätigkeit dient, oder wenn die Holding durch
+  entgeltliche Leistungen (administrativ, finanziell, kaufmännisch, technisch)
+  in die Verwaltung der Tochter eingreift
   ([UStAE 2.3 Abs. 3 Satz 5 ff.][ustae23]).
-- Eine Beteiligung gehört nur dann zum Unternehmen, wenn ein erkennbarer und
-  objektiver wirtschaftlicher Zusammenhang mit der unternehmerischen
-  Tätigkeit besteht ([UStAE 2.3 Abs. 4 Satz 1 bis 3][ustae23]).
+- Zum Unternehmen gehört eine Beteiligung nur bei erkennbarem, objektivem
+  wirtschaftlichem Zusammenhang mit der unternehmerischen Tätigkeit
+  ([UStAE 2.3 Abs. 4 Satz 1 bis 3][ustae23]).
 
 ## 2. Drei Formen der Holding
 
 | Form | Merkmal | Folge | Fundstelle |
 |---|---|---|---|
-| Finanzholding | hält und verwaltet nur Beteiligungen, erbringt keine Leistungen gegen Entgelt | keine Unternehmerin, kein Vorsteuerabzug | [UStAE 2.3 Abs. 3 Satz 2][ustae23] |
-| Führungs- oder Funktionsholding | greift im Sinne einheitlicher Leitung aktiv in das Tagesgeschäft der Töchter ein, durch entgeltliche Leistungen | Unternehmerin; Beteiligungen gehören zum Unternehmen | [UStAE 2.3 Abs. 3 Satz 3, 5 ff.][ustae23] |
+| Finanzholding | hält und verwaltet nur Beteiligungen, keine Leistungen gegen Entgelt | keine Unternehmerin, kein Vorsteuerabzug | [UStAE 2.3 Abs. 3 Satz 2][ustae23] |
+| Führungs- oder Funktionsholding | greift durch entgeltliche Leistungen aktiv in das Tagesgeschäft der Töchter ein | Unternehmerin; Beteiligungen gehören zum Unternehmen | [UStAE 2.3 Abs. 3 Satz 3, 5 ff.][ustae23] |
 | gemischte Holding | leitet einige Töchter, hält andere nur | unternehmerischer und nichtunternehmerischer Bereich | [UStAE 2.3 Abs. 3 Satz 4][ustae23] |
 
-Eine GmbH mit eigenem operativem Geschäft (Dienstleistung, Software,
-Agentur), die nebenbei Beteiligungen hält, ist Unternehmerin. Die
-Beteiligungen gehören grundsätzlich nicht zum Unternehmen, außer es besteht
-der Zusammenhang aus Abschnitt 1 ([UStAE 2.3 Abs. 2 Satz 5, 6][ustae23]).
-
-Eine reine Finanzholding ist keine Unternehmerin. Buchfink bildet diesen Fall
-nicht ab: Seine Voranmeldung setzt eine Unternehmerin voraus. Leg das als
-Grenze vor; ob überhaupt Voranmeldungen abzugeben sind, klärt der Mensch mit
-dem Steuerberater.
+- Eine GmbH mit eigenem operativem Geschäft ist Unternehmerin; ihre
+  Beteiligungen gehören nur bei dem Zusammenhang aus Abschnitt 1 zum
+  Unternehmen ([UStAE 2.3 Abs. 2 Satz 5, 6][ustae23]).
+- Reine Finanzholding: Grenze, Buchfinks Voranmeldung setzt eine
+  Unternehmerin voraus. Ob überhaupt Voranmeldungen abzugeben sind, klärt der
+  Mensch mit dem Steuerberater.
 
 ## 3. Vorsteuer aus Kosten der Beteiligung
 
 - Gehört die Beteiligung zum Unternehmen, ist die Vorsteuer aus Kosten in
-  ihrem Zusammenhang unter den allgemeinen Voraussetzungen abziehbar
-  ([UStAE 15.22 Abs. 1 Satz 1, 2][ustae1522]; [§ 15 Abs. 1 UStG][ustg15]).
-- Hält die Holding daneben Beteiligungen im nichtunternehmerischen Bereich,
-  wird die Vorsteuer aus gemeinsamen Kosten aufgeteilt: Verwaltung,
-  allgemeine Beratung, Steuerberatung ([UStAE 15.22 Abs. 1 Satz 3, 4][ustae1522]).
-  Maßstab ist, in welche Ausgangsumsätze die Kosten eingehen.
-- Hängt eine Eingangsleistung direkt mit den Umsätzen einer Tochter zusammen
-  und nicht mit eigenen Umsätzen der Holding, ist die Vorsteuer bei der
-  Holding nicht abziehbar ([UStAE 15.22 Abs. 1 Satz 6][ustae1522] mit BFH vom
-  15.02.2023, XI R 24/22).
-- In Buchfink buchst du solche Rechnungen mit `beleg_buchen_mit_rueckfrage`
-  und dem abziehbaren Anteil je Position nach
-  [belege/vorsteuer.md, Abschnitt 4](../belege/vorsteuer.md#4-aufteilung).
-  Der Grund nennt Maßstab und Rechnung, z. B.
-  „Beratung Kauf Beteiligung X; 40 % den eigenen Umsätzen zuzuordnen“.
-- Wertungsfrage: Maßstab der Aufteilung (ebenda).
+  ihrem Zusammenhang abziehbar ([UStAE 15.22 Abs. 1 Satz 1, 2][ustae1522];
+  [§ 15 Abs. 1 UStG][ustg15]).
+- Mit Beteiligungen im nichtunternehmerischen Bereich wird die Vorsteuer aus
+  gemeinsamen Kosten (Verwaltung, allgemeine Beratung, Steuerberatung) nach
+  den Ausgangsumsätzen aufgeteilt, in die sie eingehen
+  ([UStAE 15.22 Abs. 1 Satz 3, 4][ustae1522]).
+- Hängt eine Eingangsleistung direkt mit Umsätzen einer Tochter zusammen,
+  ist die Vorsteuer bei der Holding nicht abziehbar
+  ([UStAE 15.22 Abs. 1 Satz 6][ustae1522] mit BFH vom 15.02.2023, XI R 24/22).
+- Buche mit `beleg_buchen_mit_rueckfrage` und dem abziehbaren Anteil je
+  Position ([belege/vorsteuer.md, Abschnitt 4](../belege/vorsteuer.md#4-aufteilung));
+  der Grund nennt Maßstab und Rechnung, z. B. „Beratung Kauf Beteiligung X;
+  40 % den eigenen Umsätzen zuzuordnen“. Der Maßstab ist eine Wertungsfrage.
 
 ## 4. Leistungen an Tochtergesellschaften
 
-- Leitungs-, Buchhaltungs-, IT- oder Personalleistungen gegen Entgelt machen
-  die Holding zur Unternehmerin (Abschnitt 1). Sie stellt dafür Rechnungen mit
-  Umsatzsteuer aus ([rechnungen/ablauf.md](../rechnungen/ablauf.md)).
-- Halte die Leistungen in einem schriftlichen Vertrag fest und lege ihn als
-  Beleg ab. Die Eingriffe in die Verwaltung der Tochter müssen durch
-  unternehmerische Leistungen erfolgen ([UStAE 2.3 Abs. 3][ustae23]); die
-  Führungsrolle allein reicht nicht.
-- Wertungsfrage: Ist das Entgelt angemessen? Ein zu hohes oder zu niedriges
-  Entgelt zwischen verbundenen Gesellschaften kann ertragsteuerlich eine
-  verdeckte Gewinnausschüttung oder Einlage sein
+- Entgeltliche Leitungs-, Buchhaltungs-, IT- oder Personalleistungen machen
+  die Holding zur Unternehmerin; sie stellt Rechnungen mit Umsatzsteuer aus
+  ([rechnungen/ablauf.md](../rechnungen/ablauf.md)).
+- Die Führungsrolle allein reicht nicht ([UStAE 2.3 Abs. 3][ustae23]);
+  lege den schriftlichen Leistungsvertrag als Beleg ab.
+- Wertungsfrage: Angemessenheit des Entgelts; ein unangemessenes Entgelt
+  kann eine verdeckte Gewinnausschüttung oder Einlage sein
   ([gesellschafter/vga-einlage.md](../gesellschafter/vga-einlage.md)).
 
 ## 5. Darlehen an Tochtergesellschaften
 
-- Die Gewährung von Krediten ist steuerfrei; Zinsen sind steuerfreie Umsätze
-  ohne Steuerausweis
+- Zinsen sind steuerfreie Umsätze ohne Steuerausweis
   ([bank/darlehen.md, Abschnitt 3](../bank/darlehen.md#3-zinsen-umsatzsteuer-gewerbesteuer-stichtag)).
-  Vorsteuer aus Kosten, die diesen Umsätzen dienen, ist ausgeschlossen
-  ([§ 15 Abs. 2 Satz 1 Nr. 1 UStG][ustg15]); bei gemeinsamen Kosten wird
+  Vorsteuer aus Kosten dieser Umsätze ist ausgeschlossen
+  ([§ 15 Abs. 2 Satz 1 Nr. 1 UStG][ustg15]), gemeinsame Kosten werden
   aufgeteilt ([§ 15 Abs. 4 UStG][ustg15]).
-- Auf die Steuerfreiheit kann verzichtet werden, wenn der Kredit an einen
-  anderen Unternehmer für dessen Unternehmen geht
-  ([§ 9 Abs. 1 UStG][ustg9]). Buchfink bildet den Verzicht nicht ab
+- Den Verzicht auf die Steuerfreiheit bei Krediten an Unternehmer
+  ([§ 9 Abs. 1 UStG][ustg9]) bildet Buchfink nicht ab
   ([grundlagen/grenzen.md](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet)).
-- Wie die Zinsen in der Voranmeldung erscheinen, prüfst du mit `erklaerung`
+- Prüfe die Zinsen in der Voranmeldung mit `erklaerung`
   ([monatsabschluss/ustva.md](../monatsabschluss/ustva.md)).
 
 ## 6. Verkauf einer Beteiligung
 
-- Das bloße Veräußern ist keine unternehmerische Tätigkeit, außer die
-  Beteiligung gehört zum Unternehmen ([UStAE 15.22 Abs. 2 Satz 1, 2][ustae1522]).
+- Das Veräußern ist nur unternehmerisch, wenn die Beteiligung zum Unternehmen
+  gehört ([UStAE 15.22 Abs. 2 Satz 1, 2][ustae1522]).
 - Vorsteuer aus Kosten des Verkaufs (Makler, Berater, Notar) ist nicht
-  abziehbar: bei einer Beteiligung außerhalb des Unternehmens wegen des nicht
-  steuerbaren Verkaufs, bei einer Beteiligung im Unternehmen wegen der
-  Steuerfreiheit nach [§ 4 Nr. 8 Buchst. e, f UStG][ustg4]
-  ([UStAE 15.22 Abs. 2 Satz 3 bis 5][ustae1522]). Ausnahme: Verkauf an einen
-  Unternehmer für dessen Unternehmen mit Verzicht auf die Steuerfreiheit
-  ([§ 9 Abs. 1 UStG][ustg9]); Buchfink bildet den Verzicht nicht ab,
+  abziehbar: außerhalb des Unternehmens mangels steuerbaren Umsatzes, im
+  Unternehmen wegen [§ 4 Nr. 8 Buchst. e, f UStG][ustg4]
+  ([UStAE 15.22 Abs. 2 Satz 3 bis 5][ustae1522]). Den Verzicht auf die
+  Steuerfreiheit ([§ 9 Abs. 1 UStG][ustg9]) bildet Buchfink nicht ab;
   Steuerberater.
 
 ## 7. Organschaft
 
-Ist eine Tochter finanziell, wirtschaftlich und organisatorisch in das
-Unternehmen der Holding eingegliedert, ist sie umsatzsteuerlich nicht
-selbstständig ([§ 2 Abs. 2 Nr. 2 Satz 1 UStG][ustg2]). Die im Inland
-gelegenen Unternehmensteile werden als ein Unternehmen behandelt; Leistungen
-zwischen ihnen sind Innenleistungen (Satz 2, 3). Buchfink bildet die
-Organschaft nicht ab. Bei einer
-Führungsholding mit Mehrheitsbeteiligung: Weise auf die Möglichkeit hin und
-empfiehl den Steuerberater.
-
-## 8. Rückfrage an den Menschen
-
-```
-[Nr.] Wertungsfrage: Vorsteuer der Holding
-Sachverhalt: <Was die GmbH tut: eigenes Geschäft, Leistungen an Töchter, nur Halten>.
-Grundlage: § 2 Abs. 1, § 15 UStG; UStAE 2.3 Abs. 2–4, 15.22.
-Optionen: (a) Beteiligung im Unternehmen, Vorsteuer voll
-          (b) gemischte Holding, Vorsteuer anteilig nach <Maßstab>
-          (c) Beteiligung außerhalb des Unternehmens, keine Vorsteuer
-Folge: <Betrag der Vorsteuer je Option, Wirkung auf die Voranmeldung>.
-Empfehlung: Steuerberater bei <Grund>.
-```
+Eine Tochter, die finanziell, wirtschaftlich und organisatorisch in die
+Holding eingegliedert ist, ist umsatzsteuerlich nicht selbstständig; Leistungen
+zwischen beiden sind Innenleistungen ([§ 2 Abs. 2 Nr. 2 UStG][ustg2]).
+Buchfink bildet die Organschaft nicht ab. Bei einer Führungsholding mit
+Mehrheitsbeteiligung: weise darauf hin und empfiehl den Steuerberater.
 
 [ustae23]: https://datenbank.nwb.de/Dokument/378652_2___3/
 [ustae1522]: https://datenbank.nwb.de/Dokument/378652_15___22/

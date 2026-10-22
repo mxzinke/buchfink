@@ -1,12 +1,8 @@
 # E-Bilanz
 
-Rechtsstand: 17. Oktober 2026. Wortlaut von § 5b EStG, § 52 Abs. 11 EStG,
-§ 60 EStDV und § 150 AO am 17.10.2026 gelesen. BMF-Schreiben zu den
-Taxonomien 6.8 und 6.9 über einen Spiegel gelesen; das Schreiben zur
-Taxonomie 6.10 nur über Sekundärquellen. Seiten von eBilanz+ und
-eBilanz-Online am 17.10.2026 gelesen.
+Rechtsstand: 17. Oktober 2026.
 
-Frist, Nachweis und Folgen einer Versäumnis stehen in
+Frist, Nachweis und Folgen:
 [grundlagen/pflichten.md#ebilanz](../grundlagen/pflichten.md#ebilanz).
 
 ## Inhalt
@@ -20,32 +16,16 @@ Frist, Nachweis und Folgen einer Versäumnis stehen in
 
 ## 1. Pflicht und Inhalt
 
-Wer den Gewinn durch Bilanz ermittelt, übermittelt den Inhalt der Bilanz und
-der GuV nach amtlichem Datensatz elektronisch
-([§ 5b Abs. 1 Satz 1 EStG][estg5b]). Was dazugehört, hängt vom Beginn des
-Wirtschaftsjahres ab ([§ 52 Abs. 11 EStG][estg52]):
+Bilanz und GuV gehen nach amtlichem Datensatz elektronisch an das Finanzamt
+([§ 5b Abs. 1 Satz 1 EStG][estg5b]), für Wirtschaftsjahre ab 2025 mit
+unverdichteten Kontennachweisen, ab 2028 auch mit Anlagenspiegel,
+Anlagenverzeichnis, Anhang, Lage- und Prüfungsbericht
+([§ 52 Abs. 11 EStG][estg52]).
 
-| Bestandteil | Pflicht für Wirtschaftsjahre, die beginnen |
-|---|---|
-| Bilanz und GuV | nach dem 31.12.2010 |
-| unverdichtete Kontennachweise mit Kontensalden | nach dem 31.12.2024 |
-| Anlagenspiegel und Anlagenverzeichnis, Anhang, Lagebericht, Prüfungsbericht | nach dem 31.12.2027 |
-
-Stand: Oktober 2026. Den Anlagenspiegel verlangt die Taxonomie nach dem
-BMF-Schreiben vom 10.06.2025 schon seit Wirtschaftsjahren ab 2017 als Mussfeld
-([BMF 10.06.2025][bmf69]).
-
-- Ansätze, die steuerlichen Vorschriften nicht entsprechen, werden durch
-  Zusätze oder Anmerkungen angepasst (Überleitungsrechnung); alternativ wird
-  eine Steuerbilanz übermittelt ([§ 5b Abs. 1 Satz 2, 3 EStG][estg5b]).
-- Ein unverdichteter Kontennachweis umfasst mindestens alle Sachkonten mit
-  Saldo am Ende des Wirtschaftsjahres, je werthaltiger Position mit
-  Positionsname, Kontonummer, Kontobezeichnung und Saldo. Personenkonten und
-  Journal werden nicht übermittelt ([BMF 10.06.2025][bmf69]).
-- Für die Taxonomie 6.9 beanstandet die Verwaltung nicht, wenn die
-  Kontennachweise wegen Softwareanpassungen auf anderem Weg eingereicht und die
-  Gründe in der dafür vorgesehenen Position erläutert werden
+- Den Anlagenspiegel verlangt die Taxonomie schon jetzt als Mussfeld
   ([BMF 10.06.2025][bmf69]).
+- Steuerlich abweichende Ansätze: Überleitungsrechnung oder Steuerbilanz
+  ([§ 5b Abs. 1 Satz 2, 3 EStG][estg5b]).
 
 ## 2. Taxonomie und Mindestumfang
 
@@ -55,118 +35,77 @@ BMF-Schreiben vom 10.06.2025 schon seit Wirtschaftsjahren ab 2017 als Mussfeld
 | 2026 | 6.9; 6.10 wird nicht beanstandet | [BMF 10.06.2025][bmf69]; Schreiben vom 08.06.2026 laut Sekundärquelle |
 | 2027 | 6.10 | BMF vom 08.06.2026, IV C 6 - S 2133-b/00067/002/023, laut Sekundärquelle |
 
-Stand: Oktober 2026. Die Taxonomie wechselt jährlich; die gültige Fassung
-veröffentlicht die Verwaltung auf esteuer.de.
-
-Mindestumfang: Als „Mussfeld“ gekennzeichnete Positionen sind zu befüllen. Ab
-Taxonomie 6.9 gilt das nur für die Mussfelder der jeweiligen Rechtsform. Lässt
-sich ein Mussfeld aus der Buchführung nicht füllen, wird es ohne Wert (NIL)
-übermittelt ([BMF 27.05.2024][bmf68]).
+Mussfelder füllt Buchfink mit Wert oder ohne Wert (NIL)
+([BMF 27.05.2024][bmf68]).
 
 ## 3. Was Buchfink liefert
 
-- `ebilanz_exportieren` (`jahr`, `format: xbrl` als Vorgabe) prüft die
-  E-Bilanz und schreibt eine XBRL-Instanz nach der amtlichen Taxonomie des
-  Jahres (Abschnitt 2) mit Kontennachweis in den Exportordner. `taxonomie`
-  wählt eine andere zulässige Fassung (etwa `6.10`),
-  `kleinstkapitalgesellschaft` die GuV nach § 275 Abs. 5 HGB. Diese Datei
-  importiert der Mensch in einen Online-Dienst (Abschnitt 5).
-- `ebilanz_exportieren` mit `format: susa_csv` schreibt die Summen- und
-  Saldenliste mit den Elementnamen der Taxonomie als CSV. Das ist der
-  Rückfallweg, wenn ein Dienst die XBRL-Datei nicht vollständig übernimmt.
-- Vor dem Schreiben prüft `ebilanz_exportieren` die Zuordnung jedes Kontos,
-  die Rechenregeln der Taxonomie, Bilanzsumme und Jahresüberschuss, die
-  Mussfelder der Rechtsform und die Stammdaten. Blockierende `befunde`
-  verhindern den Export.
+`ebilanz_exportieren` schreibt die XBRL-Instanz mit Kontennachweis für den
+Import in einen Online-Dienst (Abschnitt 5); `taxonomie` wählt eine andere
+zulässige Fassung aus Abschnitt 2. Die Summen- und Saldenliste
+(`format: susa_csv`) ist der Rückfallweg, wenn ein Dienst die XBRL-Datei nicht
+vollständig übernimmt.
 
 ## 4. Prüfpunkte
 
-1. Der Abschluss ist aufgestellt. Ändert sich danach eine Buchung, exportiere
-   neu.
-2. Jeder blockierende Befund aus `ebilanz_exportieren` ist geklärt: eine
-   falsche Zuordnung über die Buchung, fehlende Stammdaten (Steuernummer,
-   Anschrift) über den Menschen in der App. Warnungen legst du ihm vor.
-3. Abweichungen der Steuerbilanz aus der Körperschaftsteuer
-   ([kst.md](kst.md#7-abweichungen-der-steuerbilanz)) sind als Wertungsfrage
-   entschieden.
-4. Die Sendung im Online-Dienst (Abschnitt 5) enthält Kontennachweise und
-   Anlagenspiegel. Der Anlagenspiegel ist Mussfeld und zu übermitteln
-   ([BMF vom 10.06.2025][bmf69]). Fehlen die Kontennachweise in der Sendung,
-   gilt für Taxonomie 6.9 eine Nichtbeanstandung: Kontennachweise auf anderem
-   Weg beim Finanzamt einreichen und die Gründe in der Position „Erläuterung,
-   warum eine Übermittlung der Kontennachweise noch nicht möglich ist“
-   darlegen ([BMF vom 10.06.2025][bmf69]).
+1. Der Abschluss ist aufgestellt; nach jeder späteren Buchung neu exportieren.
+2. Jeder blockierende Befund ist geklärt: falsche Zuordnung über die Buchung,
+   fehlende Stammdaten mit `stammdaten_vorschlagen`. Warnungen legst du vor.
+3. Abweichungen der Steuerbilanz
+   ([kst.md](kst.md#7-abweichungen-der-steuerbilanz)) sind entschieden.
+4. Die Sendung enthält Kontennachweise und Anlagenspiegel
+   ([BMF 10.06.2025][bmf69]). Fehlen die Kontennachweise, beanstandet die
+   Verwaltung das bei Taxonomie 6.9 nicht, wenn sie auf anderem Weg eingehen
+   und die dafür vorgesehene Erläuterungsposition die Gründe nennt (ebenda).
 
 Fertig, wenn kein blockierender Befund bleibt, der Mensch die Warnungen kennt
 und die Sendung Punkt 4 erfüllt.
 
 ## 5. Übermittlungsweg
 
-Die Formularliste von Mein ELSTER führt kein Formular für Bilanz oder
-E-Bilanz ([Formularliste][elsterformulare], geprüft am 17.10.2026). Buchfink
-übermittelt nicht selbst. Der Regelweg ist ein Online-Dienst, der die
-XBRL-Datei importiert und mit ELSTER-Anbindung sendet. Beide Dienste lesen
-die Werte in ihren eigenen Editor ein und erzeugen die Instanz beim Senden
-neu; ob Kontennachweis, Stammdaten und Überleitung dabei vollständig
-übernommen werden, dokumentiert keiner von beiden.
+Mein ELSTER hat kein Formular für die E-Bilanz
+([Formularliste][elsterformulare], geprüft am 17.10.2026). Regelweg ist ein
+Online-Dienst, der die XBRL-Datei importiert und über ELSTER sendet. Beide
+Dienste erzeugen die Instanz neu und dokumentieren nicht, ob alles übernommen
+wird; daher der Abgleich in Schritt 3.
 
-| Dienst | Import | Kosten (netto, Stand Oktober 2026) | Hinweise |
+| Dienst | Import | Kosten netto (Oktober 2026) | Hinweise |
 |---|---|---|---|
-| [eBilanz+][ebilanzplus] (ebilanzplus GmbH) | „XBRL-Datei“ in fünf Schritten ([Hilfe][ebilanzplusxbrl]); nicht alle Berichtsteile, etwa der Anlagenspiegel, kommen über den Import. Alternativ Summen- und Saldenliste mit Taxonomie-Layout ([Import][ebilanzplusimport]) | 35 € je Übermittlung, Eröffnungsbilanz und Korrektur kostenlos ([Kosten][ebilanzpluskosten]) | Validierung kostenlos und beliebig oft; Senden mit ELSTER-Zertifikat als Datei oder Personalausweis; Übertragungsprotokoll mit Transferticket |
-| [eBilanz-Online][ebilanzonline] (Bundesanzeiger Verlag) | XBRL-Import zum Weiterbearbeiten ([Hilfe][ebilanzonlinexbrl]); Einzelheiten im Benutzerhandbuch nach der Anmeldung | 39 € je erfolgreicher Übertragung, Staffelpreise ([Preise][ebilanzonlinepreis]) | Vereinbarung zur Auftragsverarbeitung vor der Nutzung; Senden mit Zertifikat als Datei; Übertragungsprotokoll |
+| [eBilanz+][ebilanzplus] | XBRL ohne alle Berichtsteile, etwa Anlagenspiegel ([Hilfe][ebilanzplusxbrl]); Saldenliste ([Import][ebilanzplusimport]) | 35 € je Übermittlung, Eröffnungsbilanz und Korrektur frei ([Kosten][ebilanzpluskosten]) | Zertifikatsdatei oder Personalausweis |
+| [eBilanz-Online][ebilanzonline] | XBRL ([Hilfe][ebilanzonlinexbrl]) | 39 € je Übertragung ([Preise][ebilanzonlinepreis]) | Auftragsverarbeitungsvertrag vorab; Zertifikatsdatei |
 
 Ablauf mit dem Menschen:
 
 1. `ebilanz_exportieren` (`jahr`); Abschnitt 4.
-2. Im Dienst: Unternehmen mit 13-stelliger Steuernummer anlegen, Vorgang für
-   das Wirtschaftsjahr anlegen, die XBRL-Datei importieren.
-3. Nach dem Import gleicht ihr die Werte mit dem Buchfink-Bericht ab: Bilanz
-   und GuV mit `auswertung` (`art: bilanz`, `guv`), den Kontennachweis mit
-   den Salden aus `auswertung` (`art: susa`), die Stammdaten mit `status`.
-   Was fehlt (etwa der Anlagenspiegel aus `anlagen`), ergänzt der Mensch im
-   Dienst.
-4. Der Mensch validiert im Dienst, bis kein Fehler bleibt, und sendet mit dem
+2. Im Dienst Unternehmen mit 13-stelliger Steuernummer und Vorgang für das
+   Wirtschaftsjahr anlegen, XBRL-Datei importieren.
+3. Abgleich: Bilanz und GuV mit `auswertung` (`art: bilanz`, `guv`),
+   Kontennachweis mit `auswertung` (`art: susa`), Stammdaten mit `status`.
+   Fehlendes (etwa Anlagenspiegel aus `anlagen`) ergänzt der Mensch im Dienst.
+4. Der Mensch validiert, bis kein Fehler bleibt, und sendet mit dem
    ELSTER-Zertifikat.
-5. Er lädt das Übertragungsprotokoll mit Transferticket herunter, speichert es
-   in den Eingang und trägt Protokoll und Transferticket in Buchfink ein. Du
-   legst das Protokoll auf seine Anweisung mit `beleg_ablegen` ab.
+5. Er speichert das Protokoll mit Transferticket in den Eingang und trägt beides
+   in Buchfink ein; du legst das Protokoll mit `beleg_ablegen` ab.
 
-Weitere Wege:
+Weitere Wege: Saldenliste (`format: susa_csv`, danach Abgleich wie Schritt 3);
+Übermittlung durch einen Steuerberater; Antrag auf Verzicht bei unbilliger
+Härte ([§ 5b Abs. 2 EStG][estg5b], [§ 150 Abs. 8 AO][ao150]), dann Abschriften
+nach [§ 60 Abs. 1 EStDV][estdv60] und [§ 84 Abs. 3f EStDV][estdv84].
 
-1. **Rückfallweg Summen- und Saldenliste.** Übernimmt der Dienst die
-   XBRL-Datei nicht vollständig, schreibt `ebilanz_exportieren` mit
-   `format: susa_csv` die Salden mit den Elementnamen der Taxonomie; der Dienst
-   liest sie als Saldenliste ein. Prüfe danach wie in Schritt 3.
-2. Ein Steuerberater übermittelt.
-3. Antrag auf Verzicht wegen unbilliger Härte
-   ([§ 5b Abs. 2 EStG][estg5b]). Das Finanzamt muss zustimmen, wenn die
-   elektronische Übermittlung wirtschaftlich oder persönlich unzumutbar ist,
-   insbesondere wenn sie nur mit nicht unerheblichem finanziellem Aufwand
-   möglich wäre oder der Steuerpflichtige sie nach seinen Kenntnissen und
-   Fähigkeiten nicht oder nur eingeschränkt nutzen kann
-   ([§ 150 Abs. 8 AO][ao150]). Dann gehen Bilanz und GuV mit
-   Kontennachweisen und der Anlagenspiegel als Abschrift mit der Erklärung,
-   die Kontennachweise unverdichtet, bei Eröffnung des Betriebs auch die
-   Eröffnungsbilanz ([§ 60 Abs. 1 EStDV][estdv60]); das Anlagenverzeichnis erst für
-   Wirtschaftsjahre, die nach dem 31.12.2027 beginnen
-   ([§ 84 Abs. 3f EStDV][estdv84]).
-
-Wertungsfrage: Welcher Dienst passt? Nenne Kosten, Datenschutz
-(Auftragsverarbeitung, Serverstandort laut den Bedingungen des Dienstes) und
-Aufwand; der Mensch entscheidet. Ob ein Dienst die Taxonomie des
-Wirtschaftsjahres annimmt, zeigt seine Validierung.
+Wertungsfrage: Welcher Dienst? Nenne Kosten, Datenschutz (Auftragsverarbeitung,
+Serverstandort) und Aufwand; der Mensch entscheidet. Ob ein Dienst die
+Taxonomie annimmt, zeigt seine Validierung.
 
 ## 6. Eröffnungsbilanz
 
-Bei Eröffnung des Betriebs gilt die Pflicht auch für die Eröffnungsbilanz
-([§ 5b Abs. 1 Satz 4 EStG][estg5b]). Die Taxonomie eines Jahres gilt für
-Eröffnungsbilanzen, die nach dem jeweiligen Stichtag aufzustellen sind
-([BMF 10.06.2025][bmf69]). Einen eigenen Abgabetermin nennt § 5b nicht;
-`fristen` setzt die Frist der E-Bilanz des ersten Geschäftsjahres an
+Bei Eröffnung des Betriebs auch für die Eröffnungsbilanz
+([§ 5b Abs. 1 Satz 4 EStG][estg5b]), mit der Taxonomie, die zum Stichtag der
+Aufstellung gilt ([BMF 10.06.2025][bmf69]). `fristen` setzt die Frist der
+E-Bilanz des ersten Geschäftsjahres an
 ([ebilanz-eroeffnung](../grundlagen/pflichten.md#ebilanz-eroeffnung)).
-`ebilanz_exportieren` mit `bilanzart: eroeffnungsbilanz` und dem Geschäftsjahr
-der Gründung als `jahr` schreibt die XBRL-Datei auf den Beurkundungstag, ohne
-GuV; Import und Senden wie in Abschnitt 5. Die Zahlen prüft
+`ebilanz_exportieren` mit `bilanzart: eroeffnungsbilanz` und dem
+Gründungsjahr als `jahr` schreibt die Datei auf den Beurkundungstag, ohne GuV;
+weiter wie Abschnitt 5. Zahlen:
 [gruendung/eroeffnungsbilanz.md](../gruendung/eroeffnungsbilanz.md).
 
 [ao150]: https://www.gesetze-im-internet.de/ao_1977/__150.html

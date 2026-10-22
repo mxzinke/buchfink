@@ -1,8 +1,6 @@
 # Steuerliche Erfassung
 
-Rechtsstand: 17. Oktober 2026. Wortlaut von UStG und UStDV am 17.10.2026
-gelesen. ELSTER-Hinweise aus dem Merkblatt für Existenzgründer der
-Finanzverwaltung NRW.
+Rechtsstand: 17. Oktober 2026.
 
 ## Inhalt
 
@@ -13,69 +11,56 @@ Finanzverwaltung NRW.
 
 ## 1. Fragebogen zur steuerlichen Erfassung
 
-- Frist, Formular in Mein ELSTER, Nachweis und Folgen:
-  [pflichten.md#fragebogen-steuerliche-erfassung](../grundlagen/pflichten.md#fragebogen-steuerliche-erfassung).
-  Die Anzeige an die Gemeinde:
+- Frist: ein Monat ab der Beurkundung ([§ 137 Abs. 2 AO][ao137],
+  [§ 138 Abs. 4 AO][ao138]). Formular, Nachweis und Folgen:
+  [pflichten.md#fragebogen-steuerliche-erfassung](../grundlagen/pflichten.md#fragebogen-steuerliche-erfassung);
+  Anzeige an die Gemeinde:
   [gruendungsweg.md, Abschnitt 4](gruendungsweg.md#4-behördenwege-mit-fristen).
-- Ohne ELSTER-Zertifikat kann sich die Gesellschaft nur mit einer E-Mail-Adresse
-  registrieren; damit lassen sich ausschließlich Fragebögen übermitteln. Nach
-  Erteilung der Steuernummer wird das Konto in ein vollwertiges umgewandelt. Die
+- Für den Fragebogen genügt eine ELSTER-Registrierung nur mit E-Mail-Adresse;
+  nach Erteilung der Steuernummer wird das Konto vollwertig. Die
   Registrierung kann bis zu zwei Wochen dauern
   ([Merkblatt NRW][nrwmerkblatt]).
-- Der Fragebogen führt zur Steuernummer. Den Fragebogen füllt und sendet der
-  Mensch; du bereitest die Angaben vor (Abschnitt 4).
+- Den Fragebogen füllt und sendet der Mensch; du bereitest die Angaben vor
+  (Abschnitt 4).
 
 ## 2. Angaben, die Buchfink später braucht
 
-Der Fragebogen legt fest, wie das Finanzamt die GmbH führt. Die Antworten
-müssen zu den Einstellungen in Buchfink passen; diese ändert nur der Mensch in
-der App.
+Die Antworten im Fragebogen müssen zu den Einstellungen in Buchfink passen.
+Steuernummer, Finanzamt, Voranmeldungszeitraum und Besteuerung aus dem
+Bescheid schlägst du mit `stammdaten_vorschlagen` vor; übernehmen kann sie nur
+der Mensch in der App.
 
 | Angabe | Regel | Buchfink |
 |---|---|---|
-| Wirtschaftsjahr | Maßgebend ist der Zeitraum, für den die GmbH regelmäßig Abschlüsse macht, meist im Vertrag festgelegt; Wahl bei der Gründung und spätere Umstellung: [rumpfjahr.md, Abschnitt 1](rumpfjahr.md#1-was-ein-rumpfgeschäftsjahr-ist) | `status.mandant.gj_beginn_monat` |
-| Besteuerung nach vereinbarten oder vereinnahmten Entgelten | Regel sind vereinbarte Entgelte ([§ 16 Abs. 1 Satz 1 UStG][ustg16]); vereinnahmte auf Antrag, unter anderem bei Gesamtumsatz im Vorjahr bis 800.000 € ([§ 20 Satz 1 Nr. 1 UStG][ustg20]) | Buchfink bildet nur vereinbarte Entgelte ab ([grundlagen/grenzen.md](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet)) |
-| Kleinunternehmer | Umsätze sind steuerfrei, wenn der Gesamtumsatz im Vorjahr 25.000 € nicht überschritten hat und im laufenden Jahr 100.000 € nicht überschreitet ([§ 19 Abs. 1 Satz 1 UStG][ustg19]); Verzicht unwiderruflich, bindet mindestens fünf Kalenderjahre ([§ 19 Abs. 3 UStG][ustg19]) | Buchfink setzt voraus, dass die GmbH Umsatzsteuer ausweist ([grundlagen/grenzen.md](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet)) |
+| Wirtschaftsjahr | Zeitraum der regelmäßigen Abschlüsse, meist im Vertrag ([rumpfjahr.md, Abschnitt 1](rumpfjahr.md#1-was-ein-rumpfgeschäftsjahr-ist)) | `status.mandant.gj_beginn_monat` |
+| Vereinbarte oder vereinnahmte Entgelte | Regel: vereinbarte ([§ 16 Abs. 1 Satz 1 UStG][ustg16]); vereinnahmte auf Antrag, unter anderem bei Vorjahresumsatz bis 800.000 € ([§ 20 Satz 1 Nr. 1 UStG][ustg20]) | nur vereinbarte Entgelte ([grundlagen/grenzen.md](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet)) |
+| Kleinunternehmer | steuerfrei bei Gesamtumsatz im Vorjahr bis 25.000 € und im laufenden Jahr bis 100.000 € ([§ 19 Abs. 1 Satz 1 UStG][ustg19]); Verzicht bindet mindestens fünf Kalenderjahre ([§ 19 Abs. 3 UStG][ustg19]) | setzt Umsatzsteuerausweis voraus ([grundlagen/grenzen.md](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet)) |
 | Voranmeldungszeitraum | Abschnitt 3 | `status.mandant.ust_zeitraum` |
-| Dauerfristverlängerung | auf Antrag; Wirkung, Antrag und Sondervorauszahlung: [monatsabschluss/dauerfristverlaengerung.md](../monatsabschluss/dauerfristverlaengerung.md) | `status.mandant.dauerfrist` |
-| USt-IdNr. | erteilt das Bundeszentralamt für Steuern auf Antrag; der Antrag nennt Name, Anschrift und Steuernummer ([§ 27a Abs. 1 Satz 1, 4, 5 UStG][ustg27a]) | Pflichtangabe bei EU-Geschäften ([rechnungen/ausland.md](../rechnungen/ausland.md#2-unternehmen-im-übrigen-eu-gebiet)) |
+| Dauerfristverlängerung | auf Antrag ([monatsabschluss/dauerfristverlaengerung.md](../monatsabschluss/dauerfristverlaengerung.md)) | `status.mandant.dauerfrist` |
+| USt-IdNr. | Antrag beim Bundeszentralamt für Steuern mit Name, Anschrift und Steuernummer ([§ 27a Abs. 1 Satz 1, 4, 5 UStG][ustg27a]) | Pflichtangabe bei EU-Geschäften ([rechnungen/ausland.md](../rechnungen/ausland.md#2-unternehmen-im-übrigen-eu-gebiet)) |
 | Gewerbesteuer-Hebesatz | bestimmt die Gemeinde ([§ 16 Abs. 1 GewStG][gewstg16]) | Einstellungen |
 
-Stand: Oktober 2026.
-
-Wertungsfrage, Kleinunternehmer: Liegt der erwartete Umsatz einer neuen GmbH
-unter den Grenzen des § 19 Abs. 1 UStG, kann sie ohne Verzicht unter die
-Regelung fallen. Wie die Grenzen im Gründungsjahr anzuwenden sind, klärt der
-Mensch mit Finanzamt oder Steuerberater. Für die Arbeit mit Buchfink braucht es
-den Verzicht nach § 19 Abs. 3 UStG; nenne dem Menschen die Bindung von fünf
-Jahren.
-
-Ist-Versteuerung: Beantragt der Mensch die Besteuerung nach vereinnahmten
-Entgelten, sag ihm, dass Buchfink sie nicht abbildet.
+Wertungsfrage, Kleinunternehmer: Unter den Grenzen braucht Buchfink den
+Verzicht; nenne die Bindung. Wie die Grenzen im Gründungsjahr gelten, klärt
+der Mensch mit Finanzamt oder Steuerberater.
 
 ## 3. Voranmeldungszeitraum
 
-Die Regeln des [§ 18 Abs. 2 UStG][ustg18] stehen in
+Regeln des [§ 18 Abs. 2 UStG][ustg18]:
 [monatsabschluss/ustva.md, Abschnitt 2](../monatsabschluss/ustva.md#2-voranmeldungszeitraum).
-Folgen für eine Gründung, Stand Oktober 2026:
+Für eine Gründung:
 
-- Gründung 2026: Ausschlaggebend ist die voraussichtliche Steuer 2026. Über
-  9.000 € monatlich, sonst vierteljährlich. Eine Befreiung von der Abgabe gibt
-  es im Gründungsjahr und im Folgejahr nicht ([UStAE 18.7 Abs. 5 Satz 3][usth187]).
-  Frag den Menschen nach der Schätzung, die er im Fragebogen angibt; Buchfink
-  kennt sie nicht.
-- Gründung ab 2027: monatlich im Gründungsjahr und im Folgejahr.
-- Gründung 2026, Jahr 2027: Satz 6 gilt nur für die Besteuerungszeiträume 2021
-  bis 2026. Für 2027 als „folgendes Kalenderjahr“ gilt nach dem Wortlaut
-  wieder Satz 4, also monatlich; so schlägt es Buchfink vor. Maßgebend ist,
-  was das Finanzamt mitteilt; der Mensch stellt es in der App ein.
-- Buchfink schlägt den Zeitraum unter Unternehmen › Steuern vor
-  (`accounting.RecommendedVatPeriod` über `SuggestPeriodType`); Grundlage ist
-  das Gründungsdatum der Unternehmensdaten.
+- Gründung 2026: maßgebend ist die voraussichtliche Steuer 2026, über
+  9.000 € monatlich, sonst vierteljährlich; keine Befreiung im Gründungs- und
+  Folgejahr ([UStAE 18.7 Abs. 5 Satz 3][usth187]). Frag nach der Schätzung im
+  Fragebogen.
+- Gründung ab 2027: monatlich im Gründungs- und im Folgejahr.
+- Gründung 2026, Jahr 2027: Satz 6 gilt nur für 2021 bis 2026; für 2027 gilt
+  nach dem Wortlaut wieder Satz 4, also monatlich, und so schlägt es die App
+  vor. Maßgebend ist die Mitteilung des Finanzamts; du schlägst sie mit
+  `stammdaten_vorschlagen` vor.
 
 ## 4. Was du zum Fragebogen beisteuerst
-
-Stelle dem Menschen aus Buchfink zusammen:
 
 - Firma, Sitz, Rechtsform, Geschäftsjahr, Bankverbindung (`status`).
 - Beurkundungstag, Stammkapital, Gesellschafter mit Anteilen (Unterlagen aus
@@ -83,14 +68,13 @@ Stelle dem Menschen aus Buchfink zusammen:
 - Eröffnungsbilanz: Salden der Gründungskonten zum Beurkundungstag
   (`auswertung` mit `art: kontoblatt` und `bis`).
 
-Der Fragebogen verlangt außerdem Angaben, die nicht in den Büchern stehen und
-die der Mensch schätzt oder entscheidet, etwa voraussichtliche Umsätze und
-Gewinne, Beginn der Tätigkeit, Beschäftigte, Kleinunternehmerregelung, Art der
-Steuerberechnung und Dauerfristverlängerung (Liste ohne Abgleich mit dem
-aktuellen Formular; prüfe die Felder dort). Die
-Schätzungen beeinflussen Voranmeldungszeitraum und Vorauszahlungen; frag nach
+Schätzungen und Entscheidungen außerhalb der Bücher (Umsätze, Gewinne,
+Beginn der Tätigkeit, Beschäftigte, Wahlrechte aus Abschnitt 2) liefert der
+Mensch. Sie bestimmen Voranmeldungszeitraum und Vorauszahlungen; frag nach
 Zahlen und nenne die Folgen.
 
+[ao137]: https://www.gesetze-im-internet.de/ao_1977/__137.html
+[ao138]: https://www.gesetze-im-internet.de/ao_1977/__138.html
 [gewstg16]: https://www.gesetze-im-internet.de/gewstg/__16.html
 [ustg16]: https://www.gesetze-im-internet.de/ustg_1980/__16.html
 [ustg18]: https://www.gesetze-im-internet.de/ustg_1980/__18.html

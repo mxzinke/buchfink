@@ -1,11 +1,10 @@
 # Abschreibungen, Wertaufholung, Abgang
 
-Rechtsstand: 17. Oktober 2026. Wortlaut von HGB und EStG am 17.10.2026
-gelesen.
+Rechtsstand: 17. Oktober 2026.
 
-Ob ein Zugang Aufwand, geringwertiges Wirtschaftsgut, Sammelposten oder Anlage
-ist, regelt [belege/anlagen-gwg.md](../belege/anlagen-gwg.md). Finanzanlagen
-bewertet [beteiligungen/bewertung-veraeusserung.md](../beteiligungen/bewertung-veraeusserung.md).
+Zugang als Aufwand, geringwertiges Wirtschaftsgut, Sammelposten oder Anlage:
+[belege/anlagen-gwg.md](../belege/anlagen-gwg.md). Finanzanlagen:
+[beteiligungen/bewertung-veraeusserung.md](../beteiligungen/bewertung-veraeusserung.md).
 
 ## Inhalt
 
@@ -19,113 +18,91 @@ bewertet [beteiligungen/bewertung-veraeusserung.md](../beteiligungen/bewertung-v
 
 ## 1. Planmäßige Abschreibung
 
-- Anlagen mit begrenzter Nutzung werden planmäßig über die voraussichtliche
-  Nutzungsdauer abgeschrieben ([§ 253 Abs. 3 Satz 1, 2 HGB][hgb253]).
-- Steuerliche Abschreibung (linear, degressiv), geringwertige Wirtschaftsgüter
-  und Sammelposten:
+- Anlagen mit begrenzter Nutzung schreibst du planmäßig über die
+  voraussichtliche Nutzungsdauer ab ([§ 253 Abs. 3 Satz 1, 2 HGB][hgb253]).
+  Steuerliche Methoden, geringwertige Wirtschaftsgüter und Sammelposten:
   [belege/anlagen-gwg.md, Abschnitte 3 und 4](../belege/anlagen-gwg.md#3-wertgrenzen).
-- Anlagen im Bau und geleistete Anzahlungen schreibt Buchfink nicht ab. Die
-  Fertigstellung, die auf das Anlagekonto umbucht, bildet Buchfink noch nicht
-  ab, weder als Werkzeug noch in der App.
-
-Wertungsfrage: die Nutzungsdauer. Buchfink schlägt Werte vor; die Regeln zur
-Wahl stehen in [belege/anlagen-gwg.md](../belege/anlagen-gwg.md#4-nutzungsdauer-und-methode).
-Eine Änderung bei einem vorhandenen Anlagegut weicht von der
-Bewertungsmethode ab und braucht einen Grund
-([Stetigkeit](ablauf.md#4-entscheidungsregeln)). Ob sie im Anhang zu
-erläutern ist ([§ 284 Abs. 2 Nr. 2 HGB][hgb284]), entscheidet der Mensch.
+- Anlagen im Bau und Anzahlungen schreibt Buchfink nicht ab und bucht sie bei
+  Fertigstellung nicht um.
+- Wertungsfrage: die Nutzungsdauer
+  ([Regeln](../belege/anlagen-gwg.md#4-nutzungsdauer-und-methode)). Eine
+  Änderung bei einem vorhandenen Anlagegut bricht die
+  [Stetigkeit](ablauf.md#4-entscheidungsregeln) und braucht einen Grund; ob sie
+  in den Anhang gehört ([§ 284 Abs. 2 Nr. 2 HGB][hgb284]), entscheidet der
+  Mensch.
 
 ## 2. Abschreibungslauf in Buchfink
 
-1. `anlagen` (`geschaeftsjahr`). Prüfe je Zugang des Jahres: Datum,
-   Anschaffungskosten netto, Nutzungsdauer, Methode. Aktivierungskandidaten
-   (Buchungen auf Anlagekonten ohne Anlage) aktivierst du nach Rückfrage mit
-   `abschlussbuchung` und `art: anlage_aktivieren`.
-2. Frag den Menschen nach Anlagen, die verkauft, verschrottet, gestohlen oder
-   nicht mehr auffindbar sind (Abschnitt 5).
-3. `abschlussbuchung` mit `art: afa_lauf`, erst mit `nur_vorschau: true`;
-   die Vorschau nennt je Anlage Betrag und Konto. Nach dem Ja bucht Buchfink
-   aus der Kartei, auf Wunsch nur für `anlage_ids`.
-4. `auswertung` (`art: pruefbericht`): kein Befund `depreciation_missing`.
+1. `anlagen` (`geschaeftsjahr`): je Zugang Datum, Anschaffungskosten netto,
+   Nutzungsdauer und Methode prüfen. Aktivierungskandidaten aktivierst du nach
+   Rückfrage mit `abschlussbuchung` (`art: anlage_aktivieren`).
+2. Frag nach verkauften, verschrotteten, gestohlenen oder verschwundenen
+   Anlagen (Abschnitt 5).
+3. `abschlussbuchung` mit `art: afa_lauf`, Vorschau vorlegen, nach dem Ja
+   buchen.
 
-Fertig, wenn der Prüflauf frei ist und das Anlagenverzeichnis zu den Salden
-der Anlagenkonten (`auswertung`, `art: susa`) passt.
+Fertig, wenn `auswertung` (`art: pruefbericht`) kein `depreciation_missing`
+meldet und das Anlagenverzeichnis zu den Salden der Anlagenkonten
+(`art: susa`) passt.
 
 ## 3. Außerplanmäßige Abschreibung
 
 - Handelsrecht: Bei voraussichtlich dauernder Wertminderung ist auf den
   niedrigeren Stichtagswert abzuschreiben, auch bei nicht abnutzbaren Anlagen
-  ([§ 253 Abs. 3 Satz 5 HGB][hgb253]). Bei Finanzanlagen darf auch bei
-  vorübergehender Minderung abgeschrieben werden (Satz 6;
-  [beteiligungen/bewertung-veraeusserung.md](../beteiligungen/bewertung-veraeusserung.md)).
-- Steuerrecht: Der niedrigere Teilwert kann bei voraussichtlich dauernder
-  Wertminderung angesetzt werden ([§ 6 Abs. 1 Nr. 1 Satz 2 EStG][estg6]). Teilwert
-  ist der Betrag, den ein Erwerber des ganzen Betriebs für das Wirtschaftsgut
-  ansetzen würde (Satz 3).
-- Typische Fälle: Gerät defekt und nicht reparabel, Software nicht mehr
-  nutzbar, Gegenstand nur noch eingeschränkt verwendbar.
-- Die außerplanmäßige Abschreibung bildet Buchfink noch nicht ab, weder als
-  Werkzeug noch in der App. Leg dem Menschen Betrag, Stichtag und den Grund
-  mit Tatsache und Datum vor (z. B. „Notebook INV-0042 am 12.11.2026
-  irreparabel beschädigt, Kostenvoranschlag liegt als Beleg vor“), wie in
-  [grundlagen/arbeitsweise.md, Abschnitt 9](../grundlagen/arbeitsweise.md#9-vorgänge-ohne-werkzeug).
-
-Wertungsfrage: ob die Minderung dauernd ist. Leg die Tatsachen vor; der Mensch
-entscheidet. Bei großen Beträgen Steuerberater.
+  ([§ 253 Abs. 3 Satz 5 HGB][hgb253]); Finanzanlagen auch bei vorübergehender
+  Minderung (Satz 6).
+- Steuerrecht: Der niedrigere Teilwert darf bei voraussichtlich dauernder
+  Wertminderung angesetzt werden ([§ 6 Abs. 1 Nr. 1 Satz 2, 3 EStG][estg6]).
+- Buchfink bildet sie nicht ab. Leg dem Menschen Betrag, Stichtag und Grund mit
+  Tatsache und Datum vor
+  ([grundlagen/arbeitsweise.md, Abschnitt 9](../grundlagen/arbeitsweise.md#9-vorgänge-ohne-werkzeug)).
+  Ob die Minderung dauernd ist, entscheidet er; bei großen Beträgen
+  Steuerberater.
 
 ## 4. Wertaufholung
 
-- Fällt der Grund einer außerplanmäßigen Abschreibung weg, ist der niedrigere
-  Wert nicht beizubehalten; ausgenommen der entgeltlich erworbene Geschäfts- oder
-  Firmenwert ([§ 253 Abs. 5 HGB][hgb253]).
-- Steuerlich bleibt der niedrigere Teilwert nur, wenn er jedes Jahr nachgewiesen
-  wird ([§ 6 Abs. 1 Nr. 1 Satz 4 EStG][estg6]).
-- Die App zeigt einen Bericht der Anlagen mit früherer außerplanmäßiger
-  Abschreibung. Frag den Menschen je Anlage, ob der Grund fortbesteht. Die
-  Zuschreibung, höchstens bis zu den fortgeführten Anschaffungskosten, und die
-  Bestätigung, dass der Grund fortbesteht, bildet Buchfink noch nicht ab,
-  weder als Werkzeug noch in der App.
+- Fällt der Grund weg, darf der niedrigere Wert nicht bleiben; ausgenommen der
+  entgeltlich erworbene Geschäfts- oder Firmenwert
+  ([§ 253 Abs. 5 HGB][hgb253]). Obergrenze sind die fortgeführten
+  Anschaffungskosten ([§ 253 Abs. 1 Satz 1 HGB][hgb253]).
+- Steuerlich bleibt der niedrigere Teilwert nur bei jährlichem Nachweis
+  ([§ 6 Abs. 1 Nr. 1 Satz 4 EStG][estg6]).
+- Frag den Menschen je Anlage mit früherer außerplanmäßiger Abschreibung
+  (Bericht in der App), ob der Grund fortbesteht. Die Zuschreibung bildet
+  Buchfink nicht ab.
 
 ## 5. Abgang
 
-- Verkauf: Die Rechnung an den Käufer stellst du als Ausgangsrechnung aus
-  ([rechnungen/ablauf.md](../rechnungen/ablauf.md); Umsatzsteuer). Den Abgang
-  aus der Kartei bildet Buchfink noch nicht ab; gebucht würde der Restbuchwert
-  auf SKR04 4855 bei Buchgewinn, 6895 bei Buchverlust.
+- Verkauf: Ausgangsrechnung an den Käufer
+  ([rechnungen/ablauf.md](../rechnungen/ablauf.md)). Den Abgang aus der Kartei
+  bildet Buchfink nicht ab; der Restbuchwert gehört auf 4855 bei Buchgewinn,
+  6895 bei Buchverlust.
 - Verschrottung, Diebstahl: Abgang ohne Erlös. Übernimmt ein Gesellschafter
   den Gegenstand ohne angemessenes Entgelt, prüfe eine verdeckte
   Gewinnausschüttung ([gesellschafter/vga-einlage.md](../gesellschafter/vga-einlage.md)).
-- Sammelposten: Ein Abgang mindert ihn nicht
-  ([belege/anlagen-gwg.md, Abschnitt 3](../belege/anlagen-gwg.md#3-wertgrenzen));
-  an der Kartei ist nichts zu ändern.
+- Ein Abgang mindert den Sammelposten nicht
+  ([belege/anlagen-gwg.md, Abschnitt 3](../belege/anlagen-gwg.md#3-wertgrenzen)).
 
 ## 6. Anlagenspiegel
 
-- Der Anhang stellt die Entwicklung des Anlagevermögens dar: Anschaffungskosten,
-  Zugänge, Abgänge, Umbuchungen, Zuschreibungen, Abschreibungen
-  ([§ 284 Abs. 3 HGB][hgb284]).
-- Kleine Gesellschaften brauchen diese Angabe nicht
-  ([§ 288 Abs. 1 Nr. 1 HGB][hgb288]); Kleinstgesellschaften ohne Anhang auch
-  nicht. Buchfink erzeugt ihn trotzdem; er dient dir zur Abstimmung.
+Die Entwicklung des Anlagevermögens im Anhang ([§ 284 Abs. 3 HGB][hgb284])
+brauchen kleine und Kleinstgesellschaften nicht
+([§ 288 Abs. 1 Nr. 1 HGB][hgb288]). Buchfink erzeugt den Spiegel trotzdem;
+nutze ihn zur Abstimmung.
 
 ## 7. Steuerliche Abweichungen
 
-- Die Sonderabschreibung nach [§ 7g Abs. 5 EStG][estg7g] (bis zu insgesamt
-  40 % der Anschaffungs- oder Herstellungskosten, verteilt auf das Jahr der
-  Anschaffung und die vier Folgejahre, neben der linearen oder degressiven
-  Abschreibung; Stand: Oktober 2026) bucht Buchfink nicht in den
-  handelsrechtlichen Abschluss. Sie steht als steuerlicher Wert an der Anlage, im
-  Verzeichnis nach [§ 5 Abs. 1 Satz 2, 3 EStG][estg5] und in der Überleitung
-  ([steuererklaerungen/kst.md](../steuererklaerungen/kst.md)). Voraussetzungen
-  nach § 7g Abs. 6 EStG: Der Gewinn im Wirtschaftsjahr vor der Anschaffung
-  überschreitet 200.000 € nicht
-  (Abs. 6 Nr. 1 mit Abs. 1 Satz 2 Nr. 1), und das Wirtschaftsgut wird im Jahr
-  der Anschaffung und im Folgejahr vermietet oder fast ausschließlich
-  betrieblich in einer inländischen Betriebsstätte genutzt (Abs. 6 Nr. 2). Ob
-  sie vorliegen, klärt der Mensch.
-- Eine handelsrechtliche außerplanmäßige Abschreibung, die steuerlich nicht
-  angesetzt wird, kommt in die
-  [Liste Abschlussposten](abschlussbuchungen.md#4-liste-abschlussposten).
+- Sonderabschreibung nach [§ 7g Abs. 5 EStG][estg7g]: bis zu 40 % der
+  Anschaffungs- oder Herstellungskosten, verteilt auf Anschaffungsjahr und vier
+  Folgejahre, neben der regulären Abschreibung. Voraussetzungen (Abs. 6):
+  Gewinn im Vorjahr der Anschaffung höchstens 200.000 €; im Anschaffungs- und
+  Folgejahr vermietet oder fast ausschließlich betrieblich in einer
+  inländischen Betriebsstätte genutzt; der Mensch klärt sie. Buchfink führt sie
+  nur als steuerlichen Wert an der Anlage, im Verzeichnis nach
+  [§ 5 Abs. 1 Satz 2, 3 EStG][estg5] und in der
+  [Überleitung](../steuererklaerungen/kst.md).
+- Eine handelsrechtliche außerplanmäßige Abschreibung ohne steuerlichen Ansatz
+  kommt in die [Liste Abschlussposten](abschlussbuchungen.md#4-liste-abschlussposten).
 
 [hgb253]: https://www.gesetze-im-internet.de/hgb/__253.html
 [hgb284]: https://www.gesetze-im-internet.de/hgb/__284.html

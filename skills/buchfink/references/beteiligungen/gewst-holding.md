@@ -2,13 +2,11 @@
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von GewStG, KStG und InvStG am
 17.10.2026 auf gesetze-im-internet.de gelesen, dazu die ELSTER-Anleitung zur
-Gewerbesteuererklärung 2025. Die Grenzen von 15 %
-gelten unverändert; sie ändern sich nur durch Gesetz. Stand: Oktober 2026.
+Gewerbesteuererklärung 2025.
 
 Rechenweg, Messzahl, Hebesatz und Abgabe regelt
-[steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md). Hier steht, was
-Beteiligungserträge am Gewerbeertrag ändern; Buchfink rechnet es in
-`erklaerung` (`art: gewst`), du prüfst es.
+[steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md). Buchfink
+rechnet die Beteiligungszeilen in `erklaerung` (`art: gewst`), du prüfst sie.
 
 ## Inhalt
 
@@ -18,126 +16,89 @@ Beteiligungserträge am Gewerbeertrag ändern; Buchfink rechnet es in
 4. Verluste und Teilwertabschreibungen
 5. Finanzierungskosten der Beteiligung
 6. Investmentfonds
-7. Beispiel
-8. Angaben für die Erklärung
+7. Angaben für die Erklärung
 
 ## 1. Ausgangspunkt
 
 Gewerbeertrag ist der nach dem KStG ermittelte Gewinn mit Hinzurechnungen und
 Kürzungen
-([steuererklaerungen/gewst.md, Abschnitt 2](../steuererklaerungen/gewst.md#2-rechenweg)).
-Was § 8b KStG herausnimmt, fehlt also schon im Ausgangswert. Die Gewerbesteuer holt Dividenden aus kleinen Beteiligungen
-zurück (§ 8 Nr. 5) und lässt sie bei großen frei (§ 9 Nr. 2a). Veräußerungs-
-gewinne und Teilwertabschreibungen folgen der Körperschaftsteuer; § 8 Nr. 5
-erfasst nur Gewinnanteile.
+([steuererklaerungen/gewst.md, Abschnitt 2](../steuererklaerungen/gewst.md#2-rechenweg));
+was § 8b KStG herausnimmt, fehlt schon im Ausgangswert. Veräußerungsgewinne
+und Teilwertabschreibungen folgen der Körperschaftsteuer; § 8 Nr. 5 erfasst
+nur Gewinnanteile.
 
 ## 2. Dividenden nach Quote
 
 | Quote | Körperschaftsteuer | Gewerbesteuer |
 |---|---|---|
-| unter 10 % zu Beginn des Kalenderjahres | Dividende voll angesetzt ([steuerfreistellung.md, Abschnitt 3](steuerfreistellung.md#3-streubesitz-unter-10-)) | bleibt voll; keine Hinzurechnung, weil nichts außer Ansatz blieb |
+| unter 10 % zu Beginn des Kalenderjahres | Dividende voll angesetzt ([steuerfreistellung.md, Abschnitt 3](steuerfreistellung.md#3-streubesitz-unter-10-)) | bleibt voll; keine Hinzurechnung |
 | mindestens 10 %, aber zu Beginn des Erhebungszeitraums unter 15 % | 95 % frei ([steuerfreistellung.md, Abschnitt 2](steuerfreistellung.md#2-dividenden-und-andere-bezüge)) | Hinzurechnung nach [§ 8 Nr. 5 GewStG][gewstg8] |
 | zu Beginn des Erhebungszeitraums mindestens 15 %, inländische nicht steuerbefreite Kapitalgesellschaft | 95 % frei | keine Hinzurechnung; die 5 % bleiben im Gewerbeertrag ([§ 9 Nr. 2a Satz 4 GewStG][gewstg9]) |
 
-**§ 8 Nr. 5 GewStG** rechnet die nach § 8b Abs. 1 KStG außer Ansatz
-bleibenden Gewinnanteile hinzu, soweit sie nicht die Voraussetzungen des § 9
-Nr. 2a oder 7 erfüllen, nach Abzug der Betriebsausgaben, die nach § 8b Abs. 5
-KStG unberücksichtigt bleiben. Rechnung: Dividende minus 5 %. Bei 100.000 €
-Dividende also 95.000 € Hinzurechnung; zusammen mit den 5 % aus der
-Körperschaftsteuer ist die Dividende voll gewerbesteuerpflichtig.
-
-**§ 9 Nr. 2a GewStG** kürzt Gewinne aus Anteilen an einer nicht
-steuerbefreiten inländischen Kapitalgesellschaft, wenn die Beteiligung zu
-Beginn des Erhebungszeitraums mindestens 15 % des Grund- oder Stammkapitals
-beträgt und die Gewinnanteile im Gewinn angesetzt sind (Satz 1). Die nach
-§ 8b Abs. 5 KStG nicht abziehbaren 5 % sind keine Gewinne aus Anteilen
-(Satz 4). Bei einer GmbH mit § 8b-freier Dividende bleibt deshalb nichts zu
-kürzen; der Nutzen der Vorschrift liegt darin, dass § 8 Nr. 5 nicht greift.
-
-**Stichtage.** § 8b Abs. 4 KStG stellt auf den Beginn des Kalenderjahres ab
-und lässt einen Erwerb von mindestens 10 % auf diesen Tag zurückwirken
-([steuerfreistellung.md, Abschnitt 3](steuerfreistellung.md#3-streubesitz-unter-10-)).
-§ 9 Nr. 2a GewStG kennt diese Rückwirkung nicht. Eine im Laufe des Jahres
-erworbene Tochter liefert im Erwerbsjahr eine Dividende, die bei der
-Körperschaftsteuer zu 95 % frei und bei der Gewerbesteuer hinzuzurechnen ist.
+- **§ 8 Nr. 5 GewStG** rechnet die nach § 8b Abs. 1 KStG außer Ansatz
+  bleibenden Gewinnanteile hinzu, soweit § 9 Nr. 2a oder 7 nicht greift,
+  abzüglich der nach § 8b Abs. 5 KStG nicht abziehbaren 5 %. Bei 100.000 €
+  Dividende: 95.000 € Hinzurechnung, die Dividende ist damit voll
+  gewerbesteuerpflichtig.
+- **§ 9 Nr. 2a GewStG** (Satz 1): Weil die 5 % nach Satz 4 keine
+  Gewinnanteile sind, bleibt bei der GmbH nichts zu kürzen; die Wirkung ist,
+  dass § 8 Nr. 5 nicht greift.
+- **Stichtage.** § 8b Abs. 4 Satz 6 KStG lässt einen Erwerb von mindestens
+  10 % auf den Beginn des Kalenderjahres zurückwirken
+  ([steuerfreistellung.md, Abschnitt 3](steuerfreistellung.md#3-streubesitz-unter-10-));
+  § 9 Nr. 2a GewStG nicht. Die Dividende einer im Laufe des Jahres erworbenen
+  Tochter ist im Erwerbsjahr bei der Körperschaftsteuer zu 95 % frei und bei
+  der Gewerbesteuer hinzuzurechnen.
 
 ## 3. Ausländische Gesellschaften
 
-- Gewinne aus Anteilen an einer Kapitalgesellschaft mit Sitz und
-  Geschäftsleitung im Ausland werden gekürzt, wenn die Beteiligung zu Beginn
-  des Erhebungszeitraums mindestens 15 % beträgt; § 9 Nr. 2a Satz 3 bis 5 gilt
-  entsprechend ([§ 9 Nr. 7 GewStG][gewstg9]).
-- Sieht ein Doppelbesteuerungsabkommen eine niedrigere Mindestbeteiligung
-  vor, gilt diese ([§ 9 Nr. 8 GewStG][gewstg9]).
-- Ausländische Steuern, die als Betriebsausgabe abgezogen wurden und auf
-  gekürzte Gewinne entfallen, werden hinzugerechnet
-  ([§ 8 Nr. 12 GewStG][gewstg8]).
+- Kürzung bei mindestens 15 % zu Beginn des Erhebungszeitraums an einer
+  Kapitalgesellschaft mit Sitz und Geschäftsleitung im Ausland
+  ([§ 9 Nr. 7 GewStG][gewstg9]); eine niedrigere Mindestbeteiligung nach
+  Doppelbesteuerungsabkommen geht vor ([§ 9 Nr. 8 GewStG][gewstg9]).
+- Als Betriebsausgabe abgezogene ausländische Steuern auf gekürzte Gewinne
+  werden hinzugerechnet ([§ 8 Nr. 12 GewStG][gewstg8]).
 - Ausländische Beteiligungen: Steuerberater.
 
 ## 4. Verluste und Teilwertabschreibungen
 
-- Hinzugerechnet wird nur, was den Gewinn gemindert hat
-  ([steuererklaerungen/gewst.md, Abschnitt 3](../steuererklaerungen/gewst.md#3-hinzurechnungen)).
-- § 8 Nr. 10 GewStG rechnet ausschüttungsbedingte Teilwertabschreibungen und
-  Veräußerungsverluste hinzu, soweit sie auf Ausschüttungen zurückgehen, die
-  nach § 9 Nr. 2a, 7 oder 8 gekürzt werden ([§ 8 Nr. 10 GewStG][gewstg8]).
-  Bei einem Anteil an einer Kapitalgesellschaft hat § 8b Abs. 3 Satz 3 KStG
-  diese Minderung schon aus dem Gewinn genommen; sie wird nicht ein zweites
-  Mal hinzugerechnet.
+[§ 8 Nr. 10 GewStG][gewstg8] rechnet ausschüttungsbedingte
+Teilwertabschreibungen und Veräußerungsverluste hinzu, soweit sie auf nach
+§ 9 Nr. 2a, 7 oder 8 gekürzte Ausschüttungen zurückgehen. Beim Anteil an einer
+Kapitalgesellschaft hat § 8b Abs. 3 Satz 3 KStG die Minderung schon aus dem
+Gewinn genommen; sie wird nicht ein zweites Mal hinzugerechnet
+([steuererklaerungen/gewst.md, Abschnitt 3](../steuererklaerungen/gewst.md#3-hinzurechnungen)).
 
 ## 5. Finanzierungskosten der Beteiligung
 
-- Zinsen für den Kaufpreis gehören zu den Entgelten für Schulden
-  ([§ 8 Nr. 1 Buchst. a GewStG][gewstg8]); wie viel davon hinzugerechnet
-  wird, steht in [steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md).
+- Zinsen für den Kaufpreis sind Entgelte für Schulden
+  ([§ 8 Nr. 1 Buchst. a GewStG][gewstg8];
+  [steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md)).
 - Aufwendungen in unmittelbarem Zusammenhang mit Gewinnanteilen mindern den
   Kürzungsbetrag nach § 9 Nr. 2a; insoweit gilt § 8 Nr. 1 nicht
   ([§ 9 Nr. 2a Satz 3 GewStG][gewstg9]).
-- Wertungsfrage: Wie wirken beide Regeln zusammen, wenn § 8b KStG die
-  Dividende schon freistellt? Lege Finanzierungszinsen einer Holding mit
-  Empfehlung Steuerberater vor.
+- Finanzierungszinsen einer Holding bei § 8b-freier Dividende:
+  Wertungsfrage, Steuerberater.
 
 ## 6. Investmentfonds
 
-Die Teilfreistellung der Fondserträge ist bei der Ermittlung des
-Gewerbeertrags nur zur Hälfte zu berücksichtigen
-([§ 20 Abs. 5 InvStG][invstg20]). Für die GmbH bei einem Aktienfonds: 80 %
-frei bei der Körperschaftsteuer, 40 % bei der Gewerbesteuer. In der
-Erklärung stehen die gesamten Teilfreistellungen nach §§ 20 und 21 InvStG aus
-unmittelbaren Beteiligungen in GewSt 1 A Zeile 48; den Korrekturbetrag nach
-§ 20 Abs. 5 rechnet das Finanzamt selbst
-([ELSTER-Anleitung GewSt 2025][elstergewst]). So führt es auch Buchfink: Zeile
-48 mit dem vollen Betrag, die Hälfte nur in seiner Rechnung des Gewerbeertrags.
-Sätze je Fondsart stehen in
+Die Teilfreistellung zählt beim Gewerbeertrag nur zur Hälfte
+([§ 20 Abs. 5 InvStG][invstg20]); Sätze je Fondsart in
 [investmentfonds.md, Abschnitt 4](investmentfonds.md#4-teilfreistellung).
+GewSt 1 A Zeile 48 nimmt die gesamten Teilfreistellungen nach §§ 20 und 21
+InvStG aus unmittelbaren Beteiligungen auf; die Korrektur nach § 20 Abs. 5
+rechnet das Finanzamt ([ELSTER-Anleitung GewSt 2025][elstergewst]). Buchfink
+führt Zeile 48 mit dem vollen Betrag und rechnet die Hälfte nur in den
+Gewerbeertrag.
 
-## 7. Beispiel
-
-Rechnerisches Beispiel ohne Beratung. Hebesatz 400 %.
-
-| Posten | Tochter A, 100 % seit Jahren | Beteiligung B, 12 % seit Jahren |
-|---|---|---|
-| Dividende brutto | 100.000,00 € | 10.000,00 € |
-| im Gewinn nach KStG (5 %) | 5.000,00 € | 500,00 € |
-| Hinzurechnung § 8 Nr. 5 | – | 9.500,00 € |
-| im Gewerbeertrag | 5.000,00 € | 10.000,00 € |
-| Messbetrag 3,5 % | 175,00 € | 350,00 € |
-| Gewerbesteuer | 700,00 € | 1.400,00 € |
-
-Steuermesszahl, Abrundung des Gewerbeertrags und Hebesatz:
-[steuererklaerungen/gewst.md, Abschnitt 2](../steuererklaerungen/gewst.md#2-rechenweg).
-
-## 8. Angaben für die Erklärung
+## 7. Angaben für die Erklärung
 
 - `erklaerung` (`art: gewst`) führt § 8 Nr. 5 und § 9 Nr. 2a als eigene
-  Zeilen. Den Vorschlag zu § 8 Nr. 5 rechnet Buchfink aus der Quote der Kartei
-  und dem Erwerbsdatum; ein Erwerb im Jahr zählt für § 9 Nr. 2a nicht.
-  Bestätige ihn nach Rückfrage, wenn die Quote zu Beginn des
-  Erhebungszeitraums an der Gesellschafterliste stimmt. Ausländische
-  Gesellschaften (§ 9 Nr. 7) prüft ein Steuerberater (Abschnitt 3).
-- Belegt ist nur Zeile 48 (Teilfreistellungen, Abschnitt 6). Die Zeilen für
-  § 8 Nr. 5 und § 9 Nr. 2a, 7 sind hier nicht belegt; der Mensch folgt der
-  Ausfüllhilfe in Mein ELSTER.
+  Zeilen; den Vorschlag zu § 8 Nr. 5 rechnet Buchfink aus Quote und
+  Erwerbsdatum der Kartei. Bestätige ihn nach Rückfrage, wenn die Quote zu
+  Beginn des Erhebungszeitraums laut Gesellschafterliste stimmt.
+- Belegt ist nur Zeile 48. Für § 8 Nr. 5 und § 9 Nr. 2a, 7 folgt der Mensch
+  der Ausfüllhilfe in Mein ELSTER.
 
 [elstergewst]: https://www.elster.de/eportal/helpGlobal?themaGlobal=help_gewst_ufa_20_2025
 [gewstg8]: https://www.gesetze-im-internet.de/gewstg/__8.html

@@ -1,7 +1,6 @@
 # Bescheide, Einspruch, Vorauszahlungen
 
-Rechtsstand: 17. Oktober 2026. Wortlaut von AO, EStG, KStG und GewStG am
-17.10.2026 gelesen.
+Rechtsstand: 17. Oktober 2026.
 
 ## Inhalt
 
@@ -20,14 +19,12 @@ Rechtsstand: 17. Oktober 2026. Wortlaut von AO, EStG, KStG und GewStG am
 | elektronisch übermittelt | am vierten Tag nach der Absendung | [§ 122 Abs. 2a AO][ao122] |
 | zum Abruf bereitgestellt (ELSTER-Postfach) | am vierten Tag nach der Bereitstellung | [§ 122a Abs. 4 Satz 1 AO][ao122a] |
 
-Stand: Oktober 2026. Ab diesem Tag laufen Einspruchs- und Zahlungsfristen.
-Geht ein Bescheid später zu, gilt der spätere Tag; im Zweifel muss die Behörde
-den Zugang nachweisen.
+Ab diesem Tag laufen Einspruchs- und Zahlungsfristen; bei späterem Zugang gilt
+der spätere Tag.
 
-- Lege jeden Bescheid am Tag des Eingangs mit `beleg_ablegen` ab und notiere
-  Datum der Aufgabe, Bereitstellung oder Absendung.
-- Bescheide im ELSTER-Postfach lädt der Mensch als PDF herunter und speichert
-  sie in den Eingang; du legst sie dann ab.
+Leg jeden Bescheid am Eingangstag mit `beleg_ablegen` ab und notiere das Datum
+von Aufgabe, Bereitstellung oder Absendung. Bescheide im ELSTER-Postfach
+speichert der Mensch als PDF in den Eingang.
 
 ## 2. Abgleich mit der Erklärung
 
@@ -35,77 +32,67 @@ Gleiche jeden Bescheid Zeile für Zeile mit der freigegebenen Erklärung ab.
 
 | Prüfpunkt | Worauf achten |
 |---|---|
-| Bemessungsgrundlage | Einkommen, Gewerbeertrag, Umsätze wie erklärt? Erläuterungen im Bescheid lesen |
+| Bemessungsgrundlage | Einkommen, Gewerbeertrag, Umsätze wie erklärt? Erläuterungen lesen |
 | festgesetzte Steuer | Satz und Rundung |
 | Anrechnung | Vorauszahlungen und Kapitalertragsteuer vollständig? |
 | Nebenleistungen | Verspätungszuschlag ([§ 152 AO][ao152]), Zinsen ([§ 233a AO][ao233a]) |
-| Vorbehalt der Nachprüfung | Festsetzung bleibt änderbar; Änderung kann jederzeit beantragt werden ([§ 164 Abs. 1, 2 AO][ao164]) |
+| Vorbehalt der Nachprüfung | Festsetzung bleibt änderbar, Änderung jederzeit beantragbar ([§ 164 Abs. 1, 2 AO][ao164]) |
 | Vorläufigkeit | Umfang und Grund müssen angegeben sein ([§ 165 Abs. 1 Satz 3 AO][ao165]) |
-| Feststellungen | Verlustvortrag ([§ 10d Abs. 4 EStG][estg10d]), Gewerbeverlust ([§ 10a Satz 6 GewStG][gewstg10a]), Einlagekonto ([§ 27 Abs. 2 Satz 1 KStG][kstg27]): Werte für das Folgejahr notieren |
-| Zahlung | Betrag, Fälligkeit, Konto des Finanzamts oder der Gemeinde |
+| Feststellungen | Verlustvortrag ([§ 10d Abs. 4 EStG][estg10d]), Gewerbeverlust ([§ 10a Satz 6 GewStG][gewstg10a]), Einlagekonto ([§ 27 Abs. 2 Satz 1 KStG][kstg27]): für das Folgejahr notieren |
+| Zahlung | Betrag, Fälligkeit, Konto von Finanzamt oder Gemeinde |
 
-Fertig, wenn jede Abweichung einen Grund hat oder als offene Frage beim
-Menschen liegt.
+Fertig, wenn jede Abweichung einen Grund hat oder als Frage beim Menschen
+liegt.
 
-Wie eine Umsatzsteuer-Jahreserklärung ohne Bescheid wirkt, steht in
-[ust-jahr.md](ust-jahr.md#3-abschlusszahlung-und-erstattung); ein Bescheid
-kommt nur, wenn das Finanzamt abweicht.
+Umsatzsteuer: Ein Bescheid kommt nur bei Abweichung
+([ust-jahr.md](ust-jahr.md#3-abschlusszahlung-und-erstattung)).
 
 ## 3. Gewerbesteuer: zwei Bescheide
 
-- Das Finanzamt setzt den Messbetrag fest; der Messbescheid bindet die
-  Gemeinde ([§ 184 Abs. 1 Satz 4 AO][ao184] mit
-  [§ 182 Abs. 1 AO][ao182]).
-- Die Gemeinde setzt mit ihrem Hebesatz die Steuer fest
-  ([§ 16 Abs. 1 GewStG][gewstg16]).
-- Einwände gegen den Gewerbeertrag richten sich gegen den Messbescheid des
-  Finanzamts; im Bescheid der Gemeinde lassen sie sich nicht angreifen
-  ([§ 351 Abs. 2 AO][ao351]). Den Rechtsbehelf gegen den Bescheid der Gemeinde
-  nennt dessen Rechtsbehelfsbelehrung.
+- Der Messbescheid des Finanzamts bindet die Gemeinde
+  ([§ 184 Abs. 1 Satz 4 AO][ao184] mit [§ 182 Abs. 1 AO][ao182]); die Gemeinde
+  setzt mit ihrem Hebesatz die Steuer fest ([§ 16 Abs. 1 GewStG][gewstg16]).
+- Einwände gegen den Gewerbeertrag richten sich gegen den Messbescheid
+  ([§ 351 Abs. 2 AO][ao351]); den Rechtsbehelf gegen den Bescheid der Gemeinde
+  nennt dessen Belehrung.
 
 ## 4. Einspruch
 
-- Frist: ein Monat nach Bekanntgabe; bei einer Steueranmeldung ein Monat nach
-  ihrem Eingang beim Finanzamt, bei Zustimmung nach § 168 Satz 2 AO ein Monat
-  nach Bekanntwerden der Zustimmung ([§ 355 Abs. 1 AO][ao355]).
-- Der Einspruch hält die Zahlung nicht auf ([§ 361 Abs. 1 Satz 1 AO][ao361]).
-  Auf Antrag soll die Vollziehung ausgesetzt werden, wenn ernstliche Zweifel an
-  der Rechtmäßigkeit bestehen ([§ 361 Abs. 2 Satz 2 AO][ao361]).
-- Wertungsfrage: Einspruch oder nicht. Nenne Abweichung, Betrag, Fundstelle und
-  Frist. Der Mensch entscheidet und legt ihn ein; du entwirfst den Text.
-  Bei größeren Beträgen oder Rechtsfragen empfiehl einen Steuerberater.
-- Ist die Frist verstrichen, ändert das Finanzamt nur noch nach den
-  Änderungsvorschriften, etwa bei neuen Tatsachen ([§ 173 Abs. 1 AO][ao173]).
-  Das prüft ein Steuerberater.
+- Ein Monat nach Bekanntgabe; bei einer Steueranmeldung nach Eingang, bei
+  Zustimmung nach § 168 Satz 2 AO nach Bekanntwerden der Zustimmung
+  ([§ 355 Abs. 1 AO][ao355]).
+- Der Einspruch hält die Zahlung nicht auf ([§ 361 Abs. 1 Satz 1 AO][ao361]);
+  Aussetzung der Vollziehung auf Antrag bei ernstlichen Zweifeln
+  ([§ 361 Abs. 2 Satz 2 AO][ao361]).
+- Wertungsfrage: Nenne Abweichung, Betrag, Fundstelle und Frist; der Mensch
+  entscheidet und legt ein, du entwirfst den Text. Bei größeren Beträgen oder
+  Rechtsfragen Steuerberater.
+- Nach Fristablauf nur Änderung nach den Änderungsvorschriften, etwa neue
+  Tatsachen ([§ 173 Abs. 1 AO][ao173]); das prüft ein Steuerberater.
 
 ## 5. Vorauszahlungsbescheide
 
 | Steuer | Höhe und Anpassung | Grundlage |
 |---|---|---|
-| Körperschaftsteuer, Solidaritätszuschlag | grundsätzlich nach der letzten Veranlagung; Anpassung bis zum Ablauf des 15. Monats nach dem Jahr | [§ 37 Abs. 1, 3 EStG][estg37], [§ 31 Abs. 1 KStG][kstg31] |
+| Körperschaftsteuer, Solidaritätszuschlag | nach der letzten Veranlagung; Anpassung bis zum Ablauf des 15. Monats nach dem Jahr | [§ 37 Abs. 1, 3 EStG][estg37], [§ 31 Abs. 1 KStG][kstg31] |
 | Gewerbesteuer | je ein Viertel der letzten Veranlagung; Anpassung bis zum Ende des 15. Monats nach dem Erhebungszeitraum | [§ 19 Abs. 1–3 GewStG][gewstg19] |
 
-Stand: Oktober 2026. Termine, Weg und Nachweis der Zahlungen stehen in
-[grundlagen/pflichten.md#kst-vorauszahlung](../grundlagen/pflichten.md#kst-vorauszahlung)
-und
-[grundlagen/pflichten.md#gewst-vorauszahlung](../grundlagen/pflichten.md#gewst-vorauszahlung).
+Termine: [kst-vorauszahlung](../grundlagen/pflichten.md#kst-vorauszahlung),
+[gewst-vorauszahlung](../grundlagen/pflichten.md#gewst-vorauszahlung).
 
-- Die Höhe steht nur im Bescheid. Geht ein neuer Bescheid ein, lege ihn ab und
-  erfasse ihn nach Rückfrage als Anlass
-  ([grundlagen/pflichten.md](../grundlagen/pflichten.md#arbeiten-mit-fristen),
-  „Anlässe“).
-- Weicht der erwartete Gewinn deutlich ab, kann der Mensch beim Finanzamt
-  oder der Gemeinde eine Anpassung anregen ([§ 37 Abs. 3 Satz 3 EStG][estg37],
-  [§ 19 Abs. 3 GewStG][gewstg19]). Liegt der Gewinn deutlich über den
-  Vorauszahlungen, weise auf die spätere Nachzahlung und auf Zinsen nach
-  [§ 233a AO][ao233a] hin.
+- Die Höhe steht nur im Bescheid. Einen neuen legst du ab und erfasst ihn nach
+  Rückfrage als Anlass
+  ([grundlagen/pflichten.md](../grundlagen/pflichten.md#arbeiten-mit-fristen)).
+- Weicht der erwartete Gewinn deutlich ab, kann der Mensch eine Anpassung
+  anregen ([§ 37 Abs. 3 Satz 3 EStG][estg37], [§ 19 Abs. 3 GewStG][gewstg19]);
+  bei deutlich höherem Gewinn weise auf Nachzahlung und Zinsen
+  ([§ 233a AO][ao233a]) hin.
 
 ## 6. Buchung
 
-Zahlung, Erstattung und die Differenz zur gebuchten Rückstellung buchst du
-nach [bank/steuerzahlungen.md](../bank/steuerzahlungen.md) (Konten je
-Steuerart, Vorjahre, Nebenleistungen). Ist der Abschluss des Jahres noch offen
-und weicht der Bescheid von der Rückstellung ab, gilt
+Zahlung, Erstattung und Differenz zur Rückstellung:
+[bank/steuerzahlungen.md](../bank/steuerzahlungen.md). Ist der Abschluss noch
+offen und weicht der Bescheid von der Rückstellung ab:
 [jahresabschluss/steuern-im-abschluss.md](../jahresabschluss/steuern-im-abschluss.md).
 
 [ao122]: https://www.gesetze-im-internet.de/ao_1977/__122.html

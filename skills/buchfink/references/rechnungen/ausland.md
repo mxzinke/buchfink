@@ -2,10 +2,10 @@
 
 Rechtsstand: 17. Oktober 2026.
 
-Gilt für sonstige Leistungen (Beratung, Software, Agentur, Projekte).
-Warenlieferungen ins Ausland behandelt diese Referenz nicht; bei einer
-innergemeinschaftlichen Lieferung oder Ausfuhr sprich die Grenze an und
-empfiehl einen Steuerberater.
+Gilt für sonstige Leistungen. Innergemeinschaftliche Lieferung, Ausfuhr und
+Rechnungen in fremder Währung bildet Buchfink nicht ab
+(`rechnung_ausstellen` kennt nur Euro); sprich die Grenze an und empfiehl
+einen Steuerberater.
 
 ## Inhalt
 
@@ -14,7 +14,6 @@ empfiehl einen Steuerberater.
 3. Unternehmen im Drittland
 4. Verbraucher im Ausland
 5. Ausnahmen vom Grundsatz
-6. Prüfliste vor `rechnung_ausstellen`
 
 ## 1. Erst den Ort der Leistung bestimmen
 
@@ -26,44 +25,35 @@ Deutsche Umsatzsteuer fällt nur an, wenn der Ort der Leistung im Inland liegt.
 | Juristische Person ohne Unternehmen, aber mit USt-IdNr. | wie Unternehmer | [§ 3a Abs. 2 Satz 3 UStG][ustg3a] |
 | Verbraucher | Ort, von dem aus die GmbH ihr Unternehmen betreibt | [§ 3a Abs. 1 UStG][ustg3a] |
 
-Die Ausnahmen in Abschnitt 5 gehen dem Grundsatz vor.
+Abschnitt 5 geht dem Grundsatz vor.
 
 ## 2. Unternehmen im übrigen EU-Gebiet
 
-- Ort beim Kunden. Der Kunde schuldet die Steuer in seinem Staat.
-- `steuerfall: reverse_charge_supply`. Buchfink weist keine Steuer aus und
-  setzt Hinweis und beide USt-IdNrn. nach
-  [pflichtangaben-ausgang.md, Abschnitt 6](pflichtangaben-ausgang.md#6-hinweise-in-sonderfällen).
-- Rechnung bis zum 15. des Monats nach der Leistung
-  ([§ 14a Abs. 1 Satz 2 UStG][ustg14a]).
-- Nachweis der Unternehmereigenschaft: Verwendet der Kunde für den Umsatz seine
-  USt-IdNr. und hat das Unternehmen deren Gültigkeit samt Name und Anschrift
-  beim BZSt bestätigen lassen, darf es von einem Unternehmer ausgehen
+- Ort beim Kunden, der Kunde schuldet die Steuer:
+  `steuerfall: reverse_charge_supply`. Hinweis und beide USt-IdNrn. setzt
+  Buchfink ([pflichtangaben-ausgang.md, Abschnitt 6](pflichtangaben-ausgang.md#6-hinweise-in-sonderfällen)).
+- Rechnung bis zum 15. des Folgemonats ([§ 14a Abs. 1 Satz 2 UStG][ustg14a]).
+- Unternehmereigenschaft: Verwendet der Kunde seine USt-IdNr. und ist sie samt
+  Name und Anschrift beim BZSt bestätigt, gilt er als Unternehmer
   ([§ 18e Nr. 1 UStG][ustg18e], [UStAE 3a.2 Abs. 9 Satz 4, 5][ustae3a2]).
-  Buchfink fragt die Bestätigung vor dem Ausstellen ab. Lehnt es wegen einer
-  ungültigen Nummer ab, lass den Menschen beim Kunden nachfragen.
-- Bei Leistungen, die mit hoher Wahrscheinlichkeit privat genutzt werden,
-  genügt die USt-IdNr. nicht; nötig ist eine Erklärung des Kunden zur
-  unternehmerischen Verwendung ([UStAE 3a.2 Abs. 11a][ustae3a2]).
-- Der Umsatz geht in die Voranmeldung (Kennzahl 21,
-  [monatsabschluss/ustva.md](../monatsabschluss/ustva.md)) und in die
-  Zusammenfassende Meldung
-  ([monatsabschluss/zm.md](../monatsabschluss/zm.md)).
-- E-Rechnungspflicht: keine, der Kunde ist nicht im Inland ansässig
+  Buchfink fragt die Bestätigung vor dem Ausstellen ab; bei ungültiger Nummer
+  fragt der Mensch beim Kunden nach.
+- Bei Leistungen, die wahrscheinlich privat genutzt werden, braucht es
+  zusätzlich eine Erklärung des Kunden zur unternehmerischen Verwendung
+  ([UStAE 3a.2 Abs. 11a][ustae3a2]).
+- Meldung: Voranmeldung Kennzahl 21
+  ([monatsabschluss/ustva.md](../monatsabschluss/ustva.md)) und ZM
+  ([monatsabschluss/zm.md](../monatsabschluss/zm.md)). Keine E-Rechnungspflicht
   ([e-rechnung-ausgang.md, Abschnitt 2](e-rechnung-ausgang.md#2-wann-eine-e-rechnung-pflicht-ist)).
 
 ## 3. Unternehmen im Drittland
 
-- Ort beim Kunden, in Deutschland nicht steuerbar
-  ([§ 3a Abs. 2 UStG][ustg3a]).
-- `steuerfall: not_taxable`. Buchfink kennzeichnet den Umsatz als nicht
-  steuerbar; die Voranmeldung führt ihn unter den nicht steuerbaren Umsätzen.
+- Ort beim Kunden, nicht steuerbar ([§ 3a Abs. 2 UStG][ustg3a]):
+  `steuerfall: not_taxable`.
 - Nachweis der Unternehmereigenschaft: Bescheinigung einer Behörde des
-  Sitzstaates, sonst ein anderer Nachweis nach Wahl des Unternehmens
-  ([UStAE 3a.2 Abs. 11][ustae3a2]). Frag den Menschen, welcher Nachweis vorliegt,
-  und lass ihn als Beleg ablegen.
-- Welche Rechnungs- oder Steuerpflichten im Staat des Kunden gelten, prüft
-  Buchfink nicht. Weise darauf hin.
+  Sitzstaates oder ein anderer Nachweis ([UStAE 3a.2 Abs. 11][ustae3a2]). Frag,
+  welcher vorliegt, und lass ihn als Beleg ablegen.
+- Pflichten im Staat des Kunden prüft Buchfink nicht; weise darauf hin.
 
 ## 4. Verbraucher im Ausland
 
@@ -72,21 +62,16 @@ Die Ausnahmen in Abschnitt 5 gehen dem Grundsatz vor.
 | Beratung, Agentur, Projektarbeit an Verbraucher in der EU | Inland ([§ 3a Abs. 1 UStG][ustg3a]) | `domestic` |
 | Katalogleistung nach [§ 3a Abs. 4 Satz 2 UStG][ustg3a] (u. a. Beratung, Werbung, Datenverarbeitung, Überlassung von Rechten und Informationen, Personalgestellung) an Verbraucher im Drittland | Wohnsitz des Kunden, nicht steuerbar | `not_taxable` |
 | Andere Leistung an Verbraucher im Drittland | Inland | `domestic` |
-| Telekommunikation, Rundfunk, auf elektronischem Weg erbrachte Leistung (SaaS, Download, App) an Verbraucher in der EU | Wohnsitz des Kunden ([§ 3a Abs. 5 Satz 1, 2 UStG][ustg3a]) | Grenze, siehe unten |
+| Telekommunikation, Rundfunk, elektronische Leistung (SaaS, Download, App) an Verbraucher in der EU | Wohnsitz des Kunden ([§ 3a Abs. 5 Satz 1, 2 UStG][ustg3a]) | Grenze, siehe unten |
 
-Elektronische Leistungen an Verbraucher in anderen EU-Staaten:
-
-- Der Ort bleibt im Inland, solange das Unternehmen nur in Deutschland ansässig
-  ist und die Summe dieser Leistungen und der Fernverkäufe in andere EU-Staaten
-  im Vorjahr 10.000 € nicht überschritten hat und im laufenden Jahr nicht
-  überschreitet ([§ 3a Abs. 5 Satz 3 UStG][ustg3a]). Stand: Oktober 2026. Das
-  Unternehmen kann darauf verzichten und bleibt zwei Jahre gebunden
-  ([§ 3a Abs. 5 Satz 4, 5 UStG][ustg3a]).
-- Über der Schwelle ist die Steuer des Wohnsitzstaates geschuldet, meist über
-  das OSS-Verfahren ([§ 18j UStG][ustg18j]). Buchfink bildet OSS nicht ab
-  ([grundlagen/grenzen.md](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet)).
-  Rechne mit dem Menschen nach `auswertung` und `buchungen_suchen`, wie nah
-  die Schwelle ist, und empfiehl bei Überschreiten einen Steuerberater.
+Elektronische Leistungen an EU-Verbraucher bleiben im Inland steuerbar,
+solange die Summe dieser Leistungen und der Fernverkäufe in andere EU-Staaten
+im Vorjahr und im laufenden Jahr 10.000 € nicht übersteigt
+([§ 3a Abs. 5 Satz 3 UStG][ustg3a]). Darüber schuldet die GmbH die Steuer des
+Wohnsitzstaates, meist über OSS ([§ 18j UStG][ustg18j]); OSS bildet Buchfink
+nicht ab ([grundlagen/grenzen.md](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet)).
+Rechne mit `auswertung` und `buchungen_suchen` nach, wie nah die Schwelle ist,
+und empfiehl beim Überschreiten einen Steuerberater.
 
 ## 5. Ausnahmen vom Grundsatz
 
@@ -98,18 +83,7 @@ Elektronische Leistungen an Verbraucher in anderen EU-Staaten:
 | Vermittlung an Verbraucher | Ort des vermittelten Umsatzes | [§ 3a Abs. 3 Nr. 4 UStG][ustg3a] |
 
 Liegt der Ort danach im Ausland, entsteht dort Steuer, die Buchfink nicht
-abbildet. Lege den Fall dem Menschen als Grenze vor.
-
-## 6. Prüfliste vor `rechnung_ausstellen`
-
-- Land, Unternehmer oder Verbraucher und USt-IdNr. des Kontakts stimmen;
-  Buchfink bestätigt die USt-IdNr. beim Ausstellen.
-- Leistung ist eine sonstige Leistung und fällt unter keine Ausnahme aus
-  Abschnitt 5.
-- Steuerfall nach der Tabelle in [ablauf.md, Abschnitt 3](ablauf.md#3-steuerfall) gewählt.
-- Rechnungsdatum liegt spätestens am 15. des Folgemonats (EU-Unternehmen).
-- `rechnung_ausstellen` kennt nur Euro. Verlangt der Kunde eine andere
-  Währung, sprich die Grenze an.
+abbildet; leg den Fall dem Menschen als Grenze vor.
 
 [ustg3a]: https://www.gesetze-im-internet.de/ustg_1980/__3a.html
 [ustg14a]: https://www.gesetze-im-internet.de/ustg_1980/__14a.html

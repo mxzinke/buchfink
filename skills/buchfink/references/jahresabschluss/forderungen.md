@@ -1,9 +1,8 @@
 # Forderungen, Verbindlichkeiten und Fremdwährung zum Stichtag
 
-Rechtsstand: 17. Oktober 2026. Wortlaut von §§ 252, 253, 256a, 268, 274a, 277
-HGB, § 6 EStG, § 17 UStG und § 42 GmbHG am 17.10.2026 gelesen.
+Rechtsstand: 17. Oktober 2026.
 
-Den Ausfall einer Forderung im laufenden Jahr regelt
+Ausfall im laufenden Jahr:
 [rechnungen/forderungsausfall.md](../rechnungen/forderungsausfall.md).
 
 ## Inhalt
@@ -17,114 +16,84 @@ Den Ausfall einer Forderung im laufenden Jahr regelt
 
 ## 1. Abstimmen
 
-1. `offene_posten` (`richtung: forderung`, `stichtag`) und
-   (`richtung: verbindlichkeit`, `stichtag`).
-2. Summe je Liste gleich Saldo des Sammelkontos 1200 bzw. 3300 laut
-   `auswertung` (`art: susa`).
-3. Überfällige Posten (`offene_posten`, `nur_ueberfaellig: true`), Gutschriften
-   ohne Gegenposten und Posten mit Minusbetrag legst du dem Menschen vor.
+1. `offene_posten` mit `stichtag` für `richtung: forderung` und
+   `richtung: verbindlichkeit`; die Summe je Liste gleich dem Saldo von 1200
+   bzw. 3300 (`auswertung`, `art: susa`).
+2. Überfällige Posten (`nur_ueberfaellig: true`), Gutschriften ohne
+   Gegenposten und Minusbeträge legst du dem Menschen vor.
 
 Fertig, wenn beide Listen mit den Konten übereinstimmen und jeder auffällige
 Posten erklärt ist.
 
 ## 2. Einzelwertberichtigung
 
-- Forderungen gehören zum Umlaufvermögen. Ist ihr beizulegender Wert am
-  Stichtag niedriger, ist auf diesen Wert abzuschreiben
-  ([§ 253 Abs. 4 Satz 2 HGB][hgb253]). Bewertet wird jede Forderung einzeln
-  ([§ 252 Abs. 1 Nr. 3 HGB][hgb252]).
-- Es gilt die [Wertaufhellung](ablauf.md#4-entscheidungsregeln): Zahlt der
-  Kunde im Januar, bestand am Stichtag kein Ausfallrisiko in dieser Höhe.
-- Steuerlich darf der niedrigere Teilwert nur bei voraussichtlich dauernder
-  Wertminderung angesetzt werden ([§ 6 Abs. 1 Nr. 2 Satz 2 EStG][estg6]).
-- Bemessung: der Nettobetrag. Die Umsatzsteuer berichtigt die GmbH erst, wenn
-  das Entgelt uneinbringlich ist
-  ([rechnungen/forderungsausfall.md](../rechnungen/forderungsausfall.md)); bis
-  dahin ist sie nicht gefährdet, weil die GmbH sie dann zurückbekommt.
-- Indizien: erfolglose Mahnungen, Mahnbescheid ohne Zahlung, Kunde bestreitet
-  die Forderung, bekannte Zahlungsschwierigkeiten, Insolvenzantrag.
-  Steht der Ausfall fest (Insolvenzeröffnung, fruchtlose Vollstreckung), wird
-  die Forderung mit Umsatzsteuerkorrektur ausgebucht
-  ([rechnungen/forderungsausfall.md](../rechnungen/forderungsausfall.md)).
-- Buchung: Soll 6923 Einstellung in die Einzelwertberichtigung, Haben 1246
-  (Restlaufzeit bis ein Jahr) oder 1247 (über ein Jahr). Die Forderung bleibt
-  auf dem Personenkonto des Kunden. Werkzeug: `abschlussbuchung` mit
-  `art: wertberichtigung` und je Forderung `einzeln` (`buchung_id`,
-  `prozent`, `grund`).
-
-Wertungsfrage: der erwartete Ausfall in Prozent je Forderung. Leg Tatsachen,
-Alter, Mahnstand und Vorschlag vor; der Mensch entscheidet.
+- Ist der beizulegende Wert einer Forderung am Stichtag niedriger, ist auf ihn
+  abzuschreiben ([§ 253 Abs. 4 Satz 2 HGB][hgb253]), je Forderung einzeln
+  ([§ 252 Abs. 1 Nr. 3 HGB][hgb252]). Steuerlich nur bei voraussichtlich
+  dauernder Wertminderung ([§ 6 Abs. 1 Nr. 2 Satz 2 EStG][estg6]).
+- [Wertaufhellung](ablauf.md#4-entscheidungsregeln): Zahlt der Kunde im
+  Januar, bestand am Stichtag kein Ausfallrisiko in dieser Höhe.
+- Bemessung netto; die Umsatzsteuer wird erst bei Uneinbringlichkeit
+  berichtigt.
+- Indizien: erfolglose Mahnungen, Mahnbescheid ohne Zahlung, bestrittene
+  Forderung, Zahlungsschwierigkeiten, Insolvenzantrag. Steht der Ausfall fest
+  (Insolvenzeröffnung, fruchtlose Vollstreckung), buche ihn nach
+  [rechnungen/forderungsausfall.md](../rechnungen/forderungsausfall.md).
+- Buchung: Soll 6923, Haben 1246 (Restlaufzeit bis ein Jahr) oder 1247 (über
+  ein Jahr); die Forderung bleibt auf dem Personenkonto. `abschlussbuchung` mit
+  `art: wertberichtigung`, je Forderung `einzeln`.
+- Wertungsfrage: der erwartete Ausfall je Forderung. Leg Tatsachen, Alter,
+  Mahnstand und Vorschlag vor; der Mensch entscheidet.
 
 ## 3. Pauschalwertberichtigung
 
-- Für das allgemeine Ausfallrisiko der übrigen Forderungen kann eine
-  Pauschalwertberichtigung angesetzt werden; Grundlage sind § 253 Abs. 4
-  Satz 2 und § 252 Abs. 1 Nr. 4 HGB.
-- Maßstab sind die tatsächlichen Ausfälle der Vergangenheit. Rechne die Quote
-  aus den Forderungsverlusten der letzten Jahre (`auswertung`, Konten 6930 bis 6938)
-  im Verhältnis zu den Umsätzen.
-- Bemessung: Nettobetrag der Forderungen ohne die einzeln berichtigten.
-- Buchung: Soll 6920 Einstellung in die Pauschalwertberichtigung, Haben 1248
-  bzw. 1249. Werkzeug: `abschlussbuchung` mit `art: wertberichtigung` und
-  `pauschal_promille`.
-- Steuerlich gilt der Teilwert mit voraussichtlich dauernder Wertminderung
-  (§ 6 Abs. 1 Nr. 2 Satz 2 EStG); die Quote muss sich belegen lassen.
-
-Wertungsfrage: ob überhaupt und mit welcher Quote. Eine Quote ohne Beleg aus
-eigenen Ausfällen schlägst du nicht vor. Bei wenigen Kunden oder ohne
-Ausfallgeschichte ist die Einzelbewertung der bessere Weg.
+- Für das allgemeine Ausfallrisiko der übrigen Forderungen ist eine
+  Pauschalwertberichtigung zulässig (§ 253 Abs. 4 Satz 2, § 252 Abs. 1 Nr. 4
+  HGB); steuerlich nur mit belegbarer Quote (§ 6 Abs. 1 Nr. 2 Satz 2 EStG).
+- Quote: eigene Forderungsverluste der letzten Jahre (Konten 6930 bis 6938)
+  im Verhältnis zu den Umsätzen, angewandt auf die Nettoforderungen ohne die
+  einzeln berichtigten. Ohne eigene Ausfallgeschichte schlägst du keine Quote
+  vor; dann bewerte einzeln. Ob und mit welcher Quote, entscheidet der Mensch.
+- Buchung: Soll 6920, Haben 1248 bzw. 1249; `abschlussbuchung` mit
+  `art: wertberichtigung` und `pauschal_promille`.
 
 ## 4. Fremdwährung
 
-- Forderungen und Verbindlichkeiten in fremder Währung werden zum
-  Devisenkassamittelkurs am Stichtag umgerechnet ([§ 256a Satz 1 HGB][hgb256a]).
-- Restlaufzeit bis ein Jahr: auch ein Kursgewinn über die Anschaffungskosten
-  hinaus wird gebucht (§ 256a Satz 2 HGB). Restlaufzeit über ein Jahr: nur der
-  Verlust ([§ 252 Abs. 1 Nr. 4 HGB][hgb252], [§ 253 Abs. 1 Satz 1 HGB][hgb253]).
-- Konten: Soll 6880 Aufwendungen aus der Währungsumrechnung bzw. Haben 4840
-  Erträge aus der Währungsumrechnung; Ausweis unter den sonstigen betrieblichen
-  Posten ([§ 277 Abs. 5 Satz 2 HGB][hgb277]). Gegenkonto ist das Personenkonto
-  des Kunden oder Lieferanten.
-- Buchfink bewertet alle offenen Fremdwährungsposten mit `abschlussbuchung`
-  und `art: fremdwaehrung` zum Kurs des Stichtags; die Vorschau nennt Kurs und
-  Betrag. Die Auflösung kommt mit dem Saldenvortrag.
-- Steuerlich bleibt es bei den Anschaffungskosten als Obergrenze
-  ([§ 6 Abs. 1 Nr. 2 Satz 1, Nr. 3 EStG][estg6]); ein gebuchter Kursgewinn über
-  die Anschaffungskosten hinaus kommt in die
-  [Liste Abschlussposten](abschlussbuchungen.md#4-liste-abschlussposten).
-- Im Folgejahr löst du die Bewertung zum 1.1. auf (Gegenbuchung); der
-  Zahlungsausgleich bucht dann die realisierte Differenz
-  ([bank/skonto-differenzen.md](../bank/skonto-differenzen.md)).
+- Umrechnung zum Devisenkassamittelkurs am Stichtag
+  ([§ 256a Satz 1 HGB][hgb256a]). Restlaufzeit bis ein Jahr: auch ein
+  Kursgewinn über die Anschaffungskosten hinaus (Satz 2); über ein Jahr: nur
+  der Verlust ([§ 252 Abs. 1 Nr. 4][hgb252], [§ 253 Abs. 1 Satz 1 HGB][hgb253]).
+- `abschlussbuchung` mit `art: fremdwaehrung` bewertet alle offenen
+  Fremdwährungsposten: Soll 6880 bzw. Haben 4840 gegen das Personenkonto;
+  Ausweis unter den sonstigen betrieblichen Posten
+  ([§ 277 Abs. 5 Satz 2 HGB][hgb277]).
+- Steuerlich bleiben die Anschaffungskosten Obergrenze
+  ([§ 6 Abs. 1 Nr. 2 Satz 1, Nr. 3 EStG][estg6]); ein Kursgewinn darüber kommt
+  in die [Liste Abschlussposten](abschlussbuchungen.md#4-liste-abschlussposten).
+- Der Saldenvortrag löst die Bewertung zum 1.1. auf; die realisierte
+  Differenz bucht der [Zahlungsausgleich](../bank/skonto-differenzen.md).
 
 ## 5. Ausweis und Restlaufzeiten
 
-- Forderungen mit Restlaufzeit über einem Jahr und Verbindlichkeiten mit
-  Restlaufzeit bis zu einem Jahr und über einem Jahr sind je Posten zu
-  vermerken ([§ 268 Abs. 4 Satz 1, Abs. 5 Satz 1 HGB][hgb268]). Buchfink rechnet
-  sie aus den offenen Posten; Darlehen ordnest du nach
+- Zu vermerken sind je Posten Forderungen mit Restlaufzeit über einem Jahr
+  und Verbindlichkeiten mit Restlaufzeit bis zu und über einem Jahr
+  ([§ 268 Abs. 4 Satz 1, Abs. 5 Satz 1 HGB][hgb268]). Buchfink rechnet sie aus
+  den offenen Posten; Darlehen ordnest du nach
   [bank/darlehen.md](../bank/darlehen.md) zu.
-- Erst nach dem Stichtag rechtlich entstehende Beträge unter den sonstigen
-  Vermögensgegenständen oder Verbindlichkeiten sind bei größerem Umfang im
-  Anhang zu erläutern (§ 268 Abs. 4 Satz 2, Abs. 5 Satz 3); kleine
-  Gesellschaften sind davon befreit ([§ 274a Nr. 1, 2 HGB][hgb274a]).
-- Für Forderungen und Verbindlichkeiten gegenüber Gesellschaftern gilt die
-  Ausweisregel mit Konten in
-  [gesellschafter/ausweis.md](../gesellschafter/ausweis.md#1-regel); sie
-  erfasst auch Rechnungen an einen Gesellschafter als Kunden.
+- Kleine Gesellschaften erläutern antizipative Posten nicht (§ 268 Abs. 4
+  Satz 2, Abs. 5 Satz 3, [§ 274a Nr. 1, 2 HGB][hgb274a]).
+- Posten gegenüber Gesellschaftern, auch als Kunden:
+  [gesellschafter/ausweis.md](../gesellschafter/ausweis.md#1-regel).
 - Forderungen und Verbindlichkeiten gegenüber demselben Partner werden nicht
-  verrechnet ([§ 246 Abs. 2 Satz 1 HGB][hgb246]). Ein Kunde, der zugleich
-  Lieferant ist, steht auf beiden Seiten.
+  verrechnet ([§ 246 Abs. 2 Satz 1 HGB][hgb246]).
 
 ## 6. Folgejahr
 
-- Einzelwertberichtigung: Zahlt der Kunde oder fällt die Forderung aus,
-  entfällt der Grund; die Berichtigung wird aufgelöst (Soll 1246, Haben 4923
-  Erträge aus der Herabsetzung der Einzelwertberichtigung) und der Ausfall nach
-  [rechnungen/forderungsausfall.md](../rechnungen/forderungsausfall.md)
-  gebucht.
-- Pauschalwertberichtigung: zum nächsten Stichtag neu berechnen; die
-  Differenz geht auf 6920 oder 4920.
-- Fremdwährung: Auflösung nach Abschnitt 4.
+- Einzelwertberichtigung: Zahlt der Kunde oder fällt die Forderung aus, löst
+  du sie auf (Soll 1246, Haben 4923) und buchst den Ausfall nach
+  [rechnungen/forderungsausfall.md](../rechnungen/forderungsausfall.md).
+- Pauschalwertberichtigung: zum nächsten Stichtag neu berechnen; die Differenz
+  geht auf 6920 oder 4920.
 
 [hgb246]: https://www.gesetze-im-internet.de/hgb/__246.html
 [hgb252]: https://www.gesetze-im-internet.de/hgb/__252.html

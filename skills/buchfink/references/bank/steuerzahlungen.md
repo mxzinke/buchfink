@@ -3,11 +3,10 @@
 Rechtsstand: 17. Oktober 2026. Wortlaut von AO, EStG und KStG am 17.10.2026
 gelesen. Konten aus dem SKR04 und der Buchungslogik von Buchfink.
 
-Wie hoch eine Steuer ist, bestimmen
-[monatsabschluss/ustva.md](../monatsabschluss/ustva.md) (Umsatzsteuer) und die
-Jahreserklärungen ([steuererklaerungen/kst.md](../steuererklaerungen/kst.md),
-[steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md)). Hier wird die
-Zahlung gebucht.
+Hier wird die Zahlung gebucht; die Höhe der Steuer bestimmen
+[monatsabschluss/ustva.md](../monatsabschluss/ustva.md),
+[steuererklaerungen/kst.md](../steuererklaerungen/kst.md) und
+[steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md).
 
 ## Inhalt
 
@@ -20,94 +19,82 @@ Zahlung gebucht.
 
 ## 1. Erkennen und belegen
 
-- Zahlungen an das Finanzamt tragen Steuernummer, Steuerart und Zeitraum im
-  Verwendungszweck. Gewerbesteuer zahlt die GmbH an die Gemeinde.
-- Beleg ist die Anmeldung (Voranmeldung) oder der Bescheid. Lege einen Bescheid
-  mit `beleg_ablegen` ab, bevor du die Zahlung buchst; den Abgleich mit der
-  Erklärung beschreibt
+- Zahlungen an das Finanzamt nennen Steuernummer, Steuerart und Zeitraum im
+  Verwendungszweck; Gewerbesteuer geht an die Gemeinde.
+- Beleg ist die Anmeldung oder der Bescheid. Lege einen Bescheid ab, bevor du
+  die Zahlung buchst; Abgleich mit der Erklärung:
   [steuererklaerungen/bescheide.md](../steuererklaerungen/bescheide.md).
-- Ein Umsatz mit Steuer und Nebenleistung (Zinsen, Säumniszuschlag) bekommt je
-  Bestandteil eine Zeile. Die Aufteilung steht im Bescheid oder in der
-  Kontoübersicht des Finanzamts; frag danach, wenn sie fehlt.
+- Steuer und Nebenleistung (Zinsen, Säumniszuschlag) in einem Umsatz bekommen
+  je eine Zeile. Die Aufteilung steht im Bescheid oder in der Kontoübersicht
+  des Finanzamts; fehlt sie, frag.
 
 ## 2. Konten je Steuerart
 
 | Zahlung | Konto | Hinweis |
 |---|---|---|
-| Umsatzsteuer-Vorauszahlung laut Voranmeldung, auch Erstattung | 3820 Umsatzsteuer-Vorauszahlungen | Zahlung im Soll, Erstattung im Haben |
-| Sondervorauszahlung bei Dauerfristverlängerung | 3830 Umsatzsteuer-Vorauszahlungen 1/11 | Pflicht und Höhe: [monatsabschluss/dauerfristverlaengerung.md](../monatsabschluss/dauerfristverlaengerung.md) |
-| Zahlung der letzten Voranmeldung des Vorjahres, nachdem die Umsatzsteuer-Verrechnung gebucht ist | 3841 Umsatzsteuerverbindlichkeiten Vorjahr | Die Verrechnung bringt die offene Vorauszahlung auf 3841 ([jahresabschluss/steuern-im-abschluss.md](../jahresabschluss/steuern-im-abschluss.md#1-umsatzsteuer-verrechnung)); auf 3820 zählte sie in der Verrechnung des neuen Jahres als Vorauszahlung |
-| Umsatzsteuer-Abschlusszahlung für das Vorjahr | 3841 Umsatzsteuerverbindlichkeiten Vorjahr | Buchfink bucht die Jahreszahllast dorthin |
-| Umsatzsteuer-Erstattung für das Vorjahr | 1420 | Buchfink bucht die Jahreserstattung dorthin |
-| Körperschaftsteuer-Vorauszahlung laufendes Jahr | 7600 Körperschaftsteuer | nicht abziehbar ([§ 10 Nr. 2 KStG][kstg10]) |
-| Solidaritätszuschlag-Vorauszahlung | 7608 Solidaritätszuschlag | nicht abziehbar |
-| Gewerbesteuer-Vorauszahlung | 7610 Gewerbesteuer | keine Betriebsausgabe ([§ 4 Abs. 5b EStG][estg4]) |
+| Umsatzsteuer-Vorauszahlung laut Voranmeldung, auch Erstattung | 3820 | Zahlung im Soll, Erstattung im Haben |
+| Sondervorauszahlung bei Dauerfristverlängerung | 3830 | [monatsabschluss/dauerfristverlaengerung.md](../monatsabschluss/dauerfristverlaengerung.md) |
+| Letzte Voranmeldung des Vorjahres nach gebuchter Umsatzsteuer-Verrechnung; Abschlusszahlung für das Vorjahr | 3841 | dorthin bucht Buchfink Verrechnung und Jahreszahllast ([jahresabschluss/steuern-im-abschluss.md](../jahresabschluss/steuern-im-abschluss.md#1-umsatzsteuer-verrechnung)) |
+| Umsatzsteuer-Erstattung für das Vorjahr | 1420 | dorthin bucht Buchfink die Jahreserstattung |
+| Körperschaftsteuer-, Solidaritätszuschlag-Vorauszahlung laufendes Jahr | 7600, 7608 | nicht abziehbar ([§ 10 Nr. 2 KStG][kstg10]) |
+| Gewerbesteuer-Vorauszahlung | 7610 | keine Betriebsausgabe ([§ 4 Abs. 5b EStG][estg4]) |
 | Lohnsteuer, Sozialversicherung | Konten aus [lohn/lohnjournal.md](../lohn/lohnjournal.md) | – |
-| Kapitalertragsteuer auf eine eigene Ausschüttung | 3760, siehe [gesellschafter/ausschuettung.md](../gesellschafter/ausschuettung.md#5-buchungen-in-buchfink) | – |
+| Kapitalertragsteuer auf eine eigene Ausschüttung | 3760 | [gesellschafter/ausschuettung.md](../gesellschafter/ausschuettung.md#5-buchungen-in-buchfink) |
 
-Lege jede Steuerzahlung als Rückfrage vor (`bankumsatz_buchen` mit einer
-Zeile `konto` je Bestandteil). Direkt zuordnen lässt sich nur eine Zahlung auf
-einen offenen Posten mit `bankumsatz_zuordnen`.
+Jede Steuerzahlung ist Rückfrage: `bankumsatz_buchen` mit einer Zeile `konto`
+je Bestandteil.
 
 ## 3. Nachzahlung und Erstattung für Vorjahre
 
-Für das Vorjahr ist meist eine Steuerrückstellung gebucht
-([jahresabschluss/steuern-im-abschluss.md](../jahresabschluss/steuern-im-abschluss.md)).
-Die Zahlung verbraucht sie; nur der Unterschied wirkt im laufenden Jahr.
+Die Zahlung verbraucht die Steuerrückstellung des Vorjahres
+([jahresabschluss/steuern-im-abschluss.md](../jahresabschluss/steuern-im-abschluss.md));
+nur der Unterschied wirkt im laufenden Jahr.
 
 | Steuer | Rückstellung | Mehr als zurückgestellt | Weniger oder Erstattung |
 |---|---|---|---|
-| Körperschaftsteuer | 3040 | 7603 Körperschaftsteuer für Vorjahre | 7604 Körperschaftsteuererstattungen für Vorjahre |
-| Solidaritätszuschlag | 3040, zusammen mit der Körperschaftsteuer | 7609 Solidaritätszuschlag für Vorjahre | 7607 Solidaritätszuschlagerstattungen für Vorjahre |
-| Gewerbesteuer | 3035 | 7641 Gewerbesteuernachzahlungen und -erstattungen für Vorjahre | 7641; Auflösung einer zu hohen Rückstellung 7643 |
+| Körperschaftsteuer | 3040 | 7603 | 7604 |
+| Solidaritätszuschlag | 3040 | 7609 | 7607 |
+| Gewerbesteuer | 3035 | 7641 | 7641; Auflösung einer zu hohen Rückstellung 7643 |
 
-Welche Rückstellung besteht, zeigt `auswertung` mit `art: kontoblatt` und
-`konto: 3040` (bzw. 3035). Den Vorschlag legst du vor; ob die Rückstellung
-damit erledigt ist, entscheidet der Mensch.
+Die Rückstellung zeigt `auswertung` (`art: kontoblatt`, `konto: 3040` bzw.
+3035). Ob sie damit erledigt ist, entscheidet der Mensch.
 
 ## 4. Säumniszuschläge, Zinsen, Verspätungszuschläge
 
-Alle drei sind steuerliche Nebenleistungen ([§ 3 Abs. 4 AO][ao3]).
-
-| Nebenleistung | Höhe und Regeln |
-|---|---|
-| Säumniszuschlag ([§ 240 AO][ao240]) | [grundlagen/pflichten.md](../grundlagen/pflichten.md#fristende-zahlung-verlängerung) |
-| Zinsen auf Nachzahlung und Erstattung ([§ 233a AO][ao233a]) | [steuererklaerungen/fristen-zuschlaege.md](../steuererklaerungen/fristen-zuschlaege.md#5-zinsen-und-säumniszuschläge) |
-| Verspätungszuschlag ([§ 152 AO][ao152]) | nach Bescheid; [steuererklaerungen/fristen-zuschlaege.md](../steuererklaerungen/fristen-zuschlaege.md#4-verspätungszuschlag) |
-
-Abziehbarkeit und Konto:
+Steuerliche Nebenleistungen ([§ 3 Abs. 4 AO][ao3]). Höhe: Säumniszuschlag
+([§ 240 AO][ao240]) in
+[grundlagen/pflichten.md](../grundlagen/pflichten.md#fristende-zahlung-verlängerung);
+Zinsen ([§ 233a AO][ao233a]) in
+[steuererklaerungen/fristen-zuschlaege.md, Abschnitt 5](../steuererklaerungen/fristen-zuschlaege.md#5-zinsen-und-säumniszuschläge);
+Verspätungszuschlag ([§ 152 AO][ao152]) nach Bescheid,
+[Abschnitt 4](../steuererklaerungen/fristen-zuschlaege.md#4-verspätungszuschlag).
 
 | Nebenleistung auf | Abziehbar? | Konto |
 |---|---|---|
 | Körperschaftsteuer, Solidaritätszuschlag | nein ([§ 10 Nr. 2 KStG][kstg10], letzter Halbsatz) | Säumniszuschlag 7304; Zinsen § 233a 7308; Verspätungszuschlag 6437 |
 | Gewerbesteuer | nein ([§ 4 Abs. 5b EStG][estg4]) | Säumniszuschlag 7302; Zinsen § 233a 7308; Verspätungszuschlag 6437 |
-| andere Steuern, etwa Umsatzsteuer | keiner der beiden Ausschlüsse greift | Säumniszuschlag 7303; Zinsen § 233a 7305; Verspätungszuschlag 6436 |
+| andere Steuern, etwa Umsatzsteuer | ja, kein Ausschluss greift | Säumniszuschlag 7303; Zinsen § 233a 7305; Verspätungszuschlag 6436 |
 
-Erstattungszinsen nach § 233a AO bucht das SKR04 je nach steuerlicher
-Behandlung auf 7105, 7106 oder 7107. Die Behandlung ist eine Wertungsfrage
-([steuererklaerungen/kst.md, Abschnitt 2](../steuererklaerungen/kst.md#2-überleitung-zum-zu-versteuernden-einkommen));
-frag den Menschen.
+Erstattungszinsen nach § 233a AO: 7105, 7106 oder 7107 je nach steuerlicher
+Behandlung; die ist eine Wertungsfrage
+([steuererklaerungen/kst.md, Abschnitt 2](../steuererklaerungen/kst.md#2-überleitung-zum-zu-versteuernden-einkommen)).
 
 ## 5. Fälligkeit und Zahlungstag
 
-- Die Termine aller Steuerzahlungen des Mandanten nennt `fristen`; die
-  Fälligkeit je Steuer steht in [grundlagen/pflichten.md](../grundlagen/pflichten.md)
-  unter ihrem Anker (etwa `#ustva`), wann eine Zahlung als entrichtet gilt und
-  wann Säumnis beginnt, unter
+- Termine nennt `fristen`; wann eine Zahlung als entrichtet gilt:
   [Fristende, Zahlung, Verlängerung](../grundlagen/pflichten.md#fristende-zahlung-verlängerung).
-- An der Buchung auf dem Konto der Steuerart (Abschnitt 2) erkennt `fristen`
-  Sondervorauszahlung und Vorauszahlungen als bezahlt. Ordne jede Zahlung
-  deshalb dem richtigen Konto und Jahr zu.
-- Fällt dir bei der Zuordnung auf, dass eine Steuer verspätet gezahlt wurde,
-  sag es dem Menschen; ein Säumniszuschlag folgt meist mit späterer Post.
+- `fristen` erkennt Sondervorauszahlung und Vorauszahlungen an der Buchung auf
+  dem Konto der Steuerart (Abschnitt 2) als bezahlt; ordne jede Zahlung dem
+  richtigen Konto und Jahr zu.
+- Fällt dir eine verspätete Zahlung auf, sag es dem Menschen; ein
+  Säumniszuschlag folgt meist später.
 
 ## 6. Verrechnung durch das Finanzamt
 
 Verrechnet das Finanzamt eine Erstattung mit einer anderen Steuerschuld
-(Umbuchungsmitteilung), fließt kein Geld. Lege die Mitteilung ab und buche die
-Umbuchung zwischen den Steuerkonten mit `buchung_erfassen` (Rückfrage, Beleg ist
-die Mitteilung). Danach stimmt der Bankumsatz der Restzahlung wieder mit einem
-einzelnen Konto überein.
+(Umbuchungsmitteilung), fließt kein Geld: Mitteilung ablegen, Umbuchung
+zwischen den Steuerkonten mit `buchung_erfassen` (Rückfrage, Beleg ist die
+Mitteilung). Danach passt die Restzahlung wieder zu einem Konto.
 
 [ao3]: https://www.gesetze-im-internet.de/ao_1977/__3.html
 [ao152]: https://www.gesetze-im-internet.de/ao_1977/__152.html

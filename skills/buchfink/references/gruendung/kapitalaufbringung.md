@@ -1,8 +1,6 @@
 # Kapitalaufbringung
 
-Rechtsstand: 17. Oktober 2026. Wortlaut von GmbHG und HGB am 17.10.2026
-gelesen; Musterprotokoll aus Anlage 1 zum GmbHG. Konten nach dem SKR04 in
-Buchfink.
+Rechtsstand: 17. Oktober 2026. Konten nach dem SKR04 in Buchfink.
 
 ## Inhalt
 
@@ -18,11 +16,10 @@ Buchfink.
 | Rechtsform | Stammkapital | Grundlage |
 |---|---|---|
 | GmbH | mindestens 25.000 € | [§ 5 Abs. 1 GmbHG][gmbhg5] |
-| UG (haftungsbeschränkt) | unter 25.000 €; jeder Geschäftsanteil lautet auf volle Euro, also mindestens 1 € | [§ 5a Abs. 1 GmbHG][gmbhg5a], [§ 5 Abs. 2 GmbHG][gmbhg5] |
+| UG (haftungsbeschränkt) | unter 25.000 €; Geschäftsanteile auf volle Euro, also mindestens 1 € | [§ 5a Abs. 1 GmbHG][gmbhg5a], [§ 5 Abs. 2 GmbHG][gmbhg5] |
 
-Stand: Oktober 2026. Erhöht eine UG ihr Stammkapital auf 25.000 € oder mehr,
-gelten die Sonderregeln der UG nicht mehr; die Firma darf sie behalten
-([§ 5a Abs. 5 GmbHG][gmbhg5a]).
+Erhöht eine UG auf 25.000 € oder mehr, entfallen die Sonderregeln der UG; die
+Firma darf sie behalten ([§ 5a Abs. 5 GmbHG][gmbhg5a]).
 
 ## 2. Was vor der Anmeldung eingezahlt sein muss
 
@@ -30,118 +27,87 @@ gelten die Sonderregeln der UG nicht mehr; die Firma darf sie behalten
 
 - Auf jeden Geschäftsanteil mit Geldeinlage mindestens ein Viertel des
   Nennbetrags.
-- Insgesamt müssen die eingezahlten Geldeinlagen plus der Nennbetrag der
-  Sacheinlagen die Hälfte des Mindeststammkapitals erreichen, also 12.500 €.
-  Maßgebend ist das Mindeststammkapital, nicht das vereinbarte.
-- Sacheinlagen sind vor der Anmeldung vollständig zu bewirken.
+- Eingezahlte Geldeinlagen plus Nennbetrag der Sacheinlagen erreichen
+  mindestens 12.500 €, die Hälfte des Mindeststammkapitals (nicht des
+  vereinbarten).
+- Sacheinlagen sind vor der Anmeldung voll zu bewirken.
 - Eingezahlt wird nach dem Verhältnis der Geldeinlagen
   ([§ 19 Abs. 1 GmbHG][gmbhg19]).
 
-**UG**: Das Stammkapital ist vor der Anmeldung voll einzuzahlen;
-Sacheinlagen sind ausgeschlossen ([§ 5a Abs. 2 GmbHG][gmbhg5a]).
+Beispiel: 100.000 € in vier Anteilen zu 25.000 € verlangen je 6.250 €, also
+25.000 €; 25.000 € in Anteilen zu 15.000 € und 10.000 € verlangen 12.500 €,
+nach Verhältnis 7.500 € und 5.000 €.
 
-**Musterprotokoll**: Die Einlage ist in Geld zu erbringen, sofort in voller
-Höhe oder zu 50 % sofort und im Übrigen nach Beschluss; bei der UG ist nur die
-volle Einzahlung zulässig ([Anlage 1 GmbHG][gmbhganl1], Nr. 3 mit Hinweis 3).
+**UG**: Stammkapital vor der Anmeldung voll einzahlen; Sacheinlagen sind
+ausgeschlossen ([§ 5a Abs. 2 GmbHG][gmbhg5a]).
 
-Beispiele, rechnerisch:
-
-| Fall | Viertel je Anteil | Untergrenze gesamt | vor der Anmeldung einzuzahlen |
-|---|---|---|---|
-| GmbH 25.000 €, ein Gesellschafter | 6.250 € | 12.500 € | 12.500 € |
-| GmbH 25.000 €, Anteile 15.000 € und 10.000 € | 3.750 € und 2.500 € | 12.500 € | 12.500 €, nach Verhältnis 7.500 € und 5.000 € |
-| GmbH 100.000 €, vier Anteile zu 25.000 € | je 6.250 € | 12.500 € | 25.000 € |
-| UG 1.000 € | – | – | 1.000 € |
-
-Stand: Oktober 2026. Buchfink rechnet dieselbe Regel
-(`FoundationRules.RequiredPaidIn`): Viertel je Anteil, mindestens 12.500 €,
-Sacheinlagen mit vollem Nennbetrag.
+**Musterprotokoll**: nur Geldeinlage, sofort voll oder zu 50 % sofort und im
+Übrigen nach Beschluss; die UG zahlt voll ein
+([Anlage 1 GmbHG][gmbhganl1], Nr. 3 mit Hinweis 3).
 
 Den Rest fordern die Gesellschafter durch Beschluss ein
-([§ 46 Nr. 2 GmbHG][gmbhg46]). Von der Einlagepflicht kann kein Gesellschafter
-befreit werden; aufrechnen darf er nur in engen Grenzen
-([§ 19 Abs. 2 GmbHG][gmbhg19]). Der Anspruch verjährt in zehn Jahren ab
-Entstehung ([§ 19 Abs. 6 Satz 1 GmbHG][gmbhg19]).
+([§ 46 Nr. 2 GmbHG][gmbhg46]). Kein Gesellschafter kann von der
+Einlagepflicht befreit werden; aufrechnen darf er nur in engen Grenzen
+([§ 19 Abs. 2 GmbHG][gmbhg19]).
 
 ## 3. Buchungen
 
-| Vorgang | Soll | Haben | Werkzeug |
+| Vorgang | Soll | Haben | Beleg |
 |---|---|---|---|
-| Zeichnung, eingeforderter Teil (Beurkundungstag) | 1298 Ausstehende Einlagen auf das gezeichnete Kapital, eingefordert | 2900 Gezeichnetes Kapital | `buchung_erfassen` (Rückfrage) |
-| Zeichnung, nicht eingeforderter Teil | 2910 Ausstehende Einlagen, nicht eingefordert | 2900 Gezeichnetes Kapital | `buchung_erfassen` (Rückfrage) |
-| Einzahlung | 1800 Bank | 1298 | `bankumsatz_buchen` oder `buchung_erfassen` |
-| spätere Einforderung | 1298 | 2910 | `buchung_erfassen` mit Beschluss als Beleg |
+| Zeichnung, eingeforderter Teil (Beurkundungstag) | 1298 Ausstehende Einlagen, eingefordert | 2900 Gezeichnetes Kapital | Gesellschaftsvertrag |
+| Zeichnung, nicht eingeforderter Teil | 2910 Ausstehende Einlagen, nicht eingefordert | 2900 | Gesellschaftsvertrag |
+| Einzahlung | 1800 Bank | 1298 | Kontoauszug |
+| spätere Einforderung | 1298 | 2910 | Beschluss der Gesellschafter |
 
-Ausweis: Nicht eingeforderte ausstehende Einlagen werden vom gezeichneten
-Kapital offen abgesetzt; eingeforderte, noch nicht eingezahlte stehen gesondert
-unter den Forderungen ([§ 272 Abs. 1 HGB][hgb272]).
-
-Rückfrage-Beispiel:
-
-```
-[1] Beleg B-2026-0001 · Gesellschaftsvertrag · 25.000,00 € · 03.11.2026
-Sachverhalt: Gründung Muster GmbH i. G., Stammkapital 25.000 €, voll eingefordert.
-Vorschlag:   1298 Ausstehende Einlagen, eingefordert 25.000,00 an 2900 Gezeichnetes Kapital 25.000,00
-Warum ich frage: Handbuchung; Gründungsbuchungen haben kein eigenes Werkzeug.
-Bitte wähle: (a) so buchen  (b) Teil nicht eingefordert (2910)  (c) zurückstellen
-```
+Ausweis: Nicht eingeforderte ausstehende Einlagen setzt die Bilanz offen vom
+gezeichneten Kapital ab; eingeforderte, noch nicht eingezahlte stehen
+gesondert unter den Forderungen ([§ 272 Abs. 1 HGB][hgb272]).
 
 ## 4. Sacheinlage
 
-- Gegenstand und Nennbetrag stehen im Vertrag; die Gesellschafter erstellen
-  einen Sachgründungsbericht ([§ 5 Abs. 4 GmbHG][gmbhg5]). Verträge und
-  Wertnachweise gehören zur Anmeldung ([§ 8 Abs. 1 Nr. 4, 5 GmbHG][gmbhg8]).
-- Erreicht der Wert bei der Anmeldung den Nennbetrag nicht, zahlt der
-  Gesellschafter die Differenz in Geld; der Anspruch verjährt zehn Jahre nach
-  der Eintragung ([§ 9 GmbHG][gmbhg9]).
-- Buchfink bucht keine Sacheinlage von selbst. Buche sie nur nach Rückfrage:
-  Konto des eingebrachten Gegenstands an 1298, Wert laut Nachweis.
-- Wertungsfrage: Bewertung, Umsatzsteuer auf die Einbringung und ein Wert
-  über dem Nennbetrag. Empfiehl einen Steuerberater.
+- Gegenstand und Nennbetrag stehen im Vertrag, dazu ein Sachgründungsbericht
+  ([§ 5 Abs. 4 GmbHG][gmbhg5]); Verträge und Wertnachweise gehören zur
+  Anmeldung ([§ 8 Abs. 1 Nr. 4, 5 GmbHG][gmbhg8]).
+- Bleibt der Wert bei der Anmeldung unter dem Nennbetrag, zahlt der
+  Gesellschafter die Differenz in Geld ([§ 9 GmbHG][gmbhg9]).
+- Buchung nach Rückfrage: Konto des Gegenstands an 1298, Wert laut Nachweis.
+- Wertungsfrage: Bewertung, Umsatzsteuer auf die Einbringung, Wert über dem
+  Nennbetrag. Empfiehl einen Steuerberater.
 
 ## 5. Verdeckte Sacheinlage und Hin- und Herzahlen
 
-- **Verdeckte Sacheinlage:** Ist eine Geldeinlage wirtschaftlich und nach einer
-  Abrede bei der Übernahme ganz oder teilweise eine Sacheinlage, etwa wenn die
-  GmbH mit dem eingezahlten Geld einen Gegenstand des Gesellschafters kauft,
-  bleibt die Einlagepflicht bestehen. Der Wert des Gegenstands wird angerechnet,
-  aber erst nach der Eintragung; die Beweislast trägt der Gesellschafter
+- **Verdeckte Sacheinlage:** Kauft die GmbH nach einer Abrede bei der
+  Übernahme mit der Geldeinlage einen Gegenstand des Gesellschafters, bleibt
+  die Einlagepflicht bestehen. Der Wert wird erst nach der Eintragung
+  angerechnet; die Beweislast trägt der Gesellschafter
   ([§ 19 Abs. 4 GmbHG][gmbhg19]).
-- **Hin- und Herzahlen:** Fließt die Einlage aufgrund einer vorher getroffenen
-  Vereinbarung an den Gesellschafter zurück (etwa als Darlehen), befreit das
-  nur, wenn ein vollwertiger, jederzeit fälliger oder fristlos kündbarer
-  Rückgewähranspruch besteht und die Leistung in der Anmeldung angegeben wird
-  ([§ 19 Abs. 5 GmbHG][gmbhg19]).
-- Erkennst du kurz nach der Einzahlung eine Zahlung an einen Gesellschafter
-  oder einen Kauf von ihm, halte an und lege den Fall vor. Darlehen an
-  Gesellschafter: [bank/darlehen.md](../bank/darlehen.md).
+- **Hin- und Herzahlen:** Fließt die Einlage nach vorheriger Abrede zurück
+  (etwa als Darlehen), befreit sie nur bei vollwertigem, jederzeit fälligem
+  oder fristlos kündbarem Rückgewähranspruch, der in der Anmeldung angegeben
+  ist ([§ 19 Abs. 5 GmbHG][gmbhg19]).
+- Darlehen an Gesellschafter: [bank/darlehen.md](../bank/darlehen.md).
 
 ## 6. Unterbilanz am Eintragungstag
 
 - Ist das Stammkapital bei der Eintragung ganz oder teilweise verbraucht,
-  haften die Gesellschafter nach der Rechtsprechung des BGH anteilig für die
-  Differenz (Unterbilanz- oder Vorbelastungshaftung; grundlegend
-  BGH vom 09.03.1981, II ZR 54/80, BGHZ 80, 129; Fundstelle über
-  Sekundärquellen geprüft). Eine Norm im GmbHG gibt es dafür nicht.
-- Prüfe zur Eintragung die Unterbilanz mit `auswertung`
-  (`art: unterbilanz`). Buchfink rechnet aus den Buchungen bis zum
-  Eintragungstag: Reinvermögen = Vermögensgegenstände einschließlich
-  ausstehender Einlagen minus Schulden; `unterdeckung` ist der Abstand zum
-  Stammkapital, `gedeckt` der Teil, den der Gründungsaufwand laut Satzung
-  trägt, `haftung` der Rest, verteilt nach Geschäftsanteilen. Vor der
-  Eintragung rechnet Buchfink auf heute (`endgueltig: false`). Ist `haftung`
-  größer als null, nenne dem Menschen Betrag und Anteile und empfiehl Notar
-  oder Steuerberater. Der Mensch sieht dieselbe Rechnung unter Unternehmen ›
-  Stammdaten im Block „Gesellschafter & Kapital“.
-- Gründungsaufwand mindert das Reinvermögen sofort
+  haften die Gesellschafter anteilig für die Differenz zum Reinvermögen
+  (Unterbilanzhaftung, Richterrecht: BGH vom 09.03.1981, II ZR 54/80,
+  BGHZ 80, 129).
+- `auswertung` (`art: unterbilanz`) rechnet bis zur Eintragung auf heute
+  (`endgueltig: false`), danach auf den Eintragungstag. `gedeckt` ist das
+  Minimum aus Gründungsaufwand laut Satzung und `unterdeckung`; `haftung` ist
+  der Rest, verteilt nach Geschäftsanteilen. Die App zeigt dieselbe Rechnung
+  unter Unternehmen › Stammdaten.
+- Prüfauftrag: Buchfink unterstellt, dass die Unterdeckung bis zur Höhe der
+  Klausel aus Gründungsaufwand stammt
   ([gruendungskosten.md, Abschnitt 1](gruendungskosten.md#1-bilanz-kein-aktivposten)).
-  Buchfink rechnet den im Vertrag übernommenen Gründungsaufwand gegen die
-  Unterdeckung (`gedeckt`). Wertungsfrage: Ob er die Haftung im Einzelfall
-  mindert, beurteilt ein Berater.
-- Ohne erfasste Gründung (Gesellschafter, Einzahlungen, Gründungsaufwand
-  laut Satzung, nur in der App) liefert `art: unterbilanz` nur einen Hinweis;
-  dann prüfe die Salden selbst mit `auswertung` (`art: kontoblatt`,
-  `bis: <Eintragungstag>`).
+  Stell dem Menschen `unterdeckung`, `gedeckt` und den bis zur Eintragung
+  gebuchten Gründungsaufwand nebeneinander. Ob die Unterdeckung aus
+  Gründungsaufwand oder aus Anlaufverlust stammt und ob der Gründungsaufwand
+  die Haftung mindert, beurteilt er, im Zweifel mit einem Berater
+  (Wertungsfrage).
+- Ist `haftung` größer als null, nenne Betrag und Anteile und empfiehl Notar
+  oder Steuerberater.
 
 [gmbhg5]: https://www.gesetze-im-internet.de/gmbhg/__5.html
 [gmbhg5a]: https://www.gesetze-im-internet.de/gmbhg/__5a.html

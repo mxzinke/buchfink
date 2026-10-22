@@ -3,10 +3,7 @@
 Rechtsstand: 17. Oktober 2026. Wortlaut von EStG, KStG und SolZG am 17.10.2026
 gelesen. Sätze mit Stand Oktober 2026; prüfe sie für andere Jahre am Gesetz.
 
-Dividenden, Fonds und Wertpapiere regelt
-[beteiligungen/dividenden.md](../beteiligungen/dividenden.md), Zinsen des
-Finanzamts [steuerzahlungen.md](steuerzahlungen.md), Darlehenszinsen
-[darlehen.md](darlehen.md).
+Dividenden und Fonds: [beteiligungen/dividenden.md](../beteiligungen/dividenden.md).
 
 ## Inhalt
 
@@ -18,16 +15,12 @@ Finanzamts [steuerzahlungen.md](steuerzahlungen.md), Darlehenszinsen
 
 ## 1. Zinserträge der GmbH
 
-- Alle Einkünfte einer GmbH sind Einkünfte aus Gewerbebetrieb
-  ([§ 8 Abs. 2 KStG][kstg8]); Kapitalerträge werden diesen zugerechnet
-  ([§ 20 Abs. 8 Satz 1 EStG][estg20]).
-- Den Sparer-Pauschbetrag gibt es nur bei Einkünften aus Kapitalvermögen
-  ([§ 20 Abs. 9 EStG][estg20]). Ein Freistellungsauftrag setzt ihn voraus
-  ([§ 44a Abs. 1, 2 EStG][estg44a]). Die Bank behält deshalb bei der GmbH
-  regelmäßig die volle Kapitalertragsteuer ein.
-- Zinsen sind Ertrag des Zeitraums, auf den sie entfallen
-  ([zuordnung.md](zuordnung.md#9-offene-posten-über-den-jahreswechsel)). Zinsen
-  für das alte Jahr, die erst im neuen gutgeschrieben werden, grenzt
+- Die Bank behält bei der GmbH die volle Kapitalertragsteuer ein: Ihre
+  Einkünfte sind gewerblich ([§ 8 Abs. 2 KStG][kstg8]), ohne
+  Sparer-Pauschbetrag und Freistellungsauftrag ([§ 20 Abs. 8, 9 EStG][estg20],
+  [§ 44a Abs. 1, 2 EStG][estg44a]).
+- Zinsen sind Ertrag des Zeitraums, auf den sie entfallen; Zinsen für das alte
+  Jahr, die erst im neuen gutgeschrieben werden, grenzt
   [jahresabschluss/abgrenzung.md](../jahresabschluss/abgrenzung.md) ab.
 
 ## 2. Kapitalertragsteuer und Solidaritätszuschlag
@@ -41,61 +34,44 @@ Finanzamts [steuerzahlungen.md](steuerzahlungen.md), Darlehenszinsen
 Sätze und Bemessung gelten auch für Dividenden
 ([beteiligungen/dividenden.md](../beteiligungen/dividenden.md#2-steuerabzug))
 und die eigene Ausschüttung
-([gesellschafter/ausschuettung.md](../gesellschafter/ausschuettung.md#3-steuerabzug));
-dort steht der jeweilige Abzugstatbestand.
+([gesellschafter/ausschuettung.md](../gesellschafter/ausschuettung.md#3-steuerabzug)).
+Bei der GmbH mindert die Kapitalertragsteuer als Steuer vom Einkommen das
+Einkommen nicht ([§ 43 Abs. 1 Satz 1 EStG][estg43], [§ 10 Nr. 2 KStG][kstg10]).
 
-- Kapitalertragsteuer ist Einkommensteuer, die durch Abzug erhoben wird
-  ([§ 43 Abs. 1 Satz 1 EStG][estg43]). Bei der GmbH ist sie eine Steuer vom
-  Einkommen und mindert das Einkommen nicht ([§ 10 Nr. 2 KStG][kstg10]).
-- Beispiel: Zinsen 100,00 €; Kapitalertragsteuer 25,00 €; Solidaritätszuschlag
-  1,375 €, also 1,37 €; Gutschrift 73,63 €.
+Beispiel: Zinsen 100,00 €; Kapitalertragsteuer 25,00 €; Solidaritätszuschlag
+1,375 €, also 1,37 €; Gutschrift 73,63 €.
 
 ## 3. Buchung
 
-Konten aus dem SKR04:
-
-| Zeile | Konto | Betrag im Beispiel |
+| Zeile | Konto (SKR04) | Beispiel |
 |---|---|---|
 | Zinsertrag brutto | 7110 Sonstige Zinserträge | 100,00 |
-| Kapitalertragsteuer | 7630 Kapitalertragsteuer 25 % | 25,00 (Abzug) |
-| Solidaritätszuschlag | 7633 Anrechenbarer Solidaritätszuschlag auf Kapitalertragsteuer 25 % | 1,37 (Abzug) |
-| Bank | Bankkonto | 73,63 |
+| Kapitalertragsteuer | 7630 Kapitalertragsteuer 25 % | −25,00 |
+| Solidaritätszuschlag | 7633 Anrechenbarer Solidaritätszuschlag auf Kapitalertragsteuer 25 % | −1,37 |
 
-Werkzeug: `bankumsatz_buchen` mit drei Zeilen `konto`: Zinsertrag mit
-positivem `betrag`, Kapitalertragsteuer und Solidaritätszuschlag als Abzüge
-mit negativem `betrag`. Keine der Zeilen trägt Umsatzsteuer. Ob der Zinsertrag als nicht
-steuerbar oder als steuerfrei geführt wird, beeinflusst nur die Meldung in der
-Voranmeldung; klär das beim ersten Mal mit dem Menschen (Wertungsfrage) und
-bleib dann dabei.
-
-Steht die Abrechnung der Bank (Zinsabrechnung) als eigenes Dokument zur
-Verfügung, lege sie aus dem Eingang mit `beleg_ablegen` ab; sonst ist der
-Kontoauszug der Beleg.
+`bankumsatz_buchen` mit diesen drei Zeilen `konto`. Ob der Zinsertrag als nicht
+steuerbar oder steuerfrei geführt wird, wirkt nur auf die Voranmeldung; klär es
+beim ersten Mal mit dem Menschen (Wertungsfrage) und bleib dabei. Eine eigene
+Zinsabrechnung der Bank legst du ab; sonst ist der Kontoauszug der Beleg.
 
 ## 4. Anrechnung und Steuerbescheinigung
 
-- Die Steuer wird auf die Körperschaftsteuer angerechnet, nur mit
-  Steuerbescheinigung
-  ([steuererklaerungen/kst.md, Abschnitt 9](../steuererklaerungen/kst.md#9-steuer-rundung-anrechnung-vorauszahlungen),
-  dort auch der Abgleich von 7630 und 7633 am Jahresende).
-- Die Bank stellt die Bescheinigung auf Verlangen aus
-  ([§ 45a Abs. 2 EStG][estg45a]). Erinnere den Menschen, sie anzufordern und
-  abzulegen.
+Auf die Körperschaftsteuer angerechnet wird nur mit Steuerbescheinigung
+([steuererklaerungen/kst.md, Abschnitt 9](../steuererklaerungen/kst.md#9-steuer-rundung-anrechnung-vorauszahlungen),
+dort auch der Abgleich von 7630 und 7633). Die Bank stellt sie auf Verlangen
+aus ([§ 45a Abs. 2 EStG][estg45a]); erinnere den Menschen, sie anzufordern und
+abzulegen.
 
 ## 5. Sonderfälle
 
-- **Ausländische Bank:** Kapitalertragsteuer fällt nach § 43 Abs. 1 Satz 1
-  Nr. 7 Buchst. b nur bei inländischen Kreditinstituten an. Zinsen einer
-  ausländischen Bank kommen meist ohne deutschen Abzug; vielleicht mit
-  ausländischer Quellensteuer. Leg ausländische Quellensteuer vor (Anrechnung,
+- **Ausländische Bank:** kein deutscher Abzug (Abschnitt 2, Nr. 7 Buchst. b).
+  Ausländische Quellensteuer legst du vor (Anrechnung,
   Doppelbesteuerungsabkommen: Steuerberater).
-- **Zinsen auf Steuererstattungen:** SKR04 7105 bis 7107; Regel in
+- **Zinsen auf Steuererstattungen:** 7105 bis 7107;
   [steuerzahlungen.md](steuerzahlungen.md#4-säumniszuschläge-zinsen-verspätungszuschläge).
 - **Zinsen von Gesellschafter oder Tochter:**
-  [darlehen.md](darlehen.md#10-zinsen-an-und-von-gesellschaftern) bzw.
+  [darlehen.md](darlehen.md#10-zinsen-an-und-von-gesellschaftern),
   [beteiligungen/erwerb-ausweis.md](../beteiligungen/erwerb-ausweis.md).
-- **Gewerbesteuer:** Hinzurechnungen betreffen Zinsaufwand, nicht Zinsertrag
-  ([§ 8 Nr. 1 Buchst. a GewStG][gewstg8]).
 
 [estg20]: https://www.gesetze-im-internet.de/estg/__20.html
 [estg43]: https://www.gesetze-im-internet.de/estg/__43.html
@@ -106,4 +82,3 @@ Kontoauszug der Beleg.
 [kstg10]: https://www.gesetze-im-internet.de/kstg_1977/__10.html
 [solzg3]: https://www.gesetze-im-internet.de/solzg_1995/__3.html
 [solzg4]: https://www.gesetze-im-internet.de/solzg_1995/__4.html
-[gewstg8]: https://www.gesetze-im-internet.de/gewstg/__8.html
