@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -91,6 +92,9 @@ func (s *PostingService) planIncomingReceipt(ctx context.Context, req ReceiptReq
 	if w := reverseChargeParagraphWarning(req.TaxTreatment, contact); w != nil {
 		out.warnings = append(out.warnings, *w)
 	}
+	if w := feeGroupWarning(req, contact); w != nil {
+		out.warnings = append(out.warnings, *w)
+	}
 
 	w := &incomingWork{
 		incomingPlan: out, giftTotals: giftTotals,
@@ -163,4 +167,32 @@ func incomingReceiptHeader(plan *incomingPlan) *domain.ReceiptHeader {
 		}
 	}
 	return &h
+}
+
+const warningFeeGroup = "gruppe_passt_nicht_zum_aussteller"
+
+var (
+	authorityName = regexp.MustCompile(`(?i)gericht|behörde|landeshauptkasse|gerichtskasse|(^|[\s-])(bezirks|ordnungs|gewerbe|grundbuch|stadt|kreis|landrats)?amt\b|gemeinde|stadtkasse`)
+	chamberName   = regexp.MustCompile(`(?i)kammer|verband|\bihk\b|\bhwk\b|verein`)
+)
+
+// feeGroupWarning meldet eine Buchungsgruppe, die nicht zum Aussteller passt:
+// die Gebühr eines Gerichts oder einer Behörde unter den Beiträgen oder den
+// Beitrag einer Kammer unter den Gebühren. Erkannt wird am Namen; es ist ein
+// Hinweis, keine Sperre.
+func feeGroupWarning(req ReceiptRequest, contact *domain.Contact) *PostingWarning {
+	name := contact.Name + " " + contact.Company
+	for _, p := range req.Positions {
+		switch {
+		case p.PostingGroup == "beitraege" && authorityName.MatchString(name) && !chamberName.MatchString(name):
+			return &PostingWarning{Code: warningFeeGroup, Severity: "warning",
+				Title:  "Gebühr unter Beiträgen",
+				Detail: contact.Name + " ist ein Gericht oder eine Behörde. Deren Gebühren gehören in die Gruppe „Gebühren & Abgaben“ (6430), Beiträge (6420) sind Kammer- und Verbandsbeiträge; Gebühren der Gründung sind Gründungskosten."}
+		case p.PostingGroup == "gebuehren" && chamberName.MatchString(name):
+			return &PostingWarning{Code: warningFeeGroup, Severity: "warning",
+				Title:  "Beitrag unter Gebühren",
+				Detail: contact.Name + " ist eine Kammer oder ein Verband. Deren Beiträge gehören in die Gruppe „Beiträge“ (6420)."}
+		}
+	}
+	return nil
 }
