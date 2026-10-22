@@ -83,12 +83,14 @@ const (
 	ReceiptKindStatement ReceiptKind = "statement"
 	// ReceiptKindSelfIssued ist ein Eigenbeleg.
 	ReceiptKindSelfIssued ReceiptKind = "self_issued"
-	// ReceiptKindLetter ist ein Handelsbrief: die empfangene oder abgesandte
-	// Geschäftskorrespondenz, die einen Handelsgeschäft betrifft.
+	// ReceiptKindLetter ist ein Brief ohne Buchung: ein Handelsbrief
+	// (§ 257 Abs. 2 HGB) oder ein anderes Schreiben, das für die Besteuerung
+	// von Bedeutung ist (§ 147 Abs. 1 Nr. 5 AO), etwa die Mitteilung der
+	// Steuernummer.
 	//
 	// Er ist von „Sonstiges" abgetrennt, weil aus ihm eine andere Frist folgt
-	// als aus einem Buchungsbeleg — sechs statt acht Jahre (§ 257 Abs. 4 HGB) —
-	// und weil er nicht zu buchen ist.
+	// als aus einem Buchungsbeleg — sechs statt acht Jahre (§ 257 Abs. 4 HGB,
+	// § 147 Abs. 3 AO) — und weil er nicht zu buchen ist.
 	ReceiptKindLetter ReceiptKind = "letter"
 	// ReceiptKindOther ist alles Übrige: Verträge, Bescheide, Schriftverkehr.
 	ReceiptKindOther ReceiptKind = "other"
@@ -102,8 +104,9 @@ const (
 // und eine Rechnung, die dort landet, soll der Prüflauf weiterhin als ungebucht
 // melden. Sonst verschwände sie stillschweigend aus der Aufsicht.
 func (k ReceiptKind) RequiresBooking() bool {
-	// Der Handelsbrief ist neben dem Kontoauszug die zweite Art, die nicht
-	// gebucht wird: er belegt eine Abrede, keinen Geschäftsvorfall.
+	// Der Brief ist neben dem Kontoauszug die zweite Art, die nicht gebucht
+	// wird: er belegt eine Abrede oder eine Mitteilung, keinen
+	// Geschäftsvorfall.
 	return k != ReceiptKindStatement && k != ReceiptKindLetter
 }
 
@@ -117,7 +120,7 @@ func (k ReceiptKind) Label() string {
 	case ReceiptKindSelfIssued:
 		return "Eigenbeleg"
 	case ReceiptKindLetter:
-		return "Handelsbrief"
+		return "Brief"
 	case ReceiptKindOther:
 		return "Sonstiges Dokument"
 	default:
@@ -485,7 +488,7 @@ func (r *Receipt) ValidateHeader() error {
 		// in der Zeit.
 		return nil
 	case ReceiptKindOther, ReceiptKindLetter:
-		// Sonstiges Dokument und Handelsbrief: Belegdatum und Betreff. Der
+		// Sonstiges Dokument und Brief: Belegdatum und Betreff. Der
 		// Betreff tritt an die Stelle von Aussteller und Betrag — er ist das
 		// Einzige, woran sich später sagen lässt, was dieses Dokument belegt.
 		// Aussteller und Betrag bleiben erlaubt, aber freiwillig: eine Bilanz

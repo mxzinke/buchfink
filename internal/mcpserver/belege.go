@@ -39,7 +39,7 @@ func folders(ctx context.Context, c *Call, s core.AgentServices) (policy.Folders
 
 type belegeIn struct {
 	Geschaeftsjahr int         `json:"geschaeftsjahr,omitempty"`
-	Status         BelegStatus `json:"status,omitempty" jsonschema:"abgelegt (noch nicht gebucht; ohne Kontoauszüge, die nie gebucht werden), gebucht oder verworfen; ohne Angabe alle"`
+	Status         BelegStatus `json:"status,omitempty" jsonschema:"abgelegt (noch nicht gebucht; ohne Kontoauszüge und Briefe, die nie gebucht werden), gebucht oder verworfen; ohne Angabe alle"`
 	Art            BelegArt    `json:"art,omitempty"`
 	Richtung       Richtung    `json:"richtung,omitempty"`
 	Von            Datum       `json:"von,omitempty" jsonschema:"Belegdatum ab"`
@@ -194,6 +194,7 @@ type belegAblegenIn struct {
 	Aussteller   string         `json:"aussteller,omitempty" jsonschema:"bei Fotos und PDF ohne E-Rechnung Pflicht"`
 	Brutto       Betrag         `json:"brutto,omitempty" jsonschema:"bei Fotos und PDF ohne E-Rechnung Pflicht"`
 	Betreff      string         `json:"betreff,omitempty" jsonschema:"nur ohne E-Rechnung; dort ist es die Rechnungsnummer"`
+	Art          AblageArt      `json:"art,omitempty" jsonschema:"brief und sonstiges brauchen belegdatum und betreff"`
 }
 
 type belegAblegenOut struct {
@@ -317,7 +318,7 @@ func registerBelege(tb *Toolbox) {
 			switch {
 			case in.Richtung != "" && richtungOf(r.Direction) != in.Richtung,
 				kind != "" && rkind != kind,
-				in.Status == "abgelegt" && kind == "" && rkind == domain.ReceiptKindStatement,
+				in.Status == "abgelegt" && kind == "" && !rkind.RequiresBooking(),
 				from != "" && r.DocumentDate < from,
 				to != "" && (r.DocumentDate == "" || r.DocumentDate > to),
 				text != "" && !strings.Contains(strings.ToLower(r.ReceiptNumber+" "+r.IssuerName+" "+r.Subject), text):
@@ -426,6 +427,16 @@ func registerBelege(tb *Toolbox) {
 		if header.GrossAmount, err = in.Brutto.cents("brutto"); err != nil {
 			return out, err
 		}
+		kind, err := pick("art", in.Art, filingKinds)
+		if err != nil {
+			return out, err
+		}
+		// Brief und sonstiges Dokument tragen statt Aussteller und Betrag einen
+		// Betreff (Receipt.ValidateHeader).
+		document := kind == domain.ReceiptKindLetter || kind == domain.ReceiptKindOther
+		if document && (header.DocumentDate == "" || header.Subject == "") {
+			return out, inputError("betreff", "ein Brief oder sonstiges Dokument braucht belegdatum und betreff")
+		}
 		via := string(in.EingangUeber)
 		dirs, err := folders(ctx, c, s)
 		if err != nil {
@@ -469,8 +480,12 @@ func registerBelege(tb *Toolbox) {
 		}
 
 		// Ein Foto trägt keine Daten; ohne Kopfdaten wäre es nicht buchbar.
-		if original.Kind == policy.KindImage && (header.DocumentDate == "" || header.IssuerName == "" || header.GrossAmount == 0) {
+		if original.Kind == policy.KindImage && !document &&
+			(header.DocumentDate == "" || header.IssuerName == "" || header.GrossAmount == 0) {
 			return out, inputError("belegdatum", "bei einem Foto oder Scan gehören belegdatum, aussteller und brutto dazu")
+		}
+		if original.Kind == policy.KindXML && document {
+			return out, inputError("art", "eine XML-Datei ist eine E-Rechnung, kein Brief oder Dokument")
 		}
 		// Bei XML und PDF entscheidet erst das Auslesen, ob eine E-Rechnung
 		// vorliegt. Bis dahin bleiben die Kopfdaten leer: die einer E-Rechnung
@@ -478,8 +493,8 @@ func registerBelege(tb *Toolbox) {
 		maybeStructured := original.Kind == policy.KindXML || original.Kind == policy.KindPDF
 		req := service.FileReceiptRequest{Direction: domain.DirectionIncoming, ReceivedAt: receivedAt, ReceivedVia: via, Files: files}
 		if !maybeStructured {
-			req.DocumentDate, req.IssuerName, req.GrossAmount, req.Subject = header.DocumentDate, header.IssuerName,
-				header.GrossAmount, header.Subject
+			req.Kind, req.DocumentDate, req.IssuerName, req.GrossAmount, req.Subject = kind, header.DocumentDate,
+				header.IssuerName, header.GrossAmount, header.Subject
 		}
 		receipt, err := s.Receipts.File(ctx, req)
 		if err != nil {
@@ -489,6 +504,10 @@ func registerBelege(tb *Toolbox) {
 			if extracted, err := s.EInvoice.ExtractStructuredPart(ctx, receipt.ID); err == nil {
 				receipt = extracted
 				out.Hinweise = append(out.Hinweise, ignoredHeader(header, receipt)...)
+				if document {
+					out.Hinweise = append(out.Hinweise, fmt.Sprintf("Die PDF enthält eine E-Rechnung; abgelegt als "+
+						"Rechnung, nicht als %s.", in.Art))
+				}
 			} else {
 				again, getErr := s.Receipts.Get(ctx, receipt.ID)
 				if getErr != nil {
@@ -502,6 +521,9 @@ func registerBelege(tb *Toolbox) {
 				}
 				if header != (domain.ReceiptHeader{}) {
 					header.Kind = again.Kind
+					if kind != "" {
+						header.Kind = kind
+					}
 					if receipt, err = s.Receipts.SaveHeader(ctx, receipt.ID, header); err != nil {
 						return out, err
 					}

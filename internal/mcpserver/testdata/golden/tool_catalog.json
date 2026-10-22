@@ -957,6 +957,15 @@
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
+        "art": {
+          "description": "brief und sonstiges brauchen belegdatum und betreff",
+          "enum": [
+            "brief",
+            "rechnung",
+            "sonstiges"
+          ],
+          "type": "string"
+        },
         "aussteller": {
           "description": "bei Fotos und PDF ohne E-Rechnung Pflicht",
           "type": "string"
@@ -1614,7 +1623,7 @@
           "type": "string"
         },
         "status": {
-          "description": "abgelegt (noch nicht gebucht; ohne Kontoauszüge, die nie gebucht werden), gebucht oder verworfen; ohne Angabe alle",
+          "description": "abgelegt (noch nicht gebucht; ohne Kontoauszüge und Briefe, die nie gebucht werden), gebucht oder verworfen; ohne Angabe alle",
           "enum": [
             "abgelegt",
             "gebucht",

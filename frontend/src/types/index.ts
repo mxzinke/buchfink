@@ -482,8 +482,9 @@ export type ReceiptStatus = 'filed' | 'sealed' | 'discarded';
  * abgelegt, aber nicht gebucht — gebucht werden die Umsätze daraus.
  */
 /**
- * Die Belegart. `letter` ist der Handelsbrief: er hat keine Buchung und eine
- * kürzere Aufbewahrungsfrist als ein Buchungsbeleg (§ 257 Abs. 4 HGB).
+ * Die Belegart. `letter` ist ein Brief ohne Buchung (Handelsbrief oder
+ * Schreiben einer Behörde) mit kürzerer Aufbewahrungsfrist als ein
+ * Buchungsbeleg (§ 257 Abs. 4 HGB, § 147 Abs. 3 AO).
  */
 export type ReceiptKind = 'invoice' | 'ticket' | 'statement' | 'self_issued' | 'letter' | 'other';
 

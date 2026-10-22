@@ -25,6 +25,7 @@ type (
 	Gliederung       string
 	BelegStatus      string
 	BelegArt         string
+	AblageArt        string
 	DateiRolle       string
 	EingangWeg       string
 	BezahlungDirekt  string
@@ -69,6 +70,7 @@ var choices = map[reflect.Type]choice{
 	reflect.TypeFor[Gliederung]():      {[]string{"voll", "kurz", "buchstaben"}, "Tiefe der Gliederung; Vorgabe voll"},
 	reflect.TypeFor[BelegStatus]():     {[]string{"abgelegt", "gebucht", "verworfen"}, "abgelegt (noch nicht gebucht), gebucht oder verworfen"},
 	reflect.TypeFor[BelegArt]():        {choiceKeys(receiptKinds), "Belegart"},
+	reflect.TypeFor[AblageArt]():       {choiceKeys(filingKinds), "rechnung (Vorgabe); brief: Schreiben ohne Buchung (Finanzamt, BZSt, Registergericht), wird nie gebucht; sonstiges: Vertrag oder Beschluss, für buchung_erfassen"},
 	reflect.TypeFor[DateiRolle]():      {[]string{"original", "anhang", "darstellung"}, "Rolle der Datei"},
 	reflect.TypeFor[EingangWeg]():      {[]string{"email", "scan", "upload"}, "Weg des Eingangs"},
 	reflect.TypeFor[BezahlungDirekt](): {[]string{"offen", "kreditkarte"}, "offen (Verbindlichkeit) oder kreditkarte (Firmenkreditkarte 3610)"},
@@ -161,6 +163,12 @@ func label[K ~string, V comparable](m map[K]V, v V) string {
 var receiptKinds = map[BelegArt]domain.ReceiptKind{
 	"rechnung": domain.ReceiptKindInvoice, "quittung": domain.ReceiptKindTicket, "kontoauszug": domain.ReceiptKindStatement,
 	"eigenbeleg": domain.ReceiptKindSelfIssued, "brief": domain.ReceiptKindLetter, "sonstiges": domain.ReceiptKindOther,
+}
+
+// filingKinds sind die Arten, die beim Ablegen wählbar sind; Kontoauszüge
+// liest kontoauszug_importieren ein.
+var filingKinds = map[AblageArt]domain.ReceiptKind{
+	"rechnung": domain.ReceiptKindInvoice, "brief": domain.ReceiptKindLetter, "sonstiges": domain.ReceiptKindOther,
 }
 
 var advanceTargets = map[AnzahlungZiel]accounting.AdvanceTarget{

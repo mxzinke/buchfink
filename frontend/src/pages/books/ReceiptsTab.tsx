@@ -36,7 +36,7 @@ const KIND_LABELS: Record<ReceiptKind, string> = {
   ticket: 'Fahrausweis',
   statement: 'Kontoauszug',
   self_issued: 'Eigenbeleg',
-  letter: 'Handelsbrief',
+  letter: 'Brief',
   other: 'Sonstiger Beleg',
 };
 
@@ -58,7 +58,7 @@ type Filter = 'all' | 'open' | 'unclear';
 
 const kindOf = (receipt: Receipt): ReceiptKind => receipt.kind ?? 'invoice';
 
-/** Kontoauszug und Handelsbrief werden abgelegt, aber nicht gebucht. */
+/** Kontoauszug und Brief werden abgelegt, aber nicht gebucht. */
 const requiresBooking = (kind: ReceiptKind) => kind !== 'statement' && kind !== 'letter';
 
 export const needsBooking = (receipt: Receipt) =>

@@ -167,6 +167,54 @@ func TestStammdatenVorschlagUebernehmenUndAblehnen(t *testing.T) {
 	}
 }
 
+// Das Schreiben, aus dem ein Vorschlag stammt, wird als Brief abgelegt: es
+// bleibt nicht als ungebuchter Beleg liegen, und die Vorschau nennt seine
+// Nummer.
+func TestStammdatenVorschlagAusBrief(t *testing.T) {
+	h := newHarness(t)
+	a := h.agent("")
+	letter := h.inboxFile("bzst.pdf", pdf("Mitteilung der USt-IdNr."))
+
+	a.fail("beleg_ablegen", a.args(map[string]any{"eingang_am": "2026-10-05", "art": "brief",
+		"dateien": []any{map[string]any{"pfad": letter}}}), CodeInvalidInput)
+	var filed belegAblegenOut
+	a.ok("beleg_ablegen", a.args(map[string]any{"eingang_am": "2026-10-05", "belegdatum": "2026-10-05",
+		"betreff": "Mitteilung der USt-IdNr.", "art": "brief",
+		"dateien": []any{map[string]any{"pfad": letter}}}), &filed)
+	if filed.Beleg.Art != "brief" || filed.Befunde.Gesamt != 0 {
+		t.Fatalf("Brief abgelegt als %+v, Befunde %+v", filed.Beleg, filed.Befunde)
+	}
+
+	var open belegeOut
+	a.ok("belege_suchen", map[string]any{"status": "abgelegt"}, &open)
+	if len(open.Belege) != 0 {
+		t.Fatalf("ein Brief ist nie zu buchen: %+v", open.Belege)
+	}
+	var report auswertungOut
+	a.ok("auswertung", map[string]any{"art": "pruefbericht", "bis": "2026-12-31"}, &report)
+	for _, f := range report.Befunde {
+		if f.Objekt == filed.Beleg.Nummer {
+			t.Fatalf("Prüfbericht zum Brief: %+v", f)
+		}
+	}
+
+	var out stammdatenOut
+	a.ok("stammdaten_vorschlagen", a.args(map[string]any{
+		"idempotenz_schluessel": "ustid-aus-brief", "begruendung": "Mitteilung des BZSt",
+		"beleg_id": filed.Beleg.ID, "unternehmen": map[string]any{"ust_id": "DE318462756"},
+	}), &out)
+	h.read(func(ctx context.Context, s *core.Services) error {
+		pending, err := s.MasterData.Pending(ctx)
+		if err != nil {
+			return err
+		}
+		if len(pending) != 1 || pending[0].ReceiptNumber != filed.Beleg.Nummer {
+			t.Fatalf("Belegnummer in der Vorschau: %+v", pending)
+		}
+		return nil
+	})
+}
+
 // Was keines der Formulare annähme, weist schon der Vorschlag ab.
 func TestStammdatenVorschlagPrueftDieEingabe(t *testing.T) {
 	h := newHarness(t)
