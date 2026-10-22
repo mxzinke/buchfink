@@ -62,6 +62,9 @@ func (s *PostingService) planIncomingReceipt(ctx context.Context, req ReceiptReq
 	if err := s.validateAdvanceRequest(req); err != nil {
 		return nil, err
 	}
+	if err := validateDueDate(req); err != nil {
+		return nil, err
+	}
 
 	// Die Geschenke des Wirtschaftsjahres, einmal gelesen: die Freigrenze des
 	// § 4 Abs. 5 Satz 1 Nr. 1 EStG läuft je Empfänger über das Jahr, und ohne
@@ -132,6 +135,18 @@ func (s *PostingService) completeIncomingPreview(ctx context.Context, built *inc
 		preview.Warnings = append(preview.Warnings, *notice)
 	}
 	preview.Warnings = append(preview.Warnings, built.warnings...)
+	if req.Settlement == SettlementOpen {
+		preview.DueDate = req.DueDate
+		if preview.DueDate == "" {
+			preview.DueDate = dueDate(&domain.JournalEntry{DocumentDate: req.DocumentDate}, *built.contact)
+			preview.Warnings = append(preview.Warnings, PostingWarning{
+				Code: warningDueFromTerms, Severity: "info",
+				Title: fmt.Sprintf("Fällig am %s nach dem Zahlungsziel des Lieferanten", domain.GermanDate(preview.DueDate)),
+				Detail: "Nennt der Beleg eine andere Fälligkeit, gehört sie in die Buchung; sonst stehen offener " +
+					"Posten und Zahlungsvorschläge auf dem falschen Tag.",
+			})
+		}
+	}
 	// Der fehlende Leistungsnachweis steht schon in der Vorschau: die Maske soll
 	// das Feld verlangen, bevor jemand auf „Buchen" drückt.
 	if notice := built.serviceProofWarning; notice != nil {
@@ -167,6 +182,24 @@ func incomingReceiptHeader(plan *incomingPlan) *domain.ReceiptHeader {
 		}
 	}
 	return &h
+}
+
+const warningDueFromTerms = "faelligkeit_aus_zahlungsziel"
+
+// validateDueDate weist eine Fälligkeit zurück, die kein Datum ist oder vor dem
+// Belegdatum liegt.
+func validateDueDate(req ReceiptRequest) error {
+	if req.DueDate == "" || req.Settlement != SettlementOpen {
+		return nil
+	}
+	if err := domain.CheckDate("Fälligkeit", req.DueDate); err != nil {
+		return err
+	}
+	if req.DocumentDate != "" && req.DueDate < req.DocumentDate {
+		return fmt.Errorf("die Fälligkeit %s liegt vor dem Belegdatum %s",
+			domain.GermanDate(req.DueDate), domain.GermanDate(req.DocumentDate))
+	}
+	return nil
 }
 
 const warningFeeGroup = "gruppe_passt_nicht_zum_aussteller"

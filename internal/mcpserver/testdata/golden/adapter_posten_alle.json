@@ -149,6 +149,7 @@
       "betrag": "119.00",
       "buchung_id": 1,
       "faellig": "2026-04-14",
+      "faellig_aus": "zahlungsziel",
       "kontakt": "Netzwerk GmbH",
       "kontakt_id": 1,
       "nummer": "2026-000001",

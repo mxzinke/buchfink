@@ -194,6 +194,7 @@
       "documentDate": "2026-03-01",
       "documentNumber": "RE-4711",
       "dueDate": "2026-03-15",
+      "dueFromTerms": true,
       "entryId": 1,
       "entryNumber": "2026-000001",
       "grossAmount": 107000,

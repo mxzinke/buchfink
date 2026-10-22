@@ -177,14 +177,14 @@ aus `Toolbox.OutputSchema`, `TestCatalogStaysSmall` hält den Katalog unter
 | `beleg_datei_exportieren` | direkt | Kopie einer Belegdatei in den Exportordner, zum Lesen oder Versenden |
 | `kontakt_anlegen` | direkt | Kontakt anlegen nach Dublettenprüfung; mit `leitweg_id` bekommt ein Kunde XRechnung |
 | `kontoauszug_importieren` | direkt | CAMT.053 ablegen, Salden prüfen, Umsätze einlesen; danach geht die Datei aus dem Eingang nach `Übernommen/` |
-| `beleg_buchen` | direkt | Eingangsrechnung buchen, nur Routine |
+| `beleg_buchen` | direkt | Eingangsrechnung buchen, nur Routine; `faellig_am` übernimmt die Fälligkeit vom Beleg, ohne sie meldet die Vorschau `faelligkeit_aus_zahlungsziel` |
 | `bankumsatz_zuordnen` | direkt | Bankumsatz mit genau einem offenen Posten ausgleichen, nur Routine |
 | `erklaerung_exportieren` | direkt | Jahreserklärung als JSON in den Exportordner |
 | `ebilanz_exportieren` | direkt | E-Bilanz prüfen und in den Exportordner: `format` `xbrl` (Vorgabe) oder `susa_csv`; bei abweichender Steuerbilanz nennt `ueberleitung`, was die Liste nicht enthält; `bilanzart: eroeffnungsbilanz` schreibt die Eröffnungsbilanz, `jahr` ist dann das Geschäftsjahr der Gründung |
 | `pflicht_vorbereitet` | direkt | Pflicht als vorbereitet melden, nie als erledigt |
 | `stammdaten_vorschlagen` | direkt | Unternehmensdaten, Gründung oder Bankkonten vorschlagen; ändert nichts, der Mensch übernimmt nach der Vorschau in der App |
 | `standardgruppe_vorschlagen` | direkt | Standard-Buchungsgruppe eines Lieferanten vorschlagen |
-| `beleg_buchen_mit_rueckfrage` | rueckfrage | Eingangsbeleg in allen Nicht-Routinefällen, auch Auslage; ergänzt fehlende Kopfdaten und berichtigt `eingang_am` |
+| `beleg_buchen_mit_rueckfrage` | rueckfrage | Eingangsbeleg in allen Nicht-Routinefällen, auch Auslage; ergänzt fehlende Kopfdaten und berichtigt `eingang_am`; `faellig_am` wie bei `beleg_buchen` |
 | `bankumsatz_buchen` | rueckfrage | Aufteilung mit Skonto, Gebühren, Darlehen; Kreditkartenabrechnung; Kapitalertrag einer Finanzanlage, brutto mit Kapitalertragsteuer (7630) und Solidaritätszuschlag (7633), mit dem Anlagegut verknüpft (`AssetService.BookAssetIncome`); Ignorieren mit Grund |
 | `buchung_erfassen` | rueckfrage | Handbuchung mit Beleg oder Eigenbeleg, auch in der Abschlussperiode und für die Gründung (Zeichnung, Einforderung); ein Kontakt an den Personenkontozeilen macht sie zum offenen Posten, an Gesellschafterkonten ist er Pflicht; Darlehenszinsen nicht hier, sondern mit `darlehen_erfassen` |
 | `buchung_stornieren` | rueckfrage | Generalumkehr mit Grund, auf Wunsch mit Neubuchung; `datum` nur beim Saldenvortrag |

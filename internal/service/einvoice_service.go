@@ -366,6 +366,7 @@ func (s *EInvoiceService) Propose(ctx context.Context, receiptID uint) (*EInvoic
 		DocumentDate:    read.IssueDate,
 		ServiceDateFrom: serviceDate,
 		ServiceDateTo:   serviceDate,
+		DueDate:         read.DueDate,
 		TaxTreatment:    treatment,
 		Positions:       positions,
 		Settlement:      SettlementOpen,

@@ -1,5 +1,6 @@
 {
   "balanced": true,
+  "dueDate": "2026-03-24",
   "gross": 119000,
   "inputTaxFindings": [
     {
@@ -42,5 +43,13 @@
     }
   ],
   "net": 100000,
-  "tax": 19000
+  "tax": 19000,
+  "warnings": [
+    {
+      "code": "faelligkeit_aus_zahlungsziel",
+      "detail": "Nennt der Beleg eine andere Fälligkeit, gehört sie in die Buchung; sonst stehen offener Posten und Zahlungsvorschläge auf dem falschen Tag.",
+      "severity": "info",
+      "title": "Fällig am 24.03.2026 nach dem Zahlungsziel des Lieferanten"
+    }
+  ]
 }

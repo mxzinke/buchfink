@@ -85,6 +85,9 @@ type ReceiptRequest struct {
 	DocumentDate    string `json:"documentDate"`
 	ServiceDateFrom string `json:"serviceDateFrom"`
 	ServiceDateTo   string `json:"serviceDateTo"`
+	// DueDate ist die Fälligkeit laut Beleg. Leer folgt sie aus dem
+	// Zahlungsziel des Lieferanten; sie zählt nur bei offener Zahlung.
+	DueDate string `json:"dueDate,omitempty"`
 
 	// ReceiptID names the Beleg this booking belongs to. It replaces the former
 	// pair of document hash and path: a Beleg is several files, and the
@@ -202,6 +205,11 @@ type PostingPreview struct {
 	// They are computed on demand rather than stored: a conserved legal
 	// assessment goes stale, and every input it depends on is still there.
 	Warnings []PostingWarning `json:"warnings,omitempty"`
+
+	// BookingDate ist der Buchungstag, DueDate die Fälligkeit des offenen
+	// Postens, soweit die Vorschau sie schon kennt.
+	BookingDate string `json:"bookingDate,omitempty"`
+	DueDate     string `json:"dueDate,omitempty"`
 
 	// SmallAmountLimit ist die Bruttogrenze der Kleinbetragsrechnung am
 	// Rechnungsdatum (§ 33 UStDV), null außerhalb der Ausgangsrechnung.

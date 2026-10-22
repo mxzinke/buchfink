@@ -32,6 +32,7 @@ type belegBuchenIn struct {
 	Steuerfall    Steuerfall      `json:"steuerfall"`
 	Positionen    []positionIn    `json:"positionen" jsonschema:"Netto je Steuersatz und Buchungsgruppe, 1 bis 20"`
 	Bezahlung     BezahlungDirekt `json:"bezahlung"`
+	FaelligAm     Datum           `json:"faellig_am,omitempty" jsonschema:"Fälligkeit laut Beleg; ohne Angabe nach Zahlungsziel des Lieferanten"`
 	Beschreibung  string          `json:"beschreibung,omitempty"`
 	NurVorschau   bool            `json:"nur_vorschau,omitempty" jsonschema:"rechnen und einstufen, nicht buchen"`
 }
@@ -71,6 +72,7 @@ type belegBuchenRueckfrageIn struct {
 	Steuerfall              Steuerfall             `json:"steuerfall"`
 	Positionen              []positionRueckfrageIn `json:"positionen"`
 	Bezahlung               Bezahlung              `json:"bezahlung"`
+	FaelligAm               Datum                  `json:"faellig_am,omitempty" jsonschema:"Fälligkeit laut Beleg bei offen"`
 	Zahlungskonto           Konto                  `json:"zahlungskonto,omitempty" jsonschema:"Bank oder Kasse bei bezahlt"`
 	GesellschafterKontaktID uint                   `json:"gesellschafter_kontakt_id,omitempty" jsonschema:"bei auslage: wem erstattet wird"`
 	Waehrung                string                 `json:"waehrung,omitempty" jsonschema:"ISO-Code, Vorgabe EUR"`
@@ -107,6 +109,9 @@ func (in belegBuchenIn) request() (service.ReceiptRequest, error) {
 	default:
 		return req, inputError("bezahlung", "direkt nur offen oder kreditkarte, nicht %q; sonst beleg_buchen_mit_rueckfrage", in.Bezahlung)
 	}
+	if req.DueDate, err = in.FaelligAm.check("faellig_am"); err != nil {
+		return req, err
+	}
 	if len(in.Positionen) == 0 || len(in.Positionen) > 20 {
 		return req, inputError("positionen", "1 bis 20 Positionen, nicht %d", len(in.Positionen))
 	}
@@ -132,6 +137,9 @@ func (in belegBuchenRueckfrageIn) request() (service.ReceiptRequest, error) {
 		return req, inputError("bezahlung", "offen, bezahlt, kreditkarte oder auslage, nicht %q", in.Bezahlung)
 	}
 	req.Settlement, req.PaymentAccount = kind, string(in.Zahlungskonto)
+	if req.DueDate, err = in.FaelligAm.check("faellig_am"); err != nil {
+		return req, err
+	}
 	if kind == service.SettlementShareholderExpense {
 		if in.GesellschafterKontaktID == 0 {
 			return req, inputError("gesellschafter_kontakt_id", "bei einer Auslage fehlt, wem erstattet wird")

@@ -138,6 +138,7 @@ type belegVorschlag struct {
 	Belegdatum     string              `json:"belegdatum,omitempty"`
 	LeistungVon    string              `json:"leistung_von,omitempty"`
 	LeistungBis    string              `json:"leistung_bis,omitempty"`
+	FaelligAm      string              `json:"faellig_am,omitempty"`
 	Positionen     []vorschlagPosition `json:"positionen"`
 	Brutto         Betrag              `json:"brutto"`
 	Waehrung       string              `json:"waehrung,omitempty"`
@@ -378,7 +379,7 @@ func registerBelege(tb *Toolbox) {
 		req := proposal.Request
 		v := &belegVorschlag{KontaktID: req.ContactID, KontaktErkannt: proposal.MatchedContact, ErkanntAn: proposal.MatchedBy,
 			Steuerfall: string(req.TaxTreatment), Belegdatum: req.DocumentDate, LeistungVon: req.ServiceDateFrom,
-			LeistungBis: req.ServiceDateTo, Brutto: betrag(proposal.GrossAmount), Waehrung: req.Currency,
+			LeistungBis: req.ServiceDateTo, FaelligAm: req.DueDate, Brutto: betrag(proposal.GrossAmount), Waehrung: req.Currency,
 			Art: proposal.KindLabel, Positionen: []vorschlagPosition{}, Hinweise: orEmpty(proposal.Notes)}
 		texts := []string{}
 		for _, p := range req.Positions {

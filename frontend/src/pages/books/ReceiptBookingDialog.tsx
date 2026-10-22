@@ -15,7 +15,7 @@ import type {
 import { LIMIT_GIFT_PER_RECIPIENT, TAX_RATE_NONE, TAX_RATE_REDUCED, TAX_RATE_STANDARD } from '../../types';
 import { Api } from '../../services/api';
 import { usePostingLock } from '../../components/WriteLock';
-import { formatCents, formatCentsPlain, parseCents } from '../../utils/formatters';
+import { formatCents, formatCentsPlain, formatDate, parseCents } from '../../utils/formatters';
 import {
   Button,
   DisabledReason,
@@ -78,6 +78,7 @@ export const ReceiptBookingDialog: React.FC<ReceiptBookingDialogProps> = ({ rece
   const [positions, setPositions] = useState<Position[]>([{ group: '', net: '', rate: TAX_RATE_STANDARD }]);
   const [proposedTreatment, setProposedTreatment] = useState<TaxTreatment | ''>('');
   const [settlement, setSettlement] = useState<Settlement>('open');
+  const [dueDate, setDueDate] = useState('');
   const [paymentAccount, setPaymentAccount] = useState('');
   const [overrideReason, setOverrideReason] = useState('');
   const [serviceProof, setServiceProof] = useState(receipt.serviceProof ?? '');
@@ -110,6 +111,7 @@ export const ReceiptBookingDialog: React.FC<ReceiptBookingDialogProps> = ({ rece
         setContactId(request?.contactId || byName?.id || null);
         if (request) {
           if (request.documentDate) setDocumentDate(request.documentDate);
+          if (request.dueDate) setDueDate(request.dueDate);
           if (request.description) setDescription(request.description);
           if (request.taxTreatment) setProposedTreatment(request.taxTreatment);
           if (request.positions.length > 0) {
@@ -144,9 +146,10 @@ export const ReceiptBookingDialog: React.FC<ReceiptBookingDialogProps> = ({ rece
       positions: parsed.map((p) => ({ postingGroup: p.group, net: p.cents ?? 0, taxRate: p.rate })),
       settlement,
       paymentAccount: settlement === 'paid' ? paymentAccount : undefined,
+      dueDate: settlement === 'open' && dueDate ? dueDate : undefined,
       currency: receipt.currency || 'EUR',
     };
-  }, [contactId, positions, documentDate, description, treatment, settlement, paymentAccount, receipt]);
+  }, [contactId, positions, documentDate, description, treatment, settlement, paymentAccount, dueDate, receipt]);
 
   // Den Buchungssatz rechnet das Backend; die Maske zeigt ihn nur.
   useEffect(() => {
@@ -347,6 +350,11 @@ export const ReceiptBookingDialog: React.FC<ReceiptBookingDialogProps> = ({ rece
                   onValueChange={setSettlement}
                 />
               </Field>
+              {settlement === 'open' && (
+                <Field label="Fällig am" optional hint="Laut Beleg; leer gilt das Zahlungsziel des Lieferanten">
+                  <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+                </Field>
+              )}
               {settlement === 'paid' && (
                 <Field label="Bezahlt über">
                   <Select<string>
@@ -375,6 +383,7 @@ export const ReceiptBookingDialog: React.FC<ReceiptBookingDialogProps> = ({ rece
               {preview && (
                 <p className="mt-2 text-caption text-ink-subtle num">
                   {`Netto ${formatCents(preview.net)} · Steuer ${formatCents(preview.tax)} · Brutto ${formatCents(preview.gross)}`}
+                  {preview.dueDate ? ` · fällig ${formatDate(preview.dueDate)}` : ''}
                 </p>
               )}
             </div>

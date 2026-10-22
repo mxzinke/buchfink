@@ -76,6 +76,7 @@
     "belegdatum": "2026-03-31",
     "brutto": "119.00",
     "erkannt_an": "ust_id",
+    "faellig_am": "2026-03-31",
     "hinweise": [
       "Die Buchungsgruppe ist noch zu wählen — welches Aufwandskonto zutrifft, sagt keine Rechnung."
     ],

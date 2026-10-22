@@ -1082,6 +1082,11 @@
           "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
           "type": "string"
         },
+        "faellig_am": {
+          "description": "Fälligkeit laut Beleg; ohne Angabe nach Zahlungsziel des Lieferanten",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
         "idempotenz_schluessel": {
           "description": "8 bis 100 Zeichen (A-Z a-z 0-9 - _ . :); gleicher Schlüssel und gleiche Eingabe liefern das erste Ergebnis",
           "type": "string"
@@ -1279,6 +1284,11 @@
         },
         "eingang_am": {
           "description": "berichtigt den Eingangstag des Belegs; er bestimmt den Voranmeldungszeitraum der Vorsteuer",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "faellig_am": {
+          "description": "Fälligkeit laut Beleg bei offen",
           "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
           "type": "string"
         },

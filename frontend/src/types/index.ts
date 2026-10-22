@@ -358,6 +358,8 @@ export interface ReceiptRequest {
   documentDate: string;
   serviceDateFrom: string;
   serviceDateTo: string;
+  /** Fälligkeit laut Beleg; leer folgt sie aus dem Zahlungsziel des Lieferanten. */
+  dueDate?: string;
   description: string;
   taxTreatment: TaxTreatment;
   positions: ReceiptPosition[];
@@ -421,6 +423,9 @@ export interface PostingPreview {
   gross: Cents;
   balanced: boolean;
   warnings?: PostingWarning[];
+  /** Buchungstag und Fälligkeit des offenen Postens, soweit die Vorschau sie kennt. */
+  bookingDate?: string;
+  dueDate?: string;
   /**
    * Die Bruttogrenze der Kleinbetragsrechnung am Rechnungsdatum (§ 33 UStDV),
    * datiert im Backend. Fehlt außerhalb der Ausgangsrechnung.
@@ -663,6 +668,8 @@ export interface OpenItem {
   documentNumber: string;
   documentDate: string;
   dueDate: string;
+  /** Die Fälligkeit stammt nicht vom Beleg, sondern aus dem Zahlungsziel des Kontakts. */
+  dueFromTerms?: boolean;
   grossAmount: Cents;
   settledAmount: Cents;
   openAmount: Cents;

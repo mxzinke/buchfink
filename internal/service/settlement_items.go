@@ -154,6 +154,7 @@ func (s *openItemReader) openItemsFrom(
 			DocumentNumber: entry.DocumentNumber,
 			DocumentDate:   entry.DocumentDate,
 			DueDate:        dueDate(entry, contact),
+			DueFromTerms:   entry.DueDate == "",
 			GrossAmount:    gross,
 			SettledAmount:  alreadySettled,
 			OpenAmount:     open,

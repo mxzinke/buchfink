@@ -54,6 +54,7 @@ func (s *PostingService) postIncomingPlan(ctx context.Context, built *incomingPl
 		DocumentDate:       req.DocumentDate,
 		ServiceDateFrom:    req.ServiceDateFrom,
 		ServiceDateTo:      req.ServiceDateTo,
+		DueDate:            openDueDate(req),
 		Description:        description,
 		Source:             source,
 		DocumentNumber:     receipt.ReceiptNumber,
@@ -130,4 +131,13 @@ func (s *PostingService) postIncomingPlan(ctx context.Context, built *incomingPl
 		return nil, fmt.Errorf("der Beleg %s ließ sich nicht versiegeln: %w", receipt.ReceiptNumber, err)
 	}
 	return created, nil
+}
+
+// openDueDate ist die Fälligkeit, die an der Buchung steht: nur bei offener
+// Zahlung, sonst gibt es keinen offenen Posten.
+func openDueDate(req ReceiptRequest) string {
+	if req.Settlement != SettlementOpen {
+		return ""
+	}
+	return req.DueDate
 }

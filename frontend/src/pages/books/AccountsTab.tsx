@@ -305,8 +305,16 @@ const OpenItems: React.FC = () => {
                     <Tr key={`${item.source}-${item.entryId}-${item.advanceInvoiceId ?? 0}`}>
                       <Td code>{item.documentNumber || item.entryNumber}</Td>
                       <Td className="max-w-[20rem] truncate">{item.contactName}</Td>
-                      <Td className={cn('num', overdue ? 'text-negative-text' : 'text-ink-subtle')}>
+                      <Td
+                        className={cn('num', overdue ? 'text-negative-text' : 'text-ink-subtle')}
+                        title={
+                          item.dueFromTerms
+                            ? 'Errechnet aus dem Zahlungsziel des Kontakts; eine Fälligkeit laut Beleg ist nicht erfasst.'
+                            : undefined
+                        }
+                      >
                         {formatDate(item.dueDate)}
+                        {item.dueFromTerms && <span className="text-ink-subtle"> · Zahlungsziel</span>}
                       </Td>
                       <Td numeric>{formatCents(item.openAmount)}</Td>
                       <Td>

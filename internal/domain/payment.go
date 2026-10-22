@@ -123,9 +123,12 @@ type OpenItem struct {
 	DocumentNumber   string      `json:"documentNumber"`
 	DocumentDate     string      `json:"documentDate"`
 	DueDate          string      `json:"dueDate"`
-	GrossAmount      Cents       `json:"grossAmount"`
-	SettledAmount    Cents       `json:"settledAmount"`
-	OpenAmount       Cents       `json:"openAmount"`
+	// DueFromTerms sagt, dass die Fälligkeit nicht vom Beleg stammt, sondern
+	// aus dem Zahlungsziel des Kontakts errechnet ist.
+	DueFromTerms  bool  `json:"dueFromTerms,omitempty"`
+	GrossAmount   Cents `json:"grossAmount"`
+	SettledAmount Cents `json:"settledAmount"`
+	OpenAmount    Cents `json:"openAmount"`
 	// TaxRate of the original document, needed to correct the VAT base when a
 	// Skonto is granted. Zero when the document carried no VAT.
 	TaxRate TaxRate `json:"taxRate"`

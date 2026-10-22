@@ -28,6 +28,7 @@ type offenerPosten struct {
 	Kontakt          string  `json:"kontakt"`
 	Belegdatum       string  `json:"belegdatum,omitempty"`
 	Faellig          string  `json:"faellig,omitempty"`
+	FaelligAus       string  `json:"faellig_aus,omitempty" jsonschema:"beleg oder zahlungsziel (des Kontakts errechnet)"`
 	Betrag           Betrag  `json:"betrag"`
 	Offen            Betrag  `json:"offen"`
 	TageUeberfaellig int     `json:"tage_ueberfaellig,omitempty"`
@@ -91,6 +92,12 @@ func postenOf(item domain.OpenItem, overdue map[uint]service.OverdueItem, cutoff
 	p := offenerPosten{BuchungID: item.EntryID, Nummer: item.EntryNumber, BelegNr: item.DocumentNumber,
 		Richtung: richtungOfItem(item), KontaktID: item.ContactID, Kontakt: item.ContactName,
 		Belegdatum: item.DocumentDate, Faellig: item.DueDate, Betrag: betrag(item.GrossAmount), Offen: betrag(item.OpenAmount)}
+	if item.DueDate != "" {
+		p.FaelligAus = "beleg"
+		if item.DueFromTerms {
+			p.FaelligAus = "zahlungsziel"
+		}
+	}
 	if item.DueDate != "" && item.DueDate < cutoff {
 		p.TageUeberfaellig = daysBetween(item.DueDate, cutoff)
 	}

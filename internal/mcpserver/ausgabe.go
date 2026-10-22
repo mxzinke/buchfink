@@ -54,17 +54,19 @@ type hinweisZeile struct {
 }
 
 type vorschau struct {
-	Zeilen   []buchungsZeile `json:"zeilen"`
-	Netto    Betrag          `json:"netto"`
-	Steuer   Betrag          `json:"steuer"`
-	Brutto   Betrag          `json:"brutto"`
-	Hinweise []hinweisZeile  `json:"hinweise"`
-	Befunde  []hinweisZeile  `json:"befunde" jsonschema:"blockieren die Buchung; mit uebersteuerung_grund begründet übergehbar"`
+	Zeilen        []buchungsZeile `json:"zeilen"`
+	Netto         Betrag          `json:"netto"`
+	Steuer        Betrag          `json:"steuer"`
+	Brutto        Betrag          `json:"brutto"`
+	Buchungsdatum string          `json:"buchungsdatum,omitempty"`
+	FaelligAm     string          `json:"faellig_am,omitempty" jsonschema:"Fälligkeit des offenen Postens"`
+	Hinweise      []hinweisZeile  `json:"hinweise"`
+	Befunde       []hinweisZeile  `json:"befunde" jsonschema:"blockieren die Buchung; mit uebersteuerung_grund begründet übergehbar"`
 }
 
 func vorschauOf(p *service.PostingPreview) vorschau {
 	v := vorschau{Zeilen: zeilenOf(p.Lines), Netto: betrag(p.Net), Steuer: betrag(p.Tax), Brutto: betrag(p.Gross),
-		Hinweise: []hinweisZeile{}, Befunde: []hinweisZeile{}}
+		Buchungsdatum: p.BookingDate, FaelligAm: p.DueDate, Hinweise: []hinweisZeile{}, Befunde: []hinweisZeile{}}
 	for _, w := range p.Warnings {
 		v.Hinweise = append(v.Hinweise, hinweisZeile{Code: w.Code, Titel: w.Title, Text: w.Detail})
 	}
