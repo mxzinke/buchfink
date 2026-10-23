@@ -255,6 +255,12 @@ const SuSa: React.FC<{ onOpen: (account: string) => void }> = ({ onOpen }) => {
  * Die offenen Posten. Forderungen und Verbindlichkeiten stehen getrennt: es
  * sind zwei Sachverhalte, und eine gemeinsame Summe wäre eine Saldierung.
  */
+/** Eine Gutschrift steht gegen die übliche Richtung des Kontos und mindert dessen Summe. */
+const isCredit = (item: OpenItem) =>
+  item.side !== undefined && item.side !== (item.contactType === 'customer' ? 'S' : 'H');
+
+const signedOpen = (item: OpenItem) => (isCredit(item) ? -item.openAmount : item.openAmount);
+
 const OpenItems: React.FC = () => {
   const [items, setItems] = useState<OpenItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -284,7 +290,7 @@ const OpenItems: React.FC = () => {
         .map((side) => (
           <div key={side.title}>
             <PanelHeading>
-              {`${side.title} · ${formatCents(side.rows.reduce((sum, row) => sum + row.openAmount, 0))}`}
+              {`${side.title} · ${formatCents(side.rows.reduce((sum, row) => sum + signedOpen(row), 0))}`}
             </PanelHeading>
             <Table density="kompakt">
               <Thead>
@@ -300,7 +306,8 @@ const OpenItems: React.FC = () => {
               </Thead>
               <Tbody>
                 {side.rows.map((item) => {
-                  const overdue = Boolean(item.dueDate) && item.dueDate < today;
+                  const credit = isCredit(item);
+                  const overdue = !credit && Boolean(item.dueDate) && item.dueDate < today;
                   return (
                     <Tr key={`${item.source}-${item.entryId}-${item.advanceInvoiceId ?? 0}`}>
                       <Td code>{item.documentNumber || item.entryNumber}</Td>
@@ -316,17 +323,21 @@ const OpenItems: React.FC = () => {
                         {formatDate(item.dueDate)}
                         {item.dueFromTerms && <span className="text-ink-subtle"> · Zahlungsziel</span>}
                       </Td>
-                      <Td numeric>{formatCents(item.openAmount)}</Td>
+                      <Td numeric>{formatCents(signedOpen(item))}</Td>
                       <Td>
-                        <StatusBadge
-                          status={
-                            overdue
-                              ? 'ueberfaellig'
-                              : item.settledAmount > 0
-                                ? 'teilweiseAusgeglichen'
-                                : 'offen'
-                          }
-                        />
+                        {credit ? (
+                          <span className="text-body text-ink-muted">Gutschrift</span>
+                        ) : (
+                          <StatusBadge
+                            status={
+                              overdue
+                                ? 'ueberfaellig'
+                                : item.settledAmount > 0
+                                  ? 'teilweiseAusgeglichen'
+                                  : 'offen'
+                            }
+                          />
+                        )}
                       </Td>
                     </Tr>
                   );

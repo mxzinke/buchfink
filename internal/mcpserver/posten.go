@@ -38,6 +38,7 @@ type offenerPosten struct {
 	LetzteMahnung    string  `json:"letzte_mahnung,omitempty"`
 	Mahnstufe        int     `json:"mahnstufe,omitempty"`
 	Hinweis          string  `json:"hinweis,omitempty"`
+	Gutschrift       bool    `json:"gutschrift,omitempty" jsonschema:"Guthaben aus einer Gutschrift, gegen die übliche Richtung des Kontakts"`
 }
 
 type altersband struct {
@@ -81,8 +82,10 @@ type mahnungOut struct {
 
 func (o mahnungOut) Ref() string { return fmt.Sprintf("mahnung:%d", o.ID) }
 
+// richtungOfItem: was im Soll steht, ist eine Forderung, auch die Gutschrift
+// eines Lieferanten.
 func richtungOfItem(item domain.OpenItem) string {
-	if item.ContactType == domain.ContactTypeCustomer {
+	if item.SettleSide() == domain.SideCredit {
 		return "forderung"
 	}
 	return "verbindlichkeit"
@@ -91,7 +94,8 @@ func richtungOfItem(item domain.OpenItem) string {
 func postenOf(item domain.OpenItem, overdue map[uint]service.OverdueItem, cutoff string) offenerPosten {
 	p := offenerPosten{BuchungID: item.EntryID, Nummer: item.EntryNumber, BelegNr: item.DocumentNumber,
 		Richtung: richtungOfItem(item), KontaktID: item.ContactID, Kontakt: item.ContactName,
-		Belegdatum: item.DocumentDate, Faellig: item.DueDate, Betrag: betrag(item.GrossAmount), Offen: betrag(item.OpenAmount)}
+		Belegdatum: item.DocumentDate, Faellig: item.DueDate, Betrag: betrag(item.GrossAmount), Offen: betrag(item.OpenAmount),
+		Gutschrift: item.IsCredit()}
 	if item.DueDate != "" {
 		p.FaelligAus = "beleg"
 		if item.DueFromTerms {

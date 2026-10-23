@@ -201,6 +201,7 @@
       "ledgerAccount": "10000",
       "openAmount": 107000,
       "settledAmount": 0,
+      "side": "S",
       "source": "journal",
       "taxRate": 700,
       "taxTreatment": "domestic"

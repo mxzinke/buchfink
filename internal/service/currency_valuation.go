@@ -133,7 +133,9 @@ func (s *CurrencyService) buildValuation(
 			continue
 		}
 
-		receivable := item.ContactType == domain.ContactTypeCustomer
+		// Was im Soll steht, ist eine Forderung, auch die Gutschrift eines
+		// Lieferanten.
+		receivable := item.SettleSide() == domain.SideCredit
 		row.Gain = (receivable && row.Difference > 0) || (!receivable && row.Difference < 0)
 		row.Amount = row.Difference.Abs()
 

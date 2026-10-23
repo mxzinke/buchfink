@@ -86,10 +86,8 @@ func AgeOpenItems(items []domain.OpenItem, cutoff string) domain.OpenItemsAging 
 		if item.ContactType != domain.ContactTypeCustomer {
 			side = &result.Sides[1]
 		}
-		amount := item.OpenAmount
-		if amount < 0 {
-			amount = -amount
-		}
+		// Eine Gutschrift mindert die Seite ihres Kontakts.
+		amount := item.SignedOpen()
 		side.Total += amount
 		side.Items++
 

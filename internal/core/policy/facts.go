@@ -410,13 +410,12 @@ func sameDirection(amount domain.Cents, item domain.OpenItem) bool {
 	if item.OpenAmount <= 0 {
 		return false
 	}
-	switch item.ContactType {
-	case domain.ContactTypeCustomer:
+	// Geld herein gleicht aus, was im Soll steht (Forderung, Gutschrift eines
+	// Lieferanten); Geld hinaus, was im Haben steht.
+	if item.SettleSide() == domain.SideCredit {
 		return amount > 0
-	case domain.ContactTypeVendor:
-		return amount < 0
 	}
-	return false
+	return amount < 0
 }
 
 // supplierInvoiceNumber ist die Rechnungsnummer des Lieferanten zu einem

@@ -90,6 +90,9 @@ func (s *OverdueService) RecordReminder(ctx context.Context, req ReminderRequest
 	if item.ContactType != domain.ContactTypeCustomer {
 		return nil, fmt.Errorf("%s ist eine Verbindlichkeit; gemahnt werden Forderungen", documentOf(item))
 	}
+	if item.IsCredit() {
+		return nil, fmt.Errorf("%s ist eine Gutschrift an den Kunden; gemahnt werden Forderungen", documentOf(item))
+	}
 	if item.DueDate != "" && req.Date < item.DueDate {
 		return nil, fmt.Errorf("%s ist erst am %s fällig; eine Mahnung vor Fälligkeit setzt nicht in Verzug",
 			documentOf(item), domain.GermanDate(item.DueDate))

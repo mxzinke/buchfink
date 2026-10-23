@@ -115,19 +115,19 @@ func (s *settlement) split(ctx context.Context, req BankSplitRequest) (*domain.J
 	parts := &allocationParts{}
 	if len(allocations) > 0 {
 		id := tx.ID
-		parts, err = s.allocate(ctx, allocations, &id)
+		parts, err = s.allocate(ctx, allocations, &id, counterSide)
 		if err != nil {
 			return nil, err
 		}
-		for _, a := range parts.allocations {
-			item := parts.items[a.OpenItemEntryID]
-			if item.SettleSide() != counterSide {
-				rule := "ein Zahlungsausgang gleicht eine Verbindlichkeit aus"
-				if incoming {
-					rule = "ein Zahlungseingang gleicht eine Forderung aus"
-				}
-				return nil, fmt.Errorf("%s ist kein offener Posten dieses Umsatzes: %s", item.DocumentNumber, rule)
+		if parts.cash <= 0 {
+			rule := "ein Zahlungsausgang gleicht eine Verbindlichkeit aus"
+			if incoming {
+				rule = "ein Zahlungseingang gleicht eine Forderung oder die Gutschrift eines Lieferanten aus"
 			}
+			return nil, fmt.Errorf("die Posten passen nicht zur Richtung dieses Umsatzes: %s; eine Gutschrift "+
+				"lässt sich nur mit Posten der Gegenrichtung verrechnen", rule)
+		}
+		for _, a := range parts.allocations {
 			contacts[a.ContactID] = true
 		}
 	}

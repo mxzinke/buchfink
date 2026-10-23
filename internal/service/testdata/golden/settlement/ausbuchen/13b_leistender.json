@@ -201,6 +201,7 @@
       "ledgerAccount": "10000",
       "openAmount": 100000,
       "settledAmount": 0,
+      "side": "S",
       "source": "journal",
       "taxRate": 0,
       "taxTreatment": "reverse_charge_supply"

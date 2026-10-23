@@ -158,6 +158,7 @@ func (s *openItemReader) openItemsFrom(
 			GrossAmount:    gross,
 			SettledAmount:  alreadySettled,
 			OpenAmount:     open,
+			Side:           line.Side,
 			TaxRate:        rate,
 			TaxTreatment:   treatment,
 		})

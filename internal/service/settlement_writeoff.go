@@ -58,6 +58,9 @@ func (s *settlement) writeOff(ctx context.Context, req WriteOffRequest) (*domain
 			"%s ist eine Verbindlichkeit. Ihr Wegfall ist ein Erlass oder eine Verjährung und wird als "+
 				"Ertrag gebucht, nicht als Forderungsverlust", item.DocumentNumber)
 	}
+	if item.IsCredit() {
+		return nil, fmt.Errorf("%s ist eine Gutschrift an den Kunden und keine Forderung", item.DocumentNumber)
+	}
 	amount := req.Amount
 	if amount == 0 {
 		amount = item.OpenAmount

@@ -254,6 +254,7 @@
       "ledgerAccount": "70000",
       "openAmount": 119000,
       "settledAmount": 0,
+      "side": "H",
       "source": "journal",
       "taxRate": 1900,
       "taxTreatment": "domestic"
@@ -653,6 +654,7 @@
         "ledgerAccount": "70000",
         "openAmount": 119000,
         "settledAmount": 0,
+        "side": "H",
         "source": "journal",
         "taxRate": 1900,
         "taxTreatment": "domestic"
@@ -882,6 +884,7 @@
         "ledgerAccount": "70000",
         "openAmount": 119000,
         "settledAmount": 0,
+        "side": "H",
         "source": "journal",
         "taxRate": 1900,
         "taxTreatment": "domestic"

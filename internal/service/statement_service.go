@@ -337,10 +337,8 @@ func (s *StatementService) maturities(ctx context.Context, closingDate string) (
 			idx = 1
 		}
 		row := &table.Rows[idx]
-		amount := item.OpenAmount
-		if amount < 0 {
-			amount = -amount
-		}
+		// Eine Gutschrift mindert die Seite ihres Kontakts.
+		amount := item.SignedOpen()
 		row.Total += amount
 		row.Items++
 		switch {

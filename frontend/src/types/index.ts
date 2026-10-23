@@ -736,6 +736,8 @@ export interface OpenItem {
   grossAmount: Cents;
   settledAmount: Cents;
   openAmount: Cents;
+  /** Seite auf dem Personenkonto; gegen die übliche Richtung steht eine Gutschrift. */
+  side?: 'S' | 'H';
   taxRate: TaxRate;
   /**
    * Der Steuerfall der ursprünglichen Buchung. Er entscheidet, wie ein Skonto

@@ -138,7 +138,7 @@ func CalculateAllowance(in AllowanceInput) (*AllowanceResult, error) {
 	oneYear := addYears(in.Cutoff, 1)
 	var baseShort, baseLong domain.Cents
 	for _, item := range in.Items {
-		if item.ContactType != domain.ContactTypeCustomer || item.OpenAmount <= 0 ||
+		if item.ContactType != domain.ContactTypeCustomer || item.OpenAmount <= 0 || item.IsCredit() ||
 			item.EntryID == 0 || item.Source == domain.OpenItemSourceAdvance {
 			continue
 		}

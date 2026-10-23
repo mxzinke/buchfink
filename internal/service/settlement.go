@@ -55,7 +55,15 @@ func (s *settlement) settle(ctx context.Context, req PaymentRequest) (*domain.Jo
 			"Konto %s ist kein Zahlungsmittelkonto (Bank 1800 bis 1850 oder Geldtransit 1460)", req.PaymentAccount)
 	}
 
-	parts, err := s.allocate(ctx, req.Allocations, req.BankTxID)
+	// Ein Zahlungsausgang gleicht im Soll aus, ein Zahlungseingang im Haben.
+	reference := domain.Side("")
+	if bankTx != nil {
+		reference = domain.SideDebit
+		if bankTx.Amount > 0 {
+			reference = domain.SideCredit
+		}
+	}
+	parts, err := s.allocate(ctx, req.Allocations, req.BankTxID, reference)
 	if err != nil {
 		return nil, err
 	}
@@ -66,12 +74,13 @@ func (s *settlement) settle(ctx context.Context, req PaymentRequest) (*domain.Jo
 			"die Zuordnung ergibt %s €, der Bankumsatz lautet aber über %s €",
 			parts.cash, bankTx.Amount.Abs())
 	}
-	if parts.cash == 0 {
-		return nil, fmt.Errorf("die Zahlung hat einen Betrag von null")
+	if parts.cash <= 0 {
+		return nil, fmt.Errorf("die Zahlung hat keinen Betrag: eine Gutschrift mindert den Zahlbetrag der " +
+			"Posten, mit denen sie verrechnet wird, und kann ihn nicht übersteigen")
 	}
 
 	lines := append(parts.lines, domain.JournalLine{
-		Side: parts.lines[0].Side.Opposite(), Account: req.PaymentAccount, Amount: parts.cash,
+		Side: parts.reference.Opposite(), Account: req.PaymentAccount, Amount: parts.cash,
 	})
 
 	description := req.Description
@@ -104,6 +113,9 @@ type allocationParts struct {
 	reductions  []assetCostReduction
 	items       map[uint]domain.OpenItem
 	contactID   *uint
+	// reference ist die Seite, auf der die Zahlung die Posten ausgleicht. Ein
+	// Posten der Gegenseite, etwa eine Gutschrift, wird verrechnet.
+	reference domain.Side
 	// cash ist, was auf dem Zahlungsmittelkonto fließt.
 	cash domain.Cents
 }
@@ -122,13 +134,13 @@ func (s *settlement) openBankTx(ctx context.Context, id uint) (*domain.BankTrans
 
 // allocate verteilt eine Zahlung auf offene Posten.
 func (s *settlement) allocate(
-	ctx context.Context, requests []AllocationRequest, bankTxID *uint,
+	ctx context.Context, requests []AllocationRequest, bankTxID *uint, reference domain.Side,
 ) (*allocationParts, error) {
 	openItems, err := s.OpenItems(ctx, "")
 	if err != nil {
 		return nil, err
 	}
-	parts := &allocationParts{items: make(map[uint]domain.OpenItem, len(openItems))}
+	parts := &allocationParts{items: make(map[uint]domain.OpenItem, len(openItems)), reference: reference}
 	for _, o := range openItems {
 		parts.items[o.EntryID] = o
 	}
@@ -185,7 +197,14 @@ func (s *settlement) allocate(
 		if cash < 0 {
 			return nil, fmt.Errorf("Zuordnung %d: die Differenz ist größer als der Ausgleichsbetrag", i+1)
 		}
-		parts.cash += cash
+		if parts.reference == "" {
+			parts.reference = item.SettleSide()
+		}
+		if item.SettleSide() == parts.reference {
+			parts.cash += cash
+		} else {
+			parts.cash -= cash
+		}
 
 		parts.allocations = append(parts.allocations, domain.PaymentAllocation{
 			OpenItemEntryID:  item.EntryID,

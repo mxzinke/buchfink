@@ -144,7 +144,7 @@ func (s *OverdueService) Claims(ctx context.Context, today string) ([]OverdueCla
 
 	for i := range items {
 		item := &items[i]
-		if item.ContactType != domain.ContactTypeCustomer || item.OpenAmount <= 0 {
+		if item.ContactType != domain.ContactTypeCustomer || item.OpenAmount <= 0 || item.IsCredit() {
 			continue
 		}
 		if item.DueDate == "" || item.DueDate >= today {
