@@ -77,7 +77,9 @@ Schreib `text` je Zeile so, dass ein Prüfer ihn ohne Chat versteht („Zinsen Q
   mit `anzahlung_fuer`, Vorsteuer nach
   [belege/vorsteuer.md](../belege/vorsteuer.md#2-zeitpunkt).
 - **Erstattung eines Lieferanten:** gleicht den offenen Posten der gebuchten
-  Gutschrift aus; fehlt sie, buche erst die Gutschrift als Beleg.
+  Gutschrift aus (`offene_posten` zeigt ihn mit `gutschrift: true`); fehlt sie,
+  buche erst die Gutschrift als Beleg. Zieht der Lieferant sie von der nächsten
+  Rechnung ab, gleicht eine `aufteilung` mit beiden Posten die Zahlung aus.
 
 ## 6. Rücklastschrift und Rücküberweisung
 

@@ -36,6 +36,9 @@ func (s *PostingService) postIncomingPlan(ctx context.Context, built *incomingPl
 	if description == "" {
 		description = fmt.Sprintf("Eingangsbeleg %s, %s", receipt.ReceiptNumber, contact.Name)
 	}
+	if req.CreditNoteFor != "" {
+		description = fmt.Sprintf("Gutschrift zu %s: %s", req.CreditNoteFor, description)
+	}
 
 	// Die Quelle „advance" ist die Bedingung der Periodenzuordnung und keine
 	// bloße Etikettierung: accounting.VatPeriodFor legt die Steuer einer

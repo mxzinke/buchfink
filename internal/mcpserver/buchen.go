@@ -86,6 +86,7 @@ type belegBuchenRueckfrageIn struct {
 	Leistungsnachweis       string                 `json:"leistungsnachweis,omitempty"`
 	LeistungsnachweisAm     Datum                  `json:"leistungsnachweis_am,omitempty"`
 	UebersteuerungGrund     string                 `json:"uebersteuerung_grund,omitempty" jsonschema:"Begründung, mit der ein blockierender Befund der Rechnungsprüfung übergangen wird"`
+	GutschriftZu            string                 `json:"gutschrift_zu,omitempty" jsonschema:"Gutschrift des Lieferanten: die Rechnung, die sie mindert; Beträge positiv wie auf der Gutschrift"`
 	EingangAm               Datum                  `json:"eingang_am,omitempty" jsonschema:"berichtigt den Eingangstag des Belegs; er bestimmt den Voranmeldungszeitraum der Vorsteuer"`
 	Beschreibung            string                 `json:"beschreibung,omitempty"`
 	NurVorschau             bool                   `json:"nur_vorschau,omitempty"`
@@ -194,6 +195,7 @@ func (in belegBuchenRueckfrageIn) request() (service.ReceiptRequest, error) {
 		return req, err
 	}
 	req.OverrideReason = in.UebersteuerungGrund
+	req.CreditNoteFor = strings.TrimSpace(in.GutschriftZu)
 	return req, nil
 }
 
@@ -520,7 +522,7 @@ func registerBuchen(tb *Toolbox) {
 		Name:  "beleg_buchen_mit_rueckfrage",
 		Title: "Beleg buchen (mit Rückfrage)",
 		Description: "Bucht einen Eingangsbeleg in allen Fällen, die keine Routine sind: Foto oder PDF, " +
-			"Abweichung von der E-Rechnung, Fremdwährung, Bewirtung, Geschenk, Vorsteueranteil, Rückstellung, " +
+			"Abweichung von der E-Rechnung, Fremdwährung, Bewirtung, Geschenk, Vorsteueranteil, Rückstellung, Gutschrift, " +
 			"Anzahlung, Auslage eines Gesellschafters (bezahlung=auslage), bar bezahlt, Konto statt Gruppe, " +
 			"begründete Übersteuerung eines Befunds. Vorher dem Menschen Buchungssatz und Gründe vorlegen und sein " +
 			"Ja einholen; nur_vorschau rechnet ohne zu buchen. Die Standardgruppe des Lieferanten bestätigt das nicht.",

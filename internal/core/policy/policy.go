@@ -105,6 +105,9 @@ type ReceiptFacts struct {
 	// MasterDataMismatch nennt Angaben der E-Rechnung, die den Stammdaten des
 	// Kontakts widersprechen (ust_id, steuernummer, anschrift).
 	MasterDataMismatch []string
+	// CreditNote: der Beleg ist eine Gutschrift des Lieferanten, laut Anfrage
+	// oder Rechnungsdatensatz.
+	CreditNote bool
 	// IBANMismatch: der Kontakt hat eine IBAN, die E-Rechnung verlangt Zahlung
 	// auf ein anderes Konto.
 	IBANMismatch bool
@@ -148,6 +151,9 @@ func ClassifyReceipt(f ReceiptFacts, l Limits) Verdict {
 	}
 	if !f.Incoming || !f.Invoice {
 		add("keine_eingangsrechnung", "Der Beleg ist keine Eingangsrechnung.")
+	}
+	if f.CreditNote {
+		add("gutschrift", "Eine Gutschrift mindert Aufwand und Vorsteuer; sie wird nur mit Rückfrage gebucht.")
 	}
 	switch {
 	case !f.Structured:

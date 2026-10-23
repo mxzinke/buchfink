@@ -86,7 +86,12 @@ type GiftInput struct {
 // by the type), partner, Belegdatum, Leistungszeitraum, net amounts per VAT
 // rate, Steuerfall, fachliche Gruppe and how it is settled.
 type ReceiptRequest struct {
-	ContactID       uint   `json:"contactId"`
+	ContactID uint `json:"contactId"`
+	// CreditNoteFor macht den Beleg zur Gutschrift des Lieferanten und nennt die
+	// Rechnung, die sie mindert. Die Beträge stehen positiv wie auf der
+	// Gutschrift; gebucht wird mit getauschten Seiten: Aufwand und Vorsteuer
+	// sinken (§ 17 Abs. 1 UStG), beim Lieferanten entsteht ein Guthaben.
+	CreditNoteFor   string `json:"creditNoteFor,omitempty"`
 	BookingDate     string `json:"bookingDate"`
 	DocumentDate    string `json:"documentDate"`
 	ServiceDateFrom string `json:"serviceDateFrom"`
@@ -266,6 +271,9 @@ type PostingService struct {
 	// (RECH-08). Ohne ihn kennt der Belegweg keine Grenze und bucht wie zuvor —
 	// gesetzt wird er deshalb überall dort, wo es Einstellungen gibt.
 	settingsRepo domain.SettingsRepository
+
+	// kinds erkennt eine Gutschrift am Rechnungsdatensatz.
+	kinds documentKinds
 }
 
 // SetSettingsSource koppelt die Unternehmenseinstellungen an den Belegweg. Aus
@@ -281,6 +289,15 @@ func (s *PostingService) runInTx(ctx context.Context, fn func(context.Context) e
 // SetReceiptService wires in the Beleg service. Without it a booking cannot
 // reference a Beleg, which is what the manual journal entry path relies on.
 func (s *PostingService) SetReceiptService(receiptSvc *ReceiptService) { s.receiptSvc = receiptSvc }
+
+// documentKinds liest, was der Rechnungsdatensatz eines Belegs zu sein angibt.
+type documentKinds interface {
+	DocumentKind(ctx context.Context, receiptID uint) (domain.EInvoiceKind, error)
+}
+
+// SetDocumentKinds lässt den Buchungsweg eine Gutschrift am Rechnungsdatensatz
+// erkennen. Ohne ihn verlässt er sich auf die Angabe der Anfrage.
+func (s *PostingService) SetDocumentKinds(k documentKinds) { s.kinds = k }
 
 // ProvisionConsumer ist der Ausschnitt der Rückstellungen, den der Belegweg
 // braucht: wie viel eine Rückstellung von einer Rechnung deckt, und der

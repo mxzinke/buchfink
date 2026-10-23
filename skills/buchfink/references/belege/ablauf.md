@@ -105,6 +105,7 @@ vorliegt.
 | Bar oder schon vom Bankkonto bezahlt | `bezahlung: bezahlt`, `zahlungskonto` | Konto der Zahlung | – |
 | Teils unternehmensfremd oder steuerfrei verwendet | `vorsteueranteil_promille`, `vorsteueranteil_grund` je Position | Maßstab (Wertungsfrage) | [vorsteuer.md](vorsteuer.md#4-aufteilung) |
 | Rechnung zu einer Rückstellung | `rueckstellung_id` | Welche Rückstellung | [jahresabschluss/rueckstellungen.md](../jahresabschluss/rueckstellungen.md) |
+| Gutschrift des Lieferanten (Rechnungstyp 381 oder Preisnachlass) | `gutschrift_zu` (Rechnungsnummer), Beträge positiv | Welche Rechnung sie mindert; Erstattung oder Abzug von der nächsten Zahlung | [vorsteuer.md](vorsteuer.md#7-minderung-des-entgelts) |
 | Anzahlungsrechnung des Lieferanten | `anzahlung_fuer` | Zahlung ist geleistet | [vorsteuer.md](vorsteuer.md#2-zeitpunkt) |
 | Schlussrechnung nach Anzahlungen | `verrechnete_anzahlungen`; ihre Kennungen liefert kein Werkzeug | Welche Anzahlungen abgesetzt sind | [anlagen-gwg.md](anlagen-gwg.md#5-weg-in-buchfink) |
 | Beleg über der Nachweisgrenze | `leistungsnachweis`, `leistungsnachweis_am` | Gegen welche Bestellung der Mensch geprüft hat | [pflichtangaben.md](pflichtangaben.md#1-was-eine-rechnung-ist) |
@@ -117,8 +118,9 @@ vorliegt.
 - Bei § 13b und innergemeinschaftlichem Erwerb zahlt die GmbH netto
   ([steuerfaelle.md](steuerfaelle.md#2-leistungen-aus-dem-ausland--13b-ustg)).
 - Gutschrift oder Preisnachlass eines Lieferanten auf eine gebuchte Rechnung
-  ist ein eigener Beleg (Rückfrage); die Vorsteuer mindert sich im Zeitraum der
-  Änderung ([vorsteuer.md](vorsteuer.md#7-minderung-des-entgelts)). Ein Storno
+  ist ein eigener Beleg (Rückfrage), gebucht mit `gutschrift_zu` und positiven
+  Beträgen; die Vorsteuer mindert sich im Zeitraum der Änderung
+  ([vorsteuer.md](vorsteuer.md#7-minderung-des-entgelts)). Ein Storno
   der Ursprungsbuchung wirkt im alten Zeitraum
   ([grundlagen/arbeitsweise.md](../grundlagen/arbeitsweise.md#11-eine-buchung-korrigieren));
   nimm es nur für eigene Buchungsfehler.

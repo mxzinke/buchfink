@@ -79,6 +79,9 @@ export const ReceiptBookingDialog: React.FC<ReceiptBookingDialogProps> = ({ rece
   const [positions, setPositions] = useState<Position[]>([{ group: '', net: '', rate: TAX_RATE_STANDARD }]);
   // Kleinbetragsrechnung und Fahrausweis nennen nur den Bruttobetrag je Satz.
   const [gross, setGross] = useState(false);
+  // Eine Gutschrift des Lieferanten mindert die Rechnung, die sie nennt.
+  const [creditNote, setCreditNote] = useState(false);
+  const [creditNoteFor, setCreditNoteFor] = useState('');
   const [proposedTreatment, setProposedTreatment] = useState<TaxTreatment | ''>('');
   const [settlement, setSettlement] = useState<Settlement>('open');
   const [dueDate, setDueDate] = useState('');
@@ -117,6 +120,10 @@ export const ReceiptBookingDialog: React.FC<ReceiptBookingDialogProps> = ({ rece
           if (request.dueDate) setDueDate(request.dueDate);
           if (request.description) setDescription(request.description);
           if (request.taxTreatment) setProposedTreatment(request.taxTreatment);
+          if (request.creditNoteFor) {
+            setCreditNote(true);
+            setCreditNoteFor(request.creditNoteFor);
+          }
           if (request.positions.length > 0) {
             setPositions(
               request.positions.map((p) => ({ group: '', net: formatCentsPlain(p.net), rate: p.taxRate })),
@@ -155,8 +162,22 @@ export const ReceiptBookingDialog: React.FC<ReceiptBookingDialogProps> = ({ rece
       paymentAccount: settlement === 'paid' ? paymentAccount : undefined,
       dueDate: settlement === 'open' && dueDate ? dueDate : undefined,
       currency: receipt.currency || 'EUR',
+      creditNoteFor: creditNote ? creditNoteFor.trim() || 'ohne Rechnungsbezug' : undefined,
     };
-  }, [contactId, positions, gross, documentDate, description, treatment, settlement, paymentAccount, dueDate, receipt]);
+  }, [
+    contactId,
+    positions,
+    gross,
+    creditNote,
+    creditNoteFor,
+    documentDate,
+    description,
+    treatment,
+    settlement,
+    paymentAccount,
+    dueDate,
+    receipt,
+  ]);
 
   // Den Buchungssatz rechnet das Backend; die Maske zeigt ihn nur.
   useEffect(() => {
@@ -279,6 +300,22 @@ export const ReceiptBookingDialog: React.FC<ReceiptBookingDialogProps> = ({ rece
               <Field label="Buchungstext" className="md:col-span-2">
                 <Input value={description} onChange={(e) => setDescription(e.target.value)} />
               </Field>
+              <Checkbox
+                className="md:col-span-2"
+                checked={creditNote}
+                onCheckedChange={(checked) => setCreditNote(Boolean(checked))}
+                label="Gutschrift des Lieferanten"
+                hint="Mindert Aufwand und Vorsteuer; beim Lieferanten entsteht ein Guthaben"
+              />
+              {creditNote && (
+                <Field label="Gutschrift zu Rechnung" className="md:col-span-2">
+                  <Input
+                    value={creditNoteFor}
+                    onChange={(e) => setCreditNoteFor(e.target.value)}
+                    placeholder="Rechnungsnummer des Lieferanten"
+                  />
+                </Field>
+              )}
             </FormGrid>
 
             <div className="mt-6">

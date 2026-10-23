@@ -57,7 +57,7 @@ enthält.
 |---|---|
 | Jahresgebühr, Auslandseinsatzentgelt, Zinsen der Kartenbank | `buchung_erfassen` (Rückfrage) gegen 3610, Beleg ist die Abrechnung; Gebühren 6855, Zinsen 7310 |
 | Kartenzahlung in Fremdwährung, Euro-Betrag weicht ab | beim Ausgleich `differenzen` mit `art: waehrung` (6880/4840), Centrundung mit `art: rundung` |
-| Erstattung eines Händlers auf die Karte | Gutschrift als Beleg mit Bezahlung `kreditkarte` |
+| Erstattung eines Händlers auf die Karte | Gutschrift als Beleg mit `gutschrift_zu` und Bezahlung `kreditkarte` |
 | Zahlung fällt in die nächste Abrechnung | keine Differenz; Stichtag beachten |
 | Zahlung ohne Beleg und erkennbaren Zweck | Mensch fragen; private Nutzung nach [gesellschafter/vga-einlage.md](../gesellschafter/vga-einlage.md) |
 

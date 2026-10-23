@@ -184,7 +184,6 @@ func TestNonInvoiceDocumentsAreRefusedWithTheirName(t *testing.T) {
 	receipt := env.filedReceipt(t)
 
 	for _, kind := range []domain.EInvoiceKind{
-		domain.EInvoiceKindCreditNote,
 		domain.EInvoiceKindCorrection,
 		domain.EInvoiceKindPrepayment,
 		domain.EInvoiceKindSelfBilled,

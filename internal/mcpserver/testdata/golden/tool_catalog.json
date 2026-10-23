@@ -1247,7 +1247,7 @@
       "readOnlyHint": false,
       "title": "Beleg buchen (mit Rückfrage)"
     },
-    "description": "Bucht einen Eingangsbeleg in allen Fällen, die keine Routine sind: Foto oder PDF, Abweichung von der E-Rechnung, Fremdwährung, Bewirtung, Geschenk, Vorsteueranteil, Rückstellung, Anzahlung, Auslage eines Gesellschafters (bezahlung=auslage), bar bezahlt, Konto statt Gruppe, begründete Übersteuerung eines Befunds. Vorher dem Menschen Buchungssatz und Gründe vorlegen und sein Ja einholen; nur_vorschau rechnet ohne zu buchen. Die Standardgruppe des Lieferanten bestätigt das nicht.",
+    "description": "Bucht einen Eingangsbeleg in allen Fällen, die keine Routine sind: Foto oder PDF, Abweichung von der E-Rechnung, Fremdwährung, Bewirtung, Geschenk, Vorsteueranteil, Rückstellung, Gutschrift, Anzahlung, Auslage eines Gesellschafters (bezahlung=auslage), bar bezahlt, Konto statt Gruppe, begründete Übersteuerung eines Befunds. Vorher dem Menschen Buchungssatz und Gründe vorlegen und sein Ja einholen; nur_vorschau rechnet ohne zu buchen. Die Standardgruppe des Lieferanten bestätigt das nicht.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -1332,6 +1332,10 @@
           "description": "bei auslage: wem erstattet wird",
           "minimum": 0,
           "type": "integer"
+        },
+        "gutschrift_zu": {
+          "description": "Gutschrift des Lieferanten: die Rechnung, die sie mindert; Beträge positiv wie auf der Gutschrift",
+          "type": "string"
         },
         "idempotenz_schluessel": {
           "description": "8 bis 100 Zeichen (A-Z a-z 0-9 - _ . :); gleicher Schlüssel und gleiche Eingabe liefern das erste Ergebnis",

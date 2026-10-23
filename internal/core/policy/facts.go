@@ -74,6 +74,7 @@ func receiptFacts(ctx context.Context, s core.AgentServices, req service.Receipt
 		Treatment: req.TaxTreatment, Currency: strings.ToUpper(strings.TrimSpace(req.Currency)),
 		Settlement: string(req.Settlement), BookingDate: req.BookingDate, DocumentDate: req.DocumentDate,
 		Today: today, ContactID: req.ContactID, Net: map[domain.TaxRate]domain.Cents{},
+		CreditNote: req.CreditNoteFor != "",
 	}
 	receipt, err := s.Receipts.Get(ctx, req.ReceiptID)
 	if err != nil {
@@ -110,6 +111,7 @@ func receiptFacts(ctx context.Context, s core.AgentServices, req service.Receipt
 			f.ProposalTreatment = proposal.Request.TaxTreatment
 			f.ProposalCurrency = strings.ToUpper(strings.TrimSpace(proposal.Request.Currency))
 			f.ProposalGross = proposal.GrossAmount
+			f.CreditNote = f.CreditNote || proposal.Request.CreditNoteFor != ""
 			f.ProposalNet = map[domain.TaxRate]domain.Cents{}
 			for _, p := range proposal.Request.Positions {
 				f.ProposalNet[p.TaxRate] += p.Net

@@ -44,6 +44,9 @@ func (s *PostingService) planIncomingReceipt(ctx context.Context, req ReceiptReq
 	if err != nil {
 		return nil, err
 	}
+	if err := s.checkCreditNote(ctx, req); err != nil {
+		return nil, err
+	}
 
 	contact, err := s.contactRepo.FindByID(ctx, req.ContactID)
 	if err != nil {
@@ -124,6 +127,13 @@ func (s *PostingService) planIncomingReceipt(ctx context.Context, req ReceiptReq
 	for _, rule := range incomingReceiptRules {
 		if err := rule.apply(ctx, s, w); err != nil {
 			return nil, err
+		}
+	}
+	// Die Gutschrift ist die Rechnung mit getauschten Seiten: der Lieferant
+	// schuldet, Aufwand und Vorsteuer sinken (§ 17 Abs. 1 UStG).
+	if req.CreditNoteFor != "" {
+		for i := range out.lines {
+			out.lines[i].Side = out.lines[i].Side.Opposite()
 		}
 	}
 
@@ -230,6 +240,40 @@ func feeGroupWarning(req ReceiptRequest, contact *domain.Contact) *PostingWarnin
 			return &PostingWarning{Code: warningFeeGroup, Severity: "warning",
 				Title:  "Beitrag unter Gebühren",
 				Detail: contact.Name + " ist eine Kammer oder ein Verband. Deren Beiträge gehören in die Gruppe „Beiträge“ (6420)."}
+		}
+	}
+	return nil
+}
+
+// checkCreditNote hält Gutschrift und Rechnung auseinander. Eine Gutschrift
+// laut Rechnungsdatensatz wird nur als Gutschrift gebucht; als Rechnung
+// gebucht, stünde ihr Betrag mit falschem Vorzeichen in Aufwand und
+// Vorsteuer. Was an ihr nicht zu einer Minderung passt, ist ausgeschlossen.
+func (s *PostingService) checkCreditNote(ctx context.Context, req ReceiptRequest) error {
+	if s.kinds != nil && req.CreditNoteFor == "" {
+		kind, err := s.kinds.DocumentKind(ctx, req.ReceiptID)
+		if err != nil {
+			return err
+		}
+		if kind == domain.EInvoiceKindCreditNote {
+			return fmt.Errorf("der Beleg ist laut Rechnungsdatensatz eine Gutschrift. Sie mindert Aufwand und " +
+				"Vorsteuer und wird als Gutschrift gebucht, mit der Rechnung, die sie mindert")
+		}
+	}
+	if req.CreditNoteFor == "" {
+		return nil
+	}
+	switch {
+	case req.Settlement == SettlementShareholderExpense:
+		return fmt.Errorf("eine Gutschrift ist keine Auslage eines Gesellschafters")
+	case req.AdvanceTarget != "" || len(req.SettledAdvanceIDs) > 0:
+		return fmt.Errorf("eine Gutschrift ist keine Anzahlung und rechnet keine ab")
+	case req.ProvisionID != 0:
+		return fmt.Errorf("eine Gutschrift verbraucht keine Rückstellung")
+	}
+	for i, p := range req.Positions {
+		if p.Gift != nil {
+			return fmt.Errorf("Position %d: eine Gutschrift auf ein Geschenk ist hier nicht vorgesehen", i+1)
 		}
 	}
 	return nil

@@ -354,6 +354,8 @@ export interface GiftInput {
 
 export interface ReceiptRequest {
   contactId: number;
+  /** Gutschrift des Lieferanten: die Rechnung, die sie mindert. Gebucht wird mit getauschten Seiten. */
+  creditNoteFor?: string;
   /** Der abgelegte Beleg. Pflicht: keine Buchung ohne Beleg. */
   receiptId: number;
   bookingDate: string;

@@ -281,6 +281,27 @@ func (s *EInvoiceService) structuredContent(ctx context.Context, receiptID uint)
 	return content.Data, receipt, nil
 }
 
+// DocumentKind sagt, was der Rechnungsdatensatz eines Belegs zu sein angibt
+// (BT-3); ohne Datensatz leer.
+func (s *EInvoiceService) DocumentKind(ctx context.Context, receiptID uint) (domain.EInvoiceKind, error) {
+	receipt, err := s.receiptSvc.Get(ctx, receiptID)
+	if err != nil {
+		return "", err
+	}
+	if _, ok := receipt.FileByRole(domain.ReceiptRoleStructured); !ok {
+		return "", nil
+	}
+	content, _, err := s.structuredContent(ctx, receiptID)
+	if err != nil {
+		return "", err
+	}
+	read, err := s.reader.Read(content)
+	if err != nil {
+		return "", nil
+	}
+	return read.Kind, nil
+}
+
 // Propose turns the structured part of a filed Beleg into a booking proposal.
 func (s *EInvoiceService) Propose(ctx context.Context, receiptID uint) (*EInvoiceProposal, error) {
 	content, receipt, err := s.structuredContent(ctx, receiptID)
@@ -292,11 +313,9 @@ func (s *EInvoiceService) Propose(ctx context.Context, receiptID uint) (*EInvoic
 		return nil, err
 	}
 
-	// Propose schlägt nicht als gewöhnliche Rechnung vor, was keine ist.
-	// Eine Gutschrift mindert Aufwand und Vorsteuer und ist gegen die
-	// ursprüngliche Rechnung zu verrechnen; sie als Eingangsrechnung zu buchen
-	// dreht das Vorzeichen und eröffnet einen offenen Posten, wo einer zu
-	// schließen wäre. Das sähe richtig aus, und darin liegt das Problem.
+	// Propose schlägt nicht als gewöhnliche Rechnung vor, was keine ist. Eine
+	// Gutschrift kommt mit CreditNoteFor zurück: gebucht wird sie mit
+	// getauschten Seiten, nicht als Eingangsrechnung.
 	if !read.Kind.Bookable() {
 		return nil, fmt.Errorf(
 			"Beleg %s ist eine %s (Rechnungstyp aus dem Datensatz). Buchfink schlägt dafür noch keine Buchung vor — Vorzeichen und Zeitpunkt sind andere als bei einer Eingangsrechnung",
@@ -377,6 +396,14 @@ func (s *EInvoiceService) Propose(ctx context.Context, receiptID uint) (*EInvoic
 	}
 	if read.Number != "" {
 		proposal.Request.Description = fmt.Sprintf("Rechnung %s, %s", read.Number, read.Supplier.Name)
+	}
+	if read.Kind == domain.EInvoiceKindCreditNote {
+		proposal.Request.CreditNoteFor = strings.Join(read.PrecedingInvoices, ", ")
+		if proposal.Request.CreditNoteFor == "" {
+			proposal.Request.CreditNoteFor = "ohne Rechnungsbezug"
+			proposal.Notes = append(proposal.Notes, "Die Gutschrift nennt keine Rechnung, die sie mindert (BG-3).")
+		}
+		proposal.Request.Description = fmt.Sprintf("Gutschrift %s, %s", read.Number, read.Supplier.Name)
 	}
 
 	return proposal, nil

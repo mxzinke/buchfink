@@ -58,13 +58,13 @@ func TestUnmappableCategoriesAreNamed(t *testing.T) {
 	}
 }
 
-// Was keine gewöhnliche Rechnung ist, wird nicht als eine gebucht.
-func TestOnlyOrdinaryInvoicesAreBookable(t *testing.T) {
-	if !EInvoiceKindInvoice.Bookable() {
-		t.Error("eine Rechnung ist buchbar")
+// Buchbar sind Rechnung und Gutschrift; die übrigen Arten sind andere Vorgänge.
+func TestOnlyInvoicesAndCreditNotesAreBookable(t *testing.T) {
+	if !EInvoiceKindInvoice.Bookable() || !EInvoiceKindCreditNote.Bookable() {
+		t.Error("Rechnung und Gutschrift sind buchbar")
 	}
 	for _, kind := range []EInvoiceKind{
-		EInvoiceKindCreditNote, EInvoiceKindCorrection, EInvoiceKindPrepayment,
+		EInvoiceKindCorrection, EInvoiceKindPrepayment,
 		EInvoiceKindSelfBilled, EInvoiceKindPartialFinal, EInvoiceKindOther,
 		EInvoiceKindUnknown,
 	} {

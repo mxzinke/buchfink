@@ -83,6 +83,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Receipts.SetNumberRepo(numberRepo)
 	s.Receipts.SetContactSource(contactRepo)
 	s.EInvoice = service.NewEInvoiceService(s.Receipts, contactRepo, invoice.NewReader())
+	s.Posting.SetDocumentKinds(s.EInvoice)
 	s.Accounting = service.NewAccountingService(accountRepo, journalRepo, contactRepo, settingsRepo, s.Journal)
 	s.Accounting.SetAuditRepo(auditRepo)
 	s.Accounts = service.NewAccountService(accountRepo, auditRepo)

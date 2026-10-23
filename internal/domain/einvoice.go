@@ -86,17 +86,19 @@ const (
 // Bookable reports whether Buchfink can turn this kind of document into a
 // booking today.
 //
-// Only an ordinary invoice can. The others are not defects — they are perfectly
-// valid documents whose booking is a different transaction: a credit note
-// reverses, a correction replaces, a prepayment invoice is settled on payment
-// and deducted again in the Schlussrechnung. Proposing an ordinary expense
-// booking for any of them would put the sign or the period wrong, and it would
-// look right.
+// An ordinary invoice can, and a credit note, which is booked with reversed
+// sides (service.ReceiptRequest.CreditNoteFor). The others are not defects —
+// they are perfectly valid documents whose booking is a different transaction:
+// a correction replaces, a prepayment invoice is settled on payment and
+// deducted again in the Schlussrechnung. Proposing an ordinary expense booking
+// for any of them would put the sign or the period wrong, and it would look
+// right.
 //
-// Dieser automatische Vorschlagsweg nimmt nur gewöhnliche Rechnungen an.
 // Anzahlungen brauchen insbesondere den Zahlungszeitpunkt nach § 14 Abs. 5 UStG;
 // dafür bestehen eigene Erfassungswege außerhalb dieses Vorschlags.
-func (k EInvoiceKind) Bookable() bool { return k == EInvoiceKindInvoice }
+func (k EInvoiceKind) Bookable() bool {
+	return k == EInvoiceKindInvoice || k == EInvoiceKindCreditNote
+}
 
 // Label returns a German name.
 func (k EInvoiceKind) Label() string {
