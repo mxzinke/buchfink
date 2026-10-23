@@ -29,6 +29,7 @@ type positionWork struct {
 
 var incomingPositionRules = []positionRule{
 	{"fremdwaehrung", applyPositionCurrency, nil},
+	{"nicht_steuerbar", applyNotTaxable, nil},
 	{"anzahlung", applyAdvancePosition, nil},
 	{"vorsteueranteil", applyInputTaxShare, inputTaxShareSpecials},
 	{"buchungsgruppe", applyPostingGroup, postingGroupSpecials},
@@ -62,6 +63,29 @@ func applyPositionCurrency(_ context.Context, _ *PostingService, w *positionWork
 		if p.Net <= 0 {
 			return fmt.Errorf("%s %s ergeben zum Kurs %s keinen Betrag über null", w.foreignNet, w.fx.currency, w.fx.conv.Rate.Source)
 		}
+	}
+	return nil
+}
+
+// applyNotTaxable nimmt einen Posten ohne ausgewiesene Steuer aus der
+// Vorsteuer (§ 15 Abs. 1 Satz 1 Nr. 1 UStG): ein Trinkgeld für das Personal,
+// eine Kurtaxe, die der Betrieb für die Gemeinde einzieht (durchlaufender
+// Posten, § 10 Abs. 1 Satz 4 UStG). Ein Satz von null ohne Grund bleibt ein
+// Fehler: er sähe aus wie eine steuerfreie Leistung oder der Nullsteuersatz.
+func applyNotTaxable(_ context.Context, _ *PostingService, w *positionWork) error {
+	p := &w.resolved.position
+	p.NotTaxableReason = strings.TrimSpace(p.NotTaxableReason)
+	switch {
+	case p.NotTaxableReason != "" && p.TaxRate != domain.TaxRateNone:
+		return fmt.Errorf("ein nicht steuerbarer Posten hat keinen Steuersatz")
+	case p.NotTaxableReason == "" && p.TaxRate == domain.TaxRateNone &&
+		w.request.TaxTreatment == domain.TaxTreatmentDomestic:
+		return fmt.Errorf("ein steuerpflichtiger Inlandsumsatz hat 19 %% oder 7 %%. Trägt ein Posten keine " +
+			"Umsatzsteuer (Trinkgeld, Kurtaxe), ist er mit Grund als nicht steuerbar zu kennzeichnen. Fällt für " +
+			"den ganzen Beleg keine Steuer an, ist der Steuerfall zu nennen: steuerfrei, nicht steuerbar oder " +
+			"Nullsteuersatz nach § 12 Abs. 3 UStG")
+	case p.NotTaxableReason != "":
+		w.resolved.note = appendText(w.resolved.note, "nicht steuerbar: "+p.NotTaxableReason)
 	}
 	return nil
 }

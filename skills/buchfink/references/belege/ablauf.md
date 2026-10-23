@@ -45,7 +45,11 @@ Ein Eingangsbeleg vom Ablegen bis zur Buchung. Zahlung:
      [e-rechnung-empfang.md](e-rechnung-empfang.md#5-folgen-für-die-vorsteuer),
      Abschnitte 5 bis 7.
    - Steuerfall: Weist ein inländischer Lieferant 19 % oder 7 % aus, ist es
-     Inland, Satz und Netto je Satz aus dem Beleg. Jeden anderen Beleg
+     Inland, Satz und Netto je Satz aus dem Beleg. Ein Posten ohne Steuer
+     darauf, etwa Trinkgeld oder eine Kurtaxe für die Gemeinde
+     ([§ 10 Abs. 1 Satz 4 UStG][ustg10]), bekommt Satz 0 und
+     `nicht_steuerbar` mit Grund; Vorsteuer gibt es darauf nicht
+     ([§ 15 Abs. 1 Satz 1 Nr. 1 UStG][ustg15]). Jeden anderen Beleg
      bestimmst du nach
      [steuerfaelle.md](steuerfaelle.md#1-steuerfälle-in-buchfink).
    - Vorsteuer: `eingang_am` ist der echte Eingangstag
@@ -119,3 +123,5 @@ vorliegt.
   nimm es nur für eigene Buchungsfehler.
 
 [ustdv35]: https://www.gesetze-im-internet.de/ustdv_1980/__35.html
+[ustg10]: https://www.gesetze-im-internet.de/ustg_1980/__10.html
+[ustg15]: https://www.gesetze-im-internet.de/ustg_1980/__15.html

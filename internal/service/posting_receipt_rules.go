@@ -107,6 +107,9 @@ func applyExpenseLines(ctx context.Context, s *PostingService, w *incomingWork) 
 		// Bewirtungsaufwendungen vom Vorsteuerausschluss ausdrücklich aus. Nur
 		// ein Vorsteuerschlüssel oder ein Ausschluss nach § 15 Abs. 1a UStG
 		// mindert sie.
+		if pp.position.NotTaxableReason != "" {
+			continue
+		}
 		w.netByRate[pp.position.TaxRate] += taxableNet
 		w.owedByRate[pp.position.TaxRate] += pp.position.Net
 	}

@@ -50,6 +50,7 @@ type positionRueckfrageIn struct {
 	Brutto                  Betrag         `json:"brutto,omitempty" jsonschema:"statt netto bei Kleinbetragsrechnung oder Fahrausweis, dann für alle Positionen"`
 	Satz                    Satz           `json:"satz"`
 	Text                    string         `json:"text,omitempty"`
+	NichtSteuerbar          string         `json:"nicht_steuerbar,omitempty" jsonschema:"Grund für einen Posten ohne Umsatzsteuer, etwa Trinkgeld oder Kurtaxe; satz 0"`
 	VorsteueranteilPromille int            `json:"vorsteueranteil_promille,omitempty" jsonschema:"abziehbarer Anteil der Vorsteuer in Promille bei gemischter Nutzung; 0 heißt voll"`
 	VorsteueranteilGrund    string         `json:"vorsteueranteil_grund,omitempty"`
 	Geschenk                *geschenkIn    `json:"geschenk,omitempty" jsonschema:"Empfänger, wo die Gruppe ihn verlangt (§ 4 Abs. 7 EStG)"`
@@ -163,7 +164,8 @@ func (in belegBuchenRueckfrageIn) request() (service.ReceiptRequest, error) {
 			return req, inputError(fmt.Sprintf("positionen[%d].netto", i), "netto oder brutto, genau eines")
 		}
 		pos := service.ReceiptPosition{PostingGroup: string(p.Buchungsgruppe), Account: string(p.Konto), Net: net, Gross: gross,
-			TaxRate: p.Satz.rate(), Text: p.Text, InputTaxShare: p.VorsteueranteilPromille,
+			NotTaxableReason: p.NichtSteuerbar,
+			TaxRate:          p.Satz.rate(), Text: p.Text, InputTaxShare: p.VorsteueranteilPromille,
 			InputTaxShareReason: p.VorsteueranteilGrund}
 		if p.Geschenk != nil {
 			pos.Gift = &service.GiftInput{ContactID: p.Geschenk.KontaktID, Name: p.Geschenk.Name, Occasion: p.Geschenk.Anlass}

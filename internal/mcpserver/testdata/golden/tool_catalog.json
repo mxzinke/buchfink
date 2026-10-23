@@ -1437,6 +1437,10 @@
                 "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
                 "type": "string"
               },
+              "nicht_steuerbar": {
+                "description": "Grund für einen Posten ohne Umsatzsteuer, etwa Trinkgeld oder Kurtaxe; satz 0",
+                "type": "string"
+              },
               "satz": {
                 "description": "Umsatzsteuersatz in Prozent",
                 "enum": [

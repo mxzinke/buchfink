@@ -40,7 +40,8 @@ Ablauf:
    `anhang`.
 2. Frag nach Teilnehmern (Namen, bei Gästen Firma) und Anlass.
 3. `beleg_buchen_mit_rueckfrage` mit Gruppe `bewirtung` und Angabe
-   `bewirtung`. Fehlen Teilnehmer oder Anlass, buchst du nicht; Teilnehmer
+   `bewirtung`; ein Trinkgeld auf dem Beleg als eigene Position der Gruppe mit
+   Satz 0 und `nicht_steuerbar: Trinkgeld`. Fehlen Teilnehmer oder Anlass, buchst du nicht; Teilnehmer
    erfindest du nie.
 
 Wertungsfragen: geschäftlicher Anlass oder private Feier; Bewirtung oder

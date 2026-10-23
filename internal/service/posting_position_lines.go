@@ -126,7 +126,7 @@ func nonDeductibleTaxByPosition(prepared []preparedPosition, grossTax map[domain
 	lastSplit := map[domain.TaxRate]int{}
 
 	for i, pp := range prepared {
-		if pp.advance {
+		if pp.advance || pp.position.NotTaxableReason != "" {
 			continue
 		}
 		rate := pp.position.TaxRate

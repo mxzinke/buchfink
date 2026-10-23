@@ -48,7 +48,10 @@ type ReceiptPosition struct {
 	// (Kleinbetragsrechnung, Fahrausweis); Net ergibt sich dann daraus.
 	Gross   domain.Cents   `json:"gross,omitempty"`
 	TaxRate domain.TaxRate `json:"taxRate"`
-	Text    string         `json:"text,omitempty"`
+	// NotTaxableReason kennzeichnet einen Posten ohne Umsatzsteuer auf einem
+	// steuerpflichtigen Beleg und sagt, warum: Trinkgeld, Kurtaxe.
+	NotTaxableReason string `json:"notTaxableReason,omitempty"`
+	Text             string `json:"text,omitempty"`
 
 	// InputTaxShare ist der abziehbare Anteil der Vorsteuer in Promille — der
 	// Vorsteuerschlüssel der gemischten Nutzung.
