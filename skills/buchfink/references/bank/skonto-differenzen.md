@@ -60,9 +60,13 @@ Kontoführung und Überweisungsentgelt sind steuerfrei
 
 ## 4. Kursdifferenz
 
-Bei einer in Fremdwährung gebuchten Rechnung bucht `differenz {art: waehrung}`
-die realisierte Differenz auf 6880 bzw. 4840, gesondert ausgewiesen nach
-§ 277 Abs. 5 Satz 2 HGB. Beleg in Fremdwährung:
+Gleicht eine Zahlung eine in Fremdwährung gebuchte Rechnung ganz aus, bucht
+Buchfink den Unterschied zum gebuchten Euro-Betrag selbst als Kursdifferenz
+auf 6880 bzw. 4840, gesondert ausgewiesen nach § 277 Abs. 5 Satz 2 HGB; das
+gilt bis zu einem Zehntel des Postens. Eine Bankgebühr gibst du dabei als
+`differenz {art: gebuehr}` an. `differenz {art: waehrung}` (positiv: weniger
+geflossen, negativ: mehr) brauchst du nur bei einer Teilzahlung oder über
+dieser Grenze. Beleg in Fremdwährung:
 [belege/fremdwaehrung-auslagen.md](../belege/fremdwaehrung-auslagen.md#1-beleg-in-fremdwährung);
 Stichtag: [jahresabschluss/forderungen.md](../jahresabschluss/forderungen.md).
 

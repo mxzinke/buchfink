@@ -167,6 +167,7 @@ func (s *BankService) SuggestFor(ctx context.Context, tx *domain.BankTransaction
 			ContactName:    item.ContactName,
 			DueDate:        item.DueDate,
 			OpenAmount:     item.OpenAmount,
+			Currency:       item.Currency,
 		})
 		// Ein Vorschlag ohne ein einziges Merkmal ist keiner: er wäre nur die
 		// Liste aller offenen Posten in anderer Reihenfolge.
@@ -216,16 +217,16 @@ func (s *BankService) SuggestFor(ctx context.Context, tx *domain.BankTransaction
 }
 
 // candidatesFor sind die offenen Posten der Seite, die zum Vorzeichen des
-// Umsatzes passt: ein Geldeingang gleicht eine Forderung aus, ein Ausgang eine
-// Verbindlichkeit.
+// Umsatzes passt: ein Geldeingang gleicht aus, was im Soll steht (Forderung,
+// Gutschrift eines Lieferanten), ein Ausgang, was im Haben steht.
 func candidatesFor(tx *domain.BankTransaction, items []domain.OpenItem) []domain.OpenItem {
-	wanted := domain.ContactTypeVendor
+	wanted := domain.SideDebit
 	if tx.Amount > 0 {
-		wanted = domain.ContactTypeCustomer
+		wanted = domain.SideCredit
 	}
 	out := make([]domain.OpenItem, 0, len(items))
 	for i := range items {
-		if items[i].ContactType == wanted && items[i].OpenAmount != 0 {
+		if items[i].SettleSide() == wanted && items[i].OpenAmount != 0 {
 			out = append(out, items[i])
 		}
 	}

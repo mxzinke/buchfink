@@ -75,6 +75,11 @@ function plan(
       ? { kind: 'advance', advanceId: advance.advanceInvoiceId ?? 0 }
       : { kind: 'blocked', reason: 'Eine Anzahlung gilt erst mit dem vollen Betrag als vereinnahmt.' };
   }
+  // Einen Fremdwährungsposten gleicht die Zahlung ganz aus; den Unterschied zum
+  // gebuchten Euro-Betrag bucht das Backend als Kursdifferenz.
+  if (items.length === 1 && items[0].currency) {
+    return { kind: 'settle', allocations: [{ openItemEntryId: items[0].entryId, settledAmount: items[0].openAmount }] };
+  }
   let remaining = remainingOf(tx);
   const allocations = items.map((item) => {
     const amount = Math.min(Math.abs(item.openAmount), remaining);

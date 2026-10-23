@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
@@ -159,6 +160,7 @@ func (s *openItemReader) openItemsFrom(
 			SettledAmount:  alreadySettled,
 			OpenAmount:     open,
 			Side:           line.Side,
+			Currency:       foreignCurrency(entry.Currency),
 			TaxRate:        rate,
 			TaxTreatment:   treatment,
 		})
@@ -235,4 +237,12 @@ func (s *openItemReader) openItemsAging(ctx context.Context, cutoff string) (*do
 		return nil, err
 	}
 	return ageOpenItems(items, cutoff), nil
+}
+
+// foreignCurrency ist die Währung einer Buchung, leer bei Euro.
+func foreignCurrency(code string) string {
+	if code = strings.ToUpper(strings.TrimSpace(code)); code == "EUR" {
+		return ""
+	}
+	return code
 }

@@ -67,6 +67,13 @@ func (s *settlement) settle(ctx context.Context, req PaymentRequest) (*domain.Jo
 	if err != nil {
 		return nil, err
 	}
+	if bankTx != nil {
+		if requests, ok := withCurrencyDifference(req.Allocations, parts, parts.cash, bankTx.Amount.Abs()); ok {
+			if parts, err = s.allocate(ctx, requests, req.BankTxID, reference); err != nil {
+				return nil, err
+			}
+		}
+	}
 
 	// Auch mit Skonto muss der Zahlbetrag den Bankumsatz genau treffen.
 	if bankTx != nil && parts.cash != bankTx.Amount.Abs() {
@@ -168,8 +175,14 @@ func (s *settlement) allocate(
 				"Zuordnung %d: die Ausbuchung ist keine Zahlung. Eine uneinbringliche Forderung wird "+
 					"über „Forderung ausbuchen\" ohne Zahlungsmittel ausgebucht, mit Begründung", i+1)
 		}
-		if alloc.DifferenceKind != domain.DifferenceNone && alloc.DifferenceAmount <= 0 {
+		if alloc.DifferenceKind != domain.DifferenceNone && alloc.DifferenceAmount == 0 {
 			return nil, fmt.Errorf("Zuordnung %d: für die Differenzart %q fehlt der Betrag", i+1, alloc.DifferenceKind)
+		}
+		// Kurs- und Rundungsdifferenzen gehen in beide Richtungen: negativ heißt,
+		// es floss mehr als der Ausgleichsbetrag.
+		if alloc.DifferenceAmount < 0 && alloc.DifferenceKind != domain.DifferenceCurrency &&
+			alloc.DifferenceKind != domain.DifferenceRounding {
+			return nil, fmt.Errorf("Zuordnung %d: der Betrag der Differenzart %q ist positiv", i+1, alloc.DifferenceKind)
 		}
 
 		cid := item.ContactID
@@ -265,4 +278,47 @@ func paymentDescription(req PaymentRequest, items map[uint]domain.OpenItem) stri
 		}
 	}
 	return fmt.Sprintf("Sammelzahlung über %d Belege", len(req.Allocations))
+}
+
+// currencyTolerancePermille ist die größte Abweichung, die Buchfink beim
+// Ausgleich eines Fremdwährungspostens als Kursdifferenz annimmt: ein Zehntel
+// seines Euro-Betrags. Eine größere sieht eher nach Teilzahlung aus.
+const currencyTolerancePermille = 100
+
+// withCurrencyDifference ordnet die Abweichung zwischen Zahlbetrag und
+// Bankumsatz dem Fremdwährungsposten zu, den die Zahlung vollständig
+// ausgleicht. Sein Euro-Betrag stammt aus dem Kurs der Rechnung, der Umsatz
+// aus dem der Zahlung; der Unterschied ist Kursdifferenz (§ 277 Abs. 5 Satz 2
+// HGB), ohne dass ihn jemand nennen muss. Bei keinem oder mehreren solchen
+// Posten oder über der Toleranz bleibt die Anfrage unverändert.
+func withCurrencyDifference(
+	requests []AllocationRequest, parts *allocationParts, cash, paid domain.Cents,
+) ([]AllocationRequest, bool) {
+	delta := cash - paid
+	if delta == 0 {
+		return nil, false
+	}
+	found := -1
+	for i, r := range requests {
+		item, ok := parts.items[r.OpenItemEntryID]
+		if !ok || item.Currency == "" || item.SettleSide() != parts.reference ||
+			(r.DifferenceKind != "" && r.DifferenceKind != domain.DifferenceNone) ||
+			r.SettledAmount != item.OpenAmount {
+			continue
+		}
+		if found >= 0 {
+			return nil, false
+		}
+		found = i
+	}
+	if found < 0 {
+		return nil, false
+	}
+	item := parts.items[requests[found].OpenItemEntryID]
+	if delta.Abs() > domain.MulRound(item.OpenAmount, currencyTolerancePermille, 1000) {
+		return nil, false
+	}
+	out := append([]AllocationRequest(nil), requests...)
+	out[found].DifferenceKind, out[found].DifferenceAmount = domain.DifferenceCurrency, delta
+	return out, true
 }

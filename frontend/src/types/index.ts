@@ -740,6 +740,8 @@ export interface OpenItem {
   openAmount: Cents;
   /** Seite auf dem Personenkonto; gegen die übliche Richtung steht eine Gutschrift. */
   side?: 'S' | 'H';
+  /** Währung der Rechnung, wenn nicht Euro; beim Ausgleich entsteht eine Kursdifferenz. */
+  currency?: string;
   taxRate: TaxRate;
   /**
    * Der Steuerfall der ursprünglichen Buchung. Er entscheidet, wie ein Skonto

@@ -129,6 +129,9 @@ type OpenItem struct {
 	GrossAmount   Cents `json:"grossAmount"`
 	SettledAmount Cents `json:"settledAmount"`
 	OpenAmount    Cents `json:"openAmount"`
+	// Currency ist die Währung der Rechnung hinter dem Posten, leer bei Euro.
+	// Gebucht ist der Posten in Euro; beim Ausgleich entsteht eine Kursdifferenz.
+	Currency string `json:"currency,omitempty"`
 	// Side ist die Seite, auf der der Posten auf dem Personenkonto steht: Soll
 	// beim Debitor, Haben beim Kreditor — und umgekehrt bei einer Gutschrift.
 	Side Side `json:"side"`

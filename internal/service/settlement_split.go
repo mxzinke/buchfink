@@ -119,6 +119,11 @@ func (s *settlement) split(ctx context.Context, req BankSplitRequest) (*domain.J
 		if err != nil {
 			return nil, err
 		}
+		if requests, ok := withCurrencyDifference(allocations, parts, parts.cash+accountCash, tx.Amount.Abs()); ok {
+			if parts, err = s.allocate(ctx, requests, &id, counterSide); err != nil {
+				return nil, err
+			}
+		}
 		if parts.cash <= 0 {
 			rule := "ein Zahlungsausgang gleicht eine Verbindlichkeit aus"
 			if incoming {
