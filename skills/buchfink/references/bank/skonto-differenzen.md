@@ -58,7 +58,8 @@ Kontoführung und Überweisungsentgelt sind steuerfrei
 ## 4. Kursdifferenz
 
 Bei einer in Fremdwährung gebuchten Rechnung bucht `differenz {art: waehrung}`
-die realisierte Differenz auf 6300 bzw. 4830. Beleg in Fremdwährung:
+die realisierte Differenz auf 6880 bzw. 4840, gesondert ausgewiesen nach
+§ 277 Abs. 5 Satz 2 HGB. Beleg in Fremdwährung:
 [belege/fremdwaehrung-auslagen.md](../belege/fremdwaehrung-auslagen.md#1-beleg-in-fremdwährung);
 Stichtag: [jahresabschluss/forderungen.md](../jahresabschluss/forderungen.md).
 

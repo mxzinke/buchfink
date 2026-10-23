@@ -328,12 +328,13 @@ Quellen des Bereichs `references/bank/` (ablauf.md und Referenzen). Alle Links a
 | Gewerbesteuer-Hinzurechnung: ein Viertel, soweit Summe 200.000 € übersteigt | 17.10.2026 | § 8 Nr. 1 GewStG | bank/darlehen |
 | Zinsschranke: nicht anzuwenden unter 3 Mio. € Nettozinsaufwand | 17.10.2026 | § 4h Abs. 2 Satz 1 Buchst. a EStG | bank/darlehen |
 | Kontoauszug mindestens alle zehn Tage importieren | GoBD i. d. F. 14.07.2025 | GoBD Rz. 47 | bank/ablauf |
+| Realisierte Kursdifferenz gesondert unter sonstigen betrieblichen Erträgen/Aufwendungen | 17.10.2026 | § 277 Abs. 5 Satz 2 HGB | bank/skonto-differenzen |
 
 ### Buchfink-eigene Quellen
 
 | Quelle | Wofür |
 |---|---|
-| `internal/service/settlement.go` (`Settle`), `internal/service/settlement_difference.go` (`cashAmount`, `differenceLines`, `skontoLines`) | Differenzarten, Skonto nach Steuerfall, Anlage-Skonto, Rundung/Kurs auf 6300/4830, Gebühr auf 6855 bei Zahlungsausgang und -eingang |
+| `internal/service/settlement.go` (`Settle`), `internal/service/settlement_difference.go` (`cashAmount`, `differenceLines`, `skontoLines`) | Differenzarten, Skonto nach Steuerfall, Anlage-Skonto, Rundung auf 6300/4830, Kursdifferenz auf 6880/4840, Gebühr auf 6855 bei Zahlungsausgang und -eingang |
 | `internal/domain/payment.go` (`SkontoAccount`) | Skontokonten 5736/5731/5730, 4736/4731/4734 |
 | `internal/service/bank_service.go`, `bank_accounts.go`, `internal/bank/camt.go` | Import, Auszug als Beleg, Ablehnungen (Sammelbuchung, Fremdwährung, unbekannte IBAN, mehrere Konten, nur gebuchte Umsätze), gelernte Regeln |
 | `internal/service/closing_booking_service.go` | Jahresverrechnung USt: Zahllast 3841, Erstattung 1420, Vorauszahlungen 3820/3830 |
@@ -342,8 +343,6 @@ Quellen des Bereichs `references/bank/` (ablauf.md und Referenzen). Alle Links a
 
 ### Offen
 
-- Buchfink: realisierte Kursdifferenz bei Zahlung auf 6300/4830; das SKR04 hat
-  6880/4840 (Währungsumrechnung), die der Belegweg nutzt. Vereinheitlichen?
 - Werkzeug: Ob eine Zeile auf das Personenkonto des Kunden in
   `bankumsatz_buchen` nach Rücklastschrift oder Überzahlung einen offenen
   Posten bildet, ist nicht beschrieben; der Skill lässt es mit
@@ -750,7 +749,7 @@ Links am 17.10.2026 mit HTTP 200 geprüft.
 | § 274a HGB | https://www.gesetze-im-internet.de/hgb/__274a.html | Erleichterungen kleine: § 268 Abs. 4 Satz 2, Abs. 5 Satz 3, Abs. 6, latente Steuern | Text 17.10.2026 | jahresabschluss/abgrenzung, forderungen, groessenklassen-anhang |
 | § 275 HGB | https://www.gesetze-im-internet.de/hgb/__275.html | Rücklagenveränderungen nach Jahresüberschuss (Abs. 4); Kleinst-GuV (Abs. 5) | Text 17.10.2026 | jahresabschluss/ergebnisverwendung-ug, groessenklassen-anhang |
 | § 276 HGB | https://www.gesetze-im-internet.de/hgb/__276.html | Rohergebnis für kleine und mittelgroße | Text 17.10.2026 | jahresabschluss/groessenklassen-anhang |
-| § 277 HGB | https://www.gesetze-im-internet.de/hgb/__277.html | außerplanmäßige Abschreibungen gesondert oder Anhang (Abs. 3 Satz 1); Abzinsung unter Zinsen, Währungsumrechnung unter sonstigen betrieblichen Posten (Abs. 5) | Text 17.10.2026 | jahresabschluss/forderungen, groessenklassen-anhang, rueckstellungen |
+| § 277 HGB | https://www.gesetze-im-internet.de/hgb/__277.html | außerplanmäßige Abschreibungen gesondert oder Anhang (Abs. 3 Satz 1); Abzinsung unter Zinsen, Währungsumrechnung unter sonstigen betrieblichen Posten (Abs. 5) | Text 17.10.2026 | bank/skonto-differenzen, jahresabschluss/forderungen, groessenklassen-anhang, rueckstellungen |
 | § 284 HGB | https://www.gesetze-im-internet.de/hgb/__284.html | Methoden (Abs. 2 Nr. 1), Abweichungen (Nr. 2), Anlagenspiegel (Abs. 3) | Text 17.10.2026 | jahresabschluss/abschreibungen, groessenklassen-anhang |
 | § 285 HGB | https://www.gesetze-im-internet.de/hgb/__285.html | Nr. 1, 3a, 7, 9 c, 12, 13, 31, 34 | Text 17.10.2026 | jahresabschluss/ergebnisverwendung-ug, groessenklassen-anhang, rueckstellungen; beteiligungen/erwerb-ausweis |
 | § 288 HGB | https://www.gesetze-im-internet.de/hgb/__288.html | Befreiungen kleine (Abs. 1 Nr. 1–3) | Text 17.10.2026 | jahresabschluss/abschreibungen, ergebnisverwendung-ug, groessenklassen-anhang, rueckstellungen; beteiligungen/erwerb-ausweis |

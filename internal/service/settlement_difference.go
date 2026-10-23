@@ -39,18 +39,25 @@ func (s *settlement) differenceLines(
 			Amount: alloc.DifferenceAmount, Text: "Bankgebühr",
 		}}, nil, nil
 
-	case domain.DifferenceRounding, domain.DifferenceCurrency:
-		text := "Rundungsdifferenz"
-		if alloc.DifferenceKind == domain.DifferenceCurrency {
-			text = "Kursdifferenz"
-		}
+	case domain.DifferenceRounding:
 		// Im Haben entsteht ein Ertrag, im Soll ein Aufwand.
 		account := "6300" // Sonstige betriebliche Aufwendungen
 		if opposite == domain.SideCredit {
 			account = "4830" // Sonstige betriebliche Erträge
 		}
 		return []domain.JournalLine{{
-			Side: opposite, Account: account, Amount: alloc.DifferenceAmount, Text: text,
+			Side: opposite, Account: account, Amount: alloc.DifferenceAmount, Text: "Rundungsdifferenz",
+		}}, nil, nil
+
+	case domain.DifferenceCurrency:
+		// Auch die realisierte Kursdifferenz ist Ergebnis der Währungsumrechnung
+		// und gesondert auszuweisen (§ 277 Abs. 5 Satz 2 HGB).
+		account := accounting.CurrencyLossAccount
+		if opposite == domain.SideCredit {
+			account = accounting.CurrencyGainAccount
+		}
+		return []domain.JournalLine{{
+			Side: opposite, Account: account, Amount: alloc.DifferenceAmount, Text: "Kursdifferenz",
 		}}, nil, nil
 	}
 
