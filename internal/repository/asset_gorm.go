@@ -26,9 +26,6 @@ func (r *assetRepositoryGorm) preloaded(ctx context.Context) *gorm.DB {
 		Preload("Movements", func(db *gorm.DB) *gorm.DB {
 			return db.Order("asset_movements.date asc, asset_movements.id asc")
 		}).
-		Preload("Documents", func(db *gorm.DB) *gorm.DB {
-			return db.Order("asset_documents.document_date desc, asset_documents.id desc")
-		}).
 		Order("inventory_number asc")
 }
 
@@ -47,7 +44,7 @@ func (r *assetRepositoryGorm) FindByClass(ctx context.Context, class domain.Asse
 func (r *assetRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.FixedAsset, error) {
 	var asset domain.FixedAsset
 	if err := r.preloaded(ctx).First(&asset, id).Error; err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	return &asset, nil
 }
@@ -74,10 +71,6 @@ func (r *assetRepositoryGorm) FindPool(ctx context.Context, fiscalYear int) (*do
 // Save with an association would silently replace them.
 func (r *assetRepositoryGorm) Save(ctx context.Context, asset *domain.FixedAsset) error {
 	return dbFrom(ctx, r.db).Omit("Movements").Save(asset).Error
-}
-
-func (r *assetRepositoryGorm) Delete(ctx context.Context, id uint) error {
-	return dbFrom(ctx, r.db).Delete(&domain.FixedAsset{}, id).Error
 }
 
 // AddMovement appends a movement — or writes back one that was corrected before
@@ -145,41 +138,6 @@ func (r *assetRepositoryGorm) FindByAcquisitionEntry(ctx context.Context, entryI
 		return nil, err
 	}
 	return &asset, nil
-}
-
-// AddDocument stores a document of an Anlagegut.
-func (r *assetRepositoryGorm) AddDocument(ctx context.Context, document *domain.AssetDocument) error {
-	return dbFrom(ctx, r.db).Save(document).Error
-}
-
-// FindDocument returns one document.
-func (r *assetRepositoryGorm) FindDocument(ctx context.Context, id uint) (*domain.AssetDocument, error) {
-	var document domain.AssetDocument
-	if err := dbFrom(ctx, r.db).First(&document, id).Error; err != nil {
-		return nil, err
-	}
-	return &document, nil
-}
-
-// FindAllDocuments liefert alle Dokumente aller Anlagegüter.
-func (r *assetRepositoryGorm) FindAllDocuments(ctx context.Context) ([]domain.AssetDocument, error) {
-	documents := make([]domain.AssetDocument, 0)
-	err := dbFrom(ctx, r.db).Order("id asc").Find(&documents).Error
-	return documents, err
-}
-
-// DeleteDocument removes the record. Die Datei auf der Platte räumt der Dienst
-// ab, und nur, wenn kein anderes Dokument mehr auf sie zeigt.
-func (r *assetRepositoryGorm) DeleteDocument(ctx context.Context, id uint) error {
-	return dbFrom(ctx, r.db).Delete(&domain.AssetDocument{}, id).Error
-}
-
-// CountDocumentsBySHA reports how many documents share one file.
-func (r *assetRepositoryGorm) CountDocumentsBySHA(ctx context.Context, sha256 string) (int64, error) {
-	var count int64
-	err := dbFrom(ctx, r.db).Model(&domain.AssetDocument{}).
-		Where("sha256 = ?", sha256).Count(&count).Error
-	return count, err
 }
 
 func (r *assetRepositoryGorm) Count(ctx context.Context) (int64, error) {

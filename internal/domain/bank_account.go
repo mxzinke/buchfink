@@ -9,14 +9,19 @@ import (
 // BankAccount binds a real account to its own ledger account across all years.
 type BankAccount struct {
 	IBAN          string `gorm:"primaryKey;size:34" json:"iban"`
-	Name          string `gorm:"type:text;serializer:encrypted" json:"name"`
+	Name          string `gorm:"type:text" json:"name"`
 	LedgerAccount string `gorm:"size:10;uniqueIndex;not null" json:"ledgerAccount"`
 	Currency      string `gorm:"size:3" json:"currency"`
 	BIC           string `gorm:"size:11" json:"bic"`
 	BankName      string `gorm:"size:120" json:"bankName"`
-	// IsInvoiceAccount markiert das Konto, dessen Verbindung auf Rechnungen und
-	// Mahnschreiben steht. Höchstens ein Konto trägt die Markierung.
+	// IsInvoiceAccount markiert das Konto, dessen Verbindung auf Rechnungen
+	// steht. Höchstens ein Konto trägt die Markierung.
 	IsInvoiceAccount bool `gorm:"not null;default:false" json:"isInvoiceAccount"`
+	// ClosingBalance und ClosingDate sind der Endsaldo des letzten Auszugs,
+	// den der Mensch eingelesen hat oder der an den vorigen anschloss. An ihn
+	// muss der nächste Auszug anschließen.
+	ClosingBalance Cents  `gorm:"not null;default:0" json:"closingBalance"`
+	ClosingDate    string `gorm:"size:10" json:"closingDate,omitempty"`
 }
 
 type BankAccountRepository interface {

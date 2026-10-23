@@ -3,6 +3,7 @@ package accounting
 import (
 	"fmt"
 
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -20,8 +21,8 @@ import (
 // alte Frist vorher schon abgelaufen war, bleibt es bei ihr — dort ist die
 // Aufbewahrung ohnehin beendet, und eine rückwirkend verlängerte Frist wäre die
 // falsche Auskunft.
-// Die Zahlen selbst stehen seit Welle 8 in retention_rules.json (ARC-01 K4);
-// dieser Teil rechnet nur noch mit ihnen.
+// Die Zahlen stehen in retention_rules.json (ARC-01 K4);
+// dieser Teil rechnet mit ihnen.
 
 // yearsOfClass und legalBasisOf lesen die Frist und ihre Fundstelle aus der
 // Ressource. Eine fehlende Klasse ergibt null Jahre und keinen erfundenen Wert:
@@ -44,9 +45,8 @@ func legalBasisOf(class domain.RetentionClass) string {
 
 // classOf ordnet einer Objektart ihre Aufbewahrungsklasse zu.
 //
-// Die Zuordnung steht an einer Stelle, weil sie sonst zwischen Belegliste,
-// Löschbericht und Verfahrensdokumentation dreimal stünde und irgendwann
-// dreimal verschieden.
+// Die Zuordnung steht an einer Stelle, weil sie sonst zwischen Belegliste und
+// Verfahrensdokumentation doppelt stünde und irgendwann verschieden.
 func classOf(kind domain.RetentionKind) (domain.RetentionClass, string) {
 	rules, ok := classForKind(kind)
 	if !ok {
@@ -131,13 +131,11 @@ type DeletionConceptRow struct {
 }
 
 // DeletionConcept ist das Löschkonzept: welche Datenkategorie wie lange
-// aufbewahrt wird, aus welchem Rechtsgrund, und was danach geschieht.
+// aufbewahrt wird und aus welchem Rechtsgrund.
 //
-// Es steht im Code und nicht in einem Dokument daneben, weil es beides sein
-// muss: der Abschnitt der Verfahrensdokumentation, den ein Prüfer liest, und
-// die Regel, nach der die Löschfunktion tatsächlich entscheidet. Zwei Fassungen
-// desselben Konzepts laufen auseinander, und dann ist die geschriebene die,
-// die nicht gilt.
+// Es steht im Code, weil es dieselben Fristen nennen muss, nach denen
+// RetentionFor rechnet; die Verfahrensdokumentation übernimmt es von hier.
+// Buchfink löscht nichts von sich aus, auch nach Fristablauf nicht.
 func DeletionConcept() []DeletionConceptRow {
 	return []DeletionConceptRow{
 		{
@@ -145,8 +143,8 @@ func DeletionConcept() []DeletionConceptRow {
 			Class:      domain.RetentionClassBooks,
 			Years:      yearsOfClass(domain.RetentionClassBooks),
 			LegalBasis: legalBasisOf(domain.RetentionClassBooks),
-			Note: "Die Buchungen sind Handelsbücher. Sie werden nicht einzeln gelöscht, " +
-				"sondern nur mit dem ganzen Geschäftsjahr und erst nach Fristablauf.",
+			Note: "Die Buchungen sind Handelsbücher. Sie werden nicht gelöscht; eine " +
+				"Korrektur geschieht über die Generalumkehr.",
 		},
 		{
 			Category:   "Jahresabschlüsse, Eröffnungsbilanz, Inventare, Anhang",
@@ -179,7 +177,7 @@ func DeletionConcept() []DeletionConceptRow {
 			Note:       "Steuererklärungen und die Aufzeichnungen, aus denen sie abgeleitet sind.",
 		},
 		{
-			Category:   "Anlagenverzeichnis und Anlagendokumente",
+			Category:   "Anlagenverzeichnis",
 			Class:      domain.RetentionClassBooks,
 			Years:      yearsOfClass(domain.RetentionClassBooks),
 			LegalBasis: legalBasisOf(domain.RetentionClassBooks),
@@ -214,25 +212,51 @@ func DeletionConcept() []DeletionConceptRow {
 	}
 }
 
+// SystemChangeNote beschreibt die Fünfjahresfrist des § 147 Abs. 6 Satz 6 AO:
+// so lange ist ein Altsystem nach der Datenübernahme für den Datenzugriff
+// verfügbar zu halten. Leerer Stichtag heißt: heute.
+func SystemChangeNote(changeDate, today string) string {
+	end := AddYearsISO(changeDate, 5)
+	if end == "" {
+		return ""
+	}
+	if today == "" {
+		today = calendar.Today(nil)
+	}
+	if today > end {
+		return fmt.Sprintf(
+			"Die Umstellung aus dem Altsystem war am %s. Die Fünfjahresfrist des § 147 Abs. 6 Satz 6 AO ist am %s abgelaufen; das Altsystem muss für den Datenzugriff nicht mehr verfügbar gehalten werden.",
+			changeDate, end)
+	}
+	return fmt.Sprintf(
+		"Die Umstellung aus dem Altsystem war am %s. Bis zum %s ist das Altsystem für den Datenzugriff verfügbar zu halten (§ 147 Abs. 6 Satz 6 AO).",
+		changeDate, end)
+}
+
 // BlockedContactAnswer ist die Antwort an eine betroffene Person, die die
 // Löschung ihrer Daten verlangt.
 //
-// Sie steht als fertiger Text und nicht als Stichwortliste, weil die Antwort
-// sonst jedes Mal neu formuliert würde — und weil eine falsch formulierte
-// Ablehnung eines Löschverlangens teurer ist als jede Buchung, um die es geht.
+// Sie steht als fertiger Text und nicht als Stichwortliste, weil eine falsch
+// formulierte Ablehnung eines Löschverlangens teurer ist als jede Buchung, um
+// die es geht. Wer ein Verlangen nicht erfüllt, nennt die Gründe und weist auf
+// Beschwerde und Rechtsbehelf hin (Art. 12 Abs. 4 DSGVO). Buchfink löscht
+// nicht; nach Ablauf der Frist löscht das Unternehmen als Verantwortlicher,
+// und so verspricht es die Antwort.
 func BlockedContactAnswer(name string) string {
 	if name == "" {
-		name = "Sie"
+		name = "Ihrer Person"
 	}
 	return fmt.Sprintf(
 		"Die zu %s gespeicherten Daten stammen aus Geschäftsvorfällen, die wir buchhalterisch "+
 			"erfasst haben. Sie unterliegen der handels- und steuerrechtlichen Aufbewahrungspflicht "+
 			"(§ 257 HGB, § 147 AO). Nach Art. 17 Abs. 3 Buchst. b DSGVO besteht ein Anspruch auf "+
 			"Löschung nicht, soweit die Verarbeitung zur Erfüllung einer rechtlichen Verpflichtung "+
-			"erforderlich ist. Wir haben die Daten deshalb für jede weitere Verwendung gesperrt: "+
-			"sie stehen in keiner Auswahl mehr zur Verfügung und werden nach Ablauf der "+
-			"Aufbewahrungsfrist gelöscht. Die Verarbeitung beschränkt sich bis dahin auf die "+
-			"Aufbewahrung (Art. 18 DSGVO).", name)
+			"erforderlich ist. Ihrem Löschverlangen können wir deshalb erst nach Ablauf der "+
+			"Aufbewahrungsfrist nachkommen. Bis dahin haben wir die Daten gesperrt: wir verwenden "+
+			"sie für keinen neuen Vorgang und bewahren sie nur noch auf, um diese Pflicht zu "+
+			"erfüllen. Sobald die Frist abgelaufen ist, löschen wir sie. Sie können sich bei einer "+
+			"Datenschutz-Aufsichtsbehörde beschweren (Art. 77 DSGVO) und gerichtlichen Rechtsschutz "+
+			"in Anspruch nehmen (Art. 79 DSGVO).", name)
 }
 
 // RetentionForClass liefert die Frist einer ausdrücklich gewählten Klasse.

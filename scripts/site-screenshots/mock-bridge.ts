@@ -12,11 +12,17 @@
  * Screenshots keine Zahlen zeigen, die es so nicht geben kann.
  */
 
+import * as closings from './closings-mock';
+import { JOURNAL, RECEIPT_DOCS, SPECIAL_PREPAYMENT, VAT_DUE, entryByRef, entryNumber } from './journal-mock';
+
 // Die Oberfläche prüft die Laufzeit über `window._wails`, bevor sie einen
 // Bridge-Aufruf zulässt (siehe services/api.ts). Für den Screenshot-Lauf wird
-// die Prüfung erfüllt, der Aufruf selbst läuft hier weiter.
+// die Prüfung erfüllt, der Aufruf selbst läuft hier weiter. Ergänzt statt
+// ersetzt: die Wails-Laufzeit hängt dort `dispatchWailsEvent` an, über das die
+// Aufnahmen Ereignisse des Backends nachspielen.
 if (typeof window !== 'undefined') {
-  (window as any)._wails = { screenshotMock: true };
+  const w = window as any;
+  w._wails = Object.assign(w._wails ?? {}, { screenshotMock: true });
 }
 
 const YEAR = 2026;
@@ -69,18 +75,53 @@ const SETTINGS = {
   fiscalYear: YEAR,
   fiscalYearStartMonth: 1,
   taxNumber: '27/123/45678',
+  // Abgeleitet aus Steuernummer und Bundesland, wie GetCompanySettings sie liefert.
+  taxNumberElster: '2227012345678',
+  federalState: 'HH',
   vatId: 'DE312345678',
   taxOffice: 'Finanzamt Hamburg-Nord',
   iban: 'DE02120300000000202051',
   bic: 'BYLADEM1001',
   bankName: 'Deutsche Kreditbank',
-  street: 'Hafenstraße 14',
-  zipCity: '20359 Hamburg',
-  country: 'DE',
+  street: 'Hafenstraße',
+  houseNumber: '14',
+  addressAddition: '',
+  postalCode: '20359',
+  city: 'Hamburg',
+  countryCode: 'DE',
+  // Gegründet 2019, seit 2024 in Buchfink: ein Umstieg zum Beginn eines Geschäftsjahres.
+  foundedOn: '2019-05-14',
+  seat: 'Hamburg',
+  registerCourt: 'Amtsgericht Hamburg',
+  registerNumber: 'HRB 148223',
+  registeredOn: '2019-06-03',
+  managingDirectors: 'Anna Bauer',
+  supervisoryBoardChair: '',
+  sellerIdentifier: '',
+  notary: 'Dr. Helene Voss, Hamburg',
+  deedNumber: 'UR-Nr. 812/2019',
+  shareCapital: c(25000),
+  shareholders: [
+    { name: 'Anna Bauer', shareCapital: c(15000) },
+    { name: 'Jonas Peters', shareCapital: c(10000) },
+  ],
+  contactName: 'Anna Bauer',
+  contactPhone: '040 3290 1180',
+  contactEmail: 'rechnung@nordlicht-systeme.example',
+  invoiceNumberFormat: '',
+  receiptNumberFormat: '',
   currency: EUR,
   skr: 'SKR04',
-  vatPeriod: 'quarter',
-  taxationType: 'Soll',
+  vatPeriod: 'month',
+  taxationType: 'SOLL',
+  permanentExtension: true,
+  specialPrepayment: c(SPECIAL_PREPAYMENT),
+  receiptCaptureDays: 10,
+  commitGraceDays: 0,
+  taxAdvisor: { engaged: false, sinceYear: 0, declarations: [] as string[] },
+  nonProfit: false,
+  inLiquidation: false,
+  fiscalUnity: false,
   // Leer: die Anlegerstellung für § 20 InvStG folgt aus der Rechtsform.
   investorOverride: '',
   // Ab diesem Bruttobetrag verlangt der Belegweg den Leistungsnachweis
@@ -91,6 +132,7 @@ const SETTINGS = {
 // -------------------------------------------------------------------------
 // Konten (SKR04 2026)
 
+/** Ein Konto des Kontenrahmens; Summen und Zahl der Buchungen kommen aus dem Journal. */
 interface MockAccount {
   number: string;
   name: string;
@@ -99,9 +141,6 @@ interface MockAccount {
   kontenklasseName: string;
   balanceSide: string;
   statementType: string;
-  debit: number;
-  credit: number;
-  bookings: number;
 }
 
 const KLASSEN: Record<number, string> = {
@@ -113,59 +152,68 @@ const KLASSEN: Record<number, string> = {
   5: 'Betriebliche Aufwendungen (Material/Fremdleistungen)',
   6: 'Betriebliche Aufwendungen (Personal/AfA/Sonstige)',
   7: 'Weitere Erträge und Aufwendungen (Finanz/Steuern)',
+  9: 'Vortrags-, Kapital- und statistische Konten',
 };
 
-const RAW_ACCOUNTS: MockAccount[] = [
-  // Aktiva
-  a('0520', 'Pkw', 'asset', 0, 'Aktiva', 'Bilanz', 24500, 0, 2),
-  a('1200', 'Forderungen aus Lieferungen und Leistungen', 'asset', 1, 'Aktiva', 'Bilanz', 554400, 517699, 46),
-  a('1406', 'Abziehbare Vorsteuer 19 %', 'asset', 1, 'Aktiva', 'Bilanz', 22898.8, 17613, 88),
-  a('1600', 'Kasse', 'asset', 1, 'Aktiva', 'Bilanz', 1800, 1180, 11),
-  a('1800', 'Bank', 'asset', 1, 'Aktiva', 'Bilanz', 492160, 319481.26, 164),
-  a('1900', 'Aktive Rechnungsabgrenzung', 'asset', 1, 'Aktiva', 'Bilanz', 2400, 0, 1),
-  // Passiva
-  a('2900', 'Gezeichnetes Kapital', 'equity', 2, 'Passiva', 'Bilanz', 0, 25000, 1),
-  a('2970', 'Gewinnvortrag vor Verwendung', 'equity', 2, 'Passiva', 'Bilanz', 0, 61230, 1),
-  a('3300', 'Verbindlichkeiten aus Lieferungen und Leistungen', 'liability', 3, 'Passiva', 'Bilanz', 415856.46, 421290, 74),
-  a('3806', 'Umsatzsteuer 19 %', 'liability', 3, 'Passiva', 'Bilanz', 68400, 92378, 52),
-  // Erträge
-  a('4400', 'Erlöse 19 % USt', 'revenue', 4, 'GuV', 'GuV', 0, 486200, 46),
-  a('4830', 'Sonstige betriebliche Erträge', 'revenue', 4, 'GuV', 'GuV', 0, 3750, 3),
-  // Aufwendungen
-  a('5906', 'Fremdleistungen', 'expense', 5, 'GuV', 'GuV', 74300, 0, 24),
-  a('6020', 'Gehälter', 'expense', 6, 'GuV', 'GuV', 213600, 0, 8),
-  a('6260', 'Sofortabschreibungen geringwertiger Wirtschaftsgüter', 'expense', 6, 'GuV', 'GuV', 4180, 0, 6),
-  a('6310', 'Miete (unbewegliche Wirtschaftsgüter)', 'expense', 6, 'GuV', 'GuV', 28800, 0, 8),
-  a('6495', 'Wartungskosten für Hard- und Software', 'expense', 6, 'GuV', 'GuV', 12470, 0, 14),
-  a('6600', 'Werbekosten', 'expense', 6, 'GuV', 'GuV', 9850, 0, 9),
-  a('6650', 'Reisekosten Arbeitnehmer', 'expense', 6, 'GuV', 'GuV', 6240, 0, 12),
-  a('6805', 'Telefon', 'expense', 6, 'GuV', 'GuV', 2160, 0, 8),
-  a('6815', 'Bürobedarf', 'expense', 6, 'GuV', 'GuV', 3420, 0, 17),
-  a('6825', 'Rechts- und Beratungskosten', 'expense', 6, 'GuV', 'GuV', 7900, 0, 5),
-  a('6855', 'Nebenkosten des Geldverkehrs', 'expense', 6, 'GuV', 'GuV', 486, 0, 8),
-];
-
-/** Unbebuchte Konten, damit der Kontenrahmen nicht aus lauter Salden besteht. */
-const UNUSED_ACCOUNTS: MockAccount[] = [
-  a('0440', 'Technische Anlagen und Maschinen', 'asset', 0, 'Aktiva', 'Bilanz', 0, 0, 0),
-  a('1370', 'Durchlaufende Posten', 'asset', 1, 'Aktiva', 'Bilanz', 0, 0, 0),
-  a('1401', 'Abziehbare Vorsteuer 7 %', 'asset', 1, 'Aktiva', 'Bilanz', 0, 0, 0),
-  a('1408', 'Abziehbare Vorsteuer nach § 13b UStG', 'asset', 1, 'Aktiva', 'Bilanz', 0, 0, 0),
-  a('1460', 'Geldtransit', 'asset', 1, 'Aktiva', 'Bilanz', 0, 0, 0),
-  a('3801', 'Umsatzsteuer 7 %', 'liability', 3, 'Passiva', 'Bilanz', 0, 0, 0),
-  a('3835', 'Umsatzsteuer nach § 13b UStG', 'liability', 3, 'Passiva', 'Bilanz', 0, 0, 0),
-  a('3900', 'Passive Rechnungsabgrenzung', 'liability', 3, 'Passiva', 'Bilanz', 0, 0, 0),
-  a('4736', 'Gewährte Skonti 19 % USt', 'revenue', 4, 'GuV', 'GuV', 0, 0, 0),
-  a('5400', 'Wareneingang', 'expense', 5, 'GuV', 'GuV', 0, 0, 0),
-  a('5736', 'Erhaltene Skonti 19 % Vorsteuer', 'expense', 5, 'GuV', 'GuV', 0, 0, 0),
-  a('6300', 'Sonstige betriebliche Aufwendungen', 'expense', 6, 'GuV', 'GuV', 0, 0, 0),
-  a('6400', 'Versicherungen', 'expense', 6, 'GuV', 'GuV', 0, 0, 0),
-  a('6420', 'Beiträge', 'expense', 6, 'GuV', 'GuV', 0, 0, 0),
-  a('6640', 'Bewirtungskosten', 'expense', 6, 'GuV', 'GuV', 0, 0, 0),
-  a('6644', 'Nicht abzugsfähige Bewirtungskosten', 'expense', 6, 'GuV', 'GuV', 0, 0, 0),
-  a('6821', 'Fortbildungskosten', 'expense', 6, 'GuV', 'GuV', 0, 0, 0),
-  a('6827', 'Abschluss- und Prüfungskosten', 'expense', 6, 'GuV', 'GuV', 0, 0, 0),
-  a('7300', 'Zinsen und ähnliche Aufwendungen', 'expense', 7, 'GuV', 'GuV', 0, 0, 0),
+/** Die Konten der Beispielfirma, bebucht oder nicht; Namen aus internal/accounting/skr04_2026.json. */
+const CHART: MockAccount[] = [
+  a('0135', 'EDV-Software', 'asset', 0, 'Aktiva', 'Bilanz'),
+  a('0440', 'Maschinen', 'asset', 0, 'Aktiva', 'Bilanz'),
+  a('0520', 'Pkw', 'asset', 0, 'Aktiva', 'Bilanz'),
+  a('0650', 'Büroeinrichtung', 'asset', 0, 'Aktiva', 'Bilanz'),
+  a('0670', 'Geringwertige Wirtschaftsgüter', 'asset', 0, 'Aktiva', 'Bilanz'),
+  a('0675', 'Wirtschaftsgüter (Sammelposten)', 'asset', 0, 'Aktiva', 'Bilanz'),
+  a('1200', 'Forderungen aus Lieferungen und Leistungen', 'asset', 1, 'Aktiva', 'Bilanz'),
+  a('1370', 'Durchlaufende Posten', 'asset', 1, 'Aktiva', 'Bilanz'),
+  a('1401', 'Abziehbare Vorsteuer 7 %', 'asset', 1, 'Aktiva', 'Bilanz'),
+  a('1406', 'Abziehbare Vorsteuer 19 %', 'asset', 1, 'Aktiva', 'Bilanz'),
+  a('1408', 'Abziehbare Vorsteuer nach § 13b UStG', 'asset', 1, 'Aktiva', 'Bilanz'),
+  a('1460', 'Geldtransit', 'asset', 1, 'Aktiva', 'Bilanz'),
+  a('1800', 'Bank', 'asset', 1, 'Aktiva', 'Bilanz'),
+  a('1900', 'Aktive Rechnungsabgrenzung', 'asset', 1, 'Aktiva', 'Bilanz'),
+  a('2900', 'Gezeichnetes Kapital', 'equity', 2, 'Passiva', 'Bilanz'),
+  a('2970', 'Gewinnvortrag vor Verwendung', 'equity', 2, 'Passiva', 'Bilanz'),
+  a('3035', 'Gewerbesteuerrückstellung nach § 4 Abs. 5b EStG', 'liability', 3, 'Passiva', 'Bilanz'),
+  a('3040', 'Körperschaftsteuerrückstellung', 'liability', 3, 'Passiva', 'Bilanz'),
+  a('3095', 'Rückstellungen für Abschluss- und Prüfungskosten', 'liability', 3, 'Passiva', 'Bilanz'),
+  a('3096', 'Rückstellungen zur Erfüllung der Aufbewahrungspflichten', 'liability', 3, 'Passiva', 'Bilanz'),
+  a('3300', 'Verbindlichkeiten aus Lieferungen und Leistungen', 'liability', 3, 'Passiva', 'Bilanz'),
+  a('3642', 'Verbindlichkeiten gegenüber GmbH-Gesellschaftern – Restlaufzeit 1 bis 5 Jahre', 'liability', 3, 'Passiva', 'Bilanz'),
+  a('3801', 'Umsatzsteuer 7 %', 'liability', 3, 'Passiva', 'Bilanz'),
+  a('3806', 'Umsatzsteuer 19 %', 'liability', 3, 'Passiva', 'Bilanz'),
+  a('3820', 'Umsatzsteuer-Vorauszahlungen', 'liability', 3, 'Passiva', 'Bilanz'),
+  a('3830', 'Umsatzsteuer-Vorauszahlungen 1/11', 'liability', 3, 'Passiva', 'Bilanz'),
+  a('3835', 'Umsatzsteuer nach § 13b UStG', 'liability', 3, 'Passiva', 'Bilanz'),
+  a('3841', 'Umsatzsteuerverbindlichkeiten Vorjahr', 'liability', 3, 'Passiva', 'Bilanz'),
+  a('3900', 'Passive Rechnungsabgrenzung', 'liability', 3, 'Passiva', 'Bilanz'),
+  a('4400', 'Erlöse 19 % USt', 'revenue', 4, 'GuV', 'GuV'),
+  a('4736', 'Gewährte Skonti 19 % USt', 'revenue', 4, 'GuV', 'GuV'),
+  a('4830', 'Sonstige betriebliche Erträge', 'revenue', 4, 'GuV', 'GuV'),
+  a('5400', 'Wareneingang', 'expense', 5, 'GuV', 'GuV'),
+  a('5736', 'Erhaltene Skonti 19 % Vorsteuer', 'expense', 5, 'GuV', 'GuV'),
+  a('5906', 'Fremdleistungen 19 % Vorsteuer', 'expense', 5, 'GuV', 'GuV'),
+  a('6020', 'Gehälter', 'expense', 6, 'GuV', 'GuV'),
+  a('6260', 'Sofortabschreibungen geringwertiger Wirtschaftsgüter', 'expense', 6, 'GuV', 'GuV'),
+  a('6300', 'Sonstige betriebliche Aufwendungen', 'expense', 6, 'GuV', 'GuV'),
+  a('6310', 'Miete (unbewegliche Wirtschaftsgüter)', 'expense', 6, 'GuV', 'GuV'),
+  a('6400', 'Versicherungen', 'expense', 6, 'GuV', 'GuV'),
+  a('6420', 'Beiträge', 'expense', 6, 'GuV', 'GuV'),
+  a('6495', 'Wartungskosten für Hard- und Software', 'expense', 6, 'GuV', 'GuV'),
+  a('6600', 'Werbekosten', 'expense', 6, 'GuV', 'GuV'),
+  a('6640', 'Bewirtungskosten', 'expense', 6, 'GuV', 'GuV'),
+  a('6644', 'Nicht abzugsfähige Bewirtungskosten', 'expense', 6, 'GuV', 'GuV'),
+  a('6650', 'Reisekosten Arbeitnehmer', 'expense', 6, 'GuV', 'GuV'),
+  a('6805', 'Telefon', 'expense', 6, 'GuV', 'GuV'),
+  a('6815', 'Bürobedarf', 'expense', 6, 'GuV', 'GuV'),
+  a('6821', 'Fortbildungskosten', 'expense', 6, 'GuV', 'GuV'),
+  a('6825', 'Rechts- und Beratungskosten', 'expense', 6, 'GuV', 'GuV'),
+  a('6827', 'Abschluss- und Prüfungskosten', 'expense', 6, 'GuV', 'GuV'),
+  a('6855', 'Nebenkosten des Geldverkehrs', 'expense', 6, 'GuV', 'GuV'),
+  a('7300', 'Zinsen und ähnliche Aufwendungen', 'expense', 7, 'GuV', 'GuV'),
+  a('7600', 'Körperschaftsteuer', 'expense', 7, 'GuV', 'GuV'),
+  a('7608', 'Solidaritätszuschlag', 'expense', 7, 'GuV', 'GuV'),
+  a('7610', 'Gewerbesteuer', 'expense', 7, 'GuV', 'GuV'),
+  a('9000', 'Saldenvorträge, Sachkonten', 'statistical', 9, '', ''),
 ];
 
 function a(
@@ -175,26 +223,31 @@ function a(
   kontenklasse: number,
   balanceSide: string,
   statementType: string,
-  debit: number,
-  credit: number,
-  bookings: number,
 ): MockAccount {
-  return {
-    number,
-    name,
-    type,
-    kontenklasse,
-    kontenklasseName: KLASSEN[kontenklasse] ?? '',
-    balanceSide,
-    statementType,
-    debit,
-    credit,
-    bookings,
-  };
+  return { number, name, type, kontenklasse, kontenklasseName: KLASSEN[kontenklasse] ?? '', balanceSide, statementType };
 }
 
-const ACCOUNTS = [...RAW_ACCOUNTS, ...UNUSED_ACCOUNTS]
-  .map((m, index) => ({
+/** Summen je Konto aus dem Journal. */
+const TURNOVER = (() => {
+  const out = new Map<string, { debit: number; credit: number; count: number }>();
+  for (const entry of JOURNAL) {
+    for (const [side, account, euro] of entry.lines) {
+      const t = out.get(account) ?? { debit: 0, credit: 0, count: 0 };
+      if (side === 'S') t.debit += c(euro);
+      else t.credit += c(euro);
+      t.count++;
+      out.set(account, t);
+    }
+  }
+  return out;
+})();
+
+/** Aktiva und Aufwand tragen ihren Saldo im Soll, Passiva und Ertrag im Haben. */
+const debitNatural = (type: string) => type === 'asset' || type === 'expense' || type === 'statistical';
+
+const ACCOUNTS = CHART.map((m, index) => {
+  const t = TURNOVER.get(m.number) ?? { debit: 0, credit: 0, count: 0 };
+  return {
     id: index + 1,
     number: m.number,
     name: m.name,
@@ -220,181 +273,121 @@ const ACCOUNTS = [...RAW_ACCOUNTS, ...UNUSED_ACCOUNTS]
     isReserved: false,
     description: '',
     isActive: true,
-    debitSum: c(m.debit),
-    creditSum: c(m.credit),
-    balance: Math.abs(c(m.debit) - c(m.credit)),
-    bookingsCount: m.bookings,
-  }))
-  .sort((x, y) => x.number.localeCompare(y.number));
+    debitSum: t.debit,
+    creditSum: t.credit,
+    balance: debitNatural(m.type) ? t.debit - t.credit : t.credit - t.debit,
+    bookingsCount: t.count,
+  };
+}).sort((x, y) => x.number.localeCompare(y.number));
 
 const accountName = (number: string) => ACCOUNTS.find((x) => x.number === number)?.name ?? '';
 
 // -------------------------------------------------------------------------
 // Journal
 
-type MockLine = [side: 'S' | 'H', account: string, euro: number];
+/** Der Saldenvortrag aus 2025, gebucht vor der ersten Festschreibung des Jahres. */
+const CARRIED_FORWARD_AT = `${YEAR}-01-08T09:30:00Z`;
 
-interface MockEntry {
-  n: number;
-  number: string;
-  date: string;
-  documentDate: string;
-  description: string;
-  source: string;
-  documentNumber?: string;
-  contactId?: number;
-  receiptId?: number;
-  kind?: 'normal' | 'reversal';
-  reversalOfId?: number;
-  reversalReason?: string;
-  lines: MockLine[];
-}
+/** Erfasst am Morgen des Buchungstags; der Saldenvortrag am 08.01. */
+const ENTRIES = (() => {
+  let previous = fakeHash('genesis');
+  return JOURNAL.map((e) => {
+    const entryHash = fakeHash(e.number + previous);
+    const entry = {
+      id: e.id,
+      fiscalYear: YEAR,
+      entryNumber: e.number,
+      bookingDate: e.date,
+      documentDate: e.documentDate,
+      serviceDateFrom: e.documentDate,
+      serviceDateTo: e.documentDate,
+      valueDate: e.date,
+      description: e.description,
+      source: e.source,
+      documentNumber: e.documentNumber,
+      receiptId: e.receiptId,
+      receiptHash: e.receiptId ? fakeHash(`receipt-${e.receiptId}`) : undefined,
+      taxTreatment: 'domestic',
+      contactId: e.contactId,
+      kind: e.kind ?? 'normal',
+      reversalOfId: e.reversalOfId,
+      reversalReason: e.reversalReason,
+      actor: 'anna@nordlicht-mbp',
+      channel: e.channel ?? 'ui',
+      bankTxId: e.bankTxId,
+      currency: EUR,
+      exchangeRateMicros: 1_000_000,
+      postingRuleVersion: '2026.1',
+      lines: e.lines.map((line, i) => ({
+        id: e.id * 100 + i,
+        entryId: e.id,
+        position: i + 1,
+        side: line[0],
+        amount: c(line[2]),
+        account: line[1],
+        accountName: accountName(line[1]),
+        taxKey: line[1] === '1406' || line[1] === '3806' ? '9' : undefined,
+      })),
+      previousHash: previous,
+      entryHash,
+      createdAt: e.source === 'opening' ? CARRIED_FORWARD_AT : `${e.date}T07:24:00Z`,
+    };
+    previous = entryHash;
+    return entry;
+  });
+})();
 
-const RAW_ENTRIES: MockEntry[] = [
-  {
-    n: 41, number: 'B-2026-0041', date: '2026-08-03', documentDate: '2026-08-03',
-    description: 'Rahmenvertrag Portalpflege, Rechnung RE-2026-0118',
-    source: 'invoice', documentNumber: 'RE-2026-0118', contactId: 1,
-    lines: [['S', '1200', 34510], ['H', '4400', 29000], ['H', '3806', 5510]],
-  },
-  {
-    n: 42, number: 'B-2026-0042', date: '2026-08-04', documentDate: '2026-08-01',
-    description: 'Cloud-Hosting August 2026',
-    source: 'receipt', documentNumber: 'ER-2026-0212', contactId: 11, receiptId: 4,
-    lines: [['S', '5906', 1480], ['S', '1406', 281.2], ['H', '3300', 1761.2]],
-  },
-  {
-    n: 43, number: 'B-2026-0043', date: '2026-08-06', documentDate: '2026-07-31',
-    description: 'Gehälter Juli 2026', source: 'manual',
-    lines: [['S', '6020', 26700], ['H', '1800', 26700]],
-  },
-  {
-    n: 44, number: 'B-2026-0044', date: '2026-08-07', documentDate: '2026-08-07',
-    description: 'Zahlungseingang zu RE-2026-0112', source: 'payment', contactId: 2,
-    lines: [['S', '1800', 18921], ['H', '1200', 18921]],
-  },
-  {
-    n: 45, number: 'B-2026-0045', date: '2026-08-10', documentDate: '2026-08-01',
-    description: 'Büromiete August 2026', source: 'receipt', documentNumber: 'ER-2026-0218', contactId: 12,
-    lines: [['S', '6310', 3600], ['H', '1800', 3600]],
-  },
-  {
-    n: 46, number: 'B-2026-0046', date: '2026-08-11', documentDate: '2026-08-10',
-    description: 'Notebooks, 4 Stück (geringwertige Wirtschaftsgüter)',
-    source: 'receipt', documentNumber: 'ER-2026-0231', contactId: 13, receiptId: 1,
-    lines: [['S', '6260', 2716], ['S', '1406', 516.04], ['H', '3300', 3232.04]],
-  },
-  {
-    n: 47, number: 'B-2026-0047', date: '2026-08-12', documentDate: '2026-08-09',
-    description: 'Reisekosten Fachmesse Berlin', source: 'receipt', documentNumber: 'ER-2026-0233', contactId: 14,
-    lines: [['S', '6650', 842], ['S', '1406', 159.98], ['H', '1800', 1001.98]],
-  },
-  {
-    n: 48, number: 'B-2026-0048', date: '2026-08-13', documentDate: '2026-08-12',
-    description: 'Wartungsvertrag Datenbank, Q3 2026',
-    source: 'receipt', documentNumber: 'ER-2026-0236', contactId: 11,
-    lines: [['S', '6495', 1240], ['S', '1406', 235.6], ['H', '3300', 1475.6]],
-  },
-  {
-    n: 49, number: 'B-2026-0049', date: '2026-08-14', documentDate: '2026-08-12',
-    description: 'Generalumkehr zu B-2026-0048',
-    source: 'receipt', documentNumber: 'ER-2026-0236', contactId: 11,
-    kind: 'reversal', reversalOfId: 48,
-    reversalReason: 'Aufwand gehört auf 5906 Fremdleistungen, nicht auf 6495.',
-    lines: [['S', '3300', 1475.6], ['H', '6495', 1240], ['H', '1406', 235.6]],
-  },
-  {
-    n: 50, number: 'B-2026-0050', date: '2026-08-14', documentDate: '2026-08-12',
-    description: 'Wartungsvertrag Datenbank, Q3 2026 (Neubuchung)',
-    source: 'receipt', documentNumber: 'ER-2026-0236', contactId: 11,
-    lines: [['S', '5906', 1240], ['S', '1406', 235.6], ['H', '3300', 1475.6]],
-  },
-  {
-    n: 51, number: 'B-2026-0051', date: '2026-08-17', documentDate: '2026-08-17',
-    description: 'Wartungspauschale Q3, Rechnung RE-2026-0119',
-    source: 'invoice', documentNumber: 'RE-2026-0119', contactId: 1,
-    lines: [['S', '1200', 8211], ['H', '4400', 6900], ['H', '3806', 1311]],
-  },
-  {
-    n: 52, number: 'B-2026-0052', date: '2026-08-18', documentDate: '2026-08-15',
-    description: 'Telefon und Internet August 2026',
-    source: 'receipt', documentNumber: 'ER-2026-0238', contactId: 15, receiptId: 3,
-    lines: [['S', '6805', 270], ['S', '1406', 51.3], ['H', '1800', 321.3]],
-  },
-  {
-    n: 53, number: 'B-2026-0053', date: '2026-08-20', documentDate: '2026-08-20',
-    description: 'Zahlung Lieferantenrechnung ER-2026-0212', source: 'payment', contactId: 11,
-    lines: [['S', '3300', 1761.2], ['H', '1800', 1761.2]],
-  },
-  {
-    n: 54, number: 'B-2026-0054', date: '2026-08-21', documentDate: '2026-08-19',
-    description: 'Werbekampagne Fachportal', source: 'receipt', documentNumber: 'ER-2026-0240', contactId: 16,
-    lines: [['S', '6600', 1850], ['S', '1406', 351.5], ['H', '3300', 2201.5]],
-  },
-  {
-    n: 55, number: 'B-2026-0055', date: '2026-08-24', documentDate: '2026-08-24',
-    description: 'Kontoführung August 2026', source: 'receipt', documentNumber: 'ER-2026-0241', contactId: 17,
-    lines: [['S', '6855', 62], ['H', '1800', 62]],
-  },
-];
-
-let previous = fakeHash('genesis');
-const ENTRIES = RAW_ENTRIES.map((e) => {
-  const entryHash = fakeHash(e.number + previous);
-  const entry = {
-    id: e.n,
-    fiscalYear: YEAR,
-    entryNumber: e.number,
-    bookingDate: e.date,
-    documentDate: e.documentDate,
-    serviceDateFrom: e.documentDate,
-    serviceDateTo: e.documentDate,
-    valueDate: e.date,
-    description: e.description,
-    source: e.source,
-    documentNumber: e.documentNumber,
-    receiptId: e.receiptId,
-    receiptHash: e.receiptId ? fakeHash(`receipt-${e.receiptId}`) : undefined,
-    taxTreatment: 'domestic',
-    contactId: e.contactId,
-    kind: e.kind ?? 'normal',
-    reversalOfId: e.reversalOfId,
-    reversalReason: e.reversalReason,
-    currency: EUR,
-    exchangeRateMicros: 1_000_000,
-    postingRuleVersion: '2026.1',
-    lines: e.lines.map((line, i) => ({
-      id: e.n * 100 + i,
-      entryId: e.n,
-      position: i + 1,
-      side: line[0],
-      amount: c(line[2]),
-      account: line[1],
-      accountName: accountName(line[1]),
-      taxKey: line[1] === '1406' || line[1] === '3806' ? '9' : undefined,
-    })),
-    previousHash: previous,
-    entryHash,
-    createdAt: `${e.date}T09:24:00Z`,
-  };
-  previous = entryHash;
-  return entry;
-});
-
-const CHAIN_HEAD = previous;
+const CHAIN_HEAD = ENTRIES[ENTRIES.length - 1].entryHash;
 
 // -------------------------------------------------------------------------
 // Kontakte, offene Posten, Bank
 
 const CONTACTS = [
-  contact(1, 'customer', '10001', 'Nordwind Handels GmbH', 'Am Sandtorkai 3, 20457 Hamburg', 'DE289512347', 8211, 14),
-  contact(2, 'customer', '10002', 'Elbtal Logistik KG', 'Billstraße 88, 20539 Hamburg', 'DE274119803', 24920, 30),
-  contact(3, 'customer', '10003', 'Werft & Co. KG', 'Steinwerder 12, 20457 Hamburg', 'DE301447221', 3570, 14),
-  contact(4, 'customer', '10004', 'Marschland Energie AG', 'Deichstraße 5, 25813 Husum', 'DE256330914', 0, 30),
-  contact(11, 'vendor', '70011', 'Hanse Cloud Services GmbH', 'Kehrwieder 9, 20457 Hamburg', 'DE317744002', 0, 14),
-  contact(13, 'vendor', '70013', 'Techpartner Nord GmbH', 'Ruhrstraße 42, 22761 Hamburg', 'DE263558107', 3232.04, 14),
-  contact(16, 'vendor', '70016', 'Fachportal Media GmbH', 'Kaiser-Wilhelm-Straße 4, 20355 Hamburg', 'DE298001554', 2201.5, 21),
+  contact(1, 'customer', '10001', 'Nordwind Handels GmbH', 'Am Sandtorkai 3, 20457 Hamburg', 'DE289512347', 14),
+  contact(2, 'customer', '10002', 'Elbtal Logistik KG', 'Billstraße 88, 20539 Hamburg', 'DE274119803', 30),
+  contact(3, 'customer', '10003', 'Werft & Co. KG', 'Steinwerder 12, 20457 Hamburg', 'DE301447221', 14),
+  contact(4, 'customer', '10004', 'Marschland Energie AG', 'Deichstraße 5, 25813 Husum', 'DE256330914', 30),
+  contact(11, 'vendor', '70011', 'Hanse Cloud Services GmbH', 'Kehrwieder 9, 20457 Hamburg', 'DE317744002', 14),
+  contact(12, 'vendor', '70012', 'Kontorhaus Verwaltung GmbH', 'Brandstwiete 1, 20457 Hamburg', 'DE118803442', 0),
+  contact(13, 'vendor', '70013', 'Techpartner Nord GmbH', 'Ruhrstraße 42, 22761 Hamburg', 'DE263558107', 14),
+  contact(14, 'vendor', '70014', 'Hanseatische Reisestelle GmbH', 'Ballindamm 7, 20095 Hamburg', 'DE204417761', 0),
+  contact(15, 'vendor', '70015', 'Nordfunk Telekommunikation GmbH', 'Überseering 30, 22297 Hamburg', 'DE190227315', 0),
+  contact(16, 'vendor', '70016', 'Fachportal Media GmbH', 'Kaiser-Wilhelm-Straße 4, 20355 Hamburg', 'DE298001554', 21),
+  contact(17, 'vendor', '70017', 'Deutsche Kreditbank AG', 'Taubenstraße 7, 10117 Berlin', '', 0),
+  contact(18, 'vendor', '70018', 'Kai Lorenz IT-Beratung', 'Lehmweg 14, 20251 Hamburg', 'DE331905528', 10),
+  contact(19, 'vendor', '70019', 'Kanzlei Elbufer Rechtsanwälte', 'Elbchaussee 120, 22763 Hamburg', 'DE287700143', 14),
+  contact(20, 'vendor', '70020', 'Anna Bauer', 'Isestraße 61, 20149 Hamburg', '', 0, ''),
 ];
+
+/**
+ * Standard-Buchungsgruppen: Miete, Hosting und Telefon hat Anna Bauer
+ * bestätigt; für die freie Mitarbeit und das Fachportal hat Claude eine
+ * Gruppe vorgeschlagen, die sie noch bestätigen muss. Die Gruppen passen zu
+ * den Konten, auf die das Journal die Rechnungen bucht.
+ */
+const POSTING_GROUP_STATE: Record<number, object> = {
+  11: { defaultPostingGroup: 'fremdleistungen', defaultPostingGroupConfirmedAt: `${YEAR}-03-02T09:14:00Z`, defaultPostingGroupConfirmedBy: 'Anna Bauer' },
+  12: { defaultPostingGroup: 'miete', defaultPostingGroupConfirmedAt: `${YEAR}-02-02T08:30:00Z`, defaultPostingGroupConfirmedBy: 'Anna Bauer' },
+  15: { defaultPostingGroup: 'telefon', defaultPostingGroupConfirmedAt: `${YEAR}-02-16T10:05:00Z`, defaultPostingGroupConfirmedBy: 'Anna Bauer' },
+  16: {
+    proposedPostingGroup: 'werbung',
+    proposedPostingGroupNote: 'Fünf Rechnungen 2026, alle auf Werbekosten gebucht.',
+    proposedPostingGroupBy: 'agent:claude-code',
+  },
+  18: {
+    proposedPostingGroup: 'fremdleistungen',
+    proposedPostingGroupNote: 'Sieben Rechnungen 2026 für Entwicklung, alle auf Fremdleistungen gebucht.',
+    proposedPostingGroupBy: 'agent:claude-code',
+  },
+};
+for (const entry of CONTACTS) Object.assign(entry, POSTING_GROUP_STATE[entry.id] ?? {});
+
+/** Zerlegt „Straße 1, 12345 Ort" in die Felder des Kontakts. */
+function postalParts(address: string) {
+  const [street, postalLine] = address.split(', ');
+  const [postalCode, ...city] = postalLine.split(' ');
+  return { street, postalCode, city: city.join(' ') };
+}
 
 function contact(
   id: number,
@@ -403,17 +396,17 @@ function contact(
   name: string,
   address: string,
   vatId: string,
-  openEuro: number,
   terms: number,
+  company = name,
 ) {
   return {
     id,
     type,
     ledgerAccount,
     name,
-    company: name,
+    company,
     email: `buchhaltung@${name.split(' ')[0].toLowerCase().replace(/[^a-z]/g, '')}.example`,
-    address,
+    ...postalParts(address),
     taxId: '',
     vatId,
     countryCode: 'DE',
@@ -422,18 +415,49 @@ function contact(
     paymentTermsDays: terms,
     isPrivate: false,
     isSmallBusiness: false,
-    openAmount: c(openEuro),
+    // Was offen ist, rechnen die offenen Posten aus dem Journal.
+    get openAmount() {
+      return OPEN_ITEMS.filter((item) => item.contactId === id).reduce((sum, item) => sum + item.openAmount, 0);
+    },
     createdAt: '2024-02-11T08:00:00Z',
   };
 }
 
-const OPEN_ITEMS = [
-  openItem(51, 'B-2026-0051', 1, 'Nordwind Handels GmbH', 'customer', '10001', 'RE-2026-0119', '2026-08-17', '2026-08-31', 8211, 0),
-  openItem(38, 'B-2026-0038', 2, 'Elbtal Logistik KG', 'customer', '10002', 'RE-2026-0117', '2026-08-06', '2026-09-05', 24920, 0),
-  openItem(36, 'B-2026-0036', 3, 'Werft & Co. KG', 'customer', '10003', 'RE-2026-0116', '2026-07-28', '2026-08-27', 7140, 3570),
-  openItem(46, 'B-2026-0046', 13, 'Techpartner Nord GmbH', 'vendor', '70013', 'ER-2026-0231', '2026-08-10', '2026-08-30', 3232.04, 0),
-  openItem(54, 'B-2026-0054', 16, 'Fachportal Media GmbH', 'vendor', '70016', 'ER-2026-0240', '2026-08-19', '2026-09-03', 2201.5, 0),
-];
+/**
+ * Die offenen Posten aus dem Journal: je Rechnung oder Eingangsbeleg der
+ * Betrag abzüglich der Zahlungen, die ihre Nummer nennen. Stornierte
+ * Buchungen zählen nicht mit.
+ */
+const OPEN_ITEMS = (() => {
+  const items: ReturnType<typeof openItem>[] = [];
+  const reversed = new Set(JOURNAL.map((e) => e.reversalOfId).filter(Boolean));
+  const byDocument = new Map<string, (typeof JOURNAL)[number][]>();
+  for (const e of JOURNAL) {
+    if (e.kind === 'reversal' || reversed.has(e.id) || !e.documentNumber || e.source === 'opening') continue;
+    if (!e.lines.some(([s, acc]) => (acc === '1200' && s === 'S') || (acc === '3300' && s === 'H'))) continue;
+    byDocument.set(e.documentNumber, [...(byDocument.get(e.documentNumber) ?? []), e]);
+  }
+  for (const [number, entries] of byDocument) {
+    const last = entries[entries.length - 1];
+    const customer = last.lines.some(([s, acc]) => acc === '1200' && s === 'S');
+    const account = customer ? '1200' : '3300';
+    const gross = entries
+      .flatMap((e) => e.lines)
+      .filter(([s, acc]) => acc === account && s === (customer ? 'S' : 'H'))
+      .reduce((sum, [, , euro]) => sum + euro, 0);
+    const settled = settledBy(number, account, customer ? 'H' : 'S');
+    if (Math.abs(gross - settled) < 0.005) continue;
+    const contact = CONTACTS.find((x) => x.id === last.contactId);
+    items.push(
+      openItem(
+        last.id, last.number, last.contactId ?? 0, contact?.name ?? '', customer ? 'customer' : 'vendor',
+        contact?.ledgerAccount ?? '', number, last.documentDate, addDays(last.documentDate, contact?.paymentTermsDays ?? 14),
+        gross, settled,
+      ),
+    );
+  }
+  return items;
+})();
 
 function openItem(
   entryId: number,
@@ -466,16 +490,33 @@ function openItem(
   };
 }
 
-const BANK_TX = [
+/** Was der letzte Kontoauszug brachte und noch nicht gebucht ist. */
+const UNBOOKED_TX = [
   tx(1, '2026-08-25', 8211, 'Nordwind Handels GmbH', 'DE44100500001234567890', 'RE-2026-0119 Wartungspauschale Q3', 'unmatched'),
   tx(2, '2026-08-25', -2201.5, 'Fachportal Media GmbH', 'DE18500105172345678901', 'Rechnung 2026-8814 Kampagne August', 'unmatched'),
-  tx(3, '2026-08-24', 12460, 'Elbtal Logistik KG', 'DE72200400003456789012', 'RE-2026-0117 Teilzahlung', 'unmatched'),
-  tx(4, '2026-08-24', -3232.04, 'Techpartner Nord GmbH', 'DE93370400444567890123', 'ER-2026-0231 Notebooks, Zahlung nach Skontofrist', 'unmatched'),
-  tx(5, '2026-08-21', -890, 'Stadtwerke Nord AöR', 'DE29200505501122334455', 'Abschlag Strom 08/2026, Kundennummer 4471-92', 'unmatched'),
+  tx(3, '2026-08-24', 12495, 'Elbtal Logistik KG', 'DE72200400003456789012', 'RE-2026-0117 Teilzahlung', 'unmatched'),
+  tx(4, '2026-08-24', -2832.2, 'Techpartner Nord GmbH', 'DE93370400444567890123', 'RG TP-26-4471 Monitore und Dockingstationen', 'unmatched'),
+  tx(5, '2026-08-21', -428.4, 'Stadtwerke Nord AG', 'DE29200505501122334455', 'Abschlag Strom 08/2026, Kundennummer 4471-92', 'unmatched'),
   tx(6, '2026-08-20', 3570, 'Werft & Co. KG', 'DE61200800005678901234', 'RE-2026-0116 Restzahlung', 'unmatched'),
-  tx(7, '2026-08-18', -321.3, 'Telekommunikation Nord GmbH', 'DE05300606016789012345', 'ER-2026-0238 Telefon August', 'matched'),
-  tx(8, '2026-08-20', -1761.2, 'Hanse Cloud Services GmbH', 'DE55201207007890123456', 'ER-2026-0212 Cloud-Hosting August', 'matched'),
 ];
+
+/** Die Bankseite jeder Buchung: ein zugeordneter Umsatz je Bewegung auf 1800. */
+const BOOKED_TX = JOURNAL.filter((e) => e.bankTxId).map((e) => {
+  const amount = e.lines
+    .filter(([, acc]) => acc === '1800')
+    .reduce((sum, [side, , euro]) => sum + (side === 'S' ? euro : -euro), 0);
+  const settled = e.ref === 53 ? entryByRef(42) : undefined;
+  const bank =
+    e.bank ??
+    (e.ref === 52
+      ? { counterparty: 'Nordfunk Telekommunikation GmbH', iban: 'DE05300606016789012345', remittance: 'Telefon und Internet August 2026' }
+      : { counterparty: 'Hanse Cloud Services GmbH', iban: 'DE55201207007890123456', remittance: `${settled?.documentNumber ?? ''} Cloud-Hosting August 2026` });
+  return tx(e.bankTxId!, e.date, Math.round(amount * 100) / 100, bank.counterparty, bank.iban, bank.remittance, 'matched');
+});
+
+const BANK_TX = [...UNBOOKED_TX, ...BOOKED_TX].sort(
+  (x, y) => y.bookingDate.localeCompare(x.bookingDate) || x.id - y.id,
+);
 
 function tx(
   id: number,
@@ -507,39 +548,29 @@ function tx(
 // -------------------------------------------------------------------------
 // Belege
 
-const RECEIPTS = [
-  {
-    id: 1,
-    fiscalYear: YEAR,
-    receiptNumber: 'BE-2026-0231',
-    direction: 'incoming',
-    status: 'filed',
-    kind: 'invoice',
-    // Die Kopfdaten (BEL-02): bei einer E-Rechnung stehen sie im Datensatz und
-    // werden beim Ablegen übernommen.
-    documentDate: '2026-08-10',
-    issuerName: 'Techpartner Nord GmbH',
-    subject: 'Notebooks, 4 Stück',
-    grossAmount: c(3232.04),
-    taxAmount: c(516.04),
-    currency: EUR,
-    retentionClass: 'vouchers',
-    retentionUntil: '2034-12-31',
-    earliestDeletion: '2035-01-01',
+/** Der Dateiname eines Belegs: Belegnummer und Aussteller. */
+const receiptFileName = (number: string, issuer: string) =>
+  `${number}_${issuer.split(' ').slice(0, 2).join('-').replace(/[^A-Za-zÄÖÜäöüß-]/g, '')}.pdf`;
+
+/**
+ * Die Belege aus dem Journal. Der Notebook-Beleg (Kennung 1) ist eine
+ * ZUGFeRD-Rechnung und trägt die Prüfangaben der E-Rechnung.
+ */
+const RECEIPTS = RECEIPT_DOCS.map((doc) => {
+  const base = receipt(doc);
+  if (doc.id !== 1) return base;
+  return {
+    ...base,
     files: [
-      file(1, 1, 'original', 'ER-2026-0231_Techpartner-Nord.pdf', 'application/pdf', 184_213, false),
-      file(2, 1, 'structured', 'factur-x.xml', 'application/xml', 12_884, true),
+      file(1, 1, 'original', receiptFileName(doc.number, doc.issuer), 'application/pdf', 184_213, false, doc.date),
+      file(2, 1, 'structured', 'factur-x.xml', 'application/xml', 12_884, true, doc.date),
     ],
-    receiptHash: fakeHash('receipt-1'),
-    receivedAt: '2026-08-10',
-    receivedVia: 'E-Mail',
     detectedFormat: 'ZUGFeRD / Factur-X',
     detectedProfile: 'EN 16931 (Comfort)',
-    validatedAt: '2026-08-10T07:41:00Z',
+    validatedAt: `${doc.date}T07:41:00Z`,
     validationRuleset: 'EN 16931 / CIUS XRechnung',
     validationVersion: '3.0.2',
     validationCoverage: 'partial',
-    validationErrors: 0,
     validationFindings: JSON.stringify([
       {
         rule: 'BR-DE-15',
@@ -548,62 +579,38 @@ const RECEIPTS = [
         message: 'Die Bestellreferenz des Käufers fehlt. Für den Vorsteuerabzug ist sie nicht nötig.',
       },
     ]),
-    createdAt: '2026-08-10T07:40:00Z',
-    updatedAt: '2026-08-10T07:41:00Z',
-  },
-  receipt(2, 'BE-2026-0230', 'filed', 'Stadtwerke_Abschlag_08-2026.pdf', '2026-08-21',
-    'Stadtwerke Nord AG', 'Abschlag Strom August 2026', 428.4, undefined),
-  receipt(3, 'BE-2026-0229', 'sealed', 'ER-2026-0238_Telefon-August.pdf', '2026-08-15',
-    'Nordfunk Telekommunikation GmbH', 'Telefon und Anschluss August 2026', 321.3, 52),
-  receipt(4, 'BE-2026-0228', 'sealed', 'ER-2026-0212_Cloud-Hosting.pdf', '2026-08-01',
-    'Hanse Cloud Services GmbH', 'Cloud-Hosting August 2026', 1475.6, 42),
-  receipt(5, 'BE-2026-0227', 'sealed', 'ER-2026-0218_Miete-August.pdf', '2026-08-01',
-    'Kontorhaus Verwaltung GmbH', 'Miete Büro August 2026', 3570, 45),
-  {
-    ...receipt(6, 'BE-2026-0226', 'discarded', 'ER-2026-0209_doppelt.pdf', '2026-07-29',
-      'Hanse Cloud Services GmbH', 'Cloud-Hosting Juli 2026', 1475.6, undefined),
-    discardReason: 'Doppelt eingegangen, gebucht ist BE-2026-0225.',
-  },
-];
+    createdAt: `${doc.date}T07:40:00Z`,
+    updatedAt: `${doc.date}T07:41:00Z`,
+  };
+}).sort((x, y) => y.receiptNumber.localeCompare(x.receiptNumber));
 
-function receipt(
-  id: number,
-  receiptNumber: string,
-  status: string,
-  fileName: string,
-  receivedAt: string,
-  issuerName: string,
-  subject: string,
-  grossEuro: number,
-  journalEntryId?: number,
-) {
-  const gross = c(grossEuro);
-  // 19 % im Bruttobetrag: der Steueranteil ist Brutto minus Brutto/1,19.
-  const tax = gross - Math.round(gross / 1.19);
+function receipt(doc: (typeof RECEIPT_DOCS)[number]) {
+  const fileName = receiptFileName(doc.number, doc.issuer);
   return {
-    id,
+    id: doc.id,
     fiscalYear: YEAR,
-    receiptNumber,
+    receiptNumber: doc.number,
     direction: 'incoming',
-    status,
+    status: doc.status,
     kind: 'invoice',
-    documentDate: receivedAt,
-    issuerName,
-    subject,
-    grossAmount: gross,
-    taxAmount: tax,
+    documentDate: doc.date,
+    issuerName: doc.issuer,
+    subject: doc.subject,
+    grossAmount: c(doc.gross),
+    taxAmount: c(doc.tax),
     currency: EUR,
     retentionClass: 'vouchers',
     retentionUntil: `${YEAR + 8}-12-31`,
     earliestDeletion: `${YEAR + 9}-01-01`,
-    files: [file(id * 10, id, 'original', fileName, 'application/pdf', 96_400 + id * 517, false)],
-    receiptHash: fakeHash(`receipt-${id}`),
-    receivedAt,
+    files: [file(doc.id * 10, doc.id, 'original', fileName, 'application/pdf', 96_400 + doc.id * 517, false, doc.date)],
+    receiptHash: fakeHash(`receipt-${doc.id}`),
+    receivedAt: doc.date,
     receivedVia: 'E-Mail',
-    journalEntryId,
+    journalEntryId: doc.entryIds[0] as number | undefined,
+    discardReason: doc.discardReason,
     validationErrors: 0,
-    createdAt: `${receivedAt}T08:00:00Z`,
-    updatedAt: `${receivedAt}T08:00:00Z`,
+    createdAt: `${doc.date}T08:00:00Z`,
+    updatedAt: `${doc.date}T08:00:00Z`,
   };
 }
 
@@ -615,6 +622,7 @@ function file(
   mimeType: string,
   size: number,
   derived: boolean,
+  receivedAt: string,
 ) {
   return {
     id,
@@ -627,7 +635,7 @@ function file(
     sha256: fakeHash(fileName),
     derived,
     storedPath: `belege/2026/${fileName}`,
-    createdAt: '2026-08-10T07:40:00Z',
+    createdAt: `${receivedAt}T07:40:00Z`,
   };
 }
 
@@ -687,45 +695,28 @@ function treatment(
   return { treatment: key, label, hint, direction: 'incoming', requiresRate, requiresVatId };
 }
 
-const DIFFERENCE_KINDS = [
-  { kind: 'none', label: 'Keine Differenz', hint: 'Der Zahlbetrag entspricht dem offenen Posten.' },
-  { kind: 'skonto', label: 'Skonto', hint: 'Entgeltminderung; die Steuer wird nach § 17 UStG berichtigt.' },
-  { kind: 'bank_fee', label: 'Bankgebühr', hint: 'Die Bank hat vom Betrag einbehalten.' },
-  { kind: 'rounding', label: 'Rundungsdifferenz', hint: 'Centbetrag ohne eigene Aussage.' },
-  { kind: 'currency', label: 'Kursdifferenz', hint: 'Unterschied aus der Umrechnung einer Fremdwährung.' },
-];
-
 // -------------------------------------------------------------------------
 // Umsatzsteuer
 
-/** Nettoerlöse zu 19 % je Monat, Januar bis August. */
-const REVENUE_BY_MONTH = [52400, 58900, 61300, 57800, 63400, 66200, 59700, 66500];
-/** Vorsteuerpflichtige Aufwendungen netto je Monat. */
-const INPUT_BASE_BY_MONTH = [13800, 15100, 16400, 14200, 15900, 17300, 13600, 14220];
-
-function monthsIn(from: string, to: string): number[] {
-  if (!from || !to) return REVENUE_BY_MONTH.map((_, i) => i);
-  const first = Number(from.slice(5, 7));
-  const last = Number(to.slice(5, 7));
-  const months: number[] = [];
-  for (let m = first; m <= last; m++) if (m <= REVENUE_BY_MONTH.length) months.push(m - 1);
-  return months;
+/** Was ein Zeitraum auf einem Konto bewegt, Haben positiv; ohne die Zahlungen an das Finanzamt. */
+function movement(account: string, from: string, to: string): number {
+  return JOURNAL.filter((e) => e.source !== 'tax' && (!from || e.date >= from) && (!to || e.date <= to))
+    .flatMap((e) => e.lines)
+    .filter(([, acc]) => acc === account)
+    .reduce((sum, [side, , euro]) => sum + (side === 'H' ? c(euro) : -c(euro)), 0);
 }
 
+/** Die Umsatzsteuer eines Zeitraums aus dem Journal. */
 function vatSummary(from: string, to: string) {
-  const months = monthsIn(from, to);
-  const net19 = months.reduce((sum, m) => sum + REVENUE_BY_MONTH[m], 0);
-  const inputBase = months.reduce((sum, m) => sum + INPUT_BASE_BY_MONTH[m], 0);
-  const outputTax = Math.round(c(net19) * 0.19);
-  const inputTax = Math.round(c(inputBase) * 0.19);
+  const net19 = movement('4400', from, to);
+  const outputTax = movement('3806', from, to);
+  const inputTax = -movement('1406', from, to);
   return {
     fiscalYear: YEAR,
     periodFrom: from,
     periodTo: to,
-    taxableRevenue: net19 > 0 ? [{ rate: 1900, net: c(net19), tax: outputTax }] : [],
+    taxableRevenue: net19 > 0 ? [{ rate: 1900, net: net19, tax: outputTax }] : [],
     exemptRevenue: 0,
-    intraCommunitySupply: 0,
-    export: 0,
     reverseChargeSupply: 0,
     outputTax,
     reverseChargeTax: 0,
@@ -741,42 +732,30 @@ function vatSummary(from: string, to: string) {
 // -------------------------------------------------------------------------
 // Auswertung, Integrität, Protokoll
 
-const SUMMARY = {
-  totalRevenue: c(489950),
-  totalExpenses: c(363406),
-  netIncome: c(126544),
-  bankBalance: c(172678.74),
-  openReceivables: c(36701),
-  openPayables: c(5433.54),
-  cashflowHistory: REVENUE_BY_MONTH.map((net, i) => ({
-    month: `${YEAR}-${String(i + 1).padStart(2, '0')}`,
-    label: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug'][i],
-    inflow: c(net * 1.19),
-    outflow: c(INPUT_BASE_BY_MONTH[i] * 1.19 + 26700),
-    net: c(net * 1.19 - INPUT_BASE_BY_MONTH[i] * 1.19 - 26700),
-  })),
-};
-
 const INTEGRITY = {
   isValid: true,
-  totalEntries: 55,
-  checkedEntries: 55,
-  message: 'Alle 55 Buchungen sind unverändert. Die Hash-Kette ist lückenlos.',
+  totalEntries: ENTRIES.length,
+  checkedEntries: ENTRIES.length,
+  message: `Alle ${ENTRIES.length} Buchungen sind unverändert. Die Hash-Kette ist lückenlos.`,
   lastVerifiedHash: CHAIN_HEAD,
-  checkedAt: '2026-08-26T08:12:00Z',
+  // Geprüft beim Start der App am Morgen des 25.08.
+  checkedAt: `${YEAR}-08-25T06:58:00Z`,
 };
 
+const receiptNumberOf = (id: number) => RECEIPT_DOCS.find((doc) => doc.id === id)?.number ?? '';
+
+/** Die jüngsten Zeilen des Änderungsprotokolls; die Nummern kommen aus dem Journal. */
 const AUDIT_LOGS = [
-  log(214, '2026-08-24T09:31:00Z', 'journal.post', 'JournalEntry', 'B-2026-0055', 'Kontoführung August 2026, 62,00 €'),
-  log(213, '2026-08-21T14:02:00Z', 'journal.post', 'JournalEntry', 'B-2026-0054', 'Werbekampagne Fachportal, 2.201,50 €'),
-  log(212, '2026-08-20T11:18:00Z', 'payment.settle', 'JournalEntry', 'B-2026-0053', 'Offener Posten ER-2026-0212 ausgeglichen'),
-  log(211, '2026-08-18T08:47:00Z', 'receipt.seal', 'Receipt', 'BE-2026-0229', 'Beleg gebucht und versiegelt'),
-  log(210, '2026-08-14T16:05:00Z', 'journal.post', 'JournalEntry', 'B-2026-0050', 'Neubuchung nach Generalumkehr'),
-  log(209, '2026-08-14T16:04:00Z', 'journal.reverse', 'JournalEntry', 'B-2026-0049', 'Generalumkehr zu B-2026-0048'),
-  log(208, '2026-08-13T10:22:00Z', 'journal.post', 'JournalEntry', 'B-2026-0048', 'Wartungsvertrag Datenbank, 1.475,60 €'),
-  log(207, '2026-08-12T09:14:00Z', 'contact.update', 'Contact', '70013', 'Zahlungsziel von 21 auf 14 Tage geändert'),
-  log(206, '2026-08-11T07:58:00Z', 'bank.import', 'BankStatement', 'camt053-2026-08-11', '34 Umsätze aus CAMT.053 eingelesen'),
-  log(205, '2026-08-10T07:41:00Z', 'receipt.file', 'Receipt', 'BE-2026-0231', 'ZUGFeRD-Beleg abgelegt, EN 16931 geprüft'),
+  log(214, '2026-08-25T06:52:00Z', 'bank.import', 'BankStatement', 'camt053-2026-08-25', '4 Umsätze aus CAMT.053 eingelesen'),
+  log(213, '2026-08-24T09:31:00Z', 'journal.post', 'JournalEntry', entryNumber(55), 'Kontoführung August 2026, 62,00 €'),
+  log(212, '2026-08-21T14:02:00Z', 'journal.post', 'JournalEntry', entryNumber(54), 'Werbekampagne Fachportal, 2.201,50 €'),
+  log(211, '2026-08-20T11:18:00Z', 'payment.settle', 'JournalEntry', entryNumber(53), `Offener Posten ${receiptNumberOf(4)} ausgeglichen`),
+  log(210, '2026-08-18T08:47:00Z', 'receipt.seal', 'Receipt', receiptNumberOf(3), 'Beleg gebucht und versiegelt'),
+  log(209, '2026-08-14T16:05:00Z', 'journal.post', 'JournalEntry', entryNumber(50), 'Neubuchung nach Generalumkehr'),
+  log(208, '2026-08-14T16:04:00Z', 'journal.reverse', 'JournalEntry', entryNumber(49), `Generalumkehr zu ${entryNumber(48)}`),
+  log(207, '2026-08-13T10:22:00Z', 'journal.post', 'JournalEntry', entryNumber(48), 'Wartungsvertrag Datenbank, 1.475,60 €'),
+  log(206, '2026-08-12T09:14:00Z', 'contact.update', 'Contact', '70013', 'Zahlungsziel von 21 auf 14 Tage geändert'),
+  log(205, '2026-08-10T07:41:00Z', 'receipt.file', 'Receipt', receiptNumberOf(1), 'ZUGFeRD-Beleg abgelegt, EN 16931 geprüft'),
 ];
 
 function log(
@@ -803,116 +782,96 @@ function log(
   };
 }
 
+const MONTH_LABELS = [
+  'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+];
+
+/**
+ * Die Festschreibungen: monatlich, jeweils in der ersten Woche des
+ * Folgemonats; Juli steht noch aus. Davor die beiden Vorjahre im Ganzen.
+ */
 const FESTSCHREIBUNGEN = [
-  {
-    id: 3,
-    fiscalYear: YEAR,
-    periodType: 'quarter',
-    periodLabel: 'Q2 2026',
-    cutoffDate: '2026-06-30',
-    chainHead: fakeHash('festschreibung-q2'),
-    entryCount: 37,
-    tsaName: 'freeTSA',
-    tsaGenTime: '2026-07-10T06:15:00Z',
-    timestampStatus: 'confirmed',
-    createdAt: '2026-07-10T06:15:00Z',
-  },
+  ...[6, 5, 4, 3, 2, 1].map((m) => {
+    const cutoff = `${YEAR}-${String(m).padStart(2, '0')}-${new Date(Date.UTC(YEAR, m, 0)).getUTCDate()}`;
+    const at = `${closings.commitDate(m)}T06:15:00Z`;
+    const upTo = ENTRIES.filter((e) => e.bookingDate <= cutoff);
+    return {
+      id: m + 2,
+      fiscalYear: YEAR,
+      periodType: 'month',
+      periodLabel: `${MONTH_LABELS[m - 1]} ${YEAR}`,
+      cutoffDate: cutoff,
+      chainHead: upTo.length ? upTo[upTo.length - 1].entryHash : '',
+      entryCount: upTo.length,
+      tsaName: 'freeTSA',
+      tsaGenTime: at,
+      timestampStatus: 'confirmed',
+      createdAt: at,
+    };
+  }),
   {
     id: 2,
-    fiscalYear: YEAR,
-    periodType: 'quarter',
-    periodLabel: 'Q1 2026',
-    cutoffDate: '2026-03-31',
-    chainHead: fakeHash('festschreibung-q1'),
-    entryCount: 19,
+    fiscalYear: YEAR - 1,
+    periodType: 'year',
+    periodLabel: `Geschäftsjahr ${YEAR - 1}`,
+    cutoffDate: `${YEAR - 1}-12-31`,
+    chainHead: fakeHash('festschreibung-2025'),
+    entryCount: 236,
     tsaName: 'freeTSA',
-    tsaGenTime: '2026-04-09T05:52:00Z',
+    tsaGenTime: `${YEAR}-03-20T10:04:00Z`,
     timestampStatus: 'confirmed',
-    createdAt: '2026-04-09T05:52:00Z',
+    createdAt: `${YEAR}-03-20T10:04:00Z`,
   },
   {
     id: 1,
-    fiscalYear: 2025,
+    fiscalYear: YEAR - 2,
     periodType: 'year',
-    periodLabel: 'Geschäftsjahr 2025',
-    cutoffDate: '2025-12-31',
-    chainHead: fakeHash('festschreibung-2025'),
+    periodLabel: `Geschäftsjahr ${YEAR - 2}`,
+    cutoffDate: `${YEAR - 2}-12-31`,
+    chainHead: fakeHash('festschreibung-2024'),
     entryCount: 148,
     tsaName: 'freeTSA',
-    tsaGenTime: '2026-02-28T10:04:00Z',
+    tsaGenTime: `${YEAR - 1}-03-18T09:40:00Z`,
     timestampStatus: 'confirmed',
-    createdAt: '2026-02-28T10:04:00Z',
+    createdAt: `${YEAR - 1}-03-18T09:40:00Z`,
   },
 ];
 
 /**
- * Ein Auszug der erzeugten E-Bilanz. Für den Screenshot reicht der Kopf mit
- * Kontexten, Einheiten und den ersten Positionen — die Gestalt der Datei ist
- * das, was die Seite zeigen soll.
+ * Was Zahlungen an einem Beleg ausgleichen: die Buchungen, deren Text seine
+ * Nummer nennt, auf der Gegenseite des Personenkontos. Ein Storno gleicht
+ * nichts aus; es nimmt die stornierte Buchung zurück.
  */
-const XBRL = `<?xml version="1.0" encoding="UTF-8"?>
-<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
-            xmlns:de-gaap-ci="http://www.xbrl.de/taxonomies/de-gaap-ci-2026-04-01"
-            xmlns:de-gcd="http://www.xbrl.de/taxonomies/de-gcd-2026-04-01"
-            xmlns:iso4217="http://www.xbrl.org/2003/iso4217"
-            xmlns:link="http://www.xbrl.org/2003/linkbase"
-            xmlns:xlink="http://www.w3.org/1999/xlink">
-  <link:schemaRef xlink:type="simple"
-                  xlink:href="http://www.xbrl.de/taxonomies/de-gaap-ci-2026-04-01-shell-fiscal.xsd"/>
+function settledBy(number: string, account: string, side: 'S' | 'H'): number {
+  return JOURNAL.filter((e) => e.kind !== 'reversal' && e.description.includes(number))
+    .flatMap((e) => e.lines)
+    .filter(([s, acc]) => acc === account && s === side)
+    .reduce((sum, [, , euro]) => sum + euro, 0);
+}
 
-  <xbrli:context id="D-2026">
-    <xbrli:entity>
-      <xbrli:identifier scheme="http://www.rzf-nrw.de/">27/123/45678</xbrli:identifier>
-    </xbrli:entity>
-    <xbrli:period>
-      <xbrli:startDate>2026-01-01</xbrli:startDate>
-      <xbrli:endDate>2026-12-31</xbrli:endDate>
-    </xbrli:period>
-  </xbrli:context>
-  <xbrli:context id="I-2026-12-31">
-    <xbrli:entity>
-      <xbrli:identifier scheme="http://www.rzf-nrw.de/">27/123/45678</xbrli:identifier>
-    </xbrli:entity>
-    <xbrli:period><xbrli:instant>2026-12-31</xbrli:instant></xbrli:period>
-  </xbrli:context>
+function addDays(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
 
-  <xbrli:unit id="EUR">
-    <xbrli:measure>iso4217:EUR</xbrli:measure>
-  </xbrli:unit>
-
-  <de-gcd:genInfo.company.name contextRef="D-2026">Nordlicht Systeme GmbH</de-gcd:genInfo.company.name>
-  <de-gcd:genInfo.company.location.city contextRef="D-2026">Hamburg</de-gcd:genInfo.company.location.city>
-  <de-gcd:genInfo.report.id.type contextRef="D-2026">Bilanz</de-gcd:genInfo.report.id.type>
-  <de-gcd:genInfo.report.accountingStandard contextRef="D-2026">HGB</de-gcd:genInfo.report.accountingStandard>
-  <de-gcd:genInfo.report.balSheetType contextRef="D-2026">Kontoform</de-gcd:genInfo.report.balSheetType>
-
-  <!-- Bilanz, Aktiva -->
-  <de-gaap-ci:bs.ass.fixAss.tan.othEquip contextRef="I-2026-12-31" unitRef="EUR" decimals="2">24500.00</de-gaap-ci:bs.ass.fixAss.tan.othEquip>
-  <de-gaap-ci:bs.ass.currAss.receiv.trade contextRef="I-2026-12-31" unitRef="EUR" decimals="2">36701.00</de-gaap-ci:bs.ass.currAss.receiv.trade>
-  <de-gaap-ci:bs.ass.currAss.cashEquiv contextRef="I-2026-12-31" unitRef="EUR" decimals="2">173298.74</de-gaap-ci:bs.ass.currAss.cashEquiv>
-  <de-gaap-ci:bs.ass.deferralItem contextRef="I-2026-12-31" unitRef="EUR" decimals="2">2400.00</de-gaap-ci:bs.ass.deferralItem>
-
-  <!-- Gewinn- und Verlustrechnung -->
-  <de-gaap-ci:is.netIncome.regular.operatingTrade.sales contextRef="D-2026" unitRef="EUR" decimals="2">486200.00</de-gaap-ci:is.netIncome.regular.operatingTrade.sales>
-  <de-gaap-ci:is.netIncome.regular.operatingTrade.otherOpInc contextRef="D-2026" unitRef="EUR" decimals="2">3750.00</de-gaap-ci:is.netIncome.regular.operatingTrade.otherOpInc>
-  <de-gaap-ci:is.netIncome.regular.operatingTrade.staff.wages contextRef="D-2026" unitRef="EUR" decimals="2">213600.00</de-gaap-ci:is.netIncome.regular.operatingTrade.staff.wages>
-  <de-gaap-ci:is.netIncome.regular.operatingTrade.otherOpExp contextRef="D-2026" unitRef="EUR" decimals="2">149806.00</de-gaap-ci:is.netIncome.regular.operatingTrade.otherOpExp>
-
-  <!-- Kontennachweis, Auszug -->
-  <de-gaap-ci:accountBalance.account.number contextRef="D-2026">4400</de-gaap-ci:accountBalance.account.number>
-  <de-gaap-ci:accountBalance.account.name contextRef="D-2026">Erlöse 19 % USt</de-gaap-ci:accountBalance.account.name>
-  <de-gaap-ci:accountBalance.account.balance contextRef="D-2026" unitRef="EUR" decimals="2">486200.00</de-gaap-ci:accountBalance.account.balance>
-</xbrli:xbrl>
-`;
-
-const INVOICES = [
-  invoice(1, 'RE-2026-0119', '2026-08-17', '2026-08-31', 1, 'Nordwind Handels GmbH', 6900, 'issued', 0),
-  invoice(2, 'RE-2026-0118', '2026-08-03', '2026-08-17', 1, 'Nordwind Handels GmbH', 29000, 'paid', 34510),
-  invoice(3, 'RE-2026-0117', '2026-08-06', '2026-09-05', 2, 'Elbtal Logistik KG', 20941.18, 'issued', 0),
-  invoice(4, 'RE-2026-0116', '2026-07-28', '2026-08-27', 3, 'Werft & Co. KG', 6000, 'issued', 3570),
-  invoice(5, 'RE-2026-0115', '2026-07-20', '2026-08-03', 4, 'Marschland Energie AG', 12400, 'paid', 14756),
-  invoice(6, 'RE-2026-0114', '2026-07-14', '2026-07-28', 2, 'Elbtal Logistik KG', 4800, 'cancelled', 0),
-];
+/** Die Ausgangsrechnungen aus dem Journal, die jüngste zuerst. */
+const INVOICES = JOURNAL.filter((e) => e.source === 'invoice' && e.kind !== 'reversal' && e.documentNumber)
+  .map((e, index) => {
+    const number = e.documentNumber!;
+    const net = e.lines.find(([, acc]) => acc === '4400')![2];
+    const gross = e.lines.find(([, acc]) => acc === '1200')![2];
+    const cancelled = JOURNAL.some((x) => x.kind === 'reversal' && x.documentNumber === number);
+    const paid = cancelled ? 0 : settledBy(number, '1200', 'H');
+    const contact = CONTACTS.find((x) => x.id === e.contactId)!;
+    const status = cancelled ? 'cancelled' : paid >= gross - 0.005 ? 'paid' : 'issued';
+    return invoice(
+      index + 1, number, e.documentDate, addDays(e.documentDate, contact.paymentTermsDays), contact.id,
+      contact.name, e.description.replace(/, Rechnung RE-\d{4}-\d{4}$/, ''), net, status, paid, e.id,
+    );
+  })
+  .reverse();
 
 function invoice(
   id: number,
@@ -921,9 +880,11 @@ function invoice(
   dueDate: string,
   contactId: number,
   contactName: string,
+  text: string,
   netEuro: number,
   status: string,
   paidEuro: number,
+  journalEntryId: number,
 ) {
   const net = c(netEuro);
   const tax = Math.round(net * 0.19);
@@ -940,7 +901,7 @@ function invoice(
     items: [
       {
         position: 1,
-        description: 'Wartung und Pflege des Kundenportals',
+        description: text,
         quantityMilli: 1000,
         unit: 'Pauschale',
         unitPrice: net,
@@ -953,15 +914,16 @@ function invoice(
     grossAmount: net + tax,
     currency: EUR,
     status,
-    receiptId: id + 20,
+    kind: 'invoice',
+    journalEntryId,
+    terms: { dueDays: Math.round((Date.parse(dueDate) - Date.parse(date)) / 86_400_000), discountPermille: 0, discountDays: 0 },
+    precedingRefs: [],
+    prepaidAmount: 0,
+    receiptId: 500 + id,
     paidAmount: c(paidEuro),
-    createdAt: `${date}T10:00:00Z`,
+    createdAt: `${date}T07:30:00Z`,
   };
 }
-
-// -------------------------------------------------------------------------
-// Die Bridge
-
 
 // -------------------------------------------------------------------------
 // Anlagevermögen
@@ -1015,116 +977,24 @@ function asset(
   };
 }
 
+/**
+ * Das Anlagevermögen einer kleinen Software-GmbH. Die Buchwerte zum 01.01.
+ * sind die Saldenvorträge der Anlagekonten im Journal; die AfA des Jahres
+ * bucht der Jahresabschluss und steht bis dahin als offen.
+ */
 const ASSETS = [
-  asset(1, 'AN-2024-0001', 'Büroeinrichtung Konferenzraum', 'tangible', '0650', 'Büroeinrichtung',
+  asset(1, 'AN-2024-0001', 'Büroeinrichtung Kontorhaus', 'tangible', '0650', 'Büroeinrichtung',
     '6220', '2024-06-01', c(9600), c(1169.23), 0, c(738.46), 'linear', 156),
-  asset(2, 'AN-2025-0002', 'Pkw VW ID.4 · HH-NS 412', 'tangible', '0520', 'Pkw',
+  asset(2, 'AN-2024-0002', 'USV- und Klimaanlage Serverraum', 'tangible', '0440', 'Maschinen',
+    '6220', '2024-07-01', c(25000), c(3750), 0, c(2500), 'linear', 120),
+  asset(3, 'AN-2025-0003', 'Pkw VW ID.4 · HH-NS 412', 'tangible', '0520', 'Pkw',
     '6222', '2025-03-15', c(42000), c(5833.33), 0, c(7000), 'linear', 72),
-  asset(3, 'AN-2026-0003', 'CNC-Fräse Haas VF-2', 'tangible', '0440', 'Maschinen',
-    '6220', '2026-02-01', c(24000), 0, 0, c(2750), 'linear', 96),
-  asset(4, 'AN-2026-0004', 'Notebook Entwicklung', 'tangible', '0670',
-    'Geringwertige Wirtschaftsgüter', '6260', '2026-04-20', c(780), c(780), c(780), 0, 'immediate', 0),
-  asset(5, 'AN-2026-0005', 'Sammelposten 2026', 'tangible', '0675',
-    'Wirtschaftsgüter (Sammelposten)', '6264', '2026-01-01', c(4200), 0, 0, c(840), 'pool', 0,
-    { poolYear: YEAR }),
-  asset(6, 'AN-2023-0006', 'Beteiligung Werftgrund GmbH', 'financial', '0850',
-    'Beteiligungen an Kapitalgesellschaften', '', '2023-09-01', c(50000), c(5000), 0, 0, 'none', 0,
-    { identifier: 'HRB 148223', holdingPermille: 260, taxPrivileged: true }),
-  asset(7, 'AN-2024-0007', 'Festverzinsliche Anleihe 2031', 'financial', '0920',
-    'Festverzinsliche Wertpapiere', '', '2024-11-04', c(25000), 0, 0, 0, 'none', 0,
-    { identifier: 'DE000A2LQ5H0' }),
-  asset(8, 'AN-2025-0008', 'ERP-Lizenz Warenwirtschaft', 'intangible', '0135', 'EDV-Software',
+  asset(4, 'AN-2025-0004', 'Projektverwaltung, Lizenz', 'intangible', '0135', 'EDV-Software',
     '6200', '2025-07-01', c(12000), c(2000), 0, c(4000), 'linear', 36),
-  asset(9, 'AN-2026-0009', 'Fertigungslinie (im Bau)', 'tangible', '0700',
-    'Geleistete Anzahlungen und Anlagen im Bau', '', '2026-01-15', c(80000), 0, 0, 0, 'none', 0),
-  asset(10, 'AN-2026-0010', 'Fertigungsroboter KR-210', 'tangible', '0440', 'Maschinen',
-    '6220', '2026-01-05', c(100000), 0, 0, c(10000), 'linear', 120,
-    {
-      specialPermille: 400,
-      specialYears: 5,
-      specialAccount: '6241',
-      specialReason: 'Gewinn 2025: 142.000 €; ausschließlich betriebliche Nutzung',
-      specialDue: c(8000),
-    }),
-  asset(12, 'AN-2025-0012', 'MSCI-World-ETF (thesaurierend)', 'financial', '0900',
-    'Wertpapiere des Anlagevermögens', '', '2025-01-02', c(100000), 0, 0, 0, 'none', 0,
-    {
-      identifier: 'IE00B4L5Y983',
-      fundClass: 'equity',
-      quantity: 1200 * 10000,
-      unitsHeld: 1200 * 10000,
-      vorabpauschalen: c(1771),
-    }),
-  asset(13, 'AN-2024-0013', 'Darlehen an Werftgrund GmbH', 'financial', '0940',
-    'Darlehen', '', '2024-03-01', c(50000), 0, 0, 0, 'none', 0,
-    { maturityDate: '2027-03-01' }),
-  asset(11, 'AN-2025-0011', 'US-Staatsanleihe 2032', 'financial', '0920',
-    'Festverzinsliche Wertpapiere', '', '2025-05-12', c(10000), 0, 0, 0, 'none', 0,
-    {
-      identifier: 'US912828Z294',
-      currency: 'USD',
-      maturityDate: '2032-05-12',
-      foreignCost: c(12000),
-      quantity: 100 * 10000,
-      unitsHeld: 100 * 10000,
-    }),
+  asset(5, 'AN-2025-0005', 'Sammelposten 2025', 'tangible', '0675',
+    'Wirtschaftsgüter (Sammelposten)', '6264', '2025-01-01', c(4200), c(840), 0, c(840), 'pool', 0,
+    { poolYear: YEAR - 1 }),
 ];
-
-const ASSET_ACCOUNTS = [
-  { number: '0135', name: 'EDV-Software', class: 'intangible', group: 'Konzessionen, Lizenzen und Software', depreciationAccount: '6200', depreciable: true },
-  { number: '0150', name: 'Geschäfts- oder Firmenwert', class: 'intangible', group: 'Geschäfts- oder Firmenwert', depreciationAccount: '6205', depreciable: true, defaultUsefulLifeMonths: 180, usefulLifeSource: '§ 7 Abs. 1 Satz 3 EStG' },
-  { number: '0440', name: 'Maschinen', class: 'tangible', group: 'Technische Anlagen und Maschinen', depreciationAccount: '6220', depreciable: true, usefulLifeSource: 'AfA-Tabelle des BMF' },
-  { number: '0520', name: 'Pkw', class: 'tangible', group: 'Fahrzeuge', depreciationAccount: '6222', depreciable: true, defaultUsefulLifeMonths: 72, usefulLifeSource: 'AfA-Tabelle AV (BMF): Personenkraftwagen sechs Jahre' },
-  { number: '0650', name: 'Büroeinrichtung', class: 'tangible', group: 'Betriebs- und Geschäftsausstattung', depreciationAccount: '6220', depreciable: true, defaultUsefulLifeMonths: 156 },
-  { number: '0670', name: 'Geringwertige Wirtschaftsgüter', class: 'tangible', group: 'Geringwertige Wirtschaftsgüter', depreciationAccount: '6260', depreciable: true },
-  { number: '0675', name: 'Wirtschaftsgüter (Sammelposten)', class: 'tangible', group: 'Geringwertige Wirtschaftsgüter', depreciationAccount: '6264', depreciable: true },
-  { number: '0215', name: 'Unbebaute Grundstücke', class: 'tangible', group: 'Grundstücke und Bauten', depreciable: false, hint: 'Grund und Boden nutzt sich nicht ab.' },
-  { number: '0700', name: 'Geleistete Anzahlungen und Anlagen im Bau', class: 'tangible', group: 'Anlagen im Bau', depreciable: false, inProgress: true, hint: 'Mit der Fertigstellung wird umgebucht, und die AfA beginnt.' },
-  { number: '0850', name: 'Beteiligungen an Kapitalgesellschaften', class: 'financial', group: 'Anteile und Beteiligungen', depreciable: false },
-  { number: '0920', name: 'Festverzinsliche Wertpapiere', class: 'financial', group: 'Wertpapiere', depreciable: false },
-  { number: '0900', name: 'Wertpapiere des Anlagevermögens', class: 'financial', group: 'Wertpapiere', depreciable: false },
-  { number: '0940', name: 'Darlehen', class: 'financial', group: 'Ausleihungen', depreciable: false },
-];
-
-const ASSET_RULES = {
-  fiscalYear: YEAR,
-  gwgImmediateLimit: c(800),
-  gwgRecordFrom: c(250),
-  poolLowerLimit: c(250),
-  poolUpperLimit: c(1000),
-  poolYears: 5,
-  degressiveWindows: [
-    { From: '2009-01-01', Until: '2010-12-31', FactorPermille: 2500, MaxPermille: 250, Source: '§ 7 Abs. 2 EStG in der Fassung des Gesetzes vom 21.12.2008' },
-    { From: '2020-01-01', Until: '2022-12-31', FactorPermille: 2500, MaxPermille: 250, Source: '§ 7 Abs. 2 EStG in der Fassung des Zweiten Corona-Steuerhilfegesetzes' },
-    { From: '2024-04-01', Until: '2024-12-31', FactorPermille: 2000, MaxPermille: 200, Source: '§ 7 Abs. 2 EStG in der Fassung des Wachstumschancengesetzes' },
-    { From: '2025-07-01', Until: '2027-12-31', FactorPermille: 3000, MaxPermille: 300, Source: '§ 7 Abs. 2 Sätze 1 und 2 EStG' },
-  ],
-  specialMaxPermille: 400,
-  specialPeriodYears: 5,
-  methods: [
-    { method: 'linear', label: 'Linear (§ 7 Abs. 1 EStG)', classes: ['intangible', 'tangible'], hint: 'Gleichmäßig über die betriebsgewöhnliche Nutzungsdauer, zeitanteilig ab dem Anschaffungsmonat.' },
-    { method: 'degressive', label: 'Degressiv (§ 7 Abs. 2 EStG)', classes: ['tangible'], hint: 'Vom Restbuchwert, höchstens das Dreifache des linearen Satzes und höchstens 30 %.' },
-    { method: 'pool', label: 'Sammelposten (§ 6 Abs. 2a EStG)', classes: ['tangible'], hint: 'Ein Pool je Wirtschaftsjahr, aufgelöst mit je einem Fünftel.' },
-    { method: 'immediate', label: 'Sofortabzug GWG (§ 6 Abs. 2 EStG)', classes: ['tangible'], hint: 'Voller Aufwand im Anschaffungsjahr.' },
-    { method: 'none', label: 'Keine planmäßige Abschreibung', classes: ['intangible', 'tangible', 'financial'], hint: 'Für alles, was sich nicht abnutzt.' },
-  ],
-};
-
-const DEPRECIATION_RUN = {
-  fiscalYear: YEAR,
-  bookingDate: `${YEAR}-12-31`,
-  due: [
-    { assetId: 1, inventoryNumber: 'AN-2024-0001', name: 'Büroeinrichtung Konferenzraum', account: '0650', expenseAccount: '6220', method: 'linear', rateLabel: '7,7 %', months: 12, planned: c(738.46), booked: 0, due: c(738.46), bookValueBefore: c(8430.77), bookValueAfter: c(7692.31), specialPlanned: 0, specialBooked: 0, specialDue: 0 },
-    { assetId: 2, inventoryNumber: 'AN-2025-0002', name: 'Pkw VW ID.4 · HH-NS 412', account: '0520', expenseAccount: '6222', method: 'linear', rateLabel: '16,7 %', months: 12, planned: c(7000), booked: 0, due: c(7000), bookValueBefore: c(36166.67), bookValueAfter: c(29166.67), specialPlanned: 0, specialBooked: 0, specialDue: 0 },
-    { assetId: 3, inventoryNumber: 'AN-2026-0003', name: 'CNC-Fräse Haas VF-2', account: '0440', expenseAccount: '6220', method: 'linear', rateLabel: '12,5 %', months: 11, planned: c(2750), booked: 0, due: c(2750), bookValueBefore: c(24000), bookValueAfter: c(21250), note: 'Zeitanteilig für 11 von 12 Monaten (§ 7 Abs. 1 Satz 4 EStG).', specialPlanned: 0, specialBooked: 0, specialDue: 0 },
-    { assetId: 5, inventoryNumber: 'AN-2026-0005', name: 'Sammelposten 2026', account: '0675', expenseAccount: '6264', method: 'pool', rateLabel: '1/5', months: 12, planned: c(840), booked: 0, due: c(840), bookValueBefore: c(4200), bookValueAfter: c(3360), note: 'Auflösung des Sammelpostens 2026 mit einem Fünftel, ohne Zeitanteil (§ 6 Abs. 2a Satz 2 EStG).', specialPlanned: 0, specialBooked: 0, specialDue: 0 },
-    { assetId: 8, inventoryNumber: 'AN-2025-0008', name: 'ERP-Lizenz Warenwirtschaft', account: '0135', expenseAccount: '6200', method: 'linear', rateLabel: '33,3 %', months: 12, planned: c(4000), booked: 0, due: c(4000), bookValueBefore: c(10000), bookValueAfter: c(6000), specialPlanned: 0, specialBooked: 0, specialDue: 0 },
-    // Die Sonderabschreibung läuft neben der planmäßigen AfA und auf einem
-    // eigenen Aufwandskonto (§ 7g Abs. 5 EStG, § 7a Abs. 4 EStG).
-    { assetId: 10, inventoryNumber: 'AN-2026-0010', name: 'Fertigungsroboter KR-210', account: '0440', expenseAccount: '6220', method: 'linear', rateLabel: '10 %', months: 12, planned: c(10000), booked: 0, due: c(10000), bookValueBefore: c(100000), bookValueAfter: c(82000), specialAccount: '6241', specialPlanned: c(8000), specialBooked: 0, specialDue: c(8000) },
-  ],
-  total: c(33328.46),
-};
 
 function spiegelRow(
   assetClass: 'intangible' | 'tangible' | 'financial',
@@ -1160,16 +1030,22 @@ function spiegelRow(
   };
 }
 
-const SPIEGEL_ROWS = [
-  spiegelRow('intangible', '0135', 'EDV-Software', 1, c(12000), 0, 0, c(2000), c(4000)),
-  spiegelRow('tangible', '0440', 'Maschinen', 1, 0, c(24000), 0, 0, c(2750)),
-  spiegelRow('tangible', '0520', 'Pkw', 1, c(42000), 0, 0, c(5833.33), c(7000)),
-  spiegelRow('tangible', '0650', 'Büroeinrichtung', 1, c(9600), 0, 0, c(1169.23), c(738.46)),
-  spiegelRow('tangible', '0670', 'Geringwertige Wirtschaftsgüter', 1, 0, c(780), 0, 0, c(780)),
-  spiegelRow('tangible', '0675', 'Wirtschaftsgüter (Sammelposten)', 1, 0, c(4200), 0, 0, c(840)),
-  spiegelRow('financial', '0850', 'Beteiligungen an Kapitalgesellschaften', 1, c(50000), 0, 0, c(5000), 0),
-  spiegelRow('financial', '0920', 'Festverzinsliche Wertpapiere', 1, c(25000), 0, 0, 0, 0),
-];
+/** Der Anlagenspiegel je Konto aus dem Verzeichnis; Zugänge sind Anschaffungen des Jahres. */
+const SPIEGEL_ROWS = Array.from(new Set(ASSETS.map((x) => x.account)))
+  .sort()
+  .map((account) => {
+    const items = ASSETS.filter((x) => x.account === account);
+    const before = items.filter((x) => Number(x.acquisitionDate.slice(0, 4)) < YEAR);
+    const added = items.filter((x) => Number(x.acquisitionDate.slice(0, 4)) === YEAR);
+    return spiegelRow(
+      items[0].class, account, items[0].accountName, items.length,
+      before.reduce((sum, x) => sum + x.cost, 0),
+      added.reduce((sum, x) => sum + x.cost, 0),
+      0,
+      before.reduce((sum, x) => sum + x.accumulated - x.yearAmount, 0),
+      items.reduce((sum, x) => sum + x.yearAmount, 0),
+    );
+  });
 
 function sumSpiegel(rows: typeof SPIEGEL_ROWS, accountName: string, assetClass = '' as any) {
   const total = rows.reduce(
@@ -1214,33 +1090,18 @@ const ANLAGENSPIEGEL = {
   fiscalYear: YEAR,
   rows: SPIEGEL_ROWS,
   totals: sumSpiegel(SPIEGEL_ROWS, 'Anlagevermögen gesamt'),
-  classTotals: (['intangible', 'tangible', 'financial'] as const).map((assetClass) =>
+  classTotals: (['intangible', 'tangible'] as const).map((assetClass) =>
     sumSpiegel(
       SPIEGEL_ROWS.filter((r) => r.class === assetClass),
-      assetClass === 'intangible'
-        ? 'Immaterielle Vermögensgegenstände'
-        : assetClass === 'tangible'
-          ? 'Sachanlagen'
-          : 'Finanzanlagen',
+      assetClass === 'intangible' ? 'Immaterielle Vermögensgegenstände' : 'Sachanlagen',
       assetClass,
     ),
   ),
 };
 
-const ASSET_CANDIDATES = [
-  {
-    entryId: 41,
-    entryNumber: `${YEAR}-000041`,
-    bookingDate: `${YEAR}-05-12`,
-    description: 'Hebebühne Werkstatt',
-    account: '0440',
-    accountName: 'Maschinen',
-    amount: c(6800),
-  },
-];
-
+/** Der Abschreibungsplan des Pkw: zeitanteilig im ersten Jahr, Restwert im letzten. */
 const ASSET_SCHEDULES: Record<number, unknown[]> = {
-  2: [
+  3: [
     { fiscalYear: 2025, months: 10, method: 'linear', rateLabel: '16,7 %', openingBookValue: c(42000), amount: c(5833.33), closingBookValue: c(36166.67), booked: c(5833.33), due: 0, specialBooked: 0, specialDue: 0, status: 'gebucht', note: 'Zeitanteilig für 10 von 12 Monaten (§ 7 Abs. 1 Satz 4 EStG).' },
     { fiscalYear: 2026, months: 12, method: 'linear', rateLabel: '16,7 %', openingBookValue: c(36166.67), amount: c(7000), closingBookValue: c(29166.67), booked: 0, due: c(7000), specialBooked: 0, specialDue: 0, status: 'offen' },
     { fiscalYear: 2027, months: 12, method: 'linear', rateLabel: '16,7 %', openingBookValue: c(29166.67), amount: c(7000), closingBookValue: c(22166.67), booked: 0, due: c(7000), specialBooked: 0, specialDue: 0, status: 'geplant' },
@@ -1251,57 +1112,16 @@ const ASSET_SCHEDULES: Record<number, unknown[]> = {
   ],
 };
 
-// Der Fertigungsroboter zeigt beide Phasen: den Begünstigungszeitraum mit der
-// Sonderabschreibung neben der planmäßigen AfA, und danach die
-// Restwertverteilung des § 7a Abs. 9 EStG.
-ASSET_SCHEDULES[10] = [
-  { fiscalYear: 2026, months: 12, method: 'linear', rateLabel: '10 %', openingBookValue: c(100000), amount: c(10000), specialAmount: c(8000), closingBookValue: c(82000), booked: 0, due: c(10000), specialBooked: 0, specialDue: c(8000), status: 'offen', note: 'Zusätzlich Sonderabschreibung nach § 7g Abs. 5 EStG: 8.000,00 €. Sie tritt neben die planmäßige AfA, die daneben unverändert weiterläuft (§ 7a Abs. 4 EStG).' },
-  { fiscalYear: 2027, months: 12, method: 'linear', rateLabel: '10 %', openingBookValue: c(82000), amount: c(10000), specialAmount: c(8000), closingBookValue: c(64000), booked: 0, due: c(10000), specialBooked: 0, specialDue: c(8000), status: 'geplant' },
-  { fiscalYear: 2028, months: 12, method: 'linear', rateLabel: '10 %', openingBookValue: c(64000), amount: c(10000), specialAmount: c(8000), closingBookValue: c(46000), booked: 0, due: c(10000), specialBooked: 0, specialDue: c(8000), status: 'geplant' },
-  { fiscalYear: 2029, months: 12, method: 'linear', rateLabel: '10 %', openingBookValue: c(46000), amount: c(10000), specialAmount: c(8000), closingBookValue: c(28000), booked: 0, due: c(10000), specialBooked: 0, specialDue: c(8000), status: 'geplant' },
-  { fiscalYear: 2030, months: 12, method: 'linear', rateLabel: '10 %', openingBookValue: c(28000), amount: c(10000), specialAmount: c(8000), closingBookValue: c(10000), booked: 0, due: c(10000), specialBooked: 0, specialDue: c(8000), status: 'geplant' },
-  { fiscalYear: 2031, months: 12, method: 'linear', rateLabel: 'linear auf 60 Restmonate', openingBookValue: c(10000), amount: c(2000), closingBookValue: c(8000), booked: 0, due: c(2000), specialBooked: 0, specialDue: 0, status: 'geplant', note: 'Der Begünstigungszeitraum der Sonderabschreibung ist abgelaufen: der Restwert verteilt sich von hier an auf die Restnutzungsdauer (§ 7a Abs. 9 EStG).' },
-  { fiscalYear: 2032, months: 12, method: 'linear', rateLabel: 'linear auf 48 Restmonate', openingBookValue: c(8000), amount: c(2000), closingBookValue: c(6000), booked: 0, due: c(2000), specialBooked: 0, specialDue: 0, status: 'geplant' },
-  { fiscalYear: 2033, months: 12, method: 'linear', rateLabel: 'linear auf 36 Restmonate', openingBookValue: c(6000), amount: c(2000), closingBookValue: c(4000), booked: 0, due: c(2000), specialBooked: 0, specialDue: 0, status: 'geplant' },
-  { fiscalYear: 2034, months: 12, method: 'linear', rateLabel: 'linear auf 24 Restmonate', openingBookValue: c(4000), amount: c(2000), closingBookValue: c(2000), booked: 0, due: c(2000), specialBooked: 0, specialDue: 0, status: 'geplant' },
-  { fiscalYear: 2035, months: 12, method: 'linear', rateLabel: 'Restwert', openingBookValue: c(2000), amount: c(2000), closingBookValue: 0, booked: 0, due: c(2000), specialBooked: 0, specialDue: 0, status: 'geplant' },
-];
-
 const ASSET_MOVEMENTS: Record<number, unknown[]> = {
-  2: [
-    { id: 1, assetId: 2, kind: 'acquisition', date: '2025-03-15', fiscalYear: 2025, costAmount: c(42000), depreciationAmount: 0, entryNumber: '2025-000112', note: 'Zugang', createdAt: '2025-03-15T09:00:00Z' },
-    { id: 2, assetId: 2, kind: 'depreciation', date: '2025-12-31', fiscalYear: 2025, costAmount: 0, depreciationAmount: c(5833.33), entryNumber: '2025-000488', note: 'AfA 2025', createdAt: '2025-12-31T09:00:00Z' },
-  ],
-};
-
-// Die Anleihe wird in Stück geführt: Zugang und Nachkauf tragen ihre
-// Stückzahl, sonst ergäbe sich der Bestand nach einem Teilabgang nicht mehr.
-ASSET_MOVEMENTS[11] = [
-  { id: 30, assetId: 11, kind: 'acquisition', date: '2025-05-12', fiscalYear: 2025, costAmount: c(10000), depreciationAmount: 0, quantity: 100 * 10000, entryNumber: '2025-000231', note: 'Zugang · 12.000,00 USD', createdAt: '2025-05-12T09:00:00Z' },
-  { id: 31, assetId: 11, kind: 'income', date: `${YEAR}-06-30`, fiscalYear: YEAR, costAmount: 0, depreciationAmount: 0, entryNumber: `${YEAR}-000318`, note: '250,00 € auf 7010. Halbjahreszins', createdAt: `${YEAR}-06-30T09:00:00Z` },
-];
-
-// Verträge und Papiere zum Anlagegut — abgelegt, nicht gebucht.
-const ASSET_DOCUMENTS: Record<number, unknown[]> = {
   3: [
-    { id: 1, assetId: 3, kind: 'contract', title: 'Kaufvertrag Haas Automation', fileName: 'kaufvertrag-vf2.pdf', mimeType: 'application/pdf', size: 184320, sha256: 'a'.repeat(64), storedPath: 'dokumente/contract/a.pdf', documentDate: '2026-01-28', createdAt: '2026-02-01T09:00:00Z' },
-    { id: 2, assetId: 3, kind: 'maintenance', title: 'Abnahmeprotokoll und Einweisung', fileName: 'abnahme.pdf', mimeType: 'application/pdf', size: 92160, sha256: 'b'.repeat(64), storedPath: 'dokumente/maintenance/b.pdf', documentDate: '2026-02-03', createdAt: '2026-02-04T09:00:00Z' },
-    { id: 3, assetId: 3, kind: 'insurance', title: 'Maschinenbruchversicherung', fileName: 'police.pdf', mimeType: 'application/pdf', size: 61440, sha256: 'c'.repeat(64), storedPath: 'dokumente/insurance/c.pdf', documentDate: '2026-02-10', validUntil: `${YEAR}-12-31`, createdAt: '2026-02-10T09:00:00Z' },
-  ],
-  13: [
-    { id: 4, assetId: 13, kind: 'contract', title: 'Darlehensvertrag vom 01.03.2024', fileName: 'darlehensvertrag.pdf', mimeType: 'application/pdf', size: 133120, sha256: 'd'.repeat(64), storedPath: 'dokumente/contract/d.pdf', documentDate: '2024-03-01', validUntil: '2027-03-01', createdAt: '2024-03-01T09:00:00Z' },
-    { id: 5, assetId: 13, kind: 'statement', title: 'Tilgungsplan', fileName: 'tilgungsplan.csv', mimeType: 'text/csv', size: 2048, sha256: 'e'.repeat(64), storedPath: 'dokumente/statement/e.csv', createdAt: '2024-03-01T09:00:00Z' },
+    { id: 1, assetId: 3, kind: 'acquisition', date: '2025-03-15', fiscalYear: 2025, costAmount: c(42000), depreciationAmount: 0, entryNumber: 'B-2025-0052', note: 'Zugang', createdAt: '2025-03-15T09:00:00Z' },
+    { id: 2, assetId: 3, kind: 'depreciation', date: '2025-12-31', fiscalYear: 2025, costAmount: 0, depreciationAmount: c(5833.33), entryNumber: 'B-2025-0229', note: 'AfA 2025', createdAt: '2026-02-20T09:00:00Z' },
   ],
 };
 
 const ASSET_NOTES: Record<string, string[]> = {
   tangible: [
     'Lineare Abschreibung über die betriebsgewöhnliche Nutzungsdauer (§ 7 Abs. 1 EStG), zeitanteilig ab dem Anschaffungsmonat (§ 7 Abs. 1 Satz 4 EStG).',
-  ],
-  financial: [
-    'Finanzanlagen nutzen sich nicht ab und werden deshalb nicht planmäßig abgeschrieben. Sie stehen mit ihren Anschaffungskosten in der Bilanz, bis ein Grund für eine außerplanmäßige Abschreibung eintritt.',
-    'Für Finanzanlagen gilt das gemilderte Niederstwertprinzip: bei voraussichtlich dauernder Wertminderung ist abzuschreiben, bei einer nicht dauernden darf abgeschrieben werden (§ 253 Abs. 3 Sätze 5 und 6 HGB).',
-    'Fällt der Grund später weg, ist wieder zuzuschreiben — höchstens bis zu den Anschaffungskosten (§ 253 Abs. 5 Satz 1 HGB). Das ist ein Gebot, kein Wahlrecht.',
   ],
   intangible: [
     'Immaterielle Vermögensgegenstände des Anlagevermögens dürfen nur angesetzt werden, wenn sie entgeltlich erworben wurden (§ 248 Abs. 2 HGB).',
@@ -1311,9 +1131,7 @@ const ASSET_NOTES: Record<string, string[]> = {
 function assetDetail(id: number) {
   const found = ASSETS.find((a) => a.id === id)!;
   return {
-    // Die Dokumente hängen am Anlagegut, nicht an der Detailansicht — im
-    // Backend lädt das Repository sie mit.
-    asset: { ...found, documents: ASSET_DOCUMENTS[id] ?? [] },
+    asset: found,
     // Ohne planmäßige AfA ist die kumulierte Abschreibung eine außerplanmäßige —
     // und damit genau der Betrag, der zugeschrieben werden dürfte.
     writeUpCeiling: found.method === 'none' ? found.accumulated : 0,
@@ -1325,408 +1143,9 @@ function assetDetail(id: number) {
   };
 }
 
-/** Fondsarten, Anlegerstellungen und der Satz, der sich aus beidem ergibt. */
-const INVESTMENT_RULES = {
-  fundClasses: [
-    { class: '', label: 'Kein Investmentanteil' },
-    { class: 'equity', label: 'Aktienfonds (mindestens 51 % Kapitalbeteiligungen)' },
-    { class: 'mixed', label: 'Mischfonds (mindestens 25 % Kapitalbeteiligungen)' },
-    { class: 'real_estate', label: 'Immobilienfonds' },
-    { class: 'foreign_real_estate', label: 'Auslands-Immobilienfonds' },
-    { class: 'other', label: 'Investmentfonds ohne Teilfreistellung' },
-  ],
-  investorTypes: [
-    { type: 'corporate', label: 'Anleger unterliegt dem Körperschaftsteuergesetz' },
-    { type: 'individual_business', label: 'Natürliche Person, Anteile im Betriebsvermögen' },
-    { type: 'basic', label: 'Grundsatz (Privatvermögen oder Ausnahme nach § 20 Abs. 1 Sätze 4 und 5 InvStG)' },
-    { type: 'mixed', label: 'Personengesellschaft mit gemischt besteuerten Gesellschaftern' },
-  ],
-  investorType: 'corporate',
-  investorLabel: 'Anleger unterliegt dem Körperschaftsteuergesetz',
-  investorReason:
-    'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).',
-  legalForm: 'GmbH',
-  exemptions: [
-    { class: 'equity', label: 'Aktienfonds', permille: 800, source: '§ 20 Abs. 1 Satz 3 InvStG', explanation: 'Der Anleger unterliegt dem Körperschaftsteuergesetz: die Aktienteilfreistellung beträgt 80 %.' },
-    { class: 'mixed', label: 'Mischfonds', permille: 400, source: '§ 20 Abs. 1 Satz 3 i. V. m. § 20 Abs. 2 InvStG', explanation: 'Bei Mischfonds ist die Hälfte der Aktienteilfreistellung anzusetzen.' },
-    { class: 'real_estate', label: 'Immobilienfonds', permille: 600, source: '§ 20 Abs. 3 Satz 1 InvStG', explanation: 'Der Satz hängt nicht vom Anleger ab.' },
-    { class: 'foreign_real_estate', label: 'Auslands-Immobilienfonds', permille: 800, source: '§ 20 Abs. 3 Satz 2 InvStG', explanation: 'Der Satz hängt nicht vom Anleger ab.' },
-    { class: 'other', label: 'Investmentfonds ohne Teilfreistellung', permille: 0, source: '§ 20 InvStG', explanation: 'Der Fonds erreicht keine der Quoten.' },
-  ],
-};
-
-/** Der Rechtsformkatalog, je mit der Anlegerstellung, die aus ihr folgt. */
-const LEGAL_FORMS = [
-  { name: 'Einzelunternehmen', investor: 'individual_business', note: 'Das Unternehmen wird von einer natürlichen Person geführt. Für Investmentanteile im Betriebsvermögen heißt das: 60 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 2 InvStG).' },
-  { name: 'Eingetragener Kaufmann (e. K.)', investor: 'individual_business', note: 'Das Unternehmen wird von einer natürlichen Person geführt. Für Investmentanteile im Betriebsvermögen heißt das: 60 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 2 InvStG).' },
-  { name: 'Freiberufliche Praxis', investor: 'individual_business', note: 'Das Unternehmen wird von einer natürlichen Person geführt. Für Investmentanteile im Betriebsvermögen heißt das: 60 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 2 InvStG).' },
-  { name: 'GbR', investor: '', note: 'Bei einer Personengesellschaft bestimmt sich die Teilfreistellung nach dem einzelnen Gesellschafter (§ 20 Abs. 3a InvStG).' },
-  { name: 'OHG', investor: '', note: 'Bei einer Personengesellschaft bestimmt sich die Teilfreistellung nach dem einzelnen Gesellschafter (§ 20 Abs. 3a InvStG).' },
-  { name: 'KG', investor: '', note: 'Bei einer Personengesellschaft bestimmt sich die Teilfreistellung nach dem einzelnen Gesellschafter (§ 20 Abs. 3a InvStG).' },
-  { name: 'GmbH & Co. KG', investor: '', note: 'Bei einer Personengesellschaft bestimmt sich die Teilfreistellung nach dem einzelnen Gesellschafter (§ 20 Abs. 3a InvStG). Sind alle Gesellschafter natürliche Personen, sind es 60 %; ist eine Körperschaft beteiligt, gilt für deren Anteil 80 %.' },
-  { name: 'Partnerschaftsgesellschaft', investor: '', note: 'Bei einer Personengesellschaft bestimmt sich die Teilfreistellung nach dem einzelnen Gesellschafter (§ 20 Abs. 3a InvStG).' },
-  { name: 'UG (haftungsbeschränkt)', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
-  { name: 'GmbH', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
-  { name: 'AG', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
-  { name: 'SE', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
-  { name: 'eG', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
-  { name: 'e. V.', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
-  { name: 'Stiftung', investor: 'corporate', note: 'Eine Körperschaft unterliegt dem Körperschaftsteuergesetz. Für Investmentanteile heißt das: 80 % Aktienteilfreistellung (§ 20 Abs. 1 Satz 3 InvStG).' },
-  { name: 'Sonstige', investor: '', note: 'Aus dieser Rechtsform folgt die Anlegerstellung nicht. Wenn du Investmentanteile hältst, lege sie fest.' },
-];
-
-const ASSET_DOCUMENT_KINDS = [
-  { kind: 'contract', label: 'Vertrag' },
-  { kind: 'invoice', label: 'Rechnung (Kopie)' },
-  { kind: 'statement', label: 'Abrechnung' },
-  { kind: 'valuation', label: 'Gutachten' },
-  { kind: 'registration', label: 'Register- oder Zulassungspapier' },
-  { kind: 'insurance', label: 'Versicherung' },
-  { kind: 'maintenance', label: 'Wartung und Prüfung' },
-  { kind: 'photo', label: 'Bild' },
-  { kind: 'other', label: 'Sonstiges' },
-];
-
-function assetSummary(assetClass: string) {
-  const list = ASSETS.filter((a) => !assetClass || a.class === assetClass);
-  return {
-    fiscalYear: YEAR,
-    count: list.length,
-    cost: list.reduce((sum, a) => sum + a.cost, 0),
-    accumulated: list.reduce((sum, a) => sum + a.accumulated, 0),
-    bookValue: list.reduce((sum, a) => sum + a.bookValue, 0),
-    yearAmount: list.reduce((sum, a) => sum + a.yearAmount, 0),
-    dueAmount: list.reduce((sum, a) => sum + a.dueAmount, 0),
-    specialDue: list.reduce((sum, a: any) => sum + (a.specialDue ?? 0), 0),
-    dueCount: list.filter((a) => a.dueAmount > 0).length,
-  };
-}
-
-
-/** Die Einordnung nach § 6 Abs. 2 und 2a EStG, wie sie das Backend rechnet. */
-function classifyAcquisition(netCost: number, selfUsable: boolean) {
-  const limits = {
-    immediate: c(800),
-    recordFrom: c(250),
-    poolLowerLimit: c(250),
-    poolUpperLimit: c(1000),
-  };
-  if (!selfUsable) {
-    return {
-      recommended: 'activate',
-      allowed: ['activate'],
-      reason:
-        'Das Wirtschaftsgut ist nicht selbständig nutzbar. Damit scheiden Sofortabzug und Sammelposten aus, ' +
-        'unabhängig vom Betrag: § 6 Abs. 2 Satz 1 EStG setzt beim geringwertigen Wirtschaftsgut die selbständige ' +
-        'Nutzbarkeit voraus.',
-      limits,
-    };
-  }
-  if (netCost <= limits.immediate) {
-    return {
-      recommended: 'immediate',
-      allowed: ['immediate', 'pool', 'activate'],
-      reason:
-        'Bis 800,00 € netto ist der Sofortabzug nach § 6 Abs. 2 Satz 1 EStG möglich. Ab 250,00 € gehört das Gut ' +
-        'in ein laufend geführtes Verzeichnis (§ 6 Abs. 2 Satz 4 EStG) — das Anlagenverzeichnis erfüllt das.',
-      poolNote:
-        'Das Wahlrecht zum Sammelposten gilt einheitlich für alle Wirtschaftsgüter eines Wirtschaftsjahres ' +
-        '(§ 6 Abs. 2a Satz 5 EStG).',
-      limits,
-    };
-  }
-  if (netCost <= limits.poolUpperLimit) {
-    return {
-      recommended: 'pool',
-      allowed: ['pool', 'activate'],
-      reason:
-        'Über 800,00 € ist der Sofortabzug ausgeschlossen. Bis 1.000,00 € netto kann das Gut in den Sammelposten ' +
-        'des Wirtschaftsjahres eingestellt werden (§ 6 Abs. 2a Satz 1 EStG).',
-      poolNote:
-        'Das Wahlrecht zum Sammelposten gilt einheitlich für alle Wirtschaftsgüter eines Wirtschaftsjahres ' +
-        '(§ 6 Abs. 2a Satz 5 EStG).',
-      limits,
-    };
-  }
-  return {
-    recommended: 'activate',
-    allowed: ['activate'],
-    reason:
-      'Über 1.000,00 € netto bleibt nur die Aktivierung: das Gut kommt auf ein Anlagekonto und wird über die ' +
-      'betriebsgewöhnliche Nutzungsdauer abgeschrieben (§ 7 Abs. 1 EStG).',
-    limits,
-  };
-}
-
-/** Der Abgang, wie ihn das Backend vorrechnet: erst das Ergebnis, dann die Konten. */
-function disposalPreview(request: any) {
-  const found = ASSETS.find((a) => a.id === request.assetId)! as any;
-  const catchUp = found.dueAmount;
-  const held = found.unitsHeld ?? 0;
-  // Wo Stücke geführt werden, ist die Stückzahl die Vorgabe und der Betrag das
-  // Ergebnis — genau wie im Dienst.
-  const byUnits = (request.quantity ?? 0) > 0 && held > 0;
-  const shareFromUnits = byUnits ? Math.round((found.cost * request.quantity) / held) : 0;
-  const requested = byUnits ? shareFromUnits : (request.costShare ?? 0);
-  const partial = requested > 0 && requested < found.cost;
-  const costShare = partial ? requested : found.cost;
-  const depreciationShare = partial
-    ? Math.round((found.accumulated * costShare) / found.cost)
-    : found.accumulated;
-  const bookValue = Math.max(costShare - depreciationShare - catchUp, 0);
-  const proceeds = request.kind === 'scrapped' ? 0 : (request.proceeds ?? 0);
-  const result = proceeds - bookValue;
-  const isGain = result > 0;
-  const tax =
-    request.taxTreatment === 'domestic' ? Math.round((proceeds * (request.taxRate ?? 1900)) / 10000) : 0;
-  const gross = proceeds + tax;
-  // Der SKR04 wählt nach Anlagenklasse *und* Ergebnis — beides bildet der Mock ab,
-  // sonst zeigen die Screenshots eine Kontierung, die es so nicht gibt.
-  const financial = found.class === 'financial';
-  const accounts = isGain
-    ? {
-        revenue: financial ? '4851' : '4845',
-        bookValue: financial ? '4857' : '4855',
-        explanation:
-          'Der Verkaufserlös liegt über dem Restbuchwert: es entsteht ein Buchgewinn. Der SKR04 führt Erlös und Restbuchwert dann unter den sonstigen betrieblichen Erträgen.',
-      }
-    : {
-        revenue: financial ? '6891' : '6885',
-        bookValue: financial ? '6897' : '6895',
-        explanation:
-          'Der Verkaufserlös liegt unter dem Restbuchwert: es entsteht ein Buchverlust. Derselbe Vorgang läuft im SKR04 dann über die sonstigen betrieblichen Aufwendungen.',
-      };
-
-  const lines: any[] = [];
-  if (proceeds > 0) {
-    lines.push({ id: 1, position: 1, side: 'S', account: request.paymentAccount ?? '1800', accountName: 'Bank', amount: gross });
-    lines.push({
-      id: 2, position: 2, side: 'H', account: accounts.revenue,
-      accountName: financial
-        ? `Erlöse aus Verkäufen Finanzanlagen (bei ${isGain ? 'Buchgewinn' : 'Buchverlust'})`
-        : `Erlöse aus Verkäufen Sachanlagevermögen 19 % USt (bei ${isGain ? 'Buchgewinn' : 'Buchverlust'})`,
-      amount: proceeds,
-    });
-    if (tax > 0) {
-      lines.push({ id: 3, position: 3, side: 'H', account: '3806', accountName: 'Umsatzsteuer 19 %', amount: tax, taxKey: 'UST19', taxBase: proceeds });
-    }
-  }
-  if (bookValue > 0) {
-    lines.push({
-      id: 4, position: 4, side: 'S', account: accounts.bookValue,
-      accountName: financial ? 'Anlagenabgänge Finanzanlagen' : 'Anlagenabgänge Sachanlagen',
-      amount: bookValue,
-    });
-    lines.push({ id: 5, position: 5, side: 'H', account: found.account, accountName: found.accountName, amount: bookValue });
-  }
-
-  return {
-    partial,
-    costShare,
-    quantityShare: byUnits ? request.quantity : held,
-    unitsRemaining: byUnits ? held - request.quantity : 0,
-    depreciationShare,
-    catchUpAmount: catchUp,
-    specialCatchUp: found.specialDue ?? 0,
-    catchUpLines: catchUp > 0
-      ? [
-          { id: 6, position: 1, side: 'S', account: found.depreciationAccount, accountName: 'Abschreibungen auf Fahrzeuge', amount: catchUp, text: 'AfA bis zum Abgangsmonat' },
-          { id: 7, position: 2, side: 'H', account: found.account, accountName: found.accountName, amount: catchUp, text: 'AfA bis zum Abgangsmonat' },
-        ]
-      : [],
-    bookValue,
-    result,
-    isGain,
-    accounts,
-    lines,
-    gross,
-    tax,
-    investment: investmentNote(found.id, result, true),
-  };
-}
-
-
-/**
- * Die Umrechnung zum Devisenkassamittelkurs des Stichtags (§ 256a HGB), nach
- * oben begrenzt durch die Anschaffungskosten (§ 253 Abs. 1 Satz 1 HGB).
- */
-function currencyValuation(request: any) {
-  const found = ASSETS.find((a) => a.id === request.assetId)! as any;
-  const foreign = found.foreignCost ?? 0;
-  const rate = request.ratePerEuro ?? 1_000_000;
-  const valueAtRate = Math.round((foreign * 1_000_000) / rate);
-  const difference = valueAtRate - found.bookValue;
-  const ceiling = Math.max(found.acquisitionCost - found.bookValue, 0);
-  const proposedAmount = difference < 0 ? -difference : Math.min(difference, ceiling);
-  const proposal = difference < 0 ? 'impairment' : proposedAmount > 0 ? 'write_up' : 'none';
-  return {
-    currency: found.currency ?? 'EUR',
-    foreignAmount: foreign,
-    acquisitionRate: found.acquisitionCost > 0 ? Math.round((foreign * 1_000_000) / found.acquisitionCost) : 0,
-    ratePerEuro: rate,
-    valueAtRate,
-    bookValue: found.bookValue,
-    difference,
-    shortTerm: Boolean(
-      found.maturityDate &&
-        found.maturityDate <=
-          new Date(new Date(request.date ?? `${YEAR}-12-31`).getTime() + 365 * 864e5)
-            .toISOString()
-            .slice(0, 10),
-    ),
-    proposal,
-    proposedAmount,
-    explanation:
-      difference < 0
-        ? 'Zum Kurs des Stichtags ist der Bestand weniger wert als gebucht. Die Differenz ist außerplanmäßig abzuschreiben — bei Finanzanlagen auch dann, wenn die Wertminderung voraussichtlich nicht von Dauer ist (§ 253 Abs. 3 Satz 6 HGB).'
-        : proposedAmount > 0
-          ? 'Der Kurs ist gestiegen: zuzuschreiben ist höchstens bis zu den fortgeführten Anschaffungskosten (§ 253 Abs. 5 Satz 1 HGB).'
-          : 'Der Kurs ist gestiegen, zuzuschreiben ist trotzdem nichts — über die Anschaffungskosten hinaus darf nicht bewertet werden (§ 253 Abs. 1 Satz 1 HGB).',
-  };
-}
-
-/** Der Abschreibungsplan einer Eingabe, wie ihn das Backend rechnet. */
-function previewPlan(request: any) {
-  const cost = request.cost ?? 0;
-  if (cost <= 0) return [];
-  const start = Number(String(request.acquisitionDate).slice(0, 4));
-
-  const specialTotal = Math.round((cost * (request.specialPermille ?? 0)) / 1000);
-  const specialYears = Math.min(Math.max(request.specialYears ?? 0, 0), 5);
-
-  if (request.method === 'immediate') {
-    return [{ fiscalYear: start, months: 1, method: 'immediate', rateLabel: '100 %', openingBookValue: cost, amount: cost, closingBookValue: 0, specialBooked: 0, specialDue: 0 }];
-  }
-  if (request.method === 'pool') {
-    const share = Math.round(cost / 5);
-    return Array.from({ length: 5 }, (_, i) => ({
-      fiscalYear: (request.poolYear || start) + i,
-      months: 12,
-      method: 'pool',
-      rateLabel: '1/5',
-      openingBookValue: cost - share * i,
-      amount: i === 4 ? cost - share * 4 : share,
-      closingBookValue: cost - share * (i + 1),
-      specialBooked: 0,
-      specialDue: 0,
-    }));
-  }
-
-  const life = request.usefulLifeMonths ?? 0;
-  if (life <= 0) return [];
-  const month = Number(String(request.acquisitionDate).slice(5, 7));
-  const firstMonths = 13 - month;
-  const annual = Math.round((cost * 12) / life);
-  const rows: any[] = [];
-  let book = cost;
-  let remaining = life;
-  let year = start;
-  let months = Math.min(firstMonths, life);
-  let specialLeft = specialTotal;
-  const specialShare = specialYears > 0 ? Math.round(specialTotal / specialYears) : 0;
-  while (remaining > 0 && book > 0) {
-    const inPeriod = specialYears > 0 && year < start + specialYears;
-    // Die Sonderabschreibung wird im Anschaffungsjahr nicht zeitanteilig
-    // gekürzt und kommt zur planmäßigen AfA hinzu, nicht an ihre Stelle.
-    let special = 0;
-    if (inPeriod && specialLeft > 0) {
-      special = year === start + specialYears - 1 ? specialLeft : Math.min(specialShare, specialLeft);
-      specialLeft -= special;
-    }
-    // Nach dem Begünstigungszeitraum verteilt § 7a Abs. 9 EStG den Restwert.
-    const residual = specialTotal > 0 && year >= start + 5;
-    const planned = residual ? Math.round((book * months) / remaining) : Math.round((annual * months) / 12);
-    const amount = remaining - months <= 0 ? book - special : planned;
-    rows.push({
-      fiscalYear: year,
-      months,
-      method: 'linear',
-      rateLabel: residual ? `linear auf ${remaining} Restmonate` : `${Math.round((1200 / life) * 10) / 10} %`,
-      openingBookValue: book,
-      amount,
-      specialAmount: special,
-      closingBookValue: book - amount - special,
-      specialBooked: 0,
-      specialDue: 0,
-    });
-    book -= amount + special;
-    remaining -= months;
-    year += 1;
-    months = Math.min(12, remaining);
-  }
-  return rows;
-}
-
 /** Beträge wie im Backend: zwei Nachkommastellen, deutsche Schreibweise. */
 const euro = (cents: number) =>
   (cents / 100).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-/** Die Vorabpauschale nach § 18 InvStG, wie sie das Backend rechnet. */
-function vorabpauschale(request: any) {
-  const opening = request.openingPrice ?? 0;
-  const closing = request.closingPrice ?? 0;
-  const distributions = request.distributions ?? 0;
-  const points = request.basisPoints ?? 0;
-  let basis = Math.round((opening * points * 70) / (10_000 * 100));
-  const growth = Math.max(closing - opening + distributions, 0);
-  const capped = basis > growth;
-  if (capped) basis = growth;
-  let amount = Math.max(basis - distributions, 0);
-
-  // § 18 Abs. 2 InvStG kürzt im Erwerbsjahr um ein Zwölftel je vollem Monat.
-  const found = ASSETS.find((a) => a.id === request.assetId)! as any;
-  let months = 12;
-  if (String(found.acquisitionDate).slice(0, 4) === String(request.year)) {
-    months = 13 - Number(String(found.acquisitionDate).slice(5, 7));
-    amount = Math.round((amount * months) / 12);
-  }
-  return {
-    year: request.year,
-    basisReturn: basis,
-    growth,
-    capped,
-    distributions,
-    monthsCounted: months,
-    amount,
-    accruedOn: `${request.year + 1}-01-02`,
-    explanation:
-      `Basisertrag ${request.year}: ${euro(opening)} € × 70 % von ` +
-      `${(points / 100).toFixed(2).replace('.', ',')} % = ${euro(basis)} €` +
-      (capped ? ', begrenzt auf den Wertzuwachs (§ 18 Abs. 1 Satz 3 InvStG)' : '') +
-      (months < 12 ? `, gekürzt auf ${months} Zwölftel für das Erwerbsjahr (§ 18 Abs. 2 InvStG)` : '') +
-      `. Handelsrechtlich ist das kein Ertrag — es wird nichts gebucht.`,
-  };
-}
-
-/** Die Teilfreistellung nach § 20 InvStG, mit den Vorabpauschalen beim Abgang. */
-function investmentNote(assetId: number, gross: number, disposal: boolean) {
-  const found = ASSETS.find((a) => a.id === assetId)! as any;
-  if (!found.fundClass) return null;
-  const exemption = INVESTMENT_RULES.exemptions.find((e) => e.class === found.fundClass)!;
-  const vorab = disposal ? (found.vorabpauschalen ?? 0) : 0;
-  const taxable = gross - vorab;
-  const exempt = taxable > 0 ? Math.round((taxable * exemption.permille) / 1000) : 0;
-  return {
-    fundClass: found.fundClass,
-    fundClassLabel: exemption.label,
-    exemption: {
-      permille: exemption.permille,
-      determined: true,
-      source: exemption.source,
-      explanation: exemption.explanation,
-    },
-    grossAmount: gross,
-    vorabpauschalen: vorab,
-    exemptAmount: exempt,
-    taxableAmount: taxable - exempt,
-    explanation:
-      `${disposal ? 'Der Buchgewinn' : 'Der Ertrag'} beträgt ${euro(gross)} €.` +
-      (vorab > 0
-        ? ` Davon gehen ${euro(vorab)} € an Vorabpauschalen ab, die über die Besitzzeit bereits versteuert wurden.`
-        : '') +
-      ` ${exemption.explanation} Steuerfrei bleiben ${euro(exempt)} €.`,
-  };
-}
 
 // -------------------------------------------------------------------------
 // Jahresabschluss: Bilanz, Gewinn- und Verlustrechnung, Größenklasse
@@ -1782,7 +1201,8 @@ function line(
     omitted: false,
     amount,
     priorAmount: 0,
-    accounts: accounts.map((account) => ({
+    // Ein ausgeglichenes Konto steht nicht unter der Position.
+    accounts: accounts.filter((account) => signedBalance(account) !== 0).map((account) => ({
       number: account.number,
       name: account.name,
       positionId: key,
@@ -1793,76 +1213,91 @@ function line(
   };
 }
 
-const REVENUE = classAccounts(4);
-const EXPENSES = [...classAccounts(5), ...classAccounts(6), ...classAccounts(7)];
+/** Die Konten eines Nummernbereichs der Klasse 4 bis 7, wie die Gliederung sie zuordnet. */
+const range = (from: string, to: string) =>
+  ACCOUNTS.filter((a) => a.number >= from && a.number <= to && a.bookingsCount > 0 && a.kontenklasse >= 4);
+const sumOf = (accounts: (typeof ACCOUNTS)[number][]) => accounts.reduce((sum, a) => sum + signedBalance(a), 0);
+
+const SALES_ACCOUNTS = range('4000', '4799');
+const OTHER_INCOME = range('4800', '4999');
+const MATERIAL = range('5000', '5999');
+const PERSONNEL = range('6000', '6199');
+const DEPRECIATION = range('6200', '6299');
+const OTHER_EXPENSES = range('6300', '6999');
+const INCOME_TAXES = range('7600', '7699');
+
+const REVENUE = [...SALES_ACCOUNTS, ...OTHER_INCOME];
 const NET_INCOME =
-  REVENUE.reduce((sum, a) => sum + signedBalance(a), 0) -
-  EXPENSES.reduce((sum, a) => sum + signedBalance(a), 0);
+  sumOf(REVENUE) - sumOf([...MATERIAL, ...PERSONNEL, ...DEPRECIATION, ...OTHER_EXPENSES, ...INCOME_TAXES]);
+
+/** Der Saldo eines Kontos mit dem Vorzeichen seiner natürlichen Seite. */
+const balanceOf = (number: string) => {
+  const account = ACCOUNTS.find((x) => x.number === number);
+  return account ? signedBalance(account) : 0;
+};
 
 const FIXED_ASSETS = classAccounts(0);
 const CURRENT_ASSETS = classAccounts(1, ['1900']);
 const PREPAID = classAccounts(1).filter((a) => a.number === '1900');
 const EQUITY = classAccounts(2);
-const LIABILITIES = classAccounts(3);
+const PROVISIONS = classAccounts(3).filter((a) => a.number < '3100');
+const LIABILITIES = classAccounts(3).filter((a) => a.number >= '3100');
 
 const ASSET_LINES = [
   line('aktiva.A', 'A.', 'Anlagevermögen', 1, 'aktiva', FIXED_ASSETS),
   line('aktiva.B', 'B.', 'Umlaufvermögen', 1, 'aktiva', CURRENT_ASSETS),
   line('aktiva.C', 'C.', 'Rechnungsabgrenzungsposten', 1, 'aktiva', PREPAID),
-];
+].filter((l) => l.accounts.length > 0);
 
 const LIABILITY_LINES = [
   line('passiva.A', 'A.', 'Eigenkapital', 1, 'passiva', EQUITY, {
-    amount: EQUITY.reduce((sum, a) => sum + signedBalance(a), 0) + NET_INCOME,
+    amount: sumOf(EQUITY) + NET_INCOME,
   }),
+  line('passiva.B', 'B.', 'Rückstellungen', 1, 'passiva', PROVISIONS),
   line('passiva.C', 'C.', 'Verbindlichkeiten', 1, 'passiva', LIABILITIES),
 ];
 
+/** Erträge positiv, Aufwendungen negativ, wie die Staffel im Backend. */
+const expense = (key: string, ordinal: string, label: string, accounts: (typeof ACCOUNTS)[number][]) =>
+  line(key, ordinal, label, 1, 'guv', accounts, { amount: -sumOf(accounts) });
+
 const INCOME_LINES = [
-  line('guv.1', '1.', 'Umsatzerlöse', 1, 'guv', classAccounts(4).filter((a) => a.number === '4400')),
-  line(
-    'guv.4',
-    '4.',
-    'Sonstige betriebliche Erträge',
-    1,
-    'guv',
-    classAccounts(4).filter((a) => a.number !== '4400'),
-  ),
-  line('guv.5', '5.', 'Materialaufwand', 1, 'guv', classAccounts(5), {
-    amount: -classAccounts(5).reduce((sum, a) => sum + signedBalance(a), 0),
-  }),
-  line('guv.6', '6.', 'Personalaufwand', 1, 'guv', classAccounts(6).filter((a) => a.number === '6020'), {
-    amount: -classAccounts(6)
-      .filter((a) => a.number === '6020')
-      .reduce((sum, a) => sum + signedBalance(a), 0),
-  }),
-  line(
-    'guv.8',
-    '8.',
-    'Sonstige betriebliche Aufwendungen',
-    1,
-    'guv',
-    classAccounts(6).filter((a) => a.number !== '6020'),
-    {
-      amount: -classAccounts(6)
-        .filter((a) => a.number !== '6020')
-        .reduce((sum, a) => sum + signedBalance(a), 0),
-    },
-  ),
-  line('guv.17', '17.', 'Jahresüberschuss', 1, 'guv', [], {
+  line('guv.1', '1.', 'Umsatzerlöse', 1, 'guv', SALES_ACCOUNTS),
+  line('guv.4', '4.', 'sonstige betriebliche Erträge', 1, 'guv', OTHER_INCOME),
+  expense('guv.5', '5.', 'Materialaufwand', MATERIAL),
+  expense('guv.6', '6.', 'Personalaufwand', PERSONNEL),
+  expense('guv.7', '7.', 'Abschreibungen', DEPRECIATION),
+  expense('guv.8', '8.', 'sonstige betriebliche Aufwendungen', OTHER_EXPENSES),
+  expense('guv.14', '14.', 'Steuern vom Einkommen und vom Ertrag', INCOME_TAXES),
+  line('guv.15', '15.', 'Ergebnis nach Steuern', 1, 'guv', [], { amount: NET_INCOME, isSubtotal: true }),
+  line('guv.17', '17.', 'Jahresüberschuss/Jahresfehlbetrag', 1, 'guv', [], {
     amount: NET_INCOME,
     isSubtotal: true,
   }),
-];
+].filter((l) => l.isSubtotal || l.accounts.length > 0);
 
-/** Die Geschäftsjahre mit ihrem Abschlussstand; das laufende ist offen. */
+/**
+ * Die Geschäftsjahre mit ihrem Abschlussstand: 2024 ist offengelegt, 2025
+ * festgestellt und noch nicht offengelegt, das laufende ist offen.
+ */
 const FISCAL_YEARS = [
+  {
+    year: YEAR - 2,
+    startDate: `${YEAR - 2}-01-01`,
+    endDate: `${YEAR - 2}-12-31`,
+    isShort: false,
+    status: 'disclosed',
+    preparedOn: `${YEAR - 1}-03-18`,
+    adoptedOn: `${YEAR - 1}-05-20`,
+    disclosedOn: `${YEAR - 1}-11-12`,
+  },
   {
     year: YEAR - 1,
     startDate: `${YEAR - 1}-01-01`,
     endDate: `${YEAR - 1}-12-31`,
     isShort: false,
     status: 'adopted',
+    preparedOn: `${YEAR}-03-20`,
     adoptedOn: `${YEAR}-05-14`,
   },
   {
@@ -1879,8 +1314,8 @@ const TOTAL_LIABILITIES = LIABILITY_LINES.reduce((sum, l) => sum + l.amount, 0);
 
 const SIZE_CRITERIA = {
   balanceSheetTotal: TOTAL_ASSETS,
-  revenue: REVENUE.reduce((sum, a) => sum + signedBalance(a), 0),
-  employees: 9,
+  revenue: sumOf(SALES_ACCOUNTS),
+  employees: 6,
 };
 
 const SIZE_THRESHOLDS = {
@@ -1932,7 +1367,7 @@ const STATEMENT = {
     // Zusatz „i. G." — die Gesellschaft ist eingetragen.
     firmName: SETTINGS.companyName,
     legalForm: SETTINGS.legalForm,
-    seat: SETTINGS.zipCity,
+    seat: SETTINGS.seat,
     registerCourt: 'Amtsgericht Hamburg',
     registerNumber: 'HRB 148223',
     fiscalYear: YEAR,
@@ -1970,13 +1405,33 @@ const STATEMENT = {
     reference: '§ 268 Abs. 4 und 5 HGB',
     rows: [
       {
-        key: 'verbindlichkeiten',
+        key: 'lieferungen',
         label: 'Verbindlichkeiten aus Lieferungen und Leistungen',
-        total: LIABILITY_LINES[1].amount,
-        upToOneYear: LIABILITY_LINES[1].amount,
+        total: balanceOf('3300'),
+        upToOneYear: balanceOf('3300'),
         overOneYear: 0,
         overFiveYears: 0,
-        items: 3,
+        items: OPEN_ITEMS.filter((item) => item.contactType === 'vendor').length,
+        undated: 0,
+      },
+      {
+        key: 'gesellschafter',
+        label: 'Verbindlichkeiten gegenüber Gesellschaftern',
+        total: balanceOf('3642'),
+        upToOneYear: 0,
+        overOneYear: balanceOf('3642'),
+        overFiveYears: 0,
+        items: 1,
+        undated: 0,
+      },
+      {
+        key: 'sonstige',
+        label: 'sonstige Verbindlichkeiten',
+        total: ['3806', '3820', '3830', '3841'].reduce((sum, n) => sum + balanceOf(n), 0),
+        upToOneYear: ['3806', '3820', '3830', '3841'].reduce((sum, n) => sum + balanceOf(n), 0),
+        overOneYear: 0,
+        overFiveYears: 0,
+        items: 0,
         undated: 0,
       },
     ],
@@ -1984,21 +1439,7 @@ const STATEMENT = {
   notes: {
     reference: '§§ 284 bis 288 HGB',
     texts: [],
-    provisionMirror: {
-      fiscalYear: YEAR,
-      rows: [],
-      total: {
-        kind: 'sonstige',
-        label: 'Summe',
-        account: '',
-        opening: 0,
-        additions: 0,
-        used: 0,
-        released: 0,
-        unwinding: 0,
-        closing: 0,
-      },
-    },
+    provisionMirror: closings.provisionMirror(YEAR),
     reconciliation: {
       fiscalYear: YEAR,
       cutoff: `${YEAR}-12-31`,
@@ -2011,156 +1452,394 @@ const STATEMENT = {
 };
 
 // -------------------------------------------------------------------------
-// Welle 7: Aufgabenliste, Monatsabschluss, Bankvorschlag, Mahnwesen, Prüfpfad
+// Aufgabenliste, Monatsabschluss, Bankvorschlag
 
 const TODAY = `${YEAR}-08-25`;
+
+/**
+ * Die Pflichten aus dem Pflichtenkalender, wie `GetNextObligations` sie
+ * liefert: was noch etwas verlangt, nach Fälligkeit. Die Beispielfirma meldet
+ * monatlich mit Dauerfristverlängerung, sitzt in Hamburg und hat
+ * Vorauszahlungsbescheide zur Körperschaft- und Gewerbesteuer.
+ */
+const OBLIGATIONS = [
+  obligation({
+    key: 'gewst-vorauszahlung.2026-Q3',
+    kind: 'gewst-vorauszahlung',
+    title: 'Gewerbesteuer-Vorauszahlung 15.08.2026',
+    description:
+      'Zahlung an die Gemeinde in der Höhe des Vorauszahlungsbescheids. Erledigt mit der Buchung auf 7610.',
+    basis: '§ 19 Abs. 1 und 2 GewStG',
+    channel: 'intern',
+    responsibility: 'human_confirms',
+    evidenceSource: 'either',
+    periodKey: '2026-Q3',
+    periodLabel: '15.08.2026',
+    periodFrom: '2026-07-01',
+    periodTo: '2026-09-30',
+    statutoryDate: '2026-08-15',
+    dueDate: '2026-08-17',
+    shiftReason: 'Sonnabend',
+    status: 'overdue',
+    hints: [
+      'Das gesetzliche Fristende am 15.08.2026 ist kein Werktag (Sonnabend); die Frist endet am 17.08.2026 (§ 108 Abs. 3 AO).',
+    ],
+  }),
+  obligation({
+    key: 'festschreibung.2026-07',
+    kind: 'festschreibung',
+    title: 'Monatsfestschreibung Juli 2026',
+    description:
+      'Bis zum Ende des Folgemonats, mit Dauerfristverlängerung einen Monat später, zuzüglich der Nachfrist aus den Einstellungen. Nach der Festschreibung nimmt der Monat keine Buchung mehr auf.',
+    basis: '§ 146 Abs. 4 AO, GoBD Rz. 107',
+    channel: 'intern',
+    responsibility: 'human_confirms',
+    evidenceSource: 'data',
+    periodKey: '2026-07',
+    periodLabel: 'Juli 2026',
+    periodFrom: '2026-07-01',
+    periodTo: '2026-07-31',
+    statutoryDate: '2026-09-30',
+    dueDate: '2026-09-30',
+    status: 'open',
+  }),
+  obligation({
+    key: 'kst-vorauszahlung.2026-Q3',
+    kind: 'kst-vorauszahlung',
+    title: 'Körperschaftsteuer-Vorauszahlung 10.09.2026',
+    description:
+      'Zahlung an das Finanzamt in der Höhe des Vorauszahlungsbescheids, mit Solidaritätszuschlag. Erledigt mit der Buchung auf 7600 oder 7608.',
+    basis: '§ 37 Abs. 1 EStG i. V. m. § 31 Abs. 1 und 2 KStG',
+    channel: 'intern',
+    responsibility: 'human_confirms',
+    evidenceSource: 'either',
+    periodKey: '2026-Q3',
+    periodLabel: '10.09.2026',
+    periodFrom: '2026-07-01',
+    periodTo: '2026-09-30',
+    statutoryDate: '2026-09-10',
+    dueDate: '2026-09-10',
+    status: 'open',
+  }),
+  obligation({
+    key: 'lohnsteuer-anmeldung.2026-08',
+    kind: 'lohnsteuer-anmeldung',
+    title: 'Lohnsteuer-Anmeldung August 2026',
+    description:
+      'Anmeldung und Abführung bis zum 10. Tag nach Ablauf des Anmeldungszeitraums, meist durch den Lohnanbieter. Das gebuchte Lohnjournal bereitet sie vor; erledigt mit dem Transferticket oder der Bestätigung des Lohnanbieters.',
+    basis: '§ 41a Abs. 1 und 2 EStG',
+    channel: 'lohnanbieter',
+    responsibility: 'human_confirms',
+    evidenceSource: 'human',
+    periodKey: '2026-08',
+    periodLabel: 'August 2026',
+    periodFrom: '2026-08-01',
+    periodTo: '2026-08-31',
+    statutoryDate: '2026-09-10',
+    dueDate: '2026-09-10',
+    status: 'prepared',
+    preparation: {
+      at: '2026-08-24T15:12:00Z',
+      note: 'Lohnabrechnung August abgelegt (Lohnsteuer 4.812,33 €). Die Anmeldung übermittelt der Lohnanbieter.',
+      channel: 'agent:claude-code',
+      actor: 'anna@nordlicht-mbp',
+    },
+    hints: ['Monatlich: die Lohnsteuer des Vorjahres lag über 5.000 €.'],
+  }),
+  obligation({
+    key: 'ustva.2026-07',
+    kind: 'ustva',
+    title: 'Umsatzsteuer-Voranmeldung Juli 2026',
+    description:
+      'Übermittlung und Zahlung bis zum 10. Tag nach Ablauf des Voranmeldungszeitraums, mit Dauerfristverlängerung einen Monat später. Erledigt mit dem Transferticket an der Voranmeldung.',
+    basis: '§ 18 Abs. 1 und 2 UStG, § 46 UStDV',
+    channel: 'elster',
+    responsibility: 'agent_prepares',
+    evidenceSource: 'data',
+    periodKey: '2026-07',
+    periodLabel: 'Juli 2026',
+    periodFrom: '2026-07-01',
+    periodTo: '2026-07-31',
+    statutoryDate: '2026-09-10',
+    dueDate: '2026-09-10',
+    status: 'open',
+  }),
+  obligation({
+    key: 'offenlegung.2025',
+    kind: 'offenlegung',
+    title: 'Offenlegung im Unternehmensregister 2025',
+    description:
+      'Übermittlung des festgestellten Abschlusses spätestens ein Jahr nach dem Abschlussstichtag. Kleine Gesellschaften legen Bilanz und Anhang offen, Kleinstgesellschaften nur die Bilanz und können sie hinterlegen. Erledigt mit dem Stand „offengelegt“.',
+    basis: '§ 325 Abs. 1 und 1a, § 326 HGB',
+    channel: 'unternehmensregister',
+    responsibility: 'human_confirms',
+    evidenceSource: 'data',
+    periodKey: '2025',
+    periodLabel: '2025',
+    periodFrom: '2025-01-01',
+    periodTo: '2025-12-31',
+    fiscalYear: 2025,
+    statutoryDate: '2026-12-31',
+    dueDate: '2026-12-31',
+    status: 'open',
+  }),
+];
+
+/** Ziele wie service.ObligationTarget: Monat, Jahr, Erklärungen oder Stammdaten. */
+function obligationTarget(kind: string, key: string) {
+  const declarations = [
+    'kst-erklaerung', 'gewst-erklaerung', 'ust-erklaerung', 'e-bilanz', 'e-bilanz-eroeffnung',
+    'kst-vorauszahlung', 'gewst-vorauszahlung',
+  ];
+  const year = [
+    'abschlussbuchungen', 'aufstellung', 'feststellung', 'ergebnisverwendung',
+    'offenlegung', 'kapitalertragsteuer',
+  ];
+  const company = [
+    'transparenzregister', 'gesellschafterliste', 'steuerliche-erfassung', 'gewerbeanmeldung', 'eroeffnungsbilanz',
+  ];
+  if (declarations.includes(kind)) return { area: 'closings', tab: 'declarations', id: key };
+  if (year.includes(kind)) return { area: 'closings', tab: 'year', id: key };
+  if (company.includes(kind)) return { area: 'company', tab: 'profile', id: key };
+  return { area: 'closings', tab: 'month', id: key };
+}
+
+function obligation(o: {
+  key: string;
+  kind: string;
+  title: string;
+  description: string;
+  basis: string;
+  channel: string;
+  responsibility: string;
+  evidenceSource: string;
+  periodKey: string;
+  periodLabel: string;
+  periodFrom: string;
+  periodTo: string;
+  fiscalYear?: number;
+  statutoryDate: string;
+  dueDate: string;
+  shiftReason?: string;
+  status: string;
+  preparation?: { at: string; note: string; channel: string; actor: string };
+  hints?: string[];
+}) {
+  return {
+    ...o,
+    fiscalYear: o.fiscalYear ?? YEAR,
+    skillRef: `buchfink/references/grundlagen/pflichten.md#${o.kind}`,
+    hints: o.hints ?? [],
+    target: obligationTarget(o.kind, o.key),
+  };
+}
+
+/**
+ * Der Pflichtenkalender eines Jahres aus `closings-mock.ts`. Die ausführlichen
+ * Pflichten der Übersicht ersetzen die mit gleichem Schlüssel, damit Übersicht
+ * und Abschlüsse denselben Stand zeigen.
+ */
+function obligationsOf(year: number) {
+  const detailed = new Map(OBLIGATIONS.map((o) => [o.key, o]));
+  const list = closings
+    .obligations(year)
+    .map((o) => detailed.get(o.key) ?? { ...o, target: obligationTarget(o.kind, o.key) });
+  for (const o of OBLIGATIONS) {
+    if (o.fiscalYear === year && !list.some((item) => item.key === o.key)) list.push(o);
+  }
+  return list.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+}
+
+/** Eine Pflicht als Zeile der Aufgabenliste, unter `pflicht.<schlüssel>`. */
+function dutyTask(key: string, group: string) {
+  const o = OBLIGATIONS.find((item) => item.key === key)!;
+  return {
+    key: `pflicht.${o.key}`,
+    group,
+    title: o.title,
+    why: o.description,
+    reference: o.basis,
+    target: o.target,
+    count: 0,
+    amount: 0,
+    dueDate: o.dueDate,
+  };
+}
+
+/** Was Apps gebucht haben, die jüngste zuerst, mit der letzten Festschreibung. */
+function agentBookings(limit: number) {
+  const reversed = new Set(ENTRIES.map((e) => e.reversalOfId).filter(Boolean));
+  const all = ENTRIES.filter((e) => e.channel.startsWith('agent:'))
+    .map((e) => ({ ...e, reversed: reversed.has(e.id) }))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id);
+  return {
+    lastCommit: FESTSCHREIBUNGEN[0],
+    total: all.length,
+    entries: limit > 0 ? all.slice(0, limit) : all,
+  };
+}
+
+/** Die Belege, die die Aufgabe „Belege buchen“ zählt. */
+const UNBOOKED_RECEIPTS = RECEIPTS.filter((r) => r.status === 'filed');
+
+/** Die Bankumsätze, die die Aufgabe „Bankumsätze zuordnen“ zählt. */
+const UNMATCHED_TX = BANK_TX.filter((t) => t.matchStatus === 'unmatched');
 
 /** Die Aufgabenliste der Startseite in ihren drei Gruppen. */
 const TASKS = {
   today: TODAY,
-  overdue: [
-    {
-      key: 'deadline.ustva-2026-07',
-      group: 'overdue',
-      title: 'Voranmeldung Juli 2026 übermitteln',
-      why: 'Die Voranmeldung ist bis zum zehnten Tag nach Ablauf des Zeitraums zu übermitteln.',
-      reference: '§ 18 Abs. 1 UStG',
-      target: { page: 'vat', params: {} },
-      count: 0,
-      amount: c(4318.4),
-      dueDate: `${YEAR}-08-10`,
-    },
-  ],
+  overdue: [dutyTask('gewst-vorauszahlung.2026-Q3', 'overdue')],
   open: [
+    dutyTask('festschreibung.2026-07', 'open'),
     {
-      key: 'bank.unmatched',
+      key: 'bank_unmatched',
       group: 'open',
-      title: 'Bankumsätze ohne Zuordnung klären',
-      why: 'Ein Umsatz ohne Zuordnung steht in keiner Buchung und fehlt damit in jeder Auswertung.',
-      reference: 'GoBD Rz. 36',
-      target: { page: 'bank', params: {} },
-      count: 4,
-      amount: c(12480.6),
+      title: 'Bankumsätze zuordnen',
+      why: 'Ein Umsatz ohne Zuordnung ist ein Geschäftsvorfall, der noch nicht gebucht ist.',
+      reference: '§ 146 Abs. 1 AO',
+      target: { area: 'books', tab: 'bank' },
+      count: UNMATCHED_TX.length,
+      amount: UNMATCHED_TX.reduce((sum, t) => sum + Math.abs(t.amount), 0),
     },
     {
-      key: 'receipt.unbooked',
+      key: 'receipts_unbooked',
       group: 'open',
       title: 'Belege buchen',
       why: 'Abgelegte Belege sind erfasst, aber noch nicht gebucht.',
-      target: { page: 'receipts', params: { status: 'filed' } },
-      count: 2,
-      amount: c(3630.94),
-    },
-    {
-      key: 'dunning.overdue',
-      group: 'open',
-      title: 'Überfällige Forderungen mahnen',
-      why: 'Zwei Kunden sind seit mehr als dreißig Tagen im Verzug.',
-      reference: '§ 286 Abs. 3 BGB',
-      target: { page: 'bank', params: { view: 'dunning' } },
-      count: 2,
-      amount: c(28311),
+      target: { area: 'books', tab: 'receipts' },
+      count: UNBOOKED_RECEIPTS.length,
+      amount: UNBOOKED_RECEIPTS.reduce((sum, r) => sum + r.grossAmount, 0),
     },
   ],
   upcoming: [
-    {
-      key: 'deadline.ustva-2026-08',
-      group: 'upcoming',
-      title: 'Voranmeldung August 2026 vorbereiten',
-      why: 'Der Zeitraum endet am Monatsende; die Meldung ist zehn Tage später fällig.',
-      reference: '§ 18 Abs. 1 UStG',
-      target: { page: 'deadlines', params: { key: 'ustva-2026-08' } },
-      count: 0,
-      amount: 0,
-      dueDate: `${YEAR}-09-10`,
-    },
+    dutyTask('kst-vorauszahlung.2026-Q3', 'upcoming'),
+    dutyTask('lohnsteuer-anmeldung.2026-08', 'upcoming'),
   ],
 };
+
+/** „2026-08-10“ als „10.08.2026“, wie das Backend Daten in Texte setzt. */
+const germanDay = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
+
+/** Bis wohin festgeschrieben ist: der letzte Monat der Festschreibungen dieses Jahres. */
+const COMMITTED_TO = FESTSCHREIBUNGEN.filter((f) => f.fiscalYear === YEAR)
+  .map((f) => f.cutoffDate)
+  .sort()
+  .reverse()[0];
+
+/**
+ * Die Befunde des Prüfberichts bis zu einem Stichtag, wie das Backend sie
+ * rechnet: abgelegte, nicht gebuchte Belege und nicht zugeordnete
+ * Bankumsätze. Was im Zeitraum liegt, verhindert die Festschreibung; ein
+ * Beleg, der erst danach einging, ist ein Hinweis.
+ */
+function checkFindings(cutoff: string) {
+  const receipts = RECEIPTS.filter((r) => r.status === 'filed').map((r) => ({
+    rule: 'receipt_unbooked',
+    severity: r.receivedAt <= cutoff ? 'blocking' : 'warning',
+    objectType: 'RECEIPT',
+    objectId: String(r.id),
+    objectName: r.receiptNumber,
+    message: `Beleg ${r.receiptNumber} (Eingang ${germanDay(r.receivedAt)}) ist abgelegt, aber nicht gebucht`,
+    reference: 'GoBD Rz. 47',
+  }));
+  const bank = BANK_TX.filter((t) => t.matchStatus === 'unmatched' && t.bookingDate <= cutoff).map((t) => ({
+    rule: 'bank_unmatched',
+    severity: 'blocking',
+    objectType: 'BANK_TX',
+    objectId: String(t.id),
+    objectName: t.counterpartyName,
+    message: `Bankumsatz vom ${germanDay(t.bookingDate)} über ${euro(t.amount)} € (${t.counterpartyName}) ist keiner Buchung zugeordnet`,
+    reference: '§ 146 Abs. 1 AO',
+  }));
+  return [...receipts, ...bank]
+    .sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'blocking' ? -1 : 1))
+    .map((f, i) => ({ id: i + 1, checkRunId: 0, ...f }));
+}
+
+/** Ein Prüflauf bis zum Stichtag, wie ihn der Festschreibedialog zeigt; gespeichert wird nichts. */
+function checkRunFor(cutoff: string, periodType: string) {
+  const entries = ENTRIES.filter((e) => e.bookingDate <= cutoff);
+  return {
+    id: 0,
+    fiscalYear: Number(cutoff.slice(0, 4)) || YEAR,
+    cutoffDate: cutoff,
+    periodType,
+    checkedEntries: entries.length,
+    checkedReceipts: RECEIPTS.filter((r) => r.receivedAt <= cutoff).length,
+    checkedBankTx: BANK_TX.filter((t) => t.bookingDate <= cutoff).length,
+    timeliness: {
+      measuredEntries: entries.length,
+      captureDaysMedian: 1,
+      captureDaysMax: 6,
+      captureLimitDays: 10,
+      lateEntries: 0,
+      committedEntries: ENTRIES.filter((e) => e.bookingDate <= COMMITTED_TO).length,
+      commitDaysMedian: 22,
+      commitDaysMax: 37,
+      uncommittedEntries: entries.filter((e) => e.bookingDate > COMMITTED_TO).length,
+    },
+    findings: checkFindings(cutoff),
+    createdAt: `${TODAY}T08:11:00Z`,
+  };
+}
 
 /** Der Stand eines Monats in seinen drei Schritten. */
 function monthCloseState(month: string) {
   const [year, index] = month.split('-').map(Number);
-  if (!year || !index) throw new Error(`${month} ist kein Monat (erwartet JJJJ-MM).`);
+  if (!year || !index) throw new Error(`„${month}“ ist kein Monat (erwartet JJJJ-MM).`);
   if (year !== YEAR) {
-    throw new Error(
-      `Der Monat gehört zum Geschäftsjahr ${year} — wechsle zuerst das Geschäftsjahr.`,
-    );
+    throw new Error(`Für ${year} liegen in den Beispieldaten keine Monate vor.`);
   }
-  const names = [
-    'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-    'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
-  ];
   const last = new Date(Date.UTC(year, index, 0)).getUTCDate();
-  const label = `${names[index - 1]} ${year}`;
-  // Das Quartal endet im März, Juni, September und Dezember; nur dort steht die
-  // Voranmeldung an (der Mandant meldet vierteljährlich).
-  const quarterEnd = index % 3 === 0;
+  const label = `${MONTH_LABELS[index - 1]} ${year}`;
+  // Der Mandant meldet monatlich: jeder Monat endet mit seiner Voranmeldung.
+  const to = `${month}-${String(last).padStart(2, '0')}`;
+  const committed = to <= COMMITTED_TO;
+  const ret = vatReturn(month);
+  const vat = {
+    vatPeriodKey: ret.periodKey,
+    vatPeriodLabel: label,
+    vatStatus: ret.status,
+    vatDueDate: ret.dueDate,
+    vatSubmittedAt: ret.submittedAt,
+    vatReturnId: ret.id,
+  };
+  const vatTitle = `Voranmeldung ${label} bestätigen`;
+  const vatStep = ret.submittedAt
+    ? { number: 3, key: 'vat', title: vatTitle, state: 'done', note: `Am ${germanDay(ret.submittedAt)} übermittelt.` }
+    : committed
+      ? { number: 3, key: 'vat', title: vatTitle, state: 'open', note: `Werte in Mein ELSTER eintragen, danach Datum und Transferticket erfassen. Fällig am ${germanDay(ret.dueDate)}.` }
+      : { number: 3, key: 'vat', title: vatTitle, state: 'blocked', note: 'Das Kennziffernblatt steht bereit. Bestätigen lässt sich die Übermittlung erst nach der Festschreibung.' };
+
+  // Ein festgeschriebener Monat hat seinen Prüfbericht hinter sich.
+  const findings = committed ? [] : checkFindings(to);
+  const blocking = findings.filter((f) => f.severity === 'blocking').length;
+  const checkStep = committed
+    ? { number: 1, key: 'check', title: 'Prüfbericht', state: 'done', note: 'Der Monat ist festgeschrieben; der Prüfbericht lief davor.' }
+    : blocking > 0
+      ? { number: 1, key: 'check', title: 'Prüfbericht', state: 'blocked', note: `${blocking} Befunde verhindern die Festschreibung. Klären oder mit Begründung übergehen.` }
+      : findings.length > 0
+        ? { number: 1, key: 'check', title: 'Prüfbericht', state: 'open', note: `${findings.length} Hinweise, die die Festschreibung nicht verhindern.` }
+        : { number: 1, key: 'check', title: 'Prüfbericht', state: 'done', note: 'Der Prüfbericht ist ohne Befund.' };
+  const commitStep = committed
+    ? { number: 2, key: 'commit', title: 'Festschreiben', state: 'done', note: `Festgeschrieben bis zum ${germanDay(COMMITTED_TO)}.` }
+    : blocking > 0
+      ? { number: 2, key: 'commit', title: 'Festschreiben', state: 'blocked', note: 'Erst die blockierenden Befunde klären oder mit Begründung übergehen.' }
+      : { number: 2, key: 'commit', title: 'Festschreiben', state: 'open', note: 'Der Monat ist noch nicht festgeschrieben.' };
+
   return {
     month,
     label,
     from: `${month}-01`,
-    to: `${month}-${String(last).padStart(2, '0')}`,
+    to,
     fiscalYear: YEAR,
-    steps: [
-      {
-        number: 1,
-        key: 'check',
-        title: 'Prüfbericht',
-        state: 'open',
-        note: '2 Hinweise, die die Festschreibung nicht verhindern.',
-      },
-      {
-        number: 2,
-        key: 'commit',
-        title: 'Festschreiben',
-        state: 'open',
-        note: 'Der Monat ist noch nicht festgeschrieben.',
-      },
-      quarterEnd
-        ? {
-            number: 3,
-            key: 'vat',
-            title: `Voranmeldung ${year}-Q${index / 3} bestätigen`,
-            state: 'blocked',
-            note: 'Das Kennziffernblatt steht bereit. Bestätigen lässt sich die Übermittlung erst nach der Festschreibung.',
-          }
-        : {
-            number: 3,
-            key: 'vat',
-            title: 'Voranmeldung bestätigen',
-            state: 'not_applicable',
-            note: 'In diesem Monat ist keine Voranmeldung abzugeben.',
-          },
-    ],
-    findings: [
-      {
-        id: 1,
-        checkRunId: 0,
-        rule: 'bank_unmatched',
-        severity: 'warning',
-        objectType: 'bank_transaction',
-        objectId: '18',
-        message: '4 Bankumsätze sind keiner Buchung zugeordnet.',
-        reference: 'GoBD Rz. 36',
-      },
-      {
-        id: 2,
-        checkRunId: 0,
-        rule: 'receipt_unbooked',
-        severity: 'warning',
-        objectType: 'receipt',
-        objectId: '2',
-        message: '2 abgelegte Belege sind noch nicht gebucht.',
-      },
-    ],
-    blocking: 0,
-    committed: false,
-    committedTo: `${YEAR}-06-30`,
-    vatApplies: quarterEnd,
-    vatPeriodKey: quarterEnd ? `${year}-Q${index / 3}` : undefined,
-    vatPeriodLabel: quarterEnd ? `${index / 3}. Quartal ${year}` : undefined,
-    vatStatus: quarterEnd ? 'draft' : undefined,
-    vatDueDate: quarterEnd ? `${year}-${String(index + 1).padStart(2, '0')}-10` : undefined,
+    steps: [checkStep, commitStep, vatStep],
+    findings,
+    blocking,
+    committed,
+    committedTo: COMMITTED_TO,
+    vatApplies: true,
+    ...vat,
   };
 }
 
@@ -2253,146 +1932,6 @@ const BANK_RULES = [
   },
 ];
 
-/** Der Basiszinssatz als datierte Tabelle; der letzte Wert ist fortgeschrieben. */
-const BASE_RATES = [
-  { validFrom: '2024-01-01', basisPoints: 362, source: 'Deutsche Bundesbank', provisional: false, updatedAt: '2024-01-02T08:00:00Z' },
-  { validFrom: '2024-07-01', basisPoints: 337, source: 'Deutsche Bundesbank', provisional: false, updatedAt: '2024-07-01T08:00:00Z' },
-  { validFrom: '2025-01-01', basisPoints: 227, source: 'Deutsche Bundesbank', provisional: false, updatedAt: '2025-01-02T08:00:00Z' },
-  { validFrom: '2025-07-01', basisPoints: 127, source: 'Deutsche Bundesbank', provisional: false, updatedAt: '2025-07-01T08:00:00Z' },
-  { validFrom: '2026-01-01', basisPoints: 127, source: '', provisional: true, updatedAt: '2026-01-02T08:00:00Z' },
-];
-
-/** Die Mahnvorschläge: je Kunde die Posten, die Stufe, Zinsen und Gebühr. */
-const DUNNING_PROPOSALS = [
-  {
-    contactId: 2,
-    contactName: 'Elbe Werkzeug GmbH',
-    isConsumer: false,
-    level: 2,
-    levelLabel: '1. Mahnung',
-    noticeDate: TODAY,
-    items: [
-      {
-        entryId: 44,
-        documentNumber: 'RE-2026-0112',
-        documentDate: `${YEAR}-06-18`,
-        dueDate: `${YEAR}-07-02`,
-        openAmount: c(18921),
-        daysOverdue: 54,
-        defaultFrom: `${YEAR}-07-19`,
-        interestDays: 37,
-        interest: c(197.02),
-        level: 2,
-        previousLevel: 1,
-        lumpSum: c(40),
-      },
-    ],
-    principal: c(18921),
-    interest: c(197.02),
-    fee: c(5),
-    lumpSum: c(40),
-    total: c(19163.02),
-    note: '',
-  },
-  {
-    contactId: 3,
-    contactName: 'Anna Wieland',
-    isConsumer: true,
-    level: 1,
-    levelLabel: 'Zahlungserinnerung',
-    noticeDate: TODAY,
-    items: [
-      {
-        entryId: 51,
-        documentNumber: 'RE-2026-0119',
-        documentDate: `${YEAR}-07-30`,
-        dueDate: `${YEAR}-08-13`,
-        openAmount: c(8211),
-        daysOverdue: 12,
-        defaultFrom: `${YEAR}-08-14`,
-        interestDays: 11,
-        interest: c(15.44),
-        level: 1,
-        previousLevel: 0,
-        lumpSum: 0,
-      },
-    ],
-    principal: c(8211),
-    interest: c(15.44),
-    fee: 0,
-    lumpSum: 0,
-    total: c(8226.44),
-    note: 'Verbraucher: fünf Prozentpunkte über dem Basiszinssatz, keine Pauschale.',
-  },
-];
-
-/** Die schon erzeugten Mahnschreiben, das jüngste zuerst. */
-const DUNNING_NOTICES = [
-  {
-    id: 1,
-    fiscalYear: YEAR,
-    contactId: 2,
-    contactName: 'Elbe Werkzeug GmbH',
-    isConsumer: false,
-    level: 1,
-    levelLabel: 'Zahlungserinnerung',
-    noticeDate: `${YEAR}-07-24`,
-    dueDate: `${YEAR}-08-07`,
-    principalAmount: c(18921),
-    interestAmount: c(30.11),
-    feeAmount: 0,
-    lumpSumAmount: c(40),
-    totalAmount: c(18991.11),
-    documentName: 'Zahlungserinnerung_Elbe-Werkzeug_2026-07-24.pdf',
-    documentPath: 'dokumente/mahnungen/2026/Zahlungserinnerung_Elbe-Werkzeug_2026-07-24.pdf',
-    documentSha256: fakeHash('dunning-1'),
-    items: [],
-  },
-];
-
-/** Der Prüfpfad eines Belegs: Beleg → Buchung → Zahlung → Bankumsatz. */
-function auditTrail(receiptId: number) {
-  const found = RECEIPTS.find((r) => r.id === receiptId);
-  if (!found) throw new Error('Der Beleg ist nicht bekannt.');
-  const entry = ENTRIES.find((e) => e.receiptId === receiptId);
-  return {
-    receiptId,
-    receiptNumber: found.receiptNumber,
-    direction: 'incoming',
-    documentDate: found.receivedAt,
-    issuerName: 'Nordlicht Telekommunikation GmbH',
-    grossAmount: c(321.3),
-    orderReference: 'BST-2026-0044',
-    serviceProof: 'geprüft gegen Bestellung BST-2026-0044 vom 02.08.2026',
-    serviceProofAt: `${YEAR}-08-16`,
-    steps: [
-      {
-        stage: 'receipt',
-        title: `Beleg ${found.receiptNumber}`,
-        date: found.receivedAt,
-        reference: found.receiptNumber,
-        amount: c(321.3),
-        detail: 'Eingegangen per E-Mail, versiegelt.',
-      },
-      ...(entry
-        ? [
-            {
-              stage: 'booking',
-              title: `Buchung ${entry.entryNumber}`,
-              date: entry.bookingDate,
-              reference: entry.entryNumber,
-              amount: c(321.3),
-              detail: entry.description,
-            },
-          ]
-        : []),
-    ],
-    note: entry
-      ? 'Gebucht; eine Zahlung ist zu diesem Beleg noch nicht zugeordnet.'
-      : 'Der Beleg ist noch nicht gebucht.',
-  };
-}
-
 /** Die Einheiten aus UN/ECE Rec. 20, so weit der Rechnungsdialog sie anbietet. */
 const UNIT_CODES = [
   { code: 'C62', label: 'Stück' },
@@ -2417,14 +1956,6 @@ const EINVOICE_PROFILES = [
   { profile: 'pdf_only', label: 'Nur PDF', hint: 'Ohne Datensatz; für Verbraucher.' },
 ];
 
-/** Die Versandwege des Vermerks „Als versendet vermerken". */
-const SENT_VIA_OPTIONS = [
-  { via: 'email', label: 'E-Mail' },
-  { via: 'portal', label: 'Portal' },
-  { via: 'post', label: 'Post' },
-  { via: 'other', label: 'Anderer Weg' },
-];
-
 /** Die Gründe, mit denen eine Lücke im Nummernkreis begründet wird. */
 const NUMBER_GAP_REASONS = [
   { reason: 'aborted', label: 'Abgebrochene Ausstellung' },
@@ -2434,34 +1965,35 @@ const NUMBER_GAP_REASONS = [
 ];
 
 /**
- * Das Kennziffernblatt eines Voranmeldungszeitraums.
- *
- * Gerechnet aus denselben Monatswerten wie die Umsatzsteuerübersicht: Zahllast
- * gleich Umsatzsteuer minus Vorsteuer. Der Mandant meldet vierteljährlich, der
- * Schlüssel ist deshalb „JJJJ-Qn".
+ * Das Kennziffernblatt eines Voranmeldungszeitraums, gerechnet aus dem
+ * Journal: Zahllast gleich Umsatzsteuer minus Vorsteuer. Der Mandant meldet
+ * monatlich mit Dauerfristverlängerung, der Schlüssel ist „JJJJ-MM“.
  */
 function vatReturn(periodKey: string) {
-  const quarter = Number(periodKey.split('-Q')[1] || 0);
-  if (!quarter) throw new Error(`Für ${periodKey} liegt kein Kennziffernblatt vor.`);
-  const firstMonth = (quarter - 1) * 3 + 1;
-  const from = `${YEAR}-${String(firstMonth).padStart(2, '0')}-01`;
-  const lastMonth = firstMonth + 2;
-  const lastDay = new Date(Date.UTC(YEAR, lastMonth, 0)).getUTCDate();
-  const to = `${YEAR}-${String(lastMonth).padStart(2, '0')}-${lastDay}`;
+  const month = /^\d{4}-(\d{2})$/.exec(periodKey)?.[1];
+  if (!month) throw new Error(`Für ${periodKey} liegt kein Kennziffernblatt vor.`);
+  const m = Number(month);
+  const from = `${YEAR}-${month}-01`;
+  const to = `${YEAR}-${month}-${new Date(Date.UTC(YEAR, m, 0)).getUTCDate()}`;
   const summary = vatSummary(from, to);
   const base = summary.taxableRevenue[0]?.net ?? 0;
   const outputTax = summary.outputTax;
+  const dueDate = VAT_DUE[m - 1] ?? `${YEAR + (m >= 11 ? 1 : 0)}-${pad(((m + 1) % 12) + 1)}-10`;
+  // Übermittelt wurde vor der Fälligkeit; gezahlt ist am Fälligkeitstag.
+  const submittedAt: string | undefined = closings.VAT_SUBMITTED[m - 1];
   return {
-    id: quarter,
+    id: m,
     fiscalYear: YEAR,
-    periodType: 'quarter',
+    periodType: 'month',
     periodKey,
     periodFrom: from,
     periodTo: to,
     isCorrection: false,
-    status: 'draft',
+    status: submittedAt ? 'submitted' : 'draft',
+    submittedAt,
+    transferTicket: submittedAt ? `et${YEAR % 100}m${month}x7k2m9p4` : undefined,
     payable: summary.payable,
-    dueDate: `${YEAR}-${String(lastMonth + 1).padStart(2, '0')}-10`,
+    dueDate,
     figures: [
       {
         code: '81',
@@ -2493,27 +2025,16 @@ function vatReturn(periodKey: string) {
       },
     ],
     lateEntries: [],
-    createdAt: `${to}T18:00:00Z`,
+    createdAt: submittedAt ? `${submittedAt}T07:30:00Z` : `${TODAY}T06:30:00Z`,
   };
-}
-
-/** Der Hinweis zu einem langen Zahlungsziel; leer heißt: unauffällig. */
-function paymentTermNotice(dueDays: number): string {
-  if (dueDays <= 60) return '';
-  return (
-    `Ein Zahlungsziel von ${dueDays} Tagen liegt über sechzig Tagen. Eine solche Frist ist nur ` +
-    'wirksam, wenn sie ausdrücklich vereinbart und für den Gläubiger nicht grob unbillig ist ' +
-    '(§ 271a Abs. 1 BGB); andernfalls tritt Verzug früher ein, als die Rechnung erwarten lässt.'
-  );
 }
 
 // -------------------------------------------------------------------------
 // Meldezeiträume, Prüfläufe, Abschlussweg, Nebenpflichten und Nachweise
 //
-// Die Ansichten der Wellen 5b bis 7 holen ihre Auswertungen selbst. Was eine
-// Seite beim Öffnen ruft, steht hier mit Beispieldaten; was sie erst auf
-// Knopfdruck ruft, steht als `unsupported` in der Bridge — geschrieben wird in
-// der Vorschau nichts.
+// Was eine Seite beim Öffnen ruft, steht hier mit Beispieldaten; was sie erst
+// auf Knopfdruck ruft, steht als `unsupported` in der Bridge — geschrieben wird
+// in der Vorschau nichts.
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -2536,44 +2057,6 @@ function quarters() {
       dueDate: `${dueYear}-${pad(dueMonth)}-10`,
     };
   });
-}
-
-/**
- * Die Voranmeldungszeiträume mit Stand. Das erste Halbjahr ist übermittelt und
- * festgeschrieben, das laufende Quartal steht als Entwurf.
- */
-function vatPeriods() {
-  return quarters().map((p) => {
-    const submitted = p.q <= 2;
-    return {
-      key: p.key,
-      type: p.type,
-      label: p.label,
-      from: p.from,
-      to: p.to,
-      year: p.year,
-      dueDate: p.dueDate,
-      status: submitted ? 'submitted' : 'draft',
-      returnId: p.q,
-      committed: submitted,
-      payable: vatSummary(p.from, p.to).payable,
-      submittedAt: submitted ? `${p.dueDate}T09:20:00Z` : undefined,
-      isOverdue: !submitted && p.dueDate < TODAY,
-    };
-  });
-}
-
-/** Die übermittelten Voranmeldungen, wie sie in der Liste stehen. */
-function savedVatReturns() {
-  return quarters()
-    .filter((p) => p.q <= 2)
-    .map((p) => ({
-      ...vatReturn(p.key),
-      status: 'submitted',
-      submittedAt: `${p.dueDate}T09:20:00Z`,
-      transferTicket: `TT-${YEAR}${pad(p.q * 3)}-4711${p.q}`,
-      submissionNote: 'In Mein ELSTER übermittelt.',
-    }));
 }
 
 /** Die Meldezeiträume der Zusammenfassenden Meldung. */
@@ -2611,101 +2094,89 @@ function zmReturnFor(periodKey: string) {
     isCorrection: false,
     status: 'draft',
     dueDate: `${period.dueDate.slice(0, 8)}25`,
-    totalSupplies: 0,
     totalServices: 0,
     lines: [],
     findings: [],
     lateEntries: [],
-    createdAt: `${period.to}T18:00:00Z`,
+    createdAt: `${TODAY}T06:30:00Z`,
   };
 }
 
-/** Die Prüfläufe vor den beiden Festschreibungen des Jahres. */
-const CHECK_RUNS = [
-  {
-    id: 2,
+/**
+ * Die Prüfberichte vor den Festschreibungen, je Monat eine Minute vor ihr.
+ * Gezählt werden die Buchungen bis zum Stichtag und, wie im Backend, alle
+ * Belege und Bankumsätze des Jahres, die es am Tag des Laufs gab.
+ */
+const CHECK_RUNS = FESTSCHREIBUNGEN.filter((f) => f.fiscalYear === YEAR).map((f) => {
+  const entries = ENTRIES.filter((e) => e.bookingDate <= f.cutoffDate);
+  const at = new Date(Date.parse(f.createdAt) - 60_000).toISOString().replace('.000Z', 'Z');
+  const days = Math.round((Date.parse(f.createdAt) - Date.parse(`${f.cutoffDate}T00:00:00Z`)) / 86_400_000);
+  return {
+    id: f.id,
     fiscalYear: YEAR,
-    cutoffDate: `${YEAR}-06-30`,
-    periodType: 'quarter',
-    checkedEntries: 37,
-    checkedReceipts: 34,
-    checkedBankTx: 96,
+    cutoffDate: f.cutoffDate,
+    periodType: 'month',
+    checkedEntries: entries.length,
+    checkedReceipts: RECEIPTS.filter((r) => r.receivedAt <= f.createdAt.slice(0, 10)).length,
+    checkedBankTx: BANK_TX.filter((t) => t.bookingDate <= f.createdAt.slice(0, 10)).length,
     timeliness: {
-      measuredEntries: 37,
-      captureDaysMedian: 3,
-      captureDaysMax: 9,
+      measuredEntries: entries.length,
+      captureDaysMedian: 1,
+      captureDaysMax: 6,
       captureLimitDays: 10,
       lateEntries: 0,
-      committedEntries: 37,
-      commitDaysMedian: 10,
-      commitDaysMax: 10,
-      uncommittedEntries: 0,
-    },
-    findings: [
-      {
-        id: 4,
-        checkRunId: 2,
-        rule: 'bank_unmatched',
-        severity: 'warning',
-        objectType: 'bank_transaction',
-        objectId: '4',
-        message: 'Ein Bankumsatz vom 26.06.2026 ist keinem offenen Posten zugeordnet.',
-        reference: 'GoBD Rz. 36',
-      },
-    ],
-    createdAt: `${YEAR}-07-10T06:14:00Z`,
-  },
-  {
-    id: 1,
-    fiscalYear: YEAR,
-    cutoffDate: `${YEAR}-03-31`,
-    periodType: 'quarter',
-    checkedEntries: 19,
-    checkedReceipts: 17,
-    checkedBankTx: 48,
-    timeliness: {
-      measuredEntries: 19,
-      captureDaysMedian: 2,
-      captureDaysMax: 7,
-      captureLimitDays: 10,
-      lateEntries: 0,
-      committedEntries: 19,
-      commitDaysMedian: 9,
-      commitDaysMax: 9,
+      committedEntries: entries.length,
+      commitDaysMedian: days + 14,
+      commitDaysMax: days + 30,
       uncommittedEntries: 0,
     },
     findings: [],
-    createdAt: `${YEAR}-04-09T05:51:00Z`,
-  },
-];
+    createdAt: at,
+  };
+});
 
 /** Zuordnung der bebuchten Konten auf Gliederung und Taxonomie-Element. */
 const EBILANZ_MAPPING: Record<string, [string, string]> = {
-  '0520': ['Andere Anlagen, Betriebs- und Geschäftsausstattung', 'bs.ass.fixAss.tan.otherEquip'],
+  '0135': ['Entgeltlich erworbene Konzessionen, Lizenzen, EDV-Software', 'bs.ass.fixAss.intan.concessionBrands.software'],
+  '0440': ['Technische Anlagen und Maschinen', 'bs.ass.fixAss.tan.machinery'],
+  '0520': ['Andere Anlagen, Betriebs- und Geschäftsausstattung', 'bs.ass.fixAss.tan.otherEquipm'],
+  '0650': ['Andere Anlagen, Betriebs- und Geschäftsausstattung', 'bs.ass.fixAss.tan.otherEquipm'],
+  '0675': ['Andere Anlagen, Betriebs- und Geschäftsausstattung', 'bs.ass.fixAss.tan.otherEquipm'],
   '1200': ['Forderungen aus Lieferungen und Leistungen', 'bs.ass.currAss.receiv.trade'],
   '1406': ['Sonstige Vermögensgegenstände', 'bs.ass.currAss.receiv.other'],
-  '1600': ['Kassenbestand, Guthaben bei Kreditinstituten', 'bs.ass.currAss.cashEquiv'],
   '1800': ['Kassenbestand, Guthaben bei Kreditinstituten', 'bs.ass.currAss.cashEquiv'],
   '1900': ['Rechnungsabgrenzungsposten', 'bs.ass.prepaidExp'],
   '2900': ['Gezeichnetes Kapital', 'bs.eqLiab.equity.subscribed'],
   '2970': ['Gewinnvortrag', 'bs.eqLiab.equity.retainedEarnings'],
+  '3035': ['Steuerrückstellungen', 'bs.eqLiab.accruals.tax'],
+  '3040': ['Steuerrückstellungen', 'bs.eqLiab.accruals.tax'],
+  '3095': ['Sonstige Rückstellungen', 'bs.eqLiab.accruals.other'],
+  '3096': ['Sonstige Rückstellungen', 'bs.eqLiab.accruals.other'],
   '3300': ['Verbindlichkeiten aus Lieferungen und Leistungen', 'bs.eqLiab.liab.trade'],
-  '3806': ['Sonstige Verbindlichkeiten, davon aus Steuern', 'bs.eqLiab.liab.other.taxes'],
-  '4400': ['Umsatzerlöse', 'is.netIncome.regular.operatingIncome.revenue'],
-  '4830': ['Sonstige betriebliche Erträge', 'is.netIncome.regular.operatingIncome.otherOpIncome'],
-  '5906': ['Aufwendungen für bezogene Leistungen', 'is.netIncome.regular.opEx.material.purchServices'],
-  '6020': ['Löhne und Gehälter', 'is.netIncome.regular.opEx.personnel.wages'],
-  '6260': ['Abschreibungen auf Sachanlagen', 'is.netIncome.regular.opEx.depreciation.tangible'],
+  '3820': ['Sonstige Verbindlichkeiten, aus Steuern', 'bs.eqLiab.liab.other.theroffTax'],
+  '3830': ['Sonstige Verbindlichkeiten, aus Steuern', 'bs.eqLiab.liab.other.theroffTax'],
+  '3642': ['Verbindlichkeiten gegenüber GmbH-Gesellschaftern', 'bs.eqLiab.liab.shareholders.gmbh'],
+  '3806': ['Sonstige Verbindlichkeiten, aus Steuern', 'bs.eqLiab.liab.other.theroffTax'],
+  '3841': ['Sonstige Verbindlichkeiten, aus Steuern', 'bs.eqLiab.liab.other.theroffTax'],
+  '4400': ['Umsatzerlöse', 'is.netIncome.regular.operatingTC.grossTradingProfit.totalOutput.netSales'],
+  '4830': ['Sonstige betriebliche Erträge', 'is.netIncome.regular.operatingTC.otherOpRevenue'],
+  '5906': ['Aufwendungen für bezogene Leistungen', 'is.netIncome.regular.operatingTC.grossTradingProfit.materialServices.services'],
+  '6020': ['Löhne und Gehälter', 'is.netIncome.regular.operatingTC.staff.salaries'],
+  '6260': ['Abschreibungen auf Sachanlagen', 'is.netIncome.regular.operatingTC.deprAmort.fixAss.tan'],
+  '7600': ['Steuern vom Einkommen und vom Ertrag, Körperschaftsteuer', 'is.netIncome.tax.kst'],
+  '7608': ['Steuern vom Einkommen und vom Ertrag, Solidaritätszuschlag', 'is.netIncome.tax.soli'],
+  '7610': ['Steuern vom Einkommen und vom Ertrag, Gewerbesteuer', 'is.netIncome.tax.gewst'],
 };
 
 /** Die Auffangposition, in der alles landet, was keine eigene Zeile hat. */
 const EBILANZ_FALLBACK: [string, string] = [
   'Sonstige betriebliche Aufwendungen',
-  'is.netIncome.regular.opEx.otherOpEx',
+  'is.netIncome.regular.operatingTC.otherCost',
 ];
 
 function mappingReport(year: number) {
-  const booked = ACCOUNTS.filter((x) => x.bookingsCount > 0);
+  // Die Vortragskonten der Klasse 9 gehören weder in Bilanz noch GuV.
+  const booked = ACCOUNTS.filter((x) => x.bookingsCount > 0 && x.kontenklasse < 9);
   const rows = booked.map((account) => {
     const known = EBILANZ_MAPPING[account.number];
     const [positionLabel, element] = known ?? EBILANZ_FALLBACK;
@@ -2726,6 +2197,8 @@ function mappingReport(year: number) {
     fiscalYear: year || YEAR,
     taxonomyVersion: '6.9',
     taxonomyDate: '2026-01-01',
+    accountingStandard: 'HAOE',
+    transfers: [],
     taxonomyNote:
       'Die Taxonomie 6.9 gilt für Wirtschaftsjahre ab 2026. Ihre Elementnamen sind vor der ' +
       'ersten Übermittlung gegen die amtliche Fassung abzugleichen.',
@@ -2747,101 +2220,164 @@ function mappingReport(year: number) {
   };
 }
 
-/** Der Abschlussstand des laufenden Geschäftsjahres. */
+/**
+ * Der Abschlussstand je Geschäftsjahr: 2025 ist aufgestellt, festgeschrieben,
+ * festgestellt und vorgetragen, die Offenlegung steht aus; 2026 läuft noch.
+ */
+/** Ergebnis und Umsatz der Vorjahre; 2024 ist ausgeschüttet, 2025 vorgetragen. */
+const PRIOR_YEARS: Record<number, { netIncome: number; revenue: number; adoptionNote: string; carriedAt: string }> = {
+  [YEAR - 2]: { netIncome: c(38400), revenue: c(356900), adoptionNote: 'Gesellschafterbeschluss vom 20.05.2025', carriedAt: `${YEAR - 1}-03-18T10:00:00Z` },
+  [YEAR - 1]: { netIncome: c(61230), revenue: c(412800), adoptionNote: 'Gesellschafterbeschluss vom 14.05.2026', carriedAt: CARRIED_FORWARD_AT },
+};
+
+/**
+ * Der Abschlussstand je Geschäftsjahr: 2024 ist offengelegt, 2025 aufgestellt,
+ * festgeschrieben, festgestellt und vorgetragen, die Offenlegung steht aus;
+ * 2026 läuft noch.
+ */
 function closingState(year: number) {
+  const y = year || YEAR;
+  const base = FISCAL_YEARS.find((entry) => entry.year === y) ?? FISCAL_YEARS[FISCAL_YEARS.length - 1];
+  const prior = PRIOR_YEARS[y];
   const fiscalYear = {
-    ...(FISCAL_YEARS.find((y) => y.year === (year || YEAR)) ?? FISCAL_YEARS[1]),
-    averageEmployees: 6,
-    priorYearRevenue: c(412800),
-    createdAt: `${YEAR}-01-02T08:00:00Z`,
+    ...base,
+    ...(prior ? { adoptionNote: prior.adoptionNote } : {}),
+    averageEmployees: y === YEAR ? 6 : 5,
+    priorYearRevenue: PRIOR_YEARS[y - 1]?.revenue ?? c(298400),
+    createdAt: `${y}-01-02T08:00:00Z`,
   };
   return {
-    year: fiscalYear.year,
+    year: y,
     fiscalYear,
-    netIncome: SUMMARY.netIncome,
-    hasYearCommitment: false,
-    committedUntil: `${YEAR}-06-30`,
-    nextYear: fiscalYear.year + 1,
-    carriedForward: false,
-    carryForwardCurrent: false,
-    nextStatus: 'prepared',
-    canAdopt: false,
-    blocker:
-      'Aufgestellt wird erst, wenn das Geschäftsjahr festgeschrieben ist (§ 146 Abs. 4 AO).',
+    netIncome: prior ? prior.netIncome : NET_INCOME,
+    hasYearCommitment: Boolean(prior),
+    committedUntil: prior ? `${y}-12-31` : COMMITTED_TO,
+    nextYear: y + 1,
+    carriedForward: Boolean(prior),
+    carryForwardCurrent: Boolean(prior),
+    carriedForwardAt: prior?.carriedAt,
+    nextStatus: base.status === 'disclosed' ? undefined : prior ? 'disclosed' : 'prepared',
+    canAdopt: true,
   };
 }
 
-/** Die vierzehn Abschlussbausteine, wie sie im geführten Weg stehen. */
-const CLOSING_STEP_DEFS: [string, string, string, boolean][] = [
+/** Die Abschlussbausteine wie in internal/domain/closing_step.go: Schlüssel, Titel, Text, automatisch, Norm. */
+const CLOSING_STEP_DEFS: [string, string, string, boolean, string][] = [
   ['depreciation', 'Abschreibungen',
-    'Die planmäßige AfA des Jahres. Sie ist eine Abschlussbuchung und lässt sich später nicht nachholen.', true],
+    'Die planmäßige AfA des Jahres. Sie ist eine Abschlussbuchung und lässt sich später nicht nachholen.',
+    true, '§ 253 Abs. 3 HGB, § 7 EStG'],
   ['write_up', 'Wertaufholung prüfen',
-    'Für jedes Anlagegut mit außerplanmäßiger Abschreibung: ist der Grund weggefallen? Dann ist zuzuschreiben (§ 253 Abs. 5 Satz 1 HGB).', true],
+    'Für jedes Anlagegut mit außerplanmäßiger Abschreibung: ist der Grund weggefallen? Dann ist zuzuschreiben. Das ist ein Gebot und kein Wahlrecht.',
+    true, '§ 253 Abs. 5 Satz 1 HGB'],
   ['currency_valuation', 'Fremdwährungsbewertung',
-    'Offene Posten in Fremdwährung werden zum Stichtagskurs bewertet (§ 256a HGB).', true],
+    'Offene Posten in Fremdwährung werden zum Stichtagskurs bewertet. Bei einer Restlaufzeit über einem Jahr wird nur der Verlust erfasst.',
+    true, '§ 256a HGB'],
+  ['receivable_allowance', 'Wertberichtigung auf Forderungen',
+    'Forderungen mit Ausfallrisiko werden einzeln, die übrigen pauschal auf den niedrigeren Wert berichtigt, netto: die Umsatzsteuer folgt erst der Uneinbringlichkeit.',
+    false, '§ 253 Abs. 4 Satz 2 HGB, § 17 Abs. 2 Nr. 1 UStG'],
+  ['work_in_progress', 'Unfertige Leistungen',
+    'Begonnene, am Stichtag nicht abgerechnete Projekte werden zu Herstellungskosten aktiviert und im Folgejahr aufgelöst; erhaltene Anzahlungen bleiben unter den Verbindlichkeiten oder werden offen abgesetzt.',
+    false, '§ 255 Abs. 2 HGB, § 268 Abs. 5 Satz 2 HGB'],
   ['accruals', 'Rechnungsabgrenzung',
-    'Ausgaben und Einnahmen, die wirtschaftlich ins nächste Jahr gehören (§ 250 HGB).', false],
+    'Ausgaben und Einnahmen, die wirtschaftlich ins nächste Jahr gehören.', false, '§ 250 HGB'],
   ['provisions', 'Rückstellungen',
-    'Verpflichtungen, deren Höhe oder Fälligkeit noch offen ist (§ 249 HGB).', false],
-  ['inventory', 'Vorräte',
-    'Der Inventurwert zum Stichtag und die Bestandsveränderung, die daraus folgt.', false],
+    'Verpflichtungen, deren Höhe oder Fälligkeit noch offen ist.', false, '§ 249 HGB'],
   ['vat_settlement', 'Umsatzsteuer-Verrechnung',
-    'Vorsteuer, Umsatzsteuer und Vorauszahlungen werden zu einem Saldo verrechnet.', false],
-  ['input_tax_correction', 'Vorsteuerberichtigung § 15a',
-    'Hat sich die Verwendung eines Wirtschaftsguts geändert, ist der Vorsteuerabzug anteilig zu berichtigen.', true],
+    'Vorsteuer, Umsatzsteuer und Vorauszahlungen werden zu einem Saldo verrechnet.', false, ''],
+  ['input_tax_correction', 'Vorsteuerberichtigung',
+    'Hat sich die Verwendung eines Wirtschaftsguts im Berichtigungszeitraum geändert, ist der Vorsteuerabzug anteilig zu berichtigen. Der Betrag geht in die Kennziffer 64.',
+    true, '§ 15a UStG'],
   ['tax_provision', 'Steuerrückstellung',
-    'Körperschaftsteuer, Solidaritätszuschlag und Gewerbesteuer auf das Ergebnis des Jahres.', false],
+    'Körperschaftsteuer, Solidaritätszuschlag und Gewerbesteuer auf das Ergebnis des Jahres, abzüglich Vorauszahlungen und anrechenbarer Kapitalertragsteuer; eine Überzahlung ist ein Erstattungsanspruch.',
+    false, '§ 249 Abs. 1 HGB'],
   ['check_run', 'Prüfbericht',
-    'Der Prüflauf über Buchungen, Belege und Fristen vor der Festschreibung.', true],
+    'Der Prüflauf über Buchungen, Belege und Fristen vor der Festschreibung.', true, 'GoBD Rz. 100 ff.'],
   ['statement', 'Bilanz und GuV',
-    'Die Gliederung nach §§ 266 und 275 HGB samt Anhang.', true],
+    'Die Gliederung von Bilanz und Gewinn- und Verlustrechnung samt Anhang.', true, '§§ 266, 275 HGB'],
   ['adoption', 'Aufstellen und Feststellen',
-    'Die Aufstellung durch die Geschäftsführung und der Beschluss der Gesellschafter.', true],
+    'Die Aufstellung durch die Geschäftsführung und der Beschluss der Gesellschafter.', true,
+    '§ 264 Abs. 1 HGB, § 46 Nr. 1 GmbHG'],
   ['disclosure', 'E-Bilanz und Offenlegung',
-    'Die Übermittlung nach § 5b EStG und die Offenlegung nach § 325 HGB.', true],
+    'Die Übermittlung der E-Bilanz an das Finanzamt und die Offenlegung im Unternehmensregister.', true,
+    '§ 5b EStG, § 325 HGB'],
   ['appropriation', 'Vortrag und Ergebnisverwendung',
-    'Der Saldenvortrag ins Folgejahr und der Beschluss über das Ergebnis.', false],
+    'Der Saldenvortrag ins Folgejahr und der Beschluss über das Ergebnis.', false, '§ 29 GmbHG'],
 ];
 
 /** Zustand und Begründung je Baustein im Beispieljahr. */
 const CLOSING_STEP_STATE: Record<string, { state: string; detail?: string; reason?: string }> = {
-  depreciation: { state: 'done', detail: 'AfA für 4 Anlagegüter gebucht' },
+  depreciation: { state: 'done', detail: 'AfA für 5 Anlagegüter gebucht' },
   write_up: { state: 'done', detail: 'Keine außerplanmäßige Abschreibung offen' },
   currency_valuation: {
     state: 'skipped',
     reason: 'Im Geschäftsjahr steht kein offener Posten in Fremdwährung.',
   },
   accruals: { state: 'done', detail: '2 Abgrenzungsposten gebildet' },
-  provisions: { state: 'done', detail: '1 Rückstellung gebildet, abgezinst' },
-  inventory: { state: 'open', detail: 'Kein Inventurwert erfasst' },
+  provisions: { state: 'done', detail: '2 Rückstellungen gebildet' },
+  receivable_allowance: { state: 'done', detail: 'Keine Forderung mit Ausfallrisiko' },
+  work_in_progress: { state: 'skipped', reason: 'Am Stichtag war kein Projekt begonnen und nicht abgerechnet.' },
+
   vat_settlement: { state: 'open', detail: 'Zahllast der vier Zeiträume noch nicht verrechnet' },
   input_tax_correction: { state: 'open', detail: '1 Wirtschaftsgut im Berichtigungszeitraum' },
   tax_provision: { state: 'open' },
-  check_run: { state: 'open', detail: 'Letzter Lauf zum 30.06.2026' },
+  check_run: { state: 'open', detail: `Letzter Lauf zum ${germanDay(COMMITTED_TO)}` },
   statement: { state: 'open' },
   adoption: { state: 'open', detail: 'Ohne Jahres-Festschreibung nicht möglich' },
   disclosure: { state: 'open' },
   appropriation: { state: 'open' },
 };
 
+/** Was in einem abgeschlossenen Jahr an den Bausteinen steht. */
+function closedYearDetail(year: number, key: string): string | undefined {
+  const detail: Record<string, string> = {
+    vat_settlement: `Zahllast ${year} verrechnet`,
+    input_tax_correction: 'Keine Berichtigung nötig',
+    tax_provision: 'Körperschaft- und Gewerbesteuer zurückgestellt',
+    check_run: `Lauf zum 31.12.${year} ohne Befund`,
+    statement: 'Kleine Kapitalgesellschaft, verkürzte Bilanz',
+    adoption: year === YEAR - 1 ? 'Festgestellt am 14.05.2026' : 'Festgestellt am 20.05.2025',
+    disclosure: 'Offengelegt am 12.11.2025',
+    appropriation: year === YEAR - 1 ? 'Gewinnvortrag auf neue Rechnung' : 'Ausgeschüttet',
+  };
+  return detail[key];
+}
+
+/** Im laufenden Jahr steht jeder Baustein noch offen. */
+const OPEN_YEAR_DETAIL: Record<string, string> = {
+  depreciation: 'AfA für 5 Anlagegüter zum 31.12.2026',
+  accruals: '2 Verträge reichen über den Stichtag',
+  tax_provision: 'Schätzung auf den heutigen Stand',
+  vat_settlement: 'Zahllast von zwölf Monaten und Sondervorauszahlung',
+};
+
 function closingSteps(year: number) {
-  const steps = CLOSING_STEP_DEFS.map(([key, label, hint, automatic], index) => {
-    const status = CLOSING_STEP_STATE[key] ?? { state: 'open' };
+  const y = year || YEAR;
+  const closed = y < YEAR;
+  const disclosed = FISCAL_YEARS.find((entry) => entry.year === y)?.status === 'disclosed';
+  const steps = CLOSING_STEP_DEFS.map(([key, label, hint, automatic, reference], index) => {
+    const status = closed
+      ? key === 'disclosure' && !disclosed
+        ? { state: 'open', detail: `Offenlegung bis 31.12.${y + 1}` }
+        : CLOSING_STEP_STATE[key]?.state === 'skipped'
+          ? CLOSING_STEP_STATE[key]
+          : { state: 'done', detail: closedYearDetail(y, key) ?? CLOSING_STEP_STATE[key]?.detail }
+      : { state: 'open', detail: OPEN_YEAR_DETAIL[key] };
     return {
       key,
       order: index + 1,
       label,
       hint,
+      reference,
       automatic,
       state: status.state,
       reason: status.reason,
-      changedOn: status.state === 'open' ? undefined : `${YEAR}-08-20`,
+      changedOn: status.state === 'open' ? undefined : `${y + 1}-03-12`,
       detail: status.detail,
     };
   });
   return {
     fiscalYear: year || YEAR,
-    cutoff: `${YEAR}-12-31`,
+    cutoff: `${year || YEAR}-12-31`,
     steps,
     openCount: steps.filter((s) => s.state === 'open').length,
     doneCount: steps.filter((s) => s.state === 'done').length,
@@ -2854,7 +2390,10 @@ function closingSteps(year: number) {
 /** Der Vortragsstand ins Folgejahr; gebucht ist noch nichts. */
 function carryForwardPreview(toYear: number) {
   const kinds: Record<string, string> = { '1200': 'debitor', '3300': 'kreditor' };
-  const openItemCount: Record<string, number> = { '1200': 3, '3300': 2 };
+  const openItemCount: Record<string, number> = {
+    '1200': OPEN_ITEMS.filter((item) => item.contactType === 'customer').length,
+    '3300': OPEN_ITEMS.filter((item) => item.contactType === 'vendor').length,
+  };
   const rows = ACCOUNTS.filter((x) => x.bookingsCount > 0 && x.statementType === 'Bilanz').map(
     (account) => {
       const balance = account.debitSum - account.creditSum;
@@ -2875,7 +2414,7 @@ function carryForwardPreview(toYear: number) {
     bookingDate: `${toYear || YEAR + 1}-01-01`,
     deferred: false,
     rows,
-    netIncome: SUMMARY.netIncome,
+    netIncome: NET_INCOME,
     resultAccount: '2970',
     resultAccountName: 'Gewinnvortrag vor Verwendung',
     alreadyCarried: false,
@@ -2885,61 +2424,6 @@ function carryForwardPreview(toYear: number) {
     balanceDifference: 0,
     isBalanced: true,
     accrualReleases: [],
-  };
-}
-
-/** Ein Rechnungsverbund mit zwei Abschlägen und offener Schlussrechnung. */
-const INVOICE_GROUPS = [
-  {
-    id: 1,
-    fiscalYear: YEAR,
-    contactId: 2,
-    title: 'Lagerleitstand Billstraße, Ausbaustufe 1',
-    totalNet: c(84000),
-    taxRate: 1900,
-    closed: false,
-    advances: [
-      advance(1, 1, 'RE-2026-0102', `${YEAR}-03-16`, 25200, `${YEAR}-03-30`),
-      advance(2, 2, 'RE-2026-0113', `${YEAR}-06-15`, 25200, `${YEAR}-06-29`),
-    ],
-    progress: {
-      agreedNet: c(84000),
-      billedNet: c(50400),
-      receivedNet: c(50400),
-      receivedTax: c(9576),
-      receivedGross: c(59976),
-      openNet: c(33600),
-      closed: false,
-    },
-    createdAt: `${YEAR}-03-02T09:00:00Z`,
-  },
-];
-
-function advance(
-  id: number,
-  invoiceId: number,
-  invoiceNumber: string,
-  invoiceDate: string,
-  netEuro: number,
-  settledAt: string,
-) {
-  const net = c(netEuro);
-  const tax = Math.round(net * 0.19);
-  return {
-    id,
-    groupId: 1,
-    invoiceId,
-    contactId: 2,
-    invoiceNumber,
-    invoiceDate,
-    netAmount: net,
-    taxAmount: tax,
-    grossAmount: net + tax,
-    taxRate: 1900,
-    settledAt,
-    settlementEntryId: 20 + id,
-    cancelled: false,
-    settledInFinal: false,
   };
 }
 
@@ -3017,14 +2501,14 @@ const AUDIT_CHAIN = {
   checkedEntries: AUDIT_LOGS.length + 204,
   breaks: [],
   lastVerifiedHash: fakeHash(`log-${AUDIT_LOGS[0].id}`),
-  checkedAt: '2026-08-26T08:12:00Z',
+  checkedAt: `${YEAR}-08-25T06:58:00Z`,
   message: 'Alle Protokolleinträge sind unverändert. Die Kette ist lückenlos.',
 };
 
-/** Die Sicherungsläufe: einer beim Beenden, einer täglich. */
+/** Die Sicherungsläufe: automatisch beim Beenden am Abend, dazu eine von Hand. */
 const BACKUP_RUNS = [
-  backupRun(3, 'automatic', '2026-08-25T18:40:12Z', 'nordlicht-2026-08-25.zip', 214, 48_218_411),
-  backupRun(2, 'automatic', '2026-08-24T18:32:05Z', 'nordlicht-2026-08-24.zip', 212, 47_902_188),
+  backupRun(3, 'automatic', '2026-08-24T18:40:12Z', 'nordlicht-2026-08-24.zip', 214, 48_218_411),
+  backupRun(2, 'automatic', '2026-08-21T18:32:05Z', 'nordlicht-2026-08-21-abend.zip', 212, 47_902_188),
   backupRun(1, 'manual', '2026-08-21T09:14:33Z', 'nordlicht-2026-08-21.zip', 209, 47_411_902),
 ];
 
@@ -3045,45 +2529,11 @@ function backupRun(
     fileCount,
     bytes,
     success: true,
-    message: 'Datenbank, Belege, Dokumente und Schlüsseldatei gesichert.',
+    message: 'Datenbank, Belege und Dokumente gesichert.',
     programVersion: '0.9.4',
     createdAt: startedAt,
   };
 }
-
-/** Das Schlüsselverzeichnis, das mit der Datenüberlassung hinausgeht. */
-const KEY_DIRECTORY = [
-  {
-    category: 'Buchung',
-    key: 'kind',
-    label: 'Buchungsart',
-    description: 'standard, storno, afa, closing, opening, payment',
-  },
-  {
-    category: 'Buchung',
-    key: 'source',
-    label: 'Herkunft',
-    description: 'receipt, invoice, bank, manual, closing, opening',
-  },
-  {
-    category: 'Steuer',
-    key: 'taxKey',
-    label: 'Steuerschlüssel',
-    description: '9 = Vorsteuer 19 %, 3 = Umsatzsteuer 19 %, 0 = ohne Steuer',
-  },
-  {
-    category: 'Beleg',
-    key: 'kind',
-    label: 'Belegart',
-    description: 'invoice, receipt, statement, letter, self_issued, other',
-  },
-  {
-    category: 'Beleg',
-    key: 'retentionClass',
-    label: 'Aufbewahrungsklasse',
-    description: 'books = 10 Jahre, vouchers = 8 Jahre, letters = 6 Jahre',
-  },
-];
 
 /**
  * Die Verfahrensdokumentation, wie sie auf der Seite „Betriebsprüfung" steht:
@@ -3157,11 +2607,10 @@ const ORGANISATION_TEXTS = {
   notes: '',
 };
 
-/** Hinweise zu Rechtsform, Speicherort und Steuerfällen. */
+/** Hinweise zu Speicherort und Steuerfällen. */
 const COMPLIANCE_HINTS = {
-  legalFormNote: '',
   cloudWarning: '',
-  dataDir: '/Users/anwender/Buchfink/Pfennig Ventures GmbH',
+  dataDir: TENANTS[0].dataDir,
   systemChangeDate: '',
   systemChangeNote: '',
   taxCaseHints: [
@@ -3169,106 +2618,6 @@ const COMPLIANCE_HINTS = {
     'Land- und Forstwirtschaft nach § 13a EStG ist nicht abgedeckt.',
   ],
 };
-
-/** Die Fristen je Geschäftsjahr. Gelöscht werden darf noch keines. */
-function retentionOverview() {
-  return {
-    today: TODAY,
-    years: [2024, 2025, YEAR].map((y) => retentionYear(y)),
-    concept: [
-      {
-        category: 'Bücher, Abschlüsse, Verfahrensdokumentation',
-        class: 'books',
-        years: 10,
-        legalBasis: '§ 147 Abs. 3 AO, § 257 Abs. 4 HGB',
-        note: 'Die Frist beginnt am 31.12. des Jahres der letzten Eintragung.',
-      },
-      {
-        category: 'Buchungsbelege und Rechnungen',
-        class: 'vouchers',
-        years: 8,
-        legalBasis: '§ 147 Abs. 3 Satz 1 AO',
-        note: 'Seit 2025 acht statt zehn Jahre.',
-      },
-      {
-        category: 'Handels- und Geschäftsbriefe',
-        class: 'letters',
-        years: 6,
-        legalBasis: '§ 147 Abs. 3 AO',
-        note: 'Empfangene und abgesandte Schreiben.',
-      },
-    ],
-  };
-}
-
-function retentionYear(fiscalYear: number) {
-  const counts = {
-    journalEntries: fiscalYear === YEAR ? 55 : 148,
-    journalLines: fiscalYear === YEAR ? 171 : 452,
-    receipts: fiscalYear === YEAR ? 6 : 84,
-    receiptFiles: fiscalYear === YEAR ? 7 : 91,
-    festschreibungen: fiscalYear === YEAR ? 2 : 5,
-    checkRuns: fiscalYear === YEAR ? 2 : 5,
-    vatReturns: fiscalYear === YEAR ? 2 : 4,
-    invoices: fiscalYear === YEAR ? 19 : 46,
-    bankTransactions: fiscalYear === YEAR ? 144 : 388,
-    assetMovements: fiscalYear === YEAR ? 4 : 9,
-    accruals: 2,
-    provisions: 1,
-    inventoryCounts: 0,
-    zmReturns: 0,
-    inputTaxUsages: 1,
-    numberGaps: 0,
-    clearedReferences: 0,
-  };
-  const classes = [
-    row('books', 'Bücher und Abschlüsse', 10),
-    row('vouchers', 'Buchungsbelege und Rechnungen', 8),
-    row('letters', 'Handels- und Geschäftsbriefe', 6),
-  ];
-  function row(cls: string, label: string, years: number) {
-    const end = `${fiscalYear + years}-12-31`;
-    return {
-      class: cls,
-      label,
-      years,
-      retentionEnd: end,
-      earliestDeletion: `${fiscalYear + years + 1}-01-01`,
-      legalBasis: cls === 'books' ? '§ 147 Abs. 3 AO, § 257 Abs. 4 HGB' : '§ 147 Abs. 3 AO',
-    };
-  }
-  return {
-    fiscalYear,
-    counts,
-    classes,
-    earliestDeletion: `${fiscalYear + 11}-01-01`,
-    expired: false,
-    deletable: false,
-    note: `Die längste Frist läuft bis zum 31.12.${fiscalYear + 10}.`,
-  };
-}
-
-
-/**
- * Die Steuertermine des Jahres. Erledigt ist, was aus den Daten folgt — die
- * übermittelte Voranmeldung, die Festschreibung —, und kein gesetzter Haken.
- */
-const DEADLINES = [
-  deadline('ustva-2026-q1', 'Umsatzsteuer-Voranmeldung 1. Quartal 2026', `${YEAR}-04-10`,
-    '1. Quartal 2026', '§ 18 Abs. 1 UStG', true),
-  deadline('ustva-2026-q2', 'Umsatzsteuer-Voranmeldung 2. Quartal 2026', `${YEAR}-07-10`,
-    '2. Quartal 2026', '§ 18 Abs. 1 UStG', true),
-  deadline('ustva-2026-q3', 'Umsatzsteuer-Voranmeldung 3. Quartal 2026', `${YEAR}-10-10`,
-    '3. Quartal 2026', '§ 18 Abs. 1 UStG', false),
-  deadline('zm-2026-q3', 'Zusammenfassende Meldung 3. Quartal 2026', `${YEAR}-10-25`,
-    '3. Quartal 2026', '§ 18a Abs. 1 UStG', false),
-  deadline('festschreibung-2026-q3', 'Drittes Quartal festschreiben', `${YEAR}-10-10`,
-    '3. Quartal 2026', '§ 146 Abs. 4 AO', false),
-  deadline('aufstellung-2025', 'Jahresabschluss 2025 aufstellen', `${YEAR}-06-30`,
-    'Geschäftsjahr 2025', '§ 264 Abs. 1 HGB', true),
-  deadline('offenlegung-2025', 'Jahresabschluss 2025 offenlegen', `${YEAR + 1}-12-31`,
-    'Geschäftsjahr 2025', '§ 325 Abs. 1a HGB', false),
-];
 
 function deadline(
   key: string,
@@ -3291,18 +2640,287 @@ function deadline(
   };
 }
 
-/**
- * Der Gründungsstand. Die Beispielfirma ist seit 2024 eingetragen; der
- * Gründungsweg ist damit abgeschlossen und die Ansicht zeigt ihn nicht mehr.
- */
+/** Der Gründungsstand. Die Beispielfirma ist seit 2024 eingetragen. */
 const FOUNDATION_STATE = {
-  applies: true,
   hasFoundation: false,
   legalForm: 'GmbH',
   rules: {},
   stage: 'eingetragen',
-  duties: [],
   postingsBooked: true,
+};
+
+// -------------------------------------------------------------------------
+// Bankkonten, verbundene Apps, Länder
+
+const BANK_ACCOUNTS = [
+  {
+    iban: SETTINGS.iban,
+    name: 'Geschäftskonto',
+    ledgerAccount: '1800',
+    currency: EUR,
+    bic: SETTINGS.bic,
+    bankName: SETTINGS.bankName,
+    isInvoiceAccount: true,
+  },
+];
+
+const MCP_STATUS = {
+  running: true,
+  port: 7465,
+  url: 'http://127.0.0.1:7465/mcp',
+  error: '',
+  fromEnvironment: false,
+};
+
+// -------------------------------------------------------------------------
+// Eingang, Lese- und Exportordner
+
+const DATA_DIR = TENANTS[0].dataDir;
+
+/**
+ * Drei Dateien im Eingang, die älteste zuerst: ein Foto vom 6. August, das
+ * seit 19 Tagen liegt, eine E-Rechnung der Kanzlei und der Kontoauszug von
+ * heute früh. Keine davon ist schon abgelegt.
+ */
+const INBOX_FILES = [
+  {
+    name: 'Bewirtung Kundentermin Husum.jpg',
+    size: 1_284_311,
+    modifiedAt: `${YEAR}-08-06T18:42:00+02:00`,
+    kind: 'beleg',
+  },
+  {
+    name: 'Kanzlei Elbufer RE-2026-311.pdf',
+    size: 186_402,
+    modifiedAt: `${YEAR}-08-24T16:05:00+02:00`,
+    kind: 'e_rechnung',
+  },
+  {
+    name: 'Kontoauszug DKB 2026-08-24.xml',
+    size: 23_877,
+    modifiedAt: `${YEAR}-08-25T07:58:00+02:00`,
+    kind: 'kontoauszug',
+  },
+].map((file) => ({ ...file, path: `${DATA_DIR}/Eingang/${file.name}` }));
+
+/** Weitere Leseordner: die Verträge, aus denen Claude Darlehen und Mietverträge liest. */
+const READ_FOLDERS = ['/Users/anna/Dokumente/Verträge'];
+
+const INBOX_INFO = {
+  path: `${DATA_DIR}/Eingang`,
+  default: true,
+  count: INBOX_FILES.length,
+  oldestDays: 19,
+  readFolders: READ_FOLDERS,
+  exportFolder: `${DATA_DIR}/Export`,
+};
+
+/** Die Regeln für Claude, wie eingerichtet: Grenzen voreingestellt, ein Leseordner. */
+const AGENT_RULES = {
+  stored: { directMaxGross: 0, directMinBookings: 0, extraReadFolders: READ_FOLDERS, exportFolder: '' },
+  directMaxGross: c(1000),
+  directMinBookings: 3,
+  extraReadFolders: READ_FOLDERS,
+  exportFolder: `${DATA_DIR}/Export`,
+  defaults: { directMaxGross: c(1000), directMinBookings: 3 },
+};
+
+/**
+ * Wie `syncdir.Detect`: ein Ordner unter iCloud Drive, Dropbox, OneDrive,
+ * Google Drive oder Nextcloud. Die Einrichtung zeigt den Hinweis zur Ablage.
+ */
+function folderCheck(path: string) {
+  const services: [RegExp, string][] = [
+    [/Library\/Mobile Documents|CloudStorage\/iCloud|iCloudDrive/i, 'iCloud Drive'],
+    [/OneDrive/i, 'OneDrive'],
+    [/Google ?Drive|Meine Ablage/i, 'Google Drive'],
+    [/Dropbox/i, 'Dropbox'],
+    [/Nextcloud|ownCloud/i, 'Nextcloud/ownCloud'],
+  ];
+  const sync = services.find(([pattern]) => pattern.test(path))?.[1] ?? '';
+  return {
+    sync,
+    warning: sync
+      ? `Der Ordner liegt in ${sync}. Die Datenbank verträgt keine Synchronisation, während Buchfink läuft; ` +
+        'besser ist ein lokaler Ordner mit einer Sicherung.'
+      : '',
+  };
+}
+
+/** Zwei zugelassene Apps: Claude Code bucht, Claude Desktop liest nur. */
+const CONNECTED_APPS = [
+  {
+    clientId: 'c7f1e2a0-claude-code',
+    name: 'Claude Code',
+    channel: 'agent:claude-code',
+    approvedAt: `${YEAR}-08-03T09:14:00Z`,
+    lastUsedAt: `${YEAR}-08-25T06:55:00Z`,
+    tenants: [
+      {
+        id: TENANTS[0].id,
+        name: TENANTS[0].name,
+        scopes: ['buchfink:lesen', 'buchfink:buchen'],
+        grantedAt: `${YEAR}-08-03T09:14:00Z`,
+      },
+    ],
+    revoked: false,
+  },
+  {
+    clientId: '41b9d3c5-claude-desktop',
+    name: 'Claude Desktop',
+    channel: 'agent:claude-desktop',
+    approvedAt: `${YEAR}-08-11T16:40:00Z`,
+    lastUsedAt: `${YEAR}-08-22T17:05:00Z`,
+    tenants: [
+      {
+        id: TENANTS[0].id,
+        name: TENANTS[0].name,
+        scopes: ['buchfink:lesen'],
+        grantedAt: `${YEAR}-08-11T16:40:00Z`,
+      },
+    ],
+    revoked: false,
+  },
+];
+
+const COUNTRIES = [
+  { code: 'DE', name: 'Deutschland' },
+  { code: 'AT', name: 'Österreich' },
+  { code: 'CH', name: 'Schweiz' },
+  { code: 'NL', name: 'Niederlande' },
+  { code: 'FR', name: 'Frankreich' },
+];
+
+/** Kapitalregeln der beiden Rechtsformen, die Buchfink führt. */
+const FOUNDATION_RULES = [
+  {
+    legalForm: 'GmbH',
+    minShareCapital: c(25000),
+    paidInPerShareQuota: 0.25,
+    paidInFloor: c(12500),
+    paidInFloorIsFullCapital: false,
+    cashOnly: false,
+    legalReserve: false,
+    reference: '§ 5 Abs. 1, § 7 Abs. 2 GmbHG',
+    note: '',
+  },
+  {
+    legalForm: 'UG (haftungsbeschränkt)',
+    minShareCapital: c(1),
+    paidInPerShareQuota: 1,
+    paidInFloor: 0,
+    paidInFloorIsFullCapital: true,
+    cashOnly: true,
+    legalReserve: true,
+    reference: '§ 5a GmbHG',
+    note: 'Ein Viertel des Jahresüberschusses fließt in die gesetzliche Rücklage.',
+  },
+];
+
+/** Hebesatz Hamburg und die Vorgaben der Abgrenzung. */
+const CLOSING_SETTINGS = {
+  tradeTaxRatePercent: 470,
+  accrualMethod: 'monthly',
+  accrualThreshold: c(800),
+  accrualRelease: 'yearly',
+};
+
+const FISCAL_YEAR_CANDIDATES = {
+  next: { year: YEAR + 1, startDate: `${YEAR + 1}-01-01`, endDate: `${YEAR + 1}-12-31` },
+  previous: {
+    year: 2023,
+    startDate: '2023-01-01',
+    endDate: '2023-12-31',
+    blocked: 'Die Bücher beginnen am 01.01.2024.',
+  },
+};
+
+/** Das in der Kopfzeile gewählte Geschäftsjahr. */
+let viewYear = YEAR;
+
+// -------------------------------------------------------------------------
+// Unternehmen, Einrichtung und Zustimmung
+
+/** Ein Darlehen der Mehrheitsgesellschafterin an die GmbH. */
+const SHAREHOLDER_LOANS = [
+  {
+    loan: {
+      id: 1,
+      contactId: 20,
+      direction: 'to_company',
+      principal: c(20000),
+      interestRateBp: 350,
+      dayCount: 'act/365',
+      contractDate: '2025-02-20',
+      startDate: '2025-03-01',
+      maturityDate: '2028-02-29',
+      account: '3642',
+      interestAccount: '7317',
+      collateral: '',
+      subordinated: true,
+    },
+    contactName: 'Anna Bauer',
+    outstanding: c(20000),
+    firstMovement: '2025-03-03',
+    interestBookedThrough: '2025-12-31',
+    findings: [],
+  },
+];
+
+/** Die Pflichten aus den Stammdaten: der Eintritt von Jonas Peters 2026. */
+const COMPANY_DEADLINES = [
+  {
+    ...deadline('gesellschafterliste.2026-03', 'Gesellschafterliste einreichen (Eintritt Jonas Peters)',
+      `${YEAR}-03-31`, 'März 2026', '§ 40 Abs. 2 GmbHG', true),
+    doneOn: `${YEAR}-03-12`,
+    description: 'Der Notar reicht die neue Liste beim Handelsregister ein.',
+  },
+  {
+    ...deadline('transparenzregister.2026-03', 'Transparenzregister: wirtschaftlich Berechtigte melden',
+      `${YEAR}-11-15`, 'März 2026', '§ 20 Abs. 1 GwG', false),
+    description: 'Ändern sich die wirtschaftlich Berechtigten, ist das Transparenzregister zu aktualisieren.',
+    confirmable: true,
+  },
+];
+
+/** Steht `mock:consent` im lokalen Speicher, meldet sich Claude Code an. */
+const CONSENT_REQUEST = {
+  id: 'anfrage-1',
+  nonce: 'nonce-1',
+  clientName: 'Claude Code',
+  clientId: 'c7f1e2a0-claude-code',
+  clientRegisteredAt: `${YEAR}-08-25T08:11:00Z`,
+  knownSince: null,
+  redirectUri: 'http://127.0.0.1:53712/callback',
+  redirectTo: '',
+  scopes: ['buchfink:lesen', 'buchfink:buchen'],
+  tenantId: TENANTS[0].id,
+  tenantName: TENANTS[0].name,
+  userCode: 'KXRT7M2Q',
+  expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+};
+
+/** Schalter für die Aufnahmen der Einrichtung und der Zustimmung. */
+function mockFlag(name: string): string | null {
+  try {
+    return window.localStorage.getItem(`mock:${name}`);
+  } catch {
+    return null;
+  }
+}
+
+const SCHEMA_MIGRATIONS = [
+  { id: 2, runAt: `${YEAR}-08-01T07:58:00Z`, appVersion: '0.3.0', fromVersion: 41, toVersion: 44, result: 'ok', tables: 'shareholder_loans, obligation_records', message: '' },
+  { id: 1, runAt: '2024-01-08T09:12:00Z', appVersion: '0.2.0', fromVersion: 0, toVersion: 41, result: 'ok', tables: 'Ersteinrichtung', message: '' },
+];
+
+const VAT_ID_STATUS = {
+  contactId: 1,
+  vatId: 'DE289512347',
+  confirmed: true,
+  latest: { checkedAt: `${YEAR}-07-02T10:14:00Z`, resultCode: '200', requestId: 'BZST-2026-07-02-4711' },
+  validityDays: 365,
+  note: 'Gültig bestätigt.',
 };
 
 const unsupported = (name: string) => () =>
@@ -3313,10 +2931,51 @@ export const bridge = {
   GetTenants: () => later(TENANTS),
   GetActiveTenant: () => later(TENANTS[0]),
   SwitchTenant: () => later(undefined),
-  CreateTenant: unsupported('CreateTenant'),
-  ImportTenant: unsupported('ImportTenant'),
   DeleteTenant: unsupported('DeleteTenant'),
-  IsLocked: () => later(false),
+
+  GetBankAccounts: () => later(BANK_ACCOUNTS),
+  PreviewBankStatement: unsupported('PreviewBankStatement'),
+  ConfigureBankAccounts: unsupported('ConfigureBankAccounts'),
+  SetInvoiceBankAccount: unsupported('SetInvoiceBankAccount'),
+
+  // Eingang, Regeln für Apps, Standardgruppe
+  GetInbox: () => later(INBOX_INFO),
+  ListInbox: () => later(INBOX_FILES, 60),
+  OpenInbox: () => later(undefined),
+  AddToInbox: unsupported('AddToInbox'),
+  SetInboxFolder: unsupported('SetInboxFolder'),
+  CheckFolder: (path: string) => later(folderCheck(path)),
+  GetAgentRules: () => later(AGENT_RULES),
+  SaveAgentRules: unsupported('SaveAgentRules'),
+  ConfirmDefaultPostingGroup: unsupported('ConfirmDefaultPostingGroup'),
+
+  // Verbundene Apps
+  GetMCPServerStatus: () => later(MCP_STATUS),
+  SetMCPPort: unsupported('SetMCPPort'),
+  GetConnectedApps: () => later(mockFlag('setup') ? [] : CONNECTED_APPS),
+  RevokeConnectedApp: unsupported('RevokeConnectedApp'),
+  GetPendingAppRequests: () => later(mockFlag('consent') ? [CONSENT_REQUEST] : []),
+  ResolveAppRequest: () => {
+    window.localStorage.removeItem('mock:consent');
+    return later(undefined);
+  },
+  OpenAgentGuide: unsupported('OpenAgentGuide'),
+
+  // Stammdaten: Darlehen, Eintragung, Steuernummer
+  GetShareholderLoans: () => later(SHAREHOLDER_LOANS),
+  RegisterShareholderLoan: unsupported('RegisterShareholderLoan'),
+  CorrectShareholderLoan: unsupported('CorrectShareholderLoan'),
+  RegisterCompany: unsupported('RegisterCompany'),
+  FormatElsterTaxNumber: (taxNumber: string, state: string) => {
+    const digits = taxNumber.replace(/\D/g, '');
+    if (!digits || !state) return later('');
+    // Hamburg: zehn Ziffern, Länderpräfix 22, eingefügte 0 an fünfter Stelle.
+    if (state === 'HH' && digits.length === 10) return later(`22${digits.slice(0, 2)}0${digits.slice(2)}`);
+    return Promise.reject(new Error(`Eine Steuernummer aus ${state} hat in der Vorschau zehn Ziffern.`));
+  },
+  GetCountries: () => later(COUNTRIES),
+  GetFiscalYearCandidates: () => later(FISCAL_YEAR_CANDIDATES),
+  BookLegalReserve: unsupported('BookLegalReserve'),
 
   // Einrichtung
   GetAppConfig: () =>
@@ -3329,54 +2988,52 @@ export const bridge = {
       // Passend zum jüngsten Lauf in BACKUP_RUNS: ohne beides zeigte die Seite
       // „Noch keine Sicherung gelaufen" über einer Liste gelaufener Sicherungen.
       backupDir: '/Users/anna/Sicherungen',
-      lastBackupAt: '2026-08-25T18:40:00Z',
+      lastBackupAt: '2026-08-24T18:40:12Z',
+      // Mit `mock:setup` startet die Vorschau in der Einrichtung.
+      ...(mockFlag('setup') === '1' ? { isConfigured: false, tenants: [], activeTenantId: '' } : {}),
     }),
-  SetupApplication: unsupported('SetupApplication'),
+  ValidateTenantDirectory: () => later(undefined, 80),
+  SetupApplication: () => {
+    window.localStorage.setItem('mock:setup', 'angelegt');
+    return later(undefined, 300);
+  },
   LoadExistingDatabase: unsupported('LoadExistingDatabase'),
   SelectDirectoryDialog: unsupported('SelectDirectoryDialog'),
   SelectDatabaseFileDialog: unsupported('SelectDatabaseFileDialog'),
-  SelectRecoveryFileDialog: unsupported('SelectRecoveryFileDialog'),
-  ExportRecoveryKey: unsupported('ExportRecoveryKey'),
-  RecoverActiveTenantFromFile: unsupported('RecoverActiveTenantFromFile'),
 
   // Geschäftsjahr & Stammdaten
-  GetFiscalYear: () => later(YEAR),
-  SetFiscalYear: () => later(undefined),
+  // Die Kopfzeile schaltet das Geschäftsjahr um; die Vorschau merkt es sich,
+  // damit die Ansicht nach dem Umschalten das gewählte Jahr behält.
+  GetFiscalYear: () => later(viewYear),
+  SetFiscalYear: (year: number) => {
+    viewYear = year;
+    return later(undefined);
+  },
   GetAvailableFiscalYears: () => later([2024, 2025, 2026]),
   GetCompanySettings: () => later(SETTINGS),
   UpdateCompanySettings: () => later(undefined),
 
   // Konten
   GetAccounts: () => later(ACCOUNTS),
-  GetAccountByNumber: (number: string) => later(ACCOUNTS.find((x) => x.number === number)),
   GetAccountLedger: (accountNumber: string) => later(ledgerFor(accountNumber)),
   GetSuSaOverview: () => later(susa()),
-  GetPaymentAccounts: () => later(ACCOUNTS.filter((x) => ['1600', '1800'].includes(x.number))),
+  GetPaymentAccounts: () => later(ACCOUNTS.filter((x) => x.number === '1800')),
 
   // Kontierung
   GetPostingGroups: () => later(POSTING_GROUPS),
   GetTaxTreatments: () => later(TAX_TREATMENTS),
-  GetDifferenceKinds: () => later(DIFFERENCE_KINDS),
 
   // Journal
   GetJournalEntries: () => later(ENTRIES),
   GetAllJournalEntries: () => later(ENTRIES),
-  PostJournalEntry: unsupported('PostJournalEntry'),
   PostIncomingReceipt: unsupported('PostIncomingReceipt'),
-  ReverseJournalEntry: unsupported('ReverseJournalEntry'),
   VerifyIntegrity: () => later(INTEGRITY, 400),
-  GetFinancialSummary: () => later(SUMMARY),
-  GetVatSummary: (from: string, to: string) => later(vatSummary(from, to)),
 
   // Belege
   SelectReceiptFilesDialog: () => later([]),
   FileIncomingReceipt: unsupported('FileIncomingReceipt'),
-  AddReceiptFile: unsupported('AddReceiptFile'),
-  RemoveReceiptFile: unsupported('RemoveReceiptFile'),
   GetReceipts: (status: string) =>
     later(status ? RECEIPTS.filter((r) => r.status === status) : RECEIPTS),
-  GetReceipt: (id: number) => later(RECEIPTS.find((r) => r.id === id)),
-  DiscardReceipt: unsupported('DiscardReceipt'),
   GetReceiptPreview: (receiptId: number) =>
     later({
       dataUrl: receiptPreview(),
@@ -3384,94 +3041,47 @@ export const bridge = {
       mimeType: 'image/png',
       intact: true,
     }),
-  ExtractStructuredPart: unsupported('ExtractStructuredPart'),
   ProposeFromEInvoice: (receiptId: number) => later(proposalFor(receiptId)),
-  ValidateEInvoice: unsupported('ValidateEInvoice'),
   GetEInvoiceRules: () => later(['BR-1', 'BR-2', 'BR-CO-10', 'BR-DE-1', 'BR-DE-15']),
-  GetUncheckedEInvoiceRules: () =>
-    later({
-      'BR-CL-*': 'Codelisten-Regeln laufen gegen die mitgelieferten Listen, nicht gegen Schematron.',
-    }),
   PreviewIncomingReceipt: (request: any) => later(previewIncoming(request), 120),
-  PreviewOutgoingInvoice: unsupported('PreviewOutgoingInvoice'),
+  PreviewOutgoingInvoice: (invoice: any) => later(previewOutgoing(invoice), 120),
 
   // Bank & Zahlungen
   GetBankTransactions: () => later(BANK_TX),
-  ImportCAMT053XML: unsupported('ImportCAMT053XML'),
   BookBankTransactionDirect: unsupported('BookBankTransactionDirect'),
-  IgnoreBankTransaction: unsupported('IgnoreBankTransaction'),
-  GetOpenItems: () => later(OPEN_ITEMS),
   SettlePayment: unsupported('SettlePayment'),
 
   // Kontakte & Rechnungen
   GetContacts: () => later(CONTACTS),
   SaveContact: unsupported('SaveContact'),
-  DeleteContact: unsupported('DeleteContact'),
   GetInvoices: () => later(INVOICES),
   IssueInvoice: unsupported('IssueInvoice'),
-  CancelInvoice: unsupported('CancelInvoice'),
-  GenerateInvoiceZUGFeRD: unsupported('GenerateInvoiceZUGFeRD'),
-  GetInvoiceDocument: unsupported('GetInvoiceDocument'),
+  GetInvoiceDocument: (invoiceId: number) =>
+    later({
+      dataUrl: receiptPreview(),
+      fileName: `${INVOICES.find((i) => i.id === invoiceId)?.invoiceNumber ?? 'Rechnung'}.pdf`,
+      mimeType: 'image/png',
+      intact: true,
+    }),
 
   // Anlagevermögen
   GetFixedAssets: (assetClass: string) =>
     later(assetClass ? ASSETS.filter((a) => a.class === assetClass) : ASSETS),
-  GetAssetSummary: (assetClass: string) => later(assetSummary(assetClass)),
   GetFixedAsset: (id: number) => later(assetDetail(id)),
-  SaveFixedAsset: unsupported('SaveFixedAsset'),
-  DeleteFixedAsset: unsupported('DeleteFixedAsset'),
-  RecordAssetCostAdjustment: unsupported('RecordAssetCostAdjustment'),
-  GetAssetAccounts: (assetClass: string) =>
-    later(assetClass ? ASSET_ACCOUNTS.filter((a) => a.class === assetClass) : ASSET_ACCOUNTS),
-  GetAssetRules: () => later(ASSET_RULES),
-  ClassifyAcquisition: (netCost: number, _date: string, selfUsable: boolean) =>
-    later(classifyAcquisition(netCost, selfUsable)),
-  PreviewDepreciationPlan: (request: any) => later(previewPlan(request), 60),
-  GetDepreciationRun: () => later(DEPRECIATION_RUN),
-  BookDepreciationRun: unsupported('BookDepreciationRun'),
-  BookAssetImpairment: unsupported('BookAssetImpairment'),
-  BookAssetWriteUp: unsupported('BookAssetWriteUp'),
-  TransferFixedAsset: unsupported('TransferFixedAsset'),
-  PreviewAssetDisposal: (request: any) => later(disposalPreview(request), 80),
-  BookAssetMaintenance: unsupported('BookAssetMaintenance'),
-  BookAssetIncome: unsupported('BookAssetIncome'),
-  ValuateAssetCurrency: (request: any) => later(currencyValuation(request), 60),
-  BookAssetCurrencyValuation: unsupported('BookAssetCurrencyValuation'),
-  SelectAssetDocumentsDialog: unsupported('SelectAssetDocumentsDialog'),
-  AttachAssetDocument: unsupported('AttachAssetDocument'),
-  RemoveAssetDocument: unsupported('RemoveAssetDocument'),
-  GetAssetDocumentContent: unsupported('GetAssetDocumentContent'),
-  GetAssetDocumentKinds: () => later(ASSET_DOCUMENT_KINDS),
-  GetExpiringAssetDocuments: () => later([]),
-  GetLegalForms: () => later(LEGAL_FORMS),
-  GetInvestmentRules: () => later(INVESTMENT_RULES),
-  ComputeVorabpauschale: (request: any) => later(vorabpauschale(request), 60),
-  GetInvestmentNoteForIncome: (assetId: number, amount: number) =>
-    later(investmentNote(assetId, amount, false), 60),
-  DisposeFixedAsset: unsupported('DisposeFixedAsset'),
   GetAnlagenspiegel: () => later(ANLAGENSPIEGEL),
-  GetAssetAcquisitionCandidates: () => later(ASSET_CANDIDATES),
-  GetSammelposten: (fiscalYear: number) =>
-    later(ASSETS.find((a) => a.method === 'pool' && a.poolYear === (fiscalYear || YEAR)) ?? null),
+  GetAssetAcquisitionCandidates: () => later([]),
 
   // Nachgereichte Auskünfte, die eine Ansicht auf dem Weg von der Bilanz zum
   // Beleg nebenbei holt. Ohne sie bräche die Belegliste ab: sie lädt Belege,
   // Kontakte und Kontierung in einem Zug.
   GetFiscalYears: () => later(FISCAL_YEARS),
   GetSelectableContacts: () => later(CONTACTS),
-  GetSuSaOverviewAt: () => later(susa()),
-  GetOpenItemsAging: unsupported('GetOpenItemsAging'),
   GetPaymentAllocations: () => later([]),
-  GetProvisions: () => later([]),
-  GetAdvanceTargets: () => later([]),
-  GetOpenAdvances: () => later([]),
-  GetOpenVendorAdvances: () => later([]),
-  ExportJournalCSV: unsupported('ExportJournalCSV'),
+  GetProvisions: (year: number) => later(closings.provisions(year || YEAR)),
 
   // Jahresabschluss: Bilanz, GuV, Anhang, Größenklasse
   GetStatement: () => later(STATEMENT, 80),
   GetSizeClass: () => later(SIZE_CLASS),
-  GetStatementDeadlines: () => later([]),
   ExportStatementPDF: unsupported('ExportStatementPDF'),
   ExportStatementCSV: unsupported('ExportStatementCSV'),
 
@@ -3479,45 +3089,51 @@ export const bridge = {
   // Rechnungsseite in einem Zug, und die Maske bliebe ohne Kunden.
   GetUnitCodes: () => later(UNIT_CODES),
   GetEInvoiceProfiles: () => later(EINVOICE_PROFILES),
-  GetInvoiceSentViaOptions: () => later(SENT_VIA_OPTIONS),
   GetNumberGapReasons: () => later(NUMBER_GAP_REASONS),
-  GetInvoiceNumberGaps: () => later({ fiscalYear: YEAR, issued: 19, used: 19, gaps: [] }),
-  GetSupplyEvidenceReport: () =>
-    later({
-      fiscalYear: YEAR,
-      rows: [],
-      incomplete: 0,
-      note: 'Im Geschäftsjahr sind keine innergemeinschaftlichen Lieferungen abgerechnet.',
-    }),
+  GetInvoiceNumberGaps: () => later({ fiscalYear: YEAR, issued: INVOICES.length, used: INVOICES.length, gaps: [] }),
 
   // Umsatzsteuer: das Kennziffernblatt, das der Monatsabschluss zeigt.
   // Geschrieben wird hier nichts — Bestätigung und Berichtigung sind Vorgänge
   // mit Folgen und stehen deshalb als „nicht verfügbar" da.
   GetVatReturn: (periodKey: string) => later(vatReturn(periodKey), 60),
   SaveVatReturn: (periodKey: string) => later(vatReturn(periodKey), 60),
-  ExportVatReturnCSV: () => later('Kennziffer;Bemessungsgrundlage;Steuer\n81;315200;59888\n'),
+  ExportVatReturnCSV: (id: number) => {
+    const r = vatReturn(`${YEAR}-${pad(id)}`);
+    const rows = r.figures.map((f) => `${f.code};${f.hasBase ? f.base / 100 : ''};${f.tax / 100}`);
+    return later(['Kennziffer;Bemessungsgrundlage;Steuer', ...rows].join('\n') + '\n');
+  },
   ConfirmVatReturnSubmitted: unsupported('ConfirmVatReturnSubmitted'),
 
-  // Welle 7: Aufgaben, Monatsabschluss, Bankvorschlag, Mahnwesen, Prüfpfad
+  // Aufgaben, Monatsabschluss, Bankvorschlag
   GetTasks: () => later(TASKS, 60),
   GetMonthCloseState: (month: string) => later(monthCloseState(month), 60),
   SuggestBankMatches: (bankTxId: number) => later(bankSuggestions(bankTxId), 60),
   GetBankRules: () => later(BANK_RULES),
   DeleteBankRule: unsupported('DeleteBankRule'),
-  GetDunningProposals: () => later(DUNNING_PROPOSALS, 60),
-  CreateDunningNotices: unsupported('CreateDunningNotices'),
-  GetDunningNotices: (contactId: number) =>
-    later(contactId ? DUNNING_NOTICES.filter((n) => n.contactId === contactId) : DUNNING_NOTICES),
-  GetBaseRates: () => later(BASE_RATES),
-  SaveBaseRate: unsupported('SaveBaseRate'),
-  GetAuditTrail: (receiptId: number) => later(auditTrail(receiptId), 60),
-  ExportAuditTrail: unsupported('ExportAuditTrail'),
-  SaveServiceProof: unsupported('SaveServiceProof'),
-  GetPaymentTermNotice: (dueDays: number) => later(paymentTermNotice(dueDays)),
+
+  // Übersicht
+  GetNextObligations: (limit: number) =>
+    later(limit > 0 ? OBLIGATIONS.slice(0, limit) : OBLIGATIONS, 40),
+  GetObligation: (key: string) => {
+    const found = OBLIGATIONS.find((o) => o.key === key);
+    return found
+      ? later(found, 40)
+      : Promise.reject(new Error(`die Pflicht „${key}“ gibt es für diesen Mandanten nicht`));
+  },
+  ConfirmObligation: unsupported('ConfirmObligation'),
+  WaiveObligation: unsupported('WaiveObligation'),
+  ReopenObligation: unsupported('ReopenObligation'),
+  GetAgentBookings: (limit: number) => later(agentBookings(limit), 40),
 
   // E-Bilanz, Audit & Festschreibung
-  ExportEBilanzXBRL: () => later(XBRL, 400),
-  GetAuditLogs: () => later(AUDIT_LOGS),
+  SaveEBilanzAs: (year: number, format: string) =>
+    later(
+      format === 'susa_csv'
+        ? `${DATA_DIR}/Export/ebilanz-${year || YEAR}-susa.csv`
+        : `${DATA_DIR}/Export/e-bilanz-${year || YEAR}.xbrl`,
+      400,
+    ),
+  SaveOpeningEBilanzAs: (year: number) => later(`${DATA_DIR}/Export/e-bilanz-eroeffnung-${year || YEAR}.xbrl`, 400),
   GetFestschreibungen: () => later(FESTSCHREIBUNGEN),
   CommitPeriod: unsupported('CommitPeriod'),
   VerifyFestschreibung: (id: number) =>
@@ -3531,31 +3147,35 @@ export const bridge = {
       message: 'Der Zeitstempel deckt den festgeschriebenen Kettenkopf ab.',
     }),
 
-  // Welle 5b bis 7: Meldezeiträume, Prüfläufe, Abschlussweg, Nebenpflichten
-  GetVatPeriods: () => later(vatPeriods()),
-  GetVatReturns: () => later(savedVatReturns()),
+  // Meldezeiträume, Prüfläufe, Abschlussweg, Nebenpflichten
   GetZMPeriods: () => later(zmPeriods()),
   GetZMReturn: (periodKey: string) => later(zmReturnFor(periodKey), 60),
-  GetZMReturns: () => later([]),
   GetCheckRuns: () => later(CHECK_RUNS),
   GetEBilanzMappingReport: (year: number) => later(mappingReport(year), 80),
   GetOpenItemsAt: () => later(OPEN_ITEMS),
   GetClosingState: (year: number) => later(closingState(year), 60),
   GetClosingSteps: (year: number) => later(closingSteps(year), 60),
   GetCarryForwardPreview: (toYear: number) => later(carryForwardPreview(toYear), 60),
-  GetInvoiceGroups: () => later(INVOICE_GROUPS),
   GetInputTaxCorrections: (year: number) => later(inputTaxCorrections(year), 60),
-  GetDeadlines: () => later(DEADLINES, 60),
+  // Die Oberfläche liest hier nur die Pflichten zum Unternehmen (Stammdaten).
+  GetDeadlines: () => later(COMPANY_DEADLINES, 60),
+  GetObligations: (year: number) => later(obligationsOf(year || YEAR), 60),
+  GetDeclaration: (kind: string, year: number) =>
+    new Promise((resolve, reject) =>
+      setTimeout(() => {
+        try {
+          resolve(closings.declaration(kind, year || YEAR));
+        } catch (e) {
+          reject(e);
+        }
+      }, 80),
+    ),
   GetFoundationState: () => later(FOUNDATION_STATE),
 
   // Nachweise, Sicherung und Datenüberlassung
   GetAuditLogsFiltered: () => later(AUDIT_LOGS, 60),
   VerifyAuditChain: () => later(AUDIT_CHAIN, 200),
-  GetRetentionOverview: () => later(retentionOverview(), 80),
-  GetRetentionHolds: () => later([]),
-  GetExpiredObjects: () => later([]),
   GetBackupRuns: () => later(BACKUP_RUNS),
-  GetKeyDirectory: () => later(KEY_DIRECTORY),
   // Die Seite „Betriebsprüfung" liest die Verfahrensdokumentation beim Öffnen:
   // ohne Antwort stünde auf dem Bild für die Webseite eine Fehlermeldung.
   GetProcedureDocumentations: () => later(PROCEDURE_DOCS, 60),
@@ -3567,84 +3187,47 @@ export const bridge = {
   // Vorgänge mit Folgen — Schreiben, Dialoge, Übermittlungen. In der
   // Vorschau steht dafür eine Antwort und kein Loch (siehe README).
   RegenerateInvoiceDocument: unsupported('RegenerateInvoiceDocument'),
-  CancelInvoiceWithDocument: unsupported('CancelInvoiceWithDocument'),
-  CorrectInvoice: unsupported('CorrectInvoice'),
-  MarkInvoiceSent: unsupported('MarkInvoiceSent'),
   RecordInvoiceNumberGapReason: unsupported('RecordInvoiceNumberGapReason'),
-  CreateInvoiceGroup: unsupported('CreateInvoiceGroup'),
-  IssueAdvanceInvoice: unsupported('IssueAdvanceInvoice'),
   SettleAdvance: unsupported('SettleAdvance'),
-  RefundAdvance: unsupported('RefundAdvance'),
-  IssueFinalInvoice: unsupported('IssueFinalInvoice'),
-  WriteOffOpenItem: unsupported('WriteOffOpenItem'),
-  GetLegacySpecialDepreciations: unsupported('GetLegacySpecialDepreciations'),
   SetAverageEmployees: unsupported('SetAverageEmployees'),
-  SetPriorYearRevenue: unsupported('SetPriorYearRevenue'),
   CreateFiscalYear: unsupported('CreateFiscalYear'),
   CarryForward: unsupported('CarryForward'),
   SetFiscalYearStatus: unsupported('SetFiscalYearStatus'),
   ReopenFiscalYear: unsupported('ReopenFiscalYear'),
   SkipClosingStep: unsupported('SkipClosingStep'),
   ReopenClosingStep: unsupported('ReopenClosingStep'),
-  MarkClosingStepDone: unsupported('MarkClosingStepDone'),
-  ProposeAccruals: unsupported('ProposeAccruals'),
-  PreviewAccrual: unsupported('PreviewAccrual'),
-  BookAccrual: unsupported('BookAccrual'),
-  GetAccruals: unsupported('GetAccruals'),
-  GetAccrualReport: unsupported('GetAccrualReport'),
-  PreviewProvision: unsupported('PreviewProvision'),
-  BookProvisionFormation: unsupported('BookProvisionFormation'),
-  BookProvisionIncrease: unsupported('BookProvisionIncrease'),
-  BookProvisionRelease: unsupported('BookProvisionRelease'),
-  BookProvisionConsumption: unsupported('BookProvisionConsumption'),
-  BookProvisionUnwinding: unsupported('BookProvisionUnwinding'),
-  SettleProvision: unsupported('SettleProvision'),
-  GetProvisionMirror: unsupported('GetProvisionMirror'),
-  GetDiscountRates: unsupported('GetDiscountRates'),
-  GetDiscountRateMonths: unsupported('GetDiscountRateMonths'),
-  SaveDiscountRates: unsupported('SaveDiscountRates'),
-  ImportDiscountRatesCSV: unsupported('ImportDiscountRatesCSV'),
-  GetInventoryAccounts: unsupported('GetInventoryAccounts'),
-  PreviewInventory: unsupported('PreviewInventory'),
-  BookInventory: unsupported('BookInventory'),
-  PreviewVatSettlement: unsupported('PreviewVatSettlement'),
-  BookVatSettlement: unsupported('BookVatSettlement'),
-  PreviewTaxProvision: unsupported('PreviewTaxProvision'),
-  BookTaxProvision: unsupported('BookTaxProvision'),
+  GetAccruals: (year: number) => later(closings.accruals(year || YEAR)),
+  GetProvisionMirror: (year: number) => later(closings.provisionMirror(year || YEAR)),
+
+  PreviewVatSettlement: (year: number) => later(closings.vatSettlement(year || YEAR)),
+  PreviewTaxProvision: (year: number) => later(closings.taxProvision(year || YEAR)),
   PreviewAppropriation: unsupported('PreviewAppropriation'),
   BookAppropriation: unsupported('BookAppropriation'),
-  GetAppropriation: unsupported('GetAppropriation'),
-  GetNotesTexts: unsupported('GetNotesTexts'),
-  SaveNotesText: unsupported('SaveNotesText'),
-  GetClosingSettings: unsupported('GetClosingSettings'),
+  GetAppropriation: (year: number) => later(closings.appropriation(year || YEAR - 1)),
+  GetNotesTexts: () => later(closings.notesTexts()),
+  GetClosingSettings: () => later(CLOSING_SETTINGS),
   SaveClosingSettings: unsupported('SaveClosingSettings'),
-  GetTaxElectionRegister: unsupported('GetTaxElectionRegister'),
-  ExportTaxElectionRegisterCSV: unsupported('ExportTaxElectionRegisterCSV'),
-  GetReconciliation: unsupported('GetReconciliation'),
+  GetTaxElectionRegister: (year: number) => later(closings.taxElectionRegister(year || YEAR)),
+  GetReconciliation: (year: number) => later(closings.reconciliation(year || YEAR)),
   CreateVatCorrection: unsupported('CreateVatCorrection'),
-  GetSpecialPrepaymentSuggestion: unsupported('GetSpecialPrepaymentSuggestion'),
   SaveZMReturn: unsupported('SaveZMReturn'),
   ConfirmZMSubmitted: unsupported('ConfirmZMSubmitted'),
-  CreateZMCorrection: unsupported('CreateZMCorrection'),
-  ExportZMCSV: unsupported('ExportZMCSV'),
-  RunChecks: unsupported('RunChecks'),
-  MarkDeadlineDone: unsupported('MarkDeadlineDone'),
+  RunChecks: (cutoff: string, periodType: string) => later(checkRunFor(cutoff, periodType), 120),
+  SetDeclarationInput: unsupported('SetDeclarationInput'),
+  ConfirmDeclarationInput: unsupported('ConfirmDeclarationInput'),
+  DeleteDeclarationInput: unsupported('DeleteDeclarationInput'),
+  SubmitDeclaration: unsupported('SubmitDeclaration'),
+  ExportDeclarationJSON: unsupported('ExportDeclarationJSON'),
   SaveFoundation: unsupported('SaveFoundation'),
-  GetFoundationRules: unsupported('GetFoundationRules'),
-  GetRecommendedVatPeriod: unsupported('GetRecommendedVatPeriod'),
-  PreviewFoundationPostings: unsupported('PreviewFoundationPostings'),
-  BookFoundationPostings: unsupported('BookFoundationPostings'),
-  RegisterCompany: unsupported('RegisterCompany'),
-  CompleteFoundationDuty: unsupported('CompleteFoundationDuty'),
+  SaveOpeningBalanceAs: () => later(`${DATA_DIR}/Export/Eroeffnungsbilanz.pdf`, 400),
+  GetFoundationRules: () => later(FOUNDATION_RULES),
   ExportZ3: unsupported('ExportZ3'),
   ExportArchive: unsupported('ExportArchive'),
   ExportAuditPackage: unsupported('ExportAuditPackage'),
-  ExportKeyDirectory: unsupported('ExportKeyDirectory'),
   SelectExportDirectoryDialog: unsupported('SelectExportDirectoryDialog'),
   SelectSaveFileDialog: unsupported('SelectSaveFileDialog'),
   SaveReceiptFileAs: unsupported('SaveReceiptFileAs'),
   VerifyReceiptFiles: unsupported('VerifyReceiptFiles'),
-  GetAccountLedgerRange: unsupported('GetAccountLedgerRange'),
   ImportCAMT053File: unsupported('ImportCAMT053File'),
   SelectStatementFileDialog: unsupported('SelectStatementFileDialog'),
   SetBackupDir: unsupported('SetBackupDir'),
@@ -3653,78 +3236,42 @@ export const bridge = {
   RestoreFromBackup: unsupported('RestoreFromBackup'),
   SelectBackupDirDialog: unsupported('SelectBackupDirDialog'),
   SelectBackupFileDialog: unsupported('SelectBackupFileDialog'),
-  PreviewInputTaxCorrection: unsupported('PreviewInputTaxCorrection'),
-  RegisterInputTaxCorrection: unsupported('RegisterInputTaxCorrection'),
-  CloseInputTaxCorrection: unsupported('CloseInputTaxCorrection'),
-  SaveInputTaxUsage: unsupported('SaveInputTaxUsage'),
-  BookInputTaxCorrection: unsupported('BookInputTaxCorrection'),
-  GetVatIDChecks: unsupported('GetVatIDChecks'),
-  GetVatIDStatus: unsupported('GetVatIDStatus'),
-  CheckVatID: unsupported('CheckVatID'),
-  GetSupplyEvidenceKinds: unsupported('GetSupplyEvidenceKinds'),
-  GetSupplyEvidence: unsupported('GetSupplyEvidence'),
-  AddSupplyEvidence: unsupported('AddSupplyEvidence'),
-  SetSupplyTransport: unsupported('SetSupplyTransport'),
-  RemoveSupplyEvidence: unsupported('RemoveSupplyEvidence'),
-  GetNonDeductibleCategories: unsupported('GetNonDeductibleCategories'),
-  GetNonDeductibleReport: unsupported('GetNonDeductibleReport'),
-  RebookGiftsForRecipient: unsupported('RebookGiftsForRecipient'),
-  GetExchangeRate: unsupported('GetExchangeRate'),
-  GetExchangeRates: unsupported('GetExchangeRates'),
-  SaveExchangeRate: unsupported('SaveExchangeRate'),
-  GetVatExchangeRates: unsupported('GetVatExchangeRates'),
-  SaveVatExchangeRate: unsupported('SaveVatExchangeRate'),
-  ImportVatExchangeRatesCSV: unsupported('ImportVatExchangeRatesCSV'),
-  PreviewCurrencyValuation: unsupported('PreviewCurrencyValuation'),
-  BookCurrencyValuation: unsupported('BookCurrencyValuation'),
-  GetAfaRules: unsupported('GetAfaRules'),
-  GetWriteUpReport: unsupported('GetWriteUpReport'),
-  ConfirmImpairmentPersists: unsupported('ConfirmImpairmentPersists'),
-  GetPoolConsistencyReport: unsupported('GetPoolConsistencyReport'),
-  CheckNearAcquisitionCost: unsupported('CheckNearAcquisitionCost'),
-  CapitalizeNearAcquisitionCost: unsupported('CapitalizeNearAcquisitionCost'),
-  GetExemptionCertificateWarnings: unsupported('GetExemptionCertificateWarnings'),
-  GetServiceEndpoints: unsupported('GetServiceEndpoints'),
-  SaveServiceEndpoints: unsupported('SaveServiceEndpoints'),
-  GetSchemaMigrations: unsupported('GetSchemaMigrations'),
-  GetMigrationRecords: unsupported('GetMigrationRecords'),
+  GetVatIDStatus: (contactId: number) => later({ ...VAT_ID_STATUS, contactId }),
+  GetNonDeductibleReport: (year: number) => later(closings.nonDeductibleReport(year || YEAR)),
+  PreviewCurrencyValuation: (year: number) => later(closings.currencyValuation(year || YEAR)),
+  GetVatExchangeRates: () =>
+    later(
+      ['2026-07', '2026-08', '2026-09'].flatMap((month) =>
+        ['CHF', 'GBP', 'USD'].map((currency) => ({
+          month,
+          currency,
+          rateMicros: currency === 'USD' ? 1_160_000 : currency === 'GBP' ? 860_000 : 935_000,
+          source: 'BMF-Umsatzsteuer-Umrechnungskurse',
+          updatedAt: `${month}-28T08:00:00Z`,
+        })),
+      ),
+    ),
+  ImportVatExchangeRates: unsupported('ImportVatExchangeRates'),
+  SelectVatRatesFileDialog: () => later(''),
+  GetWriteUpReport: (year: number) => later(closings.writeUpReport(year || YEAR)),
+  GetSchemaMigrations: () => later(SCHEMA_MIGRATIONS),
+  GetMigrationRecords: () => later([]),
   SetSystemChangeDate: unsupported('SetSystemChangeDate'),
-  SetRetentionHold: unsupported('SetRetentionHold'),
-  ReleaseRetentionHold: unsupported('ReleaseRetentionHold'),
-  ArchiveAndDeleteFiscalYear: unsupported('ArchiveAndDeleteFiscalYear'),
   GenerateProcedureDocumentation: unsupported('GenerateProcedureDocumentation'),
   SaveOrganisationTexts: unsupported('SaveOrganisationTexts'),
   SaveProcedureDocumentationAs: unsupported('SaveProcedureDocumentationAs'),
   OpenReleasesPage: unsupported('OpenReleasesPage'),
   BlockContact: unsupported('BlockContact'),
-  SaveReceiptHeader: unsupported('SaveReceiptHeader'),
-  CorrectEntry: unsupported('CorrectEntry'),
-  PreviewOpeningBalance: unsupported('PreviewOpeningBalance'),
-  BookOpeningBalance: unsupported('BookOpeningBalance'),
   EnableReadOnly: unsupported('EnableReadOnly'),
   DisableReadOnly: unsupported('DisableReadOnly'),
-  GetProgramVersion: unsupported('GetProgramVersion'),
 
-  // Welle 8: die laufende Buchhaltung. Gelesen wird aus denselben
-  // Beispieldaten wie das Journal — geschrieben wird nichts: die Handbuchung,
-  // der Eigenbeleg, das eigene Konto und die Fristverlängerung sind Vorgänge
-  // mit Folgen und stehen deshalb als „nicht verfügbar" da.
+  // Die laufende Buchhaltung, gelesen aus denselben Beispieldaten wie das Journal.
   GetRetentionRules: () => later(RETENTION_RULES),
-  GetVatRatePeriods: () => later(VAT_RATE_PERIODS),
   GetVatPeriodProposal: (year: number) => later(vatPeriodProposal(year)),
-  GetCustomAccounts: () => later(CUSTOM_ACCOUNTS),
-  GetStatementPositions: () => later(STATEMENT_POSITIONS),
   GetEntriesForReceipt: (receiptId: number) =>
     later(ENTRIES.filter((e: any) => e.receiptId === receiptId)),
-  GetReceiptFindings: (receiptId: number) => later(receiptFindings(receiptId)),
   GetFilteredJournal: (filter: any) => later(filteredJournal(filter)),
-  GetFilteredJournalCSV: () => later(filteredJournalCSV()),
   SaveFilteredJournalCSV: unsupported('SaveFilteredJournalCSV'),
-  PostManualEntry: unsupported('PostManualEntry'),
-  CreateSelfIssuedReceipt: unsupported('CreateSelfIssuedReceipt'),
-  OverrideReceiptRetention: unsupported('OverrideReceiptRetention'),
-  CreateCustomAccount: unsupported('CreateCustomAccount'),
-  SetAccountBlocked: unsupported('SetAccountBlocked'),
 };
 
 // -------------------------------------------------------------------------
@@ -3742,10 +3289,10 @@ function susa() {
       totalCredit: accounts.reduce((sum, x) => sum + x.creditSum, 0),
       totalSaldoDebit: accounts
         .filter((x) => x.debitSum >= x.creditSum)
-        .reduce((sum, x) => sum + x.balance, 0),
+        .reduce((sum, x) => sum + x.debitSum - x.creditSum, 0),
       totalSaldoCredit: accounts
         .filter((x) => x.debitSum < x.creditSum)
-        .reduce((sum, x) => sum + x.balance, 0),
+        .reduce((sum, x) => sum + x.creditSum - x.debitSum, 0),
       accountsCount: accounts.length,
       accounts,
     };
@@ -3762,8 +3309,14 @@ function susa() {
   };
 }
 
+/**
+ * Das Kontoblatt wie im Backend: der laufende Saldo trägt das Vorzeichen der
+ * natürlichen Seite des Kontos. Der Saldenvortrag steht als erste Buchung
+ * gegen 9000 im Blatt.
+ */
 function ledgerFor(accountNumber: string) {
   const account = ACCOUNTS.find((x) => x.number === accountNumber)!;
+  const debitPositive = !['liability', 'equity', 'revenue'].includes(account.type);
   let running = 0;
   const rows = ENTRIES.flatMap((entry) =>
     entry.lines
@@ -3771,7 +3324,7 @@ function ledgerFor(accountNumber: string) {
       .map((line) => {
         const debit = line.side === 'S' ? line.amount : 0;
         const credit = line.side === 'H' ? line.amount : 0;
-        running += debit - credit;
+        running += debitPositive ? debit - credit : credit - debit;
         return {
           entryId: entry.id,
           entryNumber: entry.entryNumber,
@@ -3783,7 +3336,7 @@ function ledgerFor(accountNumber: string) {
           side: line.side,
           debitAmount: debit,
           creditAmount: credit,
-          runningBalance: Math.abs(running),
+          runningBalance: running,
           counterAccounts: entry.lines
             .filter((other) => other.account !== accountNumber)
             .map((other) => ({ account: other.account, name: other.accountName, amount: other.amount })),
@@ -3797,7 +3350,7 @@ function ledgerFor(accountNumber: string) {
     openingBalance: 0,
     totalDebit: rows.reduce((sum, r) => sum + r.debitAmount, 0),
     totalCredit: rows.reduce((sum, r) => sum + r.creditAmount, 0),
-    closingBalance: Math.abs(running),
+    closingBalance: running,
     rowCount: rows.length,
     rows,
   };
@@ -3824,11 +3377,32 @@ function proposalFor(receiptId: number) {
     kindLabel: 'Rechnung',
     supplierName: 'Techpartner Nord GmbH',
     supplierVatId: 'DE263558107',
-    invoiceNumber: 'ER-2026-0231',
+    invoiceNumber: 'TP-26-4528',
     grossAmount: c(3232.04),
     matchedContact: true,
     notes: ['Die Buchungsgruppe bleibt offen: Welches Konto zutrifft, sagt keine Rechnung.'],
   };
+}
+
+/** Der Buchungssatz einer Ausgangsrechnung: Forderung an Erlöse und Umsatzsteuer. */
+function previewOutgoing(invoice: any) {
+  const contact = CONTACTS.find((x) => x.id === invoice.contactId);
+  const netOf = (item: any) => Math.round((item.quantityMilli * item.unitPrice) / 1000);
+  const items = invoice.items ?? [];
+  const net = items.reduce((sum: number, item: any) => sum + netOf(item), 0);
+  const tax = items.reduce(
+    (sum: number, item: any) => sum + Math.round((netOf(item) * item.taxRate) / 10000),
+    0,
+  );
+  const receivable = contact?.ledgerAccount ?? '1200';
+  const lines = [
+    { id: 1, entryId: 0, position: 1, side: 'S', amount: net + tax, account: receivable, accountName: contact?.name ?? accountName('1200') },
+    { id: 2, entryId: 0, position: 2, side: 'H', amount: net, account: '4400', accountName: accountName('4400') },
+    ...(tax > 0
+      ? [{ id: 3, entryId: 0, position: 3, side: 'H', amount: tax, account: '3806', accountName: accountName('3806'), taxKey: '3' }]
+      : []),
+  ];
+  return { lines, net, tax, gross: net + tax, balanced: true, warnings: [], inputTaxFindings: [], issuingFindings: [] };
 }
 
 /** Rechnet den Buchungssatz so, wie das Backend ihn liefern würde. */
@@ -3903,12 +3477,11 @@ function previewIncoming(request: any) {
     });
   }
 
-  return { lines, net, tax, gross, balanced: true, warnings };
+  return { lines, net, tax, gross, balanced: true, warnings, inputTaxFindings: [] };
 }
 
-
 // -------------------------------------------------------------------------
-// Welle 8: Fristen, Steuersätze, eigene Konten, Beanstandungen, Journalfilter
+// Fristen, Voranmeldungszeitraum, Journalfilter
 
 /** Die Fristentabelle, wie sie das Backend aus `retention_rules.json` lädt. */
 const RETENTION_RULES = {
@@ -3944,147 +3517,22 @@ const RETENTION_RULES = {
   ],
 };
 
-/** Die datierte Tabelle der Steuersätze (UNV-03 K2). */
-const VAT_RATE_PERIODS = [
-  { validFrom: '2007-01-01', standard: 1900, reduced: 700, source: '§ 12 UStG' },
-  { validFrom: '2020-07-01', standard: 1600, reduced: 500, source: 'Zweites Corona-Steuerhilfegesetz' },
-  { validFrom: '2021-01-01', standard: 1900, reduced: 700, source: '§ 12 UStG' },
-];
-
 /** Der Vorschlag zum Voranmeldungszeitraum aus der Steuer des Vorjahres. */
 function vatPeriodProposal(year: number) {
   const target = year || YEAR;
   return {
     year: target,
     basedOnYear: target - 1,
-    priorYearTax: c(11_480),
-    current: 'quarter',
+    priorYearTax: c(57_431),
+    current: 'month',
     proposed: 'month',
-    changes: true,
+    changes: false,
     complete: true,
     missingPeriods: 0,
     reference: '§ 18 Abs. 2 UStG',
     note:
-      `Die Steuer des Jahres ${target - 1} lag über 9.000 Euro; ab ${target} ist monatlich ` +
+      `Die Steuer des Jahres ${target - 1} lag über 9.000 Euro; auch ${target} ist monatlich ` +
       'anzumelden. Das Finanzamt setzt den Zeitraum fest — Buchfink schlägt ihn nur vor.',
-  };
-}
-
-/** Zwei selbst angelegte Konten im freien Bereich des SKR04 (BEL-06 K2). */
-const CUSTOM_ACCOUNTS = [
-  {
-    ...(ACCOUNTS[0] as any),
-    id: 9001,
-    number: '6899',
-    name: 'Werkstattverbrauch Prototypen',
-    posten: 'Sonstige betriebliche Aufwendungen',
-    positionId: 'guv_sonstige_aufwendungen',
-    statementType: 'guv',
-    isCustom: true,
-    isActive: true,
-    bookingsCount: 14,
-    debitSum: c(4_318.9),
-    creditSum: 0,
-    balance: c(4_318.9),
-  },
-  {
-    ...(ACCOUNTS[0] as any),
-    id: 9002,
-    number: '6898',
-    name: 'Messebeteiligung Nord',
-    posten: 'Sonstige betriebliche Aufwendungen',
-    positionId: 'guv_sonstige_aufwendungen',
-    statementType: 'guv',
-    isCustom: true,
-    isActive: false,
-    bookingsCount: 3,
-    debitSum: c(1_190),
-    creditSum: 0,
-    balance: c(1_190),
-  },
-];
-
-/** Die Gliederungspositionen, unter denen ein eigenes Konto stehen darf. */
-const STATEMENT_POSITIONS = [
-  {
-    id: 'guv_sonstige_aufwendungen',
-    name: 'Sonstige betriebliche Aufwendungen',
-    statementType: 'guv',
-    balanceSide: 'S',
-    hgbCode: '§ 275 Abs. 2 Nr. 8 HGB',
-    accountType: 'expense',
-  },
-  {
-    id: 'guv_sonstige_ertraege',
-    name: 'Sonstige betriebliche Erträge',
-    statementType: 'guv',
-    balanceSide: 'H',
-    hgbCode: '§ 275 Abs. 2 Nr. 4 HGB',
-    accountType: 'revenue',
-  },
-  {
-    id: 'bilanz_sonstige_vermoegen',
-    name: 'Sonstige Vermögensgegenstände',
-    statementType: 'bilanz',
-    balanceSide: 'S',
-    hgbCode: '§ 266 Abs. 2 B. II. 4. HGB',
-    accountType: 'asset',
-  },
-];
-
-/**
- * Die Beanstandungen eines Belegs nach Fehlerklassen (RECH-07 K2).
- *
- * Der Beleg mit strukturiertem Teil trägt einen Geschäftsregel- und einen
- * Inhaltsfehler, jeder andere keinen — geprüft wird, was geprüft werden kann.
- */
-function receiptFindings(receiptId: number) {
-  const receipt = RECEIPTS.find((r: any) => r.id === receiptId) as any;
-  const checked = Boolean(receipt?.validatedAt);
-  const groups = checked
-    ? [
-        {
-          class: 'business_rule',
-          label: 'Geschäftsregelfehler',
-          findings: [
-            {
-              class: 'business_rule',
-              rule: 'BR-DE-15',
-              severity: 'warning',
-              where: '',
-              message: 'Die Bestellreferenz des Käufers fehlt.',
-              norm: 'CIUS XRechnung 3.0',
-              inputTaxEffect: 'Ohne Folge für den Vorsteuerabzug.',
-              blocking: false,
-            },
-          ],
-        },
-        {
-          class: 'content',
-          label: 'Inhaltsfehler',
-          findings: [
-            {
-              class: 'content',
-              rule: 'input_tax_service_date',
-              severity: 'fatal',
-              where: 'Kopfdaten',
-              message: 'Der Zeitpunkt der Leistung ist nicht angegeben.',
-              norm: '§ 14 Abs. 4 Satz 1 Nr. 6 UStG',
-              inputTaxEffect: 'Der Vorsteuerabzug ist bis zur Berichtigung ausgeschlossen.',
-              blocking: true,
-            },
-          ],
-        },
-      ]
-    : [];
-  const findings = groups.flatMap((g) => g.findings);
-  return {
-    receiptId,
-    receiptNumber: receipt?.receiptNumber ?? '',
-    checked,
-    groups,
-    total: findings.length,
-    blocking: findings.filter((f) => f.blocking).length,
   };
 }
 
@@ -4151,22 +3599,4 @@ function filteredJournal(filter: any) {
     totalCredit,
     balance: totalDebit - totalCredit,
   };
-}
-
-/** Dieselbe Menge als CSV — dieselben Spalten wie im Z3-Export. */
-function filteredJournalCSV() {
-  const head = 'Buchung;Datum;Buchungstext;Konto;Steuerschlüssel;Bearbeiter;Soll;Haben';
-  const body = journalRows().map((row) =>
-    [
-      row.entryNumber,
-      row.bookingDate,
-      row.description,
-      row.account,
-      row.taxKey ?? '',
-      row.actor ?? '',
-      row.side === 'S' ? euro(row.amount) : '',
-      row.side === 'H' ? euro(row.amount) : '',
-    ].join(';'),
-  );
-  return [head, ...body].join('\n');
 }

@@ -29,28 +29,23 @@ type Contact struct {
 	// LedgerAccount is the Personenkonto, e.g. "10001" or "70023".
 	LedgerAccount string `gorm:"size:10;uniqueIndex;not null" json:"ledgerAccount"`
 
-	Name    string `gorm:"type:text;not null;serializer:encrypted_v2" json:"name"`
-	Company string `gorm:"size:255;serializer:encrypted" json:"company"`
-	Email   string `gorm:"size:255;serializer:encrypted" json:"email"`
-	// Address is the unstructured address as it was captured before Welle 5b.
-	// It stays as the fallback for records the parser could not split, and is
-	// what MigrateAddress reads.
-	Address string `gorm:"type:text;serializer:encrypted" json:"address"`
+	Name    string `gorm:"type:text;not null" json:"name"`
+	Company string `gorm:"size:255" json:"company"`
+	Email   string `gorm:"size:255" json:"email"`
 	// Street, PostalCode und City sind die Anschrift in ihren Bestandteilen.
 	//
 	// § 14 Abs. 4 Nr. 1 UStG verlangt die vollständige Anschrift des
 	// Leistungsempfängers, und EN 16931 verlangt sie in Feldern (BT-50, BT-52,
-	// BT-53): eine einzeilige Anschrift landete bisher komplett in BT-50, und
-	// beim Empfänger stand die Stadt in der Straße. Ein Freitextfeld lässt sich
-	// auch nicht prüfen — ob eine PLZ darin vorkommt, ist keine Prüfung.
-	Street           string `gorm:"size:255;serializer:encrypted" json:"street"`
-	PostalCode       string `gorm:"size:20;serializer:encrypted" json:"postalCode"`
-	City             string `gorm:"size:120;serializer:encrypted" json:"city"`
-	TaxID            string `gorm:"size:50;serializer:encrypted" json:"taxId"` // Steuernummer
-	VatID            string `gorm:"size:50;serializer:encrypted" json:"vatId"` // USt-IdNr.
+	// BT-53). Ein Freitextfeld ließe sich nicht prüfen — ob eine PLZ darin
+	// vorkommt, ist keine Prüfung.
+	Street           string `gorm:"size:255" json:"street"`
+	PostalCode       string `gorm:"size:20" json:"postalCode"`
+	City             string `gorm:"size:120" json:"city"`
+	TaxID            string `gorm:"size:50" json:"taxId"` // Steuernummer
+	VatID            string `gorm:"size:50" json:"vatId"` // USt-IdNr.
 	CountryCode      string `gorm:"size:2;default:'DE'" json:"countryCode"`
-	IBAN             string `gorm:"size:34;serializer:encrypted" json:"iban"`
-	BIC              string `gorm:"size:11;serializer:encrypted" json:"bic"`
+	IBAN             string `gorm:"size:34" json:"iban"`
+	BIC              string `gorm:"size:11" json:"bic"`
 	PaymentTermsDays int    `gorm:"default:14" json:"paymentTermsDays"`
 
 	// EInvoiceProfile ist das Zielformat, in dem dieser Empfänger seine
@@ -61,7 +56,7 @@ type Contact struct {
 	// LeitwegID ist die Route-ID des öffentlichen Auftraggebers (BT-10). Bei
 	// XRechnung ist sie Pflicht (BR-DE-15); ohne sie findet die Rechnung ihren
 	// Empfänger in der Verwaltung nicht.
-	LeitwegID string `gorm:"size:60;serializer:encrypted" json:"leitwegId"`
+	LeitwegID string `gorm:"size:60" json:"leitwegId"`
 
 	// IsPrivate marks a partner who is not an Unternehmer. It decides whether the
 	// e-invoice obligation of § 14 Abs. 2 Satz 2 Nr. 1 UStG can apply to a
@@ -91,23 +86,36 @@ type Contact struct {
 	// geführt und mit ihrer Frist überwacht, weil sie am Kontakt hängt und weil
 	// eine abgelaufene Bescheinigung sonst erst auffällt, wenn die Haftung schon
 	// entstanden ist.
-	ExemptionCertificateNumber string `gorm:"size:60;serializer:encrypted" json:"exemptionCertificateNumber,omitempty"`
+	ExemptionCertificateNumber string `gorm:"size:60" json:"exemptionCertificateNumber,omitempty"`
 	// ExemptionCertificateValidUntil ist der letzte Tag der Gültigkeit.
 	ExemptionCertificateValidUntil string `gorm:"size:10;index" json:"exemptionCertificateValidUntil,omitempty"`
 
-	// Die Sperre nach einem Löschverlangen (Art. 17, 18 DSGVO).
+	// Die Sperre nach einem Löschverlangen (Art. 17 DSGVO).
 	//
 	// Ein Geschäftspartner, der die Löschung seiner Daten verlangt, kann sie
 	// nicht bekommen, solange die Buchungen aufzubewahren sind: Art. 17 Abs. 3
 	// Buchst. b DSGVO nimmt die Verarbeitung aus, die zur Erfüllung einer
 	// rechtlichen Verpflichtung erforderlich ist, und § 257 HGB und § 147 AO
-	// sind solche. Was geht, ist die Einschränkung der Verarbeitung (Art. 18
-	// DSGVO): der Kontakt steht in keiner Auswahl mehr, bleibt aber in
-	// Buchungen und Exporten sichtbar — ihn dort zu entfernen hieße, die
-	// Buchführung unvollständig zu machen.
+	// sind solche. Was geht, ist die Sperre: der Kontakt steht in keiner
+	// Auswahl mehr, bleibt aber in Buchungen und Exporten sichtbar — ihn dort
+	// zu entfernen hieße, die Buchführung unvollständig zu machen.
 	Blocked       bool   `gorm:"not null;default:false;index" json:"blocked"`
 	BlockedAt     string `gorm:"size:10" json:"blockedAt,omitempty"`
-	BlockedReason string `gorm:"size:500;serializer:encrypted" json:"blockedReason,omitempty"`
+	BlockedReason string `gorm:"size:500" json:"blockedReason,omitempty"`
+
+	// Die Standard-Buchungsgruppe: die Gruppe, mit der die Eingangsrechnungen
+	// dieses Lieferanten in der Regel gebucht werden. DefaultPostingGroup ist
+	// immer eine vom Menschen in der App bestätigte Gruppe; erst mit ihr darf
+	// ein verbundener Agent E-Rechnungen des Lieferanten ohne Rückfrage
+	// buchen. Ein Agent schlägt eine Gruppe nur vor (ProposedPostingGroup).
+	// SaveContact ändert keines dieser Felder; dafür gibt es
+	// ContactService.ConfirmDefaultPostingGroup und ProposeDefaultPostingGroup.
+	DefaultPostingGroup            string `gorm:"size:50" json:"defaultPostingGroup,omitempty"`
+	DefaultPostingGroupConfirmedAt string `gorm:"size:25" json:"defaultPostingGroupConfirmedAt,omitempty"`
+	DefaultPostingGroupConfirmedBy string `gorm:"size:120" json:"defaultPostingGroupConfirmedBy,omitempty"`
+	ProposedPostingGroup           string `gorm:"size:50" json:"proposedPostingGroup,omitempty"`
+	ProposedPostingGroupNote       string `gorm:"size:500" json:"proposedPostingGroupNote,omitempty"`
+	ProposedPostingGroupBy         string `gorm:"size:60" json:"proposedPostingGroupBy,omitempty"`
 
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
@@ -133,8 +141,8 @@ func (c *Contact) IsBusiness() bool { return !c.IsPrivate }
 
 // IsConsumer meldet den Verbraucher des § 13 BGB.
 //
-// Derselbe Wert wie IsPrivate, unter dem Namen, unter dem das Mahnwesen ihn
-// braucht: Verzugszinssatz und Pauschale des § 288 BGB richten sich danach, ob
+// Derselbe Wert wie IsPrivate, unter dem Namen, unter dem die Verzugsrechnung
+// ihn braucht: Verzugszinssatz und Pauschale des § 288 BGB richten sich danach, ob
 // ein Verbraucher beteiligt ist. Kein zweites Feld am Kontakt — ein
 // Geschäftspartner, der kein Unternehmer ist, ist der Verbraucher, und zwei
 // Felder für eine Eigenschaft geraten irgendwann auseinander.
@@ -246,80 +254,15 @@ func (c *Contact) ResolvedEInvoiceProfile() EInvoiceProfile {
 	return c.EInvoiceProfile
 }
 
-// PostalAddress liefert die Anschrift in ihren Bestandteilen, notfalls aus dem
-// alten Freitextfeld gelesen.
+// PostalAddress liefert die Anschrift in ihren Bestandteilen.
 func (c *Contact) PostalAddress() (street, postalCode, city string) {
-	if c.Street != "" || c.PostalCode != "" || c.City != "" {
-		return c.Street, c.PostalCode, c.City
-	}
-	return ParsePostalAddress(c.Address)
+	return c.Street, c.PostalCode, c.City
 }
 
 // HasCompleteAddress reports whether street, postal code and city are all
 // known — the three parts § 14 Abs. 4 Nr. 1 UStG asks for.
 func (c *Contact) HasCompleteAddress() bool {
-	street, postalCode, city := c.PostalAddress()
-	return street != "" && postalCode != "" && city != ""
-}
-
-// MigrateAddress fills the structured fields from the free-text address.
-//
-// It is best effort and says so: what it cannot split stays in Address, and the
-// contact page shows the record as incomplete. Guessing silently would be
-// worse — a wrong street on an invoice is a formal defect the recipient pays
-// for with their input tax deduction.
-func (c *Contact) MigrateAddress() bool {
-	if c.Street != "" || c.PostalCode != "" || c.City != "" {
-		return false
-	}
-	street, postalCode, city := ParsePostalAddress(c.Address)
-	if street == "" || postalCode == "" || city == "" {
-		return false
-	}
-	c.Street, c.PostalCode, c.City = street, postalCode, city
-	return true
-}
-
-// ParsePostalAddress splits a free-text address into street, postal code and
-// city.
-//
-// The expected shape is the German one: the last line is "PLZ Ort", everything
-// before it is the street. Both a line break and a comma count as a separator,
-// because both spellings sit in the existing data.
-func ParsePostalAddress(address string) (street, postalCode, city string) {
-	normalized := strings.ReplaceAll(address, "\n", ",")
-	parts := make([]string, 0, 4)
-	for _, p := range strings.Split(normalized, ",") {
-		if trimmed := strings.TrimSpace(p); trimmed != "" {
-			parts = append(parts, trimmed)
-		}
-	}
-	if len(parts) < 2 {
-		return "", "", ""
-	}
-	last := parts[len(parts)-1]
-	code, town, ok := splitPostalLine(last)
-	if !ok {
-		return "", "", ""
-	}
-	return strings.Join(parts[:len(parts)-1], ", "), code, town
-}
-
-// splitPostalLine reads "80331 München" into its two halves. The postal code is
-// the leading run of digits; a line that does not start with digits is not a
-// postal line, and pretending otherwise would put a street name into BT-53.
-func splitPostalLine(line string) (postalCode, city string, ok bool) {
-	fields := strings.Fields(line)
-	if len(fields) < 2 {
-		return "", "", false
-	}
-	code := fields[0]
-	for _, r := range code {
-		if r < '0' || r > '9' {
-			return "", "", false
-		}
-	}
-	return code, strings.Join(fields[1:], " "), true
+	return c.Street != "" && c.PostalCode != "" && c.City != ""
 }
 
 // CollectiveAccount returns the SKR04 Sammelkonto a partner's open items roll up

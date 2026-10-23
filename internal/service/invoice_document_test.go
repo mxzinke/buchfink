@@ -155,7 +155,7 @@ func TestFailedPostingLeavesNoOpenOutgoingReceipt(t *testing.T) {
 		t.Fatal("die Rechnung wurde trotz Istversteuerung ausgestellt")
 	}
 
-	receipts, err := env.receipts.List(ctx, "")
+	receipts, err := env.receipts.List(ctx, 2026, "")
 	if err != nil {
 		t.Fatalf("Belegliste: %v", err)
 	}

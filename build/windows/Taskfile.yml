@@ -11,15 +11,11 @@ vars:
   #
   # Password is stored securely in system keychain. Run: wails3 setup signing
 
-  # Docker image for cross-compilation with CGO (used when CGO_ENABLED=1 on non-Windows)
-  CROSS_IMAGE: wails-cross
-
 tasks:
   build:
     summary: Builds the application for Windows
     cmds:
-      # Auto-detect CGO: if CGO_ENABLED=1, use Docker; otherwise use native Go cross-compile
-      - task: '{{if and (ne OS "windows") (eq .CGO_ENABLED "1")}}build:docker{{else}}build:native{{end}}'
+      - task: build:native
         vars:
           ARCH: '{{.ARCH}}'
           DEV: '{{.DEV}}'
@@ -45,6 +41,10 @@ tasks:
             ref: .DEV
       - task: common:generate:icons
     preconditions:
+      # Ohne CGO kompiliert Go für Windows von jedem Rechner aus; mit CGO nur
+      # auf Windows selbst.
+      - sh: '{{if and (ne OS "windows") (eq (.CGO_ENABLED | default "0") "1")}}false{{else}}true{{end}}'
+        msg: "CGO builds for Windows need a Windows host."
       - sh: '{{if eq .OBFUSCATED "true"}}command -v garble >/dev/null 2>&1{{else}}true{{end}}'
         msg: "garble is required for obfuscated builds. Install it with: go install mvdan.cc/garble@v0.16.0 (requires Go 1.24+). See https://github.com/burrowers/garble/releases for version/toolchain compatibility."
     cmds:
@@ -57,47 +57,11 @@ tasks:
       - cmd: rm -f *.syso
         platforms: [linux, darwin]
     vars:
-      # Die Programmfassung wandert per -ldflags in die Binärdatei. Ohne sie
-      # trüge jede Voranmeldung, jeder Export und jede Sicherung die Fassung des
-      # Arbeitsstands statt der, die tatsächlich gerechnet hat.
-      VERSION:
-        sh: git describe --tags --always --dirty 2>/dev/null || echo dev
       BUILD_FLAGS: '{{if eq .DEV "true"}}{{if or .EXTRA_TAGS (eq .OBFUSCATED "true")}}-tags {{if eq .OBFUSCATED "true"}}wails_obfuscated{{if .EXTRA_TAGS}},{{end}}{{end}}{{.EXTRA_TAGS}} {{end}}-buildvcs=false -gcflags=all="-l" -ldflags="-X github.com/buchfink/buchfink/internal/buildinfo.Version={{.VERSION}}"{{else}}-tags production{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui -X github.com/buchfink/buchfink/internal/buildinfo.Version={{.VERSION}}"{{end}}'
     env:
       GOOS: windows
       CGO_ENABLED: '{{.CGO_ENABLED | default "0"}}'
       GOARCH: '{{.ARCH | default ARCH}}'
-
-  build:docker:
-    summary: Cross-compiles for Windows using Docker with Zig (for CGO builds on non-Windows)
-    internal: true
-    deps:
-      - task: common:build:frontend
-        vars:
-          OBFUSCATED:
-            ref: .OBFUSCATED
-      - task: common:generate:icons
-    preconditions:
-      - sh: docker info > /dev/null 2>&1
-        msg: "Docker is required for CGO cross-compilation. Please install Docker."
-      - sh: docker image inspect {{.CROSS_IMAGE}} > /dev/null 2>&1
-        msg: |
-          Docker image '{{.CROSS_IMAGE}}' not found.
-          Build it first: wails3 task setup:docker
-    cmds:
-      - task: generate:syso
-        vars:
-          ARCH: '{{.ARCH}}'
-      - docker run --rm -v "{{.ROOT_DIR}}:/app" {{.DOCKER_MOUNTS}} -e APP_NAME="{{.APP_NAME}}" {{if .EXTRA_TAGS}}-e EXTRA_TAGS="{{.EXTRA_TAGS}}"{{end}} {{if eq .OBFUSCATED "true"}}-e OBFUSCATED=true{{end}} {{if .GARBLE_ARGS}}-e GARBLE_ARGS="{{.GARBLE_ARGS}}"{{end}} {{.CROSS_IMAGE}} windows {{.DOCKER_ARCH}}
-      - cmd: docker run --rm -v "{{.ROOT_DIR}}:/app" alpine chown -R $(id -u):$(id -g) /app/bin
-        platforms: [linux, darwin]
-      - rm -f *.syso
-    vars:
-      DOCKER_ARCH: '{{.ARCH | default "amd64"}}'
-      # Generate Docker volume mounts: Go module cache + go.mod replace directives
-      # Uses wails3 tool docker-mounts for cross-platform compatibility (Windows/Linux/macOS)
-      DOCKER_MOUNTS:
-        sh: 'wails3 tool docker-mounts'
 
   package:
     summary: Packages the application

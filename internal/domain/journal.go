@@ -99,14 +99,10 @@ type JournalLine struct {
 	// nicht voll ist — der Vorsteuerschlüssel der gemischten Nutzung.
 	//
 	// Null heißt „nicht einschlägig": entweder hat die Zeile keine Vorsteuer,
-	// oder sie ist voll abziehbar. Das ist der Grund, warum hier nicht 1000
-	// steht, wo alles abziehbar ist: die Kanonisierung schreibt das Feld nur,
-	// wenn es belegt ist, und damit hasht jede Buchung ohne Vorsteuerschlüssel
-	// weiter genau so wie vor dieser Welle. Eine Zahl, die überall steht, hätte
-	// die Kette jeder bestehenden Buchhaltung gebrochen.
-	// Der Ausschluss nach § 15 Abs. 1a UStG — null Promille abziehbar — bekommt
-	// deshalb den eigenen Wert InputTaxExcluded und nicht die Zahl null: „gar
-	// nichts abziehbar" und „voll abziehbar" wären an der Zeile sonst dasselbe.
+	// oder sie ist voll abziehbar. Der Ausschluss nach § 15 Abs. 1a UStG — null
+	// Promille abziehbar — bekommt deshalb den eigenen Wert InputTaxExcluded:
+	// „gar nichts abziehbar" und „voll abziehbar" wären an der Zeile sonst
+	// dasselbe.
 	InputTaxShare int `gorm:"default:0" json:"inputTaxShare,omitempty"`
 
 	// ForeignAmount ist der Betrag dieser Zeile in der Fremdwährung des
@@ -119,12 +115,10 @@ type JournalLine struct {
 	// bekommt hier die Zahl, die auf ihr stand — nicht eine, die Buchfink aus dem
 	// Eurobetrag zurückgerechnet hat.
 	//
-	// Null heißt „keine Fremdwährung": eine Buchung in Euro hat das Feld nicht,
-	// und die Kanonisierung schreibt es nur, wo es belegt ist — die Hash-Kette
-	// jeder bestehenden Buchhaltung bleibt damit unverändert.
+	// Null heißt „keine Fremdwährung".
 	ForeignAmount Cents `gorm:"default:0" json:"foreignAmount,omitempty"`
 
-	Text string `gorm:"size:255;serializer:encrypted" json:"text,omitempty"`
+	Text string `gorm:"size:255" json:"text,omitempty"`
 }
 
 // InputTaxExcluded ist der Wert von JournalLine.InputTaxShare, wo der
@@ -132,8 +126,7 @@ type JournalLine struct {
 //
 // Er ist negativ, weil das Feld null als „nicht einschlägig" liest und ein
 // Anteil von null Promille genau das nicht ist: die Vorsteuer ist da, sie ist
-// nur nicht abziehbar. Ein eigener Wert dafür hält die beiden auseinander, ohne
-// die Hash-Kette bestehender Buchungen anzurühren.
+// nur nicht abziehbar.
 const InputTaxExcluded = -1
 
 // JournalEntry is one complete Geschäftsvorfall (Buchungssatz) with n lines.
@@ -156,7 +149,7 @@ type JournalEntry struct {
 	ServiceDateTo   string `gorm:"size:10;not null" json:"serviceDateTo"`     // Leistungsende; gleich From bei Zeitpunktleistung
 	ValueDate       string `gorm:"size:10" json:"valueDate,omitempty"`        // Valuta, nur bei Zahlungsbuchungen
 
-	Description string      `gorm:"size:500;not null;serializer:encrypted" json:"description"`
+	Description string      `gorm:"size:500;not null" json:"description"`
 	Source      EntrySource `gorm:"size:20;not null;index" json:"source"`
 
 	// Belegverweis. DocumentNumber is the Belegfeld the auditor uses to find the
@@ -190,7 +183,7 @@ type JournalEntry struct {
 	// Correction handling.
 	Kind           EntryKind `gorm:"size:20;not null;default:'normal';index" json:"kind"`
 	ReversalOfID   *uint     `gorm:"index" json:"reversalOfId,omitempty"`
-	ReversalReason string    `gorm:"size:255;serializer:encrypted" json:"reversalReason,omitempty"`
+	ReversalReason string    `gorm:"size:255" json:"reversalReason,omitempty"`
 
 	// Foreign currency. The rate is stored as an integer in millionths so that
 	// re-computing a converted amount from the journal is deterministic.
@@ -205,15 +198,11 @@ type JournalEntry struct {
 	PostingRuleVersion string `gorm:"size:20" json:"postingRuleVersion,omitempty"`
 
 	// AppVersion ist die Fassung des Programms, die gebucht hat, Actor die
-	// Bearbeiterkennung (internal/actor).
-	//
-	// Beide sind Teil der kanonischen Form und damit der Hash-Kette — mit einer
-	// Weiche für den Altbestand: eine Buchung ohne AppVersion stammt aus der
-	// Zeit davor und wird nach der bisherigen Form gehasht (siehe
-	// accounting.canonicalize). Die Form ist an der Buchung selbst erkennbar,
-	// und die Kette jeder ausgelieferten Buchhaltung bleibt gültig.
+	// Bearbeiterkennung und Channel der Erfassungsweg (internal/actor). Alle
+	// drei sind Teil der kanonischen Form und damit der Hash-Kette.
 	AppVersion string `gorm:"size:60;index" json:"appVersion,omitempty"`
 	Actor      string `gorm:"size:120;index" json:"actor,omitempty"`
+	Channel    string `gorm:"size:60;index" json:"channel,omitempty"`
 
 	// CommittedAt und FestschreibungID halten fest, wann und womit diese
 	// Buchung festgeschrieben wurde.
@@ -263,10 +252,16 @@ type JournalEntry struct {
 	// des Kontakts in der Altersstruktur, also mit einer Fälligkeit, die nie
 	// vereinbart war.
 	//
-	// Sie ist Inhalt und wird gedeckt — aber nur, wo sie belegt ist: ein
-	// zusätzliches Feld in der kanonischen Form änderte sonst den Hash jeder
-	// bestehenden Buchung (siehe canonicalize).
+	// Sie ist Inhalt und wird von der Hash-Kette gedeckt.
 	DueDate string `gorm:"size:10;index" json:"dueDate,omitempty"`
+
+	// ClosingPeriod kennzeichnet eine Buchung der Abschlussperiode („13.
+	// Monat"): eine Abschlussbuchung zum Bilanzstichtag. Sie bleibt nach der
+	// Festschreibung des letzten Monats bis zur Jahresfestschreibung möglich;
+	// eine gewöhnliche Buchung zu diesem Tag nicht. Abschlussbuchungen und AfA
+	// zum Stichtag tragen sie von selbst, eine Handbuchung auf Antrag. Sie ist
+	// Inhalt und wird von der Hash-Kette gedeckt.
+	ClosingPeriod bool `gorm:"not null;default:false" json:"closingPeriod"`
 
 	Lines []JournalLine `gorm:"foreignKey:EntryID;constraint:OnDelete:CASCADE" json:"lines"`
 
@@ -290,6 +285,46 @@ type JournalEntry struct {
 	PreviousHash string    `gorm:"size:64;not null" json:"previousHash"`
 	EntryHash    string    `gorm:"size:64;not null" json:"entryHash"`
 	CreatedAt    time.Time `json:"createdAt"`
+}
+
+// DateLayout ist das Format jedes Datumsfeldes (JJJJ-MM-TT).
+const DateLayout = "2006-01-02"
+
+// CheckDate prüft streng auf ein Kalenderdatum: 2026-13-45, 2026-02-30 und
+// 2026-2-3 sind keines.
+func CheckDate(field, value string) error {
+	if _, err := time.Parse(DateLayout, value); err != nil {
+		return fmt.Errorf("%s %q ist kein gültiges Datum (erwartet JJJJ-MM-TT)", field, value)
+	}
+	return nil
+}
+
+// checkDates prüft jedes belegte Datumsfeld der Buchung.
+func (e *JournalEntry) checkDates() error {
+	dates := []struct{ field, value string }{
+		{"Buchungsdatum", e.BookingDate},
+		{"Belegdatum", e.DocumentDate},
+		{"Leistungsbeginn", e.ServiceDateFrom},
+		{"Leistungsende", e.ServiceDateTo},
+		{"Valuta", e.ValueDate},
+		{"Fälligkeit", e.DueDate},
+		{"Kurstag", e.ExchangeRateDate},
+	}
+	if e.Entertainment != nil {
+		dates = append(dates, struct{ field, value string }{"Tag der Bewirtung", e.Entertainment.Day})
+	}
+	for _, g := range e.Gifts {
+		dates = append(dates, struct{ field, value string }{"Tag des Geschenks", g.Date})
+	}
+	for _, d := range dates {
+		if d.value == "" {
+			continue
+		}
+		if err := CheckDate(d.field, d.value); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // DebitTotal sums the Soll side.
@@ -342,6 +377,9 @@ func (e *JournalEntry) Validate() error {
 	if e.ServiceDateFrom == "" || e.ServiceDateTo == "" {
 		return fmt.Errorf("Leistungsdatum fehlt (der Leistungszeitpunkt ist Pflichtangabe nach § 14 Abs. 4 Nr. 6 UStG)")
 	}
+	if err := e.checkDates(); err != nil {
+		return err
+	}
 	if e.ServiceDateTo < e.ServiceDateFrom {
 		return fmt.Errorf("Leistungsende %s liegt vor dem Leistungsbeginn %s", e.ServiceDateTo, e.ServiceDateFrom)
 	}
@@ -361,7 +399,7 @@ func (e *JournalEntry) Validate() error {
 			return fmt.Errorf("Zeile %d: Betrag darf nicht null sein", i+1)
 		}
 		switch e.Kind {
-		case EntryKindNormal:
+		case EntryKindNormal, "":
 			if l.Amount < 0 {
 				return fmt.Errorf("Zeile %d: negative Beträge sind nur bei Generalumkehr zulässig", i+1)
 			}
@@ -386,6 +424,9 @@ func (e *JournalEntry) Validate() error {
 			e.DebitTotal(), e.CreditTotal(), (e.DebitTotal() - e.CreditTotal()),
 		)
 	}
+	if e.Kind != "" && e.Kind != EntryKindNormal && e.Kind != EntryKindReversal {
+		return fmt.Errorf("unbekannte Buchungsart %q", e.Kind)
+	}
 	if e.Kind == EntryKindReversal && e.ReversalOfID == nil {
 		return fmt.Errorf("eine Generalumkehr muss auf die ursprüngliche Buchung verweisen")
 	}
@@ -407,10 +448,10 @@ type EntertainmentDetail struct {
 	ID      uint `gorm:"primaryKey" json:"id"`
 	EntryID uint `gorm:"uniqueIndex;not null" json:"entryId"`
 
-	Place        string `gorm:"size:255;not null;serializer:encrypted" json:"place"`
+	Place        string `gorm:"size:255;not null" json:"place"`
 	Day          string `gorm:"size:10;not null" json:"day"`
-	Participants string `gorm:"type:text;not null;serializer:encrypted" json:"participants"`
-	Occasion     string `gorm:"size:500;not null;serializer:encrypted" json:"occasion"`
+	Participants string `gorm:"type:text;not null" json:"participants"`
+	Occasion     string `gorm:"size:500;not null" json:"occasion"`
 }
 
 // Validate checks that the record is complete. An incomplete one is worse than
@@ -459,6 +500,10 @@ type JournalRepository interface {
 	// monthly or quarterly, and filtering a whole year in Go to report one month
 	// of it reads twelve times what it needs.
 	FindByBookingDateRange(ctx context.Context, fiscalYear int, from, to string) ([]JournalEntry, error)
+	// FindServiceEndingFrom liefert die Buchungen der Geschäftsjahre vor
+	// beforeYear, deren Leistung frühestens am Tag from endet: eine Leistung
+	// über mehrere Jahre wirkt über das Folgejahr hinaus in die Umsatzsteuer.
+	FindServiceEndingFrom(ctx context.Context, beforeYear int, from string) ([]JournalEntry, error)
 	// FindOpenItemCandidates returns the entries a Forderung or Verbindlichkeit
 	// could still sit in: the given year and every earlier one, minus everything
 	// a Generalumkehr has cancelled.
@@ -490,14 +535,12 @@ type JournalRepository interface {
 	FindByAccountRange(ctx context.Context, account, from, to string) ([]JournalEntry, error)
 	FindByContact(ctx context.Context, contactID uint, fiscalYear int) ([]JournalEntry, error)
 	FindReversalOf(ctx context.Context, entryID uint) (*JournalEntry, error)
+	// FindActiveByBankTx liefert die nicht stornierten Buchungen, die einen
+	// Bankumsatz buchen. Ein Umsatz steht in höchstens einer.
+	FindActiveByBankTx(ctx context.Context, bankTxID uint) ([]JournalEntry, error)
 	// FindCorrectionOf liefert die Neubuchung, die eine stornierte Buchung
 	// ersetzt, oder nil. Die Gegenrichtung zu CorrectsEntryID.
 	FindCorrectionOf(ctx context.Context, entryID uint) (*JournalEntry, error)
-	// FindByReceipt returns the original booking that references a Beleg, or nil.
-	// It is what lets an unsealed Beleg be repaired: the seal is written after
-	// the journal transaction commits, so a crash in between leaves a booked
-	// Beleg that still looks open.
-	FindByReceipt(ctx context.Context, receiptID uint) (*JournalEntry, error)
 	GetLastEntry(ctx context.Context, fiscalYear int) (*JournalEntry, error)
 	// Append allocates the entry number, links the hash chain and persists the
 	// entry in a single transaction. Doing all three atomically is what keeps
@@ -526,38 +569,8 @@ type JournalRepository interface {
 	// mit einem Filter darüber: sie muss die Buchungen nach dem Stichtag
 	// weglassen, bevor summiert wird. Leerer Stichtag heißt: ganzes Jahr.
 	AccountTurnoversUntil(ctx context.Context, fiscalYear int, cutoff string) (map[string]AccountTurnover, error)
-	MonthlyCashflow(ctx context.Context, fiscalYear int, liquidAccounts []string) ([]CashflowDataPoint, error)
 	Count(ctx context.Context, fiscalYear int) (int64, error)
 	GetAvailableFiscalYears(ctx context.Context) ([]int, error)
-}
-
-// CashflowDataPoint aggregates liquid-account movements for one month.
-type CashflowDataPoint struct {
-	Month   string `json:"month"` // "2026-01"
-	Label   string `json:"label"` // "Jan"
-	Inflow  Cents  `json:"inflow"`
-	Outflow Cents  `json:"outflow"`
-	Net     Cents  `json:"net"`
-}
-
-// FinancialSummary contains high-level KPIs for the dashboard.
-type FinancialSummary struct {
-	TotalRevenue    Cents               `json:"totalRevenue"`
-	TotalExpenses   Cents               `json:"totalExpenses"`
-	NetIncome       Cents               `json:"netIncome"`
-	BankBalance     Cents               `json:"bankBalance"`
-	OpenReceivables Cents               `json:"openReceivables"`
-	OpenPayables    Cents               `json:"openPayables"`
-	CashflowHistory []CashflowDataPoint `json:"cashflowHistory"`
-}
-
-// EnsureLists ersetzt die nicht belegte Verlaufsliste durch eine leere: das
-// Diagramm der Startseite liest sie ohne Umweg, und `null.map` nähme den
-// ganzen Baum mit.
-func (f *FinancialSummary) EnsureLists() {
-	if f.CashflowHistory == nil {
-		f.CashflowHistory = make([]CashflowDataPoint, 0)
-	}
 }
 
 // IntegrityBreakReason benennt, woran eine Kette zerbrochen ist.
@@ -570,6 +583,9 @@ const (
 	// IntegrityBreakContent: die Buchung hasht nicht mehr auf ihren
 	// gespeicherten Eigenhash — ihre Daten wurden nachträglich verändert.
 	IntegrityBreakContent IntegrityBreakReason = "content"
+	// IntegrityBreakReceipt: der Beleg, auf den die Buchung verweist, hasht
+	// nicht mehr auf den Beleg-Hash der Buchung oder fehlt.
+	IntegrityBreakReceipt IntegrityBreakReason = "receipt"
 )
 
 // IntegrityBreak ist ein einzelner Bruch der Kette.

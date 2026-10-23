@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/einvoice"
 	"github.com/buchfink/buchfink/internal/einvoice/ruleset"
@@ -34,17 +35,13 @@ func BuildCII(inv *domain.Invoice, seller *domain.CompanySettings, buyer *domain
 	if err := inv.Validate(); err != nil {
 		return nil, err
 	}
-	// Ohne Erwerber gibt es keinen normgerechten Datensatz. BR-07 verlangt
-	// seinen Namen, und § 33 UStDV erlässt ihn nur für das Papier: die Norm
-	// kennt die Kleinbetragsrechnung nicht. Statt einen Namen zu erfinden,
-	// weist BuildCII den Fall zurück — die Rechnung geht dann als PDF hinaus,
-	// wozu die Ausnahme des § 33 UStDV von der E-Rechnungspflicht sie
-	// berechtigt.
+	// Ohne Erwerber gibt es keinen normgerechten Datensatz: BR-07 verlangt
+	// seinen Namen, und einen zu erfinden hieße, eine Pflichtangabe zu
+	// behaupten.
 	if buyer == nil && inv.ContactName == "" {
 		return nil, fmt.Errorf(
 			"ohne Rechnungsempfänger lässt sich kein strukturierter Rechnungsdatensatz erzeugen: " +
-				"EN 16931 verlangt den Namen des Erwerbers (BR-07). Die Kleinbetragsrechnung nach " +
-				"§ 33 UStDV ist von der E-Rechnungspflicht ausgenommen und wird als PDF ausgestellt")
+				"EN 16931 verlangt den Namen des Erwerbers (BR-07)")
 	}
 
 	specification := einvoice.ProfileEN16931
@@ -97,25 +94,7 @@ func BuildCII(inv *domain.Invoice, seller *domain.CompanySettings, buyer *domain
 	if deliveryDate != "" {
 		doc.Delivery = &einvoice.Delivery{Date: einvoice.NewDate(deliveryDate)}
 	}
-	// BT-80, das Bestimmungsland: bei einer innergemeinschaftlichen Lieferung
-	// Pflicht (BR-IC-12) und bei einer Ausfuhr ebenso wichtig. Ohne es lässt
-	// sich nicht belegen, dass die Ware das Inland verlassen hat — und daran
-	// hängt die Steuerbefreiung nach § 6a bzw. § 6 UStG. Bei einem
-	// Inlandsumsatz bleibt die Lieferanschrift weg: sie behauptete sonst einen
-	// Lieferort, den niemand erfasst hat.
-	if buyer != nil && needsDeliveryCountry(inv.TaxTreatment) {
-		street, postCode, city := buyer.PostalAddress()
-		if doc.Delivery == nil {
-			doc.Delivery = &einvoice.Delivery{}
-		}
-		doc.Delivery.Name = buyer.LegalName()
-		doc.Delivery.Address = &einvoice.Address{
-			LineOne:     street,
-			PostCode:    postCode,
-			City:        city,
-			CountryCode: countryOrDE(buyer.CountryCode),
-		}
-	}
+
 	// BG-14: der Abrechnungszeitraum, wenn die Leistung über einen Zeitraum
 	// erbracht wurde. Ein Zeitraum von einem Tag ist keiner und bleibt weg.
 	if inv.ServiceDateFrom != "" && inv.ServiceDateTo != "" && inv.ServiceDateFrom != inv.ServiceDateTo &&
@@ -161,7 +140,7 @@ func BuildCII(inv *domain.Invoice, seller *domain.CompanySettings, buyer *domain
 		}}
 	}
 
-	category := vatCategoryCode(inv.TaxTreatment)
+	category := accounting.TaxCaseFor(inv.TaxTreatment).InvoiceCategory()
 	reason := exemptionReason(inv.TaxTreatment)
 
 	for i := range inv.Items {
@@ -206,15 +185,6 @@ func BuildCII(inv *domain.Invoice, seller *domain.CompanySettings, buyer *domain
 	return doc, nil
 }
 
-// needsDeliveryCountry meldet, ob das Bestimmungsland anzugeben ist.
-func needsDeliveryCountry(t domain.TaxTreatment) bool {
-	switch t {
-	case domain.TaxTreatmentIntraCommunitySupply, domain.TaxTreatmentExport:
-		return true
-	}
-	return false
-}
-
 // ciiLine turns one position into a BG-25 line.
 func ciiLine(inv *domain.Invoice, item *domain.InvoiceItem, category string) (einvoice.Line, error) {
 	unit, ok := domain.ResolveUnitCode(item.Unit)
@@ -256,7 +226,7 @@ func sellerParty(seller *domain.CompanySettings) einvoice.Party {
 		VATIdentifier:   seller.VatID,
 		TaxRegistration: seller.TaxNumber,
 		Address: &einvoice.Address{
-			LineOne:     seller.Street,
+			LineOne:     seller.StreetLine(),
 			LineTwo:     seller.AddressAddition,
 			PostCode:    seller.PostalCode,
 			City:        seller.City,
@@ -285,11 +255,8 @@ func sellerParty(seller *domain.CompanySettings) einvoice.Party {
 
 // buyerParty maps the contact to BG-7.
 //
-// Ohne erfassten Kontakt bleibt nur der Name, den die Rechnung selbst trägt.
-// Trägt sie keinen, entsteht hier kein Datensatz: EN 16931 verlangt den Namen
-// des Erwerbers (BR-07), und einen zu erfinden hieße, eine Pflichtangabe zu
-// behaupten. Der Fall ist die Kleinbetragsrechnung ohne Empfänger, und sie geht
-// als PDF hinaus — siehe BuildCII.
+// Ist der Kontakt nicht mehr auffindbar, bleibt der Name, den die Rechnung
+// selbst trägt — siehe BuildCII.
 func buyerParty(inv *domain.Invoice, buyer *domain.Contact) einvoice.Party {
 	if buyer == nil {
 		return einvoice.Party{
@@ -311,8 +278,7 @@ func buyerParty(inv *domain.Invoice, buyer *domain.Contact) einvoice.Party {
 		party.Contact = &einvoice.Contact{Name: buyer.Name}
 	}
 	// BT-48: die USt-IdNr. des Erwerbers. Sie gehört auf jede Rechnung, auf der
-	// sie erfasst ist, und ist Pflicht bei innergemeinschaftlicher Lieferung und
-	// § 13b-Fällen (§ 14a Abs. 1 und 3 UStG).
+	// sie erfasst ist, und ist Pflicht bei § 13b-Fällen (§ 14a Abs. 1 UStG).
 	party.VATIdentifier = buyer.VatID
 	if buyer.Email != "" {
 		party.ElectronicAddress = einvoice.Identifier{Value: buyer.Email, Scheme: "EM"}

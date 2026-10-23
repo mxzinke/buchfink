@@ -1,0 +1,92 @@
+{
+  "audit": [
+    {
+      "action": "CREATE",
+      "actor": "\u003cactor\u003e",
+      "appVersion": "dev",
+      "channel": "agent:golden",
+      "details": "Buchung 2026-000001: Quittung, 357,00 € (GJ 2026, 3 Zeilen)",
+      "entityId": "1",
+      "entityType": "JOURNAL",
+      "entryHash": "\u003centryHash\u003e",
+      "id": 6,
+      "previousHash": "\u003cpreviousHash\u003e",
+      "timestamp": "\u003ctimestamp\u003e"
+    },
+    {
+      "action": "UPDATE",
+      "actor": "\u003cactor\u003e",
+      "appVersion": "dev",
+      "channel": "agent:golden",
+      "details": "Befund der Rechnungsprüfung übersteuert, Vorsteuer trotzdem gezogen: Berichtigte Rechnung liegt vor",
+      "entityId": "2",
+      "entityType": "RECEIPT",
+      "entryHash": "\u003centryHash\u003e",
+      "id": 7,
+      "previousHash": "\u003cpreviousHash\u003e",
+      "timestamp": "\u003ctimestamp\u003e"
+    }
+  ],
+  "entry": {
+    "actor": "\u003cactor\u003e",
+    "appVersion": "dev",
+    "bookingDate": "2026-03-05",
+    "channel": "agent:golden",
+    "closingPeriod": false,
+    "contactId": 2,
+    "createdAt": "\u003ccreatedAt\u003e",
+    "currency": "EUR",
+    "description": "Quittung",
+    "documentDate": "2026-03-05",
+    "documentNumber": "\u003cBeleg\u003e",
+    "entryHash": "\u003centryHash\u003e",
+    "entryNumber": "2026-000001",
+    "exchangeRateMicros": 1000000,
+    "fiscalYear": 2026,
+    "id": 1,
+    "kind": "normal",
+    "lines": [
+      {
+        "account": "6500",
+        "amount": 30000,
+        "entryId": 1,
+        "id": 1,
+        "position": 1,
+        "side": "S"
+      },
+      {
+        "account": "1406",
+        "amount": 5700,
+        "entryId": 1,
+        "id": 2,
+        "position": 2,
+        "side": "S",
+        "taxBase": 30000,
+        "taxKey": "VST19"
+      },
+      {
+        "account": "1800",
+        "amount": 35700,
+        "entryId": 1,
+        "id": 3,
+        "position": 3,
+        "side": "H"
+      }
+    ],
+    "postingRuleVersion": "2026.1",
+    "previousHash": "\u003cpreviousHash\u003e",
+    "receiptHash": "\u003creceiptHash\u003e",
+    "receiptId": 2,
+    "serviceDateFrom": "2026-03-05",
+    "serviceDateTo": "2026-03-05",
+    "source": "receipt",
+    "taxTreatment": "domestic"
+  },
+  "journalEntryId": 1,
+  "newEntries": 1,
+  "override": "Berichtigte Rechnung liegt vor",
+  "receiptHashUnchanged": true,
+  "serviceProof": "",
+  "serviceProofAt": "",
+  "status": "sealed"
+}

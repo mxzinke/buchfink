@@ -1,0 +1,59 @@
+{
+  "balanced": true,
+  "dueDate": "2026-03-24",
+  "gross": 100000,
+  "inputTaxFindings": [],
+  "lines": [
+    {
+      "account": "5400",
+      "accountName": "Wareneingang 19 % Vorsteuer",
+      "amount": 100000,
+      "entryId": 0,
+      "id": 0,
+      "position": 1,
+      "side": "S"
+    },
+    {
+      "account": "1404",
+      "accountName": "Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb 19 %",
+      "amount": 19000,
+      "entryId": 0,
+      "id": 0,
+      "position": 2,
+      "side": "S",
+      "taxBase": 100000,
+      "taxKey": "IG19_VST"
+    },
+    {
+      "account": "3804",
+      "accountName": "Umsatzsteuer aus innergemeinschaftlichem Erwerb 19 %",
+      "amount": 19000,
+      "entryId": 0,
+      "id": 0,
+      "position": 3,
+      "side": "H",
+      "taxBase": 100000,
+      "taxKey": "IG19_UST"
+    },
+    {
+      "account": "70000",
+      "accountName": "70000",
+      "amount": 100000,
+      "contactId": 1,
+      "entryId": 0,
+      "id": 0,
+      "position": 4,
+      "side": "H"
+    }
+  ],
+  "net": 100000,
+  "tax": 0,
+  "warnings": [
+    {
+      "code": "faelligkeit_aus_zahlungsziel",
+      "detail": "Nennt der Beleg eine andere Fälligkeit, gehört sie in die Buchung; sonst stehen offener Posten und Zahlungsvorschläge auf dem falschen Tag.",
+      "severity": "info",
+      "title": "Fällig am 24.03.2026 nach dem Zahlungsziel des Lieferanten"
+    }
+  ]
+}

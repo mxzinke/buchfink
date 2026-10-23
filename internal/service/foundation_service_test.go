@@ -26,7 +26,6 @@ func (e *testEnv) foundations(t *testing.T) *FoundationService {
 // je die Hälfte ihrer Einlage geleistet.
 func gmbhFoundation() *domain.Foundation {
 	return &domain.Foundation{
-		NotarizedOn:  "2026-01-15",
 		ShareCapital: 2_500_000,
 		Shareholders: []domain.Shareholder{
 			{Name: "Anna Bauer", ShareCapital: 1_500_000, PaidIn: 750_000, Kind: domain.ContributionCash},
@@ -35,9 +34,18 @@ func gmbhFoundation() *domain.Foundation {
 	}
 }
 
+// notarizedOn ist der Beurkundungstag der Testgründungen.
+const notarizedOn = "2026-01-15"
+
 func (e *testEnv) saveFoundation(t *testing.T, svc *FoundationService, f *domain.Foundation) *domain.Foundation {
 	t.Helper()
-	saved, err := svc.Save(context.Background(), f)
+	return e.saveFoundationOn(t, svc, notarizedOn, f)
+}
+
+// saveFoundationOn erfasst die Gründung mit einem anderen Beurkundungstag.
+func (e *testEnv) saveFoundationOn(t *testing.T, svc *FoundationService, date string, f *domain.Foundation) *domain.Foundation {
+	t.Helper()
+	saved, err := svc.Save(context.Background(), date, f)
 	if err != nil {
 		t.Fatalf("Gründung konnte nicht gespeichert werden: %v", err)
 	}
@@ -67,7 +75,7 @@ func TestSaveFoundationRejectsMismatchedShares(t *testing.T) {
 	f := gmbhFoundation()
 	f.Shareholders[1].ShareCapital = 900_000 // Summe 24.000 statt 25.000
 
-	_, err := svc.Save(context.Background(), f)
+	_, err := svc.Save(context.Background(), notarizedOn, f)
 	if err == nil {
 		t.Fatal("eine Gesellschafterliste, die das Stammkapital verfehlt, muss abgelehnt werden")
 	}
@@ -84,7 +92,7 @@ func TestSaveFoundationRejectsCapitalBelowMinimum(t *testing.T) {
 	f.ShareCapital = 1_000_000
 	f.Shareholders = []domain.Shareholder{{Name: "Anna Bauer", ShareCapital: 1_000_000, Kind: domain.ContributionCash}}
 
-	if _, err := svc.Save(context.Background(), f); err == nil {
+	if _, err := svc.Save(context.Background(), notarizedOn, f); err == nil {
 		t.Fatal("eine GmbH mit 10.000 € Stammkapital verstößt gegen § 5 Abs. 1 GmbHG")
 	}
 }
@@ -100,13 +108,12 @@ func TestSaveFoundationRejectsSacheinlageAtUG(t *testing.T) {
 	svc := env.foundations(t)
 
 	f := &domain.Foundation{
-		NotarizedOn:  "2026-01-15",
 		ShareCapital: 100_000,
 		Shareholders: []domain.Shareholder{
 			{Name: "Anna Bauer", ShareCapital: 100_000, PaidIn: 100_000, Kind: domain.ContributionInKind},
 		},
 	}
-	_, err := svc.Save(context.Background(), f)
+	_, err := svc.Save(context.Background(), notarizedOn, f)
 	if err == nil {
 		t.Fatal("§ 5a Abs. 2 Satz 2 GmbHG schließt Sacheinlagen bei der UG aus")
 	}
@@ -115,25 +122,49 @@ func TestSaveFoundationRejectsSacheinlageAtUG(t *testing.T) {
 	}
 }
 
-func TestFoundationDoesNotApplyToPersonengesellschaft(t *testing.T) {
+// Der Tag der Eintragung wird in den Stammdaten erfasst. Erst wenn die Gründung
+// ihn kennt, endet die Vorgesellschaft und mit ihr der Zusatz „i. G.".
+func TestRegisteredOnInSettingsEndsTheVorgesellschaft(t *testing.T) {
 	env := newTestEnv(t)
-	settings := repository.NewSettingsRepository(env.db)
-	cfg, _ := settings.GetCompanySettings(context.Background())
-	cfg.LegalForm = "GmbH & Co. KG"
-	if err := settings.UpdateCompanySettings(context.Background(), cfg); err != nil {
-		t.Fatalf("Rechtsform konnte nicht gesetzt werden: %v", err)
-	}
-	svc := env.foundations(t)
+	ctx := context.Background()
+	foundations := env.foundations(t)
+	env.saveFoundation(t, foundations, gmbhFoundation())
 
-	state, err := svc.GetState(context.Background())
+	settings := NewSettingsService(repository.NewSettingsRepository(env.db), repository.NewAuditRepository(env.db))
+	settings.SetFoundationRegistrar(foundations)
+
+	cfg, err := settings.GetCompanySettings(ctx)
 	if err != nil {
-		t.Fatalf("GetState: %v", err)
+		t.Fatalf("Stammdaten: %v", err)
 	}
-	if state.Applies {
-		t.Error("bei einer Personengesellschaft gibt es keinen Gründungsweg")
+	cfg.CompanyName = "Pfennig Ventures GmbH"
+	if err := settings.UpdateCompanySettings(ctx, cfg); err != nil {
+		t.Fatalf("Stammdaten speichern: %v", err)
 	}
-	if _, err := svc.Save(context.Background(), gmbhFoundation()); err == nil {
-		t.Error("eine Gründung darf dort nicht erfasst werden können")
+	if cfg, _ = settings.GetCompanySettings(ctx); cfg.FirmName() != "Pfennig Ventures GmbH i. G." {
+		t.Fatalf("vor der Eintragung heißt die Firma %q, erwartet den Zusatz „i. G.\"", cfg.FirmName())
+	}
+
+	cfg.RegisteredOn = "2026-02-20"
+	cfg.RegisterCourt = "Amtsgericht München"
+	cfg.RegisterNumber = "HRB 123456"
+	if err := settings.UpdateCompanySettings(ctx, cfg); err != nil {
+		t.Fatalf("Eintragung speichern: %v", err)
+	}
+
+	cfg, err = settings.GetCompanySettings(ctx)
+	if err != nil {
+		t.Fatalf("Stammdaten: %v", err)
+	}
+	if cfg.InGruendung || cfg.FirmName() != "Pfennig Ventures GmbH" {
+		t.Errorf("nach der Eintragung heißt die Firma %q", cfg.FirmName())
+	}
+	state, err := foundations.GetState(ctx)
+	if err != nil {
+		t.Fatalf("Gründungsstand: %v", err)
+	}
+	if state.Foundation == nil || state.Foundation.RegisteredOn != "2026-02-20" {
+		t.Error("die Gründung muss den Tag der Eintragung kennen")
 	}
 }
 
@@ -325,13 +356,6 @@ func TestRegisterEndsTheVorgesellschaft(t *testing.T) {
 		t.Errorf("Haftung %s €, erwartet 3.000,00 — die Miete vom März zählt nicht mehr mit", u.Amount)
 	}
 
-	// Der Gründungshelfer beginnt nach der Anmeldung zum Handelsregister.
-	for _, d := range state.Duties {
-		if d.Key == "handelsregister" {
-			t.Error("die bereits vorausgesetzte Anmeldung erscheint in der Checkliste")
-		}
-	}
-
 	if _, err := svc.Register(context.Background(), "2026-03-01", "AG München", "HRB 2"); err == nil {
 		t.Error("eine zweite Eintragung muss abgelehnt werden")
 	}
@@ -442,13 +466,16 @@ func TestPostingsAreOfferedOnceAndUseTheOpeningSource(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PreviewPostings: %v", err)
 	}
-	// Zeichnung plus zwei Einzahlungen.
-	if len(preview.Postings) != 3 {
-		t.Fatalf("%d Buchungsvorschläge, erwartet 3", len(preview.Postings))
+	// Nur die Zeichnung: die Einzahlungen bucht der Bankumsatz.
+	if len(preview.Postings) != 1 {
+		t.Fatalf("%d Buchungsvorschläge, erwartet 1", len(preview.Postings))
 	}
 	if preview.Postings[0].Lines[0].Account != domain.AccountAusstehendeEinlagenGeford ||
 		preview.Postings[0].Lines[1].Account != domain.AccountGezeichnetesKapital {
 		t.Error("die Zeichnung läuft über 1298 an 2900")
+	}
+	if len(preview.Skipped) != 2 || !strings.Contains(preview.Skipped[0], "Bankumsatz") {
+		t.Errorf("die Einzahlungen müssen auf den Bankumsatz verweisen: %v", preview.Skipped)
 	}
 
 	created, err := svc.BookPostings(context.Background())
@@ -485,70 +512,13 @@ func TestPostingsSkipSacheinlage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PreviewPostings: %v", err)
 	}
-	if len(preview.Skipped) != 1 {
-		t.Fatalf("%d übergangene Einlagen, erwartet 1", len(preview.Skipped))
+	// Die Sacheinlage und die Einzahlung der Bareinlage werden nicht
+	// vorgeschlagen; gebucht wird nur die Zeichnung.
+	if len(preview.Skipped) != 2 || !strings.Contains(preview.Skipped[1], "Sacheinlage") {
+		t.Fatalf("übergangen: %v", preview.Skipped)
 	}
-	// Zeichnung plus die eine Bareinlage.
-	if len(preview.Postings) != 2 {
-		t.Errorf("%d Buchungsvorschläge, erwartet 2", len(preview.Postings))
-	}
-}
-
-func TestCompleteDutyIsPersistedWithItsDate(t *testing.T) {
-	env := newTestEnv(t)
-	svc := env.foundations(t)
-	env.saveFoundation(t, svc, gmbhFoundation())
-
-	if err := svc.CompleteDuty(context.Background(), "fragebogen", "2026-02-01", "über Mein ELSTER"); err != nil {
-		t.Fatalf("CompleteDuty: %v", err)
-	}
-	state, err := svc.GetState(context.Background())
-	if err != nil {
-		t.Fatalf("GetState: %v", err)
-	}
-	found := false
-	for _, d := range state.Duties {
-		if d.Key == "fragebogen" {
-			found = true
-			if !d.IsDone || d.DoneOn != "2026-02-01" {
-				t.Errorf("der Fragebogen steht als %v am %q", d.IsDone, d.DoneOn)
-			}
-		}
-	}
-	if !found {
-		t.Fatal("der Fragebogen fehlt in der Fristenliste")
-	}
-
-	// Ein zweites Erledigen mit anderem Datum ersetzt das erste, statt eine
-	// zweite Antwort daneben zu legen.
-	if err := svc.CompleteDuty(context.Background(), "fragebogen", "2026-02-05", ""); err != nil {
-		t.Fatalf("CompleteDuty erneut: %v", err)
-	}
-	tasks, err := repository.NewFoundationRepository(env.db).Tasks(context.Background(), 1)
-	if err != nil {
-		t.Fatalf("Tasks: %v", err)
-	}
-	count := 0
-	for _, task := range tasks {
-		if task.Key == "fragebogen" {
-			count++
-			if task.DoneOn != "2026-02-05" {
-				t.Errorf("Datum %q, erwartet 2026-02-05", task.DoneOn)
-			}
-		}
-	}
-	if count != 1 {
-		t.Errorf("%d Einträge zum Fragebogen, erwartet 1", count)
-	}
-
-	if err := svc.CompleteDuty(context.Background(), "fragebogen", "", ""); err != nil {
-		t.Fatalf("CompleteDuty zurücknehmen: %v", err)
-	}
-	state, _ = svc.GetState(context.Background())
-	for _, d := range state.Duties {
-		if d.Key == "fragebogen" && d.IsDone {
-			t.Error("der zurückgenommene Fragebogen steht weiter als erledigt")
-		}
+	if len(preview.Postings) != 1 {
+		t.Errorf("%d Buchungsvorschläge, erwartet 1", len(preview.Postings))
 	}
 }
 
@@ -559,7 +529,6 @@ func TestSaveFoundationReplacesShareholderList(t *testing.T) {
 
 	// Ein Gesellschafter übernimmt alles.
 	f := &domain.Foundation{
-		NotarizedOn:  "2026-01-15",
 		ShareCapital: 2_500_000,
 		Shareholders: []domain.Shareholder{
 			{Name: "Anna Bauer", ShareCapital: 2_500_000, PaidIn: 1_250_000, Kind: domain.ContributionCash},
@@ -641,9 +610,8 @@ func TestFoundationFillsCompanyProfileWithoutOverridingIt(t *testing.T) {
 		t.Fatalf("Gründung nicht in die Stammdaten übernommen: %+v", cfg)
 	}
 
-	// Eine Korrektur der Gründung folgt, solange die Stammdaten ihr gleichen.
-	f.NotarizedOn = "2026-01-16"
-	env.saveFoundation(t, svc, f)
+	// Der Beurkundungstag der Gründung ist das Gründungsdatum der Stammdaten.
+	env.saveFoundationOn(t, svc, "2026-01-16", f)
 	if cfg, _ = settings.GetCompanySettings(ctx); cfg.FoundedOn != "2026-01-16" {
 		t.Fatalf("korrigierte Beurkundung nicht übernommen: %q", cfg.FoundedOn)
 	}

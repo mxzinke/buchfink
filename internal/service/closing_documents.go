@@ -43,8 +43,8 @@ type closingReceiptFiler interface {
 	File(ctx context.Context, req FileReceiptRequest) (*domain.Receipt, error)
 	Seal(ctx context.Context, receiptID, entryID uint) error
 	Discard(ctx context.Context, receiptID uint, reason string) error
-	// Get prüft einen mitgegebenen Belegverweis. Ein Baustein, der eine
-	// Inventurliste verlangt, muss auch nachsehen können, ob es sie gibt —
+	// Get prüft einen mitgegebenen Belegverweis. Ein Baustein, der ein
+	// Beschlussdokument verlangt, muss auch nachsehen können, ob es es gibt —
 	// sonst genügt jede Zahl ungleich null.
 	Get(ctx context.Context, id uint) (*domain.Receipt, error)
 }
@@ -111,45 +111,30 @@ func voucherAmount(voucher closingVoucher) domain.Cents {
 	return sum
 }
 
-// postWithVoucher schreibt die Buchung und räumt den Eigenbeleg auf, wenn sie
-// scheitert.
-//
-// Der Beleg muss vor der Buchung entstehen: sein Hash geht in den Hash der
-// Buchung ein, nachträglich gesetzt wäre er nicht mehr gedeckt. Scheitert die
-// Buchung dann — an der Periodensperre, an einem festgestellten Jahr, an einem
-// unbekannten Konto —, bliebe ohne diesen Weg ein unversiegelter Eigenbeleg im
-// Belegspeicher zurück, der auf nichts verweist. Gelöscht wird er nicht: die
-// GoBD kennen kein Löschen, sondern das Verwerfen mit Grund.
+// postWithVoucher schreibt die Buchung und versiegelt ihren Eigenbeleg. Der
+// Beleg entsteht vor der Buchung, weil sein Hash in ihren eingeht; der
+// Aufrufer klammert beides in eine Transaktion, damit ein gescheiterter
+// Vorgang keinen Eigenbeleg ohne Buchung hinterlässt.
 func postWithVoucher(
 	ctx context.Context, journalSvc *JournalService, filer closingReceiptFiler,
 	entry *domain.JournalEntry, receipt *domain.Receipt,
 ) (*domain.JournalEntry, error) {
 	created, err := journalSvc.Post(ctx, entry)
 	if err != nil {
-		if receipt != nil && filer != nil {
-			_ = filer.Discard(ctx, receipt.ID, fmt.Sprintf(
-				"Die Abschlussbuchung %q ist nicht zustande gekommen: %v", entry.Description, err))
-		}
 		return nil, err
 	}
 	if receipt != nil && filer != nil {
-		_ = filer.Seal(ctx, receipt.ID, created.ID)
+		if err := filer.Seal(ctx, receipt.ID, created.ID); err != nil {
+			return nil, fmt.Errorf("der Eigenbeleg %s ließ sich nicht versiegeln: %w", receipt.ReceiptNumber, err)
+		}
 	}
 	return created, nil
 }
 
 // ensureOuterVoucherHeader prüft die Kopfdaten eines vom Anwender abgelegten
-// Belegs, bevor die Buchung geschrieben wird, die er belegen soll.
-//
-// Der Grund ist die Reihenfolge: das Versiegeln — der Schritt, der Beleg und
-// Buchung verbindet — läuft naturgemäß hinter dem Journal-Commit, denn vorher
-// gibt es keine Buchungsnummer. Prüfte erst das Versiegeln die Kopfdaten, bliebe
-// bei einem Beleg ohne sie ein halber Vorgang zurück: die Buchung geschrieben,
-// der Nachweis unverbunden daneben, und der Prüflauf meldete das Dokument
-// dauerhaft als ungebucht. Die Inventurliste (§ 240 HGB) und das
-// Beschlussdokument gehen diesen Weg — sie kommen erst nach dem Commit an die
-// Buchung, unabhängig von entry.ReceiptID, das JournalService.Post ohnehin
-// prüft.
+// Belegs, bevor die Buchung geschrieben wird, die er belegen soll. Das
+// Beschlussdokument kommt erst mit dem Siegel an die Buchung und nicht über
+// entry.ReceiptID, das JournalService.Post selbst prüft.
 //
 // Der Name des Belegs steht in der Meldung, weil der Anwender sonst nicht wüsste,
 // welches der beiden Dokumente des Vorgangs gemeint ist.

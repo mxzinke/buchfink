@@ -98,9 +98,9 @@ func (s *JournalService) PreviewOpeningBalance(
 // sie schließt nur die Buchung. Jede Buchung hat EntrySourceOpening und die
 // Herkunftskennung aus dem Altsystem.
 //
-// Alles oder nichts: geprüft wird jede Buchung, bevor die erste geschrieben
-// wird. Eine halb erfasste Eröffnungsbilanz wäre eine Bilanz, die nicht aufgeht
-// und sich nur durch Stornos wieder auflösen ließe.
+// Alles oder nichts: Buchungen und Siegel der Schlussbilanz stehen in einer
+// Transaktion. Eine halb erfasste Eröffnungsbilanz ginge nicht auf und ließe
+// sich nur durch Stornos wieder auflösen.
 func (s *JournalService) BookOpeningBalance(
 	ctx context.Context, req OpeningBalanceRequest,
 ) (*OpeningBalancePreview, error) {
@@ -110,62 +110,33 @@ func (s *JournalService) BookOpeningBalance(
 	}
 	if !preview.Balanced {
 		return nil, fmt.Errorf(
-			"die Eröffnungsbilanz ist nicht ausgeglichen: Soll %s €, Haben %s €. Prüfe die Schlussbilanz des Altsystems",
-			preview.DebitTotal, preview.CreditTotal)
+			"die Eröffnungsbilanz geht nicht auf: Aktiva %s €, Passiva %s €, die Vortragskonten 9000, 9008 "+
+				"und 9009 stehen auf %s €. Zu prüfen ist die Schlussbilanz des Altsystems",
+			preview.DebitTotal, preview.CreditTotal, carryForwardBalance(entries))
 	}
-	if err := s.ensureFirstOpeningBalance(ctx, preview.FiscalYear); err != nil {
-		return nil, err
-	}
-	for _, entry := range entries {
-		if err := s.ValidatePostable(ctx, entry); err != nil {
-			return nil, fmt.Errorf("die Eröffnungsbilanz wurde nicht gebucht: %w", err)
+	return atomically(ctx, s, func(ctx context.Context) (*OpeningBalancePreview, error) {
+		if err := s.ensureFirstOpeningBalance(ctx, preview.FiscalYear); err != nil {
+			return nil, err
 		}
-	}
-
-	booked := make([]*domain.JournalEntry, 0, len(entries))
-	for _, entry := range entries {
-		created, err := s.Post(ctx, entry)
-		if err != nil {
-			return nil, fmt.Errorf(
-				"die Eröffnungsbilanz ist nach %d von %d Buchungen gescheitert: %w. Storniere die bereits erfassten Buchungen, bevor du es erneut versuchst",
-				len(booked), len(entries), err)
+		booked := make([]*domain.JournalEntry, 0, len(entries))
+		for _, entry := range entries {
+			created, err := s.Post(ctx, entry)
+			if err != nil {
+				return nil, fmt.Errorf("die Eröffnungsbilanz wurde nicht gebucht: %w", err)
+			}
+			booked = append(booked, created)
 		}
-		booked = append(booked, created)
-	}
-
-	if note := s.sealOpeningReceipt(ctx, *req.ReceiptID, booked); note != "" {
-		preview.Messages = append(preview.Messages, note)
-	}
-
-	preview.Entries = booked
-	preview.EnsureLists()
-	return preview, nil
-}
-
-// sealOpeningReceipt versiegelt die Schlussbilanz des Altsystems, nachdem die
-// Eröffnungsbuchungen stehen.
-//
-// Ohne die Versiegelung bliebe der Beleg im Status „abgelegt": der Prüflauf
-// meldete ihn dauerhaft als abgelegt, aber nicht gebucht — blockierend, sobald
-// sein Eingang vor dem Stichtag liegt, also bei jeder Festschreibung des ersten
-// Jahres —, und seine Kopfdaten ließen sich über SaveHeader weiter ändern,
-// obwohl Buchungen auf ihn verweisen und seinen Hash haben. Versiegelt ist er
-// das, was er ist: ein gebuchter Beleg.
-//
-// Das Versiegeln ist ein zweiter Schreibvorgang nach den Buchungen und darf sie
-// nicht zurücknehmen — sie stehen bereits im Journal. Scheitert es, wird das
-// gemeldet und nicht als Fehler behandelt; ReceiptService.Get holt das Siegel
-// beim nächsten Lesen des Belegs nach.
-func (s *JournalService) sealOpeningReceipt(ctx context.Context, receiptID uint, booked []*domain.JournalEntry) string {
-	if s.receiptRepo == nil || len(booked) == 0 {
-		return ""
-	}
-	if err := s.receiptRepo.Seal(ctx, receiptID, booked[0].ID); err != nil {
-		return fmt.Sprintf(
-			"Die Eröffnungsbuchungen stehen, der Beleg der Schlussbilanz ließ sich aber nicht versiegeln: %v. "+
-				"Öffne den Beleg in der Belegliste — das Siegel wird dann nachgeholt.", err)
-	}
-	return ""
+		// Versiegelt ist die Schlussbilanz des Altsystems das, was sie ist: ein
+		// gebuchter Beleg. Offen bliebe sie im Prüflauf als ungebucht stehen.
+		if s.receiptRepo != nil && len(booked) > 0 {
+			if err := s.receiptRepo.Seal(ctx, *req.ReceiptID, booked[0].ID); err != nil {
+				return nil, fmt.Errorf("der Beleg der Schlussbilanz ließ sich nicht versiegeln: %w", err)
+			}
+		}
+		preview.Entries = booked
+		preview.EnsureLists()
+		return preview, nil
+	})
 }
 
 // ensureFirstOpeningBalance lässt die Eröffnungsbilanz nur einmal und nur im
@@ -213,18 +184,15 @@ func (s *JournalService) buildOpeningBalance(
 	ctx context.Context, req OpeningBalanceRequest,
 ) ([]*domain.JournalEntry, *OpeningBalancePreview, error) {
 	if req.FiscalYear == 0 {
-		req.FiscalYear = s.fiscalYear
-	}
-	if req.FiscalYear == 0 {
 		return nil, nil, fmt.Errorf("ohne Geschäftsjahr lässt sich keine Eröffnungsbilanz erfassen")
 	}
 	date := req.Date
 	if date == "" {
-		date = fmt.Sprintf("%d-01-01", req.FiscalYear)
+		date = domain.FiscalYearFirstDay(req.FiscalYear, s.fiscalYearStartMonth(ctx))
 	}
 	if req.ReceiptID == nil {
 		return nil, nil, fmt.Errorf(
-			"zur Eröffnungsbilanz gehört die Schlussbilanz des Altsystems als Beleg. Lege sie zuerst ab (§ 146 Abs. 1 AO)")
+			"zur Eröffnungsbilanz gehört die Schlussbilanz des Altsystems als Beleg. Sie ist zuerst abzulegen (§ 146 Abs. 1 AO)")
 	}
 	if len(req.Accounts) == 0 && len(req.Receivables) == 0 && len(req.Payables) == 0 {
 		return nil, nil, fmt.Errorf("die Eröffnungsbilanz enthält keine Werte")
@@ -245,6 +213,11 @@ func (s *JournalService) buildOpeningBalance(
 		entry := s.newOpeningEntry(req, date, fmt.Sprintf("Eröffnungsbilanz %d aus %s", req.FiscalYear, source))
 		var debit, credit domain.Cents
 		for i, line := range req.Accounts {
+			if domain.IsCarryForwardAccount(line.Account) {
+				return nil, nil, fmt.Errorf(
+					"Zeile %d: %s ist ein Saldenvortragskonto. Die Gegenbuchung bildet Buchfink selbst; "+
+						"erfasse nur die Bestände der Schlussbilanz", i+1, line.Account)
+			}
 			if line.Amount <= 0 {
 				return nil, nil, fmt.Errorf("Zeile %d (%s): der Wert der Eröffnungsbilanz muss positiv sein", i+1, line.Account)
 			}
@@ -264,8 +237,9 @@ func (s *JournalService) buildOpeningBalance(
 				credit += line.Amount
 			}
 		}
-		// Die Gegenbuchung auf 9000 gleicht die Buchung aus. Sie ist die
-		// Differenz der beiden Seiten und steht auf der Seite, die fehlt.
+		// Die Gegenbuchung auf 9000 schließt die Buchung der Sachkonten. Ob die
+		// Eröffnungsbilanz aufgeht, entscheidet erst die Summe über alle drei
+		// Vortragskonten (siehe carryForwardBalance).
 		if diff := debit - credit; diff != 0 {
 			side := domain.SideCredit
 			amount := diff
@@ -324,19 +298,56 @@ func (s *JournalService) buildOpeningBalance(
 		}
 	}
 
-	for _, entry := range entries {
-		preview.DebitTotal += entry.DebitTotal()
-		preview.CreditTotal += entry.CreditTotal()
-	}
-	preview.Balanced = preview.DebitTotal == preview.CreditTotal
+	preview.DebitTotal, preview.CreditTotal = balanceSheetTotals(entries)
+	preview.Balanced = carryForwardBalance(entries) == 0
 	preview.Messages = append(preview.Messages, fmt.Sprintf(
 		"%d Buchungen: %d Sachkontenvortrag, %d Forderungen, %d Verbindlichkeiten.",
 		len(entries), boolToInt(len(req.Accounts) > 0), len(req.Receivables), len(req.Payables)))
 	if !preview.Balanced {
-		preview.Messages = append(preview.Messages,
-			"Soll und Haben stimmen nicht überein. Eine Eröffnungsbilanz, die nicht aufgeht, lässt sich nicht buchen.")
+		preview.Messages = append(preview.Messages, fmt.Sprintf(
+			"Aktiva und Passiva unterscheiden sich um %s €; die Vortragskonten 9000, 9008 und 9009 "+
+				"gleichen sich nicht aus. Eine Eröffnungsbilanz, die nicht aufgeht, lässt sich nicht buchen.",
+			(preview.DebitTotal-preview.CreditTotal).Abs()))
 	}
 	return entries, preview, nil
+}
+
+// balanceSheetTotals summiert die Bestände der Eröffnungsbuchungen je Seite,
+// ohne die Gegenbuchungen auf den Vortragskonten.
+func balanceSheetTotals(entries []*domain.JournalEntry) (debit, credit domain.Cents) {
+	for _, entry := range entries {
+		for _, l := range entry.Lines {
+			if domain.IsCarryForwardAccount(l.Account) {
+				continue
+			}
+			if l.Side == domain.SideDebit {
+				debit += l.Amount
+			} else {
+				credit += l.Amount
+			}
+		}
+	}
+	return debit, credit
+}
+
+// carryForwardBalance ist der Saldo (Soll minus Haben) über 9000, 9008 und
+// 9009. Jede einzelne Buchung ist für sich ausgeglichen; aufgehen muss die
+// Eröffnungsbilanz als Ganzes, und das heißt: die Vortragskonten heben sich auf.
+func carryForwardBalance(entries []*domain.JournalEntry) domain.Cents {
+	var sum domain.Cents
+	for _, entry := range entries {
+		for _, l := range entry.Lines {
+			if !domain.IsCarryForwardAccount(l.Account) {
+				continue
+			}
+			if l.Side == domain.SideDebit {
+				sum += l.Amount
+			} else {
+				sum -= l.Amount
+			}
+		}
+	}
+	return sum
 }
 
 // openingItemEntry baut die Vortragsbuchung eines offenen Postens.

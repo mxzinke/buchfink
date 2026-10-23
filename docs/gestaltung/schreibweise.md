@@ -114,14 +114,14 @@ nicht in die Arbeitsansicht oder den Tooltip.
 
 ## Ist-Zustand und Ziele
 
-Webseite und README erklären zuerst den Nutzen für kleine Unternehmen, Gründer
+Webseite und README erklären zuerst den Nutzen für kleine GmbH und UG, Gründer
 und Holdings. Die Nutzeroberfläche ist auch für Menschen ohne
 Buchhaltungskenntnisse gemacht. Die Implementierung dieser Verständlichkeit
 wird nicht durch Beispiele aus Kontonummern und internen Datenstrukturen beworben.
 
 Gesetzeskonformität und selbstständige einfache Jahresabschlüsse sind
 Projektziele, solange ihre vollständige Umsetzung und Prüfung ausstehen.
-Geplante Funktionen, etwa MCP, sind als geplant zu kennzeichnen.
+Geplante Funktionen sind als geplant zu kennzeichnen.
 
 Codekommentare beschreiben die vorhandene Implementierung, ihre Grenzen und
 fachliche Gründe. Rechtsgrundlagen bleiben erhalten. Zukunftspläne und

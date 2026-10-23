@@ -1,0 +1,9 @@
+{
+  "gruende": [
+    {
+      "schluessel": "keine_darstellung",
+      "text": "Der Beleg lässt sich nicht anzeigen: weder PDF- oder Bilddatei noch Rechnungsdatensatz."
+    }
+  ],
+  "stufe": "rueckfrage"
+}

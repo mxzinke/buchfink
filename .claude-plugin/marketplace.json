@@ -1,0 +1,17 @@
+{
+  "name": "buchfink",
+  "description": "Buchfink: lokale Buchhaltung für GmbH und UG (SKR04, GoBD). Skill und MCP-Anbindung für Claude Code.",
+  "owner": {
+    "name": "Buchfink",
+    "url": "https://github.com/mxzinke/buchfink"
+  },
+  "plugins": [
+    {
+      "name": "buchfink-buchhaltung",
+      "source": "./plugins/buchfink-buchhaltung",
+      "description": "Verbindet Claude Code mit der laufenden Buchfink-App und bringt den Buchfink-Skill mit: Belege, Bank, Rechnungen, Monats- und Jahresabschluss, Steuererklärungen, Gründung, Lohn, Gesellschafter, Beteiligungen.",
+      "category": "productivity",
+      "tags": ["buchhaltung", "gobd", "skr04", "umsatzsteuer", "gmbh"]
+    }
+  ]
+}

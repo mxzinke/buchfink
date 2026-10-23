@@ -1,0 +1,183 @@
+{
+  "core.Host.CreateTenant": [
+    "requireApp"
+  ],
+  "core.Host.RegisterTenant": [
+    "requireApp"
+  ],
+  "core.Host.RemoveTenant": [
+    "requireApp"
+  ],
+  "core.Host.RestoreBackup": [
+    "requireApp"
+  ],
+  "core.Host.SetBackupDir": [
+    "requireApp"
+  ],
+  "core.Host.SetMCPPort": [
+    "requireApp"
+  ],
+  "core.Host.Switch": [
+    "requireApp"
+  ],
+  "core.Tenant.CommitPeriod": [
+    "AppOnly",
+    "requireApp"
+  ],
+  "core.Tenant.ConfirmDeclarationInput": [
+    "AppOnly"
+  ],
+  "core.Tenant.DisableExaminer": [
+    "requireApp"
+  ],
+  "core.Tenant.EnableExaminer": [
+    "requireApp"
+  ],
+  "core.Tenant.SubmitDeclaration": [
+    "AppOnly"
+  ],
+  "core.Tenant.changeExaminer": [
+    "AppOnly"
+  ],
+  "service.BankService.ConfigureAccounts": [
+    "requireHuman"
+  ],
+  "service.BankService.SetInvoiceAccount": [
+    "requireHuman"
+  ],
+  "service.BankService.requireHumanAnchor": [
+    "requireHuman"
+  ],
+  "service.ClosingService.ReopenFiscalYear": [
+    "requireHuman"
+  ],
+  "service.ClosingService.SetFiscalYearStatus": [
+    "requireHuman"
+  ],
+  "service.ClosingSettingsService.Save": [
+    "requireHuman"
+  ],
+  "service.ContactService.ConfirmDefaultPostingGroup": [
+    "requireHuman"
+  ],
+  "service.DeclarationService.ConfirmInput": [
+    "requireHuman"
+  ],
+  "service.DeclarationService.DeleteInput": [
+    "requireHuman"
+  ],
+  "service.DeclarationService.MarkSubmitted": [
+    "requireHuman"
+  ],
+  "service.DeclarationService.SetInput": [
+    "requireHuman"
+  ],
+  "service.FoundationService.Register": [
+    "requireHuman"
+  ],
+  "service.FoundationService.Save": [
+    "requireHuman"
+  ],
+  "service.MasterDataProposalService.Accept": [
+    "requireHuman"
+  ],
+  "service.MasterDataProposalService.Reject": [
+    "requireHuman"
+  ],
+  "service.ObligationService.Confirm": [
+    "requireHuman"
+  ],
+  "service.ObligationService.Reopen": [
+    "requireHuman"
+  ],
+  "service.ObligationService.Waive": [
+    "requireHuman"
+  ],
+  "service.PeriodService.Adopt": [
+    "requireHuman"
+  ],
+  "service.PeriodService.Commit": [
+    "requireHuman"
+  ],
+  "service.PeriodService.Reopen": [
+    "requireHuman"
+  ],
+  "service.SettingsService.SaveAgentSettings": [
+    "requireHuman"
+  ],
+  "service.SettingsService.SetInboxFolder": [
+    "requireHuman"
+  ],
+  "service.SettingsService.UpdateCompanySettings": [
+    "requireHuman"
+  ],
+  "service.VatReturnService.ConfirmSubmitted": [
+    "requireHuman"
+  ],
+  "service.ZMService.ConfirmSubmitted": [
+    "requireHuman"
+  ],
+  "service.keepPostingGroup": [
+    "requireHuman"
+  ],
+  "wailsbridge.BuchfinkBridge.AcceptMasterDataProposal": [
+    "AppOnly"
+  ],
+  "wailsbridge.BuchfinkBridge.ConfigureBankAccounts": [
+    "AppOnly"
+  ],
+  "wailsbridge.BuchfinkBridge.ConfirmDeclarationInput": [
+    "AppOnly"
+  ],
+  "wailsbridge.BuchfinkBridge.ConfirmDefaultPostingGroup": [
+    "AppOnly"
+  ],
+  "wailsbridge.BuchfinkBridge.ConfirmObligation": [
+    "AppOnly"
+  ],
+  "wailsbridge.BuchfinkBridge.ConfirmVatReturnSubmitted": [
+    "AppOnly"
+  ],
+  "wailsbridge.BuchfinkBridge.ConfirmZMSubmitted": [
+    "AppOnly"
+  ],
+  "wailsbridge.BuchfinkBridge.RegisterCompany": [
+    "AppOnly"
+  ],
+  "wailsbridge.BuchfinkBridge.RejectMasterDataProposal": [
+    "AppOnly"
+  ],
+  "wailsbridge.BuchfinkBridge.ReopenFiscalYear": [
+    "AppOnly"
+  ],
+  "wailsbridge.BuchfinkBridge.ReopenObligation": [
+    "AppOnly"
+  ],
+  "wailsbridge.BuchfinkBridge.SaveAgentRules": [
+    "AppOnly"
+  ],
+  "wailsbridge.BuchfinkBridge.SaveClosingSettings": [
+    "AppOnly"
+  ],
+  "wailsbridge.BuchfinkBridge.SaveFoundation": [
+    "AppOnly"
+  ],
+  "wailsbridge.BuchfinkBridge.SetFiscalYearStatus": [
+    "AppOnly"
+  ],
+  "wailsbridge.BuchfinkBridge.SetInboxFolder": [
+    "AppOnly"
+  ],
+  "wailsbridge.BuchfinkBridge.SetInvoiceBankAccount": [
+    "AppOnly"
+  ],
+  "wailsbridge.BuchfinkBridge.SubmitDeclaration": [
+    "AppOnly"
+  ],
+  "wailsbridge.BuchfinkBridge.UpdateCompanySettings": [
+    "AppOnly"
+  ],
+  "wailsbridge.BuchfinkBridge.WaiveObligation": [
+    "AppOnly"
+  ]
+}

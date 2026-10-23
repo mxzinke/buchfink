@@ -20,7 +20,6 @@ func (e *testEnv) statements(t *testing.T) *StatementService {
 		e.closing(t),
 		repository.NewSettingsRepository(e.db),
 		repository.NewAuditRepository(e.db),
-		e.fiscalYear,
 	)
 }
 
@@ -273,7 +272,7 @@ func TestSizeClassUsesTheStatementAndTheRecordedHeadcount(t *testing.T) {
 
 	closing := env.closing(t)
 	svc := NewStatementService(env.accounting, closing,
-		repository.NewSettingsRepository(env.db), repository.NewAuditRepository(env.db), 2026)
+		repository.NewSettingsRepository(env.db), repository.NewAuditRepository(env.db))
 
 	sizeClass, err := svc.SizeClassFor(ctx, 2026)
 	if err != nil {
@@ -339,7 +338,7 @@ func TestSizeClassKeepsTheEffectiveClassOverThreeClosingDates(t *testing.T) {
 			}
 		}
 		svc := NewStatementService(env.accounting, closing,
-			repository.NewSettingsRepository(env.db), repository.NewAuditRepository(env.db), 2026)
+			repository.NewSettingsRepository(env.db), repository.NewAuditRepository(env.db))
 		sizeClass, err := svc.SizeClassFor(ctx, 2026)
 		if err != nil {
 			t.Fatalf("Größenklasse: %v", err)
@@ -493,25 +492,26 @@ func TestDepthDefaultsToTheSizeClass(t *testing.T) {
 	}
 }
 
-// Die Fristen kommen aus dem Backend, mit Datum und Norm.
-func TestDeadlinesComeFromTheClosingDateAndTheSizeClass(t *testing.T) {
+// Die Fristen im Abschluss kommen aus dem Pflichtenkalender, mit Datum und
+// Norm; eine zweite Fristenrechnung gibt es nicht.
+func TestStatementDeadlinesComeFromTheCalendar(t *testing.T) {
 	env := newTestEnv(t)
 	env.post(t, "2026-06-01", "1800", "4400", 1_000_000)
+	statements := env.statements(t)
+	statements.SetDeadlineSource(env.obligations(t))
 
-	deadlines, err := env.statements(t).Deadlines(context.Background(), 2026)
+	fs, err := statements.Build(context.Background(), 2026, "")
 	if err != nil {
-		t.Fatalf("Fristen: %v", err)
+		t.Fatalf("Abschluss: %v", err)
 	}
-	if len(deadlines) != 2 {
-		t.Fatalf("es entstehen %d Termine, erwartet Aufstellung und Offenlegung", len(deadlines))
+	want := map[string]string{"aufstellung.2026": "2027-06-30", "offenlegung.2026": "2027-12-31"}
+	if len(fs.Deadlines) != len(want) {
+		t.Fatalf("es entstehen %d Termine, erwartet Aufstellung und Offenlegung: %+v", len(fs.Deadlines), fs.Deadlines)
 	}
-	if deadlines[0].DueDate != "2027-06-30" {
-		t.Errorf("die Aufstellungsfrist endet am %s, erwartet den 30.06.2027", deadlines[0].DueDate)
-	}
-	if deadlines[1].DueDate != "2027-12-31" {
-		t.Errorf("die Offenlegungsfrist endet am %s, erwartet den 31.12.2027", deadlines[1].DueDate)
-	}
-	for _, d := range deadlines {
+	for _, d := range fs.Deadlines {
+		if due, ok := want[d.Key]; !ok || d.DueDate != due {
+			t.Errorf("Termin %s fällig am %s, erwartet %v", d.Key, d.DueDate, want)
+		}
 		if d.Reference == "" {
 			t.Errorf("der Termin %q nennt keine Norm", d.Title)
 		}
@@ -624,9 +624,10 @@ func TestEBilanzMappingReportCoversTheBookedAccounts(t *testing.T) {
 	env.post(t, "2026-06-01", "1800", "4400", 1_000_000)
 	env.post(t, "2026-07-01", "6300", "1800", 200_000)
 
+	withElsterTaxNumber(t, env)
 	ebilanzSvc := NewEBilanzService(
 		env.statements(t), repository.NewSettingsRepository(env.db),
-		repository.NewAuditRepository(env.db), 2026)
+		repository.NewAuditRepository(env.db))
 
 	report, err := ebilanzSvc.MappingReport(ctx, 2026)
 	if err != nil {
@@ -650,11 +651,11 @@ func TestEBilanzMappingReportCoversTheBookedAccounts(t *testing.T) {
 		}
 	}
 
-	xbrl, err := ebilanzSvc.ExportXBRL(ctx, 2026)
+	xbrl, err := ebilanzSvc.ExportXBRLWith(ctx, 2026, EBilanzOptions{})
 	if err != nil {
 		t.Fatalf("E-Bilanz: %v", err)
 	}
-	if !strings.Contains(xbrl, "de-gaap-ci:is.netSales") {
+	if !strings.Contains(xbrl, "de-gaap-ci:is.netIncome.regular.operatingTC.grossTradingProfit.totalOutput.netSales.grossSales.generalRateVAT") {
 		t.Error("die Instanz enthält die Umsatzerlöse nicht")
 	}
 }
@@ -707,5 +708,39 @@ func TestOmittedLinesAreLeftOutOfThePDFAndMarkedInTheCSV(t *testing.T) {
 			t.Errorf("die CSV-Ausgabe führt die Position %s nicht mit dem Merker %q: erwartet %s",
 				line.Key, omittedMark(line.Omitted), want)
 		}
+	}
+}
+
+// Der Zwischenstand zum Monatsende zeigt nur, was bis dahin gebucht ist; die
+// GuV bleibt im Geschäftsjahr.
+func TestStatementUntilACutoff(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	for _, c := range []struct {
+		date   string
+		amount domain.Cents
+	}{{"2026-03-10", 10_000}, {"2026-04-10", 5_000}} {
+		if _, err := env.journal.Post(ctx, &domain.JournalEntry{
+			BookingDate: c.date, DocumentDate: c.date, ServiceDateFrom: c.date, ServiceDateTo: c.date,
+			Description: "Bankgebühr", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
+			Lines: []domain.JournalLine{
+				{Side: domain.SideDebit, Account: "6855", Amount: c.amount},
+				{Side: domain.SideCredit, Account: domain.AccountBank, Amount: c.amount},
+			},
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	svc := env.statements(t)
+	march, err := svc.StatementUntil(ctx, env.fiscalYear, "2026-03-31", domain.DepthFull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	full, err := svc.Statement(ctx, env.fiscalYear, domain.DepthFull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if march.NetIncome != -10_000 || full.NetIncome != -15_000 {
+		t.Errorf("Ergebnis bis 31.03. %s, ganzes Jahr %s; erwartet −100,00 und −150,00", march.NetIncome, full.NetIncome)
 	}
 }

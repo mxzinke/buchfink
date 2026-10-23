@@ -34,7 +34,6 @@ func (e *testEnv) checksOn(t *testing.T, today string) *CheckService {
 		repository.NewVatReturnRepository(e.db),
 		repository.NewCheckRunRepository(e.db),
 		repository.NewAuditRepository(e.db),
-		e.fiscalYear,
 	)
 	day, err := time.Parse("2006-01-02", today)
 	if err != nil {
@@ -124,7 +123,7 @@ func TestCheckEntryWithoutReceipt(t *testing.T) {
 	assertRule(t, runChecks(t, env.checks(t), "2026-03-31"), domain.CheckRuleEntryWithoutReceipt, 0, domain.CheckBlocking)
 
 	// Positiv: eine Handbuchung ohne Beleg.
-	if _, err := env.journal.Post(ctx, simpleEntry(domain.AccountKasse, domain.AccountBank, 10000)); err != nil {
+	if _, err := env.journal.Post(ctx, simpleEntry("1810", domain.AccountBank, 10000)); err != nil {
 		t.Fatalf("Handbuchung: %v", err)
 	}
 	assertRule(t, runChecks(t, env.checks(t), "2026-03-31"), domain.CheckRuleEntryWithoutReceipt, 1, domain.CheckBlocking)
@@ -136,7 +135,7 @@ func TestCheckEntryWithoutReceiptSkipsDerivedBookings(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 
-	entry := simpleEntry(domain.AccountKasse, domain.AccountBank, 10000)
+	entry := simpleEntry("1810", domain.AccountBank, 10000)
 	entry.Source = domain.EntrySourcePayment
 	if _, err := env.journal.Post(ctx, entry); err != nil {
 		t.Fatalf("Zahlungsbuchung: %v", err)
@@ -235,7 +234,7 @@ func TestCheckInterimBalance(t *testing.T) {
 	assertRule(t, runChecks(t, env.checks(t), "2026-03-31"), domain.CheckRuleInterimBalance, 1, domain.CheckBlocking)
 
 	// Negativ: die Gegenbuchung gleicht den Transit aus.
-	if _, err := env.journal.Post(ctx, simpleEntry(domain.AccountKasse, domain.AccountGeldtransit, 50000)); err != nil {
+	if _, err := env.journal.Post(ctx, simpleEntry(domain.AccountBank, domain.AccountGeldtransit, 50000)); err != nil {
 		t.Fatalf("Gegenbuchung: %v", err)
 	}
 	assertRule(t, runChecks(t, env.checks(t), "2026-03-31"), domain.CheckRuleInterimBalance, 0, domain.CheckBlocking)
@@ -405,10 +404,36 @@ func TestCheckVatReturnMissing(t *testing.T) {
 	assertRule(t, runChecks(t, env.checks(t), "2026-04-30"), domain.CheckRuleVatReturnMissing, 0, domain.CheckWarning)
 }
 
+// Vor der Gründung gibt es keine Voranmeldung. Beginnt das erste
+// Geschäftsjahr am 03.08., fehlt im Oktober nur die des dritten Quartals.
+func TestCheckVatReturnMissingStartsWithTheFiscalYear(t *testing.T) {
+	env := newTestEnv(t)
+	env.setSettings(t, func(c *domain.CompanySettings) { c.VatPeriod = "quarter" })
+	customer := env.customer(t, "Kunde", "DE", "")
+	env.domesticInvoice(t, customer.ID, "2026-09-10", 100000)
+
+	svc := env.checksOn(t, "2026-10-22")
+	svc.SetFiscalYearSource(stubYear{Year: 2026, StartDate: "2026-08-03", EndDate: "2026-12-31"})
+	found := findingsFor(runChecks(t, svc, "2026-10-22"), domain.CheckRuleVatReturnMissing)
+	if len(found) != 1 || found[0].ObjectID != "2026-Q3" {
+		t.Fatalf("erwartet nur 2026-Q3, erhalten %+v", found)
+	}
+}
+
+type stubYear domain.FiscalYear
+
+func (y stubYear) FindByYear(_ context.Context, year int) (*domain.FiscalYear, error) {
+	if year != y.Year {
+		return nil, nil
+	}
+	fy := domain.FiscalYear(y)
+	return &fy, nil
+}
+
 // Wer vom Voranmeldungsverfahren befreit ist (§ 18 Abs. 2 Satz 3 UStG), gibt
 // keine Voranmeldung ab — der Prüflauf darf ihm keine fehlende anmahnen.
 //
-// Die Fristenliste schließt denselben Fall aus (DeadlineService.vatDeadlines).
+// Der Pflichtenkalender schließt denselben Fall aus (obligationRun.vatReturns).
 // Widersprächen sich beide, stünde im Prüfbericht eine Pflicht, die kein Termin
 // kennt — und niemand wüsste, welche der beiden Stellen recht hat.
 func TestCheckVatReturnMissingSkipsAnnualFilers(t *testing.T) {
@@ -467,7 +492,7 @@ func TestCommitIsBlockedUntilOverriddenWithAReason(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 
-	if _, err := env.journal.Post(ctx, simpleEntry(domain.AccountKasse, domain.AccountBank, 10000)); err != nil {
+	if _, err := env.journal.Post(ctx, simpleEntry("1810", domain.AccountBank, 10000)); err != nil {
 		t.Fatalf("Handbuchung ohne Beleg: %v", err)
 	}
 
@@ -555,12 +580,8 @@ func TestCheckRunsArePersisted(t *testing.T) {
 	if len(runs) != 2 {
 		t.Fatalf("erwartet zwei Läufe, erhalten %d", len(runs))
 	}
-	latest, err := svc.Latest(ctx)
-	if err != nil || latest == nil {
-		t.Fatalf("jüngster Lauf: %v", err)
-	}
-	if latest.CutoffDate != "2026-02-28" {
-		t.Errorf("jüngster Lauf zum %s, erwartet 2026-02-28", latest.CutoffDate)
+	if runs[0].CutoffDate != "2026-02-28" {
+		t.Errorf("jüngster Lauf zum %s, erwartet 2026-02-28", runs[0].CutoffDate)
 	}
 }
 
@@ -702,7 +723,7 @@ func TestCheckOverrideReasonOnlyWithBlockingFindings(t *testing.T) {
 // beschädigter Bestand, und der Anwender suchte nach einem Schaden, den es
 // nicht gibt.
 func TestReceiptFileCheckWithoutAStoreIsNoFinding(t *testing.T) {
-	result := checkReceiptFiles(nil, nil, nil)
+	result := checkReceiptFiles(nil, nil)
 	if !result.NoStore {
 		t.Error("der Lauf muss den Zustand „kein Belegspeicher“ melden")
 	}

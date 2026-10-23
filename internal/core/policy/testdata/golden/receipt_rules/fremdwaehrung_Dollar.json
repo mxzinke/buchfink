@@ -1,0 +1,9 @@
+{
+  "gruende": [
+    {
+      "schluessel": "fremdwaehrung",
+      "text": "Der Beleg lautet nicht auf Euro."
+    }
+  ],
+  "stufe": "rueckfrage"
+}

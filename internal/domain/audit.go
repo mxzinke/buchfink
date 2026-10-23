@@ -15,6 +15,10 @@ const (
 	AuditActionImport         AuditAction = "IMPORT"
 	AuditActionIntegrityCheck AuditAction = "INTEGRITY_CHECK"
 	AuditActionExport         AuditAction = "EXPORT"
+	// AuditActionCommit ist die Festschreibung eines Zeitraums. Sie ist kein
+	// Zugriff und keine Ausgabe, sondern der Schritt, nach dem der Zeitraum
+	// keine Buchung mehr aufnimmt.
+	AuditActionCommit AuditAction = "COMMIT"
 )
 
 // AuditEntityReadOnly ist die Entität der Prüfermodus-Einträge. Sie steht als
@@ -32,7 +36,7 @@ type AuditLogEntry struct {
 	Action     AuditAction `gorm:"size:30;not null;index" json:"action"`
 	EntityType string      `gorm:"size:50;not null;index" json:"entityType"` // "BOOKING", "ACCOUNT", "BANK_TX", "INVOICE", "SETTINGS"
 	EntityID   string      `gorm:"size:50;not null" json:"entityId"`
-	Details    string      `gorm:"type:text;not null;serializer:encrypted_v2" json:"details"`
+	Details    string      `gorm:"type:text;not null" json:"details"`
 
 	// Before und After sind die geänderten Felder als JSON-Objekt, und zwar nur
 	// die geänderten.
@@ -42,18 +46,15 @@ type AuditLogEntry struct {
 	// nicht: er sagt, dass etwas geschah, aber nicht was. Der vollständige
 	// Datensatz wäre die andere Übertreibung — er verbärge die eine geänderte
 	// Zeile zwischen dreißig unveränderten.
-	//
-	// Verschlüsselt, weil Stammdaten personenbezogene Daten enthalten: Name,
-	// Anschrift, Bankverbindung eines Geschäftspartners stünden sonst im
-	// Protokoll im Klartext, während sie in ihrer eigenen Tabelle verschlüsselt
-	// liegen.
-	Before string `gorm:"type:text;serializer:encrypted" json:"before,omitempty"`
-	After  string `gorm:"type:text;serializer:encrypted" json:"after,omitempty"`
+	Before string `gorm:"type:text" json:"before,omitempty"`
+	After  string `gorm:"type:text" json:"after,omitempty"`
 
-	// Actor ist die Bearbeiterkennung (internal/actor), AppVersion die Fassung
-	// des Programms, die gehandelt hat. Beide beantworten die Fragen „wer" und
-	// „womit", die die Nachvollziehbarkeit neben „was" und „wann" stellt.
+	// Actor ist die Bearbeiterkennung, Channel der Erfassungsweg
+	// (internal/actor), AppVersion die Fassung des Programms, die gehandelt
+	// hat. Sie beantworten die Fragen „wer", „auf welchem Weg" und „womit",
+	// die die Nachvollziehbarkeit neben „was" und „wann" stellt.
 	Actor      string `gorm:"size:120;index" json:"actor,omitempty"`
+	Channel    string `gorm:"size:60;index" json:"channel,omitempty"`
 	AppVersion string `gorm:"size:60" json:"appVersion,omitempty"`
 
 	PreviousHash string `gorm:"size:64" json:"previousHash,omitempty"`
@@ -72,6 +73,7 @@ type AuditFilter struct {
 	EntityType string      `json:"entityType,omitempty"`
 	EntityID   string      `json:"entityId,omitempty"`
 	Actor      string      `json:"actor,omitempty"`
+	Channel    string      `json:"channel,omitempty"`
 	// Access schränkt auf die Lesezugriffe auf personenbezogene Daten ein
 	// (QUE-02 K2): Datenüberlassung, Prüferpaket, Herausgabe einzelner Dateien
 	// — sie stehen als EXPORT — und das Ein- und Ausschalten des Prüfermodus,
@@ -89,7 +91,7 @@ type AuditFilter struct {
 // IsEmpty meldet, ob der Filter nichts einschränkt.
 func (f AuditFilter) IsEmpty() bool {
 	return f.Action == "" && f.EntityType == "" && f.EntityID == "" &&
-		f.Actor == "" && f.From == "" && f.To == "" && !f.Access
+		f.Actor == "" && f.Channel == "" && f.From == "" && f.To == "" && !f.Access
 }
 
 // AuditEntryHashFunc verkettet einen Protokolleintrag mit seinem Vorgänger.

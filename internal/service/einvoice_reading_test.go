@@ -24,7 +24,7 @@ func sharedRenderer() *invoice.Renderer {
 }
 
 func (e *testEnv) einvoices() *EInvoiceService {
-	return NewEInvoiceService(e.receipts, e.contactRepo, invoice.NewReader(), e.fiscalYear)
+	return NewEInvoiceService(e.receipts, e.contactRepo, invoice.NewReader())
 }
 
 // hybridReceipt legt einen Beleg mit einem echten hybriden PDF ab — erzeugt über
@@ -41,13 +41,13 @@ func (e *testEnv) hybridReceipt(t *testing.T, supplier *domain.CompanySettings, 
 		TaxTreatment: treatment, Currency: "EUR",
 		Items: []domain.InvoiceItem{{
 			Position: 1, Description: "Wartung Serverschrank", QuantityMilli: 1000,
-			Unit: "Stk", UnitPrice: net, TaxRate: rate,
+			Unit: "C62", UnitPrice: net, TaxRate: rate,
 		}},
 	}
 	inv.Recalculate()
 
 	buyer := &domain.Contact{
-		Name: "Buchfink-Mandant", Address: "Hauptstraße 1, 80331 München",
+		Name: "Buchfink-Mandant", Street: "Hauptstraße 1", PostalCode: "80331", City: "München",
 		CountryCode: "DE", VatID: "DE111111111",
 	}
 	xml, err := invoice.GenerateZUGFeRDXML(inv, supplier, buyer)
@@ -61,7 +61,7 @@ func (e *testEnv) hybridReceipt(t *testing.T, supplier *domain.CompanySettings, 
 	}
 
 	receipt, err := e.receipts.File(ctx, FileReceiptRequest{
-		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// Die Kopfdaten gehören zu jedem buchbaren Beleg
 		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
 		// ValidateBookable die Buchung zurück.
 		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
@@ -199,21 +199,39 @@ func TestProposalFillsWhatTheDocumentKnows(t *testing.T) {
 
 // Der Vorschlag dreht den Kategoriecode: eine innergemeinschaftliche Lieferung des
 // Lieferanten ist bei uns ein Erwerb — mit Erwerbsteuer und Vorsteuer.
+//
+// Das Dokument des Lieferanten kommt über die Leseschnittstelle: Buchfink stellt
+// selbst keine innergemeinschaftliche Lieferung aus und kann sie deshalb nicht
+// als Beispiel erzeugen.
 func TestProposalInvertsTheCategoryCodeForTheRecipient(t *testing.T) {
-	if testing.Short() {
-		t.Skip("die WASM-Kompilierung ist zu langsam für -short")
-	}
 	env := newTestEnv(t)
 	ctx := context.Background()
 
 	vendor := env.vendor(t, "Groothandel B.V.", "NL", "NL123456789B01")
-	receipt := env.hybridReceipt(t, supplierSettings("Groothandel B.V.", "NL123456789B01"),
-		domain.TaxTreatmentIntraCommunitySupply, domain.TaxRateNone, 200000)
-
-	svc := env.einvoices()
-	if _, err := svc.ExtractStructuredPart(ctx, receipt.ID); err != nil {
-		t.Fatalf("strukturierten Teil holen: %v", err)
+	receipt, err := env.receipts.File(ctx, FileReceiptRequest{
+		DocumentDate: "2026-05-04", IssuerName: "Groothandel B.V.", GrossAmount: 200000,
+		Direction: domain.DirectionIncoming, FiscalYear: env.fiscalYear,
+		ReceivedAt: "2026-05-05", ReceivedVia: domain.ReceivedViaEmail,
+		Files: []NewFile{
+			{Role: domain.ReceiptRoleOriginal, FileName: "rechnung.pdf", Content: []byte(minimalPDF)},
+			{Role: domain.ReceiptRoleStructured, FileName: "rechnung.xml", Content: []byte("<Invoice/>")},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Beleg ablegen: %v", err)
 	}
+
+	read := receivedInvoice()
+	read.Supplier = domain.InvoiceParty{
+		Name: "Groothandel B.V.", VatID: "NL123456789B01", CountryCode: "NL",
+	}
+	read.NetAmount, read.TaxAmount, read.GrossAmount = 200000, 0, 200000
+	read.TaxCategories = []string{"K"}
+	read.Positions = []domain.IncomingPosition{
+		{Text: "Serverschrank", Net: 200000, TaxRate: domain.TaxRateNone, TaxCategory: "K"},
+	}
+
+	svc := env.einvoicesWith(fakeReader{invoice: read})
 	proposal, err := svc.Propose(ctx, receipt.ID)
 	if err != nil {
 		t.Fatalf("Vorschlag: %v", err)
@@ -233,7 +251,7 @@ func TestProposalInvertsTheCategoryCodeForTheRecipient(t *testing.T) {
 		t.Fatalf("den Vorschlag buchen: %v", err)
 	}
 
-	summary, err := env.vat().Summary(ctx, "", "")
+	summary, err := env.vat().Summary(ctx, 2026, "", "")
 	if err != nil {
 		t.Fatalf("USt-Auswertung: %v", err)
 	}
@@ -307,7 +325,7 @@ func TestExtractingFromAScanIsRefused(t *testing.T) {
 	ctx := context.Background()
 
 	receipt, err := env.receipts.File(ctx, FileReceiptRequest{
-		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// Die Kopfdaten gehören zu jedem buchbaren Beleg
 		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
 		// ValidateBookable die Buchung zurück.
 		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
@@ -371,66 +389,129 @@ func TestValidationResultIsKeptWithTheReceipt(t *testing.T) {
 		t.Errorf("eine von Buchfink erzeugte Rechnung soll fehlerfrei sein, gemeldet sind %d", updated.ValidationErrors)
 	}
 
-	// Und die Prüfung lässt sich wiederholen — das Regelwerk ist versioniert.
-	result, err := env.einvoices().Validate(ctx, receipt.ID)
-	if err != nil {
-		t.Fatalf("erneut prüfen: %v", err)
-	}
-	if result.Errors != 0 {
-		t.Errorf("die erneute Prüfung meldet %d Fehler: %s", result.Errors, result.Findings)
-	}
 }
 
-// Eine Prüfung darf auch nach dem Buchen noch laufen: sie fasst keine Datei an,
-// der Beleg-Hash bleibt unberührt und die Kette damit heil.
-func TestValidationCanRunOnASealedReceipt(t *testing.T) {
-	if testing.Short() {
-		t.Skip("die WASM-Kompilierung ist zu langsam für -short")
-	}
+// --- Kopfdaten aus der E-Rechnung auf dem Weg, den die Anwendung geht ------
+
+// Geprüft wird ExtractStructuredPart und nicht prefillHeader: das ist der Weg,
+// den ein eingehender Beleg in der Anwendung nimmt. Ein Test auf der privaten
+// Hilfsfunktion beweist nur, dass die Hilfsfunktion tut, was sie tut — nicht,
+// dass sie auf diesem Weg überhaupt aufgerufen wird.
+func TestExtractStructuredPartFillsTheReceiptHeader(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 
-	vendor := env.vendor(t, "Netzwerk GmbH", "DE", "DE555666777")
-	receipt := env.hybridReceipt(t, supplierSettings("Netzwerk GmbH", "DE555666777"),
-		domain.TaxTreatmentDomestic, domain.TaxRateStandard, 100000)
+	receipt, err := env.receipts.File(ctx, FileReceiptRequest{
+		Direction: domain.DirectionIncoming, FiscalYear: env.fiscalYear,
+		ReceivedAt: "2026-05-05", ReceivedVia: domain.ReceivedViaEmail,
+		Files: []NewFile{
+			{Role: domain.ReceiptRoleOriginal, FileName: "rechnung.xml", Content: []byte("<Invoice/>")},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Beleg ablegen: %v", err)
+	}
+	if receipt.DocumentDate != "" {
+		t.Fatal("der Beleg soll ohne Kopfdaten hereinkommen — sonst prüft der Test nichts")
+	}
 
-	svc := env.einvoices()
-	if _, err := svc.ExtractStructuredPart(ctx, receipt.ID); err != nil {
+	updated, err := env.einvoicesWith(fakeReader{invoice: receivedInvoice()}).
+		ExtractStructuredPart(ctx, receipt.ID)
+	if err != nil {
 		t.Fatalf("strukturierten Teil holen: %v", err)
 	}
-	proposal, err := svc.Propose(ctx, receipt.ID)
-	if err != nil {
-		t.Fatalf("Vorschlag: %v", err)
+
+	if updated.DocumentDate != "2026-05-04" {
+		t.Errorf("Belegdatum %q, erwartet das Rechnungsdatum aus dem Datensatz", updated.DocumentDate)
 	}
-	req := proposal.Request
-	req.ContactID = vendor.ID
-	req.Positions[0].PostingGroup = "fremdleistungen"
-	if _, err := env.posting.PostIncomingReceipt(ctx, req); err != nil {
-		t.Fatalf("buchen: %v", err)
+	if updated.IssuerName != "Netzwerk GmbH" {
+		t.Errorf("Aussteller %q, erwartet den Lieferanten aus dem Datensatz", updated.IssuerName)
+	}
+	if updated.GrossAmount != 119000 || updated.TaxAmount != 19000 {
+		t.Errorf("Beträge %s / %s, erwartet 1.190,00 / 190,00", updated.GrossAmount, updated.TaxAmount)
+	}
+	if updated.Subject != "LR-2026-0815" {
+		t.Errorf("Betreff %q, erwartet die Rechnungsnummer", updated.Subject)
+	}
+	if err := updated.ValidateHeader(); err != nil {
+		t.Errorf("nach dem Lesen ist der Beleg buchbar: %v", err)
+	}
+}
+
+// --- Kopfdaten aus der E-Rechnung -----------------------------------------
+
+func TestEInvoicePrefillsTheReceiptHeader(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+
+	// Ein Beleg ohne Kopfdaten — so kommt eine E-Rechnung herein, bevor ihr
+	// strukturierter Teil gelesen ist.
+	receipt := filePDFReceipt(t, env, FileReceiptRequest{})
+
+	read := &domain.IncomingInvoice{
+		Number:      "RE-2026-4711",
+		IssueDate:   "2026-03-14",
+		Currency:    "EUR",
+		Supplier:    domain.InvoiceParty{Name: "Bürobedarf Schmidt e. K."},
+		NetAmount:   10000,
+		TaxAmount:   1900,
+		GrossAmount: 11900,
+	}
+	if err := env.einvoices().prefillHeader(ctx, receipt.ID, read); err != nil {
+		t.Fatalf("die Kopfdaten ließen sich nicht übernehmen: %v", err)
 	}
 
-	before, err := env.receipts.Get(ctx, receipt.ID)
+	filled, err := env.receipts.Get(ctx, receipt.ID)
 	if err != nil {
-		t.Fatalf("Beleg laden: %v", err)
+		t.Fatalf("der Beleg ließ sich nicht lesen: %v", err)
+	}
+	if filled.DocumentDate != "2026-03-14" {
+		t.Errorf("Belegdatum %q, erwartet das Rechnungsdatum aus dem Datensatz", filled.DocumentDate)
+	}
+	if filled.IssuerName != "Bürobedarf Schmidt e. K." {
+		t.Errorf("Aussteller %q, erwartet den Lieferanten aus dem Datensatz", filled.IssuerName)
+	}
+	if filled.GrossAmount != 11900 || filled.TaxAmount != 1900 {
+		t.Errorf("Beträge %s / %s, erwartet 119,00 / 19,00", filled.GrossAmount, filled.TaxAmount)
+	}
+	if filled.Subject != "RE-2026-4711" {
+		t.Errorf("Betreff %q, erwartet die Rechnungsnummer", filled.Subject)
+	}
+	if err := filled.ValidateBookable(); err != nil {
+		t.Errorf("mit den übernommenen Kopfdaten ist der Beleg buchbar: %v", err)
+	}
+}
+
+func TestEInvoicePrefillDoesNotOverwriteWhatWasEntered(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+
+	// Was jemand erfasst hat, bleibt stehen: die Übernahme ergänzt, sie
+	// überschreibt nicht. Sonst verlöre eine von Hand berichtigte Angabe beim
+	// nächsten Lesen des strukturierten Teils ihre Wirkung.
+	receipt := filePDFReceipt(t, env, FileReceiptRequest{
+		DocumentDate: "2026-01-02", IssuerName: "Von Hand erfasst GmbH", GrossAmount: 5000,
+	})
+
+	read := &domain.IncomingInvoice{
+		Number: "RE-9", IssueDate: "2026-03-14", Currency: "EUR",
+		Supplier:    domain.InvoiceParty{Name: "Aus dem Datensatz GmbH"},
+		GrossAmount: 11900, TaxAmount: 1900,
+	}
+	if err := env.einvoices().prefillHeader(ctx, receipt.ID, read); err != nil {
+		t.Fatalf("die Übernahme ist fehlgeschlagen: %v", err)
 	}
 
-	if _, err := svc.Validate(ctx, receipt.ID); err != nil {
-		t.Fatalf("Prüfung nach dem Buchen: %v", err)
+	filled, _ := env.receipts.Get(ctx, receipt.ID)
+	if filled.DocumentDate != "2026-01-02" || filled.IssuerName != "Von Hand erfasst GmbH" {
+		t.Errorf("die erfassten Angaben wurden überschrieben: %q / %q",
+			filled.DocumentDate, filled.IssuerName)
 	}
-
-	after, err := env.receipts.Get(ctx, receipt.ID)
-	if err != nil {
-		t.Fatalf("Beleg laden: %v", err)
+	if filled.GrossAmount != 5000 {
+		t.Errorf("der erfasste Betrag wurde überschrieben: %s", filled.GrossAmount)
 	}
-	if after.ReceiptHash != before.ReceiptHash {
-		t.Error("eine Prüfung darf den Beleg-Hash nicht verändern")
-	}
-
-	result, err := env.journal.VerifyIntegrity(ctx)
-	if err != nil {
-		t.Fatalf("Integritätsprüfung: %v", err)
-	}
-	if !result.IsValid {
-		t.Errorf("die Kette muss nach einer Prüfung heil sein: %s", result.Message)
+	// Was leer war, wird ergänzt.
+	if filled.TaxAmount != 1900 {
+		t.Errorf("der leere Steuerbetrag muss ergänzt werden, bekommen %s", filled.TaxAmount)
 	}
 }

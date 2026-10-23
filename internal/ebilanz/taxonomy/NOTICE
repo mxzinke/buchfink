@@ -1,0 +1,14 @@
+(c) XBRL Deutschland e.V. - see http://www.xbrl.de
+
+Abgeleiteter Auszug, bearbeitet.
+
+de-6.9.json und de-6.10.json sind maschinell gekürzte Auszüge der
+HGB-Taxonomie 6.9 (2025-04-01) und 6.10 (2026-04-01) von XBRL Deutschland e.V.:
+nur die Positionen, die Buchfink für die E-Bilanz einer GmbH oder UG braucht,
+mit Namen, Eigenschaften, Bezeichnung und Kanten der Presentation- und
+Calculation-Linkbase in eigenem JSON-Format. Sie entstehen mit
+scripts/gen_ebilanz_taxonomy.py; Herkunft und Prüfsumme des Pakets stehen im
+Kopf jeder Datei.
+
+Als authentisch gilt nur die Fassung der Taxonomie auf http://www.xbrl.de und
+http://www.xbrl.org. Nutzungsbedingungen: LICENSE-XBRL-Deutschland.txt.

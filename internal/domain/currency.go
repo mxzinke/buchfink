@@ -92,7 +92,7 @@ func (r VatExchangeRate) Rate() float64 { return float64(r.RateMicros) / float64
 
 // Validate prüft einen Durchschnittskurs.
 func (r *VatExchangeRate) Validate() error {
-	if len(r.Month) != 7 || r.Month[4] != '-' {
+	if _, err := time.Parse("2006-01", r.Month); err != nil || len(r.Month) != 7 {
 		return fmt.Errorf("der Monat wird als JJJJ-MM angegeben, etwa 2026-03")
 	}
 	if len(r.Currency) != 3 {

@@ -1,0 +1,251 @@
+{
+  "aging": {
+    "cutoff": "2026-03-31",
+    "reference": "§ 268 Abs. 4 und 5 HGB",
+    "sides": [
+      {
+        "buckets": [
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "not_due",
+            "label": "Nicht fällig"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "1_30",
+            "label": "1 bis 30 Tage überfällig"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "31_60",
+            "label": "31 bis 60 Tage überfällig"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "61_90",
+            "label": "61 bis 90 Tage überfällig"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "over_90",
+            "label": "Über 90 Tage überfällig"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "no_due_date",
+            "label": "Ohne Fälligkeit"
+          }
+        ],
+        "items": 0,
+        "label": "Forderungen aus Lieferungen und Leistungen",
+        "maturities": [
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "up_to_1y",
+            "label": "Restlaufzeit bis zu einem Jahr"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "1_to_5y",
+            "label": "Restlaufzeit über ein bis fünf Jahre"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "over_5y",
+            "label": "Restlaufzeit über fünf Jahre"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "undated",
+            "label": "Ohne Fälligkeit"
+          }
+        ],
+        "side": "receivables",
+        "total": 0
+      },
+      {
+        "buckets": [
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "not_due",
+            "label": "Nicht fällig"
+          },
+          {
+            "amount": 119000,
+            "items": 1,
+            "key": "1_30",
+            "label": "1 bis 30 Tage überfällig"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "31_60",
+            "label": "31 bis 60 Tage überfällig"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "61_90",
+            "label": "61 bis 90 Tage überfällig"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "over_90",
+            "label": "Über 90 Tage überfällig"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "no_due_date",
+            "label": "Ohne Fälligkeit"
+          }
+        ],
+        "items": 1,
+        "label": "Verbindlichkeiten aus Lieferungen und Leistungen",
+        "maturities": [
+          {
+            "amount": 119000,
+            "items": 1,
+            "key": "up_to_1y",
+            "label": "Restlaufzeit bis zu einem Jahr"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "1_to_5y",
+            "label": "Restlaufzeit über ein bis fünf Jahre"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "over_5y",
+            "label": "Restlaufzeit über fünf Jahre"
+          },
+          {
+            "amount": 0,
+            "items": 0,
+            "key": "undated",
+            "label": "Ohne Fälligkeit"
+          }
+        ],
+        "side": "payables",
+        "total": 119000
+      }
+    ]
+  },
+  "allocations": [],
+  "audit": [],
+  "bank": [],
+  "beforePayment": [
+    {
+      "contactId": 1,
+      "contactName": "Lieferant GmbH",
+      "contactType": "vendor",
+      "documentDate": "2026-03-01",
+      "documentNumber": "RE-4711",
+      "dueDate": "2026-03-15",
+      "dueFromTerms": true,
+      "entryId": 1,
+      "entryNumber": "2026-000001",
+      "grossAmount": 119000,
+      "ledgerAccount": "70000",
+      "openAmount": 119000,
+      "settledAmount": 0,
+      "side": "H",
+      "source": "journal",
+      "taxRate": 1900,
+      "taxTreatment": "domestic"
+    }
+  ],
+  "details": [],
+  "error": "RE-4711 ist eine Verbindlichkeit. Ihr Wegfall ist ein Erlass oder eine Verjährung und wird als Ertrag gebucht, nicht als Forderungsverlust",
+  "journal": [
+    {
+      "actor": "\u003cactor\u003e",
+      "appVersion": "dev",
+      "bookingDate": "2026-03-01",
+      "channel": "system",
+      "closingPeriod": false,
+      "contactId": 1,
+      "createdAt": "\u003ccreatedAt\u003e",
+      "currency": "EUR",
+      "description": "Rechnung",
+      "documentDate": "2026-03-01",
+      "documentNumber": "RE-4711",
+      "entryHash": "\u003centryHash\u003e",
+      "entryNumber": "2026-000001",
+      "exchangeRateMicros": 1000000,
+      "fiscalYear": 2026,
+      "id": 1,
+      "kind": "normal",
+      "lines": [
+        {
+          "account": "5906",
+          "amount": 100000,
+          "entryId": 1,
+          "id": 1,
+          "position": 1,
+          "side": "S"
+        },
+        {
+          "account": "1406",
+          "amount": 19000,
+          "entryId": 1,
+          "id": 2,
+          "position": 2,
+          "side": "S",
+          "taxBase": 100000,
+          "taxKey": "VST19"
+        },
+        {
+          "account": "70000",
+          "amount": 119000,
+          "contactId": 1,
+          "entryId": 1,
+          "id": 3,
+          "position": 3,
+          "side": "H"
+        }
+      ],
+      "postingRuleVersion": "2026.1",
+      "previousHash": "\u003cpreviousHash\u003e",
+      "serviceDateFrom": "2026-03-01",
+      "serviceDateTo": "2026-03-01",
+      "source": "manual",
+      "taxTreatment": "domestic"
+    }
+  ],
+  "openItems": [
+    {
+      "contactId": 1,
+      "contactName": "Lieferant GmbH",
+      "contactType": "vendor",
+      "documentDate": "2026-03-01",
+      "documentNumber": "RE-4711",
+      "dueDate": "2026-03-15",
+      "dueFromTerms": true,
+      "entryId": 1,
+      "entryNumber": "2026-000001",
+      "grossAmount": 119000,
+      "ledgerAccount": "70000",
+      "openAmount": 119000,
+      "settledAmount": 0,
+      "side": "H",
+      "source": "journal",
+      "taxRate": 1900,
+      "taxTreatment": "domestic"
+    }
+  ]
+}

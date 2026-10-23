@@ -14,17 +14,15 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/receiptstore"
 	"github.com/buchfink/buchfink/internal/repository"
-	"github.com/buchfink/buchfink/internal/security"
 	"gorm.io/gorm"
 )
 
-// backupEnv ist ein Mandant auf der Platte: eine echte Datenbankdatei, ein
-// Belegordner, eine Wiederherstellungsdatei. Die Sicherung lässt sich nicht
-// gegen eine Datenbank im Arbeitsspeicher prüfen — sie kopiert Dateien.
+// backupEnv ist ein Mandant auf der Platte: eine echte Datenbankdatei und ein
+// Belegordner. Die Sicherung lässt sich nicht gegen eine Datenbank im
+// Arbeitsspeicher prüfen — sie kopiert Dateien.
 type backupEnv struct {
 	dataDir string
 	db      *gorm.DB
-	vault   *security.Vault
 	journal *JournalService
 	backups *BackupService
 }
@@ -48,37 +46,18 @@ func newBackupEnv(t *testing.T) *backupEnv {
 	}
 
 	journalRepo := repository.NewJournalRepository(db)
-	journal := NewJournalService(
+	journal := newJournalWithTaxRules(
 		journalRepo, repository.NewAccountRepository(db), repository.NewContactRepository(db),
-		repository.NewAuditRepository(db), settingsRepo, 2026,
+		repository.NewAuditRepository(db), settingsRepo, repository.NewTxRunner(db),
 	)
-
-	// Ein echter Schlüsselbund und die Wiederherstellungsdatei dazu — kein
-	// Platzhalter: die Felder Buchungstext, Belegpfad und Bewirtungsangaben
-	// liegen verschlüsselt in der Datenbank, und eine Sicherungsprüfung, die
-	// nur den Klartextfall kennt, prüft nicht das, was der Anwender sichert.
-	keyfile, vault, err := security.NewKeyfile("geheimnis-des-mandanten")
-	if err != nil {
-		t.Fatalf("Keyfile erzeugen: %v", err)
-	}
-	if err := security.SaveKeyfile(dataDir, keyfile); err != nil {
-		t.Fatalf("Keyfile schreiben: %v", err)
-	}
-	repository.SetActiveVault(vault)
-	t.Cleanup(func() { repository.SetActiveVault(nil) })
 
 	backups := NewBackupService(
 		repository.NewBackupRunRepository(db), repository.NewAuditRepository(db),
 		db, dataDir, "tenant_test", "Pfennig Ventures GmbH")
-	// Der Schlüsselbund des Betriebssystems steht im Test nicht zur Verfügung.
-	// An seine Stelle tritt der Schlüssel dieses Mandanten — so, wie ihn die
-	// Anwendung auf dem Rechner des Anwenders bekäme.
-	backups.SetVaultOpener(func(string, string) (*security.Vault, error) { return vault, nil })
 
 	return &backupEnv{
 		dataDir: dataDir,
 		db:      db,
-		vault:   vault,
 		journal: journal,
 		backups: backups,
 	}
@@ -99,15 +78,14 @@ func (e *backupEnv) receiptFile(t *testing.T, name, content string) *domain.Rece
 	t.Helper()
 	store := receiptstore.New(e.dataDir)
 	svc := NewReceiptService(
-		repository.NewReceiptRepository(e.db), repository.NewJournalRepository(e.db),
-		store, repository.NewAuditRepository(e.db), 2026,
+		repository.NewReceiptRepository(e.db), store, repository.NewAuditRepository(e.db),
 	)
 	path := filepath.Join(t.TempDir(), name)
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatalf("Testdatei schreiben: %v", err)
 	}
 	receipt, err := svc.File(context.Background(), FileReceiptRequest{
-		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// Die Kopfdaten gehören zu jedem buchbaren Beleg
 		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
 		// ValidateBookable die Buchung zurück.
 		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
@@ -120,37 +98,11 @@ func (e *backupEnv) receiptFile(t *testing.T, name, content string) *domain.Rece
 	return receipt
 }
 
-// assetDocument legt ein Anlagegut mit einem Dokument an.
-func (e *backupEnv) assetDocument(t *testing.T, name, content string) {
-	t.Helper()
-	svc := NewAssetService(
-		repository.NewAssetRepository(e.db), repository.NewJournalRepository(e.db),
-		e.journal, repository.NewNumberRangeRepository(e.db),
-		repository.NewContactRepository(e.db), repository.NewSettingsRepository(e.db),
-		repository.NewAuditRepository(e.db), 2026,
-	)
-	svc.SetDocumentStore(receiptstore.New(e.dataDir))
-	asset, err := svc.Save(context.Background(), &domain.FixedAsset{
-		Name: "Fräsmaschine", Class: domain.AssetClassTangible,
-		Account: "0440", DepreciationAccount: "6220",
-		AcquisitionDate: "2026-01-10", AcquisitionCost: 1_200_000,
-		UsefulLifeMonths: 48, Method: domain.DepreciationLinear,
-	})
-	if err != nil {
-		t.Fatalf("Anlagegut anlegen: %v", err)
-	}
-	if _, err := svc.AttachDocument(context.Background(), AttachDocumentRequest{
-		AssetID: asset.ID, Content: []byte(content), FileName: name,
-	}); err != nil {
-		t.Fatalf("Anlagendokument ablegen: %v", err)
-	}
-}
-
 // --- Sichern ---------------------------------------------------------------
 
 // Die Sicherung muss alles enthalten, was einen Mandanten ausmacht: die
-// Datenbank, den Schlüssel, die Belege — und backup.json mit den Prüfsummen.
-// Fehlt eine der vier, ist der Bestand im Ernstfall nicht wiederherstellbar.
+// Datenbank, die Belege — und backup.json mit den Prüfsummen. Fehlt eines
+// davon, ist der Bestand im Ernstfall nicht wiederherstellbar.
 func TestCreateBackupContainsEverything(t *testing.T) {
 	env := newBackupEnv(t)
 	env.book(t, 11900)
@@ -169,7 +121,7 @@ func TestCreateBackupContainsEverything(t *testing.T) {
 	}
 
 	names := zipEntries(t, run.Target)
-	for _, want := range []string{"buchfink.sqlite", "buchfink.keyfile.json", BackupMetaFileName} {
+	for _, want := range []string{"buchfink.sqlite", BackupMetaFileName} {
 		if !names[want] {
 			t.Errorf("die Sicherung enthält %s nicht", want)
 		}
@@ -322,8 +274,7 @@ func TestRestoreRefusesANonEmptyDirectory(t *testing.T) {
 // --- Prüfen ----------------------------------------------------------------
 
 // Der Wiederherstellungstest muss die Sicherung prüfen und den Temporärordner
-// danach wieder abräumen. Eine entpackte Buchführung, die liegen bleibt, ist
-// das, was die Verschlüsselung verhindern soll.
+// danach wieder abräumen. Eine entpackte Buchführung soll nicht liegen bleiben.
 func TestVerifyBackupSucceedsAndLeavesNothingBehind(t *testing.T) {
 	env := newBackupEnv(t)
 	env.book(t, 11900)
@@ -414,135 +365,6 @@ func TestVerifyBackupRejectsAForeignArchive(t *testing.T) {
 	}
 	if run.Success {
 		t.Error("der Lauf ist als gelungen vermerkt")
-	}
-}
-
-// Die Prüfung einer Sicherung muss den Schlüssel benutzen, der in ihr liegt —
-// nicht den des gerade offenen Mandanten.
-//
-// Sonst scheitert die Entschlüsselung, sobald jemand die Sicherung eines
-// anderen Mandanten prüft, und eine vollständig heile Sicherung käme als
-// „beschädigt" zurück. Genau darauf verließe sich niemand mehr.
-func TestVerifyBackupUsesTheKeyOfTheBackedUpTenant(t *testing.T) {
-	env := newBackupEnv(t)
-	ownVault := env.vault
-
-	env.book(t, 11900)
-	env.book(t, 4200)
-	env.receiptFile(t, "beleg.pdf", "%PDF-1.4 Beleg")
-
-	run, err := env.backups.CreateBackup(context.Background(), t.TempDir(), domain.BackupKindManual)
-	if err != nil {
-		t.Fatalf("Sicherung: %v", err)
-	}
-
-	// Jetzt ist ein anderer Mandant offen — mit einem anderen Schlüssel.
-	_, otherVault, err := security.NewKeyfile("geheimnis-eines-anderen")
-	if err != nil {
-		t.Fatalf("zweites Keyfile: %v", err)
-	}
-	repository.SetActiveVault(otherVault)
-
-	// Die Prüfung holt sich den Schlüssel aus der Sicherung. Der Schlüsselbund
-	// des Betriebssystems steht im Test nicht zur Verfügung; geprüft wird, dass
-	// die Prüfung ihn zur Mandantenkennung aus backup.json erfragt und benutzt.
-	asked := ""
-	env.backups.SetVaultOpener(func(dataDir, tenantID string) (*security.Vault, error) {
-		asked = tenantID
-		if _, err := os.Stat(filepath.Join(dataDir, "buchfink.keyfile.json")); err != nil {
-			t.Errorf("die Prüfung sucht das Keyfile nicht im entpackten Ordner: %v", err)
-		}
-		return ownVault, nil
-	})
-
-	verify, err := env.backups.VerifyBackup(context.Background(), run.Target)
-	if err != nil {
-		t.Fatalf("Sicherung prüfen: %v", err)
-	}
-	if asked != "tenant_test" {
-		t.Errorf("die Prüfung fragte nach dem Schlüssel des Mandanten %q, erwartet tenant_test", asked)
-	}
-	if !verify.Success {
-		t.Fatalf("die heile Sicherung eines anderen Mandanten wurde beanstandet: %s", verify.Message)
-	}
-	if !strings.Contains(verify.Message, "2 Buchungen") {
-		t.Errorf("die Prüfung hat die Kette nicht über beide Buchungen gerechnet: %s", verify.Message)
-	}
-}
-
-// Fehlt der Schlüssel zu einer verschlüsselten Sicherung, ist das keine
-// Beschädigung. Die Meldung muss den Unterschied benennen — sonst wirft jemand
-// eine heile Sicherung weg.
-func TestVerifyBackupSaysSoWhenTheKeyIsMissing(t *testing.T) {
-	env := newBackupEnv(t)
-	env.book(t, 11900)
-	run, err := env.backups.CreateBackup(context.Background(), t.TempDir(), domain.BackupKindManual)
-	if err != nil {
-		t.Fatalf("Sicherung: %v", err)
-	}
-
-	env.backups.SetVaultOpener(func(string, string) (*security.Vault, error) {
-		return nil, security.ErrNoKeyringSecret
-	})
-
-	verify, err := env.backups.VerifyBackup(context.Background(), run.Target)
-	if err == nil {
-		t.Fatal("ohne Schlüssel muss die Prüfung abgelehnt werden")
-	}
-	if verify.Success {
-		t.Error("der Lauf ist als gelungen vermerkt, obwohl nichts geprüft werden konnte")
-	}
-	if strings.Contains(verify.Message, "beschädigt") {
-		t.Errorf("die Meldung nennt die Sicherung beschädigt, obwohl nur der Schlüssel fehlt: %s", verify.Message)
-	}
-	if !strings.Contains(verify.Message, "tenant_test") || !strings.Contains(verify.Message, "aufschließen") {
-		t.Errorf("die Meldung sagt nicht, dass der Schlüssel des Mandanten fehlt: %s", verify.Message)
-	}
-}
-
-// Ohne Wiederherstellungsdatei in der Sicherung liegen die Felder im Klartext.
-// Die Prüfung muss dann ausdrücklich ohne Schlüssel lesen: griffe sie auf den
-// des offenen Mandanten zurück, entschlüsselte sie Klartext und scheiterte.
-func TestVerificationContextReadsPlainBackupsWithoutAnyKey(t *testing.T) {
-	env := newBackupEnv(t)
-	empty := t.TempDir()
-
-	ctx, err := env.backups.verificationContext(context.Background(), empty,
-		&BackupMeta{TenantID: "tenant_test"})
-	if err != nil {
-		t.Fatalf("Sicherung ohne Keyfile: %v", err)
-	}
-	// Der Mandant dieses Tests hat einen Schlüssel — die Prüfung darf ihn hier
-	// gerade nicht benutzen.
-	if got := repository.VaultForTest(ctx); got != nil {
-		t.Error("die Prüfung einer unverschlüsselten Sicherung bindet einen Schlüssel")
-	}
-}
-
-// Der Wiederherstellungstest prüft auch die Anlagendokumente. Sie liegen in
-// derselben Sicherung und sind genauso aufbewahrungspflichtig.
-func TestVerifyBackupChecksAssetDocumentsToo(t *testing.T) {
-	env := newBackupEnv(t)
-	env.book(t, 11900)
-	env.receiptFile(t, "beleg.pdf", "%PDF-1.4 Beleg")
-	env.assetDocument(t, "kaufvertrag.pdf", "%PDF-1.4 Kaufvertrag")
-
-	run, err := env.backups.CreateBackup(context.Background(), t.TempDir(), domain.BackupKindManual)
-	if err != nil {
-		t.Fatalf("Sicherung: %v", err)
-	}
-
-	verify, err := env.backups.VerifyBackup(context.Background(), run.Target)
-	if err != nil {
-		t.Fatalf("Sicherung prüfen: %v", err)
-	}
-	if !verify.Success {
-		t.Fatalf("die Sicherung wurde beanstandet: %s", verify.Message)
-	}
-	// Zwei Dateien: die Belegdatei und das Anlagendokument. Ohne das Dokument
-	// stünde hier eine 1 — und der Vertrag wäre ungeprüft.
-	if !strings.Contains(verify.Message, "2 Beleg- und Dokumentdateien") {
-		t.Errorf("das Anlagendokument wurde nicht mitgeprüft: %s", verify.Message)
 	}
 }
 
@@ -741,5 +563,24 @@ func TestHasChangesSinceIgnoresTheBackupItself(t *testing.T) {
 	}
 	if !env.backups.HasChangesSince(ctx, last) {
 		t.Error("die Buchung nach der Sicherung muss als Änderung gelten")
+	}
+}
+
+// Zwei Sicherungen in derselben Sekunde überschreiben einander nicht; die
+// zweite bekommt eine Nummer im Namen.
+func TestTwoBackupsInOneSecondKeepBothFiles(t *testing.T) {
+	env := newBackupEnv(t)
+	ctx := context.Background()
+	dir := t.TempDir()
+	first, err := env.backups.CreateBackup(ctx, dir, domain.BackupKindManual)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := env.backups.CreateBackup(ctx, dir, domain.BackupKindManual)
+	if err != nil {
+		t.Fatalf("zweite Sicherung derselben Sekunde: %v", err)
+	}
+	if first.Target == second.Target {
+		t.Errorf("beide Sicherungen liegen unter %s", first.Target)
 	}
 }

@@ -54,11 +54,32 @@ const (
 	// chain. Anything arriving later — a reminder, a proof of payment, a
 	// corrected invoice — is a Beleg of its own pointing at the same transaction.
 	ReceiptStatusSealed ReceiptStatus = "sealed"
+	// ReceiptStatusAssigned heißt: der Beleg gehört zu einem Datensatz statt zu
+	// einer Buchung, etwa der Vertrag eines Gesellschafterdarlehens. Er braucht
+	// keine eigene Buchung; seine Dateien sind eingefroren wie beim gebuchten.
+	// Wird er doch Beleg einer Buchung, etwa der bar gebuchten Auszahlung, ist
+	// er gebucht und behält die Zuordnung.
+	ReceiptStatusAssigned ReceiptStatus = "assigned"
 	// ReceiptStatusDiscarded means the Beleg was filed but will not be booked.
 	// It is not deleted: it already carries a Belegnummer, and a received
 	// document must not vanish without a trace.
 	ReceiptStatusDiscarded ReceiptStatus = "discarded"
 )
+
+// ReceiptAssignment ist die Art des Datensatzes, zu dem ein zugeordneter Beleg
+// gehört.
+type ReceiptAssignment string
+
+// AssignmentShareholderLoan: der Vertrag eines Gesellschafterdarlehens.
+const AssignmentShareholderLoan ReceiptAssignment = "shareholder_loan"
+
+// Label ist der Klartext für die Oberfläche.
+func (a ReceiptAssignment) Label() string {
+	if a == AssignmentShareholderLoan {
+		return "Gesellschafterdarlehen"
+	}
+	return string(a)
+}
 
 // ReceiptKind sagt, was für ein Dokument der Beleg ist.
 //
@@ -74,17 +95,23 @@ const (
 	// ReceiptKindInvoice ist eine Rechnung oder Quittung: der Regelfall, der
 	// gebucht werden muss.
 	ReceiptKindInvoice ReceiptKind = "invoice"
+	// ReceiptKindTicket ist ein Fahrausweis für die Beförderung von Personen.
+	// Er gilt mit den Angaben des § 34 UStDV als Rechnung, ohne Steuernummer,
+	// Leistungsempfänger und gesonderten Steuerausweis.
+	ReceiptKindTicket ReceiptKind = "ticket"
 	// ReceiptKindStatement ist ein Kontoauszug. Er belegt die Umsätze, die aus
 	// ihm gebucht werden, und wird selbst nicht gebucht.
 	ReceiptKindStatement ReceiptKind = "statement"
 	// ReceiptKindSelfIssued ist ein Eigenbeleg.
 	ReceiptKindSelfIssued ReceiptKind = "self_issued"
-	// ReceiptKindLetter ist ein Handelsbrief: die empfangene oder abgesandte
-	// Geschäftskorrespondenz, die einen Handelsgeschäft betrifft.
+	// ReceiptKindLetter ist ein Brief ohne Buchung: ein Handelsbrief
+	// (§ 257 Abs. 2 HGB) oder ein anderes Schreiben, das für die Besteuerung
+	// von Bedeutung ist (§ 147 Abs. 1 Nr. 5 AO), etwa die Mitteilung der
+	// Steuernummer.
 	//
 	// Er ist von „Sonstiges" abgetrennt, weil aus ihm eine andere Frist folgt
-	// als aus einem Buchungsbeleg — sechs statt acht Jahre (§ 257 Abs. 4 HGB) —
-	// und weil er nicht zu buchen ist.
+	// als aus einem Buchungsbeleg — sechs statt acht Jahre (§ 257 Abs. 4 HGB,
+	// § 147 Abs. 3 AO) — und weil er nicht zu buchen ist.
 	ReceiptKindLetter ReceiptKind = "letter"
 	// ReceiptKindOther ist alles Übrige: Verträge, Bescheide, Schriftverkehr.
 	ReceiptKindOther ReceiptKind = "other"
@@ -98,20 +125,23 @@ const (
 // und eine Rechnung, die dort landet, soll der Prüflauf weiterhin als ungebucht
 // melden. Sonst verschwände sie stillschweigend aus der Aufsicht.
 func (k ReceiptKind) RequiresBooking() bool {
-	// Der Handelsbrief ist neben dem Kontoauszug die zweite Art, die nicht
-	// gebucht wird: er belegt eine Abrede, keinen Geschäftsvorfall.
+	// Der Brief ist neben dem Kontoauszug die zweite Art, die nicht gebucht
+	// wird: er belegt eine Abrede oder eine Mitteilung, keinen
+	// Geschäftsvorfall.
 	return k != ReceiptKindStatement && k != ReceiptKindLetter
 }
 
 // Label ist der Klartext für die Oberfläche und das Schlüsselverzeichnis.
 func (k ReceiptKind) Label() string {
 	switch k {
+	case ReceiptKindTicket:
+		return "Fahrausweis"
 	case ReceiptKindStatement:
 		return "Kontoauszug"
 	case ReceiptKindSelfIssued:
 		return "Eigenbeleg"
 	case ReceiptKindLetter:
-		return "Handelsbrief"
+		return "Brief"
 	case ReceiptKindOther:
 		return "Sonstiges Dokument"
 	default:
@@ -122,7 +152,7 @@ func (k ReceiptKind) Label() string {
 // AllReceiptKinds listet die Belegarten in fester Reihenfolge.
 func AllReceiptKinds() []ReceiptKind {
 	return []ReceiptKind{
-		ReceiptKindInvoice, ReceiptKindStatement, ReceiptKindSelfIssued,
+		ReceiptKindInvoice, ReceiptKindTicket, ReceiptKindStatement, ReceiptKindSelfIssued,
 		ReceiptKindLetter, ReceiptKindOther,
 	}
 }
@@ -151,7 +181,7 @@ type ReceiptFile struct {
 
 	// FileName is the name the file was received under. It is part of the
 	// Beleg-Hash: a renamed attachment is a different Beleg.
-	FileName string `gorm:"size:255;not null;serializer:encrypted" json:"fileName"`
+	FileName string `gorm:"size:255;not null" json:"fileName"`
 	MimeType string `gorm:"size:127;not null" json:"mimeType"`
 	Size     int64  `gorm:"not null" json:"size"`
 
@@ -166,7 +196,7 @@ type ReceiptFile struct {
 	Derived bool `gorm:"not null;default:false" json:"derived"`
 
 	// StoredPath is relative to the data directory.
-	StoredPath string    `gorm:"size:255;not null;serializer:encrypted" json:"storedPath"`
+	StoredPath string    `gorm:"size:255;not null" json:"storedPath"`
 	CreatedAt  time.Time `json:"createdAt"`
 }
 
@@ -202,16 +232,13 @@ type Receipt struct {
 	// aus dem strukturierten Teil vorbelegt und sonst beim Ablegen erfragt —
 	// dort freiwillig, beim Buchen Pflicht (siehe ValidateBookable).
 	//
-	// Sie gehen in den Beleg-Hash, mit einer Weiche für den Altbestand: ein
-	// Beleg ohne Belegdatum wird nach der bisherigen Form gehasht (siehe
-	// accounting.ReceiptHash). Verschlüsselt, wo personenbezogen: der Name des
-	// Ausstellers und der Betreff sind es.
+	// Sie gehen in den Beleg-Hash (siehe accounting.ReceiptHash).
 	DocumentDate string `gorm:"size:10;index" json:"documentDate,omitempty"`
-	IssuerName   string `gorm:"size:255;serializer:encrypted" json:"issuerName,omitempty"`
+	IssuerName   string `gorm:"size:255" json:"issuerName,omitempty"`
 	GrossAmount  Cents  `gorm:"default:0" json:"grossAmount,omitempty"`
 	TaxAmount    Cents  `gorm:"default:0" json:"taxAmount,omitempty"`
 	Currency     string `gorm:"size:3" json:"currency,omitempty"`
-	Subject      string `gorm:"size:500;serializer:encrypted" json:"subject,omitempty"`
+	Subject      string `gorm:"size:500" json:"subject,omitempty"`
 
 	// RetentionClass und RetentionUntil halten die Aufbewahrungsfrist fest, die
 	// beim Ablegen für diesen Beleg galt.
@@ -237,8 +264,13 @@ type Receipt struct {
 	// Die überschriebene Klasse steht in RetentionClass, das überschriebene Ende
 	// in RetentionUntil: die Auswertungen sollen die geltende Frist lesen und
 	// nicht jede Stelle zwei Felder zusammenrechnen müssen.
-	RetentionOverrideReason string `gorm:"size:500;serializer:encrypted" json:"retentionOverrideReason,omitempty"`
+	RetentionOverrideReason string `gorm:"size:500" json:"retentionOverrideReason,omitempty"`
 	RetentionOverrideAt     string `gorm:"size:25" json:"retentionOverrideAt,omitempty"`
+
+	// AssignedKind und AssignedID nennen den Datensatz eines zugeordneten
+	// Belegs (ReceiptStatusAssigned).
+	AssignedKind ReceiptAssignment `gorm:"size:30" json:"assignedKind,omitempty"`
+	AssignedID   uint              `json:"assignedId,omitempty"`
 
 	// ReceivedAt and ReceivedVia record how an incoming document entered the
 	// business. Both are empty on documents Buchfink issued itself.
@@ -264,7 +296,12 @@ type Receipt struct {
 	ValidationErrors   int    `gorm:"default:0" json:"validationErrors"`
 	// ValidationFindings holds the findings as JSON. They are display material,
 	// not booking data, which is why they are not part of the Beleg-Hash.
-	ValidationFindings string `gorm:"type:text;serializer:encrypted" json:"validationFindings,omitempty"`
+	ValidationFindings string `gorm:"type:text" json:"validationFindings,omitempty"`
+	// EInvoiceNumber und EInvoiceIssuer kennzeichnen die E-Rechnung aus ihrem
+	// strukturierten Teil, unabhängig von den Kopfdaten. Die Dublettenprüfung
+	// sucht darüber in allen Geschäftsjahren.
+	EInvoiceNumber string `gorm:"size:120;index" json:"eInvoiceNumber,omitempty"`
+	EInvoiceIssuer string `gorm:"size:40" json:"eInvoiceIssuer,omitempty"`
 
 	// InputTaxOverride ist der Grund, mit dem der Anwender einen blockierenden
 	// Befund der Rechnungsprüfung übersteuert hat.
@@ -276,7 +313,7 @@ type Receipt struct {
 	// hindert, seine eigene Einschätzung durchzusetzen, wird umgangen statt
 	// befolgt. Er ist aber nur mit Grund offen, und der Grund steht am Beleg und
 	// im Protokoll.
-	InputTaxOverride   string `gorm:"size:500;serializer:encrypted" json:"inputTaxOverride,omitempty"`
+	InputTaxOverride   string `gorm:"size:500" json:"inputTaxOverride,omitempty"`
 	InputTaxOverrideAt string `gorm:"size:25" json:"inputTaxOverrideAt,omitempty"`
 
 	// Der Prüfpfad des Eingangsbelegs (RECH-08).
@@ -295,12 +332,12 @@ type Receipt struct {
 	// ein Vorgang der Prüfung und keine Angabe des empfangenen Dokuments — die
 	// Unveränderbarkeit sichert das Änderungsprotokoll.
 	OrderReference string `gorm:"size:120" json:"orderReference,omitempty"`
-	ServiceProof   string `gorm:"size:1000;serializer:encrypted" json:"serviceProof,omitempty"`
+	ServiceProof   string `gorm:"size:1000" json:"serviceProof,omitempty"`
 	ServiceProofAt string `gorm:"size:10" json:"serviceProofAt,omitempty"`
 
 	// JournalEntryID is set when the Beleg is sealed.
 	JournalEntryID *uint  `gorm:"index" json:"journalEntryId,omitempty"`
-	DiscardReason  string `gorm:"size:255;serializer:encrypted" json:"discardReason,omitempty"`
+	DiscardReason  string `gorm:"size:255" json:"discardReason,omitempty"`
 
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
@@ -338,10 +375,29 @@ func (r *Receipt) DisplayFile() (*ReceiptFile, bool) {
 	return r.FileByRole(ReceiptRoleRendering)
 }
 
-// IsDisplayable reports whether the Beleg can be shown to the user at all.
+// IsDisplayable meldet, ob sich der Beleg zeigen lässt: als Datei oder, bei
+// einer reinen E-Rechnung, als Ansicht, die die App aus dem Datensatz erzeugt.
+// Die XML ist der Beleg; eine zusätzliche Darstellungsdatei braucht es nicht.
 func (r *Receipt) IsDisplayable() bool {
-	_, ok := r.DisplayFile()
+	if _, ok := r.DisplayFile(); ok {
+		return true
+	}
+	_, ok := r.FileByRole(ReceiptRoleStructured)
 	return ok
+}
+
+// IsInvoice meldet, ob der Beleg eine Rechnung im Sinne des § 14 UStG ist,
+// an der die Pflichtangaben zu prüfen sind: die Rechnung oder Quittung und der
+// Fahrausweis.
+func (k ReceiptKind) IsInvoice() bool {
+	return k == ReceiptKindInvoice || k == ReceiptKindTicket
+}
+
+// NeedsBooking meldet, ob der Beleg noch auf seine Buchung wartet: abgelegt,
+// keinem Datensatz zugeordnet und von einer Art, die gebucht wird. Prüflauf,
+// Aufgaben, Agent und App fragen hier.
+func (r *Receipt) NeedsBooking() bool {
+	return r.Status == ReceiptStatusFiled && r.Kind.RequiresBooking()
 }
 
 // IsOpen reports whether files may still be added or removed.
@@ -356,7 +412,7 @@ func (r *Receipt) ValidateStructure() error {
 		return fmt.Errorf("unbekannte Belegrichtung %q", r.Direction)
 	}
 	switch r.Kind {
-	case ReceiptKindInvoice, ReceiptKindStatement, ReceiptKindSelfIssued,
+	case ReceiptKindInvoice, ReceiptKindTicket, ReceiptKindStatement, ReceiptKindSelfIssued,
 		ReceiptKindLetter, ReceiptKindOther:
 	default:
 		return fmt.Errorf("unbekannte Belegart %q", r.Kind)
@@ -427,7 +483,8 @@ func (r *Receipt) ValidateStructure() error {
 }
 
 // ValidateBookable is the check that runs when a Beleg is booked. It adds the one
-// requirement filing must not impose: the Beleg has to be viewable.
+// requirement filing must not impose: the Beleg has to be viewable, as a file or
+// as the view of its e-invoice data.
 func (r *Receipt) ValidateBookable() error {
 	if err := r.ValidateStructure(); err != nil {
 		return err
@@ -435,11 +492,9 @@ func (r *Receipt) ValidateBookable() error {
 	if r.Status == ReceiptStatusDiscarded {
 		return fmt.Errorf("Beleg %s wurde verworfen und kann nicht gebucht werden", r.ReceiptNumber)
 	}
-	// Reine XML-Rechnungen brauchen vor der Buchung eine ergänzte lesbare Darstellung.
-	// Dieser Empfangsweg erzeugt sie nicht aus dem eingelesenen Datensatz.
 	if !r.IsDisplayable() {
 		return fmt.Errorf(
-			"Beleg %s hat keine ansehbare Darstellung. Ein rein strukturierter Beleg (z. B. eine XRechnung) muss vor dem Buchen eine erzeugte Darstellung bekommen",
+			"Beleg %s lässt sich nicht anzeigen: er hat weder eine PDF- oder Bilddatei noch einen Rechnungsdatensatz",
 			r.ReceiptNumber)
 	}
 	return r.ValidateHeader()
@@ -452,8 +507,8 @@ func (r *Receipt) ValidateBookable() error {
 // einzelnen Betrag, sondern einen Zeitraum und viele; ein Eigenbeleg hat keinen
 // fremden Aussteller, weil ihn das eigene Unternehmen ausgestellt hat (er
 // braucht dafür einen Betreff, der den Anlass nennt); ein sonstiges Dokument —
-// die Schlussbilanz des Altsystems, die Inventurliste, der
-// Gesellschafterbeschluss — ist überhaupt keine Rechnung: es hat keinen
+// die Schlussbilanz des Altsystems, der Gesellschafterbeschluss — ist
+// überhaupt keine Rechnung: es hat keinen
 // leistenden Unternehmer und oft keinen einzelnen Betrag, und die Pflichtangabe
 // des § 14 Abs. 4 Nr. 1 UStG von ihm zu verlangen hieße, das Dokument nach einer
 // Vorschrift zu prüfen, die für es nicht gilt. Für alle gilt das Belegdatum:
@@ -470,11 +525,11 @@ func (r *Receipt) ValidateHeader() error {
 		// in der Zeit.
 		return nil
 	case ReceiptKindOther, ReceiptKindLetter:
-		// Sonstiges Dokument und Handelsbrief: Belegdatum und Betreff. Der
+		// Sonstiges Dokument und Brief: Belegdatum und Betreff. Der
 		// Betreff tritt an die Stelle von Aussteller und Betrag — er ist das
 		// Einzige, woran sich später sagen lässt, was dieses Dokument belegt.
 		// Aussteller und Betrag bleiben erlaubt, aber freiwillig: eine Bilanz
-		// hat keinen, eine Inventurliste viele.
+		// hat keinen Aussteller und viele Beträge.
 		if strings.TrimSpace(r.Subject) == "" {
 			return fmt.Errorf(
 				"Beleg %s braucht einen Betreff, der sagt, was das Dokument belegt — bei einem Dokument ohne Aussteller und Betrag ist er die einzige Bezeichnung",
@@ -509,24 +564,22 @@ func (r *Receipt) ValidateHeader() error {
 // und ohne diesen Umweg riefe MarshalJSON sich selbst auf.
 type receiptJSON Receipt
 
-// MarshalJSON liefert den Beleg mit dem frühesten Löschdatum daneben.
+// MarshalJSON liefert den Beleg mit dem frühesten Löschdatum daneben und mit
+// der Angabe, ob er gebucht werden muss.
 //
 // RetentionUntil ist der letzte Aufbewahrungstag (der 31.12.) und nicht das
 // Löschdatum; gelöscht werden darf erst am Tag danach. Beide Tage mitzugeben
 // ist billiger, als sich darauf zu verlassen, dass jede Stelle der Oberfläche
 // das Feld richtig beschriftet — eine Beschriftung „frühestes Löschdatum" auf
-// RetentionUntil verspräche eine Löschung einen Tag zu früh.
+// RetentionUntil verspräche eine Löschung einen Tag zu früh. Ebenso leitet die
+// App die Buchungspflicht nicht selbst ab (NeedsBooking).
 func (r Receipt) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		receiptJSON
 		EarliestDeletion string `json:"earliestDeletion,omitempty"`
-	}{receiptJSON(r), EarliestDeletionAfter(r.RetentionUntil)})
+		NeedsBooking     bool   `json:"needsBooking"`
+	}{receiptJSON(r), EarliestDeletionAfter(r.RetentionUntil), r.NeedsBooking()})
 }
-
-// HasHeader meldet, ob der Beleg Kopfdaten hat. Das ist zugleich die Weiche
-// der Kanonisierung: ein Beleg ohne Belegdatum stammt aus der Zeit vor den
-// Kopfdaten und wird wie zuvor gehasht.
-func (r *Receipt) HasHeader() bool { return r.DocumentDate != "" }
 
 func isSHA256(s string) bool {
 	if len(s) != 64 {
@@ -557,6 +610,13 @@ type ReceiptRepository interface {
 	// existiert — ein zweites Mal importierter Kontoauszug darf keinen zweiten
 	// Beleg erzeugen.
 	FindByOriginalHash(ctx context.Context, sha256 string) (*Receipt, error)
+	// FindIDsByFileHash ordnet jeder Prüfsumme, die eine abgelegte Datei
+	// gleich welcher Rolle trägt, den ersten Beleg damit zu. Prüfsummen ohne
+	// Beleg fehlen in der Antwort.
+	FindIDsByFileHash(ctx context.Context, sha256s []string) (map[string]uint, error)
+	// FindByEInvoiceNumber liefert alle Belege, deren E-Rechnung diese
+	// Rechnungsnummer trägt, über alle Geschäftsjahre.
+	FindByEInvoiceNumber(ctx context.Context, number string) ([]Receipt, error)
 	// Create allocates the Belegnummer, computes the Beleg-Hash and inserts the
 	// Beleg with its files in one transaction.
 	Create(ctx context.Context, receipt *Receipt, hash ReceiptHashFunc) error
@@ -566,6 +626,11 @@ type ReceiptRepository interface {
 	// Seal marks a Beleg as booked. It is idempotent for the same entry, so a
 	// crash between the journal write and the seal can be repaired by repeating it.
 	Seal(ctx context.Context, receiptID uint, entryID uint) error
+	// Assign ordnet einen abgelegten Beleg einem Datensatz zu; für denselben
+	// Datensatz ist es idempotent. Release nimmt die Zuordnung zurück, wenn sie
+	// zu diesem Datensatz besteht.
+	Assign(ctx context.Context, receiptID uint, kind ReceiptAssignment, recordID uint) error
+	Release(ctx context.Context, receiptID uint, kind ReceiptAssignment, recordID uint) error
 	Discard(ctx context.Context, receiptID uint, reason string) error
 	// SaveValidation records the outcome of reading and checking the structured
 	// part. It touches no file, so the Beleg-Hash is unaffected.
@@ -579,6 +644,8 @@ type ReceiptRepository interface {
 	// der Rechnungsprüfung übersteuert wurde. Auch er berührt keine Datei und
 	// damit den Beleg-Hash nicht.
 	SaveInputTaxOverride(ctx context.Context, receiptID uint, reason, at string) error
+	// SaveReceivedAt berichtigt den Eingangstag. Er steht nicht im Beleg-Hash.
+	SaveReceivedAt(ctx context.Context, receiptID uint, date string) error
 	// SaveRetention schreibt eine überschriebene Aufbewahrungsfrist. Sie berührt
 	// keine Datei und keine Kopfdaten und damit den Beleg-Hash nicht — die
 	// Frist ist eine Aussage über die Aufbewahrung, nicht über das Dokument.
@@ -617,4 +684,8 @@ type ReceiptValidation struct {
 	Coverage string
 	Errors   int
 	Findings string
+	// InvoiceNumber und Issuer kennzeichnen die E-Rechnung: Rechnungsnummer
+	// (BT-1) und Steuerkennung des Ausstellers (BT-31, sonst BT-32).
+	InvoiceNumber string
+	Issuer        string
 }

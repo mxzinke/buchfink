@@ -1,6 +1,5 @@
 import React from 'react';
 import { Menu as Base } from '@base-ui/react/menu';
-import { Check } from 'lucide-react';
 import { cn } from './cn';
 import { POPUP, POPUP_ITEM } from './popup';
 
@@ -61,16 +60,3 @@ export const MenuSeparator: React.FC<{ className?: string }> = ({ className }) =
   <div className={cn('my-1 h-px bg-line', className)} />
 );
 
-export interface MenuCheckItemProps
-  extends React.ComponentProps<typeof Base.CheckboxItem> {
-  children: React.ReactNode;
-}
-
-export const MenuCheckItem: React.FC<MenuCheckItemProps> = ({ className, children, ...props }) => (
-  <Base.CheckboxItem className={cn(POPUP_ITEM, className)} {...props}>
-    <Base.CheckboxItemIndicator className="shrink-0 text-accent-text data-[unchecked]:invisible">
-      <Check className="w-3.5 h-3.5" strokeWidth={1.5} />
-    </Base.CheckboxItemIndicator>
-    {children}
-  </Base.CheckboxItem>
-);

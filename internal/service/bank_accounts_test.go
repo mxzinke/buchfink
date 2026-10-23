@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/buchfink/buchfink/internal/bank"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/repository"
 )
@@ -35,7 +36,7 @@ func TestBankAccountsConfigureAtomicallyAndRouteMultiAccountStatements(t *testin
 	start, end := strings.Index(sampleCAMT, "<Stmt>"), strings.Index(sampleCAMT, "</Stmt>")+len("</Stmt>")
 	second := strings.ReplaceAll(sampleCAMT[start:end], accounts[0].IBAN, accounts[1].IBAN)
 	input := sampleCAMT[:end] + second + sampleCAMT[end:]
-	count, err := svc.ImportCAMT053(ctx, strings.NewReader(input), "")
+	count, err := importCAMT(ctx, svc, []byte(input), "Kontoauszug.xml", "")
 	if err != nil || count != 4 {
 		t.Fatalf("multi-account import: %d, %v", count, err)
 	}
@@ -52,7 +53,7 @@ func TestBankAccountsConfigureAtomicallyAndRouteMultiAccountStatements(t *testin
 			t.Fatalf("wrong account or missing original: %+v", tx)
 		}
 	}
-	count, err = svc.ImportCAMT053(ctx, strings.NewReader(strings.ReplaceAll(input, "<BkToCstmrStmt>", "<BkToCstmrStmt>\n")), "")
+	count, err = importCAMT(ctx, svc, []byte(strings.ReplaceAll(input, "<BkToCstmrStmt>", "<BkToCstmrStmt>\n")), "Kontoauszug.xml", "")
 	if err != nil || count != 0 {
 		t.Fatalf("repackaged original duplicated transactions: %d %v", count, err)
 	}
@@ -129,5 +130,26 @@ func TestInvoiceAccountIsChosenExplicitlyAndSurvivesImports(t *testing.T) {
 	bad := []domain.BankAccount{{IBAN: "DE75512108001245126199", Name: "Neu", LedgerAccount: "1820", BIC: "KEINBIC"}}
 	if err := svc.ConfigureAccounts(ctx, bad); err == nil {
 		t.Error("ungültige BIC angenommen")
+	}
+}
+
+// Schließt ein Auszug mit stimmigen Salden nicht an, nennt der Grund, woran es
+// liegt: am fehlenden geprüften Saldo, an einer Überschneidung oder am Saldo.
+func TestStatementGapNamesTheReason(t *testing.T) {
+	opening := domain.Cents(150_00)
+	st := bank.Statement{Opening: &opening, OpeningDate: "2026-09-01"}
+	cases := []struct {
+		account domain.BankAccount
+		want    string
+	}{
+		{domain.BankAccount{LedgerAccount: "1800"}, "noch keinen geprüften Saldo"},
+		{domain.BankAccount{LedgerAccount: "1800", ClosingDate: "2026-09-15", ClosingBalance: 150_00}, "vor dem Ende"},
+		{domain.BankAccount{LedgerAccount: "1800", ClosingDate: "2026-08-31", ClosingBalance: 100_00},
+			"Anfangssaldo 150,00 € schließt nicht an den Endsaldo 100,00 €"},
+	}
+	for _, c := range cases {
+		if got := statementGap(c.account, st); !strings.Contains(got, c.want) {
+			t.Errorf("%+v: %q, erwartet %q", c.account, got, c.want)
+		}
 	}
 }

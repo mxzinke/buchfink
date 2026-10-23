@@ -18,7 +18,7 @@ import (
 // „Keine Buchung ohne Beleg" ist keine Formel, sondern die Grundregel des
 // § 146 Abs. 1 AO und der GoBD Rz. 61. Sie ist im Alltag genau dort schwer
 // einzuhalten, wo es keinen Fremdbeleg gibt: das Trinkgeld, der verlorene
-// Parkschein, die Privateinlage, die Entnahme aus der Kasse. Ohne einen Weg,
+// Parkschein, die Gebühr ohne Quittung. Ohne einen Weg,
 // den Vorgang selbst zu belegen, entsteht die Buchung trotzdem — nur eben ohne
 // Beleg, und das ist der Mangel, den eine Betriebsprüfung zuerst findet.
 //
@@ -85,11 +85,18 @@ func (s *ReceiptService) CreateSelfIssued(
 			"der PDF-Satz ist nicht eingerichtet; ohne ihn entsteht kein Eigenbeleg")
 	}
 
+	year := req.FiscalYear
+	if year == 0 {
+		var err error
+		if year, err = s.filingYear(ctx, FileReceiptRequest{DocumentDate: req.DocumentDate}); err != nil {
+			return nil, err
+		}
+	}
 	issuer := s.issuerName(ctx)
 	created := actor.Actor()
-	number := s.nextSelfIssuedLabel(ctx)
+	number := s.nextSelfIssuedLabel(ctx, year)
 
-	markdown := selfIssuedMarkdown(req, issuer, created, number, reason)
+	markdown := selfIssuedMarkdown(req, issuer, created, number, reason, s.today())
 	// Der Ident macht zwei Läufe desselben Belegs byteweise vergleichbar; er
 	// darf deshalb nicht die Uhrzeit enthalten.
 	pdf, err := s.renderer.RenderDocumentPDF(ctx,
@@ -110,10 +117,10 @@ func (s *ReceiptService) CreateSelfIssued(
 
 	return s.File(ctx, FileReceiptRequest{
 		Direction:    direction,
-		FiscalYear:   req.FiscalYear,
+		FiscalYear:   year,
 		Kind:         domain.ReceiptKindSelfIssued,
 		ReceivedVia:  domain.ReceivedViaSelfIssued,
-		ReceivedAt:   todayLocal(),
+		ReceivedAt:   s.today(),
 		DocumentDate: req.DocumentDate,
 		IssuerName:   issuer,
 		GrossAmount:  req.GrossAmount,
@@ -182,11 +189,11 @@ func (s *ReceiptService) issuerName(ctx context.Context) string {
 // Eigenbelege im selben Augenblick —, steht im PDF eine Nummer daneben, und das
 // ist der kleinere Fehler: eine verbrauchte Nummer ohne Beleg wäre eine Lücke im
 // Nummernkreis, die erklärt werden müsste.
-func (s *ReceiptService) nextSelfIssuedLabel(ctx context.Context) string {
+func (s *ReceiptService) nextSelfIssuedLabel(ctx context.Context, year int) string {
 	if s.numberRepo == nil {
 		return ""
 	}
-	seq, err := s.numberRepo.Peek(ctx, domain.NumberRangeReceipt, s.fiscalYear)
+	seq, err := s.numberRepo.Peek(ctx, domain.NumberRangeReceipt, year)
 	if err != nil || seq <= 0 {
 		return ""
 	}
@@ -196,7 +203,7 @@ func (s *ReceiptService) nextSelfIssuedLabel(ctx context.Context) string {
 			format = receiptNumberFormatOf(cfg)
 		}
 	}
-	return domain.FormatReceiptNumberWith(format, s.fiscalYear, seq)
+	return domain.FormatReceiptNumberWith(format, year, seq)
 }
 
 // SetNumberRepo hängt den Nummernkreis an, damit die Belegnummer schon im PDF
@@ -206,9 +213,9 @@ func (s *ReceiptService) SetNumberRepo(repo domain.NumberRangeRepository) { s.nu
 // selfIssuedMarkdown ist der Text des Eigenbelegs.
 //
 // Als Markdown und nicht unmittelbar als Typst: derselbe Weg, den die
-// Verfahrensdokumentation und das Mahnschreiben gehen. Der Satz ist dann eine
+// Verfahrensdokumentation geht. Der Satz ist dann eine
 // Übersetzung dieses Textes und keine zweite Quelle, die auseinanderlaufen kann.
-func selfIssuedMarkdown(req SelfIssuedReceiptRequest, issuer, createdBy, number, reason string) string {
+func selfIssuedMarkdown(req SelfIssuedReceiptRequest, issuer, createdBy, number, reason, today string) string {
 	var b strings.Builder
 	b.WriteString("# Eigenbeleg\n\n")
 	if number != "" {
@@ -222,7 +229,7 @@ func selfIssuedMarkdown(req SelfIssuedReceiptRequest, issuer, createdBy, number,
 		fmt.Fprintf(&b, "| davon Umsatzsteuer | %s %s |\n", req.TaxAmount, currencyOrEuro(req.Currency))
 	}
 	fmt.Fprintf(&b, "| Erfasst von | %s |\n", createdBy)
-	fmt.Fprintf(&b, "| Erfasst am | %s |\n", germanDate(todayLocal()))
+	fmt.Fprintf(&b, "| Erfasst am | %s |\n", germanDate(today))
 	b.WriteString("\n## Grund\n\n")
 	b.WriteString(reason + "\n\n")
 	b.WriteString("## Hinweis\n\n")
@@ -304,14 +311,14 @@ func (s *ReceiptService) OverrideRetention(
 	if err != nil {
 		return nil, err
 	}
-	if s.auditRepo != nil {
-		_ = s.auditRepo.LogChange(ctx, domain.AuditActionUpdate, "RECEIPT",
-			fmt.Sprintf("%d", receiptID),
-			fmt.Sprintf(
-				"Aufbewahrungsfrist von Beleg %s von %s (%s) auf %s (%s) verlängert: %s",
-				receipt.ReceiptNumber, effective, receipt.RetentionClass.Label(),
-				target.RetentionEnd, class.Label(), reason),
-			receipt, updated)
+	if err := logAuditChange(ctx, s.auditRepo, domain.AuditActionUpdate, "RECEIPT",
+		fmt.Sprintf("%d", receiptID),
+		fmt.Sprintf(
+			"Aufbewahrungsfrist von Beleg %s von %s (%s) auf %s (%s) verlängert: %s",
+			receipt.ReceiptNumber, effective, receipt.RetentionClass.Label(),
+			target.RetentionEnd, class.Label(), reason),
+		receipt, updated); err != nil {
+		return nil, err
 	}
 	return updated, nil
 }

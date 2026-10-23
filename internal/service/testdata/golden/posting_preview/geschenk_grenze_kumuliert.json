@@ -1,0 +1,45 @@
+{
+  "balanced": true,
+  "dueDate": "2026-03-24",
+  "gross": 2380,
+  "inputTaxFindings": [],
+  "lines": [
+    {
+      "account": "6620",
+      "accountName": "Geschenke nicht abzugsfähig ohne § 37b EStG",
+      "amount": 2380,
+      "entryId": 0,
+      "id": 0,
+      "inputTaxShare": -1,
+      "position": 1,
+      "side": "S",
+      "text": "Freigrenze des § 4 Abs. 5 Satz 1 Nr. 1 EStG für Dr. Meyer überschritten: nicht abziehbar, und ohne Vorsteuerabzug (§ 15 Abs. 1a UStG)"
+    },
+    {
+      "account": "70000",
+      "accountName": "70000",
+      "amount": 2380,
+      "contactId": 1,
+      "entryId": 0,
+      "id": 0,
+      "position": 2,
+      "side": "H"
+    }
+  ],
+  "net": 2380,
+  "tax": 0,
+  "warnings": [
+    {
+      "code": "gift_limit_exceeded",
+      "detail": "An Dr. Meyer sind in diesem Wirtschaftsjahr bereits 40,00 € netto verschenkt worden; mit diesem Geschenk sind es 60,00 €. Die Freigrenze des § 4 Abs. 5 Satz 1 Nr. 1 EStG liegt bei 50,00 € — und sie ist eine Freigrenze: mit ihrer Überschreitung sind sämtliche Geschenke an diesen Empfänger nicht abziehbar, und mit ihnen entfällt nach § 15 Abs. 1a UStG auch der Vorsteuerabzug. Dieses Geschenk wird deshalb auf 6620 ohne Vorsteuer gebucht; die früheren stehen im Bericht über die nicht abziehbaren Betriebsausgaben als umzubuchen.",
+      "severity": "warning",
+      "title": "Die Freigrenze für Geschenke ist überschritten"
+    },
+    {
+      "code": "faelligkeit_aus_zahlungsziel",
+      "detail": "Nennt der Beleg eine andere Fälligkeit, gehört sie in die Buchung; sonst stehen offener Posten und Zahlungsvorschläge auf dem falschen Tag.",
+      "severity": "info",
+      "title": "Fällig am 24.03.2026 nach dem Zahlungsziel des Lieferanten"
+    }
+  ]
+}

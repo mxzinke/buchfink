@@ -51,12 +51,11 @@ type Input struct {
 	ExcludedCases []string
 
 	// Teil 2: die Anwenderdokumentation.
-	NumberRanges  []NumberRange
-	CaptureDays   int
-	TaxationType  string
-	VatPeriod     string
-	Organisation  Organisation
-	LegalFormNote string
+	NumberRanges []NumberRange
+	CaptureDays  int
+	TaxationType string
+	VatPeriod    string
+	Organisation Organisation
 
 	// Teil 3: die technische Systemdokumentation.
 	AppVersion    string
@@ -243,9 +242,7 @@ Geschäftsjahr die Dokumentation vorliegt, die damals gegolten hat
 | Kontenrahmen | {{orNone .SKR}} |
 | Besteuerungsart | {{orNone .TaxationType}} |
 | Voranmeldungszeitraum | {{orNone .VatPeriod}} |
-{{if .LegalFormNote}}
-{{.LegalFormNote}}
-{{end}}
+
 ### 1.2 Sachlicher und zeitlicher Geltungsbereich
 
 Die Dokumentation beschreibt die Buchführung des genannten Unternehmens mit
@@ -261,7 +258,7 @@ den Datenzugriff verfügbar zu halten.
 Die Daten liegen ausschließlich auf dem Rechner der Anwenderin bzw. des
 Anwenders im Inland, im Ordner ` + "`{{orNone .DataDir}}`" + `. Es findet keine
 Verlagerung der elektronischen Buchführung ins Ausland statt (§ 146 Abs. 2, 2a
-AO). Es gibt keine Serverkomponente und keine Mandantenfähigkeit im Netz.
+AO). Eine Mandantenfähigkeit im Netz gibt es nicht.
 {{if .CloudWarning}}
 **Hinweis:** {{.CloudWarning}}
 {{end}}
@@ -270,6 +267,26 @@ es nicht; an ihre Stelle tritt die Bearbeiterkennung aus Benutzerkonto und
 Rechnername, die an jeder Buchung, jeder Festschreibung und jedem
 Protokolleintrag festgehalten wird. Der Zugang zum Rechner ist die
 Zugangskontrolle.
+
+Für verbundene Apps (KI-Agenten) betreibt die laufende App einen lokalen
+Server, der nur auf 127.0.0.1 lauscht (Standardport 7465, in den Einstellungen
+änderbar); von anderen Rechnern ist er nicht erreichbar. Eine App erhält Zugang
+erst, wenn der Mensch ihr in Buchfink für den geöffneten Mandanten zustimmt
+(OAuth mit Zustimmung je App und Mandant). Die Zustimmung lässt sich in den
+Einstellungen widerrufen. Jede Buchung, jede Angabe zu einer Steuererklärung und
+jeder Protokolleintrag hält neben der Bearbeiterkennung den Erfassungsweg fest:
+` + "`ui`" + ` für die Bedienung in der App, ` + "`system`" + ` für Läufe des
+Programms ohne Bedienung (Sicherung, nachgeholter Zeitstempel) und
+` + "`agent:<kurzname>`" + ` für eine verbundene App. Der Kurzname entsteht bei
+der ersten Zustimmung und ändert sich danach nicht.
+
+Der Bedienung in der App vorbehalten sind Festschreibung, die Bestätigung einer
+Übermittlung, Aufstellen, Feststellen und Offenlegen des Jahresabschlusses, der
+Beschluss über die Ergebnisverwendung, die Stammdaten des Unternehmens,
+Bankkonten, Gesellschafterdarlehen, der Prüfermodus, die Bestätigung einer
+Pflicht und die Zulassung von Apps. Ein Agent kann diese Vorgänge vorbereiten,
+aber nicht auslösen; Angaben zu Zeilen, die dem Menschen vorbehalten sind,
+bleiben Vorschläge, bis der Mensch sie bestätigt.
 
 ### 1.4 Abgedeckte und nicht abgedeckte Steuerfälle
 
@@ -311,18 +328,30 @@ XRechnung) ausgegeben und im selben Zug gebucht und abgelegt. Die
 Rechnungsnummer stammt aus dem Nummernkreis und ist fortlaufend und einmalig
 (§ 14 Abs. 4 Nr. 4 UStG).
 
-### 2.3 Bankimport
+### 2.3 Bankimport und Zahlungswege
 
-Kontoumsätze werden als CAMT.053 oder MT940 eingelesen. Der eingelesene
-Kontoauszug wird als Beleg abgelegt; gebucht werden die einzelnen Umsätze aus
-ihm, jeder gegen seinen offenen Posten oder gegen ein Sachkonto.
+Kontoumsätze werden als CAMT.053 eingelesen. Der eingelesene Kontoauszug wird
+als Beleg abgelegt; gebucht werden die einzelnen Umsätze aus ihm, gegen offene
+Posten, gegen ein Sachkonto oder aufgeteilt auf mehrere Gegenkonten. Jeder
+Umsatz steht in genau einer gültigen Buchung; wird sie storniert, ist er
+wieder zu buchen.
+
+Zahlungen mit der Firmenkreditkarte stehen bis zur Monatsabrechnung auf dem
+Konto Kreditkartenabrechnung; die Abbuchung gleicht es aus. Bezahlt ein
+Gesellschafter oder Geschäftsführer eine Ausgabe privat, bleibt der Lieferant
+Aussteller des Belegs, und die Erstattung steht bis zur Zahlung als
+Verbindlichkeit bei ihm.
+
+Löhne rechnet ein externes Lohnbüro ab. Gebucht werden die Monatssummen aus
+dessen Lohnjournal, das als Beleg abgelegt wird; die Lohnkonten nach § 41 EStG
+führt und verwahrt das Lohnbüro.
 
 ### 2.4 Monats- und Jahresabschluss
 
 Zum Monatsende laufen Kontenabstimmung, Umsatzsteuer-Voranmeldung und die
 Festschreibung des Monats. Zum Jahresende kommen die Abschlussbuchungen hinzu:
-Abschreibungen, Abgrenzungen, Rückstellungen, Inventur und die
-Ergebnisverwendung; danach die Feststellung und die Festschreibung des Jahres.
+Abschreibungen, Abgrenzungen, Rückstellungen und die Ergebnisverwendung;
+danach die Feststellung und die Festschreibung des Jahres.
 
 ### 2.5 Eigenbelege
 
@@ -404,11 +433,14 @@ jeder Datei — und über die Kopfdaten wird ein Beleg-Hash gebildet. Er reist i
 die Buchung und wird damit von der Journalkette mitgedeckt. Eine ausgetauschte
 oder entfernte Datei ändert ihn.
 
-### 3.4 Verschlüsselung
+### 3.4 Schutz der Daten am Rechner
 
-Personenbezogene und geschäftsgeheime Felder liegen feldweise verschlüsselt in
-der Datenbank (AES-256-GCM). Der Schlüssel liegt im Schlüsselbund des
-Betriebssystems; für den Verlustfall gibt es einen Wiederherstellungsschlüssel.
+Buchfink verschlüsselt weder die Datenbank noch die Belegdateien noch die
+Sicherungen. Der Schutz der Daten am Rechner liegt beim Unternehmen, etwa durch
+Benutzerkonto, Gerätesperre und die Festplattenverschlüsselung des
+Betriebssystems. Die Integrität der Aufzeichnungen sichern die Hash-Ketten über
+Journal und Änderungsprotokoll (Abschnitt 3.2), der Beleg-Hash (Abschnitt 3.3)
+und der Zeitstempel der Festschreibung (Abschnitt 3.5).
 
 ### 3.5 Zeitstempel
 
@@ -440,11 +472,10 @@ Festschreibungszeitpunkt und den Verweis auf die Festschreibung.
 
 Die Frist beginnt mit dem Schluss des Kalenderjahres, in dem die letzte
 Eintragung gemacht oder der Beleg entstanden ist (§ 257 Abs. 5 HGB, § 147 Abs. 4
-AO). Gelöscht wird nicht selbsttätig: die Löschung eines Geschäftsjahres ist ein
-ausdrücklicher Vorgang mit Bestätigung, vorherigem Archivexport und Protokoll.
-Solange eine Aussetzung der Frist eingetragen ist — Außenprüfung,
-Rechtsbehelfsverfahren oder ein sonstiger Grund (§ 147 Abs. 3 Satz 5 AO) —, ist
-sie gesperrt.
+AO). Sie läuft nicht ab, solange die Unterlagen für eine Außenprüfung, ein
+Rechtsbehelfsverfahren oder einen anderen Grund des § 147 Abs. 3 Satz 5 AO von
+Bedeutung sind. Buchfink löscht keine Buchführungsdaten, auch nach Fristablauf
+nicht; eine Buchung wird nur über die Generalumkehr korrigiert.
 
 ` + HeadingOperations + `
 
@@ -508,8 +539,9 @@ Buchungskerns und den Prüfläufen vor der Festschreibung.
   vergeben wie die Buchung.
 - In eine festgeschriebene Periode wird nicht mehr gebucht.
 - In ein festgestelltes Geschäftsjahr wird nicht mehr gebucht.
-- Ein Beleg ohne ansehbare Darstellung und ohne vollständige Kopfdaten ist nicht
-  buchbar.
+- Ein Beleg, der sich weder als Datei noch als Ansicht seines
+  Rechnungsdatensatzes zeigen lässt, oder ohne vollständige Kopfdaten ist nicht
+  buchbar. Eine reine XRechnung ist der Beleg; die App zeigt sie aus der XML.
 - Eine Generalumkehr trägt negative Beträge auf denselben Seiten und verweist
   auf die ursprüngliche Buchung.
 
@@ -530,7 +562,9 @@ Begründung übergehen; die Begründung steht am Prüflauf und im
 Verantwortlicher im Sinne des Art. 4 Nr. 7 DSGVO ist {{orNone .CompanyName}},
 {{orNone .Street}}, {{orNone .PostalLine}}. Die Verarbeitung findet auf den
 Rechnern des Unternehmens statt; Buchfink überträgt keine Buchführungsdaten an
-den Hersteller.
+den Hersteller. Eine verbundene App liest, was ihre Werkzeuge liefern, und kann
+es an ihren Anbieter weitergeben; ob das eine Auftragsverarbeitung ist, regelt
+das Unternehmen mit diesem Anbieter.
 
 ### 6.1 Verarbeitungstätigkeiten
 
@@ -540,29 +574,28 @@ den Hersteller.
 | Rechnungsstellung | Erfüllung des Vertrags und der Rechnungspflichten | Art. 6 Abs. 1 Buchst. b und c DSGVO i. V. m. §§ 14, 14a UStG | Kunden | Name, Anschrift, USt-IdNr., Leistungs- und Zahlungsdaten | Kunden, Finanzverwaltung | 8 Jahre |
 | Umsatzsteuer-Voranmeldung und Zusammenfassende Meldung | Erfüllung steuerlicher Erklärungspflichten | Art. 6 Abs. 1 Buchst. c DSGVO i. V. m. § 18 UStG, § 18a UStG | Kunden im übrigen Gemeinschaftsgebiet | USt-IdNr., Umsatzsummen | Finanzverwaltung, Bundeszentralamt für Steuern | 10 Jahre |
 | Bestätigungsabfrage der USt-IdNr. | Nachweis der Voraussetzungen der Steuerbefreiung | Art. 6 Abs. 1 Buchst. c DSGVO i. V. m. § 18e UStG, § 6a UStG | Kunden im übrigen Gemeinschaftsgebiet | Name, Anschrift, USt-IdNr. | Bundeszentralamt für Steuern | 10 Jahre |
-| Mahnwesen | Geltendmachung offener Forderungen | Art. 6 Abs. 1 Buchst. b und f DSGVO | Kunden | Name, Anschrift, offene Posten, Zahlungsverhalten | Kunden | 8 Jahre |
+| Forderungsverfolgung | Geltendmachung offener Forderungen | Art. 6 Abs. 1 Buchst. b und f DSGVO | Kunden | Name, Anschrift, offene Posten, Zahlungsverhalten | Kunden | 8 Jahre |
 | Beglaubigung der Festschreibung | Nachweis der Unveränderbarkeit | Art. 6 Abs. 1 Buchst. c DSGVO i. V. m. § 146 Abs. 4 AO | keine unmittelbar | ausschließlich Hashwerte, keine personenbezogenen Inhalte | Zeitstempeldienst ({{orNone .TSAName}}) | 10 Jahre |
 | Datenüberlassung an die Betriebsprüfung | Erfüllung der Mitwirkungspflicht | Art. 6 Abs. 1 Buchst. c DSGVO i. V. m. § 147 Abs. 6 AO | Kunden, Lieferanten | Buchungs-, Beleg- und Stammdaten des Prüfungszeitraums | Finanzverwaltung | mit der Aufbewahrungsfrist der überlassenen Daten |
-| Änderungsprotokoll und Zugriffsprotokoll | Nachvollziehbarkeit der Aufzeichnungen und der Lesezugriffe | Art. 6 Abs. 1 Buchst. c DSGVO i. V. m. § 146 AO, GoBD Rz. 34 | Bearbeiter | Bearbeiterkennung, Zeitpunkt, Vorgang | keine | 10 Jahre |
+| Änderungsprotokoll und Zugriffsprotokoll | Nachvollziehbarkeit der Aufzeichnungen und der Lesezugriffe | Art. 6 Abs. 1 Buchst. c DSGVO i. V. m. § 146 AO, GoBD Rz. 34 | Bearbeiter | Bearbeiterkennung, Erfassungsweg, Zeitpunkt, Vorgang | keine | 10 Jahre |
+| Verbundene Apps (KI-Agenten) | Unterstützung der Buchführung durch eine vom Unternehmen zugelassene App | Art. 6 Abs. 1 Buchst. c und f DSGVO | Kunden, Lieferanten, Gesellschafter, Bearbeiter | was die App über ihre Werkzeuge liest; in der Datei ` + "`verbindungen.sqlite`" + ` im Konfigurationsordner der App: Name und Kurzname der App, Zustimmung je Mandant mit Zeitpunkt und Bearbeiter, Codes und Tokens nur als SHA-256 | Anbieter der verbundenen App, soweit sie Daten an ihn überträgt | Zulassungen bis zum Widerruf; der Erfassungsweg an Buchung und Protokoll mit deren Aufbewahrungsfrist |
 
 ### 6.2 Löschfristen
 
 Die Fristen folgen den Aufbewahrungsklassen aus Abschnitt 3.8. Ein
 Löschverlangen nach Art. 17 DSGVO greift währenddessen nicht, soweit die
 Aufbewahrung einer rechtlichen Verpflichtung dient (Art. 17 Abs. 3 Buchst. b
-DSGVO); der betroffene Kontakt wird stattdessen für neue Vorgänge gesperrt und
-nach Fristablauf mit dem Geschäftsjahr gelöscht.
+DSGVO); der betroffene Kontakt wird stattdessen für neue Vorgänge gesperrt.
 
 ### 6.3 Technische und organisatorische Maßnahmen (Art. 32 DSGVO)
 
-- **Verschlüsselung:** personenbezogene und geschäftsgeheime Felder liegen
-  feldweise verschlüsselt in der Datenbank (AES-256-GCM, ein Schlüssel je
-  Mandant). Der Schlüssel liegt im Schlüsselbund des Betriebssystems und
-  verlässt den Rechner nicht; für den Verlustfall gibt es einen
-  Wiederherstellungsschlüssel, der ausgedruckt und getrennt verwahrt wird.
+- **Verschlüsselung:** Buchfink verschlüsselt die Daten nicht. Die
+  Vertraulichkeit am Rechner liegt beim Unternehmen, etwa durch die
+  Festplattenverschlüsselung des Betriebssystems und einen geschützten
+  Ablageort für die Sicherungen.
 - **Zugriffsschutz:** die Daten liegen im Datenordner des angemeldeten
   Benutzers; der Schutz vor fremdem Zugriff ist der des Betriebssystems
-  (Benutzerkonto, Gerätesperre, Festplattenverschlüsselung).
+  (Benutzerkonto, Gerätesperre).
 - **Protokollierung:** jede Änderung an Buchungen, Belegen und Stammdaten steht
   mit Vorher/Nachher im Änderungsprotokoll, das seinerseits durch eine
   Hash-Kette gesichert ist. Lesezugriffe auf personenbezogene Daten —
@@ -573,7 +606,11 @@ nach Fristablauf mit dem Geschäftsjahr gelöscht.
   die Festschreibung wird mit einem qualifizierten Zeitstempel beglaubigt.
 - **Verfügbarkeit:** die Sicherung schreibt eine in sich stimmige Kopie der
   Datenbank und der Belegdateien; die Wiederherstellung wird geprüft.
+- **Verbundene Apps:** der lokale Server nimmt nur Anfragen von 127.0.0.1 an,
+  prüft die Herkunft der Anfrage und verlangt ein Token, das erst nach der
+  Zustimmung des Menschen in der App entsteht. Ein Widerruf in den
+  Einstellungen macht die Tokens der App sofort ungültig.
 - **Auftragsverarbeitung:** Buchfink verarbeitet keine Daten im Auftrag. Wird
-  der Steuerberater oder ein Zeitstempeldienst eingebunden, ist die Beziehung
-  gesondert zu regeln.
+  der Steuerberater, ein Zeitstempeldienst oder eine verbundene App eines
+  Anbieters eingebunden, ist die Beziehung gesondert zu regeln.
 `

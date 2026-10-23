@@ -1,505 +1,140 @@
-# Buchfink – Anlagenverwaltung
+# Anlagen
 
-[Fachkonzepte](README.md) · [Dokumentation](../README.md)
+[Fachkonzepte](README.md) · [Jahresabschluss](jahresabschluss.md)
 
-Gesetzliche Grundlage: [Anforderungskatalog](../anforderungen/README.md), BEW-02,
-BEW-03, BEW-04, BEW-05, BEW-06, BEW-10, JAB-05
+Anforderungen: BEW-02 bis BEW-06, BEW-10, JAB-05. Code: `internal/domain/asset.go`,
+`internal/accounting/afa.go`, `internal/accounting/asset_accounts.go`,
+`service.AssetService`. Die Oberfläche (Bücher → Anlagen,
+`frontend/src/pages/books/AssetsTab.tsx`) zeigt Verzeichnis,
+Abschreibungsplan und Anlagenspiegel nur an; erfasst und abgeschrieben wird
+über einen verbundenen Agenten.
 
-Status: umgesetzt
-Letzte Aktualisierung: 2026-08-28
-Voraussetzung: [Beleg- & Buchungsflow](beleg-buchungsflow.md)
+## Sofortabzug, Sammelposten oder Aktivierung
 
-> **Umsetzung.** Das Anlagenverzeichnis liegt unter „Anlagevermögen" in der
-> Seitenspalte. Der Kern steht in `internal/domain/asset.go` (Anlagegut und
-> Bewegung), `internal/accounting/afa.go` (Wertgrenzen, Zeitfenster der
-> degressiven AfA, Abschreibungsplan), `internal/accounting/asset_accounts.go`
-> (Kontenkatalog und die Ableitung der Abgangskonten) und
-> `internal/service/asset_service.go` (Kartei, Abschreibungslauf, Abgang,
-> Anlagenspiegel). Die Oberfläche ist `frontend/src/pages/AssetsPage.tsx`.
+Vor der Abschreibung steht die Einordnung:
 
-> Kontonummern sind gegen `internal/accounting/skr04_2026.json` (DATEV SKR04 2026,
-> Art.-Nr. 11175) geprüft. Alle Paragrafenangaben sind gegen den Gesetzestext auf
-> gesetze-im-internet.de verifiziert — der ursprüngliche Bestand am **22.08.2026**,
-> die Vorschriften zur Sonderabschreibung, zur Fremdwährung, zum Erhaltungsaufwand und
-> zum Investmentsteuergesetz am **28.08.2026**; die Fundstellen stehen im
-> Anforderungskatalog unter BEW-02 bis BEW-06 und BEW-10, die übrigen in
-> [Abschnitt 11](#11-fundstellen). Die AfA-Regeln ändern sich häufig – vor der
-> Umsetzung erneut prüfen, insbesondere die befristete degressive AfA.
-
-## 1. Die erste Frage ist nicht die AfA-Methode
-
-Bei jeder Anschaffung steht eine Entscheidung vor der Abschreibung, und sie
-entscheidet über den ganzen weiteren Verlauf:
-
-| Fall | Voraussetzung | Behandlung | Konten |
-|---|---|---|---|
-| **Sofortabzug** | selbständig nutzbar, AK bis 800 € (§ 6 Abs. 2 Satz 1 EStG) | voller Aufwand im Anschaffungsjahr | **0670** GWG · **6260** Sofortabschreibungen GWG |
-| **Sammelposten** | AK über 250 € bis 1.000 € (§ 6 Abs. 2a Satz 1 EStG) | Pool, im Jahr der Bildung und den folgenden vier Jahren mit je einem Fünftel aufzulösen | **0675** Wirtschaftsgüter (Sammelposten) · **6264** Abschreibungen auf den Sammelposten |
-| **Aktivierung** | alles darüber, und alles nicht selbständig Nutzbare | planmäßige AfA über die Nutzungsdauer | Anlagekonto · **6220** / **6222** |
-
-Zwei Fallen stecken darin. **„Selbständig nutzbar"** ist die eigentliche Hürde, nicht
-der Betrag: ein Monitor für 300 € ist ohne Rechner nicht nutzbar und damit kein GWG.
-Und das **Sammelposten-Wahlrecht gilt einheitlich für alle Wirtschaftsgüter eines
-Jahres** – wer einmal poolt, poolt für dieses Jahr durchgehend. Beides muss die
-Software abfragen bzw. festhalten, nicht raten.
-
-Ab 250 € ist ein GWG zusätzlich in ein besonderes, laufend zu führendes Verzeichnis
-aufzunehmen (§ 6 Abs. 2 Satz 4 EStG) – es sei denn, die Angaben sind aus der Buchführung
-ersichtlich (Satz 5). Buchfink führt die Anlagenkartei ohnehin, erfüllt das also.
-
-**Die Wertgrenzen gehören trotzdem in die Stammdaten, versioniert je Geschäftsjahr.**
-Sie haben sich in den letzten Jahren mehrfach geändert; ein fest verdrahteter Wert
-produziert still falsche Buchungen, sobald ein altes Jahr nachbearbeitet wird.
-
-## 2. Zugang
-
-**Anschaffungskosten nach § 255 Abs. 1 HGB** sind der Anschaffungspreis zuzüglich
-Anschaffungsnebenkosten und abzüglich Anschaffungspreisminderungen.
-
-Daraus folgt ein Punkt, den der Zahlungsflow kennen muss: **Skonto auf eine Anlage
-mindert die Anschaffungskosten, nicht den Aufwand.** Auf 5736 gebucht wäre es ein Ertrag
-des Zahlungsjahres, und die AfA liefe weiter von einem Wert, den das Wirtschaftsgut nie
-gekostet hat – ein Fehler, der mit jedem Jahr des Plans wächst.
-
-Der Zahlungsflow fragt deshalb die Kartei, ob die bezahlte Rechnung die Zugangsbuchung
-eines Anlageguts war. Ist sie es, geht das Skonto im Haben auf das Anlagekonto statt auf
-das Skontokonto, und die Kartei nimmt die Minderung mit Verweis auf die Zahlungsbuchung
-auf. Die Steuerkorrektur nach § 17 Abs. 1 UStG bleibt unverändert: sie hängt am Umsatz und
-nicht daran, was mit dem Entgelt im Anlagevermögen geschieht. Nur auf der Eingangsseite –
-ein gewährtes Skonto mindert den eigenen Erlös.
-
-Ebenso zu erfassen: Fracht, Montage, Überführung sind Nebenkosten und gehören auf das
-Anlagekonto; Finanzierungskosten dagegen nicht.
-
-**Erweiterungen kommen später wieder.** Was ein Anlagegut erweitert oder über seinen
-ursprünglichen Zustand hinaus wesentlich verbessert, sind nachträgliche Herstellungskosten
-(§ 255 Abs. 2 Satz 1 HGB); was es nur im Zustand hält, ist Erhaltungsaufwand und geht
-sofort in die GuV. Die Abgrenzung ist eine Einschätzung, keine Rechnung — Buchfink fragt
-sie, statt sie zu raten.
-
-Für die AfA gilt: der Betrag wirkt **ab seinem eigenen Jahr**, behandelt als wäre er zu
-dessen Beginn angefallen (R 7.4 Abs. 9 EStR). Der Restbuchwert samt Erweiterung verteilt
-sich auf die Restnutzungsdauer; verlängert die Erweiterung die Nutzungsdauer, wächst die
-Restnutzungsdauer mit. Den Plan von vorn zu rechnen wäre der naheliegende Fehler: er
-behauptete rückwirkend, in längst festgeschriebenen Jahren sei zu wenig abgeschrieben
-worden.
-
-Zugangsbuchung (Beispiel Pkw auf Ziel):
-
-| Buchung |
-|---|
-| SOLL **0520** Pkw + SOLL **1406** Vorsteuer · HABEN **Kreditorenkonto** |
-
-Anzahlungen auf noch nicht gelieferte Anlagen und Anlagen im Bau laufen über **0700**
-Geleistete Anzahlungen und Anlagen im Bau und werden bei Fertigstellung umgebucht.
-
-Bei der Umbuchung geschehen zwei Dinge, und das zweite wird gern übersehen: das Konto
-wechselt, **und die Abschreibung beginnt** — ab der Betriebsbereitschaft, nicht rückwirkend
-zur ersten Anzahlung. Buchfink führt dafür ein eigenes Datum am Anlagegut. Im
-Anlagenspiegel steht die Umbuchung in einer eigenen Spalte: bei der abgebenden Position
-negativ, bei der aufnehmenden positiv, über alle Positionen zusammen null.
-
-## 3. Planmäßige Abschreibung
-
-Die zulässigen Methoden – linear, degressiv mit ihren Zeitfenstern und die
-Sonderabschreibung nach § 7g EStG – stehen mit Fundstellen im Anforderungskatalog
-unter BEW-04.
-
-**Zeitanteilig, monatsgenau** ab dem Anschaffungsmonat. Eine im September
-angeschaffte Anlage wird im ersten Jahr mit vier Zwölfteln abgeschrieben.
-
-Der **Übergang von degressiv auf linear** ist zulässig und lohnt sich ab dem Jahr, in
-dem die lineare Restwert-AfA höher wäre. Die Software sollte den optimalen
-Wechselzeitpunkt errechnen und vorschlagen, nicht den Nutzer rechnen lassen.
-
-**Die Sonderabschreibung tritt neben die planmäßige AfA**, sie ersetzt sie nicht: § 7g
-Abs. 5 EStG lässt sie „neben den Absetzungen für Abnutzung nach § 7 Absatz 1 oder Absatz 2"
-zu, also neben der linearen wie neben der degressiven. Die allgemeine Regel des
-§ 7a Abs. 4 EStG, die nur § 7 Abs. 1 oder 4 nennt, wird davon verdrängt – und weil der
-SKR04 die Sonderabschreibung getrennt ausweist, läuft sie auf ein eigenes
-Aufwandskonto: **6242** für Fahrzeuge, **6241** für alles andere. Im Anschaffungsjahr wird
-sie *nicht* zeitanteilig gekürzt; § 7 Abs. 1 Satz 4 EStG betrifft die Absetzung für
-Abnutzung. Mit dem Ende des Begünstigungszeitraums – dem Anschaffungsjahr und den vier
-folgenden – verteilt § 7a Abs. 9 EStG den Restwert auf die Restnutzungsdauer; ohne diese
-Umstellung stünde das Wirtschaftsgut Jahre vor seinem Ende bei null.
-
-Zwei Voraussetzungen kennt keine Software: der Gewinn des Vorjahres von höchstens
-200.000 € und die fast ausschließlich betriebliche Nutzung (§ 7g Abs. 6 EStG). Buchfink
-fragt sie und hält die Begründung fest, wie bei der außerplanmäßigen Abschreibung.
-Begünstigt sind außerdem nur **bewegliche** Wirtschaftsgüter – ein Gebäude ist eine
-Sachanlage wie eine Maschine und bekommt sie trotzdem nicht. Woran das erkennbar ist,
-weiß allein der Kontenkatalog.
-
-**Nutzungsdauer** kommt aus den amtlichen AfA-Tabellen (BEW-04). Ein hinterlegter Katalog der
-gängigen Fälle wäre nützlich; er ist aber kein Gesetz, sondern eine Verwaltungsanweisung
-und muss überschreibbar bleiben.
-
-Buchung:
-
-| Buchung |
-|---|
-| SOLL **6220** Abschreibungen auf Sachanlagen · HABEN Anlagekonto |
-| SOLL **6222** Abschreibungen auf Fahrzeuge · HABEN **0520** Pkw |
-
-Für Gebäude gilt **6221**, für den Sammelposten **6264**, für GWG im Zugangsjahr
-**6260**.
-
-## 4. Außerplanmäßige Abschreibung
-
-Bei voraussichtlich dauernder Wertminderung ist auf den niedrigeren beizulegenden Wert
-abzuschreiben (§ 253 Abs. 3 Satz 5 HGB). Konto **6230** Außerplanmäßige Abschreibungen
-auf Sachanlagen.
-
-Das ist ein Ermessensvorgang und keine Rechnung: die Software kann ihn erfassen und
-dokumentieren, aber nicht auslösen. Der Grund gehört zwingend an die Buchung, weil ihn
-sonst niemand mehr rekonstruieren kann.
-
-## 5. Abgang
-
-Der Abgang ist der Fall, in dem die meisten Fehler passieren, weil drei Dinge
-gleichzeitig geschehen: der Restbuchwert verschwindet, ein Erlös entsteht, und die
-Differenz ist Gewinn oder Verlust.
-
-Ablauf:
-
-1. **AfA bis zum Abgangsmonat** nachholen – zeitanteilig bis einschließlich des Monats
-   des Abgangs.
-2. **Restbuchwert ausbuchen.**
-3. **Erlös erfassen** mit Umsatzsteuer.
-4. Die Differenz ist der Buchgewinn oder -verlust.
-
-**Der SKR04 wählt das Erlöskonto nach dem Ergebnis, nicht nach dem Vorgang:**
-
-| Fall | Konto |
-|---|---|
-| Verkauf mit **Buchgewinn**, 19 % USt | **4845** Erlöse aus Verkäufen Sachanlagevermögen 19 % USt (bei Buchgewinn) |
-| Verkauf mit **Buchverlust**, 19 % USt | **6885** Erlöse aus Verkäufen Sachanlagevermögen 19 % USt (bei Buchverlust) |
-| innergemeinschaftliche Lieferung | **4848** bzw. **6888** |
-| Ausfuhr | **4844** bzw. **6884** |
-
-Das ist eine Besonderheit, die man kennen muss: dasselbe Geschäft landet in der GuV
-einmal unter den Erträgen und einmal unter den Aufwendungen, je nachdem, ob der
-Verkaufspreis über oder unter dem Restbuchwert lag. Die Software muss das Ergebnis
-kennen, **bevor** sie das Erlöskonto wählt – die Kontierung hängt hier also vom
-Rechenergebnis ab und nicht nur von der Nutzereingabe.
-
-Verschrottung ohne Erlös: Restbuchwert direkt in den Aufwand.
-
-**Tilgung ist kein Abgang mit Erlös.** Wird eine Ausleihung zurückgezahlt, wird nichts
-veräußert — es kommt zurück, was ausgeliehen wurde. Zum Buchwert getilgt entsteht deshalb
-weder Erlös noch Buchgewinn; die Buchung ist Geld an Ausleihung, sonst nichts. Über ein
-Erlöskonto gebucht stünde in der GuV ein Umsatz, den es nie gab, und in der
-Umsatzsteuer-Voranmeldung eine Bemessungsgrundlage, die niemand erklären könnte: eine
-Rückzahlung ist kein Leistungsaustausch und damit nicht steuerbar, nicht bloß steuerfrei.
-Zahlt der Schuldner mehr oder weniger als den Buchwert — ein Agio, ein Teilausfall —, ist
-die Differenz sehr wohl ein Ergebnis und läuft auf dieselben Konten wie beim Verkauf.
-
-**Teilabgang.** Bei Finanzanlagen ist er der Normalfall: eine Tranche von Anteilen wird
-verkauft, eine Ausleihung wird getilgt. Dann gehen nur ein Teil der Anschaffungskosten und
-der entsprechende Anteil einer früheren außerplanmäßigen Abschreibung hinaus; der Rest
-bleibt im Bestand. Bei Sach- und immateriellen Anlagen ist der Teilabgang nicht vorgesehen
-— dort liefe ein Abschreibungsplan, der aufzuteilen wäre, und ein halber Pkw geht nicht ab.
-
-Wo Stücke geführt werden, ist die **Stückzahl die Vorgabe und der Betrag das Ergebnis**:
-verkauft wird eine Tranche von 40 Anteilen, nicht ein Betrag von 4.000 €. Den Anteil der
-Anschaffungskosten daraus zu rechnen ist genau die Arbeit, die dem Nutzer sonst bliebe —
-und die er dann rundet. Die Stückzahl steht an jeder Bewegung, sonst ergäbe sich der
-Bestand nach dem ersten Teilabgang nicht mehr.
-
-## 5a. Was zum Anlagegut gehört, ohne gebucht zu werden
-
-Drei Dinge stehen beim Wirtschaftsgut, ohne je in einer Buchung aufzutauchen. Sie haben
-sonst keinen Ort — und das ist der Grund, warum sie hier stehen.
-
-**Dokumente.** Der Kaufvertrag, das Gutachten, der Fahrzeugbrief, die Police. Der Beleg
-zur Anschaffung liegt im Belegkreis, mit Belegnummer und in der Journalkette; ein Vertrag
-ist nichts davon. Er hat keine Nummer, gehört zu keinem Geschäftsjahr, wird nicht
-gebucht — und erklärt die Anschaffung noch, wenn die Maschine zehn Jahre im Bestand ist.
-Ihn in das Belegmodell zu zwingen hieße, ihm eine Belegnummer zu geben, die nie in einer
-Buchung auftaucht. Der Ablageweg ist trotzdem derselbe: inhaltsadressiert unter dem
-eigenen SHA256, dedupliziert, mit atomarem Umbenennen. Zwei Speicher für zwei Dateiarten
-wären zwei Stellen, an denen dasselbe schiefgehen kann. Ein Ablaufdatum wird abgefragt und
-wieder gelesen: was bis zu einem Stichtag ausläuft, lässt sich nennen. Die
-Aufbewahrungspflicht des § 147 AO ersetzt das nicht — sie trifft weiterhin das Original.
-
-**Die Fremdwährungsbewertung** nach § 256a HGB. Der Anschaffungskurs folgt aus Fremdbetrag
-und Euro-Anschaffungskosten, der Stichtagskurs kommt vom Nutzer. Nach oben deckelt das
-Anschaffungskostenprinzip das Ergebnis (§ 253 Abs. 1 Satz 1 HGB) — **außer** bei einer
-Restlaufzeit von einem Jahr oder weniger: § 256a Satz 2 HGB nimmt solche Posten
-ausdrücklich davon aus. Deshalb steht die Fälligkeit am Anlagegut. Ohne sie wäre jeder
-Fremdwährungsposten gedeckelt, auch das Darlehen, das in drei Monaten zurückfließt.
-Gebucht wird über **6880** und **4840**, die Konten der Währungsumrechnung — auf 7200
-gebucht sähe ein Kursverlust aus wie eine Wertminderung des Papiers selbst.
-
-**Die Investmentbesteuerung** bei einem ETF oder Fonds. In der Bilanz ist der Anteil ein
-Wertpapier des Anlagevermögens wie jedes andere; steuerlich legt das InvStG zwei
-Rechnungen daneben, die in keiner Buchung auftauchen:
-
-| Vorgang | Regel | Wirkung |
+| Fall | Voraussetzung | Konten |
 |---|---|---|
-| **Teilfreistellung** | § 20 InvStG | ein Teil der Ausschüttungen *und* des Veräußerungsgewinns bleibt steuerfrei |
-| **Vorabpauschale** | § 18 InvStG | ein Mindestertrag ist zu versteuern, auch wenn der Fonds thesauriert und kein Geld fließt |
+| Sofortabzug | selbständig nutzbar, Anschaffungskosten bis 800 € ([§ 6 Abs. 2 EStG][estg6]) | **0670** GWG, **6260** Sofortabschreibung |
+| Sammelposten | über 250 € bis 1.000 €, aufgelöst über fünf Jahre (§ 6 Abs. 2a EStG) | **0675** Sammelposten, **6264** Abschreibung |
+| Aktivierung | alles darüber und alles nicht selbständig Nutzbare | Anlagekonto, **6220** oder **6222** |
 
-Die Vorabpauschale ist der Thesaurierungsfall: Basisertrag = Rücknahmepreis zu
-Jahresbeginn × 70 % des Basiszinses, begrenzt auf den Wertzuwachs des Jahres, abzüglich
-der Ausschüttungen, im Erwerbsjahr um ein Zwölftel je vollem Monat vor dem Erwerb gekürzt.
-Sie gilt am ersten Werktag des folgenden Kalenderjahres als zugeflossen. Handelsrechtlich
-geschieht nichts, also wird nichts gebucht — festgehalten wird sie trotzdem, weil sie beim
-Abgang wieder abzuziehen ist. Ohne diese Fortschreibung könnte das später niemand mehr
-rekonstruieren.
+„Selbständig nutzbar“ ist die eigentliche Hürde: ein Monitor ohne Rechner ist
+kein GWG. Das Sammelposten-Wahlrecht gilt einheitlich für alle
+Wirtschaftsgüter eines Jahres; je Wirtschaftsjahr entsteht genau ein
+Sammelposten. Die Wertgrenzen stehen datiert im Code
+(`accounting.AfAParametersFor`) und binden die Eingabe, auch für ältere Jahre.
 
-**Die Höhe der Teilfreistellung richtet sich nach dem Anleger, nicht nach der Rechtsform.**
-Das ist die Stelle, an der eine Ableitung still falsch rechnete:
+## Zugang
 
-- Eine GmbH & Co. KG ist keine Körperschaft. Ihre Gesellschafter können welche sein oder
-  natürliche Personen oder beides, und § 20 Abs. 3a InvStG bestimmt den Satz nach dem
-  Gesellschafter — für die Gesellschaft als Ganzes gibt es dann keinen.
-- Auch eine Kapitalgesellschaft hat nicht immer 80 %: für Lebens- und
-  Krankenversicherungsunternehmen, für Institute nach § 8b Abs. 7 KStG mit Handelsbestand
-  und für Pensionsfonds nehmen § 20 Abs. 1 Sätze 4 und 5 die erhöhten Sätze zurück.
-- Die Immobilienteilfreistellung kennt die Staffelung gar nicht: 60 % bzw. 80 % gelten für
-  jeden Anleger, und sie schließt die Aktienteilfreistellung aus (§ 20 Abs. 3 Satz 3).
+Anschaffungskosten sind Preis plus Nebenkosten minus Minderungen
+([§ 255 Abs. 1 HGB][hgb255]). Ein Skonto auf eine Anlagenrechnung mindert
+deshalb die Anschaffungskosten: der Zahlungsflow erkennt die Rechnung als
+Zugang und bucht das Skonto auf das Anlagekonto. Die Steuerkorrektur nach
+§ 17 UStG bleibt unverändert.
 
-Gefragt wird sie deshalb — aber nicht als eigene Frage. Die **Rechtsform** steht ohnehin
-in den Stammdaten, und aus ihr folgt die Anlegerstellung in den allermeisten Fällen
-eindeutig: eine GmbH, eine AG, eine eG unterliegen dem KStG; ein Einzelunternehmen und
-eine freiberufliche Praxis werden von einer natürlichen Person geführt. Sie ist deshalb
-eine Auswahl, kein Freitextfeld mehr, und unter ihr steht in einem Halbsatz, was sie für
-Investmentanteile bedeutet.
+Nachträgliche Herstellungskosten erhöhen den Buchwert und verteilen sich ab
+ihrem Jahr auf die Restnutzungsdauer. Erhaltungsaufwand geht sofort in die GuV
+und wird nur mit dem Anlagegut verknüpft. Die Abgrenzung ist eine Einschätzung;
+Buchfink fragt sie ab.
 
-Offen bleibt sie nur bei einer **Personengesellschaft** — dort fragt Buchfink nach, weil
-§ 20 Abs. 3a InvStG auf den Gesellschafter abstellt. Und für die Ausnahmen des
-§ 20 Abs. 1 Sätze 4 und 5 gibt es eine Festlegung, die die Ableitung schlägt; sie liegt
-hinter „abweichend festlegen" und ist normalerweise unsichtbar. Fehlt die Angabe, wo sie
-gebraucht wird, sagt Buchfink, was zu entscheiden ist, statt selbst zu rechnen.
+Anzahlungen und Anlagen im Bau stehen auf **0700**. Die Fertigstellung
+(`service.AssetService.Transfer`) bucht um, setzt das Datum der
+Betriebsbereitschaft und startet damit die Abschreibung. Weder App noch MCP
+bieten sie an.
 
-Auch der **Basiszins** wird nicht mitgeliefert: er steht nicht im Gesetz. § 18 Abs. 4
-InvStG lässt ihn die Bundesbank auf den ersten Börsentag des Jahres errechnen, das
-Bundesministerium der Finanzen veröffentlicht ihn im Bundessteuerblatt. Ein
-mitgelieferter Wert wäre im nächsten Jahr falsch.
+## Abschreibung
 
-## 6. Kopplung an die Festschreibung
+- Monatsgenau ab dem Anschaffungsmonat.
+- Linear oder degressiv in den Zeitfenstern des [§ 7 Abs. 2 EStG][estg7], die
+  datiert im Code stehen. Den Wechsel von degressiv auf linear rechnet Buchfink
+  selbst und zeigt ihn als eigene Zeile im Plan.
+- Sonderabschreibung nach [§ 7g Abs. 5 EStG][estg7g] neben der linearen oder
+  degressiven AfA, ohne Zeitanteil im Anschaffungsjahr, auf eigenem Konto
+  (**6241**, für Fahrzeuge **6242**). Nach dem Begünstigungszeitraum verteilt
+  Buchfink den Restwert auf die Restnutzungsdauer (§ 7a Abs. 9 EStG). Gewinngrenze
+  und betriebliche Nutzung fragt es ab. Der steuerliche Wert läuft neben dem
+  handelsrechtlichen und erscheint in der Überleitung der E-Bilanz.
+- Nutzungsdauern schlägt Buchfink für eindeutige Fälle aus den AfA-Tabellen vor;
+  jeder Vorschlag ist überschreibbar.
+- Außerplanmäßige Abschreibung bei dauernder Wertminderung (§ 253 Abs. 3 HGB)
+  auf **6230**, nur mit Grund. Fällt der Grund weg, ist zuzuschreiben
+  (§ 253 Abs. 5 HGB); der Jahresabschluss fragt das in einem eigenen Baustein.
+  Beide Buchungen rechnet der Dienst (`AssetService.BookImpairment`,
+  `AssetService.BookWriteUp`); weder App noch MCP bieten sie an.
 
-AfA ist eine Abschlussbuchung zum Bilanzstichtag, kein laufender Geschäftsvorfall. Sie
-wird nicht im Hintergrund gebucht. Auslöser ist die **jährliche** Festschreibung:
+Die Abschreibung ist eine Abschlussbuchung zum Bilanzstichtag. Fehlt sie für
+ein Anlagegut, blockiert der Prüflauf die Jahresfestschreibung.
 
-1. Vor der Jahres-Festschreibung prüft Buchfink, ob für jedes Anlagegut die fällige AfA
-   gebucht ist.
-2. Fehlende Buchungen werden mit Vorschau angezeigt und auf Freigabe erzeugt.
-3. Erst danach kann das Jahr festgeschrieben werden.
+## Abgang
 
-Bei monatlicher oder quartalsweiser Festschreibung wird nicht geprüft – die AfA ist
-dann nicht fällig.
+Die Regeln für den Abgang stehen in `service.AssetService.Dispose`: die
+Abschreibung bis zum Abgangsmonat nachholen, den Restbuchwert ausbuchen und
+den Erlös mit Umsatzsteuer erfassen. Der SKR04 wählt das Erlöskonto nach dem
+Ergebnis: **4845** bei Buchgewinn, **6885** bei Buchverlust. Der Dienst rechnet
+das Ergebnis deshalb, bevor er das Konto wählt.
 
-## 7. Anlagenspiegel
+Finanzanlagen haben eigene Regeln: keine planmäßige Abschreibung, gemildertes
+Niederstwertprinzip, Teilabgang nach Stückzahl und eine Tilgung von
+Ausleihungen ohne Erlös und ohne Steuerfall.
 
-Der Anlagenspiegel stellt für jede Position die Entwicklung dar: Anschaffungskosten am
-Jahresanfang, Zugänge, Abgänge, Umbuchungen, kumulierte Abschreibungen, Buchwerte zum
-Anfang und Ende. Für Kapitalgesellschaften ist er Bestandteil des Anhangs (§ 284 Abs. 3
-HGB). Kleine Kapitalgesellschaften sind davon befreit – die Erleichterung steht in
-**§ 288 Abs. 1 Nr. 1 HGB**, nicht in § 274a HGB, der nur § 268 Abs. 4/5/6 und § 274
-betrifft.
+Weder App noch MCP bieten den Abgang an, auch nicht Teilabgang und Tilgung.
+Ein verkauftes Anlagegut bleibt in der Kartei.
 
-Er ist eine Auswertung, keine zusätzliche Buchung – aber eine, die nur
-funktioniert, wenn Zugänge, Abgänge und kumulierte AfA je Anlagegut über die Jahre
-erhalten bleiben. Das ist eine Anforderung an das Datenmodell, nicht an den Report:
-**die Anlagenkartei muss jahresübergreifend geführt werden**, während das Journal pro
-Geschäftsjahr organisiert ist.
+## Laufende Erträge
 
-## 8. Datenmodell (Skizze)
+Dividenden, Ausschüttungen und Zinsen einer Finanzanlage bucht Buchfink brutto
+auf das Ertragskonto, das aus dem Anlagekonto folgt
+(`accounting.AssetIncomeAccount`): Anteile an Kapitalgesellschaften auf die
+Konten des § 8b KStG, Investmentanteile auf 7010. Kapitalertragsteuer und
+Solidaritätszuschlag stehen getrennt auf **7630** und **7633**, weil die
+Steuerrückstellung sie getrennt anrechnet. Der Ertrag hängt als Bewegung am
+Anlagegut (`AssetService.BookAssetIncome`); daraus liest die
+Körperschaftsteuererklärung die Bezüge je Anteil und die Fondserträge. Der
+Agent bucht ihn am Bankumsatz (`bankumsatz_buchen` mit `kapitalertrag`).
+Erträge aus Genossenschaftsanteilen (**0980**) bucht Buchfink nicht von selbst
+(`accounting.ErrCooperativeIncome`): die Mitgliedschaft in einer
+eingetragenen Genossenschaft gilt nicht als Beteiligung
+([§ 271 Abs. 1 Satz 5 HGB][hgb271]), Konto und steuerliche Folge klärt der
+Mensch.
 
-Je Anlagegut: Bezeichnung, Inventarnummer, Anlagekonto, Anschaffungsdatum,
-Anschaffungskosten, Nutzungsdauer, AfA-Methode, Sonderabschreibungen, Abgangsdatum,
-Abgangsart. Dazu eine Historie der AfA-Buchungen mit Verweis auf den Journaleintrag.
+## Fremdwährung und Investmentanteile
 
-Der Bezug zwischen Anlagegut und Journal muss in beide Richtungen gelten: vom
-Anlagegut zu seinen Buchungen und von der Buchung zurück zum Anlagegut.
+Die Stichtagsbewertung von Anlagegütern in Fremdwährung nach
+[§ 256a HGB][hgb256a], nach oben durch die Anschaffungskosten gedeckelt,
+rechnet `service.AssetService.BookCurrencyValuation` und bucht sie über
+außerplanmäßige Abschreibung oder Zuschreibung. Weder App noch MCP rufen sie
+auf.
 
-Dazu zwei Dinge, zu denen keine Buchung gehört. Die **Dokumente** hängen als eigene Tabelle am
-Anlagegut (`asset_documents`) und verweisen auf eine Datei im inhaltsadressierten
-Speicher — dieselbe Ablage wie für die Belege, ein anderer Zweig darin. Und die Bewegung
-kennt neben den beiden Wertspalten einen **steuerlichen Betrag**: die Vorabpauschale wird
-versteuert, ohne dass in der Bilanz etwas geschieht, und in einer der Wertspalten
-verschöbe sie Buchwert und Anlagenspiegel.
+Für Investmentanteile rechnet Buchfink Teilfreistellung (§ 20 InvStG) und
+Vorabpauschale (§ 18 InvStG) als Nebenrechnung. Die Vorabpauschale wird nicht
+gebucht, aber festgehalten, weil sie beim Abgang abzuziehen ist. Die
+Teilfreistellung folgt für GmbH und UG aus der Stellung als Körperschaft; für
+die Ausnahmen des § 20 Abs. 1 Sätze 4 und 5 InvStG lässt sich das abweichend
+festlegen. Den Basiszins ([§ 18 Abs. 4 InvStG][invstg18]) kennt Buchfink für
+die Jahre, deren BMF-Schreiben gelesen wurde (`accounting.InvestmentBaseRateFor`:
+2024 bis 2026); eine abweichende Eingabe weist es ab. Für andere Jahre gibt der
+Mensch ihn mit Quelle ein. Als zugeflossen gilt die Vorabpauschale am ersten
+Werktag des Folgejahres, Samstag ausgenommen, wie das BMF für 2026 den
+4. Januar 2027 nennt. Der Agent rechnet und hält sie mit `abschlussbuchung`
+(`art: vorabpauschale`, `AssetService.Vorabpauschale`) fest; die Fondsart
+nimmt die Aktivierung auf (`anlage_aktivieren` mit `fondsart`). Die
+Körperschaftsteuererklärung setzt sie im Geschäftsjahr des fiktiven Zuflusses
+an.
 
-## 9. Entscheidungen
+## Anlagenspiegel
 
-Entschieden und umgesetzt:
+Der Anlagenspiegel zeigt je Position Anschaffungskosten, Zugänge, Abgänge,
+Umbuchungen, kumulierte Abschreibungen und Buchwerte. Er setzt eine Kartei
+voraus, die über Geschäftsjahre läuft, während das Journal je Jahr organisiert
+ist. Kleine Kapitalgesellschaften sind von ihm im Anhang befreit
+([§ 288 Abs. 1 Nr. 1 HGB][hgb288]).
 
-- **Wertgrenzen und AfA-Sätze:** datierte Tabelle im Code
-  (`accounting.AfAParametersFor`), nicht editierbare Stammdaten — wie bei den
-  Steuerparametern. Eine Grenze ist keine Wahl des Nutzers, und ein fest
-  verdrahteter Wert würde ein nachbearbeitetes altes Jahr still falsch rechnen.
-  Die Grenzen binden auch die Eingabe: ein Sofortabzug über der GWG-Grenze und
-  ein Sammelposten außerhalb des Korridors werden abgelehnt, beim Sammelposten
-  je einzelnem Wirtschaftsgut und nicht auf die Summe des Postens. Je
-  Wirtschaftsjahr entsteht genau ein Sammelposten; weitere Güter des Jahres
-  kommen als Zugang hinein.
-- **Nutzungsdauer-Katalog:** ausgeliefert, aber nur für die Fälle, die eindeutig
-  sind (Pkw, Lkw, Büromöbel, Ladeneinbauten, Geschäfts- oder Firmenwert). Jeder
-  Vorschlag ist überschreibbar; die AfA-Tabellen binden die Finanzverwaltung,
-  nicht den Steuerpflichtigen.
-- **Wechsel degressiv → linear:** Buchfink rechnet den Übergang selbst und weist
-  ihn im Plan als eigene Zeile aus. Der Nutzer rechnet nichts nach.
-- **Anlagenkartei über Geschäftsjahre:** eigene Tabellen (`fixed_assets`,
-  `asset_movements`) außerhalb der Geschäftsjahres-Logik. Der Anlagenspiegel
-  verlangt genau das.
-- **Finanzanlagen:** in v1 aufgenommen, mit eigenen Regeln — keine planmäßige
-  AfA, gemildertes Niederstwertprinzip (§ 253 Abs. 3 Satz 6 HGB), Wertaufholung
-  nach § 253 Abs. 5 Satz 1 HGB, Teilabgang für Tranchen und Tilgungen und eigene
-  Abgangskonten für Anteile, die § 8b Abs. 2 KStG bzw. § 3 Nr. 40 EStG
-  unterliegen.
-- **Anlagen im Bau:** die Fertigstellung ist eine eigene Aktion. Sie bucht um,
-  setzt das Datum der Betriebsbereitschaft und startet damit die AfA.
-- **Sonderabschreibung nach § 7g Abs. 5 EStG:** umgesetzt, mit eigenem
-  Aufwandskonto, ohne Zeitanteil im Anschaffungsjahr, neben der linearen wie
-  neben der degressiven AfA und mit der Restwertverteilung des § 7a Abs. 9 EStG
-  nach dem Begünstigungszeitraum — sie geht dort auch der degressiven vor. Wie
-  der Betrag über bis zu fünf Jahre verteilt wird, entscheidet der
-  Steuerpflichtige; ist sie einmal gebucht, lässt sie sich nicht mehr
-  umverteilen — das änderte ein abgeschlossenes Jahr.
-- **Skonto und Rabatt auf Anlagen:** der Zahlungsflow erkennt die
-  Anlagenrechnung und bucht die Minderung auf das Anlagekonto
-  (§ 255 Abs. 1 Satz 3 HGB). Die Kartei bekommt sie mit Verweis auf die
-  Zahlungsbuchung; die Steuerkorrektur nach § 17 Abs. 1 UStG bleibt unverändert.
-
-Ebenfalls umgesetzt, mit den Grenzen, die dabei bewusst gezogen wurden:
-
-- **Erhaltungsaufwand und laufende Erträge:** beide werden gebucht und mit dem
-  Anlagegut verknüpft, ohne seinen Buchwert anzurühren — genau das unterscheidet
-  den Erhaltungsaufwand von den nachträglichen Herstellungskosten und die
-  Dividende vom Rückfluss der Anschaffungskosten. Ihre Bewegungen haben in
-  beiden Wertspalten den Wert null und erscheinen deshalb nicht im Anlagenspiegel. Das
-  Aufwandskonto folgt aus dem Anlagekonto, das Ertragskonto aus der Art der
-  Finanzanlage; die einbehaltene Kapitalertragsteuer mindert den Zufluss und
-  nicht den Ertrag.
-- **Fremdwährung:** § 256a HGB ist als Bewertung abgebildet, nicht als eigene
-  Buchung. Der Anschaffungskurs folgt aus Fremdbetrag und
-  Euro-Anschaffungskosten, der Stichtagskurs kommt vom Nutzer, und aus beiden
-  entsteht ein Vorschlag. Nach oben deckelt ihn das Anschaffungskostenprinzip
-  (§ 253 Abs. 1 Satz 1 HGB) — die Ausnahme des § 256a Satz 2 HGB für eine
-  Restlaufzeit bis zu einem Jahr passt auf ein Anlagegut nicht, das dauernd dem
-  Geschäftsbetrieb dienen soll. Gebucht wird über die Wege, die ihre Grenzen
-  ohnehin prüfen: die außerplanmäßige Abschreibung und die Zuschreibung.
-- **Stückzahlen bei Wertpapieren:** in Zehntausendsteln geführt, weil
-  Fondsanteile in Bruchteilen gehalten werden. Der Teilabgang rechnet damit; wo
-  keine Stückzahl geführt wird, bleibt der Betrag die Vorgabe.
-- **Degressive AfA in älteren Zeiträumen:** die früheren Fassungen des
-  § 7 Abs. 2 EStG stehen als eigene Zeitfenster in derselben Tabelle — 2009/2010
-  und 2020 bis 2022 mit dem Zweieinhalbfachen und höchstens 25 %, das zweite bis
-  vierte Quartal 2024 mit dem Zweifachen und höchstens 20 %, ab dem 01.07.2025
-  mit dem Dreifachen und höchstens 30 %. Zwischen ihnen liegen Lücken, und die
-  sind gewollt: 2023, das erste Quartal 2024 und das erste Halbjahr 2025 kannten
-  keine degressive AfA. Der Faktor war einmal ein halber und steht deshalb in
-  Promille.
-- **Wertgrenzen vor 2018:** von 2010 bis 2017 endete der Sofortabzug bei 410 €
-  und der Sammelposten begann bei 150 €. Ein Altbestand bleibt damit erklärbar;
-  für Anschaffungen davor lehnt Buchfink die Einordnung ab, statt sie zu raten.
-
-- **Dokumente am Anlagegut:** eigene Tabelle, kein zweiter Belegkreis. Löschen
-  ist möglich und steht im Protokoll; die Datei auf der Platte geht erst, wenn
-  kein anderes Dokument mehr auf sie zeigt — zwei Anlagegüter dürfen sich einen
-  Rahmenvertrag teilen.
-- **Tilgung:** eigener Abgangsweg ohne Erlöskonto und ohne Steuerfall, nur für
-  die Ausleihungen des Kontenkatalogs. Eine Beteiligung und ein Wertpapier
-  werden verkauft, nicht getilgt.
-- **Anlegerstellung für § 20 InvStG:** abgeleitet aus der Rechtsform, die
-  ohnehin erfasst wird — sie ist dafür ein Katalog geworden statt eines
-  Freitextfeldes. Gefragt wird nur, wo die Rechtsform es offen lässt: bei einer
-  Personengesellschaft, weil § 20 Abs. 3a InvStG auf den Gesellschafter
-  abstellt. Dazu eine Festlegung, die die Ableitung schlägt — für die Ausnahmen
-  des § 20 Abs. 1 Sätze 4 und 5, die eine Körperschaft auf den Grundsatz
-  zurückwerfen. Sie liegt hinter „abweichend festlegen" und ist normalerweise
-  unsichtbar. Zwei Fragen für einen Satz wären eine zu viel; keine wäre eine zu
-  wenig.
-- **Basiszins für § 18 InvStG:** Eingabe mit genannter Quelle, keine Tabelle im
-  Code. Anders als die Wertgrenzen wird er jedes Jahr neu veröffentlicht — eine
-  ausgelieferte Tabelle wäre im nächsten Januar veraltet.
-
-Bewusst nicht abgebildet:
-
-- **Die Anrechnung der Kapitalertragsteuer.** Der einbehaltene Betrag wird
-  erfasst und gebucht; die Anrechnung selbst ist Sache der Steuererklärung und
-  nicht dieser Kartei.
-- **Erhaltungsaufwand als Rückstellung** für unterlassene Instandhaltung
-  (§ 249 Abs. 1 Satz 2 Nr. 1 HGB). Das ist ein Vorgang des Jahresabschlusses und
-  gehört nicht an das einzelne Anlagegut.
-- **Der Tilgungsplan eines Darlehens.** Getilgt wird als einzelner Vorgang
-  erfasst; einen Plan, der Raten im Voraus kennt und abarbeitet, gibt es nicht.
-  Er lässt sich als Dokument beilegen.
-- **Agio und Disagio bei einer Ausleihung.** Die Ausleihung steht mit ihren
-  Anschaffungskosten; ein Unterschied zum Nennwert wird nicht über die Laufzeit
-  verteilt.
-- **Die Anwendung der Teilfreistellung auf eine Wertminderung.** § 20 InvStG
-  erfasst auch sie; Buchfink rechnet die Nebenrechnung bisher für Ausschüttungen
-  und für den Veräußerungsgewinn.
-
-## 10. Abhängigkeiten
-
-- Der **Festschreibungs-Workflow** ruft vor der Jahressperre die AfA-Prüfung auf
-  (`ensureDepreciationBooked` in `internal/wailsbridge/festschreibung_service.go`).
-  Monats- und Quartalsfestschreibungen prüfen nicht — dort ist die AfA nicht fällig.
-- Der **Zahlungsflow** fragt die Kartei über eine Schnittstelle mit zwei Methoden,
-  bevor er ein Skonto bucht (`AssetRegister` in `internal/service/payment_service.go`).
-  Er soll nur erkennen, dass eine Rechnung eine war, und nicht Anlagegüter
-  verwalten können. Ist die Kartei nicht angeschlossen, bucht das Skonto wie
-  bisher — eine fehlende Verdrahtung darf keine Zahlung scheitern lassen.
-- Die **Dokumentenablage** ist derselbe inhaltsadressierte Speicher wie für die
-  Belege (`internal/receiptstore`), unter einem eigenen Zweig `dokumente/`. Sie
-  wird beim Mandantenwechsel verdrahtet; fehlt sie, nimmt die Kartei keine
-  Dokumente auf und funktioniert im Übrigen weiter.
-- Die **Stammdaten** enthalten die Rechtsform, aus der die Anlegerstellung für
-  § 20 InvStG folgt (`domain.LegalFormCatalog` und
-  `CompanySettings.InvestorTypeOrDerived`). Gelesen wird sie nur über diese
-  eine Ableitung; ein zweiter Aufruf, der das Feld direkt nähme, verdoppelte
-  die Regel. Wo sie offen bleibt, entsteht keine Teilfreistellung — die
-  Nebenrechnung weist den Betrag dann ungekürzt aus und nennt den Grund.
-- Die **E-Bilanz** übernimmt den Anlagenspiegel als Kontennachweis
-  (`SetAnlagenspiegelSource` in `internal/service/ebilanz_service.go`). Die
-  Bilanz zeigt einen Buchwert; erst der Spiegel zeigt, woraus er entstanden ist.
-  Scheitert seine Auswertung, entsteht die Instanz ohne den Block. Die
-  Elementnamen folgen der vereinfachten Form, in der diese Datei schon den
-  Kontennachweis führt, und sind vor der Übermittlung gegen die amtliche
-  Taxonomie zu prüfen; die Zahlen darin stammen aus der Buchführung.
-
-## 11. Fundstellen
-
-Die Normen zu Anschaffungs- und Herstellungskosten (BEW-02), zur
-Anlagenbuchhaltung und zum Anlagenspiegel (BEW-03, JAB-05), zu den Abschreibungen
-(BEW-04), zu geringwertigen Wirtschaftsgütern und Sammelposten (BEW-05), zum
-Verzeichnis steuerlicher Wahlrechte (BEW-06) und zur Fremdwährung (BEW-10) stehen
-mit Fundstellen im Anforderungskatalog. Was der Katalog nicht führt, steht hier —
-geprüft am 28.08.2026 gegen die Volltexte auf gesetze-im-internet.de:
-
-| Aussage im Dokument | Fundstelle | Link |
-|---|---|---|
-| Investmenterträge sind Ausschüttungen, Vorabpauschalen und Veräußerungsgewinne | § 16 Abs. 1 InvStG | [invstg_2018/__16.html](https://www.gesetze-im-internet.de/invstg_2018/__16.html) |
-| Vorabpauschale: Basisertrag = Rücknahmepreis zu Jahresbeginn × 70 % des Basiszinses, begrenzt auf den Wertzuwachs | § 18 Abs. 1 InvStG | [invstg_2018/__18.html](https://www.gesetze-im-internet.de/invstg_2018/__18.html) |
-| Kürzung um ein Zwölftel je vollem Monat vor dem Erwerb; Zufluss am ersten Werktag des Folgejahres | § 18 Abs. 2 und 3 InvStG | dito |
-| Basiszins von der Bundesbank auf den ersten Börsentag, veröffentlicht im Bundessteuerblatt | § 18 Abs. 4 InvStG | dito |
-| Abzug der angesetzten Vorabpauschalen vom Veräußerungsgewinn (Privatvermögen) | § 19 Abs. 1 Satz 3 InvStG | [invstg_2018/__19.html](https://www.gesetze-im-internet.de/invstg_2018/__19.html) |
-| Aktienteilfreistellung 30 %, im Betriebsvermögen 60 % bzw. 80 %; Rücknahme für Versicherer, Handelsbestand und Pensionsfonds | § 20 Abs. 1 InvStG | [invstg_2018/__20.html](https://www.gesetze-im-internet.de/invstg_2018/__20.html) |
-| Mischfonds: die Hälfte des Aktiensatzes | § 20 Abs. 2 InvStG | dito |
-| Immobilienfonds 60 %, Auslands-Immobilienfonds 80 %; schließt die Aktienteilfreistellung aus | § 20 Abs. 3 InvStG | dito |
-| Bei mittelbarem Halten über Personengesellschaften bestimmt der Gesellschafter den Satz | § 20 Abs. 3a InvStG | dito |
-| Aufbewahrung von Verträgen und Handelsbriefen | § 147 Abs. 1 AO | [ao_1977/__147.html](https://www.gesetze-im-internet.de/ao_1977/__147.html) |
-| Befreiung kleiner Kapitalgesellschaften vom Anlagenspiegel | § 288 Abs. 1 Nr. 1 HGB | [hgb/__288.html](https://www.gesetze-im-internet.de/hgb/__288.html) |
-
-**Korrektur gegenüber einer früheren Fassung dieses Dokuments:** die Befreiung
-kleiner Kapitalgesellschaften vom Anlagenspiegel wurde dort auf § 274a HGB
-gestützt. Das ist falsch – § 274a HGB befreit von § 268 Abs. 4 Satz 2, § 268
-Abs. 5 Satz 3, § 268 Abs. 6 und § 274 HGB, nicht von § 284 Abs. 3 HGB. Die
-richtige Fundstelle ist § 288 Abs. 1 Nr. 1 HGB.
-
-**Nicht am Volltext prüfbar:** die früheren Fassungen des § 7 Abs. 2 EStG.
-gesetze-im-internet.de führt nur die geltende Fassung; die aufgehobenen Zeiträume der
-degressiven AfA (2009/2010, 2020 bis 2022, das zweite bis vierte Quartal 2024) stehen
-in `internal/accounting/afa.go` mit dem Änderungsgesetz, auf das sie zurückgehen. Nur
-das laufende Fenster — nach dem 30.06.2025 und vor dem 01.01.2028, höchstens das
-Dreifache des linearen Satzes und höchstens 30 % — ist am Volltext verifiziert. Wer ein
-Altjahr nachbearbeitet, prüft den Satz an der damaligen Fassung nach.
-
-**Nicht aus dem Gesetz, sondern Verwaltungsanweisung:** die AfA-Tabellen (BMF).
-Sie binden die Finanzverwaltung, nicht den Steuerpflichtigen; eine abweichende,
-begründete Nutzungsdauer ist zulässig. Deshalb muss der Katalog in Buchfink
-überschreibbar bleiben.
+[estg6]: https://www.gesetze-im-internet.de/estg/__6.html
+[estg7]: https://www.gesetze-im-internet.de/estg/__7.html
+[estg7g]: https://www.gesetze-im-internet.de/estg/__7g.html
+[hgb255]: https://www.gesetze-im-internet.de/hgb/__255.html
+[hgb256a]: https://www.gesetze-im-internet.de/hgb/__256a.html
+[hgb271]: https://www.gesetze-im-internet.de/hgb/__271.html
+[hgb288]: https://www.gesetze-im-internet.de/hgb/__288.html
+[invstg18]: https://www.gesetze-im-internet.de/invstg_2018/__18.html

@@ -6,9 +6,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
 )
+
+// StatementPeriods liefert die benötigten Jahresdaten.
+type StatementPeriods interface {
+	PeriodSource
+	EarliestFiscalYear(context.Context) (int, error)
+}
 
 // StatementService stellt Bilanz und Gewinn- und Verlustrechnung auf.
 //
@@ -18,14 +23,18 @@ import (
 // Restlaufzeitengliederung. Gerechnet wird dort, nicht hier — und im Frontend
 // gar nicht.
 type StatementService struct {
-	accountingSvc *AccountingService
-	closingSvc    *ClosingService
-	settingsRepo  domain.SettingsRepository
-	auditRepo     domain.AuditRepository
-	openItems     OpenItemSource
-	notes         NotesSources
-	renderer      DocumentRenderer
-	fiscalYear    int
+	*StatementFigures
+	auditRepo domain.AuditRepository
+	openItems OpenItemSource
+	notes     NotesSources
+	renderer  DocumentRenderer
+	deadlines StatementDeadlineSource
+}
+
+// StatementDeadlineSource liefert Aufstellungs- und Offenlegungsfrist aus dem
+// Pflichtenkalender; der Abschluss rechnet sie nicht selbst.
+type StatementDeadlineSource interface {
+	DeadlinesOf(ctx context.Context, year int, kinds ...domain.ObligationKind) ([]domain.Deadline, error)
 }
 
 // Die drei Quellen des Anhangs. Jede ist der schmalste Ausschnitt des Dienstes,
@@ -73,17 +82,13 @@ type DocumentRenderer interface {
 // NewStatementService wires the Jahresabschluss-Auswertung.
 func NewStatementService(
 	accountingSvc *AccountingService,
-	closingSvc *ClosingService,
+	periods StatementPeriods,
 	settingsRepo domain.SettingsRepository,
 	auditRepo domain.AuditRepository,
-	fiscalYear int,
 ) *StatementService {
 	return &StatementService{
-		accountingSvc: accountingSvc,
-		closingSvc:    closingSvc,
-		settingsRepo:  settingsRepo,
-		auditRepo:     auditRepo,
-		fiscalYear:    fiscalYear,
+		StatementFigures: &StatementFigures{accountingSvc: accountingSvc, periods: periods, settingsRepo: settingsRepo},
+		auditRepo:        auditRepo,
 	}
 }
 
@@ -98,8 +103,9 @@ func (s *StatementService) SetNotesSources(src NotesSources) { s.notes = src }
 // SetRenderer koppelt den PDF-Renderer an.
 func (s *StatementService) SetRenderer(r DocumentRenderer) { s.renderer = r }
 
-// SetFiscalYear updates the active fiscal year.
-func (s *StatementService) SetFiscalYear(year int) { s.fiscalYear = year }
+// SetDeadlineSource koppelt den Pflichtenkalender an. Ohne ihn nennt der
+// Abschluss keine Fristen.
+func (s *StatementService) SetDeadlineSource(src StatementDeadlineSource) { s.deadlines = src }
 
 // Build stellt den Jahresabschluss eines Geschäftsjahres auf.
 //
@@ -107,14 +113,14 @@ func (s *StatementService) SetFiscalYear(year int) { s.fiscalYear = year }
 // Gliederungstiefe, denn das ist die Tiefe, in der der Abschluss offenzulegen
 // ist (§ 266 Abs. 1 Sätze 3 und 4 HGB).
 func (s *StatementService) Build(ctx context.Context, year int, depth domain.StatementDepth) (*domain.FinancialStatement, error) {
-	if year <= 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 
 	// Die Größenklasse entsteht immer aus der vollen Gliederung: die Merkmale
 	// des § 267 HGB hängen an der Bilanzsumme und den Umsatzerlösen, und die
 	// dürfen nicht davon abhängen, wie tief jemand gerade hinsieht.
-	full, err := s.statement(ctx, year, domain.DepthFull)
+	full, err := s.statement(ctx, year, domain.DepthFull, "")
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +138,7 @@ func (s *StatementService) Build(ctx context.Context, year int, depth domain.Sta
 		return nil, fmt.Errorf("unbekannte Gliederungstiefe %q", wanted)
 	}
 	if wanted != domain.DepthFull {
-		shown, err = s.statement(ctx, year, wanted)
+		shown, err = s.statement(ctx, year, wanted, "")
 		if err != nil {
 			return nil, err
 		}
@@ -153,7 +159,7 @@ func (s *StatementService) Build(ctx context.Context, year int, depth domain.Sta
 		SizeClass:  sizeClass,
 		Maturities: maturities,
 		Notes:      s.notesFor(ctx, year),
-		Deadlines:  s.deadlinesFor(ctx, year, header.ClosingDate, sizeClass),
+		Deadlines:  s.deadlinesFor(ctx, year),
 	}
 	out.Notes.Missing = []string{}
 	required := map[domain.NotesSection]bool{domain.NotesSectionContingent: true, domain.NotesSectionBoardLoans: true, domain.NotesSectionAdditional: true}
@@ -180,15 +186,6 @@ func (s *StatementService) Build(ctx context.Context, year int, depth domain.Sta
 	// trotzdem über die Liste.
 	out.EnsureLists()
 	return out, nil
-}
-
-// Notes liefert den Anhang eines Geschäftsjahres — für die Ausgabewege, die
-// nicht den ganzen Abschluss aufbauen, etwa die E-Bilanz.
-func (s *StatementService) Notes(ctx context.Context, year int) domain.StatementNotes {
-	if year <= 0 {
-		year = s.fiscalYear
-	}
-	return s.notesFor(ctx, year)
 }
 
 // notesFor stellt den Anhang zusammen.
@@ -225,128 +222,6 @@ func (s *StatementService) notesFor(ctx context.Context, year int) domain.Statem
 	return notes
 }
 
-// SizeClassFor beurteilt die Größenklasse eines Geschäftsjahres.
-func (s *StatementService) SizeClassFor(ctx context.Context, year int) (*domain.SizeClass, error) {
-	if year <= 0 {
-		year = s.fiscalYear
-	}
-	stmt, err := s.statement(ctx, year, domain.DepthFull)
-	if err != nil {
-		return nil, err
-	}
-	sizeClass, err := s.sizeClassFrom(ctx, year, stmt)
-	if err != nil {
-		return nil, err
-	}
-	return &sizeClass, nil
-}
-
-// Deadlines liefert die Termine des Jahresabschlusses: Aufstellung und
-// Offenlegung.
-func (s *StatementService) Deadlines(ctx context.Context, year int) ([]domain.Deadline, error) {
-	if year <= 0 {
-		year = s.fiscalYear
-	}
-	sizeClass, err := s.SizeClassFor(ctx, year)
-	if err != nil {
-		return nil, err
-	}
-	return s.deadlinesFor(ctx, year, sizeClass.ClosingDate, *sizeClass), nil
-}
-
-// Statement liefert allein die Gliederung — die E-Bilanz braucht sie ohne Kopf,
-// Größenklasse und Fristen.
-func (s *StatementService) Statement(ctx context.Context, year int, depth domain.StatementDepth) (*domain.Statement, error) {
-	if year <= 0 {
-		year = s.fiscalYear
-	}
-	if depth == "" {
-		depth = domain.DepthFull
-	}
-	return s.statement(ctx, year, depth)
-}
-
-// Accounts liefert den Kontenplan mit den Salden eines Geschäftsjahres.
-func (s *StatementService) Accounts(ctx context.Context, year int) ([]domain.Account, error) {
-	if year <= 0 {
-		year = s.fiscalYear
-	}
-	return s.accountingSvc.AccountsForYear(ctx, year)
-}
-
-// statement baut die Gliederung eines Jahres mit der Vorjahresspalte.
-func (s *StatementService) statement(ctx context.Context, year int, depth domain.StatementDepth) (*domain.Statement, error) {
-	current, err := s.accountingSvc.AccountsForYear(ctx, year)
-	if err != nil {
-		return nil, err
-	}
-	prior, err := s.accountingSvc.AccountsForYear(ctx, year-1)
-	if err != nil {
-		return nil, err
-	}
-	// § 265 Abs. 2 HGB verlangt die Vorjahreszahl zu jedem Posten — aber nur,
-	// wo es ein Vorjahr gibt. Ein Jahr ohne jede Buchung ergäbe eine Spalte aus
-	// lauter Nullen, und die läse sich wie eine Aussage über das Vorjahr.
-	if !hasAnyBalance(prior) {
-		prior = nil
-	}
-
-	stmt, err := accounting.BuildStatement(current, prior, depth)
-	if err != nil {
-		return nil, err
-	}
-	stmt.FiscalYear = year
-	stmt.PriorYear = year - 1
-	return stmt, nil
-}
-
-// StatementAt baut die Gliederung auf einen Stichtag statt auf ein
-// Geschäftsjahr.
-//
-// Der Fall ist die Eröffnungsbilanz: sie steht auf den Tag der Beurkundung
-// (§ 242 Abs. 1 HGB) und nicht auf den Schluss eines Geschäftsjahres. Gelesen
-// wird über alle Jahre bis zu diesem Tag — die Jahresgrenze fällt weg, weil eine
-// Beurkundung im November und ein aktives Geschäftsjahr im Januar auseinander
-// liegen können.
-//
-// Ohne Vorjahresspalte: § 265 Abs. 2 HGB verlangt sie zu jedem Posten, aber vor
-// dem ersten Tag des Unternehmens gibt es kein Vorjahr, über das sich etwas
-// sagen ließe.
-func (s *StatementService) StatementAt(
-	ctx context.Context, cutoff string, depth domain.StatementDepth,
-) (*domain.Statement, error) {
-	if len(cutoff) != 10 {
-		return nil, fmt.Errorf("der Stichtag fehlt oder ist unvollständig (erwartet JJJJ-MM-TT)")
-	}
-	if depth == "" {
-		depth = domain.DepthFull
-	}
-	accounts, err := s.accountingSvc.AccountsForYearAt(ctx, 0, cutoff)
-	if err != nil {
-		return nil, err
-	}
-	stmt, err := accounting.BuildStatement(accounts, nil, depth)
-	if err != nil {
-		return nil, err
-	}
-	// Das Geschäftsjahr, in das der Stichtag fällt: die Gliederung trägt es als
-	// Kennung, gerechnet wird über den Stichtag.
-	startMonth := 1
-	if cfg, err := s.settingsRepo.GetCompanySettings(ctx); err == nil && cfg != nil &&
-		cfg.FiscalYearStartMonth >= 1 && cfg.FiscalYearStartMonth <= 12 {
-		startMonth = cfg.FiscalYearStartMonth
-	}
-	stmt.FiscalYear = domain.GetFiscalYearForDate(cutoff, startMonth)
-	stmt.PriorYear = stmt.FiscalYear - 1
-	return stmt, nil
-}
-
-// AccountsAt liefert den Kontenplan mit den Salden zu einem Stichtag, über alle
-// Geschäftsjahre hinweg.
-func (s *StatementService) AccountsAt(ctx context.Context, cutoff string) ([]domain.Account, error) {
-	return s.accountingSvc.AccountsForYearAt(ctx, 0, cutoff)
-}
-
 func hasAnyBalance(accounts []domain.Account) bool {
 	for _, acc := range accounts {
 		if acc.DebitSum != 0 || acc.CreditSum != 0 {
@@ -354,143 +229,6 @@ func hasAnyBalance(accounts []domain.Account) bool {
 		}
 	}
 	return false
-}
-
-// maxSizeHistoryYears begrenzt, wie weit die Zweijahresregel zurückgeht.
-//
-// Zurückgegangen wird nur, solange kein Stichtagspaar übereinstimmt — bei einer
-// Gesellschaft, die zehn Jahre lang bei jedem Abschluss die Klasse wechselt.
-// Das kommt nicht vor; die Grenze verhindert allein, dass ein kaputter
-// Datenbestand die Aufstellung des Abschlusses in eine lange Schleife schickt.
-const maxSizeHistoryYears = 10
-
-// sizeClassFrom beurteilt so viele Stichtage, wie die Zweijahresregel braucht.
-//
-// Zwei genügen nicht: § 267 Abs. 4 Satz 1 HGB vergleicht die Beurteilung des
-// Stichtags mit der des Vorjahres, und was gilt, wenn beide auseinandergehen,
-// ist die *wirksame* Klasse des Vorjahres. Die kann aus einem noch früheren
-// Paar stammen. Deshalb werden Vorjahre so lange beurteilt, bis zwei
-// aufeinanderfolgende Stichtage dieselbe Klasse ergeben oder das erste erfasste
-// Geschäftsjahr erreicht ist.
-func (s *StatementService) sizeClassFrom(ctx context.Context, year int, stmt *domain.Statement) (domain.SizeClass, error) {
-	fy, err := s.period(ctx, year)
-	if err != nil {
-		return domain.SizeClass{}, err
-	}
-
-	current, err := accounting.AssessSize(year, fy.EndDate, fy.StartDate, domain.SizeCriteria{
-		BalanceSheetTotal: stmt.BalanceSheetTotal,
-		Revenue:           stmt.Revenue,
-		Employees:         fy.AverageEmployees,
-	})
-	if err != nil {
-		return domain.SizeClass{}, err
-	}
-
-	earliest := 0
-	if s.closingSvc != nil {
-		if e, err := s.closingSvc.EarliestFiscalYear(ctx); err == nil {
-			earliest = e
-		}
-	}
-	// § 267 Abs. 4 Satz 2 HGB: beim ersten Abschluss nach der Gründung
-	// entscheidet dieser Stichtag allein.
-	isFirstYear := earliest == year || earliest == 0
-
-	history := []domain.SizeAssessment{current}
-	if !isFirstYear {
-		for y := year - 1; y >= year-maxSizeHistoryYears; y-- {
-			if earliest > 0 && y < earliest {
-				break
-			}
-			assessment, ok, err := s.assessYear(ctx, y)
-			if err != nil {
-				return domain.SizeClass{}, err
-			}
-			if !ok {
-				break
-			}
-			history = append([]domain.SizeAssessment{assessment}, history...)
-			if assessment.Class == history[1].Class {
-				// Ab hier steht die wirksame Klasse fest; ältere Stichtage
-				// ändern an ihr nichts mehr.
-				break
-			}
-		}
-	}
-
-	return accounting.ClassifySize(history, isFirstYear), nil
-}
-
-// RevenueOf liefert die Umsatzerlöse eines Geschäftsjahres — die Zeile Nr. 1 der
-// Gewinn- und Verlustrechnung (§ 275 Abs. 2 HGB).
-//
-// Sie entsteht aus derselben Gliederung wie die GuV auf dem Schirm und nicht
-// aus einer zweiten Kontenauswahl: die Erlösschmälerungen sind nach § 277
-// Abs. 1 HGB abzusetzen, und wer sie in einer eigenen Summe vergisst, meldet
-// einen zu hohen Umsatz. Ein Jahr ohne Buchungen oder mit einer Bilanz, die
-// nicht aufgeht, liefert null. Das ist die Auskunft, dass sich nichts ableiten
-// lässt, kein Fehler.
-func (s *StatementService) RevenueOf(ctx context.Context, year int) (domain.Cents, error) {
-	if year <= 0 {
-		return 0, nil
-	}
-	accounts, err := s.accountingSvc.AccountsForYear(ctx, year)
-	if err != nil {
-		return 0, err
-	}
-	if !hasAnyBalance(accounts) {
-		return 0, nil
-	}
-	stmt, err := accounting.BuildStatement(accounts, nil, domain.DepthFull)
-	if err != nil {
-		return 0, nil
-	}
-	return stmt.Revenue, nil
-}
-
-// assessYear beurteilt einen zurückliegenden Abschlussstichtag aus den Zahlen
-// dieses Jahres allein.
-//
-// Die zweite Rückgabe ist falsch, wenn sich das Jahr nicht beurteilen lässt:
-// ohne Buchung gibt es keine Merkmale, und eine Bilanz, die nicht aufgeht, gibt
-// keine Bilanzsumme her. Beides ist kein Fehler der Beurteilung des laufenden
-// Jahres — es beendet nur die Kette der Vorjahre.
-func (s *StatementService) assessYear(ctx context.Context, year int) (domain.SizeAssessment, bool, error) {
-	accounts, err := s.accountingSvc.AccountsForYear(ctx, year)
-	if err != nil {
-		return domain.SizeAssessment{}, false, err
-	}
-	if !hasAnyBalance(accounts) {
-		return domain.SizeAssessment{}, false, nil
-	}
-	// Ohne Vorjahresspalte: für die Merkmale des § 267 HGB zählt allein dieser
-	// Stichtag, und die zweite Spalte kostete eine weitere Abfrage je Jahr.
-	stmt, err := accounting.BuildStatement(accounts, nil, domain.DepthFull)
-	if err != nil {
-		return domain.SizeAssessment{}, false, nil
-	}
-	fy, err := s.period(ctx, year)
-	if err != nil {
-		return domain.SizeAssessment{}, false, err
-	}
-	assessment, err := accounting.AssessSize(year, fy.EndDate, fy.StartDate, domain.SizeCriteria{
-		BalanceSheetTotal: stmt.BalanceSheetTotal,
-		Revenue:           stmt.Revenue,
-		Employees:         fy.AverageEmployees,
-	})
-	if err != nil {
-		return domain.SizeAssessment{}, false, err
-	}
-	return assessment, true, nil
-}
-
-// period liefert den Zeitraum eines Geschäftsjahres, ohne ihn anzulegen.
-func (s *StatementService) period(ctx context.Context, year int) (*domain.FiscalYear, error) {
-	if s.closingSvc == nil {
-		return domain.NewFiscalYear(year, fmt.Sprintf("%d-01-01", year), fmt.Sprintf("%d-12-31", year)), nil
-	}
-	return s.closingSvc.PeriodOf(ctx, year)
 }
 
 // Header sind die Pflichtangaben des § 264 Abs. 1a HGB, ohne eine Gliederung
@@ -544,32 +282,18 @@ func (s *StatementService) header(ctx context.Context, year int, stmt *domain.St
 	return header, nil
 }
 
-// deadlinesFor setzt die Termine und trägt ein, was das Geschäftsjahr bereits
-// als erledigt vermerkt.
-//
-// Der Abschlussstand aus Welle 1 sagt das: aufgestellt ist aufgestellt, und
-// eine Frist, die erledigt ist, gehört nicht mehr als Mahnung in eine Liste.
-func (s *StatementService) deadlinesFor(
-	ctx context.Context, year int, closingDate string, sizeClass domain.SizeClass,
-) []domain.Deadline {
-	deadlines := accounting.StatementDeadlines(year, closingDate, sizeClass.Obligations)
-	fy, err := s.period(ctx, year)
-	if err != nil {
-		return deadlines
+// deadlinesFor sind Aufstellung und Offenlegung aus dem Pflichtenkalender,
+// mit dem Stand, den das Geschäftsjahr vermerkt. Fällt der Kalender aus,
+// bleibt die Liste leer statt den Abschluss scheitern zu lassen.
+func (s *StatementService) deadlinesFor(ctx context.Context, year int) []domain.Deadline {
+	if s.deadlines == nil {
+		return []domain.Deadline{}
 	}
-	for i := range deadlines {
-		switch deadlines[i].Key {
-		case "abschluss.aufstellung":
-			if fy.PreparedOn != "" {
-				deadlines[i].IsDone, deadlines[i].DoneOn = true, fy.PreparedOn
-			}
-		case "abschluss.offenlegung":
-			if fy.DisclosedOn != "" {
-				deadlines[i].IsDone, deadlines[i].DoneOn = true, fy.DisclosedOn
-			}
-		}
+	out, err := s.deadlines.DeadlinesOf(ctx, year, domain.ObligationStatementPrep, domain.ObligationDisclosure)
+	if err != nil || out == nil {
+		return []domain.Deadline{}
 	}
-	return deadlines
+	return out
 }
 
 // maturities ist die Restlaufzeitengliederung nach § 268 Abs. 4 und 5 HGB.
@@ -613,10 +337,8 @@ func (s *StatementService) maturities(ctx context.Context, closingDate string) (
 			idx = 1
 		}
 		row := &table.Rows[idx]
-		amount := item.OpenAmount
-		if amount < 0 {
-			amount = -amount
-		}
+		// Eine Gutschrift mindert die Seite ihres Kontakts.
+		amount := item.SignedOpen()
 		row.Total += amount
 		row.Items++
 		switch {

@@ -2,15 +2,12 @@ package service
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"path/filepath"
+	"errors"
 	"strings"
 	"testing"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
-	"github.com/buchfink/buchfink/internal/receiptstore"
 	"github.com/buchfink/buchfink/internal/repository"
 )
 
@@ -24,7 +21,6 @@ func (e *testEnv) assets(t *testing.T) *AssetService {
 		e.contactRepo,
 		repository.NewSettingsRepository(e.db),
 		repository.NewAuditRepository(e.db),
-		e.fiscalYear,
 	)
 }
 
@@ -64,7 +60,7 @@ func TestSaveAssetAllocatesInventoryNumberAndRecordsAcquisition(t *testing.T) {
 		t.Errorf("Status %q — erwartet den Hinweis auf die offene Abschreibung", asset.Status)
 	}
 
-	detail, err := svc.Get(context.Background(), asset.ID)
+	detail, err := svc.Get(context.Background(), 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -102,7 +98,7 @@ func TestDepreciationRunBooksAgainstTheAssetAccount(t *testing.T) {
 	asset := env.machine(t, svc)
 	ctx := context.Background()
 
-	run, err := svc.Run(ctx)
+	run, err := svc.Run(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Abschreibungslauf: %v", err)
 	}
@@ -140,7 +136,7 @@ func TestDepreciationRunBooksAgainstTheAssetAccount(t *testing.T) {
 	}
 
 	// Zweiter Lauf: nichts mehr offen.
-	again, err := svc.Run(ctx)
+	again, err := svc.Run(ctx, 2026)
 	if err != nil {
 		t.Fatalf("zweiter Abschreibungslauf: %v", err)
 	}
@@ -151,7 +147,7 @@ func TestDepreciationRunBooksAgainstTheAssetAccount(t *testing.T) {
 		t.Error("ein zweiter Lauf darf die AfA nicht doppelt buchen")
 	}
 
-	reloaded, err := svc.Get(ctx, asset.ID)
+	reloaded, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -265,7 +261,7 @@ func TestWriteUpIsCappedAtContinuedCost(t *testing.T) {
 		t.Errorf("Ertragskonto %s — erwartet 4912 für die Zuschreibung auf eine Finanzanlage", revenue)
 	}
 
-	detail, err := svc.Get(ctx, share.ID)
+	detail, err := svc.Get(ctx, 2026, share.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -413,7 +409,7 @@ func TestAnlagenspiegelShowsTheDevelopmentOfEachPosition(t *testing.T) {
 		t.Fatalf("AfA buchen: %v", err)
 	}
 
-	spiegel, err := svc.Anlagenspiegel(ctx)
+	spiegel, err := svc.Anlagenspiegel(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Anlagenspiegel: %v", err)
 	}
@@ -448,7 +444,7 @@ func TestAcquisitionCandidatesFindUnregisteredBookings(t *testing.T) {
 		t.Fatalf("Zugangsbuchung: %v", err)
 	}
 
-	candidates, err := svc.AcquisitionCandidates(ctx)
+	candidates, err := svc.AcquisitionCandidates(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Zugangskandidaten: %v", err)
 	}
@@ -465,7 +461,7 @@ func TestAcquisitionCandidatesFindUnregisteredBookings(t *testing.T) {
 		t.Fatalf("Anlagegut zur Buchung: %v", err)
 	}
 
-	after, err := svc.AcquisitionCandidates(ctx)
+	after, err := svc.AcquisitionCandidates(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Zugangskandidaten nach der Erfassung: %v", err)
 	}
@@ -498,33 +494,12 @@ func TestCostAdjustmentsChangeTheDepreciationBase(t *testing.T) {
 		t.Fatalf("Anschaffungskosten %s € — erwartet 13.000,00 €", updated.Cost)
 	}
 
-	run, err := svc.Run(ctx)
+	run, err := svc.Run(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Abschreibungslauf: %v", err)
 	}
 	if len(run.Due) != 1 || run.Due[0].Due != 325_000 {
 		t.Errorf("fällige AfA %+v — erwartet 3.250,00 € aus der erhöhten Bemessungsgrundlage", run.Due)
-	}
-}
-
-// Ein Anlagegut mit Buchung verlässt das Verzeichnis nicht mehr über das
-// Löschen, sondern nur über einen Abgang.
-func TestDeleteRefusesBookedAssets(t *testing.T) {
-	env := newTestEnv(t)
-	svc := env.assets(t)
-	ctx := context.Background()
-	asset := env.machine(t, svc)
-
-	if err := svc.Delete(ctx, asset.ID); err != nil {
-		t.Fatalf("ein Anlagegut ohne Buchung muss löschbar sein: %v", err)
-	}
-
-	second := env.machine(t, svc)
-	if _, err := svc.BookDepreciation(ctx, BookDepreciationRequest{FiscalYear: 2026}); err != nil {
-		t.Fatalf("AfA buchen: %v", err)
-	}
-	if err := svc.Delete(ctx, second.ID); err == nil {
-		t.Error("ein gebuchtes Anlagegut darf nicht gelöscht werden")
 	}
 }
 
@@ -577,7 +552,7 @@ func TestImmediateWriteOffStaysOutOfTheDepreciationRun(t *testing.T) {
 			gwg.BookValue, gwg.Accumulated)
 	}
 
-	run, err := svc.Run(ctx)
+	run, err := svc.Run(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Abschreibungslauf: %v", err)
 	}
@@ -741,26 +716,6 @@ func TestOnlyOnePoolPerFiscalYear(t *testing.T) {
 	}
 }
 
-// Die Maske rechnet den Plan nicht selbst — sie fragt dieselbe Rechnung, die
-// später auch bucht.
-func TestPreviewPlanAnswersBeforeTheAssetExists(t *testing.T) {
-	env := newTestEnv(t)
-	svc := env.assets(t)
-
-	rows, err := svc.PreviewPlan(context.Background(), PlanRequest{
-		AcquisitionDate:  "2026-09-15",
-		Cost:             1_200_000,
-		UsefulLifeMonths: 48,
-		Method:           domain.DepreciationLinear,
-	})
-	if err != nil {
-		t.Fatalf("Planvorschau: %v", err)
-	}
-	if len(rows) != 5 || rows[0].Amount != 100_000 {
-		t.Fatalf("Vorschau %+v — erwartet fünf Jahre, im ersten 1.000,00 €", rows)
-	}
-}
-
 // Die Obergrenze der Zuschreibung steht in der Detailansicht, bevor jemand mehr
 // eingibt.
 func TestDetailCarriesTheWriteUpCeiling(t *testing.T) {
@@ -783,7 +738,7 @@ func TestDetailCarriesTheWriteUpCeiling(t *testing.T) {
 		t.Fatalf("außerplanmäßige Abschreibung: %v", err)
 	}
 
-	detail, err := svc.Get(ctx, share.ID)
+	detail, err := svc.Get(ctx, 2026, share.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -827,7 +782,7 @@ func TestSubsequentCostSpreadsOverTheRemainingLife(t *testing.T) {
 		t.Fatalf("Erweiterung: %v", err)
 	}
 
-	run, err := svc.Run(ctx)
+	run, err := svc.Run(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Abschreibungslauf: %v", err)
 	}
@@ -839,7 +794,7 @@ func TestSubsequentCostSpreadsOverTheRemainingLife(t *testing.T) {
 		t.Fatalf("fällige AfA %+v — erwartet 4.200,00 € (6.000 + 2.400 auf 24 Monate)", run.Due)
 	}
 
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -873,7 +828,7 @@ func TestExtensionCanProlongTheRemainingLife(t *testing.T) {
 		t.Fatalf("Erweiterung: %v", err)
 	}
 
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -955,7 +910,7 @@ func TestTransferCompletesAnAssetUnderConstruction(t *testing.T) {
 	}
 
 	// Solange sie nicht fertig ist, wird nichts abgeschrieben.
-	run, err := svc.Run(ctx)
+	run, err := svc.Run(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Abschreibungslauf: %v", err)
 	}
@@ -981,7 +936,7 @@ func TestTransferCompletesAnAssetUnderConstruction(t *testing.T) {
 
 	// Die AfA läuft ab der Betriebsbereitschaft, nicht ab der ersten Anzahlung:
 	// sechs Monate von 96, also die Hälfte eines Jahresbetrags von 1.000.000.
-	run, err = svc.Run(ctx)
+	run, err = svc.Run(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Abschreibungslauf nach der Fertigstellung: %v", err)
 	}
@@ -990,7 +945,7 @@ func TestTransferCompletesAnAssetUnderConstruction(t *testing.T) {
 	}
 
 	// Der Anlagenspiegel zeigt beide Positionen: 0700 gibt ab, 0440 nimmt auf.
-	spiegel, err := svc.Anlagenspiegel(ctx)
+	spiegel, err := svc.Anlagenspiegel(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Anlagenspiegel: %v", err)
 	}
@@ -1183,7 +1138,7 @@ func TestSpecialDepreciationIsTaxOnlyAndNotBooked(t *testing.T) {
 		t.Errorf("Konto der Sonderabschreibung %q — erwartet 6241", asset.SpecialAccount)
 	}
 
-	run, err := svc.Run(ctx)
+	run, err := svc.Run(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Abschreibungslauf: %v", err)
 	}
@@ -1219,7 +1174,7 @@ func TestSpecialDepreciationIsTaxOnlyAndNotBooked(t *testing.T) {
 			"nicht gebucht werden", lines["6241"])
 	}
 
-	reloaded, err := svc.Get(ctx, asset.ID)
+	reloaded, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -1257,7 +1212,7 @@ func TestCommercialPlanIsUntouchedBySpecialDepreciation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Anlagegut: %v", err)
 	}
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -1322,7 +1277,7 @@ func TestDepreciationRunHandlesTheTaxOnlyCase(t *testing.T) {
 	if len(result.TaxOnly) != 1 {
 		t.Fatalf("der Lauf nennt die nur steuerliche Sonderabschreibung nicht: %+v", result)
 	}
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -1402,76 +1357,6 @@ func TestDisposalKeepsTheSpecialDepreciationAsTaxValue(t *testing.T) {
 	}
 	if special != 800_000 {
 		t.Errorf("festgehaltene Sonderabschreibung %s € — erwartet 8.000,00 €", special)
-	}
-}
-
-// Der Migrationshinweis: Sonderabschreibungen, die vor dieser Fassung gebucht
-// wurden, bleiben stehen — die Anlagenseite nennt sie.
-func TestLegacySpecialDepreciationsAreListed(t *testing.T) {
-	env := newTestEnv(t)
-	svc := env.assets(t)
-	ctx := context.Background()
-
-	asset, err := svc.Save(ctx, &domain.FixedAsset{
-		Name:                "Fertigungsroboter",
-		Class:               domain.AssetClassTangible,
-		Account:             "0440",
-		DepreciationAccount: "6220",
-		AcquisitionDate:     "2026-01-05",
-		AcquisitionCost:     10_000_000,
-		UsefulLifeMonths:    120,
-		Method:              domain.DepreciationLinear,
-		SpecialPermille:     400,
-		SpecialYears:        5,
-		SpecialReason:       "Gewinn 2025: 140.000 €",
-	})
-	if err != nil {
-		t.Fatalf("Anlagegut: %v", err)
-	}
-
-	notice, err := svc.LegacySpecialDepreciations(ctx)
-	if err != nil {
-		t.Fatalf("Migrationshinweis: %v", err)
-	}
-	if len(notice.Rows) != 0 {
-		t.Errorf("ohne alte Buchung darf der Hinweis leer sein, hat aber %d Zeilen", len(notice.Rows))
-	}
-
-	// Eine Bewegung aus der Zeit, in der die Sonderabschreibung noch gebucht
-	// wurde: Betrag als Abschreibung, mit Buchungsverweis.
-	entry, err := env.journal.Post(ctx, &domain.JournalEntry{
-		BookingDate: "2025-12-31", DocumentDate: "2025-12-31",
-		ServiceDateFrom: "2025-12-31", ServiceDateTo: "2025-12-31",
-		Description: "Sonderabschreibung 2025", Source: domain.EntrySourceDepreciation,
-		Lines: []domain.JournalLine{
-			{Side: domain.SideDebit, Account: "6241", Amount: 800_000},
-			{Side: domain.SideCredit, Account: "0440", Amount: 800_000},
-		},
-	})
-	if err != nil {
-		t.Fatalf("alte Buchung: %v", err)
-	}
-	if err := repository.NewAssetRepository(env.db).AddMovement(ctx, &domain.AssetMovement{
-		AssetID: asset.ID, Kind: domain.AssetMovementSpecialDepreciation, Account: asset.Account,
-		Date: "2025-12-31", FiscalYear: 2025, DepreciationAmount: 800_000,
-		JournalEntryID: &entry.ID,
-	}); err != nil {
-		t.Fatalf("Bewegung: %v", err)
-	}
-
-	notice, err = svc.LegacySpecialDepreciations(ctx)
-	if err != nil {
-		t.Fatalf("Migrationshinweis: %v", err)
-	}
-	if len(notice.Rows) != 1 || notice.Total != 800_000 {
-		t.Fatalf("Hinweis %+v — erwartet eine Zeile über 8.000,00 €", notice)
-	}
-	if notice.Rows[0].EntryNumber != entry.EntryNumber {
-		t.Errorf("die Zeile nennt die Buchung %q — erwartet %q",
-			notice.Rows[0].EntryNumber, entry.EntryNumber)
-	}
-	if !strings.Contains(notice.Note, "BilMoG") {
-		t.Errorf("der Hinweis erklärt nicht, warum die Buchung nicht mehr entsteht: %q", notice.Note)
 	}
 }
 
@@ -1563,91 +1448,6 @@ func TestBookedSpecialDepreciationCannotBeRedistributed(t *testing.T) {
 	}
 }
 
-// Erhaltungsaufwand gehört zum Anlagegut, ändert seinen Wert aber nicht. Genau
-// das unterscheidet ihn von den nachträglichen Herstellungskosten.
-func TestMaintenanceIsLinkedButDoesNotChangeTheBookValue(t *testing.T) {
-	env := newTestEnv(t)
-	svc := env.assets(t)
-	ctx := context.Background()
-	asset := env.machine(t, svc)
-	before := asset.BookValue
-
-	result, err := svc.BookMaintenance(ctx, MaintenanceRequest{
-		AssetID: asset.ID, Date: "2026-05-04", Amount: 90_000,
-		TaxRate: domain.TaxRateStandard, Settlement: SettlementPaid, PaymentAccount: "1800",
-		Note: "Lagerschaden behoben, kein Mehrwert gegenüber dem ursprünglichen Zustand",
-	})
-	if err != nil {
-		t.Fatalf("Erhaltungsaufwand: %v", err)
-	}
-	// Eine Maschine ist kein Gebäude: die Prüfung des 15-%-Rahmens ist nicht
-	// einschlägig, und das Ergebnis sagt es statt zu schweigen.
-	if result.NearAcquisition != nil && result.NearAcquisition.Applicable {
-		t.Errorf("§ 6 Abs. 1 Nr. 1a EStG gilt für Gebäude: %+v", result.NearAcquisition)
-	}
-	lines := map[string]domain.Cents{}
-	for _, l := range result.Entry.Lines {
-		lines[string(l.Side)+":"+l.Account] += l.Amount
-	}
-	// Eine Maschine: Reparaturen und Instandhaltung von technischen Anlagen.
-	if lines["S:6460"] != 90_000 {
-		t.Errorf("Aufwandskonto %+v — erwartet 6460 mit 900,00 €", lines)
-	}
-	if lines["H:1800"] != 107_100 {
-		t.Errorf("Zahlung %+v — erwartet 1.071,00 € brutto", lines)
-	}
-
-	detail, err := svc.Get(ctx, asset.ID)
-	if err != nil {
-		t.Fatalf("Detailansicht: %v", err)
-	}
-	if detail.Asset.BookValue != before {
-		t.Errorf("Buchwert %s € — Erhaltungsaufwand darf ihn nicht ändern (vorher %s €)",
-			detail.Asset.BookValue, before)
-	}
-	var found bool
-	for _, m := range detail.Movements {
-		if m.Kind == domain.AssetMovementMaintenance {
-			found = true
-			if m.CostAmount != 0 || m.DepreciationAmount != 0 {
-				t.Errorf("die Bewegung trägt %s €/%s € — erwartet null in beiden Spalten",
-					m.CostAmount, m.DepreciationAmount)
-			}
-			if m.JournalEntryID == nil {
-				t.Error("die Bewegung ist mit keiner Buchung verknüpft")
-			}
-		}
-	}
-	if !found {
-		t.Error("der Erhaltungsaufwand taucht beim Anlagegut nicht auf")
-	}
-
-	spiegel, err := svc.Anlagenspiegel(ctx)
-	if err != nil {
-		t.Fatalf("Anlagenspiegel: %v", err)
-	}
-	if spiegel.Totals.Additions != 1_200_000 {
-		t.Errorf("Zugänge im Anlagenspiegel %s € — erwartet allein den Zugang von 12.000,00 €; "+
-			"Erhaltungsaufwand gehört dort nicht hinein", spiegel.Totals.Additions)
-	}
-}
-
-// Ohne festgehaltene Abgrenzung entsteht kein Erhaltungsaufwand: die
-// Unterscheidung zur Erweiterung ist eine Einschätzung, keine Rechnung.
-func TestMaintenanceNeedsItsReasoning(t *testing.T) {
-	env := newTestEnv(t)
-	svc := env.assets(t)
-	asset := env.machine(t, svc)
-
-	_, err := svc.BookMaintenance(context.Background(), MaintenanceRequest{
-		AssetID: asset.ID, Date: "2026-05-04", Amount: 90_000,
-		Settlement: SettlementPaid, PaymentAccount: "1800",
-	})
-	if err == nil {
-		t.Fatal("ohne Begründung darf der Erhaltungsaufwand nicht gebucht werden")
-	}
-}
-
 // Eine Dividende ist Ertrag des Jahres und kein Rückfluss der
 // Anschaffungskosten: der Buchwert der Beteiligung bleibt unberührt. Die
 // einbehaltene Kapitalertragsteuer mindert den Zufluss, nicht den Ertrag.
@@ -1690,12 +1490,130 @@ func TestAssetIncomeKeepsTheBookValueAndSplitsTheWithholdingTax(t *testing.T) {
 		t.Errorf("Zufluss %+v — erwartet 3.000,00 € auf der Bank", lines)
 	}
 
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
 	if detail.Asset.BookValue != 5_000_000 {
 		t.Errorf("Buchwert %s € — ein Ertrag mindert die Anschaffungskosten nicht", detail.Asset.BookValue)
+	}
+}
+
+// Die Dividende einer Tochter-GmbH steht ohne ausdrückliches Konto auf 7005,
+// dem Konto, von dem die Körperschaftsteuererklärung Bezüge nach § 8b KStG
+// liest.
+func TestAssetIncomeOfACorporationShareGoesToTheParticipationAccount(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Tochter GmbH", Class: domain.AssetClassFinancial, Account: "0850",
+		AcquisitionDate: "2026-02-01", AcquisitionCost: 2_500_000, Method: domain.DepreciationNone,
+		TaxPrivileged: true, HoldingPermille: 1000,
+	})
+	if err != nil {
+		t.Fatalf("Beteiligung: %v", err)
+	}
+	entry, err := svc.BookAssetIncome(ctx, AssetIncomeRequest{
+		AssetID: asset.ID, Date: "2026-05-15", Amount: 1_000_000,
+		Settlement: SettlementPaid, PaymentAccount: "1800",
+	})
+	if err != nil {
+		t.Fatalf("Ertrag: %v", err)
+	}
+	assertLines(t, entry, []bookedLine{
+		{domain.SideCredit, "7005", 1_000_000},
+		{domain.SideDebit, "1800", 1_000_000},
+	})
+}
+
+// Die Ausschüttung eines Fonds kommt als Bankumsatz: Buchfink bucht sie brutto
+// mit Datum und Bankkonto des Umsatzes, trennt Kapitalertragsteuer (7630) und
+// Solidaritätszuschlag (7633), beansprucht den Umsatz und hängt den Ertrag an
+// das Anlagegut. Ein Bruttobetrag, der nicht zum Umsatz passt, bucht nichts.
+func TestAssetIncomeFromABankTransaction(t *testing.T) {
+	env := newTestEnv(t)
+	env.paymentsWithBank(t)
+	svc := env.assets(t)
+	svc.SetBankTransactions(repository.NewBankRepository(env.db))
+	ctx := context.Background()
+
+	fund, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Aktien-ETF Welt", Class: domain.AssetClassFinancial, Account: "0900",
+		AcquisitionDate: "2026-01-10", AcquisitionCost: 5_000_000, Method: domain.DepreciationNone,
+		FundClass: string(accounting.FundEquity),
+	})
+	if err != nil {
+		t.Fatalf("Fonds: %v", err)
+	}
+	id := env.bankLine(t, "2026-06-20", 73_625, "Depotbank", "Ausschuettung Aktien-ETF Welt")
+
+	if _, err := svc.BookAssetIncome(ctx, AssetIncomeRequest{
+		AssetID: fund.ID, BankTxID: id, Amount: 100_000, WithholdingTax: 25_000,
+	}); err == nil || !strings.Contains(err.Error(), "Bankumsatz") {
+		t.Fatalf("Brutto ohne den Solidaritätszuschlag passt nicht zum Umsatz: %v", err)
+	}
+	if _, err := svc.BookAssetIncome(ctx, AssetIncomeRequest{
+		AssetID: fund.ID, BankTxID: id, Amount: 100_000, Settlement: SettlementPaid, PaymentAccount: "1800",
+	}); err == nil {
+		t.Fatal("Bankumsatz und Zahlungskonto zugleich")
+	}
+
+	entry, err := svc.BookAssetIncome(ctx, AssetIncomeRequest{
+		AssetID: fund.ID, BankTxID: id, Amount: 100_000, WithholdingTax: 25_000, SolidaritySurcharge: 1_375,
+	})
+	if err != nil {
+		t.Fatalf("Ausschüttung: %v", err)
+	}
+	assertLines(t, entry, []bookedLine{
+		{domain.SideCredit, "7010", 100_000},
+		{domain.SideDebit, "7630", 25_000},
+		{domain.SideDebit, "7633", 1_375},
+		{domain.SideDebit, domain.AccountBank, 73_625},
+	})
+	if entry.BookingDate != "2026-06-20" || entry.BankTxID == nil || *entry.BankTxID != id {
+		t.Errorf("Datum %s, Bankumsatz %v", entry.BookingDate, entry.BankTxID)
+	}
+	env.assertMatch(t, id, domain.MatchStatusMatched)
+	detail, err := svc.Get(ctx, 2026, fund.ID)
+	if err != nil {
+		t.Fatalf("Detailansicht: %v", err)
+	}
+	linked := false
+	for _, m := range detail.Movements {
+		linked = linked || (m.Kind == domain.AssetMovementIncome && m.JournalEntryID != nil && *m.JournalEntryID == entry.ID)
+	}
+	if !linked {
+		t.Errorf("der Ertrag hängt nicht am Anlagegut: %+v", detail.Movements)
+	}
+}
+
+// Die Rückvergütung einer Genossenschaft bucht Buchfink nicht von selbst,
+// auch nicht mit ausdrücklichem Ertragskonto: die Mitgliedschaft ist keine
+// Beteiligung (§ 271 Abs. 1 Satz 5 HGB), die Einordnung klärt der Mensch.
+func TestAssetIncomeRefusesCooperativeShares(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+	shares, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Anteile Volksbank eG", Class: domain.AssetClassFinancial, Account: accounting.AccountCooperativeShares,
+		AcquisitionDate: "2026-02-01", AcquisitionCost: 50_000, Method: domain.DepreciationNone,
+	})
+	if err != nil {
+		t.Fatalf("Genossenschaftsanteile: %v", err)
+	}
+	for _, account := range []string{"", "7000"} {
+		_, err := svc.BookAssetIncome(ctx, AssetIncomeRequest{
+			AssetID: shares.ID, Date: "2026-06-30", Amount: 2_000, Account: account,
+			Settlement: SettlementPaid, PaymentAccount: domain.AccountBank,
+		})
+		if !errors.Is(err, accounting.ErrCooperativeIncome) {
+			t.Errorf("Ertrag mit Konto %q: %v", account, err)
+		}
+	}
+	if n := env.entryCount(t); n != 0 {
+		t.Errorf("%d Buchungen, erwartet keine", n)
 	}
 }
 
@@ -1762,7 +1680,7 @@ func TestPartialDisposalByQuantity(t *testing.T) {
 	if _, err := svc.Dispose(ctx, req); err != nil {
 		t.Fatalf("Teilabgang: %v", err)
 	}
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -1950,7 +1868,7 @@ func TestSkontoOnAnAssetInvoiceLowersTheAcquisitionCost(t *testing.T) {
 		t.Errorf("Vorsteuerkorrektur %+v — § 17 Abs. 1 UStG verlangt sie unverändert", lines)
 	}
 
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -1972,6 +1890,17 @@ func TestSkontoOnAnAssetInvoiceLowersTheAcquisitionCost(t *testing.T) {
 		t.Errorf("AfA 2026 %s € — erwartet 2.041,67 € (9.800,00 € über 48 Monate, zehn Monate)",
 			detail.Schedule[0].Amount)
 	}
+	if _, err := env.journal.Reverse(ctx, entry.ID, "Zahlung berichtigen"); err != nil {
+		t.Fatal(err)
+	}
+	after, err := svc.Get(ctx, 2026, asset.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Asset.Cost != 980_000 || len(after.Movements) != len(detail.Movements) {
+		t.Fatalf("AK-Minderung bleibt nach Storno bestehen: %+v", after)
+	}
+
 }
 
 // Auf jeder anderen Rechnung bleibt das Skonto, was es war: ein Ertrag auf 5736
@@ -2006,102 +1935,6 @@ func TestSkontoOnAnOrdinaryInvoiceIsUnchanged(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("ohne Anlagenbezug gehört das Skonto weiter auf 5736: %+v", entry.Lines)
-	}
-}
-
-// Ein Vertrag zum Anlagegut ist kein Beleg: er hat keine Belegnummer, gehört
-// zu keinem Geschäftsjahr und wird nicht gebucht. Abgelegt wird er trotzdem auf
-// demselben Weg — inhaltsadressiert und dedupliziert.
-func TestAssetDocumentsAreKeptAlongsideTheAsset(t *testing.T) {
-	env := newTestEnv(t)
-	svc := env.assets(t)
-	svc.SetDocumentStore(receiptstore.New(t.TempDir()))
-	ctx := context.Background()
-	asset := env.machine(t, svc)
-
-	path := filepath.Join(t.TempDir(), "kaufvertrag.pdf")
-	if err := os.WriteFile(path, []byte("%PDF-1.4 Kaufvertrag Fräsmaschine"), 0o600); err != nil {
-		t.Fatalf("Testdatei: %v", err)
-	}
-
-	updated, err := svc.AttachDocument(ctx, AttachDocumentRequest{
-		AssetID: asset.ID, Kind: domain.AssetDocContract, Path: path,
-		Title: "Kaufvertrag Maschinenbau Muster", DocumentDate: "2026-01-08",
-	})
-	if err != nil {
-		t.Fatalf("Dokument ablegen: %v", err)
-	}
-	if len(updated.Documents) != 1 {
-		t.Fatalf("erwartet ein Dokument, bekommen %d", len(updated.Documents))
-	}
-	document := updated.Documents[0]
-	if document.Kind != domain.AssetDocContract || document.MimeType != "application/pdf" {
-		t.Errorf("Dokument %+v — erwartet einen Vertrag als PDF", document)
-	}
-	if document.DisplayTitle() != "Kaufvertrag Maschinenbau Muster" {
-		t.Errorf("Titel %q", document.DisplayTitle())
-	}
-
-	content, err := svc.DocumentContent(ctx, document.ID)
-	if err != nil {
-		t.Fatalf("Inhalt lesen: %v", err)
-	}
-	if !content.Intact {
-		t.Error("die abgelegte Datei stimmt nicht mehr mit ihrer Prüfsumme überein")
-	}
-	if string(content.Data) != "%PDF-1.4 Kaufvertrag Fräsmaschine" {
-		t.Errorf("Inhalt %q — erwartet die abgelegte Datei", string(content.Data))
-	}
-
-	after, err := svc.RemoveDocument(ctx, asset.ID, document.ID)
-	if err != nil {
-		t.Fatalf("Dokument entfernen: %v", err)
-	}
-	if len(after.Documents) != 0 {
-		t.Errorf("nach dem Entfernen bleiben %d Dokumente", len(after.Documents))
-	}
-	if _, err := svc.DocumentContent(ctx, document.ID); err == nil {
-		t.Error("ein entferntes Dokument darf nicht mehr lesbar sein")
-	}
-}
-
-// Ein Ablaufdatum, das niemand wieder liest, ist keine Angabe. Die Kartei
-// beantwortet deshalb, was bis zu einem Stichtag ausläuft.
-func TestExpiringDocumentsAreFound(t *testing.T) {
-	env := newTestEnv(t)
-	svc := env.assets(t)
-	svc.SetDocumentStore(receiptstore.New(t.TempDir()))
-	ctx := context.Background()
-	asset := env.machine(t, svc)
-
-	dir := t.TempDir()
-	for i, c := range []struct {
-		name       string
-		validUntil string
-	}{
-		{"police.pdf", "2026-12-31"},
-		{"wartung.pdf", "2028-06-30"},
-	} {
-		path := filepath.Join(dir, c.name)
-		if err := os.WriteFile(path, []byte(fmt.Sprintf("%%PDF-1.4 Dokument %d", i)), 0o600); err != nil {
-			t.Fatalf("Testdatei: %v", err)
-		}
-		if _, err := svc.AttachDocument(ctx, AttachDocumentRequest{
-			AssetID: asset.ID, Kind: domain.AssetDocInsurance, Path: path, ValidUntil: c.validUntil,
-		}); err != nil {
-			t.Fatalf("Dokument ablegen: %v", err)
-		}
-	}
-
-	due, err := svc.ExpiringDocuments(ctx, "2026-12-31")
-	if err != nil {
-		t.Fatalf("Fristen: %v", err)
-	}
-	if len(due) != 1 || due[0].ValidUntil != "2026-12-31" {
-		t.Fatalf("erwartet genau die zum 31.12.2026 auslaufende Police, bekommen %+v", due)
-	}
-	if due[0].InventoryNumber != asset.InventoryNumber {
-		t.Errorf("die Frist zeigt auf %q statt auf %q", due[0].InventoryNumber, asset.InventoryNumber)
 	}
 }
 
@@ -2266,7 +2099,7 @@ func TestCurrencyValuationBooksOnItsOwnAccounts(t *testing.T) {
 		t.Errorf("Buchung %+v — erwartet 6880 an 0920 über 2.000,00 €", lines)
 	}
 
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -2319,7 +2152,7 @@ func TestFundDisposalShowsTheInvestmentTaxNote(t *testing.T) {
 		t.Errorf("Vorabpauschale %s € — erwartet 1.771,00 €", result.Amount)
 	}
 
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -2364,9 +2197,9 @@ func TestFundDisposalShowsTheInvestmentTaxNote(t *testing.T) {
 	}
 }
 
-// Bei einer Personengesellschaft lässt die Rechtsform die Anlegerstellung
-// offen: § 20 Abs. 3a InvStG stellt auf den Gesellschafter ab. Dann rechnet
-// Buchfink keine Teilfreistellung, sondern sagt, was zu entscheiden ist.
+// Ohne Rechtsform und ohne ausdrückliche Festlegung folgt keine
+// Anlegerstellung. Dann rechnet Buchfink keine Teilfreistellung, sondern sagt,
+// was zu entscheiden ist.
 func TestFundWithoutInvestorTypeStaysUnreduced(t *testing.T) {
 	env := newTestEnv(t)
 	svc := env.assets(t)
@@ -2377,7 +2210,7 @@ func TestFundWithoutInvestorTypeStaysUnreduced(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Stammdaten: %v", err)
 	}
-	cfg.LegalForm = "GmbH & Co. KG"
+	cfg.LegalForm = ""
 	cfg.InvestorOverride = ""
 	if err := settings.UpdateCompanySettings(ctx, cfg); err != nil {
 		t.Fatalf("Stammdaten speichern: %v", err)
@@ -2450,7 +2283,7 @@ func TestPartialExemptionFollowsFromTheLegalFormAlone(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Stammdaten: %v", err)
 	}
-	cfg.LegalForm = "Einzelunternehmen"
+	cfg.LegalForm = domain.LegalFormUG
 	cfg.InvestorOverride = ""
 	if err := settings.UpdateCompanySettings(ctx, cfg); err != nil {
 		t.Fatalf("Stammdaten speichern: %v", err)
@@ -2472,10 +2305,10 @@ func TestPartialExemptionFollowsFromTheLegalFormAlone(t *testing.T) {
 		t.Fatalf("Vorschau: %v", err)
 	}
 	if preview.Investment == nil || preview.Investment.ExemptionError != "" {
-		t.Fatalf("aus der Rechtsform Einzelunternehmen folgt die Anlegerstellung: %+v", preview.Investment)
+		t.Fatalf("aus der Rechtsform UG folgt die Anlegerstellung: %+v", preview.Investment)
 	}
-	if preview.Investment.Exemption.Permille != 600 {
-		t.Errorf("Teilfreistellung %d Promille — eine natürliche Person im Betriebsvermögen trägt 60 %%",
+	if preview.Investment.Exemption.Permille != 800 {
+		t.Errorf("Teilfreistellung %d Promille — eine Körperschaft trägt 80 %%",
 			preview.Investment.Exemption.Permille)
 	}
 }
@@ -2508,7 +2341,7 @@ func TestAssetPlanUsesTheRealFiscalYearPeriod(t *testing.T) {
 	// 12.000 € über 48 Monate sind 3.000 € im vollen Jahr.
 	asset := env.machine(t, svc)
 
-	detail, err := svc.Get(ctx, asset.ID)
+	detail, err := svc.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht: %v", err)
 	}
@@ -2529,7 +2362,7 @@ func TestAssetPlanUsesTheRealFiscalYearPeriod(t *testing.T) {
 	// Ohne die Quelle bleibt es bei der Ableitung: das Rumpfjahr sähe aus wie ein
 	// volles. Genau das war der Fehler.
 	plain := env.assets(t)
-	plainDetail, err := plain.Get(ctx, asset.ID)
+	plainDetail, err := plain.Get(ctx, 2026, asset.ID)
 	if err != nil {
 		t.Fatalf("Detailansicht ohne Geschäftsjahre: %v", err)
 	}
@@ -2537,5 +2370,29 @@ func TestAssetPlanUsesTheRealFiscalYearPeriod(t *testing.T) {
 		if row.FiscalYear == 2027 && row.Months != 12 {
 			t.Errorf("ohne Geschäftsjahresquelle = %d Monate, erwartet die Ableitung mit 12", row.Months)
 		}
+	}
+}
+
+// § 271 Abs. 1 Satz 3 HGB vermutet eine Beteiligung erst, wenn die Anteile ein
+// Fünftel des Nennkapitals überschreiten. Genau 20 % lösen sie nicht aus.
+func TestHoldingPresumptionNeedsMoreThanAFifth(t *testing.T) {
+	for _, tc := range []struct {
+		permille int
+		presumed bool
+	}{
+		{199, false},
+		{200, false},
+		{201, true},
+		{1000, true},
+	} {
+		note := holdingPresumptionNote(tc.permille)
+		presumed := strings.Contains(note, "vermutet § 271")
+		if presumed != tc.presumed {
+			t.Errorf("Quote %d ‰: %q", tc.permille, note)
+		}
+	}
+	entry, ok := accounting.LookupAssetAccount("0820")
+	if !ok || !strings.Contains(entry.Hint, "Übersteigen sie ein Fünftel") {
+		t.Errorf("Hinweis zu 0820 nennt die Schwelle nicht als Überschreiten: %q", entry.Hint)
 	}
 }

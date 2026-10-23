@@ -1,32 +1,21 @@
 package accounting
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-func TestFoundationRulesForOnlyCoversKapitalgesellschaften(t *testing.T) {
-	for _, name := range []string{"GmbH", "UG (haftungsbeschränkt)", "AG"} {
-		if _, ok := FoundationRulesFor(name); !ok {
-			t.Errorf("%s sollte im Gründungskatalog stehen", name)
-		}
-	}
-	// Bei einer Personengesellschaft gibt es keine Vorgesellschaft — der
-	// Gründungsweg darf dort gar nicht erst erscheinen.
-	for _, name := range []string{"GbR", "OHG", "KG", "GmbH & Co. KG", "Einzelunternehmen", "Sonstige"} {
-		if _, ok := FoundationRulesFor(name); ok {
-			t.Errorf("%s darf nicht im Gründungskatalog stehen", name)
-		}
-	}
-}
-
+// Jede Rechtsform des Katalogs hat ihren Gründungsweg, und jeder Gründungsweg
+// gehört zu einer Rechtsform des Katalogs.
 func TestFoundationCatalogMatchesLegalFormCatalog(t *testing.T) {
-	// Die Schreibweise muss zum Rechtsformkatalog passen, sonst findet
-	// FoundationRulesFor die Rechtsform des Mandanten nie.
+	for _, form := range domain.LegalFormCatalog() {
+		if _, ok := FoundationRulesFor(form.Name); !ok {
+			t.Errorf("%s sollte im Gründungskatalog stehen", form.Name)
+		}
+	}
 	for _, r := range FoundationLegalForms() {
-		if _, ok := domain.LookupLegalForm(r.LegalForm); !ok {
+		if !domain.IsSupportedLegalForm(r.LegalForm) {
 			t.Errorf("Rechtsform %q steht nicht in domain.LegalFormCatalog", r.LegalForm)
 		}
 	}
@@ -120,23 +109,35 @@ func TestRequiredPerShareRoundsUp(t *testing.T) {
 	}
 }
 
-func TestRecommendedVatPeriodAtTheStichjahr(t *testing.T) {
+// § 18 Abs. 2 Satz 4 UStG verlangt im Gründungsjahr und im Folgejahr die
+// monatliche Voranmeldung; Satz 6 ersetzt das für 2021 bis 2026 durch die
+// Grenze von 9.000 € auf die voraussichtliche bzw. umgerechnete Steuer.
+func TestRecommendedVatPeriodFollowsTheFoundingRules(t *testing.T) {
+	tax := func(c domain.Cents) *domain.Cents { return &c }
 	tests := []struct {
-		year int
-		want string
+		name          string
+		founded, year int
+		annualTax     *domain.Cents
+		want          domain.VatPeriodType
+		applies       bool
 	}{
-		{2020, "month"},
-		{2021, "quarter"},
-		{2026, "quarter"},
-		{2027, "month"},
-		{2030, "month"},
+		{"vor der Aussetzung", 2020, 2020, nil, domain.VatPeriodMonth, true},
+		{"Gründung 2026 ohne Schätzung", 2026, 2026, nil, "", true},
+		{"Gründung 2026 über der Grenze", 2026, 2026, tax(900_001), domain.VatPeriodMonth, true},
+		{"Gründung 2026 genau an der Grenze", 2026, 2026, tax(900_000), domain.VatPeriodQuarter, true},
+		{"Folgejahr 2026, umgerechnet über der Grenze", 2025, 2026, tax(1_200_000), domain.VatPeriodMonth, true},
+		{"Folgejahr 2026, unter der Grenze", 2025, 2026, tax(100_000), domain.VatPeriodQuarter, true},
+		{"Folgejahr 2027 einer Gründung 2026", 2026, 2027, tax(100_000), domain.VatPeriodMonth, true},
+		{"Gründung 2027", 2027, 2027, nil, domain.VatPeriodMonth, true},
+		{"zweites Jahr nach der Gründung", 2025, 2027, nil, "", false},
 	}
 	for _, tc := range tests {
-		if got := RecommendedVatPeriod(tc.year); got != tc.want {
-			t.Errorf("RecommendedVatPeriod(%d) = %q, erwartet %q", tc.year, got, tc.want)
+		got, ok := RecommendedVatPeriod(tc.founded, tc.year, tc.annualTax)
+		if ok != tc.applies || got.Period != tc.want {
+			t.Errorf("%s: %q (gilt %v), erwartet %q (gilt %v)", tc.name, got.Period, ok, tc.want, tc.applies)
 		}
-		if VatPeriodReason(tc.year) == "" {
-			t.Errorf("VatPeriodReason(%d) ist leer", tc.year)
+		if ok && got.Reason == "" {
+			t.Errorf("%s: ohne Begründung", tc.name)
 		}
 	}
 }
@@ -160,127 +161,5 @@ func TestAddMonthsClampsToEndOfMonth(t *testing.T) {
 	}
 	if got := addMonths("", 1); got != "" {
 		t.Errorf("addMonths auf leerem Datum = %q, erwartet leer", got)
-	}
-}
-
-// Jede Pflicht hängt an dem Ereignis, das sie auslöst. Was die Eintragung
-// voraussetzt, steht schon vorher in der Liste — als wartender Posten ohne
-// Datum, damit der Gründer sieht, was noch kommt, ohne dafür überfällig zu sein.
-func TestFoundationDutiesDependOnTheStage(t *testing.T) {
-	rules, _ := FoundationRulesFor("GmbH")
-	f := &domain.Foundation{NotarizedOn: "2026-09-15", ShareCapital: 2_500_000}
-
-	open := FoundationDuties(f, rules, nil)
-	keys := map[string]domain.FoundationDuty{}
-	for _, d := range open {
-		keys[d.Key] = d
-	}
-
-	// Die Vorgesellschaft ist bereits Körperschaftsteuersubjekt: der Fragebogen
-	// läuft ab der Beurkundung, nicht ab der Eintragung.
-	fragebogen, ok := keys[DutyFragebogen]
-	if !ok {
-		t.Fatal("der Fragebogen fehlt in der Vorgesellschaft")
-	}
-	if fragebogen.Anchor != domain.AnchorBeurkundung {
-		t.Errorf("Fragebogen hängt an %q, erwartet die Beurkundung", fragebogen.Anchor)
-	}
-	if fragebogen.DueDate != "2026-10-15" || fragebogen.IsPending {
-		t.Errorf("Fragebogen fällig am %q (wartend: %v), erwartet 2026-10-15 und nicht wartend",
-			fragebogen.DueDate, fragebogen.IsPending)
-	}
-
-	// Was die Eintragung voraussetzt, wartet auf sie — mit Anker, ohne Datum.
-	for _, key := range []string{DutyTransparenzregister, "geschaeftsbriefe"} {
-		duty, ok := keys[key]
-		if !ok {
-			t.Errorf("%s fehlt in der Liste; wartende Pflichten gehören hinein", key)
-			continue
-		}
-		if duty.Anchor != domain.AnchorEintragung {
-			t.Errorf("%s hängt an %q, erwartet die Eintragung", key, duty.Anchor)
-		}
-		if !duty.IsPending {
-			t.Errorf("%s muss vor der Eintragung warten", key)
-		}
-		if duty.DueDate != "" {
-			t.Errorf("%s hat vor der Eintragung das Datum %q; erfunden wird keins", key, duty.DueDate)
-		}
-	}
-
-	f.RegisteredOn = "2026-10-20"
-	after := FoundationDuties(f, rules, map[string]string{DutyFragebogen: "2026-10-01"})
-	seen := map[string]domain.FoundationDuty{}
-	for _, d := range after {
-		seen[d.Key] = d
-	}
-	if transparenz := seen[DutyTransparenzregister]; transparenz.IsPending {
-		t.Error("nach der Eintragung wartet das Transparenzregister nicht mehr")
-	}
-	// § 20 GwG sagt „unverzüglich" — daraus wird kein Tagesdatum.
-	if got := seen[DutyTransparenzregister].DueDate; got != "" {
-		t.Errorf("das Transparenzregister hat das Datum %q; § 20 GwG nennt keine Tagesfrist", got)
-	}
-	gewerbe := seen[DutyGewerbeanmeldung]
-	if gewerbe.IsPending || gewerbe.DueDate != "" {
-		t.Errorf("Gewerbeanmeldung fällig am %q (wartend: %v), erwartet einen Hinweis auf den Betriebsbeginn ohne erfundenes Tagesdatum",
-			gewerbe.DueDate, gewerbe.IsPending)
-	}
-	if fb := seen[DutyFragebogen]; !fb.IsDone || fb.DoneOn != "2026-10-01" {
-		t.Error("der erledigte Fragebogen hat sein Datum nicht")
-	}
-}
-
-// Eine erledigte Pflicht wartet nicht mehr, auch wenn ihr Anker fehlt: das
-// nachgewiesene Datum schlägt jede Erwartung darüber, wann etwas eintritt.
-func TestFoundationDutiesDoneBeatsPending(t *testing.T) {
-	rules, _ := FoundationRulesFor("GmbH")
-	f := &domain.Foundation{NotarizedOn: "2026-09-15", ShareCapital: 2_500_000}
-
-	duties := FoundationDuties(f, rules, map[string]string{DutyGewerbeanmeldung: "2026-09-20"})
-	for _, d := range duties {
-		if d.Key != DutyGewerbeanmeldung {
-			continue
-		}
-		if d.IsPending {
-			t.Error("eine erledigte Pflicht wartet nicht mehr")
-		}
-		if !d.IsDone || d.DoneOn != "2026-09-20" {
-			t.Errorf("Erledigung = %v am %q, erwartet den 2026-09-20", d.IsDone, d.DoneOn)
-		}
-	}
-}
-
-func TestFoundationChecklistStartsAfterRegisterApplication(t *testing.T) {
-	f := &domain.Foundation{NotarizedOn: "2026-09-15"}
-	for _, legalForm := range []string{"GmbH", "UG (haftungsbeschränkt)", "AG"} {
-		rules, _ := FoundationRulesFor(legalForm)
-		duties := FoundationDuties(f, rules, nil)
-		if len(duties) != 14 {
-			t.Fatalf("%s: %d Aufgaben", legalForm, len(duties))
-		}
-		if duties[0].Key != "stammdaten" {
-			t.Fatal("Stammdaten müssen der erste Checkpunkt sein")
-		}
-		for _, d := range duties {
-			if d.Key == DutyHandelsregister || d.Key == DutyRuecklage || d.Key == DutyOffenlegung {
-				t.Errorf("%s gehört nicht in die Checkliste nach Registeranmeldung", d.Key)
-			}
-			if d.Key == DutyFragebogen || d.Key == DutyGewerbeanmeldung || d.Key == DutyTransparenzregister || d.Key == "unfallversicherung" || d.Condition != "" {
-				if !strings.HasPrefix(d.ActionURL, "https://") || d.ActionLabel == "" {
-					t.Errorf("Direktlink fehlt für %s", d.Key)
-				}
-			}
-		}
-	}
-}
-
-func TestFoundationDutiesEmptyWithoutBeurkundung(t *testing.T) {
-	rules, _ := FoundationRulesFor("GmbH")
-	if got := FoundationDuties(&domain.Foundation{}, rules, nil); got != nil {
-		t.Errorf("ohne Beurkundungsdatum gibt es keine Fristen, bekam %d", len(got))
-	}
-	if got := FoundationDuties(nil, rules, nil); got != nil {
-		t.Error("ohne Gründung gibt es keine Fristen")
 	}
 }

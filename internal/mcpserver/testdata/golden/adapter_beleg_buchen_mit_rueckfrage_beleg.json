@@ -1,0 +1,6 @@
+{
+  "code": "nicht_gefunden",
+  "nachricht": "beleg_id 999 gibt es nicht",
+  "naechster_schritt": "Die Kennung mit belege_suchen neu ermitteln.",
+  "werkzeug": "belege_suchen"
+}

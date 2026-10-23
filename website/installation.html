@@ -4,13 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Installation — Buchfink</title>
-    <meta
-      name="description"
-      content="Schritt für Schritt zu Buchfink auf dem eigenen Rechner: für macOS, Windows und Linux, ohne Programmierkenntnisse. Dazu der Datenordner, die Sicherung und was bei Fehlern hilft."
-    />
+    <meta name="description" content="Buchfink für macOS, Windows und Linux installieren und den KI-Agenten verbinden: Claude Code, Claude Desktop, OpenCode, Codex oder Pi." />
     <meta name="color-scheme" content="light" />
     <link rel="icon" type="image/svg+xml" href="assets/buchfink-logo.svg" />
-    <link rel="stylesheet" href="assets/site.css?v=5f2c7f4ea0d8" />
+    <link rel="stylesheet" href="assets/site.css?v=fbc6f353d9c9" />
+    <meta property="og:title" content="Installation — Buchfink" />
+    <meta property="og:description" content="Buchfink für macOS, Windows und Linux installieren und den KI-Agenten verbinden: Claude Code, Claude Desktop, OpenCode, Codex oder Pi." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="assets/screenshots/uebersicht.png" />
     <noscript>
       <!-- Ohne Skript öffnet kein Dialog. Dann steht sein Inhalt am Ende der
            Seite, mit Überschrift, statt zu fehlen. -->
@@ -55,34 +56,9 @@
 
         <nav class="topnav" aria-label="Hauptnavigation">
           <a href="index.html">Start</a>
-          <details class="dropdown">
-            <summary>
-              Funktionen
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <path d="m6 9 6 6 6-6" />
-              </svg>
-            </summary>
-            <div class="menu">
-              <a href="buchhaltung.html">
-                <span class="menu__name">Laufende Buchhaltung</span>
-                <span class="menu__hint">Bank, Belege, Journal, Rechnungen</span>
-              </a>
-              <a href="umsatzsteuer.html">
-                <span class="menu__name">Umsatzsteuer</span>
-                <span class="menu__hint">Voranmeldung, Meldungen, Fristen</span>
-              </a>
-              <a href="abschluss.html">
-                <span class="menu__name">Abschluss</span>
-                <span class="menu__hint">Monatsabschluss, Bilanz, GuV, E-Bilanz</span>
-              </a>
-              <a href="nachweise.html">
-                <span class="menu__name">Nachweise</span>
-                <span class="menu__hint">Protokoll, Aufbewahrung, Betriebsprüfung</span>
-              </a>
-            </div>
-          </details>
-          <a href="roadmap.html">Roadmap</a>
+          <a href="so-funktionierts.html">So funktioniert’s</a>
           <a href="installation.html" aria-current="page">Installation</a>
+          <a href="roadmap.html">Roadmap</a>
         </nav>
 
         <div class="topbar__end">
@@ -105,31 +81,17 @@
               <a href="index.html">
                 <span class="menu__name">Start</span>
               </a>
-              <p class="menu__group">Funktionen</p>
-              <a href="buchhaltung.html">
-                <span class="menu__name">Laufende Buchhaltung</span>
-                <span class="menu__hint">Bank, Belege, Journal, Rechnungen</span>
-              </a>
-              <a href="umsatzsteuer.html">
-                <span class="menu__name">Umsatzsteuer</span>
-                <span class="menu__hint">Voranmeldung, Meldungen, Fristen</span>
-              </a>
-              <a href="abschluss.html">
-                <span class="menu__name">Abschluss</span>
-                <span class="menu__hint">Monatsabschluss, Bilanz, GuV, E-Bilanz</span>
-              </a>
-              <a href="nachweise.html">
-                <span class="menu__name">Nachweise</span>
-                <span class="menu__hint">Protokoll, Aufbewahrung, Betriebsprüfung</span>
-              </a>
-              <p class="menu__group">Projekt</p>
-              <a href="roadmap.html">
-                <span class="menu__name">Roadmap</span>
-                <span class="menu__hint">Was steht, was bis zur Version 1 fehlt</span>
+              <a href="so-funktionierts.html">
+                <span class="menu__name">So funktioniert’s</span>
+                <span class="menu__hint">Vom Beleg bis zur Steuererklärung</span>
               </a>
               <a href="installation.html" aria-current="page">
                 <span class="menu__name">Installation</span>
-                <span class="menu__hint">Buchfink auf dem eigenen Rechner bauen</span>
+                <span class="menu__hint">App und KI-Agent einrichten</span>
+              </a>
+              <a href="roadmap.html">
+                <span class="menu__name">Roadmap</span>
+                <span class="menu__hint">Was verfügbar ist und was noch kommt</span>
               </a>
             </div>
           </details>
@@ -141,9 +103,12 @@
       <section class="pagehead">
         <div class="wrap">
           <p class="overline">Installation</p>
-          <h1 class="pagehead__title">Buchfink installieren</h1>
-          <p class="pagehead__lead">Die Vorschau lässt sich derzeit nur aus dem Quellcode bauen. Die Anleitung führt durch die Einrichtung; Erfahrung mit der Kommandozeile ist dabei hilfreich. Fertige Installationsdateien sind geplant.</p>
-          <p class="pagehead__lead">Die Dauer hängt von Ihrem Rechner und den benötigten Downloads ab.</p>
+          <h1 class="pagehead__title">App installieren, Agent verbinden</h1>
+          <p class="pagehead__lead">
+            Sie brauchen Buchfink auf Ihrem Rechner und eine KI-App, etwa Claude Desktop oder
+            ChatGPT Desktop. Diese verbinden Sie mit Buchfink. Die ausführlichen Anleitungen stehen in der
+            <a href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/README.md">Dokumentation</a>.
+          </p>
         </div>
       </section>
 
@@ -155,10 +120,17 @@
               <path d="M12 8h.01M11 12h1v4h1" />
             </svg>
             <div>
-              <p class="note__title">Warum es keinen Download gibt</p>
-              <p class="note__body">Buchfink ist in Entwicklung. Signierte Installationsdateien sollen die Einrichtung künftig vereinfachen. Einen verbindlichen Veröffentlichungstermin gibt es noch nicht.</p>
+              <p class="note__title">Unsignierte Vorschau</p>
+              <p class="note__body">
+                Die Installationsdateien von Version 0.3 sind nicht signiert. Das Betriebssystem
+                warnt beim ersten Start. Laden Sie Buchfink nur von der
+                <a href="https://github.com/mxzinke/buchfink/releases">Releases-Seite</a> und
+                probieren Sie es zuerst mit einem Testunternehmen aus.
+              </p>
             </div>
           </div>
+
+          <h2 class="section__title" style="margin-top: 48px">1. Die App installieren</h2>
 
           <div class="ostabs">
             <input type="radio" name="os" id="os-mac" checked />
@@ -191,84 +163,23 @@
             <div class="ostabs__panel" id="panel-mac">
               <div class="steps">
                 <div class="step">
-                  <h2 class="step__title">Das Terminal öffnen</h2>
+                  <h3 class="step__title">Herunterladen</h3>
                   <p class="step__body">
-                    Drücken Sie <strong>Befehlstaste + Leertaste</strong>, tippen Sie
-                    <strong>Terminal</strong> und drücken Sie Enter. Es öffnet sich ein Fenster,
-                    in das Sie Text eingeben können. Jeden Befehl von dieser Seite kopieren Sie
-                    dorthin und drücken danach Enter.
+                    Laden Sie
+                    <a href="https://github.com/mxzinke/buchfink/releases/latest/download/buchfink-darwin-universal.zip">buchfink-darwin-universal.zip</a>,
+                    entpacken Sie die Datei und ziehen Sie <code>buchfink.app</code> in den Ordner
+                    „Programme“. Die App läuft auf Apple Silicon und Intel.
                   </p>
                 </div>
-
                 <div class="step">
-                  <h2 class="step__title">Die Werkzeuge von Apple nachinstallieren</h2>
-                  <div class="cmd">xcode-select --install</div>
+                  <h3 class="step__title">Den ersten Start erlauben</h3>
                   <p class="step__body">
-                    Ein Fenster fragt nach; bestätigen Sie es. Steht dort, die Werkzeuge seien
-                    schon installiert, ist alles in Ordnung. Gehen Sie zum nächsten Schritt.
+                    Starten Sie Buchfink. macOS meldet, dass es die App nicht prüfen kann. Öffnen
+                    Sie <strong>Systemeinstellungen → Datenschutz &amp; Sicherheit</strong> und
+                    wählen Sie bei der Meldung zu Buchfink <strong>Dennoch öffnen</strong>.
                   </p>
-                </div>
-
-                <div class="step">
-                  <h2 class="step__title">Homebrew installieren</h2>
-                  <p class="step__body">
-                    Homebrew ist ein Programm, das andere Programme installiert. Prüfen Sie mit
-                    <code>brew --version</code>, ob es schon da ist. Wenn nicht:
-                  </p>
-                  <div class="cmd">/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"</div>
-                  <p class="step__body">
-                    Sie werden nach Ihrem Anmeldekennwort gefragt. Beim Tippen bleibt das Feld
-                    leer. Das ist so gewollt. Am Ende nennt Homebrew ein oder zwei Zeilen, die
-                    Sie noch ausführen sollen; kopieren Sie sie und drücken Sie Enter.
-                  </p>
-                </div>
-
-                <div class="step">
-                  <h2 class="step__title">Go, Node und Task installieren</h2>
-                  <div class="cmd">brew install go node go-task</div>
-                </div>
-
-                <div class="step">
-                  <h2 class="step__title">Wails installieren</h2>
-                  <div class="cmd">go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.9
-echo 'export PATH="$PATH:$HOME/go/bin"' &gt;&gt; ~/.zprofile
-source ~/.zprofile</div>
-                  <p class="step__body">
-                    Die zweite und dritte Zeile sagen dem Rechner, wo er das eben installierte
-                    Programm findet.
-                  </p>
-                </div>
-
-                <div class="step">
-                  <h2 class="step__title">Buchfink herunterladen</h2>
-                  <div class="cmd">cd ~/Downloads
-curl -L -o buchfink.zip https://github.com/mxzinke/buchfink/archive/refs/heads/master.zip
-unzip -q buchfink.zip
-cd buchfink-master</div>
-                  <p class="step__body">
-                    Sie landen im entpackten Ordner. Von hier aus laufen die nächsten Befehle.
-                  </p>
-                </div>
-
-                <div class="step">
-                  <h2 class="step__title">Buchfink bauen</h2>
-                  <div class="cmd">task package</div>
-                  <p class="step__body">
-                    Der erste Lauf lädt viel herunter und dauert 10 bis 20 Minuten. Solange
-                    Zeilen durchlaufen, arbeitet er. Fertig ist er, wenn wieder eine leere
-                    Eingabezeile dasteht.
-                  </p>
-                </div>
-
-                <div class="step">
-                  <h2 class="step__title">Starten</h2>
-                  <div class="cmd">open bin/buchfink.app</div>
-                  <p class="step__body">
-                    Ziehen Sie <code>bin/buchfink.app</code> in den Ordner „Programme“, dann
-                    starten Sie Buchfink künftig wie jedes andere Programm. Beim ersten Öffnen
-                    meldet macOS, das Programm stamme von einem unbekannten Entwickler: öffnen
-                    Sie es mit Rechtsklick → <strong>Öffnen</strong> und bestätigen Sie.
-                  </p>
+                  <p class="step__body">Meldet macOS, die App sei beschädigt, hilft im Terminal:</p>
+                  <div class="cmd">xattr -dr com.apple.quarantine /Applications/buchfink.app</div>
                 </div>
               </div>
             </div>
@@ -277,70 +188,27 @@ cd buchfink-master</div>
             <div class="ostabs__panel" id="panel-win">
               <div class="steps">
                 <div class="step">
-                  <h2 class="step__title">PowerShell öffnen</h2>
+                  <h3 class="step__title">Herunterladen und starten</h3>
                   <p class="step__body">
-                    Drücken Sie die <strong>Windows-Taste</strong>, tippen Sie
-                    <strong>PowerShell</strong> und drücken Sie Enter. Es öffnet sich ein Fenster,
-                    in das Sie Text eingeben können. Jeden Befehl von dieser Seite kopieren Sie
-                    dorthin und drücken danach Enter.
+                    Laden Sie
+                    <a href="https://github.com/mxzinke/buchfink/releases/latest/download/buchfink-windows-amd64.exe">buchfink-windows-amd64.exe</a>,
+                    legen Sie die Datei in einen Ordner Ihrer Wahl und starten Sie sie. Ein
+                    Installationsprogramm gibt es nicht.
                   </p>
                 </div>
-
                 <div class="step">
-                  <h2 class="step__title">Go und Node installieren</h2>
-                  <div class="cmd">winget install --id GoLang.Go -e
-winget install --id OpenJS.NodeJS.LTS -e</div>
+                  <h3 class="step__title">SmartScreen bestätigen</h3>
                   <p class="step__body">
-                    Schließen Sie das PowerShell-Fenster danach und öffnen Sie es neu. Erst dann
-                    kennt Windows die neuen Programme.
+                    Windows meldet „Der Computer wurde durch Windows geschützt“. Wählen Sie
+                    <strong>Weitere Informationen</strong> und dann <strong>Trotzdem
+                    ausführen</strong>.
                   </p>
-                </div>
-
-                <div class="step">
-                  <h2 class="step__title">Wails und Task installieren</h2>
-                  <div class="cmd">go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.9
-go install github.com/go-task/task/v3/cmd/task@latest
-$env:Path += ";$env:USERPROFILE\go\bin"</div>
                   <p class="step__body">
-                    Die dritte Zeile gilt nur für das offene Fenster. Bauen Sie Buchfink später
-                    erneut, geben Sie sie wieder ein. Dauerhaft wird sie, wenn Sie den Ordner
-                    <code>%USERPROFILE%\go\bin</code> unter „Umgebungsvariablen bearbeiten“
-                    eintragen.
-                  </p>
-                </div>
-
-                <div class="step">
-                  <h2 class="step__title">Buchfink herunterladen</h2>
-                  <div class="cmd">cd ~\Downloads
-Invoke-WebRequest -Uri https://github.com/mxzinke/buchfink/archive/refs/heads/master.zip -OutFile buchfink.zip
-Expand-Archive -Path buchfink.zip -DestinationPath . -Force
-cd buchfink-master</div>
-                  <p class="step__body">
-                    Sie landen im entpackten Ordner. Von hier aus läuft der nächste Befehl.
-                  </p>
-                </div>
-
-                <div class="step">
-                  <h2 class="step__title">Buchfink bauen</h2>
-                  <div class="cmd">task build</div>
-                  <p class="step__body">
-                    Der erste Lauf lädt viel herunter und dauert 10 bis 20 Minuten. Solange
-                    Zeilen durchlaufen, arbeitet er. Fertig ist er, wenn wieder eine leere
-                    Eingabezeile dasteht.
-                  </p>
-                </div>
-
-                <div class="step">
-                  <h2 class="step__title">Starten</h2>
-                  <div class="cmd">.\bin\buchfink.exe</div>
-                  <p class="step__body">
-                    Die Datei liegt im Ordner <code>buchfink-master\bin</code>. Sie können sie
-                    von dort per Doppelklick starten oder eine Verknüpfung auf den Desktop legen.
-                    Windows
-                    10 und 11 bringen alles Weitere mit; nur auf einem älteren Windows fehlt
-                    gelegentlich die
-                    <a href="https://developer.microsoft.com/microsoft-edge/webview2/">WebView2-Laufzeit</a>,
-                    die Sie dann einmal nachinstallieren.
+                    Buchfink braucht die WebView2-Laufzeit von Microsoft. Windows 11 bringt sie mit,
+                    unter Windows 10 kommt sie meist über Windows Update. Fehlt sie, installieren Sie
+                    die Evergreen-Laufzeit von der
+                    <a href="https://developer.microsoft.com/microsoft-edge/webview2/">WebView2-Seite
+                    von Microsoft</a>.
                   </p>
                 </div>
               </div>
@@ -350,81 +218,34 @@ cd buchfink-master</div>
             <div class="ostabs__panel" id="panel-linux">
               <div class="steps">
                 <div class="step">
-                  <h2 class="step__title">Ein Terminal öffnen</h2>
+                  <h3 class="step__title">Herunterladen und starten</h3>
                   <p class="step__body">
-                    Auf den meisten Systemen mit <strong>Strg + Alt + T</strong>. Jeden Befehl von
-                    dieser Seite kopieren Sie dorthin und drücken danach Enter.
+                    Laden Sie
+                    <a href="https://github.com/mxzinke/buchfink/releases/latest/download/buchfink-linux-amd64.tar.gz">buchfink-linux-amd64.tar.gz</a>,
+                    entpacken Sie die Datei und starten Sie Buchfink:
+                  </p>
+                  <div class="cmd">tar -xzf buchfink-linux-amd64.tar.gz &amp;&amp; ./buchfink</div>
+                  <p class="step__body">
+                    Die Datei <code>buchfink</code> können Sie in einen Ordner im <code>PATH</code>
+                    legen, etwa <code>~/.local/bin</code>.
                   </p>
                 </div>
-
                 <div class="step">
-                  <h2 class="step__title">Die Systempakete installieren</h2>
-                  <p class="step__body">Auf Ubuntu und Debian:</p>
-                  <div class="cmd">sudo apt update
-sudo apt install curl unzip build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev</div>
-                  <p class="step__body">Auf Fedora:</p>
-                  <div class="cmd">sudo dnf install curl unzip gcc pkgconf-pkg-config gtk4-devel webkitgtk6.0-devel</div>
-                </div>
-
-                <div class="step">
-                  <h2 class="step__title">Go und Node prüfen</h2>
-                  <div class="cmd">go version
-node --version</div>
+                  <h3 class="step__title">Bibliotheken prüfen</h3>
                   <p class="step__body">
-                    Nötig sind Go ab 1.25 und Node 20 ab 20.19 oder Node ab 22.12. Antwortet einer der beiden Befehle
-                    nicht oder nennt eine kleinere Zahl, holen Sie die Fassung von
-                    <a href="https://go.dev/dl/">go.dev</a> beziehungsweise
-                    <a href="https://nodejs.org/">nodejs.org</a>. Die Pakete der Distribution sind
-                    oft älter.
-                  </p>
-                </div>
-
-                <div class="step">
-                  <h2 class="step__title">Wails und Task installieren</h2>
-                  <div class="cmd">go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.9
-go install github.com/go-task/task/v3/cmd/task@latest
-echo 'export PATH="$PATH:$HOME/go/bin"' &gt;&gt; ~/.bashrc
-source ~/.bashrc</div>
-                </div>
-
-                <div class="step">
-                  <h2 class="step__title">Buchfink herunterladen</h2>
-                  <div class="cmd">cd ~
-curl -L -o buchfink.zip https://github.com/mxzinke/buchfink/archive/refs/heads/master.zip
-unzip -q buchfink.zip
-cd buchfink-master</div>
-                  <p class="step__body">
-                    Sie landen im entpackten Ordner. Von hier aus läuft der nächste Befehl.
-                  </p>
-                </div>
-
-                <div class="step">
-                  <h2 class="step__title">Buchfink bauen</h2>
-                  <div class="cmd">task build</div>
-                  <p class="step__body">
-                    Der erste Lauf lädt viel herunter und dauert 10 bis 20 Minuten. Solange
-                    Zeilen durchlaufen, arbeitet er. Fertig ist er, wenn wieder eine leere
-                    Eingabezeile dasteht.
-                  </p>
-                </div>
-
-                <div class="step">
-                  <h2 class="step__title">Starten</h2>
-                  <div class="cmd">./bin/buchfink</div>
-                  <p class="step__body">
-                    <code>task package</code> baut daraus zusätzlich ein AppImage sowie ein deb-
-                    und ein rpm-Paket. Dafür braucht es weitere Werkzeuge, und für den Anfang ist
-                    es nicht nötig.
+                    Buchfink ist unter Ubuntu 24.04 für x86-64 gebaut und braucht GTK 3,
+                    WebKitGTK 4.1 und glibc ab Version 2.34. Unter Debian und Ubuntu installiert
+                    <code>sudo apt install libwebkit2gtk-4.1-0</code> WebKitGTK samt GTK 3, unter
+                    Fedora <code>sudo dnf install webkit2gtk4.1</code>.
                   </p>
                 </div>
               </div>
             </div>
           </div>
 
-          <p class="section__lead" style="margin-top: 48px">
-            Eine neue Fassung holen Sie später genauso: ZIP-Datei erneut herunterladen, entpacken,
-            bauen. Die Werkzeuge sind dann schon da, und Ihre Buchhaltung liegt ohnehin in einem
-            eigenen Ordner und nicht in dem des Programms.
+          <p class="section__lead" style="margin-top: 40px">
+            Wer selbst bauen möchte, folgt der
+            <a href="https://github.com/mxzinke/buchfink/blob/master/docs/entwicklung/README.md">Entwicklungsanleitung</a>.
           </p>
         </div>
       </section>
@@ -432,32 +253,27 @@ cd buchfink-master</div>
       <!-- ================================================================= -->
       <section class="band band--sunken">
         <div class="wrap">
-          <p class="overline">Danach</p>
-          <h2 class="section__title">Der erste Start</h2>
-          <p class="section__lead">
-            Ein Assistent fragt nach Firma, Rechtsform, Geschäftsjahr und dem Ordner, in dem Ihre
-            Buchhaltung liegen soll. Danach steht die Aufgabenliste vor Ihnen.
-          </p>
-
+          <p class="overline">Erster Start</p>
+          <h2 class="section__title">2. Einrichten in zwei Schritten</h2>
           <ul class="plain-list">
             <li>
-              <strong>Ihre Daten liegen in einem Ordner.</strong> Darin stehen die Datenbank, die
-              Schlüsseldatei und die Originalbelege. Sie wählen ihn beim Einrichten; er gehört
-              Ihnen und lässt sich verschieben.
+              <strong>Unternehmen.</strong> Firma und Rechtsform (GmbH oder UG), ob Sie gründen
+              oder mit bestehenden Büchern umsteigen, der erste Tag der Bücher, ein leerer
+              Ordner als Ablage für die Daten und der Eingang für neue Belege. Anschrift, Register
+              und Steuernummer tragen Sie ein, soweit Sie sie haben.
             </li>
             <li>
-              <strong>Die Sicherung läuft mit.</strong> Beim Beenden und einmal täglich in einen
-              zweiten Ordner Ihrer Wahl. Eine Sicherung ist eine gewöhnliche ZIP-Datei.
-            </li>
-            <li>
-              <strong>Wiederherstellen geht beim Start.</strong> Buchfink bietet die Sicherung an
-              und prüft danach, ob die Daten unverändert sind.
+              <strong>KI-Agent verbinden.</strong> Sie wählen Ihre KI-App und richten sie nach
+              der Anleitung unten ein. Verbinden können Sie auch später.
             </li>
           </ul>
-
-          <button class="reveal" type="button" data-dialog="dlg-was-genau-in-dem">
-                Mehr erfahren
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <p class="section__lead">
+            Danach wählen Sie in den Einstellungen ein Sicherungsziel, am besten auf einem anderen
+            Datenträger. Ohne Ziel sichert Buchfink nicht.
+          </p>
+          <button class="reveal" type="button" data-dialog="dlg-datenordner">
+            Was im Datenordner liegt
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M5 12h14m0 0-5-5m5 5-5 5" />
             </svg>
           </button>
@@ -467,41 +283,74 @@ cd buchfink-master</div>
       <!-- ================================================================= -->
       <section class="band">
         <div class="wrap">
-          <p class="overline">Hilfe</p>
-          <h2 class="section__title">Wenn etwas nicht klappt</h2>
-
-          <ul class="plain-list">
-            <li>
-              <strong>„command not found“ oder „wird nicht erkannt“.</strong> Das Fenster kennt
-              ein eben installiertes Programm noch nicht. Schließen Sie es, öffnen Sie ein neues
-              und geben Sie den Befehl erneut ein.
-            </li>
-            <li>
-              <strong>Der Bau bricht mit einer Fehlermeldung ab.</strong>
-              <code>wails3 doctor</code> prüft Ihr System und nennt, was fehlt.
-            </li>
-            <li>
-              <strong>Es bleibt dabei.</strong> Melden Sie den Fehler mit der letzten
-              Bildschirmausgabe unter
-              <a href="https://github.com/mxzinke/buchfink/issues">GitHub Issues</a>. Bisher
-              arbeiten wenige Anwender mit Buchfink, deshalb zählt jede Meldung.
-            </li>
-          </ul>
-
+          <p class="overline">KI-Agent</p>
+          <h2 class="section__title">3. Den Agenten verbinden</h2>
+          <p class="section__lead">
+            Wählen Sie unten Ihre KI-App und folgen Sie der Anleitung. Beim ersten Verbinden
+            öffnet sich der Browser. Buchfink bittet Sie in einem eigenen Fenster um Zustimmung.
+            Die Anleitungen zeigen auch, wie Sie die Buchhaltungsanleitungen für Ihren Agenten
+            hinzufügen. Diese sogenannten Skills enthalten Arbeitsschritte und Fachwissen mit Quellen.
+          </p>
+          <div class="links links--paired">
+            <div>
+              <p class="link__title"><a href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/claude-code.md">Claude Code</a></p>
+              <p class="link__body">Das Buchfink-Plugin richtet die Verbindung ein und enthält die Buchhaltungsanleitungen für den Agenten.</p>
+            </div>
+            <div>
+              <p class="link__title"><a href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/claude-desktop.md">Claude Desktop</a></p>
+              <p class="link__body">Die Buchfink-Erweiterung herunterladen und per Doppelklick installieren. Für macOS und Windows.</p>
+            </div>
+            <div>
+              <p class="link__title"><a href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/chatgpt-desktop.md">ChatGPT Desktop</a></p>
+              <p class="link__body">In den Einstellungen unter „MCP servers“ hinzufügen. Wählen Sie Streamable HTTP und tragen Sie <code>http://127.0.0.1:7465/mcp</code> ein.</p>
+            </div>
+            <div>
+              <p class="link__title"><a href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/opencode.md">OpenCode</a></p>
+              <p class="link__body">Die Verbindung in der Einstellungsdatei eintragen und die Buchhaltungsanleitungen hinzufügen.</p>
+            </div>
+            <div>
+              <p class="link__title"><a href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/codex.md">Codex</a></p>
+              <p class="link__body">Mit einem Terminalbefehl verbinden, anschließend anmelden und die Buchhaltungsanleitungen hinzufügen.</p>
+            </div>
+            <div>
+              <p class="link__title"><a href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/pi.md">Pi</a></p>
+              <p class="link__body">Mit einem Terminalbefehl verbinden, anschließend anmelden und die Buchhaltungsanleitungen hinzufügen.</p>
+            </div>
+          </div>
           <p class="section__lead" style="margin-top: 40px">
-            Mitwirken ist willkommen: Fehlerberichte, Verbesserungen, Pull Requests. Der Ablauf
-            steht in
-            <a href="https://github.com/mxzinke/buchfink/blob/master/CONTRIBUTING.md">CONTRIBUTING.md</a>,
-            die Fachkonzepte liegen im Ordner
-            <a href="https://github.com/mxzinke/buchfink/tree/master/docs">docs/</a>.
+            Was Sie Ihrem Agenten zeigen, geht an den Anbieter des Sprachmodells.
+            <a href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/datensicherheit.md#ki-anbieter">Was das bedeutet</a>.
           </p>
         </div>
       </section>
 
+      <!-- ================================================================= -->
+      <section class="band band--sunken">
+        <div class="wrap">
+          <p class="overline">Hilfe</p>
+          <h2 class="section__title">Wenn etwas nicht klappt</h2>
+          <ul class="plain-list">
+            <li>
+              <strong>Die KI-App erreicht Buchfink nicht.</strong> Buchfink muss laufen und ein
+              Unternehmen geöffnet haben. Ist Port 7465 belegt, ändern Sie ihn in den Einstellungen
+              und in der KI-App.
+            </li>
+            <li>
+              <strong>Die Anmeldung hängt.</strong> Schauen Sie ins Fenster von Buchfink: Dort
+              wartet die Anfrage auf Ihre Zustimmung.
+            </li>
+            <li>
+              <strong>Es bleibt dabei.</strong> Melden Sie den Fehler unter
+              <a href="https://github.com/mxzinke/buchfink/issues">GitHub Issues</a>, mit
+              Programmversion, Betriebssystem, KI-App und den Schritten bis zum Fehler.
+            </li>
+          </ul>
+        </div>
+      </section>
 
-      <dialog class="modal" id="dlg-was-genau-in-dem" aria-labelledby="dlg-was-genau-in-dem-titel">
+      <dialog class="modal" id="dlg-datenordner" aria-labelledby="dlg-datenordner-titel">
         <div class="modal__head">
-          <h3 class="modal__title" id="dlg-was-genau-in-dem-titel">Was genau in dem Ordner liegt</h3>
+          <h3 class="modal__title" id="dlg-datenordner-titel">Was im Datenordner liegt</h3>
           <button class="modal__close" type="button" data-close aria-label="Schließen">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
               <path d="m6 6 12 12M18 6 6 18" />
@@ -510,14 +359,21 @@ cd buchfink-master</div>
         </div>
         <div class="modal__body">
           <p>
-          Die Datenbank <code>buchfink.sqlite</code>, die Schlüsseldatei
-          <code>buchfink.keyfile.json</code> und die Unterordner <code>belege/</code> und
-          <code>dokumente/</code> mit den Originaldateien. Ein Mandant, ein Ordner.
+            Je Unternehmen ein Ordner, die Ablage: die Datenbank <code>buchfink.sqlite</code> mit
+            Buchungen, Stammdaten und Änderungsprotokoll, die Originalbelege unter
+            <code>belege/</code> und die Fassungen der Verfahrensdokumentation unter
+            <code>dokumente/</code>. Dazu kommen der Eingang für neue Belege und der Exportordner
+            für Dateien, die Ihr Agent erzeugt; beide liegen zunächst in der Ablage und lassen sich
+            woanders hinlegen.
           </p>
           <p>
-          Die Schlüsseldatei gehört zur Verschlüsselung der personenbezogenen Felder.
-          Verlieren Sie sie zusammen mit dem Schlüsselbund des Betriebssystems, sind diese
-          Felder nicht mehr lesbar. Sichern Sie beides.
+            Legen Sie die Ablage nicht in einen Cloud-Ordner wie iCloud Drive, OneDrive oder
+            Dropbox. Die Datenbank verträgt keine Synchronisation, während Buchfink läuft. Den
+            Eingang dürfen Sie dorthin legen, etwa für eine Scanner-App auf dem Telefon.
+          </p>
+          <p>
+            Nichts davon ist verschlüsselt. Schalten Sie die Festplattenverschlüsselung Ihres
+            Betriebssystems ein und legen Sie Sicherungen auf einem verschlüsselten Datenträger ab.
           </p>
         </div>
       </dialog>
@@ -529,28 +385,27 @@ cd buchfink-master</div>
           <div>
             <p class="foot__title">Buchfink</p>
             <p>
-              Kostenlose und quelloffene Buchhaltung für kleine bilanzierende Unternehmen in
-              Deutschland. Läuft auf dem eigenen Rechner, ohne Cloud.
+              Quelloffene Buchhaltung für GmbH und UG in Deutschland. Läuft auf dem eigenen
+              Rechner. Ihr KI-Agent hilft beim Buchen.
             </p>
           </div>
           <div>
             <p class="foot__title">Seiten</p>
             <ul>
-              <li><a href="buchhaltung.html">Laufende Buchhaltung</a></li>
-              <li><a href="umsatzsteuer.html">Umsatzsteuer und Meldungen</a></li>
-              <li><a href="abschluss.html">Abschluss</a></li>
-              <li><a href="nachweise.html">Nachweise und Sicherheit</a></li>
-              <li><a href="roadmap.html">Roadmap</a></li>
+              <li><a href="index.html">Start</a></li>
+              <li><a href="so-funktionierts.html">So funktioniert’s</a></li>
               <li><a href="installation.html">Installation</a></li>
+              <li><a href="roadmap.html">Roadmap</a></li>
             </ul>
           </div>
           <div>
             <p class="foot__title">Projekt</p>
             <ul>
               <li><a href="https://github.com/mxzinke/buchfink">Quellcode</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/releases">Releases</a></li>
               <li><a href="https://github.com/mxzinke/buchfink/issues">Fehler melden</a></li>
               <li><a href="https://github.com/mxzinke/buchfink/blob/master/CONTRIBUTING.md">Mitwirken</a></li>
-              <li><a href="https://github.com/mxzinke/buchfink/tree/master/docs">Fachkonzepte</a></li>
+              <li><a href="https://github.com/mxzinke/buchfink/tree/master/docs">Dokumentation</a></li>
             </ul>
           </div>
           <div>
@@ -569,7 +424,7 @@ cd buchfink-master</div>
         <div class="foot__bottom">
           <span>© 2026 Maximilian Pfennig</span>
           <span>
-            Alle Zahlen, Firmen und Belege in den Screenshots sind erfunden. „SKR04“ und „DATEV“
+            Alle Zahlen, Firmen und Belege in den Bildern sind erfunden. „SKR04“ und „DATEV“
             sind Kennzeichen der DATEV eG.
           </span>
         </div>

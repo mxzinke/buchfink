@@ -548,6 +548,37 @@ func TestOpenDeductionsFromSubscribedCapitalAreNoFinding(t *testing.T) {
 	}
 }
 
+// Wertberichtigungen auf Forderungen stehen im Haben, mindern aber die
+// Forderungen (§ 253 Abs. 4 Satz 2 HGB); unter den Verbindlichkeiten haben sie
+// nichts zu suchen. Forderungen 10.000 € abzüglich EWB 1.000 € und PWB 100 €
+// ergeben 8.900 €.
+func TestReceivableAllowanceReducesTheReceivables(t *testing.T) {
+	stmt, err := BuildStatement(accountsWith(t, map[string]domain.Cents{
+		"1200": 1_000_000, // Forderungen aus Lieferungen und Leistungen
+		"1246": -100_000,  // Einzelwertberichtigung
+		"1248": -10_000,   // Pauschalwertberichtigung
+		"2900": -890_000,  // Gezeichnetes Kapital
+	}), nil, domain.DepthFull)
+	if err != nil {
+		t.Fatalf("Bilanz: %v", err)
+	}
+	if got := lineAmount(t, stmt, "aktiva.B.II.1"); got != 890_000 {
+		t.Errorf("Forderungen nach Wertberichtigung %s €, erwartet 8.900,00 €", got)
+	}
+	if got := lineAmount(t, stmt, "passiva.C.8"); got != 0 {
+		t.Errorf("unter den sonstigen Verbindlichkeiten stehen %s €, erwartet 0,00 €", got)
+	}
+	if stmt.Assignment.HasFindings() {
+		t.Errorf("der Zuordnungsbericht meldet Befunde zur Wertberichtigung: %+v", stmt.Assignment)
+	}
+	for _, number := range []string{"1246", "1248"} {
+		if key, _ := StatementKeyForAccount(domain.Account{Number: number,
+			PositionID: "bilanz.aktiva_b_ii.forderungen_aus_lieferungen_und_leistung", CreditSum: 1}); key != "aktiva.B.II.1" {
+			t.Errorf("%s mit Habensaldo steht unter %s", number, key)
+		}
+	}
+}
+
 // Ein Erfolgskonto ohne Gliederungsposition gehört in die Staffel, nicht auf die
 // Aktivseite: sonst wiche Nummer 17 von dem Betrag ab, der als Posten A.V in
 // der Bilanz steht.

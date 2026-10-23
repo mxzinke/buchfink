@@ -84,15 +84,10 @@ type FileContent struct {
 
 // ReceiptService files Belege away, hands them out and seals them.
 type ReceiptService struct {
+	serviceClock
 	receiptRepo domain.ReceiptRepository
-	journalRepo domain.JournalRepository
 	store       *receiptstore.Store
 	auditRepo   domain.AuditRepository
-	fiscalYear  int
-	// documents ist die Anlagenkartei, soweit der Belegprüflauf sie braucht.
-	// Optional: ohne sie prüft er die Belege und sagt es.
-	documents        DocumentSource
-	companyDocuments domain.DocumentRepository
 	// Die drei Anschlüsse des Eigenbelegs (siehe self_issued_receipt.go). Alle
 	// drei sind freiwillig, weil der Belegdienst ohne sie vollständig arbeitet:
 	// er legt ab, gibt heraus und versiegelt. Nur den Eigenbeleg erzeugt er
@@ -106,25 +101,40 @@ type ReceiptService struct {
 	contacts domain.ContactRepository
 }
 
+// filingYear ist das Geschäftsjahr eines Belegs ohne ausdrückliche Angabe: das
+// seines Belegdatums, sonst das seines Eingangs, sonst das des heutigen Tages.
+func (s *ReceiptService) filingYear(ctx context.Context, req FileReceiptRequest) (int, error) {
+	field, date := "Belegdatum", req.DocumentDate
+	if date == "" {
+		field, date = "Eingangsdatum", req.ReceivedAt
+	}
+	if date == "" {
+		date = s.today()
+	}
+	if err := domain.CheckDate(field, date); err != nil {
+		return 0, err
+	}
+	startMonth := 1
+	if s.settingsRepo != nil {
+		if settings, err := s.settingsRepo.GetCompanySettings(ctx); err == nil && settings != nil {
+			startMonth = settings.FiscalYearStartMonth
+		}
+	}
+	return domain.GetFiscalYearForDate(date, startMonth), nil
+}
+
 // NewReceiptService creates the Beleg service.
 func NewReceiptService(
 	receiptRepo domain.ReceiptRepository,
-	journalRepo domain.JournalRepository,
 	store *receiptstore.Store,
 	auditRepo domain.AuditRepository,
-	fiscalYear int,
 ) *ReceiptService {
 	return &ReceiptService{
 		receiptRepo: receiptRepo,
-		journalRepo: journalRepo,
 		store:       store,
 		auditRepo:   auditRepo,
-		fiscalYear:  fiscalYear,
 	}
 }
-
-// SetFiscalYear updates the year new Belege are filed under.
-func (s *ReceiptService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // File stores the files on disk and inserts the Beleg.
 //
@@ -138,10 +148,10 @@ func (s *ReceiptService) File(ctx context.Context, req FileReceiptRequest) (*dom
 	}
 	fiscalYear := req.FiscalYear
 	if fiscalYear == 0 {
-		fiscalYear = s.fiscalYear
-	}
-	if fiscalYear == 0 {
-		return nil, fmt.Errorf("kein Geschäftsjahr gesetzt")
+		var err error
+		if fiscalYear, err = s.filingYear(ctx, req); err != nil {
+			return nil, err
+		}
 	}
 
 	kind := req.Kind
@@ -166,7 +176,7 @@ func (s *ReceiptService) File(ctx context.Context, req FileReceiptRequest) (*dom
 	}
 	applyRetention(receipt)
 	if receipt.ReceivedAt == "" && req.Direction == domain.DirectionIncoming {
-		receipt.ReceivedAt = todayLocal()
+		receipt.ReceivedAt = s.today()
 	}
 	if receipt.ReceivedVia == "" {
 		if req.Direction == domain.DirectionOutgoing {
@@ -192,8 +202,10 @@ func (s *ReceiptService) File(ctx context.Context, req FileReceiptRequest) (*dom
 		return nil, fmt.Errorf("Beleg konnte nicht abgelegt werden: %w", err)
 	}
 
-	s.log(ctx, domain.AuditActionCreate, receipt,
-		fmt.Sprintf("Beleg %s mit %d Datei(en) abgelegt", receipt.ReceiptNumber, len(receipt.Files)))
+	if err := s.log(ctx, domain.AuditActionCreate, receipt,
+		fmt.Sprintf("Beleg %s mit %d Datei(en) abgelegt", receipt.ReceiptNumber, len(receipt.Files))); err != nil {
+		return nil, err
+	}
 	return receipt, nil
 }
 
@@ -263,9 +275,11 @@ func (s *ReceiptService) RemoveFile(ctx context.Context, receiptID, fileID uint)
 	// Name und Prüfsumme der entfernten Datei stehen im Protokoll. Ohne sie
 	// bliebe von einer entfernten Datei nichts als die Zahl der verbliebenen,
 	// und die Frage, was da war, ließe sich nicht mehr beantworten.
-	s.log(ctx, domain.AuditActionUpdate, updated, fmt.Sprintf(
+	if err := s.log(ctx, domain.AuditActionUpdate, updated, fmt.Sprintf(
 		"Aus Beleg %s wurde die Datei %s (Rolle %s, SHA256 %s) entfernt",
-		receipt.ReceiptNumber, removed.FileName, removed.Role, removed.SHA256))
+		receipt.ReceiptNumber, removed.FileName, removed.Role, removed.SHA256)); err != nil {
+		return nil, err
+	}
 	return updated, nil
 }
 
@@ -325,12 +339,12 @@ func (s *ReceiptService) SaveHeader(ctx context.Context, receiptID uint, header 
 	// ändert, verschiebt seine Aufbewahrungsfrist und die Beurteilung seiner
 	// zeitgerechten Erfassung — beides gehört mit beiden Ständen ins Protokoll
 	// (GoBD Rz. 34).
-	if s.auditRepo != nil {
-		_ = s.auditRepo.LogChange(ctx, domain.AuditActionUpdate, "RECEIPT", fmt.Sprintf("%d", receiptID),
-			fmt.Sprintf("Kopfdaten von Beleg %s erfasst: %s, %s, %s €; Aufbewahrung bis %s (%s)",
-				updated.ReceiptNumber, updated.DocumentDate, updated.IssuerName, updated.GrossAmount,
-				updated.RetentionUntil, updated.RetentionClass.Label()),
-			receipt, updated)
+	if err := logAuditChange(ctx, s.auditRepo, domain.AuditActionUpdate, "RECEIPT", fmt.Sprintf("%d", receiptID),
+		fmt.Sprintf("Kopfdaten von Beleg %s erfasst: %s, %s, %s €; Aufbewahrung bis %s (%s)",
+			updated.ReceiptNumber, updated.DocumentDate, updated.IssuerName, updated.GrossAmount,
+			updated.RetentionUntil, updated.RetentionClass.Label()),
+		receipt, updated); err != nil {
+		return nil, err
 	}
 	return s.Get(ctx, receiptID)
 }
@@ -349,81 +363,33 @@ func (s *ReceiptService) replaceFiles(ctx context.Context, receipt *domain.Recei
 	if err != nil {
 		return nil, err
 	}
-	s.log(ctx, domain.AuditActionUpdate, updated,
-		fmt.Sprintf("Beleg %s hat jetzt %d Datei(en)", updated.ReceiptNumber, len(updated.Files)))
+	if err := s.log(ctx, domain.AuditActionUpdate, updated,
+		fmt.Sprintf("Beleg %s hat jetzt %d Datei(en)", updated.ReceiptNumber, len(updated.Files))); err != nil {
+		return nil, err
+	}
 	return s.Get(ctx, receipt.ID)
 }
 
-// Get returns a Beleg with its files in hash order, repairing a missing seal on
-// the way.
-//
-// The seal is a second write, after the journal transaction has committed. If
-// the process dies in between, a booked Beleg still looks open — and would then
-// accept another file, which would change its hash and break the chain of an
-// entry that is already written. Reading is the natural place to notice and fix
-// that, because nothing can be booked without reading the Beleg first.
+// Get returns a Beleg with its files in hash order. Buchung und Siegel stehen
+// in einer Transaktion; ein gebuchter, aber offener Beleg kann nicht entstehen.
 func (s *ReceiptService) Get(ctx context.Context, id uint) (*domain.Receipt, error) {
 	receipt, err := s.receiptRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("Beleg konnte nicht geladen werden: %w", err)
 	}
-	if receipt.Status == domain.ReceiptStatusFiled && s.journalRepo != nil {
-		entry, lookupErr := s.journalRepo.FindByReceipt(ctx, receipt.ID)
-		if lookupErr == nil && entry != nil {
-			if sealErr := s.receiptRepo.Seal(ctx, receipt.ID, entry.ID); sealErr == nil {
-				s.log(ctx, domain.AuditActionUpdate, receipt, fmt.Sprintf(
-					"Beleg %s nachträglich mit Buchung %s versiegelt", receipt.ReceiptNumber, entry.EntryNumber))
-				return s.receiptRepo.FindByID(ctx, id)
-			}
-		}
-	}
 	return receipt, nil
 }
 
-// List returns the Belege of the current fiscal year, newest first. An empty
-// status returns all of them.
-func (s *ReceiptService) List(ctx context.Context, status domain.ReceiptStatus) ([]domain.Receipt, error) {
-	if status == "" {
-		return s.receiptRepo.FindAll(ctx, s.fiscalYear)
-	}
-	return s.receiptRepo.FindByStatus(ctx, s.fiscalYear, status)
-}
-
-// FindOutgoingByNumber sucht den Ausgangsbeleg zu einer Rechnungsnummer.
-//
-// Gebraucht wird er für den Reparaturweg: legt das Ablegen den Beleg an und
-// scheitert danach das Speichern der Rechnung, steht der Beleg im Speicher,
-// ohne dass die Rechnung ihn kennt. Ein zweiter Versuch dürfte dann keinen
-// zweiten Beleg mit derselben Rechnungsnummer erzeugen — es gibt einen Vorgang,
-// und zu ihm gehört ein Beleg.
-//
-// Verworfene Belege bleiben außen vor: sie sind die ausdrückliche Aussage, dass
-// dieser Beleg nicht gilt.
-func (s *ReceiptService) FindOutgoingByNumber(
-	ctx context.Context, fiscalYear int, number string,
-) (*domain.Receipt, error) {
-	number = strings.TrimSpace(number)
-	if number == "" {
-		return nil, nil
-	}
-	if fiscalYear == 0 {
-		fiscalYear = s.fiscalYear
-	}
-	all, err := s.receiptRepo.FindAll(ctx, fiscalYear)
-	if err != nil {
+// List returns the Belege of a fiscal year, newest first. An empty status
+// returns all of them.
+func (s *ReceiptService) List(ctx context.Context, year int, status domain.ReceiptStatus) ([]domain.Receipt, error) {
+	if err := requireYear(year); err != nil {
 		return nil, err
 	}
-	for i := range all {
-		r := &all[i]
-		if r.Direction != domain.DirectionOutgoing || r.ReceiptNumber != number {
-			continue
-		}
-		if r.Status == domain.ReceiptStatusDiscarded {
-			continue
-		}
-		return s.Get(ctx, r.ID)
+	if status == "" {
+		return s.receiptRepo.FindAll(ctx, year)
 	}
-	return nil, nil
+	return s.receiptRepo.FindByStatus(ctx, year, status)
 }
 
 // Content returns a stored file for display or for parsing, together with
@@ -469,8 +435,8 @@ func (s *ReceiptService) DisplayContent(ctx context.Context, receiptID uint) (*F
 	return s.Content(ctx, receiptID, file.ID)
 }
 
-// Seal marks a Beleg as booked. It runs after the journal write has committed and
-// is idempotent, so a crash in between can be repaired by repeating it.
+// Seal versiegelt den Beleg auf seine Buchung. Der Buchungsweg ruft es in
+// derselben Transaktion auf.
 func (s *ReceiptService) Seal(ctx context.Context, receiptID, entryID uint) error {
 	// Die Kopfdaten sind beim Buchen Pflicht, und das Versiegeln ist das
 	// Buchen: hier bekommt der Beleg seine Buchung (BEL-02).
@@ -492,6 +458,34 @@ func (s *ReceiptService) Seal(ctx context.Context, receiptID, entryID uint) erro
 		return err
 	}
 	return nil
+}
+
+// AssignToRecord ordnet einen abgelegten Beleg dem Datensatz zu, den er belegt,
+// etwa den Vertrag einem Gesellschafterdarlehen. Er braucht dann keine eigene
+// Buchung. Ein gebuchter Beleg bleibt bei seiner Buchung.
+func (s *ReceiptService) AssignToRecord(
+	ctx context.Context, receiptID uint, kind domain.ReceiptAssignment, recordID uint, label string,
+) error {
+	receipt, err := s.receiptRepo.FindByID(ctx, receiptID)
+	if err != nil {
+		return fmt.Errorf("Beleg %d wurde nicht gefunden: %w", receiptID, err)
+	}
+	if receipt.Status != domain.ReceiptStatusFiled {
+		return nil
+	}
+	if err := s.receiptRepo.Assign(ctx, receiptID, kind, recordID); err != nil {
+		return err
+	}
+	return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "RECEIPT", fmt.Sprintf("%d", receiptID),
+		fmt.Sprintf("Beleg %s zugeordnet: %s", receipt.ReceiptNumber, label))
+}
+
+// ReleaseFromRecord nimmt die Zuordnung zurück, wenn der Datensatz den Beleg
+// nicht mehr nennt; der Beleg ist dann wieder abgelegt.
+func (s *ReceiptService) ReleaseFromRecord(
+	ctx context.Context, receiptID uint, kind domain.ReceiptAssignment, recordID uint,
+) error {
+	return s.receiptRepo.Release(ctx, receiptID, kind, recordID)
 }
 
 // SaveValidation records the outcome of checking the structured part of a Beleg.
@@ -516,10 +510,10 @@ func (s *ReceiptService) SaveInputTaxOverride(ctx context.Context, receiptID uin
 	// Ins Protokoll: die Übersteuerung ist eine Entscheidung des Anwenders gegen
 	// eine Prüfung, und solche Entscheidungen gehören nachvollziehbar
 	// festgehalten (GoBD Rz. 36).
-	if s.auditRepo != nil {
-		_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "RECEIPT", fmt.Sprintf("%d", receiptID),
-			"Befund der Rechnungsprüfung übersteuert, Vorsteuer trotzdem gezogen: "+
-				strings.TrimSpace(reason))
+	if err := logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "RECEIPT", fmt.Sprintf("%d", receiptID),
+		"Befund der Rechnungsprüfung übersteuert, Vorsteuer trotzdem gezogen: "+
+			strings.TrimSpace(reason)); err != nil {
+		return err
 	}
 	return nil
 }
@@ -536,8 +530,10 @@ func (s *ReceiptService) Discard(ctx context.Context, receiptID uint, reason str
 	if err := s.receiptRepo.Discard(ctx, receiptID, reason); err != nil {
 		return err
 	}
-	s.log(ctx, domain.AuditActionUpdate, receipt,
-		fmt.Sprintf("Beleg %s verworfen: %s", receipt.ReceiptNumber, reason))
+	if err := s.log(ctx, domain.AuditActionUpdate, receipt,
+		fmt.Sprintf("Beleg %s verworfen: %s", receipt.ReceiptNumber, reason)); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -580,15 +576,62 @@ func (s *ReceiptService) storeAll(fiscalYear int, direction domain.Direction, fi
 	return stored, nil
 }
 
-func (s *ReceiptService) log(ctx context.Context, action domain.AuditAction, receipt *domain.Receipt, details string) {
+func (s *ReceiptService) log(ctx context.Context, action domain.AuditAction, receipt *domain.Receipt, details string) error {
 	if s.auditRepo == nil || receipt == nil {
-		return
+		return nil
 	}
-	_ = s.auditRepo.Log(ctx, action, "RECEIPT", fmt.Sprintf("%d", receipt.ID), details)
+	return logAudit(ctx, s.auditRepo, action, "RECEIPT", fmt.Sprintf("%d", receipt.ID), details)
 }
 
 // FindByOriginalHash liefert den Beleg zu einer bereits abgelegten
 // Originaldatei, oder nil.
 func (s *ReceiptService) FindByOriginalHash(ctx context.Context, sha256 string) (*domain.Receipt, error) {
 	return s.receiptRepo.FindByOriginalHash(ctx, sha256)
+}
+
+// ReceiptIDsByFileHash nennt zu Prüfsummen den Beleg, der eine Datei mit
+// diesem Inhalt trägt, gleich in welcher Rolle. So erkennt der Eingang, was
+// schon im Archiv liegt.
+func (s *ReceiptService) ReceiptIDsByFileHash(ctx context.Context, sha256s []string) (map[string]uint, error) {
+	return s.receiptRepo.FindIDsByFileHash(ctx, sha256s)
+}
+
+// SaveReceivedAt berichtigt den Eingangstag eines noch nicht gebuchten
+// Eingangsbelegs. Er entscheidet über den Voranmeldungszeitraum der Vorsteuer
+// (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 2 UStG) und gehört deshalb mit beiden
+// Ständen ins Protokoll.
+func (s *ReceiptService) SaveReceivedAt(ctx context.Context, receiptID uint, date string) (*domain.Receipt, error) {
+	if err := domain.CheckDate("Eingangsdatum", date); err != nil {
+		return nil, err
+	}
+	receipt, err := s.Get(ctx, receiptID)
+	if err != nil {
+		return nil, err
+	}
+	if receipt.Direction != domain.DirectionIncoming || !receipt.IsOpen() {
+		return nil, fmt.Errorf("das Eingangsdatum lässt sich nur an einem offenen Eingangsbeleg berichtigen, nicht an %s",
+			receipt.ReceiptNumber)
+	}
+	if receipt.ReceivedAt == date {
+		return receipt, nil
+	}
+	if err := s.receiptRepo.SaveReceivedAt(ctx, receiptID, date); err != nil {
+		return nil, err
+	}
+	updated, err := s.Get(ctx, receiptID)
+	if err != nil {
+		return nil, err
+	}
+	if err := logAuditChange(ctx, s.auditRepo, domain.AuditActionUpdate, "RECEIPT", fmt.Sprintf("%d", receiptID),
+		fmt.Sprintf("Eingangsdatum von Beleg %s von %s auf %s berichtigt", receipt.ReceiptNumber, receipt.ReceivedAt, date),
+		receipt, updated); err != nil {
+		return nil, err
+	}
+	return updated, nil
+}
+
+// FindByEInvoiceNumber liefert die Belege, deren E-Rechnung diese
+// Rechnungsnummer trägt, aus allen Geschäftsjahren.
+func (s *ReceiptService) FindByEInvoiceNumber(ctx context.Context, number string) ([]domain.Receipt, error) {
+	return s.receiptRepo.FindByEInvoiceNumber(ctx, number)
 }

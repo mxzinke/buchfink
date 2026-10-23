@@ -36,7 +36,7 @@ func (r *festschreibungRepositoryGorm) FindByFiscalYear(ctx context.Context, fis
 func (r *festschreibungRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.Festschreibung, error) {
 	var rec domain.Festschreibung
 	if err := dbFrom(ctx, r.db).First(&rec, id).Error; err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	return &rec, nil
 }
@@ -54,6 +54,26 @@ func (r *festschreibungRepositoryGorm) LatestCutoff(ctx context.Context, fiscalY
 		return "", err
 	}
 	return rec.CutoffDate, nil
+}
+
+func (r *festschreibungRepositoryGorm) FindCutoffOnOrAfter(ctx context.Context, date string) ([]domain.Festschreibung, error) {
+	var recs []domain.Festschreibung
+	err := dbFrom(ctx, r.db).
+		Where("cutoff_date >= ?", date).
+		Order("cutoff_date desc, id desc").
+		Find(&recs).Error
+	return recs, err
+}
+
+func (r *festschreibungRepositoryGorm) ConfirmTimestamp(ctx context.Context, rec *domain.Festschreibung) (bool, error) {
+	res := dbFrom(ctx, r.db).Model(&domain.Festschreibung{}).
+		Where("id = ? AND timestamp_status = ?", rec.ID, "pending").
+		Select("TimestampToken", "TSAName", "TSAGenTime", "TimestampStatus", "TimeDriftNote").
+		Updates(&domain.Festschreibung{
+			TimestampToken: rec.TimestampToken, TSAName: rec.TSAName, TSAGenTime: rec.TSAGenTime,
+			TimestampStatus: "confirmed", TimeDriftNote: rec.TimeDriftNote,
+		})
+	return res.RowsAffected == 1, res.Error
 }
 
 func (r *festschreibungRepositoryGorm) FindPendingTimestamp(ctx context.Context) ([]domain.Festschreibung, error) {

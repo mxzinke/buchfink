@@ -32,7 +32,6 @@ nicht gelistet.
 |---|---|---|---|
 | `github.com/adrg/xdg` | v0.5.3 | MIT | Copyright (c) 2014 Adrian-George Bostan <adrg@epistack.com> |
 | `github.com/clipperhouse/uax29/v2` | v2.7.0 | MIT | Copyright (c) 2020 Matt Sherman |
-| `github.com/danieljoos/wincred` | v1.2.3 | MIT | Copyright (c) 2014 Daniel Joos |
 | `github.com/digitorus/pkcs7` | v0.0.0-20230713084857-e76b763bdc49 | MIT | Copyright (c) 2015 Andrew Smith |
 | `github.com/digitorus/timestamp` | v0.0.0-20250524132541-c45532741eea | BSD-2-Clause | Copyright (c) 2017, Digitorus B.V. |
 | `github.com/dustin/go-humanize` | v1.0.1 | MIT | Copyright (c) 2005-2008  Dustin Sallings <dustin@spy.net> |
@@ -53,7 +52,6 @@ nicht gelistet.
 | `github.com/tetratelabs/wazero` | v1.11.0 | Apache-2.0 | Copyright 2020-2023 wazero authors |
 | `github.com/varunbpatil/typst-go-wasm` | v0.3.0 | MIT | Copyright (c) 2026 Varun Patil |
 | `github.com/wailsapp/wails/v3` | v3.0.0-beta.9 | MIT | Copyright (c) 2018-Present Lea Anthony |
-| `github.com/zalando/go-keyring` | v0.2.8 | MIT | Copyright (c) 2016 Zalando SE |
 | `go.yaml.in/yaml/v3` | v3.0.5 | Apache-2.0 | Copyright (c) 2006-2010 Kirill Simonov / Copyright (c) 2006-2011 Kirill Simonov |
 | `golang.org/x/crypto` | v0.55.0 | BSD-3-Clause | Copyright 2009 The Go Authors. |
 | `golang.org/x/image` | v0.44.0 | BSD-3-Clause | Copyright 2009 The Go Authors. |
@@ -102,12 +100,14 @@ nicht gelistet.
 | `validator-configuration-xrechnung (Pruefmaterial)` | internal/einvoice/xrechnung/testdata/kosit/ | Apache-2.0 | Koordinierungsstelle fuer IT-Standards (KoSIT) (https://github.com/itplr-kosit/validator-configuration-xrechnung) |
 | `Typst (WebAssembly-Kompilat)` | in github.com/varunbpatil/typst-go-wasm v0.3.0 | Apache-2.0 | Typst-Projekt (https://github.com/typst/typst) |
 | `Startbildschirm-Foto` | frontend/public/bg-startupscreen_unsplash-steven-kamenar.jpg | Unsplash License | Steven Kamenar (via Unsplash) |
+| `xbrl.de HGB-Taxonomie 6.9/6.10 (Auszug)` | internal/ebilanz/taxonomy/ | XBRL-Deutschland-Disclaimer | (c) XBRL Deutschland e.V. - see http://www.xbrl.de |
 
 - **Manrope (Schriftfamilie):** Zweimal eingebettet: in das Frontend-Bundle und in die Rechnungs-PDFs, weil ein erzeugtes PDF jede benutzte Glyphe enthalten muss. Lizenztexte liegen neben den Schriftdateien: `frontend/public/Manrope-OFL.txt` und `internal/invoice/fonts/LICENSE.txt`.
 - **eInvoicing-EN16931 (Pruefmaterial):** Beispielrechnungen und Regeldateien des Validierungsartefakts. Sie werden nur von Tests gelesen und landen nicht im Binary. Lizenztext: `internal/einvoice/testdata/en16931/LICENSE.txt`.
 - **validator-configuration-xrechnung (Pruefmaterial):** Testinstanzen mit den von KoSIT zugesicherten Urteilen. Sie werden nur von Tests gelesen und landen nicht im Binary. Lizenztext: `internal/einvoice/xrechnung/testdata/kosit/LICENSE`.
 - **Typst (WebAssembly-Kompilat):** Der Satz der Rechnungs- und Dokumenten-PDFs läuft als WebAssembly im eigenen Prozess: kein fremdes Programm, nichts zu installieren. Das Kompilat steckt als `typst_compiler.wasm` in dem Go-Modul, das es einbettet (oben gelistet, MIT für die Hülle), und wird darüber ausgeliefert. Es bringt keine eigene Lizenzdatei mit; es gilt der Apache-2.0-Text, der bei den übrigen Apache-Komponenten steht. Die Rubik-Schriften des Moduls bettet nur dessen eigener Test ein; sie landen nicht im Auslieferungsstand.
 - **Startbildschirm-Foto:** Die Unsplash-Lizenz erlaubt kostenlose kommerzielle Nutzung und Bearbeitung, untersagt aber den Weitervertrieb als eigenstaendiges Bildangebot. Sie ist keine Open-Source-Lizenz und deckt das Foto separat vom uebrigen Werk ab.
+- **xbrl.de HGB-Taxonomie 6.9/6.10 (Auszug):** Abgeleiteter Auszug, bearbeitet: maschinell gekuerzt auf die Positionen der E-Bilanz einer GmbH oder UG und in die Anwendung eingebettet. Erzeugt mit `scripts/gen_ebilanz_taxonomy.py`; Hinweis und Lizenztext: `internal/ebilanz/taxonomy/NOTICE` und `internal/ebilanz/taxonomy/LICENSE-XBRL-Deutschland.txt`.
 
 ---
 
@@ -615,33 +615,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 9. `github.com/danieljoos/wincred v1.2.3`
-
-```text
-The MIT License (MIT)
-
-Copyright (c) 2014 Daniel Joos
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-### 10. `github.com/digitorus/pkcs7 v0.0.0-20230713084857-e76b763bdc49`
+### 9. `github.com/digitorus/pkcs7 v0.0.0-20230713084857-e76b763bdc49`
 
 ```text
 The MIT License (MIT)
@@ -667,7 +641,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 11. `github.com/digitorus/timestamp v0.0.0-20250524132541-c45532741eea`
+### 10. `github.com/digitorus/timestamp v0.0.0-20250524132541-c45532741eea`
 
 ```text
 BSD 2-Clause License
@@ -697,7 +671,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### 12. `github.com/dustin/go-humanize v1.0.1`
+### 11. `github.com/dustin/go-humanize v1.0.1`
 
 ```text
 Copyright (c) 2005-2008  Dustin Sallings <dustin@spy.net>
@@ -723,7 +697,7 @@ SOFTWARE.
 <http://www.opensource.org/licenses/mit-license.php>
 ```
 
-### 13. `github.com/glebarez/go-sqlite v1.21.2`, `modernc.org/sqlite v1.56.0`
+### 12. `github.com/glebarez/go-sqlite v1.21.2`, `modernc.org/sqlite v1.56.0`
 
 ```text
 Copyright (c) 2017 The Sqlite Authors. All rights reserved.
@@ -754,7 +728,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### 14. `github.com/glebarez/sqlite v1.11.0`, `github.com/jinzhu/now v1.1.5`
+### 13. `github.com/glebarez/sqlite v1.11.0`, `github.com/jinzhu/now v1.1.5`
 
 ```text
 The MIT License (MIT)
@@ -780,7 +754,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### 15. `github.com/go-ole/go-ole v1.3.0`
+### 14. `github.com/go-ole/go-ole v1.3.0`
 
 ```text
 The MIT License (MIT)
@@ -806,7 +780,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 16. `github.com/godbus/dbus/v5 v5.2.2`
+### 15. `github.com/godbus/dbus/v5 v5.2.2`
 
 ```text
 Copyright (c) 2013, Georg Reinke (<guelfey at gmail dot com>), Google
@@ -836,7 +810,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### 17. `github.com/google/uuid v1.6.0`
+### 16. `github.com/google/uuid v1.6.0`
 
 ```text
 Copyright (c) 2009,2014 Google Inc. All rights reserved.
@@ -868,7 +842,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### 18. `github.com/hhrutter/tiff v1.0.6`
+### 17. `github.com/hhrutter/tiff v1.0.6`
 
 ```text
 Copyright (c) 2009 The Go Authors. All rights reserved.
@@ -900,7 +874,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### 19. `github.com/jinzhu/inflection v1.0.0`
+### 18. `github.com/jinzhu/inflection v1.0.0`
 
 ```text
 The MIT License (MIT)
@@ -926,7 +900,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 20. `github.com/mattn/go-colorable v0.1.14`, `github.com/mattn/go-runewidth v0.0.27`
+### 19. `github.com/mattn/go-colorable v0.1.14`, `github.com/mattn/go-runewidth v0.0.27`
 
 ```text
 The MIT License (MIT)
@@ -952,7 +926,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 21. `github.com/mattn/go-isatty v0.0.24`
+### 20. `github.com/mattn/go-isatty v0.0.24`
 
 ```text
 Copyright (c) Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
@@ -966,7 +940,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### 22. `github.com/ncruces/go-strftime v1.0.0`
+### 21. `github.com/ncruces/go-strftime v1.0.0`
 
 ```text
 MIT License
@@ -992,7 +966,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 23. `github.com/pdfcpu/pdfcpu v0.15.0`
+### 22. `github.com/pdfcpu/pdfcpu v0.15.0`
 
 ```text
 Apache License
@@ -1198,7 +1172,7 @@ Apache License
    limitations under the License.
 ```
 
-### 24. `github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec`
+### 23. `github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec`
 
 ```text
 Copyright (c) 2012 The Go Authors. All rights reserved.
@@ -1230,7 +1204,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### 25. `Typst (WebAssembly-Kompilat) in github.com/varunbpatil/typst-go-wasm v0.3.0`, `github.com/tetratelabs/wazero v1.11.0`
+### 24. `Typst (WebAssembly-Kompilat) in github.com/varunbpatil/typst-go-wasm v0.3.0`, `github.com/tetratelabs/wazero v1.11.0`
 
 ```text
 Apache License
@@ -1436,7 +1410,7 @@ Apache License
    limitations under the License.
 ```
 
-### 26. `github.com/varunbpatil/typst-go-wasm v0.3.0`
+### 25. `github.com/varunbpatil/typst-go-wasm v0.3.0`
 
 ```text
 MIT License
@@ -1462,7 +1436,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 27. `@wailsio/runtime 3.0.0-beta.9`, `github.com/wailsapp/wails/v3 v3.0.0-beta.9`
+### 26. `@wailsio/runtime 3.0.0-beta.9`, `github.com/wailsapp/wails/v3 v3.0.0-beta.9`
 
 ```text
 MIT License
@@ -1488,33 +1462,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 28. `github.com/zalando/go-keyring v0.2.8`
-
-```text
-The MIT License (MIT)
-
-Copyright (c) 2016 Zalando SE
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-### 29. `go.yaml.in/yaml/v3 v3.0.5`
+### 27. `go.yaml.in/yaml/v3 v3.0.5`
 
 ```text
 This project is covered by two different licenses: MIT and Apache.
@@ -1568,7 +1516,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
-### 30. `golang.org/x/crypto v0.55.0`, `golang.org/x/image v0.44.0`, `golang.org/x/sys v0.47.0`, `golang.org/x/text v0.41.0`
+### 28. `golang.org/x/crypto v0.55.0`, `golang.org/x/image v0.44.0`, `golang.org/x/sys v0.47.0`, `golang.org/x/text v0.41.0`
 
 ```text
 Copyright 2009 The Go Authors.
@@ -1600,7 +1548,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### 31. `gorm.io/gorm v1.31.2`
+### 29. `gorm.io/gorm v1.31.2`
 
 ```text
 The MIT License (MIT)
@@ -1626,7 +1574,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### 32. `js-tokens 4.0.0`
+### 30. `js-tokens 4.0.0`
 
 ```text
 The MIT License (MIT)
@@ -1652,7 +1600,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### 33. `loose-envify 1.4.0`
+### 31. `loose-envify 1.4.0`
 
 ```text
 The MIT License (MIT)
@@ -1678,7 +1626,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### 34. `lucide-react 1.31.0`
+### 32. `lucide-react 1.31.0`
 
 ```text
 ISC License
@@ -1726,7 +1674,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 35. `modernc.org/libc v1.74.4`
+### 33. `modernc.org/libc v1.74.4`
 
 ```text
 Copyright (c) 2017 The Libc Authors. All rights reserved.
@@ -1758,7 +1706,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### 36. `modernc.org/mathutil v1.7.1`
+### 34. `modernc.org/mathutil v1.7.1`
 
 ```text
 Copyright (c) 2014 The mathutil Authors. All rights reserved.
@@ -1790,7 +1738,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### 37. `modernc.org/memory v1.11.0`
+### 35. `modernc.org/memory v1.11.0`
 
 ```text
 Copyright (c) 2017 The Memory Authors. All rights reserved.
@@ -1822,7 +1770,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### 38. `react 18.3.1`, `react-dom 18.3.1`, `scheduler 0.23.2`
+### 36. `react 18.3.1`, `react-dom 18.3.1`, `scheduler 0.23.2`
 
 ```text
 MIT License
@@ -1848,7 +1796,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 39. `reselect 5.3.0`
+### 37. `reselect 5.3.0`
 
 ```text
 The MIT License (MIT)
@@ -1874,7 +1822,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 40. `sonner 2.0.8`
+### 38. `sonner 2.0.8`
 
 ```text
 MIT License
@@ -1900,7 +1848,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 41. `tailwind-merge 3.6.0`
+### 39. `tailwind-merge 3.6.0`
 
 ```text
 MIT License
@@ -1926,7 +1874,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 42. `use-sync-external-store 1.6.0`
+### 40. `use-sync-external-store 1.6.0`
 
 ```text
 MIT License
@@ -1952,7 +1900,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 43. `validator-configuration-xrechnung (Pruefmaterial) internal/einvoice/xrechnung/testdata/kosit/`
+### 41. `validator-configuration-xrechnung (Pruefmaterial) internal/einvoice/xrechnung/testdata/kosit/`
 
 ```text
 Apache License
@@ -2163,4 +2111,63 @@ Der europäische Standard zur elektronischen Rechnungsstellung (EN 16931) wird v
 Das Abkommen zwischen EK und CEN besagt, dass im Rahmen der geistigen Eigentumsrechte (IPR) am Standard das semantische Datenmodell der Kernelemente einer elektronischen Rechnung (EN 16931-1:2017) und den zwei mandatorischen Syntaxen (CEN/TS 16931-2:2017) unentgeltlich über das Deutsche Institut für Normung (DIN) in ihrer Rolle als nationale Standardisierungsorganisation zu beziehen sind.
 Der Standard XRechnung ist eine Implementierung dieses Datenmodelles und der zwei mandatorischen Syntaxen und die Vervielfältigung ist durch die Genehmigung von CEN und DIN als Urheberrechtsträger gestattet.
 CEN und DIN übernehmen keine Garantie für den Inhalt und die Implementierung dieser Derivate und im Zweifelsfalle ist immer auf die offiziell autorisierten Dokumente des semantischen Datenmodells und der zwei mandatorischen Syntaxen zurückzugreifen, welche durch das DIN zur Verfügung gestellt werden.
+```
+
+### 42. `xbrl.de HGB-Taxonomie 6.9/6.10 (Auszug) internal/ebilanz/taxonomy/`
+
+```text
+XBRL Deutschland e.V.
+
+Disclaimer
+
+Inhaber aller Rechte an dieser Taxonomie und der Begleitdokumentation ist der Verein
+XBRL Deutschland e.V., Düsseldorf. Weitere Rechte, insbesondere an der Marke „XBRL“
+und an der technischen Spezifikation von XBRL, liegen bei XBRL International, Inc., New
+York, USA – zu Einzelheiten siehe http://www.xbrl.org/legal.
+
+XBRL Deutschland e.V. gestattet die freie Verwendung der Taxonomie und der
+Begleitdokumentation zu gewerblichen und nicht-gewerblichen Zwecken.
+
+Die Taxonomie und die Begleitdokumente dürfen kopiert und an Dritte weitergeben
+werden. Jede Kopie muss jedoch den Copyright-Vermerk aus dem Original enthalten.
+
+Die Taxonomie darf von Nutzern ergänzt, verkürzt oder in sonstiger Weise geändert
+werden, um deren speziellen Anforderungen zu dienen. Bearbeitete Versionen müssen,
+wenn sie an Dritte weitergegeben oder in irgendeiner Weise in Verkehr gebracht werden,
+als solche bezeichnet sein. Auch in bearbeiteten Versionen darf der Original-Copyright-
+Vermerk nicht entfernt werden.
+
+Als authentisch gilt im Zweifelsfall nur die Fassung der Taxonomie, die auf den Websites
+http://www.xbrl.de und http://www.xbrl.org hinterlegt ist.
+
+Die Bereitstellung der Taxonomie und der Begleitdokumentation sowie deren
+Herunterladen und Verwendung führt nicht zu einem Vertrag zwischen XBRL Deutschland
+e.V. und dem Nutzer. Insbesondere stellt die Bereitstellung der Taxonomie und der
+Begleitdokumentation kein Vertragsangebot von XBRL Deutschland e.V. dar. XBRL
+Deutschland e.V. weist darauf hin, dass die Taxonomie zur Verfügung gestellt wird, „wie
+sie ist“. Die Informationen wurden mit großer Sorgfalt durch fachkundige Personen
+erarbeitet. Dennoch können Fehler nicht ausgeschlossen werden. Bei der Fülle des
+Materials musste außerdem eine Auswahl der gängigsten und wichtigsten
+Informationselemente getroffen werden, was in Einzelfällen den Eindruck der
+Unvollständigkeit erwecken könnte. Generell ist zu berücksichtigen, dass die Taxonomie
+stets nur die fachliche und technische Situation zum Zeitpunkt ihrer Erstellung abbilden
+kann. Die Verwendung der Taxonomie erfolgt in eigener Verantwortung des jeweiligen
+Nutzers. Weder XBRL Deutschland e.V. noch die an der Entwicklung beteiligten
+Unternehmen, Institutionen und Personen übernehmen eine Verantwortung für
+Vollständigkeit, Richtigkeit und Gebrauchsfähigkeit der Taxonomie und der
+Begleitdokumentation.
+
+Demzufolge ist die Haftung von XBRL Deutschland e.V. und der an der Entwicklung
+beteiligten Unternehmen, Institutionen und Personen für Schäden, die sich aus dem
+Herunterladen und der Nutzung der Taxonomie und der Begleitdokumentation ergeben
+soweit rechtlich zulässig ausgeschlossen. Insbesondere ist die Haftung für etwaige direkte
+oder indirekte Schäden jeder Art, die aus dem Gebrauch der Taxonomie und der
+Begleitdokumentation erwachsen können, ausgeschlossen.
+
+
+
+
+ XBRL Deutschland e.V.                                                Mail: info@xbrl.de
+ Erna-Scheffler-Straße 2                                              Web: www.xbrl.de
+ 40476 Düsseldorf
 ```

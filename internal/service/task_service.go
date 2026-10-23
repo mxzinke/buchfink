@@ -4,9 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
-	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -26,8 +25,8 @@ import (
 // LiveOpenItemSource liefert die heute offenen Posten.
 //
 // Neben OpenItemSource (Stichtagssicht) und nicht statt dessen: die
-// Aufgabenliste und der Mahnlauf fragen, was jetzt offen ist, der Abschluss
-// fragt, was am Stichtag offen war.
+// Aufgabenliste und die Verzugsrechnung fragen, was jetzt offen ist, der
+// Abschluss fragt, was am Stichtag offen war.
 type LiveOpenItemSource interface {
 	OpenItems(ctx context.Context) ([]domain.OpenItem, error)
 }
@@ -37,9 +36,16 @@ type TaskCheckSource interface {
 	Preview(ctx context.Context, req CheckRequest) (*domain.CheckRun, error)
 }
 
-// TaskDeadlineSource liefert die Fristen eines Jahres.
-type TaskDeadlineSource interface {
-	Deadlines(ctx context.Context, year int) ([]domain.Deadline, error)
+// TaskObligationSource liefert die Pflichten des Kalenders.
+type TaskObligationSource interface {
+	List(ctx context.Context, q ObligationQuery) ([]domain.Obligation, error)
+}
+
+// ExemptionDeadlineSource liefert die ablaufenden Freistellungsbescheinigungen
+// nach § 48b EStG.
+type ExemptionDeadlineSource interface {
+	ExemptionCertificateWarnings(
+		ctx context.Context, today string) ([]ExemptionCertificateWarning, error)
 }
 
 // TaskBankSource liefert die importierten Bankumsätze.
@@ -49,12 +55,7 @@ type TaskBankSource interface {
 
 // TaskReceiptSource liefert die abgelegten Belege eines Status.
 type TaskReceiptSource interface {
-	List(ctx context.Context, status domain.ReceiptStatus) ([]domain.Receipt, error)
-}
-
-// TaskAssetDocumentSource liefert die ablaufenden Dokumente am Anlagegut.
-type TaskAssetDocumentSource interface {
-	ExpiringDocuments(ctx context.Context, until string) ([]ExpiringDocument, error)
+	List(ctx context.Context, year int, status domain.ReceiptStatus) ([]domain.Receipt, error)
 }
 
 // TaskBackupSource liefert die letzte erfolgreiche Sicherung und die jüngsten
@@ -74,77 +75,64 @@ type TaskBackupSource interface {
 // TaskCarryForwardSource liefert den Stand des Saldenvortrags in ein Jahr.
 type TaskCarryForwardSource interface {
 	CarryForwardState(ctx context.Context, toYear int) (*CarryForwardPreview, error)
-	FiscalYears(ctx context.Context) ([]domain.FiscalYear, error)
 }
 
-// TaskAppropriationSource liefert den Ergebnisverwendungsbeschluss eines Jahres.
-type TaskAppropriationSource interface {
-	Appropriation(ctx context.Context, year int) (*domain.Appropriation, error)
+// TaskMasterDataSource liefert die offenen Vorschläge für die Stammdaten.
+type TaskMasterDataSource interface {
+	Pending(ctx context.Context) ([]MasterDataProposalView, error)
 }
 
-// TaskOptions sind die Angaben, die nicht aus einem Dienst kommen.
-//
-// Der Prüfermodus steht an der Bridge und nicht in einem Dienst — er ist eine
-// Eigenschaft der Bedienung, nicht der Buchführung. Er wird deshalb übergeben,
-// statt dass der Dienst die Mandantenkonfiguration kennt.
+// TaskOptions sind die Angaben, die nicht aus einem Dienst kommen. Den
+// Prüfermodus führt der Kern; er wird übergeben.
 type TaskOptions struct {
 	// Today ist der Tag, gegen den gerechnet wird. Leer heißt: heute. Er ist
 	// ein Parameter, weil eine Frist, die sich beim Testen nicht setzen lässt,
 	// nicht geprüft wird.
-	Today          string
+	Today string
+	// FiscalYear ist das Geschäftsjahr der Liste. Leer heißt: das Jahr, in dem
+	// Today liegt.
+	FiscalYear     int
 	ReadOnlyUntil  string
 	ReadOnlyReason string
 }
 
 // TaskService stellt die Aufgabenliste zusammen.
 type TaskService struct {
+	serviceClock
 	settingsRepo domain.SettingsRepository
 
-	checks        TaskCheckSource
-	deadlines     TaskDeadlineSource
-	statements    StatementDeadlineSource
-	bank          TaskBankSource
-	receipts      TaskReceiptSource
-	openItems     LiveOpenItemSource
-	assetDocs     TaskAssetDocumentSource
-	exemptions    ExemptionDeadlineSource
-	backups       TaskBackupSource
-	carryForward  TaskCarryForwardSource
-	appropriation TaskAppropriationSource
-
-	fiscalYear int
+	checks       TaskCheckSource
+	obligations  TaskObligationSource
+	bank         TaskBankSource
+	receipts     TaskReceiptSource
+	openItems    LiveOpenItemSource
+	exemptions   ExemptionDeadlineSource
+	backups      TaskBackupSource
+	carryForward TaskCarryForwardSource
+	masterData   TaskMasterDataSource
 }
 
 // NewTaskService baut die Aufgabenliste über den Einstellungen auf; die Quellen
 // werden einzeln angehängt.
 //
-// Einzeln, weil jede für sich fehlen darf: ein Mandant ohne Anlagenkartei hat
-// keine ablaufenden Dokumente, und eine Aufgabenliste, die deshalb gar nicht
+// Einzeln, weil jede für sich fehlen darf: ein Mandant ohne Bankkonto hat
+// keine offenen Umsätze, und eine Aufgabenliste, die deshalb gar nicht
 // entsteht, wäre der schlechteste Umgang damit.
-func NewTaskService(settingsRepo domain.SettingsRepository, fiscalYear int) *TaskService {
-	return &TaskService{settingsRepo: settingsRepo, fiscalYear: fiscalYear}
+func NewTaskService(settingsRepo domain.SettingsRepository) *TaskService {
+	return &TaskService{settingsRepo: settingsRepo}
 }
 
-// SetFiscalYear updates the year the list is built for.
-func (s *TaskService) SetFiscalYear(year int) { s.fiscalYear = year }
-
 func (s *TaskService) SetCheckSource(src TaskCheckSource)             { s.checks = src }
-func (s *TaskService) SetDeadlineSource(src TaskDeadlineSource)       { s.deadlines = src }
-func (s *TaskService) SetStatementSource(src StatementDeadlineSource) { s.statements = src }
+func (s *TaskService) SetObligationSource(src TaskObligationSource)   { s.obligations = src }
 func (s *TaskService) SetBankSource(src TaskBankSource)               { s.bank = src }
 func (s *TaskService) SetReceiptSource(src TaskReceiptSource)         { s.receipts = src }
 func (s *TaskService) SetOpenItemSource(src LiveOpenItemSource)       { s.openItems = src }
-func (s *TaskService) SetAssetDocumentSource(src TaskAssetDocumentSource) {
-	s.assetDocs = src
-}
 func (s *TaskService) SetExemptionSource(src ExemptionDeadlineSource) { s.exemptions = src }
 func (s *TaskService) SetBackupSource(src TaskBackupSource)           { s.backups = src }
 func (s *TaskService) SetCarryForwardSource(src TaskCarryForwardSource) {
 	s.carryForward = src
 }
-func (s *TaskService) SetAppropriationSource(src TaskAppropriationSource) {
-	s.appropriation = src
-}
+func (s *TaskService) SetMasterDataSource(src TaskMasterDataSource) { s.masterData = src }
 
 // BackupOverdueDays ist der Abstand, nach dem eine fehlende Sicherung zur
 // Aufgabe wird. Buchfink sichert täglich (Architektur 6.6); nach drei Tagen ohne
@@ -160,7 +148,7 @@ const BackupOverdueDays = 3
 func (s *TaskService) Tasks(ctx context.Context, opts TaskOptions) (*domain.TaskList, error) {
 	today := opts.Today
 	if today == "" {
-		today = todayLocal()
+		today = s.today()
 	}
 	horizon := addDays(today, domain.TaskLookaheadDays)
 
@@ -171,20 +159,24 @@ func (s *TaskService) Tasks(ctx context.Context, opts TaskOptions) (*domain.Task
 	if err != nil {
 		return nil, err
 	}
+	year := opts.FiscalYear
+	if year == 0 {
+		year = domain.GetFiscalYearForDate(today, cfg.FiscalYearStartMonth)
+	}
 
 	s.addReadOnly(list, opts)
-	// Die Fristen zuerst: die Zeile „Januar 2026 festschreiben" entsteht dort,
-	// und die Befunde des Prüflaufs zur Festschreibung desselben Monats sind
-	// dann dieselbe Arbeit ein zweites Mal (siehe addCheckFindings).
-	s.addDeadlines(ctx, list, today, horizon)
-	s.addCheckFindings(ctx, list, today)
-	s.addBank(ctx, list)
-	s.addReceipts(ctx, list, today, cfg)
+	// Die Pflichten zuerst: die Zeile „Festschreibung Januar 2026" entsteht
+	// dort, und die Befunde des Prüflaufs zur Festschreibung desselben Monats
+	// sind dann dieselbe Arbeit ein zweites Mal (siehe addCheckFindings).
+	s.addObligations(ctx, year, cfg, list, today, horizon)
+	s.addCheckFindings(ctx, year, list, today)
+	s.addBank(ctx, year, list)
+	s.addReceipts(ctx, year, list, today, cfg)
 	s.addOverdueReceivables(ctx, list, today)
-	s.addAssetDocuments(ctx, list, today, horizon)
 	s.addExemptions(ctx, list, today)
 	s.addBackup(ctx, list, today)
-	s.addYearEnd(ctx, list, today)
+	s.addCarryForward(ctx, year, list)
+	s.addMasterDataProposals(ctx, list)
 
 	list.Sort()
 	list.EnsureLists()
@@ -218,10 +210,10 @@ func (s *TaskService) addReadOnly(list *domain.TaskList, opts TaskOptions) {
 	list.Add(domain.Task{
 		Key: domain.TaskKeyReadOnly, Group: domain.TaskGroupOpen,
 		Title:     "Prüfermodus ist eingeschaltet",
-		Why:       why + " Der Zugriff des Prüfers wird protokolliert (§ 147 Abs. 6 AO).",
+		Why:       why + " Der Zugriff des Prüfers wird protokolliert.",
 		Reference: "§ 147 Abs. 6 AO",
 		DueDate:   opts.ReadOnlyUntil,
-		Target:    domain.TaskTarget{Page: "taxaudit"},
+		Target:    domain.TaskTarget{Area: domain.AreaSettings, Tab: "audit", ID: "betriebspruefung"},
 	})
 }
 
@@ -230,11 +222,11 @@ func (s *TaskService) addReadOnly(list *domain.TaskList, opts TaskOptions) {
 // Je Regel und nicht je Befund: fünfzig Belege ohne Buchung sind eine Aufgabe
 // und nicht fünfzig. Die Regel hat den Schlüssel, damit die Oberfläche zur
 // zugehörigen Stelle springen kann.
-func (s *TaskService) addCheckFindings(ctx context.Context, list *domain.TaskList, today string) {
+func (s *TaskService) addCheckFindings(ctx context.Context, year int, list *domain.TaskList, today string) {
 	if s.checks == nil {
 		return
 	}
-	run, err := s.checks.Preview(ctx, CheckRequest{CutoffDate: today})
+	run, err := s.checks.Preview(ctx, CheckRequest{FiscalYear: year, CutoffDate: today})
 	if err != nil || run == nil {
 		return
 	}
@@ -259,10 +251,9 @@ func (s *TaskService) addCheckFindings(ctx context.Context, list *domain.TaskLis
 			rule == domain.CheckRuleReceiptOverdue || rule == domain.CheckRuleServiceProofMissing {
 			continue
 		}
-		// Die Festschreibung eines Monats steht schon als Fristzeile in der
-		// Liste („Januar 2026 festschreiben", aus commitDeadlines). Die beiden
-		// Prüfregeln dazu meinen dieselbe Arbeit; als eigene Zeile stünde sie
-		// zweimal da, einmal mit Monat und einmal ohne.
+		// Die Festschreibung eines Monats steht schon als Pflicht in der
+		// Liste. Die beiden Prüfregeln dazu meinen dieselbe Arbeit; als eigene
+		// Zeile stünde sie zweimal da, einmal mit Monat und einmal ohne.
 		if rule == domain.CheckRulePeriodNotCommitted || rule == domain.CheckRuleCommitOverdue {
 			if hasCommitDeadline(list) {
 				continue
@@ -277,15 +268,15 @@ func (s *TaskService) addCheckFindings(ctx context.Context, list *domain.TaskLis
 			Key: domain.TaskKeyCheckFindings + "." + rule, Group: group,
 			Title: title, Why: why, Reference: reference,
 			Count:  counts[rule],
-			Target: domain.TaskTarget{Page: "audit", Params: map[string]string{"rule": rule}},
+			Target: domain.TaskTarget{Area: domain.AreaSettings, Tab: "audit", ID: rule},
 		})
 	}
 }
 
-// hasCommitDeadline meldet, ob die Fristzeile einer Monatsfestschreibung schon
-// in der Liste steht.
+// hasCommitDeadline meldet, ob die Monatsfestschreibung schon als Pflicht in
+// der Liste steht.
 func hasCommitDeadline(list *domain.TaskList) bool {
-	prefix := domain.TaskKeyDeadline + "." + DeadlineKeyCommit + "."
+	prefix := domain.TaskKeyObligation + "." + string(domain.ObligationMonthCommit) + "."
 	for _, group := range [][]domain.Task{list.Overdue, list.Open, list.Upcoming} {
 		for _, task := range group {
 			if strings.HasPrefix(task.Key, prefix) {
@@ -357,14 +348,10 @@ func checkRuleTask(rule string) (title, why, reference string) {
 			"Prüferbestellung, Gliederungstiefe und Aufstellungsfrist ändern sich, sobald der zweite " +
 				"Stichtag dieselbe Klasse ergibt — das lässt sich nicht in dem Monat vorbereiten, in dem es gilt.",
 			"§ 267 Abs. 4 Satz 1 HGB"
-	case domain.CheckRuleICSupplyEvidenceMissing:
-		return "Belegnachweis der Auslandslieferungen führen",
-			"Ohne den Nachweis der Warenbewegung ist die steuerfreie Lieferung ins EU-Ausland steuerpflichtig.",
-			"§§ 17a ff. UStDV"
-	case domain.CheckRuleICSupplyUnconfirmed:
+	case domain.CheckRuleVatIDUnconfirmed:
 		return "Bestätigung der USt-IdNr. nachholen",
-			"Die gültige Nummer des Abnehmers ist Voraussetzung der Steuerbefreiung, nicht eine Formalie.",
-			"§ 6a Abs. 1 Satz 1 Nr. 4 UStG, § 18e UStG"
+			"Die gültige Nummer weist den Empfänger als Unternehmer aus; daran hängt der Leistungsort im Ausland.",
+			"§ 3a Abs. 2 UStG, § 18e UStG"
 	default:
 		return "Prüfbefunde ansehen",
 			"Der Prüflauf hat etwas gefunden, das vor der Festschreibung geklärt sein sollte.",
@@ -372,108 +359,108 @@ func checkRuleTask(rule string) (title, why, reference string) {
 	}
 }
 
-// addDeadlines übernimmt die Fristen: verstrichene nach oben, die der nächsten
-// dreißig Tage nach unten. Was weiter weg ist, steht auf der Fristenseite.
+// addObligations übernimmt die Pflichten des Kalenders: verstrichene nach
+// oben, die der nächsten dreißig Tage nach unten. Was weiter weg ist, steht im
+// Kalender.
 //
-// Gefragt werden zwei Jahre. Die Fristen eines Jahres werden aus seinen
-// Zeiträumen gebildet, fällig sind einige davon erst im Folgejahr: die
-// Voranmeldung für Dezember ist am 10. Januar fällig, die Festschreibung des
-// Dezembers Ende Januar. Wer im Januar nur das neue Geschäftsjahr abfragte,
-// sähe im Monat der meisten Fristen die wenigsten. Aus dem Vorjahr kommt
-// deshalb mit, was jetzt noch aussteht — nicht sein ganzer Rückstand.
-func (s *TaskService) addDeadlines(ctx context.Context, list *domain.TaskList, today, horizon string) {
-	if s.deadlines == nil {
+// Aus dem Geschäftsjahr der Liste kommt jede offene Pflicht, aus der Zeit
+// davor nur, was in den letzten dreißig Tagen fällig wurde: im Januar steht
+// die Voranmeldung für Dezember in der Liste, nicht der ganze Rückstand des
+// Vorjahres.
+func (s *TaskService) addObligations(
+	ctx context.Context, year int, cfg *domain.CompanySettings, list *domain.TaskList, today, horizon string,
+) {
+	if s.obligations == nil {
 		return
 	}
-	deadlines, err := s.deadlines.Deadlines(ctx, s.fiscalYear)
+	earliest := addDays(today, -domain.TaskLookaheadDays)
+	if start := domain.FiscalYearFirstDay(year, cfg.FiscalYearStartMonth); start < earliest {
+		earliest = start
+	}
+	// Bis wann gefragt wird: der Vorlauf, und die Festschreibung, die ab dem
+	// 10. des Folgemonats offen ist und bis zu zwei Monate plus Nachfrist
+	// später fällig wird.
+	latest := addDays(today, 120+cfg.CommitGraceDays)
+	obligations, err := s.obligations.List(ctx, ObligationQuery{From: earliest, To: latest, Today: today})
 	if err != nil {
 		return
 	}
-	if previous, err := s.deadlines.Deadlines(ctx, s.fiscalYear-1); err == nil {
-		// Die Grenze nach unten ist derselbe Vorlauf, mit dem die Liste nach
-		// oben blickt: eine Frist, die länger als dreißig Tage verstrichen ist,
-		// gehört auf die Fristenseite und nicht auf den ersten Bildschirm.
-		earliest := addDays(today, -domain.TaskLookaheadDays)
-		for _, deadline := range previous {
-			if deadline.DueDate >= earliest {
-				deadlines = append(deadlines, deadline)
-			}
-		}
-	}
 	seen := map[string]bool{}
-	for _, deadline := range deadlines {
-		if deadline.IsDone || deadline.DueDate == "" {
+	for _, o := range obligations {
+		if o.Status.Closed() || o.DueDate == "" || o.DueDate < earliest || seen[o.Key] {
 			continue
 		}
 		// Die Festschreibung eines Monats ist schon vor ihrer Frist Arbeit
 		// (UNV-02 K2): ab dem 10. des Folgemonats ist die Voranmeldung
 		// abgegeben, und von da an gibt es keinen Grund mehr, den Monat offen
 		// zu lassen. Sie steht deshalb ab diesem Tag als offene Aufgabe in der
-		// Liste — auch dann, wenn ihre Frist mit Dauerfristverlängerung weiter
-		// als der Vorlauf entfernt liegt.
-		openFrom := commitOpenFrom(deadline.Key)
+		// Liste, auch wenn ihre Frist weiter als der Vorlauf entfernt liegt.
+		openFrom := commitOpenFrom(o)
 		visible := openFrom != "" && today >= openFrom
-		if deadline.DueDate > horizon && !visible {
+		if o.DueDate > horizon && !visible {
 			continue
 		}
-		// Zwei Jahre können denselben Termin führen (ein Jahresschlüssel steht
-		// im Schlüssel, ein Stichtagsschlüssel nicht). Zweimal dieselbe Zeile
-		// wäre zweimal dieselbe Arbeit.
-		if seen[deadline.Key] {
-			continue
-		}
-		seen[deadline.Key] = true
+		seen[o.Key] = true
 		group := domain.TaskGroupUpcoming
 		if visible {
 			group = domain.TaskGroupOpen
 		}
-		if deadline.DueDate < today {
+		if o.DueDate < today {
 			group = domain.TaskGroupOverdue
 		}
+		why := o.Description
+		if o.Preparation != nil {
+			why += " Als vorbereitet gemeldet; es fehlt die Bestätigung."
+		}
 		list.Add(domain.Task{
-			Key: domain.TaskKeyDeadline + "." + deadline.Key, Group: group,
-			Title:     deadline.Title,
-			Why:       deadline.Description,
-			Reference: deadline.Reference,
-			DueDate:   deadline.DueDate,
-			Target: domain.TaskTarget{
-				Page: "deadlines", Params: map[string]string{"key": deadline.Key},
-			},
+			Key: domain.TaskKeyObligation + "." + o.Key, Group: group,
+			Title:     o.Title,
+			Why:       why,
+			Reference: o.Basis,
+			DueDate:   o.DueDate,
+			Target:    obligationTarget(o),
 		})
 	}
 }
 
+// obligationTarget führt zu der Stelle, an der eine Pflicht vorbereitet oder
+// bestätigt wird: Monatsabschluss, Jahresabschluss, Erklärungen oder die
+// Stammdaten.
+func obligationTarget(o domain.Obligation) domain.TaskTarget {
+	target := domain.TaskTarget{Area: domain.AreaClosings, Tab: "month", ID: o.Key}
+	switch o.Kind {
+	case domain.ObligationCorporateTaxReturn, domain.ObligationTradeTaxReturn,
+		domain.ObligationAnnualVatReturn, domain.ObligationEBilanz, domain.ObligationOpeningEBilanz,
+		domain.ObligationCorporatePrepay, domain.ObligationTradePrepay:
+		target.Tab = "declarations"
+	case domain.ObligationClosingBookings, domain.ObligationStatementPrep,
+		domain.ObligationAdoption, domain.ObligationAppropriation,
+		domain.ObligationDisclosure, domain.ObligationWithholdingTax:
+		target.Tab = "year"
+	case domain.ObligationTransparency, domain.ObligationShareholderList,
+		domain.ObligationTaxRegistration, domain.ObligationTradeRegistration, domain.ObligationOpeningBalance:
+		target.Area, target.Tab = domain.AreaCompany, "profile"
+	}
+	return target
+}
+
 // commitOpenFrom ist der Tag, ab dem die Festschreibung eines Monats als offene
-// Aufgabe geführt wird: der 10. des Folgemonats (UNV-02 K2).
-//
-// Der 10. und nicht der Monatserste: bis zum 10. ist die Voranmeldung des
-// Monats abzugeben (§ 18 Abs. 1 Satz 1 UStG), und bis dahin wird an dem Monat
-// noch gebucht. Für jede andere Frist ergibt sich nichts — die Funktion liefert
-// dann den leeren Tag, und die Frist bleibt eine Frist.
-func commitOpenFrom(key string) string {
-	rest, ok := strings.CutPrefix(key, DeadlineKeyCommit+".")
-	if !ok {
+// Aufgabe geführt wird: der 10. des Folgemonats (UNV-02 K2). Bis dahin ist die
+// Voranmeldung des Monats abzugeben (§ 18 Abs. 1 Satz 1 UStG), und bis dahin
+// wird an dem Monat noch gebucht. Für jede andere Pflicht ist der Tag leer.
+func commitOpenFrom(o domain.Obligation) string {
+	if o.Kind != domain.ObligationMonthCommit || o.PeriodTo == "" {
 		return ""
 	}
-	p, err := accounting.ParseVatPeriodKey(rest)
-	if err != nil {
-		return ""
-	}
-	last, err := time.Parse("2006-01-02", p.To)
-	if err != nil {
-		return ""
-	}
-	// Der letzte Tag des Zeitraums plus ein Tag ist der Monatserste des
-	// Folgemonats; plus neun weitere ist sein zehnter.
-	return last.AddDate(0, 0, 10).Format("2006-01-02")
+	return addDays(o.PeriodTo, 10)
 }
 
 // addBank meldet die Bankumsätze ohne Zuordnung.
-func (s *TaskService) addBank(ctx context.Context, list *domain.TaskList) {
+func (s *TaskService) addBank(ctx context.Context, year int, list *domain.TaskList) {
 	if s.bank == nil {
 		return
 	}
-	transactions, err := s.bank.GetTransactions(ctx, s.fiscalYear)
+	transactions, err := s.bank.GetTransactions(ctx, year)
 	if err != nil {
 		return
 	}
@@ -495,14 +482,14 @@ func (s *TaskService) addBank(ctx context.Context, list *domain.TaskList) {
 		Why:       "Ein Umsatz ohne Zuordnung ist ein Geschäftsvorfall, der noch nicht gebucht ist.",
 		Reference: "§ 146 Abs. 1 AO",
 		Count:     count, Amount: amount,
-		Target: domain.TaskTarget{Page: "bank"},
+		Target: domain.TaskTarget{Area: domain.AreaBooks, Tab: "bank"},
 	})
 }
 
 // addReceipts meldet die abgelegten Belege ohne Buchung — und die, die länger
 // liegen als die Erfassungsfrist.
 func (s *TaskService) addReceipts(
-	ctx context.Context, list *domain.TaskList, today string, cfg *domain.CompanySettings,
+	ctx context.Context, year int, list *domain.TaskList, today string, cfg *domain.CompanySettings,
 ) {
 	if s.receipts == nil {
 		return
@@ -510,7 +497,7 @@ func (s *TaskService) addReceipts(
 	// Alle Belege des Jahres und nicht nur die abgelegten: der
 	// Leistungsnachweis fehlt auch an einem gebuchten Beleg, und gerade dort
 	// fällt er sonst niemandem mehr auf.
-	receipts, err := s.receipts.List(ctx, "")
+	receipts, err := s.receipts.List(ctx, year, "")
 	if err != nil {
 		return
 	}
@@ -555,7 +542,7 @@ func (s *TaskService) addReceipts(
 				proofReference = when
 			}
 		}
-		if receipt.JournalEntryID != nil || receipt.Status == domain.ReceiptStatusSealed {
+		if !receipt.NeedsBooking() {
 			continue
 		}
 		open++
@@ -580,7 +567,7 @@ func (s *TaskService) addReceipts(
 			Why:       "Ein abgelegter Beleg ohne Buchung ist ein Geschäftsvorfall, den die Buchführung noch nicht kennt.",
 			Reference: "§ 146 Abs. 1 AO",
 			Count:     open, Amount: openAmount,
-			Target: domain.TaskTarget{Page: "receipts", Params: map[string]string{"status": "filed"}},
+			Target: domain.TaskTarget{Area: domain.AreaBooks, Tab: "receipts"},
 		})
 	}
 	if late > 0 {
@@ -592,7 +579,7 @@ func (s *TaskService) addReceipts(
 				limit, oldest),
 			Reference: "GoBD Rz. 47",
 			Count:     late, Amount: lateAmount, DueDate: oldest,
-			Target: domain.TaskTarget{Page: "receipts", Params: map[string]string{"status": "filed"}},
+			Target: domain.TaskTarget{Area: domain.AreaBooks, Tab: "receipts"},
 		})
 	}
 	if missingProof > 0 {
@@ -605,8 +592,7 @@ func (s *TaskService) addReceipts(
 			Reference: "§ 15 UStG",
 			Count:     missingProof, Amount: proofAmount,
 			Target: domain.TaskTarget{
-				Page:   "receipts",
-				Params: map[string]string{"receiptId": fmt.Sprintf("%d", proofReceipt.ID)},
+				Area: domain.AreaBooks, Tab: "receipts", ID: fmt.Sprintf("%d", proofReceipt.ID),
 			},
 		})
 	}
@@ -649,55 +635,12 @@ func (s *TaskService) addOverdueReceivables(ctx context.Context, list *domain.Ta
 	}
 	list.Add(domain.Task{
 		Key: domain.TaskKeyOverdueItems, Group: domain.TaskGroupOverdue,
-		Title:     "Überfällige Kundenrechnungen mahnen",
+		Title:     "Überfällige Kundenrechnungen",
 		Why:       "Nach Ablauf von dreißig Tagen ab Fälligkeit kommt der Kunde auch ohne Mahnung in Verzug; ab dann laufen Verzugszinsen.",
 		Reference: "§§ 286, 288 BGB",
 		Count:     count, Amount: amount, DueDate: oldest,
-		Target: domain.TaskTarget{Page: "bank", Params: map[string]string{"view": "dunning"}},
+		Target: domain.TaskTarget{Area: domain.AreaBooks, Tab: "invoices"},
 	})
-}
-
-// addAssetDocuments meldet die ablaufenden Dokumente am Anlagegut.
-func (s *TaskService) addAssetDocuments(ctx context.Context, list *domain.TaskList, today, horizon string) {
-	if s.assetDocs == nil {
-		return
-	}
-	documents, err := s.assetDocs.ExpiringDocuments(ctx, horizon)
-	if err != nil || len(documents) == 0 {
-		return
-	}
-	expired, upcoming := 0, 0
-	first := ""
-	for _, document := range documents {
-		if document.ValidUntil < today {
-			expired++
-		} else {
-			upcoming++
-		}
-		if first == "" || document.ValidUntil < first {
-			first = document.ValidUntil
-		}
-	}
-	if expired > 0 {
-		list.Add(domain.Task{
-			Key: domain.TaskKeyAssetDocument + ".expired", Group: domain.TaskGroupOverdue,
-			Title:   "Abgelaufene Unterlagen am Anlagegut erneuern",
-			Why:     "Eine abgelaufene Police oder ein fälliges Darlehen am Anlagegut ist ein Vorgang, der nicht warten kann.",
-			Count:   expired,
-			DueDate: first,
-			Target:  domain.TaskTarget{Page: "assets"},
-		})
-	}
-	if upcoming > 0 {
-		list.Add(domain.Task{
-			Key: domain.TaskKeyAssetDocument, Group: domain.TaskGroupUpcoming,
-			Title:   "Unterlagen am Anlagegut laufen aus",
-			Why:     "Die Frist an einem hinterlegten Dokument endet in den nächsten dreißig Tagen.",
-			Count:   upcoming,
-			DueDate: first,
-			Target:  domain.TaskTarget{Page: "assets"},
-		})
-	}
 }
 
 // addExemptions meldet die ablaufenden Freistellungsbescheinigungen.
@@ -728,7 +671,7 @@ func (s *TaskService) addExemptions(ctx context.Context, list *domain.TaskList, 
 			Why:       "Ohne gültige Bescheinigung sind bei einer Bauleistung 15 % der Gegenleistung einzubehalten und abzuführen.",
 			Reference: "§§ 48, 48b EStG",
 			Count:     expired, DueDate: first,
-			Target: domain.TaskTarget{Page: "contacts"},
+			Target: domain.TaskTarget{Area: domain.AreaCompany, Tab: "contacts"},
 		})
 	}
 	if expiring > 0 {
@@ -738,7 +681,7 @@ func (s *TaskService) addExemptions(ctx context.Context, list *domain.TaskList, 
 			Why:       "Die Bescheinigung eines Geschäftspartners endet in den nächsten dreißig Tagen.",
 			Reference: "§ 48b EStG",
 			Count:     expiring, DueDate: first,
-			Target: domain.TaskTarget{Page: "contacts"},
+			Target: domain.TaskTarget{Area: domain.AreaCompany, Tab: "contacts"},
 		})
 	}
 }
@@ -759,11 +702,11 @@ func (s *TaskService) addBackup(ctx context.Context, list *domain.TaskList, toda
 			Title:     "Sicherung einrichten",
 			Why:       "Es gibt keine erfolgreiche Sicherung. Aufzeichnungen müssen über die Aufbewahrungsfrist lesbar bleiben.",
 			Reference: "§ 147 Abs. 2 AO, GoBD Rz. 103 ff.",
-			Target:    domain.TaskTarget{Page: "backup"},
+			Target:    domain.TaskTarget{Area: domain.AreaSettings, Tab: "backup"},
 		})
 		return
 	}
-	lastDay := last.StartedAt.Format("2006-01-02")
+	lastDay := calendar.Day(last.StartedAt)
 	if lastDay >= addDays(today, -BackupOverdueDays) {
 		return
 	}
@@ -775,7 +718,7 @@ func (s *TaskService) addBackup(ctx context.Context, list *domain.TaskList, toda
 			lastDay),
 		Reference: "§ 147 Abs. 2 AO",
 		DueDate:   lastDay,
-		Target:    domain.TaskTarget{Page: "backup"},
+		Target:    domain.TaskTarget{Area: domain.AreaSettings, Tab: "backup"},
 	})
 }
 
@@ -804,7 +747,7 @@ func (s *TaskService) addFailedBackup(ctx context.Context, list *domain.TaskList
 	if last.Kind == domain.BackupKindVerify {
 		what = "Der Wiederherstellungstest der Sicherung"
 	}
-	why := fmt.Sprintf("%s vom %s ist fehlgeschlagen.", what, last.StartedAt.Format("2006-01-02"))
+	why := fmt.Sprintf("%s vom %s ist fehlgeschlagen.", what, calendar.Day(last.StartedAt))
 	if last.Message != "" {
 		why += " Grund: " + last.Message
 	}
@@ -814,120 +757,75 @@ func (s *TaskService) addFailedBackup(ctx context.Context, list *domain.TaskList
 		Why: why + " Aufzeichnungen müssen über die Aufbewahrungsfrist lesbar bleiben; " +
 			"ein Zielordner, der nicht mehr beschreibbar ist, fällt sonst erst auf, wenn die Sicherung gebraucht wird.",
 		Reference: "§ 147 Abs. 2 AO, GoBD Rz. 103 ff.",
-		DueDate:   last.StartedAt.Format("2006-01-02"),
-		Target:    domain.TaskTarget{Page: "backup"},
+		DueDate:   calendar.Day(last.StartedAt),
+		Target:    domain.TaskTarget{Area: domain.AreaSettings, Tab: "backup"},
 	})
 }
 
-// addYearEnd meldet die drei Aufgaben am Jahreswechsel: die Vortragsdifferenz,
-// den nicht festgestellten Vorjahresabschluss und die offene Ergebnisverwendung.
-func (s *TaskService) addYearEnd(ctx context.Context, list *domain.TaskList, today string) {
-	priorYear := s.fiscalYear - 1
-
-	if s.carryForward != nil {
-		if preview, err := s.carryForward.CarryForwardState(ctx, s.fiscalYear); err == nil && preview != nil {
-			switch {
-			case !preview.IsBalanced:
-				list.Add(domain.Task{
-					Key: domain.TaskKeyCarryForward + ".unbalanced", Group: domain.TaskGroupOverdue,
-					Title: "Differenz im Saldenvortrag klären",
-					Why: fmt.Sprintf(
-						"Die Vortragswerte aus %d gehen um %s € nicht auf. Ein Vortrag trüge den Fehler ins neue Jahr.",
-						priorYear, preview.BalanceDifference),
-					Reference: "§ 252 Abs. 1 Nr. 1 HGB",
-					Amount:    preview.BalanceDifference,
-					Target:    domain.TaskTarget{Page: "closing"},
-				})
-			case !preview.AlreadyCarried && len(preview.Rows) > 0:
-				list.Add(domain.Task{
-					Key: domain.TaskKeyCarryForward, Group: domain.TaskGroupOpen,
-					Title:     "Saldenvortrag ins neue Jahr buchen",
-					Why:       "Die Schlussbilanzwerte des Vorjahres sind als Eröffnungsbilanzwerte zu übernehmen (Bilanzidentität).",
-					Reference: "§ 252 Abs. 1 Nr. 1 HGB",
-					Count:     len(preview.Rows),
-					Target:    domain.TaskTarget{Page: "closing"},
-				})
-			case preview.NeedsCorrection:
-				list.Add(domain.Task{
-					Key: domain.TaskKeyCarryForward + ".correction", Group: domain.TaskGroupOpen,
-					Title:     "Saldenvortrag berichtigen",
-					Why:       "Im Vorjahr wurde nach dem Vortrag noch gebucht; die vorgetragenen Werte sind überholt.",
-					Reference: "§ 252 Abs. 1 Nr. 1 HGB",
-					Target:    domain.TaskTarget{Page: "closing"},
-				})
-			}
-		}
-	}
-
-	priorState := s.priorYearState(ctx, priorYear)
-	if priorState == nil {
+// addCarryForward meldet den Saldenvortrag ins Jahr: Differenz, fehlender
+// Vortrag oder Berichtigung. Aufstellung, Feststellung und Ergebnisverwendung
+// stehen als Pflichten im Kalender.
+func (s *TaskService) addCarryForward(ctx context.Context, year int, list *domain.TaskList) {
+	if s.carryForward == nil {
 		return
 	}
-
-	if priorState.Status != domain.FiscalYearAdopted && priorState.Status != domain.FiscalYearDisclosed {
-		if due := s.preparationDeadline(ctx, priorYear); due != "" && due < today {
-			list.Add(domain.Task{
-				Key: domain.TaskKeyPriorYearOpen, Group: domain.TaskGroupOverdue,
-				Title: fmt.Sprintf("Jahresabschluss %d feststellen", priorYear),
-				Why: fmt.Sprintf(
-					"Die Aufstellungsfrist ist am %s abgelaufen, und der Abschluss ist noch nicht festgestellt. Bis dahin steht das Ergebnis nicht fest.",
-					due),
-				Reference: "§ 264 Abs. 1 HGB, § 42a Abs. 2 GmbHG",
-				DueDate:   due,
-				Target:    domain.TaskTarget{Page: "closing", Params: map[string]string{"year": fmt.Sprintf("%d", priorYear)}},
-			})
-		}
+	priorYear := year - 1
+	preview, err := s.carryForward.CarryForwardState(ctx, year)
+	if err != nil || preview == nil {
 		return
 	}
+	switch {
+	case !preview.IsBalanced:
+		list.Add(domain.Task{
+			Key: domain.TaskKeyCarryForward + ".unbalanced", Group: domain.TaskGroupOverdue,
+			Title: "Differenz im Saldenvortrag klären",
+			Why: fmt.Sprintf(
+				"Die Vortragswerte aus %d gehen um %s € nicht auf. Ein Vortrag trüge den Fehler ins neue Jahr.",
+				priorYear, preview.BalanceDifference),
+			Reference: "§ 252 Abs. 1 Nr. 1 HGB",
+			Amount:    preview.BalanceDifference,
+			Target:    domain.TaskTarget{Area: domain.AreaClosings, Tab: "year"},
+		})
+	case !preview.AlreadyCarried && len(preview.Rows) > 0:
+		list.Add(domain.Task{
+			Key: domain.TaskKeyCarryForward, Group: domain.TaskGroupOpen,
+			Title:     "Saldenvortrag ins neue Jahr buchen",
+			Why:       "Die Schlussbilanzwerte des Vorjahres sind als Eröffnungsbilanzwerte zu übernehmen (Bilanzidentität).",
+			Reference: "§ 252 Abs. 1 Nr. 1 HGB",
+			Count:     len(preview.Rows),
+			Target:    domain.TaskTarget{Area: domain.AreaClosings, Tab: "year"},
+		})
+	case preview.NeedsCorrection:
+		list.Add(domain.Task{
+			Key: domain.TaskKeyCarryForward + ".correction", Group: domain.TaskGroupOpen,
+			Title:     "Saldenvortrag berichtigen",
+			Why:       "Im Vorjahr wurde nach dem Vortrag noch gebucht; die vorgetragenen Werte sind überholt.",
+			Reference: "§ 252 Abs. 1 Nr. 1 HGB",
+			Target:    domain.TaskTarget{Area: domain.AreaClosings, Tab: "year"},
+		})
+	}
+}
 
-	// Erst wenn der Abschluss festgestellt ist, kann über das Ergebnis
-	// beschlossen werden — vorher gibt es nichts zu verwenden.
-	if s.appropriation == nil {
+// addMasterDataProposals meldet die Vorschläge eines Agenten für die
+// Stammdaten. Sie gelten erst, wenn der Mensch sie übernimmt.
+func (s *TaskService) addMasterDataProposals(ctx context.Context, list *domain.TaskList) {
+	if s.masterData == nil {
 		return
 	}
-	decision, err := s.appropriation.Appropriation(ctx, priorYear)
-	if err != nil || decision != nil {
+	pending, err := s.masterData.Pending(ctx)
+	if err != nil || len(pending) == 0 {
 		return
+	}
+	title := "Vorschlag für die Stammdaten prüfen"
+	if len(pending) > 1 {
+		title = fmt.Sprintf("%d Vorschläge für die Stammdaten prüfen", len(pending))
 	}
 	list.Add(domain.Task{
-		Key: domain.TaskKeyAppropriationOpen, Group: domain.TaskGroupOpen,
-		Title:     fmt.Sprintf("Ergebnisverwendung %d beschließen", priorYear),
-		Why:       "Der festgestellte Abschluss braucht den Beschluss der Gesellschafter darüber, was mit dem Ergebnis geschieht.",
-		Reference: "§ 29 GmbHG, § 42a Abs. 2 GmbHG",
-		Target:    domain.TaskTarget{Page: "closingmodules", Params: map[string]string{"year": fmt.Sprintf("%d", priorYear)}},
+		Key: domain.TaskKeyMasterDataProposal, Group: domain.TaskGroupOpen,
+		Title: title,
+		Why: "Ein verbundener Agent hat Änderungen an Unternehmensdaten, Gründung oder Bankkonten vorgeschlagen. " +
+			"Sie gelten erst, wenn Sie sie nach der Vorschau übernehmen.",
+		Count:  len(pending),
+		Target: domain.TaskTarget{Area: domain.AreaCompany, Tab: "profile", ID: "vorschlaege"},
 	})
-}
-
-// priorYearState liefert das Vorjahr aus der Geschäftsjahresliste, oder nil.
-func (s *TaskService) priorYearState(ctx context.Context, priorYear int) *domain.FiscalYear {
-	if s.carryForward == nil {
-		return nil
-	}
-	years, err := s.carryForward.FiscalYears(ctx)
-	if err != nil {
-		return nil
-	}
-	for i := range years {
-		if years[i].Year == priorYear {
-			return &years[i]
-		}
-	}
-	return nil
-}
-
-// preparationDeadline liefert die Aufstellungsfrist eines Jahres.
-func (s *TaskService) preparationDeadline(ctx context.Context, year int) string {
-	if s.statements == nil {
-		return ""
-	}
-	deadlines, err := s.statements.Deadlines(ctx, year)
-	if err != nil {
-		return ""
-	}
-	for _, deadline := range deadlines {
-		if deadline.Key == "abschluss.aufstellung" {
-			return deadline.DueDate
-		}
-	}
-	return ""
 }

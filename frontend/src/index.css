@@ -105,6 +105,7 @@
      Navigation gelten deshalb die aufgehellten Werte aus §16. */
   --color-shell-positive: #9BCFA6; /* 9,9:1 auf shell */
   --color-shell-negative: #E8A79C; /* 8,7:1 auf shell */
+  --color-shell-attention: #E3C189; /* 9,3:1 auf shell, Hinweise der Einrichtung */
 
   /* ---------------------------------------------------------------------
      Vier Farbfamilien, vier Rollen — siehe §3.2 des Konzepts.
@@ -311,6 +312,19 @@
   height: 7px;
   flex: none;
   clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+/* Die Ablagezone für Dateien aus dem Dateimanager (components/InboxDrop.tsx).
+   Sie erscheint nur, solange Dateien über das Fenster gezogen werden: Die
+   Wails-Laufzeit setzt dann `file-drop-target-active` an das Element mit
+   `data-file-drop-target`. Ohne Ebene, damit die Regel vor den Utilities
+   steht; die Zone selbst trägt deshalb keine Display-Klasse. */
+.drop-zone {
+  display: none;
+}
+
+.file-drop-target-active > .drop-zone {
+  display: flex;
 }
 
 /* macOS Window Dragging Helpers */

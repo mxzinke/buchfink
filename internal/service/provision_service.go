@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -27,15 +27,15 @@ import (
 // im Jahr 2026 gebildet und 2028 verbraucht wird, hat Bewegungen aus drei Jahren,
 // und der Rückstellungsspiegel eines Jahres braucht sie alle.
 type ProvisionService struct {
+	serviceClock
+	auditor[uint]
+	fiscalCalendar
 	provisionRepo domain.ProvisionRepository
 	rateRepo      domain.DiscountRateRepository
 	journalRepo   domain.JournalRepository
 	journalSvc    *JournalService
-	settingsRepo  domain.SettingsRepository
-	auditRepo     domain.AuditRepository
-	closingSvc    *ClosingService
+	periods       PeriodSource
 	receipts      closingReceiptFiler
-	fiscalYear    int
 }
 
 // NewProvisionService wires die Rückstellungen.
@@ -46,23 +46,18 @@ func NewProvisionService(
 	journalSvc *JournalService,
 	settingsRepo domain.SettingsRepository,
 	auditRepo domain.AuditRepository,
-	closingSvc *ClosingService,
-	fiscalYear int,
+	periods PeriodSource,
 ) *ProvisionService {
 	return &ProvisionService{
-		provisionRepo: provisionRepo,
-		rateRepo:      rateRepo,
-		journalRepo:   journalRepo,
-		journalSvc:    journalSvc,
-		settingsRepo:  settingsRepo,
-		auditRepo:     auditRepo,
-		closingSvc:    closingSvc,
-		fiscalYear:    fiscalYear,
+		provisionRepo:  provisionRepo,
+		rateRepo:       rateRepo,
+		journalRepo:    journalRepo,
+		journalSvc:     journalSvc,
+		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo},
+		auditor:        auditor[uint]{auditRepo: auditRepo, entity: "PROVISION"},
+		periods:        periods,
 	}
 }
-
-// SetFiscalYear schaltet das aktive Geschäftsjahr um.
-func (s *ProvisionService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // SetReceiptService gibt dem Dienst den Belegspeicher für die Eigenbelege.
 func (s *ProvisionService) SetReceiptService(r closingReceiptFiler) { s.receipts = r }
@@ -74,8 +69,8 @@ func (s *ProvisionService) SetReceiptService(r closingReceiptFiler) { s.receipts
 // List liefert die Rückstellungen, die ein Geschäftsjahr betreffen: die in ihm
 // gebildeten und die aus früheren Jahren, die noch bestehen.
 func (s *ProvisionService) List(ctx context.Context, year int) ([]domain.Provision, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	all, err := s.liveProvisions(ctx)
 	if err != nil {
@@ -124,8 +119,8 @@ func (s *ProvisionService) liveProvisions(ctx context.Context) ([]domain.Provisi
 // Mirror ist der Rückstellungsspiegel eines Geschäftsjahres — Bestandteil des
 // Anhangs.
 func (s *ProvisionService) Mirror(ctx context.Context, year int) (*accounting.ProvisionMirror, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	all, err := s.liveProvisions(ctx)
 	if err != nil {
@@ -197,10 +192,10 @@ const TaxDiscountPermille = 55
 // Preview rechnet eine Bildung oder Zuführung, ohne sie zu buchen.
 func (s *ProvisionService) Preview(ctx context.Context, req ProvisionRequest) (*ProvisionPreview, error) {
 	year := req.FiscalYear
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
-	fy, err := s.closingSvc.PeriodOf(ctx, year)
+	fy, err := s.periods.PeriodOf(ctx, year)
 	if err != nil {
 		return nil, err
 	}
@@ -275,8 +270,8 @@ func (s *ProvisionService) Preview(ctx context.Context, req ProvisionRequest) (*
 			preview.Findings = append(preview.Findings, fmt.Sprintf(
 				"Für eine Restlaufzeit von %d Jahren ist zum %s kein Abzinsungssatz aus dem "+
 					"%d-Jahres-Durchschnitt hinterlegt. § 253 Abs. 2 HGB verlangt die Abzinsung; "+
-					"Buchfink zinst nicht ab und rät auch nicht. Pflege die Sätze der Deutschen "+
-					"Bundesbank ein.",
+					"Buchfink zinst nicht ab und rät auch nicht. Die Sätze der Deutschen Bundesbank "+
+					"sind nachzutragen.",
 				years, fy.EndDate, average))
 		} else {
 			preview.Discounted = true
@@ -368,6 +363,12 @@ func provisionExplanation(preview *ProvisionPreview, req ProvisionRequest) strin
 
 // BookFormation bildet eine Rückstellung und bucht die Zuführung.
 func (s *ProvisionService) BookFormation(ctx context.Context, req ProvisionRequest) (*domain.Provision, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.Provision, error) {
+		return s.bookFormation(ctx, req)
+	})
+}
+
+func (s *ProvisionService) bookFormation(ctx context.Context, req ProvisionRequest) (*domain.Provision, error) {
 	if req.Kind.IsTax() && req.ProvisionID == 0 {
 		// Die Steuerrückstellung entsteht über ihren eigenen Baustein, der das
 		// Ergebnis kennt. Von Hand gebildet trüge sie eine Zahl, die mit der
@@ -381,6 +382,12 @@ func (s *ProvisionService) BookFormation(ctx context.Context, req ProvisionReque
 
 // BookIncrease führt einer bestehenden Rückstellung Betrag zu.
 func (s *ProvisionService) BookIncrease(ctx context.Context, req ProvisionRequest) (*domain.Provision, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.Provision, error) {
+		return s.bookIncrease(ctx, req)
+	})
+}
+
+func (s *ProvisionService) bookIncrease(ctx context.Context, req ProvisionRequest) (*domain.Provision, error) {
 	if req.ProvisionID == 0 {
 		return nil, fmt.Errorf("zur Zuführung gehört die Rückstellung, der zugeführt wird")
 	}
@@ -437,9 +444,7 @@ func (s *ProvisionService) bookProvisionMovement(
 		return nil, err
 	}
 	if err := s.provisionRepo.Save(ctx, &provision); err != nil {
-		return nil, fmt.Errorf(
-			"die Buchung %s wurde geschrieben, die Rückstellung aber nicht gespeichert: %w",
-			created.EntryNumber, err)
+		return nil, fmt.Errorf("die Rückstellung ließ sich nicht speichern: %w", err)
 	}
 	movement := &domain.ProvisionMovement{
 		ProvisionID: provision.ID, Kind: kind, Date: preview.BookingDate,
@@ -447,11 +452,12 @@ func (s *ProvisionService) bookProvisionMovement(
 		Reason: req.Reason, JournalEntryID: &created.ID,
 	}
 	if err := s.provisionRepo.AddMovement(ctx, movement); err != nil {
-		return nil, fmt.Errorf(
-			"die Buchung %s wurde geschrieben, die Bewegung aber nicht: %w", created.EntryNumber, err)
+		return nil, fmt.Errorf("die Bewegung der Rückstellung ließ sich nicht speichern: %w", err)
 	}
-	s.audit(ctx, domain.AuditActionCreate, provision.ID, fmt.Sprintf(
-		"%s %s über %s € (%s)", label, req.Text, preview.Amount, req.Kind.Label()))
+	if err := s.audit(ctx, domain.AuditActionCreate, provision.ID, fmt.Sprintf(
+		"%s %s über %s € (%s)", label, req.Text, preview.Amount, req.Kind.Label())); err != nil {
+		return nil, err
+	}
 	return s.provisionRepo.FindByID(ctx, provision.ID)
 }
 
@@ -475,10 +481,16 @@ type ProvisionChangeRequest struct {
 // soweit der Grund dafür entfallen ist. Eine Auflösung ohne festgehaltenen
 // Grund wäre von einer Ergebnisglättung nicht zu unterscheiden.
 func (s *ProvisionService) BookRelease(ctx context.Context, req ProvisionChangeRequest) (*domain.Provision, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.Provision, error) {
+		return s.bookRelease(ctx, req)
+	})
+}
+
+func (s *ProvisionService) bookRelease(ctx context.Context, req ProvisionChangeRequest) (*domain.Provision, error) {
 	if strings.TrimSpace(req.Reason) == "" {
 		return nil, fmt.Errorf(
 			"eine Rückstellung darf nur aufgelöst werden, soweit der Grund dafür entfallen ist " +
-				"(§ 249 Abs. 2 Satz 2 HGB). Nenne den weggefallenen Grund")
+				"(§ 249 Abs. 2 Satz 2 HGB). Der weggefallene Grund ist anzugeben")
 	}
 	provision, err := s.load(ctx, req.ProvisionID)
 	if err != nil {
@@ -499,7 +511,10 @@ func (s *ProvisionService) BookRelease(ctx context.Context, req ProvisionChangeR
 		return nil, fmt.Errorf("die Rückstellung %q steht mit %s € zu Buche; mehr lässt sich nicht auflösen",
 			provision.Text, provision.Balance())
 	}
-	date := s.dateOr(ctx, req.Date)
+	date := req.Date
+	if err := domain.CheckDate("Buchungsdatum", date); err != nil {
+		return nil, err
+	}
 
 	lines := []domain.JournalLine{
 		{Side: domain.SideDebit, Account: provision.BalanceAccount, Amount: amount, Text: provision.Text},
@@ -517,67 +532,23 @@ func (s *ProvisionService) BookRelease(ctx context.Context, req ProvisionChangeR
 		fmt.Sprintf("Aufgelöst, weil der Grund entfallen ist: %s", req.Reason))
 }
 
-// BookConsumption verbraucht eine Rückstellung gegen ein Zahlungsmittelkonto.
-//
-// Der Regelfall nutzt den Belegweg — die Rechnung kommt an, wird der
-// Rückstellung zugeordnet und bucht gegen sie statt gegen den Aufwand. Dieser
-// Weg hier ist der zweite: die Zahlung ohne Eingangsrechnung.
-func (s *ProvisionService) BookConsumption(ctx context.Context, req ProvisionChangeRequest) (*domain.Provision, error) {
-	provision, err := s.load(ctx, req.ProvisionID)
-	if err != nil {
-		return nil, err
-	}
-	if req.PaymentAccount == "" {
-		return nil, fmt.Errorf("zum Verbrauch gehört das Konto, von dem gezahlt wurde")
-	}
-	amount := req.Amount
-	if amount <= 0 {
-		return nil, fmt.Errorf("der verbrauchte Betrag muss größer als null sein")
-	}
-	balance := provision.Balance()
-	date := s.dateOr(ctx, req.Date)
-
-	lines := make([]domain.JournalLine, 0, 3)
-	covered := amount
-	if covered > balance {
-		covered = balance
-	}
-	if covered > 0 {
-		lines = append(lines, domain.JournalLine{
-			Side: domain.SideDebit, Account: provision.BalanceAccount, Amount: covered, Text: provision.Text,
-		})
-	}
-	// Was die Rückstellung nicht deckt, ist Aufwand des laufenden Jahres. Ihn
-	// gegen die Rückstellung zu buchen hieße, sie unter null zu bringen.
-	if excess := amount - covered; excess > 0 {
-		lines = append(lines, domain.JournalLine{
-			Side: domain.SideDebit, Account: provision.ExpenseAccount, Amount: excess,
-			Text: "Mehraufwand über die Rückstellung hinaus",
-		})
-	}
-	lines = append(lines, domain.JournalLine{
-		Side: domain.SideCredit, Account: req.PaymentAccount, Amount: amount, Text: provision.Text,
-	})
-
-	entry := &domain.JournalEntry{
-		BookingDate: date, DocumentDate: date, ServiceDateFrom: date, ServiceDateTo: date,
-		Description:        fmt.Sprintf("Verbrauch Rückstellung: %s", provision.Text),
-		Source:             domain.EntrySourceClosing,
-		PostingRuleVersion: accounting.PostingRuleVersion,
-		Lines:              lines,
-	}
-	return s.applyMovement(ctx, provision, entry, domain.ProvisionConsumption, covered, date, req.Reason,
-		fmt.Sprintf("Verbraucht mit %s €", amount))
-}
-
 // BookUnwinding bucht die Aufzinsung: der Barwert wächst, weil die Fälligkeit
 // näher rückt.
 func (s *ProvisionService) BookUnwinding(ctx context.Context, req ProvisionChangeRequest) (*domain.Provision, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.Provision, error) {
+		return s.bookUnwinding(ctx, req)
+	})
+}
+
+func (s *ProvisionService) bookUnwinding(ctx context.Context, req ProvisionChangeRequest) (*domain.Provision, error) {
 	provision, err := s.load(ctx, req.ProvisionID)
 	if err != nil {
 		return nil, err
 	}
-	date := s.dateOr(ctx, req.Date)
+	date := req.Date
+	if err := domain.CheckDate("Buchungsdatum", date); err != nil {
+		return nil, err
+	}
 	amount := req.Amount
 	if amount <= 0 {
 		// Ohne Vorgabe rechnet Buchfink die Aufzinsung selbst: der Barwert zum
@@ -645,8 +616,7 @@ func (s *ProvisionService) applyMovement(
 		Amount:     amount, Reason: reason, JournalEntryID: &created.ID,
 	}
 	if err := s.provisionRepo.AddMovement(ctx, movement); err != nil {
-		return nil, fmt.Errorf(
-			"die Buchung %s wurde geschrieben, die Bewegung aber nicht: %w", created.EntryNumber, err)
+		return nil, fmt.Errorf("die Bewegung der Rückstellung ließ sich nicht speichern: %w", err)
 	}
 	provision.Movements = append(provision.Movements, *movement)
 	if provision.Balance() <= 0 && provision.SettledOn == "" {
@@ -655,8 +625,10 @@ func (s *ProvisionService) applyMovement(
 	if err := s.provisionRepo.Save(ctx, provision); err != nil {
 		return nil, err
 	}
-	s.audit(ctx, domain.AuditActionUpdate, provision.ID, fmt.Sprintf(
-		"%s der Rückstellung %q über %s €: %s", kind.Label(), provision.Text, amount, reason))
+	if err := s.audit(ctx, domain.AuditActionUpdate, provision.ID, fmt.Sprintf(
+		"%s der Rückstellung %q über %s €: %s", kind.Label(), provision.Text, amount, reason)); err != nil {
+		return nil, err
+	}
 	return s.provisionRepo.FindByID(ctx, provision.ID)
 }
 
@@ -692,6 +664,14 @@ func (s *ProvisionService) ConsumptionSplit(
 func (s *ProvisionService) RecordConsumption(
 	ctx context.Context, provisionID uint, amount domain.Cents, date string, entryID uint, reason string,
 ) error {
+	return s.journalSvc.InTx(ctx, func(ctx context.Context) error {
+		return s.recordConsumption(ctx, provisionID, amount, date, entryID, reason)
+	})
+}
+
+func (s *ProvisionService) recordConsumption(
+	ctx context.Context, provisionID uint, amount domain.Cents, date string, entryID uint, reason string,
+) error {
 	provision, err := s.load(ctx, provisionID)
 	if err != nil {
 		return err
@@ -714,9 +694,11 @@ func (s *ProvisionService) RecordConsumption(
 	// Auch der Verbrauch aus dem Belegweg gehört ins Protokoll: er mindert eine
 	// Bilanzposition, und ohne Eintrag wäre später nicht zu sehen, wer sie
 	// wann gemindert hat.
-	s.audit(ctx, domain.AuditActionUpdate, provisionID, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionUpdate, provisionID, fmt.Sprintf(
 		"Verbrauch der Rückstellung %q über %s € aus dem Belegweg: %s",
-		provision.Text, amount, reason))
+		provision.Text, amount, reason)); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -730,6 +712,14 @@ func (s *ProvisionService) RecordConsumption(
 func (s *ProvisionService) Settle(
 	ctx context.Context, provisionID uint, date, reason string,
 ) (*domain.Provision, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.Provision, error) {
+		return s.settle(ctx, provisionID, date, reason)
+	})
+}
+
+func (s *ProvisionService) settle(
+	ctx context.Context, provisionID uint, date, reason string,
+) (*domain.Provision, error) {
 	provision, err := s.load(ctx, provisionID)
 	if err != nil {
 		return nil, err
@@ -740,7 +730,10 @@ func (s *ProvisionService) Settle(
 				"festgehaltenen Grund ist von einer Ergebnisglättung nicht zu unterscheiden " +
 				"(§ 249 Abs. 2 Satz 2 HGB)")
 	}
-	when := s.dateOr(ctx, date)
+	when := date
+	if err := domain.CheckDate("Buchungsdatum", when); err != nil {
+		return nil, err
+	}
 	if rest := provision.Balance(); rest > 0 {
 		return s.BookRelease(ctx, ProvisionChangeRequest{
 			ProvisionID: provisionID, Amount: rest, Date: when, Reason: reason,
@@ -751,8 +744,10 @@ func (s *ProvisionService) Settle(
 		if err := s.provisionRepo.Save(ctx, provision); err != nil {
 			return nil, err
 		}
-		s.audit(ctx, domain.AuditActionUpdate, provisionID, fmt.Sprintf(
-			"Rückstellung %q zum %s erledigt: %s", provision.Text, when, reason))
+		if err := s.audit(ctx, domain.AuditActionUpdate, provisionID, fmt.Sprintf(
+			"Rückstellung %q zum %s erledigt: %s", provision.Text, when, reason)); err != nil {
+			return nil, err
+		}
 	}
 	return s.provisionRepo.FindByID(ctx, provisionID)
 }
@@ -766,10 +761,10 @@ func (s *ProvisionService) Settle(
 func (s *ProvisionService) DiscountFindings(
 	ctx context.Context, year int,
 ) ([]domain.CheckFinding, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
-	fy, err := s.closingSvc.PeriodOf(ctx, year)
+	fy, err := s.periods.PeriodOf(ctx, year)
 	if err != nil {
 		return nil, err
 	}
@@ -836,7 +831,7 @@ func (s *ProvisionService) DiscountFindings(
 // jüngsten, die es gibt.
 func (s *ProvisionService) DiscountRates(ctx context.Context, month string) ([]domain.DiscountRate, error) {
 	if month == "" {
-		return s.rateRepo.FindLatestUpTo(ctx, time.Now().Format("2006-01"))
+		return s.rateRepo.FindLatestUpTo(ctx, calendar.Today(s.now)[:7])
 	}
 	return s.rateRepo.FindByMonth(ctx, month)
 }
@@ -848,6 +843,12 @@ func (s *ProvisionService) DiscountRateMonths(ctx context.Context) ([]string, er
 
 // SaveDiscountRates schreibt gepflegte Sätze fort.
 func (s *ProvisionService) SaveDiscountRates(ctx context.Context, rates []domain.DiscountRate) error {
+	return s.journalSvc.InTx(ctx, func(ctx context.Context) error {
+		return s.saveDiscountRates(ctx, rates)
+	})
+}
+
+func (s *ProvisionService) saveDiscountRates(ctx context.Context, rates []domain.DiscountRate) error {
 	for i := range rates {
 		if rates[i].Average == 0 {
 			rates[i].Average = 7
@@ -859,7 +860,9 @@ func (s *ProvisionService) SaveDiscountRates(ctx context.Context, rates []domain
 	if err := s.rateRepo.Save(ctx, rates); err != nil {
 		return err
 	}
-	s.audit(ctx, domain.AuditActionUpdate, 0, fmt.Sprintf("%d Abzinsungssätze gepflegt", len(rates)))
+	if err := s.audit(ctx, domain.AuditActionUpdate, 0, fmt.Sprintf("%d Abzinsungssätze gepflegt", len(rates))); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -871,6 +874,14 @@ func (s *ProvisionService) SaveDiscountRates(ctx context.Context, rates []domain
 // Datei wird von Hand aus einer Tabelle exportiert, und ihre Spaltenzahl hängt
 // davon ab, wer sie exportiert hat.
 func (s *ProvisionService) ImportDiscountRatesCSV(
+	ctx context.Context, path, month string, average int,
+) (int, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (int, error) {
+		return s.importDiscountRatesCSV(ctx, path, month, average)
+	})
+}
+
+func (s *ProvisionService) importDiscountRatesCSV(
 	ctx context.Context, path, month string, average int,
 ) (int, error) {
 	if month == "" {
@@ -1008,27 +1019,6 @@ func (s *ProvisionService) load(ctx context.Context, id uint) (*domain.Provision
 	return &live[0], nil
 }
 
-func (s *ProvisionService) dateOr(ctx context.Context, date string) string {
-	if date != "" {
-		return date
-	}
-	if fy, err := s.closingSvc.PeriodOf(ctx, s.fiscalYear); err == nil {
-		return fy.EndDate
-	}
-	return todayLocal()
-}
-
-func (s *ProvisionService) fiscalYearStartMonth(ctx context.Context) int {
-	if s.settingsRepo == nil {
-		return 1
-	}
-	settings, err := s.settingsRepo.GetCompanySettings(ctx)
-	if err != nil || settings == nil || settings.FiscalYearStartMonth <= 0 {
-		return 1
-	}
-	return settings.FiscalYearStartMonth
-}
-
 // fillEntryNumbers trägt die Buchungsnummern nach: die Bewegung speichert die
 // Kennung, und eine Kennung sagt in einer Tabelle niemandem etwas.
 func (s *ProvisionService) fillEntryNumbers(ctx context.Context, movements []domain.ProvisionMovement) {
@@ -1041,13 +1031,6 @@ func (s *ProvisionService) fillEntryNumbers(ctx context.Context, movements []dom
 			movements[i].EntryNumber = entry.EntryNumber
 		}
 	}
-}
-
-func (s *ProvisionService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) {
-	if s.auditRepo == nil {
-		return
-	}
-	_ = s.auditRepo.Log(ctx, action, "PROVISION", fmt.Sprintf("%d", id), details)
 }
 
 // sortProvisionsByDate ordnet die Rückstellungen nach ihrem erwarteten

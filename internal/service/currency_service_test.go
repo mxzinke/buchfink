@@ -124,7 +124,7 @@ func TestVatAverageRateSplitsBaseFromExpense(t *testing.T) {
 	svc := env.currency(t, server.URL)
 
 	// Ohne Durchschnittskurs bleibt es beim Tageskurs.
-	plain, err := svc.Convert(ctx, "USD", "2026-03-10", 1_085_000)
+	plain, err := svc.Convert(ctx, "USD", "2026-03-10", "", 1_085_000)
 	if err != nil {
 		t.Fatalf("Umrechnung: %v", err)
 	}
@@ -139,13 +139,11 @@ func TestVatAverageRateSplitsBaseFromExpense(t *testing.T) {
 		t.Errorf("der Hinweis muss die Vorschrift nennen: %s", plain.Note)
 	}
 
-	if _, err := svc.SaveVatRate(ctx, domain.VatExchangeRate{
+	saveVatRate(t, svc, domain.VatExchangeRate{
 		Month: "2026-03", Currency: "USD", RateMicros: 1_100_000,
-	}); err != nil {
-		t.Fatalf("Durchschnittskurs: %v", err)
-	}
+	})
 
-	withVat, err := svc.Convert(ctx, "USD", "2026-03-10", 1_085_000)
+	withVat, err := svc.Convert(ctx, "USD", "2026-03-10", "", 1_085_000)
 	if err != nil {
 		t.Fatalf("Umrechnung: %v", err)
 	}
@@ -245,11 +243,11 @@ func TestCurrencyValuationFollowsTheOneYearRule(t *testing.T) {
 	ctx := context.Background()
 	server, _ := ecbServer(t, "1.0000", "2026-12-31")
 	svc := env.currency(t, server.URL)
-	svc.SetClosingService(env.closing(t))
+	svc.SetPeriodSource(env.closing(t))
 	svc.SetOpenItemSource(NewPaymentService(
 		env.journal, env.journalRepo,
 		repository.NewPaymentAllocationRepository(env.db),
-		env.contactRepo, repository.NewBankRepository(env.db), env.fiscalYear))
+		env.contactRepo, repository.NewBankRepository(env.db)))
 
 	// Der Buchkurs ist 1,10 USD je Euro, der Stichtagskurs 1,00. Eine Forderung
 	// über 11.000 USD stand mit 10.000 € in den Büchern und ist am Stichtag
@@ -371,4 +369,15 @@ func (e *testEnv) entryByNumber(t *testing.T, year int, number string) *domain.J
 	}
 	t.Fatalf("die Buchung %s steht nicht im Journal %d", number, year)
 	return nil
+}
+
+// saveVatRate legt einen Durchschnittskurs an, wie ihn der CSV-Import speichert.
+func saveVatRate(t *testing.T, svc *CurrencyService, rate domain.VatExchangeRate) {
+	t.Helper()
+	if rate.Source == "" {
+		rate.Source = "BMF-Umsatzsteuer-Umrechnungskurse"
+	}
+	if err := svc.rates.SaveVatRate(context.Background(), &rate); err != nil {
+		t.Fatalf("Durchschnittskurs %s %s: %v", rate.Currency, rate.Month, err)
+	}
 }

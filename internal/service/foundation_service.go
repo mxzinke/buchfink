@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -17,34 +18,26 @@ import (
 // sie zusammenzählt und der Gesellschafterin sagt, dass sie am Tag der
 // Eintragung 3.000 € nachschießen wird.
 type FoundationService struct {
+	serviceClock
+	auditor[uint]
 	foundationRepo domain.FoundationRepository
 	accountRepo    domain.AccountRepository
 	journalRepo    domain.JournalRepository
 	settingsRepo   domain.SettingsRepository
 	journalSvc     *JournalService
-	auditRepo      domain.AuditRepository
 	// yearAligner zieht den Beginn des Gründungsjahres auf die Beurkundung nach.
 	// Optional: ohne ihn bleibt die Gründung erfasst und der Zeitraum, wie er war.
 	yearAligner FoundingYearAligner
-	// statements, documents und renderer tragen die Eröffnungsbilanz: die
-	// Gliederung auf den Beurkundungstag, ihre Ablage und ihren Satz. Jede darf
-	// fehlen; dann fehlt der Eröffnungsbilanz eine Stufe und sie sagt, welche.
+	// statements und renderer tragen die Eröffnungsbilanz: die Gliederung auf
+	// den Beurkundungstag und ihren Satz. Beide dürfen fehlen; dann fehlt der
+	// Eröffnungsbilanz eine Stufe und sie sagt, welche.
 	statements StatementAtSource
-	documents  *DocumentService
 	renderer   DocumentRenderer
+	// receipts bindet den Beschluss an die Einforderung.
+	receipts closingReceiptFiler
 }
 
-// Die Schlüssel der Gründungspflichten, wie sie in der Ablage und in der
-// Fristenliste erscheinen. Sie stehen im Fachbereich (accounting.Duty…) und hier
-// als Kopie, weil der Dienst sie an die Dokumentenablage weitergibt und ein
-// Import des Fachbereichs an dieser Stelle nur diese eine Zeichenkette brächte.
-const (
-	DutyKeyEroeffnungsbilanz = "eroeffnungsbilanz"
-	DutyKeyHandelsregister   = "handelsregister"
-	DutyKeyFragebogen        = "fragebogen"
-)
-
-// NewFoundationService creates the Gründungsbegleitung.
+// NewFoundationService creates the service for the Gründung.
 func NewFoundationService(
 	foundationRepo domain.FoundationRepository,
 	accountRepo domain.AccountRepository,
@@ -59,7 +52,7 @@ func NewFoundationService(
 		journalRepo:    journalRepo,
 		settingsRepo:   settingsRepo,
 		journalSvc:     journalSvc,
-		auditRepo:      auditRepo,
+		auditor:        auditor[uint]{auditRepo: auditRepo, entity: "GRUENDUNG"},
 	}
 }
 
@@ -78,14 +71,9 @@ func (s *FoundationService) SetFoundingYearAligner(a FoundingYearAligner) { s.ye
 // FoundationState is everything the Gründungsansicht needs, in one call.
 //
 // Zusammen und nicht einzeln, weil die Teile voneinander abhängen: die Regeln
-// folgen aus der Rechtsform, die Fristen aus dem Beurkundungsdatum, die
-// Unterbilanz aus beidem und dem Journal. Vier Aufrufe könnten einen Stand
-// zeigen, den es so nie gab.
+// folgen aus der Rechtsform, die Unterbilanz aus ihr, dem Beurkundungsdatum und
+// dem Journal. Mehrere Aufrufe könnten einen Stand zeigen, den es so nie gab.
 type FoundationState struct {
-	// Applies ist falsch, wenn die Rechtsform des Mandanten keine
-	// Kapitalgesellschaft ist. Dann gibt es keinen Gründungsweg, und die
-	// übrigen Felder sind leer.
-	Applies bool `json:"applies"`
 	// HasFoundation ist falsch, solange keine Gründung erfasst wurde.
 	HasFoundation bool `json:"hasFoundation"`
 
@@ -94,34 +82,20 @@ type FoundationState struct {
 	Foundation *domain.Foundation         `json:"foundation,omitempty"`
 	Stage      domain.FoundationStage     `json:"stage"`
 
-	Anmeldung   *domain.AnmeldungCheck  `json:"anmeldung,omitempty"`
-	Unterbilanz *domain.Unterbilanz     `json:"unterbilanz,omitempty"`
-	Duties      []domain.FoundationDuty `json:"duties"`
+	Anmeldung   *domain.AnmeldungCheck `json:"anmeldung,omitempty"`
+	Unterbilanz *domain.Unterbilanz    `json:"unterbilanz,omitempty"`
 
 	// PostingsBooked sagt, ob die Gründungsbuchungen schon im Journal stehen.
 	PostingsBooked bool `json:"postingsBooked"`
-
-	// Guide ist der Fortschritt durch die Gründung: wie viele Schritte erledigt
-	// sind und welcher als Nächstes ansteht.
-	Guide FoundationGuide `json:"guide"`
 }
 
-// FoundationGuide ist der Stand des Gründungswegs.
-//
-// Gerechnet und nicht von der Ansicht gezählt — derselbe Grund wie beim
-// geführten Weg des Jahresabschlusses: zwei Zählungen desselben Fortschritts
-// gehen auseinander, sobald eine Regel sich ändert.
-type FoundationGuide struct {
-	Total int `json:"total"`
-	Done  int `json:"done"`
-	// Waiting sind die Schritte, deren auslösendes Ereignis noch aussteht. Sie
-	// zählen nicht als offen: zu tun ist an ihnen gerade nichts.
-	Waiting int `json:"waiting"`
-	Open    int `json:"open"`
-	// NextKey ist der Schlüssel des Schrittes, der als Nächstes ansteht — der
-	// erste offene in der Reihenfolge des Weges. Leer heißt: nichts offen.
-	NextKey   string `json:"nextKey,omitempty"`
-	NextTitle string `json:"nextTitle,omitempty"`
+// foundationRulesOf liefert die Kapitalaufbringungsregeln der Rechtsform.
+func foundationRulesOf(legalForm string) (accounting.FoundationRules, error) {
+	rules, ok := accounting.FoundationRulesFor(legalForm)
+	if !ok {
+		return rules, fmt.Errorf("für die Rechtsform %q sind keine Gründungsregeln hinterlegt", legalForm)
+	}
+	return rules, nil
 }
 
 // GetState assembles the Gründungsansicht.
@@ -131,15 +105,13 @@ func (s *FoundationService) GetState(ctx context.Context) (*FoundationState, err
 		return nil, err
 	}
 
-	rules, applies := accounting.FoundationRulesFor(settings.LegalForm)
+	rules, err := foundationRulesOf(settings.LegalForm)
+	if err != nil {
+		return nil, err
+	}
 	state := &FoundationState{
-		Applies:   applies,
 		LegalForm: settings.LegalForm,
 		Rules:     rules,
-		Duties:    []domain.FoundationDuty{},
-	}
-	if !applies {
-		return state, nil
 	}
 
 	f, err := s.foundationRepo.Get(ctx)
@@ -163,32 +135,6 @@ func (s *FoundationService) GetState(ctx context.Context) (*FoundationState, err
 	}
 	state.Unterbilanz = unterbilanz
 
-	tasks, err := s.foundationRepo.Tasks(ctx, f.ID)
-	if err != nil {
-		return nil, err
-	}
-	done := make(map[string]string, len(tasks))
-	for _, task := range tasks {
-		if task.Status != "deferred" {
-			done[task.Key] = task.DoneOn
-		}
-	}
-	state.Duties = accounting.FoundationDuties(f, rules, done)
-	for i := range state.Duties {
-		for _, task := range tasks {
-			if task.Key != state.Duties[i].Key {
-				continue
-			}
-			state.Duties[i].IsNotApplicable = task.Status == "skipped" || task.Note == foundationNotApplicable
-		}
-	}
-	applyFoundationMasterData(state.Duties, settings)
-	applyFoundationDependencies(state.Duties, settings.Employees)
-	if s.documents != nil {
-		attachDutyProof(ctx, s.documents, state.Duties)
-	}
-	state.Guide = summarizeGuide(state.Duties)
-
 	booked, err := s.postingsBooked(ctx)
 	if err != nil {
 		return nil, err
@@ -199,19 +145,27 @@ func (s *FoundationService) GetState(ctx context.Context) (*FoundationState, err
 }
 
 // Save writes the Gründung after checking what only this service can check.
-func (s *FoundationService) Save(ctx context.Context, f *domain.Foundation) (*domain.Foundation, error) {
+// notarizedOn ist der Tag der Beurkundung; er wird zum Gründungsdatum der
+// Unternehmensdaten.
+func (s *FoundationService) Save(ctx context.Context, notarizedOn string, f *domain.Foundation) (*domain.Foundation, error) {
+	if err := requireHuman(ctx, "Die Erfassung der Gründung"); err != nil {
+		return nil, err
+	}
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.Foundation, error) {
+		return s.save(ctx, notarizedOn, f)
+	})
+}
+
+func (s *FoundationService) save(ctx context.Context, notarizedOn string, f *domain.Foundation) (*domain.Foundation, error) {
 	settings, err := s.settingsRepo.GetCompanySettings(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rules, applies := accounting.FoundationRulesFor(settings.LegalForm)
-	if !applies {
-		return nil, fmt.Errorf(
-			"der Gründungsweg gilt für Kapitalgesellschaften. Die Rechtsform des Mandanten ist %q — "+
-				"eine Vorgesellschaft und damit eine Unterbilanzhaftung gibt es dort nicht",
-			settings.LegalForm)
+	rules, err := foundationRulesOf(settings.LegalForm)
+	if err != nil {
+		return nil, err
 	}
-	if err := validateFoundation(f, rules); err != nil {
+	if err := validateFoundation(notarizedOn, f, rules); err != nil {
 		return nil, err
 	}
 
@@ -222,10 +176,14 @@ func (s *FoundationService) Save(ctx context.Context, f *domain.Foundation) (*do
 	if err := s.foundationRepo.Save(ctx, f); err != nil {
 		return nil, err
 	}
-	s.audit(ctx, domain.AuditActionUpdate, f.ID, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionUpdate, f.ID, fmt.Sprintf(
 		"Gründung erfasst: Beurkundung %s, Stammkapital %s €, %d Gesellschafter",
-		f.NotarizedOn, f.ShareCapital, len(f.Shareholders)))
-	s.adoptFoundingSettings(ctx, existing, f)
+		notarizedOn, f.ShareCapital, len(f.Shareholders))); err != nil {
+		return nil, err
+	}
+	if err := s.adoptFoundingSettings(ctx, notarizedOn, existing, f); err != nil {
+		return nil, err
+	}
 
 	// Aus der Beurkundung folgt der Beginn des ersten Geschäftsjahres: eine
 	// Gesellschaft, die im März entstanden ist, hat kein Geschäftsjahr, das im
@@ -234,26 +192,28 @@ func (s *FoundationService) Save(ctx context.Context, f *domain.Foundation) (*do
 	// gespeichert: sie ist die Tatsache, das Geschäftsjahr die Folge daraus.
 	if s.yearAligner != nil {
 		if err := s.yearAligner.AlignFoundingYear(ctx); err != nil {
-			s.audit(ctx, domain.AuditActionUpdate, f.ID, fmt.Sprintf(
-				"Der Beginn des Gründungsjahres konnte nicht auf die Beurkundung gesetzt werden: %v", err))
+			if err := s.audit(ctx, domain.AuditActionUpdate, f.ID, fmt.Sprintf(
+				"Der Beginn des Gründungsjahres konnte nicht auf die Beurkundung gesetzt werden: %v", err)); err != nil {
+				return nil, err
+			}
 		}
 	}
 	return f, nil
 }
 
 // validateFoundation checks what the Gesellschaftsvertrag itself has to satisfy.
-func validateFoundation(f *domain.Foundation, rules accounting.FoundationRules) error {
-	if len(f.NotarizedOn) != 10 {
+func validateFoundation(notarizedOn string, f *domain.Foundation, rules accounting.FoundationRules) error {
+	if _, err := calendar.Parse(notarizedOn); err != nil {
 		return fmt.Errorf("das Datum der Beurkundung fehlt oder ist unvollständig (erwartet JJJJ-MM-TT)")
 	}
 	if f.RegisteredOn != "" {
 		if len(f.RegisteredOn) != 10 {
 			return fmt.Errorf("das Datum der Eintragung ist unvollständig (erwartet JJJJ-MM-TT)")
 		}
-		if f.RegisteredOn < f.NotarizedOn {
+		if f.RegisteredOn < notarizedOn {
 			return fmt.Errorf(
 				"die Eintragung (%s) kann nicht vor der Beurkundung (%s) liegen",
-				f.RegisteredOn, f.NotarizedOn)
+				f.RegisteredOn, notarizedOn)
 		}
 	}
 	if f.ShareCapital < rules.MinShareCapital {
@@ -296,6 +256,9 @@ func validateFoundation(f *domain.Foundation, rules accounting.FoundationRules) 
 					"kann niemand einzahlen — ein Aufgeld gehört in die Kapitalrücklage (Konto 2920)",
 				sh.Name, sh.PaidIn, sh.ShareCapital)
 		}
+		if err := validateUncalled(sh, rules); err != nil {
+			return err
+		}
 	}
 
 	if sum := f.SubscribedCapital(); sum != f.ShareCapital {
@@ -303,6 +266,44 @@ func validateFoundation(f *domain.Foundation, rules accounting.FoundationRules) 
 			"die übernommenen Geschäftsanteile ergeben %s €, das Stammkapital beträgt %s €. "+
 				"Beides muss übereinstimmen (§ 5 Abs. 3 Satz 2 GmbHG)",
 			sum, f.ShareCapital)
+	}
+	if called, required := f.ShareCapital-f.UncalledCapital(), rules.RequiredPaidIn(f); called < required {
+		return fmt.Errorf(
+			"eingefordert sind %s €; vor der Anmeldung müssen %s € eingezahlt sein (%s). "+
+				"Der nicht eingeforderte Teil ist zu groß", called, required, rules.Reference)
+	}
+	return nil
+}
+
+// validateUncalled prüft den nicht eingeforderten Teil eines Geschäftsanteils.
+// Eingefordert sein muss mindestens, was vor der Anmeldung einzuzahlen ist;
+// eine Sacheinlage ist vollständig zu bewirken, bei der UG das ganze
+// Stammkapital einzuzahlen.
+func validateUncalled(sh *domain.Shareholder, rules accounting.FoundationRules) error {
+	if sh.Uncalled < 0 {
+		return fmt.Errorf("%s: der nicht eingeforderte Teil kann nicht negativ sein", sh.Name)
+	}
+	if sh.Uncalled > 0 {
+		switch {
+		case sh.Kind == domain.ContributionInKind:
+			return fmt.Errorf(
+				"%s: eine Sacheinlage ist vor der Anmeldung vollständig zu bewirken (§ 7 Abs. 3 GmbHG); "+
+					"ein nicht eingeforderter Teil ist bei ihr nicht möglich", sh.Name)
+		case rules.PaidInFloorIsFullCapital:
+			return fmt.Errorf(
+				"%s: bei der %s ist das Stammkapital vor der Anmeldung voll einzuzahlen (%s); "+
+					"nicht eingefordert kann nichts bleiben", sh.Name, rules.LegalForm, rules.Reference)
+		case sh.CalledIn() < rules.RequiredPerShare(*sh):
+			return fmt.Errorf(
+				"%s: eingefordert sind %s €, vor der Anmeldung einzuzahlen sind mindestens %s € (%s)",
+				sh.Name, sh.CalledIn(), rules.RequiredPerShare(*sh), rules.Reference)
+		}
+	}
+	if sh.PaidIn > sh.CalledIn() {
+		return fmt.Errorf(
+			"%s: geleistet sind %s €, eingefordert aber nur %s €. Wird mehr eingezahlt, haben die "+
+				"Gesellschafter den Rest eingefordert (§ 46 Nr. 2 GmbHG); der nicht eingeforderte Teil "+
+				"ist dann kleiner", sh.Name, sh.PaidIn, sh.CalledIn())
 	}
 	return nil
 }
@@ -370,7 +371,7 @@ func (s *FoundationService) Unterbilanz(ctx context.Context, f *domain.Foundatio
 	asOf := f.RegisteredOn
 	final := true
 	if asOf == "" {
-		asOf = todayLocal()
+		asOf = s.today()
 		final = false
 	}
 
@@ -456,7 +457,7 @@ func (s *FoundationService) netAssetsUntil(ctx context.Context, until string) (d
 				assets += signed
 			case l.Account == domain.AccountAusstehendeEinlagenOffen:
 				// Die nicht eingeforderte Einlage steht als offene Absetzung vom
-				// gezeichneten Kapital auf der Passivseite (§ 272 Abs. 1 Satz 3
+				// gezeichneten Kapital auf der Passivseite (§ 272 Abs. 1 Satz 2
 				// HGB), ist der Sache nach aber eine Forderung gegen den
 				// Gesellschafter. Sie gehört ins Reinvermögen, sonst zeigte die
 				// Rechnung eine Unterbilanz in Höhe der noch nicht eingeforderten
@@ -551,17 +552,18 @@ type FoundationPostingPreview struct {
 
 // PreviewPostings builds the founding bookings without writing them.
 //
-// Zwei Sätze, mehr ist es nicht:
+// Gebucht wird die Zeichnung am Tag der Beurkundung:
 //
-//	Zeichnung   SOLL 1298 Ausstehende Einlagen, eingefordert
-//	            HABEN 2900 Gezeichnetes Kapital
-//	Einzahlung  SOLL 1800 Bank
-//	            HABEN 1298 Ausstehende Einlagen, eingefordert
+//	SOLL 1298 Ausstehende Einlagen, eingefordert       (eingeforderter Teil)
+//	SOLL 2910 Ausstehende Einlagen, nicht eingefordert (Rest laut Vertrag)
+//	HABEN 2900 Gezeichnetes Kapital
 //
-// Gebucht wird das volle Stammkapital als eingefordert. Ein nicht eingeforderter
-// Teil (Konto 2910) ist eine Entscheidung der Gesellschafter und keine, die aus
-// den erfassten Daten folgt; wer ihn braucht, bucht ihn von Hand — die
-// Unterbilanzrechnung liest das Konto trotzdem.
+// Der eingeforderte, noch nicht eingezahlte Betrag ist eine Forderung, der
+// nicht eingeforderte wird vom gezeichneten Kapital offen abgesetzt (§ 272
+// Abs. 1 Satz 2 HGB). Die Einzahlung bucht der Bankumsatz: der Geldeingang auf
+// dem Geschäftskonto wird dem Konto 1298 zugeordnet. Eine Einzahlung am Tag der
+// Beurkundung ohne Kontoauszug stünde neben dem späteren Umsatz ein zweites
+// Mal im Journal.
 func (s *FoundationService) PreviewPostings(ctx context.Context) (*FoundationPostingPreview, error) {
 	f, err := s.foundationRepo.Get(ctx)
 	if err != nil {
@@ -569,6 +571,10 @@ func (s *FoundationService) PreviewPostings(ctx context.Context) (*FoundationPos
 	}
 	if f == nil {
 		return nil, fmt.Errorf("für diesen Mandanten ist keine Gründung erfasst")
+	}
+	notarizedOn, err := s.notarizedOn(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	booked, err := s.postingsBooked(ctx)
@@ -585,40 +591,46 @@ func (s *FoundationService) PreviewPostings(ctx context.Context) (*FoundationPos
 		return preview, nil
 	}
 
+	uncalled := f.UncalledCapital()
+	called := f.ShareCapital - uncalled
+	lines := []domain.JournalLine{
+		{Side: domain.SideDebit, Account: domain.AccountAusstehendeEinlagenGeford, Amount: called},
+	}
+	if uncalled > 0 {
+		lines = append(lines, domain.JournalLine{
+			Side: domain.SideDebit, Account: domain.AccountAusstehendeEinlagenOffen, Amount: uncalled,
+		})
+	}
+	lines = append(lines, domain.JournalLine{
+		Side: domain.SideCredit, Account: domain.AccountGezeichnetesKapital, Amount: f.ShareCapital,
+	})
 	preview.Postings = append(preview.Postings, FoundationPosting{
 		Title:       "Zeichnung des Stammkapitals",
-		Date:        f.NotarizedOn,
+		Date:        notarizedOn,
 		Description: "Übernahme der Geschäftsanteile laut Gesellschaftsvertrag",
 		Reference:   "§ 272 Abs. 1 HGB",
 		Amount:      f.ShareCapital,
-		Lines: []domain.JournalLine{
-			{Side: domain.SideDebit, Account: domain.AccountAusstehendeEinlagenGeford, Amount: f.ShareCapital},
-			{Side: domain.SideCredit, Account: domain.AccountGezeichnetesKapital, Amount: f.ShareCapital},
-		},
+		Lines:       lines,
 	})
+	if uncalled > 0 {
+		preview.Skipped = append(preview.Skipped, fmt.Sprintf(
+			"Nicht eingefordert sind %s €. Fordern die Gesellschafter den Rest ein (§ 46 Nr. 2 GmbHG), "+
+				"bucht die Einforderung 1298 an 2910.", uncalled))
+	}
 
 	for _, sh := range f.Shareholders {
 		if sh.Kind == domain.ContributionInKind {
 			preview.Skipped = append(preview.Skipped, fmt.Sprintf(
 				"%s leistet eine Sacheinlage über %s €. Sie gehört auf das Konto des "+
-					"eingebrachten Gegenstands und ist deshalb von Hand zu buchen.",
+					"eingebrachten Gegenstands an 1298 und ist deshalb von Hand zu buchen.",
 				sh.Name, sh.ShareCapital))
 			continue
 		}
-		if sh.PaidIn <= 0 {
-			continue
+		if sh.PaidIn > 0 {
+			preview.Skipped = append(preview.Skipped, fmt.Sprintf(
+				"Die Einzahlung von %s (%s €) bucht der Bankumsatz: den Geldeingang auf dem "+
+					"Geschäftskonto dem Konto 1298 zuordnen.", sh.Name, sh.PaidIn))
 		}
-		preview.Postings = append(preview.Postings, FoundationPosting{
-			Title:       "Einzahlung " + sh.Name,
-			Date:        f.NotarizedOn,
-			Description: fmt.Sprintf("Bareinlage %s auf das Geschäftskonto", sh.Name),
-			Reference:   "§ 7 Abs. 2 GmbHG",
-			Amount:      sh.PaidIn,
-			Lines: []domain.JournalLine{
-				{Side: domain.SideDebit, Account: domain.AccountBank, Amount: sh.PaidIn},
-				{Side: domain.SideCredit, Account: domain.AccountAusstehendeEinlagenGeford, Amount: sh.PaidIn},
-			},
-		})
 	}
 
 	for _, p := range preview.Postings {
@@ -629,6 +641,12 @@ func (s *FoundationService) PreviewPostings(ctx context.Context) (*FoundationPos
 
 // BookPostings writes the founding bookings after the user released them.
 func (s *FoundationService) BookPostings(ctx context.Context) ([]domain.JournalEntry, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) ([]domain.JournalEntry, error) {
+		return s.bookPostings(ctx)
+	})
+}
+
+func (s *FoundationService) bookPostings(ctx context.Context) ([]domain.JournalEntry, error) {
 	preview, err := s.PreviewPostings(ctx)
 	if err != nil {
 		return nil, err
@@ -655,7 +673,7 @@ func (s *FoundationService) BookPostings(ctx context.Context) ([]domain.JournalE
 		}
 		out, err := s.journalSvc.Post(ctx, entry)
 		if err != nil {
-			return created, fmt.Errorf("%s konnte nicht gebucht werden: %w", p.Title, err)
+			return nil, fmt.Errorf("%s konnte nicht gebucht werden: %w", p.Title, err)
 		}
 		created = append(created, *out)
 	}
@@ -677,7 +695,7 @@ func (s *FoundationService) postingsBooked(ctx context.Context) (bool, error) {
 }
 
 // -------------------------------------------------------------
-// Eintragung und Pflichten
+// Eintragung
 // -------------------------------------------------------------
 
 // Register records the entry in the Handelsregister — the end of the
@@ -687,6 +705,15 @@ func (s *FoundationService) postingsBooked(ctx context.Context) (bool, error) {
 // die Handelndenhaftung des § 11 Abs. 2 GmbHG endet, und die Unterbilanz steht
 // auf diesen Tag fest.
 func (s *FoundationService) Register(ctx context.Context, date, court, number string) (*domain.Foundation, error) {
+	if err := requireHuman(ctx, "Die Eintragung ins Handelsregister"); err != nil {
+		return nil, err
+	}
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.Foundation, error) {
+		return s.register(ctx, date, court, number)
+	})
+}
+
+func (s *FoundationService) register(ctx context.Context, date, court, number string) (*domain.Foundation, error) {
 	f, err := s.foundationRepo.Get(ctx)
 	if err != nil {
 		return nil, err
@@ -700,9 +727,13 @@ func (s *FoundationService) Register(ctx context.Context, date, court, number st
 	if len(date) != 10 {
 		return nil, fmt.Errorf("das Datum der Eintragung fehlt oder ist unvollständig (erwartet JJJJ-MM-TT)")
 	}
-	if date < f.NotarizedOn {
+	notarizedOn, err := s.notarizedOn(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if date < notarizedOn {
 		return nil, fmt.Errorf(
-			"die Eintragung (%s) kann nicht vor der Beurkundung (%s) liegen", date, f.NotarizedOn)
+			"die Eintragung (%s) kann nicht vor der Beurkundung (%s) liegen", date, notarizedOn)
 	}
 	if strings.TrimSpace(number) == "" {
 		return nil, fmt.Errorf("die Registernummer fehlt")
@@ -719,96 +750,67 @@ func (s *FoundationService) Register(ctx context.Context, date, court, number st
 	// jedes Jahresabschlusses (§ 264 Abs. 1a HGB). Sie hier zu übernehmen
 	// erspart, dieselbe Tatsache ein zweites Mal einzutragen — überschrieben
 	// wird nichts: was in den Einstellungen steht, hat jemand dort gewollt.
-	s.adoptRegisterSettings(ctx, f)
+	if err := s.adoptRegisterSettings(ctx, f); err != nil {
+		return nil, err
+	}
 
-	_ = s.foundationRepo.CompleteTask(ctx, &domain.FoundationTask{
-		FoundationID: f.ID,
-		Key:          accounting.DutyHandelsregister,
-		DoneOn:       date,
-		Note:         strings.TrimSpace(court + " " + number),
-	})
-
-	s.audit(ctx, domain.AuditActionUpdate, f.ID, fmt.Sprintf(
-		"Eintragung ins Handelsregister am %s: %s %s", date, f.RegisterCourt, f.RegisterNumber))
+	if err := s.audit(ctx, domain.AuditActionUpdate, f.ID, fmt.Sprintf(
+		"Eintragung ins Handelsregister am %s: %s %s", date, f.RegisterCourt, f.RegisterNumber)); err != nil {
+		return nil, err
+	}
 	return f, nil
 }
 
-const foundationNotApplicable = "Nicht zutreffend"
+// RegisterFromSettings übernimmt die Eintragung aus den Stammdaten. Ohne
+// erfasste Gründung oder bei einer schon eingetragenen Gesellschaft ist nichts
+// zu tun.
+func (s *FoundationService) RegisterFromSettings(ctx context.Context, date, court, number string) error {
+	return s.journalSvc.InTx(ctx, func(ctx context.Context) error {
+		return s.registerFromSettings(ctx, date, court, number)
+	})
+}
 
-// CompleteDuty records a fulfilled Gründungspflicht, or takes it back when the
-// date is empty.
-func (s *FoundationService) CompleteDuty(ctx context.Context, key, doneOn, note string) error {
+func (s *FoundationService) registerFromSettings(ctx context.Context, date, court, number string) error {
 	f, err := s.foundationRepo.Get(ctx)
 	if err != nil {
 		return err
 	}
-	if f == nil {
-		return fmt.Errorf("für diesen Mandanten ist keine Gründung erfasst")
+	if f == nil || f.IsRegistered() {
+		return nil
 	}
-	if doneOn == "" {
-		return s.foundationRepo.ClearTask(ctx, f.ID, key)
-	}
-	if key == "stammdaten" {
-		settings, err := s.settingsRepo.GetCompanySettings(ctx)
-		if err != nil {
-			return err
-		}
-		if missing := foundationMasterDataMissing(settings); len(missing) > 0 {
-			return fmt.Errorf("bitte zuerst die Stammdaten ergänzen: %s", strings.Join(missing, ", "))
-		}
-	}
-	if note == foundationNotApplicable {
-		settings, err := s.settingsRepo.GetCompanySettings(ctx)
-		if err != nil {
-			return err
-		}
-		rules, _ := accounting.FoundationRulesFor(settings.LegalForm)
-		optional := false
-		for _, duty := range accounting.FoundationDuties(f, rules, nil) {
-			if duty.Key == key && duty.Condition != "" {
-				optional = true
-			}
-		}
-		if !optional {
-			return fmt.Errorf("diese Aufgabe kann nicht als nicht zutreffend markiert werden")
-		}
-	}
-	if len(doneOn) != 10 {
-		return fmt.Errorf("das Datum der Erledigung ist unvollständig (erwartet JJJJ-MM-TT)")
-	}
-	return s.foundationRepo.CompleteTask(ctx, &domain.FoundationTask{
-		FoundationID: f.ID,
-		Key:          key,
-		DoneOn:       doneOn,
-		Note:         note,
-	})
+	_, err = s.Register(ctx, date, court, number)
+	return err
 }
 
-func (s *FoundationService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) {
-	if s.auditRepo == nil {
-		return
+// notarizedOn ist der Tag der Beurkundung: das Gründungsdatum der
+// Unternehmensdaten.
+func (s *FoundationService) notarizedOn(ctx context.Context) (string, error) {
+	settings, err := s.settingsRepo.GetCompanySettings(ctx)
+	if err != nil {
+		return "", err
 	}
-	_ = s.auditRepo.Log(ctx, action, "GRUENDUNG", fmt.Sprintf("%d", id), details)
+	if settings == nil || len(settings.FoundedOn) != 10 {
+		return "", fmt.Errorf("in den Unternehmensdaten fehlt das Gründungsdatum, der Tag der Beurkundung")
+	}
+	return settings.FoundedOn, nil
 }
 
-// adoptFoundingSettings trägt Gründungsdatum, Stammkapital und Gesellschafter in
-// die Stammdaten ein, solange dort nichts steht oder noch der vorige Stand der
-// Gründung. Was jemand in den Stammdaten davon abweichend gepflegt hat, bleibt.
-func (s *FoundationService) adoptFoundingSettings(ctx context.Context, previous, f *domain.Foundation) {
-	if s.settingsRepo == nil {
-		return
-	}
+// adoptFoundingSettings schreibt den Tag der Beurkundung als Gründungsdatum in
+// die Stammdaten. Stammkapital und Gesellschafter übernimmt es, solange dort
+// nichts steht oder noch der vorige Stand der Gründung; was jemand in den
+// Stammdaten davon abweichend gepflegt hat, bleibt.
+func (s *FoundationService) adoptFoundingSettings(ctx context.Context, notarizedOn string, previous, f *domain.Foundation) error {
 	settings, err := s.settingsRepo.GetCompanySettings(ctx)
 	if err != nil || settings == nil {
-		return
+		return err
 	}
 	var before domain.Foundation
 	if previous != nil {
 		before = *previous
 	}
 	changed := false
-	if (settings.FoundedOn == "" || settings.FoundedOn == before.NotarizedOn) && settings.FoundedOn != f.NotarizedOn {
-		settings.FoundedOn = f.NotarizedOn
+	if settings.FoundedOn != notarizedOn {
+		settings.FoundedOn = notarizedOn
 		changed = true
 	}
 	if (settings.ShareCapital == 0 || settings.ShareCapital == before.ShareCapital) && settings.ShareCapital != f.ShareCapital {
@@ -822,16 +824,14 @@ func (s *FoundationService) adoptFoundingSettings(ctx context.Context, previous,
 		changed = true
 	}
 	if !changed {
-		return
+		return nil
 	}
 	if err := s.settingsRepo.UpdateCompanySettings(ctx, settings); err != nil {
-		return
+		return fmt.Errorf("die Unternehmensdaten ließen sich nicht aus der Gründung übernehmen: %w", err)
 	}
-	if s.auditRepo != nil {
-		_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "SETTINGS", "COMPANY", fmt.Sprintf(
-			"Aus der Gründung übernommen: Gründungsdatum %s, Stammkapital %s €, %d Gesellschafter",
-			settings.FoundedOn, settings.ShareCapital, len(settings.Shareholders)))
-	}
+	return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "SETTINGS", "COMPANY", fmt.Sprintf(
+		"Aus der Gründung übernommen: Gründungsdatum %s, Stammkapital %s €, %d Gesellschafter",
+		settings.FoundedOn, settings.ShareCapital, len(settings.Shareholders)))
 }
 
 func companyShareholders(shareholders []domain.Shareholder) []domain.CompanyShareholder {
@@ -856,16 +856,13 @@ func sameShareholders(a, b []domain.CompanyShareholder) bool {
 
 // adoptRegisterSettings trägt Registergericht und Registernummer in die
 // Unternehmensdaten nach. Die ausdrücklich erfasste Eintragung ist maßgeblich.
-//
-// Scheitert das Schreiben, bleibt die Eintragung gültig: die Gründung ist die
-// Tatsache, die Einstellung nur ihre Wiederholung.
-func (s *FoundationService) adoptRegisterSettings(ctx context.Context, f *domain.Foundation) {
+func (s *FoundationService) adoptRegisterSettings(ctx context.Context, f *domain.Foundation) error {
 	if s.settingsRepo == nil {
-		return
+		return nil
 	}
 	settings, err := s.settingsRepo.GetCompanySettings(ctx)
 	if err != nil || settings == nil {
-		return
+		return err
 	}
 	changed := false
 	if settings.RegisteredOn != f.RegisteredOn {
@@ -888,51 +885,14 @@ func (s *FoundationService) adoptRegisterSettings(ctx context.Context, f *domain
 		changed = true
 	}
 	if !changed {
-		return
+		return nil
 	}
 	if err := s.settingsRepo.UpdateCompanySettings(ctx, settings); err != nil {
-		return
+		return fmt.Errorf("die Unternehmensdaten ließen sich nicht aus der Eintragung übernehmen: %w", err)
 	}
-	// Auch die abgeleitete Änderung der Unternehmensdaten gehört ins Protokoll.
-	// Jeder andere Weg in die Einstellungen geschieht über den SettingsService und
-	// hinterlässt dort einen Eintrag; bliebe dieser eine Weg stumm, stünden im
-	// Kopf des Jahresabschlusses eines Tages Angaben, die niemand gemacht hat.
-	if s.auditRepo != nil {
-		_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "SETTINGS", "COMPANY", fmt.Sprintf(
-			"Aus der Handelsregistereintragung übernommen: Sitz %q, Registergericht %q, Registernummer %q",
-			settings.Seat, settings.RegisterCourt, settings.RegisterNumber))
-	}
-}
-
-// summarizeGuide zählt den Fortschritt durch die Gründung.
-func summarizeGuide(duties []domain.FoundationDuty) FoundationGuide {
-	guide := FoundationGuide{Total: len(duties)}
-	for _, duty := range duties {
-		switch {
-		case duty.IsDone:
-			guide.Done++
-		case duty.IsPending:
-			guide.Waiting++
-		default:
-			guide.Open++
-			// Der erste offene in der Reihenfolge des Weges. Die Liste kommt
-			// bereits geordnet aus dem Fachbereich.
-			if guide.NextKey == "" {
-				guide.NextKey = duty.Key
-				guide.NextTitle = duty.Title
-			}
-		}
-	}
-	return guide
-}
-
-// attachDutyProof hängt die abgelegten Nachweise an ihre Pflicht.
-func attachDutyProof(ctx context.Context, documents *DocumentService, duties []domain.FoundationDuty) {
-	for i := range duties {
-		proof, err := documents.ForDuty(ctx, duties[i].Key)
-		if err != nil {
-			continue
-		}
-		duties[i].Proof = proof
-	}
+	// Auch die abgeleitete Änderung der Unternehmensdaten gehört ins Protokoll;
+	// sonst stünden im Kopf des Jahresabschlusses Angaben, die niemand gemacht hat.
+	return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "SETTINGS", "COMPANY", fmt.Sprintf(
+		"Aus der Handelsregistereintragung übernommen: Sitz %q, Registergericht %q, Registernummer %q",
+		settings.Seat, settings.RegisterCourt, settings.RegisterNumber))
 }

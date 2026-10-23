@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -9,11 +10,10 @@ import (
 	"github.com/buchfink/buchfink/internal/repository"
 )
 
-// closingModules bündelt die Bausteine der Welle 5a auf der gemeinsamen
-// Testumgebung. Sie hängen alle am ClosingService, weil jeder von ihnen den
-// Bilanzstichtag braucht — und untereinander über die beiden Kopplungen, die
-// diese Welle eingeführt hat: die Auflösung der Abgrenzung am Saldenvortrag und
-// der Verbrauch der Rückstellung am Belegweg.
+// closingModules verbindet die Abschlussbausteine mit der Testumgebung.
+// Der ClosingService liefert den Bilanzstichtag; die Bausteine koppeln die
+// Auflösung der Abgrenzung an den Saldenvortrag und den Verbrauch der
+// Rückstellung an den Belegweg.
 type closingModules struct {
 	closing       *ClosingService
 	accruals      *AccrualService
@@ -28,12 +28,12 @@ type closingModules struct {
 func (e *testEnv) closingModules(t *testing.T) *closingModules {
 	t.Helper()
 	closing := e.closing(t)
-	closing.SetReservePosting(e.receipts, repository.NewTxRunner(e.db))
+	closing.SetReservePosting(e.receipts)
 
 	accrualRepo := repository.NewAccrualRepository(e.db)
 	provisionRepo := repository.NewProvisionRepository(e.db)
 	rateRepo := repository.NewDiscountRateRepository(e.db)
-	inventoryRepo := repository.NewInventoryRepository(e.db)
+
 	notesRepo := repository.NewNotesTextRepository(e.db)
 	appropriationRepo := repository.NewAppropriationRepository(e.db)
 	stepRepo := repository.NewClosingStepRepository(e.db)
@@ -42,35 +42,55 @@ func (e *testEnv) closingModules(t *testing.T) *closingModules {
 
 	m := &closingModules{closing: closing, provisionRepo: provisionRepo}
 	m.accruals = NewAccrualService(
-		accrualRepo, e.journalRepo, e.journal, settingsRepo, auditRepo, closing, e.fiscalYear)
+		accrualRepo, e.journalRepo, e.journal, settingsRepo, auditRepo, closing)
 	m.accruals.SetReceiptService(e.receipts)
 	closing.SetAccrualCarrier(m.accruals)
 
 	m.provisions = NewProvisionService(
 		provisionRepo, rateRepo, e.journalRepo, e.journal, settingsRepo, auditRepo,
-		closing, e.fiscalYear)
+		closing)
 	m.provisions.SetReceiptService(e.receipts)
 	e.posting.SetProvisionConsumer(m.provisions)
 
 	m.bookings = NewClosingBookingService(
-		inventoryRepo, provisionRepo, e.journalRepo, e.journal, settingsRepo, auditRepo,
-		closing, e.fiscalYear)
+		provisionRepo, e.journalRepo, e.journal, settingsRepo, auditRepo,
+		closing)
 	m.bookings.SetReceiptService(e.receipts)
 
 	m.appropriation = NewAppropriationService(
 		appropriationRepo, notesRepo, e.journalRepo, e.journal, settingsRepo, auditRepo,
-		closing, e.fiscalYear)
+		closing)
 	m.appropriation.SetReceiptService(e.receipts)
 	closing.SetNotesCopier(m.appropriation)
 
 	m.register = NewTaxRegisterService(
 		repository.NewAssetRepository(e.db), provisionRepo, e.journalRepo, settingsRepo,
-		closing, e.fiscalYear)
+		closing)
 
 	m.steps = NewClosingStepsService(
-		stepRepo, accrualRepo, provisionRepo, inventoryRepo, appropriationRepo,
-		repository.NewCheckRunRepository(e.db), e.journalRepo, auditRepo, closing, e.fiscalYear)
+		stepRepo, accrualRepo, provisionRepo, appropriationRepo,
+		repository.NewCheckRunRepository(e.db), e.journalRepo, auditRepo, closing)
 	return m
+}
+
+// adopt stellt den Abschluss eines Jahres fest, wie es der Mensch in der App
+// tut: festgeschrieben, aufgestellt und festgestellt am Tag on. Danach nimmt
+// das Jahr keine Buchung mehr auf.
+func (m *closingModules) adopt(t *testing.T, e *testEnv, year int, on string) {
+	t.Helper()
+	ctx := context.Background()
+	if err := repository.NewFestschreibungRepository(e.db).Create(ctx, &domain.Festschreibung{
+		FiscalYear: year, PeriodType: domain.PeriodTypeYear, PeriodLabel: fmt.Sprintf("Geschäftsjahr %d", year),
+		CutoffDate: fmt.Sprintf("%d-12-31", year), ChainHead: domain.GenesisHash,
+	}); err != nil {
+		t.Fatalf("Festschreibung %d: %v", year, err)
+	}
+	if _, err := m.closing.SetFiscalYearStatus(ctx, year, domain.FiscalYearPrepared, on, ""); err != nil {
+		t.Fatalf("Aufstellung %d: %v", year, err)
+	}
+	if _, err := m.closing.SetFiscalYearStatus(ctx, year, domain.FiscalYearAdopted, on, "Gesellschafterversammlung"); err != nil {
+		t.Fatalf("Feststellung %d: %v", year, err)
+	}
 }
 
 // setSetting schreibt eine Einstellung, von der ein Baustein abhängt.
@@ -461,74 +481,6 @@ func TestProvisionConsumptionThroughTheReceiptPathLeavesTheExcessAsExpense(t *te
 }
 
 // -------------------------------------------------------------------------
-// Vorräte
-// -------------------------------------------------------------------------
-
-// Der Inventurwert liegt unter dem Buchwert: die Minderung ist Aufwand und
-// läuft auf das Bestandsveränderungskonto des Materialaufwands.
-func TestInventoryChangeCarriesTheRightSign(t *testing.T) {
-	env := newTestEnv(t)
-	m := env.closingModules(t)
-	ctx := context.Background()
-
-	stock := &domain.JournalEntry{
-		BookingDate: "2026-06-30", DocumentDate: "2026-06-30",
-		ServiceDateFrom: "2026-06-30", ServiceDateTo: "2026-06-30",
-		Description: "Wareneinkauf auf Bestand", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
-		Lines: []domain.JournalLine{
-			{Side: domain.SideDebit, Account: "1140", Amount: 500_000},
-			{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 500_000},
-		},
-	}
-	if _, err := env.journal.Post(ctx, stock); err != nil {
-		t.Fatalf("Bestandsbuchung: %v", err)
-	}
-	list := env.fileIncoming(t, "inventurliste.pdf")
-
-	preview, err := m.bookings.PreviewInventory(ctx, InventoryRequest{
-		FiscalYear: 2026, Account: "1140", Amount: 400_000,
-		CountedOn: "2026-12-31", Method: "Stichtagsinventur", ReceiptID: list.ID,
-	})
-	if err != nil {
-		t.Fatalf("Vorschau: %v", err)
-	}
-	if preview.Change != -100_000 || preview.ChangeAccount != domain.AccountBestandRHBWaren {
-		t.Errorf("Veränderung %s € auf %s — erwartet −1.000,00 € auf %s",
-			preview.Change, preview.ChangeAccount, domain.AccountBestandRHBWaren)
-	}
-
-	if _, err := m.bookings.BookInventory(ctx, InventoryRequest{
-		FiscalYear: 2026, Account: "1140", Amount: 400_000,
-		CountedOn: "2026-12-31", Method: "Stichtagsinventur", ReceiptID: list.ID,
-	}); err != nil {
-		t.Fatalf("Inventur buchen: %v", err)
-	}
-	after := balances(t, env, 2026)
-	if after["1140"] != 400_000 {
-		t.Errorf("Bestand nach der Buchung %s € — erwartet den Inventurwert von 4.000,00 €", after["1140"])
-	}
-	if after[domain.AccountBestandRHBWaren] != 100_000 {
-		t.Errorf("Bestandsveränderung %s € — erwartet 1.000,00 € im Soll (Aufwand)",
-			after[domain.AccountBestandRHBWaren])
-	}
-}
-
-// Ohne Inventurliste gibt es keinen Inventurwert: die Aufnahme selbst ist der
-// Beleg (§ 240 Abs. 1 HGB), und ein Bestand ohne sie ist eine Behauptung.
-func TestInventoryNeedsItsCountSheet(t *testing.T) {
-	env := newTestEnv(t)
-	m := env.closingModules(t)
-	ctx := context.Background()
-
-	if _, err := m.bookings.BookInventory(ctx, InventoryRequest{
-		FiscalYear: 2026, Account: "1140", Amount: 400_000,
-		CountedOn: "2026-12-31", Method: "Stichtagsinventur",
-	}); err == nil {
-		t.Fatal("ohne Inventurliste darf kein Inventurwert entstehen")
-	}
-}
-
-// -------------------------------------------------------------------------
 // Umsatzsteuer-Verrechnung
 // -------------------------------------------------------------------------
 
@@ -677,7 +629,7 @@ func TestTaxProvisionIsComputedAndBooked(t *testing.T) {
 		t.Fatalf("Ergebnis buchen: %v", err)
 	}
 
-	preview, err := m.bookings.PreviewTaxProvision(ctx, 2026)
+	preview, err := m.bookings.PreviewTaxProvision(ctx, 2026, TaxProvisionOptions{})
 	if err != nil {
 		t.Fatalf("Vorschau: %v", err)
 	}
@@ -750,6 +702,7 @@ func TestAppropriationEnforcesTheUGReserve(t *testing.T) {
 	if _, err := m.closing.BookLegalReserve(ctx, 2026); err != nil {
 		t.Fatal(err)
 	}
+	m.adopt(t, env, 2026, "2027-05-20")
 	// The opening balance carries the already formed reserve separately.
 	opening := &domain.JournalEntry{
 		BookingDate: "2027-01-01", DocumentDate: "2027-01-01",
@@ -813,6 +766,48 @@ func TestAppropriationEnforcesTheUGReserve(t *testing.T) {
 	}
 }
 
+// Die Ergebnisverwendung bucht auch ein Agent, aber erst über den
+// festgestellten Abschluss und nicht mit einem Beschluss, der vor der
+// Feststellung liegt.
+func TestAppropriationNeedsTheAdoptedStatement(t *testing.T) {
+	env := newTestEnv(t)
+	m := env.closingModules(t)
+	opening := &domain.JournalEntry{
+		BookingDate: "2027-01-01", DocumentDate: "2027-01-01",
+		ServiceDateFrom: "2027-01-01", ServiceDateTo: "2027-01-01",
+		Description: "Saldenvortrag", Source: domain.EntrySourceOpening,
+		Lines: []domain.JournalLine{
+			{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 400_000},
+			{Side: domain.SideCredit, Account: domain.AccountGewinnvortrag, Amount: 400_000},
+		},
+	}
+	if _, err := env.journal.Post(context.Background(), opening); err != nil {
+		t.Fatalf("Vortrag buchen: %v", err)
+	}
+
+	req := AppropriationRequest{DecisionDate: "2027-05-20", Text: "Ausschüttung", Distribution: 100_000}
+	if _, err := m.appropriation.BookAppropriation(agentCtx, 2026, req); err == nil ||
+		!strings.Contains(err.Error(), "nicht festgestellt") {
+		t.Fatalf("Beschluss ohne festgestellten Abschluss: %v", err)
+	}
+	m.adopt(t, env, 2026, "2027-05-21")
+	if _, err := m.appropriation.BookAppropriation(agentCtx, 2026, req); err == nil ||
+		!strings.Contains(err.Error(), "vor der Feststellung") {
+		t.Fatalf("Beschluss vom Tag vor der Feststellung: %v", err)
+	}
+	req.DecisionDate = "2027-05-21"
+	decision, err := m.appropriation.BookAppropriation(agentCtx, 2026, req)
+	if err != nil {
+		t.Fatalf("Beschluss durch den Agenten: %v", err)
+	}
+	if decision.JournalEntryID == nil {
+		t.Fatal("die Ausschüttung ist nicht gebucht")
+	}
+	if entry := entryByID(t, env, *decision.JournalEntryID); entry.Channel != agentChannel(t) {
+		t.Errorf("die Buchung trägt den Erfassungsweg %q", entry.Channel)
+	}
+}
+
 // Wer alles vorträgt, bucht nichts: der Betrag steht bereits auf dem
 // Vortragskonto.
 func TestAppropriationCarryForwardNeedsNoBooking(t *testing.T) {
@@ -832,6 +827,7 @@ func TestAppropriationCarryForwardNeedsNoBooking(t *testing.T) {
 	if _, err := env.journal.Post(ctx, opening); err != nil {
 		t.Fatalf("Vortrag buchen: %v", err)
 	}
+	m.adopt(t, env, 2026, "2027-05-20")
 	before := len(entriesOf(t, env, 2027))
 
 	decision, err := m.appropriation.BookAppropriation(ctx, 2026, AppropriationRequest{
@@ -848,6 +844,48 @@ func TestAppropriationCarryForwardNeedsNoBooking(t *testing.T) {
 	}
 	if got := len(entriesOf(t, env, 2027)); got != before {
 		t.Errorf("das Jahr 2027 hat nach dem Beschluss %d statt %d Buchungen", got, before)
+	}
+}
+
+// Der Solidaritätszuschlag auf die Kapitalertragsteuer lässt Bruchteile eines
+// Cents außer Ansatz (§ 4 Satz 3 SolZG): 5,5 % von 100,10 € sind 5,5055 € und
+// damit 5,50 €. Abzuführen ist die Kapitalertragsteuer auf volle Euro
+// abgerundet (§ 44 Abs. 1 Satz 6 EStG); einbehalten wird sie auf den Cent.
+func TestAppropriationWithholdingCentsFollowTheLaw(t *testing.T) {
+	env := newTestEnv(t)
+	m := env.closingModules(t)
+	ctx := context.Background()
+
+	opening := &domain.JournalEntry{
+		BookingDate: "2027-01-01", DocumentDate: "2027-01-01",
+		ServiceDateFrom: "2027-01-01", ServiceDateTo: "2027-01-01",
+		Description: "Saldenvortrag", Source: domain.EntrySourceOpening,
+		Lines: []domain.JournalLine{
+			{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 400_000},
+			{Side: domain.SideCredit, Account: domain.AccountGewinnvortrag, Amount: 400_000},
+		},
+	}
+	if _, err := env.journal.Post(ctx, opening); err != nil {
+		t.Fatalf("Vortrag buchen: %v", err)
+	}
+	preview, err := m.appropriation.PreviewAppropriation(ctx, 2026, AppropriationRequest{
+		DecisionDate: "2027-05-20", Distribution: 40_040,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := preview.Appropriation.WithholdingTax; got != 10_010 {
+		t.Errorf("Kapitalertragsteuer %s € — erwartet 100,10 €", got)
+	}
+	if got := preview.Appropriation.SolidarityOnWithholding; got != 550 {
+		t.Errorf("Solidaritätszuschlag %s € — erwartet 5,50 €", got)
+	}
+	payable := false
+	for _, w := range preview.Warnings {
+		payable = payable || strings.Contains(w, "Abzuführen sind 100,00 € Kapitalertragsteuer")
+	}
+	if !payable {
+		t.Errorf("der Abführungsbetrag fehlt in den Hinweisen: %q", preview.Warnings)
 	}
 }
 
@@ -1083,19 +1121,13 @@ func TestClosingModulesMarshalEmptyListsNotNull(t *testing.T) {
 	// im Render den ganzen Baum mit.
 	assertNoNullLists(t, "Rückstellung der Vorschau", provisionPreview.Provision, "movements")
 
-	inventory, err := m.bookings.InventoryAccounts(ctx, 2026)
-	if err != nil {
-		t.Fatalf("Vorräte: %v", err)
-	}
-	assertNoNullLists(t, "Vorräte", inventory, "accounts")
-
 	settlement, err := m.bookings.PreviewVatSettlement(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Umsatzsteuer-Verrechnung: %v", err)
 	}
 	assertNoNullLists(t, "Umsatzsteuer-Verrechnung", settlement, "rows", "lines")
 
-	taxPreview, err := m.bookings.PreviewTaxProvision(ctx, 2026)
+	taxPreview, err := m.bookings.PreviewTaxProvision(ctx, 2026, TaxProvisionOptions{})
 	if err != nil {
 		t.Fatalf("Steuerrückstellung: %v", err)
 	}
@@ -1328,7 +1360,7 @@ func TestTaxProvisionIsBookedOnlyOnce(t *testing.T) {
 		t.Fatalf("Vorauszahlung buchen: %v", err)
 	}
 
-	preview, err := m.bookings.PreviewTaxProvision(ctx, 2026)
+	preview, err := m.bookings.PreviewTaxProvision(ctx, 2026, TaxProvisionOptions{})
 	if err != nil {
 		t.Fatalf("Vorschau: %v", err)
 	}
@@ -1341,7 +1373,7 @@ func TestTaxProvisionIsBookedOnlyOnce(t *testing.T) {
 	}
 	// Nach der Buchung steht der Steueraufwand auf denselben Konten. Er darf
 	// die Vorauszahlung nicht aufblähen.
-	after, err := m.bookings.PreviewTaxProvision(ctx, 2026)
+	after, err := m.bookings.PreviewTaxProvision(ctx, 2026, TaxProvisionOptions{})
 	if err != nil {
 		t.Fatalf("Vorschau nach der Buchung: %v", err)
 	}
@@ -1427,6 +1459,7 @@ func TestAppropriationIsDecidedOnlyOnce(t *testing.T) {
 	if _, err := env.journal.Post(ctx, opening); err != nil {
 		t.Fatalf("Vortrag buchen: %v", err)
 	}
+	m.adopt(t, env, 2026, "2027-05-20")
 
 	if _, err := m.appropriation.BookAppropriation(ctx, 2026, AppropriationRequest{
 		DecisionDate: "2027-05-20", Distribution: 100_000, Text: "Beschluss",
@@ -1459,7 +1492,7 @@ func TestUGReserveCountsOnlyTheYearsResult(t *testing.T) {
 	env := newTestEnv(t)
 	m := env.closingModules(t)
 	ctx := context.Background()
-	env.setSetting(t, "legal_form", "Unternehmergesellschaft (haftungsbeschränkt)")
+	env.setSetting(t, "legal_form", domain.LegalFormUG)
 
 	profit := &domain.JournalEntry{
 		BookingDate: "2026-06-30", DocumentDate: "2026-06-30",
@@ -1509,77 +1542,6 @@ func TestUGReserveCountsOnlyTheYearsResult(t *testing.T) {
 	}
 	if preview.RequiredLegalReserve != 0 || !containsSubstring(preview.Warnings, "Im Abschluss 2026 fehlt") {
 		t.Fatalf("Fehlende Rücklage muss im Abschluss nachgeholt werden: %+v", preview)
-	}
-}
-
-// Die Zunahme des Bestands ist ein Ertrag: SOLL Bestandskonto, HABEN
-// Bestandsveränderung fertige Erzeugnisse (§ 275 Abs. 2 Nr. 2 HGB).
-func TestInventoryIncreaseBooksAsIncome(t *testing.T) {
-	env := newTestEnv(t)
-	m := env.closingModules(t)
-	ctx := context.Background()
-	list := env.fileIncoming(t, "inventurliste-fertige.pdf")
-
-	preview, err := m.bookings.PreviewInventory(ctx, InventoryRequest{
-		FiscalYear: 2026, Account: "1110", Amount: 250_000,
-		CountedOn: "2026-12-31", Method: "Stichtagsinventur", ReceiptID: list.ID,
-	})
-	if err != nil {
-		t.Fatalf("Vorschau: %v", err)
-	}
-	if preview.Change != 250_000 || preview.ChangeAccount != domain.AccountBestandFertige {
-		t.Fatalf("Veränderung %s € auf %s — erwartet 2.500,00 € auf %s",
-			preview.Change, preview.ChangeAccount, domain.AccountBestandFertige)
-	}
-	if len(preview.Lines) != 2 ||
-		preview.Lines[0].Side != domain.SideDebit || preview.Lines[0].Account != "1110" ||
-		preview.Lines[1].Side != domain.SideCredit ||
-		preview.Lines[1].Account != domain.AccountBestandFertige {
-		t.Fatalf("Buchungssatz %+v — erwartet SOLL 1110 an HABEN %s",
-			preview.Lines, domain.AccountBestandFertige)
-	}
-
-	req := InventoryRequest{
-		FiscalYear: 2026, Account: "1110", Amount: 250_000,
-		CountedOn: "2026-12-31", Method: "Stichtagsinventur", ReceiptID: list.ID,
-	}
-	if _, err := m.bookings.BookInventory(ctx, req); err != nil {
-		t.Fatalf("Inventur buchen: %v", err)
-	}
-	after := balances(t, env, 2026)
-	if after["1110"] != 250_000 {
-		t.Errorf("Bestand %s € — erwartet den Inventurwert von 2.500,00 €", after["1110"])
-	}
-	if after[domain.AccountBestandFertige] != -250_000 {
-		t.Errorf("Bestandsveränderung %s € — erwartet 2.500,00 € im Haben (Ertrag)",
-			after[domain.AccountBestandFertige])
-	}
-
-	// Ein zweiter Inventurwert zum selben Konto und Jahr wird abgewiesen; sonst
-	// stünden zwei Aufnahmen nebeneinander.
-	if _, err := m.bookings.BookInventory(ctx, req); err == nil {
-		t.Fatal("ein zweiter Inventurwert für dasselbe Konto und Jahr muss abgewiesen werden")
-	}
-	overview, err := m.bookings.InventoryAccounts(ctx, 2026)
-	if err != nil {
-		t.Fatalf("Vorräte: %v", err)
-	}
-	counted := 0
-	for _, account := range overview.Accounts {
-		if account.Account == "1110" && account.Counted > 0 {
-			counted++
-		}
-	}
-	if counted != 1 {
-		t.Errorf("das Konto 1110 erscheint %d-mal mit Inventurwert — erwartet einmal", counted)
-	}
-
-	// Und eine Inventurliste, die es nicht gibt, wird abgewiesen.
-	if _, err := m.bookings.BookInventory(ctx, InventoryRequest{
-		FiscalYear: 2026, Account: "1140", Amount: 100_000,
-		CountedOn: "2026-12-31", Method: "Stichtagsinventur", ReceiptID: 987_654,
-	}); err == nil {
-		t.Fatal("ein Belegverweis ins Leere darf nicht als Inventurliste gelten")
 	}
 }
 
@@ -1642,13 +1604,11 @@ func TestTaxElectionRegisterCarriesEveryYear(t *testing.T) {
 		t.Fatalf("Anlagegut: %v", err)
 	}
 	for year := 2026; year <= 2031; year++ {
-		assets.SetFiscalYear(year)
 		if _, err := assets.BookDepreciation(ctx, BookDepreciationRequest{FiscalYear: year}); err != nil {
 			t.Fatalf("Abschreibungslauf %d: %v", year, err)
 		}
 	}
 
-	m.register.SetFiscalYear(2031)
 	register, err := m.register.Register(ctx, 2031)
 	if err != nil {
 		t.Fatalf("Verzeichnis: %v", err)
@@ -1898,6 +1858,7 @@ func TestAppropriationStepNeedsCarryForwardAndDecision(t *testing.T) {
 		t.Errorf("der Schritt sagt nicht, was fehlt: %q", step.Detail)
 	}
 
+	m.adopt(t, env, 2026, "2027-05-20")
 	if _, err := m.appropriation.BookAppropriation(ctx, 2026, AppropriationRequest{
 		DecisionDate: "2027-05-20", Text: "Vortrag auf neue Rechnung",
 	}); err != nil {
@@ -2077,67 +2038,16 @@ func TestReversedTaxProvisionCanBeBookedAgain(t *testing.T) {
 	}
 }
 
-// Dasselbe für den Inventurwert: nach dem Storno darf er neu erfasst werden.
-func TestReversedInventoryCountCanBeBookedAgain(t *testing.T) {
-	env := newTestEnv(t)
-	m := env.closingModules(t)
-	ctx := context.Background()
-
-	stock := &domain.JournalEntry{
-		BookingDate: "2026-06-30", DocumentDate: "2026-06-30",
-		ServiceDateFrom: "2026-06-30", ServiceDateTo: "2026-06-30",
-		Description: "Wareneinkauf auf Bestand", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
-		Lines: []domain.JournalLine{
-			{Side: domain.SideDebit, Account: "1140", Amount: 500_000},
-			{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 500_000},
-		},
-	}
-	if _, err := env.journal.Post(ctx, stock); err != nil {
-		t.Fatalf("Bestandsbuchung: %v", err)
-	}
-	list := env.fileIncoming(t, "inventurliste.pdf")
-	req := InventoryRequest{
-		FiscalYear: 2026, Account: "1140", Amount: 400_000,
-		CountedOn: "2026-12-31", Method: "Stichtagsinventur", ReceiptID: list.ID,
-	}
-	count, err := m.bookings.BookInventory(ctx, req)
-	if err != nil {
-		t.Fatalf("Inventur buchen: %v", err)
-	}
-	if count.JournalEntryID == nil {
-		t.Fatal("die Bestandsveränderung wurde nicht gebucht")
-	}
-	if _, err := m.bookings.BookInventory(ctx, req); err == nil {
-		t.Fatal("ein zweiter Inventurwert muss abgewiesen werden, solange die Buchung steht")
-	}
-	if _, err := env.journal.Reverse(ctx, *count.JournalEntryID, "Zählfehler"); err != nil {
-		t.Fatalf("Bestandsveränderung stornieren: %v", err)
-	}
-
-	req.Amount = 450_000
-	corrected, err := m.bookings.BookInventory(ctx, req)
-	if err != nil {
-		t.Fatalf("nach dem Storno muss der Inventurwert neu entstehen dürfen: %v", err)
-	}
-	if corrected.ID != count.ID {
-		t.Errorf("der Karteisatz wurde neu angelegt (%d statt %d) statt fortgeschrieben",
-			corrected.ID, count.ID)
-	}
-	after := balances(t, env, 2026)
-	if after["1140"] != 450_000 {
-		t.Errorf("Bestand %s € — erwartet den berichtigten Inventurwert von 4.500,00 €", after["1140"])
-	}
-}
-
-// Und für die Ergebnisverwendung.
+// Und für die Ergebnisverwendung. Verwendet wird das Ergebnis 2025: der Storno
+// trägt das heutige Datum und gehört damit in das offene Buchungsjahr 2026.
 func TestReversedAppropriationCanBeDecidedAgain(t *testing.T) {
 	env := newTestEnv(t)
 	m := env.closingModules(t)
 	ctx := context.Background()
 
 	opening := &domain.JournalEntry{
-		BookingDate: "2027-01-01", DocumentDate: "2027-01-01",
-		ServiceDateFrom: "2027-01-01", ServiceDateTo: "2027-01-01",
+		BookingDate: "2026-01-01", DocumentDate: "2026-01-01",
+		ServiceDateFrom: "2026-01-01", ServiceDateTo: "2026-01-01",
 		Description: "Saldenvortrag", Source: domain.EntrySourceOpening,
 		Lines: []domain.JournalLine{
 			{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 400_000},
@@ -2147,8 +2057,9 @@ func TestReversedAppropriationCanBeDecidedAgain(t *testing.T) {
 	if _, err := env.journal.Post(ctx, opening); err != nil {
 		t.Fatalf("Vortrag buchen: %v", err)
 	}
-	first, err := m.appropriation.BookAppropriation(ctx, 2026, AppropriationRequest{
-		DecisionDate: "2027-05-20", Distribution: 100_000, Text: "Beschluss",
+	m.adopt(t, env, 2025, "2026-05-20")
+	first, err := m.appropriation.BookAppropriation(ctx, 2025, AppropriationRequest{
+		DecisionDate: "2026-05-20", Distribution: 100_000, Text: "Beschluss",
 	})
 	if err != nil {
 		t.Fatalf("Beschluss buchen: %v", err)
@@ -2159,12 +2070,12 @@ func TestReversedAppropriationCanBeDecidedAgain(t *testing.T) {
 	if _, err := env.journal.Reverse(ctx, *first.JournalEntryID, "Beschluss aufgehoben"); err != nil {
 		t.Fatalf("Beschluss stornieren: %v", err)
 	}
-	if _, err := m.appropriation.BookAppropriation(ctx, 2026, AppropriationRequest{
-		DecisionDate: "2027-06-20", Distribution: 200_000, Text: "Neuer Beschluss",
+	if _, err := m.appropriation.BookAppropriation(ctx, 2025, AppropriationRequest{
+		DecisionDate: "2026-06-20", Distribution: 200_000, Text: "Neuer Beschluss",
 	}); err != nil {
 		t.Fatalf("nach dem Storno muss neu beschlossen werden dürfen: %v", err)
 	}
-	stored, err := m.appropriation.Appropriation(ctx, 2026)
+	stored, err := m.appropriation.Appropriation(ctx, 2025)
 	if err != nil || stored == nil {
 		t.Fatalf("Beschluss lesen: %v", err)
 	}
@@ -2178,48 +2089,15 @@ func TestReversedAppropriationCanBeDecidedAgain(t *testing.T) {
 // Belege der Abschlussbuchungen
 // -------------------------------------------------------------------------
 
-// Keine Buchung ohne Beleg (GoBD Rz. 61). Das gilt auch für die drei Buchungen,
-// die keine Rechnung von außen haben: die Bestandsveränderung, die Auflösung der
-// Abgrenzung und die Ergebnisverwendung.
+// Keine Buchung ohne Beleg (GoBD Rz. 61). Das gilt auch für die Buchungen, die
+// keine Rechnung von außen haben: die Auflösung der Abgrenzung und die
+// Ergebnisverwendung.
 func TestClosingBookingsCarryTheirVoucher(t *testing.T) {
 	env := newTestEnv(t)
 	m := env.closingModules(t)
 	ctx := context.Background()
 
-	// 1. Inventurwert: Eigenbeleg an der Buchung, Inventurliste versiegelt.
-	stock := &domain.JournalEntry{
-		BookingDate: "2026-06-30", DocumentDate: "2026-06-30",
-		ServiceDateFrom: "2026-06-30", ServiceDateTo: "2026-06-30",
-		Description: "Wareneinkauf auf Bestand", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
-		Lines: []domain.JournalLine{
-			{Side: domain.SideDebit, Account: "1140", Amount: 500_000},
-			{Side: domain.SideCredit, Account: domain.AccountBank, Amount: 500_000},
-		},
-	}
-	if _, err := env.journal.Post(ctx, stock); err != nil {
-		t.Fatalf("Bestandsbuchung: %v", err)
-	}
-	sheet := env.fileIncoming(t, "inventurliste.pdf")
-	count, err := m.bookings.BookInventory(ctx, InventoryRequest{
-		FiscalYear: 2026, Account: "1140", Amount: 400_000,
-		CountedOn: "2026-12-31", Method: "Stichtagsinventur", ReceiptID: sheet.ID,
-	})
-	if err != nil {
-		t.Fatalf("Inventur buchen: %v", err)
-	}
-	inventoryEntry := entryByID(t, env, *count.JournalEntryID)
-	if inventoryEntry.ReceiptID == nil || inventoryEntry.ReceiptHash == "" {
-		t.Errorf("die Bestandsveränderung hat keinen Beleg: %+v", inventoryEntry)
-	}
-	sealed, err := env.receipts.Get(ctx, sheet.ID)
-	if err != nil {
-		t.Fatalf("Inventurliste lesen: %v", err)
-	}
-	if sealed.JournalEntryID == nil || *sealed.JournalEntryID != *count.JournalEntryID {
-		t.Errorf("die Inventurliste ist nicht mit der Buchung versiegelt: %+v", sealed)
-	}
-
-	// 2. Auflösung der Abgrenzung im Folgejahr.
+	// 1. Auflösung der Abgrenzung im Folgejahr.
 	insurance := &domain.JournalEntry{
 		BookingDate: "2026-12-01", DocumentDate: "2026-12-01",
 		ServiceDateFrom: "2026-12-01", ServiceDateTo: "2027-11-30",
@@ -2251,7 +2129,7 @@ func TestClosingBookingsCarryTheirVoucher(t *testing.T) {
 		t.Errorf("die Auflösung hat keinen Eigenbeleg: %+v", releases[0])
 	}
 
-	// 3. Ergebnisverwendung, hier mit Beschlussdokument.
+	// 2. Ergebnisverwendung, hier mit Beschlussdokument.
 	opening := &domain.JournalEntry{
 		BookingDate: "2027-01-02", DocumentDate: "2027-01-02",
 		ServiceDateFrom: "2027-01-02", ServiceDateTo: "2027-01-02",
@@ -2265,6 +2143,7 @@ func TestClosingBookingsCarryTheirVoucher(t *testing.T) {
 		t.Fatalf("Vortrag buchen: %v", err)
 	}
 	decision := env.fileIncoming(t, "gesellschafterbeschluss.pdf")
+	m.adopt(t, env, 2026, "2027-05-20")
 	appropriation, err := m.appropriation.BookAppropriation(ctx, 2026, AppropriationRequest{
 		DecisionDate: "2027-05-20", Distribution: 100_000, Text: "Beschluss",
 		ReceiptID: decision.ID,
@@ -2304,6 +2183,7 @@ func TestAppropriationWithoutADocumentGetsItsOwnVoucher(t *testing.T) {
 	if _, err := env.journal.Post(ctx, opening); err != nil {
 		t.Fatalf("Vortrag buchen: %v", err)
 	}
+	m.adopt(t, env, 2026, "2027-05-20")
 	appropriation, err := m.appropriation.BookAppropriation(ctx, 2026, AppropriationRequest{
 		DecisionDate: "2027-05-20", Distribution: 100_000, Text: "Beschluss",
 	})

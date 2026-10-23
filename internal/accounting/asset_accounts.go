@@ -1,6 +1,7 @@
 package accounting
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/buchfink/buchfink/internal/domain"
@@ -191,7 +192,7 @@ var assetAccounts = []AssetAccount{
 	{Number: "0820", Name: "Beteiligungen", Class: domain.AssetClassFinancial,
 		Group: "Anteile und Beteiligungen", Depreciable: false,
 		Hint: "Als Beteiligung gelten Anteile, die dem eigenen Geschäftsbetrieb dauernd dienen sollen. " +
-			"Ab einem Fünftel des Kapitals vermutet § 271 Abs. 1 Satz 3 HGB das."},
+			"Übersteigen sie ein Fünftel des Kapitals, vermutet § 271 Abs. 1 Satz 3 HGB das."},
 	{Number: "0850", Name: "Beteiligungen an Kapitalgesellschaften", Class: domain.AssetClassFinancial,
 		Group: "Anteile und Beteiligungen", Depreciable: false},
 	{Number: "0860", Name: "Beteiligungen an Personengesellschaften", Class: domain.AssetClassFinancial,
@@ -403,16 +404,6 @@ func DisposalAccountsFor(class domain.AssetClass, treatment domain.TaxTreatment,
 // SKR04 — for the other two blocks the catalog knows one account per outcome.
 func tangibleRevenueAccount(treatment domain.TaxTreatment, gain bool) string {
 	switch treatment {
-	case domain.TaxTreatmentExport:
-		if gain {
-			return "4844"
-		}
-		return "6884"
-	case domain.TaxTreatmentIntraCommunitySupply:
-		if gain {
-			return "4848"
-		}
-		return "6888"
 	case domain.TaxTreatmentDomestic:
 		if gain {
 			return "4845"
@@ -451,7 +442,7 @@ func SpecialDepreciationAccount(class domain.AssetClass, account string) (string
 	if known && entry.InProgress {
 		return "", fmt.Errorf(
 			"%s steht noch als Anlage im Bau. Die Sonderabschreibung setzt die Anschaffung oder "+
-				"Herstellung voraus; buche zuerst die Fertigstellung um", account)
+				"Herstellung voraus; zuerst ist die Fertigstellung umzubuchen", account)
 	}
 	if known && entry.DepreciationAccount == "6222" {
 		// Der SKR04 führt die Sonderabschreibung auf Fahrzeuge getrennt, weil die
@@ -461,49 +452,49 @@ func SpecialDepreciationAccount(class domain.AssetClass, account string) (string
 	return "6241", nil
 }
 
-// MaintenanceAccount picks the Aufwandskonto des Erhaltungsaufwands.
-//
-// Erhaltungsaufwand ist der Gegenbegriff zu den nachträglichen
-// Herstellungskosten: was ein Wirtschaftsgut nur in seinem Zustand hält oder in
-// zeitgemäßer Weise wiederherstellt, ist sofort abziehbarer Aufwand; was es
-// erweitert oder über seinen ursprünglichen Zustand hinaus wesentlich
-// verbessert, ist zu aktivieren (§ 255 Abs. 2 Satz 1 HGB). Die Abgrenzung ist
-// eine Einschätzung und keine Rechnung — Buchfink fragt sie und bucht danach.
-func MaintenanceAccount(class domain.AssetClass, account string) (string, error) {
-	if class == domain.AssetClassFinancial {
-		return "", fmt.Errorf(
-			"eine Finanzanlage nutzt sich nicht ab und wird nicht instand gehalten; " +
-				"Erhaltungsaufwand gibt es für sie nicht")
-	}
-	entry, known := LookupAssetAccount(account)
-	switch {
-	case known && entry.Immovable:
-		return "6450", nil // Reparaturen und Instandhaltung von Bauten
-	case known && entry.Group == "Fahrzeuge":
-		return "6540", nil // Fahrzeug-Reparaturen
-	case known && entry.Group == "Technische Anlagen und Maschinen":
-		return "6460", nil // Reparaturen und Instandhaltung von technischen Anlagen und Maschinen
-	case known:
-		return "6470", nil // andere Anlagen und Betriebs- und Geschäftsausstattung
-	default:
-		return "6490", nil // Sonstige Reparaturen und Instandhaltung
-	}
-}
-
 // AssetIncomeAccount is the Ertragskonto of a laufender Ertrag aus einer
 // Finanzanlage.
 //
 // Der SKR04 trennt die Erträge des Finanzanlagevermögens nach ihrer Herkunft,
 // weil die GuV sie nach § 275 Abs. 2 Nr. 9 bis 11 HGB getrennt ausweist:
 // Erträge aus Beteiligungen, Erträge aus anderen Wertpapieren und Ausleihungen
-// des Finanzanlagevermögens, sonstige Zinsen. Auf ein Sammelkonto gebucht wären
-// sie in der GuV nicht mehr auseinanderzuhalten.
-func AssetIncomeAccount(class domain.AssetClass, account string) (string, error) {
-	if class != domain.AssetClassFinancial {
+// des Finanzanlagevermögens, sonstige Zinsen.
+//
+// Für Bezüge aus Anteilen an Kapitalgesellschaften hat er eigene Konten, die
+// § 8b KStG im Namen führen: 7005 (Beteiligung), 7006 (verbundenes
+// Unternehmen) und 7014 (übrige Anteile im Finanzanlagevermögen, auch
+// Streubesitz nach § 8b Abs. 4 KStG). Von dort liest die
+// Körperschaftsteuererklärung die Bezüge; ob sie steuerfrei sind, entscheidet
+// dort die Quote zu Beginn des Kalenderjahres. Ein Anteil an einer
+// Kapitalgesellschaft ist das Anlagegut, wenn es so gekennzeichnet ist
+// (TaxPrivileged) oder sein Konto es schon dem Namen nach ist. Ein
+// Investmentanteil ist es nie: auf Investmenterträge ist § 8b KStG nicht
+// anzuwenden (§ 16 Abs. 3 InvStG).
+func AssetIncomeAccount(asset *domain.FixedAsset) (string, error) {
+	if asset.Class != domain.AssetClassFinancial {
 		return "", fmt.Errorf(
 			"laufende Erträge werden hier nur für Finanzanlagen mit dem Anlagegut verknüpft")
 	}
-	entry, known := LookupAssetAccount(account)
+	if asset.Account == AccountCooperativeShares {
+		return "", ErrCooperativeIncome
+	}
+	if FundClass(asset.FundClass).IsFund() {
+		return "7010", nil // Erträge aus anderen Wertpapieren und Ausleihungen des Finanzanlagevermögens
+	}
+	if account, ok := corporationShareIncome[asset.Account]; ok {
+		return account, nil
+	}
+	if asset.TaxPrivileged {
+		switch asset.Account {
+		case "0800":
+			return "7006", nil
+		case "0820":
+			return "7005", nil
+		case "0900":
+			return "7014", nil
+		}
+	}
+	entry, known := LookupAssetAccount(asset.Account)
 	if !known {
 		return "7100", nil // Sonstige Zinsen und ähnliche Erträge
 	}
@@ -519,16 +510,32 @@ func AssetIncomeAccount(class domain.AssetClass, account string) (string, error)
 	}
 }
 
+// AccountCooperativeShares führt Genossenschaftsanteile zum langfristigen
+// Verbleib.
+const AccountCooperativeShares = "0980"
+
+// ErrCooperativeIncome weist die automatische Buchung eines Ertrags aus
+// Genossenschaftsanteilen ab. Die Mitgliedschaft in einer eingetragenen
+// Genossenschaft gilt nicht als Beteiligung (§ 271 Abs. 1 Satz 5 HGB); welches
+// Ertragskonto und welche steuerliche Folge passen, bildet Buchfink nicht ab.
+var ErrCooperativeIncome = errors.New(
+	"Erträge aus Genossenschaftsanteilen (0980) bucht Buchfink nicht von selbst: die Mitgliedschaft in einer " +
+		"eingetragenen Genossenschaft gilt nicht als Beteiligung (§ 271 Abs. 1 Satz 5 HGB), und ein Ertragskonto " +
+		"schlägt Buchfink dafür nicht vor. Die Buchung ist nach Rückfrage von Hand anzulegen, im Zweifel mit dem " +
+		"Steuerberater")
+
+// corporationShareIncome ordnet den Anlagekonten, die schon dem Namen nach
+// Anteile an Kapitalgesellschaften führen, das Ertragskonto nach § 8b KStG zu.
+var corporationShareIncome = map[string]string{
+	"0804": "7006", // Anteile an verbundenen Unternehmen, Kapitalgesellschaften
+	"0808": "7006", // Anteile an herrschender oder mehrheitlich beteiligter Gesellschaft, Kapitalgesellschaften
+	"0850": "7005", // Beteiligungen an Kapitalgesellschaften
+	"0910": "7014", // Wertpapiere mit Gewinnbeteiligungsansprüchen, die dem Teileinkünfteverfahren unterliegen
+}
+
 // CurrencyTranslationAccounts are the two accounts of § 256a HGB: der Aufwand
 // aus der Währungsumrechnung und der Ertrag daraus.
 const (
 	CurrencyLossAccount = "6880" // Aufwendungen aus der Währungsumrechnung
 	CurrencyGainAccount = "4840" // Erträge aus der Währungsumrechnung
 )
-
-// WithholdingTaxAccount trägt die einbehaltene Kapitalertragsteuer.
-//
-// Sie ist eine Vorauszahlung auf die eigene Steuer, kein Aufwand des
-// Beteiligungsertrags — sie mindert den Zufluss, nicht den Ertrag. Der Ertrag
-// steht deshalb brutto in der GuV, und die einbehaltene Steuer daneben.
-const WithholdingTaxAccount = "7630"

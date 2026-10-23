@@ -169,6 +169,7 @@ type ciiDelivery struct {
 }
 
 type ciiSettlement struct {
+	CreditorReference string               `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 CreditorReferenceID"`
 	PaymentReference  string               `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 PaymentReference"`
 	TaxCurrency       string               `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 TaxCurrencyCode"`
 	Currency          string               `xml:"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100 InvoiceCurrencyCode"`

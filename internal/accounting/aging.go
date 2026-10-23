@@ -3,6 +3,7 @@ package accounting
 import (
 	"time"
 
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -52,7 +53,7 @@ var maturityBands = []struct {
 // bleibt.
 func AgeOpenItems(items []domain.OpenItem, cutoff string) domain.OpenItemsAging {
 	if cutoff == "" {
-		cutoff = time.Now().UTC().Format("2006-01-02")
+		cutoff = calendar.Today(nil)
 	}
 	result := domain.OpenItemsAging{
 		Cutoff:    cutoff,
@@ -85,10 +86,8 @@ func AgeOpenItems(items []domain.OpenItem, cutoff string) domain.OpenItemsAging 
 		if item.ContactType != domain.ContactTypeCustomer {
 			side = &result.Sides[1]
 		}
-		amount := item.OpenAmount
-		if amount < 0 {
-			amount = -amount
-		}
+		// Eine Gutschrift mindert die Seite ihres Kontakts.
+		amount := item.SignedOpen()
 		side.Total += amount
 		side.Items++
 

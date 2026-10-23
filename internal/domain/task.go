@@ -34,36 +34,68 @@ const TaskLookaheadDays = 30
 //
 // Die Befunde des Prüflaufs haben keinen eigenen Schlüssel je Regel: sie
 // stehen unter TaskKeyCheckFindings, um die Regel ergänzt
-// („check_findings.ic_supply_evidence_missing"). Damit bekommen die
-// ausstehende Bestätigung der USt-IdNr. und der fehlende Belegnachweis ihre
-// eigene Zeile, ohne dass die Aufgabenliste die Prüfregeln ein zweites Mal
-// aufzählt.
+// („check_findings.vat_id_unconfirmed"). Damit bekommt etwa die ausstehende
+// Bestätigung der USt-IdNr. ihre eigene Zeile, ohne dass die Aufgabenliste die
+// Prüfregeln ein zweites Mal aufzählt.
 const (
-	TaskKeyCheckFindings     = "check_findings"
-	TaskKeyBankUnmatched     = "bank_unmatched"
-	TaskKeyReceiptsUnbooked  = "receipts_unbooked"
-	TaskKeyReceiptsOverdue   = "receipts_overdue"
-	TaskKeyOverdueItems      = "overdue_receivables"
-	TaskKeyDeadline          = "deadline"
-	TaskKeyAssetDocument     = "asset_document_expiring"
-	TaskKeyExemption         = "exemption_certificate"
-	TaskKeyBackupMissing     = "backup_missing"
-	TaskKeyBackupFailed      = "backup_failed"
-	TaskKeyReadOnly          = "read_only_active"
-	TaskKeyServiceProof      = "service_proof_missing"
-	TaskKeyCarryForward      = "carry_forward_difference"
-	TaskKeyPriorYearOpen     = "prior_year_not_established"
-	TaskKeyAppropriationOpen = "appropriation_open"
+	TaskKeyCheckFindings      = "check_findings"
+	TaskKeyBankUnmatched      = "bank_unmatched"
+	TaskKeyReceiptsUnbooked   = "receipts_unbooked"
+	TaskKeyReceiptsOverdue    = "receipts_overdue"
+	TaskKeyOverdueItems       = "overdue_receivables"
+	TaskKeyObligation         = "pflicht"
+	TaskKeyExemption          = "exemption_certificate"
+	TaskKeyBackupMissing      = "backup_missing"
+	TaskKeyBackupFailed       = "backup_failed"
+	TaskKeyReadOnly           = "read_only_active"
+	TaskKeyServiceProof       = "service_proof_missing"
+	TaskKeyCarryForward       = "carry_forward_difference"
+	TaskKeyMasterDataProposal = "master_data_proposal"
 )
 
-// TaskTarget ist das Navigationsziel einer Aufgabe.
-//
-// Seite und Parameter getrennt, weil die Oberfläche daraus ihren Weg baut: eine
-// fertige URL aus dem Backend wäre eine Festlegung auf einen Router, den das
-// Backend nicht kennt.
+// TaskTarget ist das Navigationsziel einer Aufgabe: Bereich und Reiter der
+// Oberfläche und die Kennung des Objekts, das der Reiter aufschlägt (Beleg-ID,
+// Schlüssel einer Pflicht, Prüfregel).
 type TaskTarget struct {
-	Page   string            `json:"page"`
-	Params map[string]string `json:"params"`
+	Area string `json:"area"`
+	Tab  string `json:"tab,omitempty"`
+	ID   string `json:"id,omitempty"`
+}
+
+// Die Bereiche der Oberfläche.
+const (
+	AreaOverview = "overview"
+	AreaBooks    = "books"
+	AreaClosings = "closings"
+	AreaCompany  = "company"
+	AreaSettings = "settings"
+)
+
+// taskAreaTabs sind die Reiter je Bereich, wie in frontend/src/navigation.ts.
+var taskAreaTabs = map[string][]string{
+	AreaOverview: nil,
+	AreaBooks:    {"receipts", "bank", "invoices", "journal", "accounts", "assets", "statements"},
+	AreaClosings: {"month", "year", "declarations"},
+	AreaCompany:  {"profile", "contacts"},
+	AreaSettings: {"apps", "inbox", "backup", "tenants", "audit", "advanced"},
+}
+
+// Valid meldet, ob Bereich und Reiter in der Oberfläche vorkommen. Ein leerer
+// Reiter heißt: der erste des Bereichs.
+func (t TaskTarget) Valid() bool {
+	tabs, ok := taskAreaTabs[t.Area]
+	if !ok {
+		return false
+	}
+	if t.Tab == "" {
+		return true
+	}
+	for _, tab := range tabs {
+		if tab == t.Tab {
+			return true
+		}
+	}
+	return false
 }
 
 // Task ist eine Zeile der Aufgabenliste.
@@ -99,9 +131,6 @@ type TaskList struct {
 
 // Add ordnet eine Aufgabe ihrer Gruppe zu.
 func (l *TaskList) Add(task Task) {
-	if task.Target.Params == nil {
-		task.Target.Params = map[string]string{}
-	}
 	switch task.Group {
 	case TaskGroupOverdue:
 		l.Overdue = append(l.Overdue, task)
@@ -155,12 +184,5 @@ func (l *TaskList) EnsureLists() {
 	}
 	if l.Upcoming == nil {
 		l.Upcoming = make([]Task, 0)
-	}
-	for _, group := range [][]Task{l.Overdue, l.Open, l.Upcoming} {
-		for i := range group {
-			if group[i].Target.Params == nil {
-				group[i].Target.Params = map[string]string{}
-			}
-		}
 	}
 }

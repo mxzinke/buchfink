@@ -30,14 +30,15 @@ func ProgramVersion() string {
 // Transferticket. Die Entität ist danach unveränderlich — sie *ist* das
 // Übermittlungsprotokoll, und ein Protokoll, das sich ändern lässt, ist keines.
 type VatReturnService struct {
+	serviceClock
+	auditor[uint]
 	journalRepo        domain.JournalRepository
 	receiptRepo        domain.ReceiptRepository
 	contactRepo        domain.ContactRepository
+	allocationRepo     domain.PaymentAllocationRepository
 	settingsRepo       domain.SettingsRepository
 	festschreibungRepo domain.FestschreibungRepository
 	returnRepo         domain.VatReturnRepository
-	auditRepo          domain.AuditRepository
-	fiscalYear         int
 }
 
 // NewVatReturnService wires the Voranmeldung.
@@ -45,26 +46,23 @@ func NewVatReturnService(
 	journalRepo domain.JournalRepository,
 	receiptRepo domain.ReceiptRepository,
 	contactRepo domain.ContactRepository,
+	allocationRepo domain.PaymentAllocationRepository,
 	settingsRepo domain.SettingsRepository,
 	festschreibungRepo domain.FestschreibungRepository,
 	returnRepo domain.VatReturnRepository,
 	auditRepo domain.AuditRepository,
-	fiscalYear int,
 ) *VatReturnService {
 	return &VatReturnService{
 		journalRepo:        journalRepo,
 		receiptRepo:        receiptRepo,
 		contactRepo:        contactRepo,
+		allocationRepo:     allocationRepo,
 		settingsRepo:       settingsRepo,
 		festschreibungRepo: festschreibungRepo,
 		returnRepo:         returnRepo,
-		auditRepo:          auditRepo,
-		fiscalYear:         fiscalYear,
+		auditor:            auditor[uint]{auditRepo: auditRepo, entity: "VAT_RETURN"},
 	}
 }
-
-// SetFiscalYear updates the active fiscal year.
-func (s *VatReturnService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // VatPeriodStatus ist ein Zeitraum mit dem Stand seiner Anmeldung.
 type VatPeriodStatus struct {
@@ -111,8 +109,8 @@ func vatPeriodTypeOf(cfg *domain.CompanySettings) domain.VatPeriodType {
 
 // Periods liefert die Zeiträume eines Jahres mit Fälligkeit und Stand.
 func (s *VatReturnService) Periods(ctx context.Context, year int) ([]VatPeriodStatus, error) {
-	if year <= 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	cfg, err := s.companySettings(ctx)
 	if err != nil {
@@ -138,13 +136,13 @@ func (s *VatReturnService) Periods(ctx context.Context, year int) ([]VatPeriodSt
 	if s.festschreibungRepo != nil {
 		cutoff, _ = s.festschreibungRepo.LatestCutoff(ctx, year)
 	}
-	today := todayLocal()
+	today := s.today()
 
 	out := make([]VatPeriodStatus, 0, len(periods))
 	for _, p := range periods {
 		st := VatPeriodStatus{
 			VatPeriod: p,
-			DueDate:   accounting.VatDueDate(p, cfg.PermanentExtension),
+			DueDate:   accounting.VatDueDateIn(p, cfg.PermanentExtension, cfg.FederalState),
 			Status:    domain.VatReturnDraft,
 			Committed: cutoff != "" && cutoff >= p.To,
 		}
@@ -216,8 +214,8 @@ func (s *VatReturnService) Save(ctx context.Context, periodKey string) (*domain.
 		if submitted != nil {
 			return nil, fmt.Errorf(
 				"für den Zeitraum %s ist am %s bereits eine Voranmeldung übermittelt (Transferticket %s). "+
-					"Ein zweiter Entwurf wäre eine zweite Erstanmeldung desselben Zeitraums — lege stattdessen "+
-					"eine berichtigte Anmeldung an (Kennziffer 10)",
+					"Ein zweiter Entwurf wäre eine zweite Erstanmeldung desselben Zeitraums — anzulegen ist "+
+					"stattdessen eine berichtigte Anmeldung (Kennziffer 10)",
 				period.Key, submitted.SubmittedAt, submitted.TransferTicket)
 		}
 	}
@@ -239,9 +237,11 @@ func (s *VatReturnService) Save(ctx context.Context, periodKey string) (*domain.
 		return nil, fmt.Errorf("die Voranmeldung konnte nicht gespeichert werden: %w", err)
 	}
 
-	s.auditChange(ctx, domain.AuditActionCreate, fresh.ID, fmt.Sprintf(
+	if err := s.auditChange(ctx, domain.AuditActionCreate, fresh.ID, fmt.Sprintf(
 		"Umsatzsteuer-Voranmeldung %s als Entwurf gespeichert (Zahllast %s €)", fresh.PeriodKey, fresh.Payable),
-		existing, fresh)
+		existing, fresh); err != nil {
+		return nil, err
+	}
 	return fresh, nil
 }
 
@@ -306,8 +306,8 @@ type SpecialPrepaymentPeriod struct {
 // ihn wäre die Aufforderung, etwas anzumelden und zu zahlen, das er nicht
 // schuldet.
 func (s *VatReturnService) SuggestedSpecialPrepayment(ctx context.Context, year int) (*SpecialPrepaymentSuggestion, error) {
-	if year <= 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	prior := year - 1
 	out := &SpecialPrepaymentSuggestion{
@@ -394,8 +394,8 @@ func (s *VatReturnService) SuggestedSpecialPrepayment(ctx context.Context, year 
 		prior, out.PrepaymentSum, len(out.Periods))
 	if !out.Complete {
 		out.Note += fmt.Sprintf(
-			" Für %d der %d Zeiträume des Jahres %d liegt keine übermittelte Anmeldung vor — prüfe den "+
-				"Vorschlag. Wurde die Tätigkeit nur einen Teil des Jahres ausgeübt, ist die Summe nach "+
+			" Für %d der %d Zeiträume des Jahres %d liegt keine übermittelte Anmeldung vor; der Vorschlag ist "+
+				"deshalb zu prüfen. Wurde die Tätigkeit nur einen Teil des Jahres ausgeübt, ist die Summe nach "+
 				"§ 47 Abs. 2 UStDV auf ein volles Jahr hochzurechnen.", missing, len(periods), prior)
 	}
 	return out, nil
@@ -403,8 +403,8 @@ func (s *VatReturnService) SuggestedSpecialPrepayment(ctx context.Context, year 
 
 // List liefert die gespeicherten Anmeldungen eines Jahres.
 func (s *VatReturnService) List(ctx context.Context, year int) ([]domain.VatReturn, error) {
-	if year <= 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	return s.returnRepo.FindByFiscalYear(ctx, year)
 }
@@ -416,6 +416,9 @@ func (s *VatReturnService) List(ctx context.Context, year int) ([]domain.VatRetu
 // weicht die nächste Auswertung von der Anmeldung ab. Und das Transferticket ist
 // der einzige Nachweis, dass die Anmeldung angekommen ist.
 func (s *VatReturnService) ConfirmSubmitted(ctx context.Context, id uint, date, ticket, note string) (*domain.VatReturn, error) {
+	if err := requireHuman(ctx, "Die Bestätigung der Übermittlung"); err != nil {
+		return nil, err
+	}
 	rec, err := s.returnRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("die Voranmeldung %d wurde nicht gefunden: %w", id, err)
@@ -453,9 +456,11 @@ func (s *VatReturnService) ConfirmSubmitted(ctx context.Context, id uint, date, 
 	// daneben gibt nur aus. Stünden beide unter EXPORT, wären sie im Protokoll
 	// nur am Text zu unterscheiden — und wer nach dem Weg einer Anmeldung sucht,
 	// filtert nach der Aktion.
-	s.auditChange(ctx, domain.AuditActionUpdate, rec.ID, fmt.Sprintf(
+	if err := s.auditChange(ctx, domain.AuditActionUpdate, rec.ID, fmt.Sprintf(
 		"Umsatzsteuer-Voranmeldung %s am %s übermittelt (Transferticket %s, Zahllast %s €)",
-		rec.PeriodKey, date, rec.TransferTicket, rec.Payable), &before, rec)
+		rec.PeriodKey, date, rec.TransferTicket, rec.Payable), &before, rec); err != nil {
+		return nil, err
+	}
 	return rec, nil
 }
 
@@ -506,9 +511,11 @@ func (s *VatReturnService) CreateCorrection(ctx context.Context, periodKey strin
 		if err := s.returnRepo.Update(ctx, fresh); err != nil {
 			return nil, fmt.Errorf("die Berichtigung konnte nicht gespeichert werden: %w", err)
 		}
-		s.auditChange(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
+		if err := s.auditChange(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
 			"Berichtigte Voranmeldung %s fortgeschrieben (berichtigt Anmeldung %d, Zahllast %s € statt %s €)",
-			fresh.PeriodKey, submitted.ID, fresh.Payable, before.Payable), &before, fresh)
+			fresh.PeriodKey, submitted.ID, fresh.Payable, before.Payable), &before, fresh); err != nil {
+			return nil, err
+		}
 		return fresh, nil
 	}
 
@@ -519,9 +526,11 @@ func (s *VatReturnService) CreateCorrection(ctx context.Context, periodKey strin
 	// Vorher ist die berichtigte Anmeldung: die Berichtigung ersetzt sie
 	// vollständig, und was sich zwischen beiden unterscheidet, ist der Inhalt
 	// der Berichtigung.
-	s.auditChange(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
+	if err := s.auditChange(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
 		"Berichtigte Voranmeldung %s angelegt (berichtigt Anmeldung %d, Zahllast %s € statt %s €)",
-		fresh.PeriodKey, submitted.ID, fresh.Payable, submitted.Payable), submitted, fresh)
+		fresh.PeriodKey, submitted.ID, fresh.Payable, submitted.Payable), submitted, fresh); err != nil {
+		return nil, err
+	}
 	return fresh, nil
 }
 
@@ -555,8 +564,10 @@ func (s *VatReturnService) ExportCSV(ctx context.Context, id uint) (string, erro
 		}
 	}
 
-	s.audit(ctx, domain.AuditActionExport, rec.ID, fmt.Sprintf(
-		"Umsatzsteuer-Voranmeldung %s als Datei ausgegeben", rec.PeriodKey))
+	if err := s.audit(ctx, domain.AuditActionExport, rec.ID, fmt.Sprintf(
+		"Umsatzsteuer-Voranmeldung %s als Datei ausgegeben", rec.PeriodKey)); err != nil {
+		return "", err
+	}
 	return b.String(), nil
 }
 
@@ -570,7 +581,11 @@ func (s *VatReturnService) build(ctx context.Context, period accounting.VatPerio
 	if err != nil {
 		return nil, err
 	}
-	entries, err := s.entriesFor(ctx, period)
+	allocations, err := s.allocations(ctx)
+	if err != nil {
+		return nil, err
+	}
+	entries, err := s.entriesFor(ctx, period, allocations)
 	if err != nil {
 		return nil, err
 	}
@@ -582,17 +597,19 @@ func (s *VatReturnService) build(ctx context.Context, period accounting.VatPerio
 	if err != nil {
 		return nil, err
 	}
-	euRecipients, err := s.euRecipients(ctx)
+	euRecipients, domestic, err := s.recipientSeats(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	source := accounting.VatReturnSource{
-		Entries:    entries,
-		ReceivedAt: func(receiptID uint) string { return receivedAt[receiptID] },
+		Entries:     entries,
+		Allocations: allocations,
+		ReceivedAt:  func(receiptID uint) string { return receivedAt[receiptID] },
 		EURecipient: func(contactID uint) bool {
 			return euRecipients[contactID]
 		},
+		DomesticRecipient: func(contactID uint) bool { return domestic[contactID] },
 		SubmittedPeriod: func(date string) bool {
 			p, err := accounting.VatPeriodOf(date, period.Type)
 			if err != nil {
@@ -611,7 +628,7 @@ func (s *VatReturnService) build(ctx context.Context, period accounting.VatPerio
 	}
 
 	ret := accounting.BuildVatReturn(period, source)
-	ret.DueDate = accounting.VatDueDate(period, cfg.PermanentExtension)
+	ret.DueDate = accounting.VatDueDateIn(period, cfg.PermanentExtension, cfg.FederalState)
 	ret.ProgramVersion = ProgramVersion()
 	ret.Actor = actor.Actor()
 	return ret, nil
@@ -648,7 +665,16 @@ func (s *VatReturnService) specialPrepaymentFor(period accounting.VatPeriod, cfg
 // Generalumkehr aus dem Folgejahr, und bei abweichendem Wirtschaftsjahr
 // (FiscalYearStartMonth ≠ 1) jeder Kalendermonat, der im anderen Geschäftsjahr
 // liegt. Wer zu welchem Zeitraum gehört, entscheidet allein VatPeriodFor.
-func (s *VatReturnService) entriesFor(ctx context.Context, period accounting.VatPeriod) ([]domain.JournalEntry, error) {
+//
+// Eine Leistung über mehrere Jahre reicht weiter zurück: ihre Steuer entsteht
+// mit dem Leistungsende, bei § 13b UStG anteilig zu jedem Jahresende (§ 13b
+// Abs. 3 UStG). Aus früheren Jahren kommen deshalb die Buchungen hinzu, deren
+// Leistung bis in den Monat vor dem Zeitraum oder später reicht, samt den
+// Zahlungen darauf, damit eine schon vorgezogene Steuer nicht ein zweites Mal
+// entsteht.
+func (s *VatReturnService) entriesFor(
+	ctx context.Context, period accounting.VatPeriod, allocations []domain.PaymentAllocation,
+) ([]domain.JournalEntry, error) {
 	entries, err := s.journalRepo.FindAll(ctx, period.Year)
 	if err != nil {
 		return nil, fmt.Errorf("die Buchungen des Jahres %d konnten nicht gelesen werden: %w", period.Year, err)
@@ -657,6 +683,32 @@ func (s *VatReturnService) entriesFor(ctx context.Context, period accounting.Vat
 		if more, err := s.journalRepo.FindAll(ctx, year); err == nil {
 			entries = append(entries, more...)
 		}
+	}
+	reaching, err := s.journalRepo.FindServiceEndingFrom(ctx, period.Year-1, addMonthsISO(period.From, -1))
+	if err != nil {
+		return nil, fmt.Errorf("die Buchungen mehrjähriger Leistungen konnten nicht gelesen werden: %w", err)
+	}
+	if len(reaching) == 0 {
+		return entries, nil
+	}
+	loaded := make(map[uint]bool, len(entries)+len(reaching))
+	for i := range entries {
+		loaded[entries[i].ID] = true
+	}
+	for i := range reaching {
+		loaded[reaching[i].ID] = true
+	}
+	entries = append(entries, reaching...)
+	for _, a := range allocations {
+		if !loaded[a.OpenItemEntryID] || loaded[a.PaymentEntryID] {
+			continue
+		}
+		payment, err := s.journalRepo.FindByID(ctx, a.PaymentEntryID)
+		if err != nil {
+			return nil, fmt.Errorf("die Zahlung %d konnte nicht gelesen werden: %w", a.PaymentEntryID, err)
+		}
+		loaded[payment.ID] = true
+		entries = append(entries, *payment)
 	}
 	return entries, nil
 }
@@ -727,21 +779,37 @@ func (s *VatReturnService) receiptDates(ctx context.Context, year int) (map[uint
 	return out, nil
 }
 
-// euRecipients sammelt die Geschäftspartner im übrigen Gemeinschaftsgebiet mit
-// USt-IdNr. Ohne beides ist eine Leistung mit Steuerschuld des Empfängers kein
-// Fall des § 18b Satz 1 Nr. 2 UStG.
-func (s *VatReturnService) euRecipients(ctx context.Context) (map[uint]bool, error) {
-	out := map[uint]bool{}
+// recipientSeats sammelt, wo die Geschäftspartner sitzen: im übrigen
+// Gemeinschaftsgebiet mit USt-IdNr. (nur dann ist eine Leistung mit
+// Steuerschuld des Empfängers ein Fall des § 18b Satz 1 Nr. 2 UStG) oder im
+// Inland (dann ist sie ein Umsatz nach § 13b Abs. 5 UStG).
+func (s *VatReturnService) recipientSeats(ctx context.Context) (eu, domestic map[uint]bool, err error) {
+	eu, domestic = map[uint]bool{}, map[uint]bool{}
 	if s.contactRepo == nil {
-		return out, nil
+		return eu, domestic, nil
 	}
 	contacts, err := s.contactRepo.FindAll(ctx)
 	if err != nil {
-		return out, nil
+		return nil, nil, fmt.Errorf("die Geschäftspartner konnten nicht gelesen werden: %w", err)
 	}
 	for i := range contacts {
 		c := &contacts[i]
-		out[c.ID] = c.IsEUCounterparty() && strings.TrimSpace(c.VatID) != ""
+		eu[c.ID] = c.IsEUCounterparty() && strings.TrimSpace(c.VatID) != ""
+		country := strings.ToUpper(strings.TrimSpace(c.CountryCode))
+		domestic[c.ID] = country == "" || country == "DE"
+	}
+	return eu, domestic, nil
+}
+
+// allocations liest die Zahlungszuordnungen; aus ihnen folgen die Zahlungen
+// vor der Leistung und die Ausbuchungen uneinbringlicher Forderungen.
+func (s *VatReturnService) allocations(ctx context.Context) ([]domain.PaymentAllocation, error) {
+	if s.allocationRepo == nil {
+		return nil, nil
+	}
+	out, err := s.allocationRepo.FindAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("die Zahlungszuordnungen konnten nicht gelesen werden: %w", err)
 	}
 	return out, nil
 }
@@ -758,7 +826,7 @@ func (s *VatReturnService) ensureCommitted(ctx context.Context, rec *domain.VatR
 	if cutoff == "" || cutoff < rec.PeriodTo {
 		return fmt.Errorf(
 			"der Zeitraum %s (bis %s) ist noch nicht festgeschrieben. Eine übermittelte Voranmeldung muss sich "+
-				"auf einen unveränderlichen Stand stützen — schreibe den Zeitraum zuerst fest",
+				"auf einen unveränderlichen Stand stützen. Der Zeitraum ist zuerst festzuschreiben",
 			rec.PeriodKey, rec.PeriodTo)
 	}
 	return nil
@@ -783,8 +851,8 @@ func (s *VatReturnService) ensureFirstOrCorrection(ctx context.Context, rec *dom
 	}
 	return fmt.Errorf(
 		"für den Zeitraum %s ist am %s bereits eine Voranmeldung übermittelt (Transferticket %s). "+
-			"Eine zweite Erstanmeldung desselben Zeitraums gibt es nicht — bestätige sie als berichtigte "+
-			"Anmeldung (Kennziffer 10) oder lege eine Berichtigung an",
+			"Eine zweite Erstanmeldung desselben Zeitraums gibt es nicht — sie ist als berichtigte "+
+			"Anmeldung (Kennziffer 10) zu bestätigen oder eine Berichtigung anzulegen",
 		rec.PeriodKey, submitted.SubmittedAt, submitted.TransferTicket)
 }
 
@@ -807,8 +875,8 @@ func (s *VatReturnService) ensureCurrent(ctx context.Context, rec *domain.VatRet
 	}
 	return fmt.Errorf(
 		"der gespeicherte Entwurf der Voranmeldung %s stimmt nicht mehr mit dem Journal überein "+
-			"(Zahllast im Entwurf %s €, aus dem Journal %s €). Speichere ihn neu und bestätige dann die "+
-			"Übermittlung — bestätigt wird, was übermittelt wurde",
+			"(Zahllast im Entwurf %s €, aus dem Journal %s €). Er ist neu zu speichern, danach lässt sich die "+
+			"Übermittlung bestätigen — bestätigt wird, was übermittelt wurde",
 		rec.PeriodKey, rec.Payable, fresh.Payable)
 }
 
@@ -867,13 +935,6 @@ func (s *VatReturnService) companySettings(ctx context.Context) (*domain.Company
 	return cfg, nil
 }
 
-func (s *VatReturnService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) {
-	if s.auditRepo == nil {
-		return
-	}
-	_ = s.auditRepo.Log(ctx, action, "VAT_RETURN", fmt.Sprintf("%d", id), details)
-}
-
 // auditChange protokolliert eine Voranmeldung mit ihrem Stand davor und danach.
 //
 // Die Voranmeldung ist eine Erklärung gegenüber dem Finanzamt, und was sich an
@@ -884,9 +945,9 @@ func (s *VatReturnService) audit(ctx context.Context, action domain.AuditAction,
 // Anmeldung neu.
 func (s *VatReturnService) auditChange(
 	ctx context.Context, action domain.AuditAction, id uint, details string, before, after *domain.VatReturn,
-) {
+) error {
 	if s.auditRepo == nil {
-		return
+		return nil
 	}
 	// Ein Zeiger auf nil in einer any-Schnittstelle ist nicht nil — das Vorher
 	// eines neuen Datensatzes muss deshalb ausdrücklich als nil übergeben
@@ -895,5 +956,25 @@ func (s *VatReturnService) auditChange(
 	if before != nil {
 		beforeAny = before
 	}
-	_ = s.auditRepo.LogChange(ctx, action, "VAT_RETURN", fmt.Sprintf("%d", id), details, beforeAny, after)
+	return s.logChange(ctx, action, id, details, beforeAny, after)
+}
+
+// PeriodMismatch nennt die eingestellte Zeitraumart, wenn der Schlüssel davon abweicht.
+func (s *VatReturnService) PeriodMismatch(ctx context.Context, period string) domain.VatPeriodType {
+	if s.settingsRepo == nil {
+		return ""
+	}
+	cfg, err := s.settingsRepo.GetCompanySettings(ctx)
+	if err != nil || cfg == nil {
+		return ""
+	}
+	p, err := accounting.ParseVatPeriodKey(period)
+	if err != nil {
+		return ""
+	}
+	want := domain.VatPeriodType(cfg.VatPeriod)
+	if !want.Valid() || p.Type == want {
+		return ""
+	}
+	return want
 }

@@ -31,16 +31,8 @@ func (r *CorrectionResult) EnsureLists() {
 //
 // Der Vorgang, den GoBD Rz. 58 meint: die ursprüngliche Aufzeichnung bleibt
 // feststellbar, die Korrektur ist als solche erkennbar, und beide sind
-// miteinander verbunden. Bisher waren das zwei getrennte Handgriffe — Storno
-// hier, neue Buchung dort —, und wer im Journal auf die Neubuchung sah, konnte
-// nicht erkennen, dass sie eine falsche ersetzt. Die Verbindung fehlte in der
-// einen Richtung ganz.
-//
-// Der Ablauf steht in dieser Reihenfolge, weil eine halb ausgeführte Korrektur
-// schlimmer ist als keine: erst wird die Neubuchung geprüft, ohne sie zu
-// schreiben, dann storniert, dann neu gebucht. Scheiterte die Neubuchung nach
-// dem Storno, stünde der Vorgang ohne Buchung da — die alte zurückgenommen, die
-// richtige nicht erfasst.
+// miteinander verbunden. Storno, Neubuchung und Protokoll stehen in einer
+// Transaktion; scheitert die Neubuchung, gibt es auch den Storno nicht.
 func (s *JournalService) CorrectEntry(
 	ctx context.Context, entryID uint, reason string, replacement *domain.JournalEntry,
 ) (*CorrectionResult, error) {
@@ -50,44 +42,54 @@ func (s *JournalService) CorrectEntry(
 	if reason == "" {
 		return nil, fmt.Errorf("zum Stornieren gehört ein Grund (GoBD Rz. 58)")
 	}
+	return atomically(ctx, s, func(ctx context.Context) (*CorrectionResult, error) {
+		return s.correctEntry(ctx, entryID, reason, replacement)
+	})
+}
 
+func (s *JournalService) correctEntry(
+	ctx context.Context, entryID uint, reason string, replacement *domain.JournalEntry,
+) (*CorrectionResult, error) {
 	original, err := s.journalRepo.FindByID(ctx, entryID)
 	if err != nil {
 		return nil, fmt.Errorf("die zu korrigierende Buchung wurde nicht gefunden: %w", err)
 	}
 	if original.Kind == domain.EntryKindReversal {
 		return nil, fmt.Errorf(
-			"Buchung %s ist selbst eine Generalumkehr und lässt sich nicht stornieren — storniere stattdessen die Buchung, die sie zurücknimmt",
+			"Buchung %s ist selbst eine Generalumkehr und lässt sich nicht stornieren — zu stornieren ist stattdessen die Buchung, die sie zurücknimmt",
 			original.EntryNumber)
 	}
 
-	// Der Verweis steht vor der Prüfung, damit die Prüfung die Buchung sieht,
-	// die tatsächlich geschrieben wird.
+	// Die Neubuchung ist eine gewöhnliche Buchung. Die Quelle „opening" gibt
+	// den Steuerkonten frei und gehört allein der Eröffnungsbilanz.
+	if replacement.Source == domain.EntrySourceOpening {
+		return nil, fmt.Errorf(
+			"eine Eröffnungsbuchung lässt sich nicht über „stornieren und neu buchen\" ersetzen. " +
+				"Sie ist zu stornieren; die Eröffnungswerte werden über die Eröffnungsbilanz neu erfasst")
+	}
 	id := original.ID
-	replacement.CorrectsEntryID = &id
-	if err := s.ValidatePostable(ctx, replacement); err != nil {
+	mode := postMode{correctsID: &id}
+	if err := requireShareholderContacts(replacement.Lines); err != nil {
+		return nil, fmt.Errorf("die richtige Buchung ist nicht buchbar, deshalb wurde nicht storniert: %w", err)
+	}
+	if err := s.validatePostable(ctx, replacement, mode); err != nil {
 		return nil, fmt.Errorf("die richtige Buchung ist nicht buchbar, deshalb wurde nicht storniert: %w", err)
 	}
 
-	reversal, err := s.Reverse(ctx, entryID, reason)
+	reversal, err := s.reverseOn(ctx, entryID, reason, "")
 	if err != nil {
 		return nil, err
 	}
-
-	created, err := s.Post(ctx, replacement)
+	created, err := s.post(ctx, replacement, mode)
 	if err != nil {
-		// Der Storno steht bereits und bleibt stehen: eine zurückgenommene
-		// Buchung wieder aufleben zu lassen ginge nur durch eine weitere
-		// Buchung, und die wäre eine Behauptung über einen Vorgang, den es nicht
-		// gab. Der Fehler nennt deshalb den Stand, in dem die Buchhaltung ist.
-		return nil, fmt.Errorf(
-			"Buchung %s wurde storniert (%s), die Neubuchung ist aber gescheitert: %w. Erfasse die richtige Buchung von Hand",
-			original.EntryNumber, reversal.EntryNumber, err)
+		return nil, fmt.Errorf("die Neubuchung ist gescheitert, deshalb wurde auch nicht storniert: %w", err)
 	}
 
-	s.audit(ctx, domain.AuditActionStorno, created.ID, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionStorno, created.ID, fmt.Sprintf(
 		"Buchung %s ersetzt die stornierte Buchung %s (Storno %s, Grund: %s)",
-		created.EntryNumber, original.EntryNumber, reversal.EntryNumber, reason))
+		created.EntryNumber, original.EntryNumber, reversal.EntryNumber, reason)); err != nil {
+		return nil, err
+	}
 
 	result := &CorrectionResult{
 		Original: original, Reversal: reversal, Replacement: created,

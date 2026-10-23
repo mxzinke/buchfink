@@ -4,9 +4,10 @@
 
 ## 2. Leitidee: Stilles Kontor
 
-Buchfink ist Werkzeug, keine Bühne. Wer damit arbeitet, sitzt vier Stunden am
-Stück vor Journal und Kontenabgleich und sucht Abweichungen. Die Oberfläche hat
-dabei eine Aufgabe: nicht im Weg zu stehen.
+Buchfink ist Werkzeug, keine Bühne. Die Erfassung leistet meist ein KI-Agent;
+der Mensch kommt in die App, um den Stand zu sehen, Abweichungen zu suchen und
+freizugeben, was sich nicht rückgängig machen lässt. Die Oberfläche hat dabei
+eine Aufgabe: nicht im Weg zu stehen.
 
 **1. Ruhe ist Funktion, nicht Geschmack.**
 Jedes Element, das Aufmerksamkeit zieht, ohne sie zu verdienen, verlängert die
@@ -36,6 +37,14 @@ konkurrieren.
 Die GoBD verlangt sichtbare Korrekturen. Das ist ein Gestaltungsprinzip, keine
 Last. Stornierte Buchungen werden markiert, nicht versteckt, und
 nie durchgestrichen.
+
+**6. Erst das Nötige, der Rest auf Anforderung.**
+Jede Ansicht beantwortet zuerst eine Frage: Was ist zu tun, stimmt der Stand?
+Die Antwort steht oben, als Zahl, Status oder Aufgabe. Einzelheiten wie
+Buchungszeilen, Prüfprotokoll, Rechtsgrundlage oder seltene Einstellungen
+liegen eine Ebene tiefer: aufklappbar, hinter einem Reiter, in einem Dialog
+oder hinter dem Erklärzeichen. Was der Mensch nicht entscheiden muss, steht
+nicht im Weg. Was er freigeben muss, steht nie in einer zugeklappten Ebene.
 
 ---
 
@@ -70,7 +79,9 @@ lesbar bleibt: `shell` `#24211E`, `shell-raised` `#2E2A26`, `shell-line`
 Für die Statuszeile im Fuß der Navigation kommen zwei aufgehellte Signalfarben
 dazu, weil die Werte aus [Abschnitt 3.3](#33-die-vier-familien) für helles Papier gerechnet sind und auf der
 dunklen Fläche den Kontrast verlieren: `shell-positive` `#9BCFA6` (9,9:1) und
-`shell-negative` `#E8A79C` (8,7:1).
+`shell-negative` `#E8A79C` (8,7:1). Ein Hinweis der Einrichtung, der nichts
+sperrt, etwa zur Ablage in einem Cloud-Ordner, steht in `shell-attention`
+`#E3C189` (9,3:1).
 
 ### 3.2 Vier Familien, vier Rollen
 
@@ -170,9 +181,8 @@ ist ein Layoutproblem.
 | `text-caption` | 11 / 15 px | 400 | Hilfstexte, Metadaten, Zeitstempel |
 | `text-overline` | 10 / 14 px | 600, 0,08 em, Versalien | Gruppenlabels in der Navigation |
 
-Bisher war `text-xs` (12 px) der Standard für fast alles. 13 px im Fließtext ist
-bei stundenlanger Arbeit spürbar angenehmer, ohne dass die Dichte leidet. 9 px
-entfällt ersatzlos.
+13 px im Fließtext bleibt bei langer Arbeit angenehm, ohne dass die Dichte
+leidet. Kleiner als 10 px wird nichts gesetzt.
 
 Gewichte: 400 für Text, 500 für Labels, 600 für Überschriften und Summen. 700 und
 800 kommen nicht vor, Manrope wird in diesen Schnitten laut.

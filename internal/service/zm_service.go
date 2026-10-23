@@ -19,16 +19,28 @@ import (
 // Festschreibung: eine übermittelte Meldung muss sich auf einen unveränderlichen
 // Stand stützen, sonst entfernt sie sich nach der Bestätigung stillschweigend
 // vom Journal. Dazu kommen die Stammdaten — eine Meldung ohne USt-IdNr. des
-// Abnehmers ist keine Meldung.
+// Empfängers ist keine Meldung.
 type ZMService struct {
+	serviceClock
+	auditor[uint]
 	journalRepo        domain.JournalRepository
 	contactRepo        domain.ContactRepository
 	settingsRepo       domain.SettingsRepository
 	festschreibungRepo domain.FestschreibungRepository
 	zmRepo             domain.ZMReturnRepository
 	vatReturnRepo      domain.VatReturnRepository
-	auditRepo          domain.AuditRepository
-	fiscalYear         int
+}
+
+// federalState ist das Land am Sitz für das Fristende; ohne Unternehmensdaten
+// gelten die bundesweiten Feiertage.
+func (s *ZMService) federalState(ctx context.Context) string {
+	if s.settingsRepo == nil {
+		return ""
+	}
+	if cfg, err := s.settingsRepo.GetCompanySettings(ctx); err == nil && cfg != nil {
+		return cfg.FederalState
+	}
+	return ""
 }
 
 // NewZMService wires the Zusammenfassende Meldung.
@@ -40,7 +52,6 @@ func NewZMService(
 	zmRepo domain.ZMReturnRepository,
 	vatReturnRepo domain.VatReturnRepository,
 	auditRepo domain.AuditRepository,
-	fiscalYear int,
 ) *ZMService {
 	return &ZMService{
 		journalRepo:        journalRepo,
@@ -49,13 +60,9 @@ func NewZMService(
 		festschreibungRepo: festschreibungRepo,
 		zmRepo:             zmRepo,
 		vatReturnRepo:      vatReturnRepo,
-		auditRepo:          auditRepo,
-		fiscalYear:         fiscalYear,
+		auditor:            auditor[uint]{auditRepo: auditRepo, entity: "ZM_RETURN"},
 	}
 }
-
-// SetFiscalYear updates the active fiscal year.
-func (s *ZMService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // ZMPeriodStatus ist ein Meldezeitraum mit Fälligkeit und Stand.
 type ZMPeriodStatus struct {
@@ -72,17 +79,16 @@ type ZMPeriodStatus struct {
 	IsOverdue   bool         `json:"isOverdue"`
 }
 
-// Periods liefert die Meldezeiträume eines Jahres. Ihre Länge folgt aus den
-// Umsätzen, nicht aus einer Einstellung (§ 18a Abs. 1 UStG).
+// Periods liefert die Meldezeiträume eines Jahres (§ 18a Abs. 1 UStG).
 func (s *ZMService) Periods(ctx context.Context, year int) ([]ZMPeriodStatus, error) {
-	if year <= 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	movements, err := s.movements(ctx, year)
 	if err != nil {
 		return nil, err
 	}
-	periods := accounting.ZMPeriodsOfYear(year, movements)
+	periods := accounting.ZMPeriodsOfYear(year)
 
 	saved, err := s.zmRepo.FindByFiscalYear(ctx, year)
 	if err != nil {
@@ -107,12 +113,13 @@ func (s *ZMService) Periods(ctx context.Context, year int) ([]ZMPeriodStatus, er
 	}
 	lookup := func(id uint) accounting.ZMRecipient { return recipients[id] }
 
-	today := todayLocal()
+	today := s.today()
+	state := s.federalState(ctx)
 	out := make([]ZMPeriodStatus, 0, len(periods))
 	for _, p := range periods {
 		st := ZMPeriodStatus{
 			VatPeriod: p,
-			DueDate:   accounting.ZMDueDate(p),
+			DueDate:   accounting.ZMDueDateIn(p, state),
 			Status:    domain.VatReturnDraft,
 			Committed: cutoff != "" && cutoff >= p.To,
 		}
@@ -170,7 +177,7 @@ func (s *ZMService) Save(ctx context.Context, periodKey string) (*domain.ZMRetur
 		if submitted != nil {
 			return nil, fmt.Errorf(
 				"für den Zeitraum %s ist am %s bereits eine Zusammenfassende Meldung übermittelt "+
-					"(Transferticket %s). Lege stattdessen eine berichtigte Meldung an",
+					"(Transferticket %s). Anzulegen ist stattdessen eine berichtigte Meldung",
 				period.Key, submitted.SubmittedAt, submitted.TransferTicket)
 		}
 	}
@@ -196,22 +203,27 @@ func (s *ZMService) Save(ctx context.Context, periodKey string) (*domain.ZMRetur
 		return nil, fmt.Errorf("die Zusammenfassende Meldung konnte nicht gespeichert werden: %w", err)
 	}
 
-	s.audit(ctx, domain.AuditActionCreate, fresh.ID, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionCreate, fresh.ID, fmt.Sprintf(
 		"Zusammenfassende Meldung %s als Entwurf gespeichert (%d Zeilen, %s €)",
-		fresh.PeriodKey, len(fresh.Lines), fresh.TotalSupplies+fresh.TotalServices))
+		fresh.PeriodKey, len(fresh.Lines), fresh.TotalServices)); err != nil {
+		return nil, err
+	}
 	return fresh, nil
 }
 
 // List liefert die gespeicherten Meldungen eines Jahres.
 func (s *ZMService) List(ctx context.Context, year int) ([]domain.ZMReturn, error) {
-	if year <= 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	return s.zmRepo.FindByFiscalYear(ctx, year)
 }
 
 // ConfirmSubmitted bestätigt die Übermittlung an das Bundeszentralamt.
 func (s *ZMService) ConfirmSubmitted(ctx context.Context, id uint, date, ticket, note string) (*domain.ZMReturn, error) {
+	if err := requireHuman(ctx, "Die Bestätigung der Übermittlung"); err != nil {
+		return nil, err
+	}
 	rec, err := s.zmRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("die Zusammenfassende Meldung %d wurde nicht gefunden: %w", id, err)
@@ -265,8 +277,10 @@ func (s *ZMService) ConfirmSubmitted(ctx context.Context, id uint, date, ticket,
 	}
 
 	// Statuswechsel, nicht Ausgabe — siehe VatReturnService.ConfirmSubmitted.
-	s.audit(ctx, domain.AuditActionUpdate, rec.ID, fmt.Sprintf(
-		"Zusammenfassende Meldung %s am %s übermittelt (Transferticket %s)", rec.PeriodKey, date, rec.TransferTicket))
+	if err := s.audit(ctx, domain.AuditActionUpdate, rec.ID, fmt.Sprintf(
+		"Zusammenfassende Meldung %s am %s übermittelt (Transferticket %s)", rec.PeriodKey, date, rec.TransferTicket)); err != nil {
+		return nil, err
+	}
 	return rec, nil
 }
 
@@ -308,19 +322,22 @@ func (s *ZMService) CreateCorrection(ctx context.Context, periodKey string) (*do
 		if err := s.zmRepo.Update(ctx, fresh); err != nil {
 			return nil, fmt.Errorf("die berichtigte Meldung konnte nicht gespeichert werden: %w", err)
 		}
-		s.audit(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
+		if err := s.audit(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
 			"Berichtigte Zusammenfassende Meldung %s fortgeschrieben (berichtigt Meldung %d, "+
 				"bisher %s €, jetzt %s €)",
-			fresh.PeriodKey, submitted.ID,
-			before.TotalSupplies+before.TotalServices, fresh.TotalSupplies+fresh.TotalServices))
+			fresh.PeriodKey, submitted.ID, before.TotalServices, fresh.TotalServices)); err != nil {
+			return nil, err
+		}
 		return fresh, nil
 	}
 
 	if err := s.zmRepo.Create(ctx, fresh); err != nil {
 		return nil, fmt.Errorf("die berichtigte Meldung konnte nicht gespeichert werden: %w", err)
 	}
-	s.audit(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
-		"Berichtigte Zusammenfassende Meldung %s angelegt (berichtigt Meldung %d)", fresh.PeriodKey, submitted.ID))
+	if err := s.audit(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
+		"Berichtigte Zusammenfassende Meldung %s angelegt (berichtigt Meldung %d)", fresh.PeriodKey, submitted.ID)); err != nil {
+		return nil, err
+	}
 	return fresh, nil
 }
 
@@ -331,15 +348,14 @@ func (s *ZMService) CreateCorrection(ctx context.Context, periodKey string) (*do
 // geändert, ist die gespeicherte Meldung nicht die abgegebene, und Buchfink
 // trüge ein Transferticket an einer Meldung, die es so nie gab.
 func ensureZMCurrent(rec, fresh *domain.ZMReturn) error {
-	if rec.TotalSupplies == fresh.TotalSupplies && rec.TotalServices == fresh.TotalServices &&
-		sameZMLines(rec.Lines, fresh.Lines) {
+	if rec.TotalServices == fresh.TotalServices && sameZMLines(rec.Lines, fresh.Lines) {
 		return nil
 	}
 	return fmt.Errorf(
 		"der gespeicherte Entwurf der Zusammenfassenden Meldung %s stimmt nicht mehr mit dem Journal "+
-			"überein (im Entwurf %s €, aus dem Journal %s €). Speichere ihn neu und bestätige dann die "+
-			"Übermittlung — bestätigt wird, was übermittelt wurde",
-		rec.PeriodKey, rec.TotalSupplies+rec.TotalServices, fresh.TotalSupplies+fresh.TotalServices)
+			"überein (im Entwurf %s €, aus dem Journal %s €). Er ist neu zu speichern, danach lässt sich die "+
+			"Übermittlung bestätigen — bestätigt wird, was übermittelt wurde",
+		rec.PeriodKey, rec.TotalServices, fresh.TotalServices)
 }
 
 // sameZMLines vergleicht zwei Meldungen in dem, was übermittelt wird:
@@ -373,8 +389,10 @@ func (s *ZMService) ExportCSV(ctx context.Context, id uint) (string, error) {
 			line.CountryCode, strings.TrimPrefix(line.VatID, line.CountryCode),
 			int64(accounting.TruncToEuro(line.Amount))/100, line.Kind)
 	}
-	s.audit(ctx, domain.AuditActionExport, rec.ID, fmt.Sprintf(
-		"Zusammenfassende Meldung %s als Datei ausgegeben", rec.PeriodKey))
+	if err := s.audit(ctx, domain.AuditActionExport, rec.ID, fmt.Sprintf(
+		"Zusammenfassende Meldung %s als Datei ausgegeben", rec.PeriodKey)); err != nil {
+		return "", err
+	}
 	return b.String(), nil
 }
 
@@ -401,17 +419,12 @@ func (s *ZMService) build(ctx context.Context, period accounting.VatPeriod) (*do
 		PeriodFrom: period.From,
 		PeriodTo:   period.To,
 		Status:     domain.VatReturnDraft,
-		DueDate:    accounting.ZMDueDate(period),
+		DueDate:    accounting.ZMDueDateIn(period, s.federalState(ctx)),
 		Lines:      lines,
 		Findings:   findings,
 	}
 	for _, line := range lines {
-		switch line.Kind {
-		case domain.ZMKindService:
-			rec.TotalServices += line.Amount
-		default:
-			rec.TotalSupplies += line.Amount
-		}
+		rec.TotalServices += line.Amount
 	}
 	rec.LateEntries, err = s.lateEntries(ctx, period, movements)
 	if err != nil {
@@ -442,11 +455,7 @@ func (s *ZMService) lateEntries(
 	if err != nil {
 		return nil, err
 	}
-	// Die Meldezeiträume eines Jahres können verschieden lang sein — die
-	// Schwelle des § 18a Abs. 1 Satz 2 UStG schaltet mitten im Jahr auf den
-	// Monat um. Der Zeitraum einer Buchung ist deshalb der, der sie enthält,
-	// und nicht der aus einer Formel.
-	periods := accounting.ZMPeriodsOfYear(period.Year, movements)
+	periods := accounting.ZMPeriodsOfYear(period.Year)
 	yearFrom := fmt.Sprintf("%d-01-01", period.Year)
 	yearTo := fmt.Sprintf("%d-12-31", period.Year)
 
@@ -458,12 +467,6 @@ func (s *ZMService) lateEntries(
 		if accounting.ZMPeriodCovers(period, m) {
 			continue
 		}
-		// Zugeordnet wird über dieselbe Regel, nach der gemeldet wird: eine
-		// sonstige Leistung nach § 3a Abs. 2 UStG gehört bei monatlicher
-		// Meldung in den letzten Quartalsmonat (§ 18a Abs. 1 Satz 3 UStG) und
-		// nicht in den Monat ihres Datums. Über das bloße Datum zugeordnet
-		// stünde sie in der Märzmeldung in den Zeilen *und* als Nachtrag zum
-		// Januar — wer dem Nachtrag folgte, meldete sie zweimal.
 		p, ok := accounting.ZMPeriodFor(periods, m)
 		if !ok || !submitted[p.Key] || reported[p.Key][m.EntryID] {
 			continue
@@ -474,7 +477,6 @@ func (s *ZMService) lateEntries(
 			PeriodKey:   p.Key,
 			Date:        m.Date,
 			VatID:       recipients[m.ContactID].VatID,
-			Kind:        m.Kind,
 			Amount:      m.Amount,
 		})
 	}
@@ -521,8 +523,8 @@ func (s *ZMService) submittedPeriods(ctx context.Context, year int) (map[string]
 	return submitted, reported, nil
 }
 
-// reconcile stellt die Summen der Meldung den Kennziffern 41 und 21 der
-// Voranmeldungen desselben Zeitraums gegenüber.
+// reconcile stellt die Summe der Meldung der Kennziffer 21 der Voranmeldungen
+// desselben Zeitraums gegenüber.
 //
 // Verglichen wird in vollen Euro, weil beide Meldungen in vollen Euro abgegeben
 // werden — ein Cent Unterschied wäre eine Abweichung, die es auf dem Papier
@@ -533,7 +535,6 @@ func (s *ZMService) reconcile(
 	out := &domain.ZMReconciliation{
 		ScopeKey:   period.Key,
 		ScopeLabel: period.Label,
-		SuppliesZM: accounting.TruncToEuro(rec.TotalSupplies),
 		ServicesZM: accounting.TruncToEuro(rec.TotalServices),
 	}
 	if s.vatReturnRepo == nil {
@@ -553,8 +554,8 @@ func (s *ZMService) reconcile(
 		}
 	}
 
-	// Der Regelfall: die Anmeldungen liegen im Meldezeitraum (gleich lang oder
-	// kürzer — Monatsanmeldungen in einem ZM-Quartal).
+	// Der Regelfall: die Anmeldungen liegen im Meldezeitraum (Quartals- oder
+	// Monatsanmeldungen in einem ZM-Quartal).
 	found := false
 	for _, r := range latest {
 		if r.PeriodFrom < period.From || r.PeriodTo > period.To {
@@ -562,17 +563,14 @@ func (s *ZMService) reconcile(
 		}
 		found = true
 		out.VatReturnsFound++
-		out.SuppliesVat += r.Base(accounting.VatCodeIntraCommunitySupply)
 		out.ServicesVat += r.Base(accounting.VatCodeEUServices)
 	}
 	if found {
-		alignServicesToQuarter(out, period, latest)
 		return out
 	}
 
-	// Sonst der umgekehrte Fall: die Meldung ist kürzer als die Anmeldung —
-	// monatliche ZM neben vierteljährlicher Voranmeldung. Verglichen wird dann
-	// auf der Ebene der Anmeldung, gegen die Summe der ZM-Monate des Quartals.
+	// Sonst die Jahresanmeldung: verglichen wird auf ihrer Ebene, gegen die
+	// Summe der ZM-Quartale des Jahres.
 	for _, r := range latest {
 		if r.PeriodFrom > period.From || r.PeriodTo < period.To {
 			continue
@@ -583,72 +581,31 @@ func (s *ZMService) reconcile(
 		if p, err := accounting.ParseVatPeriodKey(r.PeriodKey); err == nil {
 			out.ScopeLabel = p.Label
 		}
-		out.SuppliesVat = r.Base(accounting.VatCodeIntraCommunitySupply)
 		out.ServicesVat = r.Base(accounting.VatCodeEUServices)
 
-		var supplies, services domain.Cents
+		// Gezählt wird wie in den Meldezeilen: ohne USt-IdNr. des Empfängers
+		// gibt es weder eine Meldezeile noch einen Umsatz in Kz 21.
+		recipients, err := s.recipients(ctx)
+		if err != nil {
+			return out
+		}
+		var services domain.Cents
 		for _, m := range movements {
-			if m.Date < r.PeriodFrom || m.Date > r.PeriodTo {
-				continue
-			}
-			if m.Kind == domain.ZMKindService {
+			if m.Date >= r.PeriodFrom && m.Date <= r.PeriodTo && strings.TrimSpace(recipients[m.ContactID].VatID) != "" {
 				services += m.Amount
-			} else {
-				supplies += m.Amount
 			}
 		}
-		out.SuppliesZM = accounting.TruncToEuro(supplies)
 		out.ServicesZM = accounting.TruncToEuro(services)
 		break
 	}
 	return out
 }
 
-// alignServicesToQuarter stellt die sonstigen Leistungen einer monatlichen
-// Meldung auf das Kalendervierteljahr um (§ 18a Abs. 1 Satz 3 UStG).
-//
-// Gemeldet werden sie im letzten Monat des Quartals (siehe ZMPeriodCovers),
-// vorangemeldet dagegen in dem Monat, in dem sie erbracht wurden. Verglichen
-// man Monat gegen Monat, stünde dieselbe Leistung zweimal als Abweichung: im
-// Januar fehlte sie in der ZM, im März in der Voranmeldung. Gegenübergestellt
-// wird deshalb die ZM des Quartalsendmonats der Summe der Kennziffer 21 aller
-// Voranmeldungen des Quartals; in den übrigen Monaten steht auf beiden Seiten
-// nichts.
-func alignServicesToQuarter(
-	out *domain.ZMReconciliation, period accounting.VatPeriod, latest map[string]*domain.VatReturn,
-) {
-	if period.Type != domain.VatPeriodMonth {
-		return
-	}
-	quarter, err := accounting.VatPeriodOf(period.To, domain.VatPeriodQuarter)
-	if err != nil {
-		return
-	}
-	// Der letzte Monat eines Quartals endet mit dem Quartal; jeder andere Monat
-	// hat in der ZM keine sonstige Leistung.
-	if quarter.To != period.To {
-		out.ServicesVat = 0
-		return
-	}
-	var services domain.Cents
-	for _, r := range latest {
-		if r.PeriodFrom < quarter.From || r.PeriodTo > quarter.To {
-			continue
-		}
-		services += r.Base(accounting.VatCodeEUServices)
-	}
-	out.ServicesVat = services
-}
-
-// movements liest die meldepflichtigen Umsätze des Jahres und der vier
-// vorangegangenen Quartale. Die Rückschau braucht die Schwellenregel des
-// § 18a Abs. 1 Satz 2 UStG.
-//
-// Gelesen wird über drei Geschäftsjahre, ausgewählt wird über das
-// Leistungsdatum: das Geschäftsjahr folgt dem Buchungsdatum, der Meldezeitraum
-// der Leistung. Die im Januar erfasste Dezemberlieferung und — bei abweichendem
-// Wirtschaftsjahr — jeder Kalendermonat aus dem anderen Geschäftsjahr fehlten
-// sonst.
+// movements liest die meldepflichtigen Umsätze über drei Geschäftsjahre;
+// ausgewählt wird über das Leistungsdatum. Das Geschäftsjahr folgt dem
+// Buchungsdatum, der Meldezeitraum der Leistung: die im Januar erfasste
+// Dezemberleistung und — bei abweichendem Wirtschaftsjahr — jeder Kalendermonat
+// aus dem anderen Geschäftsjahr fehlten sonst.
 func (s *ZMService) movements(ctx context.Context, year int) ([]accounting.ZMMovement, error) {
 	entries, err := s.journalRepo.FindAll(ctx, year)
 	if err != nil {
@@ -707,7 +664,7 @@ func (s *ZMService) ensureCommitted(ctx context.Context, rec *domain.ZMReturn) e
 	if cutoff == "" || cutoff < rec.PeriodTo {
 		return fmt.Errorf(
 			"der Meldezeitraum %s (bis %s) ist noch nicht festgeschrieben. Eine übermittelte Meldung muss "+
-				"sich auf einen unveränderlichen Stand stützen — schreibe den Zeitraum zuerst fest",
+				"sich auf einen unveränderlichen Stand stützen. Der Zeitraum ist zuerst festzuschreiben",
 			rec.PeriodKey, rec.PeriodTo)
 	}
 	return nil
@@ -728,7 +685,7 @@ func (s *ZMService) ensureFirstOrCorrection(ctx context.Context, rec *domain.ZMR
 	}
 	return fmt.Errorf(
 		"für den Zeitraum %s ist am %s bereits eine Zusammenfassende Meldung übermittelt (Transferticket %s). "+
-			"Eine zweite Erstmeldung desselben Zeitraums gibt es nicht — bestätige sie als berichtigte Meldung",
+			"Eine zweite Erstmeldung desselben Zeitraums gibt es nicht — sie ist als berichtigte Meldung zu bestätigen",
 		rec.PeriodKey, submitted.SubmittedAt, submitted.TransferTicket)
 }
 
@@ -757,11 +714,4 @@ func (s *ZMService) latestSubmitted(ctx context.Context, periodKey string) (*dom
 		}
 	}
 	return nil, nil
-}
-
-func (s *ZMService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) {
-	if s.auditRepo == nil {
-		return
-	}
-	_ = s.auditRepo.Log(ctx, action, "ZM_RETURN", fmt.Sprintf("%d", id), details)
 }

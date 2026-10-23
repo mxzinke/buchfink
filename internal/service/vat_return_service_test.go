@@ -18,11 +18,11 @@ func (e *testEnv) vatReturns(t *testing.T) *VatReturnService {
 		e.journalRepo,
 		e.receiptRepo,
 		e.contactRepo,
+		repository.NewPaymentAllocationRepository(e.db),
 		repository.NewSettingsRepository(e.db),
 		repository.NewFestschreibungRepository(e.db),
 		repository.NewVatReturnRepository(e.db),
 		repository.NewAuditRepository(e.db),
-		e.fiscalYear,
 	)
 }
 
@@ -558,7 +558,7 @@ func TestVatReturnReadsAcrossFiscalYears(t *testing.T) {
 		Description: "Dezemberleistung, im Januar erfasst",
 		Source:      domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentDomestic,
 		Lines: []domain.JournalLine{
-			{Side: domain.SideDebit, Account: domain.AccountKasse, Amount: 119000},
+			{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 119000},
 			{Side: domain.SideCredit, Account: "4400", Amount: 100000},
 			{Side: domain.SideCredit, Account: domain.AccountUmsatzsteuer19, Amount: 19000, TaxKey: "UST19", TaxBase: 100000},
 		},
@@ -567,14 +567,17 @@ func TestVatReturnReadsAcrossFiscalYears(t *testing.T) {
 		t.Fatalf("Buchung im Folgejahr: %v", err)
 	}
 
-	// Im Dezember 2025 erfasst (Geschäftsjahr 2025), Leistung im Januar 2026.
+	// Im Dezember 2025 erfasst (Geschäftsjahr 2025), Leistung im Januar 2026,
+	// auf Ziel: ohne Zahlung vor der Leistung entscheidet die Leistung.
+	customer := env.customer(t, "Kunde", "DE", "")
 	early := &domain.JournalEntry{
 		BookingDate: "2025-12-28", DocumentDate: "2025-12-28",
 		ServiceDateFrom: "2026-01-15", ServiceDateTo: "2026-01-15",
 		Description: "Januarleistung, im Dezember erfasst",
 		Source:      domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentDomestic,
+		ContactID: &customer.ID,
 		Lines: []domain.JournalLine{
-			{Side: domain.SideDebit, Account: domain.AccountKasse, Amount: 59500},
+			{Side: domain.SideDebit, Account: customer.LedgerAccount, ContactID: &customer.ID, Amount: 59500},
 			{Side: domain.SideCredit, Account: "4400", Amount: 50000},
 			{Side: domain.SideCredit, Account: domain.AccountUmsatzsteuer19, Amount: 9500, TaxKey: "UST19", TaxBase: 50000},
 		},
@@ -680,15 +683,15 @@ func TestInvoiceWithUnlawfulTaxIsRefused(t *testing.T) {
 	inv := &domain.Invoice{
 		ContactID: 1, Date: "2026-03-01",
 		ServiceDateFrom: "2026-03-01", ServiceDateTo: "2026-03-01",
-		TaxTreatment: domain.TaxTreatmentIntraCommunitySupply,
+		TaxTreatment: domain.TaxTreatmentReverseChargeSupply,
 		NetAmount:    100000, TaxAmount: 19000, GrossAmount: 119000,
 		Items: []domain.InvoiceItem{{
-			Description: "Ware", QuantityMilli: 1000, UnitPrice: 100000, TaxRate: domain.TaxRateStandard,
+			Description: "Beratung", QuantityMilli: 1000, UnitPrice: 100000, TaxRate: domain.TaxRateStandard,
 		}},
 	}
 	err := inv.Validate()
 	if err == nil {
-		t.Fatal("ein Steuerausweis bei steuerfreiem Umsatz muss abgewiesen werden (§ 14c UStG)")
+		t.Fatal("ein Steuerausweis bei Steuerschuld des Empfängers muss abgewiesen werden (§ 14c UStG)")
 	}
 	if !strings.Contains(err.Error(), "14c") {
 		t.Errorf("die Meldung sollte § 14c UStG benennen: %v", err)
@@ -713,14 +716,14 @@ func TestIssueRefusesUnlawfulTax(t *testing.T) {
 	inv := &domain.Invoice{
 		ContactID: customer.ID, Date: "2026-03-15",
 		ServiceDateFrom: "2026-03-15", ServiceDateTo: "2026-03-15",
-		TaxTreatment: domain.TaxTreatmentIntraCommunitySupply,
+		TaxTreatment: domain.TaxTreatmentReverseChargeSupply,
 		Items: []domain.InvoiceItem{{
-			Description: "Warenlieferung", QuantityMilli: 1000, UnitPrice: 500000, TaxRate: domain.TaxRateStandard,
+			Description: "Beratung", QuantityMilli: 1000, UnitPrice: 500000, TaxRate: domain.TaxRateStandard,
 		}},
 	}
 	err := env.invoices(t).Issue(ctx, inv)
 	if err == nil {
-		t.Fatal("eine Rechnung mit Steuersatz zu einem steuerfreien Steuerfall darf nicht ausgestellt werden")
+		t.Fatal("eine Rechnung mit Steuersatz zu einem Steuerfall ohne Steuerausweis darf nicht ausgestellt werden")
 	}
 	if !strings.Contains(err.Error(), "14c") {
 		t.Errorf("die Meldung sollte § 14c UStG benennen: %v", err)
@@ -732,7 +735,7 @@ func TestIssueRefusesUnlawfulTax(t *testing.T) {
 	// Derselbe Fall ohne Steuersatz an der Position ist in Ordnung.
 	inv.Items[0].TaxRate = domain.TaxRateNone
 	if err := env.invoices(t).Issue(ctx, inv); err != nil {
-		t.Fatalf("ohne Steuersatz muss die Lieferung ausstellbar sein: %v", err)
+		t.Fatalf("ohne Steuersatz muss die Leistung ausstellbar sein: %v", err)
 	}
 	if inv.TaxAmount != 0 {
 		t.Errorf("ausgewiesene Steuer = %s, erwartet null", inv.TaxAmount)
@@ -743,9 +746,9 @@ func TestIssueRefusesUnlawfulTax(t *testing.T) {
 	draft := &domain.Invoice{
 		ContactID: customer.ID, Date: "2026-03-16",
 		ServiceDateFrom: "2026-03-16", ServiceDateTo: "2026-03-16",
-		TaxTreatment: domain.TaxTreatmentIntraCommunitySupply,
+		TaxTreatment: domain.TaxTreatmentReverseChargeSupply,
 		Items: []domain.InvoiceItem{{
-			Description: "Warenlieferung", QuantityMilli: 1000, UnitPrice: 100000, TaxRate: domain.TaxRateStandard,
+			Description: "Beratung", QuantityMilli: 1000, UnitPrice: 100000, TaxRate: domain.TaxRateStandard,
 		}},
 	}
 	if _, err := env.invoices(t).Preview(ctx, draft); err == nil {
@@ -766,7 +769,7 @@ func TestManualUnlawfulTaxLandsInCode69(t *testing.T) {
 		Description: "Unrichtig ausgewiesene Steuer nach § 14c UStG",
 		Source:      domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentDomestic,
 		Lines: []domain.JournalLine{
-			{Side: domain.SideDebit, Account: domain.AccountKasse, Amount: 19000},
+			{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 19000},
 			{
 				Side: domain.SideCredit, Account: domain.AccountUmsatzsteuer14c, Amount: 19000,
 				TaxKey: accounting.TaxKeyUnlawful,
@@ -798,7 +801,7 @@ func TestUnlawfulTaxAccountNeedsItsTaxKey(t *testing.T) {
 		ServiceDateFrom: "2026-02-20", ServiceDateTo: "2026-02-20",
 		Description: "Buchung ohne Steuerschlüssel", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentDomestic,
 		Lines: []domain.JournalLine{
-			{Side: domain.SideDebit, Account: domain.AccountKasse, Amount: 19000},
+			{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 19000},
 			{Side: domain.SideCredit, Account: domain.AccountUmsatzsteuer14c, Amount: 19000},
 		},
 	}
@@ -943,16 +946,16 @@ func TestYearlyVatPeriodHasNoAdvanceReturnDeadlines(t *testing.T) {
 	ctx := context.Background()
 	env.setSettings(t, func(c *domain.CompanySettings) { c.VatPeriod = "year" })
 
-	deadlines, err := env.deadlines(t).Deadlines(ctx, 2026)
+	deadlines, err := env.obligations(t).Deadlines(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Termine: %v", err)
 	}
 	annual := 0
 	for _, d := range deadlines {
-		if strings.HasPrefix(d.Key, DeadlineKeyVatReturn+".") {
+		if strings.HasPrefix(d.Key, string(domain.ObligationVatReturn)+".") {
 			t.Errorf("Termin %q (%s) verlangt eine Voranmeldung, die es beim Jahreszeitraum nicht gibt", d.Title, d.DueDate)
 		}
-		if strings.HasPrefix(d.Key, DeadlineKeyAnnualVat+".") {
+		if strings.HasPrefix(d.Key, string(domain.ObligationAnnualVatReturn)+".") {
 			annual++
 		}
 	}
@@ -963,8 +966,9 @@ func TestYearlyVatPeriodHasNoAdvanceReturnDeadlines(t *testing.T) {
 
 // § 14c gilt auch auf dem Handbuchungsweg: eine Umsatzsteuerzeile zu einem
 // Steuerfall ohne Steuerpflicht wird nicht gebucht. Sonst stünde derselbe
-// Umsatz in Kennziffer 41 und in 81 — und in der Zusammenfassenden Meldung als
-// steuerfrei, was die Voranmeldung als steuerpflichtig führt.
+// Umsatz in Kennziffer 21 und in 81 — und in der Zusammenfassenden Meldung als
+// Leistung mit Steuerschuld des Empfängers, was die Voranmeldung als
+// steuerpflichtig führt.
 func TestManualEntryWithUnlawfulTaxIsRefused(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
@@ -972,12 +976,12 @@ func TestManualEntryWithUnlawfulTaxIsRefused(t *testing.T) {
 	entry := &domain.JournalEntry{
 		BookingDate: "2026-02-20", DocumentDate: "2026-02-20",
 		ServiceDateFrom: "2026-02-20", ServiceDateTo: "2026-02-20",
-		Description:  "Innergemeinschaftliche Lieferung mit Steuerausweis",
+		Description:  "Leistung nach § 13b UStG mit Steuerausweis",
 		Source:       domain.EntrySourceManual,
-		TaxTreatment: domain.TaxTreatmentIntraCommunitySupply,
+		TaxTreatment: domain.TaxTreatmentReverseChargeSupply,
 		Lines: []domain.JournalLine{
-			{Side: domain.SideDebit, Account: domain.AccountKasse, Amount: 119000},
-			{Side: domain.SideCredit, Account: "4125", Amount: 100000},
+			{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 119000},
+			{Side: domain.SideCredit, Account: "4337", Amount: 100000},
 			{
 				Side: domain.SideCredit, Account: domain.AccountUmsatzsteuer19, Amount: 19000,
 				TaxKey: "UST19",
@@ -986,22 +990,21 @@ func TestManualEntryWithUnlawfulTaxIsRefused(t *testing.T) {
 	}
 	_, err := env.journal.Post(ctx, entry)
 	if err == nil {
-		t.Fatal("eine Umsatzsteuerzeile zu einem steuerfreien Steuerfall darf nicht gebucht werden")
+		t.Fatal("eine Umsatzsteuerzeile zu einem Steuerfall ohne Steuerausweis darf nicht gebucht werden")
 	}
 	if !strings.Contains(err.Error(), "14c") {
 		t.Errorf("die Meldung sollte § 14c UStG benennen: %v", err)
 	}
 
-	// Auch ohne gesetzten Steuerfall: das Erlöskonto 4125 ist die
-	// innergemeinschaftliche Lieferung, und eine Handbuchung kommt ohne
-	// Buchungsgruppe zustande. Ohne die Ableitung stünde derselbe Umsatz in
-	// Kennziffer 41 und in 81.
+	// Auch ohne gesetzten Steuerfall: das Erlöskonto 4337 ist die Leistung nach
+	// § 13b UStG, und eine Handbuchung kommt ohne Buchungsgruppe zustande. Ohne
+	// die Ableitung stünde derselbe Umsatz in Kennziffer 21 und in 81.
 	withoutTreatment := *entry
 	withoutTreatment.TaxTreatment = ""
 	withoutTreatment.Lines = append([]domain.JournalLine(nil), entry.Lines...)
 	_, err = env.journal.Post(ctx, &withoutTreatment)
 	if err == nil {
-		t.Fatal("die Umsatzsteuerzeile zum Erlöskonto der ig. Lieferung darf auch ohne gesetzten Steuerfall nicht gebucht werden")
+		t.Fatal("die Umsatzsteuerzeile zum Erlöskonto der § 13b-Leistung darf auch ohne gesetzten Steuerfall nicht gebucht werden")
 	}
 	if !strings.Contains(err.Error(), "14c") {
 		t.Errorf("die Meldung sollte § 14c UStG benennen: %v", err)
@@ -1014,9 +1017,9 @@ func TestManualEntryWithUnlawfulTaxIsRefused(t *testing.T) {
 	// Der Steuerfall des Inlandsumsatzes: er hat den Steuerausweis.
 	mixed.TaxTreatment = domain.TaxTreatmentDomestic
 	mixed.Lines = []domain.JournalLine{
-		{Side: domain.SideDebit, Account: domain.AccountKasse, Amount: 219000},
+		{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 219000},
 		{Side: domain.SideCredit, Account: "4400", Amount: 100000},
-		{Side: domain.SideCredit, Account: "4125", Amount: 100000},
+		{Side: domain.SideCredit, Account: "4337", Amount: 100000},
 		{
 			Side: domain.SideCredit, Account: domain.AccountUmsatzsteuer19, Amount: 19000,
 			TaxKey: "UST19", TaxBase: 100000,
@@ -1030,7 +1033,7 @@ func TestManualEntryWithUnlawfulTaxIsRefused(t *testing.T) {
 	// Steuerschlüssel UST14C auf dem eigenen Konto (Kennziffer 69).
 	entry.TaxTreatment = domain.TaxTreatmentDomestic
 	entry.Lines = []domain.JournalLine{
-		{Side: domain.SideDebit, Account: domain.AccountKasse, Amount: 19000},
+		{Side: domain.SideDebit, Account: domain.AccountBank, Amount: 19000},
 		{
 			Side: domain.SideCredit, Account: domain.AccountUmsatzsteuer14c, Amount: 19000,
 			TaxKey: accounting.TaxKeyUnlawful,

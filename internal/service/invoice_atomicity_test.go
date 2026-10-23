@@ -10,85 +10,50 @@ import (
 	"github.com/buchfink/buchfink/internal/repository"
 )
 
-// Was geschieht, wenn das Dokument scheitert, nachdem Nummer und Buchung
-// stehen.
-//
-// Der Fall ist vorgesehen (Status „Dokument fehlt", Knopf „Dokument erneut
-// erzeugen"), und deshalb muss alles, was zur Rechnung gehört, vor ihm liegen.
-// Was dahinter liegt, fehlt nach dem Fehlschlag dauerhaft — und ein
-// Wiederholungsversuch buchte ein zweites Mal, statt es herzustellen.
+// Was geschieht, wenn das Dokument scheitert: Nummer, Rechnung, Dokument,
+// Buchung und Nebenschritte sind eine Transaktion, also bleibt nichts zurück.
 
-// Die Abschlagsrechnung behält ihren offenen Posten, auch wenn das Dokument
-// scheitert.
-//
-// Entstünde er erst hinter der Dokumenterzeugung, gäbe es die Rechnung mit
-// Nummer, Status „Dokument fehlt" und Art „Abschlag" — aber ohne offenen
-// Posten: sie fehlte in der OP-Liste, ließe sich nicht vereinnahmen, zählte
-// nicht gegen den Gesamtbetrag des Verbunds und nicht in die Verrechnung der
-// Schlussrechnung. Kein Nachholen des Dokuments heilte das.
-func TestFailedDocumentKeepsTheAdvanceOpenItem(t *testing.T) {
+// Scheitert das Dokument der Abschlagsrechnung, gibt es weder die Rechnung noch
+// ihren offenen Posten, und die Nummer ist wieder frei.
+func TestFailedDocumentLeavesNoAdvanceInvoice(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	customer := env.customer(t, "Kunde GmbH", "DE", "")
 	wired := env.invoicesWired(t)
 	group := env.group(t, wired, customer.ID, 1000000)
 
-	_, err := env.invoicesWithBrokenRenderer(t).IssueAdvanceInvoice(ctx, AdvanceInvoiceRequest{
+	if _, err := env.invoicesWithBrokenRenderer(t).IssueAdvanceInvoice(ctx, AdvanceInvoiceRequest{
 		GroupID: group.ID, Date: "2026-03-01", Net: 400000,
-	})
-	if err == nil {
+	}); err == nil {
 		t.Fatal("das Scheitern der Dokumenterzeugung muss gemeldet werden")
 	}
-	if !strings.Contains(err.Error(), "nachholen") {
-		t.Errorf("die Meldung sagt nicht, dass sich das Dokument nachholen lässt: %v", err)
-	}
 
-	stored, err := env.invoiceRepoOf(t).FindByNumber(ctx, "RE-2026-0001")
-	if err != nil {
-		t.Fatalf("die Abschlagsrechnung muss mit ihrer Nummer gespeichert sein: %v", err)
+	if _, err := env.invoiceRepoOf(t).FindByNumber(ctx, "RE-2026-0001"); err == nil {
+		t.Error("ohne Dokument darf die Abschlagsrechnung nicht stehen bleiben")
 	}
-	if stored.Status != domain.InvoiceStatusPendingDocument {
-		t.Errorf("Status = %q, erwartet %q", stored.Status, domain.InvoiceStatusPendingDocument)
-	}
-
 	open, err := wired.OpenAdvanceItems(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(open) != 1 || open[0].DocumentNumber != stored.InvoiceNumber {
-		t.Fatalf("die Abschlagsrechnung fehlt in der OP-Liste: %+v", open)
+	if len(open) != 0 {
+		t.Errorf("ein offener Posten ohne Rechnung: %+v", open)
 	}
-
-	// Und sie zählt im Verbund: gegen den Gesamtbetrag …
 	groups, err := wired.GetInvoiceGroups(ctx, 2026)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(groups) != 1 || groups[0].ComputeProgress().BilledNet != 400000 {
-		t.Fatalf("der Verbund kennt den Abschlag nicht: %+v", groups)
+	if len(groups) != 1 || groups[0].ComputeProgress().BilledNet != 0 {
+		t.Fatalf("der Verbund darf den gescheiterten Abschlag nicht kennen: %+v", groups)
 	}
-	// … und als vereinnahmbarer Posten.
-	advance, err := wired.SettleAdvance(ctx, SettleAdvanceRequest{
-		AdvanceID: stored.ID, PaymentDate: "2026-04-15", PaymentAccount: domain.AccountBank,
-	})
-	if err != nil {
-		t.Fatalf("Anzahlung vereinnahmen: %v", err)
-	}
-	if !advance.Settled() {
-		t.Error("die vereinnahmte Anzahlung muss ihren Zahlungstag tragen")
+	if next, err := env.numberRepo.Peek(ctx, domain.NumberRangeInvoice, 2026); err != nil || next != 1 {
+		t.Errorf("der Nummernkreis steht auf %d (%v), erwartet 1", next, err)
 	}
 }
 
-// Scheitert das Dokument der Schlussrechnung, ist der Verbund trotzdem
-// geschlossen.
-//
-// Die Buchung steht dann: Gesamterlös, volle Umsatzsteuer und die Auflösung von
-// 3272/3806. Bliebe der Verbund offen, käme der nächste Versuch
-// „Schlussrechnung ausstellen" durch und buchte all das ein zweites Mal —
-// doppelter Steuerausweis (§ 14c Abs. 1 UStG), und 3272 rutschte ins Soll. Der
-// Weg aus dem Fehlschlag ist das Nachholen des Dokuments und nicht die zweite
-// Schlussrechnung.
-func TestFailedDocumentStillClosesTheInvoiceGroup(t *testing.T) {
+// Scheitert das Dokument der Schlussrechnung, bleibt der Verbund offen und die
+// Anzahlungen gelten nicht als verrechnet: es gibt weder Schlussrechnung noch
+// Buchung, ein zweiter Versuch ist der erste.
+func TestFailedFinalDocumentLeavesTheGroupOpen(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	customer := env.customer(t, "Kunde GmbH", "DE", "")
@@ -115,56 +80,38 @@ func TestFailedDocumentStillClosesTheInvoiceGroup(t *testing.T) {
 			TaxRate: domain.TaxRateStandard,
 		}},
 	}
-	broken := env.invoicesWithBrokenRenderer(t)
-	if _, err := broken.IssueFinalInvoice(ctx, request); err == nil {
+	if _, err := env.invoicesWithBrokenRenderer(t).IssueFinalInvoice(ctx, request); err == nil {
 		t.Fatal("das Scheitern der Dokumenterzeugung muss gemeldet werden")
-	} else if !strings.Contains(err.Error(), "nachholen") {
-		t.Errorf("die Meldung sagt nicht, dass sich das Dokument nachholen lässt: %v", err)
 	}
 
 	groups, err := wired.GetInvoiceGroups(ctx, 2026)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(groups) != 1 || !groups[0].Closed {
-		t.Fatalf("der Verbund muss trotz des fehlenden Dokuments abgeschlossen sein: %+v", groups)
+	if len(groups) != 1 || groups[0].Closed {
+		t.Fatalf("der Verbund muss offen bleiben: %+v", groups)
 	}
-	if len(groups[0].Advances) != 1 || !groups[0].Advances[0].SettledInFinal {
-		t.Errorf("die Anzahlung muss als in der Schlussrechnung verrechnet vermerkt sein: %+v", groups[0].Advances)
-	}
-
-	// Der zweite Versuch wird abgewiesen — er wäre die zweite Schlussrechnung.
-	if _, err := broken.IssueFinalInvoice(ctx, request); err == nil {
-		t.Fatal("ein Verbund hat höchstens eine Schlussrechnung")
+	if len(groups[0].Advances) != 1 || groups[0].Advances[0].SettledInFinal {
+		t.Errorf("die Anzahlung darf nicht als verrechnet gelten: %+v", groups[0].Advances)
 	}
 	entries, err := env.journalRepo.FindAll(ctx, 2026)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Vereinnahmung und Schlussrechnung, nicht mehr.
-	if len(entries) != 2 {
-		t.Fatalf("es stehen %d Buchungen im Journal, erwartet 2", len(entries))
+	// Nur die Vereinnahmung.
+	if len(entries) != 1 {
+		t.Fatalf("es stehen %d Buchungen im Journal, erwartet 1", len(entries))
 	}
-	if got := env.accountBalance(t, accounting.AccountErhalteneAnzahlungen19); got != 0 {
-		t.Errorf("Konto 3272 trägt %s, erwartet null", got)
-	}
-	if got := env.accountBalance(t, domain.AccountUmsatzsteuer19); got != -190000 {
-		t.Errorf("Umsatzsteuer im Haben = %s, erwartet 1900,00 auf 10.000 netto", -got)
+	if got := env.accountBalance(t, accounting.AccountErhalteneAnzahlungen19); got != -400000 {
+		t.Errorf("Konto 3272 trägt %s, erwartet die vereinnahmte Anzahlung im Haben", got)
 	}
 
-	if testing.Short() {
-		t.Skip("das Nachholen braucht den PDF-Renderer; die WASM-Kompilierung ist zu langsam für -short")
-	}
-	final, err := env.invoiceRepoOf(t).FindByNumber(ctx, "RE-2026-0002")
+	final, err := wired.IssueFinalInvoice(ctx, request)
 	if err != nil {
-		t.Fatalf("die Schlussrechnung muss gespeichert sein: %v", err)
+		t.Fatalf("der zweite Versuch ist der erste und muss gelingen: %v", err)
 	}
-	repaired, err := env.invoicesWiredWithDocuments(t).RegenerateDocument(ctx, final.ID)
-	if err != nil {
-		t.Fatalf("Dokument nachholen: %v", err)
-	}
-	if repaired.Status != domain.InvoiceStatusIssued || repaired.ReceiptID == nil {
-		t.Fatalf("nach dem Nachholen: Status %q, Beleg %v", repaired.Status, repaired.ReceiptID)
+	if final.InvoiceNumber != "RE-2026-0002" {
+		t.Errorf("Nummer %s, erwartet die beim Fehlschlag zurückgegebene RE-2026-0002", final.InvoiceNumber)
 	}
 }
 

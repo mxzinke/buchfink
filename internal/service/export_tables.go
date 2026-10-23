@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/actor"
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/ebilanz"
 	"github.com/buchfink/buchfink/internal/export"
@@ -21,6 +23,7 @@ import (
 const (
 	tableJournal        = "journal"
 	tableEntertainment  = "bewirtungen"
+	tableGifts          = "geschenke"
 	tableAllocations    = "zahlungszuordnungen"
 	tableAccounts       = "konten"
 	tableBalances       = "salden"
@@ -28,11 +31,12 @@ const (
 	tableOpenItems      = "offene_posten"
 	tableAssets         = "anlagen"
 	tableAssetMovements = "anlagen_bewegungen"
+	tableLoans          = "darlehen"
+	tableLoanInterest   = "darlehen_zinsen"
 	tableTaxKeys        = "steuerschluessel"
 	tableKeyDirectory   = export.KeyDirectoryTable
 	tableAuditLog       = "aenderungsprotokoll"
 	tableReceipts       = "belege"
-	tableDocuments      = "dokumente"
 	tableVatReturns     = "voranmeldungen"
 	tableCommits        = "festschreibungen"
 	tableCheckRuns      = "pruefläufe"
@@ -90,15 +94,16 @@ func journalTable(d *exportData) (export.Table, error) {
 		dateField("Leistungsbeginn", "Beginn der Leistung (§ 14 Abs. 4 Nr. 6 UStG)."),
 		dateField("Leistungsende", "Ende der Leistung; gleich dem Beginn bei einer Zeitpunktleistung."),
 		dateField("Valuta", "Wertstellung; nur bei Zahlungsbuchungen belegt."),
-		dateField("Faelligkeit", "Vereinbarte Fälligkeit des offenen Postens, den die Buchung begründet; leer, wo keine vereinbart ist. Ist die Spalte belegt, geht sie in die kanonische Form ein (siehe Abschnitt „Die Hash-Chain nachrechnen“)."),
+		dateField("Faelligkeit", "Vereinbarte Fälligkeit des offenen Postens, den die Buchung begründet; leer, wo sie aus dem Zahlungsziel folgt."),
 		alphaField("Buchungstext", "Beschreibung des Geschäftsvorfalls."),
 		alphaField("Quelle", "Teil des Systems, der die Buchung erzeugt hat; siehe Schlüsselverzeichnis, Kategorie „Quelle“."),
 		alphaField("Buchungsart", "normal oder reversal (Generalumkehr); siehe Schlüsselverzeichnis."),
+		intField("Abschlussperiode", "1, wenn die Buchung zur Abschlussperiode gehört: eine Abschlussbuchung zum Bilanzstichtag, die nach der Festschreibung des letzten Monats bis zur Jahresfestschreibung möglich bleibt; 0 sonst. Dieser Wert geht in die Hash-Chain ein."),
 		alphaField("Steuerfall", "Umsatzsteuerlicher Sachverhalt; siehe Schlüsselverzeichnis, Kategorie „Steuerfall“."),
 		intField("Storno_von_ID", "Kennung der Buchung, die diese Generalumkehr aufhebt; leer sonst."),
 		alphaField("Storno_Grund", "Begründung der Generalumkehr."),
 		alphaField("Belegnummer", "Belegfeld: Nummer des Belegs, unter der er abgelegt ist."),
-		alphaField("Beleg_SHA256", "Prüfsumme über die geordnete Dateiliste des Belegs und — bei Belegen mit Belegdatum — dessen Kopfdaten; siehe Abschnitt „Den Beleg-Hash nachrechnen“."),
+		alphaField("Beleg_SHA256", "Prüfsumme über die geordnete Dateiliste und die Kopfdaten des Belegs; siehe Abschnitt „Den Beleg-Hash nachrechnen“."),
 		intField("Kontakt_ID", "Geschäftspartner der Buchung; verweist auf kontakte.Kontakt_ID."),
 		intField("Bankumsatz_ID", "Interne Kennung des zugeordneten Bankumsatzes."),
 		alphaField("Waehrung", "Währung des Belegs nach ISO 4217."),
@@ -106,8 +111,9 @@ func journalTable(d *exportData) (export.Table, error) {
 		alphaField("Kursquelle", "Herkunft des Kurses."),
 		dateField("Kursdatum", "Tag, für den der Kurs gilt."),
 		alphaField("Regelversion", "Fassung der Kontierungsregeln, nach der gebucht wurde."),
-		alphaField("Programmfassung", "Fassung des Programms, die die Buchung erzeugt hat. Leer bei Buchungen aus der Zeit vor dieser Angabe; sie werden nach der bisherigen kanonischen Form gehasht (siehe Abschnitt „Die Hash-Chain nachrechnen“)."),
+		alphaField("Programmfassung", "Fassung des Programms, die die Buchung erzeugt hat."),
 		alphaField("Bearbeiter", "Bearbeiterkennung aus Benutzerkonto und Rechnername."),
+		alphaField("Erfassungsweg", "Weg, auf dem die Buchung entstand; siehe Schlüsselverzeichnis, Kategorie „Erfassungsweg“."),
 		alphaField("Herkunft_Altsystem", "Kennung, unter der der Vorgang im Altsystem geführt wurde; nur bei übernommenen Eröffnungswerten belegt."),
 		intField("Korrigierte_Buchung_ID", "Kennung der Buchung, die diese Buchung nach einem Storno ersetzt; leer sonst."),
 		alphaField("Erfassungszeitpunkt_UTC", "Zeitpunkt der Erfassung nach RFC 3339 in UTC; Bestandteil der Hash-Chain."),
@@ -127,7 +133,9 @@ func journalTable(d *exportData) (export.Table, error) {
 		alphaField("Steuerschluessel", "Schlüssel der Steuerzeile; siehe Tabelle steuerschluessel."),
 		numField("Bemessungsgrundlage", "Entgelt, aus dem die Steuer dieser Zeile gerechnet wurde, in Euro."),
 		intField("Bemessungsgrundlage_Cent", "Dieselbe Bemessungsgrundlage in Cent; dieser Wert geht in die Hash-Chain ein."),
-		intField("Zeile_Kontakt_ID", "Geschäftspartner der Zeile; belegt auf Personenkonten."),
+		intField("Zeile_Kontakt_ID", "Geschäftspartner der Zeile; belegt auf Personenkonten und auf Konten gegenüber Gesellschaftern und Geschäftsführern (Verrechnung, Darlehen, Auslagen)."),
+		intField("Vorsteueranteil_Promille", "Abziehbarer Anteil der Vorsteuer in Promille bei gemischter Nutzung; 0 heißt nicht einschlägig, -1 ganz ausgeschlossen (§ 15 Abs. 1a UStG). Dieser Wert geht in die Hash-Chain ein."),
+		intField("Fremdbetrag_Kleinste_Einheit", "Betrag der Zeile in der Fremdwährung der Buchung, in der kleinsten Einheit dieser Währung; 0 bei Euro. Dieser Wert geht in die Hash-Chain ein."),
 		alphaField("Zeilentext", "Text der einzelnen Zeile."),
 	)
 
@@ -149,6 +157,7 @@ func journalTable(d *exportData) (export.Table, error) {
 				e.Description,
 				string(e.Source),
 				string(e.Kind),
+				closingPeriodFlag(e),
 				string(e.TaxTreatment),
 				export.OptUint(e.ReversalOfID),
 				e.ReversalReason,
@@ -163,6 +172,7 @@ func journalTable(d *exportData) (export.Table, error) {
 				e.PostingRuleVersion,
 				e.AppVersion,
 				e.Actor,
+				e.Channel,
 				e.LegacyRef,
 				export.OptUint(e.CorrectsEntryID),
 				e.CreatedAt.UTC().Format(time.RFC3339),
@@ -171,7 +181,7 @@ func journalTable(d *exportData) (export.Table, error) {
 				committed,
 				committedAt(e),
 				export.OptUint(e.FestschreibungID),
-				daysBetweenISO(e.DocumentDate, e.CreatedAt.UTC().Format("2006-01-02")),
+				daysBetweenISO(e.DocumentDate, calendar.Day(e.CreatedAt)),
 				daysToCommitment(e),
 				export.Int(l.Position),
 				string(l.Side),
@@ -183,6 +193,8 @@ func journalTable(d *exportData) (export.Table, error) {
 				export.Amount(l.TaxBase),
 				export.Int64(int64(l.TaxBase)),
 				export.OptUint(l.ContactID),
+				export.Int(l.InputTaxShare),
+				export.Int64(int64(l.ForeignAmount)),
 				l.Text,
 			)
 			if err != nil {
@@ -229,6 +241,45 @@ func entertainmentTable(d *exportData) (export.Table, error) {
 			e.Entertainment.Participants, e.Entertainment.Occasion,
 		); err != nil {
 			return t, err
+		}
+	}
+	return t, nil
+}
+
+// giftsTable enthält die Aufzeichnung des § 4 Abs. 7 EStG, eine Zeile je
+// Geschenk. Sie ist Teil der kanonischen Form der Buchung.
+func giftsTable(d *exportData) (export.Table, error) {
+	t := newTable(tableGifts, "geschenke.csv",
+		"Aufzeichnungen zu Geschenken an Geschäftsfreunde (§ 4 Abs. 7 EStG). Sie sind Bestandteil der kanonischen Form der Buchung.",
+		intField("Buchung_ID", "Buchung, zu der die Aufzeichnung gehört."),
+		alphaField("Buchungsnummer", "Nummer derselben Buchung."),
+		alphaField("Empfaenger", "Name des Empfängers."),
+		intField("Empfaenger_Kontakt_ID", "Empfänger als erfasster Geschäftspartner; leer bei freiem Namen."),
+		alphaField("Anlass", "Anlass des Geschenks."),
+		dateField("Datum", "Tag des Geschenks."),
+		numField("Nettobetrag", "Betrag, an dem die Freigrenze gemessen wird, in Euro."),
+		intField("Nettobetrag_Cent", "Derselbe Betrag in ganzzahligen Cent; dieser Wert geht in die Hash-Chain ein."),
+		alphaField("Konto", "Konto, auf das gebucht wurde."),
+		intField("Wirtschaftsjahr", "Wirtschaftsjahr, in dem die Freigrenze läuft."),
+		intField("Abziehbar", "1, wenn das Geschenk als abziehbar gebucht wurde, sonst 0."),
+	)
+	for i := range d.entries {
+		e := &d.entries[i]
+		for j := range e.Gifts {
+			g := &e.Gifts[j]
+			deductible := 0
+			if g.Deductible() {
+				deductible = 1
+			}
+			if err := t.AddRow(
+				export.Uint(e.ID), e.EntryNumber,
+				g.RecipientName, export.OptUint(g.RecipientContactID),
+				g.Occasion, g.Date,
+				export.Amount(g.NetAmount), export.Int64(int64(g.NetAmount)),
+				g.Account, export.Int(g.FiscalYear), export.Int(deductible),
+			); err != nil {
+				return t, err
+			}
 		}
 	}
 	return t, nil
@@ -287,7 +338,7 @@ func accountsTable(d *exportData) (export.Table, error) {
 		alphaField("HGB_Position", "Posten der Bilanz oder GuV nach HGB, etwa „Aktiva.B.IV“."),
 		alphaField("Gliederungsposition", "Schlüssel der Gliederungsposition in Buchfink."),
 		alphaField("Posten", "Wortlaut des Postens der Gliederung."),
-		alphaField("Taxonomie_Element", "Element der HGB-Taxonomie, unter dem der Posten in die E-Bilanz geht; leer, wo die Gliederungsposition keinem Element zugeordnet ist."),
+		alphaField("Taxonomie_Element", "Position der HGB-Taxonomie, unter der das Konto in die E-Bilanz des Geschäftsjahres geht; leer, wo es keine gibt."),
 		alphaField("Bilanzseite", "Aktiva, Passiva, GuV oder Statistisch."),
 		alphaField("Abschlussart", "Bilanz, GuV oder Statistisch."),
 		numField("Steuersatz", "Hinterlegter Steuersatz in Prozent; 0.00, wo keiner hinterlegt ist."),
@@ -304,7 +355,7 @@ func accountsTable(d *exportData) (export.Table, error) {
 			a.Number, a.Name, string(a.Type),
 			export.Int(a.Kontenklasse), a.KontenklasseName,
 			a.Category, a.Subcategory,
-			a.HGBCode, a.PositionID, a.Posten, taxonomyElement(a),
+			a.HGBCode, a.PositionID, a.Posten, taxonomyElement(a, d.from, d.to),
 			a.BalanceSide, a.StatementType,
 			fmt.Sprintf("%.2f", a.TaxRate*100),
 			export.Bool(a.IsActive),
@@ -315,26 +366,11 @@ func accountsTable(d *exportData) (export.Table, error) {
 	return t, nil
 }
 
-// taxonomyElement liefert das Element der HGB-Taxonomie zu einem Konto.
-//
-// Der Weg geht über die Gliederungsposition und nicht unmittelbar über die
-// SKR04-Position: die Taxonomie kennt Schlüssel wie „aktiva.B.IV", die Konten
-// haben Schlüssel wie „bilanz.aktiva_b_iv.kassenbestand…". Dazwischen steht
-// dieselbe Übersetzung, die auch die E-Bilanz benutzt — zwei Wege zu demselben
-// Element wären zwei Gelegenheiten, verschiedene Auskünfte zu geben.
-//
-// Leer, wo es keine Zuordnung gibt: eine erfundene Angabe wäre schlimmer als
-// eine fehlende, denn der Prüfer sähe eine E-Bilanz-Zuordnung, die es nicht gibt.
-func taxonomyElement(account domain.Account) string {
-	key, ok := accounting.StatementKeyForAccount(account)
-	if !ok {
-		return ""
-	}
-	element, ok := ebilanz.ElementFor(key)
-	if !ok {
-		return ""
-	}
-	return element.Element
+// taxonomyElement liefert die Position der HGB-Taxonomie, unter der ein Konto
+// in die E-Bilanz des Geschäftsjahres geht — dieselbe Zuordnung wie im Export
+// der E-Bilanz. Leer, wo es keine gibt.
+func taxonomyElement(account domain.Account, from, to string) string {
+	return ebilanz.ElementForAccount(account, from, to)
 }
 
 // balancesTable ist die Summen- und Saldenliste zum Stichtag.
@@ -386,7 +422,9 @@ func contactsTable(d *exportData) (export.Table, error) {
 		alphaField("Art", "customer für Debitoren, vendor für Kreditoren; siehe Schlüsselverzeichnis."),
 		alphaField("Name", "Name des Geschäftspartners."),
 		alphaField("Firma", "Firmenname, sofern abweichend."),
-		alphaField("Anschrift", "Anschrift des Geschäftspartners."),
+		alphaField("Strasse", "Straße und Hausnummer des Geschäftspartners."),
+		alphaField("Postleitzahl", "Postleitzahl des Geschäftspartners."),
+		alphaField("Ort", "Ort des Geschäftspartners."),
 		alphaField("Land", "Ländercode nach ISO 3166-1 alpha-2."),
 		alphaField("USt_IdNr", "Umsatzsteuer-Identifikationsnummer."),
 		alphaField("Steuernummer", "Steuernummer des Geschäftspartners."),
@@ -399,7 +437,7 @@ func contactsTable(d *exportData) (export.Table, error) {
 		c := &d.contacts[i]
 		if err := t.AddRow(
 			export.Uint(c.ID), c.LedgerAccount, string(c.Type),
-			c.Name, c.Company, c.Address, c.CountryCode,
+			c.Name, c.Company, c.Street, c.PostalCode, c.City, c.CountryCode,
 			c.VatID, c.TaxID, c.Email, c.IBAN,
 			export.Int(c.PaymentTermsDays), c.CollectiveAccount(),
 		); err != nil {
@@ -528,6 +566,72 @@ func assetMovementsTable(d *exportData) (export.Table, error) {
 	return t, nil
 }
 
+// --- Gesellschafterdarlehen -------------------------------------------------
+
+func loansTable(d *exportData) (export.Table, error) {
+	t := newTable(tableLoans, "darlehen.csv",
+		"Darlehensverträge zwischen der Gesellschaft und ihren Gesellschaftern, die im Zeitraum bestanden. "+
+			"Zins und Vergleichszins sind der Nachweis des Fremdvergleichs.",
+		intField("Darlehen_ID", "Interne Kennung."),
+		intField("Kontakt_ID", "Gesellschafter."),
+		alphaField("Richtung", "to_company: der Gesellschafter leiht der Gesellschaft; to_shareholder: die Gesellschaft leiht dem Gesellschafter."),
+		numField("Darlehensbetrag", "Vereinbarter Betrag in Euro."),
+		numField("Zinssatz", "Vereinbarter Zinssatz in Prozent."),
+		alphaField("Zinsmethode", "act/365, act/360 oder 30/360."),
+		dateField("Vertragsdatum", "Tag des Vertragsschlusses."),
+		dateField("Beginn", "Beginn der Verzinsung."),
+		dateField("Faelligkeit", "Vereinbarte Fälligkeit; leer bei unbestimmter Laufzeit."),
+		alphaField("Darlehenskonto", "Konto, auf dem der Bestand steht."),
+		alphaField("Zinskonto", "Konto der Zinsen."),
+		intField("Vertrag_Beleg_ID", "Abgelegter Darlehensvertrag."),
+		alphaField("Sicherheiten", "Vereinbarte Sicherheiten."),
+		numField("Vergleichszins", "Belegter Zins eines fremden Dritten in Prozent; leer, wenn keiner belegt ist."),
+		alphaField("Vergleichszins_Nachweis", "Nachweis des Vergleichszinses."),
+		intField("Rangruecktritt", "1, wenn ein Rangrücktritt vereinbart ist (§ 19 Abs. 2 Satz 2 InsO), sonst 0."),
+		alphaField("Notiz", "Freitext zum Vertrag."),
+	)
+	for i := range d.loans {
+		l := &d.loans[i]
+		comparison := ""
+		if l.ComparisonRateBP != nil {
+			comparison = export.Rate(domain.TaxRate(*l.ComparisonRateBP))
+		}
+		if err := t.AddRow(
+			export.Uint(l.ID), export.Uint(l.ContactID), string(l.Direction),
+			export.Amount(l.Principal), export.Rate(domain.TaxRate(l.InterestRateBP)), string(l.DayCount),
+			l.ContractDate, l.StartDate, l.MaturityDate, l.Account, l.InterestAccount,
+			export.OptUint(l.ContractReceiptID), l.Collateral, comparison, l.ComparisonSource,
+			export.Bool(l.Subordinated), l.Note,
+		); err != nil {
+			return t, err
+		}
+	}
+	return t, nil
+}
+
+func loanInterestTable(d *exportData) (export.Table, error) {
+	t := newTable(tableLoanInterest, "darlehen_zinsen.csv",
+		"Gebuchte Zinsperioden der Gesellschafterdarlehen, die den Zeitraum berühren. Eine stornierte Zinsbuchung "+
+			"steht mit ihrer Generalumkehr im Journal.",
+		intField("Zinsperiode_ID", "Interne Kennung."),
+		intField("Darlehen_ID", "Darlehen, zu dem die Zinsen gehören."),
+		dateField("Von", "Beginn der Zinsperiode."),
+		dateField("Bis", "Ende der Zinsperiode."),
+		numField("Zinsbetrag", "Gebuchte Zinsen in Euro."),
+		intField("Buchung_ID", "Buchung der Zinsen."),
+	)
+	for i := range d.loanInterest {
+		p := &d.loanInterest[i]
+		if err := t.AddRow(
+			export.Uint(p.ID), export.Uint(p.LoanID), p.PeriodFrom, p.PeriodTo,
+			export.Amount(p.Amount), export.Uint(p.EntryID),
+		); err != nil {
+			return t, err
+		}
+	}
+	return t, nil
+}
+
 // --- Verzeichnisse ---------------------------------------------------------
 
 func taxKeysTable() (export.Table, error) {
@@ -556,9 +660,8 @@ func taxKeysTable() (export.Table, error) {
 
 // keyDirectoryTable ist das Schlüsselverzeichnis nach GoBD Rz. 95.
 //
-// Es ist die eine Quelle: dieselbe Tabelle geht in die Überlassung, in die
-// Feldbeschreibung und in den Einzelexport „Schlüsselverzeichnis“. Drei Listen
-// desselben Inhalts wären drei Gelegenheiten, einen Code zu vergessen.
+// Es ist die eine Quelle: dieselbe Tabelle geht in die Überlassung und in die
+// Feldbeschreibung.
 func keyDirectoryTable() (export.Table, error) {
 	t := newTable(tableKeyDirectory, "schluesselverzeichnis.csv",
 		"Alle in den Tabellen verwendeten Codes mit ihrer Bedeutung im Klartext (GoBD Rz. 95).",
@@ -605,6 +708,7 @@ func keyDirectoryTable() (export.Table, error) {
 	for _, s := range []struct{ key, label, hint string }{
 		{string(domain.ReceiptStatusFiled), "Abgelegt", "Der Beleg liegt vor, ist aber noch nicht gebucht."},
 		{string(domain.ReceiptStatusSealed), "Gebucht", "Der Beleg ist gebucht; seine Dateiliste ist festgeschrieben."},
+		{string(domain.ReceiptStatusAssigned), "Zugeordnet", "Der Beleg belegt einen Datensatz statt einer Buchung, etwa den Vertrag eines Gesellschafterdarlehens; seine Dateiliste ist festgeschrieben."},
 		{string(domain.ReceiptStatusDiscarded), "Verworfen", "Der Beleg wird nicht gebucht, bleibt aber erhalten."},
 	} {
 		if err := add("Belegstatus", s.key, s.label, s.hint); err != nil {
@@ -674,11 +778,6 @@ func keyDirectoryTable() (export.Table, error) {
 			return t, err
 		}
 	}
-	for _, k := range domain.AllAssetDocumentKinds() {
-		if err := add("Anlagendokument", string(k), k.Label(), ""); err != nil {
-			return t, err
-		}
-	}
 	for _, c := range domain.AllAssetClasses() {
 		if err := add("Anlagenklasse", string(c), c.Label(), ""); err != nil {
 			return t, err
@@ -735,8 +834,18 @@ func keyDirectoryTable() (export.Table, error) {
 		{string(domain.AuditActionImport), "Import"},
 		{string(domain.AuditActionIntegrityCheck), "Integritätsprüfung"},
 		{string(domain.AuditActionExport), "Export"},
+		{string(domain.AuditActionCommit), "Festschreibung"},
 	} {
 		if err := add("Protokollart", s.key, s.label, ""); err != nil {
+			return t, err
+		}
+	}
+	for _, s := range []struct{ key, label, hint string }{
+		{string(actor.ChannelUI), "Bedienung in der App", ""},
+		{string(actor.ChannelSystem), "Lauf des Programms ohne Bedienung", "Sicherung, nachgeholter Zeitstempel, Einrichtung eines Mandanten."},
+		{"agent:<kurzname>", "Verbundener Agent", "Der Kurzname bezeichnet die in der App zugelassene Anwendung; verantwortlich bleibt der Bearbeiter."},
+	} {
+		if err := add("Erfassungsweg", s.key, s.label, s.hint); err != nil {
 			return t, err
 		}
 	}
@@ -765,6 +874,7 @@ func auditLogTable(d *exportData) (export.Table, error) {
 		alphaField("Vorher", "Die geänderten Felder in ihrem bisherigen Stand als JSON-Objekt; leer, wenn der Vorgang nichts geändert hat oder das Objekt neu ist."),
 		alphaField("Nachher", "Dieselben Felder in ihrem neuen Stand als JSON-Objekt."),
 		alphaField("Bearbeiter", "Bearbeiterkennung aus Benutzerkonto und Rechnername."),
+		alphaField("Erfassungsweg", "Weg, auf dem der Vorgang ausgelöst wurde; siehe Schlüsselverzeichnis, Kategorie „Erfassungsweg“."),
 		alphaField("Programmfassung", "Fassung des Programms, die den Vorgang ausgeführt hat."),
 		alphaField("Vorgaengerhash", "Eigenhash des vorhergehenden Protokolleintrags."),
 		alphaField("Eigenhash", "SHA-256 über die kanonische Form des Eintrags."),
@@ -778,7 +888,7 @@ func auditLogTable(d *exportData) (export.Table, error) {
 			// unnachrechenbar — und damit die Kette zu einer Behauptung.
 			export.Uint(a.ID), a.Timestamp.UTC().Format(time.RFC3339Nano),
 			string(a.Action), a.EntityType, a.EntityID, a.Details,
-			a.Before, a.After, a.Actor, a.AppVersion,
+			a.Before, a.After, a.Actor, a.Channel, a.AppVersion,
 			a.PreviousHash, a.EntryHash,
 		); err != nil {
 			return t, err
@@ -821,8 +931,8 @@ func daysToCommitment(e *domain.JournalEntry) string {
 		return ""
 	}
 	return daysBetweenISO(
-		e.CreatedAt.UTC().Format("2006-01-02"),
-		e.CommittedAt.UTC().Format("2006-01-02"))
+		calendar.Day(e.CreatedAt),
+		calendar.Day(*e.CommittedAt))
 }
 
 func receiptsTable(d *exportData) (export.Table, error) {
@@ -836,7 +946,7 @@ func receiptsTable(d *exportData) (export.Table, error) {
 		alphaField("Status", "Stand des Belegs; siehe Schlüsselverzeichnis, Kategorie „Belegstatus“."),
 		dateField("Eingang", "Tag, an dem der Beleg eingegangen ist."),
 		alphaField("Eingangsweg", "Weg, auf dem der Beleg eingegangen ist."),
-		dateField("Belegdatum", "Datum, das der Beleg selbst hat (Rechnungsdatum). Leer bei Belegen aus der Zeit vor den Kopfdaten; sie werden nach der bisherigen kanonischen Form gehasht (siehe Abschnitt „Den Beleg-Hash nachrechnen“)."),
+		dateField("Belegdatum", "Datum, das der Beleg selbst hat (Rechnungsdatum); leer, solange der Beleg nicht erfasst ist."),
 		alphaField("Aussteller", "Name des Ausstellers, wie er auf dem Beleg steht."),
 		numField("Bruttobetrag", "Bruttobetrag des Belegs in Euro."),
 		numField("Steuerbetrag", "Darin enthaltene Umsatzsteuer in Euro."),
@@ -847,6 +957,7 @@ func receiptsTable(d *exportData) (export.Table, error) {
 		alphaField("Beleg_SHA256", "Prüfsumme über die geordnete Dateiliste und — bei Belegen mit Belegdatum — die Kopfdaten; siehe Abschnitt „Den Beleg-Hash nachrechnen“."),
 		intField("Buchung_ID", "Buchung, mit der der Beleg gebucht wurde."),
 		alphaField("Buchungsnummer", "Nummer dieser Buchung."),
+		alphaField("Zugeordnet_zu", "Datensatz, den ein zugeordneter Beleg belegt, etwa shareholder_loan:1 für den Vertrag des Gesellschafterdarlehens 1 (Tabelle darlehen.csv)."),
 		intField("Datei_Position", "Reihenfolge der Datei innerhalb des Belegs."),
 		alphaField("Rolle", "Rolle der Datei; siehe Schlüsselverzeichnis, Kategorie „Belegrolle“."),
 		alphaField("Dateiname", "Name, unter dem die Datei empfangen wurde."),
@@ -862,6 +973,10 @@ func receiptsTable(d *exportData) (export.Table, error) {
 		if r.JournalEntryID != nil {
 			entryNumber = d.entryNumber(*r.JournalEntryID)
 		}
+		assigned := ""
+		if r.AssignedKind != "" {
+			assigned = fmt.Sprintf("%s:%d", r.AssignedKind, r.AssignedID)
+		}
 		for j := range r.Files {
 			f := &r.Files[j]
 			if err := t.AddRow(
@@ -873,49 +988,13 @@ func receiptsTable(d *exportData) (export.Table, error) {
 				r.Currency, r.Subject,
 				string(r.RetentionClass), r.RetentionUntil,
 				r.ReceiptHash,
-				export.OptUint(r.JournalEntryID), entryNumber,
+				export.OptUint(r.JournalEntryID), entryNumber, assigned,
 				export.Int(f.Position), string(f.Role), f.FileName, f.MimeType,
 				export.Int64(f.Size), f.SHA256, export.Bool(f.Derived),
 				d.receiptFilePaths[f.ID],
 			); err != nil {
 				return t, err
 			}
-		}
-	}
-	return t, nil
-}
-
-// documentsTable führt die Anlagendokumente mit ihren Prüfsummen auf.
-//
-// Sie stehen sonst nur in export.json, und die ist eine Metadatei über den
-// Datenträger, keine Tabelle der Überlassung: ein Prüfer, der die Verträge zu
-// den Wirtschaftsgütern sucht, findet sie dort nicht mit der Inventarnummer
-// verbunden.
-func documentsTable(d *exportData) (export.Table, error) {
-	t := newTable(tableDocuments, "dokumente.csv",
-		"Verträge, Gutachten und Zulassungen zu den Wirtschaftsgütern des Anlagevermögens. Die Spalte Pfad_im_Export ist nur im Archivexport belegt.",
-		intField("Dokument_ID", "Interne Kennung des Dokuments."),
-		intField("Anlage_ID", "Wirtschaftsgut, zu dem das Dokument gehört."),
-		alphaField("Inventarnummer", "Nummer desselben Wirtschaftsguts."),
-		alphaField("Art", "Art des Dokuments; siehe Schlüsselverzeichnis, Kategorie „Anlagendokument“."),
-		alphaField("Dateiname", "Name, unter dem die Datei abgelegt wurde."),
-		alphaField("Dateityp", "MIME-Typ der Datei."),
-		intField("Groesse_Bytes", "Größe der Datei in Bytes."),
-		alphaField("SHA256", "Prüfsumme des Dateiinhalts."),
-		dateField("Gueltig_bis", "Tag, bis zu dem das Dokument gilt; leer, wo keine Frist besteht."),
-		alphaField("Notiz", "Freitext zum Dokument."),
-		alphaField("Pfad_im_Export", "Pfad der Datei innerhalb dieses Exports; leer, wenn keine Dateien beiliegen."),
-	)
-	for i := range d.documents {
-		doc := &d.documents[i]
-		if err := t.AddRow(
-			export.Uint(doc.ID), export.Uint(doc.AssetID), d.inventoryNumber(doc.AssetID),
-			string(doc.Kind), doc.FileName, doc.MimeType,
-			export.Int64(doc.Size), doc.SHA256,
-			doc.ValidUntil, doc.Note,
-			d.documentFilePaths[doc.ID],
-		); err != nil {
-			return t, err
 		}
 	}
 	return t, nil
@@ -1113,22 +1192,11 @@ func auditTrailTable(d *exportData) (export.Table, error) {
 	return t, nil
 }
 
-func companyDocumentsTable(d *exportData) (export.Table, error) {
-	t := newTable("unternehmensdokumente", "unternehmensdokumente.csv",
-		"Unterlagen des Unternehmens aus allen Jahren, einschließlich Gründung, Eröffnungsbilanz und Pflichtnachweisen.",
-		intField("Dokument_ID", "Kennung in der Unternehmensablage."),
-		alphaField("Art", "Art der Unternehmensunterlage."), alphaField("Titel", "Dokumenttitel."),
-		dateField("Dokumentdatum", "Datum oder Stichtag des Dokuments."), dateField("Gueltig_bis", "Gültigkeit, falls befristet."),
-		alphaField("Pflichtbezug", "Schlüssel der zugehörigen Pflicht."), alphaField("Erzeugt_durch", "Erzeugende Buchfink-Funktion oder leer bei Fremddokumenten."),
-		alphaField("Dateiname", "Originaler Dateiname."), alphaField("Dateityp", "MIME-Typ."), intField("Groesse_Bytes", "Dateigröße."),
-		alphaField("SHA256", "Archivierte Prüfsumme."), alphaField("Pfad_im_Export", "Dateipfad im Paket."),
-		alphaField("Aufbewahrungsklasse", "Bei Ablage ermittelte Aufbewahrungsklasse."), dateField("Aufbewahren_bis", "Ende der Aufbewahrungsfrist."),
-		alphaField("Abgelegt_am", "Tatsächlicher Ablagezeitpunkt in UTC."), alphaField("Notiz", "Ergänzende Angaben."),
-	)
-	for _, doc := range d.companyDocuments {
-		if err := t.AddRow(export.Uint(doc.ID), string(doc.Kind), doc.Title, doc.DocumentDate, doc.ValidUntil, doc.DutyKey, doc.GeneratedBy, doc.FileName, doc.MimeType, export.Int64(doc.Size), doc.SHA256, d.companyDocumentPaths[doc.ID], string(doc.RetentionClass), doc.RetentionUntil, doc.CreatedAt.UTC().Format(time.RFC3339), doc.Note); err != nil {
-			return t, err
-		}
+// closingPeriodFlag schreibt die Abschlussperiode wie die kanonische Form: 1
+// oder 0.
+func closingPeriodFlag(e *domain.JournalEntry) string {
+	if e.ClosingPeriod {
+		return "1"
 	}
-	return t, nil
+	return "0"
 }

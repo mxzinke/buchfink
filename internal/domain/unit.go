@@ -5,10 +5,7 @@ import "strings"
 // Die Mengeneinheit einer Rechnungsposition (BT-130).
 //
 // EN 16931 verlangt an jeder Position einen Schlüssel aus UN/ECE Rec. 20 —
-// „Stunde" ist dort kein zulässiger Wert, „HUR" ist es. Buchfink hat bisher
-// fest C62 (Stück) geschrieben, egal was in der Position stand: eine
-// Beratungsrechnung über 12 Stunden kam beim Empfänger als 12 Stück an, und die
-// Preisprüfung seines Systems verglich Äpfel mit Birnen.
+// „Stunde" ist dort kein zulässiger Wert, „HUR" ist es.
 //
 // Die Tabelle ist bewusst kurz. Rec. 20 kennt tausende Schlüssel; angeboten
 // wird, was ein Dienstleister und ein kleiner Händler brauchen. Ein Schlüssel,
@@ -46,10 +43,8 @@ func UnitCodes() []UnitCode {
 
 // ResolveUnitCode turns what stands in a position into a Rec. 20 key.
 //
-// Both spellings are accepted: the key itself and the German label. The label
-// path is not convenience — Rechnungen aus der Zeit vor dieser Welle haben
-// „Stück" oder „Stunde" im Feld, und ohne die Rückübersetzung würde jede alte
-// Rechnung beim erneuten Erzeugen ihres Dokuments zu Stück.
+// Both spellings are accepted: the key itself and the German label, so a
+// caller may write „Stunde" instead of „HUR".
 func ResolveUnitCode(unit string) (string, bool) {
 	trimmed := strings.TrimSpace(unit)
 	if trimmed == "" {
@@ -63,14 +58,6 @@ func ResolveUnitCode(unit string) (string, bool) {
 		if strings.EqualFold(u.Label, trimmed) {
 			return u.Code, true
 		}
-	}
-	// Zwei Schreibweisen, die vor dieser Welle im Feld standen und keinen
-	// eigenen Eintrag rechtfertigen.
-	switch strings.ToLower(trimmed) {
-	case "stk", "stk.", "st.":
-		return "C62", true
-	case "h", "std", "std.", "stunden":
-		return "HUR", true
 	}
 	return "", false
 }

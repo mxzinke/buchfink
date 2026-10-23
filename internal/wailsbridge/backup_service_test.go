@@ -3,49 +3,33 @@ package wailsbridge
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/repository"
-	"github.com/buchfink/buchfink/internal/security"
 	"github.com/buchfink/buchfink/internal/service"
-	"github.com/zalando/go-keyring"
 )
 
 // Die Wiederherstellung an der Bridge.
 //
-// Der Regelfall ist ein verschlüsselter Mandant: jeder über CreateTenant
-// angelegte hat eine Schlüsseldatei, die in der Sicherung liegt. Der Test
-// prüft deshalb, was dabei schiefgehen kann — dass der wiederhergestellte
-// Ordner unter einer neuen Kennung angemeldet wird und der Schlüssel damit
-// unauffindbar ist, und dass die vorgeschriebene Prüfung nach der
-// Wiederherstellung auf den Büchern des vorher offenen Mandanten läuft und
-// deren Ergebnis als Ergebnis der Wiederherstellung meldet.
+// Der Test prüft, was dabei schiefgehen kann — vor allem, dass die
+// vorgeschriebene Prüfung nach der Wiederherstellung auf den Büchern des vorher
+// offenen Mandanten läuft und deren Ergebnis als Ergebnis der
+// Wiederherstellung meldet.
 
-// backupBridge legt eine Bridge mit einem verschlüsselten Mandanten, einer
-// Buchung und einer fertigen Sicherung an und liefert den Pfad der ZIP-Datei.
+// backupBridge legt eine Bridge mit einem Mandanten, einer Buchung und einer
+// fertigen Sicherung an und liefert den Pfad der ZIP-Datei.
 func backupBridge(t *testing.T) (*BuchfinkBridge, *domain.TenantConfig, string) {
 	t.Helper()
-	// Schlüsselbund im Speicher: der Test soll keinen echten des Betriebssystems
-	// anfassen, aber denselben Weg gehen wie der Betrieb.
-	keyring.MockInit()
-
 	base := t.TempDir()
-	b := &BuchfinkBridge{
-		appCfgRepo:  repository.NewAppConfigRepository(filepath.Join(base, "config")),
-		currentYear: 2026,
-	}
+	b := newBridge(t)
 
-	tenant, err := b.CreateTenant("Pfennig Ventures GmbH", filepath.Join(base, "mandant"),
+	tenant, err := b.createTenant("Pfennig Ventures GmbH", filepath.Join(base, "mandant"),
 		domain.CompanySettings{CompanyName: "Pfennig Ventures GmbH", FiscalYear: 2026})
 	if err != nil {
 		t.Fatalf("Mandant anlegen: %v", err)
 	}
-	if !security.KeyfileExists(tenant.DataDir) {
-		t.Fatal("der angelegte Mandant hat keine Schlüsseldatei — der Regelfall ist nicht abgebildet")
-	}
-	if _, err := b.PostManualEntry(manualEntryRequest(t, b)); err != nil {
+	if _, err := postManualEntry(b, manualEntryRequest(t, b)); err != nil {
 		t.Fatalf("Buchung anlegen: %v", err)
 	}
 
@@ -77,8 +61,6 @@ func auditTypesAt(t *testing.T, dataDir string) map[string]bool {
 		}
 	}()
 
-	// Die Testprobe braucht nur die unverschlüsselte Ereignisart.
-	// Beschreibungstexte sind ohne Schlüssel absichtlich nicht lesbar.
 	var entries []string
 	if err := db.Table("audit_log_entries").Pluck("entity_type", &entries).Error; err != nil {
 		t.Fatalf("Protokoll in %s lesen: %v", dataDir, err)
@@ -90,10 +72,9 @@ func auditTypesAt(t *testing.T, dataDir string) map[string]bool {
 	return types
 }
 
-// Der wiederhergestellte Mandant ist danach der offene: er öffnet mit dem
-// Schlüssel aus der Sicherung, seine Bücher sind lesbar, und die vorgeschriebene
-// Prüfung wie der Vermerk darüber stehen in seiner Datenbank — nicht in der des
-// vorher offenen Mandanten.
+// Der wiederhergestellte Mandant ist danach der offene: seine Bücher sind
+// lesbar, und die vorgeschriebene Prüfung wie der Vermerk darüber stehen in
+// seiner Datenbank — nicht in der des vorher offenen Mandanten.
 func TestRestoreFromBackupOpensAndChecksTheRestoredTenant(t *testing.T) {
 	b, origin, zipPath := backupBridge(t)
 	target := filepath.Join(t.TempDir(), "wiederhergestellt")
@@ -108,22 +89,19 @@ func TestRestoreFromBackupOpensAndChecksTheRestoredTenant(t *testing.T) {
 	if !sameDir(restored.DataDir, target) {
 		t.Errorf("der wiederhergestellte Mandant liegt in %s statt in %s", restored.DataDir, target)
 	}
-	if restored.VaultID() != origin.ID {
-		t.Errorf("der wiederhergestellte Mandant sucht seinen Schlüssel unter %q statt unter %q — "+
-			"unter dieser Kennung liegt er im Schlüsselbund", restored.VaultID(), origin.ID)
+	if restored.ID == origin.ID {
+		t.Error("der wiederhergestellte Mandant hat dieselbe Listenkennung wie sein Ursprung")
 	}
-	if b.IsLocked() {
-		t.Fatal("der wiederhergestellte Mandant ist gesperrt, obwohl sein Schlüssel auf diesem Rechner liegt")
+	if restored.Name != origin.Name {
+		t.Errorf("der wiederhergestellte Mandant heißt %q statt %q", restored.Name, origin.Name)
 	}
 	if got := b.GetAppConfig().ActiveTenantID; got != restored.ID {
 		t.Errorf("aktiv ist %q und nicht der wiederhergestellte Mandant %q", got, restored.ID)
 	}
-	if !sameDir(b.dataDir, target) {
-		t.Errorf("die Dienste arbeiten auf %s statt auf dem wiederhergestellten Ordner %s", b.dataDir, target)
+	if dataDir := b.GetAppConfig().DataDir; !sameDir(dataDir, target) {
+		t.Errorf("die Dienste arbeiten auf %s statt auf dem wiederhergestellten Ordner %s", dataDir, target)
 	}
 
-	// Die Buchung ist lesbar: der Text ist ein verschlüsseltes Feld, und im
-	// Klartext zurück heißt, dass der richtige Schlüssel geöffnet hat.
 	entries, err := b.GetAllJournalEntries()
 	if err != nil {
 		t.Fatalf("Journal des wiederhergestellten Mandanten lesen: %v", err)
@@ -154,64 +132,20 @@ func TestRestoreFromBackupOpensAndChecksTheRestoredTenant(t *testing.T) {
 // Wiederherstellung („anderer Rechner"). Sie muss dort ohne offene Dienste
 // durchlaufen und darf nicht abstürzen.
 func TestRestoreFromBackupWithoutOpenTenant(t *testing.T) {
-	_, origin, zipPath := backupBridge(t)
+	_, _, zipPath := backupBridge(t)
 
-	fresh := &BuchfinkBridge{
-		appCfgRepo:  repository.NewAppConfigRepository(filepath.Join(t.TempDir(), "config")),
-		currentYear: 2026,
-	}
+	fresh := newBridge(t)
 	target := filepath.Join(t.TempDir(), "wiederhergestellt")
 
 	restored, err := fresh.RestoreFromBackup(zipPath, target)
 	if err != nil {
 		t.Fatalf("Wiederherstellung ohne offenen Mandanten: %v", err)
 	}
-	if restored == nil || restored.VaultID() != origin.ID {
-		t.Fatalf("der wiederhergestellte Mandant hat nicht die Kennung der Sicherung: %+v", restored)
-	}
-	if fresh.IsLocked() {
-		t.Error("der wiederhergestellte Mandant ist gesperrt, obwohl sein Schlüssel auf diesem Rechner liegt")
+	if restored == nil {
+		t.Fatal("die Wiederherstellung liefert keinen Mandanten")
 	}
 	if !auditTypesAt(t, target)["HASH_CHAIN"] {
 		t.Error("die vorgeschriebene Integritätsprüfung nach der Wiederherstellung fehlt")
-	}
-}
-
-// Ohne den Schlüssel auf diesem Rechner bleibt der Mandant angemeldet und
-// gesperrt. Geprüft wird dann nichts — und vor allem wird nicht die Prüfung
-// eines anderen Mandanten als seine ausgegeben.
-func TestRestoreFromBackupWithoutKeyStaysLockedAndSkipsChecks(t *testing.T) {
-	b, origin, zipPath := backupBridge(t)
-
-	// Der Fall „anderer Rechner": die Daten sind da, das Geheimnis nicht.
-	if err := security.DeleteTenantSecret(origin.ID); err != nil {
-		t.Fatalf("Schlüsselbund-Geheimnis entfernen: %v", err)
-	}
-	target := filepath.Join(t.TempDir(), "wiederhergestellt")
-
-	restored, err := b.RestoreFromBackup(zipPath, target)
-	if err == nil {
-		t.Fatal("ohne Schlüssel darf die Wiederherstellung nicht als geprüft gemeldet werden")
-	}
-	if !strings.Contains(err.Error(), "Wiederherstellungsdatei") {
-		t.Errorf("die Meldung sagt nicht, was jetzt gebraucht wird: %v", err)
-	}
-	if restored == nil {
-		t.Fatal("der Mandant muss trotz fehlenden Schlüssels angemeldet bleiben")
-	}
-	if !b.IsLocked() {
-		t.Error("der wiederhergestellte Mandant müsste gesperrt sein")
-	}
-	if found := b.GetTenants(); len(found) != 2 {
-		t.Errorf("die Mandantenliste führt %d Einträge statt zwei", len(found))
-	}
-
-	originTypes := auditTypesAt(t, origin.DataDir)
-	if originTypes["HASH_CHAIN"] {
-		t.Error("die Prüfung lief auf den Büchern des vorherigen Mandanten")
-	}
-	if originTypes["RESTORE"] {
-		t.Error("der Vermerk über die Wiederherstellung steht im Protokoll des vorherigen Mandanten")
 	}
 }
 
@@ -224,12 +158,6 @@ func firstDescription(entries []domain.JournalEntry) string {
 
 // Die Kette, die nach der Wiederherstellung neben dem Ursprung weitergeht:
 // sichern, prüfen, noch einmal wiederherstellen.
-//
-// Ein neben seinem Ursprung wiederhergestellter Mandant führt eine neue
-// Listenkennung und behält den Schlüssel des Ursprungs. Hätte seine Sicherung
-// die Listenkennung, suchte der Prüflauf das Geheimnis unter einer Kennung, zu
-// der keines im Schlüsselbund liegt: eine heile Sicherung käme als unlesbar
-// zurück, und die Wiederherstellung daraus ließe den Mandanten gesperrt.
 func TestBackupOfARestoredTenantStaysVerifiableAndRestorable(t *testing.T) {
 	b, origin, zipPath := backupBridge(t)
 	base := t.TempDir()
@@ -240,10 +168,6 @@ func TestBackupOfARestoredTenantStaysVerifiableAndRestorable(t *testing.T) {
 	}
 	if restored.ID == origin.ID {
 		t.Fatal("der wiederhergestellte Mandant hat dieselbe Listenkennung wie sein Ursprung")
-	}
-	if restored.VaultID() != origin.ID {
-		t.Fatalf("der wiederhergestellte Mandant sucht seinen Schlüssel unter %q statt unter %q",
-			restored.VaultID(), origin.ID)
 	}
 
 	// Der wiederhergestellte Mandant ist jetzt der offene. Er sichert sich
@@ -260,18 +184,14 @@ func TestBackupOfARestoredTenantStaysVerifiableAndRestorable(t *testing.T) {
 		t.Fatalf("Sicherung des wiederhergestellten Mandanten: %v (%+v)", err, run)
 	}
 
-	// backup.json muss die Schlüsselkennung nennen und nicht die Listenkennung.
 	meta, err := service.ReadBackupMeta(run.Target)
 	if err != nil {
 		t.Fatalf("backup.json lesen: %v", err)
 	}
-	if meta.TenantID != origin.ID {
-		t.Errorf("backup.json nennt den Mandanten %q; im Schlüsselbund liegt das Geheimnis unter %q",
-			meta.TenantID, origin.ID)
+	if meta.TenantID != restored.ID {
+		t.Errorf("backup.json nennt den Mandanten %q statt %q", meta.TenantID, restored.ID)
 	}
 
-	// „Sicherung prüfen" muss die Kette nachrechnen können — dazu braucht sie
-	// den Schlüssel.
 	check, err := b.VerifyBackup(run.Target)
 	if err != nil {
 		t.Fatalf("Sicherung prüfen: %v", err)
@@ -280,18 +200,8 @@ func TestBackupOfARestoredTenantStaysVerifiableAndRestorable(t *testing.T) {
 		t.Fatalf("die Prüfung meldet eine heile Sicherung als fehlerhaft: %+v", check)
 	}
 
-	// Und die Wiederherstellung daraus darf den Mandanten nicht gesperrt
-	// zurücklassen.
-	again, err := b.RestoreFromBackup(run.Target, filepath.Join(base, "wiederhergestellt-2"))
-	if err != nil {
+	if _, err := b.RestoreFromBackup(run.Target, filepath.Join(base, "wiederhergestellt-2")); err != nil {
 		t.Fatalf("zweite Wiederherstellung: %v", err)
-	}
-	if b.IsLocked() {
-		t.Error("der zum zweiten Mal wiederhergestellte Mandant ist gesperrt, obwohl sein Schlüssel vorliegt")
-	}
-	if again.VaultID() != origin.ID {
-		t.Errorf("der zweite wiederhergestellte Mandant sucht seinen Schlüssel unter %q statt unter %q",
-			again.VaultID(), origin.ID)
 	}
 	entries, err := b.GetAllJournalEntries()
 	if err != nil || len(entries) != 1 || entries[0].Description != "Testbuchung" {
@@ -378,18 +288,14 @@ func TestRestoreWritesExactlyOneMigrationRecord(t *testing.T) {
 }
 
 // Und das Öffnen einer vorhandenen Datei ist eine Öffnung und keine Übernahme.
-//
-// Geöffnet wird eine unverschlüsselte Datei: eine verschlüsselte bliebe unter
-// einer neuen Mandantenkennung ohne Schlüssel und damit gesperrt — dann gäbe es
-// nichts zu zählen und nichts zu protokollieren.
 func TestLoadingAnExistingDatabaseIsRecordedAsOpened(t *testing.T) {
 	b, _, _ := backupBridge(t)
 
-	plainDir := filepath.Join(t.TempDir(), "vorhanden")
-	if _, err := repository.InitTenantDB(plainDir); err != nil {
+	existingDir := filepath.Join(t.TempDir(), "vorhanden")
+	if _, err := repository.InitTenantDB(existingDir); err != nil {
 		t.Fatalf("vorhandene Datei anlegen: %v", err)
 	}
-	if err := b.LoadExistingDatabase(filepath.Join(plainDir, "buchfink.sqlite")); err != nil {
+	if err := b.LoadExistingDatabase(filepath.Join(existingDir, "buchfink.sqlite")); err != nil {
 		t.Fatalf("vorhandene Datei öffnen: %v", err)
 	}
 
@@ -402,5 +308,35 @@ func TestLoadingAnExistingDatabaseIsRecordedAsOpened(t *testing.T) {
 	}
 	if records[0].Kind != domain.MigrationKindOpen {
 		t.Errorf("Art %q, erwartet %q", records[0].Kind, domain.MigrationKindOpen)
+	}
+}
+
+// Der Sicherungsordner ist eine Einstellung des Mandanten: sein Wechsel gehört
+// mit beiden Ständen ins Protokoll.
+func TestSetBackupDirLogsBeforeAndAfter(t *testing.T) {
+	b := wiredBridge(t)
+
+	first := t.TempDir()
+	second := t.TempDir()
+	if _, err := b.SetBackupDir(first); err != nil {
+		t.Fatalf("Sicherungsordner setzen: %v", err)
+	}
+	if _, err := b.SetBackupDir(second); err != nil {
+		t.Fatalf("Sicherungsordner ändern: %v", err)
+	}
+
+	entries := auditEntries(t, b, domain.AuditFilter{EntityType: "BACKUP_DIR"})
+	if len(entries) == 0 {
+		t.Fatal("kein Protokolleintrag zum Sicherungsordner")
+	}
+	before := auditFields(t, entries[0].Before)
+	after := auditFields(t, entries[0].After)
+	firstAbs, _ := filepath.Abs(first)
+	secondAbs, _ := filepath.Abs(second)
+	if before["backupDir"] != firstAbs {
+		t.Errorf("das Vorher hat den alten Ordner nicht: %v", before)
+	}
+	if after["backupDir"] != secondAbs {
+		t.Errorf("das Nachher hat den neuen Ordner nicht: %v", after)
 	}
 }

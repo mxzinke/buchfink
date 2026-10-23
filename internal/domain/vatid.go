@@ -87,10 +87,10 @@ type VatIDCheck struct {
 	// VatID ist die geprüfte Nummer in der Schreibweise, in der sie abgefragt
 	// wurde. Sie steht am Ergebnis und nicht nur am Kontakt: wird die Nummer
 	// später geändert, gilt die alte Bestätigung nicht mehr für sie.
-	VatID string `gorm:"size:50;not null;index;serializer:encrypted" json:"vatId"`
+	VatID string `gorm:"size:50;not null;index" json:"vatId"`
 	// OwnVatID ist die eigene USt-IdNr., mit der abgefragt wurde. Ohne sie ist
 	// die Abfrage keine qualifizierte.
-	OwnVatID string `gorm:"size:50;serializer:encrypted" json:"ownVatId,omitempty"`
+	OwnVatID string `gorm:"size:50" json:"ownVatId,omitempty"`
 
 	// CheckedAt ist der Zeitpunkt der Abfrage als RFC3339. Die Frist von 90
 	// Tagen richtet sich nach ihm.
@@ -100,10 +100,10 @@ type VatIDCheck struct {
 	// „evatr-2001" …; aus der alten XML-RPC-Fassung 200, 201 …).
 	ResultCode string `gorm:"size:10" json:"resultCode,omitempty"`
 	// ResultText ist der Wortlaut, den die Schnittstelle dazu liefert.
-	ResultText string `gorm:"size:500;serializer:encrypted" json:"resultText,omitempty"`
+	ResultText string `gorm:"size:500" json:"resultText,omitempty"`
 	// RequestID ist die Abfrage-Identifikationsnummer aus der Antwort. Sie ist
 	// der Beleg gegenüber der Finanzverwaltung.
-	RequestID string `gorm:"size:60;serializer:encrypted" json:"requestId,omitempty"`
+	RequestID string `gorm:"size:60" json:"requestId,omitempty"`
 
 	// Die vier Feldergebnisse der qualifizierten Abfrage.
 	NameResult       VatIDFieldResult `gorm:"size:1" json:"nameResult,omitempty"`
@@ -114,11 +114,11 @@ type VatIDCheck struct {
 	// RawResponse ist die Antwort, wie sie kam. GoBD Rz. 130: der empfangene
 	// Datensatz bleibt in seiner ursprünglichen Form erhalten — eine
 	// aufbereitete Zusammenfassung ist kein Nachweis.
-	RawResponse string `gorm:"type:text;serializer:encrypted" json:"rawResponse,omitempty"`
+	RawResponse string `gorm:"type:text" json:"rawResponse,omitempty"`
 
-	// Endpoint hält fest, wohin gefragt wurde. Die Adresse ist eine Einstellung;
-	// ohne diesen Vermerk wäre später nicht mehr erkennbar, welche Stelle
-	// geantwortet hat.
+	// Endpoint hält fest, wohin gefragt wurde. Die Adresse kann sich mit einer
+	// Programmfassung ändern; ohne diesen Vermerk wäre später nicht mehr
+	// erkennbar, welche Stelle geantwortet hat.
 	Endpoint string `gorm:"size:255" json:"endpoint,omitempty"`
 
 	CreatedAt time.Time `json:"createdAt"`

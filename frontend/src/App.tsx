@@ -1,81 +1,56 @@
-import { useState, useEffect } from 'react';
-import { Lock } from 'lucide-react';
+import { todayISO } from "./utils/calendar";
+import React, { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Toaster } from 'sonner';
-import { NavigationParams, Sidebar, TabType } from './components/Sidebar';
+import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
-import { StartupScreen } from './components/StartupScreen';
 import { SetupAssistantScreen } from './components/SetupAssistantScreen';
-import { RecoveryScreen } from './components/RecoveryScreen';
-import { TasksPage } from './pages/TasksPage';
-import { AccountsPage } from './pages/AccountsPage';
-import { JournalPage } from './pages/JournalPage';
-import { AssetsPage } from './pages/AssetsPage';
-import { BankImportPage } from './pages/BankImportPage';
-import { InvoicesPage } from './pages/InvoicesPage';
-import { AdvancesPage } from './pages/AdvancesPage';
-import { ReceiptsPage } from './pages/ReceiptsPage';
-import { ContactsPage } from './pages/ContactsPage';
-import { ReportsPage } from './pages/ReportsPage';
-import { ClosingPage } from './pages/ClosingPage';
-import { ClosingModulesPage } from './pages/ClosingModulesPage';
-import { GruendungPage } from './pages/GruendungPage';
-import { DokumentePage } from './pages/DokumentePage';
-import { VatPage } from './pages/VatPage';
-import { ObligationsPage } from './pages/ObligationsPage';
-import { DeadlinesPage } from './pages/DeadlinesPage';
-import { EBilanzPage } from './pages/EBilanzPage';
-import { AuditPage } from './pages/AuditPage';
-import { BackupPage } from './pages/BackupPage';
-import { TaxAuditPage } from './pages/TaxAuditPage';
-import { SettingsPage } from './pages/SettingsPage';
 import { PostingLockProvider, WriteLockProvider } from './components/WriteLock';
+import { AppConsentDialog } from './components/AppConsentDialog';
+import { MasterDataProposalDialog } from './components/MasterDataProposalDialog';
+import { DROP_TARGET, InboxDropZone } from './components/InboxDrop';
 import { IntegrityCheckResult, CompanySettings, AppConfig, TenantConfig, FiscalYear } from './types';
 import { Api } from './services/api';
 import { formatDate } from './utils/formatters';
-import { Button, Notice, toast } from './components/ui';
-
-/**
- * Ansichten, in denen im gesperrten Geschäftsjahr erfasst würde. Nur sie zeigen
- * den Hinweisstreifen; eine Auswertung ist auch im abgeschlossenen Jahr das,
- * was sie sein soll (§11.5).
- */
-const POSTING_TABS: TabType[] = [
-  'journal',
-  'bank',
-  'receipts',
-  'invoices',
-  'advances',
-  'assets',
-];
+import { Button, Notice, PAGE_CONTAINER, cn, toast } from './components/ui';
+import { NavigationProvider, useHashRoute, type Route } from './navigation';
+import { WorkspaceProvider, type Workspace } from './workspace';
+import { ChangesProvider, useLiveReload } from './live';
+import { OverviewArea } from './pages/overview/OverviewArea';
+import { BooksArea } from './pages/books/BooksArea';
+import { ClosingsArea } from './pages/closings/ClosingsArea';
+import { CompanyArea } from './pages/company/CompanyArea';
+import { SettingsArea } from './pages/settings/SettingsArea';
 
 export function App() {
-  const currentCalendarYear = new Date().getFullYear(); // e.g. 2026
+  const currentCalendarYear = Number(todayISO().slice(0, 4));
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [tenants, setTenants] = useState<TenantConfig[]>([]);
   const [activeTenant, setActiveTenant] = useState<TenantConfig | null>(null);
-  const [currentTab, setCurrentTab] = useState<TabType>('welcome');
-  // Ein Navigationsziel kann einen Parameter haben: von der Bilanzzeile führt
-  // der Weg über das Konto ins Kontoblatt und von dort auf die Buchung im
-  // Journal (GOB-02). Ohne Parameter landete man nur auf der Übersichtsseite
-  // und müsste dort von Hand suchen, was man gerade angeklickt hat.
-  const [navParams, setNavParams] = useState<NavigationParams>({});
+  const [route, setRoute] = useHashRoute();
   const [currentYear, setCurrentYear] = useState<number>(currentCalendarYear);
   const [availableYears, setAvailableYears] = useState<number[]>([currentCalendarYear]);
   // Ab der Feststellung nimmt ein Geschäftsjahr keine Buchung mehr an. Der
-  // Abschlussstand gehört deshalb in die Kopfzeile und ins Journal und nicht
-  // erst in die Fehlermeldung beim Buchen (§11.5).
+  // Abschlussstand gehört deshalb in die Kopfzeile und nicht erst in die
+  // Fehlermeldung beim Buchen (§11.5).
   const [fiscalYears, setFiscalYears] = useState<FiscalYear[]>([]);
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [integrity, setIntegrity] = useState<IntegrityCheckResult | null>(null);
+  const [integrityError, setIntegrityError] = useState<string | null>(null);
   const [isCheckingIntegrity, setIsCheckingIntegrity] = useState(false);
   const [loadingConfig, setLoadingConfig] = useState(true);
-  const [isLocked, setIsLocked] = useState(false);
   const [isAddingTenant, setIsAddingTenant] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    bootstrapApp();
+    void bootstrapApp();
   }, []);
+
+  // Ein anderer Bereich oder Reiter beginnt oben; eine geöffnete Seitenleiste
+  // im selben Reiter lässt die Liste stehen, wo sie war.
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [route.area, route.tab]);
 
   const bootstrapApp = async () => {
     setLoadingConfig(true);
@@ -89,12 +64,7 @@ export function App() {
       setTenants(tenantList);
       setActiveTenant(currentActive);
 
-      // A configured tenant whose keychain secret is missing on this machine
-      // must be recovered before any encrypted data can be read.
-      const locked = cfg.isConfigured ? await Api.isLocked() : false;
-      setIsLocked(locked);
-
-      if (cfg.isConfigured && !locked) {
+      if (cfg.isConfigured) {
         await loadActiveFiscalYearData();
       }
     } catch (e) {
@@ -139,9 +109,9 @@ export function App() {
   };
 
   /**
-   * Nach einer Änderung am Abschluss: der Saldenvortrag legt das Zieljahr an und
-   * bucht hinein, `GetAvailableFiscalYears` kennt es danach. Ohne die neu
-   * gelesene Liste stünde das neue Jahr erst nach einem Neustart zur Auswahl.
+   * Nach einer Änderung am Abschluss: der Saldenvortrag legt das Zieljahr an.
+   * Ohne die neu gelesene Liste stünde das neue Jahr erst nach einem Neustart
+   * zur Auswahl.
    */
   const refreshFiscalYearSelection = async () => {
     await refreshFiscalYears();
@@ -156,11 +126,8 @@ export function App() {
   };
 
   /**
-   * Ein Geschäftsjahr von Hand anlegen: das kommende beginnt am Tag nach dem
-   * Ende des Vorjahres, auch nach einem Rumpfgeschäftsjahr, das vergangene
-   * endet am Tag vor dem Beginn des bisher ersten. Die Ansicht schaltet danach
-   * auf das neue Jahr um. Welche Jahre sich anlegen lassen, entscheidet das
-   * Backend.
+   * Ein Geschäftsjahr von Hand anlegen und darauf umschalten. Welche Jahre sich
+   * anlegen lassen, entscheidet das Backend.
    */
   const handleCreateFiscalYear = async (year: number) => {
     try {
@@ -190,6 +157,7 @@ export function App() {
       await Api.switchTenant(tenantId);
       await refreshTenants();
       await loadActiveFiscalYearData();
+      setRoute({ area: 'overview' });
       toast.success('Mandant gewechselt.');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -199,33 +167,22 @@ export function App() {
   const refreshIntegrity = async () => {
     setIsCheckingIntegrity(true);
     try {
-      const res = await Api.verifyIntegrity();
-      setIntegrity(res);
+      setIntegrity(await Api.verifyIntegrity());
+      setIntegrityError(null);
     } catch (e) {
-      console.error('Error verifying integrity:', e);
+      setIntegrity(null);
+      setIntegrityError(e instanceof Error ? e.message : String(e));
     } finally {
       setIsCheckingIntegrity(false);
     }
   };
 
-  /**
-   * Wechselt die Ansicht und nimmt den Parameter des Ziels mit.
-   *
-   * Hat das Ziel ein Geschäftsjahr, wird zuerst umgeschaltet: Abschluss,
-   * Bausteine, Bilanz und Umsatzsteuer folgen dem Jahr aus der Kopfzeile, und
-   * eine Aufgabe zum Vorjahresabschluss landete sonst auf der Seite des
-   * laufenden Jahres — mit denselben Überschriften und anderen Zahlen.
-   */
-  const navigate = (tab: TabType, params: NavigationParams = {}) => {
-    if (params.year && params.year !== currentYear) {
-      // Der Jahreswechsel schreibt in die Einstellungen und lädt nach; die
-      // Ansicht wechselt trotzdem sofort, damit der Klick nicht ins Leere
-      // greift, solange geladen wird.
-      void handleYearChange(params.year);
+  const reloadSettings = async () => {
+    try {
+      setCompanySettings(await Api.getCompanySettings());
+    } catch (e) {
+      console.error('Error loading company settings:', e);
     }
-    setCurrentTab(tab);
-    setNavParams(params);
-    setIsMobileSidebarOpen(false);
   };
 
   const handleYearChange = async (year: number) => {
@@ -234,55 +191,24 @@ export function App() {
     await loadActiveFiscalYearData();
   };
 
-  const openWorkspace = async () => {
-    try {
-      const foundation = await Api.getFoundationState();
-      setCurrentTab(foundation?.hasFoundation && foundation.duties.some((duty) => !duty.isDone) ? 'gruendung' : 'tasks');
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
-      setCurrentTab('tasks');
+  /**
+   * Wechselt die Ansicht. Nennt das Ziel ein Geschäftsjahr, wird zuerst
+   * umgeschaltet: eine Aufgabe zum Vorjahresabschluss landete sonst auf
+   * derselben Seite mit den Zahlen des laufenden Jahres.
+   */
+  const navigate = (next: Route) => {
+    if (next.year && next.year !== currentYear) {
+      void handleYearChange(next.year);
     }
+    setRoute(next);
+    setIsMobileSidebarOpen(false);
   };
 
-  const handleSetupCompleted = async (target: TabType = 'tasks') => {
+  const handleSetupCompleted = async () => {
     setIsAddingTenant(false);
     await bootstrapApp();
-    setCurrentTab(target);
+    setRoute({ area: 'overview' });
   };
-
-  // Loading Screen while reading initial config
-  if (loadingConfig) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-shell text-shell-text-muted text-body">
-        Buchfink wird gestartet …
-      </div>
-    );
-  }
-
-  // If not configured yet, show the full-screen Setup Assistant
-  if (!appConfig?.isConfigured || isAddingTenant) {
-    return (
-      <SetupAssistantScreen
-        onSetupCompleted={handleSetupCompleted}
-        onCancel={() => setIsAddingTenant(false)}
-        isAdditionalTenant={Boolean(appConfig?.isConfigured)}
-      />
-    );
-  }
-
-  // Configured but locked on this machine: require recovery before the app opens.
-  if (isLocked) {
-    return (
-      <RecoveryScreen
-        activeTenant={activeTenant}
-        onRecovered={async () => {
-          setIsLocked(false);
-          await bootstrapApp();
-          setCurrentTab('tasks');
-        }}
-      />
-    );
-  }
 
   // Abgeschlossen ist ein Jahr ab der Feststellung: JournalService.Post weist
   // dann jede Buchung mit Datum in diesem Jahr ab (§11.5).
@@ -291,269 +217,164 @@ export function App() {
     .map((fy) => fy.year);
   const yearClosed = closedYears.includes(currentYear);
 
-  const renderContent = () => {
-    switch (currentTab) {
-      case 'welcome':
-        return (
-          <StartupScreen
-            settings={companySettings}
-            tenants={tenants}
-            activeTenant={activeTenant}
-            onSwitchTenant={handleSwitchTenant}
-            onRefreshTenants={refreshTenants}
-            onAddTenant={() => setIsAddingTenant(true)}
-            onStartDashboard={() => void openWorkspace()}
-          />
-        );
-      // Die Aufgabenliste ist die Startseite (Architektur 6.1); Kennzahlen und
-      // zuletzt erfasste Vorgänge stehen auf ihr unter der Liste.
-      case 'tasks':
-        return <TasksPage onNavigate={navigate} />;
-      case 'accounts':
-        return <AccountsPage initialAccount={navParams.account} onNavigate={navigate} />;
-      case 'journal':
-        return (
-          <JournalPage
-            initialSearch={navParams.entryNumber}
-            initialFilterAccount={navParams.filterAccount}
-            onNavigate={navigate}
-          />
-        );
-      case 'assets':
-        return <AssetsPage />;
-      case 'bank':
-        return <BankImportPage initialView={navParams.bankView} />;
-      case 'receipts':
-        return (
-          <ReceiptsPage
-            initialStatus={navParams.receiptStatus}
-            initialReceiptId={navParams.receiptId}
-            onNavigate={navigate}
-          />
-        );
-      case 'invoices':
-        return <InvoicesPage onNavigate={navigate} />;
-      // Abschlagsrechnung, Vereinnahmung und Schlussrechnung stehen in einer
-      // eigenen Ansicht: bei ihnen fallen Ausstellung und Buchung auseinander.
-      case 'advances':
-        return <AdvancesPage />;
-      case 'contacts':
-        return <ContactsPage onNavigate={navigate} />;
-      case 'reports':
-        // Bilanz und GuV folgen dem Jahr aus der Kopfzeile; die Gliederung
-        // entsteht im Backend, die Ansicht rechnet nichts nach.
-        return <ReportsPage year={currentYear} onNavigate={navigate} />;
-      case 'closing':
-        // Die Abschlussansicht folgt dem Jahr aus der Kopfzeile; sie zeigt
-        // Stand und Vortrag genau eines Geschäftsjahres.
-        return (
-          <ClosingPage
-            year={currentYear}
-            onFiscalYearChanged={refreshFiscalYearSelection}
-            onNavigate={navigate}
-          />
-        );
-      case 'closingmodules':
-        // Die Abschlussbausteine buchen ins Geschäftsjahr der Kopfzeile: die
-        // Abgrenzung, die Rückstellungen, den Inventurwert und die
-        // Verrechnungen. Ihr Stichtag ist der des Jahres, nicht der von heute.
-        return (
-          <ClosingModulesPage
-            year={currentYear}
-            initialTab={navParams.closingTab}
-            onNavigate={navigate}
-          />
-        );
-      case 'dokumente':
-        // Die Unterlagen des Unternehmens. Ohne Jahr: sie gehören zum
-        // Unternehmen und nicht zu einem Geschäftsjahr.
-        return <DokumentePage />;
-      case 'gruendung':
-        // Der Gründungsweg. Ohne Eintrag in der Navigation und ohne Jahr: er
-        // hängt an der Gründung und nicht am Geschäftsjahr der Kopfzeile.
-        return <GruendungPage onNavigate={navigate} />;
-      case 'vat':
-        // Voranmeldung und Zusammenfassende Meldung folgen dem Jahr aus der
-        // Kopfzeile; die Kennziffern entstehen im Backend.
-        return <VatPage year={currentYear} onNavigate={navigate} />;
-      case 'obligations':
-        // Die steuerlichen Nebenpflichten folgen dem Jahr aus der Kopfzeile:
-        // Verzeichnis, Nachweise und Kurse gelten je Geschäftsjahr.
-        return (
-          <ObligationsPage
-            year={currentYear}
-            initialTab={navParams.obligationsTab}
-            initialInvoiceId={navParams.invoiceId}
-            onNavigate={navigate}
-          />
-        );
-      case 'deadlines':
-        return <DeadlinesPage initialKey={navParams.deadlineKey} onNavigate={navigate} />;
-      case 'ebilanz':
-        return <EBilanzPage year={currentYear} />;
-      case 'audit':
-        // Die Prüfübersicht liest den Kettenzustand von hier und prüft über
-        // dieselbe Stelle nach: der Anzeiger in der Fußzeile der Navigation
-        // und die Seite dürfen nicht Verschiedenes behaupten.
-        return (
-          <AuditPage
-            integrity={integrity}
-            isChecking={isCheckingIntegrity}
-            onRefreshIntegrity={() => void refreshIntegrity()}
-            initialRule={navParams.auditRule}
-          />
-        );
-      case 'backup':
-        // Sicherung und Aufbewahrung. Die Fristenansicht folgt dem Jahr aus
-        // der Kopfzeile: es ist das Jahr, dessen Aufbewahrung gerade zur Frage
-        // steht. Nach einer Wiederherstellung wird die Anwendung neu
-        // aufgesetzt — der wiederhergestellte Mandant steht sonst in keiner
-        // Liste.
-        return (
-          <BackupPage
-            year={currentYear}
-            appConfig={appConfig}
-            onAppConfigChange={setAppConfig}
-            onRestored={bootstrapApp}
-          />
-        );
-      case 'taxaudit':
-        // Prüfermodus, Datenüberlassung und Verfahrensdokumentation. Die Seite
-        // ändert den Prüfermodus, deshalb reicht sie die Konfiguration zurück:
-        // am Banner hängt der Zustand der ganzen Anwendung.
-        return (
-          <TaxAuditPage
-            year={currentYear}
-            availableYears={availableYears}
-            appConfig={appConfig}
-            onAppConfigChange={setAppConfig}
-          />
-        );
-      case 'settings':
-        return (
-          <SettingsPage
-            key={activeTenant?.id}
-            year={currentYear}
-            onNavigate={navigate}
-            onTenantDeleted={async () => {
-              setCompanySettings(null);
-              setIntegrity(null);
-              setFiscalYears([]);
-              setNavParams({});
-              setCurrentTab('welcome');
-              await bootstrapApp();
-            }}
-          />
-        );
-      default:
-        return <TasksPage onNavigate={navigate} />;
-    }
+  // Der Zustimmungsdialog steht über jedem Schirm: eine App kann sich auch
+  // während der Einrichtung melden, wenn dort Claude verbunden wird.
+  const shell = (content: ReactNode) => (
+    <>
+      <Toaster
+        position="bottom-right"
+        richColors
+        closeButton
+        toastOptions={{ className: 'font-sans text-body' }}
+      />
+      <AppConsentDialog />
+      {content}
+    </>
+  );
+
+  if (loadingConfig) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-shell text-shell-text-muted text-body">
+        Buchfink wird gestartet …
+      </div>
+    );
+  }
+
+  // Die Onboarding-Weiche: ohne eingerichteten Mandanten und beim Anlegen
+  // eines weiteren steht die Einrichtung vor dem Arbeitsbereich.
+  if (!appConfig?.isConfigured || isAddingTenant) {
+    return shell(
+      <SetupAssistantScreen
+        onSetupCompleted={handleSetupCompleted}
+        onCancel={() => setIsAddingTenant(false)}
+        isAdditionalTenant={Boolean(appConfig?.isConfigured)}
+      />,
+    );
+  }
+
+  const workspace: Workspace = {
+    appConfig,
+    setAppConfig,
+    settings: companySettings,
+    reloadSettings,
+    tenants,
+    activeTenant,
+    switchTenant: handleSwitchTenant,
+    refreshTenants,
+    addTenant: () => setIsAddingTenant(true),
+    reload: bootstrapApp,
+    year: currentYear,
+    availableYears,
+    closedYears,
+    refreshFiscalYears: refreshFiscalYearSelection,
+    integrity,
+    integrityError,
+    isCheckingIntegrity,
+    refreshIntegrity,
   };
 
-  return (
-    // Der Prüfermodus sperrt jede schreibende Bedienung der Anwendung und
-    // nicht die einer Ansicht. Der Zustand steht deshalb über allem: jeder
-    // schreibende Knopf liest ihn über `useWriteLock` (Entscheidung 7).
+  return shell(
+    // Der Prüfermodus sperrt jede schreibende Bedienung der Anwendung; jeder
+    // schreibende Knopf liest ihn über `useWriteLock`. Das festgestellte
+    // Geschäftsjahr sperrt die Erfassung; Buchungsansichten lesen es über
+    // `usePostingLock` (§11.5).
     <WriteLockProvider
-      readOnly={appConfig?.readOnly ?? false}
-      until={appConfig?.readOnlyUntil}
-      reason={appConfig?.readOnlyReason}
+      readOnly={appConfig.readOnly ?? false}
+      until={appConfig.readOnlyUntil}
+      reason={appConfig.readOnlyReason}
     >
-      {/* Das festgestellte Geschäftsjahr sperrt die Erfassung in jeder
-          Buchungsansicht und nicht nur im Journal. Der Zustand steht deshalb
-          neben dem Prüfermodus über allem; jede Erfassungsaktion liest ihn über
-          `usePostingLock` und zeigt den Grund im `title` (§11.5). */}
       <PostingLockProvider closedYear={yearClosed ? currentYear : undefined}>
-        <div className="flex h-screen bg-paper text-ink overflow-hidden">
-          <Toaster
-            position="bottom-right"
-            richColors
-            closeButton
-            toastOptions={{
-              className: 'font-sans text-body',
-            }}
-          />
-          {/* Die Navigation gehört zum Arbeitsbereich und nicht vor ihn: die
-              Startansicht beantwortet nur, mit welchem Mandanten gearbeitet
-              wird, und eine Navigation daneben führte in Bücher, die noch gar
-              nicht gewählt sind. */}
-          {currentTab !== 'welcome' && (
-            <Sidebar
-              currentTab={currentTab}
-              onSelectTab={(tab) => navigate(tab)}
-              settings={companySettings}
-              integrity={integrity}
-              isCheckingIntegrity={isCheckingIntegrity}
-              tenants={tenants}
-              activeTenant={activeTenant}
-              onSwitchTenant={(id) => void handleSwitchTenant(id)}
-              onAddTenant={() => setIsAddingTenant(true)}
-              onShowTenants={() => setCurrentTab('welcome')}
-              isOpenMobile={isMobileSidebarOpen}
-              onCloseMobile={() => setIsMobileSidebarOpen(false)}
-            />
-          )}
+        <WorkspaceProvider value={workspace}>
+          <ChangesProvider tenantId={activeTenant?.id}>
+            <NavigationProvider value={{ route, navigate }}>
+              <LiveWorkspace onSettings={reloadSettings} onClosings={refreshFiscalYearSelection} />
+              <MasterDataProposalDialog />
+              {/* Das ganze Fenster nimmt Dateien für den Eingang an. Die
+                  Klasse bleibt fest: die Wails-Laufzeit setzt während des
+                  Ziehens eine eigene dazu. */}
+              <div {...DROP_TARGET} className="flex h-screen bg-paper text-ink overflow-hidden">
+                <InboxDropZone />
+                <Sidebar
+                  currentArea={route.area}
+                  onSelectArea={(area) => navigate({ area } as Route)}
+                  integrity={integrity}
+                  integrityError={integrityError}
+                  isCheckingIntegrity={isCheckingIntegrity}
+                  onOpenAudit={() => navigate({ area: 'settings', tab: 'audit' })}
+                  isOpenMobile={isMobileSidebarOpen}
+                  onCloseMobile={() => setIsMobileSidebarOpen(false)}
+                />
 
-          {/* Main Content Area */}
-          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-            {currentTab !== 'welcome' && (
-              <Header
-                currentYear={currentYear}
-                availableYears={availableYears}
-                closedYears={closedYears}
-                onYearChange={handleYearChange}
-                onCreateFiscalYear={handleCreateFiscalYear}
-                onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-              />
-            )}
-
-            {/* Ein abgeschlossenes Geschäftsjahr hat einen anderen Grund: `sunken`
-                statt `paper`, und zwar in jeder Ansicht und nicht nur im Journal —
-                die Sperre gilt dem Jahr, nicht der Seite (§11.5). */}
-            <main
-              className={`flex-1 overflow-y-auto ${
-                currentTab === 'welcome' ? 'bg-shell-deep' : yearClosed ? 'bg-sunken' : 'bg-paper'
-              }`}
-            >
-              {/* Der Prüfermodus sperrt die ganze Anwendung und nicht eine Ansicht.
-                  Der Hinweis steht deshalb über jedem Inhalt: die Bridge weist
-                  jede Änderung ab, und ohne den Streifen suchte man den Grund in
-                  der Fehlermeldung des ersten Versuchs (§11.5). */}
-              {appConfig?.readOnly && currentTab !== 'welcome' && (
-                <div className="max-w-[1200px] mx-auto px-8 pt-8">
-                  <Notice
-                    text={`Prüfermodus bis ${formatDate(appConfig.readOnlyUntil)} — die Buchführung nimmt bis dahin keine Änderung auf.`}
-                    action={
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => navigate('taxaudit')}
-                      >
-                        Zum Prüfermodus
-                      </Button>
-                    }
+                <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                  <Header
+                    settings={companySettings}
+                    tenants={tenants}
+                    activeTenant={activeTenant}
+                    onSwitchTenant={(id) => void handleSwitchTenant(id)}
+                    onManageTenants={() => navigate({ area: 'settings', tab: 'tenants' })}
+                    onAddTenant={() => setIsAddingTenant(true)}
+                    currentYear={currentYear}
+                    availableYears={availableYears}
+                    closedYears={closedYears}
+                    onYearChange={handleYearChange}
+                    onCreateFiscalYear={handleCreateFiscalYear}
+                    onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
                   />
+
+                  {/* Ein abgeschlossenes Geschäftsjahr hat einen anderen Grund:
+                      `sunken` statt `paper`, in jeder Ansicht (§11.5). */}
+                  <main
+                    ref={mainRef}
+                    className={cn('flex-1 overflow-y-auto', yearClosed ? 'bg-sunken' : 'bg-paper')}
+                  >
+                    {/* Der Prüfermodus sperrt die ganze Anwendung; der Hinweis
+                        steht deshalb über jedem Bereich (§11.5). */}
+                    {appConfig.readOnly && (
+                      <div className={cn(PAGE_CONTAINER, 'pt-8')}>
+                        <Notice
+                          text={`Prüfermodus bis ${formatDate(appConfig.readOnlyUntil)} — die Buchführung nimmt bis dahin keine Änderung auf.`}
+                          action={
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() =>
+                                navigate({ area: 'settings', tab: 'audit', id: 'betriebspruefung' })
+                              }
+                            >
+                              Zum Prüfermodus
+                            </Button>
+                          }
+                        />
+                      </div>
+                    )}
+                    {route.area === 'overview' && <OverviewArea />}
+                    {route.area === 'books' && <BooksArea />}
+                    {route.area === 'closings' && <ClosingsArea />}
+                    {route.area === 'company' && <CompanyArea />}
+                    {route.area === 'settings' && <SettingsArea />}
+                  </main>
                 </div>
-              )}
-              {/* Der Hinweisstreifen steht über dem Inhalt, damit jede Ansicht mit
-                  Erfassung ihn zeigt und keine ihn vergisst. */}
-              {yearClosed && POSTING_TABS.includes(currentTab) && (
-                <div className="max-w-[1200px] mx-auto px-8 pt-8">
-                  <div className="flex items-start gap-2.5 rounded-control border border-line bg-surface px-4 py-3">
-                    <Lock className="w-4 h-4 mt-0.5 shrink-0 text-ink-faint" strokeWidth={1.5} />
-                    <p className="text-body text-ink-muted">
-                      {`Geschäftsjahr ${currentYear} ist abgeschlossen. Buchungen sind nur im laufenden Jahr möglich.`}
-                    </p>
-                  </div>
-                </div>
-              )}
-              {renderContent()}
-            </main>
-          </div>
-        </div>
+              </div>
+            </NavigationProvider>
+          </ChangesProvider>
+        </WorkspaceProvider>
       </PostingLockProvider>
-    </WriteLockProvider>
+    </WriteLockProvider>,
   );
 }
+
+/**
+ * Was der ganze Arbeitsbereich zeigt und sich mit einer Änderung im Backend
+ * ändern kann: die Firma in der Kopfzeile und die abgeschlossenen
+ * Geschäftsjahre, die Kopfzeile und Buchungsansichten sperren.
+ */
+const LiveWorkspace: React.FC<{ onSettings: () => Promise<void>; onClosings: () => Promise<void> }> = ({
+  onSettings,
+  onClosings,
+}) => {
+  useLiveReload(onSettings, ['stammdaten']);
+  useLiveReload(onClosings, ['abschluss']);
+  return null;
+};
 
 export default App;

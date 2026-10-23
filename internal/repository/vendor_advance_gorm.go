@@ -23,7 +23,7 @@ func (r *vendorAdvanceRepositoryGorm) Save(ctx context.Context, advance *domain.
 func (r *vendorAdvanceRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.VendorAdvance, error) {
 	var advance domain.VendorAdvance
 	if err := dbFrom(ctx, r.db).First(&advance, id).Error; err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	return &advance, nil
 }

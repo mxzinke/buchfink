@@ -208,59 +208,6 @@ func TestObligationsFollowTheClass(t *testing.T) {
 	}
 }
 
-// Die Fristen laufen ab dem Abschlussstichtag, nicht ab dem Jahresende: ein
-// Rumpfgeschäftsjahr endet mitten im Jahr.
-//
-// Die Aufstellungsfrist ist dabei keine Addition von Monaten auf den Stichtag:
-// § 264 Abs. 1 Sätze 3 und 4 HGB nennt „die ersten drei" beziehungsweise „sechs
-// Monate des Geschäftsjahrs". Für den Stichtag 30.06.2026 beginnt das folgende
-// Geschäftsjahr am 01.07.2026, und dessen erste sechs Monate enden am
-// 31.12.2026 — nicht am 30.12.
-func TestDeadlinesRunFromTheClosingDate(t *testing.T) {
-	deadlines := StatementDeadlines(2026, "2026-06-30", ObligationsFor(domain.SizeSmall))
-	if len(deadlines) != 2 {
-		t.Fatalf("es entstehen %d Termine, erwartet Aufstellung und Offenlegung", len(deadlines))
-	}
-	if deadlines[0].DueDate != "2026-12-31" {
-		t.Errorf("die Aufstellungsfrist endet am %s, erwartet den 31.12.2026 — das Ende der "+
-			"ersten sechs Monate des am 01.07.2026 beginnenden Geschäftsjahres", deadlines[0].DueDate)
-	}
-	if deadlines[0].Reference != "§ 264 Abs. 1 Satz 4 HGB" {
-		t.Errorf("die Aufstellungsfrist nennt %q als Fundstelle", deadlines[0].Reference)
-	}
-	if deadlines[1].DueDate != "2027-06-30" {
-		t.Errorf("die Offenlegungsfrist endet am %s, erwartet den 30.06.2027 (zwölf Monate)", deadlines[1].DueDate)
-	}
-	if deadlines[1].Reference != "§ 325 Abs. 1a Satz 1 HGB" {
-		t.Errorf("die Offenlegungsfrist nennt %q als Fundstelle", deadlines[1].Reference)
-	}
-
-	large := StatementDeadlines(2026, "2026-12-31", ObligationsFor(domain.SizeLarge))
-	if large[0].DueDate != "2027-03-31" {
-		t.Errorf("die Aufstellungsfrist der großen Gesellschaft endet am %s, erwartet den 31.03.2027",
-			large[0].DueDate)
-	}
-
-	// Ein Rumpfgeschäftsjahr zum 28.02.: die ersten drei Monate des am 01.03.
-	// beginnenden Geschäftsjahres enden am 31.05., nicht am 28.05.
-	short := StatementDeadlines(2026, "2026-02-28", ObligationsFor(domain.SizeMedium))
-	if short[0].DueDate != "2026-05-31" {
-		t.Errorf("die Aufstellungsfrist endet am %s, erwartet den 31.05.2026", short[0].DueDate)
-	}
-	if short[1].DueDate != "2027-02-28" {
-		t.Errorf("die Offenlegungsfrist endet am %s, erwartet den 28.02.2027 — ein Jahr nach dem "+
-			"Abschlussstichtag (§ 325 Abs. 1a Satz 1 HGB)", short[1].DueDate)
-	}
-}
-
-// Ohne Stichtag gibt es keine Frist. Ein erfundenes Datum wäre schlimmer als
-// keines.
-func TestDeadlinesNeedAClosingDate(t *testing.T) {
-	if got := StatementDeadlines(2026, "", ObligationsFor(domain.SizeSmall)); got != nil {
-		t.Errorf("ohne Stichtag entstehen %d Termine, erwartet keine", len(got))
-	}
-}
-
 // Buchfink kündigt den Klassenwechsel an, sobald er sich abzeichnet.
 //
 // § 267 Abs. 4 Satz 1 HGB lässt die Rechtsfolgen erst am zweiten

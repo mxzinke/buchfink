@@ -67,6 +67,11 @@ im Bild steht.
 Dauerhafte Zustände wie Integrität und Periodensperre stehen in der Oberfläche,
 nie in einem Toast.
 
+Dateien, die ins Fenster gezogen werden, kommen in den Eingang. Die Ablagezone
+über dem ganzen Fenster erscheint nur, solange gezogen wird; danach meldet ein
+Toast, wie viele Dateien im Eingang liegen, und darunter jede übergangene Datei
+mit Grund. Mit dieser zweiten Zeile steht er 8 Sekunden.
+
 ### 8.6 Tastatur
 
 Die häufigste Tätigkeit muss ohne Maus funktionieren. Eine Buchung erfassen:
@@ -94,6 +99,12 @@ sagt das.
 
 Eine begonnene Eingabe geht nicht verloren. Wer einen Dialog mit Inhalt schließt,
 wird gefragt. Wer die Anwendung schließt, findet den Entwurf beim nächsten Start.
+
+Ändert Claude, ein Hintergrundlauf oder die App selbst etwas im geöffneten
+Mandanten, laden die Übersicht und die offene Ansicht neu
+(`useLiveReload` in `frontend/src/live.tsx`). Die Ansicht behält dabei ihren
+Stand, bis der neue da ist: kein Skelett, offene Dialoge, Seitenleisten und
+begonnene Eingaben bleiben stehen.
 
 ### 8.8 Fokus
 

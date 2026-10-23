@@ -34,6 +34,8 @@ type IncomingInvoice struct {
 
 	Supplier InvoiceParty `json:"supplier"`
 	Buyer    InvoiceParty `json:"buyer"`
+	// PaymentAccounts sind die Konten, auf die gezahlt werden soll (BT-84).
+	PaymentAccounts []string `json:"paymentAccounts,omitempty"`
 
 	NetAmount   Cents `json:"netAmount"`
 	TaxAmount   Cents `json:"taxAmount"`
@@ -84,17 +86,19 @@ const (
 // Bookable reports whether Buchfink can turn this kind of document into a
 // booking today.
 //
-// Only an ordinary invoice can. The others are not defects — they are perfectly
-// valid documents whose booking is a different transaction: a credit note
-// reverses, a correction replaces, a prepayment invoice is settled on payment
-// and deducted again in the Schlussrechnung. Proposing an ordinary expense
-// booking for any of them would put the sign or the period wrong, and it would
-// look right.
+// An ordinary invoice can, and a credit note, which is booked with reversed
+// sides (service.ReceiptRequest.CreditNoteFor). The others are not defects —
+// they are perfectly valid documents whose booking is a different transaction:
+// a correction replaces, a prepayment invoice is settled on payment and
+// deducted again in the Schlussrechnung. Proposing an ordinary expense booking
+// for any of them would put the sign or the period wrong, and it would look
+// right.
 //
-// Dieser automatische Vorschlagsweg nimmt nur gewöhnliche Rechnungen an.
 // Anzahlungen brauchen insbesondere den Zahlungszeitpunkt nach § 14 Abs. 5 UStG;
 // dafür bestehen eigene Erfassungswege außerhalb dieses Vorschlags.
-func (k EInvoiceKind) Bookable() bool { return k == EInvoiceKindInvoice }
+func (k EInvoiceKind) Bookable() bool {
+	return k == EInvoiceKindInvoice || k == EInvoiceKindCreditNote
+}
 
 // Label returns a German name.
 func (k EInvoiceKind) Label() string {
@@ -124,6 +128,21 @@ type InvoiceParty struct {
 	VatID       string `json:"vatId,omitempty"`
 	TaxID       string `json:"taxId,omitempty"`
 	CountryCode string `json:"countryCode,omitempty"`
+	PostCode    string `json:"postCode,omitempty"`
+	City        string `json:"city,omitempty"`
+}
+
+// NormalizeTaxIdentifier macht USt-IdNr. und Steuernummer vergleichbar: nur
+// Buchstaben und Ziffern, groß geschrieben ("DE 555 666 777" und
+// "22/333/44444" wie "DE555666777" und "2233344444").
+func NormalizeTaxIdentifier(s string) string {
+	var b strings.Builder
+	for _, r := range strings.ToUpper(s) {
+		if (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 // IncomingPosition is one line of a received invoice.

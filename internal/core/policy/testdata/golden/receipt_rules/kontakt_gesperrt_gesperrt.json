@@ -1,0 +1,9 @@
+{
+  "gruende": [
+    {
+      "schluessel": "kontakt_gesperrt",
+      "text": "Der Kontakt ist gesperrt."
+    }
+  ],
+  "stufe": "rueckfrage"
+}

@@ -14,36 +14,27 @@ import (
 // InvoiceService manages outgoing invoices, their booking and the ZUGFeRD /
 // Typst rendering.
 type InvoiceService struct {
-	invoiceRepo  domain.InvoiceRepository
-	contactRepo  domain.ContactRepository
-	settingsRepo domain.SettingsRepository
-	numberRepo   domain.NumberRangeRepository
-	postingSvc   *PostingService
-	auditRepo    domain.AuditRepository
-	receiptSvc   *ReceiptService
-	renderer     *invoice.Renderer
+	serviceClock
+	fiscalCalendar
+	invoiceRepo domain.InvoiceRepository
+	contactRepo domain.ContactRepository
+	numberRepo  domain.NumberRangeRepository
+	postingSvc  *PostingService
+	auditRepo   domain.AuditRepository
+	receiptSvc  *ReceiptService
+	renderer    *invoice.Renderer
 
-	// Die Verdrahtung aus Welle 5b. Sie ist optional: ohne sie stellt der
-	// Dienst weiter Rechnungen aus, nur ohne Transaktionsklammer,
-	// Lückenbericht und Rechnungsverbund. Ein Pflichtparameter im
-	// Konstruktor hätte jeden Aufrufer erfasst, auch die, die nichts davon
-	// brauchen.
-	txRunner       domain.TxRunner
-	gapRepo        domain.NumberGapRepository
-	groupRepo      domain.InvoiceGroupRepository
-	fiscalYearRepo domain.FiscalYearRepository
-	bankRepo       domain.BankRepository
+	// Lückenbericht und Rechnungsverbund sind optionale Ergänzungen zur Ausstellung.
+	gapRepo   domain.NumberGapRepository
+	groupRepo domain.InvoiceGroupRepository
+	bankRepo  domain.BankRepository
 
-	// vatIDs ist die Bestätigungsabfrage der USt-IdNr. (Welle 5c). Ebenso
-	// optional: ohne sie stellt der Dienst aus wie zuvor.
+	// vatIDs ergänzt die Ausstellung um die optionale Bestätigungsabfrage der USt-IdNr.
 	vatIDs vatIDConfirmer
 }
 
-// InvoiceRegistry bündelt, was das Rechnungswesen der Welle 5b zusätzlich
-// braucht.
+// InvoiceRegistry bündelt Transaktionen, Nummernlücken, Rechnungsverbünde und Geschäftsjahre.
 type InvoiceRegistry struct {
-	// Tx klammert Nummernvergabe, Rechnung und Buchung zu einer Transaktion.
-	Tx domain.TxRunner
 	// Gaps hält die Gründe verbrauchter, aber nicht belegter Nummern fest.
 	Gaps domain.NumberGapRepository
 	// Groups ist der Rechnungsverbund aus Abschlägen und Schlussrechnung.
@@ -56,9 +47,8 @@ type InvoiceRegistry struct {
 	Bank domain.BankRepository
 }
 
-// SetRegistry wires the Welle-5b collaborators.
+// SetRegistry verbindet die Dienste und Repositories des Rechnungswesens.
 func (s *InvoiceService) SetRegistry(r InvoiceRegistry) {
-	s.txRunner = r.Tx
 	s.gapRepo = r.Gaps
 	s.groupRepo = r.Groups
 	s.fiscalYearRepo = r.FiscalYears
@@ -83,12 +73,12 @@ func NewInvoiceService(
 	auditRepo domain.AuditRepository,
 ) *InvoiceService {
 	return &InvoiceService{
-		invoiceRepo:  invoiceRepo,
-		contactRepo:  contactRepo,
-		settingsRepo: settingsRepo,
-		numberRepo:   numberRepo,
-		postingSvc:   postingSvc,
-		auditRepo:    auditRepo,
+		invoiceRepo:    invoiceRepo,
+		contactRepo:    contactRepo,
+		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo},
+		numberRepo:     numberRepo,
+		postingSvc:     postingSvc,
+		auditRepo:      auditRepo,
 	}
 }
 
@@ -97,20 +87,13 @@ func (s *InvoiceService) GetInvoices(ctx context.Context, fiscalYear int) ([]dom
 	return s.invoiceRepo.FindAll(ctx, fiscalYear)
 }
 
-// Issue finalises an invoice: it assigns the consecutive invoice number, books
-// the receivable and stores the document.
+// Issue finalises an invoice: it assigns the consecutive invoice number, files
+// the document as Beleg and books the receivable.
 //
-// Issuing and booking are one step, and seit dieser Welle auch eine
+// Nummer, Rechnung, Dokument, Buchung, Siegel und Protokoll sind eine
 // Transaktion. § 14 Abs. 4 Nr. 4 UStG verlangt eine einmalige, fortlaufende
-// Nummer, und GoBD Rz. 42 verlangt sie lückenlos — vorher vergab Buchfink die
-// Nummer in einer eigenen Transaktion und buchte danach, und eine
-// fehlgeschlagene Buchung ließ eine verbrauchte Nummer ohne Rechnung zurück.
-//
-// Das Dokument entsteht danach und außerhalb der Transaktion: es liegt als
-// Datei auf der Platte, und eine Datei kann keine Datenbanktransaktion
-// zurücknehmen. Scheitert es, bleibt die Rechnung mit Nummer und Buchung im
-// Zustand „Dokument fehlt" stehen und lässt sich nachholen — die Nummer ist
-// dann nicht verloren.
+// Nummer, GoBD Rz. 42 verlangt sie lückenlos: scheitert ein Schritt, ist die
+// Nummer wieder frei und es gibt weder Rechnung noch Buchung.
 func (s *InvoiceService) Issue(ctx context.Context, inv *domain.Invoice) error {
 	// Über diesen Weg kommt eine ganze `domain.Invoice` aus der Oberfläche,
 	// samt der Felder, die zu anderen Rechnungsarten gehören. Sie werden hier
@@ -120,17 +103,13 @@ func (s *InvoiceService) Issue(ctx context.Context, inv *domain.Invoice) error {
 }
 
 // issueAs ist Issue für eine bestimmte Rechnungsart, mit einem Nebenschritt
-// innerhalb der Nummernklammer.
+// innerhalb derselben Transaktion.
 //
 // Die Art ist ein Parameter des Weges und keine Angabe des Aufrufers: jede Art
 // außer der gewöhnlichen Rechnung hat eigene Invarianten, und die erzwingt
-// jeweils nur ihr eigener Weg (siehe ensureKind).
-//
-// Der Nebenschritt ist alles, was zur Rechnung gehört, ohne eine Buchung zu
-// sein — bei der Abschlagsrechnung der offene Posten des Verbunds. Er läuft
-// innerhalb der Transaktion, weil er sonst hinter der Dokumenterzeugung stünde:
-// scheitert das Dokument, gäbe es die Rechnung mit Nummer, aber ohne ihren
-// offenen Posten, und keine Wiederholung holte ihn nach.
+// jeweils nur ihr eigener Weg (siehe ensureKind). Der Nebenschritt ist alles,
+// was zur Rechnung gehört, ohne eine Buchung zu sein — bei der
+// Abschlagsrechnung der offene Posten des Verbunds.
 func (s *InvoiceService) issueAs(
 	ctx context.Context, inv *domain.Invoice, kind domain.InvoiceKind, within func(context.Context) error,
 ) error {
@@ -142,14 +121,74 @@ func (s *InvoiceService) issueAs(
 	if err != nil {
 		return err
 	}
-	if err := s.numberAndBook(ctx, inv, contact, within); err != nil {
-		return err
+	var book func(context.Context) (*domain.JournalEntry, error)
+	// Die Abschlagsrechnung wird beim Ausstellen nicht gebucht: die Steuer
+	// entsteht erst mit der Vereinnahmung (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4
+	// UStG).
+	if inv.ResolvedKind().BooksOnIssue() {
+		book = func(ctx context.Context) (*domain.JournalEntry, error) {
+			return s.postingSvc.PostOutgoingInvoice(ctx, inv, contact)
+		}
 	}
-	if err := s.attachDocument(ctx, inv, contact); err != nil {
-		return err
-	}
+	return s.issueDocument(ctx, inv, contact, book, within)
+}
 
-	s.logIssued(ctx, inv)
+// issueDocument vergibt die Nummer, legt das Dokument als Ausgangsbeleg ab,
+// bucht über book (nil: keine Buchung beim Ausstellen), führt den Nebenschritt
+// aus, versiegelt den Beleg und protokolliert — in einer Transaktion.
+//
+// Das Dokument entsteht vor der Buchung, damit die Buchung auf ihren Beleg
+// verweist und dessen Hash trägt. Eine beim Rollback geschriebene Datei bleibt
+// inhaltsadressiert im Belegspeicher liegen und gehört zu keinem Beleg.
+func (s *InvoiceService) issueDocument(
+	ctx context.Context, inv *domain.Invoice, contact *domain.Contact,
+	book func(context.Context) (*domain.JournalEntry, error), within func(context.Context) error,
+) error {
+	format := s.numberFormat(ctx)
+	var allocated int64
+	err := s.runInTx(ctx, func(ctx context.Context) error {
+		seq, err := s.numberRepo.Allocate(ctx, domain.NumberRangeInvoice, inv.FiscalYear)
+		if err != nil {
+			return fmt.Errorf("Rechnungsnummer konnte nicht vergeben werden: %w", err)
+		}
+		allocated = seq
+		inv.InvoiceNumber = domain.FormatInvoiceNumberWith(format, inv.FiscalYear, seq)
+		inv.Status = domain.InvoiceStatusPendingDocument
+		if err := s.invoiceRepo.Save(ctx, inv); err != nil {
+			return err
+		}
+		validation, err := s.fileDocument(ctx, inv, contact)
+		if err != nil {
+			return err
+		}
+		if book != nil {
+			entry, err := book(ctx)
+			if err != nil {
+				return err
+			}
+			if entry != nil {
+				inv.JournalEntryID = &entry.ID
+				if err := s.invoiceRepo.Save(ctx, inv); err != nil {
+					return err
+				}
+			}
+		}
+		if err := runWithin(ctx, within); err != nil {
+			return err
+		}
+		if err := s.completeDocument(ctx, inv, validation); err != nil {
+			return err
+		}
+		return s.logIssued(ctx, inv)
+	})
+	if err != nil {
+		// Die Transaktion ist zurückgerollt: die Rechnung gibt es nicht, und die
+		// Nummer ist wieder frei. Die im Speicher gesetzten Schlüssel müssen
+		// mit — sonst schriebe ein zweiter Versuch mit GORMs Save ein UPDATE auf
+		// eine Zeile, die es nicht gibt, und meldete Erfolg.
+		resetAfterRollback(inv, allocated)
+		return err
+	}
 	return nil
 }
 
@@ -159,17 +198,10 @@ func (s *InvoiceService) issueAs(
 // gewöhnliche Rechnung, Schlussrechnung, Korrekturdokument. Jeder von ihnen
 // braucht denselben Eintrag; drei Fassungen davon wären zwei zu viel, und eine
 // davon fehlte.
-func (s *InvoiceService) logIssued(ctx context.Context, inv *domain.Invoice) {
-	if s.auditRepo == nil {
-		return
-	}
-	recipient := inv.ContactName
-	if recipient == "" {
-		recipient = "Barverkauf"
-	}
-	_ = s.auditRepo.Log(ctx, domain.AuditActionCreate, "INVOICE", fmt.Sprintf("%d", inv.ID),
+func (s *InvoiceService) logIssued(ctx context.Context, inv *domain.Invoice) error {
+	return logAudit(ctx, s.auditRepo, domain.AuditActionCreate, "INVOICE", fmt.Sprintf("%d", inv.ID),
 		fmt.Sprintf("%s %s über %s %s an %s ausgestellt",
-			inv.ResolvedKind().Label(), inv.InvoiceNumber, inv.GrossAmount, inv.Currency, recipient))
+			inv.ResolvedKind().Label(), inv.InvoiceNumber, inv.GrossAmount, inv.Currency, inv.ContactName))
 }
 
 // prepareForIssue fills the defaults and runs every check that can be answered
@@ -188,7 +220,7 @@ func (s *InvoiceService) prepareForIssue(
 	// zurück, und dort wird sie ohne Umweg gelesen.
 	inv.EnsureLists()
 	if inv.Date == "" {
-		inv.Date = todayLocal()
+		inv.Date = s.today()
 	}
 	if inv.ServiceDateFrom == "" {
 		inv.ServiceDateFrom = inv.Date
@@ -206,54 +238,36 @@ func (s *InvoiceService) prepareForIssue(
 		inv.FiscalYear = domain.GetFiscalYearForDate(inv.Date, s.fiscalYearStartMonth(ctx))
 	}
 
-	var contact *domain.Contact
-	if inv.ContactID != 0 {
-		var err error
-		contact, err = s.contactRepo.FindByID(ctx, inv.ContactID)
-		if err != nil {
-			return nil, fmt.Errorf("Rechnungsempfänger konnte nicht geladen werden: %w", err)
-		}
-		if contact.Type != domain.ContactTypeCustomer {
-			return nil, fmt.Errorf("%s ist als Lieferant angelegt und kann keine Ausgangsrechnung erhalten", contact.Name)
-		}
-		if err := ensureNotBlocked(contact); err != nil {
-			return nil, err
-		}
-		inv.ContactName = contact.LegalName()
-		if inv.EInvoiceProfile == "" {
-			inv.EInvoiceProfile = contact.ResolvedEInvoiceProfile()
-		}
-		// Der Verzugshinweis des § 286 Abs. 3 Satz 1 Halbsatz 2 BGB steht bei
-		// einem Verbraucher auf dem Dokument (invoice.ConsumerDefaultNotice).
-		// Festgehalten wird das an der Rechnung, weil das Mahnwesen es später
-		// braucht: ohne den Hinweis gibt es gegenüber einem Verbraucher keinen
-		// Verzug nach dreißig Tagen, und für die Rechnungen aus der Zeit davor
-		// darf keine spätere Einstellung ihn behaupten.
-		inv.ConsumerNoticePrinted = contact.IsConsumer()
-	} else if !inv.SmallAmount {
-		// Ohne Empfänger geht nur die Kleinbetragsrechnung (§ 33 UStDV); alles
-		// andere braucht ein Personenkonto, gegen das die Forderung läuft.
+	// Jede Rechnung braucht ein Personenkonto, gegen das die Forderung läuft.
+	if inv.ContactID == 0 {
 		return nil, fmt.Errorf("Rechnungsempfänger fehlt")
 	}
-	// Die Kleinbetragsrechnung ohne Empfänger geht als PDF hinaus und nicht als
-	// E-Rechnung.
-	//
-	// EN 16931 verlangt den Namen des Erwerbers (BR-07); § 33 UStDV erlässt ihn.
-	// Einen Namen zu erfinden, um die Norm zu bedienen, hieße eine Pflichtangabe
-	// zu behaupten, die es nicht gibt — der strukturierte Datensatz wäre falsch,
-	// und zwar maschinenlesbar falsch. Der Ausweg steht im Gesetz selbst:
-	// Kleinbetragsrechnungen sind von der Pflicht zur E-Rechnung ausgenommen
-	// (§ 33 UStDV, BMF vom 15.10.2024, Rz. 21).
-	if inv.ContactID == 0 && inv.SmallAmount {
-		inv.EInvoiceProfile = domain.EInvoiceProfilePDFOnly
+	contact, err := s.contactRepo.FindByID(ctx, inv.ContactID)
+	if err != nil {
+		return nil, fmt.Errorf("Rechnungsempfänger konnte nicht geladen werden: %w", err)
 	}
+	if contact.Type != domain.ContactTypeCustomer {
+		return nil, fmt.Errorf("%s ist als Lieferant angelegt und kann keine Ausgangsrechnung erhalten", contact.Name)
+	}
+	if err := ensureNotBlocked(contact); err != nil {
+		return nil, err
+	}
+	inv.ContactName = contact.LegalName()
+	if inv.EInvoiceProfile == "" {
+		inv.EInvoiceProfile = contact.ResolvedEInvoiceProfile()
+	}
+	// Der Verzugshinweis des § 286 Abs. 3 Satz 1 Halbsatz 2 BGB steht bei
+	// einem Verbraucher auf dem Dokument (invoice.ConsumerDefaultNotice).
+	// Festgehalten wird das an der Rechnung, weil die Verzugsrechnung es später
+	// braucht: ohne den Hinweis gibt es gegenüber einem Verbraucher keinen
+	// Verzug nach dreißig Tagen, und für die Rechnungen aus der Zeit davor
+	// darf keine spätere Einstellung ihn behaupten.
+	inv.ConsumerNoticePrinted = contact.IsConsumer()
 	if inv.EInvoiceProfile == "" {
 		inv.EInvoiceProfile = domain.EInvoiceProfileZUGFeRD
 	}
 	// Eine mitgelieferte Rechnungsnummer wird nicht übernommen: sie kommt aus
-	// dem Nummernkreis und aus nichts sonst (§ 14 Abs. 4 Nr. 4 UStG). Vorher
-	// ließ numberAndBook eine vorbelegte Nummer stehen und übersprang die
-	// Vergabe — der Nummernkreis wäre über die Oberfläche umgehbar gewesen.
+	// dem Nummernkreis und aus nichts sonst (§ 14 Abs. 4 Nr. 4 UStG).
 	if inv.InvoiceNumber != "" {
 		return nil, fmt.Errorf(
 			"die Rechnungsnummer wird beim Ausstellen aus dem Nummernkreis vergeben; %q ist vorbelegt",
@@ -261,18 +275,7 @@ func (s *InvoiceService) prepareForIssue(
 	}
 
 	if inv.DueDate == "" {
-		days := inv.Terms.DueDays
-		if days <= 0 && contact != nil {
-			days = contact.PaymentTermsDays
-		}
-		if days <= 0 {
-			days = 14
-		}
-		if t, err := time.Parse("2006-01-02", inv.Date); err == nil {
-			inv.DueDate = t.AddDate(0, 0, days).Format("2006-01-02")
-		} else {
-			inv.DueDate = inv.Date
-		}
+		inv.DueDate = invoiceDueDate(inv, contact)
 	}
 
 	for i := range inv.Items {
@@ -285,16 +288,14 @@ func (s *InvoiceService) prepareForIssue(
 	if err := inv.Validate(); err != nil {
 		return nil, err
 	}
-	if contact != nil {
-		if err := s.validateTaxTreatment(inv, contact); err != nil {
-			return nil, err
-		}
-		// Die Bestätigung der USt-IdNr. steht hinter der Stammdatenprüfung und
-		// vor der Nummernvergabe: sie ist die letzte Frage, die noch mit einem
-		// Nein beantwortet werden darf, ohne eine Nummer zu verbrauchen.
-		if err := s.ensureVatIDConfirmed(ctx, inv, contact); err != nil {
-			return nil, err
-		}
+	if err := s.validateTaxTreatment(inv, contact); err != nil {
+		return nil, err
+	}
+	// Die Bestätigung der USt-IdNr. steht hinter der Stammdatenprüfung und
+	// vor der Nummernvergabe: sie ist die letzte Frage, die noch mit einem
+	// Nein beantwortet werden darf, ohne eine Nummer zu verbrauchen.
+	if err := s.ensureVatIDConfirmed(ctx, inv, contact); err != nil {
+		return nil, err
 	}
 	// Erst die Stammdaten, dann der Steuerausweis: passt der Steuerfall gar
 	// nicht zum Empfänger, ist das die Auskunft, die weiterhilft — der Hinweis
@@ -312,7 +313,7 @@ func (s *InvoiceService) prepareForIssue(
 		return nil, fmt.Errorf("Unternehmensdaten konnten nicht geladen werden: %w", err)
 	}
 	if missing := seller.InvoiceSellerFindings(inv.EInvoiceProfile != domain.EInvoiceProfilePDFOnly); len(missing) > 0 {
-		return nil, fmt.Errorf("bitte vor dem Ausstellen in den Einstellungen ergänzen: %s", strings.Join(missing, "; "))
+		return nil, fmt.Errorf("für die Rechnung fehlen Angaben zum Unternehmen: %s. Ergänzen Sie sie unter Unternehmen › Stammdaten", strings.Join(missing, "; "))
 	}
 	if err := inv.ValidateParties(seller.TaxNumber, seller.VatID, contact); err != nil {
 		return nil, err
@@ -413,14 +414,8 @@ func dropForeignKindFields(inv *domain.Invoice) {
 const placeholderInvoiceNumber = "ENTWURF"
 
 // validateRuleset prüft die Rechnung gegen EN 16931 und, bei einer XRechnung,
-// gegen die deutsche Ausprägung — bevor eine Nummer verbraucht ist.
-//
-// Vorher lief die Prüfung erst beim Erzeugen des Dokuments, also hinter der
-// Transaktion aus Nummernvergabe und Buchung. Ein Regelverstoß — eine
-// XRechnung ohne Ansprechpartner (BR-DE-2 ff.), eine Rechnung ohne
-// Bankverbindung (BG-16) — hinterließ dann eine gebuchte Rechnung mit
-// verbrauchter Nummer im Zustand „Dokument fehlt". War der Verstoß nicht durch
-// Stammdaten heilbar, blieb nur das Storno mit einer zweiten Nummer.
+// gegen die deutsche Ausprägung — bevor eine Nummer vergeben wird, damit ein
+// Regelverstoß ohne Transaktion und ohne Rendern auffällt.
 //
 // Geprüft wird derselbe Datensatz, der später hinausgeht: gebaut, geschrieben,
 // wieder gelesen und gegen das Regelwerk gehalten. Nur die Nummer ist eine
@@ -428,11 +423,6 @@ const placeholderInvoiceNumber = "ENTWURF"
 func validateRuleset(inv *domain.Invoice, seller *domain.CompanySettings, contact *domain.Contact) error {
 	profile := inv.EInvoiceProfile
 	if profile == "" || profile == domain.EInvoiceProfilePDFOnly {
-		return nil
-	}
-	// Die Kleinbetragsrechnung ohne Empfänger geht als reines PDF hinaus; sie
-	// hat keinen strukturierten Datensatz, der zu prüfen wäre (§ 33 UStDV).
-	if inv.SmallAmount && contact == nil {
 		return nil
 	}
 	draft := *inv
@@ -446,14 +436,12 @@ func validateRuleset(inv *domain.Invoice, seller *domain.CompanySettings, contac
 //
 // Die Vorschrift zählt drei auf: den Fernverkauf (§ 3c UStG), die
 // innergemeinschaftliche Lieferung (§ 6a UStG) und die Steuerschuldnerschaft
-// des Leistungsempfängers (§ 13b UStG). Der Fernverkauf fehlt hier, weil er in
-// Buchfink kein eigener Steuerfall ist; die beiden anderen sind es. Der Grund
-// der Ausnahme ist derselbe: mit den verkürzten Angaben fehlten gerade die
-// Angaben, nach denen sich die Rechtsfolge richtet — die USt-IdNr. des Empfängers und
-// der Hinweis auf die Steuerschuldnerschaft.
+// des Leistungsempfängers (§ 13b UStG). Nur die letzte ist in Buchfink ein
+// Steuerfall. Mit den verkürzten Angaben fehlten gerade die Angaben, nach denen
+// sich die Rechtsfolge richtet — die USt-IdNr. des Empfängers und der Hinweis
+// auf die Steuerschuldnerschaft.
 var smallAmountExcludedByLaw = map[domain.TaxTreatment]string{
-	domain.TaxTreatmentIntraCommunitySupply: "die innergemeinschaftliche Lieferung (§ 6a UStG)",
-	domain.TaxTreatmentReverseChargeSupply:  "die Steuerschuldnerschaft des Leistungsempfängers (§ 13b UStG)",
+	domain.TaxTreatmentReverseChargeSupply: "die Steuerschuldnerschaft des Leistungsempfängers (§ 13b UStG)",
 }
 
 // validateSmallAmount enforces the two conditions of § 33 UStDV.
@@ -463,14 +451,13 @@ var smallAmountExcludedByLaw = map[domain.TaxTreatment]string{
 //
 // Beim Steuerfall trennt die Prüfung zwei Dinge, die vorher eine Meldung waren.
 // Zwei Fälle verbietet das Gesetz (§ 33 Satz 2 UStDV, siehe
-// smallAmountExcludedByLaw). Die übrigen — Ausfuhr, steuerfreier Umsatz,
-// nicht steuerbarer Umsatz, Nullsteuersatz — wären nach dem Wortlaut zulässig;
+// smallAmountExcludedByLaw). Die übrigen — steuerfreier Umsatz, nicht
+// steuerbarer Umsatz, Nullsteuersatz — wären nach dem Wortlaut zulässig;
 // Buchfink bietet sie trotzdem nicht an, und die Meldung sagt das als eigene
 // Entscheidung statt sich auf eine Norm zu berufen, die sie nicht deckt. Der
 // Grund ist der verkürzte Datensatz: er kennt Bruttobetrag und Steuersatz, aber
-// keinen Empfänger und keinen Platz für den Hinweis auf die Steuerbefreiung,
-// den § 33 Satz 1 Nr. 4 UStDV in diesen Fällen an die Stelle des Steuersatzes
-// setzt.
+// keinen Platz für den Hinweis auf die Steuerbefreiung, den § 33 Satz 1 Nr. 4
+// UStDV in diesen Fällen an die Stelle des Steuersatzes setzt.
 func (s *InvoiceService) validateSmallAmount(inv *domain.Invoice) error {
 	if !inv.SmallAmount {
 		return nil
@@ -523,11 +510,10 @@ func (s *InvoiceService) validateProfile(ctx context.Context, inv *domain.Invoic
 				"eine XRechnung braucht die Leitweg-ID des Empfängers (BT-10); bei %s ist keine hinterlegt", name)
 		}
 	case domain.EInvoiceProfilePDFOnly:
-		// Die Kleinbetragsrechnung ohne Empfänger bleibt zulässig, auch nach dem
-		// Ende der Übergangsfrist: § 33 UStDV nimmt sie von der Pflicht zur
-		// E-Rechnung aus, und ohne Erwerber ließe sich der strukturierte
-		// Datensatz gar nicht normgerecht erzeugen (BR-07).
-		if inv.SmallAmount && contact == nil {
+		// Die Kleinbetragsrechnung bleibt als sonstige Rechnung zulässig, auch
+		// nach dem Ende der Übergangsfrist: § 33 UStDV nimmt sie von der Pflicht
+		// zur E-Rechnung aus (BMF vom 15.10.2024, Rz. 21).
+		if inv.SmallAmount {
 			return nil
 		}
 		if accounting.EInvoiceIssueTransitionFor(inv.Date, s.priorYearRevenue(ctx, inv.FiscalYear)) ==
@@ -555,66 +541,6 @@ func (s *InvoiceService) priorYearRevenue(ctx context.Context, fiscalYear int) d
 	return fy.PriorYearRevenue
 }
 
-// numberAndBook spends the number, writes the invoice and appends the booking —
-// all three in one transaction.
-func (s *InvoiceService) numberAndBook(
-	ctx context.Context, inv *domain.Invoice, contact *domain.Contact, within func(context.Context) error,
-) error {
-	format := s.numberFormat(ctx)
-	var allocated int64
-
-	err := s.runInTx(ctx, func(ctx context.Context) error {
-		seq, err := s.numberRepo.Allocate(ctx, domain.NumberRangeInvoice, inv.FiscalYear)
-		if err != nil {
-			return fmt.Errorf("Rechnungsnummer konnte nicht vergeben werden: %w", err)
-		}
-		allocated = seq
-		inv.InvoiceNumber = domain.FormatInvoiceNumberWith(format, inv.FiscalYear, seq)
-		inv.Status = domain.InvoiceStatusPendingDocument
-
-		// Die Abschlagsrechnung wird beim Ausstellen nicht gebucht: die Steuer
-		// entsteht erst mit der Vereinnahmung (§ 13 Abs. 1 Nr. 1 Buchst. a
-		// Satz 4 UStG). Sie bekommt trotzdem Nummer und Datensatz — sie ist
-		// eine vollwertige Rechnung nach § 14 Abs. 5 Satz 1 UStG.
-		if !inv.ResolvedKind().BooksOnIssue() {
-			if err := s.invoiceRepo.Save(ctx, inv); err != nil {
-				return err
-			}
-			return runWithin(ctx, within)
-		}
-		if err := s.invoiceRepo.Save(ctx, inv); err != nil {
-			return err
-		}
-		// Ohne Empfänger ist es der Barverkauf einer Kleinbetragsrechnung: er
-		// bucht gegen das Zahlungsmittel statt gegen ein Personenkonto, das es
-		// nicht gibt (§ 33 UStDV lässt den Empfänger weg).
-		var entry *domain.JournalEntry
-		if contact == nil {
-			entry, err = s.postingSvc.PostCashSale(ctx, inv, inv.PaymentAccount)
-		} else {
-			entry, err = s.postingSvc.PostOutgoingInvoice(ctx, inv, contact)
-		}
-		if err != nil {
-			return err
-		}
-		inv.JournalEntryID = &entry.ID
-		if err := s.invoiceRepo.Save(ctx, inv); err != nil {
-			return err
-		}
-		return runWithin(ctx, within)
-	})
-	if err != nil {
-		s.recordNumberGap(ctx, inv, allocated, err)
-		// Die Transaktion ist zurückgerollt: die Rechnung gibt es nicht, und die
-		// Nummer ist wieder frei. Die im Speicher gesetzten Schlüssel müssen
-		// mit — sonst schriebe ein zweiter Versuch mit GORMs Save ein UPDATE auf
-		// eine Zeile, die es nicht gibt, und meldete Erfolg.
-		resetAfterRollback(inv, allocated)
-		return err
-	}
-	return nil
-}
-
 // runWithin ruft den Nebenschritt der Nummernklammer auf, sofern es einen gibt.
 func runWithin(ctx context.Context, within func(context.Context) error) error {
 	if within == nil {
@@ -639,46 +565,8 @@ func resetAfterRollback(inv *domain.Invoice, allocated int64) {
 	inv.Status = domain.InvoiceStatusDraft
 }
 
-// recordNumberGap vermerkt eine Nummer, die verbraucht wurde, ohne dass eine
-// Rechnung sie hat.
-//
-// Geprüft wird, ob sie das wirklich ist: hat der Rollback den Zähler
-// zurückgesetzt, gibt es keine Lücke und nichts zu vermerken. Der Vermerk
-// entsteht also nur dort, wo er stimmt — ein Lückenbericht, der Lücken
-// behauptet, die keine sind, wird nicht gelesen.
-func (s *InvoiceService) recordNumberGap(ctx context.Context, inv *domain.Invoice, allocated int64, cause error) {
-	if allocated == 0 || s.gapRepo == nil {
-		return
-	}
-	next, err := s.numberRepo.Peek(ctx, domain.NumberRangeInvoice, inv.FiscalYear)
-	if err != nil || next <= allocated {
-		return // der Rollback hat die Nummer zurückgegeben
-	}
-	if existing, err := s.invoiceRepo.FindByNumber(ctx, inv.InvoiceNumber); err == nil && existing != nil {
-		return
-	}
-	_ = s.gapRepo.Record(ctx, &domain.NumberGap{
-		Key:        domain.NumberRangeInvoice,
-		FiscalYear: inv.FiscalYear,
-		Sequence:   allocated,
-		Number:     inv.InvoiceNumber,
-		Reason:     domain.NumberGapAborted,
-		Detail:     cause.Error(),
-		RecordedAt: time.Now().UTC().Format(time.RFC3339),
-	})
-}
-
-// runInTx runs fn inside a transaction where one is wired, and plainly where it
-// is not.
-//
-// Ohne Transaktionsläufer läuft alles wie vorher — die Rechnungen entstehen,
-// nur ohne die Klammer. Das ist der Preis dafür, dass der Dienst auch dort
-// benutzbar bleibt, wo er ohne vollständige Verdrahtung aufgebaut wird.
 func (s *InvoiceService) runInTx(ctx context.Context, fn func(context.Context) error) error {
-	if s.txRunner == nil {
-		return fn(ctx)
-	}
-	return s.txRunner.RunInTx(ctx, fn)
+	return s.postingSvc.journalSvc.InTx(ctx, fn)
 }
 
 // numberFormat liest die Systematik des Nummernkreises aus den Einstellungen.
@@ -696,44 +584,35 @@ func (s *InvoiceService) numberFormat(ctx context.Context) string {
 	return cfg.InvoiceNumberFormat
 }
 
-// attachDocument erzeugt das Rechnungsdokument und legt es als Ausgangsbeleg ab.
+// fileDocument erzeugt das Rechnungsdokument und legt es als Ausgangsbeleg ab.
 //
 // The Beleg carries the PDF as the received form and the XML as the structured
 // part on a hybrid document; bei einer XRechnung ist das XML das Original und
 // das PDF die erzeugte Darstellung. Beide Rollen zählen: das PDF ist, was der
 // Empfänger liest, das XML ist, wonach sich sein Vorsteuerabzug richtet.
 //
-// GoBD Rz. 76 Abs. 2 would allow skipping the archived PDF entirely, since
-// Buchfink can reproduce an identical Mehrstück from the data at any time. It is
-// archived anyway: a stored document is more tangible to the user than a promise
-// to re-render one.
-func (s *InvoiceService) attachDocument(ctx context.Context, inv *domain.Invoice, contact *domain.Contact) error {
+// Ohne Beleg-Pipeline entsteht kein Dokument; der Kern ist die Buchung.
+func (s *InvoiceService) fileDocument(
+	ctx context.Context, inv *domain.Invoice, contact *domain.Contact,
+) (domain.ReceiptValidation, error) {
 	if s.receiptSvc == nil || s.renderer == nil {
-		// Ohne Beleg-Pipeline ist die Rechnung mit der Buchung fertig. Der Kern
-		// ist die Buchung; das Dokument kommt aus einer Schicht darüber.
-		inv.Status = domain.InvoiceStatusIssued
-		return s.invoiceRepo.Save(ctx, inv)
+		return domain.ReceiptValidation{}, nil
 	}
 
 	seller, err := s.settingsRepo.GetCompanySettings(ctx)
 	if err != nil {
-		return fmt.Errorf("Unternehmensdaten konnten nicht geladen werden: %w", err)
+		return domain.ReceiptValidation{}, fmt.Errorf("Unternehmensdaten konnten nicht geladen werden: %w", err)
 	}
 
 	files, xml, validation, err := s.renderDocument(ctx, inv, seller, contact)
 	if err != nil {
-		return fmt.Errorf(
-			"die Rechnung %s ist ausgestellt und gebucht, das Dokument konnte aber nicht erzeugt werden: %w. "+
-				"Die Nummer bleibt vergeben; das Dokument lässt sich nachholen", inv.InvoiceNumber, err)
+		return validation, fmt.Errorf("das Dokument der Rechnung %s konnte nicht erzeugt werden: %w",
+			inv.InvoiceNumber, err)
 	}
 	inv.ZUGFeRDXML = xml
 
-	// Die Kopfdaten stehen an der Rechnung und werden mitgegeben: Belegdatum,
-	// Aussteller, Betrag und Steuer sind hier bekannt, und ein Ausgangsbeleg,
-	// der sie nicht trüge, wäre in der Belegliste eine Zeile ohne Datum und
-	// ohne Betrag — und beim Versiegeln nicht buchbar (BEL-02, siehe
-	// Receipt.ValidateHeader). Aussteller ist das eigene Unternehmen: die
-	// Ausgangsrechnung hat es ausgestellt.
+	// Aussteller ist das eigene Unternehmen: die Ausgangsrechnung hat es
+	// ausgestellt. Ohne Kopfdaten wäre der Beleg nicht buchbar (BEL-02).
 	receipt, err := s.receiptSvc.File(ctx, FileReceiptRequest{
 		Direction:     domain.DirectionOutgoing,
 		FiscalYear:    inv.FiscalYear,
@@ -749,24 +628,14 @@ func (s *InvoiceService) attachDocument(ctx context.Context, inv *domain.Invoice
 		Files:         files,
 	})
 	if err != nil {
-		return fmt.Errorf(
-			"die Rechnung %s ist ausgestellt und gebucht, ihr Beleg konnte aber nicht abgelegt werden: %w",
+		return validation, fmt.Errorf("der Beleg der Rechnung %s konnte nicht abgelegt werden: %w",
 			inv.InvoiceNumber, err)
 	}
-
-	// Der Verweis auf den Beleg wird sofort festgehalten, vor allem, was danach
-	// noch scheitern kann.
-	//
-	// Vorher stand er hinter Validierungsbericht und Speichern: scheiterte einer
-	// von beiden, gab es den Beleg mit der Rechnungsnummer bereits, während die
-	// Rechnung ihn nicht kannte — und „Dokument erneut erzeugen" legte einen
-	// zweiten Beleg unter derselben Nummer an. Ein zweiter Beleg zu einem
-	// Vorgang ist das, was die Belegablage nicht haben darf.
 	inv.ReceiptID = &receipt.ID
 	if err := s.invoiceRepo.Save(ctx, inv); err != nil {
-		return err
+		return validation, err
 	}
-	return s.completeDocument(ctx, inv, receipt.ID, validation)
+	return validation, nil
 }
 
 // invoiceSubject ist der Betreff, unter dem die Ausgangsrechnung in der
@@ -790,22 +659,14 @@ func invoiceSubject(inv *domain.Invoice) string {
 	return fmt.Sprintf("%s %s", label, inv.InvoiceNumber)
 }
 
-// completeDocument bringt eine Rechnung mit abgelegtem Beleg zu Ende:
-// Validierungsbericht, Zustand „ausgestellt" und das Siegel auf die Buchung.
-//
-// Es ist ein eigener Schritt, weil er wiederholbar sein muss. Scheitert hier
-// etwas, steht die Rechnung weiter auf „Dokument fehlt" — mit ihrem Beleg —,
-// und „Dokument erneut erzeugen" setzt genau hier wieder auf, statt ein zweites
-// Dokument zu erzeugen.
+// completeDocument bringt eine Rechnung zu Ende: Validierungsbericht am Beleg,
+// Zustand „ausgestellt" und das Siegel des Belegs auf die Buchung. Eine
+// Abschlagsrechnung ohne Buchung wird erst mit der Vereinnahmung versiegelt.
 func (s *InvoiceService) completeDocument(
-	ctx context.Context, inv *domain.Invoice, receiptID uint, validation domain.ReceiptValidation,
+	ctx context.Context, inv *domain.Invoice, validation domain.ReceiptValidation,
 ) error {
-	// Der Validierungsbericht gehört an den Beleg, und zwar auch bei der eigenen
-	// Rechnung. Bisher entstand er nur beim Eingang — und damit ließ sich Jahre
-	// später nicht mehr belegen, gegen welches Regelwerk die eigene Rechnung
-	// geprüft worden war.
-	if validation.At != "" {
-		if err := s.receiptSvc.SaveValidation(ctx, receiptID, validation); err != nil {
+	if inv.ReceiptID != nil && validation.At != "" {
+		if err := s.receiptSvc.SaveValidation(ctx, *inv.ReceiptID, validation); err != nil {
 			return fmt.Errorf("der Validierungsbericht zu %s konnte nicht gespeichert werden: %w",
 				inv.InvoiceNumber, err)
 		}
@@ -816,53 +677,18 @@ func (s *InvoiceService) completeDocument(
 		return err
 	}
 
-	// Die Verbindung zwischen Buchung und Beleg läuft jetzt vom Beleg zur
-	// Buchung und nicht mehr umgekehrt.
-	//
-	// Die Reihenfolge erzwingt das: der Beleg-Hash
-	// steht im Buchungshash und damit in der Kette (accounting.EntryHash), und
-	// ein nachträglicher Eintrag an der Buchung bräche sie. Da das Dokument
-	// hinter der Transaktion entsteht, kann die Buchung ihn nicht mehr aufnehmen.
-	// Der Nachweis bleibt vollständig: der Beleg wird auf die Buchung
-	// versiegelt, und der Prüflauf zählt beide Richtungen (siehe
-	// entriesWithReceipt).
-	if inv.JournalEntryID != nil {
-		if err := s.receiptSvc.Seal(ctx, receiptID, *inv.JournalEntryID); err != nil {
-			return fmt.Errorf(
-				"die Rechnung %s wurde gebucht, der Beleg konnte aber nicht versiegelt werden: %w",
-				inv.InvoiceNumber, err)
+	if inv.ReceiptID != nil && inv.JournalEntryID != nil {
+		if err := s.receiptSvc.Seal(ctx, *inv.ReceiptID, *inv.JournalEntryID); err != nil {
+			return fmt.Errorf("der Beleg der Rechnung %s ließ sich nicht versiegeln: %w", inv.InvoiceNumber, err)
 		}
 	}
 	return nil
 }
 
-// documentValidation liefert den Validierungsbericht einer Rechnung, ohne das
-// Dokument noch einmal zu erzeugen.
-//
-// Gebraucht wird er, wenn der Beleg schon liegt und nur der Bericht daran fehlt.
-// Das PDF dafür ein zweites Mal zu setzen, kostete Sekunden und ergäbe dieselbe
-// Auskunft: geprüft wird der strukturierte Datensatz.
-func documentValidation(
-	inv *domain.Invoice, seller *domain.CompanySettings, contact *domain.Contact,
-) (domain.ReceiptValidation, error) {
-	profile := outputProfile(inv, contact)
-	if profile == domain.EInvoiceProfilePDFOnly {
-		return domain.ReceiptValidation{}, nil
-	}
-	_, validation, err := invoice.RenderInvoiceXML(inv, seller, contact, profile)
-	return validation, err
-}
-
 // outputProfile ist das Format, in dem das Dokument tatsächlich entsteht.
 //
-// Zwei Regeln, und beide gehören an eine Stelle: ohne Angabe gilt ZUGFeRD, und
-// die Kleinbetragsrechnung ohne Empfänger geht als reines PDF hinaus, auch wenn
-// am Kontakt etwas anderes steht — ohne Erwerber gäbe es keinen normgerechten
-// Datensatz (BR-07), und § 33 UStDV nimmt sie von der E-Rechnungspflicht aus.
+// Ohne Angabe gilt ZUGFeRD.
 func outputProfile(inv *domain.Invoice, contact *domain.Contact) domain.EInvoiceProfile {
-	if inv.SmallAmount && contact == nil {
-		return domain.EInvoiceProfilePDFOnly
-	}
 	if inv.EInvoiceProfile == "" {
 		return domain.EInvoiceProfileZUGFeRD
 	}
@@ -932,7 +758,7 @@ func (s *InvoiceService) renderDocument(
 // Zurückgewiesen und nicht stillschweigend berichtigt: Buchfink nahm den Satz
 // bisher selbst aus der Position, und heraus kam eine Rechnung ohne Steuer,
 // obwohl der Anwender 19 % erfasst hatte. Wer den Steuerfall falsch gewählt hat
-// — eine steuerpflichtige Inlandsleistung als innergemeinschaftliche Lieferung
+// — eine steuerpflichtige Inlandsleistung als Leistung nach § 13b UStG
 // etwa —, bekäme so eine Rechnung ohne Steuerausweis und merkte es nicht. Die
 // Summenrechnung entscheidet die Frage nicht; sie ist eine Frage an den
 // Anwender, welche der beiden Angaben stimmt.
@@ -952,8 +778,8 @@ func ensureNoUnlawfulTax(inv *domain.Invoice) error {
 		}
 		return fmt.Errorf(
 			"Position %d ist mit %s erfasst, der Steuerfall %q lässt aber keine Umsatzsteuer entstehen. "+
-				"Ein ausgewiesener Steuerbetrag wird nach § 14c UStG trotzdem geschuldet – wähle entweder "+
-				"den steuerpflichtigen Inlandsumsatz oder nimm den Steuersatz aus der Position",
+				"Ein ausgewiesener Steuerbetrag wird nach § 14c UStG trotzdem geschuldet – richtig ist entweder "+
+				"der steuerpflichtige Inlandsumsatz oder eine Position ohne Steuersatz",
 			i+1, item.TaxRate.Label(), inv.TaxTreatment)
 	}
 	return nil
@@ -963,58 +789,63 @@ func ensureNoUnlawfulTax(inv *domain.Invoice) error {
 // Rechnungsweg braucht.
 type vatIDConfirmer interface {
 	EnsureConfirmed(ctx context.Context, contact *domain.Contact, overrideReason string) error
+	NeedsCheck(ctx context.Context, contact *domain.Contact) (bool, error)
 }
 
 // SetVatIDConfirmer koppelt die Bestätigungsabfrage an den Rechnungsweg. Ohne
 // sie stellt Buchfink wie bisher aus — mit ihr erst nach einer Bestätigung.
 func (s *InvoiceService) SetVatIDConfirmer(c vatIDConfirmer) { s.vatIDs = c }
 
-// ensureVatIDConfirmed hält eine steuerfreie Lieferung an, solange die USt-IdNr.
-// des Empfängers nicht bestätigt ist.
+// ensureVatIDConfirmed hält eine Leistung an einen Unternehmer im übrigen
+// Gemeinschaftsgebiet an, solange seine USt-IdNr. nicht bestätigt ist.
 //
-// Nur für die beiden Steuerfälle, bei denen die Nummer des Empfängers
-// materielle Voraussetzung ist: die innergemeinschaftliche Lieferung
-// (§ 6a Abs. 1 Satz 1 Nr. 4 UStG) und die Verlagerung der Steuerschuld auf einen
-// Empfänger im übrigen Gemeinschaftsgebiet. Bei einer Inlandsrechnung ist die
-// USt-IdNr. des Kunden keine Voraussetzung von irgendetwas, und eine Abfrage
-// dort wäre ein Netzaufruf ohne Zweck.
+// Nur für diesen Steuerfall ist die Nummer des Empfängers Voraussetzung: sie
+// weist ihn als Unternehmer aus, und daran hängt der Leistungsort im Ausland
+// (§ 3a Abs. 2 UStG). Bei einer Inlandsrechnung ist die USt-IdNr. des Kunden
+// keine Voraussetzung von irgendetwas, und eine Abfrage dort wäre ein
+// Netzaufruf ohne Zweck.
 func (s *InvoiceService) ensureVatIDConfirmed(
 	ctx context.Context, inv *domain.Invoice, contact *domain.Contact,
 ) error {
-	if s.vatIDs == nil {
-		return nil
-	}
-	switch inv.TaxTreatment {
-	case domain.TaxTreatmentIntraCommunitySupply:
-	case domain.TaxTreatmentReverseChargeSupply:
-		if !contact.IsEUCounterparty() {
-			return nil
-		}
-	default:
+	if !s.needsVatIDConfirmation(inv, contact) {
 		return nil
 	}
 	return s.vatIDs.EnsureConfirmed(ctx, contact, inv.VatIDOverrideReason)
 }
 
-// validateTaxTreatment blocks the combinations that would produce a formally
-// wrong invoice — the ones a supplier only finds out about during an audit.
+func (s *InvoiceService) needsVatIDConfirmation(inv *domain.Invoice, contact *domain.Contact) bool {
+	return s.vatIDs != nil && accounting.TaxCaseFor(inv.TaxTreatment).CheckPartner(domain.DirectionOutgoing).ConfirmEUVatID &&
+		contact.IsEUCounterparty()
+}
+
+// VatIDToConfirm nennt den Geschäftspartner, dessen USt-IdNr. vor dem
+// Ausstellen beim Bundeszentralamt anzufragen ist, oder 0. Gefragt wird vor dem
+// Schreibvorgang; das Ausstellen liest nur das abgelegte Ergebnis.
+func (s *InvoiceService) VatIDToConfirm(ctx context.Context, inv *domain.Invoice) (uint, error) {
+	if s.vatIDs == nil || inv == nil || inv.ContactID == 0 {
+		return 0, nil
+	}
+	contact, err := s.contactRepo.FindByID(ctx, inv.ContactID)
+	if err != nil {
+		return 0, nil
+	}
+	if !s.needsVatIDConfirmation(inv, contact) {
+		return 0, nil
+	}
+	needed, err := s.vatIDs.NeedsCheck(ctx, contact)
+	if err != nil || !needed {
+		return 0, err
+	}
+	return contact.ID, nil
+}
+
 func (s *InvoiceService) validateTaxTreatment(inv *domain.Invoice, contact *domain.Contact) error {
-	switch inv.TaxTreatment {
-	case domain.TaxTreatmentIntraCommunitySupply:
-		if !contact.IsEUCounterparty() {
-			return fmt.Errorf("eine innergemeinschaftliche Lieferung setzt einen Empfänger in einem anderen EU-Land voraus, %s ist in %q erfasst", contact.Name, contact.CountryCode)
-		}
-		if contact.VatID == "" {
-			return fmt.Errorf("für eine innergemeinschaftliche Lieferung braucht %s eine USt-IdNr. (§ 6a Abs. 1 Nr. 4 UStG)", contact.Name)
-		}
-	case domain.TaxTreatmentReverseChargeSupply:
-		if contact.VatID == "" {
-			return fmt.Errorf("für eine Rechnung nach § 13b UStG braucht %s eine USt-IdNr.", contact.Name)
-		}
-	case domain.TaxTreatmentExport:
-		if contact.IsEUCounterparty() || contact.CountryCode == "DE" || contact.CountryCode == "" {
-			return fmt.Errorf("eine Ausfuhrlieferung setzt einen Empfänger außerhalb der EU voraus, %s ist in %q erfasst", contact.Name, contact.CountryCode)
-		}
+	check := accounting.TaxCaseFor(inv.TaxTreatment).CheckPartner(domain.DirectionOutgoing)
+	if !check.Allowed {
+		return fmt.Errorf("den Steuerfall %q gibt es für Ausgangsrechnungen nicht", inv.TaxTreatment)
+	}
+	if check.RequiresVatID && contact.VatID == "" {
+		return fmt.Errorf("für eine Rechnung nach § 13b UStG braucht %s eine USt-IdNr.", contact.Name)
 	}
 	return nil
 }
@@ -1026,21 +857,15 @@ func (s *InvoiceService) validateTaxTreatment(inv *domain.Invoice, contact *doma
 // gross itself, in a second implementation of the rounding rules — this replaces
 // it, because two implementations of a tax computation are one too many.
 func (s *InvoiceService) Preview(ctx context.Context, inv *domain.Invoice) (*PostingPreview, error) {
-	// Ohne Empfänger gibt es eine Vorschau nur für die Kleinbetragsrechnung —
-	// und für sie muss es sie geben: sonst hätte der Barverkauf als einziger
-	// Rechnungsfall keine.
-	var contact *domain.Contact
-	if inv.ContactID != 0 {
-		var err error
-		contact, err = s.contactRepo.FindByID(ctx, inv.ContactID)
-		if err != nil {
-			return nil, fmt.Errorf("Rechnungsempfänger konnte nicht geladen werden: %w", err)
-		}
-		if contact.Type != domain.ContactTypeCustomer {
-			return nil, fmt.Errorf("%s ist als Lieferant angelegt und kann keine Ausgangsrechnung erhalten", contact.Name)
-		}
-	} else if !inv.SmallAmount {
+	if inv.ContactID == 0 {
 		return nil, fmt.Errorf("Rechnungsempfänger fehlt")
+	}
+	contact, err := s.contactRepo.FindByID(ctx, inv.ContactID)
+	if err != nil {
+		return nil, fmt.Errorf("Rechnungsempfänger konnte nicht geladen werden: %w", err)
+	}
+	if contact.Type != domain.ContactTypeCustomer {
+		return nil, fmt.Errorf("%s ist als Lieferant angelegt und kann keine Ausgangsrechnung erhalten", contact.Name)
 	}
 
 	draft := *inv
@@ -1052,23 +877,18 @@ func (s *InvoiceService) Preview(ctx context.Context, inv *domain.Invoice) (*Pos
 			draft.Items[i].Position = i + 1
 		}
 	}
-	if contact != nil {
-		if err := s.validateTaxTreatment(&draft, contact); err != nil {
-			return nil, err
-		}
+	if err := s.validateTaxTreatment(&draft, contact); err != nil {
+		return nil, err
 	}
 	// Dieselbe Prüfung wie beim Ausstellen: der § 14c-Fehler soll in der Maske
 	// auffallen und nicht erst am Knopf „Ausstellen".
 	if err := ensureNoUnlawfulTax(&draft); err != nil {
 		return nil, err
 	}
-	var preview *PostingPreview
-	var err error
-	if contact == nil {
-		preview, err = s.postingSvc.PreviewCashSale(ctx, &draft, draft.PaymentAccount)
-	} else {
-		preview, err = s.postingSvc.PreviewOutgoingInvoice(ctx, &draft, contact)
+	if draft.DueDate == "" {
+		draft.DueDate = invoiceDueDate(&draft, contact)
 	}
+	preview, err := s.postingSvc.PreviewOutgoingInvoice(ctx, &draft, contact)
 	if err != nil {
 		return nil, err
 	}
@@ -1077,11 +897,10 @@ func (s *InvoiceService) Preview(ctx context.Context, inv *domain.Invoice) (*Pos
 		return nil, settingsErr
 	}
 	profile := draft.EInvoiceProfile
-	if profile == "" && contact != nil {
+	if profile == "" {
 		profile = contact.ResolvedEInvoiceProfile()
 	}
-	structured := profile != domain.EInvoiceProfilePDFOnly && !(draft.SmallAmount && contact == nil)
-	preview.IssuingFindings = seller.InvoiceSellerFindings(structured)
+	preview.IssuingFindings = seller.InvoiceSellerFindings(profile != domain.EInvoiceProfilePDFOnly)
 	if err := draft.ValidateParties(seller.TaxNumber, seller.VatID, contact); err != nil {
 		preview.IssuingFindings = append(preview.IssuingFindings, err.Error())
 	}
@@ -1095,83 +914,19 @@ func (s *InvoiceService) Preview(ctx context.Context, inv *domain.Invoice) (*Pos
 	return preview, nil
 }
 
-// Cancel reverses an issued invoice by Generalumkehr — ohne Dokument für den
-// Empfänger.
-//
-// Der Weg des Anwenders ist CancelWithDocument, und die Bridge führt allein
-// dorthin: eine stornierte Rechnung ist beim Empfänger in der Welt, und die
-// Rücknahme muss ihn erreichen (§ 14 Abs. 4 Nr. 4, § 17 Abs. 1 UStG). Diese
-// Fassung bleibt der schmale Weg für Prüfungen, die allein die Buchung
-// betreffen; sie ist keine Alternative zum Storno mit Dokument.
-func (s *InvoiceService) Cancel(ctx context.Context, invoiceID uint, reason string) error {
-	inv, err := s.invoiceRepo.FindByID(ctx, invoiceID)
+// invoiceDueDate ist die Fälligkeit einer Rechnung ohne vorgegebenes Datum:
+// Rechnungsdatum plus Zahlungsziel der Rechnung, sonst des Kunden, sonst 14 Tage.
+func invoiceDueDate(inv *domain.Invoice, contact *domain.Contact) string {
+	days := inv.Terms.DueDays
+	if days <= 0 {
+		days = contact.PaymentTermsDays
+	}
+	if days <= 0 {
+		days = 14
+	}
+	t, err := time.Parse("2006-01-02", inv.Date)
 	if err != nil {
-		return err
+		return inv.Date
 	}
-	if inv.Status == domain.InvoiceStatusCancelled {
-		return fmt.Errorf("Rechnung %s ist bereits storniert", inv.InvoiceNumber)
-	}
-	if inv.JournalEntryID == nil {
-		return fmt.Errorf("Rechnung %s ist nicht gebucht und kann nicht storniert werden", inv.InvoiceNumber)
-	}
-
-	if _, err := s.postingSvc.journalSvc.Reverse(ctx, *inv.JournalEntryID, reason); err != nil {
-		return err
-	}
-	return s.invoiceRepo.UpdateStatus(ctx, invoiceID, domain.InvoiceStatusCancelled)
-}
-
-// GenerateZUGFeRDAndTypst produces the structured record and the Typst source
-// of an invoice.
-//
-// Erzeugt wird, was die Rechnung ist, und nicht immer eine ZUGFeRD-Datei: das
-// Profil steht an der Rechnung (Entscheidung 4). Vorher rechnete diese Vorschau
-// jede Rechnung in ZUGFeRD um — bei einer XRechnung zeigte sie damit einen
-// anderen Datensatz (BT-24) als den abgelegten, und bei einer sonstigen
-// Rechnung ein XML, das es zum Beleg gar nicht gibt.
-func (s *InvoiceService) GenerateZUGFeRDAndTypst(ctx context.Context, invoiceID uint) (xml string, typst string, err error) {
-	inv, err := s.invoiceRepo.FindByID(ctx, invoiceID)
-	if err != nil {
-		return "", "", fmt.Errorf("Rechnung %d wurde nicht gefunden: %w", invoiceID, err)
-	}
-
-	seller, err := s.settingsRepo.GetCompanySettings(ctx)
-	if err != nil {
-		return "", "", fmt.Errorf("Unternehmensdaten konnten nicht geladen werden: %w", err)
-	}
-
-	// Die Kleinbetragsrechnung ohne erfassten Kunden hat keinen Empfänger, und
-	// das ist kein Fehler (§ 33 UStDV). Jede andere Rechnung hat einen; ist er
-	// nicht mehr auffindbar, bleibt der Name, unter dem sie ausgestellt wurde.
-	var buyer *domain.Contact
-	if inv.ContactID != 0 {
-		buyer, err = s.contactRepo.FindByID(ctx, inv.ContactID)
-		if err != nil || buyer == nil {
-			buyer = &domain.Contact{Name: inv.ContactName, CountryCode: "DE"}
-		}
-	}
-
-	profile := outputProfile(inv, buyer)
-	if profile == domain.EInvoiceProfilePDFOnly {
-		return "", invoice.GeneratePlainTypstTemplate(inv, seller, buyer), nil
-	}
-
-	xml, _, err = invoice.RenderInvoiceXML(inv, seller, buyer, profile)
-	if err != nil {
-		return "", "", fmt.Errorf("der Rechnungsdatensatz konnte nicht erzeugt werden: %w", err)
-	}
-
-	typst = invoice.GenerateTypstTemplate(inv, seller, buyer)
-	return xml, typst, nil
-}
-
-func (s *InvoiceService) fiscalYearStartMonth(ctx context.Context) int {
-	if s.settingsRepo == nil {
-		return 1
-	}
-	cfg, err := s.settingsRepo.GetCompanySettings(ctx)
-	if err != nil || cfg == nil || cfg.FiscalYearStartMonth <= 0 {
-		return 1
-	}
-	return cfg.FiscalYearStartMonth
+	return t.AddDate(0, 0, days).Format("2006-01-02")
 }

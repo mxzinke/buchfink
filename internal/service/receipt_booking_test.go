@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -139,41 +140,63 @@ func TestFailedBookingLeavesTheReceiptOpen(t *testing.T) {
 	}
 
 	// Korrigiert lässt er sich buchen.
-	req.PaymentAccount = domain.AccountKasse
+	req.PaymentAccount = domain.AccountBank
 	if _, err := env.posting.PostIncomingReceipt(ctx, req); err != nil {
 		t.Fatalf("der korrigierte Beleg muss buchbar sein: %v", err)
 	}
 }
 
-// Bricht der Prozess zwischen Buchung und Siegel ab, repariert das nächste Lesen
-// den Zustand — sonst nähme ein gebuchter Beleg noch Dateien an.
-func TestUnsealedButBookedReceiptIsRepairedOnRead(t *testing.T) {
+// Buchung und Siegel sind ein Vorgang: scheitert das Siegel, gibt es auch die
+// Buchung nicht, und der Beleg bleibt offen und buchbar.
+func TestBookingAndSealFailTogether(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	vendor := env.vendor(t, "Lieferant", "DE", "")
-
 	req := env.receipt(t, vendor.ID, "buerobedarf", 5000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
+
+	failing := NewReceiptService(failingSeal{env.receiptRepo}, env.store,
+		repository.NewAuditRepository(env.db))
+	failing.SetContactSource(env.contactRepo)
+	failing.SetSettingsSource(repository.NewSettingsRepository(env.db))
+
+	audit := repository.NewAuditRepository(env.db)
+	before, err := audit.Count(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	env.posting.SetReceiptService(failing)
+	if _, err := env.posting.PostIncomingReceipt(ctx, req); err == nil {
+		t.Fatal("ohne Siegel darf die Buchung nicht stehen")
+	}
+	if n := env.entryCount(t); n != 0 {
+		t.Errorf("%d Buchungen ohne Siegel im Journal", n)
+	}
+
+	if after, err := audit.Count(ctx); err != nil || after != before {
+		t.Fatalf("Protokoll nach gescheitertem Siegel: %d, %v; erwartet %d", after, err, before)
+	}
+	assertReceiptSeal(t, env, req.ReceiptID, nil)
+
+	env.posting.SetReceiptService(env.receipts)
 	entry, err := env.posting.PostIncomingReceipt(ctx, req)
 	if err != nil {
-		t.Fatalf("Beleg buchen: %v", err)
+		t.Fatalf("der offene Beleg muss buchbar bleiben: %v", err)
 	}
-
-	// Den Abbruch nachstellen: die Buchung steht, das Siegel fehlt.
-	if err := env.db.Model(&domain.Receipt{}).Where("id = ?", req.ReceiptID).
-		Updates(map[string]any{"status": domain.ReceiptStatusFiled, "journal_entry_id": nil}).Error; err != nil {
-		t.Fatalf("Testmanipulation fehlgeschlagen: %v", err)
-	}
-
-	repaired, err := env.receipts.Get(ctx, req.ReceiptID)
+	sealed, err := env.receipts.Get(ctx, req.ReceiptID)
 	if err != nil {
-		t.Fatalf("Beleg laden: %v", err)
+		t.Fatal(err)
 	}
-	if repaired.Status != domain.ReceiptStatusSealed {
-		t.Fatalf("der Beleg muss beim Lesen nachversiegelt werden, ist aber %q", repaired.Status)
+	if sealed.Status != domain.ReceiptStatusSealed || sealed.JournalEntryID == nil || *sealed.JournalEntryID != entry.ID {
+		t.Errorf("der Beleg muss auf die Buchung versiegelt sein: %q, %v", sealed.Status, sealed.JournalEntryID)
 	}
-	if repaired.JournalEntryID == nil || *repaired.JournalEntryID != entry.ID {
-		t.Errorf("das nachgeholte Siegel muss auf die Buchung zeigen, zeigt aber auf %v", repaired.JournalEntryID)
-	}
+}
+
+type failingSeal struct {
+	domain.ReceiptRepository
+}
+
+func (failingSeal) Seal(context.Context, uint, uint) error {
+	return errors.New("Siegel nicht schreibbar")
 }
 
 // Die Generalumkehr zeigt auf denselben Beleg: sie korrigiert die Buchung, nicht
@@ -214,7 +237,7 @@ func TestBookingRejectsAReceiptOfTheWrongDirection(t *testing.T) {
 	vendor := env.vendor(t, "Lieferant", "DE", "")
 
 	outgoing, err := env.receipts.File(ctx, FileReceiptRequest{
-		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// Die Kopfdaten gehören zu jedem buchbaren Beleg
 		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
 		// ValidateBookable die Buchung zurück.
 		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
@@ -233,17 +256,14 @@ func TestBookingRejectsAReceiptOfTheWrongDirection(t *testing.T) {
 	}
 }
 
-// Ein Beleg ohne ansehbare Darstellung ist nicht buchbar — die zweite der beiden
-// Prüfungen.
-func TestBookingRefusesAReceiptThatCannotBeDisplayed(t *testing.T) {
+// Eine reine XRechnung ist der Beleg: sie ist ohne PDF buchbar, und die App
+// zeigt sie aus dem Datensatz.
+func TestPureXRechnungIsBookableWithoutRendering(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	vendor := env.vendor(t, "Lieferant", "DE", "")
 
 	filed, err := env.receipts.File(ctx, FileReceiptRequest{
-		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
-		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
-		// ValidateBookable die Buchung zurück.
 		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction: domain.DirectionIncoming,
 		Files: []NewFile{
@@ -254,15 +274,14 @@ func TestBookingRefusesAReceiptThatCannotBeDisplayed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("XRechnung ablegen: %v", err)
 	}
-
-	req := env.receipt(t, vendor.ID, "software", 100000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
-	req.ReceiptID = filed.ID
-	_, err = env.posting.PostIncomingReceipt(ctx, req)
-	if err == nil {
-		t.Fatal("ein Beleg ohne Darstellung darf nicht gebucht werden")
+	if _, ok := filed.DisplayFile(); ok || !filed.IsDisplayable() {
+		t.Fatal("eine reine XRechnung hat keine Darstellungsdatei, lässt sich aber zeigen")
 	}
-	if !strings.Contains(err.Error(), "Darstellung") {
-		t.Errorf("die Meldung soll die fehlende Darstellung nennen, lautet aber: %v", err)
+
+	req := env.receipt(t, vendor.ID, "software", 10000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
+	req.ReceiptID = filed.ID
+	if _, err := env.posting.PostIncomingReceipt(ctx, req); err != nil {
+		t.Fatalf("eine reine XRechnung muss ohne PDF buchbar sein: %v", err)
 	}
 }
 

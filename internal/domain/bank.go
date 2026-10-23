@@ -25,9 +25,9 @@ type BankTransaction struct {
 	// Amount is positive for money coming in and negative for money going out.
 	Amount           Cents       `gorm:"not null" json:"amount"`
 	Currency         string      `gorm:"size:3;default:'EUR'" json:"currency"`
-	CounterpartyName string      `gorm:"type:text;serializer:encrypted_v2" json:"counterpartyName"`
-	CounterpartyIBAN string      `gorm:"size:34;serializer:encrypted" json:"counterpartyIban"`
-	RemittanceInfo   string      `gorm:"type:text;serializer:encrypted" json:"remittanceInfo"` // Verwendungszweck
+	CounterpartyName string      `gorm:"type:text" json:"counterpartyName"`
+	CounterpartyIBAN string      `gorm:"size:34" json:"counterpartyIban"`
+	RemittanceInfo   string      `gorm:"type:text" json:"remittanceInfo"` // Verwendungszweck
 	BankReference    string      `gorm:"size:255;index" json:"bankReference"`
 	EndToEndID       string      `gorm:"size:100;index" json:"endToEndId"`
 	MatchStatus      MatchStatus `gorm:"size:20;default:'unmatched';index" json:"matchStatus"`
@@ -44,6 +44,16 @@ type BankTransaction struct {
 	// (GoBD Rz. 130 f.): die CAMT-Datei ist der Beleg, die Zeile nur, was
 	// Buchfink daraus gelesen hat.
 	StatementReceiptID *uint `gorm:"index" json:"statementReceiptId,omitempty"`
+
+	// ImportChannel ist der Erfassungsweg, über den der Umsatz eingelesen
+	// wurde. StatementChecked: der Auszug hatte beide Salden, die Umsätze
+	// ergaben ihre Differenz, und der Anfangssaldo schloss an den letzten
+	// geprüften Auszug des Kontos an. Ein Agent ordnet einen Umsatz nur dann
+	// ohne Rückfrage zu, wenn der Mensch den Auszug eingelesen hat oder er
+	// geprüft ist: eine selbst geschriebene CAMT-Datei glich sonst
+	// Forderungen aus, ohne dass Geld kam.
+	ImportChannel    string `gorm:"size:64" json:"importChannel,omitempty"`
+	StatementChecked bool   `gorm:"not null;default:false" json:"statementChecked"`
 
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`

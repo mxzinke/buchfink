@@ -114,9 +114,24 @@ func (w *ciiWriter) renderDelivery(inv *Invoice) {
 	w.close("ram:ApplicableHeaderTradeDelivery")
 }
 
+// creditorReference ist BT-90. CII führt die Gläubiger-ID im Kopf der
+// Abrechnung; steht sie nur am Mandat eines Zahlungsmittels, kommt sie von
+// dort, wie der Leser sie beim Lesen dorthin legt.
+func creditorReference(inv *Invoice) string {
+	if inv.CreditorReference != "" {
+		return inv.CreditorReference
+	}
+	for _, means := range inv.PaymentMeans {
+		if means.DirectDebit != nil && means.DirectDebit.CreditorID != "" {
+			return means.DirectDebit.CreditorID
+		}
+	}
+	return ""
+}
+
 func (w *ciiWriter) renderSettlement(inv *Invoice) {
 	w.open("ram:ApplicableHeaderTradeSettlement")
-	w.optional("ram:CreditorReferenceID", inv.CreditorReference)
+	w.optional("ram:CreditorReferenceID", creditorReference(inv))
 	if len(inv.PaymentMeans) > 0 {
 		w.optional("ram:PaymentReference", inv.PaymentMeans[0].RemittanceInfo)
 	}

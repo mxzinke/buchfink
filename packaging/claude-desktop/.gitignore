@@ -1,0 +1,4 @@
+# Erzeugt beim Bauen der Erweiterung (README.md)
+server/
+icon.png
+*.mcpb

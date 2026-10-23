@@ -1,0 +1,9 @@
+{
+  "gruende": [
+    {
+      "schluessel": "e_rechnung_mit_befund",
+      "text": "Die Prüfung der E-Rechnung hat 1 Befund(e)."
+    }
+  ],
+  "stufe": "rueckfrage"
+}

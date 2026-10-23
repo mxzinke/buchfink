@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -37,17 +38,15 @@ func (e *testEnv) exports(t *testing.T) *ExportService {
 		repository.NewFiscalYearRepository(e.db),
 		receiptstore.New(e.dataDir),
 		e.dataDir,
-		e.fiscalYear,
 	)
 	svc.SetTenantName("Pfennig Ventures GmbH")
-	svc.SetCompanyDocuments(repository.NewDocumentRepository(e.db))
 	svc.SetOpenItemSource(e.payments(t))
 	return svc
 }
 
 // filledBooks legt einen kleinen, aber vollständigen Bestand an: zwei
 // Eingangsrechnungen mit Beleg und Personenkonto (eine offen, eine bezahlt),
-// eine Handbuchung, ein Anlagegut samt Zugang und Abschreibungslauf und eine
+// eine Handbuchung, ein Geschenk, ein Anlagegut samt Zugang und Abschreibungslauf und eine
 // gespeicherte Voranmeldung. Damit enthält jede Tabelle des Exports etwas —
 // eine Tabelle, die nur leer geprüft wird, ist nicht geprüft.
 func (e *testEnv) filledBooks(t *testing.T) *filledFixture {
@@ -59,6 +58,25 @@ func (e *testEnv) filledBooks(t *testing.T) *filledFixture {
 
 	if _, err := e.journal.Post(ctx, simpleEntry("6815", "1800", 4200)); err != nil {
 		t.Fatalf("Handbuchung: %v", err)
+	}
+
+	// Ein Geschenk mit Aufzeichnung (§ 4 Abs. 7 EStG): sie ist Teil der
+	// kanonischen Form und steht in einer eigenen Tabelle.
+	if _, err := e.journal.Post(ctx, &domain.JournalEntry{
+		BookingDate: "2026-03-10", DocumentDate: "2026-03-10",
+		ServiceDateFrom: "2026-03-10", ServiceDateTo: "2026-03-10",
+		Description: "Präsentkorb", Source: domain.EntrySourceManual,
+		TaxTreatment: domain.TaxTreatmentNotTaxable,
+		Lines: []domain.JournalLine{
+			{Side: domain.SideDebit, Account: "6610", Amount: 3_000},
+			{Side: domain.SideCredit, Account: "1800", Amount: 3_000},
+		},
+		Gifts: []domain.GiftRecord{{
+			FiscalYear: 2026, Date: "2026-03-10", RecipientName: "Dr.  Meyer",
+			Occasion: "Jubiläum", NetAmount: 3_000, Account: "6610",
+		}},
+	}); err != nil {
+		t.Fatalf("Geschenk: %v", err)
 	}
 
 	// Eine zweite Rechnung, die bezahlt wird: erst dadurch entsteht eine
@@ -79,18 +97,11 @@ func (e *testEnv) filledBooks(t *testing.T) *filledFixture {
 	// Ein Anlagegut mit Zugang und einem gebuchten AfA-Lauf: Stammdaten,
 	// Zugangs- und Abschreibungsbewegung.
 	assetSvc := e.assets(t)
-	assetSvc.SetDocumentStore(e.store)
 	asset := e.machine(t, assetSvc)
 	if _, err := assetSvc.BookDepreciation(ctx, BookDepreciationRequest{
 		FiscalYear: e.fiscalYear, BookingDate: "2026-12-31",
 	}); err != nil {
 		t.Fatalf("Abschreibungslauf: %v", err)
-	}
-	if _, err := assetSvc.AttachDocument(ctx, AttachDocumentRequest{
-		AssetID: asset.ID, Content: []byte("%PDF-1.4 Kaufvertrag Fräsmaschine"),
-		FileName: "kaufvertrag.pdf", Title: "Kaufvertrag",
-	}); err != nil {
-		t.Fatalf("Anlagendokument ablegen: %v", err)
 	}
 
 	// Der Belegeingang entscheidet über den Zeitraum des Vorsteuerabzugs
@@ -142,8 +153,8 @@ func TestExportZ3WritesEveryTable(t *testing.T) {
 	}
 
 	wanted := []string{
-		"journal", "bewirtungen", "zahlungszuordnungen", "konten", "salden",
-		"kontakte", "offene_posten", "anlagen", "anlagen_bewegungen", "dokumente",
+		"journal", "bewirtungen", "geschenke", "zahlungszuordnungen", "konten", "salden",
+		"kontakte", "offene_posten", "anlagen", "anlagen_bewegungen",
 		"belege", "voranmeldungen", "festschreibungen", "pruefläufe", "pruefpfad",
 		"aenderungsprotokoll", "steuerschluessel", "schluesselverzeichnis",
 	}
@@ -187,10 +198,6 @@ func TestExportZ3WritesEveryTable(t *testing.T) {
 	if byName["zahlungszuordnungen"].Rows != 1 {
 		t.Errorf("zahlungszuordnungen.csv hat %d Zeilen, erwartet 1 (die bezahlte Rechnung %s)",
 			byName["zahlungszuordnungen"].Rows, fixture.paidInvoice.EntryNumber)
-	}
-	if byName["dokumente"].Rows != 1 {
-		t.Errorf("dokumente.csv hat %d Zeilen, erwartet 1 (der Kaufvertrag zum Anlagegut)",
-			byName["dokumente"].Rows)
 	}
 	if byName["anlagen"].Rows != 1 {
 		t.Errorf("anlagen.csv hat %d Zeilen, erwartet 1 (%s)", byName["anlagen"].Rows, fixture.asset.InventoryNumber)
@@ -318,12 +325,9 @@ func TestExportedAccountsCarryTheTaxonomyElement(t *testing.T) {
 
 	checked := 0
 	for _, row := range rows[1:] {
-		want := ""
-		if key, ok := accounting.StatementKeyForAccount(byNumber[row[number]]); ok {
-			if e, hasElement := ebilanz.ElementFor(key); hasElement {
-				want = e.Element
-			}
-		}
+		year := env.fiscalYear
+		want := ebilanz.ElementForAccount(byNumber[row[number]],
+			fmt.Sprintf("%d-01-01", year), fmt.Sprintf("%d-12-31", year))
 		if row[element] != want {
 			t.Errorf("Konto %s: Taxonomie_Element %q, erwartet %q", row[number], row[element], want)
 		}
@@ -427,6 +431,7 @@ func TestExportedJournalLetsAnOutsiderRecomputeTheChain(t *testing.T) {
 
 	journal := readCSV(t, filepath.Join(dir, "journal.csv"))
 	meals := readCSV(t, filepath.Join(dir, "bewirtungen.csv"))
+	gifts := readCSV(t, filepath.Join(dir, "geschenke.csv"))
 	if len(journal) < 2 {
 		t.Fatal("journal.csv enthält keine Daten")
 	}
@@ -442,7 +447,7 @@ func TestExportedJournalLetsAnOutsiderRecomputeTheChain(t *testing.T) {
 			t.Fatalf("Buchung %s: Vorgängerhash %q, erwartet %q",
 				entry.head["Buchungsnummer"], got, prev)
 		}
-		computed := recomputeEntryHash(entry, meals)
+		computed := recomputeEntryHash(entry, meals, gifts)
 		if computed != entry.head["Eigenhash"] {
 			t.Fatalf("Buchung %s: nachgerechneter Hash %s, in der Datei steht %s",
 				entry.head["Buchungsnummer"], computed, entry.head["Eigenhash"])
@@ -562,49 +567,6 @@ func TestArchivePathsStayUniqueWithinAReceipt(t *testing.T) {
 	}
 }
 
-// Die Anlagendokumente liegen im Archiv unter der Inventarnummer, und die
-// Tabelle dokumente nennt Pfad und Prüfsumme. Ohne sie stünden die Verträge
-// allein in export.json — einer Metadatei über den Datenträger, nicht in der
-// Überlassung.
-func TestExportArchiveCarriesTheAssetDocuments(t *testing.T) {
-	env := newTestEnv(t)
-	fixture := env.filledBooks(t)
-
-	dir := filepath.Join(t.TempDir(), "archiv")
-	result, err := env.exports(t).ExportArchive(context.Background(), env.fiscalYear, dir)
-	if err != nil {
-		t.Fatalf("Archivexport: %v", err)
-	}
-	if result.DocumentFiles != 1 {
-		t.Fatalf("erwartet 1 mitgegebenes Anlagendokument, gezählt %d", result.DocumentFiles)
-	}
-
-	rows := readCSV(t, filepath.Join(dir, "dokumente.csv"))
-	if len(rows) != 2 {
-		t.Fatalf("dokumente.csv hat %d Zeilen (mit Kopf), erwartet 2", len(rows))
-	}
-	inventory := columnIndex(t, rows[0], "Inventarnummer")
-	name := columnIndex(t, rows[0], "Dateiname")
-	sum := columnIndex(t, rows[0], "SHA256")
-	path := columnIndex(t, rows[0], "Pfad_im_Export")
-
-	if rows[1][inventory] != fixture.asset.InventoryNumber {
-		t.Errorf("dokumente.csv nennt die Inventarnummer %q, erwartet %q",
-			rows[1][inventory], fixture.asset.InventoryNumber)
-	}
-	if rows[1][name] != "kaufvertrag.pdf" {
-		t.Errorf("dokumente.csv nennt die Datei %q, erwartet kaufvertrag.pdf", rows[1][name])
-	}
-	data, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(rows[1][path])))
-	if err != nil {
-		t.Fatalf("das Anlagendokument liegt nicht unter %s: %v", rows[1][path], err)
-	}
-	digest := sha256.Sum256(data)
-	if hex.EncodeToString(digest[:]) != rows[1][sum] {
-		t.Error("die Prüfsumme in dokumente.csv passt nicht zur mitgegebenen Datei")
-	}
-}
-
 // Das Prüferpaket hat den Nachweis der Unversehrtheit. Ohne ihn ist es ein
 // Archivexport mit einem anderen Namen.
 func TestExportAuditPackageCarriesTheIntegrityReport(t *testing.T) {
@@ -681,7 +643,7 @@ func TestExportAuditPackageCarriesTheTaxElectionRegister(t *testing.T) {
 	svc.SetTaxRegisterSource(NewTaxRegisterService(
 		repository.NewAssetRepository(env.db), repository.NewProvisionRepository(env.db),
 		env.journalRepo, repository.NewSettingsRepository(env.db),
-		env.closing(t), env.fiscalYear))
+		env.closing(t)))
 
 	dir := filepath.Join(t.TempDir(), "pruefer")
 	result, err := svc.ExportAuditPackage(ctx, env.fiscalYear, dir)
@@ -744,9 +706,9 @@ func TestExportJournalCSVCoversADateWindow(t *testing.T) {
 	}
 }
 
-// Das Schlüsselverzeichnis kommt aus derselben Tabelle wie der Z3-Export. Zwei
-// Quellen wären zwei Gelegenheiten, einen Code zu vergessen.
-func TestExportKeyDirectoryMatchesTheZ3Table(t *testing.T) {
+// Jeder Code, den das System kennt, steht im Schlüsselverzeichnis der
+// Datenüberlassung.
+func TestZ3KeyDirectoryListsEveryCode(t *testing.T) {
 	env := newTestEnv(t)
 	env.filledBooks(t)
 	svc := env.exports(t)
@@ -755,25 +717,12 @@ func TestExportKeyDirectoryMatchesTheZ3Table(t *testing.T) {
 	if _, err := svc.ExportZ3(context.Background(), env.fiscalYear, dir); err != nil {
 		t.Fatalf("Z3-Export: %v", err)
 	}
-	single := filepath.Join(t.TempDir(), "schluessel.csv")
-	if _, err := svc.ExportKeyDirectory(context.Background(), single); err != nil {
-		t.Fatalf("Schlüsselverzeichnis: %v", err)
-	}
-
-	fromPackage, err := os.ReadFile(filepath.Join(dir, "schluesselverzeichnis.csv"))
+	raw, err := os.ReadFile(filepath.Join(dir, "schluesselverzeichnis.csv"))
 	if err != nil {
 		t.Fatalf("Verzeichnis aus dem Paket lesen: %v", err)
 	}
-	standalone, err := os.ReadFile(single)
-	if err != nil {
-		t.Fatalf("einzelnes Verzeichnis lesen: %v", err)
-	}
-	if string(fromPackage) != string(standalone) {
-		t.Error("das einzeln exportierte Schlüsselverzeichnis weicht von dem im Z3-Export ab")
-	}
 
-	// Und jeder Steuerfall, den das System kennt, muss darin stehen.
-	content := string(standalone)
+	content := string(raw)
 	for _, treatment := range domain.AllTaxTreatments() {
 		if !strings.Contains(content, string(treatment)) {
 			t.Errorf("der Steuerfall %s fehlt im Schlüsselverzeichnis", treatment)
@@ -896,7 +845,7 @@ func groupJournalRows(t *testing.T, rows [][]string) []exportedEntry {
 // recomputeEntryHash baut die kanonische Form allein aus den exportierten
 // Spalten nach — nach dem Verfahren, das feldbeschreibung.md beschreibt, und
 // ohne eine Zeile des Buchfink-Codes zu benutzen.
-func recomputeEntryHash(entry exportedEntry, meals [][]string) string {
+func recomputeEntryHash(entry exportedEntry, meals, gifts [][]string) string {
 	var b strings.Builder
 	put := func(name, value string) {
 		b.WriteString(name)
@@ -931,19 +880,12 @@ func recomputeEntryHash(entry exportedEntry, meals [][]string) string {
 	put("rate_source", h["Kursquelle"])
 	put("rate_date", h["Kursdatum"])
 	put("rule_version", h["Regelversion"])
-	// Die Versionsweiche, wie die Feldbeschreibung sie beschreibt: eine
-	// Buchung mit belegter Programmfassung hat drei weitere Felder, eine ohne
-	// hat sie nicht.
-	if h["Programmfassung"] != "" {
-		put("app_version", h["Programmfassung"])
-		put("actor", h["Bearbeiter"])
-		put("legacy_ref", h["Herkunft_Altsystem"])
-	}
-	// Die zweite Weiche: die vereinbarte Fälligkeit wird nur geschrieben, wo die
-	// Spalte belegt ist.
-	if h["Faelligkeit"] != "" {
-		put("due_date", h["Faelligkeit"])
-	}
+	put("app_version", h["Programmfassung"])
+	put("actor", h["Bearbeiter"])
+	put("channel", h["Erfassungsweg"])
+	put("legacy_ref", h["Herkunft_Altsystem"])
+	put("due_date", h["Faelligkeit"])
+	put("closing_period", h["Abschlussperiode"])
 	put("created_at", h["Erfassungszeitpunkt_UTC"])
 
 	put("lines", strconv.Itoa(len(entry.lines)))
@@ -955,6 +897,8 @@ func recomputeEntryHash(entry exportedEntry, meals [][]string) string {
 		put("line_contact", line["Zeile_Kontakt_ID"])
 		put("line_tax_key", line["Steuerschluessel"])
 		put("line_tax_base", line["Bemessungsgrundlage_Cent"])
+		put("line_input_tax_share", line["Vorsteueranteil_Promille"])
+		put("line_foreign_amount", line["Fremdbetrag_Kleinste_Einheit"])
 		put("line_text", line["Zeilentext"])
 	}
 
@@ -966,6 +910,24 @@ func recomputeEntryHash(entry exportedEntry, meals [][]string) string {
 		put("entertainment_occasion", meal["Anlass"])
 	} else {
 		put("entertainment", "0")
+	}
+
+	// Die Geschenke in der Reihenfolge der Feldbeschreibung: nach dem
+	// Empfängerschlüssel, bei gleichem Schlüssel in der Reihenfolge der Tabelle.
+	presents := findGifts(gifts, h["Buchung_ID"])
+	sort.SliceStable(presents, func(i, j int) bool {
+		return giftRecipientKey(presents[i]) < giftRecipientKey(presents[j])
+	})
+	put("gifts", strconv.Itoa(len(presents)))
+	for _, g := range presents {
+		put("gift_recipient", g["Empfaenger"])
+		put("gift_recipient_contact", g["Empfaenger_Kontakt_ID"])
+		put("gift_occasion", g["Anlass"])
+		put("gift_date", g["Datum"])
+		put("gift_net", g["Nettobetrag_Cent"])
+		put("gift_account", g["Konto"])
+		put("gift_fiscal_year", g["Wirtschaftsjahr"])
+		put("gift_deductible", g["Abziehbar"])
 	}
 
 	sum := sha256.Sum256([]byte(b.String()))
@@ -991,6 +953,37 @@ func findMeal(rows [][]string, entryID string) map[string]string {
 		return values
 	}
 	return nil
+}
+
+// findGifts liefert die Zeilen der Geschenktabelle zu einer Buchung.
+func findGifts(rows [][]string, entryID string) []map[string]string {
+	out := make([]map[string]string, 0)
+	if len(rows) < 2 {
+		return out
+	}
+	index := map[string]int{}
+	for i, name := range rows[0] {
+		index[name] = i
+	}
+	for _, row := range rows[1:] {
+		if row[index["Buchung_ID"]] != entryID {
+			continue
+		}
+		values := map[string]string{}
+		for name, i := range index {
+			values[name] = row[i]
+		}
+		out = append(out, values)
+	}
+	return out
+}
+
+// giftRecipientKey baut den Empfängerschlüssel nach der Feldbeschreibung.
+func giftRecipientKey(g map[string]string) string {
+	if id := g["Empfaenger_Kontakt_ID"]; id != "" && id != "0" {
+		return "contact:" + id
+	}
+	return "name:" + strings.ToLower(strings.Join(strings.Fields(g["Empfaenger"]), " "))
 }
 
 // --- Jahresgrenzen ---------------------------------------------------------
@@ -1175,5 +1168,54 @@ func TestExportTablesDeclareIntegerColumnsWithoutDecimals(t *testing.T) {
 		if integers[name] {
 			t.Errorf("die Betragsspalte %s wird zugleich ganzzahlig beschrieben", name)
 		}
+	}
+}
+
+// Die Gesellschafterdarlehen stehen mit Vertrag und gebuchten Zinsperioden in
+// der Überlassung: Zins und Vergleichszins sind der Nachweis gegen eine
+// verdeckte Gewinnausschüttung und gehören nicht nur ins Änderungsprotokoll.
+func TestExportZ3CarriesShareholderLoans(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	env.withShareholders(t)
+	mara := env.person(t, "Mara Beispiel")
+	loans := env.shareholders(t)
+	view, err := loans.RegisterLoan(ctx, LoanRequest{ContactID: mara.ID, Direction: domain.LoanToCompany,
+		Principal: 2_000_000, InterestRateBP: 350, StartDate: "2026-01-02", MaturityDate: "2028-12-31",
+		ComparisonRateBP: intPtr(500), ComparisonSource: "Angebot der Hausbank"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	payments := env.paymentsWithBank(t)
+	payments.SetLoanSource(loans)
+	tx := env.bankLine(t, "2026-01-02", 2_000_000, "Mara Beispiel", "Darlehen")
+	if _, err := payments.BookBankSplit(ctx, BankSplitRequest{BankTxID: tx,
+		Lines: []BankSplitLine{{LoanID: view.Loan.ID, Amount: 2_000_000}}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loans.BookInterest(ctx, InterestRequest{LoanID: view.Loan.ID, To: "2026-06-30"}); err != nil {
+		t.Fatal(err)
+	}
+
+	svc := env.exports(t)
+	svc.SetLoanSource(repository.NewShareholderLoanRepository(env.db))
+	dir := filepath.Join(t.TempDir(), "z3")
+	if _, err := svc.ExportZ3(ctx, 2026, dir); err != nil {
+		t.Fatalf("Z3-Export: %v", err)
+	}
+	contract, err := os.ReadFile(filepath.Join(dir, "darlehen.csv"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(contract), "3.50") || !strings.Contains(string(contract), "5.00") ||
+		!strings.Contains(string(contract), "Angebot der Hausbank") {
+		t.Errorf("darlehen.csv trägt Zins und Vergleichszins nicht:\n%s", contract)
+	}
+	interest, err := os.ReadFile(filepath.Join(dir, "darlehen_zinsen.csv"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(interest), "2026-01-02") || !strings.Contains(string(interest), "2026-06-30") {
+		t.Errorf("darlehen_zinsen.csv trägt die Zinsperiode nicht:\n%s", interest)
 	}
 }

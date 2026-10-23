@@ -1,0 +1,308 @@
+// Package core ist der Buchungskern hinter Oberfläche und MCP-Server: ein
+// offener Mandant mit genau einem Satz Dienste, eine Schreibsperre je
+// Mandant und eine Transaktion je Vorgang. Das Paket kennt kein Wails.
+package core
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"sync"
+	"time"
+
+	"github.com/buchfink/buchfink/internal/actor"
+	"github.com/buchfink/buchfink/internal/calendar"
+	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/invoice"
+	"github.com/buchfink/buchfink/internal/repository"
+	"gorm.io/gorm"
+)
+
+// closeTimeout ist die längste Wartezeit beim Schließen auf laufende
+// Vorgänge. Danach wird trotzdem geschlossen; ein hängender Aufrufer bekommt
+// dann einen Datenbankfehler statt eines offenen Pools für immer.
+var closeTimeout = 60 * time.Second
+
+// Options beschreibt einen zu öffnenden Mandanten.
+type Options struct {
+	Clock      Clock
+	TenantID   string
+	TenantName string
+	// Generation zählt die Mandantenwechsel des Hosts. Ein Aufrufer, der sich
+	// eine Generation merkt, erkennt daran einen Wechsel.
+	Generation uint64
+	// Renderer setzt Rechnungen und Abschlüsse. Ohne Angabe bekommt der
+	// Mandant einen eigenen, der mit ihm geschlossen wird.
+	Renderer *invoice.Renderer
+	// BackupDir liefert den eingerichteten Sicherungsordner.
+	BackupDir func() string
+	// Network sind die Wege ins Netz; leere Felder nehmen die echten Dienste.
+	Network Network
+	Logger  *slog.Logger
+	// OnChange hört jeden gelungenen Vorgang (Change). Er läuft nach der
+	// Schreibsperre im Aufrufer und darf nicht blockieren.
+	OnChange func(Change)
+}
+
+// backupDirectory ist der eingerichtete Sicherungsordner dieses Mandanten.
+func (t *Tenant) backupDirectory() string {
+	if t.backupDir == nil {
+		return ""
+	}
+	return t.backupDir()
+}
+
+// Tenant ist ein offener Mandant.
+type Tenant struct {
+	clock       Clock
+	info        TenantInfo
+	gen         uint64
+	db          *gorm.DB
+	reader      *gorm.DB
+	tx          domain.TxRunner
+	svc         *Services
+	repos       stores
+	renderer    *invoice.Renderer
+	ownRenderer bool
+	examiner    examinerCache
+	network     Network
+	backupDir   func() string
+	logger      *slog.Logger
+	onChange    func(Change)
+
+	// startYear ist das Geschäftsjahr, mit dem die Ansicht nach dem Öffnen
+	// beginnt. Die Dienste kennen es nicht.
+	startYear int
+
+	write  writeLock
+	leases leases
+	jobs   jobs
+	lock   *dataLock
+
+	closeOnce sync.Once
+	closeErr  error
+}
+
+// Open öffnet die Mandantendatei im Datenordner, verdrahtet die Dienste und
+// legt fehlende Geschäftsjahre an.
+func Open(ctx context.Context, dataDir string, o Options) (*Tenant, error) {
+	lock, err := lockDataDir(dataDir)
+	if err != nil {
+		return nil, err
+	}
+	db, err := repository.InitTenantDB(dataDir)
+	if err != nil {
+		_ = lock.release()
+		return nil, fmt.Errorf("die Mandantendatenbank in %s ließ sich nicht öffnen: %w", dataDir, err)
+	}
+	reader, err := repository.OpenTenantReader(dataDir)
+	if err != nil {
+		_ = repository.CloseDB(db)
+		_ = lock.release()
+		return nil, err
+	}
+
+	logger := o.Logger
+	if logger == nil {
+		logger = slog.Default()
+	}
+	renderer, own := o.Renderer, false
+	if renderer == nil {
+		renderer, own = invoice.NewRenderer(), true
+	}
+	if o.Clock == nil {
+		o.Clock = realClock{}
+	}
+	info := TenantInfo{ID: o.TenantID, Name: o.TenantName, DataDir: dataDir}
+	t := &Tenant{
+		info: info, gen: o.Generation, clock: o.Clock,
+		db: db, reader: reader, tx: repository.NewTxRunner(db),
+		renderer: renderer, ownRenderer: own,
+		backupDir: o.BackupDir, logger: logger, onChange: o.OnChange,
+		write: newWriteLock(), lock: lock,
+	}
+	o.Network = o.Network.guarded(func() bool { return t.Examiner().Active })
+	t.network = o.Network
+	t.svc, t.repos = wire(db, info, renderer, o)
+
+	t.svc.Backup.SetRecorder(t.recordInWrite)
+	t.startYear = startYear(ctx, repository.NewSettingsRepository(db), t.clock.Now())
+	if err := t.loadExaminer(ctx); err != nil {
+		_ = t.Close(ctx)
+		return nil, err
+	}
+
+	// Das Geschäftsjahr der Unternehmensdaten besteht auch ohne Buchung.
+	// Scheitert das Anlegen, bleibt der Mandant benutzbar; die Ansicht
+	// „Jahresabschluss" legt das Jahr beim ersten Aufruf an.
+	system := actor.WithChannel(ctx, actor.ChannelSystem)
+	if err := t.Write(system, func(ctx context.Context, s *Services) error {
+		return s.Closing.EnsureFiscalYears(ctx, t.startYear)
+	}, ExaminerExempt()); err != nil {
+		logger.Warn("Geschäftsjahre konnten nicht angelegt werden", "mandant", info.ID, "fehler", err)
+	}
+	return t, nil
+}
+
+// startYear ist das Geschäftsjahr der Unternehmensdaten, sonst das des
+// heutigen Tages nach Beginnmonat.
+func startYear(ctx context.Context, settings domain.SettingsRepository, now time.Time) int {
+	if s, err := settings.GetCompanySettings(ctx); err == nil && s != nil {
+		if s.FiscalYear > 0 {
+			return s.FiscalYear
+		}
+		return domain.GetFiscalYearForDate(calendar.Day(now), s.FiscalYearStartMonth)
+	}
+	return now.In(calendar.Location()).Year()
+}
+
+// StartYear ist das Geschäftsjahr, mit dem die Ansicht nach dem Öffnen
+// beginnt: das der Unternehmensdaten, sonst das des heutigen Tages.
+func (t *Tenant) StartYear() int { return t.startYear }
+
+// Close wartet auf laufende Vorgänge und schließt die Datenbank. Danach
+// liefert jeder Aufruf ErrTenantClosing.
+func (t *Tenant) Close(ctx context.Context) error {
+	t.closeOnce.Do(func() {
+		t.leases.stop()
+		t.jobs.stop()
+		if !t.leases.drain(closeTimeout) {
+			t.logger.Warn("Mandant wird mit laufenden Vorgängen geschlossen", "mandant", t.info.ID)
+		}
+		errs := []error{repository.CloseDB(t.reader), repository.CloseDB(t.db)}
+		if t.ownRenderer {
+			errs = append(errs, t.renderer.Close(ctx))
+		}
+		errs = append(errs, t.lock.release())
+		t.closeErr = errors.Join(errs...)
+	})
+	return t.closeErr
+}
+
+// ID ist die Kennung des Mandanten in der Mandantenliste.
+func (t *Tenant) ID() string { return t.info.ID }
+
+// Name ist der Anzeigename beim Öffnen.
+func (t *Tenant) Name() string { return t.info.Name }
+
+// DataDir ist der Datenordner.
+func (t *Tenant) DataDir() string { return t.info.DataDir }
+
+// Generation ist der Stand des Mandantenwechsels, unter dem er geöffnet wurde.
+func (t *Tenant) Generation() uint64 { return t.gen }
+
+// Read führt fn in einer lesenden Transaktion aus, ohne Schreibsperre.
+//
+// Alle Repository-Aufrufe in fn sehen denselben Stand. Ein Schreibversuch
+// scheitert an der Verbindung; einzig das Änderungsprotokoll schreibt, weil
+// ein Zugriff auf personenbezogene Daten auch beim Lesen protokolliert wird.
+func (t *Tenant) Read(ctx context.Context, fn func(context.Context, *Services) error) error {
+	if _, err := channelOf(ctx); err != nil {
+		return err
+	}
+	if owned, err := t.ownsTx(ctx); owned || err != nil {
+		if err != nil {
+			return err
+		}
+		return fn(ctx, t.svc)
+	}
+	release, err := t.leases.acquire()
+	if err != nil {
+		return err
+	}
+	defer release()
+	return repository.RunReadOnly(ctx, t.reader, func(ctx context.Context) error {
+		return fn(markTxOf(ctx, t), t.svc)
+	})
+}
+
+// ownsTx meldet, ob der Kontext schon eine Transaktion dieses Mandanten trägt.
+// Eine Transaktion eines anderen Mandanten oder eine fremde ist ein Fehler:
+// die Repositories nähmen sie, und der Vorgang liefe in der falschen Datei.
+func (t *Tenant) ownsTx(ctx context.Context) (bool, error) {
+	if owner := txOf(ctx); owner != nil {
+		if owner != t {
+			return false, ErrForeignTenant
+		}
+		return true, nil
+	}
+	if repository.InTx(ctx) {
+		return false, ErrForeignTenant
+	}
+	return false, nil
+}
+
+// Write führt fn als einen Vorgang aus: unter der Schreibsperre des
+// Mandanten, nach der Prüfung des Prüfermodus und in einer Transaktion.
+// Scheitert fn, ist nichts geschrieben. Gelingt er, meldet der Mandant ihn
+// nach der Schreibsperre als Change.
+//
+// Ein Write im Kontext eines laufenden Write desselben Mandanten gehört zu
+// dessen Transaktion.
+func (t *Tenant) Write(ctx context.Context, fn func(context.Context, *Services) error, opts ...WriteOption) error {
+	var o writeOptions
+	for _, opt := range opts {
+		opt(&o)
+	}
+	channel, err := channelOf(ctx)
+	if err != nil {
+		return err
+	}
+	if o.appOnly && channel != actor.ChannelUI {
+		return ErrAppOnly
+	}
+	if owned, err := t.ownsTx(ctx); err != nil {
+		return err
+	} else if owned && repository.IsReadOnly(ctx) {
+		return ErrWriteInRead
+	} else if owned {
+		return fn(ctx, t.svc)
+	}
+
+	release, err := t.leases.acquire()
+	if err != nil {
+		return err
+	}
+	defer release()
+	changes := &changeSet{}
+	if err := t.writeLocked(withChangeSet(ctx, changes), fn, o); err != nil {
+		return err
+	}
+	t.emit(Change{TenantID: t.ID(), Channel: channel, Kinds: changes.list()})
+	return nil
+}
+
+// writeLocked ist der Vorgang unter der Schreibsperre.
+func (t *Tenant) writeLocked(ctx context.Context, fn func(context.Context, *Services) error, o writeOptions) error {
+	if err := t.write.lock(ctx); err != nil {
+		return err
+	}
+	defer t.write.unlock()
+
+	ctx = markTxOf(markInWrite(ctx, t), t)
+	err := t.tx.RunInTx(ctx, func(ctx context.Context) error {
+		if !o.examinerExempt {
+			if err := t.ensureWritable(ctx); err != nil {
+				return err
+			}
+		}
+		return fn(ctx, t.svc)
+	})
+	// Noch unter der Schreibsperre: ein Kontenplan, den dieser Vorgang
+	// geändert hat, gilt erst nach dem Commit und wird neu aufgebaut.
+	t.svc.Journal.SettleChart()
+	return err
+}
+
+// germanDate macht aus 2026-06-30 den 30.06.2026.
+func germanDate(iso string) string {
+	parsed, err := time.Parse("2006-01-02", iso)
+	if err != nil {
+		return iso
+	}
+	return parsed.Format("02.01.2006")
+}
+
+// Today liefert den Buchhaltungstag aus der Kernuhr.
+func (t *Tenant) Today() string { return calendar.Today(t.clock.Now) }

@@ -1,391 +1,355 @@
-# Buchfink – Architektur und Bedienkonzept
+# Architektur
 
-[Dokumentation](../README.md) · [Entwicklung](README.md)
+[Dokumentation](../README.md) · [Entwicklung](README.md) ·
+[Orientierung im Code](codebase.md) · [MCP-Server](mcp.md)
 
-Status: verbindlich für die Produktionsreife
-Letzte Aktualisierung: 2026-09-11
+Buchfink führt die Bücher einer GmbH oder UG. Ein KI-Agent bedient Buchfink über
+MCP, der Mensch sieht in der App, was geschehen ist, und gibt frei, was sich
+nicht rückgängig machen lässt. Diese Seite beschreibt, wie das gebaut ist und
+warum.
 
-Dieses Dokument beschreibt, wie Buchfink gebaut ist und wie es sich anfühlen
-soll, wenn jemand ohne Buchhaltungskenntnis damit die Bücher einer kleinen
-Kapitalgesellschaft führt. Es ergänzt zwei andere Dokumente: der
-[Anforderungskatalog](../anforderungen/README.md) sagt, was das Gesetz verlangt und
-wie weit Buchfink das erfüllt; das [Design-Konzept](../gestaltung/README.md) sagt,
-wie die Oberfläche aussieht. Hier steht, warum die Software so geschnitten ist
-und welche Entscheidungen dahinterstehen.
+## 1. Grundentscheidungen
 
----
+| Entscheidung | Folge |
+|---|---|
+| **Ein Prozess, ein Schreiber.** Der MCP-Server läuft im Prozess der App. | Ohne geöffnete App keine Werkzeuge. Oberfläche und Agent schreiben über denselben Kern und dieselbe Sperre. |
+| **Freigabe nach Risiko.** Routine bucht der Agent direkt nach festen Regeln, was sich per Storno korrigieren lässt nach Zustimmung im Chat, Unumkehrbares und Stammdaten nur der Mensch in der App. | Der Kern weist Vorgänge, die der App vorbehalten sind, für jeden anderen Erfassungsweg ab. Ein Werkzeug dafür gibt es nicht; Stammdaten schlägt ein Agent nur vor, der Mensch übernimmt sie nach der Vorschau in der App. Einzelne Konten sperrt Buchfink für Agenten nicht. |
+| **Ablage auf Anweisung.** Belege, E-Rechnungen und Kontoauszüge kommen in einen Eingang je Mandant. | Buchfink beobachtet keinen Ordner und legt nichts von selbst ab. Der Agent legt ab, wenn der Mensch es sagt; danach verschiebt Buchfink die Datei in den Unterordner `Übernommen/`. |
+| **Lokal und unverschlüsselt.** Alle Daten liegen im Datenordner des Mandanten. | Schutz am Rechner über das Betriebssystem, Integrität über Hash-Ketten und Zeitstempel ([Datensicherheit](../nutzung/datensicherheit.md)). |
+| **Keine Übermittlung.** Buchfink sendet nichts an Finanzamt oder Register. | Voranmeldung und Erklärungen sind Eingabehilfen für Mein ELSTER. Die E-Bilanz ist eine XBRL-Datei für einen E-Bilanz-Dienst wie ebilanzplus.de oder ebilanzonline.de, ersatzweise eine Saldenliste für eBilanz+. Die Übermittlung bestätigt der Mensch mit Transferticket. |
+| **SKR04, Einheitsbilanz.** Ein Kontenrahmen, ein Wertansatz. | Steuerliche Abweichungen (§ 7g EStG) führt Buchfink am Anlagegut und zeigt sie in der Überleitung der E-Bilanz. |
+| **Geschlossene Liste der Steuerfälle.** | Jeder Fall ist durchgängig richtig: Buchung, Rechnungstext, Voranmeldung, Meldung. Was nicht in der Liste steht, weist Buchfink ab ([Umfang](../nutzung/umfang.md)). |
+| **Nur GmbH und UG.** | Konten, Gründung, Größenklassen, Feststellung und Offenlegung sind für Kapitalgesellschaften gebaut. |
 
-## 1. Wer Buchfink bedient
-
-Buchfink richtet sich an kleine Unternehmen, Gründer und Holdings, vor allem
-an kleine GmbHs und UGs. Sie wollen ihre Buchhaltung selbst erledigen und ihre
-Daten behalten. Die Bedienung setzt weder Buchhaltungs- noch Rechtskenntnisse
-voraus. Sie soll helfen, Vorgänge zu verstehen und die nötigen Schritte selbst
-zu erledigen.
-
-Ziel ist eine gesetzeskonforme, gemeinsam entwickelte Software, mit der auch
-einfache Jahresabschlüsse selbst erstellt werden können. Steuerberatung bleibt
-für die steuerliche Gestaltung und konkrete Fragen verfügbar. Dieser
-vollständige Abschlussweg ist noch nicht erreicht; siehe
-[Umsetzungsstand](../projekt/umsetzungsstand.md) und [Roadmap](../projekt/roadmap.md).
-
-Jede Ansicht beantwortet: Was ist jetzt zu tun, welche Angaben brauche ich und
-woran erkenne ich, dass der Schritt erledigt ist?
-
----
-
-## 2. Grundentscheidungen
-
-Die folgenden Entscheidungen sind bewusst getroffen und gelten bis auf
-Widerruf. Jede hat eine Wirkung auf den Anforderungskatalog, die dort mit dem
-Status `SCOPE` markiert ist.
-
-| Entscheidung | Begründung | Folge |
-|---|---|---|
-| **Einzelplatz, ein Bearbeiter.** Buchfink läuft auf einem Rechner, ohne Benutzerverwaltung. | Die Zielgruppe hat keine Buchhaltungsabteilung. Rollen und Freigabestufen wären für eine Person Theater. | Jede Buchung speichert die Bearbeiterkennung (Betriebssystem-Benutzer und Rechnername). Funktionstrennung nach GoBD Rz 100 ff. wird in der Verfahrensdokumentation als „ein Bearbeiter, Kontrolle durch Steuerberater und Abschlussprüfung" beschrieben. Ein Prüfer bekommt den Datenträger (Z3), ergänzt um einen schreibgeschützten Prüfermodus (Z1). |
-| **Local-First, Speicherort Inland.** Alle Daten liegen in einem Ordner auf dem Rechner der Anwenderin. | Kein Cloud-Zwang, keine Auftragsverarbeitung, keine Verlagerung nach § 146 Abs. 2a AO. | Sicherung und Wiederherstellung müssen Teil der Software sein. Der Speicherort wird in der Verfahrensdokumentation als Inland dokumentiert; wer den Ordner in eine ausländische Cloud synchronisiert, wird beim Einrichten darauf hingewiesen. |
-| **Keine ERiC-Anbindung.** Buchfink übermittelt nichts selbst an die Finanzverwaltung. | ERiC ist eine proprietäre C-Bibliothek mit eigenen Lizenzbedingungen; ihre Einbindung würde den Build und die Lizenz des Projekts verändern. | Voranmeldung und Zusammenfassende Meldung werden extern übermittelt; deren Nachweise lassen sich erfassen. Die E-Bilanz-Datei ist ungeprüft und kein zugesicherter Upload für Mein ELSTER. Ein entsprechender E-Bilanz-Übermittlungsnachweis fehlt noch. |
-| **SKR04, Einheitsbilanz.** Ein Kontenrahmen, ein Wertansatz. | Kleine Kapitalgesellschaften stellen in der Praxis eine Einheitsbilanz auf. Zwei Bewertungskreise verdoppeln jede Erfassungsmaske. | Wo das Steuerrecht zwingend abweicht (Sonderabschreibung § 7g EStG), führt Buchfink den steuerlichen Wert am Anlagegut mit und erzeugt daraus das Verzeichnis nach § 5 Abs. 1 S. 2 EStG und die Überleitungsrechnung. Latente Steuern (§ 274 HGB) entfallen für kleine Gesellschaften nach § 274a HGB; die Bindung dieser Befreiung an die Größenklasse ist noch nicht vollständig implementiert. |
-| **Steuerfälle sind eine geschlossene Liste.** | Jeder Steuerfall, den die Software kennt, muss vollständig richtig sein: Buchung, Rechnungstext, Voranmeldung, Meldung. Ein halb unterstützter Fall ist gefährlicher als ein fehlender. | Unterstützt: Inland 19 %, 7 %, 0 %, steuerfrei, innergemeinschaftlicher Erwerb, innergemeinschaftliche Lieferung, Reverse Charge als Empfänger (§ 13b Abs. 2 Nr. 1 UStG) und als Leistender (§ 3a Abs. 2 UStG), Ausfuhr. Ausgeschlossen: Kleinunternehmer, Differenzbesteuerung, Reiseleistungen, OSS/IOSS, Konsignationslager, Dreiecksgeschäft, Bauleistungen nach § 13b Abs. 2 Nr. 4 UStG. Die Oberfläche sagt bei einem ausgeschlossenen Fall, dass Buchfink ihn nicht abbildet. |
-| **Keine Kasse, kein Lager, kein Lohn.** | Bargeschäft löst die KassenSichV aus, Lager braucht Inventur, Lohn ist ein eigenes Rechtsgebiet. | Das Kassenkonto 1600 bleibt bebuchbar für Auslagen und Verauslagungen, ein Kassenbuch gibt es nicht. Vorräte werden zum Stichtag als Inventurwert erfasst und als Bestandsveränderung gebucht. Lohn kommt als Sammelbuchung aus dem Lohnjournal des Lohnbüros herein. |
-| **Kapitalgesellschaften zuerst.** | Der Gründungsweg, die Kapitalaufbringung, die Größenklassen und die Offenlegung sind für UG, GmbH und AG gebaut. Personenhandelsgesellschaften brauchen Kapitalkonten je Gesellschafter, Entnahmen und Einlagen. | Die Rechtsformen KG, OHG und e.K. bleiben wählbar, zeigen aber in der Oberfläche den Hinweis „Kapitalkonten und Entnahmen sind in dieser Fassung nicht abgebildet". |
-
----
-
-## 3. Die Kette, an der alles hängt
-
-Der Anforderungskatalog beschreibt die Kette vom Geschäftsvorfall bis zur
-Offenlegung. In Buchfink hat jede Station eine Entität und einen Dienst.
-
-```mermaid
-flowchart LR
-    A["Bankumsatz<br/><small>BankTransaction</small>"] --> D
-    B["Beleg<br/><small>Receipt, SHA256 je Datei</small>"] --> D
-    C["Ausgangsrechnung<br/><small>Invoice, ZUGFeRD</small>"] --> D
-    D["Buchung<br/><small>JournalEntry, Hash-Chain</small>"] --> E["Konten<br/><small>Account, PositionID</small>"]
-    E --> F["Bilanz und GuV<br/><small>§§ 266, 275 HGB</small>"]
-    F --> G["E-Bilanz<br/><small>XBRL, Taxonomie als Ressource</small>"]
-    F --> H["Offenlegung<br/><small>Unternehmensregister</small>"]
-    D -. Festschreibung, RFC 3161 .-> I["Unveränderbarkeit"]
-    B -. Fristenklasse, Löschsperre .-> J["Aufbewahrung"]
-    E -. Z3-Export, Prüfermodus .-> K["Datenzugriff"]
-```
-
-Was heute schon funktioniert und was in dieser Runde dazukommt, steht je Station im
-Anforderungskatalog. Die Architekturentscheidung ist, **dass jede Station aus
-den Buchungen abgeleitet wird und nichts daneben erfasst wird**: die Bilanz
-liest Kontensalden, die E-Bilanz liest die Bilanz, die Voranmeldung liest die
-Steuerzeilen der Buchungen. Es gibt keine zweite Datenquelle für eine Zahl.
-
----
-
-## 4. Schichten
+## 2. Aufbau
 
 ```mermaid
 flowchart TB
-    subgraph Frontend["Frontend (React, TypeScript)"]
-        P["pages/*"] --> API["services/api.ts"]
+    subgraph Clients["KI-Clients"]
+        CC["Claude Code, OpenCode, Codex, Pi"]
+        CD["Claude Desktop"]
     end
-    API --> BR["wailsbridge<br/>Aufrufbare Oberfläche, Mandant, Geschäftsjahr"]
-    subgraph Backend["Backend (Go)"]
-        BR --> SVC["service<br/>Anwendungsfälle: Buchen, Zahlen, Abschließen, Exportieren"]
-        SVC --> ACC["accounting<br/>Regeln: SKR04, Steuerschlüssel, AfA, Hash"]
-        SVC --> DOM["domain<br/>Entitäten, Invarianten, Repository-Schnittstellen"]
-        SVC --> REP["repository<br/>GORM, SQLite, Feldverschlüsselung"]
-        SVC --> FMT["Formatmodule<br/>einvoice, invoice, ebilanz, bank, export"]
+    CD -- stdio --> BR["cmd/buchfink-mcp<br/>Brücke"]
+    CC -- "HTTP + OAuth" --> MCP
+    BR -- "HTTP + OAuth" --> MCP
+    subgraph App["Buchfink-App, ein Prozess"]
+        MCP["internal/mcpserver<br/>Werkzeuge, Autorisierung"]
+        UI["frontend + internal/wailsbridge<br/>Oberfläche"]
+        MCP --> CORE
+        UI --> CORE
+        MCP --> POL["internal/core/policy, inbox<br/>Routine, Pfade, Eingang"]
+        UI --> POL
+        CORE["internal/core<br/>Mandant, Schreibsperre, Transaktion, Prüfermodus, Ereignisse"]
+        CORE --> SVC["internal/service<br/>Anwendungsfälle"]
+        SVC --> ACC["accounting, domain<br/>Regeln und Entitäten"]
+        CORE --> TAX["internal/taxrules<br/>Journal-Erweiterungen"]
+        TAX --> ACC
+        SVC --> REP["repository<br/>GORM, SQLite"]
+        SVC --> FMT["einvoice, invoice, bank, ebilanz,<br/>declaration, export, procdoc"]
     end
     REP --> DB[("buchfink.sqlite je Mandant")]
-    FMT --> FS[("belege/, dokumente/, export/")]
+    FMT --> FS[("belege/, dokumente/")]
+    POL --> IN[("Eingang/, Übernommen/")]
 ```
 
 Regeln, die diese Schichtung stützen:
 
 1. **Ein Schreibweg ins Journal.** `service.JournalService.Post` ist die einzige
-   Stelle, an der eine Buchung entsteht. Alle Anwendungsfälle (Beleg buchen,
-   Zahlung zuordnen, AfA-Lauf, Saldenvortrag, Abschlussbuchung) bauen einen
-   `JournalEntry` und geben ihn dorthin. Dort sitzen Ausgleich, Kontenprüfung,
-   Periodensperre, Nummernvergabe und Hash-Chain.
-2. **Regeln ohne Datenbank.** Das Paket `accounting` rechnet: Steuerschlüssel,
-   AfA-Pläne, Wertgrenzen, Größenklassen, Bilanzgliederung. Es kennt keine
-   Repositories und ist vollständig durch Tabellentests abgedeckt.
-3. **Zeitabhängige Parameter als datierte Regelsätze.** Wertgrenzen, AfA-Sätze,
-   Größenklassen-Schwellen, Basiszinssatz und Aufbewahrungsfristen liegen in
-   `accounting/tax_params.go` als Tabellen mit Gültigkeitsbeginn. Eine
-   Gesetzesänderung ist eine neue Zeile, keine Codeänderung.
-4. **Formatmodule sind austauschbar.** Export (Z3, DATEV, Archiv), E-Bilanz und
-   E-Rechnung lesen ein neutrales Datenmodell und schreiben ein Format. Die
-   künftige Buchführungsdatenschnittstelle nach § 147b AO wird ein weiteres
-   Modul, kein Umbau.
-5. **Die Bridge hält den Zustand, die Dienste sind zustandsarm.** Mandant und
-   aktives Geschäftsjahr leben in `wailsbridge`; die Dienste bekommen das Jahr
-   gesetzt und filtern danach.
+   Stelle, an der eine Buchung entsteht. Dort sitzen Ausgleich, Kontenprüfung,
+   Periodensperre, Nummernvergabe und Hash-Kette.
+2. **Regeln ohne Datenbank.** `internal/accounting` rechnet Steuerschlüssel,
+   AfA, Wertgrenzen, Größenklassen und Gliederung. Es kennt keine Repositories.
+   `internal/declaration` und `internal/ebilanz` rechnen ebenso nur aus dem,
+   was der Dienst übergibt.
+3. **Datierte Parameter.** Wertgrenzen, Sätze, Basiszins und Fristen liegen in
+   `accounting/tax_params.go` und eingebetteten Ressourcen mit
+   Gültigkeitsbeginn. Eine Gesetzesänderung ist eine neue Zeile.
+4. **Formatmodule lesen ein neutrales Modell.** E-Rechnung, E-Bilanz,
+   Erklärungen und Datenüberlassung kennen weder Kern noch Oberfläche.
+5. **Zeitpunkte in UTC.** Gespeichert wird jeder Zeitpunkt in UTC, angezeigt in
+   Ortszeit. Kalendertage (`JJJJ-MM-TT`) richten sich nach `Europe/Berlin`,
+   unabhängig von der Rechnerzeitzone. `calendar.Today` verwendet eine
+   injizierbare Uhr; Zeitpunkte werden vor der Datumsbildung mit `calendar.Day`
+   nach Deutschland umgerechnet. Die Kernuhr versorgt Dienste und Hintergrundläufe.
+   Beim Schreiben in die Mandantendatenbank normalisiert GORM alle
+   `time.Time`-Felder in UTC.
 
-### Prüfpunkte mit Datum
+`JournalService.check` führt für `Post` und `ValidatePostable` dieselbe
+geordnete Regelliste aus. Ausgleich und Pflichtfelder, bebuchbare Konten nach
+Kontenplan und Rechtsform, die Zuordnung von Personenkonten, Steuerkonten mit
+Steuerschlüssel sowie Feststellung und Periodensperre sind feste Kernregeln
+in `internal/service`. Registrierung kann sie nicht ersetzen.
 
-Fünf Punkte stehen von außen fest und sind zu ihrem Termin nachzuprüfen. Sie
-gehören in den Entwicklungsplan, nicht in eine Merkliste.
+`core/wire.go` registriert die Regeln aus `internal/taxrules`: Sollversteuerung,
+Bewirtungsaufzeichnung, Sammelkonten, Steuerausweis, Steuerschlüsselkatalog,
+steuerliche Angaben der Handbuchung und Belegkopf. `domain.EntryRule` legt
+Position und Geltung für die Generalumkehr fest. Die feste Reihenfolge der
+Positionen und die Registrierungsreihenfolge darin bestimmen die erste
+Fehlermeldung. Die Sammelkontenregel läuft nach der Kernprüfung jeder einzelnen
+Sachkontozeile; die Handbuchungsregel auch vor der Belegerzeugung.
 
-- **§ 147b AO / DSFinVBV** — offen. Die Verordnung ist nicht erlassen; der
-  Diskussionsentwurf des BMF in der Fassung 2026 legt xBRL-CSV 1.0 fest. Der
-  Stand ist zu jeder Jahresplanung zu prüfen. Mit der Verkündung wird der Export
-  ein weiteres Formatmodul nach Regel 4, kein Umbau (Katalog PRF-06).
-- **Übergangsfrist E-Rechnung, Ausstellerseite** — 01.01.2027 und 01.01.2028
-  (§ 27 Abs. 38 UStG). Ab 2027 gilt die Sendepflicht bei einem Vorjahresumsatz
-  über 800.000 Euro, ab 2028 für alle inländischen B2B-Umsätze. Der
-  Vorjahresumsatz steht in der Buchführung und entscheidet, welcher Termin gilt.
-- **Basiszinssatz nach § 247 BGB** — 1. Januar und 1. Juli jedes Jahres. Die
-  Bundesbank gibt ihn halbjährlich bekannt; er wird als datierte Zeile
-  nachgetragen und wirkt nur auf Zeiträume ab seinem Beginn.
-- **Taxonomie-Stand der E-Bilanz** — jährlich nach dem BMF-Schreiben.
-  Taxonomie 6.9 gilt für Wirtschaftsjahre ab 2026, 6.10 ab 2027. Die Ressource
-  `internal/ebilanz/taxonomy_6.9.json` ist durchgehend mit `verified: false`
-  markiert; vor
-  der ersten Übermittlung sind ihre Elementnamen gegen die amtliche Fassung
-  abzugleichen.
-- **Jahresstand des SKR04** — jährlich. Der Kontenrahmen liegt als
-  `internal/accounting/skr04_2026.json` bei; eine neue Fassung ist eine neue
-  Datei, keine Änderung an der bestehenden.
+Die Regeln erhalten die Buchung und eine lesende `EntryRuleView` für
+Besteuerungsart und Beleg. Sie nutzen den Kontext des Aufrufers, ohne eigene
+Schreibzugriffe oder Netzaufrufe. Saldenvortrag und USt-Jahresverrechnung sind
+registrierte Ausnahmen vom Steuerschlüsselzwang; die Bebuchbarkeit des Kontos
+prüft der Kern trotzdem. Nummern, Hash-Kette, Stempel und Audit bleiben im
+Schreibweg des Journals. `TestJournalRuleContract` sichert die Meldungen beider
+Prüfpfade, `TestJournalRuleRegistration` die Verdrahtung.
 
----
+`PaymentService` delegiert den Ausgleich an das interne Modul `settlement`
+mit `OpenItems`, `Settle`, `Split` und `WriteOff`. Es bündelt offene Posten
+einschließlich Stichtagssicht und Altersstruktur, Zahlungszuordnungen,
+Bankaufteilungen, Differenzen und Forderungsausbuchungen. Die Aufrufer in
+Diensten, Bridge und MCP nutzen die Methoden von `PaymentService`.
+Settlement und Kursbewertung teilen den `openItemReader` für offene Posten.
+Dieser Leser benötigt nur Journal, Zahlungszuordnungen und Kontakte.
 
-## 5. Datenmodell: was dazukommt
+Skontokonto, Nettominderung und gegenläufige Steuerzeilen liefert
+`accounting.TaxCase.Skonto`. Bei einer Anlagenrechnung ordnet Settlement die
+Minderung dem Anlagegut zu. Journalbuchung, Zuordnungen, Anlagenbewegung und
+Protokoll stehen in derselben Transaktion. Den Bankumsatz beansprucht der
+in `core/wire.go` registrierte Effekt aus `internal/bankeffects`; die
+Generalumkehr gibt ihn wieder frei. Eine erfasste Anschaffungskostenminderung
+bleibt beim Storno der Zahlung bestehen.
 
-Das bestehende Modell (Buchung, Beleg, Kontakt, Rechnung, Anlage,
-Festschreibung, Audit-Log) bleibt. Für die Produktionsreife kommen wenige
-Entitäten dazu, jede mit einem klaren Grund.
+`service.PeriodService` bündelt Geschäftsjahr, Rumpfjahr, Festschreibung,
+Abschlussperiode und Feststellung. Er entsteht eigenständig in `core/wire.go`.
+Journal und lesende Abschlussbausteine verwenden seinen gemeinsamen
+`PeriodReader`. `State(ctx, date)` liefert die Sperren des
+Buchungstags; `FiscalYear` liest oder berechnet den Jahreszeitraum, ohne ihn
+anzulegen. Das Journal fragt den Stand in seinen festen Kernregeln bei jedem
+`Post` und jeder Generalumkehr ab. Gespeicherte Jahresgrenzen halten die Sperren
+auch dann aufrecht, wenn der Beginnmonat abweicht. Die Abschlussperiode bleibt
+nach der letzten Monatsfestschreibung bis zur Jahresfestschreibung offen.
 
-```mermaid
-erDiagram
-    FiscalYear ||--o{ JournalEntry : "enthält"
-    FiscalYear ||--o| FiscalYear : "Vortrag aus Vorjahr"
-    FiscalYear ||--o{ Festschreibung : "wird festgeschrieben"
-    FiscalYear ||--o| ClosingStatus : "Entwurf, aufgestellt, festgestellt, offengelegt"
-    JournalEntry ||--o{ JournalLine : "Soll/Haben"
-    JournalEntry }o--o| Receipt : "Belegverweis"
-    Receipt ||--o{ ReceiptFile : "Original, Struktur, Darstellung"
-    Receipt ||--|| RetentionClass : "6, 8 oder 10 Jahre"
-    Accrual ||--o{ JournalEntry : "Bildung und Auflösung"
-    Provision ||--o{ JournalEntry : "Bildung, Verbrauch, Auflösung"
-    VatReturn ||--o{ JournalEntry : "Kennziffern aus Steuerzeilen"
-    VatReturn ||--o| SubmissionRecord : "Transferticket"
-    AuditLogEntry }o--|| AuditLogEntry : "Vorgänger-Hash"
-    Check ||--o{ Finding : "Prüfbericht"
-```
+`Periods.Commit` prüft den Stichtag, schreibt fest, stempelt die Buchungen und
+protokolliert in derselben Transaktion. `core/wire.go` registriert dafür die
+`PreCommitCheck`-Liste: gesetzliche Rücklage, dann `EnsureCommittable`. Die erste
+fehlgeschlagene Prüfung beendet die Liste. Ein blockierender Prüflauf bleibt
+gespeichert; andere Fehler rollen den Vorgang zurück. `Periods.Adopt` und
+`Reopen` verwalten die Abschlussstände, ihre Daten und Begründungen. Die
+bisherigen Einstiege in `ClosingService` delegieren dorthin. Beide Dienste
+prüfen den Vorbehalt des Menschen; `Reopen` erhält die Festschreibungen.
 
-| Entität | Zweck | Katalog |
-|---|---|---|
-| **FiscalYear** | Das Geschäftsjahr wird eine Entität mit Beginn, Ende, Rumpfjahr-Kennzeichen, Vortragsstand und Abschlussstatus. Bisher war es nur ein Filterfeld an der Buchung. | GOB-06, JAB-04, JAB-09 |
-| **Saldenvortrag** | Eigene Buchung mit Quelle `opening`, Gegenkonto 9000/9008/9009, wiederholbar durch Storno und Neuvortrag. Personenkonten werden je offenem Posten vorgetragen. | JAB-09, BEW-01 |
-| **Abschlussbuchungen** | Erfolgskonten auf das Jahresergebnis, Umsatzsteuer-Verrechnung, Steuerrückstellung, Ergebnisverwendung. Alle mit Quelle `closing`, alle im Journal. | JAB-01, JAB-04 |
-| **Accrual (Rechnungsabgrenzung)** | Start, Ende, Betrag, Konto; monatliche Auflösung als Buchung. | BEW-08 |
-| **Provision (Rückstellung)** | Art, Erfüllungsbetrag, Restlaufzeit, Abzinsung aus einer pflegbaren Zinstabelle, Verbrauch und Auflösung mit Begründung. | BEW-07 |
-| **VatReturn** | Ein Voranmeldungszeitraum mit allen Kennziffern, abgeleitet aus den Steuerzeilen, mit Übermittlungsprotokoll und Berichtigungskette. | UST-03, UST-01 |
-| **RetentionClass am Beleg** | Fristenklasse aus der Belegart, Fristbeginn 31.12. des Entstehungsjahres, frühestes Löschdatum, Aufbewahrungs-Hold. | ARC-01, ARC-02 |
-| **AuditLog mit Vorher/Nachher und Kette** | Stammdatenänderungen als Diff, jeder Eintrag verkettet, Bearbeiterkennung und Programmversion an jeder Buchung. | UNV-03, UNV-04, UNV-06 |
-| **Check und Finding** | Ergebnisse der Prüfläufe (Plausibilität, Zeitgerechtigkeit, Doppelbelege) mit Zeitpunkt und Umfang, übergangene Befunde mit Begründung. | GOB-03, BEL-04, UNV-05 |
+`ClosingService` und Periodenverwaltung teilen die lesenden Abschlussprüfungen
+aus `closingChecks`. Die Perioden erhalten sie über `PeriodAdoptionChecks`.
+Der Vorjahresumsatz wird in der Periodenverwaltung vorbelegt.
+`StatementFigures` liefert dafür die Umsatzerlöse und für den Pflichtenkalender
+die Größenklasse. Der vollständige Abschluss ergänzt Anhang und Fristen.
+`notesStore` liest und übernimmt die Anhangtexte für Abschluss, Jahresanlage
+und Ergebnisverwendung.
 
----
+`TestServiceDependencyGraph` verfolgt die gespeicherten Dienstverweise der
+Verdrahtung auch durch Schnittstellen und eingebettete Module und verlangt
+einen zyklusfreien Graphen. Funktionsrückrufe wie die H8-Vorprüfungen haben
+eigene Registrierungs-, Reihenfolge- und Transaktionstests.
+`TestServiceSetterInventory` gibt alle `Set*`-Methoden und ihre Aufrufe in
+`wire.go` aus. Optionale Setter ermöglichen einen begrenzten Testaufbau.
 
-## 6. Bedienkonzept: der Jahreslauf strukturiert die Oberfläche
+## 3. Kern
 
-Das Menü bleibt (Übersicht, Buchhaltung, Stammdaten, Auswertungen, Verwaltung).
-Mit Welle 7 ist die Gruppe „Übersicht" die Aufgabenliste und zeigt nur noch
-diesen einen Eintrag; die beiden Abschlussvorgänge sind geführte Wege
-geworden.
+`core.Host` hält die Mandantenliste und genau einen offenen Mandanten
+(`core.Tenant`) mit einem Satz Dienste. `internal/core` importiert kein Wails.
+
+`core.Services` ist der vollständige Dienstsatz für Kern und Wails-Bridge.
+MCP und `core/policy` erhalten `core.AgentServices`: Schnittstellen mit ihren
+benötigten Dienstmethoden, ohne Repository-Zugang. `Tenant.ReadAgent` und
+`WriteAgent` reichen diese Sicht innerhalb von `Read` und `Write` weiter.
+`TestAgentServicesMatchAdapterUse` verbietet volle Diensttypen im Adapter und
+in der Policy und weist ungenutzte Erweiterungen der Fassade ab.
+
+**Lesen und Schreiben.** Jeder Zugriff geht über `Tenant.Read` (lesende
+Transaktion ohne Sperre) oder `Tenant.Write`. `Write` nimmt die Schreibsperre
+des Mandanten, prüft den Prüfermodus und führt den Vorgang in einer
+Transaktion aus. Scheitert er, ist nichts geschrieben. Ein Agent wartet
+höchstens 30 Sekunden auf die Sperre und bekommt dann `beschaeftigt`.
+
+**Erfassungsweg.** Jeder Einstieg in den Kern nennt seinen Weg: `ui` für die
+Bedienung in der App, `system` für Hintergrundläufe, `agent:<kurzname>` für
+eine verbundene App (`internal/actor`). Ohne Weg weist der Kern den Vorgang ab.
+Weg, Bearbeiterkennung (`<Benutzer>@<Rechner>`) und Programmfassung stehen an
+jeder Buchung und jedem Protokolleintrag und gehen in die Hash-Kette ein. Der
+Kurzname einer App ändert sich deshalb nach der ersten Zustimmung nie.
+
+**Vorbehalt der App.** Festschreibung, Übermittlungsbestätigung, Aufstellen,
+Feststellen und Offenlegen, Stammdaten samt Gesellschaftern und Gründung,
+Bankkonten, das Übernehmen oder Ablehnen eines Vorschlags dafür, Eingang und Ordner, Regeln für Apps, Bestätigung von Pflichten,
+Standardgruppen und Erklärungsangaben und der Prüfermodus laufen nur über `ui`.
+Zwei Stellen prüfen das: `core.AppOnly` am Schreibvorgang und `requireHuman`
+in den Diensten; `requireApp` schützt die Mandantenverwaltung und weitere
+Kerneinstiege. [`internal/ops`](../../internal/ops) ordnet die Vorgänge mit
+`Read`, `Direct`, `Confirm` und `AppOnly` ein. Tests gleichen die dort benannten
+Schutzstellen mit den tatsächlichen Aufrufen und ihrer Ablehnung anderer
+Erfassungswege ab. Die Prüfungen bleiben im Kern und in den Diensten.
+Alles, was sich per Storno korrigieren lässt, steht auch
+einem Agenten offen, darunter Darlehensverträge, Ergebnisverwendung und
+Organisationstexte der Verfahrensdokumentation
+([Freigabestufen](mcp.md#freigabestufen)).
+
+**Ereignisse.** Nach jedem gelungenen `Write` meldet der Mandant einen
+`core.Change` mit Erfassungsweg und grober Art der Änderung, die er aus den
+Protokolleinträgen des Vorgangs abliest. Der Kern reicht ihn an den Beobachter
+`OnChange` der Host-Optionen weiter und kennt weder Wails noch Netz. Die
+Bridge bündelt die Meldungen je Mandant zum Ereignis `buchfink:geaendert`, auf
+das die Oberfläche die offene Ansicht nachlädt
+([Live-Aktualisierung](mcp.md#live-aktualisierung)).
+
+**Eingang.** Jeder Mandant hat einen Eingang, voreingestellt
+`<Datenordner>/Eingang`, wählbar auch außerhalb. `internal/inbox` listet ihn,
+erkennt die Art einer Datei (Beleg, E-Rechnung, CAMT-Kontoauszug) und
+verschiebt Abgelegtes nach `Übernommen/<JJJJ-MM>/`. Verschoben wird nach dem
+Schreibvorgang, außerhalb der Sperre; scheitert es, gilt die Ablage trotzdem.
+`internal/core/policy` prüft jeden Pfad, den ein Agent übergibt, gegen Eingang
+und Leseordner ([Eingang, Leseordner und
+Exportordner](mcp.md#eingang-leseordner-und-exportordner)).
+
+**Sync-Erkennung.** `internal/syncdir` erkennt, ob ein Ordner in iCloud Drive,
+OneDrive, Google Drive, Dropbox, Nextcloud/ownCloud oder Syncthing liegt: am
+Ort unter dem Benutzerordner, an den Umgebungsvariablen von OneDrive und an
+den Markerdateien der Dienste in den Elternordnern; ein führendes `~` steht
+für den Benutzerordner. Einrichtung, Einstellungen und Verfahrensdokumentation
+warnen nach dieser einen Erkennung, wenn die Ablage darin liegt, weil ein
+Dienst die Datenbank mitten im Schreiben kopieren kann. Gesperrt wird nichts;
+für den Eingang ist ein Sync-Ordner gewollt, etwa für eine Scanner-App am
+Telefon.
+
+**Prüfermodus.** Sein Zeitraum steht in der Mandantendatenbank. Solange er
+läuft, weist `Write` jeden Vorgang ab, außer dem Schalter selbst und Nachweisen
+wie einem Sicherungslauf (`core.ExaminerExempt`). Die Bridge liest ihre
+Prüfermodus-Ausnahmen aus `ops.BridgeExaminerAllowed`; Tests prüfen die
+Klassifikation gegen ihre Schreibwege. Diese Ausnahmen sind unabhängig von
+der Freigabestufe: auch ein Vorgang nur für die App kann zulässig bleiben.
+
+**Netz außerhalb der Sperre.** Wechselkurse und die Abfrage einer USt-IdNr.
+holt der Kern vor dem Schreibvorgang. Ein Netzaufruf aus einem laufenden `Write`
+wird abgewiesen, auch aus einer Vorprüfung zur Festschreibung. Der Kern führt
+die Festschreibung in drei Schritten aus: `Periods.Commit` im `Write` mit
+`AppOnly`, RFC-3161-Zeitstempel ohne Sperre holen, Zeitstempel in einem kurzen
+`Write` eintragen. Nachholen und Prüfen der Zeitstempel bleiben in
+`core/commit.go`.
+
+**Mandantenwechsel.** Nur die App wechselt. Der vorige Mandant nimmt ab dem
+Wechsel nichts Neues mehr an und schließt, sobald laufende Vorgänge fertig
+sind. Ein Datenordner ist über `buchfink.lock` für genau einen Prozess
+gesperrt.
+
+**Hintergrundläufe** im Weg `system`: Zeitstempel nachholen, fällige Sicherung,
+Prüfermodus nach Mitternacht neu lesen, abgelaufene Idempotenzschlüssel
+löschen (`core/jobs.go`).
+
+## 4. MCP-Server und Brücke
+
+`internal/mcpserver` lauscht auf `127.0.0.1:7465` (Streamable HTTP). Den Port
+ändert der Mensch in den Einstellungen; der Server startet dann sofort auf dem
+neuen Port. `BUCHFINK_MCP_PORT` geht dem eingestellten Port vor, für
+Entwicklung und Tests. Buchfink ist selbst
+Autorisierungsserver (`internal/mcpserver/oauth`): dynamische Registrierung
+nur für Rücksprungadressen auf diesem Rechner, PKCE, Tokens nur als Hash
+gespeichert. Die Zustimmung kommt als Ereignis ins Fenster und wird über die
+Bridge mit einer Einmal-Nonce entschieden, nie über HTTP. Zulassen und Entziehen
+von Apps sind im Operationskatalog als strukturell geschützt eingeordnet:
+die privaten Verwaltungs-APIs prüfen keinen Erfassungsweg. Ein Quelltexttest
+begrenzt ihre Aufrufer auf die Kette von der Bridge zum OAuth-Speicher.
+
+Werkzeuge registrieren sich über `AddInfo`, `AddRead`, `AddWrite` und dessen
+Varianten (`internal/mcpserver/tools.go`). Der Rahmen liest die Anmeldung, holt den
+Mandanten, prüft Zulassung und Rechte (`buchfink:lesen`, `buchfink:buchen`),
+setzt den Erfassungsweg und ruft `Tenant.ReadAgent` oder `Tenant.WriteAgent`.
+Diese Einstiege verwenden die Kernvorgänge mit der begrenzten Dienstsicht. Schreibende
+Werkzeuge verlangen `mandant_id` und nehmen einen Idempotenzschlüssel an, der in
+derselben Transaktion gespeichert wird. Der Rahmen liest `Spec.Tier` aus dem
+Operationskatalog und weist unbekannte oder der App vorbehaltene Vorgänge bei
+der Registrierung ab. Daraus folgen die Annotationen. Werkzeuge mit Rückfrage haben
+`destructiveHint: true`; die Rückfrage stellt der Agent im Chat, wie es die
+Skills verlangen. Fehler haben stabile Codes (`internal/mcpserver/errors.go`).
+Die Werkzeuge selbst beschreibt [MCP-Server](mcp.md).
+
+`cmd/buchfink-mcp` übersetzt stdio in HTTP für Clients, die lokale
+HTTP-Server nicht einbinden, vor allem Claude Desktop. Die Brücke kennt weder
+Wails noch die Bücher und meldet sich selbst per OAuth an. Paket und Bau stehen
+unter [packaging/claude-desktop](../../packaging/claude-desktop/README.md).
+
+## 5. Datenfluss
 
 ```mermaid
 flowchart LR
-    T["Täglich<br/>Bankumsätze zuordnen<br/>Belege ablegen<br/>Rechnungen schreiben"] --> M
-    M["Monatlich<br/>1 Prüfbericht<br/>2 Festschreiben<br/>3 Voranmeldung"] --> J
-    J["Jährlich<br/>1 Prüfbericht<br/>2 AfA, Abgrenzung, Rückstellung<br/>3 Bilanz und GuV<br/>4 Aufstellen, feststellen<br/>5 E-Bilanz, Offenlegung<br/>6 Saldenvortrag"] --> T
+    A["Bankumsatz"] --> D
+    B["Beleg"] --> D
+    C["Ausgangsrechnung"] --> D
+    D["Buchung<br/>Hash-Kette"] --> E["Konten"]
+    E --> F["Bilanz und GuV"]
+    F --> G["E-Bilanz"]
+    E --> V["Voranmeldung, ZM"]
+    F --> K["KSt, GewSt"]
+    V --> U["USt 2 A"]
+    D -. Festschreibung, RFC 3161 .-> I["Unveränderbarkeit"]
 ```
 
-Zwei Ansichten sind mit den Wellen 5b und 5c dazugekommen, weil ihr Vorgang
-nicht in einen Dialog passt: „Anzahlungen" führt den Rechnungsverbund mit
-Abschlägen, Vereinnahmung und Schlussrechnung, und „Nebenpflichten" bündelt
-das Verzeichnis nach § 15a UStG, die USt-IdNr.-Bestätigungen, den Belegnachweis,
-die Berichte zu nicht abziehbaren Betriebsausgaben und die Kurse. Mit Welle 6 kamen die
-Nachweise dazu — Änderungsprotokoll, Versionen und Datenübernahmen,
-Aufbewahrungsfristen, Verfahrensdokumentation —, verteilt auf drei Seiten, die
-nach der Herkunft der Daten geschnitten waren und einander gegenseitig
-verwiesen. Welle 9 schneidet die Verwaltung nach dem, was der Anwender vorhat:
-„Datensicherung" (Kopien anlegen, Fristen und Löschung), „Betriebsprüfung"
-(Prüfermodus, Datenüberlassung, Verfahrensdokumentation zum Herausgeben) und
-„Einstellungen". Die Rechnungs- und Belegdialoge verweisen auf diese Seiten,
-statt die Vorgänge zu verdoppeln.
+Jede Zahl wird aus den Buchungen abgeleitet; nichts wird daneben erfasst. Die
+Bilanz liest Kontensalden, die E-Bilanz die Gliederung der Bilanz, die
+Voranmeldung die Steuerzeilen. Die Jahreserklärungen rechnet
+`service.DeclarationService` bei jedem Abruf neu; gespeichert werden nur
+Eingaben, die nicht in den Büchern stehen, und die Stände, die exportiert oder
+übermittelt wurden.
 
-### 6.1 Die Startseite ist eine Aufgabenliste
+## 6. Bedienkonzept
 
-Beim Start steht die Aufgabenliste, und die Kennzahlen stehen darunter auf
-derselben Seite. Die frühere Seite „Übersicht" ist darin aufgegangen: sie
-beantwortete dieselbe Frage ein zweites Mal und wäre irgendwann die veraltete
-von beiden gewesen.
+Die Oberfläche hat fünf Bereiche: Übersicht, Bücher, Abschlüsse, Unternehmen,
+Einstellungen. Sie dient dem Überblick, der Prüfung und der Freigabe; die
+Erfassung leistet vor allem der Agent. Jede Ansicht zeigt zuerst das Nötige,
+Details auf Anforderung ([Gestaltung](../gestaltung/grundlagen.md)).
 
-`TaskService.Tasks` (internal/service/task_service.go) rechnet nichts selbst.
-Der Dienst fragt die Dienste, die die jeweilige Sache führen, und übersetzt
-deren Antwort in Zeilen; jede Quelle hängt als eigene kleine Schnittstelle
-daran und darf fehlen, ohne dass die Liste ausbleibt. Fällt eine Quelle mit
-einem Fehler aus, fehlt ihre Zeile und der erste Bildschirm entsteht trotzdem.
-Die Quellen, so wie sie gebaut sind:
+### 6.1 Aufgaben
 
-| Quelle | Was daraus wird |
-|---|---|
-| Prüflauf bis heute | jeder Befund als eigene Zeile, blockierende zuerst |
-| Fristen und Abschlusstermine | Voranmeldung, Zusammenfassende Meldung, Festschreibung, Aufstellung, Offenlegung |
-| Bankumsätze | die ohne Zuordnung |
-| Belege | abgelegt ohne Buchung, länger als die Erfassungsfrist liegen geblieben, ohne Leistungsnachweis über der Nachweisgrenze |
-| Offene Posten | überfällige Forderungen mit Zahl und Betrag |
-| Anlagendokumente | abgelaufene und in den nächsten dreißig Tagen ablaufende |
-| Freistellungsbescheinigungen | dieselben beiden Fälle |
-| Sicherung | keine seit drei Tagen, oder der letzte Lauf ist gescheitert |
-| Prüfermodus | eingeschaltet, mit Frist und Grund |
-| Jahreswechsel | Differenz im Saldenvortrag, offener Vortrag, nicht festgestellter Vorjahresabschluss nach Ablauf der Aufstellungsfrist, offene Ergebnisverwendung |
+`service.TaskService` stellt die Aufgaben zusammen und rechnet nichts selbst.
+Quellen sind Prüflauf, Pflichtenkalender, Bankumsätze ohne Zuordnung, Belege
+ohne Buchung, überfällige Posten, ablaufende Freistellungsbescheinigungen,
+Sicherung, Prüfermodus und Jahreswechsel. Die Übersicht zeigt daneben den
+Eingang und die Standardgruppen, die ein Agent vorgeschlagen hat und der Mensch
+bestätigen soll.
+Fällt eine Quelle aus, fehlt nur ihre Zeile. Gruppen: überfällig, offen,
+demnächst (30 Tage). Jede Zeile sagt, was zu tun ist, warum und wohin.
 
-Sortiert wird in drei Gruppen: **überfällig** sind verstrichene Fristen,
-**offen** ist die laufende Arbeit ohne Frist, **demnächst** sind die Fristen
-der nächsten dreißig Tage. Eine vierte Gruppe („irgendwann") wäre eine Liste,
-die niemand liest. Jede Zeile hat drei Teile: was zu tun ist, warum (ein Satz
-mit der Norm hinter dem Erklärzeichen) und einen Knopf, der an die Stelle
-führt, an der die Sache zu erledigen ist.
+### 6.2 Monatsabschluss
 
-### 6.2 Monatsabschluss in drei Schritten
+Drei Schritte, deren Stand `service.MonthCloseService` aus den Daten rechnet:
+Prüfbericht, Festschreibung, Voranmeldung. Die Festschreibung steht vor der
+Übermittlungsbestätigung, weil gemeldete Zahlen vorher unveränderlich sein
+müssen.
 
-Der Monatsabschluss ist ein Dialog mit drei Schritten, von der Aufgabenliste
-und von der Fristenseite aus erreichbar. Den Stand jedes Schrittes rechnet
-`MonthCloseService.State` (internal/service/month_close_service.go) aus
-Prüflauf, Festschreibung und Voranmeldung; der Dienst bucht und schreibt
-nichts fest, er sagt, wo der Monat steht.
+### 6.3 Jahresabschluss
 
-| Schritt | Was Buchfink tut | Was die Anwenderin tut |
-|---|---|---|
-| 1 Prüfbericht | Läuft die Plausibilitätsprüfung bis zum Monatsende: Buchungen ohne Beleg, Belege ohne Buchung, Interimskonten, offene Bankumsätze, Doppelbelege, Nummernlücken. | Klärt Befunde über den Sprung an ihre Stelle oder übergeht sie mit Begründung. |
-| 2 Festschreiben | Schließt den Monat ab und holt den Zeitstempel. | Bestätigt. |
-| 3 Voranmeldung | Zeigt alle Kennziffern des Vordrucks mit Drill-down bis zur Buchung und erzeugt das Kennziffernblatt als Datei. | Trägt die Werte in Mein ELSTER ein und erfasst danach Datum und Transferticket. |
-
-Die Reihenfolge ist eine Entscheidung: Was gemeldet wird, muss vorher
-unveränderlich sein, sonst weicht die Buchführung später von der Meldung ab,
-und die Abweichung fällt erst dem Prüfer auf. Deshalb steht die Festschreibung
-vor der Bestätigung der Übermittlung, und die Bestätigung setzt sie voraus. Das
-Kennziffernblatt ist von Anfang an sichtbar — wer die Werte erst nach der
-Festschreibung sähe, hätte sie in Mein ELSTER schon eingetragen. Ein Monat ohne
-Voranmeldung (Zeitraum Quartal) endet nach Schritt 2; am Quartalsende folgt
-Schritt 3 über die drei Monate.
-
-### 6.3 Jahresabschluss als geführter Weg
-
-Der Jahresabschluss ist die Stelle, an der ein Nicht-Buchhalter bisher
-aussteigt. Die Jahresabschluss-Seite führt deshalb einen Weg durch die
-vierzehn Abschlussbausteine, mit einer Fortschrittsanzeige („4 von 14") und
-dem nächsten offenen Schritt darüber. Fachlich sind es sechs Stationen:
-
-1. **Prüfbericht** wie im Monat, zusätzlich: Konten ohne Bilanzposition,
-   Anlagen ohne AfA, nicht abgezinste Rückstellungen, übersprungene
-   Abschlussbausteine.
-2. **Abschlussbuchungen** in vorgegebener Reihenfolge, jede optional
-   überspringbar mit Grund: AfA-Lauf, Rechnungsabgrenzung, Rückstellungen,
-   Inventurwert der Vorräte, Umsatzsteuer-Verrechnung, Steuerrückstellung,
-   Wertaufholung, Vorsteuerberichtigung nach § 15a UStG.
-3. **Bilanz und GuV** nach §§ 266, 275 HGB in der Gliederung der
-   Größenklasse, mit Vorjahresspalte, als Datei.
-4. **Aufstellen und feststellen.** Statuswechsel mit Datum; der
-   Feststellungsbeschluss wird als Dokument angehängt. Ab „festgestellt" ist
-   das Jahr gesperrt.
-5. **E-Bilanz und Offenlegung.** XBRL-Datei erzeugen, Übermittlung
-   bestätigen; Offenlegungsumfang aus der Größenklasse, Frist und Nachweis.
-6. **Saldenvortrag** ins neue Jahr, mit Ergebnisverwendung.
-
-Zwei Entscheidungen bestimmen den Weg:
-
-**Der Fortschritt kommt aus dem Backend.** `ClosingSteps` liefert die Zahl der
-erledigten, der übersprungenen und der insgesamt vorhandenen Schritte
-(internal/service/closing_steps_service.go). Ein übersprungener Baustein zählt
-als abgeschlossen und nicht als getan. Die Ansicht zählt nicht nach: wer
-dieselbe Frage zweimal beantwortet, bekommt beim nächsten Baustein zwei
-Antworten.
-
-**Ein Schritt öffnet seine Arbeit dort, wo sie wohnt.** Der Knopf springt auf
-den Reiter der Abschlussbausteine (Abgrenzung, Rückstellungen, Vorräte,
-Umsatzsteuer, Steuern, Ergebnis), auf den Reiter der Nebenpflichten
-(Wertaufholung, Fremdwährung, Vorsteuerberichtigung) oder auf die Seite, die
-den Baustein führt (Anlagevermögen, Fristen, GuV & Bilanz, E-Bilanz); die
-Feststellung springt auf den Abschnitt dieser Seite. Ein eigener Dialog je
-Baustein würde dieselbe Maske ein zweites Mal bauen und liefe von der Seite
-weg, auf der der Baustein tatsächlich gepflegt wird; ein Skript hält die
-Zuordnung vollständig (scripts/check_closing_steps.py, `task check:steps`),
-damit ein neuer Baustein nicht ohne Ziel dasteht.
-
-Zurück ist möglich, solange nichts festgeschrieben ist: ein übersprungener
-Baustein lässt sich mit Grund wieder öffnen, und der Grund geht ins
-Änderungsprotokoll. Zwei Sperren beenden das in der Reihenfolge, in der sie
-eintreten — die Jahres-Festschreibung (§ 146 Abs. 4 AO) und die Feststellung
-(§ 42a Abs. 1 GmbHG). Danach führt der Weg zurück über den Storno der Buchung
-oder die Rücksetzung der Feststellung; der Knopf bleibt stehen und nennt am
-Zeiger den Grund, statt zu verschwinden.
+Die 15 Bausteine aus `domain.AllClosingSteps` laufen in fester Reihenfolge, weil
+die Steuerrückstellung das Ergebnis nach Abgrenzung und Rückstellungen braucht.
+Den Fortschritt rechnet `service.ClosingStepsService`; ein übersprungener
+Baustein braucht einen Grund und zählt als abgeschlossen, nicht als getan.
+Zwischen Dezember- und Jahresfestschreibung liegt die Abschlussperiode für
+Buchungen zum Bilanzstichtag. Zurück geht es, bis die Jahresfestschreibung
+([§ 146 Abs. 4 AO][ao146]) oder die Feststellung ([§ 42a GmbHG][gmbhg42a]) den
+Weg schließt.
 
 ### 6.4 Sprache
 
-Die Oberfläche spricht in Vorgängen, nicht in Konten. Ein Bankumsatz ist
-„Geld erhalten" oder „Geld bezahlt", ein Beleg ist „Rechnung vom Lieferanten",
-eine Abgrenzung ist „Kosten, die ins nächste Jahr gehören". Der Buchungssatz
-mit Soll und Haben steht in der Vorschau jedes Vorgangs und im Journal, damit
-der Steuerberater ihn sieht und die Anwenderin ihn lernen kann, wenn sie will.
-Das [Designkonzept](../gestaltung/README.md) trennt kurze Tooltips am Fragezeichen
-von Detaildialogen hinter „Mehr erfahren“. Fachliche Details und verlinkte
-Rechtsgrundlagen stehen im Dialog. Handlungsrelevante Fehler und
-Einschränkungen bleiben in der Arbeitsansicht sichtbar, in einfacher Sprache.
+Titel nennen den Vorgang, keinen Paragraphen. Die Norm steht in der
+Erklärung dahinter. Der Buchungssatz mit Soll und Haben ist immer einsehbar.
+`task check:text` prüft die Oberfläche auf Normen außerhalb der Erklärstufen.
+Regeln: [Schreibweise](../gestaltung/schreibweise.md),
+[Hilfetexte](../gestaltung/hilfetexte.md).
 
-`task check:text` prüft die Hilfestellen auf kurze Erklärungen sowie statische
-Gesetzesverweise in Beschriftungen. Die Prüfung ersetzt keine redaktionelle
-Durchsicht dynamischer Backend-Texte.
+### 6.5 Prüferpaket
 
-### 6.5 Das Prüferpaket
+`service.ExportService.ExportAuditPackage` legt in einem Ordner ab, was eine
+Betriebsprüfung braucht: Datenüberlassung nach dem Beschreibungsstandard, die
+Belegdateien, das Integritätsprotokoll, das Verzeichnis der steuerlichen
+Wahlrechte, die Änderungshistorie des Programms und die
+Verfahrensdokumentation. Für die Prüfung vor Ort sperrt der Prüfermodus jeden
+Schreibvorgang.
 
-Ein Knopf unter „Betriebsprüfung" erzeugt in einem Ordner alles, was
-eine Betriebsprüfung verlangt: den Z3-Export nach dem Beschreibungsstandard
-(Datendateien plus `index.xml`), den Archivexport der Belege mit Index, das
-Integritätsprotokoll, das Schlüsselverzeichnis und die
-Verfahrensdokumentation in der Version, die zu den Daten gehört. Der
-Prüfermodus schaltet die Oberfläche schreibgeschützt und protokolliert den
-Zugriff.
+### 6.6 Sicherung
 
-### 6.6 Sicherung ohne Nachdenken
+Mit eingerichtetem Ziel sichert Buchfink, sobald die letzte Sicherung 24
+Stunden alt ist, und beim Beenden nach Änderungen. Die Aufgaben melden eine
+fehlende oder gescheiterte Sicherung. Das Format ist eine offene ZIP-Datei.
 
-Buchfink sichert den Datenordner beim Beenden und einmal täglich in einen
-gewählten Zielordner, protokolliert das Ergebnis und bietet beim Start eine
-Wiederherstellung an, nach der die Integritätsprüfung läuft. Die Sicherung
-ist eine ZIP-Datei mit Datenbank, Belegen, Dokumenten und Schlüsseldatei;
-ihre Wiederherstellung ist ohne die Software möglich, weil das Format offen
-ist.
-
----
-
-## 7. Einordnung der offenen Anforderungen
-
-Die Lückenanalyse im Anforderungskatalog ordnet jedes Kriterium einem Status
-zu. Die offenen Punkte fallen in sieben Wellen. Die Reihenfolge folgt der
-Frage, was einen Jahreslauf blockiert.
-
-| Welle | Inhalt | Katalog | Warum in dieser Reihenfolge |
-|---|---|---|---|
-| 1 | Geschäftsjahr als Entität, Saldenvortrag, Abschluss der Erfolgskonten, Ergebnisverwendung, Abschlussstatus | GOB-06, JAB-04, JAB-09, BEW-01 | Ohne Vortrag endet die Buchhaltung nach einem Jahr. |
-| 2 | Bilanz und GuV nach §§ 266, 275 HGB im Backend, Größenklassen, Vorjahresspalte, Ausgabe als Datei; E-Bilanz aus der Gliederung | JAB-01, JAB-02, JAB-03, JAB-05 | Erst mit der Gliederung gibt es eine Struktur, auf die E-Bilanz und Offenlegung zeigen. |
-| 3 | Umsatzsteuer-Voranmeldung mit allen Kennziffern, Dauerfristverlängerung, Übermittlungsprotokoll, Zusammenfassende Meldung, Prüfberichte vor Festschreibung | UST-01, UST-03, UST-04, GOB-03, BEL-04, UNV-05 | Die Daten stammen aus den Buchungen; die Meldung ist die Pflicht mit dem kürzesten Takt. |
-| 4 | Z3-Export mit Beschreibungsstandard, Archivexport, Sicherung und Wiederherstellung, Prüfermodus | PRF-01, PRF-02, ARC-04, ARC-08 | Betriebsprüfung und Datenverlust sind die beiden Ereignisse, die eine Buchhaltung beenden. |
-| 5a | Rechnungsabgrenzung, Rückstellungen, Inventurwert, Umsatzsteuer-Verrechnung, Steuerrückstellung, Verzeichnis nach § 5 EStG | BEW-07, BEW-08, BEW-09, JAB-06 | Für die Bilanz nicht verzichtbar, aber erst mit Welle 1 und 2 sinnvoll. |
-| 5b | Rechnungsnummer in einer Transaktion, Pflichtangaben, XRechnung, Storno- und Korrekturbelege, Kleinbetrag, Anzahlungen als Rechnungsverbund, Ausbuchung | RECH-02 bis RECH-09, BEL-09, UST-02 | Die Ausgangsrechnung ist der häufigste Beleg; ihre Fehler wandern in jede Meldung. |
-| 5c | Vorsteuerkopplung, Vorsteuerschlüssel, Verzeichnis nach § 15a UStG, USt-IdNr.-Bestätigung, Belegnachweis, Geschenke, Fremdwährung, Abschreibungsregeln als Ressource | UST-05 bis UST-07, RECH-07, BEW-03, BEW-10, BEW-12 | Nebenpflichten, die im laufenden Jahr anfallen und im Abschluss nicht mehr nachholbar sind. |
-| 6 | Änderungsprotokoll mit Vorher/Nachher und Kette, Bearbeiterkennung, Programmversion je Buchung, Aufbewahrungsfristen und Holds, Verfahrensdokumentation | UNV-03, UNV-04, UNV-06, ARC-01, ARC-02, PRF-03 | Nachweispflichten, die ohne die ersten Wellen leer blieben. |
-| 7 | Aufgabenliste, Monatsabschluss-Dialog, Jahresabschluss-Weg, Mahnwesen, Bankabgleich-Vorschlag mit Sammelzahlung und gelernten Regeln, Prüfpfad und Leistungsnachweis am Eingangsbeleg, Prüfszenario mit gemessenem Klickweg (docs/entwicklung/pruefszenarien.md) | Abschnitt 6, QUE-05, RECH-08, GOB-02 | Die Bedienung legt sich über die fertigen Funktionen. |
-
-Die Wellen sind eine historische Einteilung und keine aktuelle Roadmap. Was offen geblieben ist, hat im
-[Anforderungskatalog](../anforderungen/README.md) in der Spalte Welle den Vermerk
-„Politur" und nennt in der Spalte Grund, wovon es abhängt: von einer
-Entscheidung, von einem Objekt, das Buchfink nicht führt, oder von einer
-Handlung außerhalb des Programms. Welche Kriterien in welcher Welle lagen und was davon gebaut ist,
-steht dort mit Fundstellen.
-
-## 8. Geplante Schnittstellen
-
-Ein lokaler MCP-Server zur Anbindung des Chatbots der Wahl ist geplant.
-Es gibt dafür noch keine Implementierung oder festgelegte Berechtigungsarchitektur.
-Der Entwurf wird auf der [Roadmap](../projekt/roadmap.md) geführt.
+[ao146]: https://www.gesetze-im-internet.de/ao_1977/__146.html
+[gmbhg42a]: https://www.gesetze-im-internet.de/gmbhg/__42a.html

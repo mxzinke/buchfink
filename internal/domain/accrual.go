@@ -158,7 +158,7 @@ type Accrual struct {
 	// — die Rechnung, die den ganzen Betrag getragen hat. Optional: eine
 	// Abgrenzung darf auch von Hand entstehen.
 	SourceEntryID *uint  `gorm:"index" json:"sourceEntryId,omitempty"`
-	Text          string `gorm:"size:255;not null;serializer:encrypted" json:"text"`
+	Text          string `gorm:"size:255;not null" json:"text"`
 
 	// TotalAmount ist der Gesamtbetrag der Leistung, DeferredAmount der Teil,
 	// der nach dem Stichtag liegt und damit abgegrenzt wird. Beide werden

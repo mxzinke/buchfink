@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -67,17 +68,18 @@ func newTestEnv(t *testing.T) *testEnv {
 	dataDir := t.TempDir()
 	store := receiptstore.New(dataDir)
 
-	journal := NewJournalService(journalRepo, accountRepo, contactRepo, auditRepo, settingsRepo, 2026)
-	// Wie in der Anwendung (wailsbridge.initTenant): der Journaldienst kennt die
+	journal := newJournalWithTaxRules(journalRepo, accountRepo, contactRepo, auditRepo, settingsRepo, repository.NewTxRunner(db))
+	// Wie in der Anwendung (core/wire.go): der Journaldienst kennt die
 	// Belegablage und prüft die Kopfdaten jedes Belegs, auf den eine Buchung
 	// zeigt. Ohne diese Verdrahtung prüften die Tests eine Verkabelung, die es
 	// im Betrieb nicht gibt — und eine Regel, die nur dort gilt, fiele hier nie
 	// auf.
 	journal.SetReceiptRepo(receiptRepo)
+	journal.SetClock(testNow)
 	posting := NewPostingService(journal, contactRepo)
-	acc := NewAccountingService(accountRepo, journalRepo, contactRepo, settingsRepo, journal, 2026)
-	contacts := NewContactService(contactRepo, journalRepo, numberRepo, auditRepo, 2026)
-	receipts := NewReceiptService(receiptRepo, journalRepo, store, auditRepo, 2026)
+	acc := NewAccountingService(accountRepo, journalRepo, contactRepo, settingsRepo, journal)
+	contacts := NewContactService(contactRepo, journalRepo, numberRepo, auditRepo)
+	receipts := NewReceiptService(receiptRepo, store, auditRepo)
 	// Wie in der Anwendung: die Klärungsliste hält die Pflichtangaben gegen die
 	// Stammdaten des Ausstellers und des eigenen Unternehmens (RECH-07 K2).
 	receipts.SetContactSource(contactRepo)
@@ -97,7 +99,7 @@ func (e *testEnv) vendor(t *testing.T, name, country, vatID string) *domain.Cont
 	t.Helper()
 	c := &domain.Contact{
 		Type: domain.ContactTypeVendor, Name: name, CountryCode: country, VatID: vatID,
-		Address: "Lieferantenweg 3, 20095 Hamburg",
+		Street: "Lieferantenweg 3", PostalCode: "20095", City: "Hamburg",
 		// Die Steuernummer gehört zu den Stammdaten eines Lieferanten, weil sie
 		// zu den Pflichtangaben seiner Rechnung gehört (§ 14 Abs. 4 Nr. 2 UStG)
 		// und sich der Vorsteuerabzug danach richtet. Ohne sie weist der Belegweg die
@@ -115,7 +117,7 @@ func (e *testEnv) customer(t *testing.T, name, country, vatID string) *domain.Co
 	t.Helper()
 	c := &domain.Contact{
 		Type: domain.ContactTypeCustomer, Name: name, CountryCode: country, VatID: vatID,
-		Address: "Kundenweg 2, 10115 Berlin",
+		Street: "Kundenweg 2", PostalCode: "10115", City: "Berlin",
 	}
 	if err := e.contacts.SaveContact(context.Background(), c); err != nil {
 		t.Fatalf("Kunde %s konnte nicht angelegt werden: %v", name, err)
@@ -132,7 +134,7 @@ func simpleEntry(debit, credit string, amount domain.Cents) *domain.JournalEntry
 		ServiceDateTo:   "2026-03-01",
 		Description:     "Testbuchung",
 		Source:          domain.EntrySourceManual,
-		// Der Steuerfall gehört seit Welle 8 zu jeder Handbuchung
+		// Der Steuerfall gehört zu jeder Handbuchung
 		// (ValidatePostable prüft ihn); die Testbuchung löst keine Steuer aus.
 		TaxTreatment: domain.TaxTreatmentNotTaxable,
 		Lines: []domain.JournalLine{
@@ -353,7 +355,7 @@ func TestReverseIsGeneralumkehrAndClearsTurnover(t *testing.T) {
 			expense.Debit, expense.Credit)
 	}
 
-	accounts, err := env.accounting.GetAccounts(ctx)
+	accounts, err := env.accounting.GetAccounts(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Konten: %v", err)
 	}
@@ -540,6 +542,7 @@ func (e *testEnv) invoices(t *testing.T) *InvoiceService {
 	// Ohne Renderer bleibt der Ausgangsbeleg aus. Die meisten Tests prüfen die
 	// Buchung, und das Übersetzen des WASM-Moduls kostet Sekunden — wer den Beleg
 	// braucht, setzt die Pipeline selbst (siehe invoice_document_test.go).
+	svc.SetClock(testNow)
 	return svc
 }
 
@@ -585,7 +588,7 @@ func TestCollectiveAccountReportsItsSources(t *testing.T) {
 		}
 	}
 
-	accounts, err := env.accounting.GetAccounts(ctx)
+	accounts, err := env.accounting.GetAccounts(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Konten: %v", err)
 	}
@@ -603,3 +606,5 @@ func TestCollectiveAccountReportsItsSources(t *testing.T) {
 	}
 	t.Error("Konto 3300 wurde in der Kontenliste nicht gefunden")
 }
+
+func testNow() time.Time { return time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC) }

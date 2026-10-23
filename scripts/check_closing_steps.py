@@ -1,22 +1,21 @@
 #!/usr/bin/env python3
-"""Prüft, dass jeder Baustein des Jahresabschlusses ein Ziel hat (Architektur 6.3).
+"""Prüft, dass jeder Baustein des Jahresabschlusses in der Oberfläche steht.
 
-Der geführte Weg verlangt, dass jeder Schritt seine Arbeit öffnet. Eine Zeile
-ohne Knopf benennt eine Arbeit und führt nicht zu ihr — und wer den Weg von oben
-beginnt, stünde ausgerechnet beim ersten Schritt vor einer Zeile ohne Ausgang.
+Der Reiter „Abschlüsse → Jahr" zeigt jeden Baustein mit seinem Stand und, auf
+Klick, der Kartei dahinter. Ein Baustein ohne Eintrag fehlte dort, und ein
+Prüfer sähe die Kartei nicht, ohne Claude zu fragen.
 
-Die Schlüssel stehen im Backend (internal/domain/closing_step.go); die Ziele
-stehen in der Oberfläche, verteilt auf drei Zuordnungen: STEP_TABS (Reiter der
-Abschlussbausteine), STEP_OBLIGATIONS (Reiter der Nebenpflichten) und STEP_PAGES
-(eigene Seiten). Die Feststellung liegt auf der Abschlussseite selbst und springt
-in den Abschnitt darunter; sie wird über ihren Anker erkannt.
+Die Schlüssel stehen im Backend (internal/domain/closing_step.go); die
+Zuordnung steht in STEP_VIEWS in frontend/src/pages/closings/yearSteps.tsx:
+eine Kartei in der Seitenleiste, ein Verweis in einen anderen Reiter oder eine
+eigene Zeile in der Schrittliste (Feststellen, Ergebnisverwendung, Offenlegen).
 
 Die Prüfung läuft gegen den Go-Quelltext und nicht gegen eine Liste in diesem
-Skript: eine zweite Liste liefe auseinander, sobald ein Baustein dazukommt — und
+Skript: eine zweite Liste liefe auseinander, sobald ein Baustein dazukommt, und
 genau dann soll die Prüfung anschlagen.
 
-Aufrufbar über `task check:steps`; Rückgabewert 1, wenn ein Schlüssel ohne Ziel
-bleibt.
+Aufrufbar über `task check:steps`; Rückgabewert 1, wenn ein Schlüssel ohne
+Eintrag bleibt.
 """
 
 from __future__ import annotations
@@ -26,15 +25,7 @@ import sys
 from pathlib import Path
 
 DOMAIN = Path("internal/domain/closing_step.go")
-MODULES = Path("frontend/src/pages/ClosingModulesPage.tsx")
-CLOSING = Path("frontend/src/pages/ClosingPage.tsx")
-
-# Die Zuordnungen der Oberfläche: Datei und Name der Konstante.
-TARGET_MAPS = (
-    (MODULES, "STEP_TABS"),
-    (MODULES, "STEP_OBLIGATIONS"),
-    (CLOSING, "STEP_PAGES"),
-)
+VIEWS = Path("frontend/src/pages/closings/yearSteps.tsx")
 
 
 def domain_keys(text: str) -> list[str]:
@@ -52,13 +43,8 @@ def map_keys(text: str, name: str) -> set[str]:
     return set(re.findall(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:", body, re.MULTILINE))
 
 
-def anchor_keys(text: str) -> set[str]:
-    """Schlüssel, deren Ziel ein Abschnitt derselben Seite ist."""
-    return set(re.findall(r"key === '([a-z_]+)'", text))
-
-
 def main() -> int:
-    for path in (DOMAIN, MODULES, CLOSING):
+    for path in (DOMAIN, VIEWS):
         if not path.exists():
             print(f"Datei fehlt: {path}", file=sys.stderr)
             return 1
@@ -68,29 +54,26 @@ def main() -> int:
         print("In internal/domain/closing_step.go steht kein Schlüssel.", file=sys.stderr)
         return 1
 
-    targets: set[str] = set()
-    for path, name in TARGET_MAPS:
-        targets |= map_keys(path.read_text(encoding="utf-8"), name)
-    targets |= anchor_keys(CLOSING.read_text(encoding="utf-8"))
+    views = VIEWS.read_text(encoding="utf-8")
+    targets = map_keys(views, "STEP_VIEWS")
 
     missing = [key for key in keys if key not in targets]
     if missing:
-        print("Bausteine ohne Ziel im geführten Weg (Architektur 6.3):", file=sys.stderr)
+        print("Bausteine ohne Eintrag in STEP_VIEWS:", file=sys.stderr)
         for key in missing:
             print(f"  {key}", file=sys.stderr)
-        print(
-            "Ein Ziel gehört in STEP_TABS, STEP_OBLIGATIONS oder STEP_PAGES — "
-            "oder als Anker auf der Abschlussseite selbst.",
-            file=sys.stderr,
-        )
         return 1
 
     unknown = sorted(targets - set(keys))
     if unknown:
-        print("Ziele ohne Baustein:", ", ".join(unknown), file=sys.stderr)
+        print("Einträge ohne Baustein:", ", ".join(unknown), file=sys.stderr)
         return 1
 
-    print(f"Geführter Weg: {len(keys)} Bausteine, jeder mit Ziel.")
+    rows = sorted(re.findall(r"^\s*([a-z_]+):\s*\{\s*kind:\s*'row'", views, re.MULTILINE))
+    print(
+        f"Jahresabschluss: {len(keys)} Bausteine, jeder in der Oberfläche; "
+        f"{len(rows)} davon mit eigener Zeile in der Schrittliste ({', '.join(rows)})."
+    )
     return 0
 
 

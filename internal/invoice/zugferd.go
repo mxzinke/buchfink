@@ -8,39 +8,10 @@ import (
 	"github.com/buchfink/buchfink/internal/einvoice"
 )
 
-// vatCategoryCode maps a Steuerfall to the EN 16931 / UNTDID 5305 category code
-// a ZUGFeRD invoice must carry. Sending "S" for an exempt intra-community supply
-// makes the document formally wrong even though the amounts add up.
-func vatCategoryCode(t domain.TaxTreatment) string {
-	switch t {
-	case domain.TaxTreatmentIntraCommunitySupply:
-		return "K" // Innergemeinschaftliche Lieferung
-	case domain.TaxTreatmentExport:
-		return "G" // Ausfuhr, steuerfrei
-	case domain.TaxTreatmentReverseChargeSupply:
-		return "AE" // Steuerschuldnerschaft des Leistungsempfängers
-	case domain.TaxTreatmentExempt:
-		return "E" // Steuerbefreit
-	case domain.TaxTreatmentNotTaxable:
-		return "O" // Nicht steuerbar
-	case domain.TaxTreatmentZeroRated:
-		// Nullsteuersatz nach § 12 Abs. 3 UStG: steuerpflichtig zum Satz null,
-		// nicht steuerfrei. "S" mit 0,00 % wäre nach BR-S-05 formal falsch, und
-		// die Rechnung ließe sich gar nicht erst ausstellen.
-		return "Z"
-	default:
-		return "S" // Regelbesteuerung
-	}
-}
-
 // exemptionReason returns the legal reference EN 16931 requires whenever the
 // category code is not "S".
 func exemptionReason(t domain.TaxTreatment) string {
 	switch t {
-	case domain.TaxTreatmentIntraCommunitySupply:
-		return "Steuerfreie innergemeinschaftliche Lieferung nach § 4 Nr. 1 Buchst. b i. V. m. § 6a UStG"
-	case domain.TaxTreatmentExport:
-		return "Steuerfreie Ausfuhrlieferung nach § 4 Nr. 1 Buchst. a i. V. m. § 6 UStG"
 	case domain.TaxTreatmentReverseChargeSupply:
 		return "Steuerschuldnerschaft des Leistungsempfängers nach § 13b UStG"
 	case domain.TaxTreatmentExempt:
@@ -140,10 +111,6 @@ const ConsumerDefaultNotice = "Zahlungsverzug: Kommen Sie der Zahlung nicht spä
 	"(§ 286 Abs. 3 BGB)."
 
 // consumerNoticeRequired meldet, ob die Rechnung an einen Verbraucher geht.
-//
-// Ohne Empfänger — die Kleinbetragsrechnung über den Ladentisch — ist der
-// Hinweis nicht anzubringen: sie wird bar bezahlt, und ein Verzug entsteht
-// nicht.
 func consumerNoticeRequired(buyer *domain.Contact) bool {
 	return buyer != nil && buyer.IsConsumer()
 }
@@ -195,14 +162,7 @@ func typstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, buyer *d
 		notes = append(notes, terms)
 	}
 	if inv.SmallAmount {
-		note := "Kleinbetragsrechnung nach § 33 UStDV"
-		// Ohne Empfänger geht sie als PDF hinaus. Der Hinweis steht auf dem
-		// Dokument, weil der Empfänger sonst eine E-Rechnung erwartet, die es zu
-		// diesem Vorgang nicht gibt und nicht geben muss.
-		if inv.ContactID == 0 {
-			note += " — von der Pflicht zur E-Rechnung ausgenommen"
-		}
-		notes = append(notes, note)
+		notes = append(notes, "Kleinbetragsrechnung nach § 33 UStDV")
 	}
 	if inv.ResolvedKind() == domain.InvoiceKindAdvance && inv.PaymentReceivedAt != "" {
 		notes = append(notes, "Zeitpunkt der Vereinnahmung: "+domain.GermanDate(inv.PaymentReceivedAt))
@@ -330,16 +290,13 @@ func typstTemplate(inv *domain.Invoice, seller *domain.CompanySettings, buyer *d
 	)
 }
 
-// buyerName is what the address block is headed with. Without a contact — the
-// Barverkauf of a Kleinbetragsrechnung — it says so instead of leaving a gap.
+// buyerName is what the address block is headed with. Without a contact on
+// file the name the invoice was issued to stands in.
 func buyerName(inv *domain.Invoice, buyer *domain.Contact) string {
 	if buyer != nil && buyer.Name != "" {
 		return buyer.LegalName()
 	}
-	if inv.ContactName != "" {
-		return inv.ContactName
-	}
-	return "Barverkauf"
+	return inv.ContactName
 }
 
 // buyerAddressBlock renders the recipient below their name: street, postal code

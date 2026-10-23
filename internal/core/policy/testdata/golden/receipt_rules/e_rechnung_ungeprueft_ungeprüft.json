@@ -1,0 +1,9 @@
+{
+  "gruende": [
+    {
+      "schluessel": "e_rechnung_ungeprueft",
+      "text": "Die E-Rechnung ist noch nicht geprüft."
+    }
+  ],
+  "stufe": "rueckfrage"
+}

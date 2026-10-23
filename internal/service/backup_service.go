@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -21,16 +22,15 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/receiptstore"
 	"github.com/buchfink/buchfink/internal/repository"
-	"github.com/buchfink/buchfink/internal/security"
 	"gorm.io/gorm"
 )
 
 // Die Namen im Datenordner. Sie stehen hier, weil die Sicherung sie als
 // Ganzes kennen muss: eine Sicherung, der eine dieser Dateien fehlt, ist keine.
 const (
-	dbFileName       = "buchfink.sqlite"
-	keyfileName      = "buchfink.keyfile.json"
-	receiptsDirName  = "belege"
+	dbFileName      = "buchfink.sqlite"
+	receiptsDirName = "belege"
+	// documentsDirName hält die Fassungen der Verfahrensdokumentation.
 	documentsDirName = "dokumente"
 	// BackupMetaFileName ist die Metadatei in der Sicherung.
 	BackupMetaFileName = "backup.json"
@@ -69,12 +69,8 @@ type BackupMeta struct {
 // BackupService sichert den Datenordner eines Mandanten und stellt ihn wieder
 // her.
 //
-// Die Wiederherstellungsdatei liegt mit in der Sicherung. Das ist eine
-// Abwägung und keine Nachlässigkeit: ohne den Schlüssel lässt sich die
-// gesicherte Buchführung auf keinem anderen Rechner mehr öffnen, und eine
-// Sicherung, die im Ernstfall nicht zu öffnen ist, ist keine. Der Preis ist,
-// dass die Sicherung so schützenswert ist wie die Daten selbst — worauf die
-// Oberfläche hinweist.
+// Die Sicherung ist unverschlüsselt und so schützenswert wie die Daten selbst;
+// ihr Schutz am Ablageort liegt beim Anwender.
 type BackupService struct {
 	runRepo   domain.BackupRunRepository
 	auditRepo domain.AuditRepository
@@ -84,15 +80,16 @@ type BackupService struct {
 	tenantID   string
 	tenantName string
 
-	// openVault öffnet den Schlüsselbund eines entpackten Datenordners. Er
-	// steht als Feld und nicht als fester Aufruf, damit die Prüfung ohne
-	// Schlüsselbund des Betriebssystems getestet werden kann.
-	openVault VaultOpener
+	// recorder klammert den Vermerk eines Laufs. Der Kern setzt hier seinen
+	// Schreibvorgang ein: der Lauf selbst dauert lange und läuft ohne
+	// Schreibsperre, nur der Vermerk braucht sie.
+	recorder func(ctx context.Context, fn func(ctx context.Context) error) error
 }
 
-// VaultOpener öffnet den Schlüsselbund zu einem Datenordner und einer
-// Mandantenkennung.
-type VaultOpener func(dataDir, tenantID string) (*security.Vault, error)
+// SetRecorder setzt die Klammer, in der Läufe vermerkt werden.
+func (s *BackupService) SetRecorder(recorder func(ctx context.Context, fn func(ctx context.Context) error) error) {
+	s.recorder = recorder
+}
 
 // NewBackupService verdrahtet die Sicherung.
 func NewBackupService(
@@ -104,13 +101,8 @@ func NewBackupService(
 	return &BackupService{
 		runRepo: runRepo, auditRepo: auditRepo, db: db,
 		dataDir: dataDir, tenantID: tenantID, tenantName: tenantName,
-		openVault: security.OpenTenantVault,
 	}
 }
-
-// SetVaultOpener ersetzt den Weg, auf dem die Prüfung an den Schlüssel einer
-// Sicherung kommt.
-func (s *BackupService) SetVaultOpener(open VaultOpener) { s.openVault = open }
 
 // GetRuns liefert die letzten Läufe.
 func (s *BackupService) GetRuns(ctx context.Context, limit int) ([]domain.BackupRun, error) {
@@ -205,7 +197,9 @@ func (s *BackupService) CreateBackup(ctx context.Context, targetDir string, kind
 	if err != nil {
 		run.Success = false
 		run.Message = err.Error()
-		s.record(ctx, run)
+		if recErr := s.record(ctx, run); recErr != nil {
+			return run, errors.Join(err, recErr)
+		}
 		return run, err
 	}
 
@@ -213,8 +207,32 @@ func (s *BackupService) CreateBackup(ctx context.Context, targetDir string, kind
 	run.FileCount = meta.FileCount
 	run.Bytes = meta.Bytes
 	run.Message = fmt.Sprintf("%d Dateien, %s gesichert", meta.FileCount, formatBytes(meta.Bytes))
-	s.record(ctx, run)
+	if err := s.record(ctx, run); err != nil {
+		return nil, err
+	}
 	return run, nil
+}
+
+// createUnique legt base.zip im Ordner an, ohne Vorhandenes zu überschreiben.
+// Gibt es die Datei derselben Sekunde schon, bekommt die neue eine Nummer.
+func createUnique(dir, base string) (string, *os.File, error) {
+	var last error
+	for n := 1; n <= 99; n++ {
+		name := base + ".zip"
+		if n > 1 {
+			name = fmt.Sprintf("%s-%d.zip", base, n)
+		}
+		path := filepath.Join(dir, name)
+		out, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+		if err == nil {
+			return path, out, nil
+		}
+		if !os.IsExist(err) {
+			return path, nil, err
+		}
+		last = err
+	}
+	return filepath.Join(dir, base+".zip"), nil, last
 }
 
 // writeArchive baut die ZIP-Datei.
@@ -251,10 +269,8 @@ func (s *BackupService) writeArchive(targetDir string) (string, *BackupMeta, err
 	// „20260906-2130" hieße, fände er dort nicht. Verglichen und sortiert wird
 	// nach dem Zeitpunkt im Beipackzettel, und der ist eindeutig.
 	stamp := time.Now().Format("20060102-150405")
-	name := fmt.Sprintf("buchfink-%s-%s.zip", safeSlug(s.tenantName, s.tenantID), stamp)
-	zipPath := filepath.Join(targetDir, name)
-
-	out, err := os.OpenFile(zipPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	base := fmt.Sprintf("buchfink-%s-%s", safeSlug(s.tenantName, s.tenantID), stamp)
+	zipPath, out, err := createUnique(targetDir, base)
 	if err != nil {
 		return zipPath, nil, fmt.Errorf("die Sicherungsdatei konnte nicht angelegt werden: %w", err)
 	}
@@ -288,14 +304,6 @@ func (s *BackupService) writeArchive(targetDir string) (string, *BackupMeta, err
 
 	if err := add(dbFileName, dbCopy); err != nil {
 		return fail(err)
-	}
-	// Die Wiederherstellungsdatei nur, wenn es sie gibt: ein Mandant aus der
-	// Zeit vor der Feldverschlüsselung hat keine, und das ist kein Fehler.
-	keyfile := filepath.Join(s.dataDir, keyfileName)
-	if _, err := os.Stat(keyfile); err == nil {
-		if err := add(keyfileName, keyfile); err != nil {
-			return fail(err)
-		}
 	}
 	for _, dir := range []string{receiptsDirName, documentsDirName} {
 		if err := s.addTree(dir, add); err != nil {
@@ -391,19 +399,22 @@ func (s *BackupService) VerifyBackup(ctx context.Context, zipPath string) (*doma
 	if err != nil {
 		run.FinishedAt = time.Now().UTC()
 		run.Message = fmt.Sprintf("es konnte kein Arbeitsordner angelegt werden: %v", err)
-		s.record(ctx, run)
+		if recErr := s.record(ctx, run); recErr != nil {
+			return run, errors.Join(err, recErr)
+		}
 		return run, err
 	}
 	// Der Temporärordner geht in jedem Fall wieder weg — auch wenn die Prüfung
-	// scheitert. Eine entpackte Buchführung, die irgendwo liegen bleibt, ist
-	// das, was die Verschlüsselung verhindern soll.
+	// scheitert. Eine entpackte Buchführung soll nicht irgendwo liegen bleiben.
 	defer os.RemoveAll(tmpDir)
 
 	meta, count, err := extractBackup(zipPath, tmpDir)
 	run.FinishedAt = time.Now().UTC()
 	if err != nil {
 		run.Message = err.Error()
-		s.record(ctx, run)
+		if recErr := s.record(ctx, run); recErr != nil {
+			return run, errors.Join(err, recErr)
+		}
 		return run, err
 	}
 	run.FileCount = count
@@ -411,21 +422,9 @@ func (s *BackupService) VerifyBackup(ctx context.Context, zipPath string) (*doma
 		run.Bytes = meta.Bytes
 	}
 
-	// Die Sicherung wird mit ihrem eigenen Schlüssel gelesen und nicht mit dem
-	// des gerade offenen Mandanten. Sonst scheiterte die Entschlüsselung, sobald
-	// jemand die Sicherung eines anderen Mandanten prüft — und eine heile
-	// Sicherung käme als „beschädigt" zurück.
-	readCtx, keyErr := s.verificationContext(ctx, tmpDir, meta)
-	if keyErr != nil {
-		run.Success = false
-		run.Message = keyErr.Error()
-		s.record(ctx, run)
-		return run, keyErr
-	}
-
 	problems := make([]string, 0)
 
-	chain, chainErr := verifyChainAt(readCtx, filepath.Join(tmpDir, dbFileName))
+	chain, chainErr := verifyChainAt(ctx, filepath.Join(tmpDir, dbFileName))
 	switch {
 	case chainErr != nil:
 		problems = append(problems, fmt.Sprintf("Die Datenbank ließ sich nicht prüfen: %v", chainErr))
@@ -433,7 +432,7 @@ func (s *BackupService) VerifyBackup(ctx context.Context, zipPath string) (*doma
 		problems = append(problems, chain.Message)
 	}
 
-	files, filesErr := verifyReceiptFilesAt(readCtx, tmpDir)
+	files, filesErr := verifyReceiptFilesAt(ctx, tmpDir)
 	switch {
 	case filesErr != nil:
 		problems = append(problems, fmt.Sprintf("Die Belegdateien ließen sich nicht prüfen: %v", filesErr))
@@ -445,15 +444,19 @@ func (s *BackupService) VerifyBackup(ctx context.Context, zipPath string) (*doma
 	if len(problems) > 0 {
 		run.Success = false
 		run.Message = strings.Join(problems, " ")
-		s.record(ctx, run)
+		if err := s.record(ctx, run); err != nil {
+			return nil, err
+		}
 		return run, nil
 	}
 
 	run.Success = true
 	run.Message = fmt.Sprintf(
-		"Sicherung geprüft: %d Dateien, %d Buchungen mit gültiger Kette, %d Beleg- und Dokumentdateien unversehrt.",
+		"Sicherung geprüft: %d Dateien, %d Buchungen mit gültiger Kette, %d Belegdateien unversehrt.",
 		count, chain.TotalEntries, files.Checked)
-	s.record(ctx, run)
+	if err := s.record(ctx, run); err != nil {
+		return nil, err
+	}
 	return run, nil
 }
 
@@ -474,7 +477,9 @@ func (s *BackupService) RestoreFromBackup(ctx context.Context, zipPath, targetDi
 	if err := ensureEmptyDir(targetDir); err != nil {
 		run.FinishedAt = time.Now().UTC()
 		run.Message = err.Error()
-		s.record(ctx, run)
+		if recErr := s.record(ctx, run); recErr != nil {
+			return run, errors.Join(err, recErr)
+		}
 		return run, err
 	}
 
@@ -498,13 +503,17 @@ func (s *BackupService) RestoreFromBackup(ctx context.Context, zipPath, targetDi
 		}
 		run.FileCount = 0
 		run.Message = err.Error()
-		s.record(ctx, run)
+		if recErr := s.record(ctx, run); recErr != nil {
+			return run, errors.Join(err, recErr)
+		}
 		return run, err
 	}
 
 	run.Success = true
 	run.Message = fmt.Sprintf("%d Dateien nach %s wiederhergestellt", count, targetDir)
-	s.record(ctx, run)
+	if err := s.record(ctx, run); err != nil {
+		return nil, err
+	}
 	return run, nil
 }
 
@@ -550,13 +559,6 @@ func ensureEmptyDir(dir string) error {
 }
 
 // ReadBackupMeta liest backup.json aus einer Sicherung, ohne sie zu entpacken.
-//
-// Die Wiederherstellung braucht die Mandantenkennung, bevor sie den Ordner
-// anmeldet: der Schlüsselbund führt das Geheimnis unter der Kennung, unter der
-// die Sicherung entstanden ist. Meldete die Wiederherstellung den Ordner unter
-// einer neuen Kennung an, fände sie den Schlüssel nicht — und ein
-// wiederhergestellter Mandant bliebe auf demselben Rechner gesperrt, auf dem
-// sein Geheimnis liegt.
 func ReadBackupMeta(zipPath string) (*BackupMeta, error) {
 	reader, err := zip.OpenReader(zipPath)
 	if err != nil {
@@ -682,45 +684,6 @@ func extractOne(entry *zip.File, targetDir string) (string, error) {
 	return hex.EncodeToString(digest.Sum(nil)), nil
 }
 
-// verificationContext bindet den Schlüsselbund der Sicherung an den Kontext,
-// mit dem die entpackte Datenbank gelesen wird.
-//
-// Drei Fälle: ohne Keyfile in der Sicherung steht alles im Klartext — der
-// Kontext bindet dann ausdrücklich keinen Schlüssel, damit nicht der des
-// offenen Mandanten einspringt. Mit Keyfile wird der Schlüssel zur
-// Mandantenkennung aus backup.json geöffnet. Liegt er auf diesem Rechner nicht
-// vor, wird die Prüfung mit klarer Meldung abgelehnt: „ich habe den Schlüssel
-// nicht" ist eine andere Auskunft als „die Sicherung ist beschädigt".
-func (s *BackupService) verificationContext(
-	ctx context.Context, dataDir string, meta *BackupMeta,
-) (context.Context, error) {
-	if !security.KeyfileExists(dataDir) {
-		return repository.WithVault(ctx, nil), nil
-	}
-	tenantID := ""
-	if meta != nil {
-		tenantID = meta.TenantID
-	}
-	if tenantID == "" {
-		return nil, fmt.Errorf(
-			"die Sicherung enthält eine Wiederherstellungsdatei, aber %s nennt keinen Mandanten — "+
-				"ohne ihn lässt sich der Schlüssel nicht zuordnen", BackupMetaFileName)
-	}
-	open := s.openVault
-	if open == nil {
-		open = security.OpenTenantVault
-	}
-	vault, err := open(dataDir, tenantID)
-	if err != nil {
-		return nil, fmt.Errorf(
-			"die Sicherung des Mandanten %s ließ sich nicht aufschließen: %v. "+
-				"Die Dateien sind vollständig; geprüft werden können sie erst auf einem Rechner, "+
-				"auf dem der Schlüssel dieses Mandanten liegt, oder nach einer Wiederherstellung "+
-				"aus der Wiederherstellungsdatei", tenantID, err)
-	}
-	return repository.WithVault(ctx, vault), nil
-}
-
 // verifyChainAt rechnet die Hash-Chain einer Datenbankdatei nach.
 func verifyChainAt(ctx context.Context, dbPath string) (domain.IntegrityCheckResult, error) {
 	db, err := repository.OpenReadOnlyDB(dbPath)
@@ -745,12 +708,8 @@ func verifyChainAt(ctx context.Context, dbPath string) (domain.IntegrityCheckRes
 	return accounting.NewHashChain().VerifyYears(byYear), nil
 }
 
-// verifyReceiptFilesAt prüft die Belegdateien und Anlagendokumente eines
-// entpackten Datenordners.
-//
-// Beides und nicht nur die Belege: ein Vertrag zum Anlagegut liegt in derselben
-// Sicherung und ist genauso aufbewahrungspflichtig. Der Prüflauf im laufenden
-// Betrieb sieht beide — der Wiederherstellungstest muss dieselbe Auskunft geben.
+// verifyReceiptFilesAt prüft die Belegdateien eines entpackten Datenordners —
+// dieselbe Auskunft wie der Prüflauf im laufenden Betrieb.
 func verifyReceiptFilesAt(ctx context.Context, dataDir string) (*domain.FileCheckResult, error) {
 	db, err := repository.OpenReadOnlyDB(filepath.Join(dataDir, dbFileName))
 	if err != nil {
@@ -762,15 +721,7 @@ func verifyReceiptFilesAt(ctx context.Context, dataDir string) (*domain.FileChec
 	if err != nil {
 		return nil, err
 	}
-	documents, err := repository.NewAssetRepository(db).FindAllDocuments(ctx)
-	if err != nil {
-		return nil, err
-	}
-	companyDocuments, err := repository.NewDocumentRepository(db).FindAll(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return checkReceiptFiles(receipts, documents, receiptstore.New(dataDir), companyDocuments), nil
+	return checkReceiptFiles(receipts, receiptstore.New(dataDir)), nil
 }
 
 func closeDB(db *gorm.DB) {
@@ -791,28 +742,37 @@ func closeDB(db *gorm.DB) {
 //
 // Eine Kopie und kein Verschieben: der ausführende Mandant hat den Lauf
 // tatsächlich ausgeführt und protokolliert das zu Recht.
-func (s *BackupService) RecordRun(ctx context.Context, run *domain.BackupRun) {
+func (s *BackupService) RecordRun(ctx context.Context, run *domain.BackupRun) error {
 	if run == nil {
-		return
+		return nil
 	}
 	copied := *run
 	copied.ID = 0
-	s.record(ctx, &copied)
+	return s.record(ctx, &copied)
 }
 
 // record hält den Lauf in der Datenbank und im Änderungsprotokoll fest.
-func (s *BackupService) record(ctx context.Context, run *domain.BackupRun) {
+func (s *BackupService) record(ctx context.Context, run *domain.BackupRun) error {
+	if s.recorder != nil {
+		return s.recorder(ctx, func(ctx context.Context) error { return s.writeRecord(ctx, run) })
+	}
+	return s.writeRecord(ctx, run)
+}
+
+func (s *BackupService) writeRecord(ctx context.Context, run *domain.BackupRun) error {
 	if s.runRepo != nil {
-		_ = s.runRepo.Create(ctx, run)
+		if err := s.runRepo.Create(ctx, run); err != nil {
+			return fmt.Errorf("der Sicherungslauf ließ sich nicht vermerken: %w", err)
+		}
 	}
 	if s.auditRepo == nil {
-		return
+		return nil
 	}
 	outcome := "gelungen"
 	if !run.Success {
 		outcome = "fehlgeschlagen"
 	}
-	_ = s.auditRepo.Log(ctx, domain.AuditActionExport, "BACKUP", string(run.Kind),
+	return logAudit(ctx, s.auditRepo, domain.AuditActionExport, "BACKUP", string(run.Kind),
 		fmt.Sprintf("Sicherungslauf %s %s: %s", run.Kind, outcome, run.Message))
 }
 

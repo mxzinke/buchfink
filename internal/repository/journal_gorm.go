@@ -108,6 +108,10 @@ func (r *journalRepositoryGorm) FindByBookingDateRange(ctx context.Context, fisc
 	return findBatched(q)
 }
 
+func (r *journalRepositoryGorm) FindServiceEndingFrom(ctx context.Context, beforeYear int, from string) ([]domain.JournalEntry, error) {
+	return findBatched(r.preloaded(ctx).Where("fiscal_year < ? AND service_date_to >= ?", beforeYear, from))
+}
+
 func (r *journalRepositoryGorm) FindOpenItemCandidates(ctx context.Context, fiscalYear int) ([]domain.JournalEntry, error) {
 	q := notReversed(r.preloaded(ctx), "journal_entries").
 		// Zahlungen begründen selbst keinen offenen Posten.
@@ -144,7 +148,7 @@ func (r *journalRepositoryGorm) FindOpenItemCandidatesAt(ctx context.Context, cu
 func (r *journalRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
 	if err := dbFrom(ctx, r.db).Preload("Lines").Preload("Entertainment").Preload("Gifts").First(&entry, id).Error; err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	return &entry, nil
 }
@@ -200,6 +204,11 @@ func (r *journalRepositoryGorm) FindReversalOf(ctx context.Context, entryID uint
 	return &entry, nil
 }
 
+// FindActiveByBankTx liefert die nicht stornierten Buchungen eines Bankumsatzes.
+func (r *journalRepositoryGorm) FindActiveByBankTx(ctx context.Context, bankTxID uint) ([]domain.JournalEntry, error) {
+	return findBatched(notReversed(r.preloaded(ctx), "journal_entries").Where("bank_tx_id = ?", bankTxID))
+}
+
 // FindCorrectionOf liefert die Buchung, die auf entryID als korrigierte zeigt.
 func (r *journalRepositoryGorm) FindCorrectionOf(ctx context.Context, entryID uint) (*domain.JournalEntry, error) {
 	var entry domain.JournalEntry
@@ -220,23 +229,6 @@ func (r *journalRepositoryGorm) GetLastEntry(ctx context.Context, fiscalYear int
 		q = q.Where("fiscal_year = ?", fiscalYear)
 	}
 	err := q.First(&entry).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &entry, nil
-}
-
-// FindByReceipt returns the original booking that references a Beleg. A
-// Generalumkehr points at the same Beleg but is not what sealed it, so it is
-// skipped.
-func (r *journalRepositoryGorm) FindByReceipt(ctx context.Context, receiptID uint) (*domain.JournalEntry, error) {
-	var entry domain.JournalEntry
-	err := dbFrom(ctx, r.db).Preload("Lines").Preload("Entertainment").Preload("Gifts").
-		Where("receipt_id = ? AND kind = ?", receiptID, domain.EntryKindNormal).
-		Order("id asc").First(&entry).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -344,69 +336,6 @@ func (r *journalRepositoryGorm) AccountTurnoversUntil(ctx context.Context, fisca
 		result[x.Account] = t
 	}
 	return result, nil
-}
-
-func (r *journalRepositoryGorm) MonthlyCashflow(ctx context.Context, fiscalYear int, liquidAccounts []string) ([]domain.CashflowDataPoint, error) {
-	if len(liquidAccounts) == 0 {
-		return []domain.CashflowDataPoint{}, nil
-	}
-
-	type row struct {
-		Month string
-		Side  string
-		Total int64
-	}
-
-	var rows []row
-	q := dbFrom(ctx, r.db).Model(&domain.JournalLine{}).
-		Select("substr(e.booking_date, 1, 7) as month, journal_lines.side as side, COALESCE(SUM(journal_lines.amount),0) as total").
-		Joins("JOIN journal_entries e ON e.id = journal_lines.entry_id").
-		Where("journal_lines.account IN ?", liquidAccounts)
-	if fiscalYear > 0 {
-		q = q.Where("e.fiscal_year = ?", fiscalYear)
-	}
-	if err := q.Group("month, side").Order("month asc").Scan(&rows).Error; err != nil {
-		return nil, err
-	}
-
-	byMonth := make(map[string]*domain.CashflowDataPoint)
-	var order []string
-	for _, x := range rows {
-		p, ok := byMonth[x.Month]
-		if !ok {
-			p = &domain.CashflowDataPoint{Month: x.Month, Label: monthLabel(x.Month)}
-			byMonth[x.Month] = p
-			order = append(order, x.Month)
-		}
-		// A debit on a liquid account is money coming in, a credit is money
-		// going out.
-		if domain.Side(x.Side) == domain.SideDebit {
-			p.Inflow += domain.Cents(x.Total)
-		} else {
-			p.Outflow += domain.Cents(x.Total)
-		}
-	}
-
-	result := make([]domain.CashflowDataPoint, 0, len(order))
-	for _, m := range order {
-		p := byMonth[m]
-		p.Net = p.Inflow - p.Outflow
-		result = append(result, *p)
-	}
-	return result, nil
-}
-
-var monthLabels = [...]string{"Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"}
-
-func monthLabel(yyyymm string) string {
-	if len(yyyymm) != 7 {
-		return yyyymm
-	}
-	m := int(yyyymm[5]-'0')*10 + int(yyyymm[6]-'0')
-	if m < 1 || m > 12 {
-		return yyyymm
-	}
-	return monthLabels[m-1]
 }
 
 func (r *journalRepositoryGorm) Count(ctx context.Context, fiscalYear int) (int64, error) {

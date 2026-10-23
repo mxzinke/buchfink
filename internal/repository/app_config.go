@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -34,7 +35,7 @@ func (r *appConfigRepositoryJSON) Load() (*domain.AppConfig, error) {
 	data, err := os.ReadFile(r.configPath)
 	if os.IsNotExist(err) {
 		home, _ := os.UserHomeDir()
-		currentYear := time.Now().Year()
+		currentYear := time.Now().In(calendar.Location()).Year()
 		return &domain.AppConfig{
 			Tenants:        []domain.TenantConfig{},
 			ActiveTenantID: "",
@@ -52,21 +53,6 @@ func (r *appConfigRepositoryJSON) Load() (*domain.AppConfig, error) {
 		return nil, fmt.Errorf("could not unmarshal config file: %w", err)
 	}
 
-	// Auto-migrate legacy single-tenant configuration to Tenants list
-	if cfg.IsConfigured && len(cfg.Tenants) == 0 {
-		tenantID := "default"
-		cfg.Tenants = []domain.TenantConfig{
-			{
-				ID:        tenantID,
-				Name:      "Hauptmandant",
-				DataDir:   cfg.DataDir,
-				CreatedAt: time.Now().UTC().Format(time.RFC3339),
-			},
-		}
-		cfg.ActiveTenantID = tenantID
-		_ = r.Save(&cfg)
-	}
-
 	// Eine gespeicherte Datei ohne Mandantenschlüssel ergäbe einen nicht
 	// belegten Slice — und in der Oberfläche `null` statt einer leeren Liste.
 	cfg.EnsureLists()
@@ -80,7 +66,7 @@ func (r *appConfigRepositoryJSON) Save(cfg *domain.AppConfig) error {
 	}
 
 	// Sync active tenant fields with top-level fields for convenience
-	cfg.SyncActiveTenant(time.Now().Format("2006-01-02"))
+	cfg.SyncActiveTenant()
 
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
@@ -93,7 +79,7 @@ func (r *appConfigRepositoryJSON) Save(cfg *domain.AppConfig) error {
 
 // DiscoverAvailableFiscalYears scans the data directory for existing SQLite files and ensures the current year is included.
 func DiscoverAvailableFiscalYears(dataDir string) []int {
-	currentYear := time.Now().Year()
+	currentYear := time.Now().In(calendar.Location()).Year()
 	yearsMap := map[int]bool{
 		currentYear: true,
 	}

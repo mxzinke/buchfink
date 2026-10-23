@@ -69,7 +69,7 @@ func (e *testEnv) filedReceipt(t *testing.T) *domain.Receipt {
 	ctx := context.Background()
 
 	receipt, err := e.receipts.File(ctx, FileReceiptRequest{
-		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// Die Kopfdaten gehören zu jedem buchbaren Beleg
 		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
 		// ValidateBookable die Buchung zurück.
 		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
@@ -89,7 +89,7 @@ func (e *testEnv) filedReceipt(t *testing.T) *domain.Receipt {
 }
 
 func (e *testEnv) einvoicesWith(reader EInvoiceReader) *EInvoiceService {
-	return NewEInvoiceService(e.receipts, e.contactRepo, reader, e.fiscalYear)
+	return NewEInvoiceService(e.receipts, e.contactRepo, reader)
 }
 
 // Der Vorschlag entsteht aus dem, was die Schnittstelle liefert — nicht aus
@@ -184,7 +184,6 @@ func TestNonInvoiceDocumentsAreRefusedWithTheirName(t *testing.T) {
 	receipt := env.filedReceipt(t)
 
 	for _, kind := range []domain.EInvoiceKind{
-		domain.EInvoiceKindCreditNote,
 		domain.EInvoiceKindCorrection,
 		domain.EInvoiceKindPrepayment,
 		domain.EInvoiceKindSelfBilled,
@@ -209,7 +208,7 @@ func TestEnclosuresBecomeReceiptFiles(t *testing.T) {
 	ctx := context.Background()
 
 	receipt, err := env.receipts.File(ctx, FileReceiptRequest{
-		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// Die Kopfdaten gehören zu jedem buchbaren Beleg
 		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
 		// ValidateBookable die Buchung zurück.
 		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
@@ -265,7 +264,7 @@ func TestUnreadableRecordLeavesTheReceiptUnchanged(t *testing.T) {
 	ctx := context.Background()
 
 	receipt, err := env.receipts.File(ctx, FileReceiptRequest{
-		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// Die Kopfdaten gehören zu jedem buchbaren Beleg
 		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
 		// ValidateBookable die Buchung zurück.
 		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,

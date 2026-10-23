@@ -1,0 +1,92 @@
+{
+  "aus_beleg": {
+    "aussteller": "Netzwerk GmbH",
+    "positionstexte": [
+      "Wartung Server"
+    ],
+    "rechnungsnummer": "PERIOD",
+    "steuernummer": "22/333/44444",
+    "ust_id": "DE555666777"
+  },
+  "befunde": {
+    "blockierend": 0,
+    "geprueft": true,
+    "gesamt": 1,
+    "liste": [
+      {
+        "blockiert": false,
+        "klasse": "content",
+        "norm": "§ 33 UStDV",
+        "regel": "content_relief_small_amount",
+        "schwere": "information",
+        "text": "Kleinbetragsrechnung bis 250 €: Steuernummer, Leistungsempfänger, Leistungsdatum und gesonderter Steuerausweis sind nicht verlangt."
+      }
+    ]
+  },
+  "beleg": {
+    "art": "rechnung",
+    "aufbewahren_bis": "2034-12-31",
+    "aussteller": "Netzwerk GmbH",
+    "belegdatum": "2026-03-31",
+    "betreff": "PERIOD",
+    "brutto": "119.00",
+    "e_rechnung": true,
+    "eingang_am": "2026-04-02",
+    "eingang_ueber": "upload",
+    "id": 1,
+    "nummer": "ER-2026-0001",
+    "richtung": "eingang",
+    "status": "abgelegt",
+    "steuer": "19.00",
+    "waehrung": "EUR"
+  },
+  "dateien": [
+    {
+      "groesse": 4832,
+      "id": 2,
+      "mime": "application/xml",
+      "name": "PERIOD.xml",
+      "rolle": "original",
+      "sha256": "fa784513c30caf407e77185565a039c84e0b8560439de81a9ca3f6301c3d8980"
+    },
+    {
+      "groesse": 4832,
+      "id": 3,
+      "mime": "application/xml",
+      "name": "PERIOD.xml",
+      "rolle": "structured",
+      "sha256": "fa784513c30caf407e77185565a039c84e0b8560439de81a9ca3f6301c3d8980"
+    }
+  ],
+  "einstufung": {
+    "gruende": [
+      {
+        "schluessel": "keine_bestaetigte_standardgruppe",
+        "text": "Der Lieferant hat keine vom Menschen bestätigte Standard-Buchungsgruppe."
+      }
+    ],
+    "stufe": "rueckfrage"
+  },
+  "vorschlag": {
+    "art": "Rechnung",
+    "belegdatum": "2026-03-31",
+    "brutto": "119.00",
+    "erkannt_an": "ust_id",
+    "faellig_am": "2026-03-31",
+    "hinweise": [
+      "Die Buchungsgruppe ist noch zu wählen — welches Aufwandskonto zutrifft, sagt keine Rechnung."
+    ],
+    "kontakt_erkannt": true,
+    "kontakt_id": 1,
+    "leistung_bis": "2026-03-31",
+    "leistung_von": "2026-03-31",
+    "positionen": [
+      {
+        "netto": "100.00",
+        "satz": "19"
+      }
+    ],
+    "steuerfall": "domestic",
+    "waehrung": "EUR"
+  }
+}

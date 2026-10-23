@@ -6,8 +6,8 @@
  * Tailwind-Klassen aus den Tokens in index.css.
  *
  * Rein darstellende Bausteine ohne Verhalten bauen wir selbst, weil es dort
- * nichts falsch zu machen gibt: Button, Section, PageHeader, StatRow, Table,
- * StatusBadge, EmptyState.
+ * nichts falsch zu machen gibt: Button, Section, PageHeader, PageFrame,
+ * StatRow, Table, StatusBadge, EmptyState.
  *
  * Bewusst gibt es keine `Card`. Wo eine Fläche nötig ist (§6.2), steht sie an
  * dieser Stelle im Code und nicht als Baustein, der sich unbemerkt
@@ -16,21 +16,33 @@
 export { cn } from './cn';
 export { BACKDROP, POPUP, POPUP_ITEM } from './popup';
 
-export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from './Button';
+export {
+  Button,
+  DisabledReason,
+  type ButtonProps,
+  type ButtonSize,
+  type ButtonVariant,
+  type DisabledReasonProps,
+} from './Button';
 export { Combobox, type ComboboxOption, type ComboboxProps } from './Combobox';
 export { ConfirmDialog, Dialog, type ConfirmDialogProps, type DialogProps } from './Dialog';
+export {
+  DetailList,
+  DetailPanel,
+  type DetailListProps,
+  type DetailPanelProps,
+} from './DetailPanel';
+export { Disclosure, type DisclosureProps } from './Disclosure';
 export { EmptyState, type EmptyStateProps } from './EmptyState';
 export {
   Notice,
   Progress,
-  Skeleton,
   SkeletonRows,
   toast,
   type NoticeProps,
   type ProgressProps,
   type SkeletonRowsProps,
 } from './Feedback';
-export { FileDrop, type FileDropProps } from './FileDrop';
 export {
   Field,
   FieldRow,
@@ -39,43 +51,44 @@ export {
   type FieldProps,
   type FormGridProps,
 } from './Field';
+export { Help, type HelpProps } from './Help';
 export {
-  Help,
-  InfoPopover,
-  type HelpProps,
-  type InfoPopoverProps,
-} from './Help';
-export {
-  AmountInput,
   CONTROL,
   Input,
   SearchInput,
   Textarea,
-  type AmountInputProps,
   type InputProps,
   type SearchInputProps,
   type TextareaProps,
 } from './Input';
 export {
   Menu,
-  MenuCheckItem,
   MenuGroup,
   MenuItem,
   MenuSeparator,
   type MenuProps,
 } from './Menu';
+export {
+  PAGE_CONTAINER,
+  PageFrame,
+  useInFrame,
+  type FrameTab,
+  type PageFrameProps,
+} from './PageFrame';
 export { PageHeader, Section, type PageHeaderProps, type SectionProps } from './Section';
 export { SHELL_BUTTON, SHELL_CONTROL, SHELL_PANEL } from './shell';
 export { Select, type SelectOption, type SelectProps } from './Select';
 export { Stat, StatRow, type StatProps } from './StatRow';
 export { StatusBadge, type Status, type StatusBadgeProps } from './StatusBadge';
 export {
+  RowButton,
   Table,
   Tbody,
   Td,
   Th,
   Thead,
   Tr,
+  type RowButtonProps,
   type RowVariant,
   type TableProps,
   type TdProps,

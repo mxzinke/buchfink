@@ -1,0 +1,1057 @@
+{
+  "AcceptMasterDataProposal": {
+    "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "AddToInbox": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "BlockContact": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "BookAppropriation": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "BookBankTransactionDirect": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "BookLegalReserve": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "CarryForward": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "CheckFolder": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "CommitPeriod": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "ConfigureBankAccounts": {
+    "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "ConfirmDeclarationInput": {
+    "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "ConfirmDefaultPostingGroup": {
+    "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "ConfirmObligation": {
+    "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "ConfirmVatReturnSubmitted": {
+    "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "ConfirmZMSubmitted": {
+    "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "CorrectShareholderLoan": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "CreateBackup": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "CreateFiscalYear": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "CreateVatCorrection": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "DeleteBankRule": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "DeleteDeclarationInput": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "DeleteTenant": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "DisableReadOnly": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "EnableReadOnly": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "ExportArchive": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "ExportAuditPackage": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "ExportDeclarationJSON": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "ExportStatementCSV": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "ExportStatementPDF": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "ExportVatReturnCSV": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "ExportZ3": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "FileIncomingReceipt": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "FormatElsterTaxNumber": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GenerateProcedureDocumentation": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "GetAccountLedger": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetAccounts": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetAccruals": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetActiveTenant": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetAfaRules": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetAgentBookings": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetAgentRules": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetAllJournalEntries": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetAnlagenspiegel": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetAppConfig": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetAppropriation": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetAssetAcquisitionCandidates": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetAssetRules": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetAuditLogsFiltered": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetAuditTrail": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetAvailableFiscalYears": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetBackupRuns": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetBankAccounts": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetBankRules": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetBankTransactions": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetCarryForwardPreview": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetChangeLog": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetCheckRuns": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetClosingSettings": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetClosingState": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetClosingSteps": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetCompanySettings": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetComplianceHints": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetConnectedApps": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetContacts": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetCountries": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetDeadlines": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetDeclaration": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetEBilanzMappingReport": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetEInvoiceProfiles": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetEInvoiceRules": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetEntriesForReceipt": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetExchangeRate": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetFestschreibungen": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetFilteredJournal": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetFiscalYear": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetFiscalYearCandidates": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetFiscalYears": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetFixedAsset": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetFixedAssets": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetFoundationRules": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetFoundationState": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetInbox": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetInputTaxCorrections": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetInvestmentRules": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetInvoiceDocument": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetInvoiceNumberGaps": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetInvoices": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetJournalEntries": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetMCPServerStatus": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetMasterDataProposals": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetMigrationRecords": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetMonthCloseState": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetNextObligations": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetNonDeductibleReport": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetNotesTexts": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetNumberGapReasons": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetObligation": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetObligations": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetOpenItemsAging": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetOpenItemsAt": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetOrganisationTextDefaults": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetOrganisationTexts": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetPaymentAccounts": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetPaymentAllocations": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetPendingAppRequests": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetPoolConsistencyReport": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetPostingGroups": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetProcedureDocumentations": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetProvisionMirror": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetProvisions": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetReceiptFindings": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetReceiptPreview": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetReceipts": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetReconciliation": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetRetentionRules": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetSchemaMigrations": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetSelectableContacts": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetShareholderLoans": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetSizeClass": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetStatement": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetSuSaOverview": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetTasks": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetTaxElectionRegister": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetTaxTreatments": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetTenants": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetUnitCodes": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetVatExchangeRates": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetVatIDStatus": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetVatPeriodProposal": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetVatReturn": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetWriteUpReport": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetZMPeriods": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "GetZMReturn": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "ImportCAMT053File": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "ImportVatExchangeRates": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "IssueInvoice": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "ListInbox": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "LoadExistingDatabase": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "OpenAgentGuide": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "OpenInbox": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "OpenReleasesPage": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "PostIncomingReceipt": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "PreviewAppropriation": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "PreviewBankStatement": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "PreviewCurrencyValuation": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "PreviewIncomingReceipt": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "PreviewOutgoingInvoice": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "PreviewTaxProvision": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "PreviewVatSettlement": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "ProposeFromEInvoice": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "RecordInvoiceNumberGapReason": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "RegenerateInvoiceDocument": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "RegisterCompany": {
+    "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "RegisterShareholderLoan": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "RejectMasterDataProposal": {
+    "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "ReopenClosingStep": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "ReopenFiscalYear": {
+    "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "ReopenObligation": {
+    "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "ResolveAppRequest": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "RestoreFromBackup": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "RevokeConnectedApp": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "RunChecks": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "SaveAgentRules": {
+    "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "SaveClosingSettings": {
+    "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "SaveContact": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "SaveEBilanzAs": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "SaveFilteredJournalCSV": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "SaveFoundation": {
+    "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "SaveOpeningBalanceAs": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "SaveOpeningEBilanzAs": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "SaveOrganisationTexts": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "SaveProcedureDocumentationAs": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "SaveReceiptFileAs": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "SaveServiceProof": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "SaveVatReturn": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "SaveZMReturn": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "SelectBackupDirDialog": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "SelectBackupFileDialog": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "SelectDatabaseFileDialog": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "SelectDirectoryDialog": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "SelectExportDirectoryDialog": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "SelectReceiptFilesDialog": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "SelectSaveFileDialog": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "SelectStatementFileDialog": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "SelectVatRatesFileDialog": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "ServiceShutdown": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "ServiceStartup": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "SetAverageEmployees": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "SetBackupDir": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "SetDeclarationInput": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "SetFiscalYear": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "SetFiscalYearStatus": {
+    "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "SetInboxFolder": {
+    "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "SetInvoiceBankAccount": {
+    "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "SetMCPPort": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "SetSystemChangeDate": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "SettleAdvance": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "SettlePayment": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "SetupApplication": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "SkipClosingStep": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "SubmitDeclaration": {
+    "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "SuggestBankMatches": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "SwitchTenant": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "UpdateCompanySettings": {
+    "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "ValidateTenantDirectory": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "VerifyAuditChain": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "VerifyBackup": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "VerifyFestschreibung": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "VerifyIntegrity": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "VerifyReceiptFiles": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "WaiveObligation": {
+    "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  }
+}

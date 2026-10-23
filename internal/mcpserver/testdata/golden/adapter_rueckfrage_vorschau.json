@@ -1,0 +1,39 @@
+{
+  "einstufung": "rueckfrage",
+  "vorschau": {
+    "befunde": [],
+    "brutto": "119.00",
+    "faellig_am": "2026-04-14",
+    "hinweise": [
+      {
+        "code": "faelligkeit_aus_zahlungsziel",
+        "text": "Nennt der Beleg eine andere Fälligkeit, gehört sie in die Buchung; sonst stehen offener Posten und Zahlungsvorschläge auf dem falschen Tag.",
+        "titel": "Fällig am 14.04.2026 nach dem Zahlungsziel des Lieferanten"
+      }
+    ],
+    "netto": "100.00",
+    "steuer": "19.00",
+    "zeilen": [
+      {
+        "betrag": "100.00",
+        "konto": "6495",
+        "kontoname": "Wartungskosten für Hard- und Software",
+        "seite": "S"
+      },
+      {
+        "betrag": "19.00",
+        "konto": "1406",
+        "kontoname": "Abziehbare Vorsteuer 19 %",
+        "seite": "S",
+        "steuerschluessel": "VST19"
+      },
+      {
+        "betrag": "119.00",
+        "kontakt_id": 1,
+        "konto": "70000",
+        "kontoname": "70000",
+        "seite": "H"
+      }
+    ]
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "audit": [
+    {
+      "action": "CREATE",
+      "actor": "\u003cactor\u003e",
+      "appVersion": "dev",
+      "channel": "agent:golden",
+      "details": "Buchung 2026-000001: Testbeleg, 1.190,00 € (GJ 2026, 3 Zeilen)",
+      "entityId": "1",
+      "entityType": "JOURNAL",
+      "entryHash": "\u003centryHash\u003e",
+      "id": 4,
+      "previousHash": "\u003cpreviousHash\u003e",
+      "timestamp": "\u003ctimestamp\u003e"
+    }
+  ],
+  "entry": {
+    "actor": "\u003cactor\u003e",
+    "appVersion": "dev",
+    "bookingDate": "2026-03-10",
+    "channel": "agent:golden",
+    "closingPeriod": false,
+    "contactId": 1,
+    "createdAt": "\u003ccreatedAt\u003e",
+    "currency": "EUR",
+    "description": "Testbeleg",
+    "documentDate": "2026-03-10",
+    "documentNumber": "\u003cBeleg\u003e",
+    "entryHash": "\u003centryHash\u003e",
+    "entryNumber": "2026-000001",
+    "exchangeRateMicros": 1000000,
+    "fiscalYear": 2026,
+    "id": 1,
+    "kind": "normal",
+    "lines": [
+      {
+        "account": "6500",
+        "amount": 107600,
+        "entryId": 1,
+        "id": 1,
+        "inputTaxShare": 600,
+        "position": 1,
+        "side": "S",
+        "text": "Vorsteuer zu 60 % abziehbar: 60 % steuerpflichtige Nutzung nach Fahrtenbuch"
+      },
+      {
+        "account": "1406",
+        "amount": 11400,
+        "entryId": 1,
+        "id": 2,
+        "position": 2,
+        "side": "S",
+        "taxBase": 60000,
+        "taxKey": "VST19"
+      },
+      {
+        "account": "70000",
+        "amount": 119000,
+        "contactId": 1,
+        "entryId": 1,
+        "id": 3,
+        "position": 3,
+        "side": "H"
+      }
+    ],
+    "postingRuleVersion": "2026.1",
+    "previousHash": "\u003cpreviousHash\u003e",
+    "receiptHash": "\u003creceiptHash\u003e",
+    "receiptId": 1,
+    "serviceDateFrom": "2026-03-01",
+    "serviceDateTo": "2026-03-31",
+    "source": "receipt",
+    "taxTreatment": "domestic"
+  },
+  "journalEntryId": 1,
+  "newEntries": 1,
+  "override": "",
+  "receiptHashUnchanged": true,
+  "serviceProof": "",
+  "serviceProofAt": "",
+  "status": "sealed"
+}

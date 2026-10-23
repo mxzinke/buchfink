@@ -31,7 +31,8 @@ type VorabpauschaleRequest struct {
 	OpeningPrice  domain.Cents `json:"openingPrice"`
 	ClosingPrice  domain.Cents `json:"closingPrice"`
 	Distributions domain.Cents `json:"distributions"`
-	// BasisPoints ist der Basiszins in Basispunkten: 253 sind 2,53 %.
+	// BasisPoints ist der Basiszins in Basispunkten: 253 sind 2,53 %. Null
+	// heißt: der hinterlegte Wert des Jahres (accounting.InvestmentBaseRateFor).
 	BasisPoints int `json:"basisPoints"`
 	// Record sagt, ob das Ergebnis festgehalten wird. Ohne ihn rechnet der
 	// Aufruf nur vor.
@@ -42,6 +43,12 @@ type VorabpauschaleRequest struct {
 // Vorabpauschale computes the Vorabpauschale of one Kalenderjahr — und hält sie
 // fest, wenn darum gebeten wird.
 func (s *AssetService) Vorabpauschale(ctx context.Context, req VorabpauschaleRequest) (*accounting.Vorabpauschale, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*accounting.Vorabpauschale, error) {
+		return s.vorabpauschale(ctx, req)
+	})
+}
+
+func (s *AssetService) vorabpauschale(ctx context.Context, req VorabpauschaleRequest) (*accounting.Vorabpauschale, error) {
 	asset, err := s.assetRepo.FindByID(ctx, req.AssetID)
 	if err != nil {
 		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", req.AssetID, err)
@@ -55,6 +62,10 @@ func (s *AssetService) Vorabpauschale(ctx context.Context, req VorabpauschaleReq
 	}
 	if req.Year <= 0 {
 		return nil, fmt.Errorf("ohne Kalenderjahr lässt sich keine Vorabpauschale rechnen")
+	}
+	if year := fmt.Sprint(req.Year); asset.AcquisitionDate > year+"-12-31" ||
+		(asset.DisposalDate != "" && asset.DisposalDate < year+"-01-01") {
+		return nil, fmt.Errorf("%s gehörte der Gesellschaft im Kalenderjahr %d nicht", asset.InventoryNumber, req.Year)
 	}
 
 	// § 18 Abs. 2 InvStG kürzt im Jahr des Erwerbs. Der Erwerbsmonat steht am
@@ -103,9 +114,11 @@ func (s *AssetService) Vorabpauschale(ctx context.Context, req VorabpauschaleReq
 	if err := s.assetRepo.AddMovement(ctx, movement); err != nil {
 		return nil, fmt.Errorf("die Vorabpauschale konnte nicht festgehalten werden: %w", err)
 	}
-	s.audit(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionCreate, asset.ID, fmt.Sprintf(
 		"Vorabpauschale %d zu %s: %s € (außerbilanziell, keine Buchung)",
-		req.Year, asset.InventoryNumber, result.Amount))
+		req.Year, asset.InventoryNumber, result.Amount)); err != nil {
+		return nil, err
+	}
 	return &result, nil
 }
 
@@ -153,9 +166,9 @@ func (s *AssetService) investmentNote(
 		GrossAmount:    gross,
 	}
 
-	// Die Anlegerstellung folgt aus der Rechtsform, wo diese sie hergibt, und
-	// aus der ausdrücklichen Festlegung, wo nicht. Beides steht an einer Stelle
-	// — hier noch einmal abzuleiten hieße, die Regel zu verdoppeln.
+	// Die Anlegerstellung folgt aus der Rechtsform oder aus der ausdrücklichen
+	// Festlegung. Beides steht an einer Stelle — hier noch einmal abzuleiten
+	// hieße, die Regel zu verdoppeln.
 	investor := domain.InvestorUnknown
 	if s.settingsRepo != nil {
 		if cfg, err := s.settingsRepo.GetCompanySettings(ctx); err == nil && cfg != nil {

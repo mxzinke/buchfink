@@ -16,7 +16,6 @@ func (e *testEnv) payments(t *testing.T) *PaymentService {
 		repository.NewPaymentAllocationRepository(e.db),
 		e.contactRepo,
 		repository.NewBankRepository(e.db),
-		e.fiscalYear,
 	)
 }
 
@@ -92,6 +91,26 @@ func TestFullPaymentClosesOpenItem(t *testing.T) {
 	items, _ := payments.OpenItems(ctx)
 	if len(items) != 0 {
 		t.Errorf("nach der Vollzahlung darf kein offener Posten bleiben, es sind aber %d", len(items))
+	}
+}
+
+// Bezahlt wird über ein Bankkonto. Eine Kasse führt Buchfink nicht, und ein
+// Sachkonto ist kein Zahlungsmittel.
+func TestPaymentNeedsALiquidAccount(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	payments := env.payments(t)
+	vendor := env.vendor(t, "Lieferant", "DE", "")
+	invoice := env.openPayable(t, vendor.ID, 100000, domain.TaxRateStandard)
+
+	for _, account := range []string{"1600", "6300"} {
+		if _, err := payments.Settle(ctx, PaymentRequest{
+			PaymentAccount: account,
+			PaymentDate:    "2026-03-20",
+			Allocations:    []AllocationRequest{{OpenItemEntryID: invoice.ID, SettledAmount: 119000}},
+		}); err == nil {
+			t.Errorf("eine Zahlung über Konto %s darf nicht gebucht werden", account)
+		}
 	}
 }
 
@@ -254,6 +273,81 @@ func TestBankFeeIsBookedSeparately(t *testing.T) {
 	})
 }
 
+// Bankgebühr beim Zahlungseingang: eine Bank in der Kette hat sie vom Betrag
+// abgezogen. Die Gebühr bleibt Aufwand, die Forderung ist voll ausgeglichen.
+func TestBankFeeOnIncomingPaymentReducesTheCash(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	payments := env.paymentsWithBank(t)
+	customer := env.customer(t, "Kunde", "DE", "")
+
+	inv := &domain.Invoice{
+		ContactID: customer.ID, Date: "2026-03-01",
+		ServiceDateFrom: "2026-03-01", ServiceDateTo: "2026-03-01",
+		TaxTreatment: domain.TaxTreatmentDomestic,
+		Items:        []domain.InvoiceItem{{Description: "Leistung", QuantityMilli: 1000, UnitPrice: 100000, TaxRate: domain.TaxRateStandard}},
+	}
+	if err := env.invoices(t).Issue(ctx, inv); err != nil {
+		t.Fatalf("Rechnung: %v", err)
+	}
+	id := env.bankLine(t, "2026-03-20", 118500, "Kunde", inv.InvoiceNumber)
+
+	entry, err := payments.Settle(ctx, PaymentRequest{
+		BankTxID: &id,
+		Allocations: []AllocationRequest{{
+			OpenItemEntryID:  *inv.JournalEntryID,
+			SettledAmount:    119000,
+			DifferenceKind:   domain.DifferenceBankFee,
+			DifferenceAmount: 500,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Zahlungseingang mit Gebühr: %v", err)
+	}
+
+	assertLines(t, entry, []bookedLine{
+		{domain.SideCredit, customer.LedgerAccount, 119000},
+		{domain.SideDebit, domain.AccountNebenkostenGeld, 500},
+		{domain.SideDebit, domain.AccountBank, 118500},
+	})
+	if items, _ := payments.OpenItems(ctx); len(items) != 0 {
+		t.Errorf("die Forderung muss ausgeglichen sein, es bleiben aber %d Posten offen", len(items))
+	}
+}
+
+// Dieselbe Gebühr in der Aufteilung eines Bankumsatzes (bankumsatz_buchen).
+func TestBankFeeOnIncomingPaymentInASplit(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	payments := env.paymentsWithBank(t)
+	customer := env.customer(t, "Kunde", "DE", "")
+
+	inv := &domain.Invoice{
+		ContactID: customer.ID, Date: "2026-03-01",
+		ServiceDateFrom: "2026-03-01", ServiceDateTo: "2026-03-01",
+		TaxTreatment: domain.TaxTreatmentDomestic,
+		Items:        []domain.InvoiceItem{{Description: "Leistung", QuantityMilli: 1000, UnitPrice: 100000, TaxRate: domain.TaxRateStandard}},
+	}
+	if err := env.invoices(t).Issue(ctx, inv); err != nil {
+		t.Fatalf("Rechnung: %v", err)
+	}
+	id := env.bankLine(t, "2026-03-20", 118500, "Kunde", inv.InvoiceNumber)
+
+	entry, err := payments.BookBankSplit(ctx, BankSplitRequest{BankTxID: id, Lines: []BankSplitLine{{
+		OpenItemEntryID: *inv.JournalEntryID, SettledAmount: 119000,
+		DifferenceKind: domain.DifferenceBankFee, DifferenceAmount: 500,
+	}}})
+	if err != nil {
+		t.Fatalf("Aufteilung mit Gebühr: %v", err)
+	}
+
+	assertLines(t, entry, []bookedLine{
+		{domain.SideCredit, customer.LedgerAccount, 119000},
+		{domain.SideDebit, domain.AccountNebenkostenGeld, 500},
+		{domain.SideDebit, domain.AccountBank, 118500},
+	})
+}
+
 // Kleinbetragsdifferenz: der Rest wird ausgebucht, statt als offener Posten über
 // wenige Cent stehen zu bleiben.
 func TestRoundingDifferenceClosesTheItem(t *testing.T) {
@@ -324,7 +418,7 @@ func TestOnePaymentSettlesSeveralOpenItems(t *testing.T) {
 func TestBankAllocationMustMatchStatementAmount(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
-	payments := env.payments(t)
+	payments := env.paymentsWithBank(t)
 	bankRepo := repository.NewBankRepository(env.db)
 	vendor := env.vendor(t, "Lieferant", "DE", "")
 	invoice := env.openPayable(t, vendor.ID, 100000, domain.TaxRateStandard)
@@ -421,7 +515,7 @@ func TestGrantedSkontoReducesTheReportedBase(t *testing.T) {
 		t.Fatalf("Zahlungseingang mit Skonto: %v", err)
 	}
 
-	summary, err := NewVatService(env.journalRepo, env.fiscalYear).Summary(ctx, "", "")
+	summary, err := NewVatService(env.journalRepo).Summary(ctx, 2026, "", "")
 	if err != nil {
 		t.Fatalf("USt-Auswertung: %v", err)
 	}
@@ -498,7 +592,7 @@ func TestSkontoOnReverseChargeCorrectsBothLegs(t *testing.T) {
 		{domain.SideCredit, domain.AccountBank, 98000},
 	})
 
-	summary, err := NewVatService(env.journalRepo, env.fiscalYear).Summary(ctx, "", "")
+	summary, err := NewVatService(env.journalRepo).Summary(ctx, 2026, "", "")
 	if err != nil {
 		t.Fatalf("USt-Auswertung: %v", err)
 	}
@@ -566,7 +660,6 @@ func TestOpenItemsFromEarlierYearsStayVisible(t *testing.T) {
 	invoice := env.openPayable(t, vendor.ID, 100000, domain.TaxRateStandard)
 
 	payments := env.payments(t)
-	payments.SetFiscalYear(2027)
 
 	items, err := payments.OpenItems(ctx)
 	if err != nil {
@@ -683,7 +776,6 @@ func TestReversedInvoiceStaysClosedInAnEarlierYearView(t *testing.T) {
 	}
 
 	payments := env.payments(t)
-	payments.SetFiscalYear(invoice.FiscalYear)
 
 	items, err := payments.OpenItems(ctx)
 	if err != nil {

@@ -1,0 +1,21 @@
+{
+  "gruende": [
+    {
+      "schluessel": "keine_e_rechnung",
+      "text": "Der Beleg hat keinen strukturierten Rechnungsdatensatz; Fotos und PDF ohne E-Rechnung bucht Buchfink nie direkt."
+    },
+    {
+      "schluessel": "keine_bestaetigte_standardgruppe",
+      "text": "Der Lieferant hat keine vom Menschen bestätigte Standard-Buchungsgruppe."
+    },
+    {
+      "schluessel": "fremdwaehrung",
+      "text": "Der Beleg lautet nicht auf Euro."
+    },
+    {
+      "schluessel": "sonderangaben",
+      "text": "Die Buchung trägt Sonderangaben: [uebersteuerung]."
+    }
+  ],
+  "stufe": "rueckfrage"
+}
