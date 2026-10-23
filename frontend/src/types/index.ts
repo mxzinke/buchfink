@@ -483,7 +483,7 @@ export interface Conversion {
 // Belege
 
 export type ReceiptFileRole = 'original' | 'structured' | 'rendering' | 'attachment';
-export type ReceiptStatus = 'filed' | 'sealed' | 'discarded';
+export type ReceiptStatus = 'filed' | 'sealed' | 'assigned' | 'discarded';
 /**
  * Die Belegart entscheidet über die Buchungspflicht: ein Kontoauszug wird
  * abgelegt, aber nicht gebucht — gebucht werden die Umsätze daraus.
@@ -520,6 +520,11 @@ export interface Receipt {
   files: ReceiptFile[];
   /** Über die geordnete Dateiliste; steht so in der Buchung. */
   receiptHash: string;
+  /** Noch zu buchen: abgelegt, keinem Datensatz zugeordnet, eine Art mit Buchung. */
+  needsBooking: boolean;
+  /** Der Datensatz eines zugeordneten Belegs, etwa shareholder_loan. */
+  assignedKind?: string;
+  assignedId?: number;
   receivedAt?: string;
   receivedVia?: string;
   journalEntryId?: number;

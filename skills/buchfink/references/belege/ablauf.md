@@ -21,7 +21,8 @@ Ein Eingangsbeleg vom Ablegen bis zur Buchung. Zahlung:
 2. **Ablegen.** `beleg_ablegen` je Beleg; Dateien eines Vorgangs (Rechnung mit
    Bewirtungsbeleg oder Lieferschein) zusammen, die Rechnung als `original`.
    Schreiben ohne Buchung (Finanzamt, BZSt, Registergericht): `art: brief`;
-   Vertrag oder Beschluss für `buchung_erfassen`: `art: sonstiges`. Fertig,
+   Vertrag oder Beschluss: `art: sonstiges` (Darlehensvertrag siehe
+   [gesellschafter/ablauf.md](../gesellschafter/ablauf.md#4-darlehen)). Fertig,
    wenn jeder Beleg eine Belegnummer hat.
 3. **Lesen.** `beleg_lesen`. Ein Foto oder PDF ohne Datensatz liest du aus der
    Kopie von `beleg_datei_exportieren`; ohne Dateizugriff nennt der Mensch die
@@ -80,8 +81,8 @@ Ein Eingangsbeleg vom Ablegen bis zur Buchung. Zahlung:
    nach dem Ja mit `beleg_buchen_mit_rueckfrage` und den Sonderangaben aus
    Abschnitt 2. Fremde Belege und Dubletten verwirfst du nach dem Ja mit
    `beleg_verwerfen`; ein Brief ist mit der Ablage erledigt. Fertig, wenn jeder
-   Beleg gebucht, als Brief abgelegt, verworfen oder mit Grund zurückgestellt
-   ist.
+   Beleg gebucht, als Brief abgelegt, einem Darlehen zugeordnet, verworfen
+   oder mit Grund zurückgestellt ist.
 8. **Abschließen.** `belege_suchen` (`status: abgelegt`) und `eingang`: Jeder
    verbliebene Beleg und jede liegende Datei hat einen genannten Grund
    (fehlende Angabe, Berichtigung angefordert, Grenze von Buchfink, fremder

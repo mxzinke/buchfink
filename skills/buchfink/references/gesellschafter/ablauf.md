@@ -85,7 +85,9 @@ Ausnahmen prüft ein Steuerberater.
 Vertrag, Konten, Zinsen, Nachrang und Insolvenzfolgen:
 [bank/darlehen.md](../bank/darlehen.md). Frag nach dem Vertrag (Betrag, Zins,
 Laufzeit, Tilgung, Sicherheit, vor der Auszahlung geschlossen), lege ihn mit
-`beleg_ablegen` ab und erfasse ihn nach dem Ja mit `darlehen_erfassen`.
+`beleg_ablegen` (`art: sonstiges`) ab und erfasse ihn nach dem Ja mit
+`darlehen_erfassen` und `beleg_id`; der Vertrag ist dann dem Darlehen
+zugeordnet und wird nicht gebucht.
 Fertig, wenn `auswertung` (`art: darlehen`) den Vertrag zeigt und der Mensch
 die Befunde zum Fremdvergleich gesehen hat.
 

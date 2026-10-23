@@ -51,6 +51,7 @@ const ROLE_LABELS: Record<string, string> = {
 const STATUS: Record<Receipt['status'], Status> = {
   filed: 'offen',
   sealed: 'gebucht',
+  assigned: 'zugeordnet',
   discarded: 'storniert',
 };
 
@@ -58,11 +59,8 @@ type Filter = 'all' | 'open' | 'unclear';
 
 const kindOf = (receipt: Receipt): ReceiptKind => receipt.kind ?? 'invoice';
 
-/** Kontoauszug und Brief werden abgelegt, aber nicht gebucht. */
-const requiresBooking = (kind: ReceiptKind) => kind !== 'statement' && kind !== 'letter';
-
-export const needsBooking = (receipt: Receipt) =>
-  receipt.status === 'filed' && requiresBooking(kindOf(receipt));
+/** Ob der Beleg noch gebucht werden muss, sagt das Backend. */
+export const needsBooking = (receipt: Receipt) => receipt.needsBooking;
 
 /**
  * Zu klären ist ein Beleg, dessen Rechnungsdatensatz gegen die Regeln verstößt
@@ -300,7 +298,7 @@ export const ReceiptsTab: React.FC = () => {
                     <Td>
                       {unclear && receipt.status === 'filed' ? (
                         <StatusBadge status="fehlerhaft" />
-                      ) : receipt.status === 'filed' && !requiresBooking(kindOf(receipt)) ? (
+                      ) : receipt.status === 'filed' && !receipt.needsBooking ? (
                         <StatusBadge status="abgelegt" />
                       ) : (
                         <StatusBadge status={STATUS[receipt.status]} />
@@ -387,6 +385,9 @@ const ReceiptPanel: React.FC<{
       ? [{ label: 'Aufbewahren bis', value: formatDate(shown.retentionUntil), numeric: true }]
       : []),
     ...(shown.discardReason ? [{ label: 'Verworfen', value: shown.discardReason }] : []),
+    ...(shown.assignedKind === 'shareholder_loan'
+      ? [{ label: 'Zugeordnet', value: `Vertrag zum Gesellschafterdarlehen Nr. ${shown.assignedId}` }]
+      : []),
   ];
 
   return (

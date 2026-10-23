@@ -113,7 +113,11 @@ keine halbe Datei.
 **Beleg-Hash.** Über die geordnete Dateiliste (Rolle, Name, Prüfsumme) und die
 Kopfdaten bildet Buchfink einen Hash (`accounting.ReceiptHash`), der in die
 Buchung eingeht. Mit der Buchung ist der Beleg versiegelt. Was später dazukommt,
-etwa ein Zahlungsnachweis, ist ein eigener Beleg.
+etwa ein Zahlungsnachweis, ist ein eigener Beleg. Ein Beleg, der einen Datensatz
+statt einer Buchung belegt, etwa der Vertrag eines Gesellschafterdarlehens, ist
+diesem zugeordnet (`assigned`): er braucht keine Buchung, seine Dateien sind
+ebenso eingefroren. Ob ein Beleg noch gebucht werden muss, sagt
+`Receipt.NeedsBooking`.
 
 **Keine Buchung ohne Beleg.** Eine Buchung verweist auf einen abgelegten Beleg.
 Fehlt ein Fremdbeleg, entsteht ein Eigenbeleg mit Aussteller, Datum, Betrag,

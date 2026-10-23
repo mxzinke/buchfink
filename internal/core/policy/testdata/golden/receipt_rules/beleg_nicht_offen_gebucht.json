@@ -2,7 +2,7 @@
   "gruende": [
     {
       "schluessel": "beleg_nicht_offen",
-      "text": "Der Beleg ist nicht offen (gebucht oder verworfen)."
+      "text": "Der Beleg ist nicht offen (gebucht, zugeordnet oder verworfen)."
     }
   ],
   "stufe": "rueckfrage"

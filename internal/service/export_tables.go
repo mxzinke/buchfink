@@ -708,6 +708,7 @@ func keyDirectoryTable() (export.Table, error) {
 	for _, s := range []struct{ key, label, hint string }{
 		{string(domain.ReceiptStatusFiled), "Abgelegt", "Der Beleg liegt vor, ist aber noch nicht gebucht."},
 		{string(domain.ReceiptStatusSealed), "Gebucht", "Der Beleg ist gebucht; seine Dateiliste ist festgeschrieben."},
+		{string(domain.ReceiptStatusAssigned), "Zugeordnet", "Der Beleg belegt einen Datensatz statt einer Buchung, etwa den Vertrag eines Gesellschafterdarlehens; seine Dateiliste ist festgeschrieben."},
 		{string(domain.ReceiptStatusDiscarded), "Verworfen", "Der Beleg wird nicht gebucht, bleibt aber erhalten."},
 	} {
 		if err := add("Belegstatus", s.key, s.label, s.hint); err != nil {
@@ -956,6 +957,7 @@ func receiptsTable(d *exportData) (export.Table, error) {
 		alphaField("Beleg_SHA256", "Prüfsumme über die geordnete Dateiliste und — bei Belegen mit Belegdatum — die Kopfdaten; siehe Abschnitt „Den Beleg-Hash nachrechnen“."),
 		intField("Buchung_ID", "Buchung, mit der der Beleg gebucht wurde."),
 		alphaField("Buchungsnummer", "Nummer dieser Buchung."),
+		alphaField("Zugeordnet_zu", "Datensatz, den ein zugeordneter Beleg belegt, etwa shareholder_loan:1 für den Vertrag des Gesellschafterdarlehens 1 (Tabelle darlehen.csv)."),
 		intField("Datei_Position", "Reihenfolge der Datei innerhalb des Belegs."),
 		alphaField("Rolle", "Rolle der Datei; siehe Schlüsselverzeichnis, Kategorie „Belegrolle“."),
 		alphaField("Dateiname", "Name, unter dem die Datei empfangen wurde."),
@@ -971,6 +973,10 @@ func receiptsTable(d *exportData) (export.Table, error) {
 		if r.JournalEntryID != nil {
 			entryNumber = d.entryNumber(*r.JournalEntryID)
 		}
+		assigned := ""
+		if r.AssignedKind != "" {
+			assigned = fmt.Sprintf("%s:%d", r.AssignedKind, r.AssignedID)
+		}
 		for j := range r.Files {
 			f := &r.Files[j]
 			if err := t.AddRow(
@@ -982,7 +988,7 @@ func receiptsTable(d *exportData) (export.Table, error) {
 				r.Currency, r.Subject,
 				string(r.RetentionClass), r.RetentionUntil,
 				r.ReceiptHash,
-				export.OptUint(r.JournalEntryID), entryNumber,
+				export.OptUint(r.JournalEntryID), entryNumber, assigned,
 				export.Int(f.Position), string(f.Role), f.FileName, f.MimeType,
 				export.Int64(f.Size), f.SHA256, export.Bool(f.Derived),
 				d.receiptFilePaths[f.ID],

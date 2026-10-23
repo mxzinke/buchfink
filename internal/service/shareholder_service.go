@@ -149,6 +149,9 @@ func (s *ShareholderService) RegisterLoan(ctx context.Context, req LoanRequest) 
 		if err := s.loans.Save(ctx, loan); err != nil {
 			return nil, fmt.Errorf("der Darlehensvertrag ließ sich nicht speichern: %w", err)
 		}
+		if err := s.assignContract(ctx, nil, loan, contact); err != nil {
+			return nil, err
+		}
 		if err := logAudit(ctx, s.auditRepo, domain.AuditActionCreate, "SHAREHOLDER_LOAN", fmt.Sprintf("%d", loan.ID),
 			fmt.Sprintf("Gesellschafterdarlehen %s %s über %s € zu %s ab %s erfasst (Konto %s, Zinsen %s)",
 				directionLabel(loan.Direction), contact.LegalName(), loan.Principal, domain.RateLabel(loan.InterestRateBP),
@@ -177,6 +180,9 @@ func (s *ShareholderService) CorrectLoan(ctx context.Context, id uint, req LoanR
 		if err := s.loans.Save(ctx, loan); err != nil {
 			return nil, fmt.Errorf("der Darlehensvertrag ließ sich nicht speichern: %w", err)
 		}
+		if err := s.assignContract(ctx, before, loan, contact); err != nil {
+			return nil, err
+		}
 		if err := logAuditChange(ctx, s.auditRepo, domain.AuditActionUpdate, "SHAREHOLDER_LOAN", fmt.Sprintf("%d", loan.ID),
 			fmt.Sprintf("Gesellschafterdarlehen %s %s berichtigt: %s", directionLabel(loan.Direction),
 				contact.LegalName(), reason), before, loan); err != nil {
@@ -184,6 +190,30 @@ func (s *ShareholderService) CorrectLoan(ctx context.Context, id uint, req LoanR
 		}
 		return s.view(ctx, loan, contact, cfg, s.today())
 	})
+}
+
+// assignContract ordnet den Vertragsbeleg dem Darlehen zu: er belegt den
+// Vertrag und braucht keine eigene Buchung. Nennt eine Berichtigung einen
+// anderen Beleg, ist der bisherige wieder abgelegt.
+func (s *ShareholderService) assignContract(
+	ctx context.Context, before, loan *domain.ShareholderLoan, contact *domain.Contact,
+) error {
+	if s.receipts == nil {
+		return nil
+	}
+	if before != nil && before.ContractReceiptID != nil &&
+		(loan.ContractReceiptID == nil || *loan.ContractReceiptID != *before.ContractReceiptID) {
+		if err := s.receipts.ReleaseFromRecord(ctx, *before.ContractReceiptID,
+			domain.AssignmentShareholderLoan, loan.ID); err != nil {
+			return err
+		}
+	}
+	if loan.ContractReceiptID == nil {
+		return nil
+	}
+	return s.receipts.AssignToRecord(ctx, *loan.ContractReceiptID, domain.AssignmentShareholderLoan, loan.ID,
+		fmt.Sprintf("Vertrag zum Gesellschafterdarlehen Nr. %d %s %s", loan.ID, directionLabel(loan.Direction),
+			contact.LegalName()))
 }
 
 // PreviewLoan prüft einen Vertrag wie RegisterLoan oder, mit id, wie

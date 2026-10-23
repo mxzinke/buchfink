@@ -19,7 +19,7 @@ import (
 // Frage, ob überhaupt migriert werden musste: eine Anpassung, die bei jedem
 // Start läuft und nichts protokolliert, lässt sich später nicht von einer
 // unterscheiden, die etwas verändert hat (ARC-05, GoBD Rz. 34).
-const SchemaVersion = 2
+const SchemaVersion = 3
 
 // ApplyMigrations bringt das Schema auf den Stand des Codes und protokolliert
 // den Lauf.
@@ -57,6 +57,9 @@ func ApplyMigrations(ctx context.Context, db *gorm.DB) (*domain.SchemaMigration,
 	}
 
 	migrateErr := AutoMigrate(db)
+	if migrateErr == nil && current > 0 && current < 3 {
+		migrateErr = assignLoanContracts(ctx, db)
+	}
 	if migrateErr != nil {
 		record.Result = domain.SchemaMigrationResultFailed
 		record.Message = migrateErr.Error()
@@ -85,6 +88,16 @@ func ApplyMigrations(ctx context.Context, db *gorm.DB) (*domain.SchemaMigration,
 		return nil, fmt.Errorf("der Migrationslauf ließ sich nicht protokollieren: %w", err)
 	}
 	return record, nil
+}
+
+// assignLoanContracts ordnet Schema 3 die Verträge zu, die ein
+// Gesellschafterdarlehen schon nennt. Vorher blieben sie abgelegt und galten
+// im Prüflauf als ungebucht.
+func assignLoanContracts(ctx context.Context, db *gorm.DB) error {
+	return db.WithContext(ctx).Exec(`UPDATE receipts SET status = ?, assigned_kind = ?,
+		assigned_id = (SELECT l.id FROM shareholder_loans l WHERE l.contract_receipt_id = receipts.id ORDER BY l.id LIMIT 1)
+		WHERE status = ? AND id IN (SELECT contract_receipt_id FROM shareholder_loans WHERE contract_receipt_id IS NOT NULL)`,
+		domain.ReceiptStatusAssigned, domain.AssignmentShareholderLoan, domain.ReceiptStatusFiled).Error
 }
 
 // storedSchemaVersion liest die höchste erfolgreich protokollierte Zielversion.

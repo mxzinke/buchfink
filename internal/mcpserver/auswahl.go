@@ -69,7 +69,7 @@ var choices = map[reflect.Type]choice{
 	reflect.TypeFor[Richtung]():        {[]string{"eingang", "ausgang"}, "eingang oder ausgang"},
 	reflect.TypeFor[AuswertungArt]():   {[]string{"susa", "kontoblatt", "bilanz", "guv", "ust", "pruefbericht", "darlehen", "unterbilanz"}, "Art der Auswertung"},
 	reflect.TypeFor[Gliederung]():      {[]string{"voll", "kurz", "buchstaben"}, "Tiefe der Gliederung; Vorgabe voll"},
-	reflect.TypeFor[BelegStatus]():     {[]string{"abgelegt", "gebucht", "verworfen"}, "abgelegt (noch nicht gebucht), gebucht oder verworfen"},
+	reflect.TypeFor[BelegStatus]():     {[]string{"abgelegt", "gebucht", "zugeordnet", "verworfen"}, "abgelegt (noch nicht gebucht), gebucht, zugeordnet (belegt einen Datensatz, etwa ein Darlehen) oder verworfen"},
 	reflect.TypeFor[BelegArt]():        {choiceKeys(receiptKinds), "Belegart"},
 	reflect.TypeFor[AblageArt]():       {choiceKeys(filingKinds), "rechnung (Vorgabe); brief: Schreiben ohne Buchung (Finanzamt, BZSt, Registergericht), wird nie gebucht; sonstiges: Vertrag oder Beschluss, für buchung_erfassen"},
 	reflect.TypeFor[DateiRolle]():      {[]string{"original", "anhang", "darstellung"}, "Rolle der Datei"},

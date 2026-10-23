@@ -278,6 +278,40 @@ func (r *receiptRepositoryGorm) Seal(ctx context.Context, receiptID uint, entryI
 	})
 }
 
+func (r *receiptRepositoryGorm) Assign(
+	ctx context.Context, receiptID uint, kind domain.ReceiptAssignment, recordID uint,
+) error {
+	return dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		var receipt domain.Receipt
+		if err := tx.First(&receipt, receiptID).Error; err != nil {
+			return mapError(err)
+		}
+		if receipt.Status == domain.ReceiptStatusAssigned && receipt.AssignedKind == kind && receipt.AssignedID == recordID {
+			return nil
+		}
+		if receipt.Status != domain.ReceiptStatusFiled {
+			return fmt.Errorf("Beleg %s ist %s und lässt sich keinem Datensatz zuordnen",
+				receipt.ReceiptNumber, statusLabel(receipt.Status))
+		}
+		return tx.Model(&domain.Receipt{}).Where("id = ?", receiptID).Updates(map[string]any{
+			"status": domain.ReceiptStatusAssigned, "assigned_kind": kind, "assigned_id": recordID,
+			"updated_at": time.Now().UTC(),
+		}).Error
+	})
+}
+
+func (r *receiptRepositoryGorm) Release(
+	ctx context.Context, receiptID uint, kind domain.ReceiptAssignment, recordID uint,
+) error {
+	return dbFrom(ctx, r.db).Model(&domain.Receipt{}).
+		Where("id = ? AND status = ? AND assigned_kind = ? AND assigned_id = ?",
+			receiptID, domain.ReceiptStatusAssigned, kind, recordID).
+		Updates(map[string]any{
+			"status": domain.ReceiptStatusFiled, "assigned_kind": "", "assigned_id": 0,
+			"updated_at": time.Now().UTC(),
+		}).Error
+}
+
 // SaveInputTaxOverride schreibt den Grund der Übersteuerung an den Beleg.
 func (r *receiptRepositoryGorm) SaveInputTaxOverride(
 	ctx context.Context, receiptID uint, reason, at string,
@@ -404,6 +438,8 @@ func statusLabel(s domain.ReceiptStatus) string {
 		return "gebucht und versiegelt"
 	case domain.ReceiptStatusDiscarded:
 		return "verworfen"
+	case domain.ReceiptStatusAssigned:
+		return "einem Datensatz zugeordnet"
 	default:
 		return string(s)
 	}

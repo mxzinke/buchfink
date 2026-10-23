@@ -542,7 +542,7 @@ func (s *TaskService) addReceipts(
 				proofReference = when
 			}
 		}
-		if receipt.JournalEntryID != nil || receipt.Status == domain.ReceiptStatusSealed {
+		if !receipt.NeedsBooking() {
 			continue
 		}
 		open++

@@ -54,11 +54,32 @@ const (
 	// chain. Anything arriving later — a reminder, a proof of payment, a
 	// corrected invoice — is a Beleg of its own pointing at the same transaction.
 	ReceiptStatusSealed ReceiptStatus = "sealed"
+	// ReceiptStatusAssigned heißt: der Beleg gehört zu einem Datensatz statt zu
+	// einer Buchung, etwa der Vertrag eines Gesellschafterdarlehens. Er braucht
+	// keine eigene Buchung; seine Dateien sind eingefroren wie beim gebuchten.
+	// Wird er doch Beleg einer Buchung, etwa der bar gebuchten Auszahlung, ist
+	// er gebucht und behält die Zuordnung.
+	ReceiptStatusAssigned ReceiptStatus = "assigned"
 	// ReceiptStatusDiscarded means the Beleg was filed but will not be booked.
 	// It is not deleted: it already carries a Belegnummer, and a received
 	// document must not vanish without a trace.
 	ReceiptStatusDiscarded ReceiptStatus = "discarded"
 )
+
+// ReceiptAssignment ist die Art des Datensatzes, zu dem ein zugeordneter Beleg
+// gehört.
+type ReceiptAssignment string
+
+// AssignmentShareholderLoan: der Vertrag eines Gesellschafterdarlehens.
+const AssignmentShareholderLoan ReceiptAssignment = "shareholder_loan"
+
+// Label ist der Klartext für die Oberfläche.
+func (a ReceiptAssignment) Label() string {
+	if a == AssignmentShareholderLoan {
+		return "Gesellschafterdarlehen"
+	}
+	return string(a)
+}
 
 // ReceiptKind sagt, was für ein Dokument der Beleg ist.
 //
@@ -246,6 +267,11 @@ type Receipt struct {
 	RetentionOverrideReason string `gorm:"size:500" json:"retentionOverrideReason,omitempty"`
 	RetentionOverrideAt     string `gorm:"size:25" json:"retentionOverrideAt,omitempty"`
 
+	// AssignedKind und AssignedID nennen den Datensatz eines zugeordneten
+	// Belegs (ReceiptStatusAssigned).
+	AssignedKind ReceiptAssignment `gorm:"size:30" json:"assignedKind,omitempty"`
+	AssignedID   uint              `json:"assignedId,omitempty"`
+
 	// ReceivedAt and ReceivedVia record how an incoming document entered the
 	// business. Both are empty on documents Buchfink issued itself.
 	ReceivedAt  string `gorm:"size:10" json:"receivedAt,omitempty"`
@@ -365,6 +391,13 @@ func (r *Receipt) IsDisplayable() bool {
 // Fahrausweis.
 func (k ReceiptKind) IsInvoice() bool {
 	return k == ReceiptKindInvoice || k == ReceiptKindTicket
+}
+
+// NeedsBooking meldet, ob der Beleg noch auf seine Buchung wartet: abgelegt,
+// keinem Datensatz zugeordnet und von einer Art, die gebucht wird. Prüflauf,
+// Aufgaben, Agent und App fragen hier.
+func (r *Receipt) NeedsBooking() bool {
+	return r.Status == ReceiptStatusFiled && r.Kind.RequiresBooking()
 }
 
 // IsOpen reports whether files may still be added or removed.
@@ -531,18 +564,21 @@ func (r *Receipt) ValidateHeader() error {
 // und ohne diesen Umweg riefe MarshalJSON sich selbst auf.
 type receiptJSON Receipt
 
-// MarshalJSON liefert den Beleg mit dem frühesten Löschdatum daneben.
+// MarshalJSON liefert den Beleg mit dem frühesten Löschdatum daneben und mit
+// der Angabe, ob er gebucht werden muss.
 //
 // RetentionUntil ist der letzte Aufbewahrungstag (der 31.12.) und nicht das
 // Löschdatum; gelöscht werden darf erst am Tag danach. Beide Tage mitzugeben
 // ist billiger, als sich darauf zu verlassen, dass jede Stelle der Oberfläche
 // das Feld richtig beschriftet — eine Beschriftung „frühestes Löschdatum" auf
-// RetentionUntil verspräche eine Löschung einen Tag zu früh.
+// RetentionUntil verspräche eine Löschung einen Tag zu früh. Ebenso leitet die
+// App die Buchungspflicht nicht selbst ab (NeedsBooking).
 func (r Receipt) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		receiptJSON
 		EarliestDeletion string `json:"earliestDeletion,omitempty"`
-	}{receiptJSON(r), EarliestDeletionAfter(r.RetentionUntil)})
+		NeedsBooking     bool   `json:"needsBooking"`
+	}{receiptJSON(r), EarliestDeletionAfter(r.RetentionUntil), r.NeedsBooking()})
 }
 
 func isSHA256(s string) bool {
@@ -590,6 +626,11 @@ type ReceiptRepository interface {
 	// Seal marks a Beleg as booked. It is idempotent for the same entry, so a
 	// crash between the journal write and the seal can be repaired by repeating it.
 	Seal(ctx context.Context, receiptID uint, entryID uint) error
+	// Assign ordnet einen abgelegten Beleg einem Datensatz zu; für denselben
+	// Datensatz ist es idempotent. Release nimmt die Zuordnung zurück, wenn sie
+	// zu diesem Datensatz besteht.
+	Assign(ctx context.Context, receiptID uint, kind ReceiptAssignment, recordID uint) error
+	Release(ctx context.Context, receiptID uint, kind ReceiptAssignment, recordID uint) error
 	Discard(ctx context.Context, receiptID uint, reason string) error
 	// SaveValidation records the outcome of reading and checking the structured
 	// part. It touches no file, so the Beleg-Hash is unaffected.

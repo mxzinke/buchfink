@@ -460,6 +460,34 @@ func (s *ReceiptService) Seal(ctx context.Context, receiptID, entryID uint) erro
 	return nil
 }
 
+// AssignToRecord ordnet einen abgelegten Beleg dem Datensatz zu, den er belegt,
+// etwa den Vertrag einem Gesellschafterdarlehen. Er braucht dann keine eigene
+// Buchung. Ein gebuchter Beleg bleibt bei seiner Buchung.
+func (s *ReceiptService) AssignToRecord(
+	ctx context.Context, receiptID uint, kind domain.ReceiptAssignment, recordID uint, label string,
+) error {
+	receipt, err := s.receiptRepo.FindByID(ctx, receiptID)
+	if err != nil {
+		return fmt.Errorf("Beleg %d wurde nicht gefunden: %w", receiptID, err)
+	}
+	if receipt.Status != domain.ReceiptStatusFiled {
+		return nil
+	}
+	if err := s.receiptRepo.Assign(ctx, receiptID, kind, recordID); err != nil {
+		return err
+	}
+	return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "RECEIPT", fmt.Sprintf("%d", receiptID),
+		fmt.Sprintf("Beleg %s zugeordnet: %s", receipt.ReceiptNumber, label))
+}
+
+// ReleaseFromRecord nimmt die Zuordnung zurück, wenn der Datensatz den Beleg
+// nicht mehr nennt; der Beleg ist dann wieder abgelegt.
+func (s *ReceiptService) ReleaseFromRecord(
+	ctx context.Context, receiptID uint, kind domain.ReceiptAssignment, recordID uint,
+) error {
+	return s.receiptRepo.Release(ctx, receiptID, kind, recordID)
+}
+
 // SaveValidation records the outcome of checking the structured part of a Beleg.
 //
 // The result arrives ready to store. Which rules ran and how far they reached

@@ -161,3 +161,46 @@ func TestSeedAddsMissingAccountsAndNeverDeletes(t *testing.T) {
 		t.Error("das Ergänzen des Kontenplans muss protokolliert werden")
 	}
 }
+
+// Schema 3 ordnet die Verträge zu, die ein Gesellschafterdarlehen schon nennt:
+// vorher blieben sie abgelegt und galten im Prüflauf als ungebucht.
+func TestSchema3AssignsLoanContracts(t *testing.T) {
+	db, err := rawInMemoryDB()
+	if err != nil {
+		t.Fatalf("Testdatenbank: %v", err)
+	}
+	t.Cleanup(func() { _ = CloseDB(db) })
+	ctx := context.Background()
+	if _, err := ApplyMigrations(ctx, db); err != nil {
+		t.Fatalf("Schema anlegen: %v", err)
+	}
+	for _, stmt := range []string{
+		`INSERT INTO receipts (id, fiscal_year, receipt_number, direction, status, kind, receipt_hash)
+		 VALUES (8, 2026, 'ER-2026-0008', 'incoming', 'filed', 'other', 'h8'),
+		        (9, 2026, 'ER-2026-0009', 'incoming', 'filed', 'invoice', 'h9')`,
+		`INSERT INTO shareholder_loans (id, contact_id, direction, principal, interest_rate_bp, day_count, start_date,
+		 account, interest_account, contract_receipt_id) VALUES (1, 5, 'to_company', 1500000, 400, 'act/365',
+		 '2026-07-01', '3642', '7317', 8)`,
+		`DELETE FROM schema_migrations`,
+	} {
+		if err := db.Exec(stmt).Error; err != nil {
+			t.Fatalf("%s: %v", stmt, err)
+		}
+	}
+	if err := db.Create(&domain.SchemaMigration{ToVersion: 2, Result: domain.SchemaMigrationResultOK}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ApplyMigrations(ctx, db); err != nil {
+		t.Fatalf("Migration auf 3: %v", err)
+	}
+	var contract, invoice domain.Receipt
+	db.First(&contract, 8)
+	db.First(&invoice, 9)
+	if contract.Status != domain.ReceiptStatusAssigned || contract.AssignedKind != domain.AssignmentShareholderLoan ||
+		contract.AssignedID != 1 {
+		t.Errorf("Vertrag: %s %s/%d", contract.Status, contract.AssignedKind, contract.AssignedID)
+	}
+	if invoice.Status != domain.ReceiptStatusFiled {
+		t.Errorf("eine Rechnung ohne Darlehen bleibt abgelegt, ist aber %s", invoice.Status)
+	}
+}

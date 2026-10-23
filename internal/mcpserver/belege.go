@@ -15,10 +15,12 @@ import (
 
 var receiptStatus = map[domain.ReceiptStatus]string{
 	domain.ReceiptStatusFiled: "abgelegt", domain.ReceiptStatusSealed: "gebucht", domain.ReceiptStatusDiscarded: "verworfen",
+	domain.ReceiptStatusAssigned: "zugeordnet",
 }
 
 var receiptStatusFromLabel = map[BelegStatus]domain.ReceiptStatus{
 	"abgelegt": domain.ReceiptStatusFiled, "gebucht": domain.ReceiptStatusSealed, "verworfen": domain.ReceiptStatusDiscarded,
+	"zugeordnet": domain.ReceiptStatusAssigned,
 }
 
 func richtungOf(d domain.Direction) Richtung {

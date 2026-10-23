@@ -142,7 +142,7 @@ func ClassifyReceipt(f ReceiptFacts, l Limits) Verdict {
 	add := func(key, text string, args ...any) { r = append(r, Reason{Key: key, Text: fmt.Sprintf(text, args...)}) }
 
 	if !f.Open {
-		add("beleg_nicht_offen", "Der Beleg ist nicht offen (gebucht oder verworfen).")
+		add("beleg_nicht_offen", "Der Beleg ist nicht offen (gebucht, zugeordnet oder verworfen).")
 	} else if !f.Displayable {
 		add("keine_darstellung", "Der Beleg lässt sich nicht anzeigen: weder PDF- oder Bilddatei noch Rechnungsdatensatz.")
 	}
