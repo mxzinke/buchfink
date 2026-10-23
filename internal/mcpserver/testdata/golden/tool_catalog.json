@@ -873,6 +873,37 @@
           "additionalProperties": false,
           "description": "Lastschrift der Kreditkartenabrechnung gegen 3610",
           "properties": {
+            "differenzen": {
+              "description": "erklären die Abweichung vom Saldo von 3610",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "art": {
+                    "description": "waehrung: Beleg- gegen Kartenkurs",
+                    "enum": [
+                      "gebuehr",
+                      "rundung",
+                      "waehrung"
+                    ],
+                    "type": "string"
+                  },
+                  "betrag": {
+                    "description": "positiv: weniger abgebucht als auf 3610 (Ertrag)",
+                    "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "art",
+                  "betrag"
+                ],
+                "type": "object"
+              },
+              "type": [
+                "null",
+                "array"
+              ]
+            },
             "stichtag": {
               "description": "Abrechnungsstichtag der Kreditkarte",
               "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
@@ -1338,7 +1369,7 @@
             "additionalProperties": false,
             "properties": {
               "brutto": {
-                "description": "statt netto, wo der Beleg nur brutto je Satz nennt (Kleinbetragsrechnung, Fahrausweis); dann alle Positionen brutto",
+                "description": "statt netto bei Kleinbetragsrechnung oder Fahrausweis, dann für alle Positionen",
                 "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
                 "type": "string"
               },

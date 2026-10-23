@@ -254,6 +254,52 @@ type CreditCardSettlementRequest struct {
 	BankTxID uint `json:"bankTxId"`
 	// StatementDate ist der Abrechnungsstichtag der Kartenabrechnung.
 	StatementDate string `json:"statementDate"`
+	// Differences erklären, warum die Abbuchung vom Saldo von 3610 abweicht.
+	Differences []CardDifference `json:"differences,omitempty"`
+}
+
+// CardDifference ist eine Abweichung zwischen dem Saldo von 3610 und der
+// Abbuchung. Amount ist positiv, wenn weniger abgebucht wurde als auf 3610
+// steht (Ertrag), negativ, wenn mehr (Aufwand).
+type CardDifference struct {
+	Kind   domain.DifferenceKind `json:"kind"`
+	Amount domain.Cents          `json:"amount"`
+}
+
+// cardDifferenceLine bucht eine Abweichung der Kartenabrechnung: eine
+// Kursdifferenz auf die Konten der Währungsumrechnung (§ 277 Abs. 5 Satz 2
+// HGB), eine Rundung auf die sonstigen Posten, eine Gebühr als Nebenkosten des
+// Geldverkehrs.
+func cardDifferenceLine(d CardDifference) (domain.JournalLine, error) {
+	if d.Amount == 0 {
+		return domain.JournalLine{}, fmt.Errorf("eine Differenz ohne Betrag")
+	}
+	gain := d.Amount > 0
+	line := domain.JournalLine{Side: domain.SideDebit, Amount: d.Amount.Abs()}
+	if gain {
+		line.Side = domain.SideCredit
+	}
+	switch d.Kind {
+	case domain.DifferenceCurrency:
+		line.Account, line.Text = accounting.CurrencyLossAccount, "Kursdifferenz der Kartenabrechnung"
+		if gain {
+			line.Account = accounting.CurrencyGainAccount
+		}
+	case domain.DifferenceRounding:
+		line.Account, line.Text = "6300", "Rundungsdifferenz der Kartenabrechnung"
+		if gain {
+			line.Account = "4830"
+		}
+	case domain.DifferenceBankFee:
+		if gain {
+			return domain.JournalLine{}, fmt.Errorf("eine Gebühr erhöht die Abbuchung; ihr Betrag ist negativ")
+		}
+		line.Account, line.Text = domain.AccountNebenkostenGeld, "Gebühr der Kartenabrechnung"
+	default:
+		return domain.JournalLine{}, fmt.Errorf("Differenzart %q gibt es bei der Kartenabrechnung nicht "+
+			"(waehrung, rundung oder gebuehr)", d.Kind)
+	}
+	return line, nil
 }
 
 // creditCardBalance ist der offene Saldo der Kreditkartenabrechnung (3610) an
@@ -271,9 +317,9 @@ func (s *settlement) creditCardBalance(ctx context.Context, date string) (domain
 }
 
 // settleCreditCard bucht die Abbuchung der Kartenabrechnung gegen 3610. Sie
-// muss dem Saldo von 3610 zum Abrechnungsstichtag entsprechen; weicht sie ab
-// (Jahresgebühr, Auslandseinsatzentgelt, Kursdifferenz), gehört der Ausgleich
-// mit einer Zeile je Differenz in Split.
+// muss dem Saldo von 3610 zum Abrechnungsstichtag entsprechen; die angegebenen
+// Differenzen erklären eine Abweichung, etwa den Unterschied zwischen dem Kurs
+// des Belegs und dem der Karte.
 func (s *settlement) settleCreditCard(ctx context.Context, req CreditCardSettlementRequest) (*domain.JournalEntry, error) {
 	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.JournalEntry, error) {
 		tx, err := s.openBankTx(ctx, req.BankTxID)
@@ -291,12 +337,23 @@ func (s *settlement) settleCreditCard(ctx context.Context, req CreditCardSettlem
 		if err != nil {
 			return nil, err
 		}
-		if balance != tx.Amount.Abs() {
+		paid := tx.Amount.Abs()
+		var explained domain.Cents
+		differenceLines := make([]domain.JournalLine, 0, len(req.Differences))
+		for i, d := range req.Differences {
+			line, err := cardDifferenceLine(d)
+			if err != nil {
+				return nil, fmt.Errorf("Differenz %d: %w", i+1, err)
+			}
+			explained += d.Amount
+			differenceLines = append(differenceLines, line)
+		}
+		if balance-paid != explained {
 			return nil, fmt.Errorf(
 				"die Kreditkartenabrechnung (3610) steht zum %s mit %s € offen, abgebucht wurden %s € "+
-					"(Differenz %s €). Fehlende Kartenbelege zuerst buchen; Gebühren, Zinsen oder Kursdifferenzen "+
-					"als eigene Zeilen einer Aufteilung",
-				domain.GermanDate(req.StatementDate), balance, tx.Amount.Abs(), tx.Amount.Abs()-balance)
+					"(Differenz %s €, erklärt %s €). Fehlende Kartenbelege zuerst buchen; Kurs- und "+
+					"Rundungsdifferenzen oder Gebühren als Differenzen der Kartenabrechnung angeben",
+				domain.GermanDate(req.StatementDate), balance, paid, balance-paid, explained)
 		}
 		entry := &domain.JournalEntry{
 			BookingDate:        tx.BookingDate,
@@ -308,10 +365,10 @@ func (s *settlement) settleCreditCard(ctx context.Context, req CreditCardSettlem
 			Source:             domain.EntrySourcePayment,
 			BankTxID:           &tx.ID,
 			PostingRuleVersion: accounting.PostingRuleVersion,
-			Lines: []domain.JournalLine{
+			Lines: append([]domain.JournalLine{
 				{Side: domain.SideDebit, Account: domain.AccountKreditkartenabrechnung, Amount: balance},
-				{Side: domain.SideCredit, Account: tx.LedgerAccount, Amount: balance},
-			},
+				{Side: domain.SideCredit, Account: tx.LedgerAccount, Amount: paid},
+			}, differenceLines...),
 		}
 		return s.postSettlement(ctx, entry, &allocationParts{})
 	})

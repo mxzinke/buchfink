@@ -34,6 +34,7 @@ type (
 	Buchungsseite    string
 	BankStatus       string
 	DifferenzArt     string
+	KartenDifferenz  string
 	KontaktTyp       string
 	PostenRichtung   string
 	PflichtStatus    string
@@ -79,6 +80,7 @@ var choices = map[reflect.Type]choice{
 	reflect.TypeFor[Buchungsseite]():   {[]string{"S", "H"}, "S (Soll) oder H (Haben)"},
 	reflect.TypeFor[BankStatus]():      {[]string{"offen", "zugeordnet", "ignoriert", "alle"}, "Stand der Umsätze; Vorgabe offen"},
 	reflect.TypeFor[DifferenzArt]():    {choiceKeys(differenceKinds), "Art der Differenz zum offenen Posten"},
+	reflect.TypeFor[KartenDifferenz](): {choiceKeys(cardDifferenceKinds), "waehrung: Beleg- gegen Kartenkurs"},
 	reflect.TypeFor[KontaktTyp]():      {[]string{"kunde", "lieferant"}, "kunde oder lieferant"},
 	reflect.TypeFor[PostenRichtung]():  {[]string{"forderung", "verbindlichkeit", "alle"}, "Vorgabe alle"},
 	reflect.TypeFor[PflichtStatus]():   {choiceKeys(statusFromLabel), "Stand der Pflicht"},

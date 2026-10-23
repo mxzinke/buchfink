@@ -47,7 +47,7 @@ type positionRueckfrageIn struct {
 	Buchungsgruppe          Buchungsgruppe `json:"buchungsgruppe,omitempty"`
 	Konto                   Konto          `json:"konto,omitempty" jsonschema:"statt einer Gruppe direkt ein Aufwands- oder Bestandskonto"`
 	Netto                   Betrag         `json:"netto,omitempty" jsonschema:"bei Fremdwährung in der Fremdwährung"`
-	Brutto                  Betrag         `json:"brutto,omitempty" jsonschema:"statt netto, wo der Beleg nur brutto je Satz nennt (Kleinbetragsrechnung, Fahrausweis); dann alle Positionen brutto"`
+	Brutto                  Betrag         `json:"brutto,omitempty" jsonschema:"statt netto bei Kleinbetragsrechnung oder Fahrausweis, dann für alle Positionen"`
 	Satz                    Satz           `json:"satz"`
 	Text                    string         `json:"text,omitempty"`
 	VorsteueranteilPromille int            `json:"vorsteueranteil_promille,omitempty" jsonschema:"abziehbarer Anteil der Vorsteuer in Promille bei gemischter Nutzung; 0 heißt voll"`

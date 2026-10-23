@@ -127,6 +127,47 @@ func TestCreditCardStatementIsMatchedAndSettled(t *testing.T) {
 	}
 }
 
+// Die Karte belastet einen Fremdwährungsbeleg zu ihrem eigenen Kurs, und ein
+// Cent Rundung kommt dazu. Die Differenzen erklären die Abweichung vom Saldo
+// von 3610; ohne sie bleibt der Ausgleich abgewiesen.
+func TestCreditCardDifferencesExplainTheDebit(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	payments := env.paymentsWithBank(t)
+	vendor := env.vendor(t, "Software AG", "DE", "")
+	req := env.receipt(t, vendor.ID, "software", 59_276, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
+	req.Settlement = SettlementCreditCard
+	req.BookingDate, req.DocumentDate, req.ServiceDateFrom, req.ServiceDateTo = "2026-03-15", "2026-03-15", "2026-03-15", "2026-03-15"
+	if _, err := env.posting.PostIncomingReceipt(ctx, req); err != nil {
+		t.Fatalf("Kartenbeleg: %v", err)
+	}
+	balance, err := payments.settlement.creditCardBalance(ctx, "2026-03-31")
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := env.bankLine(t, "2026-04-04", -(balance - 38), "Kartenbank", "Abrechnung 03/2026")
+
+	if _, err := payments.SettleCreditCard(ctx, CreditCardSettlementRequest{BankTxID: id, StatementDate: "2026-03-31",
+		Differences: []CardDifference{{Kind: domain.DifferenceCurrency, Amount: 39}}}); err == nil {
+		t.Error("Differenzen, die die Abweichung nicht ganz erklären, müssen abgewiesen werden")
+	}
+	entry, err := payments.SettleCreditCard(ctx, CreditCardSettlementRequest{BankTxID: id, StatementDate: "2026-03-31",
+		Differences: []CardDifference{
+			{Kind: domain.DifferenceCurrency, Amount: 39},
+			{Kind: domain.DifferenceRounding, Amount: -1},
+		}})
+	if err != nil {
+		t.Fatalf("Ausgleich mit Differenzen: %v", err)
+	}
+	assertLines(t, entry, []bookedLine{
+		{domain.SideDebit, domain.AccountKreditkartenabrechnung, balance},
+		{domain.SideCredit, domain.AccountBank, balance - 38},
+		{domain.SideCredit, "4840", 39},
+		{domain.SideDebit, "6300", 1},
+	})
+	env.assertMatch(t, id, domain.MatchStatusMatched)
+}
+
 // Auslage: die Gesellschafterin bezahlt eine Rechnung der GmbH privat. Der
 // Lieferant ist Aussteller und Kontakt der Buchung, die Erstattungsschuld steht
 // auf 3640 bei ihr; die Vorsteuer zieht die GmbH.

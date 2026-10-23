@@ -357,7 +357,7 @@ func TestCatalogStaysSmall(t *testing.T) {
 			t.Errorf("%s veröffentlicht ein Ausgabeschema", name)
 		}
 	}
-	if total > 84_000 {
+	if total > 85_000 {
 		t.Errorf("der Katalog hat %d Bytes", total)
 	}
 }

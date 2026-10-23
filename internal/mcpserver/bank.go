@@ -178,7 +178,38 @@ type ignorierenIn struct {
 }
 
 type kreditkarteIn struct {
-	Stichtag Datum `json:"stichtag" jsonschema:"Abrechnungsstichtag der Kreditkarte"`
+	Stichtag    Datum               `json:"stichtag" jsonschema:"Abrechnungsstichtag der Kreditkarte"`
+	Differenzen []kartenDifferenzIn `json:"differenzen,omitempty" jsonschema:"erklären die Abweichung vom Saldo von 3610"`
+}
+
+type kartenDifferenzIn struct {
+	Art    KartenDifferenz `json:"art"`
+	Betrag Betrag          `json:"betrag" jsonschema:"positiv: weniger abgebucht als auf 3610 (Ertrag)"`
+}
+
+var cardDifferenceKinds = map[KartenDifferenz]domain.DifferenceKind{
+	"waehrung": domain.DifferenceCurrency, "rundung": domain.DifferenceRounding, "gebuehr": domain.DifferenceBankFee,
+}
+
+func (in kreditkarteIn) request(bankTxID uint) (service.CreditCardSettlementRequest, error) {
+	req := service.CreditCardSettlementRequest{BankTxID: bankTxID}
+	var err error
+	if req.StatementDate, err = in.Stichtag.check("kreditkartenabrechnung.stichtag"); err != nil {
+		return req, err
+	}
+	for i, d := range in.Differenzen {
+		field := fmt.Sprintf("kreditkartenabrechnung.differenzen[%d]", i)
+		kind, err := pick(field+".art", d.Art, cardDifferenceKinds)
+		if err != nil {
+			return req, err
+		}
+		amount, err := d.Betrag.required(field + ".betrag")
+		if err != nil {
+			return req, err
+		}
+		req.Differences = append(req.Differences, service.CardDifference{Kind: kind, Amount: amount})
+	}
+	return req, nil
 }
 
 type kapitalertragIn struct {
@@ -527,11 +558,11 @@ func registerBank(tb *Toolbox) {
 			}
 			return bankBuchenOut{Status: "ignoriert"}, nil
 		case in.Kreditkarte != nil:
-			date, err := in.Kreditkarte.Stichtag.check("kreditkartenabrechnung.stichtag")
+			req, err := in.Kreditkarte.request(in.BankumsatzID)
 			if err != nil {
 				return bankBuchenOut{}, err
 			}
-			entry, err := s.Payments.SettleCreditCard(ctx, service.CreditCardSettlementRequest{BankTxID: in.BankumsatzID, StatementDate: date})
+			entry, err := s.Payments.SettleCreditCard(ctx, req)
 			if err != nil {
 				return bankBuchenOut{}, err
 			}
