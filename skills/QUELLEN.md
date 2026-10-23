@@ -336,7 +336,7 @@ Quellen des Bereichs `references/bank/` (ablauf.md und Referenzen). Alle Links a
 | Quelle | Wofür |
 |---|---|
 | `internal/service/settlement.go` (`Settle`), `internal/service/settlement_difference.go` (`cashAmount`, `differenceLines`, `skontoLines`) | Differenzarten, Skonto nach Steuerfall, Anlage-Skonto, Rundung auf 6300/4830, Kursdifferenz auf 6880/4840, Gebühr auf 6855 bei Zahlungsausgang und -eingang |
-| `internal/domain/payment.go` (`SkontoAccount`) | Skontokonten 5736/5731/5730, 4736/4731/4734 |
+| `internal/domain/payment.go` (`SkontoAccount`), `internal/service/settlement_difference.go` (`expenseReductionLines`) | Skontokonten 5736/5731/5730, 4736/4731/4734; erhaltenes Skonto außerhalb des Materialaufwands mindert das Aufwandskonto |
 | `internal/service/bank_service.go`, `bank_accounts.go`, `internal/bank/camt.go` | Import, Auszug als Beleg, Ablehnungen (Sammelbuchung, Fremdwährung, unbekannte IBAN, mehrere Konten, nur gebuchte Umsätze), gelernte Regeln |
 | `internal/service/closing_booking_service.go` | Jahresverrechnung USt: Zahllast 3841, Erstattung 1420, Vorauszahlungen 3820/3830 |
 | `internal/accounting/skr04_2026.json` | alle zitierten Konten (geprüft am 17.10.2026) |

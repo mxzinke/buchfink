@@ -30,8 +30,11 @@ berichtigt (Satz 5). Eine Rechnungsberichtigung ist nicht nötig
 | § 13b, innergemeinschaftlicher Erwerb | ganzes Skonto ist Netto; beide Steuerzeilen berichtigt | 5730 bzw. 4734 |
 | steuerfrei, nicht steuerbar, Nullsteuersatz | keine Steuer | 5730 bzw. 4734 |
 
-Auf eine Anlagenrechnung mindert Skonto die Anschaffungskosten
-([§ 255 Abs. 1 Satz 3 HGB][hgb255]); Buchfink bucht es auf das Anlagekonto.
+Erhaltenes Skonto auf eine Rechnung außerhalb des Materialaufwands mindert
+den Aufwand, auf dem sie gebucht ist (etwa 6600), anteilig je Konto; die
+Tabelle gilt dort nur für die Steuer. Auf eine Anlagenrechnung mindert Skonto
+die Anschaffungskosten ([§ 255 Abs. 1 Satz 3 HGB][hgb255]); Buchfink bucht es
+auf das Anlagekonto.
 
 Vor dem Vorschlag prüfen:
 

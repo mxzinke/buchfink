@@ -100,8 +100,12 @@ func (s *settlement) skontoLines(
 		}
 	}
 
-	lines := []domain.JournalLine{
-		{Side: opposite, Account: account, Amount: skonto.Net, Text: text},
+	var lines []domain.JournalLine
+	if reduction == nil && direction == domain.DirectionIncoming {
+		lines = s.expenseReductionLines(ctx, item, opposite, skonto.Account, skonto.Net)
+	}
+	if lines == nil {
+		lines = []domain.JournalLine{{Side: opposite, Account: account, Amount: skonto.Net, Text: text}}
 	}
 	for _, leg := range skonto.Legs {
 		line := taxLegLine(leg)
@@ -109,6 +113,63 @@ func (s *settlement) skontoLines(
 		lines = append(lines, line)
 	}
 	return lines, reduction, nil
+}
+
+// expenseReductionLines verteilt ein erhaltenes Skonto auf die Aufwandskonten
+// der Eingangsrechnung: es mindert den Aufwand, auf dem die Rechnung steht.
+// Materialaufwand behält das Skontokonto, das im SKR04 dort steht. Ohne
+// Aufwandszeile, etwa bei einem Bestandskonto, kommt nil zurück, und es bleibt
+// beim Skontokonto.
+func (s *settlement) expenseReductionLines(
+	ctx context.Context, item domain.OpenItem, side domain.Side, skontoAccount string, net domain.Cents,
+) []domain.JournalLine {
+	entry, err := s.journalRepo.FindByID(ctx, item.EntryID)
+	if err != nil || entry == nil {
+		return nil
+	}
+	weights := map[string]domain.Cents{}
+	order := []string{}
+	var total domain.Cents
+	for _, l := range entry.Lines {
+		if l.Side != domain.SideDebit || l.TaxKey != "" || !isExpenseAccount(l.Account) {
+			continue
+		}
+		account := l.Account
+		if account[0] == '5' {
+			account = skontoAccount
+		}
+		if _, seen := weights[account]; !seen {
+			order = append(order, account)
+		}
+		weights[account] += l.Amount
+		total += l.Amount
+	}
+	if total <= 0 {
+		return nil
+	}
+	lines := make([]domain.JournalLine, 0, len(order))
+	var assigned domain.Cents
+	for i, account := range order {
+		amount := domain.MulRound(net, int64(weights[account]), int64(total))
+		if i == len(order)-1 {
+			amount = net - assigned
+		}
+		assigned += amount
+		if amount == 0 {
+			continue
+		}
+		text := "Skonto: Minderung des Aufwands"
+		if account == skontoAccount {
+			text = "Skonto"
+		}
+		lines = append(lines, domain.JournalLine{Side: side, Account: account, Amount: amount, Text: text})
+	}
+	return lines
+}
+
+// isExpenseAccount erkennt die Aufwandskonten des SKR04 (Klassen 5 bis 7).
+func isExpenseAccount(account string) bool {
+	return len(account) == 4 && account[0] >= '5' && account[0] <= '7'
 }
 
 // assetForItem berücksichtigt aktive Anlagen auf der Eingangsseite. Ohne Kartei

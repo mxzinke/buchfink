@@ -74,11 +74,13 @@ Belegs bleibt der Lieferant.
 
 ## Zahlung mit Skonto
 
-Lieferantenrechnung 1.190,00 € brutto, 2 % Skonto.
+Lieferantenrechnung über Werbedrucke, 1.190,00 € brutto, 2 % Skonto. Das
+Skonto mindert den Aufwand, auf dem die Rechnung steht; nur bei
+Materialaufwand nimmt Buchfink das Skontokonto (5736).
 
 | Buchung |
 |---|
-| Kreditor 1.190,00 an **5736** Erhaltene Skonti 20,00 + **1406** Vorsteuer 3,80 + **1800** Bank 1.166,20 |
+| Kreditor 1.190,00 an **6600** Werbekosten 20,00 + **1406** Vorsteuer 3,80 + **1800** Bank 1.166,20 |
 
 Die Vorsteuer sinkt um 3,80 € auf 186,20 € (§ 17 UStG).
 
