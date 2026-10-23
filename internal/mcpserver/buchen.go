@@ -242,14 +242,6 @@ func receiptBookable(ctx context.Context, s core.AgentServices, id uint) (*domai
 	return r, nil
 }
 
-// prefetchRate holt bei Fremdwährung den Kurs vor der Schreibsperre.
-func prefetchRate(ctx context.Context, t *core.Tenant, currency, date string) error {
-	if currency == "" || currency == "EUR" {
-		return nil
-	}
-	return t.PrefetchRate(ctx, currency, date)
-}
-
 // --- buchung_erfassen -------------------------------------------------------
 
 type zeileIn struct {
@@ -523,10 +515,8 @@ func registerBuchen(tb *Toolbox) {
 			"begründete Übersteuerung eines Befunds. Vorher dem Menschen Buchungssatz und Gründe vorlegen und sein " +
 			"Ja einholen; nur_vorschau rechnet ohne zu buchen. Die Standardgruppe des Lieferanten bestätigt das nicht.",
 	}, func(ctx context.Context, c *Call, t *core.Tenant, in belegBuchenRueckfrageIn) error {
-		if in.NurVorschau {
-			return nil
-		}
-		return prefetchRate(ctx, t, strings.ToUpper(strings.TrimSpace(in.Waehrung)), string(in.Belegdatum))
+		// Auch die Vorschau rechnet um und läuft im Schreibvorgang.
+		return t.PrefetchRate(ctx, in.Waehrung, string(in.Belegdatum))
 	}, func(ctx context.Context, c *Call, s core.AgentServices, in belegBuchenRueckfrageIn) (buchungOut, error) {
 		req, err := in.request()
 		if err != nil {

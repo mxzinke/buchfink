@@ -126,12 +126,18 @@ type harnessOption func(*harnessConfig)
 type harnessConfig struct {
 	noTenant bool
 	auth     func(*oauth.Config)
+	rates    domain.CurrencyFetcher
 }
 
 func withoutTenant() harnessOption { return func(c *harnessConfig) { c.noTenant = true } }
 
 func withAuth(f func(*oauth.Config)) harnessOption {
 	return func(c *harnessConfig) { c.auth = f }
+}
+
+// withRates ersetzt den Kursdienst, der sonst offline ist.
+func withRates(r domain.CurrencyFetcher) harnessOption {
+	return func(c *harnessConfig) { c.rates = r }
 }
 
 func newHarness(t *testing.T, opts ...harnessOption) *harness {
@@ -144,10 +150,14 @@ func newHarness(t *testing.T, opts ...harnessOption) *harness {
 	}
 	clock := &fakeClock{now: harnessNow()}
 	base := t.TempDir()
+	network := core.OfflineNetwork()
+	if hc.rates != nil {
+		network.Rates = hc.rates
+	}
 	host, err := core.NewHost(context.Background(), core.HostOptions{
 		Config:  repository.NewAppConfigRepository(filepath.Join(base, "config")),
 		BaseDir: base,
-		Network: core.OfflineNetwork(),
+		Network: network,
 		Clock:   clock,
 	})
 	if err != nil {
