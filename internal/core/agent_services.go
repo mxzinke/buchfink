@@ -19,7 +19,7 @@ type AgentServices struct {
 		GetAccounts(context.Context, int) ([]domain.Account, error)
 		GetAllEntries(context.Context) ([]domain.JournalEntry, error)
 		GetEntries(context.Context, int) ([]domain.JournalEntry, error)
-		GetSuSaOverview(context.Context, int) (*domain.SuSaOverview, error)
+		GetSuSaOverviewAt(context.Context, int, string) (*domain.SuSaOverview, error)
 	}
 	Accruals interface {
 		Book(context.Context, service.AccrualRequest) (*domain.Accrual, error)
@@ -183,6 +183,7 @@ type AgentServices struct {
 	}
 	Statement interface {
 		Statement(context.Context, int, domain.StatementDepth) (*domain.Statement, error)
+		StatementUntil(context.Context, int, string, domain.StatementDepth) (*domain.Statement, error)
 	}
 	Tasks interface {
 		Tasks(context.Context, service.TaskOptions) (*domain.TaskList, error)

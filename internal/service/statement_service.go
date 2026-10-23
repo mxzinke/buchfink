@@ -120,7 +120,7 @@ func (s *StatementService) Build(ctx context.Context, year int, depth domain.Sta
 	// Die Größenklasse entsteht immer aus der vollen Gliederung: die Merkmale
 	// des § 267 HGB hängen an der Bilanzsumme und den Umsatzerlösen, und die
 	// dürfen nicht davon abhängen, wie tief jemand gerade hinsieht.
-	full, err := s.statement(ctx, year, domain.DepthFull)
+	full, err := s.statement(ctx, year, domain.DepthFull, "")
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +138,7 @@ func (s *StatementService) Build(ctx context.Context, year int, depth domain.Sta
 		return nil, fmt.Errorf("unbekannte Gliederungstiefe %q", wanted)
 	}
 	if wanted != domain.DepthFull {
-		shown, err = s.statement(ctx, year, wanted)
+		shown, err = s.statement(ctx, year, wanted, "")
 		if err != nil {
 			return nil, err
 		}

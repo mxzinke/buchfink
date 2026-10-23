@@ -318,7 +318,7 @@
       {
         "checkRunId": 1,
         "id": 30,
-        "message": "Für 1. Quartal 2026 ist keine übermittelte Umsatzsteuer-Voranmeldung erfasst (fällig am 2026-04-10)",
+        "message": "Für 1. Quartal 2026 ist keine übermittelte Umsatzsteuer-Voranmeldung erfasst (fällig am 10.04.2026)",
         "objectId": "2026-Q1",
         "objectName": "1. Quartal 2026",
         "objectType": "VAT_PERIOD",
@@ -329,7 +329,7 @@
       {
         "checkRunId": 1,
         "id": 31,
-        "message": "Für 2. Quartal 2026 ist keine übermittelte Umsatzsteuer-Voranmeldung erfasst (fällig am 2026-07-10)",
+        "message": "Für 2. Quartal 2026 ist keine übermittelte Umsatzsteuer-Voranmeldung erfasst (fällig am 10.07.2026)",
         "objectId": "2026-Q2",
         "objectName": "2. Quartal 2026",
         "objectType": "VAT_PERIOD",
@@ -340,7 +340,7 @@
       {
         "checkRunId": 1,
         "id": 32,
-        "message": "Für 3. Quartal 2026 ist keine übermittelte Umsatzsteuer-Voranmeldung erfasst (fällig am 2026-10-12)",
+        "message": "Für 3. Quartal 2026 ist keine übermittelte Umsatzsteuer-Voranmeldung erfasst (fällig am 12.10.2026)",
         "objectId": "2026-Q3",
         "objectName": "3. Quartal 2026",
         "objectType": "VAT_PERIOD",
@@ -684,7 +684,7 @@
       {
         "checkRunId": 1,
         "id": 30,
-        "message": "Für 1. Quartal 2026 ist keine übermittelte Umsatzsteuer-Voranmeldung erfasst (fällig am 2026-04-10)",
+        "message": "Für 1. Quartal 2026 ist keine übermittelte Umsatzsteuer-Voranmeldung erfasst (fällig am 10.04.2026)",
         "objectId": "2026-Q1",
         "objectName": "1. Quartal 2026",
         "objectType": "VAT_PERIOD",
@@ -695,7 +695,7 @@
       {
         "checkRunId": 1,
         "id": 31,
-        "message": "Für 2. Quartal 2026 ist keine übermittelte Umsatzsteuer-Voranmeldung erfasst (fällig am 2026-07-10)",
+        "message": "Für 2. Quartal 2026 ist keine übermittelte Umsatzsteuer-Voranmeldung erfasst (fällig am 10.07.2026)",
         "objectId": "2026-Q2",
         "objectName": "2. Quartal 2026",
         "objectType": "VAT_PERIOD",
@@ -706,7 +706,7 @@
       {
         "checkRunId": 1,
         "id": 32,
-        "message": "Für 3. Quartal 2026 ist keine übermittelte Umsatzsteuer-Voranmeldung erfasst (fällig am 2026-10-12)",
+        "message": "Für 3. Quartal 2026 ist keine übermittelte Umsatzsteuer-Voranmeldung erfasst (fällig am 12.10.2026)",
         "objectId": "2026-Q3",
         "objectName": "3. Quartal 2026",
         "objectType": "VAT_PERIOD",

@@ -257,3 +257,22 @@ func hasLine(lines []service.MasterDataChangeLine, field, before, after string) 
 	}
 	return false
 }
+
+// Die steuerliche Beratung schlägt der Agent wie die übrigen Stammdaten vor;
+// sie entscheidet über die Fristen der Jahreserklärungen.
+func TestStammdatenVorschlagSteuerberatung(t *testing.T) {
+	h := newHarness(t)
+	a := h.agent("")
+	var out stammdatenOut
+	a.ok("stammdaten_vorschlagen", a.args(map[string]any{
+		"idempotenz_schluessel": "kanzlei-obermaier",
+		"begruendung":           "Steuerkanzlei Obermaier, beauftragt laut Angabe der Geschäftsführerin",
+		"steuerberatung": map[string]any{"beauftragt": true, "ab_jahr": 2026,
+			"erklaerungen": []any{"kst", "gewst", "ust_jahr", "ebilanz"}},
+	}), &out)
+	if !hasChange(out.Aenderungen, "Unternehmensdaten", "Steuerliche Beratung", "Steuerberater ab 2026") {
+		t.Fatalf("Vorschau: %+v", out.Aenderungen)
+	}
+	a.fail("stammdaten_vorschlagen", a.args(map[string]any{"idempotenz_schluessel": "kanzlei-falsch",
+		"begruendung": "x", "steuerberatung": map[string]any{"beauftragt": true, "erklaerungen": []any{"est"}}}), CodeInvalidInput)
+}

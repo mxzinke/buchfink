@@ -710,3 +710,37 @@ func TestOmittedLinesAreLeftOutOfThePDFAndMarkedInTheCSV(t *testing.T) {
 		}
 	}
 }
+
+// Der Zwischenstand zum Monatsende zeigt nur, was bis dahin gebucht ist; die
+// GuV bleibt im Geschäftsjahr.
+func TestStatementUntilACutoff(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	for _, c := range []struct {
+		date   string
+		amount domain.Cents
+	}{{"2026-03-10", 10_000}, {"2026-04-10", 5_000}} {
+		if _, err := env.journal.Post(ctx, &domain.JournalEntry{
+			BookingDate: c.date, DocumentDate: c.date, ServiceDateFrom: c.date, ServiceDateTo: c.date,
+			Description: "Bankgebühr", Source: domain.EntrySourceManual, TaxTreatment: domain.TaxTreatmentNotTaxable,
+			Lines: []domain.JournalLine{
+				{Side: domain.SideDebit, Account: "6855", Amount: c.amount},
+				{Side: domain.SideCredit, Account: domain.AccountBank, Amount: c.amount},
+			},
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	svc := env.statements(t)
+	march, err := svc.StatementUntil(ctx, env.fiscalYear, "2026-03-31", domain.DepthFull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	full, err := svc.Statement(ctx, env.fiscalYear, domain.DepthFull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if march.NetIncome != -10_000 || full.NetIncome != -15_000 {
+		t.Errorf("Ergebnis bis 31.03. %s, ganzes Jahr %s; erwartet −100,00 und −150,00", march.NetIncome, full.NetIncome)
+	}
+}

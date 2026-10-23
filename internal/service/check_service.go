@@ -1006,7 +1006,7 @@ func (s *CheckService) checkVatReturns(
 			ObjectID:   p.Key,
 			ObjectName: p.Label,
 			Message: fmt.Sprintf("Für %s ist keine übermittelte Umsatzsteuer-Voranmeldung erfasst (fällig am %s)",
-				p.Label, due),
+				p.Label, germanDay(due)),
 			Reference: "§ 18 Abs. 1 UStG",
 		})
 	}

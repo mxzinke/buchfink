@@ -72,7 +72,7 @@ type auswertungIn struct {
 	Geschaeftsjahr int           `json:"geschaeftsjahr,omitempty"`
 	Konto          Konto         `json:"konto,omitempty" jsonschema:"Sachkonto des SKR04 für art=kontoblatt; Buchungen eines Personenkontos liefert buchungen_suchen mit kontakt_id"`
 	Von            Datum         `json:"von,omitempty" jsonschema:"kontoblatt, ust: Beginn; Vorgabe Beginn des Geschäftsjahres"`
-	Bis            Datum         `json:"bis,omitempty" jsonschema:"kontoblatt, ust, pruefbericht, darlehen: Ende oder Stichtag; Vorgabe Ende des Geschäftsjahres bzw. heute"`
+	Bis            Datum         `json:"bis,omitempty" jsonschema:"Ende oder Stichtag; Vorgabe Ende des Geschäftsjahres bzw. heute"`
 	Tiefe          Gliederung    `json:"tiefe,omitempty" jsonschema:"bilanz, guv"`
 	Seite
 }
@@ -274,10 +274,11 @@ func registerKonten(tb *Toolbox) {
 		}
 		switch in.Art {
 		case "susa":
-			susa, err := s.Accounting.GetSuSaOverview(ctx, year)
+			susa, err := s.Accounting.GetSuSaOverviewAt(ctx, year, to)
 			if err != nil {
 				return out, err
 			}
+			out.Stichtag = to
 			rows := []susaZeile{}
 			for _, class := range susa.Classes {
 				for _, a := range class.Accounts {
@@ -341,6 +342,10 @@ func registerKonten(tb *Toolbox) {
 				depth = domain.DepthFull
 			}
 			st, err := s.Statement.Statement(ctx, year, depth)
+			if to != "" {
+				st, err = s.Statement.StatementUntil(ctx, year, to, depth)
+				out.Stichtag = to
+			}
 			if err != nil {
 				return out, err
 			}

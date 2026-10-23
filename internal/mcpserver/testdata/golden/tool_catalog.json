@@ -614,7 +614,7 @@
           "type": "string"
         },
         "bis": {
-          "description": "kontoblatt, ust, pruefbericht, darlehen: Ende oder Stichtag; Vorgabe Ende des Geschäftsjahres bzw. heute",
+          "description": "Ende oder Stichtag; Vorgabe Ende des Geschäftsjahres bzw. heute",
           "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
           "type": "string"
         },
@@ -3582,7 +3582,7 @@
       "readOnlyHint": false,
       "title": "Stammdaten vorschlagen"
     },
-    "description": "Schlägt Unternehmensdaten, Gründung oder Bankkonten vor, etwa aus einem Schreiben von Notar, Registergericht, Finanzamt oder Bank. Ändert nichts: der Mensch prüft die Vorschau in der App und übernimmt oder lehnt ab; die Entscheidung steht in status.",
+    "description": "Schlägt Unternehmensdaten, Gründung, Bankkonten oder die steuerliche Beratung vor, etwa aus einem Schreiben von Notar, Registergericht, Finanzamt oder Bank. Ändert nichts: der Mensch prüft die Vorschau in der App und übernimmt oder lehnt ab; die Entscheidung steht in status.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -3705,6 +3705,34 @@
         "mandant_id": {
           "description": "id aus status; ist ein anderer Mandant geöffnet, wird nichts geschrieben",
           "type": "string"
+        },
+        "steuerberatung": {
+          "additionalProperties": false,
+          "properties": {
+            "ab_jahr": {
+              "type": "integer"
+            },
+            "beauftragt": {
+              "type": "boolean"
+            },
+            "erklaerungen": {
+              "description": "kst, gewst, ust_jahr, ebilanz; leer alle",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "null",
+                "array"
+              ]
+            }
+          },
+          "required": [
+            "beauftragt"
+          ],
+          "type": [
+            "null",
+            "object"
+          ]
         },
         "unternehmen": {
           "additionalProperties": {

@@ -24,7 +24,7 @@ func (s *StatementFigures) SizeClassFor(ctx context.Context, year int) (*domain.
 	if err := requireYear(year); err != nil {
 		return nil, err
 	}
-	stmt, err := s.statement(ctx, year, domain.DepthFull)
+	stmt, err := s.statement(ctx, year, domain.DepthFull, "")
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,25 @@ func (s *StatementFigures) Statement(ctx context.Context, year int, depth domain
 	if depth == "" {
 		depth = domain.DepthFull
 	}
-	return s.statement(ctx, year, depth)
+	return s.statement(ctx, year, depth, "")
+}
+
+// StatementUntil ist die Gliederung eines Geschäftsjahres bis zu einem
+// Stichtag in ihm, etwa zum Monatsabschluss. Die Vorjahresspalte bleibt der
+// Stand am Ende des Vorjahres.
+func (s *StatementFigures) StatementUntil(
+	ctx context.Context, year int, cutoff string, depth domain.StatementDepth,
+) (*domain.Statement, error) {
+	if err := requireYear(year); err != nil {
+		return nil, err
+	}
+	if len(cutoff) != 10 {
+		return nil, fmt.Errorf("der Stichtag fehlt oder ist unvollständig (erwartet JJJJ-MM-TT)")
+	}
+	if depth == "" {
+		depth = domain.DepthFull
+	}
+	return s.statement(ctx, year, depth, cutoff)
 }
 
 // Accounts liefert den Kontenplan mit den Salden eines Geschäftsjahres.
@@ -55,9 +73,12 @@ func (s *StatementFigures) Accounts(ctx context.Context, year int) ([]domain.Acc
 	return s.accountingSvc.AccountsForYear(ctx, year)
 }
 
-// statement baut die Gliederung eines Jahres mit der Vorjahresspalte.
-func (s *StatementFigures) statement(ctx context.Context, year int, depth domain.StatementDepth) (*domain.Statement, error) {
-	current, err := s.accountingSvc.AccountsForYear(ctx, year)
+// statement baut die Gliederung eines Jahres mit der Vorjahresspalte; mit
+// Stichtag bis zu ihm.
+func (s *StatementFigures) statement(
+	ctx context.Context, year int, depth domain.StatementDepth, cutoff string,
+) (*domain.Statement, error) {
+	current, err := s.accountingSvc.AccountsForYearAt(ctx, year, cutoff)
 	if err != nil {
 		return nil, err
 	}

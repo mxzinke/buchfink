@@ -56,8 +56,9 @@ späteres Datum.
    Die Steuer einer Leistung gehört in ihren Zeitraum, auch ohne Rechnung
    ([ustva.md](ustva.md#1-pflicht-und-form)). Fertig, wenn beide Listen leer
    sind oder jeder Rest als Frage beim Menschen liegt.
-3. **Konten abstimmen.** `auswertung` (`art: kontoblatt`, `konto`,
-   `bis: <Monatsende>`). Bankkonten gleich Endsaldo des Auszugs; 1460
+3. **Konten abstimmen.** `auswertung` (`art: susa`, dann `art: kontoblatt`
+   mit `konto`, jeweils `bis: <Monatsende>`; Bilanz und GuV ebenso zum
+   Stichtag). Bankkonten gleich Endsaldo des Auszugs; 1460
    Geldtransit und 1370 Durchlaufende Posten auf null; 3610 nach
    [bank/kreditkarte-geldtransit.md](../bank/kreditkarte-geldtransit.md), Lohn
    nach [lohn/abstimmung.md](../lohn/abstimmung.md), Gesellschafter nach

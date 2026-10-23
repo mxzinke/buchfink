@@ -21,6 +21,16 @@ type stammdatenIn struct {
 	Unternehmen map[string]string `json:"unternehmen,omitempty" jsonschema:"nur was sich ändert, Feld → Wert: firma, geschaeftsfuehrung, aufsichtsrat_vorsitz, strasse, hausnummer, adresszusatz, plz, ort, land (DE), ansprechpartner, telefon, email, notar, urkundennummer, sitz, registergericht, registernummer, eingetragen_am (JJJJ-MM-TT), steuernummer, finanzamt, bundesland (HH), ust_id, ust_zeitraum (monat, quartal, jahr, keiner), besteuerung (SOLL, IST), dauerfrist (ja, nein), sondervorauszahlung, stammkapital (119.00)"`
 	Gruendung   *gruendungIn      `json:"gruendung,omitempty" jsonschema:"laut Gesellschaftsvertrag"`
 	Bankkonten  []bankkontoIn     `json:"bankkonten,omitempty" jsonschema:"erkannt an der IBAN"`
+	// Steuerberatung entscheidet, wer die Jahreserklärungen erstellt; daraus
+	// folgen ihre Fristen (§ 149 Abs. 3 AO). Den Namen der Kanzlei nennt die
+	// Begründung.
+	Steuerberatung *steuerberatungIn `json:"steuerberatung,omitempty"`
+}
+
+type steuerberatungIn struct {
+	Beauftragt   bool     `json:"beauftragt"`
+	AbJahr       int      `json:"ab_jahr,omitempty"`
+	Erklaerungen []string `json:"erklaerungen,omitempty" jsonschema:"kst, gewst, ust_jahr, ebilanz; leer alle"`
 }
 
 type gruendungIn struct {
@@ -68,7 +78,7 @@ func registerStammdaten(tb *Toolbox) {
 	AddWrite(tb, Spec{
 		Name:  "stammdaten_vorschlagen",
 		Title: "Stammdaten vorschlagen",
-		Description: "Schlägt Unternehmensdaten, Gründung oder Bankkonten vor, etwa aus einem Schreiben von Notar, " +
+		Description: "Schlägt Unternehmensdaten, Gründung, Bankkonten oder die steuerliche Beratung vor, etwa aus einem Schreiben von Notar, " +
 			"Registergericht, Finanzamt oder Bank. Ändert nichts: der Mensch prüft die Vorschau in der App und " +
 			"übernimmt oder lehnt ab; die Entscheidung steht in status.",
 	}, func(ctx context.Context, c *Call, s core.AgentServices, in stammdatenIn) (stammdatenOut, error) {
@@ -114,6 +124,16 @@ func (in stammdatenIn) changes() (domain.MasterDataChanges, error) {
 			return out, err
 		}
 		out.Foundation = f
+	}
+	if a := in.Steuerberatung; a != nil {
+		advisor := domain.TaxAdvisor{Engaged: a.Beauftragt, SinceYear: a.AbJahr, Declarations: a.Erklaerungen}
+		if err := advisor.Validate(); err != nil {
+			return out, inputError("steuerberatung.erklaerungen", "%v", err)
+		}
+		if out.Company == nil {
+			out.Company = &domain.CompanyChanges{}
+		}
+		out.Company.TaxAdvisor = &advisor
 	}
 	for _, b := range in.Bankkonten {
 		out.BankAccounts = append(out.BankAccounts, domain.BankAccount{
