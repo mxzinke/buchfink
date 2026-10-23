@@ -40,6 +40,11 @@ func (s *PostingService) planIncomingReceipt(ctx context.Context, req ReceiptReq
 			"der Steuerfall fehlt. Er ist anzugeben und lässt sich nicht aus den Beträgen erschließen")
 	}
 
+	grossTax, err := grossPositions(&req)
+	if err != nil {
+		return nil, err
+	}
+
 	contact, err := s.contactRepo.FindByID(ctx, req.ContactID)
 	if err != nil {
 		return nil, fmt.Errorf("Lieferant konnte nicht geladen werden: %w", err)
@@ -102,7 +107,7 @@ func (s *PostingService) planIncomingReceipt(ctx context.Context, req ReceiptReq
 	w := &incomingWork{
 		incomingPlan: out, giftTotals: giftTotals,
 		netByRate: map[domain.TaxRate]domain.Cents{}, owedByRate: map[domain.TaxRate]domain.Cents{},
-		prepared: make([]preparedPosition, 0, len(req.Positions)),
+		grossTax: grossTax, prepared: make([]preparedPosition, 0, len(req.Positions)),
 	}
 	w.euroNet = make([]domain.Cents, len(req.Positions))
 	for i := range req.Positions {

@@ -118,7 +118,7 @@ func taxableNetOf(r resolvedPosition) domain.Cents {
 // Verbindlichkeit gegenüber dem Lieferanten stimmt mit seiner Rechnung nicht
 // mehr überein. Der Rest der Gruppe liegt auf ihrer letzten geteilten Position —
 // dieselbe Regel wie beim Ausgleich der Umrechnung.
-func nonDeductibleTaxByPosition(prepared []preparedPosition) []domain.Cents {
+func nonDeductibleTaxByPosition(prepared []preparedPosition, grossTax map[domain.TaxRate]domain.Cents) []domain.Cents {
 	out := make([]domain.Cents, len(prepared))
 	netByRate := map[domain.TaxRate]domain.Cents{}
 	taxableByRate := map[domain.TaxRate]domain.Cents{}
@@ -147,7 +147,11 @@ func nonDeductibleTaxByPosition(prepared []preparedPosition) []domain.Cents {
 		// Was auf die Gruppe insgesamt entfällt: die Differenz der beiden einmal
 		// gerundeten Steuerbeträge. Der Unterschied zur Summe der Vorschläge
 		// liegt auf der letzten geteilten Position.
-		total := rate.Tax(netByRate[rate]) - rate.Tax(taxableByRate[rate])
+		owed := rate.Tax(netByRate[rate])
+		if tax, ok := grossTax[rate]; ok {
+			owed = tax
+		}
+		total := owed - rate.Tax(taxableByRate[rate])
 		out[idx] += total - assignedByRate[rate]
 	}
 	return out

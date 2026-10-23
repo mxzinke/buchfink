@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/buchfink/buchfink/internal/accounting"
@@ -26,7 +27,10 @@ type incomingWork struct {
 	netByRate  map[domain.TaxRate]domain.Cents
 	// Bei § 13b und ig. Erwerb entsteht die geschuldete Steuer auf die volle
 	// Basis; ein geteilter Vorsteuerabzug mindert nur netByRate (UST-07 K2).
-	owedByRate               map[domain.TaxRate]domain.Cents
+	owedByRate map[domain.TaxRate]domain.Cents
+	// grossTax ist bei einem Beleg mit Bruttobeträgen die herausgerechnete
+	// Steuer je Satz; sonst nil.
+	grossTax                 map[domain.TaxRate]domain.Cents
 	needsEntertainmentRecord bool
 }
 
@@ -68,7 +72,7 @@ func applyIncomingPositions(ctx context.Context, s *PostingService, w *incomingW
 // Nicht abziehbare Vorsteuer wird je Steuersatz gerundet (§ 9b Abs. 1 EStG).
 func applyExpenseLines(ctx context.Context, s *PostingService, w *incomingWork) error {
 	req := w.request
-	nonDeductibleTax := nonDeductibleTaxByPosition(w.prepared)
+	nonDeductibleTax := nonDeductibleTaxByPosition(w.prepared, w.grossTax)
 	for i, pp := range w.prepared {
 		if pp.advance {
 			account, err := accounting.VendorAdvanceAccountFor(req.AdvanceTarget)
@@ -163,6 +167,9 @@ func applyIncomingTaxLines(ctx context.Context, s *PostingService, w *incomingWo
 	req := w.request
 	// Steuerzeilen, einmal je Steuersatzgruppe gerundet. In Fremdwährung
 	// kommt die Kursdifferenz zwischen Tages- und Umsatzsteuerkurs hinzu.
+	if w.grossTax != nil {
+		return applyGrossTaxLines(s, w)
+	}
 	taxLines, err := s.taxLinesForShare(
 		domain.DirectionIncoming, req.TaxTreatment, w.netByRate, w.owedByRate, w.fx)
 	if err != nil {
@@ -170,6 +177,32 @@ func applyIncomingTaxLines(ctx context.Context, s *PostingService, w *incomingWo
 	}
 	w.lines = append(w.lines, taxLines...)
 
+	return nil
+}
+
+// applyGrossTaxLines baut die Steuerzeilen eines Belegs mit Bruttobeträgen je
+// Satz und setzt bei vollem Abzug die herausgerechnete Steuer ein
+// (§ 35 Abs. 1 und 2 UStDV).
+func applyGrossTaxLines(s *PostingService, w *incomingWork) error {
+	rates := make([]domain.TaxRate, 0, len(w.owedByRate))
+	for r := range w.owedByRate {
+		rates = append(rates, r)
+	}
+	sort.Slice(rates, func(i, j int) bool { return rates[i] < rates[j] })
+	for _, rate := range rates {
+		deductible, owed := w.netByRate[rate], w.owedByRate[rate]
+		lines, err := s.taxLinesForShare(domain.DirectionIncoming, w.request.TaxTreatment,
+			map[domain.TaxRate]domain.Cents{rate: deductible}, map[domain.TaxRate]domain.Cents{rate: owed}, nil)
+		if err != nil {
+			return err
+		}
+		for i := range lines {
+			if deductible == owed && isInputTaxKey(lines[i].TaxKey) {
+				lines[i].Amount = w.grossTax[rate]
+			}
+		}
+		w.lines = append(w.lines, lines...)
+	}
 	return nil
 }
 

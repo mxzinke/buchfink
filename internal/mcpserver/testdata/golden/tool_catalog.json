@@ -1337,6 +1337,11 @@
           "items": {
             "additionalProperties": false,
             "properties": {
+              "brutto": {
+                "description": "statt netto, wo der Beleg nur brutto je Satz nennt (Kleinbetragsrechnung, Fahrausweis); dann alle Positionen brutto",
+                "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
+                "type": "string"
+              },
               "buchungsgruppe": {
                 "description": "Buchungsgruppe für Eingangsbelege; Bedeutung über konten mit art=buchungsgruppen",
                 "enum": [
@@ -1422,7 +1427,6 @@
               }
             },
             "required": [
-              "netto",
               "satz"
             ],
             "type": "object"

@@ -18,6 +18,7 @@ import { usePostingLock } from '../../components/WriteLock';
 import { formatCents, formatCentsPlain, formatDate, parseCents } from '../../utils/formatters';
 import {
   Button,
+  Checkbox,
   DisabledReason,
   Combobox,
   Dialog,
@@ -76,6 +77,8 @@ export const ReceiptBookingDialog: React.FC<ReceiptBookingDialogProps> = ({ rece
   const [documentDate, setDocumentDate] = useState(receipt.documentDate || receipt.receivedAt || '');
   const [description, setDescription] = useState(receipt.subject ?? '');
   const [positions, setPositions] = useState<Position[]>([{ group: '', net: '', rate: TAX_RATE_STANDARD }]);
+  // Kleinbetragsrechnung und Fahrausweis nennen nur den Bruttobetrag je Satz.
+  const [gross, setGross] = useState(false);
   const [proposedTreatment, setProposedTreatment] = useState<TaxTreatment | ''>('');
   const [settlement, setSettlement] = useState<Settlement>('open');
   const [dueDate, setDueDate] = useState('');
@@ -143,13 +146,17 @@ export const ReceiptBookingDialog: React.FC<ReceiptBookingDialogProps> = ({ rece
       serviceDateTo: documentDate,
       description: description.trim() || receipt.subject || receipt.receiptNumber,
       taxTreatment: treatment,
-      positions: parsed.map((p) => ({ postingGroup: p.group, net: p.cents ?? 0, taxRate: p.rate })),
+      positions: parsed.map((p) =>
+        gross
+          ? { postingGroup: p.group, net: 0, gross: p.cents ?? 0, taxRate: p.rate }
+          : { postingGroup: p.group, net: p.cents ?? 0, taxRate: p.rate },
+      ),
       settlement,
       paymentAccount: settlement === 'paid' ? paymentAccount : undefined,
       dueDate: settlement === 'open' && dueDate ? dueDate : undefined,
       currency: receipt.currency || 'EUR',
     };
-  }, [contactId, positions, documentDate, description, treatment, settlement, paymentAccount, dueDate, receipt]);
+  }, [contactId, positions, gross, documentDate, description, treatment, settlement, paymentAccount, dueDate, receipt]);
 
   // Den Buchungssatz rechnet das Backend; die Maske zeigt ihn nur.
   useEffect(() => {
@@ -277,7 +284,7 @@ export const ReceiptBookingDialog: React.FC<ReceiptBookingDialogProps> = ({ rece
             <div className="mt-6">
               <div className="grid grid-cols-[minmax(0,1fr)_8rem_6rem_2rem] gap-2 text-label text-ink-muted mb-1">
                 <span>Buchungsgruppe</span>
-                <span className="text-right">Netto</span>
+                <span className="text-right">{gross ? 'Brutto' : 'Netto'}</span>
                 <span>Steuer</span>
                 <span />
               </div>
@@ -300,7 +307,7 @@ export const ReceiptBookingDialog: React.FC<ReceiptBookingDialogProps> = ({ rece
                     value={position.net}
                     onChange={(e) => update(index, { net: e.target.value })}
                     placeholder="0,00"
-                    aria-label={`Nettobetrag Position ${index + 1}`}
+                    aria-label={`${gross ? 'Bruttobetrag' : 'Nettobetrag'} Position ${index + 1}`}
                   />
                   <Select<TaxRate>
                     items={RATE_ITEMS}
@@ -334,6 +341,13 @@ export const ReceiptBookingDialog: React.FC<ReceiptBookingDialogProps> = ({ rece
               >
                 Position
               </Button>
+              <Checkbox
+                className="mt-3"
+                checked={gross}
+                onCheckedChange={(checked) => setGross(Boolean(checked))}
+                label="Beträge sind brutto"
+                hint="Fahrschein oder Kleinbetragsrechnung: Die Steuer wird herausgerechnet"
+              />
               <p className="mt-1 text-caption text-ink-subtle">
                 Bewirtungen und Geschenke bucht Claude, weil dazu weitere Angaben gehören.
               </p>

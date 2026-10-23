@@ -41,11 +41,14 @@ func (k SettlementKind) paidAtReceipt() bool {
 // ReceiptPosition is one net amount of an incoming document, classified by a
 // fachliche Gruppe (or a directly chosen account) and a VAT rate.
 type ReceiptPosition struct {
-	PostingGroup string         `json:"postingGroup"`
-	Account      string         `json:"account,omitempty"` // direkte Kontowahl statt Gruppe
-	Net          domain.Cents   `json:"net"`
-	TaxRate      domain.TaxRate `json:"taxRate"`
-	Text         string         `json:"text,omitempty"`
+	PostingGroup string       `json:"postingGroup"`
+	Account      string       `json:"account,omitempty"` // direkte Kontowahl statt Gruppe
+	Net          domain.Cents `json:"net"`
+	// Gross ersetzt Net, wo der Beleg nur den Bruttobetrag je Steuersatz nennt
+	// (Kleinbetragsrechnung, Fahrausweis); Net ergibt sich dann daraus.
+	Gross   domain.Cents   `json:"gross,omitempty"`
+	TaxRate domain.TaxRate `json:"taxRate"`
+	Text    string         `json:"text,omitempty"`
 
 	// InputTaxShare ist der abziehbare Anteil der Vorsteuer in Promille — der
 	// Vorsteuerschlüssel der gemischten Nutzung.

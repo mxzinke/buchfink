@@ -327,6 +327,8 @@ export interface ReceiptPosition {
   postingGroup: string;
   account?: string;
   net: Cents;
+  /** Statt net bei Kleinbetragsrechnung und Fahrausweis; die Steuer wird herausgerechnet. */
+  gross?: Cents;
   taxRate: TaxRate;
   text?: string;
   /**

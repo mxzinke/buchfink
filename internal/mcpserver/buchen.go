@@ -46,7 +46,8 @@ type geschenkIn struct {
 type positionRueckfrageIn struct {
 	Buchungsgruppe          Buchungsgruppe `json:"buchungsgruppe,omitempty"`
 	Konto                   Konto          `json:"konto,omitempty" jsonschema:"statt einer Gruppe direkt ein Aufwands- oder Bestandskonto"`
-	Netto                   Betrag         `json:"netto" jsonschema:"bei Fremdwährung in der Fremdwährung"`
+	Netto                   Betrag         `json:"netto,omitempty" jsonschema:"bei Fremdwährung in der Fremdwährung"`
+	Brutto                  Betrag         `json:"brutto,omitempty" jsonschema:"statt netto, wo der Beleg nur brutto je Satz nennt (Kleinbetragsrechnung, Fahrausweis); dann alle Positionen brutto"`
 	Satz                    Satz           `json:"satz"`
 	Text                    string         `json:"text,omitempty"`
 	VorsteueranteilPromille int            `json:"vorsteueranteil_promille,omitempty" jsonschema:"abziehbarer Anteil der Vorsteuer in Promille bei gemischter Nutzung; 0 heißt voll"`
@@ -150,11 +151,18 @@ func (in belegBuchenRueckfrageIn) request() (service.ReceiptRequest, error) {
 		return req, inputError("positionen", "1 bis 20 Positionen, nicht %d", len(in.Positionen))
 	}
 	for i, p := range in.Positionen {
-		net, err := p.Netto.required(fmt.Sprintf("positionen[%d].netto", i))
+		net, err := p.Netto.cents(fmt.Sprintf("positionen[%d].netto", i))
 		if err != nil {
 			return req, err
 		}
-		pos := service.ReceiptPosition{PostingGroup: string(p.Buchungsgruppe), Account: string(p.Konto), Net: net,
+		gross, err := p.Brutto.cents(fmt.Sprintf("positionen[%d].brutto", i))
+		if err != nil {
+			return req, err
+		}
+		if (net == 0) == (gross == 0) {
+			return req, inputError(fmt.Sprintf("positionen[%d].netto", i), "netto oder brutto, genau eines")
+		}
+		pos := service.ReceiptPosition{PostingGroup: string(p.Buchungsgruppe), Account: string(p.Konto), Net: net, Gross: gross,
 			TaxRate: p.Satz.rate(), Text: p.Text, InputTaxShare: p.VorsteueranteilPromille,
 			InputTaxShareReason: p.VorsteueranteilGrund}
 		if p.Geschenk != nil {

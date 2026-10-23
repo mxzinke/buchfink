@@ -27,7 +27,9 @@ Ein Eingangsbeleg vom Ablegen bis zur Buchung. Zahlung:
    Kopie von `beleg_datei_exportieren`; ohne Dateizugriff nennt der Mensch die
    Angaben. Fertig, wenn Aussteller, Belegdatum, Leistungszeitpunkt,
    Rechnungsnummer, Netto je Steuersatz, Steuer, Brutto und Währung
-   feststehen.
+   feststehen. Nennt eine Kleinbetragsrechnung oder ein Fahrausweis nur
+   Brutto je Satz, gibst du alle Positionen als `brutto` an; Buchfink teilt
+   den Betrag in Entgelt und Steuer ([§ 35 UStDV][ustdv35]).
 4. **Prüfen**, in dieser Reihenfolge:
    - Beleg dieses Unternehmens? Fremde und private Belege legst du zum
      Verwerfen vor.
@@ -115,3 +117,5 @@ vorliegt.
   der Ursprungsbuchung wirkt im alten Zeitraum
   ([grundlagen/arbeitsweise.md](../grundlagen/arbeitsweise.md#11-eine-buchung-korrigieren));
   nimm es nur für eigene Buchungsfehler.
+
+[ustdv35]: https://www.gesetze-im-internet.de/ustdv_1980/__35.html

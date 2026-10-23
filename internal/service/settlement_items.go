@@ -187,11 +187,13 @@ func documentTaxRate(entry *domain.JournalEntry) (domain.TaxRate, bool) {
 		if l.TaxKey == "" || l.TaxBase == 0 {
 			continue
 		}
-		// Der Satz folgt aus Bemessungsgrundlage und Steuerbetrag.
+		// Der Satz folgt aus Bemessungsgrundlage und Steuerbetrag. Ein Cent
+		// Abstand bleibt zulässig: bei Bruttobeträgen ist die Steuer aus dem
+		// Bruttobetrag herausgerechnet (§ 35 UStDV).
 		switch {
-		case domain.TaxRateStandard.Tax(l.TaxBase) == l.Amount:
+		case (domain.TaxRateStandard.Tax(l.TaxBase) - l.Amount).Abs() <= 1:
 			return domain.TaxRateStandard, true
-		case domain.TaxRateReduced.Tax(l.TaxBase) == l.Amount:
+		case (domain.TaxRateReduced.Tax(l.TaxBase) - l.Amount).Abs() <= 1:
 			return domain.TaxRateReduced, true
 		}
 		return domain.TaxRateNone, false
