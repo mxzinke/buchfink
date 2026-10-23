@@ -177,9 +177,8 @@ func TestReadFolderSkipsOtherTenants(t *testing.T) {
 		CodePathNotAllowed)
 }
 
-// Eine reine XRechnung bekommt ihre Darstellung, wenn dieselbe XML mit dem
-// PDF noch einmal abgelegt wird; vorher nennt das Buchen den Weg.
-func TestPureXRechnungGetsItsRendering(t *testing.T) {
+// Eine reine XRechnung bucht der Agent ohne PDF; die XML ist der Beleg.
+func TestPureXRechnungIsBookableWithoutRendering(t *testing.T) {
 	h := newHarness(t)
 	h.completeCompany()
 	vendorID := h.vendor()
@@ -189,21 +188,6 @@ func TestPureXRechnungGetsItsRendering(t *testing.T) {
 	a.ok("beleg_ablegen", a.args(map[string]any{"eingang_am": "2026-05-05", "dateien": []any{map[string]any{"pfad": xml}}}), &filed)
 	if !filed.ERechnung {
 		t.Fatalf("XRechnung: %+v", filed)
-	}
-	e := a.fail("beleg_buchen_mit_rueckfrage", a.args(bookArgs(filed.Beleg.ID, vendorID, "2026-05-04", "100.00")), CodeRule)
-	if e.Werkzeug != "beleg_ablegen" {
-		t.Errorf("ohne Darstellung: %+v", e)
-	}
-	// Die XML ging nach der Ablage nach Übernommen/; von dort nimmt sie das
-	// zweite Ablegen.
-	if len(filed.Verschoben) != 1 || filed.Verschoben[0].Von != xml {
-		t.Fatalf("verschoben: %+v", filed.Verschoben)
-	}
-	var again ablageOut
-	a.ok("beleg_ablegen", a.args(map[string]any{"eingang_am": "2026-05-05", "dateien": []any{map[string]any{"pfad": filed.Verschoben[0].Nach},
-		map[string]any{"pfad": h.inboxFile("RE-XR-1.pdf", pdf("Darstellung")), "rolle": "darstellung"}}}), &again)
-	if !again.BereitsVorhanden || again.Beleg.ID != filed.Beleg.ID || !again.Befunde.Geprueft {
-		t.Fatalf("Darstellung nachgereicht: %+v", again)
 	}
 	a.ok("beleg_buchen_mit_rueckfrage", a.args(bookArgs(filed.Beleg.ID, vendorID, "2026-05-04", "100.00")), nil)
 }

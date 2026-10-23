@@ -539,8 +539,9 @@ Buchungskerns und den Prüfläufen vor der Festschreibung.
   vergeben wie die Buchung.
 - In eine festgeschriebene Periode wird nicht mehr gebucht.
 - In ein festgestelltes Geschäftsjahr wird nicht mehr gebucht.
-- Ein Beleg ohne ansehbare Darstellung und ohne vollständige Kopfdaten ist nicht
-  buchbar.
+- Ein Beleg, der sich weder als Datei noch als Ansicht seines
+  Rechnungsdatensatzes zeigen lässt, oder ohne vollständige Kopfdaten ist nicht
+  buchbar. Eine reine XRechnung ist der Beleg; die App zeigt sie aus der XML.
 - Eine Generalumkehr trägt negative Beträge auf denselben Seiten und verweist
   auf die ursprüngliche Buchung.
 

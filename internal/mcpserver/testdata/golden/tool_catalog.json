@@ -984,7 +984,7 @@
       "readOnlyHint": false,
       "title": "Beleg ablegen"
     },
-    "description": "Legt Dateien aus dem Eingang (eingang) oder einem Leseordner als Eingangsbeleg ab (absoluter Pfad; PDF, Bild oder XML bis 50 MB; kein Dateiinhalt im Aufruf). Nur Dateien ablegen, die der Mensch als Beleg benannt hat: die Ablage ist endgültig, auch ein verworfener Beleg bleibt im Archiv. Danach verschiebt Buchfink die Dateien aus dem Eingang nach Übernommen/\u003cJJJJ-MM\u003e. Eine E-Rechnung wird ausgelesen und geprüft; Belegdatum, Aussteller, Brutto und Rechnungsnummer kommen dann aus ihr. Bei Fotos und PDF ohne E-Rechnung gehören belegdatum, aussteller und brutto dazu. eingang_am bestimmt den Voranmeldungszeitraum der Vorsteuer. Dieselbe Originaldatei ein zweites Mal liefert den vorhandenen Beleg und ergänzt fehlende Dateien, etwa die PDF-Darstellung einer reinen XRechnung. Danach beleg_lesen.",
+    "description": "Legt Dateien aus dem Eingang (eingang) oder einem Leseordner als Eingangsbeleg ab (absoluter Pfad; PDF, Bild oder XML bis 50 MB; kein Dateiinhalt im Aufruf). Nur Dateien ablegen, die der Mensch als Beleg benannt hat: die Ablage ist endgültig, auch ein verworfener Beleg bleibt im Archiv. Danach verschiebt Buchfink die Dateien aus dem Eingang nach Übernommen/\u003cJJJJ-MM\u003e. Eine E-Rechnung wird ausgelesen und geprüft; Belegdatum, Aussteller, Brutto und Rechnungsnummer kommen dann aus ihr. Bei Fotos und PDF ohne E-Rechnung gehören belegdatum, aussteller und brutto dazu. eingang_am bestimmt den Voranmeldungszeitraum der Vorsteuer. Dieselbe Originaldatei ein zweites Mal liefert den vorhandenen Beleg und ergänzt fehlende Dateien. Danach beleg_lesen.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -1025,7 +1025,7 @@
                 "type": "string"
               },
               "rolle": {
-                "description": "original (Vorgabe für die erste Datei), anhang oder darstellung (PDF-Ansicht einer reinen XRechnung; ohne sie lässt sich eine XRechnung nicht buchen)",
+                "description": "original (Vorgabe für die erste Datei), anhang oder darstellung (PDF des Lieferanten zu einer reinen XRechnung, freiwillig)",
                 "enum": [
                   "original",
                   "anhang",

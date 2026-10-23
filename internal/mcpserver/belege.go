@@ -183,7 +183,7 @@ func befundeOf(f *domain.ReceiptFindings) belegBefunde {
 
 type belegDateiIn struct {
 	Pfad  string     `json:"pfad" jsonschema:"absoluter Pfad im Eingang (eingang nennt die Dateien) oder in einem Leseordner"`
-	Rolle DateiRolle `json:"rolle,omitempty" jsonschema:"original (Vorgabe für die erste Datei), anhang oder darstellung (PDF-Ansicht einer reinen XRechnung; ohne sie lässt sich eine XRechnung nicht buchen)"`
+	Rolle DateiRolle `json:"rolle,omitempty" jsonschema:"original (Vorgabe für die erste Datei), anhang oder darstellung (PDF des Lieferanten zu einer reinen XRechnung, freiwillig)"`
 }
 
 type belegAblegenIn struct {
@@ -413,7 +413,7 @@ func registerBelege(tb *Toolbox) {
 			"geprüft; Belegdatum, Aussteller, Brutto und Rechnungsnummer kommen dann aus ihr. Bei Fotos und PDF ohne " +
 			"E-Rechnung gehören belegdatum, aussteller und brutto dazu. eingang_am bestimmt den " +
 			"Voranmeldungszeitraum der Vorsteuer. Dieselbe Originaldatei ein zweites Mal liefert den vorhandenen " +
-			"Beleg und ergänzt fehlende Dateien, etwa die PDF-Darstellung einer reinen XRechnung. Danach beleg_lesen.",
+			"Beleg und ergänzt fehlende Dateien. Danach beleg_lesen.",
 	}, func(ctx context.Context, c *Call, s core.AgentServices, in belegAblegenIn) (belegAblegenOut, error) {
 		out := belegAblegenOut{Befunde: belegBefunde{Liste: []befundEintrag{}}, Hinweise: []string{}}
 		if len(in.Dateien) == 0 || len(in.Dateien) > 10 {
@@ -706,9 +706,8 @@ func receiptHints(ctx context.Context, s core.AgentServices, r *domain.Receipt) 
 		}
 	}
 	if !r.IsDisplayable() {
-		out = append(out, "Der Beleg hat keine ansehbare Darstellung und lässt sich so nicht buchen. Eine reine "+
-			"XRechnung braucht ein PDF: dieselbe XML noch einmal mit beleg_ablegen und dem PDF als rolle=darstellung senden, "+
-			"die XML mit dem Pfad aus verschoben, wenn Buchfink sie nach Übernommen/ gebracht hat.")
+		out = append(out, "Der Beleg lässt sich weder als Datei noch als E-Rechnung anzeigen und so nicht buchen; "+
+			"leg ihn als PDF oder Bild ab.")
 	}
 	if period := s.Receipts.InputTaxPeriodDifference(ctx, r); period != nil {
 		out = append(out, fmt.Sprintf("Eingang am %s: die Vorsteuer fällt in den Voranmeldungszeitraum %s, nicht in %s des Belegdatums. "+

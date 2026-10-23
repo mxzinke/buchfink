@@ -642,6 +642,62 @@ export interface ReceiptPreview {
   mimeType: string;
   /** false, wenn die Datei auf der Platte nicht mehr zu ihrer Prüfsumme passt. */
   intact: boolean;
+  /** Die Ansicht einer reinen E-Rechnung; dataUrl ist dann leer. */
+  eInvoice?: EInvoiceView;
+}
+
+export interface EInvoiceViewParty {
+  name: string;
+  address?: string[];
+  vatId?: string;
+  taxNumber?: string;
+  contact?: string;
+}
+
+/** Die Ansicht einer E-Rechnung, so wie die XML sie sagt; Beträge als Dezimaltext. */
+export interface EInvoiceView {
+  syntax: string;
+  typeCode: string;
+  typeLabel: string;
+  number: string;
+  issueDate: string;
+  dueDate?: string;
+  currency: string;
+  periodFrom?: string;
+  periodTo?: string;
+  deliveryDate?: string;
+  buyerReference?: string;
+  orderReference?: string;
+  precedingInvoices?: string[];
+  seller: EInvoiceViewParty;
+  buyer: EInvoiceViewParty;
+  lines: {
+    id: string;
+    name: string;
+    description?: string;
+    quantity: string;
+    unit: string;
+    netPrice: string;
+    netAmount: string;
+    vatRate: string;
+    vatCategory: string;
+    periodFrom?: string;
+    periodTo?: string;
+  }[];
+  vat: { category: string; rate: string; taxableAmount: string; taxAmount: string; exemptionReason?: string }[];
+  totals: {
+    lineTotal: string;
+    taxBasisTotal: string;
+    taxTotal: string;
+    grandTotal: string;
+    prepaid?: string;
+    duePayable: string;
+  };
+  paymentTerms?: string;
+  payment?: { means: string; iban?: string; bic?: string; accountName?: string; remittanceInfo?: string }[];
+  notes?: string[];
+  fileName: string;
+  intact: boolean;
 }
 
 // -------------------------------------------------------------------------

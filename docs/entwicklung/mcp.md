@@ -252,7 +252,7 @@ Sonst nennt `gruende` jeden verletzten Schlüssel. Die Vorschau
 | Schlüssel | Regel |
 |---|---|
 | `beleg_nicht_offen`, `keine_eingangsrechnung` | abgelegte Eingangsrechnung |
-| `keine_darstellung` | der Beleg hat eine ansehbare Datei; eine reine XRechnung bekommt sie mit `beleg_ablegen` und `rolle: darstellung` |
+| `keine_darstellung` | der Beleg lässt sich zeigen: als PDF- oder Bilddatei oder als Ansicht seines Rechnungsdatensatzes; eine reine XRechnung braucht kein PDF |
 | `keine_e_rechnung`, `e_rechnung_ungeprueft`, `e_rechnung_mit_befund`, `kein_vorschlag` | E-Rechnung mit strukturiertem Teil, geprüft, ohne Befund; Fotos und PDF ohne Datensatz nie |
 | `kontakt_nicht_erkannt`, `kontakt_gesperrt` | der Aussteller ist über USt-IdNr. oder Steuernummer dieser Kontakt, nicht nur dem Namen nach; nicht gesperrt |
 | `stammdaten_weichen_ab` | USt-IdNr., Steuernummer und Anschrift der E-Rechnung widersprechen den Stammdaten nicht |
@@ -361,8 +361,7 @@ liegt. Verschoben wird nur innerhalb des Eingangs: steht an der Stelle von
 Datei liegen, und ein Hinweis nennt den Grund. Eine vorhandene Datei
 überschreibt Buchfink nie, auch nicht bei gleichzeitigen Ablagen. Die Antwort
 nennt den neuen Pfad unter `verschoben`; ein zweites
-Ablegen derselben Datei, etwa mit der Darstellung einer reinen XRechnung,
-nimmt ihn; wer den alten Pfad nennt, bekommt den neuen in der Meldung von
+Ablegen derselben Datei, etwa mit einem Anhang, nimmt ihn; wer den alten Pfad nennt, bekommt den neuen in der Meldung von
 `datei_ungueltig`. Scheitert das Verschieben, steht ein Hinweis in der Antwort, und
 die Ablage gilt. Dateien in Leseordnern bleiben liegen. Die App verschiebt
 genauso, wenn ein Beleg aus Datei oder ein Kontoauszug aus dem Eingang kommt.

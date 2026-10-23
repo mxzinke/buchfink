@@ -3,6 +3,7 @@ import { AlertTriangle } from 'lucide-react';
 import type { JournalEntry, JournalLine, ReceiptPreview } from '../../types';
 import { formatCents } from '../../utils/formatters';
 import { Notice, cn, type Status } from '../../components/ui';
+import { EInvoiceSheet } from './EInvoiceSheet';
 
 /** Die Fehlermeldung eines Bridge-Aufrufs als Text. */
 export function errorText(e: unknown): string {
@@ -125,6 +126,8 @@ export const DocumentPreview: React.FC<{
           </div>
         ) : !preview ? (
           <span className="text-body text-ink-subtle">Vorschau wird geladen …</span>
+        ) : preview.eInvoice ? (
+          <EInvoiceSheet invoice={preview.eInvoice} />
         ) : preview.mimeType === 'application/pdf' ? (
           <iframe
             title="Belegvorschau"

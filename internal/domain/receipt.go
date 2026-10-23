@@ -349,9 +349,14 @@ func (r *Receipt) DisplayFile() (*ReceiptFile, bool) {
 	return r.FileByRole(ReceiptRoleRendering)
 }
 
-// IsDisplayable reports whether the Beleg can be shown to the user at all.
+// IsDisplayable meldet, ob sich der Beleg zeigen lässt: als Datei oder, bei
+// einer reinen E-Rechnung, als Ansicht, die die App aus dem Datensatz erzeugt.
+// Die XML ist der Beleg; eine zusätzliche Darstellungsdatei braucht es nicht.
 func (r *Receipt) IsDisplayable() bool {
-	_, ok := r.DisplayFile()
+	if _, ok := r.DisplayFile(); ok {
+		return true
+	}
+	_, ok := r.FileByRole(ReceiptRoleStructured)
 	return ok
 }
 
@@ -445,7 +450,8 @@ func (r *Receipt) ValidateStructure() error {
 }
 
 // ValidateBookable is the check that runs when a Beleg is booked. It adds the one
-// requirement filing must not impose: the Beleg has to be viewable.
+// requirement filing must not impose: the Beleg has to be viewable, as a file or
+// as the view of its e-invoice data.
 func (r *Receipt) ValidateBookable() error {
 	if err := r.ValidateStructure(); err != nil {
 		return err
@@ -453,11 +459,9 @@ func (r *Receipt) ValidateBookable() error {
 	if r.Status == ReceiptStatusDiscarded {
 		return fmt.Errorf("Beleg %s wurde verworfen und kann nicht gebucht werden", r.ReceiptNumber)
 	}
-	// Reine XML-Rechnungen brauchen vor der Buchung eine ergänzte lesbare Darstellung.
-	// Dieser Empfangsweg erzeugt sie nicht aus dem eingelesenen Datensatz.
 	if !r.IsDisplayable() {
 		return fmt.Errorf(
-			"Beleg %s hat keine ansehbare Darstellung. Ein rein strukturierter Beleg (z. B. eine XRechnung) muss vor dem Buchen eine erzeugte Darstellung bekommen",
+			"Beleg %s lässt sich nicht anzeigen: er hat weder eine PDF- oder Bilddatei noch einen Rechnungsdatensatz",
 			r.ReceiptNumber)
 	}
 	return r.ValidateHeader()

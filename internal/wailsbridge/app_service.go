@@ -491,19 +491,38 @@ type ReceiptPreview struct {
 	// Intact is false when the file on disk no longer matches the checksum it
 	// was filed under. It is shown rather than hidden.
 	Intact bool `json:"intact"`
+	// EInvoice ist die Ansicht einer reinen E-Rechnung; DataURL bleibt dann leer.
+	EInvoice *service.EInvoiceView `json:"eInvoice,omitempty"`
 }
 
 // maxPreviewBytes caps what is inlined into the IPC response. Larger files are
 // reported rather than silently truncated.
 const maxPreviewBytes = 32 << 20
 
-// GetReceiptPreview returns the file the user is shown for a Beleg — the
-// original for a PDF or an image, the generated rendering for an XRechnung.
+// GetReceiptPreview returns what the user is shown for a Beleg — the original
+// for a PDF or an image, a supplied rendering, or for a pure e-invoice the view
+// of its data, read from the XML.
 //
 // On a hybrid Beleg this is the image part, which is display only: booking reads
 // the structured part. A difference between the two is potentially a second
 // invoice with § 14c consequences and is shown, not judged.
 func (b *BuchfinkBridge) GetReceiptPreview(receiptID uint) (*ReceiptPreview, error) {
+	view, err := read(b, func(ctx context.Context, s *core.Services) (*service.EInvoiceView, error) {
+		receipt, err := s.Receipts.Get(ctx, receiptID)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := receipt.DisplayFile(); ok {
+			return nil, nil
+		}
+		return s.EInvoice.View(ctx, receiptID)
+	})
+	if err != nil {
+		return nil, err
+	}
+	if view != nil {
+		return &ReceiptPreview{FileName: view.FileName, MimeType: "application/xml", Intact: view.Intact, EInvoice: view}, nil
+	}
 	content, err := read(b, func(ctx context.Context, s *core.Services) (*service.FileContent, error) {
 		return s.Receipts.DisplayContent(ctx, receiptID)
 	})

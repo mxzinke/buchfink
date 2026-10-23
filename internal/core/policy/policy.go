@@ -80,8 +80,8 @@ func LimitsFrom(s *domain.AgentSettings) Limits {
 type ReceiptFacts struct {
 	// Der Beleg.
 	Open bool
-	// Displayable: der Beleg hat eine ansehbare Datei; einer reinen
-	// XRechnung fehlt sie, bis ein PDF dazukommt.
+	// Displayable: der Beleg lässt sich zeigen, als Datei oder als Ansicht
+	// seines Rechnungsdatensatzes.
 	Displayable bool
 	Incoming    bool
 	Invoice     bool
@@ -144,8 +144,7 @@ func ClassifyReceipt(f ReceiptFacts, l Limits) Verdict {
 	if !f.Open {
 		add("beleg_nicht_offen", "Der Beleg ist nicht offen (gebucht oder verworfen).")
 	} else if !f.Displayable {
-		add("keine_darstellung", "Der Beleg hat keine ansehbare Darstellung; eine reine XRechnung braucht ein PDF "+
-			"(dieselbe XML mit beleg_ablegen und dem PDF als rolle=darstellung).")
+		add("keine_darstellung", "Der Beleg lässt sich nicht anzeigen: weder PDF- oder Bilddatei noch Rechnungsdatensatz.")
 	}
 	if !f.Incoming || !f.Invoice {
 		add("keine_eingangsrechnung", "Der Beleg ist keine Eingangsrechnung.")

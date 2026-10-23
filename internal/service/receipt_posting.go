@@ -7,11 +7,13 @@ import (
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-// ReceiptDisplayError bezeichnet einen offenen Beleg ohne lesbare Darstellung.
+// ReceiptDisplayError bezeichnet einen offenen Beleg, den Buchfink nicht
+// anzeigen kann: ohne PDF- oder Bilddatei und ohne Rechnungsdatensatz.
 type ReceiptDisplayError struct{ ReceiptNumber string }
 
 func (e *ReceiptDisplayError) Error() string {
-	return fmt.Sprintf("Beleg %s hat keine ansehbare Darstellung; eine reine XRechnung braucht vor dem Buchen ein PDF.", e.ReceiptNumber)
+	return fmt.Sprintf("Beleg %s lässt sich nicht anzeigen: er hat weder eine PDF- oder Bilddatei noch einen "+
+		"Rechnungsdatensatz.", e.ReceiptNumber)
 }
 
 // GetForPosting lädt den Beleg und prüft die Darstellung vor der Buchungsplanung.

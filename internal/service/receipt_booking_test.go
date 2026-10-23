@@ -256,17 +256,14 @@ func TestBookingRejectsAReceiptOfTheWrongDirection(t *testing.T) {
 	}
 }
 
-// Ein Beleg ohne ansehbare Darstellung ist nicht buchbar — die zweite der beiden
-// Prüfungen.
-func TestBookingRefusesAReceiptThatCannotBeDisplayed(t *testing.T) {
+// Eine reine XRechnung ist der Beleg: sie ist ohne PDF buchbar, und die App
+// zeigt sie aus dem Datensatz.
+func TestPureXRechnungIsBookableWithoutRendering(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	vendor := env.vendor(t, "Lieferant", "DE", "")
 
 	filed, err := env.receipts.File(ctx, FileReceiptRequest{
-		// Die Kopfdaten gehören zu jedem buchbaren Beleg
-		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
-		// ValidateBookable die Buchung zurück.
 		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction: domain.DirectionIncoming,
 		Files: []NewFile{
@@ -277,15 +274,14 @@ func TestBookingRefusesAReceiptThatCannotBeDisplayed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("XRechnung ablegen: %v", err)
 	}
-
-	req := env.receipt(t, vendor.ID, "software", 100000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
-	req.ReceiptID = filed.ID
-	_, err = env.posting.PostIncomingReceipt(ctx, req)
-	if err == nil {
-		t.Fatal("ein Beleg ohne Darstellung darf nicht gebucht werden")
+	if _, ok := filed.DisplayFile(); ok || !filed.IsDisplayable() {
+		t.Fatal("eine reine XRechnung hat keine Darstellungsdatei, lässt sich aber zeigen")
 	}
-	if !strings.Contains(err.Error(), "Darstellung") {
-		t.Errorf("die Meldung soll die fehlende Darstellung nennen, lautet aber: %v", err)
+
+	req := env.receipt(t, vendor.ID, "software", 10000, domain.TaxRateStandard, domain.TaxTreatmentDomestic)
+	req.ReceiptID = filed.ID
+	if _, err := env.posting.PostIncomingReceipt(ctx, req); err != nil {
+		t.Fatalf("eine reine XRechnung muss ohne PDF buchbar sein: %v", err)
 	}
 }
 

@@ -2,7 +2,7 @@
   "gruende": [
     {
       "schluessel": "keine_darstellung",
-      "text": "Der Beleg hat keine ansehbare Darstellung; eine reine XRechnung braucht ein PDF (dieselbe XML mit beleg_ablegen und dem PDF als rolle=darstellung)."
+      "text": "Der Beleg lässt sich nicht anzeigen: weder PDF- oder Bilddatei noch Rechnungsdatensatz."
     }
   ],
   "stufe": "rueckfrage"

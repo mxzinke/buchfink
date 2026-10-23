@@ -51,7 +51,7 @@ func TestGoldenAdapterReceiptPosting(t *testing.T) {
 	}
 }
 
-func TestGoldenAdapterReceiptPeriodAndDisplay(t *testing.T) {
+func TestGoldenAdapterReceiptPeriod(t *testing.T) {
 	h := newHarness(t)
 	h.completeCompany()
 	vendor := h.vendor()
@@ -59,7 +59,6 @@ func TestGoldenAdapterReceiptPeriodAndDisplay(t *testing.T) {
 	var filed ablageOut
 	goldenAdapterResult(t, "adapter_ablage_zeitraum", a.ok("beleg_ablegen", a.args(map[string]any{"eingang_am": "2026-04-02", "dateien": []any{map[string]any{"pfad": h.eInvoice("PERIOD", "2026-03-31", 10000)}}}), &filed), h)
 	for _, tool := range []string{"beleg_buchen", "beleg_buchen_mit_rueckfrage"} {
-		goldentest.Assert(t, "adapter_"+tool+"_darstellung", a.fail(tool, a.args(bookArgs(filed.Beleg.ID, vendor, "2026-03-31", "100.00")), CodeRule))
 		goldentest.Assert(t, "adapter_"+tool+"_kontakt", a.fail(tool, a.args(bookArgs(filed.Beleg.ID, 999, "2026-03-31", "100.00")), CodeNotFound))
 		goldentest.Assert(t, "adapter_"+tool+"_beleg", a.fail(tool, a.args(bookArgs(999, vendor, "2026-03-31", "100.00")), CodeNotFound))
 	}

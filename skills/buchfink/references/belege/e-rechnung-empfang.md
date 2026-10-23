@@ -47,8 +47,8 @@ konkludent ([BMF vom 15.10.2024, Rn. 63][bmf2024]).
   empfangen können; ein E-Mail-Postfach genügt
   ([BMF vom 15.10.2024, Rn. 40, 62][bmf2024]; Abschnitt 14.1 Abs. 5 UStAE in
   der Fassung des [BMF-Schreibens vom 15.10.2025][bmf2025]).
-- Lege die Datei unverändert ab. Die PDF-Ansicht einer reinen XRechnung kommt
-  vom Lieferanten oder aus einem Anzeigeprogramm des Menschen.
+- Lege die Datei unverändert ab. Eine reine XRechnung braucht kein PDF; die
+  App zeigt sie aus dem Datensatz.
 
 ## 5. Folgen für die Vorsteuer
 

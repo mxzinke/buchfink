@@ -243,7 +243,7 @@ func receiptBookable(ctx context.Context, s core.AgentServices, id uint) (*domai
 	if errors.As(err, &display) {
 		return nil, &ToolError{Code: CodeRule,
 			Nachricht:        display.Error(),
-			NaechsterSchritt: "Dieselbe XML noch einmal mit beleg_ablegen senden, dazu das PDF mit rolle=darstellung.",
+			NaechsterSchritt: "Den Beleg als PDF oder Bild ablegen; eine XML, die keine E-Rechnung ist, lässt sich nicht buchen.",
 			Werkzeug:         "beleg_ablegen"}
 	}
 	if err != nil {
