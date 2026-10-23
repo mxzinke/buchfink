@@ -79,6 +79,7 @@ type belegBuchenRueckfrageIn struct {
 	GesellschafterKontaktID uint                   `json:"gesellschafter_kontakt_id,omitempty" jsonschema:"bei auslage: wem erstattet wird"`
 	Waehrung                string                 `json:"waehrung,omitempty" jsonschema:"ISO-Code, Vorgabe EUR"`
 	Fremdbetrag             Betrag                 `json:"fremdbetrag,omitempty" jsonschema:"Endsumme in der Fremdwährung als Kontrolle"`
+	Belastet                Betrag                 `json:"belastet,omitempty" jsonschema:"bei Karte oder bezahlt: belasteter Euro-Betrag laut Abrechnung"`
 	Bewirtung               *bewirtungIn           `json:"bewirtung,omitempty"`
 	RueckstellungID         uint                   `json:"rueckstellung_id,omitempty"`
 	AnzahlungFuer           AnzahlungZiel          `json:"anzahlung_fuer,omitempty"`
@@ -175,6 +176,9 @@ func (in belegBuchenRueckfrageIn) request() (service.ReceiptRequest, error) {
 	}
 	req.Currency = strings.ToUpper(strings.TrimSpace(in.Waehrung))
 	if req.ForeignAmount, err = in.Fremdbetrag.cents("fremdbetrag"); err != nil {
+		return req, err
+	}
+	if req.ChargedAmount, err = in.Belastet.cents("belastet"); err != nil {
 		return req, err
 	}
 	if in.Bewirtung != nil {

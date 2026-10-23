@@ -29,6 +29,7 @@ import (
 // brauchen.
 type currencyConverter interface {
 	Convert(ctx context.Context, currency, date, vatDate string, foreign domain.Cents) (*Conversion, error)
+	ConvertCharged(ctx context.Context, currency, date, vatDate string, foreign, charged domain.Cents) (*Conversion, error)
 }
 
 // SetCurrencyConverter koppelt den Kursdienst an den Belegweg. Ohne ihn ist ein
@@ -94,6 +95,10 @@ func (f *fxContext) splitToEuro(foreign []domain.Cents) []domain.Cents {
 		total += v
 	}
 	euroTotal := f.toEuro(total)
+	// Mit bekannter Belastung ist die Summe genau dieser Betrag.
+	if total == f.conv.ForeignAmount {
+		euroTotal = f.conv.Amount
+	}
 	for i, v := range foreign {
 		if i == len(foreign)-1 {
 			out[i] = euroTotal - assigned
@@ -139,7 +144,17 @@ func (s *PostingService) prepareCurrency(ctx context.Context, req ReceiptRequest
 			"der Kursdienst ist nicht eingerichtet. Ein Beleg in %s ließe sich nur mit einem "+
 				"geratenen Kurs buchen, und geraten wird keiner", code)
 	}
-	conv, err := s.currency.Convert(ctx, code, req.DocumentDate, req.vatRateDate(), total)
+	var conv *Conversion
+	var err error
+	switch {
+	case req.ChargedAmount != 0 && !req.Settlement.paidAtReceipt():
+		return nil, fmt.Errorf("einen belasteten Euro-Betrag gibt es nur bei einem Beleg, der mit der " +
+			"Zahlung gebucht wird (Karte, bezahlt, Auslage)")
+	case req.ChargedAmount != 0:
+		conv, err = s.currency.ConvertCharged(ctx, code, req.DocumentDate, req.vatRateDate(), total, req.ChargedAmount)
+	default:
+		conv, err = s.currency.Convert(ctx, code, req.DocumentDate, req.vatRateDate(), total)
+	}
 	if err != nil {
 		return nil, fmt.Errorf(
 			"für den Beleg in %s vom %s: %w", code, req.DocumentDate, err)

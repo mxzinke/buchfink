@@ -1260,6 +1260,11 @@
           ],
           "type": "string"
         },
+        "belastet": {
+          "description": "bei Karte oder bezahlt: belasteter Euro-Betrag laut Abrechnung",
+          "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
+          "type": "string"
+        },
         "beleg_id": {
           "minimum": 0,
           "type": "integer"

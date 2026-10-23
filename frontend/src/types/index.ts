@@ -407,6 +407,8 @@ export interface ReceiptRequest {
    */
   serviceProof?: string;
   serviceProofAt?: string;
+  /** Bei Fremdwährung und Zahlung mit dem Beleg: belasteter Euro-Betrag laut Abrechnung. */
+  chargedAmount?: Cents;
 }
 
 /**

@@ -82,6 +82,9 @@ export const ReceiptBookingDialog: React.FC<ReceiptBookingDialogProps> = ({ rece
   // Eine Gutschrift des Lieferanten mindert die Rechnung, die sie nennt.
   const [creditNote, setCreditNote] = useState(false);
   const [creditNoteFor, setCreditNoteFor] = useState('');
+  // Bei einem Fremdwährungsbeleg, der schon bezahlt ist: was Karte oder Bank belastet haben.
+  const [charged, setCharged] = useState('');
+  const foreign = Boolean(receipt.currency) && receipt.currency !== 'EUR';
   const [proposedTreatment, setProposedTreatment] = useState<TaxTreatment | ''>('');
   const [settlement, setSettlement] = useState<Settlement>('open');
   const [dueDate, setDueDate] = useState('');
@@ -163,6 +166,7 @@ export const ReceiptBookingDialog: React.FC<ReceiptBookingDialogProps> = ({ rece
       dueDate: settlement === 'open' && dueDate ? dueDate : undefined,
       currency: receipt.currency || 'EUR',
       creditNoteFor: creditNote ? creditNoteFor.trim() || 'ohne Rechnungsbezug' : undefined,
+      chargedAmount: foreign && settlement === 'paid' ? (parseCents(charged) ?? undefined) : undefined,
     };
   }, [
     contactId,
@@ -170,6 +174,8 @@ export const ReceiptBookingDialog: React.FC<ReceiptBookingDialogProps> = ({ rece
     gross,
     creditNote,
     creditNoteFor,
+    charged,
+    foreign,
     documentDate,
     description,
     treatment,
@@ -416,6 +422,11 @@ export const ReceiptBookingDialog: React.FC<ReceiptBookingDialogProps> = ({ rece
                     value={paymentAccount}
                     onValueChange={setPaymentAccount}
                   />
+                </Field>
+              )}
+              {settlement === 'paid' && foreign && (
+                <Field label="Belastet in Euro" optional hint="Laut Konto- oder Kartenabrechnung; leer gilt der EZB-Kurs">
+                  <Input align="right" value={charged} onChange={(e) => setCharged(e.target.value)} placeholder="0,00" />
                 </Field>
               )}
             </FormGrid>

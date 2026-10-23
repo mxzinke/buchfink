@@ -388,6 +388,38 @@ func (s *CurrencyService) Convert(
 	return out, nil
 }
 
+// ConvertCharged rechnet einen Beleg um, den Karte oder Bank schon mit einem
+// bekannten Euro-Betrag belastet haben. Der Geschäftsvorfall ist dieser Betrag:
+// er steht im Aufwand und auf dem Zahlungskonto, und beim Ausgleich der
+// Abrechnung entsteht keine Kursdifferenz mehr. Die Umsatzsteuer rechnet
+// weiter mit dem Durchschnittskurs des Monats (§ 16 Abs. 6 UStG), ohne ihn mit
+// dem Referenzkurs der EZB, nicht mit dem Kurs der Karte.
+func (s *CurrencyService) ConvertCharged(
+	ctx context.Context, currency, date, vatDate string, foreign, charged domain.Cents,
+) (*Conversion, error) {
+	if charged <= 0 || foreign <= 0 {
+		return nil, fmt.Errorf("der belastete Euro-Betrag und der Fremdbetrag müssen größer als null sein")
+	}
+	out, err := s.Convert(ctx, currency, date, vatDate, foreign)
+	if err != nil {
+		return nil, err
+	}
+	if out.VatRate == nil {
+		out.VatRate = &domain.VatExchangeRate{Currency: out.Currency, Month: domain.MonthOf(out.VatDate),
+			RateMicros: out.Rate.RateMicros,
+			Source:     fmt.Sprintf("EZB-Referenzkurs vom %s (%s)", domain.GermanDate(out.Rate.Date), out.Rate.Source)}
+	}
+	out.Rate = domain.ExchangeRate{Currency: out.Currency, Date: date,
+		RateMicros: int64(domain.MulRound(foreign, domain.RateScale, int64(charged))),
+		Source:     "Belastung laut Abrechnung"}
+	out.Amount = charged
+	out.TaxBaseAmount = domain.ConvertToEuro(foreign, out.VatRate.RateMicros)
+	out.Difference = out.TaxBaseAmount - out.Amount
+	out.Note = fmt.Sprintf("Gebucht mit der Belastung von %s €. Die Umsatzsteuer rechnet mit %s.",
+		charged, out.VatRate.Source)
+	return out, nil
+}
+
 // -------------------------------------------------------------------------
 // Stichtagsbewertung (§ 256a HGB)
 // -------------------------------------------------------------------------

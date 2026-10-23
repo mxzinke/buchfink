@@ -132,6 +132,10 @@ type ReceiptRequest struct {
 	// gehalten. Ein Zahlendreher in einer Position ergibt sonst eine Buchung,
 	// die in sich aufgeht und mit der Rechnung daneben nicht übereinstimmt.
 	ForeignAmount domain.Cents `json:"foreignAmount,omitempty"`
+	// ChargedAmount ist bei einem Fremdwährungsbeleg, der mit der Zahlung
+	// gebucht wird, der Euro-Betrag, mit dem Karte oder Bank belastet haben.
+	// Gebucht wird dann dieser Betrag statt der Umrechnung zum Tageskurs.
+	ChargedAmount domain.Cents `json:"chargedAmount,omitempty"`
 
 	// Entertainment carries the record § 4 Abs. 5 Satz 1 Nr. 2 EStG requires
 	// whenever entertainment expenses are booked. Without it the deduction is

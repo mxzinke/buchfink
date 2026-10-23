@@ -343,9 +343,15 @@ func (s *settlement) settleCreditCard(ctx context.Context, req CreditCardSettlem
 			return nil, err
 		}
 		paid := tx.Amount.Abs()
+		differences := req.Differences
+		if len(differences) == 0 && balance != paid {
+			if differences, err = s.cardCurrencyDifference(ctx, req.StatementDate, balance-paid); err != nil {
+				return nil, err
+			}
+		}
 		var explained domain.Cents
-		differenceLines := make([]domain.JournalLine, 0, len(req.Differences))
-		for i, d := range req.Differences {
+		differenceLines := make([]domain.JournalLine, 0, len(differences))
+		for i, d := range differences {
 			line, err := cardDifferenceLine(d)
 			if err != nil {
 				return nil, fmt.Errorf("Differenz %d: %w", i+1, err)
@@ -383,6 +389,44 @@ func (s *settlement) settleCreditCard(ctx context.Context, req CreditCardSettlem
 // Abrechnungsstichtag gesucht wird.
 const creditCardWindowDays = 45
 
+// foreignCardAmount ist, was Belege in Fremdwährung bis zum Stichtag auf 3610
+// gebucht haben, im Fenster vor ihm.
+func (s *settlement) foreignCardAmount(ctx context.Context, date string) (domain.Cents, error) {
+	entries, err := s.journalRepo.FindByAccountRange(ctx, domain.AccountKreditkartenabrechnung,
+		addDays(date, -creditCardWindowDays), date)
+	if err != nil {
+		return 0, err
+	}
+	var total domain.Cents
+	for _, e := range entries {
+		if foreignCurrency(e.Currency) == "" {
+			continue
+		}
+		for _, l := range e.Lines {
+			if l.Account == domain.AccountKreditkartenabrechnung {
+				total += l.Amount
+			}
+		}
+	}
+	return total, nil
+}
+
+// cardCurrencyDifference nimmt eine Abweichung der Abbuchung als Kursdifferenz
+// an, wenn die Abrechnung Belege in Fremdwährung enthält und die Abweichung im
+// Rahmen ihres Kurses liegt: die Karte rechnet zu ihrem Kurs, gebucht ist zum
+// Kurs des Belegs. Sonst bleibt sie unerklärt, denn dahinter kann ein
+// fehlender Beleg stehen.
+func (s *settlement) cardCurrencyDifference(ctx context.Context, date string, delta domain.Cents) ([]CardDifference, error) {
+	foreign, err := s.foreignCardAmount(ctx, date)
+	if err != nil {
+		return nil, err
+	}
+	if foreign <= 0 || delta.Abs() > domain.MulRound(foreign, currencyTolerancePermille, 1000) {
+		return nil, nil
+	}
+	return []CardDifference{{Kind: domain.DifferenceCurrency, Amount: delta}}, nil
+}
+
 // creditCardStatementDate sucht den Abrechnungsstichtag zu einer Abbuchung: den
 // spätesten Tag vor ihr, an dem 3610 genau mit dem abgebuchten Betrag offen
 // stand. Leer, wenn es keinen gibt.
@@ -410,6 +454,21 @@ func (s *settlement) creditCardStatementDate(ctx context.Context, debit domain.C
 			return "", err
 		}
 		if balance == debit {
+			return d, nil
+		}
+	}
+	// Ohne genauen Treffer gilt ein Stichtag, dessen Abweichung die
+	// Fremdwährungsbelege der Abrechnung als Kursdifferenz erklären.
+	for _, d := range candidates {
+		balance, err := s.creditCardBalance(ctx, d)
+		if err != nil {
+			return "", err
+		}
+		differences, err := s.cardCurrencyDifference(ctx, d, balance-debit)
+		if err != nil {
+			return "", err
+		}
+		if len(differences) > 0 {
 			return d, nil
 		}
 	}
