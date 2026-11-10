@@ -68,3 +68,23 @@ func TestCAMTStatementBalances(t *testing.T) {
 		}
 	}
 }
+
+func TestCAMTTakesBookingDateWithoutValueDate(t *testing.T) {
+	entry := `<Ntry><Amt Ccy="EUR">100.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2026-01-02</Dt></BookgDt></Ntry>`
+	xml := `<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08"><BkToCstmrStmt>` + bankStatement("DE89370400440532013000", entry) + `</BkToCstmrStmt></Document>`
+	txs, err := bank.ParseCAMT053(strings.NewReader(xml))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(txs) != 1 || txs[0].BookingDate != "2026-01-02" || txs[0].ValueDate != "2026-01-02" {
+		t.Fatalf("ohne ValDt gilt der Buchungstag als Wertstellung, erhalten %+v", txs)
+	}
+}
+
+func TestCAMTRejectsUnreadableValueDate(t *testing.T) {
+	entry := `<Ntry><Amt Ccy="EUR">100.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><BookgDt><Dt>2026-01-02</Dt></BookgDt><ValDt><Dt>2026-02-31</Dt></ValDt></Ntry>`
+	xml := `<Document><BkToCstmrStmt>` + bankStatement("DE89370400440532013000", entry) + `</BkToCstmrStmt></Document>`
+	if txs, err := bank.ParseCAMT053(strings.NewReader(xml)); err == nil || !strings.Contains(err.Error(), "Wertstellungsdatum") {
+		t.Fatalf("eine genannte, unlesbare Wertstellung wird abgelehnt; erhalten %+v, %v", txs, err)
+	}
+}

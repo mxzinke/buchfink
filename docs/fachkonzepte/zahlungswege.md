@@ -15,6 +15,7 @@ Kontoauszüge kommen als CAMT.053. Der Auszug wird als Beleg abgelegt, jeder
 Umsatz ist danach einzeln zu buchen und steht in genau einer gültigen Buchung.
 Wird sie storniert, ist der Umsatz wieder offen. Buchfink nimmt nur
 Euro-Konten und weist Sammeleinträge mit mehreren Einzeltransaktionen ab.
+Nennt die Bank zu einem Umsatz keine Wertstellung, gilt der Buchungstag.
 
 Zu einem Umsatz schlägt Buchfink offene Posten vor, mit Punktzahl und
 Begründung (`service/bank_suggest.go`). Gebucht wird erst, wenn jemand den

@@ -60,10 +60,12 @@ type camtEntry struct {
 		Text string `xml:",chardata"`
 		Code string `xml:"Cd"`
 	} `xml:"Sts"`
-	Booking        camtDate `xml:"BookgDt"`
-	Value          camtDate `xml:"ValDt"`
-	Reference      string   `xml:"AcctSvcrRef"`
-	EntryReference string   `xml:"NtryRef"`
+	Booking camtDate `xml:"BookgDt"`
+	// Value ist nil, wenn die Bank keine Wertstellung nennt; ValDt ist in
+	// camt.053 optional.
+	Value          *camtDate `xml:"ValDt"`
+	Reference      string    `xml:"AcctSvcrRef"`
+	EntryReference string    `xml:"NtryRef"`
 	Details        []struct {
 		Transactions []camtDetail `xml:"TxDtls"`
 	} `xml:"NtryDtls"`
@@ -254,9 +256,13 @@ func ParseCAMT053Statements(r io.Reader) ([]Statement, error) {
 			if err != nil {
 				return nil, fmt.Errorf("%s: ungültiges Buchungsdatum", prefix)
 			}
-			value, err := readCAMTDate(e.Value)
-			if err != nil {
-				return nil, fmt.Errorf("%s: ungültiges Wertstellungsdatum", prefix)
+			// Ohne Wertstellung gilt der Buchungstag: ein Umsatz braucht eine
+			// Valuta, und die Dublettenprüfung rechnet sie in den Inhalt ein.
+			value := booking
+			if e.Value != nil {
+				if value, err = readCAMTDate(*e.Value); err != nil {
+					return nil, fmt.Errorf("%s: ungültiges Wertstellungsdatum", prefix)
+				}
 			}
 			var details []camtDetail
 			for _, d := range e.Details {
