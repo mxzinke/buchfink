@@ -94,7 +94,8 @@ berechnet Anzahlung und Steuer selbst.
   Stell die Abschlagsrechnung nachträglich im Verbund aus
   (`zahlung_erhalten_am`); ordne anschließend die Zahlung zu (Abschnitt 4).
 - **Auftrag fällt weg, Anzahlung zurück.** Steuer im Zeitraum der Rückzahlung
-  berichtigen ([§ 17 Abs. 2 Nr. 2 UStG][ustg17], [BFH V R 34/09, Leitsatz 1][bfh3409]).
+  berichtigen ([§ 17 Abs. 2 Nr. 2 UStG][ustg17], [UStAE 17.1 Abs. 7][ustae171],
+  [BFH V R 34/09, Leitsatz 1][bfh3409]).
   Frag, ob die Leistung nicht ausgeführt wurde und das Geld tatsächlich
   zurückgeflossen ist. Nach dem Ja: `bankumsatz_buchen` für den Bankabgang mit
   `abschlag_id`, `ausgleich` und Grund in `text`. Die Rechnung bleibt danach
