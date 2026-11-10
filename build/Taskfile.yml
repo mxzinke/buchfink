@@ -194,12 +194,14 @@ tasks:
     summary: Generates Windows `.ico` and Mac `.icns` from an image; on macOS, `-iconcomposerinput appicon.icon -macassetdir darwin` also produces `Assets.car` from a `.icon` file (skipped on other platforms).
     run: once
     dir: build
-    sources:
-      - "appicon.png"
-      - "appicon.icon"
-    generates:
-      - "darwin/icons.icns"
-      - "windows/icon.ico"
+    # Die eingecheckten Icons enthalten alle Größen bis 1024 px; wails3
+    # generate icons schreibt nur bis 256 px. Erzeugt wird deshalb nur, was
+    # fehlt. Nach einem neuen Motiv: task common:generate:icons --force und
+    # die Größen in darwin/icons.icns prüfen (iconutil -c iconset).
+    status:
+      - test -f darwin/icons.icns
+      - test -f darwin/Assets.car
+      - test -f windows/icon.ico
     cmds:
       - wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico -iconcomposerinput appicon.icon -macassetdir darwin
 
