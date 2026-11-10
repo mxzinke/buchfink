@@ -61,7 +61,6 @@ Zusätzlich zu den [allgemeinen Fällen](README.md#wenn-es-nicht-geht):
 | Freigabe abgelaufen oder für ein anderes Unternehmen | Öffnen Sie das gewünschte Unternehmen und wählen Sie erneut **Authenticate**. |
 | Sie haben den Port geändert | Passen Sie `7465` in der Serveradresse an, speichern Sie und melden Sie sich erneut an. |
 | „MCP servers“ fehlt | Prüfen Sie Ihre App-Version und die verlinkte OpenAI-Anleitung. Die Weboberfläche liest diese lokale Konfiguration nicht. |
-| Neben `buchfink` erscheinen Skills mit Namen `buchfink-…` | Entfernen Sie in `~/.agents/skills/` alle Ordner, deren Name mit `buchfink-` beginnt. |
 
 ## Datenschutz
 

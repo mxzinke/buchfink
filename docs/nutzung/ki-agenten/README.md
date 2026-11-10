@@ -146,9 +146,7 @@ npx skills add mxzinke/buchfink -g -a <client> --skill '*'
 ```
 
 Die Anleitungen nennen den Wert für `<client>` und, wo es abweicht, den Ordner
-für den Handeinbau der ZIP-Datei. Skills mit Namen wie `buchfink-grundlagen`
-oder `buchfink-belege` sind Reste einer älteren Fassung; löschen Sie sie, nur
-`buchfink` bleibt.
+für den Handeinbau der ZIP-Datei.
 
 ## Rechte einschränken
 

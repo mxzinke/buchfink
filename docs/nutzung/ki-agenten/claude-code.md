@@ -96,7 +96,6 @@ Zusätzlich zu den [allgemeinen Fällen](README.md#wenn-es-nicht-geht):
 | Port gewechselt | Das Plugin trägt Port 7465 ein. | Plugin-Server in `/mcp` abschalten, den Server ohne Plugin mit der neuen Adresse eintragen, neu anmelden. |
 | „Needs authentication“ | Anmeldung abgelaufen oder in Buchfink entzogen. | Erneut anmelden (Schritt 3). |
 | Die Skills fehlen unter `/` | Plugin nicht geladen. | `/reload-plugins` ausführen, Fehler unter `/plugin` → Errors lesen. |
-| Neben `buchfink` erscheinen Skills mit Namen `buchfink-…` | Reste einer älteren Fassung. | Plugin aktualisieren. Ohne Plugin in `~/.claude/skills/` alle Ordner entfernen, deren Name mit `buchfink-` beginnt. |
 
 ## Datenschutz
 

@@ -76,7 +76,6 @@ Zusätzlich zu den [allgemeinen Fällen](README.md#wenn-es-nicht-geht):
 | Werkzeuge antworten mit `anmeldung_erforderlich` | Die Erweiterung wartet auf Ihre Zustimmung in Buchfink. | Im Fenster von Buchfink zulassen, dann den Aufruf wiederholen. |
 | Werkzeuge antworten mit `anmeldung_abgelehnt` | In Buchfink wurde auf Ablehnen geklickt. | Aufruf wiederholen und diesmal zulassen. |
 | Der Skill-Upload scheitert | ZIP-Datei entpackt und neu gepackt, oder Code-Ausführung aus. | Originaldatei aus dem Release hochladen, Schritt 3 prüfen. |
-| Neben `buchfink` erscheinen Skills mit Namen `buchfink-…` | Reste einer älteren Fassung. | Unter Customize → Skills alle Skills löschen, deren Name mit `buchfink-` beginnt. |
 
 Die Erweiterung speichert ihre Anmeldung unter
 `~/Library/Application Support/Buchfink/mcp-bruecke/` (macOS) bzw.

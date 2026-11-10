@@ -79,7 +79,6 @@ Zusätzlich zu den [allgemeinen Fällen](README.md#wenn-es-nicht-geht):
 | Port gewechselt | `url` zeigt auf den alten Port. | `url` in `opencode.json` anpassen, `opencode mcp logout buchfink` und neu anmelden. |
 | Anmeldung abgelaufen oder entzogen | Die gespeicherte Anmeldung gilt nicht mehr. | `opencode mcp auth buchfink` wiederholen. |
 | Skills erscheinen doppelt | Dieselben Skills liegen in `~/.agents/skills/` und `~/.claude/skills/`. OpenCode liest beide Ordner. | Eine der beiden Kopien entfernen. |
-| Neben `buchfink` erscheinen Skills mit Namen `buchfink-…` | Reste einer älteren Fassung. | In `~/.agents/skills/` und `~/.claude/skills/` alle Ordner entfernen, deren Name mit `buchfink-` beginnt. |
 
 ## Datenschutz
 

@@ -81,7 +81,6 @@ Zusätzlich zu den [allgemeinen Fällen](README.md#wenn-es-nicht-geht):
 | Port gewechselt | Der Eintrag zeigt auf den alten Port. | `pi mcp remove buchfink`, Schritt 2 mit der neuen Adresse wiederholen, neu anmelden. |
 | `/mcp` zeigt, dass eine Anmeldung nötig ist | Anmeldung abgelaufen oder entzogen. | `pi mcp login buchfink` wiederholen. |
 | Das Modell findet die Buchfink-Werkzeuge nicht | Der Server steht auf `codemode`. | In `/mcp` die Freigabe auf `direct` stellen. |
-| Neben `buchfink` erscheinen Skills mit Namen `buchfink-…` | Reste einer älteren Fassung. | In `~/.agents/skills/` und `~/.pi/agent/skills/` alle Ordner entfernen, deren Name mit `buchfink-` beginnt; in der Sitzung `/reload`. |
 
 ## Datenschutz
 
