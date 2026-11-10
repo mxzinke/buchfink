@@ -115,6 +115,7 @@ import type {
   TaxTreatmentInfo,
   TenantConfig,
   UnitCode,
+  UpdateStatus,
   VatIDStatus,
   VatPeriodProposal,
   VatReturn,
@@ -1080,6 +1081,18 @@ export const Api = {
     call(() => Bridge.GetChangeLog() as Promise<ChangelogEntry[]>).then(list),
   /** Öffnet die Fassungsübersicht des Projekts im Browser. */
   openReleasesPage: (): Promise<void> => call(() => Bridge.OpenReleasesPage()),
+
+  /** Stand der Aktualisierung, ohne im Netz zu suchen. */
+  getUpdateStatus: (): Promise<UpdateStatus> => call(() => Bridge.GetUpdateStatus() as Promise<UpdateStatus>),
+  /** Fragt GitHub nach dem neuesten Release. */
+  checkForUpdate: (): Promise<UpdateStatus> => call(() => Bridge.CheckForUpdate() as Promise<UpdateStatus>),
+  /** Schaltet die Suche beim Start und danach täglich ein oder aus. */
+  setUpdateCheck: (enabled: boolean): Promise<UpdateStatus> =>
+    call(() => Bridge.SetUpdateCheck(enabled) as Promise<UpdateStatus>),
+  /** Lädt die gefundene Fassung, prüft sie und setzt sie an die Stelle der laufenden. */
+  installUpdate: (): Promise<UpdateStatus> => call(() => Bridge.InstallUpdate() as Promise<UpdateStatus>),
+  /** Startet die installierte Fassung und beendet die laufende App. */
+  restartAfterUpdate: (): Promise<void> => call(() => Bridge.RestartAfterUpdate()),
   /** Das Protokoll der Schemaänderungen. */
   getSchemaMigrations: (): Promise<SchemaMigration[]> =>
     call(() => Bridge.GetSchemaMigrations() as Promise<SchemaMigration[]>).then(list),

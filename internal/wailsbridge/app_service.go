@@ -32,6 +32,8 @@ type BuchfinkBridge struct {
 	// sich nicht einrichten ließ, dann steht der Grund in mcpErr.
 	mcp    *mcpserver.Server
 	mcpErr string
+
+	updates updater
 }
 
 func NewBuchfinkBridge() (*BuchfinkBridge, error) {
@@ -53,6 +55,7 @@ func NewBuchfinkBridge() (*BuchfinkBridge, error) {
 	}
 	b := &BuchfinkBridge{host: host}
 	newMCPServer(b)
+	b.startUpdates()
 	return b, nil
 }
 

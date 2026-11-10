@@ -17,6 +17,9 @@
   "core.Host.SetMCPPort": [
     "requireApp"
   ],
+  "core.Host.SetUpdateCheck": [
+    "requireApp"
+  ],
   "core.Host.Switch": [
     "requireApp"
   ],

@@ -151,6 +151,7 @@ Buchführungsdaten an den Hersteller.
 | Zeitstempeldienst DigiCert | Beglaubigung der Festschreibung | ein SHA-256-Hash |
 | Frankfurter-API (Referenzkurse der EZB) | Kurse für Fremdwährungsbeträge | Währung und Datum |
 | Bundeszentralamt für Steuern | Bestätigung einer USt-IdNr. | eigene und fremde USt-IdNr., bei der qualifizierten Abfrage Name und Anschrift des Partners |
+| GitHub (api.github.com, github.com) | Suche nach einer neuen Programmfassung beim Start und täglich, Download auf Ihren Klick; abschaltbar in den Einstellungen | die Programmfassung |
 
 Im Prüfermodus holt Buchfink keine Kurse, weil ein geholter Kurs den
 Datenbestand ändern würde.

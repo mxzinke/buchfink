@@ -177,6 +177,7 @@ func TestAgentsAreRefusedForHumanOnlyOperations(t *testing.T) {
 		t.Fatal(err)
 	}
 	cases["core.Host.SetMCPPort"] = func(ctx context.Context) error { return h.SetMCPPort(ctx, 7466) }
+	cases["core.Host.SetUpdateCheck"] = func(ctx context.Context) error { return h.SetUpdateCheck(ctx, false) }
 	cases["core.Tenant.changeExaminer"] = func(ctx context.Context) error {
 		_, err := tenant.changeExaminer(ctx, func(context.Context, *Services, *domain.ExaminerPeriod) (*domain.ExaminerPeriod, string, error) {
 			t.Fatal("der geschützte Prüfermodus-Callback wurde erreicht")

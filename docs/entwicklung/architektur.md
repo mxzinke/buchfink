@@ -127,6 +127,16 @@ Bridge bündelt die Meldungen je Mandant zum Ereignis `buchfink:geaendert`, auf
 das die Oberfläche die offene Ansicht nachlädt
 ([Live-Aktualisierung](mcp.md#live-aktualisierung)).
 
+**Aktualisierung.** `internal/update` fragt GitHub nach dem neuesten Release,
+lädt die Datei für das Betriebssystem, prüft sie gegen `SHA256SUMS` des Release
+und tauscht Programmdatei oder App-Paket per Umbenennen im Installationsordner.
+Abrufe und Umleitungen bleiben auf GitHub. Gesucht wird im Hintergrund,
+installiert nur über die Bridge auf einen Klick in der App; ein Werkzeug gibt
+es dafür nicht. Die neue Fassung startet mit der Angabe des abgelösten
+Prozesses und wartet in `main.go` dessen Ende ab, weil Einzelinstanz, Sperre
+des Datenordners und Port des MCP-Servers bis dahin belegt sind. Die Dateinamen
+eines Release sind damit Schnittstelle (`TestAssetNamesMatchTheReleaseScript`).
+
 **Eingang.** Jeder Mandant hat einen Eingang, voreingestellt
 `<Datenordner>/Eingang`, wählbar auch außerhalb. `internal/inbox` listet ihn,
 erkennt die Art einer Datei (Beleg, E-Rechnung, CAMT-Kontoauszug) und

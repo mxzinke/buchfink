@@ -39,6 +39,11 @@
     "ExaminerAllowed": true,
     "Guarded": false
   },
+  "CheckForUpdate": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
   "CommitPeriod": {
     "AppOnly": false,
     "ExaminerAllowed": false,
@@ -629,6 +634,11 @@
     "ExaminerAllowed": true,
     "Guarded": false
   },
+  "GetUpdateStatus": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
   "GetVatExchangeRates": {
     "AppOnly": false,
     "ExaminerAllowed": true,
@@ -673,6 +683,11 @@
     "AppOnly": false,
     "ExaminerAllowed": false,
     "Guarded": true
+  },
+  "InstallUpdate": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
   },
   "IssueInvoice": {
     "AppOnly": false,
@@ -790,6 +805,11 @@
     "Guarded": true
   },
   "ResolveAppRequest": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "RestartAfterUpdate": {
     "AppOnly": false,
     "ExaminerAllowed": true,
     "Guarded": false
@@ -978,6 +998,11 @@
     "AppOnly": false,
     "ExaminerAllowed": false,
     "Guarded": true
+  },
+  "SetUpdateCheck": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
   },
   "SettleAdvance": {
     "AppOnly": false,

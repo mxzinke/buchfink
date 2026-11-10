@@ -74,3 +74,17 @@ func TestMarkdownBleibtVollstaendig(t *testing.T) {
 		t.Fatal("das eingebettete Markdown fehlt oder ist leer")
 	}
 }
+
+// Der Text eines Release ist der Eintrag ohne Überschrift; er zerfällt in
+// dieselben Teile wie die eingebettete Historie.
+func TestEntryOfAReleaseText(t *testing.T) {
+	entry := EntryOf("v0.4.0", "2026-12-01", "Wofür die Fassung steht.\nZweite Zeile.\n\n- Erste Änderung.\n- Zweite Änderung,\n  umbrochen.\n")
+	if entry.Version != "v0.4.0" || entry.Date != "2026-12-01" ||
+		entry.Summary != "Wofür die Fassung steht. Zweite Zeile." ||
+		len(entry.Changes) != 2 || entry.Changes[1] != "Zweite Änderung, umbrochen." {
+		t.Errorf("Eintrag: %+v", entry)
+	}
+	if empty := EntryOf("v0.4.1", "", ""); empty.Version != "v0.4.1" || empty.Changes == nil || len(empty.Changes) != 0 {
+		t.Errorf("leerer Text: %+v", empty)
+	}
+}

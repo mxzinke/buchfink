@@ -12,6 +12,7 @@ import {
 import { IntegrityCheckResult } from '../types';
 import { AREA_LABELS, Area } from '../navigation';
 import { GermanFlag } from './GermanFlag';
+import { UpdateNotice } from './UpdateNotice';
 import { Button, cn } from './ui';
 import { formatTime } from '../utils/formatters';
 
@@ -223,6 +224,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       <div className="p-3 border-t border-shell-line window-no-drag">
+        <UpdateNotice />
         <IntegrityStatus
           integrity={integrity}
           error={integrityError}

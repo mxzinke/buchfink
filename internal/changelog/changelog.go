@@ -80,14 +80,24 @@ type Entry struct {
 // gilt ganz als Fassungsbezeichnung, und Text außerhalb einer Fassung
 // verschwindet. Das Markdown bleibt daneben vollständig verfügbar (Markdown),
 // damit nichts endgültig verloren geht, was hier nicht durchkommt.
-func Entries() []Entry {
+func Entries() []Entry { return parse(markdown) }
+
+// EntryOf liest den Text einer einzelnen Fassung, wie er an ihrem Release
+// steht: Absatz und Strichpunkte ohne Überschrift.
+func EntryOf(version, date, text string) Entry {
+	entry := parse("## " + version + "\n\n" + text)[0]
+	entry.Version, entry.Date = version, date
+	return entry
+}
+
+func parse(text string) []Entry {
 	entries := make([]Entry, 0, 8)
 	// summary sammelt die Absatzzeilen der laufenden Fassung, bis der erste
 	// Strichpunkt kommt. Danach gehört Fließtext nicht mehr zur
 	// Zusammenfassung, sondern zur Fortsetzung des letzten Punktes.
 	var summary []string
 
-	for _, raw := range strings.Split(markdown, "\n") {
+	for _, raw := range strings.Split(text, "\n") {
 		line := strings.TrimSpace(raw)
 
 		if headline, ok := strings.CutPrefix(line, "## "); ok {

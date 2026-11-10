@@ -3,8 +3,10 @@ package main
 import (
 	"embed"
 	"log"
+	"os"
 	"sync/atomic"
 
+	"github.com/buchfink/buchfink/internal/update"
 	"github.com/buchfink/buchfink/internal/wailsbridge"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -15,6 +17,11 @@ import (
 var assets embed.FS
 
 func main() {
+	// Nach einer Aktualisierung startet die neue Fassung, während die alte
+	// noch schließt. Sie wartet deren Ende ab, bevor sie die Einzelinstanz
+	// prüft und einen Mandanten öffnet.
+	update.WaitForPredecessor(os.Args)
+
 	// Eine zweite Instanz holt die erste nach vorn und endet, bevor sie einen
 	// Mandanten öffnet: ein Mandant hat genau einen Schreiber.
 	var window atomic.Pointer[application.WebviewWindow]

@@ -45,6 +45,11 @@ type AppConfig struct {
 	// Vorgabe (7465). Die Apps tragen die Adresse fest ein, deshalb weicht
 	// Buchfink bei belegtem Port nicht aus.
 	MCPPort int `json:"mcpPort,omitempty"`
+
+	// UpdateCheckOff schaltet die Suche nach neuen Programmfassungen aus.
+	// Gespeichert ist die Abweichung von der Vorgabe: ohne Angabe sucht
+	// Buchfink.
+	UpdateCheckOff bool `json:"updateCheckOff,omitempty"`
 }
 
 // EnsureLists belegt die Listen, die als JSON an die Oberfläche gehen.

@@ -15,6 +15,7 @@ einzelne Kriterien im [Anforderungskatalog](../anforderungen/README.md).
 | Kern | Ein offener Mandant mit einem Satz Dienste, Schreibsperre je Mandant, eine Transaktion je Vorgang, Prüfermodus in der Mandantendatenbank, Erfassungsweg `ui`, `system` oder `agent:<kurzname>` an jedem Vorgang, Vorgänge nur für die App, Sperre des Datenordners | `internal/core` (`Host`, `Tenant.Read`, `Tenant.Write`, `AppOnly`) |
 | MCP-Server | Streamable HTTP auf `127.0.0.1:7465`, Port in der App änderbar, eigener Autorisierungsserver mit OAuth 2.1, PKCE und dynamischer Registrierung, Zustimmung nur im Fenster der App, Liste verbundener Apps mit Entzug, Idempotenzschlüssel für schreibende Werkzeuge, 42 Werkzeuge in drei Freigabestufen | `internal/mcpserver`, `internal/mcpserver/oauth`, [MCP-Server](../entwicklung/mcp.md) |
 | Brücke für Claude Desktop | stdio-Programm ohne Wails, meldet sich selbst per OAuth an, als Erweiterung `.mcpb` | `cmd/buchfink-mcp`, `packaging/claude-desktop` |
+| Aktualisierung | Suche nach dem neuesten Release beim Start und täglich, abschaltbar; Installation auf einen Klick in der App mit Prüfsumme, Tausch im Installationsordner und Neustart | `internal/update`, `wailsbridge.InstallUpdate` |
 | Oberfläche | fünf Bereiche: Übersicht, Bücher, Abschlüsse, Unternehmen, Einstellungen; Einrichtung in zwei Schritten (Unternehmen mit Ablage und Eingang, KI-App verbinden); Zustimmungsdialog für Apps; Dateien per Drag & Drop in den Eingang; die offene Ansicht lädt nach jeder Änderung im Mandanten nach | `frontend/src/pages/`, `frontend/src/components/SetupAssistantScreen.tsx`, `frontend/src/live.tsx`, [Gestaltung](../gestaltung/README.md) |
 
 ## Fachfunktionen
@@ -102,7 +103,13 @@ einzelne Kriterien im [Anforderungskatalog](../anforderungen/README.md).
 
 ### Betrieb
 
-- Releases sind nicht signiert.
+- Releases sind nicht signiert. Die Aktualisierung in der App prüft die Datei
+  gegen die Prüfsumme des Release, die von derselben Stelle kommt; sie schützt
+  vor einem beschädigten Download, nicht vor einem gefälschten Release.
+- Die Aktualisierung ist mit Tests an Dateien belegt (Programmdatei, Paket für
+  Linux, App-Paket). Tausch und Neustart auf macOS und Windows selbst sind
+  ungeprüft. Für Linux auf ARM und Windows auf ARM gibt es keine Datei; dort
+  führt der Hinweis zur Releases-Seite.
 - Keine Verschlüsselung und keine Benutzerverwaltung, siehe
   [Datensicherheit](../nutzung/datensicherheit.md).
 - Der MCP-Server läuft nur, solange die App geöffnet ist. Ein belegter Port

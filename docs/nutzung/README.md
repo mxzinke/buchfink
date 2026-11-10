@@ -64,6 +64,25 @@ Fedora `sudo dnf install webkit2gtk4.1`.
 
 Wer selbst baut, folgt der [Entwicklungsumgebung](../entwicklung/README.md).
 
+## Aktualisieren
+
+Buchfink fragt beim Start und danach täglich bei GitHub nach dem neuesten
+Release. Gibt es eine neuere Fassung, steht unten in der Seitenleiste ein
+Hinweis. Ein Klick zeigt, was sich ändert. „Installieren und neu starten“ lädt
+die Datei für Ihr Betriebssystem, prüft sie gegen die Prüfsumme des Release,
+setzt sie an die Stelle der laufenden Fassung und startet Buchfink neu. Ohne
+diesen Klick ändert sich nichts.
+
+Die Suche schalten Sie unter Einstellungen → Erweitert → „Speicherort und
+Mandant“ aus; dort suchen Sie auch von Hand. Liegt Buchfink in einem Ordner, in
+dem es nicht schreiben darf, oder gibt es für Ihr System keine Datei, nennt der
+Hinweis den Grund und führt zur Releases-Seite. Dann ersetzen Sie das Programm
+wie bei der Installation.
+
+Eine neue Fassung kann die Datenbank eines Unternehmens anpassen; eine ältere
+Fassung öffnet sie danach nicht mehr. Richten Sie vor einer Aktualisierung
+einen Sicherungsordner ein: beim Beenden sichert Buchfink dorthin.
+
 ## Einrichten
 
 Beim ersten Start führt Buchfink in zwei Schritten durch die Einrichtung.

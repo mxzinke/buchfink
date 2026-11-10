@@ -286,6 +286,13 @@ export const bridge = {
   GetProcedureDocumentations: <T>() => invoke<T>('GetProcedureDocumentations'),
   GetOrganisationTextDefaults: <T>() => invoke<T>('GetOrganisationTextDefaults'),
   OpenReleasesPage: () => invoke<void>('OpenReleasesPage'),
+
+  // Aktualisierung des Programms
+  GetUpdateStatus: <T>() => invoke<T>('GetUpdateStatus'),
+  CheckForUpdate: <T>() => invoke<T>('CheckForUpdate'),
+  SetUpdateCheck: <T>(enabled: boolean) => invoke<T>('SetUpdateCheck', enabled),
+  InstallUpdate: <T>() => invoke<T>('InstallUpdate'),
+  RestartAfterUpdate: () => invoke<void>('RestartAfterUpdate'),
   SaveProcedureDocumentationAs: (id: number, wantPdf: boolean) =>
     invoke<string>('SaveProcedureDocumentationAs', id, wantPdf),
   GetOrganisationTexts: <T>() => invoke<T>('GetOrganisationTexts'),

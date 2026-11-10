@@ -3598,6 +3598,34 @@ export interface BankImportPreview {
   transactions: number;
 }
 
+/** Eine veröffentlichte Programmfassung. */
+export interface UpdateRelease {
+  version: string;
+  publishedAt: string;
+  /** Die Seite des Release im Netz. */
+  pageUrl: string;
+}
+
+/** Stand der Aktualisierung des Programms. */
+export interface UpdateStatus {
+  current: string;
+  /** Ein Arbeitsstand ohne Fassung sucht und installiert nichts. */
+  supported: boolean;
+  phase: 'idle' | 'checking' | 'available' | 'downloading' | 'installed';
+  release?: UpdateRelease;
+  /** Der Text des Release in den Teilen der Änderungshistorie. */
+  releaseNotes?: ChangelogEntry;
+  checkedAt?: string;
+  /** Warum die letzte Suche oder Installation scheiterte. */
+  error?: string;
+  /** Anteil des Downloads in Prozent. */
+  progress: number;
+  /** Warum Buchfink die Fassung nicht selbst installieren kann. */
+  manualReason?: string;
+  /** Sucht Buchfink beim Start und danach täglich? */
+  autoCheck: boolean;
+}
+
 /** Zustand des MCP-Servers für verbundene Apps. */
 export interface MCPServerStatus {
   running: boolean;

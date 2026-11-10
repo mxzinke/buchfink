@@ -26,6 +26,10 @@ Ein Release läuft von Hand über `scripts/release.sh` und das Taskfile; Einzelh
    `task release:publish VERSION=X.Y.Z`. Fertig, wenn `gh release view vX.Y.Z` zehn Dateien zeigt
    (die neun und `SHA256SUMS`).
 
+Installierte Apps aktualisieren sich aus dem Release: sie lesen `SHA256SUMS` und die Datei ihres
+Betriebssystems unter dem Namen aus `scripts/release.sh`. Ein Release ohne diese Dateien oder mit
+anderen Namen erreicht sie nicht (`internal/update`).
+
 Ein noch nicht gepushter Tag lässt sich nach einer Korrektur löschen und neu setzen. Ein
 gepushter Tag bleibt; Korrekturen kommen in die nächste Fassung.
 

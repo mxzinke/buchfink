@@ -35,6 +35,8 @@ import {
   toast,
 } from '../../components/ui';
 
+import { UpdateSettings } from './UpdateSettings';
+
 function message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -460,9 +462,7 @@ export const AdvancedSettings: React.FC<{ onManageTenants?: () => void }> = ({ o
             <Field label="Ablage für Buchungsdaten und Belege" hint="Steht beim Anlegen fest">
               <FieldValue className="code-num">{workspace.appConfig.dataDir || '—'}</FieldValue>
             </Field>
-            <Field label="Programmfassung">
-              <FieldValue className="code-num">{workspace.appConfig.programVersion || 'dev'}</FieldValue>
-            </Field>
+            <UpdateSettings programVersion={workspace.appConfig.programVersion} />
           </FormGrid>
           {onManageTenants && (
             <div className="mt-5 flex flex-wrap gap-2">

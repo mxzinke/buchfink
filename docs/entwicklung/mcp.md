@@ -72,6 +72,7 @@ wird angelegt.
 | `abschlusseinstellungen_aendern` | nur App | Abschluss-Einstellungen ändern | Erfassungsweg ui im Kern oder Dienst |
 | `abschlussstatus_setzen` | nur App | Jahresabschluss aufstellen, feststellen und offenlegen | Erfassungsweg ui im Kern oder Dienst |
 | `agentregeln_aendern` | nur App | Regeln für direktes Buchen sowie Export- und Leseordner ändern | Erfassungsweg ui im Kern oder Dienst |
+| `aktualisierungssuche_einstellen` | nur App | Suche nach neuen Programmfassungen ein- und ausschalten | Erfassungsweg ui im Kern oder Dienst |
 | `apps_entziehen` | nur App | Apps den Zugriff entziehen | strukturell: private API der Bridge |
 | `apps_zulassen` | nur App | Apps zulassen | strukturell: private API der Bridge |
 | `bankkonten_einrichten` | nur App | Bankkonten einrichten | Erfassungsweg ui im Kern oder Dienst |
@@ -93,6 +94,7 @@ wird angelegt.
 | `pflicht_bestaetigen` | nur App | Pflicht als erledigt bestätigen | Erfassungsweg ui im Kern oder Dienst |
 | `pflicht_entfallen` | nur App | Pflicht als entfallen kennzeichnen | Erfassungsweg ui im Kern oder Dienst |
 | `pflicht_zuruecknehmen` | nur App | Bestätigung einer Pflicht zurücknehmen | Erfassungsweg ui im Kern oder Dienst |
+| `programm_aktualisieren` | nur App | Neue Programmfassung installieren | strukturell: private API der Bridge |
 | `pruefermodus_aendern` | nur App | Prüfermodus ein- und ausschalten | Erfassungsweg ui im Kern oder Dienst |
 | `rechnungskonto_waehlen` | nur App | Bankkonto für Rechnungen wählen | Erfassungsweg ui im Kern oder Dienst |
 | `sicherung_wiederherstellen` | nur App | Sicherung wiederherstellen | Erfassungsweg ui im Kern oder Dienst |

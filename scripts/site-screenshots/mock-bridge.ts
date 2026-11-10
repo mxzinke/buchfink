@@ -2665,6 +2665,17 @@ const BANK_ACCOUNTS = [
   },
 ];
 
+// Die Vorschau läuft auf der neuesten Fassung; ein Hinweis auf eine neue stünde
+// sonst in jedem Bild der Projektseite.
+const UPDATE_STATUS = {
+  current: '0.3.0',
+  supported: true,
+  phase: 'idle',
+  checkedAt: '2026-08-24T08:00:00Z',
+  progress: 0,
+  autoCheck: true,
+};
+
 const MCP_STATUS = {
   running: true,
   port: 7465,
@@ -3184,6 +3195,7 @@ export const bridge = {
   GetOrganisationTextDefaults: () => later(ORGANISATION_DEFAULTS),
   GetComplianceHints: () => later(COMPLIANCE_HINTS),
   GetChangeLog: () => later(CHANGELOG),
+  GetUpdateStatus: () => later(UPDATE_STATUS),
 
   // Vorgänge mit Folgen — Schreiben, Dialoge, Übermittlungen. In der
   // Vorschau steht dafür eine Antwort und kein Loch (siehe README).
@@ -3262,6 +3274,10 @@ export const bridge = {
   SaveOrganisationTexts: unsupported('SaveOrganisationTexts'),
   SaveProcedureDocumentationAs: unsupported('SaveProcedureDocumentationAs'),
   OpenReleasesPage: unsupported('OpenReleasesPage'),
+  CheckForUpdate: () => later(UPDATE_STATUS),
+  SetUpdateCheck: unsupported('SetUpdateCheck'),
+  InstallUpdate: unsupported('InstallUpdate'),
+  RestartAfterUpdate: unsupported('RestartAfterUpdate'),
   BlockContact: unsupported('BlockContact'),
   EnableReadOnly: unsupported('EnableReadOnly'),
   DisableReadOnly: unsupported('DisableReadOnly'),

@@ -36,6 +36,7 @@ nutzt Base UI, Tailwind CSS und Lucide; Typst setzt Rechnungen und Berichte
 | Ansicht oder Bedienablauf | [frontend/src/](../../frontend/src), [Gestaltung](../gestaltung/README.md) |
 | Aufruf aus der Oberfläche ins Backend | [frontend/src/services/](../../frontend/src/services), [internal/wailsbridge/](../../internal/wailsbridge) |
 | App-Start, Build, Pakete | [main.go](../../main.go), [build/](../../build), [Taskfile.yml](../../Taskfile.yml) |
+| Suche nach einer neuen Fassung, Download, Tausch und Neustart | [internal/update/](../../internal/update), [internal/wailsbridge/update_service.go](../../internal/wailsbridge/update_service.go), [frontend/src/update.ts](../../frontend/src/update.ts), [UpdateNotice.tsx](../../frontend/src/components/UpdateNotice.tsx), [Architektur](architektur.md#3-kern) |
 
 ## Fachmodule
 
