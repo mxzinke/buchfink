@@ -254,6 +254,10 @@ func TestComparisonRateFindings(t *testing.T) {
 		t.Errorf("erwartet Hinweis auf den überhöhten Zins, erhalten %+v", view.Findings)
 	}
 
+	if findingWith(view.Findings, "kein Vergleichszins") != nil {
+		t.Errorf("der Vergleichszins ist belegt: %+v", view.Findings)
+	}
+
 	stranger := env.person(t, "Erika Mustermann")
 	if _, err := svc.RegisterLoan(ctx, LoanRequest{ContactID: stranger.ID, Direction: domain.LoanToCompany,
 		Principal: 100_000, StartDate: "2026-03-01"}); err == nil {
@@ -310,5 +314,80 @@ func TestShareholderFindingsInTheCheckRun(t *testing.T) {
 	}
 	if findingWith(run.Findings, "Verrechnungskonto") == nil {
 		t.Error("der Prüflauf übernimmt die Befunde der Gesellschafter nicht")
+	}
+}
+
+// Ohne Vergleichszins nennt der Hinweis, wer zahlt und welche Abweichung
+// schadet: bei einem Darlehen an die GmbH der überhöhte Zins, bei einem
+// Darlehen an den Gesellschafter der zu niedrige. Ein abgelegter Vermerk zur
+// Zinsentscheidung belegt den Fremdvergleich; nennt eine Berichtigung ihn
+// nicht mehr, ist der Beleg wieder abgelegt.
+func TestRateNoteDocumentsArmsLengthRate(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	env.withShareholders(t)
+	mara := env.person(t, "Mara Beispiel")
+	svc := env.shareholders(t)
+	contract := env.fileIncoming(t, "darlehensvertrag.pdf")
+	note := env.fileIncoming(t, "aktenvermerk-zins.pdf")
+
+	req := LoanRequest{ContactID: mara.ID, Direction: domain.LoanToCompany, Principal: 5_000_000,
+		InterestRateBP: 150, ContractDate: "2025-12-15", StartDate: "2026-01-02", ContractReceiptID: contract.ID}
+	view, err := svc.RegisterLoan(ctx, req)
+	if err != nil {
+		t.Fatalf("Darlehen erfassen: %v", err)
+	}
+	finding := findingWith(view.Findings, "kein Vergleichszins")
+	if finding == nil || !strings.Contains(finding.Message, "den die Gesellschaft dem Gesellschafter zahlt") ||
+		!strings.Contains(finding.Message, "überhöhter Zins") {
+		t.Fatalf("der Hinweis nennt Richtung und schädliche Abweichung nicht: %+v", view.Findings)
+	}
+
+	req.RateNoteReceiptID = note.ID
+	corrected, err := svc.CorrectLoan(ctx, view.Loan.ID, req, "Vermerk zur Zinsentscheidung nachgetragen")
+	if err != nil {
+		t.Fatalf("Darlehen berichtigen: %v", err)
+	}
+	if findingWith(corrected.Findings, "kein Vergleichszins") != nil {
+		t.Errorf("der Vermerk belegt den Fremdvergleich, der Hinweis bleibt: %+v", corrected.Findings)
+	}
+	for name, id := range map[string]uint{"Vertrag": contract.ID, "Vermerk": note.ID} {
+		stored, err := env.receiptRepo.FindByID(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if stored.Status != domain.ReceiptStatusAssigned || stored.AssignedID != view.Loan.ID {
+			t.Errorf("%s ist %s (Datensatz %d), erwartet dem Darlehen zugeordnet", name, stored.Status, stored.AssignedID)
+		}
+	}
+
+	req.RateNoteReceiptID = 0
+	if _, err := svc.CorrectLoan(ctx, view.Loan.ID, req, "Vermerk gehört zu einem anderen Vertrag"); err != nil {
+		t.Fatalf("Darlehen berichtigen: %v", err)
+	}
+	released, err := env.receiptRepo.FindByID(ctx, note.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if released.Status != domain.ReceiptStatusFiled {
+		t.Errorf("der nicht mehr genannte Vermerk ist %s, erwartet wieder abgelegt", released.Status)
+	}
+	kept, err := env.receiptRepo.FindByID(ctx, contract.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if kept.Status != domain.ReceiptStatusAssigned {
+		t.Errorf("der Vertrag ist %s, erwartet weiter zugeordnet", kept.Status)
+	}
+
+	toShareholder, err := svc.PreviewLoan(ctx, 0, LoanRequest{ContactID: mara.ID, Direction: domain.LoanToShareholder,
+		Principal: 1_000_000, InterestRateBP: 150, StartDate: "2026-01-02", Collateral: "Grundschuld"})
+	if err != nil {
+		t.Fatalf("Vorschau: %v", err)
+	}
+	finding = findingWith(toShareholder.Findings, "kein Vergleichszins")
+	if finding == nil || !strings.Contains(finding.Message, "den der Gesellschafter der Gesellschaft zahlt") ||
+		!strings.Contains(finding.Message, "zu niedriger Zins") {
+		t.Errorf("der Hinweis nennt Richtung und schädliche Abweichung nicht: %+v", toShareholder.Findings)
 	}
 }

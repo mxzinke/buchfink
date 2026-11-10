@@ -80,6 +80,9 @@ type ShareholderLoan struct {
 	// Fremdvergleich (R 8.5 KStR 2022), ComparisonSource sein Nachweis.
 	ComparisonRateBP *int   `json:"comparisonRateBp,omitempty"`
 	ComparisonSource string `gorm:"type:text" json:"comparisonSource,omitempty"`
+	// RateNoteReceiptID ist der abgelegte Vermerk zur Zinsentscheidung. Er
+	// belegt den Fremdvergleich, wo kein Zins eines fremden Dritten vorliegt.
+	RateNoteReceiptID *uint `json:"rateNoteReceiptId,omitempty"`
 	// Subordinated: Rangrücktritt vereinbart (§ 19 Abs. 2 Satz 2 InsO).
 	Subordinated bool      `gorm:"not null;default:false" json:"subordinated"`
 	Note         string    `gorm:"type:text" json:"note,omitempty"`

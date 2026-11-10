@@ -56,6 +56,12 @@ den Fremdvergleich. Erfassen und berichtigen kann ihn der Mensch in der App
 oder ein Agent nach Zustimmung im Chat (`darlehen_erfassen`); eine
 Berichtigung braucht einen Grund und steht im Änderungsprotokoll.
 
+Den Fremdvergleich des Zinses belegt ein Vergleichszins mit Nachweis oder ein
+abgelegter Vermerk zur Zinsentscheidung. Fehlt beides, weist Buchfink darauf
+hin und nennt die Abweichung, die schadet: Zahlt die Gesellschaft den Zins, ist
+es der überhöhte, zahlt ihn der Gesellschafter, der zu niedrige. Liegt ein
+Vergleichszins vor, meldet Buchfink nur die schädliche Abweichung.
+
 | Richtung | Konto nach Restlaufzeit | Zinsen |
 |---|---|---|
 | Gesellschafter an GmbH | 3641, 3642, 3643 | Aufwand auf 7316, bei mehr als 25 % Beteiligung 7317 |

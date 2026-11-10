@@ -118,6 +118,7 @@ type LoanRequest struct {
 	Collateral        string `json:"collateral,omitempty"`
 	ComparisonRateBP  *int   `json:"comparisonRateBp,omitempty"`
 	ComparisonSource  string `json:"comparisonSource,omitempty"`
+	RateNoteReceiptID uint   `json:"rateNoteReceiptId,omitempty"`
 	Subordinated      bool   `json:"subordinated,omitempty"`
 	Note              string `json:"note,omitempty"`
 }
@@ -149,7 +150,7 @@ func (s *ShareholderService) RegisterLoan(ctx context.Context, req LoanRequest) 
 		if err := s.loans.Save(ctx, loan); err != nil {
 			return nil, fmt.Errorf("der Darlehensvertrag ließ sich nicht speichern: %w", err)
 		}
-		if err := s.assignContract(ctx, nil, loan, contact); err != nil {
+		if err := s.assignReceipts(ctx, nil, loan, contact); err != nil {
 			return nil, err
 		}
 		if err := logAudit(ctx, s.auditRepo, domain.AuditActionCreate, "SHAREHOLDER_LOAN", fmt.Sprintf("%d", loan.ID),
@@ -180,7 +181,7 @@ func (s *ShareholderService) CorrectLoan(ctx context.Context, id uint, req LoanR
 		if err := s.loans.Save(ctx, loan); err != nil {
 			return nil, fmt.Errorf("der Darlehensvertrag ließ sich nicht speichern: %w", err)
 		}
-		if err := s.assignContract(ctx, before, loan, contact); err != nil {
+		if err := s.assignReceipts(ctx, before, loan, contact); err != nil {
 			return nil, err
 		}
 		if err := logAuditChange(ctx, s.auditRepo, domain.AuditActionUpdate, "SHAREHOLDER_LOAN", fmt.Sprintf("%d", loan.ID),
@@ -192,29 +193,44 @@ func (s *ShareholderService) CorrectLoan(ctx context.Context, id uint, req LoanR
 	})
 }
 
-// assignContract ordnet den Vertragsbeleg dem Darlehen zu: er belegt den
-// Vertrag und braucht keine eigene Buchung. Nennt eine Berichtigung einen
-// anderen Beleg, ist der bisherige wieder abgelegt.
-func (s *ShareholderService) assignContract(
+// assignReceipts ordnet Vertrag und Vermerk zur Zinsentscheidung dem Darlehen
+// zu: sie belegen den Vertrag und brauchen keine eigene Buchung. Nennt eine
+// Berichtigung einen Beleg nicht mehr, ist er wieder abgelegt.
+func (s *ShareholderService) assignReceipts(
 	ctx context.Context, before, loan *domain.ShareholderLoan, contact *domain.Contact,
 ) error {
 	if s.receipts == nil {
 		return nil
 	}
-	if before != nil && before.ContractReceiptID != nil &&
-		(loan.ContractReceiptID == nil || *loan.ContractReceiptID != *before.ContractReceiptID) {
-		if err := s.receipts.ReleaseFromRecord(ctx, *before.ContractReceiptID,
-			domain.AssignmentShareholderLoan, loan.ID); err != nil {
+	named := func(id *uint) bool {
+		return id != nil && (sameReceipt(id, loan.ContractReceiptID) || sameReceipt(id, loan.RateNoteReceiptID))
+	}
+	if before != nil {
+		for _, id := range []*uint{before.ContractReceiptID, before.RateNoteReceiptID} {
+			if id == nil || named(id) {
+				continue
+			}
+			if err := s.receipts.ReleaseFromRecord(ctx, *id, domain.AssignmentShareholderLoan, loan.ID); err != nil {
+				return err
+			}
+		}
+	}
+	subject := fmt.Sprintf("Gesellschafterdarlehen Nr. %d %s %s", loan.ID, directionLabel(loan.Direction),
+		contact.LegalName())
+	if loan.ContractReceiptID != nil {
+		if err := s.receipts.AssignToRecord(ctx, *loan.ContractReceiptID, domain.AssignmentShareholderLoan, loan.ID,
+			"Vertrag zum "+subject); err != nil {
 			return err
 		}
 	}
-	if loan.ContractReceiptID == nil {
-		return nil
+	if loan.RateNoteReceiptID != nil && !sameReceipt(loan.RateNoteReceiptID, loan.ContractReceiptID) {
+		return s.receipts.AssignToRecord(ctx, *loan.RateNoteReceiptID, domain.AssignmentShareholderLoan, loan.ID,
+			"Vermerk zur Zinsentscheidung, "+subject)
 	}
-	return s.receipts.AssignToRecord(ctx, *loan.ContractReceiptID, domain.AssignmentShareholderLoan, loan.ID,
-		fmt.Sprintf("Vertrag zum Gesellschafterdarlehen Nr. %d %s %s", loan.ID, directionLabel(loan.Direction),
-			contact.LegalName()))
+	return nil
 }
+
+func sameReceipt(a, b *uint) bool { return a != nil && b != nil && *a == *b }
 
 // PreviewLoan prüft einen Vertrag wie RegisterLoan oder, mit id, wie
 // CorrectLoan und rechnet Konten, Stand und Befunde zum heutigen Tag, ohne zu
@@ -250,6 +266,9 @@ func (s *ShareholderService) LoanRequestOf(ctx context.Context, id uint) (LoanRe
 	}
 	if loan.ContractReceiptID != nil {
 		req.ContractReceiptID = *loan.ContractReceiptID
+	}
+	if loan.RateNoteReceiptID != nil {
+		req.RateNoteReceiptID = *loan.RateNoteReceiptID
 	}
 	if loan.ComparisonRateBP != nil {
 		rate := *loan.ComparisonRateBP
@@ -397,16 +416,27 @@ func (s *ShareholderService) loanFrom(
 	if loan.InterestAccount, err = interestAccount(loan, req.InterestAccount, role); err != nil {
 		return nil, nil, nil, err
 	}
-	if req.ContractReceiptID != 0 {
-		receipt, err := s.receipts.Get(ctx, req.ContractReceiptID)
+	for _, r := range []struct {
+		id     uint
+		target **uint
+		proves string
+	}{
+		{req.ContractReceiptID, &loan.ContractReceiptID, "den Vertrag"},
+		{req.RateNoteReceiptID, &loan.RateNoteReceiptID, "die Zinsentscheidung"},
+	} {
+		if r.id == 0 {
+			continue
+		}
+		receipt, err := s.receipts.Get(ctx, r.id)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 		if receipt.Status == domain.ReceiptStatusDiscarded {
-			return nil, nil, nil, fmt.Errorf("Beleg %s wurde verworfen und kann den Vertrag nicht belegen", receipt.ReceiptNumber)
+			return nil, nil, nil, fmt.Errorf("Beleg %s wurde verworfen und kann %s nicht belegen",
+				receipt.ReceiptNumber, r.proves)
 		}
 		id := receipt.ID
-		loan.ContractReceiptID = &id
+		*r.target = &id
 	}
 	return loan, contact, cfg, nil
 }
@@ -1059,10 +1089,17 @@ func (s *ShareholderService) loanFindings(
 			"Teil kann eine verdeckte Gewinnausschüttung sein", rate, domain.RateLabel(*loan.ComparisonRateBP),
 			loan.ComparisonSource), "§ 8 Abs. 3 Satz 2 KStG")
 	}
-	if loan.ComparisonRateBP == nil && loan.InterestRateBP > 0 {
-		add(fmt.Sprintf("Für den Zins von %s ist kein Vergleichszins eines fremden Dritten belegt. Der "+
-			"Fremdvergleich ist eine Wertungsfrage; ein Bankangebot oder eine Zinsstatistik belegt ihn", rate),
-			"R 8.5 KStR 2022")
+	if loan.ComparisonRateBP == nil && loan.RateNoteReceiptID == nil && loan.InterestRateBP > 0 {
+		// Welche Abweichung schadet, hängt an der Richtung: die Gesellschaft
+		// darf nicht zu viel zahlen und nicht zu wenig bekommen.
+		payer, risk := "die Gesellschaft dem Gesellschafter", "überhöhter"
+		if loan.Direction == domain.LoanToShareholder {
+			payer, risk = "der Gesellschafter der Gesellschaft", "zu niedriger"
+		}
+		add(fmt.Sprintf("Für den Zins von %s, den %s zahlt, ist kein Vergleichszins eines fremden Dritten belegt. "+
+			"Ein %s Zins kann eine verdeckte Gewinnausschüttung sein. Der Fremdvergleich ist eine Wertungsfrage; "+
+			"ein Bankangebot, eine Zinsstatistik oder ein abgelegter Vermerk zur Zinsentscheidung belegt ihn",
+			rate, payer, risk), "R 8.5 KStR 2022, § 8 Abs. 3 Satz 2 KStG")
 	}
 
 	if loan.MaturityDate != "" && loan.MaturityDate < cutoff && v.Outstanding > 0 {

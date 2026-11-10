@@ -2200,6 +2200,11 @@
             "string"
           ]
         },
+        "vermerk_beleg_id": {
+          "description": "abgelegter Vermerk zur Zinsentscheidung, belegt den Fremdvergleich ohne Vergleichszins",
+          "minimum": 0,
+          "type": "integer"
+        },
         "vertrag_vom": {
           "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
           "type": "string"

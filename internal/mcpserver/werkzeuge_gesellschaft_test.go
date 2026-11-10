@@ -20,6 +20,7 @@ type darlehenAntwort struct {
 		Zinssatz       string `json:"zinssatz"`
 		Vergleichszins string `json:"vergleichszins"`
 		BelegID        *uint  `json:"beleg_id"`
+		VermerkBelegID *uint  `json:"vermerk_beleg_id"`
 		Stand          string `json:"stand"`
 		Befunde        []struct {
 			Text string `json:"text"`
@@ -119,6 +120,46 @@ func TestShareholderLoanTool(t *testing.T) {
 	if len(listed.Darlehen) != 1 || listed.Darlehen[0].ID != booked.Darlehen.ID || listed.Darlehen[0].Stand != "0.00" ||
 		listed.Stichtag != "2026-12-31" {
 		t.Errorf("Darlehen in der Auswertung: %+v", listed)
+	}
+}
+
+// Ohne Vergleichszins nennt der Befund die Richtung; ein abgelegter Vermerk
+// zur Zinsentscheidung belegt den Fremdvergleich.
+func TestShareholderLoanRateNote(t *testing.T) {
+	h := newHarness(t)
+	h.completeCompany()
+	anna := h.shareholder()
+	a := h.agent("")
+	file := func(name, title string) uint {
+		var out ablageOut
+		a.ok("beleg_ablegen", a.args(map[string]any{"eingang_am": today(), "art": "sonstiges",
+			"dateien":    []any{map[string]any{"pfad": h.inboxFile(name, pdf(title))}},
+			"belegdatum": "2025-12-15", "aussteller": "Anna Bauer", "betreff": title}), &out)
+		return out.Beleg.ID
+	}
+	loan := map[string]any{"idempotenz_schluessel": "darlehen-vermerk", "kontakt_id": anna, "richtung": "an_gesellschaft",
+		"betrag": "50000.00", "zinssatz": "1.5", "vertrag_vom": "2025-12-15", "beginn": "2026-01-02",
+		"beleg_id": file("darlehensvertrag.pdf", "Darlehensvertrag")}
+	missing := func(d darlehenAntwort) string {
+		for _, f := range d.Darlehen.Befunde {
+			if strings.Contains(f.Text, "kein Vergleichszins") {
+				return f.Text
+			}
+		}
+		return ""
+	}
+	var booked darlehenAntwort
+	a.ok("darlehen_erfassen", a.args(loan), &booked)
+	if text := missing(booked); !strings.Contains(text, "den die Gesellschaft dem Gesellschafter zahlt") {
+		t.Fatalf("Befund ohne Richtung: %+v", booked.Darlehen.Befunde)
+	}
+
+	fix := a.args(map[string]any{"idempotenz_schluessel": "darlehen-vermerk-fix", "darlehen_id": booked.Darlehen.ID,
+		"grund": "Vermerk zur Zinsentscheidung nachgetragen", "vermerk_beleg_id": file("vermerk.pdf", "Aktenvermerk Zins")})
+	var corrected darlehenAntwort
+	a.ok("darlehen_erfassen", fix, &corrected)
+	if missing(corrected) != "" || corrected.Darlehen.VermerkBelegID == nil {
+		t.Errorf("mit Vermerk: %+v", corrected.Darlehen)
 	}
 }
 

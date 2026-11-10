@@ -587,6 +587,7 @@ func loansTable(d *exportData) (export.Table, error) {
 		alphaField("Sicherheiten", "Vereinbarte Sicherheiten."),
 		numField("Vergleichszins", "Belegter Zins eines fremden Dritten in Prozent; leer, wenn keiner belegt ist."),
 		alphaField("Vergleichszins_Nachweis", "Nachweis des Vergleichszinses."),
+		intField("Zinsvermerk_Beleg_ID", "Abgelegter Vermerk zur Zinsentscheidung; leer, wenn keiner vorliegt."),
 		intField("Rangruecktritt", "1, wenn ein Rangrücktritt vereinbart ist (§ 19 Abs. 2 Satz 2 InsO), sonst 0."),
 		alphaField("Notiz", "Freitext zum Vertrag."),
 	)
@@ -601,7 +602,7 @@ func loansTable(d *exportData) (export.Table, error) {
 			export.Amount(l.Principal), export.Rate(domain.TaxRate(l.InterestRateBP)), string(l.DayCount),
 			l.ContractDate, l.StartDate, l.MaturityDate, l.Account, l.InterestAccount,
 			export.OptUint(l.ContractReceiptID), l.Collateral, comparison, l.ComparisonSource,
-			export.Bool(l.Subordinated), l.Note,
+			export.OptUint(l.RateNoteReceiptID), export.Bool(l.Subordinated), l.Note,
 		); err != nil {
 			return t, err
 		}

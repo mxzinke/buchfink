@@ -87,7 +87,10 @@ Vertrag, Konten, Zinsen, Nachrang und Insolvenzfolgen:
 Laufzeit, Tilgung, Sicherheit, vor der Auszahlung geschlossen), lege ihn mit
 `beleg_ablegen` (`art: sonstiges`) ab und erfasse ihn nach dem Ja mit
 `darlehen_erfassen` und `beleg_id`; der Vertrag ist dann dem Darlehen
-zugeordnet und wird nicht gebucht.
+zugeordnet und wird nicht gebucht. Den Zins belegst du mit `vergleichszins` und
+`vergleichszins_quelle` (Bankangebot, Zinsstatistik) oder mit einem abgelegten
+Vermerk zur Zinsentscheidung als `vermerk_beleg_id`; ohne beides bleibt der
+Befund zum Fremdvergleich stehen.
 Fertig, wenn `auswertung` (`art: darlehen`) den Vertrag zeigt und der Mensch
 die Befunde zum Fremdvergleich gesehen hat.
 

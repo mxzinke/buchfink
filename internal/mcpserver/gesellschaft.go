@@ -28,6 +28,7 @@ type darlehenZeile struct {
 	BelegID          *uint         `json:"beleg_id,omitempty" jsonschema:"der abgelegte Vertrag"`
 	Sicherheiten     string        `json:"sicherheiten,omitempty"`
 	Vergleichszins   string        `json:"vergleichszins,omitempty"`
+	VermerkBelegID   *uint         `json:"vermerk_beleg_id,omitempty" jsonschema:"der abgelegte Vermerk zur Zinsentscheidung"`
 	Nachrangig       bool          `json:"nachrangig,omitempty"`
 	Stand            Betrag        `json:"stand" jsonschema:"gebuchter Bestand zum Stichtag"`
 	ErsteAuszahlung  string        `json:"erste_auszahlung,omitempty"`
@@ -41,7 +42,8 @@ func darlehenOf(v *service.LoanView) darlehenZeile {
 		Richtung: label(loanDirections, l.Direction), Betrag: betrag(l.Principal), Zinssatz: zinssatz(l.InterestRateBP),
 		Zinsmethode: label(dayCounts, l.DayCount), VertragVom: l.ContractDate, Beginn: l.StartDate,
 		FaelligAm: l.MaturityDate, Konto: l.Account, Zinskonto: l.InterestAccount, BelegID: l.ContractReceiptID,
-		Sicherheiten: l.Collateral, Nachrangig: l.Subordinated, Stand: betrag(v.Outstanding),
+		Sicherheiten: l.Collateral, VermerkBelegID: l.RateNoteReceiptID, Nachrangig: l.Subordinated,
+		Stand:           betrag(v.Outstanding),
 		ErsteAuszahlung: v.FirstMovement, ZinsenGebuchtBis: v.InterestBookedThrough, Befunde: []befundZeile{}}
 	if l.ComparisonRateBP != nil {
 		out.Vergleichszins = zinssatz(*l.ComparisonRateBP)
@@ -74,6 +76,7 @@ type darlehenIn struct {
 	Sicherheiten         *string          `json:"sicherheiten,omitempty"`
 	Vergleichszins       Zinssatz         `json:"vergleichszins,omitempty" jsonschema:"Zins eines fremden Dritten"`
 	VergleichszinsQuelle *string          `json:"vergleichszins_quelle,omitempty" jsonschema:"Nachweis, etwa ein Bankangebot"`
+	VermerkBelegID       uint             `json:"vermerk_beleg_id,omitempty" jsonschema:"abgelegter Vermerk zur Zinsentscheidung, belegt den Fremdvergleich ohne Vergleichszins"`
 	Nachrangig           *bool            `json:"nachrangig,omitempty" jsonschema:"Rangrücktritt vereinbart"`
 	Notiz                *string          `json:"notiz,omitempty"`
 	ZinsenBis            Datum            `json:"zinsen_bis,omitempty" jsonschema:"bei art zinsen: Ende des Zeitraums; er beginnt nach der zuletzt gebuchten Zinsperiode"`
@@ -154,6 +157,9 @@ func (in darlehenIn) request(base service.LoanRequest) (service.LoanRequest, err
 	}
 	if in.BelegID != 0 {
 		req.ContractReceiptID = in.BelegID
+	}
+	if in.VermerkBelegID != 0 {
+		req.RateNoteReceiptID = in.VermerkBelegID
 	}
 	for _, t := range []struct {
 		in  *string
