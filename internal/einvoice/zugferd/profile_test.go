@@ -31,6 +31,7 @@ func TestProfileIsRecognisedInEverySpelling(t *testing.T) {
 		"urn:cen.eu:en16931:2017":                                               ProfileEN16931,
 		"urn:cen.eu:en16931:2017#conformant#urn:factur-x.eu:1p0:extended":       ProfileExtended,
 		"urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0": ProfileXRechnung,
+		einvoice.ProfilePeppolBIS3:                                              ProfilePeppolBIS,
 		"urn:etwas:ganz:anderes":                                                ProfileUnknown,
 	}
 	for id, want := range cases {
@@ -117,7 +118,7 @@ func TestMinimumProfileFollowsTheContent(t *testing.T) {
 func TestIdentifiersRoundTrip(t *testing.T) {
 	for _, p := range []Profile{ProfileMinimum, ProfileBasicWL, ProfileBasic,
 		ProfileEN16931, ProfileExtended, ProfileXRechnung} {
-		// ZUGFeRD 1 fehlt hier mit Absicht: Buchfink schreibt es nicht.
+		// ZUGFeRD 1 und Peppol BIS fehlen hier mit Absicht: Buchfink schreibt sie nicht.
 		id := p.Identifier()
 		if id == "" {
 			t.Errorf("%s hat keine Kennung", p.Label())
@@ -168,6 +169,36 @@ func TestOfficialExamplesDeclareKnownProfiles(t *testing.T) {
 		if got := ProfileOf(inv); got == ProfileUnknown {
 			t.Errorf("%s nennt das unbekannte Profil %q", filepath.Base(path), inv.Profile())
 		}
+	}
+}
+
+// Peppol BIS Billing 3.0 ist kein ZUGFeRD-Profil, aber eine CIUS von EN 16931
+// mit vollständiger Rechnung. Als unbekannt gemeldet, bekäme jede
+// Peppol-Rechnung eine Warnung, die nichts über sie aussagt. Eine Kennung, die
+// Buchfink nicht kennt, bleibt dagegen ein Befund.
+func TestPeppolBISIsAKnownCIUS(t *testing.T) {
+	inv := lineInvoice()
+	inv.SpecificationID = einvoice.ProfilePeppolBIS3
+
+	profile := ProfileOf(inv)
+	if profile != ProfilePeppolBIS {
+		t.Fatalf("Profil = %q", profile)
+	}
+	if !profile.IsInvoice() || !profile.FollowsEN16931() {
+		t.Errorf("Peppol BIS ist eine vollständige Rechnung nach EN 16931: Rechnung=%v, Norm=%v",
+			profile.IsInvoice(), profile.FollowsEN16931())
+	}
+	inv.SupportingDocs = []einvoice.SupportingDocument{{Reference: "A1"}}
+	for _, f := range einvoice.ValidateWith(inv, Ruleset()).Findings {
+		if strings.HasPrefix(f.Rule, "ZF-") {
+			t.Errorf("%s: %s", f.Rule, f.Message)
+		}
+	}
+
+	unknown := lineInvoice()
+	unknown.SpecificationID = "urn:etwas:ganz:anderes"
+	if len(einvoice.ValidateWith(unknown, Ruleset()).ByRule(RuleProfileKnown)) == 0 {
+		t.Error("eine unbekannte Kennung muss weiterhin gemeldet werden")
 	}
 }
 

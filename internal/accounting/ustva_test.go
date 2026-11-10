@@ -54,15 +54,16 @@ func TestVatCodeForEveryTaxKeyAndTreatment(t *testing.T) {
 		{"§ 14c-Steuer", creditLine(domain.AccountUmsatzsteuer14c, 19000, TaxKeyUnlawful, 0), nil, "69", 0, 19000},
 		{"Erwerbsteuer 19 %", creditLine(domain.AccountUmsatzsteuerIG19, 19000, "IG19_UST", 100000), nil, "89", 100000, 19000},
 		{"Erwerbsteuer 7 %", creditLine(domain.AccountUmsatzsteuerIG, 7000, "IG7_UST", 100000), nil, "93", 100000, 7000},
-		{"§ 13b-Steuer als Empfänger", creditLine(domain.AccountUmsatzsteuer13b19, 19000, "RC19_UST", 100000), nil, "46", 100000, 19000},
+		{"§ 13b Abs. 1: sonstige Leistung aus der EU", creditLine(domain.AccountUmsatzsteuer13b19, 19000, "RCEU19_UST", 100000), nil, "46", 100000, 19000},
+		{"§ 13b Abs. 2: Leistung aus dem Drittland", creditLine(domain.AccountUmsatzsteuer13b19, 19000, "RC19_UST", 100000), nil, "84", 100000, 19000},
+		{"§ 13b Abs. 2 zum ermäßigten Satz", creditLine(domain.AccountUmsatzsteuer13b, 7000, "RC7_UST", 100000), nil, "84", 100000, 7000},
 		{"Vorsteuer aus Rechnungen", debitLine(domain.AccountVorsteuer19, 19000, "VST19", 100000), nil, "66", 0, 19000},
 		{"Vorsteuer aus ig. Erwerb", debitLine(domain.AccountVorsteuerIG19, 19000, "IG19_VST", 100000), nil, "61", 0, 19000},
-		{"Vorsteuer aus § 13b", debitLine(domain.AccountVorsteuer13b19, 19000, "RC19_VST", 100000), nil, "67", 0, 19000},
+		{"Vorsteuer aus § 13b Abs. 2", debitLine(domain.AccountVorsteuer13b19, 19000, "RC19_VST", 100000), nil, "67", 0, 19000},
+		{"Vorsteuer aus § 13b Abs. 1", debitLine(domain.AccountVorsteuer13b19, 19000, "RCEU19_VST", 100000), nil, "67", 0, 19000},
 
-		{"Innergemeinschaftliche Lieferung", creditLine("4125", 500000, "", 0), nil, "41", 500000, 0},
-		{"Ausfuhrlieferung", creditLine("4120", 300000, "", 0), nil, "43", 300000, 0},
 		{"Steuerfreier Umsatz ohne Vorsteuerabzug", creditLine("4150", 200000, "", 0), nil, "48", 200000, 0},
-		{"Nullsteuersatz § 12 Abs. 3 UStG", creditLine("4290", 1200000, "", 0), nil, "35", 1200000, 0},
+		{"Nullsteuersatz § 12 Abs. 3 UStG", creditLine("4290", 1200000, "", 0), nil, "87", 1200000, 0},
 	}
 
 	for _, tc := range cases {

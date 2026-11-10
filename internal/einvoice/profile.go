@@ -34,6 +34,12 @@ func (inv *Invoice) IsXRechnung() bool {
 	return strings.Contains(strings.ToLower(inv.Profile()), "xrechnung")
 }
 
+// IsPeppol reports whether the document follows Peppol BIS Billing 3.0, whose
+// own rules (PEPPOL-EN16931-R*) this module does not implement either.
+func (inv *Invoice) IsPeppol() bool {
+	return strings.Contains(strings.ToLower(inv.Profile()), "peppol.eu")
+}
+
 // EnsureUsableProfile rejects the two ZUGFeRD profiles that are not an
 // E-Rechnung in the sense of German VAT law.
 //

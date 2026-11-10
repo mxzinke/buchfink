@@ -1,0 +1,9 @@
+{
+  "gruende": [
+    {
+      "schluessel": "keine_e_rechnung",
+      "text": "Der Beleg hat keinen strukturierten Rechnungsdatensatz; Fotos und PDF ohne E-Rechnung bucht Buchfink nie direkt."
+    }
+  ],
+  "stufe": "rueckfrage"
+}

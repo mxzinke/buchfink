@@ -38,7 +38,7 @@ func (r *accountRepositoryGorm) FindByNumber(ctx context.Context, number string)
 			return &account, nil
 		}
 	}
-	return nil, err
+	return nil, mapError(err)
 }
 
 func (r *accountRepositoryGorm) Create(ctx context.Context, account *domain.Account) error {

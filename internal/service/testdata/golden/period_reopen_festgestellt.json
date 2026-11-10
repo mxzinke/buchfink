@@ -1,0 +1,22 @@
+{
+  "audit": [
+    "Geschäftsjahr 2026 von \"Festgestellt\" auf \"Aufgestellt\" zurückgesetzt (Grund: Korrektur des Abschlusses)",
+    "Geschäftsjahr 2026: Festgestellt am 2027-06-01 (Beschluss 1)",
+    "Geschäftsjahr 2026: Aufgestellt am 2027-03-01",
+    "Geschäftsjahr 2026 angelegt (2026-01-01 bis 2026-12-31)"
+  ],
+  "commitmentCount": 1,
+  "error": "",
+  "postingError": "Der Zeitraum bis 2026-12-31 ist festgeschrieben. Eine Buchung zum 2026-12-31 ist nicht mehr möglich – bitte über eine Stornierung korrigieren. Eine Abschlussbuchung zum Bilanzstichtag ist bis zur Jahresfestschreibung als Buchung der Abschlussperiode möglich",
+  "year": {
+    "averageEmployees": 0,
+    "createdAt": "0001-01-01T00:00:00Z",
+    "endDate": "2026-12-31",
+    "isShort": false,
+    "preparedOn": "2027-03-01",
+    "priorYearRevenue": 0,
+    "startDate": "2026-01-01",
+    "status": "prepared",
+    "year": 2026
+  }
+}

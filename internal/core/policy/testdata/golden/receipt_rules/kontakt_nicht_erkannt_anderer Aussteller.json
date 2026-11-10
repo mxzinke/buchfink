@@ -1,0 +1,9 @@
+{
+  "gruende": [
+    {
+      "schluessel": "kontakt_nicht_erkannt",
+      "text": "Der Aussteller der E-Rechnung ist nicht eindeutig dieser Kontakt."
+    }
+  ],
+  "stufe": "rueckfrage"
+}

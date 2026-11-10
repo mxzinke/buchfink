@@ -1,0 +1,163 @@
+{
+  "altersstruktur": [
+    {
+      "faelligkeit": [
+        {
+          "betrag": "0.00",
+          "name": "Nicht fällig",
+          "posten": 0,
+          "schluessel": "not_due"
+        },
+        {
+          "betrag": "0.00",
+          "name": "1 bis 30 Tage überfällig",
+          "posten": 0,
+          "schluessel": "1_30"
+        },
+        {
+          "betrag": "0.00",
+          "name": "31 bis 60 Tage überfällig",
+          "posten": 0,
+          "schluessel": "31_60"
+        },
+        {
+          "betrag": "0.00",
+          "name": "61 bis 90 Tage überfällig",
+          "posten": 0,
+          "schluessel": "61_90"
+        },
+        {
+          "betrag": "0.00",
+          "name": "Über 90 Tage überfällig",
+          "posten": 0,
+          "schluessel": "over_90"
+        },
+        {
+          "betrag": "0.00",
+          "name": "Ohne Fälligkeit",
+          "posten": 0,
+          "schluessel": "no_due_date"
+        }
+      ],
+      "posten": 0,
+      "restlaufzeit": [
+        {
+          "betrag": "0.00",
+          "name": "Restlaufzeit bis zu einem Jahr",
+          "posten": 0,
+          "schluessel": "up_to_1y"
+        },
+        {
+          "betrag": "0.00",
+          "name": "Restlaufzeit über ein bis fünf Jahre",
+          "posten": 0,
+          "schluessel": "1_to_5y"
+        },
+        {
+          "betrag": "0.00",
+          "name": "Restlaufzeit über fünf Jahre",
+          "posten": 0,
+          "schluessel": "over_5y"
+        },
+        {
+          "betrag": "0.00",
+          "name": "Ohne Fälligkeit",
+          "posten": 0,
+          "schluessel": "undated"
+        }
+      ],
+      "seite": "Forderungen aus Lieferungen und Leistungen",
+      "summe": "0.00"
+    },
+    {
+      "faelligkeit": [
+        {
+          "betrag": "0.00",
+          "name": "Nicht fällig",
+          "posten": 0,
+          "schluessel": "not_due"
+        },
+        {
+          "betrag": "0.00",
+          "name": "1 bis 30 Tage überfällig",
+          "posten": 0,
+          "schluessel": "1_30"
+        },
+        {
+          "betrag": "0.00",
+          "name": "31 bis 60 Tage überfällig",
+          "posten": 0,
+          "schluessel": "31_60"
+        },
+        {
+          "betrag": "119.00",
+          "name": "61 bis 90 Tage überfällig",
+          "posten": 1,
+          "schluessel": "61_90"
+        },
+        {
+          "betrag": "0.00",
+          "name": "Über 90 Tage überfällig",
+          "posten": 0,
+          "schluessel": "over_90"
+        },
+        {
+          "betrag": "0.00",
+          "name": "Ohne Fälligkeit",
+          "posten": 0,
+          "schluessel": "no_due_date"
+        }
+      ],
+      "posten": 1,
+      "restlaufzeit": [
+        {
+          "betrag": "119.00",
+          "name": "Restlaufzeit bis zu einem Jahr",
+          "posten": 1,
+          "schluessel": "up_to_1y"
+        },
+        {
+          "betrag": "0.00",
+          "name": "Restlaufzeit über ein bis fünf Jahre",
+          "posten": 0,
+          "schluessel": "1_to_5y"
+        },
+        {
+          "betrag": "0.00",
+          "name": "Restlaufzeit über fünf Jahre",
+          "posten": 0,
+          "schluessel": "over_5y"
+        },
+        {
+          "betrag": "0.00",
+          "name": "Ohne Fälligkeit",
+          "posten": 0,
+          "schluessel": "undated"
+        }
+      ],
+      "seite": "Verbindlichkeiten aus Lieferungen und Leistungen",
+      "summe": "119.00"
+    }
+  ],
+  "gesamt": 1,
+  "hinweis": "Verzugszinsen und Pauschale sind gerechnet, nicht gebucht; sie sind erst mit der Zahlung Ertrag.",
+  "naechste_seite": null,
+  "posten": [
+    {
+      "beleg_nr": "ER-2026-0001",
+      "belegdatum": "2026-03-31",
+      "betrag": "119.00",
+      "buchung_id": 1,
+      "faellig": "2026-04-14",
+      "faellig_aus": "zahlungsziel",
+      "kontakt": "Netzwerk GmbH",
+      "kontakt_id": 1,
+      "nummer": "2026-000001",
+      "offen": "119.00",
+      "richtung": "verbindlichkeit",
+      "tage_ueberfaellig": 77
+    }
+  ],
+  "stichtag": "2026-06-30",
+  "summe_offen": "119.00"
+}

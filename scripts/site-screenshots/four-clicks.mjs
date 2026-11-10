@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 /**
- * Das Prüfszenario als Klickweg (GOB-02, Entscheidung 8 der Welle 7).
+ * Das Prüfszenario als Klickweg (GOB-02).
  *
  * Die Aufgabe: von der Bilanzposition, unter der das Bankkonto steht, zum Beleg
  * der Buchung — in höchstens vier Klicks. Sie ist der Prüfstein für die
  * Belegfunktion: „Keine Buchung ohne Beleg" ist erst dann eine Aussage über die
  * Bedienung, wenn der Weg vom Abschluss zurück zum Papier auch begehbar ist.
+ *
+ * Der Weg läuft durch die Reiter der Bücher: Die Bilanzzeile klappt ihre
+ * Konten auf, das Konto öffnet sein Kontoblatt in der Seitenleiste, die Zeile
+ * des Kontoblatts die Buchung im Journal und deren Seitenleiste den Beleg.
  *
  * Gefahren wird die echte Oberfläche aus `frontend/`; nur die Wails-Bridge ist
  * durch `mock-bridge.ts` mit den Beispieldaten ersetzt. Gezählt werden die
@@ -28,8 +32,8 @@ const MAX_CLICKS = 4;
 /** Der Weg, der gemessen wird — mit den Namen aus den Beispieldaten. */
 const ACCOUNT = '1800';
 const POSITION = 'Umlaufvermögen';
-const ENTRY = 'B-2026-0052';
-const RECEIPT = 'BE-2026-0229';
+const ENTRY = 'B-2026-0177';
+const RECEIPT = 'ER-2026-0226';
 
 async function main() {
   const vite = await startVite();
@@ -58,15 +62,10 @@ async function main() {
       steps.push(what);
     };
 
-    await page.goto(ORIGIN, { waitUntil: 'networkidle' });
-    // Die Mandantenwahl steht vor dem Arbeitsbereich und hat keine Navigation
-    // daneben. Der Klick zählt nicht mit: das Szenario beginnt in den Büchern.
-    await page.getByRole('button', { name: /öffnen$/i }).first().click();
+    // Vorlauf: die Bilanz aufschlagen. Das zählt nicht mit — das Szenario
+    // beginnt bei der Bilanzposition, vor der die Anwenderin sitzt.
+    await page.goto(`${ORIGIN}/#/books/statements`, { waitUntil: 'networkidle' });
     await page.waitForSelector('nav', { timeout: 30_000 });
-
-    // Vorlauf: die Bilanz aufschlagen. Diese Klicks zählen nicht mit — das
-    // Szenario beginnt bei der Bilanzposition, vor der die Anwenderin sitzt.
-    await page.getByRole('button', { name: 'GuV & Bilanz', exact: true }).first().click();
     await page.getByText('Bilanz zum', { exact: false }).first().waitFor({ timeout: 20_000 });
 
     // 1. Die Position aufklappen — darunter stehen ihre Konten.
@@ -76,14 +75,14 @@ async function main() {
     );
     await page.getByRole('button', { name: ACCOUNT, exact: true }).first().waitFor();
 
-    // 2. Vom Konto ins Kontoblatt.
+    // 2. Vom Konto ins Kontoblatt (Seitenleiste im Reiter Konten).
     await click(
       page.getByRole('button', { name: ACCOUNT, exact: true }).first(),
       `Konto ${ACCOUNT} öffnen`,
     );
     await page.getByText('Kontoblatt', { exact: true }).waitFor({ timeout: 20_000 });
 
-    // 3. Von der Zeile des Kontoblatts auf die Buchung im Journal.
+    // 3. Von der Zeile des Kontoblatts auf die Buchung (Seitenleiste im Journal).
     await click(
       page.getByRole('button', { name: ENTRY, exact: true }).first(),
       `Buchung ${ENTRY} öffnen`,
@@ -92,7 +91,7 @@ async function main() {
       .getByRole('button', { name: `Beleg zur Buchung ${ENTRY} anzeigen` })
       .waitFor({ timeout: 20_000 });
 
-    // 4. Von der Buchung auf ihren Beleg.
+    // 4. Von der Buchung auf ihren Beleg (Seitenleiste im Reiter Belege).
     await click(
       page.getByRole('button', { name: `Beleg zur Buchung ${ENTRY} anzeigen` }),
       `Beleg zur Buchung ${ENTRY} öffnen`,

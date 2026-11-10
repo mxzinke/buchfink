@@ -7,15 +7,15 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/currency"
 	"github.com/buchfink/buchfink/internal/domain"
-	"github.com/buchfink/buchfink/internal/receiptstore"
-	"github.com/buchfink/buchfink/internal/repository"
-	"github.com/buchfink/buchfink/internal/service"
+	"github.com/buchfink/buchfink/internal/ops"
 )
 
 // Der Prüfermodus muss an der Bridge greifen und nicht in der Oberfläche.
@@ -25,107 +25,23 @@ import (
 // zweierlei: dass eine schreibende Methode tatsächlich abweist, und dass keine
 // exportierte Methode ohne Einordnung durchrutscht.
 
-// testBridge baut eine Bridge auf einem Wegwerf-Datenordner, ohne die
-// Wails-Anwendung zu starten.
-func testBridge(t *testing.T) *BuchfinkBridge {
-	t.Helper()
-	dataDir := t.TempDir()
-
-	db, err := repository.InitTenantDB(dataDir)
-	if err != nil {
-		t.Fatalf("Mandantendatenbank: %v", err)
-	}
-	tenant := domain.TenantConfig{
-		ID: "tenant_test", Name: "Pfennig Ventures GmbH", DataDir: dataDir,
-		CreatedAt: time.Now().Format(time.RFC3339),
-	}
-
-	b := &BuchfinkBridge{
-		appCfgRepo: repository.NewAppConfigRepository(filepath.Join(t.TempDir(), "config")),
-		appConfig: domain.AppConfig{
-			Tenants: []domain.TenantConfig{tenant}, ActiveTenantID: tenant.ID,
-			DataDir: dataDir, IsConfigured: true, LastFiscalYear: 2026,
-		},
-		dataDir:     dataDir,
-		currentYear: 2026,
-		db:          db,
-	}
-	b.journalRepo = repository.NewJournalRepository(db)
-	b.accountRepo = repository.NewAccountRepository(db)
-	b.contactRepo = repository.NewContactRepository(db)
-	b.auditRepo = repository.NewAuditRepository(db)
-	b.settingsRepo = repository.NewSettingsRepository(db)
-	b.journalSvc = service.NewJournalService(
-		b.journalRepo, b.accountRepo, b.contactRepo, b.auditRepo, b.settingsRepo, 2026)
-	// Die Handbuchung verlangt seit Welle 8 einen Beleg (BEL-01 K2). Die
-	// Prüfermodus-Prüfung geht über sie, also gehören Belegablage und Belegweg
-	// in diese Testbridge — ohne sie prüfte der Test die Sperre an einer
-	// Methode, die aus einem anderen Grund abweist.
-	b.receiptRepo = repository.NewReceiptRepository(db)
-	b.numberRepo = repository.NewNumberRangeRepository(db)
-	b.receiptSvc = service.NewReceiptService(
-		b.receiptRepo, b.journalRepo, receiptstore.New(dataDir), b.auditRepo, 2026)
-	b.journalSvc.SetReceiptRepo(b.receiptRepo)
-	b.postingSvc = service.NewPostingService(b.journalSvc, b.contactRepo)
-	b.postingSvc.SetReceiptService(b.receiptSvc)
-	return b
-}
-
-// manualEntryRequest legt einen Beleg an und liefert die Handbuchung darauf.
-//
-// Seit Welle 8 gibt es keine Buchung ohne Beleg; ein Test, der eine Buchung
-// braucht, braucht deshalb auch einen Beleg. Abgelegt wird er über denselben
-// Weg wie im Betrieb — eine von Hand geschriebene Zeile in der Belegtabelle
-// prüfte etwas anderes als das, was läuft.
-func manualEntryRequest(t *testing.T, b *BuchfinkBridge) service.ManualEntryRequest {
-	t.Helper()
-	receipt, err := b.receiptSvc.File(context.Background(), service.FileReceiptRequest{
-		Direction: domain.DirectionIncoming, FiscalYear: 2026,
-		Kind: domain.ReceiptKindInvoice, DocumentDate: "2026-03-01",
-		IssuerName: "Büromarkt GmbH", GrossAmount: 10000,
-		Files: []service.NewFile{{
-			Role: domain.ReceiptRoleOriginal, FileName: "rechnung.pdf",
-			Content: []byte("%PDF-1.4 Testbeleg"),
-		}},
-	})
-	if err != nil {
-		t.Fatalf("Beleg ablegen: %v", err)
-	}
-	return service.ManualEntryRequest{Entry: manualEntry(), ReceiptID: receipt.ID}
-}
-
-func manualEntry() domain.JournalEntry {
-	return domain.JournalEntry{
-		BookingDate: "2026-03-01", DocumentDate: "2026-03-01",
-		ServiceDateFrom: "2026-03-01", ServiceDateTo: "2026-03-01",
-		Description: "Testbuchung", Source: domain.EntrySourceManual,
-		// Der Steuerfall gehört seit Welle 8 an jede Handbuchung: die
-		// Anschaffung geringwertiger Wirtschaftsgüter gegen Bank ist hier kein
-		// steuerbarer Umsatz, und genau das sagt er.
-		TaxTreatment: domain.TaxTreatmentNotTaxable,
-		Lines: []domain.JournalLine{
-			{Side: domain.SideDebit, Account: "6815", Amount: 10000},
-			{Side: domain.SideCredit, Account: "1800", Amount: 10000},
-		},
-	}
-}
-
 // Mit aktivem Prüfermodus weist eine schreibende Methode ab — und ohne ihn
 // bucht dieselbe Methode. Die zweite Hälfte gehört dazu: ohne sie bestünde der
 // Test auch dann, wenn das Buchen aus einem anderen Grund scheitert.
 func TestReadOnlyModeRefusesWritingMethods(t *testing.T) {
 	b := testBridge(t)
 
-	if _, err := b.PostManualEntry(manualEntryRequest(t, b)); err != nil {
+	if _, err := postManualEntry(b, manualEntryRequest(t, b)); err != nil {
 		t.Fatalf("ohne Prüfermodus muss die Buchung durchgehen: %v", err)
 	}
+	refused := manualEntryRequest(t, b)
 
 	until := time.Now().AddDate(0, 0, 30).Format("2006-01-02")
 	if _, err := b.EnableReadOnly(until, "Betriebsprüfung 2022 bis 2024"); err != nil {
 		t.Fatalf("Prüfermodus einschalten: %v", err)
 	}
 
-	_, err := b.PostJournalEntry(manualEntry())
+	_, err := postManualEntry(b, refused)
 	if err == nil {
 		t.Fatal("im Prüfermodus darf keine Buchung entstehen")
 	}
@@ -146,20 +62,6 @@ func TestReadOnlyModeRefusesWritingMethods(t *testing.T) {
 	}
 	if _, err := b.VerifyIntegrity(); err != nil {
 		t.Errorf("im Prüfermodus muss die Integrität geprüft werden können: %v", err)
-	}
-}
-
-// Der Modus endet von selbst. Ein Datum in der Vergangenheit sperrt nichts mehr
-// — sonst müsste jemand daran denken, ihn auszuschalten, und niemand tut das.
-func TestReadOnlyModeExpires(t *testing.T) {
-	b := testBridge(t)
-
-	tenant := b.activeTenantLocked()
-	tenant.ReadOnlyUntil = time.Now().AddDate(0, 0, -1).Format("2006-01-02")
-	tenant.ReadOnlyReason = "abgelaufene Prüfung"
-
-	if _, err := b.PostManualEntry(manualEntryRequest(t, b)); err != nil {
-		t.Errorf("nach dem Ablaufdatum muss wieder gebucht werden können: %v", err)
 	}
 }
 
@@ -205,10 +107,7 @@ func TestReadOnlyModeRequiresDateAndReasonAndIsLogged(t *testing.T) {
 		t.Error("nach dem Beenden darf der Modus nicht mehr gelten")
 	}
 
-	logs, err := b.auditRepo.FindAll(context.Background(), 0)
-	if err != nil {
-		t.Fatalf("Protokoll lesen: %v", err)
-	}
+	logs := auditEntries(t, b, domain.AuditFilter{})
 	var on, off bool
 	for _, entry := range logs {
 		if entry.EntityType != "READ_ONLY" {
@@ -227,7 +126,8 @@ func TestReadOnlyModeRequiresDateAndReasonAndIsLogged(t *testing.T) {
 }
 
 // Jede exportierte Methode der Bridge ist eingeordnet: entweder steht sie in
-// der Leseliste oder sie ruft ensureWritable.
+// der Leseliste, oder sie schreibt über write/change und damit über
+// Tenant.Write, das den Prüfermodus prüft.
 //
 // Der Test liest den Quelltext, weil Go keine Möglichkeit bietet, zur Laufzeit
 // festzustellen, ob eine Methode eine andere aufruft. Ohne ihn fiele eine neu
@@ -243,10 +143,10 @@ func TestEveryBridgeMethodIsClassified(t *testing.T) {
 	for name, m := range methods {
 		switch {
 		case m.guarded && readOnlyAllowed[name]:
-			t.Errorf("%s.%s steht in der Leseliste und ruft trotzdem ensureWritable — eines von beidem ist falsch",
+			t.Errorf("%s.%s steht in der Leseliste und schreibt trotzdem über write/change — eines von beidem ist falsch",
 				m.file, name)
 		case !m.guarded && !readOnlyAllowed[name]:
-			t.Errorf("%s.%s ist nicht eingeordnet: entweder gehört die Methode in readOnlyAllowed, oder sie muss ensureWritable rufen",
+			t.Errorf("%s.%s ist nicht eingeordnet: entweder gehört die Methode in readOnlyAllowed, oder sie schreibt über write/change",
 				m.file, name)
 		}
 	}
@@ -260,20 +160,41 @@ func TestEveryBridgeMethodIsClassified(t *testing.T) {
 	}
 }
 
-// bridgeMethod ist eine exportierte Methode der Bridge mit der Auskunft, ob sie
-// ensureWritable ruft.
+// Direkte AppOnly-Kennzeichnungen müssen zum Operationskatalog gehören.
+// Delegierte Prüfungen und bedingte Vorbehalte prüft internal/core zusätzlich.
+func TestAppOnlyOperationsAreMarked(t *testing.T) {
+	methods := bridgeMethods(t)
+	for name, method := range methods {
+		op, reserved := ops.ForBridge(name)
+		if method.appOnly && (!reserved || op.Tier != ops.AppOnly) {
+			t.Errorf("%s: core.AppOnly ohne Katalogeintrag", name)
+		}
+	}
+	for _, op := range ops.All() {
+		for _, name := range op.Bridge {
+			if _, ok := methods[name]; !ok {
+				t.Errorf("%s: Bridge-Methode %s fehlt", op.Name, name)
+			}
+		}
+	}
+	if !reflect.DeepEqual(readOnlyAllowed, ops.BridgeExaminerAllowed()) {
+		t.Error("die Prüfermodus-Ausnahmen weichen vom Operationskatalog ab")
+	}
+}
+
+// bridgeMethod ist eine exportierte Methode der Bridge mit der Auskunft, ob
+// sie im Prüfermodus abgewiesen wird und ob sie der App vorbehalten ist.
 type bridgeMethod struct {
 	file    string
 	guarded bool
+	appOnly bool
 }
 
 // bridgeMethods liest den Quelltext des Pakets als Syntaxbaum.
 //
-// Als Baum und nicht als Text: eine Textsuche nach „b.ensureWritable()" fände
-// den Aufruf auch in einem Kommentar. Ein „// TODO b.ensureWritable()" über
-// einer schreibenden Methode genügte dann für die Einordnung, ohne dass je eine
-// Prüfung liefe — und der Test, der das verhindern soll, hielte sie für
-// erledigt. Der Syntaxbaum kennt keine Kommentare.
+// Als Baum und nicht als Text: eine Textsuche fände den Aufruf auch in einem
+// Kommentar, und ein „// TODO write(…)" über einer schreibenden Methode
+// genügte dann für die Einordnung.
 func bridgeMethods(t *testing.T) map[string]bridgeMethod {
 	t.Helper()
 
@@ -296,10 +217,8 @@ func bridgeMethods(t *testing.T) map[string]bridgeMethod {
 				if !isBridgeReceiver(fn.Recv) {
 					continue
 				}
-				out[fn.Name.Name] = bridgeMethod{
-					file:    filepath.Base(name),
-					guarded: callsEnsureWritable(fn),
-				}
+				guarded, appOnly := writeCalls(fn)
+				out[fn.Name.Name] = bridgeMethod{file: filepath.Base(name), guarded: guarded, appOnly: appOnly}
 			}
 		}
 	}
@@ -319,106 +238,127 @@ func isBridgeReceiver(recv *ast.FieldList) bool {
 	return ok && ident.Name == "BuchfinkBridge"
 }
 
-// callsEnsureWritable sucht den tatsächlichen Aufruf im Rumpf.
-func callsEnsureWritable(fn *ast.FuncDecl) bool {
-	found := false
+// writeCalls sucht die Aufrufe von write, change, prepared und operate im
+// Rumpf. guarded ist ein Aufruf ohne core.ExaminerExempt(), appOnly einer mit
+// core.AppOnly(). operate ruft einen Vorgang des Kerns, der selbst über
+// Tenant.Write schreibt.
+func writeCalls(fn *ast.FuncDecl) (guarded, appOnly bool) {
 	ast.Inspect(fn, func(n ast.Node) bool {
 		call, ok := n.(*ast.CallExpr)
-		if !ok {
+		if !ok || !isWriteHelper(call.Fun) {
 			return true
 		}
-		sel, ok := call.Fun.(*ast.SelectorExpr)
-		if !ok || sel.Sel.Name != "ensureWritable" {
-			return true
+		exempt := false
+		for _, arg := range call.Args {
+			switch optionName(arg) {
+			case "ExaminerExempt":
+				exempt = true
+			case "AppOnly":
+				appOnly = true
+			}
 		}
-		found = true
-		return false
+		if !exempt {
+			guarded = true
+		}
+		return true
 	})
-	return found
+	return guarded, appOnly
+}
+
+func isWriteHelper(fun ast.Expr) bool {
+	switch f := fun.(type) {
+	case *ast.Ident:
+		return f.Name == "write" || f.Name == "operate" || f.Name == "prepared"
+	case *ast.IndexExpr:
+		return isWriteHelper(f.X)
+	case *ast.SelectorExpr:
+		return f.Sel.Name == "change"
+	}
+	return false
+}
+
+// optionName ist der Name einer Option der Form core.Name().
+func optionName(arg ast.Expr) string {
+	call, ok := arg.(*ast.CallExpr)
+	if !ok {
+		return ""
+	}
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return ""
+	}
+	if pkg, ok := sel.X.(*ast.Ident); !ok || pkg.Name != "core" {
+		return ""
+	}
+	return sel.Sel.Name
 }
 
 // Ein Kommentar ist kein Aufruf. Ohne diese Probe bestünde der Test oben auch
-// dann, wenn jemand die Prüfung auskommentiert und den Hinweis stehen lässt.
+// dann, wenn jemand den Schreibweg auskommentiert und den Hinweis stehen lässt.
 func TestClassificationIgnoresCommentedOutGuards(t *testing.T) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, "beispiel.go", `package wailsbridge
 
 func (b *BuchfinkBridge) Beispiel() error {
-	// TODO: hier fehlt noch b.ensureWritable()
+	// TODO: das gehört in b.change(…)
 	return nil
+}
+
+func (b *BuchfinkBridge) Ausgenommen() error {
+	return b.change(nil, core.ExaminerExempt(), core.AppOnly())
 }
 `, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		t.Fatalf("Beispiel übersetzen: %v", err)
 	}
-	fn := file.Decls[0].(*ast.FuncDecl)
-	if callsEnsureWritable(fn) {
-		t.Error("ein auskommentierter Aufruf gilt als Prüfung — damit ließe sich jede Sperre umgehen")
+	if guarded, _ := writeCalls(file.Decls[0].(*ast.FuncDecl)); guarded {
+		t.Error("ein auskommentierter Aufruf gilt als Schreibweg — damit ließe sich jede Sperre umgehen")
+	}
+	guarded, appOnly := writeCalls(file.Decls[1].(*ast.FuncDecl))
+	if guarded || !appOnly {
+		t.Errorf("ausgenommener Schreibweg falsch gelesen: geprüft %v, nur App %v", guarded, appOnly)
 	}
 }
 
 // GetAppConfig ist die eine Quelle, aus der die Oberfläche den Zustand liest.
-// Sie muss ihn zum heutigen Tag melden und nicht so, wie er beim letzten
-// Speichern war — sonst zeigt die Oberfläche ein Banner und blendet Knöpfe aus,
-// während die Bridge längst wieder schreiben lässt.
 func TestGetAppConfigReportsTheCurrentState(t *testing.T) {
 	b := testBridge(t)
-
-	if got := b.GetAppConfig(); got.ProgramVersion == "" {
-		t.Error("GetAppConfig nennt die Programmversion nicht")
+	if got := b.GetAppConfig(); got.ProgramVersion == "" || got.ReadOnly {
+		t.Errorf("Konfiguration ohne Programmfassung oder mit Prüfermodus: %+v", got)
 	}
-
-	// Ein Prüfermodus, der gestern abgelaufen ist: die Bridge lässt wieder
-	// buchen, also darf die Konfiguration ihn nicht mehr melden.
-	tenant := b.activeTenantLocked()
-	tenant.ReadOnlyUntil = time.Now().AddDate(0, 0, -1).Format("2006-01-02")
-	tenant.ReadOnlyReason = "abgelaufene Prüfung"
-	b.appConfig.ReadOnly = true
-
-	cfg := b.GetAppConfig()
-	if cfg.ReadOnly {
-		t.Error("GetAppConfig meldet den Prüfermodus, obwohl er abgelaufen ist")
+	until := time.Now().AddDate(0, 0, 5).Format("2006-01-02")
+	if _, err := b.EnableReadOnly(until, "Betriebsprüfung"); err != nil {
+		t.Fatal(err)
 	}
-	if _, err := b.PostManualEntry(manualEntryRequest(t, b)); err != nil {
-		t.Errorf("die Bridge lässt nicht buchen, obwohl der Modus abgelaufen ist: %v", err)
-	}
-
-	// Und andersherum: ein laufender Modus wird gemeldet, auch wenn seit dem
-	// letzten Speichern nichts nachgezogen wurde.
-	tenant.ReadOnlyUntil = time.Now().AddDate(0, 0, 5).Format("2006-01-02")
-	b.appConfig.ReadOnly = false
-	if cfg := b.GetAppConfig(); !cfg.ReadOnly || cfg.ReadOnlyReason != "abgelaufene Prüfung" {
+	if cfg := b.GetAppConfig(); !cfg.ReadOnly || cfg.ReadOnlyReason != "Betriebsprüfung" {
 		t.Errorf("GetAppConfig meldet den laufenden Prüfermodus nicht: %+v", cfg)
 	}
 }
 
-// Im Prüfermodus darf der geprüfte Mandant nicht gelöscht werden: mit seinem
-// Schlüsselbund-Geheimnis wären die eingefrorenen Daten unzugänglich.
-func TestDeleteTenantIsRefusedForTheAuditedTenant(t *testing.T) {
+// Der geprüfte Mandant darf aus der Liste: der Prüfermodus steht in seiner
+// Datenbank und gilt wieder, sobald der Ordner wieder geöffnet wird.
+func TestDeleteTenantKeepsTheExaminerModeInTheData(t *testing.T) {
 	b := testBridge(t)
 	until := time.Now().AddDate(0, 0, 30).Format("2006-01-02")
 	if _, err := b.EnableReadOnly(until, "Betriebsprüfung 2022 bis 2024"); err != nil {
 		t.Fatalf("Prüfermodus einschalten: %v", err)
 	}
-
-	err := b.DeleteTenant(b.appConfig.ActiveTenantID)
-	if err == nil {
-		t.Fatal("der geprüfte Mandant wurde im Prüfermodus gelöscht")
+	cfg := b.GetAppConfig()
+	audited := cfg.ActiveTenant()
+	if err := b.DeleteTenant(audited.ID); err != nil {
+		t.Fatalf("Mandant aus der Liste nehmen: %v", err)
 	}
-	if !strings.Contains(err.Error(), "Prüfermodus") {
-		t.Errorf("die Meldung nennt den Grund nicht: %v", err)
+	if b.GetAppConfig().ReadOnly {
+		t.Error("ohne offenen Mandanten meldet die Konfiguration einen Prüfermodus")
 	}
-	if len(b.appConfig.Tenants) != 1 {
-		t.Errorf("der Mandant steht nicht mehr in der Konfiguration: %d Einträge", len(b.appConfig.Tenants))
+	if err := b.LoadExistingDatabase(filepath.Join(audited.DataDir, "buchfink.sqlite")); err != nil {
+		t.Fatalf("wieder öffnen: %v", err)
 	}
-
-	// Ein anderer Mandant darf gehen — der Modus friert einen Bestand ein und
-	// nicht die Mandantenverwaltung.
-	b.appConfig.Tenants = append(b.appConfig.Tenants, domain.TenantConfig{
-		ID: "tenant_zweiter", Name: "Zweiter Mandant", DataDir: t.TempDir(),
-	})
-	if err := b.DeleteTenant("tenant_zweiter"); err != nil {
-		t.Errorf("ein anderer Mandant ließ sich im Prüfermodus nicht entfernen: %v", err)
+	if got := b.GetAppConfig(); !got.ReadOnly || got.ReadOnlyUntil != until {
+		t.Errorf("nach dem Wiederöffnen fehlt der Prüfermodus: %+v", got)
+	}
+	if err := b.UpdateCompanySettings(domain.CompanySettings{CompanyName: "Andere GmbH"}); err == nil {
+		t.Error("der wieder geöffnete Mandant nimmt im Prüfermodus Änderungen an")
 	}
 }
 
@@ -431,22 +371,16 @@ func TestDeleteTenantIsRefusedForTheAuditedTenant(t *testing.T) {
 // Kurse dazu längst in der Historie stehen. Jetzt antwortet dort der nur
 // lesende Kursdienst: er nimmt, was gespeichert ist, und holt nichts nach.
 func TestReadOnlyModeAnswersTheExchangeRateFromHistory(t *testing.T) {
-	b := testBridge(t)
-	ctx := context.Background()
-	b.exchangeRateRepo = repository.NewExchangeRateRepository(b.db)
 	// Ein Kursdienst, dessen Adresse ins Leere zeigt: würde geholt, käme ein
 	// Fehler — und genau das soll im Prüfermodus nicht geschehen.
-	b.currencySvc = service.NewCurrencyService(
-		b.exchangeRateRepo, currency.New("http://127.0.0.1:1"), b.auditRepo)
-	b.currencySvc.SetJournalRepo(b.journalRepo)
-	b.currencySvc.SetJournalService(b.journalSvc)
-
-	if err := b.exchangeRateRepo.SaveRate(ctx, &domain.ExchangeRate{
-		Currency: "USD", Date: "2026-12-31", RateMicros: 1_085_000,
-		Source: "EZB-Referenzkurs",
-	}); err != nil {
-		t.Fatalf("Kurs anlegen: %v", err)
-	}
+	b := testBridge(t, func(o *core.HostOptions) { o.Network.Rates = currency.New("http://127.0.0.1:1") })
+	testWrite(t, b, func(ctx context.Context, s *core.Services) error {
+		_, err := s.Currency.SaveRate(ctx, domain.ExchangeRate{
+			Currency: "USD", Date: "2026-12-31", RateMicros: 1_085_000,
+			Source: "EZB-Referenzkurs",
+		})
+		return err
+	})
 
 	until := time.Now().AddDate(0, 0, 30).Format("2006-01-02")
 	if _, err := b.EnableReadOnly(until, "Betriebsprüfung 2022 bis 2024"); err != nil {
@@ -467,5 +401,83 @@ func TestReadOnlyModeAnswersTheExchangeRateFromHistory(t *testing.T) {
 		t.Error("ohne gespeicherten Kurs darf im Prüfermodus keiner geholt werden")
 	} else if !strings.Contains(err.Error(), "Prüfermodus") {
 		t.Errorf("die Meldung muss den Grund nennen: %v", err)
+	}
+}
+
+// Ein Lesevorgang darf einen geholten Kurs ablegen: er ist kein
+// Buchungsinhalt und muss beim nächsten Mal derselbe sein.
+func TestReadingAnExchangeRateKeepsTheFetchedRate(t *testing.T) {
+	b := testBridge(t, func(o *core.HostOptions) { o.Network.Rates = fixedRate{micros: 1_100_000} })
+	rate, err := b.GetExchangeRate("USD", "2026-06-30")
+	if err != nil {
+		t.Fatalf("Kurs holen: %v", err)
+	}
+	if rate.RateMicros != 1_100_000 {
+		t.Errorf("Kurs %d, erwartet den geholten", rate.RateMicros)
+	}
+	testRead(t, b, func(ctx context.Context, s *core.Services) error {
+		stored, err := s.Repos.ExchangeRates.FindRate(ctx, "USD", "2026-06-30")
+		if err == nil && stored == nil {
+			t.Error("der geholte Kurs wurde nicht abgelegt")
+		}
+		return err
+	})
+}
+
+type fixedRate struct{ micros int64 }
+
+func (f fixedRate) RateAt(_ context.Context, _, date string) (int64, string, string, error) {
+	return f.micros, date, "Testkurs", nil
+}
+
+// Der Prüfermodus schaltet die Schreibwege ab. Wann er galt und wie lange, ist
+// Teil des Nachweises über den Zeitraum, in dem der Prüfer gesehen hat, was er
+// gesehen hat.
+func TestReadOnlyModeLogsBeforeAndAfter(t *testing.T) {
+	b := wiredBridge(t)
+
+	until := time.Now().AddDate(0, 0, 30).Format("2006-01-02")
+	if _, err := b.EnableReadOnly(until, "Außenprüfung 2020 bis 2023"); err != nil {
+		t.Fatalf("Prüfermodus einschalten: %v", err)
+	}
+	entries := auditEntries(t, b, domain.AuditFilter{EntityType: "READ_ONLY"})
+	if len(entries) == 0 {
+		t.Fatal("kein Protokolleintrag zum Prüfermodus")
+	}
+	after := auditFields(t, entries[0].After)
+	if after["readOnlyUntil"] != until {
+		t.Errorf("das Nachher hat das Enddatum nicht: %v", after)
+	}
+	if after["readOnlyReason"] != "Außenprüfung 2020 bis 2023" {
+		t.Errorf("das Nachher hat den Grund nicht: %v", after)
+	}
+
+	if _, err := b.DisableReadOnly("Prüfung abgeschlossen"); err != nil {
+		t.Fatalf("Prüfermodus beenden: %v", err)
+	}
+	entries = auditEntries(t, b, domain.AuditFilter{EntityType: "READ_ONLY"})
+	before := auditFields(t, entries[0].Before)
+	if before["readOnlyUntil"] != until {
+		t.Errorf("das Vorher des Abschaltens hat das Enddatum nicht: %v", before)
+	}
+}
+
+// Im Prüfermodus bleiben die lesenden Wege offen und die schreibenden zu.
+func TestTaskAndBankBridgeRespectsTheReadOnlyMode(t *testing.T) {
+	b := testBridge(t)
+	until := time.Now().AddDate(0, 0, 30).Format("2006-01-02")
+	if _, err := b.EnableReadOnly(until, "Betriebsprüfung 2022 bis 2024"); err != nil {
+		t.Fatalf("Prüfermodus einschalten: %v", err)
+	}
+
+	if _, err := b.GetTasks(); err != nil {
+		t.Errorf("die Aufgabenliste muss im Prüfermodus lesbar bleiben: %v", err)
+	}
+	if err := b.DeleteBankRule(1); err == nil || !strings.Contains(err.Error(), "Prüfermodus") {
+		t.Errorf("das Löschen einer Bankregel muss abgewiesen werden: %v", err)
+	}
+	if _, err := b.SaveServiceProof(1, "geprüft", "2026-03-20"); err == nil ||
+		!strings.Contains(err.Error(), "Prüfermodus") {
+		t.Errorf("der Leistungsnachweis muss abgewiesen werden: %v", err)
 	}
 }

@@ -74,6 +74,23 @@ func TestTypstKeepsBoldAndCode(t *testing.T) {
 	}
 }
 
+// Der Unterschriftsblock setzt je Name eine gezogene Linie für Ort und Datum
+// und eine für die Unterschrift. Namen werden wie Fließtext geschützt.
+func TestTypstSetsASignatureBlock(t *testing.T) {
+	got := Typst("Davor.\n\n::: unterschrift\nAnna Bauer\n\nBen #Conrad\n:::\n\nDanach.", "Titel", time.Time{})
+	if strings.Count(got, "#line(length: 100%") != 4 {
+		t.Errorf("erwartet vier Linien für zwei Namen: %q", got)
+	}
+	for _, want := range []string{"[Ort, Datum]", "[Anna Bauer]", `[Ben \#Conrad]`, "Davor.", "Danach."} {
+		if !strings.Contains(got, want) {
+			t.Errorf("%q fehlt im Satz: %q", want, got)
+		}
+	}
+	if strings.Contains(got, ":::") || strings.Contains(got, `\_`) {
+		t.Errorf("Zaun oder Unterstriche im Satz: %q", got)
+	}
+}
+
 func TestPDFFileNameFollowsTheMarkdownName(t *testing.T) {
 	md := FileName("Pfennig Ventures GmbH", "2026-09-05-1")
 	pdf := PDFFileName("Pfennig Ventures GmbH", "2026-09-05-1")

@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -36,7 +35,7 @@ func TestCancellationCorrectsTheVatInThePeriodOfCorrection(t *testing.T) {
 	if err != nil || reversal == nil {
 		t.Fatalf("die Generalumkehr fehlt: %v", err)
 	}
-	today := time.Now().Format("2006-01-02")
+	today := testNow().Format("2006-01-02")
 	if reversal.BookingDate != today {
 		t.Fatalf("die Generalumkehr trägt das Buchungsdatum %q, erwartet den heutigen Tag %q",
 			reversal.BookingDate, today)

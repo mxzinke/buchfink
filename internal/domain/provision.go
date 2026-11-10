@@ -175,7 +175,7 @@ type ProvisionMovement struct {
 	// aufgelöst werden, soweit der Grund entfallen ist (§ 249 Abs. 2 Satz 2
 	// HGB). Ohne festgehaltenen Grund ist von außen nicht mehr zu erkennen, ob
 	// aufgelöst oder das Ergebnis geglättet wurde.
-	Reason string `gorm:"size:500;serializer:encrypted" json:"reason,omitempty"`
+	Reason string `gorm:"size:500" json:"reason,omitempty"`
 
 	JournalEntryID *uint  `gorm:"index" json:"journalEntryId,omitempty"`
 	EntryNumber    string `gorm:"-" json:"entryNumber,omitempty"`
@@ -188,7 +188,7 @@ type Provision struct {
 	ID         uint          `gorm:"primaryKey" json:"id"`
 	FiscalYear int           `gorm:"index;not null" json:"fiscalYear"`
 	Kind       ProvisionKind `gorm:"size:30;not null;index" json:"kind"`
-	Text       string        `gorm:"size:255;not null;serializer:encrypted" json:"text"`
+	Text       string        `gorm:"size:255;not null" json:"text"`
 
 	// SettlementAmount ist der Erfüllungsbetrag nach § 253 Abs. 1 Satz 2 HGB:
 	// der Betrag, der nach vernünftiger kaufmännischer Beurteilung notwendig
@@ -212,7 +212,7 @@ type Provision struct {
 	// Reason ist Pflicht. Eine Rückstellung ist eine Schätzung; ohne den Grund
 	// und die Grundlage der Schätzung ist sie für einen Prüfer eine Zahl ohne
 	// Herkunft.
-	Reason string `gorm:"size:1000;not null;serializer:encrypted" json:"reason"`
+	Reason string `gorm:"size:1000;not null" json:"reason"`
 
 	// SettledOn ist gesetzt, wenn die Rückstellung erledigt ist — verbraucht
 	// oder aufgelöst.

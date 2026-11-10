@@ -2,13 +2,13 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 	"gorm.io/gorm"
 )
@@ -22,13 +22,18 @@ func NewSettingsRepository(db *gorm.DB) domain.SettingsRepository {
 	return &settingsRepositoryGorm{db: db}
 }
 
+// Get liefert domain.ErrNotFound für einen fehlenden Schlüssel. Find statt
+// First, weil First jeden fehlenden Schlüssel ins Log schreibt, und fehlende
+// Schlüssel sind hier der Regelfall: sie stehen für die Voreinstellung.
 func (r *settingsRepositoryGorm) Get(ctx context.Context, key string) (string, error) {
-	var item domain.SettingItem
-	err := dbFrom(ctx, r.db).Where("key = ?", key).First(&item).Error
-	if err != nil {
+	var items []domain.SettingItem
+	if err := dbFrom(ctx, r.db).Where("key = ?", key).Limit(1).Find(&items).Error; err != nil {
 		return "", err
 	}
-	return item.Value, nil
+	if len(items) == 0 {
+		return "", mapError(gorm.ErrRecordNotFound)
+	}
+	return items[0].Value, nil
 }
 
 func (r *settingsRepositoryGorm) Set(ctx context.Context, key string, value string) error {
@@ -49,7 +54,6 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 	}
 
 	settings := &domain.CompanySettings{
-		Employees:            "unknown",
 		CountryCode:          domain.DefaultCountryCode,
 		FiscalYearStartMonth: 1,
 		Currency:             "EUR",
@@ -65,19 +69,10 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 		// internen Kontrollsystems und keine Rechtspflicht — deshalb
 		// einstellbar.
 		InvoiceCheckThreshold: 100_000,
-		// Die Mahnstufen der Voreinstellung. Sie stehen im Fachbereich und
-		// nicht hier: die Reihenfolge und ihre Begründung gehören zusammen.
-		DunningLevels: domain.DefaultDunningLevels(),
 	}
-
-	// Der Tag, ab dem der fehlende Leistungsnachweis beanstandet wird. Er kann
-	// aus zwei Quellen kommen; der ausdrückliche Eintrag geht vor.
-	checkSince, thresholdSavedOn := "", ""
 
 	for _, it := range items {
 		switch it.Key {
-		case "employees":
-			settings.Employees = it.Value
 		case "managing_directors":
 			settings.ManagingDirectors = it.Value
 		case "supervisory_board_chair":
@@ -104,6 +99,22 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 			settings.TaxOffice = it.Value
 		case "street":
 			settings.Street = it.Value
+		case "house_number":
+			settings.HouseNumber = it.Value
+		case "federal_state":
+			settings.FederalState = it.Value
+		case "tax_advisor_engaged":
+			settings.TaxAdvisor.Engaged = it.Value == "true"
+		case "tax_advisor_since_year":
+			settings.TaxAdvisor.SinceYear, _ = strconv.Atoi(it.Value)
+		case "tax_advisor_declarations":
+			settings.TaxAdvisor.Declarations = splitList(it.Value)
+		case "non_profit":
+			settings.NonProfit = it.Value == "true"
+		case "in_liquidation":
+			settings.InLiquidation = it.Value == "true"
+		case "fiscal_unity":
+			settings.FiscalUnity = it.Value == "true"
 		case "address_addition":
 			settings.AddressAddition = it.Value
 		case "postal_code":
@@ -162,32 +173,16 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 			if v, err := strconv.ParseInt(it.Value, 10, 64); err == nil && v >= 0 {
 				settings.InvoiceCheckThreshold = domain.Cents(v)
 			}
-			// Der Rückfall für Bestände aus der Zeit vor dem eigenen Schlüssel:
-			// der Tag, an dem die Grenze zuletzt gespeichert wurde. Er ist nicht
-			// so genau wie der eigene Eintrag, aber besser als kein Datum —
-			// ohne eines beanstandete der Prüflauf jeden Altbeleg rückwirkend.
-			// Ein vorhandener invoice_check_since sticht ihn (siehe unten).
-			thresholdSavedOn = it.UpdatedAt.Format("2006-01-02")
 		case "invoice_check_since":
-			checkSince = it.Value
-		case "dunning_levels":
-			// Ein unlesbarer Eintrag bleibt ohne Wirkung: dann gilt die
-			// Voreinstellung weiter. Die Mahnstufen ganz fallen zu lassen,
-			// hieße den Mahnlauf abzuschalten, weil ein Zeichen fehlt.
-			var levels []domain.DunningLevel
-			if err := json.Unmarshal([]byte(it.Value), &levels); err == nil && len(levels) > 0 {
-				settings.DunningLevels = domain.NormalizeDunningLevels(levels)
-			}
+			settings.InvoiceCheckSince = it.Value
 		}
 	}
 
 	if settings.FiscalYearStartMonth <= 0 || settings.FiscalYearStartMonth > 12 {
 		settings.FiscalYearStartMonth = 1
 	}
-	settings.InvoiceCheckSince = checkSince
-	if settings.InvoiceCheckSince == "" {
-		settings.InvoiceCheckSince = thresholdSavedOn
-	}
+	settings.NormalizeAddress()
+	settings.ResolveTaxNumberElster()
 	settings.InGruendung = r.inGruendung(ctx)
 	shareholders := []domain.CompanyShareholder{}
 	if err := dbFrom(ctx, r.db).Order("position").Find(&shareholders).Error; err != nil {
@@ -201,9 +196,9 @@ func (r *settingsRepositoryGorm) GetCompanySettings(ctx context.Context) (*domai
 
 // applyInvoiceAccount setzt die Zahlungsverbindung aus dem Bankkonto, das als
 // Konto für Rechnungen markiert ist. Wie InGruendung beim Lesen gesetzt, weil
-// Rechnung, E-Rechnung, Mahnschreiben und Fragebogen sie hier lesen. Ein
-// Lesefehler lässt die Verbindung leer: eine Rechnung ohne Zahlungsanweisung
-// ist gültig, eine mit falscher nicht.
+// Rechnung und E-Rechnung sie hier lesen. Ein Lesefehler lässt die Verbindung
+// leer: eine Rechnung ohne Zahlungsanweisung ist gültig, eine mit falscher
+// nicht.
 func (r *settingsRepositoryGorm) applyInvoiceAccount(ctx context.Context, settings *domain.CompanySettings) {
 	var accounts []domain.BankAccount
 	if err := dbFrom(ctx, r.db).Where("is_invoice_account = ?", true).Limit(1).Find(&accounts).Error; err != nil || len(accounts) == 0 {
@@ -221,8 +216,8 @@ func (r *settingsRepositoryGorm) applyInvoiceAccount(ctx context.Context, settin
 // Tatsache ist und keine Einstellung — er folgt aus dem Eintragungsdatum. Und er
 // wird beim Lesen der Unternehmensdaten gesetzt und nicht von jedem
 // Ausgabeweg einzeln erfragt: den Firmennamen brauchen Rechnung, E-Rechnung,
-// E-Bilanz, Abschlusskopf, Mahnschreiben und Eigenbeleg, und jedem von ihnen die
-// Gründung durchzureichen hieße, sieben Dienste um eine Abhängigkeit zu
+// E-Bilanz, Abschlusskopf und Eigenbeleg, und jedem von ihnen die
+// Gründung durchzureichen hieße, jeden dieser Dienste um eine Abhängigkeit zu
 // erweitern, die sie nur weitergeben.
 //
 // Ein Lesefehler heißt „nicht in Gründung": ohne Zusatz auszugeben ist der
@@ -268,17 +263,12 @@ func receiptFormatOrDefault(format string) (string, error) {
 }
 
 func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *domain.CompanySettings) error {
-	employees := s.Employees
-	if employees == "" {
-		employees = "unknown"
-	}
-	if employees != "unknown" && employees != "none" && employees != "yes" {
-		return fmt.Errorf("ungültige Angabe zur Beschäftigung")
-	}
-
+	s.FederalState = strings.ToUpper(strings.TrimSpace(s.FederalState))
+	s.NormalizeAddress()
 	if err := s.ValidateProfile(); err != nil {
 		return err
 	}
+	s.ResolveTaxNumberElster()
 	countryCode := strings.ToUpper(strings.TrimSpace(s.CountryCode))
 	if countryCode == "" {
 		countryCode = domain.DefaultCountryCode
@@ -322,16 +312,9 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 	// Und deshalb wird die Grenze dann gar nicht geschrieben: ein gepflegter
 	// Wert fiele sonst auf die Voreinstellung zurück — ein Formular, das ein
 	// Feld nicht kennt, darf es nicht ändern.
-	// Dasselbe gilt für die Mahnstufen.
 	writeCheckThreshold := s.InvoiceCheckThreshold > 0
-	writeLevels := len(s.DunningLevels) > 0
-	levels, err := json.Marshal(domain.NormalizeDunningLevels(s.DunningLevels))
-	if err != nil {
-		return fmt.Errorf("die Mahnstufen ließen sich nicht speichern: %w", err)
-	}
 
 	kv := map[string]string{
-		"employees":               employees,
 		"managing_directors":      s.ManagingDirectors,
 		"supervisory_board_chair": s.SupervisoryBoardChair,
 		"seller_identifier":       s.SellerIdentifier,
@@ -374,9 +357,18 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 		"receipt_capture_days": strconv.Itoa(captureDays),
 		"commit_grace_days":    strconv.Itoa(graceDays),
 	}
-	// Der Prüfvermerk am Eingangsbeleg und die Mahnstufen: beides sind
-	// Festlegungen des internen Kontrollsystems, die der Anwender trifft — und
-	// die nur ändert, wer sie mitschickt.
+	// Hausnummer, Land, Steuerberater und Ausschlussmerkmale.
+	kv["house_number"] = s.HouseNumber
+	kv["federal_state"] = s.FederalState
+	kv["tax_advisor_engaged"] = strconv.FormatBool(s.TaxAdvisor.Engaged)
+	kv["tax_advisor_since_year"] = strconv.Itoa(s.TaxAdvisor.SinceYear)
+	kv["tax_advisor_declarations"] = strings.Join(s.TaxAdvisor.Declarations, ",")
+	kv["non_profit"] = strconv.FormatBool(s.NonProfit)
+	kv["in_liquidation"] = strconv.FormatBool(s.InLiquidation)
+	kv["fiscal_unity"] = strconv.FormatBool(s.FiscalUnity)
+	// Der Prüfvermerk am Eingangsbeleg ist eine Festlegung des internen
+	// Kontrollsystems, die der Anwender trifft — und die nur ändert, wer sie
+	// mitschickt.
 	if writeCheckThreshold {
 		kv["invoice_check_threshold"] = strconv.FormatInt(int64(s.InvoiceCheckThreshold), 10)
 		// Der Tag, ab dem der Prüflauf den fehlenden Leistungsnachweis
@@ -399,12 +391,9 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 			}
 		}
 		if since == "" {
-			since = time.Now().Format("2006-01-02")
+			since = calendar.Today(nil)
 		}
 		kv["invoice_check_since"] = since
-	}
-	if writeLevels {
-		kv["dunning_levels"] = string(levels)
 	}
 
 	for k, v := range kv {
@@ -423,6 +412,17 @@ func (r *settingsRepositoryGorm) UpdateCompanySettings(ctx context.Context, s *d
 		return r.replaceShareholders(ctx, s.Shareholders)
 	}
 	return nil
+}
+
+// splitList liest eine kommagetrennte Liste; leere Einträge fallen weg.
+func splitList(value string) []string {
+	out := []string{}
+	for _, part := range strings.Split(value, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }
 
 func (r *settingsRepositoryGorm) replaceShareholders(ctx context.Context, shareholders []domain.CompanyShareholder) error {

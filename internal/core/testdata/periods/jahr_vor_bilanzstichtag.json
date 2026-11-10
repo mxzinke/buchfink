@@ -1,0 +1,24 @@
+{
+  "audit": [],
+  "blocked": false,
+  "checks": [],
+  "commitments": [],
+  "entries": [
+    {
+      "commitment": null,
+      "date": "2026-03-15",
+      "stamped": false
+    },
+    {
+      "commitment": null,
+      "date": "2026-04-15",
+      "stamped": false
+    },
+    {
+      "commitment": null,
+      "date": "2026-12-31",
+      "stamped": false
+    }
+  ],
+  "error": "die Jahresfestschreibung gilt bis zum Bilanzstichtag 2026-12-31, nicht bis 2026-12-30"
+}

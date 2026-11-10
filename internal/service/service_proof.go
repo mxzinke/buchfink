@@ -80,7 +80,7 @@ func (s *PostingService) invoiceCheckThreshold(ctx context.Context) domain.Cents
 // SaveServiceProof, und eine Buchung ohne Angabe darf einen schon erfassten
 // Vermerk nicht löschen.
 func (s *PostingService) saveServiceProof(
-	ctx context.Context, built *incomingLines, req ReceiptRequest,
+	ctx context.Context, built *incomingPlan, req ReceiptRequest,
 ) error {
 	if built == nil || built.receipt == nil || s.receiptSvc == nil {
 		return nil
@@ -114,8 +114,8 @@ func (s *PostingService) requireServiceProof(
 		return nil
 	}
 	return fmt.Errorf(
-		"%s. Trage ihn am Beleg ein — etwa „geprüft gegen Bestellung 4711 vom 12.03.2026\" — und "+
-			"buche dann; die Grenze steht in den Einstellungen",
+		"%s. Tragen Sie ihn beim Buchen ein, etwa „geprüft gegen Bestellung 4711 vom 12.03.2026“. "+
+			"Die Grenze steht unter Einstellungen › Erweitert",
 		serviceProofMissingMessage(receipt, threshold))
 }
 

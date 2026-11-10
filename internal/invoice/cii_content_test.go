@@ -129,11 +129,11 @@ func TestPaymentTermsReachXMLAndDocument(t *testing.T) {
 	}
 }
 
-// § 14a Abs. 1 UStG: bei der innergemeinschaftlichen Lieferung gehört die
-// USt-IdNr. des Empfängers auf die Rechnung — in BT-48 und in den Adressblock.
-func TestBuyerVatIDOnIntraCommunitySupply(t *testing.T) {
+// § 14a Abs. 1 UStG: bei der Steuerschuldnerschaft des Leistungsempfängers
+// gehört dessen USt-IdNr. auf die Rechnung — in BT-48 und in den Adressblock.
+func TestBuyerVatIDOnReverseChargeSupply(t *testing.T) {
 	inv := testInvoice()
-	inv.TaxTreatment = domain.TaxTreatmentIntraCommunitySupply
+	inv.TaxTreatment = domain.TaxTreatmentReverseChargeSupply
 	inv.Items[0].TaxRate = domain.TaxRateNone
 	inv.Recalculate()
 
@@ -147,8 +147,8 @@ func TestBuyerVatIDOnIntraCommunitySupply(t *testing.T) {
 	if !strings.Contains(buyerBlock[:strings.Index(buyerBlock, "/ram:BuyerTradeParty")], "ATU12345678") {
 		t.Error("BT-48 fehlt: die USt-IdNr. des Empfängers steht nicht in der Erwerberpartei")
 	}
-	if !strings.Contains(xml, "innergemeinschaftliche Lieferung") {
-		t.Error("der Befreiungsgrund (BT-120) fehlt")
+	if !strings.Contains(xml, "Steuerschuldnerschaft des Leistungsempfängers") {
+		t.Error("der Hinweis auf die Steuerschuldnerschaft (BT-120) fehlt")
 	}
 
 	typ := GenerateTypstTemplate(inv, testSeller(), buyer)
@@ -289,39 +289,31 @@ func TestBuyerAddressIsStructured(t *testing.T) {
 	}
 }
 
-// Eine Kleinbetragsrechnung ohne erfassten Kunden bekommt „Barverkauf" als
-// Namen: EN 16931 verlangt den Namen des Erwerbers (BR-07), auch wo § 33 UStDV
-// ihn erlässt — die Norm kennt die Kleinbetragsrechnung nicht.
-// Die Kleinbetragsrechnung ohne Empfänger bekommt keinen erfundenen Erwerber.
-//
-// EN 16931 verlangt seinen Namen (BR-07), § 33 UStDV erlässt ihn — und nimmt
-// die Kleinbetragsrechnung zugleich von der E-Rechnungspflicht aus. Einen Namen
-// zu erfinden, um die Norm zu bedienen, hieße eine Pflichtangabe zu behaupten:
-// der Datensatz wäre maschinenlesbar falsch. Also entsteht keiner, und das
-// Dokument sagt, warum.
-func TestSmallAmountInvoiceWithoutContact(t *testing.T) {
+// Eine Rechnung ohne Empfänger bekommt keinen erfundenen Erwerber: EN 16931
+// verlangt seinen Namen (BR-07), und jede Rechnung läuft gegen ein
+// Personenkonto.
+func TestInvoiceWithoutRecipientIsRejected(t *testing.T) {
 	inv := testInvoice()
 	inv.ContactID = 0
 	inv.ContactName = ""
+	inv.Recalculate()
+
+	if _, _, err := RenderInvoiceXML(inv, testSeller(), nil, domain.EInvoiceProfileZUGFeRD); err == nil {
+		t.Fatal("ohne Erwerber darf kein strukturierter Datensatz entstehen (BR-07)")
+	}
+}
+
+// Die Kleinbetragsrechnung nennt ihre Grundlage auf dem Dokument.
+func TestSmallAmountInvoiceNamesItsBasis(t *testing.T) {
+	inv := testInvoice()
 	inv.SmallAmount = true
 	inv.Items[0].QuantityMilli = 1000
 	inv.Items[0].UnitPrice = 10000
 	inv.Recalculate()
 
-	_, _, err := RenderInvoiceXML(inv, testSeller(), nil, domain.EInvoiceProfileZUGFeRD)
-	if err == nil {
-		t.Fatal("ohne Erwerber darf kein strukturierter Datensatz entstehen (BR-07)")
-	}
-	if !strings.Contains(err.Error(), "§ 33 UStDV") {
-		t.Errorf("die Meldung nennt den Ausweg nicht: %v", err)
-	}
-
-	typ := GenerateTypstTemplate(inv, testSeller(), nil)
+	typ := GenerateTypstTemplate(inv, testSeller(), testBuyer())
 	if !strings.Contains(typ, "Kleinbetragsrechnung nach § 33 UStDV") {
 		t.Error("der Hinweis auf § 33 UStDV fehlt im Dokument")
-	}
-	if !strings.Contains(typ, "E-Rechnung ausgenommen") {
-		t.Error("der Hinweis auf die Ausnahme von der E-Rechnungspflicht fehlt im Dokument")
 	}
 }
 

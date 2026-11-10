@@ -275,15 +275,6 @@ const (
 	// Abschreibungsplan sie getrennt führen muss: die planmäßige AfA läuft
 	// daneben unverändert weiter (§ 7a Abs. 4 EStG).
 	AssetMovementSpecialDepreciation AssetMovementKind = "special_depreciation"
-	// AssetMovementMaintenance ist Erhaltungsaufwand: eine Buchung, die zum
-	// Anlagegut gehört, seinen Wert aber nicht ändert.
-	//
-	// Sie hat deshalb weder Anschaffungskosten noch Abschreibung — nur den
-	// Verweis auf die Buchung. Was den Zustand nur erhält, ist sofort abziehbarer
-	// Aufwand; was erweitert oder wesentlich verbessert, sind nachträgliche
-	// Herstellungskosten (§ 255 Abs. 2 Satz 1 HGB) und damit eine andere
-	// Bewegungsart. Die Abgrenzung ist eine Einschätzung, keine Rechnung.
-	AssetMovementMaintenance AssetMovementKind = "maintenance"
 	// AssetMovementVorabpauschale ist die Vorabpauschale eines Kalenderjahres
 	// (§ 18 InvStG).
 	//
@@ -316,7 +307,7 @@ func AllAssetMovementKinds() []AssetMovementKind {
 	return []AssetMovementKind{
 		AssetMovementAcquisition, AssetMovementSubsequentCost, AssetMovementCostReduction,
 		AssetMovementDepreciation, AssetMovementImpairment, AssetMovementWriteUp,
-		AssetMovementSpecialDepreciation, AssetMovementMaintenance,
+		AssetMovementSpecialDepreciation,
 		AssetMovementVorabpauschale, AssetMovementIncome,
 		AssetMovementDisposal, AssetMovementTransfer,
 	}
@@ -334,8 +325,6 @@ func (k AssetMovementKind) Label() string {
 		return "Planmäßige Abschreibung"
 	case AssetMovementSpecialDepreciation:
 		return "Sonderabschreibung (§ 7g Abs. 5 EStG)"
-	case AssetMovementMaintenance:
-		return "Erhaltungsaufwand"
 	case AssetMovementIncome:
 		return "Laufender Ertrag"
 	case AssetMovementVorabpauschale:
@@ -396,37 +385,6 @@ type AssetMovement struct {
 	JournalEntryID *uint  `gorm:"index" json:"journalEntryId,omitempty"`
 	EntryNumber    string `gorm:"-" json:"entryNumber,omitempty"`
 
-	// ExpenseAmount ist der Aufwand einer Bewegung, die den Buchwert nicht
-	// ändert.
-	//
-	// Der Erhaltungsaufwand ist der Fall, für den es das Feld gibt: er gehört
-	// zum Anlagegut, ändert aber weder Anschaffungskosten noch Abschreibungen.
-	// In CostAmount stünde er falsch — dort erhöhte er den Buchwert —, und ohne
-	// ihn ließe sich der Rahmen des § 6 Abs. 1 Nr. 1a EStG nicht führen: er
-	// summiert genau diese Beträge über die ersten drei Jahre.
-	ExpenseAmount Cents `gorm:"default:0" json:"expenseAmount,omitempty"`
-
-	// ExpenseAccount ist das Aufwandskonto, auf das eine Bewegung ohne
-	// Buchwertänderung gebucht wurde.
-	//
-	// Es steht als Feld und nicht länger nur im Text der Bewegung: die
-	// Aktivierung der anschaffungsnahen Herstellungskosten bucht den gesammelten
-	// Aufwand von diesem Konto zurück, und ein aus einem Freitext gelesenes Konto
-	// ist eine Vermutung. Leer heißt: das Konto, das der Kontenkatalog für dieses
-	// Anlagegut vorsieht — so stehen die Bewegungen aus der Zeit vor diesem Feld
-	// da, und für sie bleibt der Text die Quelle.
-	ExpenseAccount string `gorm:"size:10" json:"expenseAccount,omitempty"`
-
-	// IsModernisation kennzeichnet eine Instandsetzungs- oder
-	// Modernisierungsmaßnahme im Sinne des § 6 Abs. 1 Nr. 1a EStG.
-	//
-	// Voreinstellung ist ja: der Regelfall des Erhaltungsaufwands an einem
-	// Gebäude fällt unter die Vorschrift, und die Ausnahmen — Erweiterungen und
-	// jährlich üblicherweise anfallende Erhaltungsarbeiten (Satz 2) — sind
-	// wenige und werden abgewählt. Andersherum wäre die Grenze regelmäßig zu
-	// niedrig gerechnet, und die Warnung käme nie.
-	IsModernisation bool `gorm:"default:false" json:"isModernisation,omitempty"`
-
 	// TaxAmount ist ein Betrag, der nur steuerlich zählt.
 	//
 	// Die Vorabpauschale ist der Fall, für den es das Feld gibt: sie wird
@@ -453,7 +411,7 @@ type AssetMovement struct {
 	// Note carries the reason. On an außerplanmäßige Abschreibung it is not
 	// optional: ein Ermessensvorgang, dessen Begründung fehlt, ist später von
 	// niemandem mehr nachvollziehbar.
-	Note string `gorm:"size:500;serializer:encrypted" json:"note,omitempty"`
+	Note string `gorm:"size:500" json:"note,omitempty"`
 
 	CreatedAt time.Time `json:"createdAt"`
 }
@@ -477,8 +435,8 @@ type FixedAsset struct {
 	// warehouse and the booking in the journal.
 	InventoryNumber string `gorm:"size:30;uniqueIndex;not null" json:"inventoryNumber"`
 
-	Name        string     `gorm:"size:255;not null;serializer:encrypted" json:"name"`
-	Description string     `gorm:"size:500;serializer:encrypted" json:"description,omitempty"`
+	Name        string     `gorm:"size:255;not null" json:"name"`
+	Description string     `gorm:"size:500" json:"description,omitempty"`
 	Class       AssetClass `gorm:"size:20;not null;index" json:"class"`
 
 	// Account is the Anlagekonto (Bestandskonto der Klasse 0),
@@ -518,7 +476,7 @@ type FixedAsset struct {
 	// Steuerpflichtigen — eine begründete abweichende Nutzungsdauer ist zulässig.
 	// „Begründet" heißt: die Begründung existiert. Ohne sie gilt die Abweichung
 	// im Zweifel als Tippfehler, nicht als Ausübung eines Wahlrechts.
-	UsefulLifeReason string `gorm:"size:500;serializer:encrypted" json:"usefulLifeReason,omitempty"`
+	UsefulLifeReason string `gorm:"size:500" json:"usefulLifeReason,omitempty"`
 
 	// InputTaxAmount ist die beim Zugang angefallene Vorsteuer in voller Höhe,
 	// InputTaxPermille der Anteil, mit dem sie gezogen wurde (Null = voll).
@@ -548,7 +506,7 @@ type FixedAsset struct {
 	// beantwortet hat, soll sie im selben Jahr nicht noch einmal vorgelegt
 	// bekommen — im nächsten schon.
 	ImpairmentPersistsYear int    `gorm:"default:0" json:"impairmentPersistsYear,omitempty"`
-	ImpairmentPersistsNote string `gorm:"size:500;serializer:encrypted" json:"impairmentPersistsNote,omitempty"`
+	ImpairmentPersistsNote string `gorm:"size:500" json:"impairmentPersistsNote,omitempty"`
 	// PoolYear is the fiscal year of a Sammelposten. § 6 Abs. 2a EStG forms one
 	// pool per Wirtschaftsjahr; two years never share one.
 	PoolYear int `gorm:"index;default:0" json:"poolYear,omitempty"`
@@ -575,15 +533,15 @@ type FixedAsset struct {
 	// ausschließlich betrieblich genutzt werden (Nr. 2). Beides wird deshalb
 	// abgefragt und festgehalten, nicht geraten — wie bei der außerplanmäßigen
 	// Abschreibung ist die Begründung Pflicht.
-	SpecialReason string `gorm:"size:500;serializer:encrypted" json:"specialReason,omitempty"`
+	SpecialReason string `gorm:"size:500" json:"specialReason,omitempty"`
 
 	// --- Finanzanlagen -----------------------------------------------------
 
 	// Identifier is the ISIN, WKN or Handelsregisternummer — what identifies a
 	// Finanzanlage the way an Inventarnummer identifies a machine.
-	Identifier string `gorm:"size:60;serializer:encrypted" json:"identifier,omitempty"`
+	Identifier string `gorm:"size:60" json:"identifier,omitempty"`
 	// HoldingPermille is the Beteiligungsquote in Promille. § 271 Abs. 1 Satz 3
-	// HGB vermutet eine Beteiligung ab einem Anteil von einem Fünftel — die Quote
+	// HGB vermutet eine Beteiligung, wenn der Anteil ein Fünftel übersteigt — die Quote
 	// entscheidet also mit darüber, ob der Anteil unter "Beteiligungen" oder
 	// unter "Wertpapiere des Anlagevermögens" auszuweisen ist.
 	HoldingPermille int `gorm:"default:0" json:"holdingPermille,omitempty"`
@@ -645,12 +603,11 @@ type FixedAsset struct {
 	DisposalProceeds Cents        `gorm:"default:0" json:"disposalProceeds,omitempty"`
 	DisposalEntryID  *uint        `gorm:"index" json:"disposalEntryId,omitempty"`
 
-	Notes     string    `gorm:"type:text;serializer:encrypted" json:"notes,omitempty"`
+	Notes     string    `gorm:"type:text" json:"notes,omitempty"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 
 	Movements []AssetMovement `gorm:"foreignKey:AssetID;constraint:OnDelete:CASCADE" json:"movements,omitempty"`
-	Documents []AssetDocument `gorm:"foreignKey:AssetID;constraint:OnDelete:CASCADE" json:"documents,omitempty"`
 
 	// --- Abgeleitete Werte, nicht gespeichert -------------------------------
 
@@ -913,22 +870,9 @@ type AssetRepository interface {
 	FindByID(ctx context.Context, id uint) (*FixedAsset, error)
 	FindPool(ctx context.Context, fiscalYear int) (*FixedAsset, error)
 	Save(ctx context.Context, asset *FixedAsset) error
-	Delete(ctx context.Context, id uint) error
 	AddMovement(ctx context.Context, movement *AssetMovement) error
 	DeleteMovement(ctx context.Context, id uint) error
 	FindMovements(ctx context.Context, assetID uint) ([]AssetMovement, error)
-	AddDocument(ctx context.Context, document *AssetDocument) error
-	FindDocument(ctx context.Context, id uint) (*AssetDocument, error)
-	// FindAllDocuments liefert alle Anlagendokumente. Der Belegprüflauf
-	// braucht sie am Stück: ein Vertrag zum Anlagegut ist genauso
-	// aufbewahrungspflichtig wie eine Rechnung, und über die Anlagegüter
-	// einzeln zu gehen hieße, die Kartei n-mal zu lesen.
-	FindAllDocuments(ctx context.Context) ([]AssetDocument, error)
-	DeleteDocument(ctx context.Context, id uint) error
-	// CountDocumentsBySHA reports how many documents share one file. Zwei
-	// Anlagegüter dürfen sich einen Rahmenvertrag teilen; gelöscht werden darf
-	// die Datei erst, wenn das letzte davon geht.
-	CountDocumentsBySHA(ctx context.Context, sha256 string) (int64, error)
 	// LinkedEntryIDs returns the journal entries the Anlagenkartei already points
 	// at — the Zugangsbuchungen. It is what keeps the "noch nicht erfasst" list
 	// of acquisition candidates honest.

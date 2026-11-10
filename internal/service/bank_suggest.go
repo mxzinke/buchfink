@@ -28,7 +28,41 @@ const (
 	// SuggestionRule ist die gelernte Buchungsgruppe eines wiederkehrenden
 	// Umsatzes ohne offenen Posten.
 	SuggestionRule SuggestionKind = "rule"
+	// SuggestionCreditCard ist die Abbuchung der Kreditkartenabrechnung: der
+	// Betrag trifft den offenen Saldo von 3610 zu einem Abrechnungsstichtag.
+	SuggestionCreditCard SuggestionKind = "credit_card"
 )
+
+// CreditCardSource findet den Abrechnungsstichtag zu einer Abbuchung.
+type CreditCardSource interface {
+	CreditCardStatementDate(ctx context.Context, debit domain.Cents, debitDate string) (string, error)
+}
+
+// SetCreditCardSource hängt die Kreditkartenabrechnung an. Ohne sie schlägt der
+// Dienst keine Kartenabrechnung vor.
+func (s *BankService) SetCreditCardSource(src CreditCardSource) { s.creditCards = src }
+
+// creditCardSuggestion schlägt die Kartenabrechnung vor, wenn eine Abbuchung
+// den offenen Saldo von 3610 zu einem Tag vor ihr trifft.
+func (s *BankService) creditCardSuggestion(ctx context.Context, tx *domain.BankTransaction) (*BankSuggestion, error) {
+	if s.creditCards == nil || tx.Amount >= 0 {
+		return nil, nil
+	}
+	date, err := s.creditCards.CreditCardStatementDate(ctx, tx.Amount.Abs(), tx.BookingDate)
+	if err != nil || date == "" {
+		return nil, err
+	}
+	return &BankSuggestion{
+		Kind:  SuggestionCreditCard,
+		Score: accounting.MatchScoreExactAmount + accounting.MatchScoreDocumentNumber,
+		Reasons: []string{fmt.Sprintf("Betrag gleich dem offenen Saldo der Kreditkartenabrechnung (%s) zum %s",
+			domain.AccountKreditkartenabrechnung, domain.GermanDate(date))},
+		Label:          fmt.Sprintf("Kreditkartenabrechnung zum %s über %s €", domain.GermanDate(date), tx.Amount.Abs()),
+		Amount:         tx.Amount.Abs(),
+		CounterAccount: domain.AccountKreditkartenabrechnung,
+		StatementDate:  date,
+	}, nil
+}
 
 // BankSuggestion ist ein Vorschlag zu einem Bankumsatz.
 type BankSuggestion struct {
@@ -50,6 +84,8 @@ type BankSuggestion struct {
 	CounterAccount string `json:"counterAccount,omitempty"`
 	PostingGroup   string `json:"postingGroup,omitempty"`
 	RuleID         uint   `json:"ruleId,omitempty"`
+	// StatementDate ist der Abrechnungsstichtag einer Kreditkartenabrechnung.
+	StatementDate string `json:"statementDate,omitempty"`
 }
 
 // EnsureLists ersetzt nicht belegte Listen durch leere.
@@ -100,7 +136,18 @@ func (s *BankService) Suggest(ctx context.Context, bankTxID uint) (*BankSuggesti
 	if err != nil {
 		return nil, fmt.Errorf("Bankumsatz %d wurde nicht gefunden: %w", bankTxID, err)
 	}
+	var items []domain.OpenItem
+	if s.openItems != nil {
+		if items, err = s.openItems.OpenItems(ctx); err != nil {
+			items = nil
+		}
+	}
+	return s.SuggestFor(ctx, tx, items)
+}
 
+// SuggestFor ist Suggest mit schon gelesenen offenen Posten; wer viele Umsätze
+// auf einmal vorschlägt, liest sie so nur einmal.
+func (s *BankService) SuggestFor(ctx context.Context, tx *domain.BankTransaction, open []domain.OpenItem) (*BankSuggestions, error) {
 	out := &BankSuggestions{BankTxID: tx.ID, Amount: tx.Amount}
 	out.EnsureLists()
 
@@ -111,7 +158,7 @@ func (s *BankService) Suggest(ctx context.Context, bankTxID uint) (*BankSuggesti
 		BookingDate:      tx.BookingDate,
 	}
 
-	items := s.candidates(ctx, tx)
+	items := candidatesFor(tx, open)
 	for i := range items {
 		item := items[i]
 		score, reasons := accounting.ScoreMatch(match, accounting.MatchItem{
@@ -120,6 +167,7 @@ func (s *BankService) Suggest(ctx context.Context, bankTxID uint) (*BankSuggesti
 			ContactName:    item.ContactName,
 			DueDate:        item.DueDate,
 			OpenAmount:     item.OpenAmount,
+			Currency:       item.Currency,
 		})
 		// Ein Vorschlag ohne ein einziges Merkmal ist keiner: er wäre nur die
 		// Liste aller offenen Posten in anderer Reihenfolge.
@@ -142,6 +190,13 @@ func (s *BankService) Suggest(ctx context.Context, bankTxID uint) (*BankSuggesti
 	if rule := s.ruleSuggestion(ctx, tx); rule != nil {
 		out.Suggestions = append(out.Suggestions, *rule)
 	}
+	card, err := s.creditCardSuggestion(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
+	if card != nil {
+		out.Suggestions = append(out.Suggestions, *card)
+	}
 
 	// Der beste zuerst; bei gleicher Punktzahl der ältere Posten, damit die
 	// Reihenfolge nicht zwischen zwei Aufrufen springt.
@@ -161,24 +216,17 @@ func (s *BankService) Suggest(ctx context.Context, bankTxID uint) (*BankSuggesti
 	return out, nil
 }
 
-// candidates sind die offenen Posten der Seite, die zum Vorzeichen des Umsatzes
-// passt: ein Geldeingang gleicht eine Forderung aus, ein Ausgang eine
-// Verbindlichkeit.
-func (s *BankService) candidates(ctx context.Context, tx *domain.BankTransaction) []domain.OpenItem {
-	if s.openItems == nil {
-		return nil
-	}
-	items, err := s.openItems.OpenItems(ctx)
-	if err != nil {
-		return nil
-	}
-	wanted := domain.ContactTypeVendor
+// candidatesFor sind die offenen Posten der Seite, die zum Vorzeichen des
+// Umsatzes passt: ein Geldeingang gleicht aus, was im Soll steht (Forderung,
+// Gutschrift eines Lieferanten), ein Ausgang, was im Haben steht.
+func candidatesFor(tx *domain.BankTransaction, items []domain.OpenItem) []domain.OpenItem {
+	wanted := domain.SideDebit
 	if tx.Amount > 0 {
-		wanted = domain.ContactTypeCustomer
+		wanted = domain.SideCredit
 	}
 	out := make([]domain.OpenItem, 0, len(items))
 	for i := range items {
-		if items[i].ContactType == wanted && items[i].OpenAmount != 0 {
+		if items[i].SettleSide() == wanted && items[i].OpenAmount != 0 {
 			out = append(out, items[i])
 		}
 	}
@@ -259,8 +307,7 @@ func (s *BankService) ruleSuggestion(ctx context.Context, tx *domain.BankTransac
 	if err != nil {
 		return nil
 	}
-	// Das Muster hat die Geldrichtung seit Welle 7 selbst; die Prüfung bleibt
-	// für die Regeln, die davor gelernt wurden.
+	// Die Geldrichtung wird auch für Regeln ohne Richtungsangabe im Muster geprüft.
 	if rule != nil && rule.MoneyIn != (tx.Amount > 0) {
 		rule = nil
 	}
@@ -363,28 +410,25 @@ func (s *BankService) DeleteRule(ctx context.Context, id uint) error {
 	if s.ruleRepo == nil {
 		return fmt.Errorf("die gelernten Bankregeln sind nicht eingerichtet")
 	}
-	if err := s.ruleRepo.Delete(ctx, id); err != nil {
-		return fmt.Errorf("die Regel konnte nicht entfernt werden: %w", err)
-	}
-	if s.auditRepo != nil {
-		_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "BANK_RULE", fmt.Sprintf("%d", id),
+	return s.journalSvc.InTx(ctx, func(ctx context.Context) error {
+		if err := s.ruleRepo.Delete(ctx, id); err != nil {
+			return fmt.Errorf("die Regel konnte nicht entfernt werden: %w", err)
+		}
+		return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "BANK_RULE", fmt.Sprintf("%d", id),
 			"Gelernte Zuordnung eines wiederkehrenden Bankumsatzes gelöscht")
-	}
-	return nil
+	})
 }
 
-// learnRule merkt sich eine bestätigte Zuordnung.
-//
-// Sie läuft nach dem Buchen und darf deshalb nicht scheitern lassen, was schon
-// gebucht ist: eine Gewohnheit, die nicht angelegt werden konnte, ist ein
-// verlorener Vorschlag und kein verlorener Geschäftsvorfall.
-func (s *BankService) learnRule(ctx context.Context, tx *domain.BankTransaction, counterAccount string) {
+// learnRule merkt sich eine bestätigte Zuordnung. Auch das Lernen kommt ins
+// Protokoll: die Regel ist in den Einstellungen sichtbar, und ihre Entstehung
+// muss sich im Prüfermodus erklären lassen.
+func (s *BankService) learnRule(ctx context.Context, tx *domain.BankTransaction, counterAccount string) error {
 	if s.ruleRepo == nil || counterAccount == "" {
-		return
+		return nil
 	}
 	pattern := accounting.BankRulePattern(tx.CounterpartyName, tx.RemittanceInfo, tx.Amount > 0)
 	if pattern == "" {
-		return
+		return nil
 	}
 	label := tx.CounterpartyName
 	if label == "" {
@@ -399,22 +443,13 @@ func (s *BankService) learnRule(ctx context.Context, tx *domain.BankTransaction,
 		LastUsedAt:     tx.BookingDate,
 	}
 	if err := s.ruleRepo.Save(ctx, rule); err != nil {
-		return
+		return fmt.Errorf("die Zuordnung ließ sich nicht als Regel merken: %w", err)
 	}
-	// Auch das Lernen kommt ins Protokoll — wie das Löschen.
-	//
-	// Die Regel bucht nichts; sie ist eine Gewohnheit des Programms. Aber sie
-	// ist in den Einstellungen sichtbar, und eine sichtbare Gewohnheit, deren
-	// Entstehung nirgends steht, lässt sich im Prüfermodus nicht erklären.
-	// Fehler bleiben unbeachtet: ein Protokolleintrag darf eine Buchung, die
-	// schon geschrieben ist, nicht nachträglich zu Fall bringen.
-	if s.auditRepo != nil {
-		_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "BANK_RULE", fmt.Sprintf("%d", rule.ID),
-			fmt.Sprintf(
-				"Gelernte Zuordnung aus Bankumsatz %d: Muster %q → Gegenkonto %s (%s), %s, %d Treffer",
-				tx.ID, rule.Pattern, rule.CounterAccount, rule.PostingGroup,
-				moneyDirectionLabel(rule.MoneyIn), rule.Hits))
-	}
+	return logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "BANK_RULE", fmt.Sprintf("%d", rule.ID),
+		fmt.Sprintf(
+			"Gelernte Zuordnung aus Bankumsatz %d: Muster %q → Gegenkonto %s (%s), %s, %d Treffer",
+			tx.ID, rule.Pattern, rule.CounterAccount, rule.PostingGroup,
+			moneyDirectionLabel(rule.MoneyIn), rule.Hits))
 }
 
 // moneyDirectionLabel benennt die Geldrichtung einer Regel.

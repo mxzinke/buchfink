@@ -22,7 +22,7 @@ type InvoiceGroup struct {
 	ID         uint   `gorm:"primaryKey" json:"id"`
 	FiscalYear int    `gorm:"index;not null" json:"fiscalYear"`
 	ContactID  uint   `gorm:"index;not null" json:"contactId"`
-	Title      string `gorm:"size:255;not null;serializer:encrypted" json:"title"`
+	Title      string `gorm:"size:255;not null" json:"title"`
 	// TotalNet ist der vereinbarte Gesamtbetrag netto. Er ist die Obergrenze
 	// der Abschläge und die Bemessungsgrundlage der Schlussrechnung.
 	TotalNet Cents   `gorm:"not null" json:"totalNet"`

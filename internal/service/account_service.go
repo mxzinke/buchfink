@@ -31,7 +31,7 @@ import (
 // wäre ein neu angelegtes Konto für ihn nicht vorhanden und ein gesperrtes
 // weiterhin bebuchbar — die Kontenpflege bliebe bis zum Neustart wirkungslos.
 type ChartInvalidator interface {
-	InvalidateChart()
+	InvalidateChart(ctx context.Context)
 }
 
 // AccountService legt eigene Konten an und sperrt sie.
@@ -47,9 +47,9 @@ type AccountService struct {
 func (s *AccountService) SetChartInvalidator(c ChartInvalidator) { s.chart = c }
 
 // invalidateChart meldet die Änderung an den Buchungsweg.
-func (s *AccountService) invalidateChart() {
+func (s *AccountService) invalidateChart(ctx context.Context) {
 	if s.chart != nil {
-		s.chart.InvalidateChart()
+		s.chart.InvalidateChart(ctx)
 	}
 }
 
@@ -99,7 +99,7 @@ func (s *AccountService) CreateCustom(ctx context.Context, req CustomAccountRequ
 	if !accounting.HasPositionTarget(position.ID) {
 		return nil, fmt.Errorf(
 			"die Position %q ist in der Gliederung von Bilanz und GuV nicht hinterlegt. Ein Konto "+
-				"unter ihr erschiene weder im Abschluss noch in der E-Bilanz — wähle eine Position, "+
+				"unter ihr erschiene weder im Abschluss noch in der E-Bilanz — gewählt werden muss eine Position, "+
 				"die Buchfink abbildet", position.Name)
 	}
 
@@ -130,10 +130,12 @@ func (s *AccountService) CreateCustom(ctx context.Context, req CustomAccountRequ
 	if err := s.accountRepo.Create(ctx, account); err != nil {
 		return nil, fmt.Errorf("das Konto konnte nicht angelegt werden: %w", err)
 	}
-	s.invalidateChart()
-	s.log(ctx, domain.AuditActionCreate, account, fmt.Sprintf(
+	s.invalidateChart(ctx)
+	if err := s.log(ctx, domain.AuditActionCreate, account, fmt.Sprintf(
 		"Eigenes Konto %s „%s\" angelegt, Gliederungsposition %s (%s)",
-		account.Number, account.Name, position.ID, position.Name))
+		account.Number, account.Name, position.ID, position.Name)); err != nil {
+		return nil, err
+	}
 	return account, nil
 }
 
@@ -168,31 +170,16 @@ func (s *AccountService) SetBlocked(ctx context.Context, number string, blocked 
 	if err := s.accountRepo.Update(ctx, account); err != nil {
 		return nil, err
 	}
-	s.invalidateChart()
+	s.invalidateChart(ctx)
 	action := "freigegeben"
 	if blocked {
 		action = "gesperrt: " + strings.TrimSpace(reason)
 	}
-	if s.auditRepo != nil {
-		_ = s.auditRepo.LogChange(ctx, domain.AuditActionUpdate, "ACCOUNT", account.Number,
-			fmt.Sprintf("Konto %s „%s\" %s", account.Number, account.Name, action), before, account)
-	}
-	return account, nil
-}
-
-// CustomAccounts liefert die selbst angelegten Konten.
-func (s *AccountService) CustomAccounts(ctx context.Context) ([]domain.Account, error) {
-	all, err := s.accountRepo.FindAll(ctx)
-	if err != nil {
+	if err := logAuditChange(ctx, s.auditRepo, domain.AuditActionUpdate, "ACCOUNT", account.Number,
+		fmt.Sprintf("Konto %s „%s\" %s", account.Number, account.Name, action), before, account); err != nil {
 		return nil, err
 	}
-	out := make([]domain.Account, 0, 8)
-	for i := range all {
-		if all[i].IsCustom {
-			out = append(out, all[i])
-		}
-	}
-	return out, nil
+	return account, nil
 }
 
 // AvailablePositions liefert die Gliederungspositionen, unter denen ein eigenes
@@ -245,13 +232,13 @@ func (s *AccountService) ensureFreeNumber(
 	if class == 9 {
 		return fmt.Errorf(
 			"die Kontonummer %s liegt in der Klasse 9. Sie ist den Vortrags- und statistischen "+
-				"Konten vorbehalten — lege das Konto in der Klasse der Aufwendungen, Erträge oder "+
-				"Bestände an, zu der es gehört", number)
+				"Konten vorbehalten — das Konto gehört in die Klasse der Aufwendungen, Erträge oder "+
+				"Bestände, zu der es zählt", number)
 	}
 	if class == 0 && position.Kontenklasse.Number != 0 {
 		return fmt.Errorf(
 			"die Kontonummer %s liegt in der Klasse 0 (Anlagevermögen), die gewählte Position "+
-				"%q gehört aber nicht dorthin. Wähle eine Position des Anlagevermögens oder eine "+
+				"%q gehört aber nicht dorthin. Nötig ist eine Position des Anlagevermögens oder eine "+
 				"Nummer aus der Klasse, zu der das Konto gehört", number, position.Name)
 	}
 	if s.taxResolver != nil && s.taxResolver.IsTaxAccount(number) {
@@ -264,7 +251,7 @@ func (s *AccountService) ensureFreeNumber(
 	existing, err := s.accountRepo.FindByNumber(ctx, number)
 	if err == nil && existing != nil {
 		return fmt.Errorf(
-			"die Kontonummer %s ist mit „%s\" belegt. Wähle eine freie Nummer — ein Konto des "+
+			"die Kontonummer %s ist mit „%s\" belegt. Nötig ist eine freie Nummer — ein Konto des "+
 				"Kontenrahmens umzuwidmen zerstört die Zuordnung, auf der Bilanz, GuV und E-Bilanz "+
 				"beruhen", number, existing.Name)
 	}
@@ -302,9 +289,9 @@ func ensureKnownTaxKey(key string) error {
 	return fmt.Errorf("den Steuerschlüssel %q gibt es nicht", key)
 }
 
-func (s *AccountService) log(ctx context.Context, action domain.AuditAction, account *domain.Account, details string) {
+func (s *AccountService) log(ctx context.Context, action domain.AuditAction, account *domain.Account, details string) error {
 	if s.auditRepo == nil || account == nil {
-		return
+		return nil
 	}
-	_ = s.auditRepo.Log(ctx, action, "ACCOUNT", account.Number, details)
+	return logAudit(ctx, s.auditRepo, action, "ACCOUNT", account.Number, details)
 }

@@ -1,0 +1,30 @@
+{
+  "audit": [],
+  "blocked": true,
+  "checks": [
+    {
+      "blocking": true,
+      "cutoff": "2026-03-31",
+      "override": ""
+    }
+  ],
+  "commitments": [],
+  "entries": [
+    {
+      "commitment": null,
+      "date": "2026-03-15",
+      "stamped": false
+    },
+    {
+      "commitment": null,
+      "date": "2026-04-15",
+      "stamped": false
+    },
+    {
+      "commitment": null,
+      "date": "2026-12-31",
+      "stamped": false
+    }
+  ],
+  "error": "der Prüfbericht zum 2026-03-31 hat 1 blockierende Befunde: Buchung 2026-000001 vom 2026-03-15 (Periodentest) hat keinen Beleg. Behebe sie oder schreibe mit einer Begründung fest — die Begründung wird im Protokoll festgehalten"
+}

@@ -17,8 +17,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 /** Das Wurzelverzeichnis des Projekts. */
 export const ROOT = resolve(HERE, '../..');
 
-/** Die Adresse, unter der die Oberfläche antwortet. */
-export const ORIGIN = 'http://127.0.0.1:9246';
+/** Die Adresse, unter der die Oberfläche antwortet; der Port folgt SCREENSHOT_PORT. */
+export const ORIGIN = `http://127.0.0.1:${process.env.SCREENSHOT_PORT ?? 9246}`;
 
 export const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
 

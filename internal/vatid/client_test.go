@@ -211,13 +211,8 @@ func TestCheckRefusesAResponseWithoutACode(t *testing.T) {
 	}
 }
 
-// Ein leerer Endpunkt bedeutet die Voreinstellung — die Adresse ist eine
-// Einstellung, damit ein Wechsel keine Programmversion verlangt.
-//
-// Die Voreinstellung muss die vollständige Adresse der REST-Schnittstelle sein,
-// Pfad eingeschlossen. Sie stand eine Zeit lang als Host der REST-Fassung mit
-// dem Pfad der alten XML-RPC-Fassung; damit scheiterte jede Abfrage, und eine
-// steuerfreie ig. Lieferung ließ sich produktiv nur mit Übersteuerung ausstellen.
+// Ein leerer Endpunkt bedeutet die Voreinstellung, und die Voreinstellung ist
+// die vollständige Adresse der REST-Schnittstelle, Pfad eingeschlossen.
 func TestDefaultEndpoint(t *testing.T) {
 	if got := New("").Endpoint(); got != DefaultEndpoint {
 		t.Errorf("Endpunkt %q — erwartet die Voreinstellung %q", got, DefaultEndpoint)
@@ -233,7 +228,7 @@ func TestDefaultEndpoint(t *testing.T) {
 		t.Errorf("Voreinstellung %q — die REST-Abfrage liegt unter /v1/abfrage", DefaultEndpoint)
 	}
 	if got := New("https://example.test/evatr").Endpoint(); got != "https://example.test/evatr" {
-		t.Errorf("Endpunkt %q — die Einstellung muss durchschlagen", got)
+		t.Errorf("Endpunkt %q — die übergebene Adresse muss gelten", got)
 	}
 }
 

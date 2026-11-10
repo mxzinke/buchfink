@@ -1,0 +1,9 @@
+{
+  "gruende": [
+    {
+      "schluessel": "zu_wenige_buchungen",
+      "text": "Der Lieferant hat erst 2 Buchung(en) mit seiner Standardgruppe, nötig sind 3."
+    }
+  ],
+  "stufe": "rueckfrage"
+}

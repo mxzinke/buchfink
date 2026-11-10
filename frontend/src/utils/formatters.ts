@@ -2,7 +2,7 @@
  * Formatierung für de-DE. Beträge kommen aus dem Backend als ganze Cent.
  */
 
-import type { Cents, TaxRate } from '../types';
+import type { AccountType, Cents, TaxRate } from '../types';
 
 /**
  * Formatiert einen Cent-Betrag, z. B. 119000 → "1.190,00 €".
@@ -96,52 +96,6 @@ export function formatRateMicros(micros: number): string {
 }
 
 /**
- * Formatiert einen Devisenkurs in Millionsteln: 1087400 → "1,0874".
- *
- * Eigene Funktion neben {@link formatRateMicros}, obwohl beide Millionstel
- * lesen: ein Zinssatz ist ein Prozentsatz, ein Devisenkurs ein Verhältnis. Mit
- * derselben Funktion stünde vor dem Kurs ein Prozentzeichen, und ein Kurs von
- * 1,0874 sähe aus wie 108,74 %.
- */
-export function formatExchangeRate(micros: number): string {
-  if (!Number.isFinite(micros)) return '—';
-  return (micros / 1_000_000).toLocaleString('de-DE', {
-    minimumFractionDigits: 4,
-    maximumFractionDigits: 6,
-  });
-}
-
-/**
- * Die Grenzen, innerhalb derer eine Kurseingabe als Kurs gelesen wird.
- *
- * Ein Devisenkurs zum Euro liegt zwischen einem Zehntausendstel und
- * Hunderttausend Einheiten; alles darüber oder darunter ist ein Vertipper und
- * kein Kurs. Die Grenze steht hier, weil ein von Hand erfasster Kurs gespeichert
- * wird und danach in Buchungen weiterläuft — ein Faktor 10.000 fiele erst in
- * der Bilanz auf.
- */
-const RATE_MIN = 0.0001;
-const RATE_MAX = 100_000;
-
-/**
- * Wandelt eine Kurseingabe ("1,0874") in Millionstel um.
- *
- * Der Punkt wird nur dort als Tausendertrennung gelesen, wo auch ein Komma
- * steht — wie in {@link parseCents}. Sonst würde „1.0874" zu 10874 und daraus
- * ein Kurs von 10.874 statt 1,0874: dieselbe Eingabe, viertausendfach falsch.
- */
-export function parseExchangeRate(input: string): number | null {
-  const trimmed = input.trim();
-  if (!trimmed) return null;
-  const raw = trimmed.includes(',')
-    ? trimmed.replace(/\./g, '').replace(',', '.')
-    : trimmed.replace(/\s/g, '');
-  const value = Number(raw);
-  if (!Number.isFinite(value) || value < RATE_MIN || value > RATE_MAX) return null;
-  return Math.round(value * 1_000_000);
-}
-
-/**
  * Formatiert einen Anteil in Promille: 600 → "60,0 %".
  *
  * Der Vorsteuerschlüssel und der Verwendungsanteil des § 15a UStG stehen in
@@ -159,6 +113,18 @@ export function formatPermille(permille: number): string {
 export function formatQuantity(quantityMilli: number): string {
   const value = quantityMilli / 1000;
   return value.toLocaleString('de-DE', { maximumFractionDigits: 3 });
+}
+
+const MONTHS = [
+  'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+];
+
+/** Formatiert einen Monat JJJJ-MM: "2026-03" → "März 2026". */
+export function formatMonth(month: string): string {
+  const match = /^(\d{4})-(\d{2})$/.exec(month);
+  const index = match ? Number(match[2]) - 1 : -1;
+  return match && index >= 0 && index < 12 ? `${MONTHS[index]} ${match[1]}` : month || '—';
 }
 
 export function formatDate(dateStr: string): string {
@@ -280,9 +246,17 @@ export function formatShortHash(hash: string): string {
 }
 
 /**
- * Beschriftet eine Buchungsseite ausgeschrieben. „S" und „H" sind die
- * Kürzel der Datenhaltung, in der Oberfläche steht Soll und Haben.
+ * Ein Kontosaldo mit seiner Seite: „24.500,00 € S“, „25.000,00 € H“.
+ *
+ * Das Backend liefert den Saldo in der natürlichen Richtung des Kontos: Aktiva
+ * und Aufwand im Soll, Passiva, Eigenkapital und Ertrag im Haben. Ein negativer
+ * Saldo steht auf der Gegenseite. Ohne Kennzeichen sähe ein Habensaldo aus wie
+ * ein Sollsaldo.
  */
-export function formatSide(side: 'S' | 'H'): string {
-  return side === 'S' ? 'Soll' : 'Haben';
+export function formatBalance(balance: Cents, type: AccountType | string | undefined): string {
+  if (!Number.isFinite(balance)) return '—';
+  if (balance === 0) return formatCents(0);
+  const credit = type === 'liability' || type === 'equity' || type === 'revenue';
+  const side = (balance > 0) === credit ? 'H' : 'S';
+  return `${formatCents(Math.abs(balance))} ${side}`;
 }

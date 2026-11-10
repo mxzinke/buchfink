@@ -50,27 +50,9 @@ const (
 	warningGiftLimitExceeded = "gift_limit_exceeded"
 )
 
-// incomingLines ist das Ergebnis der Zeilenbildung eines Eingangsbelegs.
-//
-// Sie enthält mehr als die Zeilen, weil beim Bilden mehr entsteht als sie: die
-// Aufzeichnungen zu den Geschenken, die Warnungen der Freigrenze und die
-// Befunde der Rechnungsprüfung. Die Vorschau zeigt alles davon, die Buchung
-// wertet die Befunde aus — und beide laufen durch dieselbe Rechnung, damit sie
-// nicht auseinandergehen können.
-type incomingLines struct {
-	lines   []domain.JournalLine
-	contact *domain.Contact
-	receipt *domain.Receipt
-	// fx ist die Umrechnung eines Fremdwährungsbelegs, nil bei einem in Euro.
-	fx       *fxContext
-	gifts    []domain.GiftRecord
-	warnings []PostingWarning
-	findings []InputTaxFinding
-}
-
 // blockingError hält die Buchung an, solange ein Befund offen und kein Grund
 // angegeben ist.
-func (b *incomingLines) blockingError(req ReceiptRequest) error {
+func (b *incomingPlan) blockingError(req ReceiptRequest) error {
 	if len(b.findings) == 0 {
 		return nil
 	}
@@ -83,8 +65,8 @@ func (b *incomingLines) blockingError(req ReceiptRequest) error {
 	}
 	return fmt.Errorf(
 		"der Vorsteuerabzug setzt eine Rechnung mit allen Pflichtangaben voraus (§ 15 Abs. 1 Satz 1 "+
-			"Nr. 1 i. V. m. §§ 14, 14a UStG). Es fehlt: %s. Ergänze die Angabe, lass die Rechnung "+
-			"berichtigen — oder buche mit einem Grund, der festgehalten wird",
+			"Nr. 1 i. V. m. §§ 14, 14a UStG). Es fehlt: %s. Ergänzen Sie die Angabe, lassen Sie die Rechnung "+
+			"berichtigen, oder buchen Sie mit einem Grund, der festgehalten wird",
 		strings.Join(parts, " "))
 }
 
@@ -100,11 +82,14 @@ func (s *PostingService) inputTaxFindings(
 	if !deductsDomesticInputTax(lines) {
 		return out, nil
 	}
+	relief := reliefOf(receipt, bookedGross(lines))
 
 	// (a) Die E-Rechnung: Buchfink hat sie selbst geprüft und das Ergebnis am
 	// Beleg festgehalten. Es zu haben und nicht zu lesen wäre die schlechteste
-	// aller Möglichkeiten.
-	if _, ok := receipt.FileByRole(domain.ReceiptRoleStructured); ok {
+	// aller Möglichkeiten. Kleinbetragsrechnung und Fahrausweis dürfen immer
+	// sonstige Rechnung sein (§ 33 Satz 4, § 34 Abs. 1 Satz 2 UStDV); für sie
+	// entscheiden die Angaben unter (b).
+	if _, ok := receipt.FileByRole(domain.ReceiptRoleStructured); ok && relief == reliefNone {
 		switch {
 		case receipt.ValidationErrors > 0:
 			out = append(out, InputTaxFinding{
@@ -127,7 +112,7 @@ func (s *PostingService) inputTaxFindings(
 				Detail: fmt.Sprintf(
 					"die Prüfung des Rechnungsdatensatzes von Beleg %s nach EN 16931. Ohne sie ist "+
 						"nicht festgestellt, ob die Rechnung die Pflichtangaben der §§ 14, 14a UStG "+
-						"hat — lies den Beleg erneut ein oder buche mit einem Grund.",
+						"hat. Lesen Sie den Beleg erneut ein, oder buchen Sie mit einem Grund.",
 					receipt.ReceiptNumber),
 			})
 		default:
@@ -142,7 +127,7 @@ func (s *PostingService) inputTaxFindings(
 	// Kopfdaten des Belegs und in den Stammdaten des Ausstellers.
 	// Dieselbe Prüfung, die die Klärungsliste als Inhaltsfehler zeigt (siehe
 	// receipt_content_checks.go). Zwei Fassungen davon gingen auseinander.
-	for _, d := range issuerMasterDataDefects(contact) {
+	for _, d := range issuerMasterDataDefects(contact, relief) {
 		out = append(out, InputTaxFinding{
 			Code: d.Code, Title: d.Title, Detail: d.Detail, Fixable: d.Fixable,
 		})
@@ -193,96 +178,9 @@ type resolvedPosition struct {
 	warnings []PostingWarning
 }
 
-// resolvePosition entscheidet, auf welches Konto eine Position geht und wie viel
-// Vorsteuer sie hat.
-func (s *PostingService) resolvePosition(
-	ctx context.Context, req ReceiptRequest, p ReceiptPosition, giftTotals map[string]domain.Cents,
-) (resolvedPosition, error) {
-	out := resolvedPosition{position: p, permille: 1000, warnings: make([]PostingWarning, 0, 1)}
-
-	if p.InputTaxShare != 0 {
-		if p.InputTaxShare < 0 || p.InputTaxShare > 1000 {
-			return out, fmt.Errorf("der abziehbare Vorsteueranteil liegt zwischen 0 und 100 %%")
-		}
-		if p.InputTaxShare < 1000 && strings.TrimSpace(p.InputTaxShareReason) == "" {
-			return out, fmt.Errorf(
-				"zu einem geteilten Vorsteuerabzug gehört sein Maßstab. § 15 Abs. 4 Satz 2 UStG lässt " +
-					"die Aufteilung nach einer sachgerechten Schätzung zu — halte fest, worauf sie " +
-					"beruht, etwa „Kfz zu 60 %% betrieblich genutzt, Fahrtenbuch 2026\"")
-		}
-		// Der geteilte Abzug gilt auch beim § 13b-Umsatz und beim
-		// innergemeinschaftlichen Erwerb (UST-07 K2). Dort entstehen zwei
-		// Steuerzeilen aus derselben Bemessungsgrundlage, und der Schlüssel
-		// wirkt nur auf die Vorsteuerzeile — die geschuldete Steuer bleibt voll
-		// (siehe taxLinesForShare). Vorher wies Buchfink den Fall ab; der
-		// betrieblich zu 60 % genutzte Wagen aus dem EU-Ausland war damit nicht
-		// zu buchen, obwohl das Gesetz beide Seiten klar trennt.
-		out.permille = int64(p.InputTaxShare)
-		if out.permille < 1000 {
-			out.note = fmt.Sprintf("Vorsteuer zu %s abziehbar: %s",
-				accounting.PermilleLabel(out.permille), strings.TrimSpace(p.InputTaxShareReason))
-		}
-	}
-
-	if p.Account != "" {
-		if label, blocked := accounting.AccountsRequiringGroup()[p.Account]; blocked {
-			return out, fmt.Errorf(
-				"das Konto %s gehört zur Gruppe %q. Diese Konten sind nur über ihre Buchungsgruppe "+
-					"erreichbar: an ihnen hängen die Aufzeichnungspflicht des § 4 Abs. 7 EStG, die "+
-					"Freigrenze je Empfänger und der Ausschluss der Vorsteuer — von Hand gebucht wäre "+
-					"davon nichts geprüft", p.Account, label)
-		}
-		out.account = p.Account
-		return out, nil
-	}
-	if p.PostingGroup == "" {
-		return out, fmt.Errorf("weder eine Buchungsgruppe noch ein Konto angegeben")
-	}
-	group, err := accounting.LookupPostingGroup(p.PostingGroup)
-	if err != nil {
-		return out, err
-	}
-	if group.Direction != domain.DirectionIncoming {
-		return out, fmt.Errorf("%q passt nicht zur Belegrichtung", group.Label)
-	}
-	out.group, out.hasGroup = group, true
-
-	// § 15 Abs. 1a UStG: für die Aufwendungen des § 4 Abs. 5 Satz 1 Nr. 1 bis 4
-	// und 7 EStG gibt es keinen Vorsteuerabzug. Die Steuer gehört dann zum
-	// Aufwand.
-	if group.InputTaxExcluded {
-		out.permille = 0
-		out.note = appendText(out.note,
-			"Kein Vorsteuerabzug (§ 15 Abs. 1a UStG); die Umsatzsteuer gehört zum Aufwand")
-	}
-
-	if group.RecipientRequired || group.Limit == accounting.LimitGiftPerRecipient {
-		gift, warning, err := s.resolveGift(ctx, req, p, group, giftTotals)
-		if err != nil {
-			return out, err
-		}
-		out.gift = gift
-		if warning != nil {
-			out.warnings = append(out.warnings, *warning)
-		}
-		if gift != nil && gift.NonDeductible {
-			out.account = group.NonDeductibleAccount
-			out.permille = 0
-			out.hasGroup = false
-			out.note = appendText(out.note, fmt.Sprintf(
-				"Freigrenze des § 4 Abs. 5 Satz 1 Nr. 1 EStG für %s überschritten: nicht abziehbar, "+
-					"und ohne Vorsteuerabzug (§ 15 Abs. 1a UStG)", gift.RecipientName))
-		}
-	}
-	return out, nil
-}
-
-// Der Vorsteuerausschluss des § 15 Abs. 1a UStG ist seit Welle 8 auch beim
-// § 13b-Umsatz und beim innergemeinschaftlichen Erwerb buchbar: die geschuldete
-// Steuer entsteht auf die volle Bemessungsgrundlage, die Vorsteuerzeile
-// entfällt (siehe taxLinesForShare). Die Vorschrift nimmt den Abzug und nicht
-// die Steuerschuld — vorher wies Buchfink den Fall ab, weil es beides nur
-// gemeinsam rechnen konnte.
+// Beim Vorsteuerausschluss nach § 15 Abs. 1a UStG entfällt die Vorsteuerzeile.
+// Die Steuer auf einen § 13b-Umsatz oder innergemeinschaftlichen Erwerb entsteht
+// auf die volle Bemessungsgrundlage (siehe taxLinesForShare).
 
 // resolveGift baut die Aufzeichnung zu einem Geschenk und entscheidet über die
 // Freigrenze.
@@ -330,7 +228,7 @@ func (s *PostingService) resolveGift(
 		}
 	}
 	if req.BookingDate != "" {
-		record.FiscalYear = domain.GetFiscalYearForDate(req.BookingDate, s.fiscalYearStartMonth())
+		record.FiscalYear = s.journalSvc.FiscalYearOf(ctx, req.BookingDate)
 	}
 	if err := record.Validate(); err != nil {
 		return nil, nil, err
@@ -346,7 +244,7 @@ func (s *PostingService) resolveGift(
 	// Jahreswechsel und 50 € danach, im selben Wirtschaftsjahr.
 	limitDate := req.DocumentDate
 	if record.FiscalYear > 0 {
-		limitDate = fmt.Sprintf("%04d-%02d-01", record.FiscalYear, s.fiscalYearStartMonth())
+		limitDate = fmt.Sprintf("%04d-%02d-01", record.FiscalYear, s.journalSvc.fiscalYearStartMonth(ctx))
 	}
 	params, err := accounting.TaxParametersFor(limitDate)
 	if err != nil {
@@ -385,7 +283,7 @@ func (s *PostingService) giftTotals(
 	if s.gifts == nil || !requestHasGifts(req) {
 		return out, nil
 	}
-	year := domain.GetFiscalYearForDate(req.BookingDate, s.fiscalYearStartMonth())
+	year := s.journalSvc.FiscalYearOf(ctx, req.BookingDate)
 	records, err := s.gifts.GiftsInYear(ctx, year)
 	if err != nil {
 		return nil, fmt.Errorf("die bisherigen Geschenke des Jahres ließen sich nicht lesen: %w", err)
@@ -425,28 +323,3 @@ type giftRegister interface {
 // keine Freigrenze und bucht jedes Geschenk als abziehbar — deshalb wird sie
 // gesetzt, wo es eine gibt.
 func (s *PostingService) SetGiftRegister(g giftRegister) { s.gifts = g }
-
-// SetFiscalYearStartMonth sagt dem Belegweg, wann das Geschäftsjahr beginnt. Die
-// Freigrenze läuft je Wirtschaftsjahr, und bei einem abweichenden Geschäftsjahr
-// ist das nicht das Kalenderjahr.
-func (s *PostingService) SetFiscalYearStartMonth(month int) { s.fiscalStartMonth = month }
-
-// SetFiscalYearStartReader gibt dem Belegweg den Beginn des Geschäftsjahres als
-// Frage statt als Zahl.
-//
-// Der Unterschied ist der zwischen einem Wert von damals und einem von jetzt:
-// die Einstellung wurde bisher einmal beim Einrichten des Mandanten gelesen, und
-// wer den Beginn des Geschäftsjahres danach änderte, bekam bis zum nächsten
-// Programmstart die Freigrenze des alten Wirtschaftsjahres.
-func (s *PostingService) SetFiscalYearStartReader(read func() int) { s.fiscalStartReader = read }
-
-func (s *PostingService) fiscalYearStartMonth() int {
-	month := s.fiscalStartMonth
-	if s.fiscalStartReader != nil {
-		month = s.fiscalStartReader()
-	}
-	if month <= 0 || month > 12 {
-		return 1
-	}
-	return month
-}

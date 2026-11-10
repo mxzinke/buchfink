@@ -7,20 +7,9 @@ import (
 	"gorm.io/gorm"
 )
 
-// Eine Transaktion über mehrere Repositories.
-//
-// Die Ausgangsrechnung braucht sie: Nummer vergeben, Rechnung speichern und
-// Buchung anhängen müssen zusammen gelingen oder zusammen ausbleiben. Vorher
-// vergab `Issue` die Nummer in einer eigenen Transaktion und buchte danach —
-// scheiterte die Buchung, war die Nummer verbraucht und keine Rechnung hatte
-// sie. Genau die Lücke, die § 14 Abs. 4 Nr. 4 UStG und die GoBD nicht
-// vorsehen.
-//
-// Die Transaktion reist im Kontext und nicht in der Signatur. Der Weg über die
-// Signatur hieße, jede Methode jedes beteiligten Repositories zu verdoppeln —
-// eine mit und eine ohne tx —, und die Verdopplung wäre die Stelle, an der die
-// beiden Fassungen auseinanderlaufen. Im Kontext greift sie überall, wo eine
-// Methode `dbFrom` benutzt, und nirgends sonst.
+// Eine Transaktion über mehrere Repositories. Sie reist im Kontext und nicht in
+// der Signatur: jede Methode, die `dbFrom` benutzt, läuft in ihr, ohne dass es
+// von jeder Methode eine Fassung mit und eine ohne Transaktion gibt.
 
 type txContextKey struct{}
 

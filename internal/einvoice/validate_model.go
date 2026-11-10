@@ -192,11 +192,13 @@ func (v *validator) checkPeriods() {
 
 // checkPaymentInstructions covers BR-49, BR-50, BR-51 and BR-61.
 func (v *validator) checkPaymentInstructions() {
-	// creditTransferCodes are the UNTDID 4461 codes that mean a transfer: SEPA,
-	// local and non-SEPA international credit transfer. For those, BR-61
-	// requires the account, because a transfer instruction without an account
-	// cannot be carried out.
-	creditTransferCodes := map[string]bool{"30": true, "58": true, "59": true}
+	// Überweisungen nach UNTDID 4461 sind 30 (Überweisung, auch ins Ausland
+	// ohne SEPA) und 58 (SEPA-Überweisung); dieselben zwei Codes prüft die
+	// CEN-Schematron für BR-61. Ohne Zahlungskonto (BT-84) lässt sich eine
+	// Überweisung nicht ausführen. 59 ist die SEPA-Lastschrift: Der
+	// Zahlungsempfänger zieht vom belasteten Konto (BT-91) ein und braucht
+	// kein BT-84.
+	creditTransferCodes := map[string]bool{"30": true, "58": true}
 
 	for i, means := range v.inv.PaymentMeans {
 		where := fmt.Sprintf("Zahlungsanweisung %d", i+1)

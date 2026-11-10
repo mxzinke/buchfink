@@ -1,0 +1,94 @@
+{
+  "audit": [
+    {
+      "action": "CREATE",
+      "actor": "\u003cactor\u003e",
+      "appVersion": "dev",
+      "channel": "agent:golden",
+      "details": "Buchung 2026-000001: Testbeleg, 1.190,00 € (GJ 2026, 4 Zeilen)",
+      "entityId": "1",
+      "entityType": "JOURNAL",
+      "entryHash": "\u003centryHash\u003e",
+      "id": 5,
+      "previousHash": "\u003cpreviousHash\u003e",
+      "timestamp": "\u003ctimestamp\u003e"
+    }
+  ],
+  "entry": {
+    "actor": "\u003cactor\u003e",
+    "appVersion": "dev",
+    "bookingDate": "2026-03-10",
+    "channel": "agent:golden",
+    "closingPeriod": false,
+    "contactId": 1,
+    "createdAt": "\u003ccreatedAt\u003e",
+    "currency": "USD",
+    "description": "Testbeleg",
+    "documentDate": "2026-03-10",
+    "documentNumber": "\u003cBeleg\u003e",
+    "entryHash": "\u003centryHash\u003e",
+    "entryNumber": "2026-000001",
+    "exchangeRateDate": "2026-03-10",
+    "exchangeRateMicros": 1085000,
+    "exchangeRateSource": "EZB-Referenzkurs aus Testbestand",
+    "fiscalYear": 2026,
+    "id": 1,
+    "kind": "normal",
+    "lines": [
+      {
+        "account": "5906",
+        "amount": 100000,
+        "entryId": 1,
+        "foreignAmount": 108500,
+        "id": 1,
+        "position": 1,
+        "side": "S"
+      },
+      {
+        "account": "1406",
+        "amount": 18741,
+        "entryId": 1,
+        "foreignAmount": 20334,
+        "id": 2,
+        "position": 2,
+        "side": "S",
+        "taxBase": 98636,
+        "taxKey": "VST19"
+      },
+      {
+        "account": "6880",
+        "amount": 259,
+        "entryId": 1,
+        "id": 3,
+        "position": 3,
+        "side": "S",
+        "text": "Kursdifferenz Tageskurs/Umsatzsteuerkurs USD 2026-03 (§ 16 Abs. 6 UStG)"
+      },
+      {
+        "account": "70000",
+        "amount": 119000,
+        "contactId": 1,
+        "entryId": 1,
+        "foreignAmount": 129115,
+        "id": 4,
+        "position": 4,
+        "side": "H"
+      }
+    ],
+    "postingRuleVersion": "2026.1",
+    "previousHash": "\u003cpreviousHash\u003e",
+    "receiptHash": "\u003creceiptHash\u003e",
+    "receiptId": 1,
+    "serviceDateFrom": "2026-03-01",
+    "serviceDateTo": "2026-03-31",
+    "source": "receipt",
+    "taxTreatment": "domestic"
+  },
+  "journalEntryId": 1,
+  "newEntries": 1,
+  "override": "",
+  "receiptHashUnchanged": true,
+  "serviceProof": "",
+  "serviceProofAt": "",
+  "status": "sealed"
+}

@@ -1,0 +1,38 @@
+{
+  "balanced": true,
+  "gross": 5950,
+  "inputTaxFindings": [],
+  "lines": [
+    {
+      "account": "6500",
+      "accountName": "Fahrzeugkosten",
+      "amount": 5000,
+      "entryId": 0,
+      "id": 0,
+      "position": 1,
+      "side": "S"
+    },
+    {
+      "account": "1406",
+      "accountName": "Abziehbare Vorsteuer 19 %",
+      "amount": 950,
+      "entryId": 0,
+      "id": 0,
+      "position": 2,
+      "side": "S",
+      "taxBase": 5000,
+      "taxKey": "VST19"
+    },
+    {
+      "account": "1800",
+      "accountName": "Bank",
+      "amount": 5950,
+      "entryId": 0,
+      "id": 0,
+      "position": 3,
+      "side": "H"
+    }
+  ],
+  "net": 5000,
+  "tax": 950
+}

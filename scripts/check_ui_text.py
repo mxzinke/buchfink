@@ -29,7 +29,7 @@ from pathlib import Path
 CONTEXT_LINES = 3
 
 # Die Marken, die eine Erklärstufe kennzeichnen: die Namen der
-# Erklärkomponenten (Help, InfoPopover, FormExplanation) und die
+# Erklärkomponenten (Help, FormExplanation) und die
 # Bezeichner, die eine Erklärung aufmachen. `explain=` ist das Prop an Feld,
 # Abschnitt und Seitenkopf, das einen Help rendert (siehe
 # frontend/src/components/ui/Field.tsx und Section.tsx); `explanation` ist das
@@ -65,6 +65,12 @@ HELP_MARKERS = (
 VISIBLE_PROPS = ("hint=", "context=")
 
 PAGES = Path("frontend/src/pages")
+
+# Texte aus dem Backend, die die Oberfläche unverändert als Titel oder
+# Erklärsatz zeigt. Ihre Normen stehen in einem eigenen Feld (`Reference`), das
+# nur der Detaildialog zeigt. Geprüft werden die Zeichenketten der Bausteine:
+# alle außer der letzten eines Eintrags, denn die ist die Norm.
+GO_STEP_TEXTS = Path("internal/domain/closing_step.go")
 
 
 def strip_comments(lines: list[str]) -> list[str]:
@@ -183,6 +189,37 @@ def violations(path: Path) -> list[tuple[int, str]]:
     return found
 
 
+def go_step_violations(path: Path) -> list[tuple[int, str]]:
+    """Normen in Titel oder Erklärsatz eines Abschlussbausteins.
+
+    Die Einträge in `AllClosingSteps` haben die Form
+    `{Schlüssel, Nr., "Titel", "Erklärung" + …, automatisch, "Norm"}`. Eine Zeile
+    mit „§" oder „GoBD“ ist erlaubt, wenn sie mit der Norm als letztem Feld endet.
+    """
+    import re
+
+    found: list[tuple[int, str]] = []
+    text = path.read_text(encoding="utf-8")
+    start = text.find("func AllClosingSteps()")
+    if start < 0:
+        return found
+    offset = text.count("\n", 0, start)
+    body = text[start:].split("\n}\n", 1)[0].splitlines()
+    for index, line in enumerate(body):
+        if line.strip().startswith("//"):
+            continue
+        if "§" not in line and "GoBD" not in line:
+            continue
+        # Das letzte Feld eines Eintrags: nach `true,` oder `false,`, oder allein
+        # in der Zeile vor `},`.
+        if re.search(r'(?:true|false),\s*"[^"]*"},?\s*$', line):
+            continue
+        if re.fullmatch(r'\s*"[^"]*"},?\s*', line) and index > 0 and re.search(r'(?:true|false),\s*$', body[index - 1]):
+            continue
+        found.append((offset + index + 1, line.strip()))
+    return found
+
+
 def main() -> int:
     if not PAGES.is_dir():
         print(f"{PAGES} nicht gefunden — das Skript läuft im Wurzelverzeichnis des Projekts.")
@@ -193,6 +230,9 @@ def main() -> int:
         for line_number, text in violations(path):
             total += 1
             print(f"{path}:{line_number}: Norm ohne Erklärstufe: {text}")
+    for line_number, text in go_step_violations(GO_STEP_TEXTS):
+        total += 1
+        print(f"{GO_STEP_TEXTS}:{line_number}: Norm im sichtbaren Text eines Bausteins: {text}")
 
     if total:
         print()

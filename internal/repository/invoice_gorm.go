@@ -30,7 +30,7 @@ func (r *invoiceRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.
 	var invoice domain.Invoice
 	err := dbFrom(ctx, r.db).Preload("Items").Preload("PrecedingRefs").First(&invoice, id).Error
 	if err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	return &invoice, nil
 }
@@ -39,7 +39,7 @@ func (r *invoiceRepositoryGorm) FindByNumber(ctx context.Context, number string)
 	var invoice domain.Invoice
 	err := dbFrom(ctx, r.db).Preload("Items").Preload("PrecedingRefs").Where("invoice_number = ?", number).First(&invoice).Error
 	if err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	return &invoice, nil
 }
@@ -50,11 +50,6 @@ func (r *invoiceRepositoryGorm) Save(ctx context.Context, invoice *domain.Invoic
 
 func (r *invoiceRepositoryGorm) UpdateStatus(ctx context.Context, id uint, status domain.InvoiceStatus) error {
 	return dbFrom(ctx, r.db).Model(&domain.Invoice{}).Where("id = ?", id).Update("status", status).Error
-}
-
-func (r *invoiceRepositoryGorm) UpdateTransportKind(ctx context.Context, id uint, kind string) error {
-	return dbFrom(ctx, r.db).Model(&domain.Invoice{}).Where("id = ?", id).
-		Update("transport_kind", kind).Error
 }
 
 // FindNumbers liefert die vergebenen Rechnungsnummern eines Geschäftsjahres.

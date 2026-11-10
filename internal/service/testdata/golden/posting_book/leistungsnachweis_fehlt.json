@@ -1,0 +1,12 @@
+{
+  "audit": [],
+  "entry": null,
+  "error": "Beleg \u003cBeleg\u003e über 119,00 € hat keinen Leistungsnachweis. Ab 100,00 € verlangt die eigene Vorgabe den Vermerk, gegen welche Bestellung geprüft wurde. Tragen Sie ihn beim Buchen ein, etwa „geprüft gegen Bestellung 4711 vom 12.03.2026“. Die Grenze steht unter Einstellungen › Erweitert",
+  "journalEntryId": null,
+  "newEntries": 0,
+  "override": "",
+  "receiptHashUnchanged": true,
+  "serviceProof": "",
+  "serviceProofAt": "",
+  "status": "filed"
+}

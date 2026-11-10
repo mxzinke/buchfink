@@ -8,10 +8,9 @@ import (
 // SchemaMigration ist ein Eintrag des Migrationsprotokolls über das
 // Datenbankschema.
 //
-// Bisher lief die Schemaanpassung bei jedem Start und hinterließ keine Spur.
-// Für die Verfahrensdokumentation ist genau das die Lücke (GoBD Rz. 34, 145):
-// wer wissen will, ob die Datei, die vor einem Jahr gesichert wurde, mit dem
-// heutigen Programm noch dasselbe bedeutet, findet ohne Protokoll nichts vor.
+// Wer wissen will, ob die Datei, die vor einem Jahr gesichert wurde, mit dem
+// heutigen Programm noch dasselbe bedeutet, findet die Antwort hier (GoBD
+// Rz. 34, 145).
 type SchemaMigration struct {
 	ID uint `gorm:"primaryKey" json:"id"`
 	// RunAt ist der Zeitpunkt des Laufs in UTC.
@@ -19,10 +18,10 @@ type SchemaMigration struct {
 	// AppVersion ist die Programmfassung, die migriert hat.
 	AppVersion string `gorm:"size:60;not null" json:"appVersion"`
 	// FromVersion und ToVersion sind die Schemaversionen vor und nach dem Lauf.
-	// FromVersion 0 heißt: eine neue oder eine noch nicht protokollierte Datei.
+	// FromVersion 0 heißt: eine neue Datei.
 	FromVersion int `gorm:"not null" json:"fromVersion"`
 	ToVersion   int `gorm:"not null" json:"toVersion"`
-	// Tables sind die betroffenen Tabellen, durch Komma getrennt.
+	// Tables sind die Tabellen nach dem Lauf, durch Komma getrennt.
 	Tables string `gorm:"type:text" json:"tables"`
 	// Result ist "ok" oder "fehlgeschlagen", Message die Erläuterung.
 	Result  string `gorm:"size:20;not null" json:"result"`
@@ -42,8 +41,6 @@ const (
 type MigrationKind string
 
 const (
-	// MigrationKindImport ist die Übernahme einer fremden Datenbankdatei.
-	MigrationKindImport MigrationKind = "import"
 	// MigrationKindRestore ist die Wiederherstellung aus einer Sicherung.
 	MigrationKindRestore MigrationKind = "restore"
 	// MigrationKindOpen ist das Öffnen einer vorhandenen Datei.
@@ -79,7 +76,7 @@ type MigrationRecord struct {
 	Kind MigrationKind `gorm:"size:20;not null;index" json:"kind"`
 	// Source ist die Herkunft (Dateiname der übernommenen Datei), Target das
 	// Ziel (Mandantenkennung).
-	Source     string    `gorm:"size:500;serializer:encrypted" json:"source"`
+	Source     string    `gorm:"size:500" json:"source"`
 	Target     string    `gorm:"size:120" json:"target"`
 	RunAt      time.Time `gorm:"not null;index" json:"runAt"`
 	AppVersion string    `gorm:"size:60" json:"appVersion"`

@@ -24,7 +24,7 @@ type Appropriation struct {
 	Year int `gorm:"primaryKey;autoIncrement:false" json:"year"`
 
 	DecisionDate string `gorm:"size:10;not null" json:"decisionDate"`
-	Text         string `gorm:"size:1000;serializer:encrypted" json:"text,omitempty"`
+	Text         string `gorm:"size:1000" json:"text,omitempty"`
 	// ReceiptID verweist auf das Beschlussprotokoll im Belegspeicher, falls
 	// eines abgelegt wurde.
 	ReceiptID *uint `gorm:"index" json:"receiptId,omitempty"`

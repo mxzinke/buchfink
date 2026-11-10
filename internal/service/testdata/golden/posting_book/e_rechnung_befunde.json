@@ -1,0 +1,12 @@
+{
+  "audit": [],
+  "entry": null,
+  "error": "der Vorsteuerabzug setzt eine Rechnung mit allen Pflichtangaben voraus (§ 15 Abs. 1 Satz 1 Nr. 1 i. V. m. §§ 14, 14a UStG). Es fehlt: Der Rechnungsdatensatz des Belegs \u003cBeleg\u003e hat 3 Fehler aus der Prüfung nach EN 16931. Solange sie bestehen, ist nicht belegt, dass die Rechnung alle Pflichtangaben der §§ 14, 14a UStG hat.. Ergänzen Sie die Angabe, lassen Sie die Rechnung berichtigen, oder buchen Sie mit einem Grund, der festgehalten wird",
+  "journalEntryId": null,
+  "newEntries": 0,
+  "override": "",
+  "receiptHashUnchanged": true,
+  "serviceProof": "",
+  "serviceProofAt": "",
+  "status": "filed"
+}

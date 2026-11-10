@@ -77,31 +77,3 @@ func (r *foundationRepositoryGorm) Save(ctx context.Context, f *domain.Foundatio
 		return nil
 	})
 }
-
-func (r *foundationRepositoryGorm) Tasks(ctx context.Context, foundationID uint) ([]domain.FoundationTask, error) {
-	var tasks []domain.FoundationTask
-	err := dbFrom(ctx, r.db).
-		Where("foundation_id = ?", foundationID).
-		Order("done_on asc").
-		Find(&tasks).Error
-	return tasks, err
-}
-
-// CompleteTask records a fulfilled duty, replacing an earlier record of the same
-// key so a corrected date does not leave two answers behind.
-func (r *foundationRepositoryGorm) CompleteTask(ctx context.Context, task *domain.FoundationTask) error {
-	return dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("foundation_id = ? AND key = ?", task.FoundationID, task.Key).
-			Delete(&domain.FoundationTask{}).Error; err != nil {
-			return err
-		}
-		task.ID = 0
-		return tx.Create(task).Error
-	})
-}
-
-func (r *foundationRepositoryGorm) ClearTask(ctx context.Context, foundationID uint, key string) error {
-	return dbFrom(ctx, r.db).
-		Where("foundation_id = ? AND key = ?", foundationID, key).
-		Delete(&domain.FoundationTask{}).Error
-}

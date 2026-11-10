@@ -24,14 +24,13 @@ import (
 // durch den JournalService und hat damit Nummer, Hash und Periodenprüfung wie
 // jede andere.
 type AccrualService struct {
-	accrualRepo  domain.AccrualRepository
-	journalRepo  domain.JournalRepository
-	journalSvc   *JournalService
-	settingsRepo domain.SettingsRepository
-	auditRepo    domain.AuditRepository
-	closingSvc   *ClosingService
-	receipts     closingReceiptFiler
-	fiscalYear   int
+	auditor[uint]
+	fiscalCalendar
+	accrualRepo domain.AccrualRepository
+	journalRepo domain.JournalRepository
+	journalSvc  *JournalService
+	periods     PeriodSource
+	receipts    closingReceiptFiler
 }
 
 // NewAccrualService wires die Rechnungsabgrenzung.
@@ -41,22 +40,17 @@ func NewAccrualService(
 	journalSvc *JournalService,
 	settingsRepo domain.SettingsRepository,
 	auditRepo domain.AuditRepository,
-	closingSvc *ClosingService,
-	fiscalYear int,
+	periods PeriodSource,
 ) *AccrualService {
 	return &AccrualService{
-		accrualRepo:  accrualRepo,
-		journalRepo:  journalRepo,
-		journalSvc:   journalSvc,
-		settingsRepo: settingsRepo,
-		auditRepo:    auditRepo,
-		closingSvc:   closingSvc,
-		fiscalYear:   fiscalYear,
+		accrualRepo:    accrualRepo,
+		journalRepo:    journalRepo,
+		journalSvc:     journalSvc,
+		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo},
+		auditor:        auditor[uint]{auditRepo: auditRepo, entity: "ACCRUAL"},
+		periods:        periods,
 	}
 }
-
-// SetFiscalYear schaltet das aktive Geschäftsjahr um.
-func (s *AccrualService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // SetReceiptService gibt dem Dienst den Belegspeicher für die Eigenbelege.
 func (s *AccrualService) SetReceiptService(r closingReceiptFiler) { s.receipts = r }
@@ -155,10 +149,10 @@ type AccrualProposal struct {
 // Pflichtangabe macht. Damit ist die Abgrenzung keine Schätzung, sondern ergibt
 // sich aus dem, was ohnehin erfasst wurde.
 func (s *AccrualService) Propose(ctx context.Context, year int) (*AccrualProposal, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
-	fy, err := s.closingSvc.PeriodOf(ctx, year)
+	fy, err := s.periods.PeriodOf(ctx, year)
 	if err != nil {
 		return nil, err
 	}
@@ -297,10 +291,10 @@ type AccrualPreview struct {
 // Preview rechnet den Posten, ohne ihn zu speichern.
 func (s *AccrualService) Preview(ctx context.Context, req AccrualRequest) (*AccrualPreview, error) {
 	year := req.FiscalYear
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
-	fy, err := s.closingSvc.PeriodOf(ctx, year)
+	fy, err := s.periods.PeriodOf(ctx, year)
 	if err != nil {
 		return nil, err
 	}
@@ -378,6 +372,12 @@ func (s *AccrualService) Preview(ctx context.Context, req AccrualRequest) (*Accr
 
 // Book legt den Posten an und bucht seine Bildung.
 func (s *AccrualService) Book(ctx context.Context, req AccrualRequest) (*domain.Accrual, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.Accrual, error) {
+		return s.book(ctx, req)
+	})
+}
+
+func (s *AccrualService) book(ctx context.Context, req AccrualRequest) (*domain.Accrual, error) {
 	preview, err := s.Preview(ctx, req)
 	if err != nil {
 		return nil, err
@@ -403,7 +403,7 @@ func (s *AccrualService) Book(ctx context.Context, req AccrualRequest) (*domain.
 			}
 			return nil, fmt.Errorf(
 				"zu dieser Buchung besteht bereits die Abgrenzung %q über %s € vom %s. "+
-					"Storniere sie, wenn der Betrag nicht stimmt",
+					"Stimmt der Betrag nicht, ist sie zu stornieren",
 				other.Text, other.DeferredAmount, other.CutoffDate)
 		}
 	}
@@ -435,13 +435,13 @@ func (s *AccrualService) Book(ctx context.Context, req AccrualRequest) (*domain.
 	}
 	accrual.FormationEntryID = &created.ID
 	if err := s.accrualRepo.Save(ctx, &accrual); err != nil {
-		return nil, fmt.Errorf(
-			"die Buchung %s wurde geschrieben, der Abgrenzungsposten aber nicht gespeichert: %w",
-			created.EntryNumber, err)
+		return nil, fmt.Errorf("der Abgrenzungsposten ließ sich nicht speichern: %w", err)
 	}
-	s.audit(ctx, domain.AuditActionCreate, accrual.ID, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionCreate, accrual.ID, fmt.Sprintf(
 		"Rechnungsabgrenzung %s über %s € (%s bis %s, %s)",
-		accrual.Text, accrual.DeferredAmount, accrual.StartDate, accrual.EndDate, accrual.Method.Label()))
+		accrual.Text, accrual.DeferredAmount, accrual.StartDate, accrual.EndDate, accrual.Method.Label())); err != nil {
+		return nil, err
+	}
 	return &accrual, nil
 }
 
@@ -565,6 +565,12 @@ func (s *AccrualService) PendingReleases(ctx context.Context, toYear int) ([]Acc
 // und würde ohne diesen Anstoß bis zum nächsten Jahresabschluss liegenbleiben —
 // also bis zu dem Zeitpunkt, an dem sie längst hätte gebucht sein müssen.
 func (s *AccrualService) ReleaseInto(ctx context.Context, toYear int) ([]domain.JournalEntry, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) ([]domain.JournalEntry, error) {
+		return s.releaseInto(ctx, toYear)
+	})
+}
+
+func (s *AccrualService) releaseInto(ctx context.Context, toYear int) ([]domain.JournalEntry, error) {
 	due, err := s.PendingReleases(ctx, toYear)
 	if err != nil {
 		return nil, err
@@ -573,7 +579,7 @@ func (s *AccrualService) ReleaseInto(ctx context.Context, toYear int) ([]domain.
 	for _, item := range due {
 		accrual, err := s.accrualRepo.FindByID(ctx, item.AccrualID)
 		if err != nil || accrual == nil {
-			return created, fmt.Errorf("der Abgrenzungsposten %d wurde nicht gefunden", item.AccrualID)
+			return nil, fmt.Errorf("der Abgrenzungsposten %d wurde nicht gefunden", item.AccrualID)
 		}
 		// Für die Zeilen zählt der Betrag dieser Auflösung, nicht der ganze
 		// Posten: ein Posten über drei Jahre löst sich in drei Schritten auf.
@@ -601,13 +607,13 @@ func (s *AccrualService) ReleaseInto(ctx context.Context, toYear int) ([]domain.
 			Calculation: item, Lines: lines,
 		})
 		if err != nil {
-			return created, err
+			return nil, err
 		}
 		attachVoucher(entry, receipt)
 
 		out, err := postWithVoucher(ctx, s.journalSvc, s.receipts, entry, receipt)
 		if err != nil {
-			return created, fmt.Errorf(
+			return nil, fmt.Errorf(
 				"die Auflösung der Abgrenzung %q konnte nicht gebucht werden: %w", accrual.Text, err)
 		}
 		release := domain.AccrualRelease{
@@ -615,15 +621,15 @@ func (s *AccrualService) ReleaseInto(ctx context.Context, toYear int) ([]domain.
 			Date: item.Date, Amount: item.Amount, JournalEntryID: &out.ID,
 		}
 		if err := s.accrualRepo.SaveRelease(ctx, &release); err != nil {
-			return created, fmt.Errorf(
-				"die Buchung %s wurde geschrieben, die Auflösung aber nicht vermerkt: %w",
-				out.EntryNumber, err)
+			return nil, fmt.Errorf("die Auflösung ließ sich nicht vermerken: %w", err)
 		}
 		created = append(created, *out)
 	}
 	if len(created) > 0 {
-		s.audit(ctx, domain.AuditActionCreate, 0, fmt.Sprintf(
-			"Auflösung der Rechnungsabgrenzung im Geschäftsjahr %d: %d Buchungen", toYear, len(created)))
+		if err := s.audit(ctx, domain.AuditActionCreate, 0, fmt.Sprintf(
+			"Auflösung der Rechnungsabgrenzung im Geschäftsjahr %d: %d Buchungen", toYear, len(created))); err != nil {
+			return nil, err
+		}
 	}
 	return created, nil
 }
@@ -648,8 +654,8 @@ func accrualReleaseExplanation(accrual *domain.Accrual, item AccrualReleaseDue) 
 
 // List liefert die im Geschäftsjahr gebildeten Posten.
 func (s *AccrualService) List(ctx context.Context, year int) ([]domain.Accrual, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	accruals, err := s.accrualRepo.FindByYear(ctx, year)
 	if err != nil {
@@ -694,12 +700,8 @@ type AccrualReport struct {
 
 // Report stellt den Bestand zu einem Stichtag zusammen.
 func (s *AccrualService) Report(ctx context.Context, cutoff string) (*AccrualReport, error) {
-	if cutoff == "" {
-		fy, err := s.closingSvc.PeriodOf(ctx, s.fiscalYear)
-		if err != nil {
-			return nil, err
-		}
-		cutoff = fy.EndDate
+	if err := domain.CheckDate("Stichtag", cutoff); err != nil {
+		return nil, err
 	}
 	// Ein Posten, dessen Bildung storniert wurde, hat keinen Bestand: er steht
 	// weder auf 1900 noch auf 3900, und der Bericht führte ihn sonst als
@@ -741,24 +743,6 @@ func (s *AccrualService) Report(ctx context.Context, cutoff string) (*AccrualRep
 	}
 	sort.Slice(report.Rows, func(i, j int) bool { return report.Rows[i].EndDate < report.Rows[j].EndDate })
 	return report, nil
-}
-
-func (s *AccrualService) fiscalYearStartMonth(ctx context.Context) int {
-	if s.settingsRepo == nil {
-		return 1
-	}
-	settings, err := s.settingsRepo.GetCompanySettings(ctx)
-	if err != nil || settings == nil || settings.FiscalYearStartMonth <= 0 {
-		return 1
-	}
-	return settings.FiscalYearStartMonth
-}
-
-func (s *AccrualService) audit(ctx context.Context, action domain.AuditAction, id uint, details string) {
-	if s.auditRepo == nil {
-		return
-	}
-	_ = s.auditRepo.Log(ctx, action, "ACCRUAL", fmt.Sprintf("%d", id), details)
 }
 
 // calendarDaysBetween ist die Zahl der Kalendertage zwischen zwei Tagen; nie

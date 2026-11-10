@@ -6,124 +6,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
-// Die Periodenzuordnung der Umsatzsteuer steht an dieser einen Stelle.
-//
-// Sie ist nicht das Buchungsdatum. Das Buchungsdatum sagt, wann erfasst wurde;
-// die Voranmeldung fragt, wann die Steuer entstanden ist — und darauf gibt das
-// UStG je nach Tatbestand eine andere Antwort. Solange die Auswertung nach dem
-// Buchungsdatum aggregierte, war jede nachträglich erfasste Dezemberrechnung im
-// Januar gemeldet. Deshalb: eine Funktion, eine Tabelle von Fällen, ein Test.
-
-// VatPeriodFor liefert das Datum, nach dem eine Journalzeile ihrem
-// Voranmeldungszeitraum zugeordnet wird.
-//
-// Der dritte Parameter ist der Belegeingang (`Receipt.ReceivedAt`). Er gehört
-// nicht zur Buchung, sondern zum Beleg, und ohne ihn ließe sich der
-// Vorsteuerfall nicht vollständig entscheiden: der Abzug setzt neben der
-// Leistung den *Besitz* der Rechnung voraus (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 2
-// UStG). Ist kein Beleg erfasst, bleibt der Parameter leer und die Regel fällt
-// auf Leistung und Rechnungsdatum zurück.
-//
-// Die Generalumkehr übernimmt Belegdatum und Leistungszeitraum der
-// Ursprungsbuchung; dieselben Regeln ergeben damit denselben Zeitraum. Für die
-// Rücknahme einer Ausgangsrechnung gilt das nicht — siehe den Zweig zur
-// Rechnungsberichtigung.
+// VatPeriodFor liefert das Datum der Steuerentstehung für eine Journalzeile.
+// receivedAt ist der Belegeingang; Zahlungen vor der Leistung berücksichtigt
+// die Auswertung anhand der Zahlungszuordnungen (vat_prepayment.go).
 func VatPeriodFor(entry *domain.JournalEntry, line domain.JournalLine, receivedAt string) string {
 	if entry == nil {
 		return ""
 	}
-	// Die Rücknahme einer Ausgangsrechnung wirkt im Zeitraum der Berichtigung
-	// und nicht im Ursprungszeitraum.
-	//
-	// § 17 Abs. 1 Satz 8 UStG: die Berichtigung ist für den Besteuerungszeitraum
-	// vorzunehmen, in dem die Änderung eingetreten ist. Für die zu Unrecht oder
-	// zu hoch ausgewiesene Steuer sagt Abschn. 14c.1 Abs. 5 UStAE dasselbe: der
-	// Mehrbetrag bleibt bis zur Berichtigung der Rechnung geschuldet, und die
-	// Berichtigung wirkt im Zeitraum, in dem sie gegenüber dem Empfänger
-	// erklärt wird. Beides führt auf den Tag des Stornodokuments, den die
-	// Generalumkehr als Buchungsdatum hat.
-	//
-	// Vorher entschied hier der Leistungszeitraum der Ursprungsbuchung, und
-	// jedes Storno verlangte damit eine berichtigte Voranmeldung für einen
-	// Zeitraum, der längst übermittelt war — für einen Vorgang, der in die
-	// laufende Anmeldung gehört.
-	if entry.Kind == domain.EntryKindReversal && entry.Source == domain.EntrySourceInvoice {
-		return firstNonEmpty(entry.BookingDate, entry.DocumentDate)
-	}
-	// Die vereinnahmte Anzahlung folgt dem Geld und nicht der Leistung: nach
-	// § 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG entsteht die Steuer mit Ablauf des
-	// Voranmeldungszeitraums, in dem das Teilentgelt vereinnahmt worden ist —
-	// auch bei Sollversteuerung, und lange bevor die Leistung erbracht ist. Ohne
-	// diesen Zweig entschiede der Leistungszeitraum, und der steht bei einer
-	// Anzahlung noch in der Zukunft.
-	if entry.Source == domain.EntrySourceAdvance {
-		return firstNonEmpty(entry.BookingDate, entry.DocumentDate)
-	}
-	switch timingOf(line.TaxKey) {
-	case timingOutput:
-		// § 13 Abs. 1 Nr. 1 Buchst. a UStG: die Steuer entsteht mit Ablauf des
-		// Voranmeldungszeitraums, in dem die Leistung ausgeführt worden ist.
-		return firstNonEmpty(entry.ServiceDateTo, entry.ServiceDateFrom, entry.DocumentDate, entry.BookingDate)
-
-	case timingDocument:
-		// Erwerbsteuer (§ 13 Abs. 1 Nr. 6 UStG) und § 13b-Steuer als Empfänger
-		// (§ 13b Abs. 1 und 2 UStG) entstehen mit Ausstellung der Rechnung,
-		// spätestens im Folgemonat der Leistung. Buchfink vereinfacht auf das
-		// Belegdatum — die Rechnung liegt vor, sonst wäre nicht gebucht worden.
-		//
-		// Die Vorsteuer aus beiden folgt demselben Datum und nicht der Regel für
-		// Rechnungsvorsteuer: § 15 Abs. 1 Satz 1 Nr. 3 und 4 UStG lässt sie in
-		// dem Zeitraum abziehen, in dem die Steuer entstanden ist. Fielen die
-		// beiden Beine auseinander, ergäbe ein Reverse-Charge-Beleg in einem
-		// Monat eine Zahllast und im nächsten eine Erstattung, obwohl er
-		// zusammen null ergibt.
-		return firstNonEmpty(entry.DocumentDate, entry.ServiceDateTo, entry.BookingDate)
-
-	case timingInput:
-		// § 15 Abs. 1 Satz 1 Nr. 1 UStG: Leistung ausgeführt *und* Rechnung
-		// vorhanden. Maßgeblich ist damit das spätere der beiden Daten — und
-		// wenn der Beleg noch später eingegangen ist, dessen Eingang: vorher
-		// konnte niemand den Abzug geltend machen.
-		return latest(
-			firstNonEmpty(entry.ServiceDateTo, entry.ServiceDateFrom),
-			entry.DocumentDate,
-			receivedAt,
-		)
-	}
-
-	// Zeilen ohne Steuerschlüssel sind Erlös-, Aufwands- und Bestandszeilen. Für
-	// die Voranmeldung zählen davon die Erlöse, und für sie gilt dieselbe Regel
-	// wie für die Umsatzsteuer darauf: sonst stünden Umsatz und Steuer in
-	// verschiedenen Monaten.
-	return firstNonEmpty(entry.ServiceDateTo, entry.ServiceDateFrom, entry.DocumentDate, entry.BookingDate)
-}
-
-// vatTiming ordnet einen Steuerschlüssel seiner Entstehungsregel zu.
-type vatTiming int
-
-const (
-	timingRevenue vatTiming = iota
-	timingOutput
-	timingDocument
-	timingInput
-)
-
-func timingOf(taxKey string) vatTiming {
-	switch {
-	case taxKey == "":
-		return timingRevenue
-	case strings.HasPrefix(taxKey, "UST"):
-		// UST19, UST7 und UST14C: geschuldete Umsatzsteuer des Leistenden.
-		return timingOutput
-	case strings.HasPrefix(taxKey, "VST"):
-		return timingInput
-	case strings.HasPrefix(taxKey, "IG"), strings.HasPrefix(taxKey, "RC"):
-		return timingDocument
-	}
-	return timingRevenue
+	return TaxCaseFor(entry.TaxTreatment).Timing(entry, line, receivedAt)
 }
 
 func firstNonEmpty(values ...string) string {
@@ -272,45 +166,61 @@ func VatPeriodOf(date string, periodType domain.VatPeriodType) (VatPeriod, error
 	return VatPeriod{}, fmt.Errorf("unbekannter Voranmeldungszeitraum %q", periodType)
 }
 
-// VatDueDate ist die Fälligkeit einer Voranmeldung: der 10. Tag nach Ablauf des
-// Zeitraums (§ 18 Abs. 1 Satz 1 UStG), mit Dauerfristverlängerung einen Monat
-// später (§ 46 UStDV).
-//
-// Fällt der Tag auf einen Samstag oder Sonntag, verschiebt sich die Frist auf
-// den nächsten Werktag (§ 108 Abs. 3 AO i. V. m. § 193 BGB). Feiertage bleiben
-// bewusst außen vor: sie sind Landesrecht, und ein falsch geratener Feiertag
-// wäre schlechter als eine Frist, die einen Tag zu früh mahnt.
-func VatDueDate(p VatPeriod, permanentExtension bool) string {
+// VatStatutoryDate ist das gesetzliche Ende der Voranmeldungsfrist: der 10. Tag
+// nach Ablauf des Zeitraums (§ 18 Abs. 1 Satz 1 UStG), mit
+// Dauerfristverlängerung einen Monat später (§ 46 UStDV).
+func VatStatutoryDate(p VatPeriod, permanentExtension bool) (time.Time, bool) {
 	end, err := time.Parse("2006-01-02", p.To)
 	if err != nil {
-		return ""
+		return time.Time{}, false
 	}
 	due := time.Date(end.Year(), end.Month(), 10, 0, 0, 0, 0, time.UTC).AddDate(0, 1, 0)
 	if permanentExtension {
 		due = due.AddDate(0, 1, 0)
 	}
-	return NextWorkday(due).Format("2006-01-02")
+	return due, true
 }
 
-// ZMDueDate ist die Fälligkeit der Zusammenfassenden Meldung: der 25. Tag nach
-// Ablauf des Meldezeitraums (§ 18a Abs. 1 Satz 1 UStG). Die
-// Dauerfristverlängerung gilt für sie nicht (§ 18a Abs. 1 Satz 5 UStG).
-func ZMDueDate(p VatPeriod) string {
-	end, err := time.Parse("2006-01-02", p.To)
-	if err != nil {
+// VatDueDate ist die Fälligkeit einer Voranmeldung mit den bundesweiten
+// Feiertagen; VatDueDateIn kennt auch die des Landes.
+func VatDueDate(p VatPeriod, permanentExtension bool) string {
+	return VatDueDateIn(p, permanentExtension, "")
+}
+
+// VatDueDateIn ist die Fälligkeit einer Voranmeldung im Land state: das
+// gesetzliche Ende, verschoben nach § 108 Abs. 3 AO.
+func VatDueDateIn(p VatPeriod, permanentExtension bool, state string) string {
+	due, ok := VatStatutoryDate(p, permanentExtension)
+	if !ok {
 		return ""
 	}
-	due := time.Date(end.Year(), end.Month(), 25, 0, 0, 0, 0, time.UTC).AddDate(0, 1, 0)
-	return NextWorkday(due).Format("2006-01-02")
+	return calendar.Format(calendar.NextWorkday(due, state))
 }
 
-// NextWorkday schiebt einen Samstag oder Sonntag auf den folgenden Montag.
-func NextWorkday(t time.Time) time.Time {
-	switch t.Weekday() {
-	case time.Saturday:
-		return t.AddDate(0, 0, 2)
-	case time.Sunday:
-		return t.AddDate(0, 0, 1)
+// ZMStatutoryDate ist das gesetzliche Ende der Meldefrist der Zusammenfassenden
+// Meldung: der 25. Tag nach Ablauf des Meldezeitraums (§ 18a Abs. 2 Satz 1
+// UStG). Die Dauerfristverlängerung gilt für sie nicht (§ 46 UStDV).
+func ZMStatutoryDate(p VatPeriod) (time.Time, bool) {
+	end, err := time.Parse("2006-01-02", p.To)
+	if err != nil {
+		return time.Time{}, false
 	}
-	return t
+	return time.Date(end.Year(), end.Month(), 25, 0, 0, 0, 0, time.UTC).AddDate(0, 1, 0), true
 }
+
+// ZMDueDate ist die Fälligkeit der Zusammenfassenden Meldung mit den
+// bundesweiten Feiertagen.
+func ZMDueDate(p VatPeriod) string { return ZMDueDateIn(p, "") }
+
+// ZMDueDateIn ist die Fälligkeit der Zusammenfassenden Meldung im Land state.
+func ZMDueDateIn(p VatPeriod, state string) string {
+	due, ok := ZMStatutoryDate(p)
+	if !ok {
+		return ""
+	}
+	return calendar.Format(calendar.NextWorkday(due, state))
+}
+
+// NextWorkday schiebt einen Tag nach § 108 Abs. 3 AO auf den nächsten Werktag;
+// Feiertage sind die bundesweiten.
+func NextWorkday(t time.Time) time.Time { return calendar.NextWorkday(t, "") }

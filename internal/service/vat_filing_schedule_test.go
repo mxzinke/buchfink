@@ -33,12 +33,12 @@ func TestVatFilingScheduleWithoutRegularReturns(t *testing.T) {
 			if len(periods) != 0 {
 				t.Fatalf("Unerwartete Meldezeiträume: %+v", periods)
 			}
-			deadlines, err := env.deadlines(t).Deadlines(ctx, 2026)
+			deadlines, err := env.obligations(t).Deadlines(ctx, 2026)
 			if err != nil {
 				t.Fatal(err)
 			}
 			for _, d := range deadlines {
-				if strings.HasPrefix(d.Key, DeadlineKeyVatReturn+".") || strings.HasPrefix(d.Key, DeadlineKeyAnnualVat+".") {
+				if strings.HasPrefix(d.Key, string(domain.ObligationVatReturn)+".") || strings.HasPrefix(d.Key, string(domain.ObligationAnnualVatReturn)+".") {
 					t.Errorf("Unerwarteter Umsatzsteuertermin: %+v", d)
 				}
 			}

@@ -1,0 +1,19 @@
+{
+  "closing": false,
+  "entryCount": 2,
+  "error": "",
+  "kind": "reversal",
+  "lines": [
+    {
+      "account": "1800",
+      "amount": -10000,
+      "side": "S"
+    },
+    {
+      "account": "9000",
+      "amount": -10000,
+      "side": "H"
+    }
+  ],
+  "year": 2026
+}

@@ -1,0 +1,103 @@
+{
+  "audit": [
+    {
+      "action": "CREATE",
+      "actor": "\u003cactor\u003e",
+      "appVersion": "dev",
+      "channel": "agent:golden",
+      "details": "Buchung 2026-000002: Testbeleg, 4.165,00 € (GJ 2026, 4 Zeilen)",
+      "entityId": "2",
+      "entityType": "JOURNAL",
+      "entryHash": "\u003centryHash\u003e",
+      "id": 7,
+      "previousHash": "\u003cpreviousHash\u003e",
+      "timestamp": "\u003ctimestamp\u003e"
+    },
+    {
+      "action": "UPDATE",
+      "actor": "\u003cactor\u003e",
+      "appVersion": "dev",
+      "channel": "agent:golden",
+      "details": "Verbrauch der Rückstellung \"Jahresabschluss 2026\" über 3.000,00 € aus dem Belegweg: Rechnung \u003cBeleg\u003e",
+      "entityId": "1",
+      "entityType": "PROVISION",
+      "entryHash": "\u003centryHash\u003e",
+      "id": 8,
+      "previousHash": "\u003cpreviousHash\u003e",
+      "timestamp": "\u003ctimestamp\u003e"
+    }
+  ],
+  "entry": {
+    "actor": "\u003cactor\u003e",
+    "appVersion": "dev",
+    "bookingDate": "2026-03-10",
+    "channel": "agent:golden",
+    "closingPeriod": false,
+    "contactId": 1,
+    "createdAt": "\u003ccreatedAt\u003e",
+    "currency": "EUR",
+    "description": "Testbeleg",
+    "documentDate": "2026-03-10",
+    "documentNumber": "\u003cBeleg\u003e",
+    "entryHash": "\u003centryHash\u003e",
+    "entryNumber": "2026-000002",
+    "exchangeRateMicros": 1000000,
+    "fiscalYear": 2026,
+    "id": 2,
+    "kind": "normal",
+    "lines": [
+      {
+        "account": "3095",
+        "amount": 300000,
+        "entryId": 2,
+        "id": 3,
+        "position": 1,
+        "side": "S",
+        "text": "Verbrauch der Rückstellung"
+      },
+      {
+        "account": "6827",
+        "amount": 50000,
+        "entryId": 2,
+        "id": 4,
+        "position": 2,
+        "side": "S",
+        "text": "Jahresabschluss 2026"
+      },
+      {
+        "account": "1406",
+        "amount": 66500,
+        "entryId": 2,
+        "id": 5,
+        "position": 3,
+        "side": "S",
+        "taxBase": 350000,
+        "taxKey": "VST19"
+      },
+      {
+        "account": "70000",
+        "amount": 416500,
+        "contactId": 1,
+        "entryId": 2,
+        "id": 6,
+        "position": 4,
+        "side": "H"
+      }
+    ],
+    "postingRuleVersion": "2026.1",
+    "previousHash": "\u003cpreviousHash\u003e",
+    "receiptHash": "\u003creceiptHash\u003e",
+    "receiptId": 1,
+    "serviceDateFrom": "2026-03-01",
+    "serviceDateTo": "2026-03-31",
+    "source": "receipt",
+    "taxTreatment": "domestic"
+  },
+  "journalEntryId": 2,
+  "newEntries": 1,
+  "override": "",
+  "receiptHashUnchanged": true,
+  "serviceProof": "",
+  "serviceProofAt": "",
+  "status": "sealed"
+}

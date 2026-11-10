@@ -50,7 +50,7 @@ func TestSuSaAtCutoffExcludesLaterBookings(t *testing.T) {
 	env.bookOn(t, "2026-03-15", "6815", "1800", 10000)
 	env.bookOn(t, "2026-09-15", "6815", "1800", 70000)
 
-	half, err := env.accounting.GetSuSaOverviewAt(ctx, "2026-06-30")
+	half, err := env.accounting.GetSuSaOverviewAt(ctx, 2026, "2026-06-30")
 	if err != nil {
 		t.Fatalf("SuSa zum Stichtag: %v", err)
 	}
@@ -61,7 +61,7 @@ func TestSuSaAtCutoffExcludesLaterBookings(t *testing.T) {
 		t.Errorf("Soll auf 6815 zum 30.06. = %s €, erwartet 100,00", got)
 	}
 
-	full, err := env.accounting.GetSuSaOverview(ctx)
+	full, err := env.accounting.GetSuSaOverview(ctx, 2026)
 	if err != nil {
 		t.Fatalf("SuSa für das Jahr: %v", err)
 	}
@@ -79,9 +79,7 @@ func TestAccountLedgerRangeCrossesTheYearBoundary(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 
-	env.journal.SetFiscalYear(2025)
 	env.bookOn(t, "2025-11-10", "6815", "1800", 5000)
-	env.journal.SetFiscalYear(2026)
 	env.bookOn(t, "2026-02-10", "6815", "1800", 3000)
 	env.bookOn(t, "2026-08-10", "6815", "1800", 9000)
 
@@ -102,7 +100,7 @@ func TestAccountLedgerRangeCrossesTheYearBoundary(t *testing.T) {
 	}
 
 	// Und das Geschäftsjahr allein sieht nur seinen eigenen Teil.
-	year, err := env.accounting.GetAccountLedger(ctx, "1800")
+	year, err := env.accounting.GetAccountLedger(ctx, 2026, "1800")
 	if err != nil {
 		t.Fatalf("Kontoblatt des Jahres: %v", err)
 	}

@@ -1,0 +1,9 @@
+{
+  "gruende": [
+    {
+      "schluessel": "kopf_weicht_ab",
+      "text": "Die Kopfdaten des Belegs weichen von der E-Rechnung ab: belegdatum."
+    }
+  ],
+  "stufe": "rueckfrage"
+}

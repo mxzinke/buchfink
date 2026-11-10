@@ -125,9 +125,7 @@ var postingGroups = []PostingGroup{
 			domain.TaxRateReduced: "4300",
 		},
 		TreatmentAccounts: map[domain.TaxTreatment]string{
-			domain.TaxTreatmentIntraCommunitySupply: "4125", // § 4 Nr. 1b UStG
-			domain.TaxTreatmentExport:               "4120", // § 4 Nr. 1a UStG
-			domain.TaxTreatmentReverseChargeSupply:  "4337", // § 13b UStG
+			domain.TaxTreatmentReverseChargeSupply: "4337", // § 13b UStG
 			// Nullsteuersatz nach § 12 Abs. 3 UStG. Eigenes Konto, weil der
 			// Umsatz steuerpflichtig ist und nicht zu den steuerfreien zählt.
 			domain.TaxTreatmentZeroRated: "4290",
@@ -164,10 +162,10 @@ var postingGroups = []PostingGroup{
 			domain.TaxRateNone:    "5900",
 		},
 		TreatmentAccounts: map[domain.TaxTreatment]string{
-			// § 13b: Leistung ohne ausgewiesene Vorsteuer, Steuerschuld beim
-			// Empfänger. Das eigene Konto ist Voraussetzung dafür, dass die
-			// UStVA die Kennzahlen 84/85 richtig füllt.
-			domain.TaxTreatmentReverseCharge: "5909",
+			// § 13b: Leistung ohne ausgewiesene Steuer, Steuerschuld beim
+			// Empfänger. Die Kennzahl folgt dem Steuerschlüssel, nicht dem Konto.
+			domain.TaxTreatmentReverseCharge:   "5909",
+			domain.TaxTreatmentReverseChargeEU: "5909",
 		},
 	},
 
@@ -204,9 +202,13 @@ var postingGroups = []PostingGroup{
 		Hint:      "Versicherungsprämien sind nach § 4 Nr. 10 UStG steuerfrei – hier fällt keine Vorsteuer an.",
 		Direction: domain.DirectionIncoming, Account: "6400",
 		DefaultRate: domain.TaxRateNone, DefaultTreatment: domain.TaxTreatmentExempt},
-	{Key: "beitraege", Label: "Beiträge & Gebühren", Category: "Verwaltung",
-		Hint:      "Kammer- und Verbandsbeiträge, behördliche Gebühren: meist nicht steuerbar.",
+	{Key: "beitraege", Label: "Beiträge", Category: "Verwaltung",
+		Hint:      "Kammer- und Verbandsbeiträge: meist nicht steuerbar.",
 		Direction: domain.DirectionIncoming, Account: "6420",
+		DefaultRate: domain.TaxRateNone, DefaultTreatment: domain.TaxTreatmentNotTaxable},
+	{Key: "gebuehren", Label: "Gebühren & Abgaben", Category: "Verwaltung",
+		Hint:      "Gebühren von Gerichten und Behörden, etwa Handelsregister oder Gewerbeamt: nicht steuerbar.",
+		Direction: domain.DirectionIncoming, Account: "6430",
 		DefaultRate: domain.TaxRateNone, DefaultTreatment: domain.TaxTreatmentNotTaxable},
 	{Key: "geldverkehr", Label: "Nebenkosten des Geldverkehrs", Category: "Verwaltung",
 		Hint:      "Kontoführung, Überweisungsentgelte, Zahlungsdienstleister-Gebühren. Nach § 4 Nr. 8 UStG steuerfrei.",
@@ -214,10 +216,6 @@ var postingGroups = []PostingGroup{
 		DefaultRate: domain.TaxRateNone, DefaultTreatment: domain.TaxTreatmentExempt},
 
 	// --- Personal und Vertrieb -------------------------------------------
-	{Key: "gehaelter", Label: "Gehälter", Category: "Personal",
-		Hint:      "Arbeitslohn ist kein Leistungsaustausch im Sinne des UStG.",
-		Direction: domain.DirectionIncoming, Account: "6020",
-		DefaultRate: domain.TaxRateNone, DefaultTreatment: domain.TaxTreatmentNotTaxable},
 	{Key: "fortbildung", Label: "Fortbildung", Category: "Personal",
 		Direction: domain.DirectionIncoming, Account: "6821", DefaultRate: domain.TaxRateStandard},
 	{Key: "reisekosten", Label: "Reisekosten", Category: "Personal",

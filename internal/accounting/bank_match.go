@@ -24,9 +24,16 @@ import (
 const (
 	MatchScoreExactAmount    = 50
 	MatchScoreDocumentNumber = 40
-	MatchScoreNameSimilar    = 20
-	MatchScoreDueNear        = 10
+	// MatchScoreForeignAmount gilt einem Fremdwährungsposten, dessen Betrag im
+	// Rahmen des Kurses liegt: ein Indiz, kein genauer Treffer.
+	MatchScoreForeignAmount = 25
+	MatchScoreNameSimilar   = 20
+	MatchScoreDueNear       = 10
 )
+
+// MatchForeignTolerancePermille ist die Abweichung, bis zu der der Betrag
+// eines Fremdwährungspostens noch als Kursunterschied gilt.
+const MatchForeignTolerancePermille = 100
 
 // MatchDueWindowDays ist der Abstand, innerhalb dessen die Fälligkeit als nahe
 // gilt. Vierzehn Tage, weil das übliche Zahlungsziel dort liegt und ein
@@ -49,6 +56,8 @@ type MatchItem struct {
 	ContactName    string
 	DueDate        string
 	OpenAmount     domain.Cents
+	// Currency ist die Währung einer Rechnung, die nicht in Euro lautet.
+	Currency string
 }
 
 // ScoreMatch bewertet, wie gut ein offener Posten zu einem Bankumsatz passt.
@@ -59,9 +68,15 @@ func ScoreMatch(tx MatchTransaction, item MatchItem) (int, []string) {
 	score := 0
 	reasons := make([]string, 0, 4)
 
-	if item.OpenAmount != 0 && tx.Amount.Abs() == item.OpenAmount.Abs() {
+	switch {
+	case item.OpenAmount != 0 && tx.Amount.Abs() == item.OpenAmount.Abs():
 		score += MatchScoreExactAmount
 		reasons = append(reasons, "Der Betrag stimmt genau überein.")
+	case item.Currency != "" && item.OpenAmount != 0 &&
+		(tx.Amount.Abs()-item.OpenAmount.Abs()).Abs() <= domain.MulRound(item.OpenAmount.Abs(), MatchForeignTolerancePermille, 1000):
+		score += MatchScoreForeignAmount
+		reasons = append(reasons, "Der Betrag liegt im Rahmen des Kurses; die Rechnung lautet auf "+item.Currency+
+			", der Unterschied wird als Kursdifferenz gebucht.")
 	}
 	if reference := matchedReference(tx.RemittanceInfo, item.DocumentNumber, item.EntryNumber); reference != "" {
 		score += MatchScoreDocumentNumber
@@ -76,6 +91,20 @@ func ScoreMatch(tx MatchTransaction, item MatchItem) (int, []string) {
 		reasons = append(reasons, "Die Fälligkeit liegt nahe am Buchungstag.")
 	}
 	return score, reasons
+}
+
+// MatchedReference liefert die erste der Nummern, die im Verwendungszweck
+// steht, oder "". Nummern unter vier Zeichen zählen nicht.
+func MatchedReference(remittance string, numbers ...string) string {
+	if len(numbers) == 0 {
+		return ""
+	}
+	for _, n := range numbers {
+		if ref := matchedReference(remittance, n, ""); ref != "" {
+			return ref
+		}
+	}
+	return ""
 }
 
 // matchedReference liefert die im Verwendungszweck gefundene Nummer oder "".

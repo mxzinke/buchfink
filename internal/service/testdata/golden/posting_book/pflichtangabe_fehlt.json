@@ -1,0 +1,12 @@
+{
+  "audit": [],
+  "entry": null,
+  "error": "der Vorsteuerabzug setzt eine Rechnung mit allen Pflichtangaben voraus (§ 15 Abs. 1 Satz 1 Nr. 1 i. V. m. §§ 14, 14a UStG). Es fehlt: die vom Finanzamt erteilte Steuernummer oder die USt-IdNr. von Tankstelle Nord (§ 14 Abs. 4 Nr. 2 UStG).. Ergänzen Sie die Angabe, lassen Sie die Rechnung berichtigen, oder buchen Sie mit einem Grund, der festgehalten wird",
+  "journalEntryId": null,
+  "newEntries": 0,
+  "override": "",
+  "receiptHashUnchanged": true,
+  "serviceProof": "",
+  "serviceProofAt": "",
+  "status": "filed"
+}

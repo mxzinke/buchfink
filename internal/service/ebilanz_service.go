@@ -8,26 +8,19 @@ import (
 	"github.com/buchfink/buchfink/internal/ebilanz"
 )
 
-// AnlagenspiegelSource liefert die Entwicklung des Anlagevermögens.
-//
-// Der Export kennt die Anlagenbuchhaltung darüber und nicht weiter: er braucht
-// eine Auswertung, keine Kartei.
-type AnlagenspiegelSource interface {
-	Anlagenspiegel(ctx context.Context) (*domain.Anlagenspiegel, error)
+// AdjustmentSource liefert die Abweichungen der Steuerbilanz je Konto, aus
+// denen die Überleitungsrechnung der E-Bilanz entsteht.
+type AdjustmentSource interface {
+	Adjustments(ctx context.Context, year int) ([]ebilanz.Adjustment, error)
 }
 
-// EBilanzService erzeugt die XBRL-Instanz der E-Bilanz (§ 5b EStG).
-//
-// Sie entsteht aus derselben Gliederung wie die Bilanz auf dem Schirm. Bis
-// hierher war sie ein zweiter Weg zu denselben Zahlen — mit einer eigenen
-// Kontentabelle, die neunzig Konten kannte und alle übrigen still auf einer
-// Sammelposition ablegte. Zwei Wege zu einer Bilanz sind einer zu viel.
+// EBilanzService erzeugt die E-Bilanz (§ 5b EStG) aus derselben Gliederung wie
+// die Bilanz auf dem Schirm.
 type EBilanzService struct {
 	statementSvc *StatementService
 	settingsRepo domain.SettingsRepository
 	auditRepo    domain.AuditRepository
-	assets       AnlagenspiegelSource
-	fiscalYear   int
+	adjustments  AdjustmentSource
 }
 
 // NewEBilanzService wires the E-Bilanz export.
@@ -35,165 +28,240 @@ func NewEBilanzService(
 	statementSvc *StatementService,
 	settingsRepo domain.SettingsRepository,
 	auditRepo domain.AuditRepository,
-	fiscalYear int,
 ) *EBilanzService {
 	return &EBilanzService{
 		statementSvc: statementSvc,
 		settingsRepo: settingsRepo,
 		auditRepo:    auditRepo,
-		fiscalYear:   fiscalYear,
 	}
 }
 
-// SetAnlagenspiegelSource verdrahtet den Anlagenspiegel in den Export. Ohne sie
-// entsteht die Instanz wie sonst, nur ohne den Nachweis zum Anlagevermögen.
-func (s *EBilanzService) SetAnlagenspiegelSource(src AnlagenspiegelSource) { s.assets = src }
+// SetAdjustmentSource verdrahtet die Abweichungen der Steuerbilanz. Ohne sie
+// geht die Bilanz als Einheitsbilanz.
+func (s *EBilanzService) SetAdjustmentSource(src AdjustmentSource) { s.adjustments = src }
 
-// SetFiscalYear updates the active fiscal year.
-func (s *EBilanzService) SetFiscalYear(year int) { s.fiscalYear = year }
+// EBilanzOptions sind die Wahlrechte der Übermittlung.
+type EBilanzOptions struct {
+	// Kind ist die Bilanzart; leer heißt Jahresabschluss. Die
+	// Eröffnungsbilanz (ebilanz.KindOpening) steht auf den Gründungstag aus
+	// den Unternehmensdaten und gehört zum Geschäftsjahr, in das er fällt.
+	Kind ebilanz.Kind `json:"kind"`
+	// Version ist die Taxonomie; leer heißt Regelfassung für das
+	// Wirtschaftsjahr.
+	Version string `json:"version"`
+	// MicroBilG wählt die GuV der Kleinstkapitalgesellschaft (§ 275 Abs. 5 HGB).
+	MicroBilG bool `json:"microBilG"`
+	// Envelope bettet die Instanz in den Nutzdatenteil der ELSTER-Übermittlung.
+	Envelope bool `json:"envelope"`
+}
 
-// MappingReport ist der Zuordnungsbericht vor dem Export: welches Konto unter
-// welcher Gliederungsposition und welchem Taxonomie-Element erscheint, und was
-// die Erzeugung verhindert.
+// MappingReport ist der Prüfbericht vor dem Export: wohin jedes Konto geht und
+// was die Erzeugung verhindert.
 func (s *EBilanzService) MappingReport(ctx context.Context, year int) (*ebilanz.MappingReport, error) {
-	in, err := s.input(ctx, year)
+	res, err := s.Generate(ctx, year, EBilanzOptions{})
 	if err != nil {
 		return nil, err
 	}
-	return ebilanz.BuildMappingReport(in.FiscalYear, in.Statement, in.Accounts)
+	return res.Report, nil
 }
 
-// ExportXBRL erzeugt die Instanz für ein Geschäftsjahr.
-func (s *EBilanzService) ExportXBRL(ctx context.Context, year int) (string, error) {
-	in, err := s.input(ctx, year)
+// Generate prüft und erzeugt die E-Bilanz eines Geschäftsjahres oder seine
+// Eröffnungsbilanz, ohne sie zu protokollieren. Die Instanz ist leer, solange
+// Befunde sie verhindern.
+func (s *EBilanzService) Generate(ctx context.Context, year int, opts EBilanzOptions) (*ebilanz.Result, error) {
+	in, err := s.input(ctx, year, opts)
+	if err != nil {
+		return nil, err
+	}
+	return ebilanz.Generate(in)
+}
+
+// ExportXBRLWith erzeugt die Instanz mit den gewählten Wahlrechten.
+func (s *EBilanzService) ExportXBRLWith(ctx context.Context, year int, opts EBilanzOptions) (string, error) {
+	in, err := s.input(ctx, year, opts)
 	if err != nil {
 		return "", err
 	}
-
-	// Der Anlagenspiegel ist Bestandteil des Anhangs (§ 284 Abs. 3 HGB) und im
-	// Kontennachweis das, was den ausgewiesenen Buchwert erklärt. Scheitert seine
-	// Auswertung, entsteht die Instanz ohne ihn — eine E-Bilanz an einer nicht
-	// rechenbaren Kartei scheitern zu lassen hülfe niemandem.
-	if s.assets != nil {
-		in.Anlagenspiegel, _ = s.assets.Anlagenspiegel(ctx)
-	}
-	// Die Überleitungsrechnung gehört dazu, sobald Handels- und Steuerbilanz
-	// auseinanderfallen: die übermittelten Zahlen sind handelsrechtliche, und
-	// § 60 Abs. 2 EStDV verlangt die Überleitung, wo sie abweichen.
-	notes := s.statementSvc.Notes(ctx, in.FiscalYear)
-	if len(notes.Reconciliation.Rows) > 0 {
-		reconciliation := notes.Reconciliation
-		in.Reconciliation = &reconciliation
-	}
-
-	xbrl, _, err := ebilanz.GenerateEBilanzXBRL(in)
+	res, err := ebilanz.Generate(in)
 	if err != nil {
 		return "", err
 	}
-
-	_ = s.auditRepo.Log(
-		ctx,
-		domain.AuditActionExport,
-		"EBILANZ",
-		fmt.Sprintf("%d", in.FiscalYear),
-		fmt.Sprintf("E-Bilanz %d als XBRL-Instanz erzeugt", in.FiscalYear),
-	)
-	return xbrl, nil
+	if err := res.Report.BlockingError(); err != nil {
+		return "", err
+	}
+	instance := res.Instance
+	if opts.Envelope {
+		if instance, err = ebilanz.Envelope(instance, in.FiscalYearEnd); err != nil {
+			return "", err
+		}
+	}
+	entity, details := fmt.Sprintf("%d", year), fmt.Sprintf("E-Bilanz %d als XBRL-Instanz erzeugt (Taxonomie %s, %s)",
+		year, res.Version.Version, res.Report.AccountingStandard)
+	if in.Kind == ebilanz.KindOpening {
+		entity, details = in.ClosingDate, fmt.Sprintf(
+			"Eröffnungsbilanz zum %s als XBRL-Instanz erzeugt (Taxonomie %s, § 5b Abs. 1 Satz 4 EStG)",
+			germanDate(in.ClosingDate), res.Version.Version)
+	}
+	if err := logAudit(ctx, s.auditRepo, domain.AuditActionExport, "EBILANZ", entity, details); err != nil {
+		return "", err
+	}
+	return string(instance), nil
 }
 
-// ExportOpeningXBRL erzeugt die Instanz der Eröffnungsbilanz.
-//
-// Sie steht auf einen Stichtag statt auf ein Geschäftsjahr, hat keine Gewinn-
-// und Verlustrechnung — bis zum ersten Tag ist nichts erwirtschaftet — und kein
-// Vorjahr. Übermittelt wird sie trotzdem: die Eröffnungsbilanz ist eine Bilanz
-// im Sinne des § 5b Abs. 1 EStG.
-//
-// Weder Anlagenspiegel noch Überleitungsrechnung: am Tag der Beurkundung gibt es
-// kein Anlagevermögen, das sich bewegt hätte, und keine Abweichung zwischen
-// Handels- und Steuerbilanz, die überzuleiten wäre.
-func (s *EBilanzService) ExportOpeningXBRL(ctx context.Context, cutoff string) (string, error) {
-	if len(cutoff) != 10 {
-		return "", fmt.Errorf("der Stichtag fehlt oder ist unvollständig (erwartet JJJJ-MM-TT)")
+// ExportSuSaCSV erzeugt die Summen- und Saldenliste zur E-Bilanz mit
+// denselben Konten und Salden wie die Instanz (ebilanz.SuSaCSV).
+func (s *EBilanzService) ExportSuSaCSV(ctx context.Context, year int, opts EBilanzOptions) ([]byte, error) {
+	in, err := s.input(ctx, year, opts)
+	if err != nil {
+		return nil, err
 	}
-	if s.statementSvc == nil {
-		return "", fmt.Errorf("die Gliederung ist nicht verfügbar")
+	res, err := ebilanz.Generate(in)
+	if err != nil {
+		return nil, err
 	}
+	data, err := ebilanz.SuSaCSV(res)
+	if err != nil {
+		return nil, err
+	}
+	entity, details := fmt.Sprintf("%d", year),
+		fmt.Sprintf("E-Bilanz %d als Summen- und Saldenliste (CSV) erzeugt (Taxonomie %s)", year, res.Version.Version)
+	if in.Kind == ebilanz.KindOpening {
+		entity, details = in.ClosingDate, fmt.Sprintf(
+			"Eröffnungsbilanz zum %s als Summen- und Saldenliste (CSV) erzeugt (Taxonomie %s)",
+			germanDate(in.ClosingDate), res.Version.Version)
+	}
+	if err := logAudit(ctx, s.auditRepo, domain.AuditActionExport, "EBILANZ", entity, details); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func (s *EBilanzService) settings(ctx context.Context) (*domain.CompanySettings, error) {
 	settings, err := s.settingsRepo.GetCompanySettings(ctx)
 	if err != nil {
-		return "", fmt.Errorf("die Unternehmensdaten konnten nicht gelesen werden: %w", err)
+		return nil, fmt.Errorf("die Unternehmensdaten konnten nicht gelesen werden: %w", err)
 	}
-	stmt, err := s.statementSvc.StatementAt(ctx, cutoff, domain.DepthFull)
-	if err != nil {
-		return "", err
-	}
-	accounts, err := s.statementSvc.AccountsAt(ctx, cutoff)
-	if err != nil {
-		return "", err
-	}
-
-	in := ebilanz.InstanceInput{
-		Settings: settings, Statement: stmt, Accounts: accounts,
-		FiscalYear: stmt.FiscalYear,
-		// Beide Daten auf den Stichtag: der Berichtszeitraum der Eröffnungsbilanz
-		// ist der eine Tag, an dem das Handelsgewerbe beginnt.
-		StartDate: cutoff, EndDate: cutoff,
-		Kind: ebilanz.KindEroeffnungsbilanz,
-	}
-
-	xbrl, _, err := ebilanz.GenerateEBilanzXBRL(in)
-	if err != nil {
-		return "", err
-	}
-
-	_ = s.auditRepo.Log(
-		ctx,
-		domain.AuditActionExport,
-		"EBILANZ",
-		cutoff,
-		fmt.Sprintf("Eröffnungsbilanz auf den %s als XBRL-Instanz erzeugt (§ 5b Abs. 1 EStG)", cutoff),
-	)
-	return xbrl, nil
+	return settings, nil
 }
 
-// input beschafft alles, was in die Instanz eingeht.
-func (s *EBilanzService) input(ctx context.Context, year int) (ebilanz.InstanceInput, error) {
-	if year <= 0 {
-		year = s.fiscalYear
+// input beschafft alles, was in die E-Bilanz eines Geschäftsjahres oder
+// seine Eröffnungsbilanz eingeht.
+func (s *EBilanzService) input(ctx context.Context, year int, opts EBilanzOptions) (ebilanz.Input, error) {
+	if err := requireYear(year); err != nil {
+		return ebilanz.Input{}, err
 	}
 	if s.statementSvc == nil {
-		return ebilanz.InstanceInput{}, fmt.Errorf("die Gliederung ist nicht verfügbar")
+		return ebilanz.Input{}, fmt.Errorf("die Gliederung ist nicht verfügbar")
 	}
-
-	settings, err := s.settingsRepo.GetCompanySettings(ctx)
+	settings, err := s.settings(ctx)
 	if err != nil {
-		return ebilanz.InstanceInput{}, fmt.Errorf("die Unternehmensdaten konnten nicht gelesen werden: %w", err)
+		return ebilanz.Input{}, err
 	}
-
-	// Immer die volle Gliederung: die E-Bilanz kennt die Erleichterungen des
-	// § 266 Abs. 1 HGB nicht, sie will jede Position.
+	switch opts.Kind {
+	case "", ebilanz.KindAnnual:
+	case ebilanz.KindOpening:
+		return s.openingInput(ctx, year, settings, opts)
+	default:
+		return ebilanz.Input{}, fmt.Errorf("unbekannte Bilanzart %q (erwartet %s oder %s)",
+			opts.Kind, ebilanz.KindAnnual, ebilanz.KindOpening)
+	}
 	stmt, err := s.statementSvc.Statement(ctx, year, domain.DepthFull)
 	if err != nil {
-		return ebilanz.InstanceInput{}, err
+		return ebilanz.Input{}, err
 	}
 	accounts, err := s.statementSvc.Accounts(ctx, year)
 	if err != nil {
-		return ebilanz.InstanceInput{}, err
+		return ebilanz.Input{}, err
 	}
-
-	in := ebilanz.InstanceInput{
-		Settings: settings, Statement: stmt, Accounts: accounts, FiscalYear: year,
-		StartDate: fmt.Sprintf("%d-01-01", year), EndDate: fmt.Sprintf("%d-12-31", year),
-		Kind: ebilanz.KindJahresabschluss,
+	fy, err := s.statementSvc.period(ctx, year)
+	if err != nil {
+		return ebilanz.Input{}, err
 	}
-	if fy, err := s.statementSvc.period(ctx, year); err == nil {
-		in.StartDate, in.EndDate = fy.StartDate, fy.EndDate
+	in := ebilanz.Input{
+		Settings: settings, Statement: stmt, Accounts: accounts, Kind: ebilanz.KindAnnual,
+		FiscalYearBegin: fy.StartDate, FiscalYearEnd: fy.EndDate,
+		Version: opts.Version, MicroBilG: opts.MicroBilG,
 	}
-	if stmt.HasPrior {
-		in.PriorStartDate = fmt.Sprintf("%d-01-01", year-1)
-		in.PriorEndDate = fmt.Sprintf("%d-12-31", year-1)
-		if fy, err := s.statementSvc.period(ctx, year-1); err == nil {
-			in.PriorStartDate, in.PriorEndDate = fy.StartDate, fy.EndDate
+	if sizeClass, err := s.statementSvc.SizeClassFor(ctx, year); err == nil && sizeClass != nil {
+		in.SizeClass = sizeClass.Class
+	}
+	if s.adjustments != nil {
+		if in.Adjustments, err = s.adjustments.Adjustments(ctx, year); err != nil {
+			return ebilanz.Input{}, fmt.Errorf("die Abweichungen der Steuerbilanz ließen sich nicht ermitteln: %w", err)
 		}
 	}
+
+	// Vorjahr: Daten für die Stammdaten, Eigenkapital für den
+	// Betriebsvermögensvergleich. Im Gründungsjahr ist das Vorjahresvermögen
+	// null; ohne Vorjahr in den Büchern bleibt es unbekannt.
+	switch {
+	case settings.FoundedOn != "" && settings.FoundedOn >= fy.StartDate:
+		zero := domain.Cents(0)
+		in.PriorEquity, in.PriorPaidIn = &zero, &zero
+	case stmt.HasPrior:
+		if prior, err := s.statementSvc.period(ctx, year-1); err == nil {
+			in.PriorFiscalYearBegin, in.PriorFiscalYearEnd = prior.StartDate, prior.EndDate
+		}
+		var equity, paidIn domain.Cents
+		if line := stmt.Line("passiva.A"); line != nil {
+			equity = line.PriorAmount
+		}
+		for _, key := range []string{"passiva.A.I", "passiva.A.II"} {
+			if line := stmt.Line(key); line != nil {
+				paidIn += line.PriorAmount
+			}
+		}
+		// Steuerlich zählt das Eigenkapital nach Überleitung.
+		for _, adj := range in.Adjustments {
+			equity += adj.Prior
+		}
+		in.PriorEquity, in.PriorPaidIn = &equity, &paidIn
+	}
 	return in, nil
+}
+
+// openingInput beschafft die Eröffnungsbilanz (§ 242 Abs. 1 HGB): Bilanz ohne
+// GuV auf den Gründungstag, mit der E-Bilanz zu übermitteln nach § 5b Abs. 1
+// Satz 4 EStG. Sie entsteht aus den Buchungen bis zu diesem Tag und gehört zum
+// Geschäftsjahr, in das er fällt.
+func (s *EBilanzService) openingInput(
+	ctx context.Context, year int, settings *domain.CompanySettings, opts EBilanzOptions,
+) (ebilanz.Input, error) {
+	cutoff, err := openingBalanceDate(settings)
+	if err != nil {
+		return ebilanz.Input{}, err
+	}
+	stmt, err := s.statementSvc.StatementAt(ctx, cutoff, domain.DepthFull)
+	if err != nil {
+		return ebilanz.Input{}, err
+	}
+	if stmt.FiscalYear != year {
+		return ebilanz.Input{}, fmt.Errorf("die Eröffnungsbilanz zum %s gehört zum Geschäftsjahr %d",
+			germanDate(cutoff), stmt.FiscalYear)
+	}
+	accounts, err := s.statementSvc.AccountsAt(ctx, cutoff)
+	if err != nil {
+		return ebilanz.Input{}, err
+	}
+	if !anyBalance(accounts) {
+		return ebilanz.Input{}, fmt.Errorf("zum %s steht keine Buchung in den Büchern; die Eröffnungsbilanz "+
+			"entsteht aus den Gründungsbuchungen", germanDate(cutoff))
+	}
+	fy, err := s.statementSvc.period(ctx, year)
+	if err != nil {
+		return ebilanz.Input{}, err
+	}
+	return ebilanz.Input{
+		Settings: settings, Statement: stmt, Accounts: accounts, Kind: ebilanz.KindOpening,
+		ClosingDate: cutoff, FiscalYearBegin: cutoff, FiscalYearEnd: fy.EndDate, Version: opts.Version,
+	}, nil
+}
+
+func anyBalance(accounts []domain.Account) bool {
+	for _, a := range accounts {
+		if a.Balance != 0 {
+			return true
+		}
+	}
+	return false
 }

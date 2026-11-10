@@ -1,0 +1,9 @@
+{
+  "gruende": [
+    {
+      "schluessel": "betraege_weichen_ab",
+      "text": "Netto je Steuersatz oder Brutto weichen von der E-Rechnung ab (Brutto 119,00 € statt 119,00 €)."
+    }
+  ],
+  "stufe": "rueckfrage"
+}

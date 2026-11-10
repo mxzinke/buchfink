@@ -89,6 +89,9 @@ func (s *BankService) PreviewFile(ctx context.Context, path string) (*BankImport
 // ConfigureAccounts keeps every IBAN on one ledger account. Reassigning booked
 // history requires an explicit accounting correction, not a settings edit.
 func (s *BankService) ConfigureAccounts(ctx context.Context, accounts []domain.BankAccount) error {
+	if err := requireHuman(ctx, "Die Einrichtung der Bankkonten"); err != nil {
+		return err
+	}
 	if s.accounts == nil || s.txRunner == nil {
 		return fmt.Errorf("Bankkontoeinrichtung ist nicht verfügbar")
 	}
@@ -98,9 +101,11 @@ func (s *BankService) ConfigureAccounts(ctx context.Context, accounts []domain.B
 			return err
 		}
 		byIBAN, byLedger := map[string]domain.BankAccount{}, map[string]string{}
+		stored := map[string]domain.BankAccount{}
 		for _, k := range known {
 			byIBAN[k.IBAN] = k
 			byLedger[k.LedgerAccount] = k.IBAN
+			stored[k.IBAN] = k
 		}
 		historical, err := s.bankRepo.FindAll(ctx, 0)
 		if err != nil {
@@ -159,6 +164,8 @@ func (s *BankService) ConfigureAccounts(ctx context.Context, accounts []domain.B
 			// Das Rechnungskonto wechselt nur über SetInvoiceAccount. Ein
 			// Importdialog, der die Markierung nicht kennt, nimmt sie nicht weg.
 			input.IsInvoiceAccount = byIBAN[input.IBAN].IsInvoiceAccount
+			// Der Anschluss der Auszüge ist kein Eingabefeld der Einrichtung.
+			input.ClosingBalance, input.ClosingDate = stored[input.IBAN].ClosingBalance, stored[input.IBAN].ClosingDate
 			if !hasInvoiceAccount {
 				input.IsInvoiceAccount, hasInvoiceAccount = true, true
 			}
@@ -177,6 +184,9 @@ func (s *BankService) ConfigureAccounts(ctx context.Context, accounts []domain.B
 // SetInvoiceAccount legt das Bankkonto fest, dessen Verbindung auf Rechnungen
 // steht, und nimmt die Markierung von jedem anderen.
 func (s *BankService) SetInvoiceAccount(ctx context.Context, iban string) error {
+	if err := requireHuman(ctx, "Die Wahl des Rechnungskontos"); err != nil {
+		return err
+	}
 	if s.accounts == nil || s.txRunner == nil {
 		return fmt.Errorf("Bankkontoeinrichtung ist nicht verfügbar")
 	}

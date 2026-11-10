@@ -23,9 +23,9 @@ Satz ist, gehört in den Detaildialog hinter „Mehr erfahren“.
 | Hinweisstreifen | ein Satz |
 | Tabellenzelle | kein Erklärtext, nie |
 
-Alles darüber gehört in eine Erklärung nach [Abschnitt 15.2](#152-tooltip-und-detaildialog). Wer beim Schreiben merkt, dass
-ein Absatz nötig wäre, hat entweder die Oberfläche zu erklärungsbedürftig gebaut
-oder schreibt gerade Dokumentation an der falschen Stelle.
+Alles darüber gehört in eine Erklärung nach [Abschnitt 15.2](#152-tooltip-und-detaildialog).
+Braucht ein Text einen Absatz, ist die Oberfläche zu erklärungsbedürftig, oder
+der Text gehört in die Dokumentation.
 
 ### 15.2 Tooltip und Detaildialog
 
@@ -36,18 +36,23 @@ sichtbar und erklärt, wie er behoben werden kann.
 | Ort | Inhalt | Auslöser |
 |---|---|---|
 | Fragezeichen | Ein kurzer Satz in einfachen Worten, ohne Normen oder Links | Hover, Tastaturfokus oder Klick |
-| Detaildialog | Verständliche Hintergründe, Beispiele und verlinkte Rechtsgrundlagen | Dezenter Button „Mehr erfahren“ neben dem Fragezeichen |
+| Detaildialog | Verständliche Hintergründe, Beispiele und verlinkte Rechtsgrundlagen | Dezenter Button „Mehr erfahren“ unter dem Kurztext |
 
-Jedes Fragezeichen verwendet `Help`. Der Tooltip enthält keine interaktiven
-Elemente. Der getrennte Button öffnet einen Dialog; Escape schließt ihn und
-gibt den Fokus zurück. Das funktioniert auch innerhalb eines Eingabedialogs.
-Eine begonnene Eingabe bleibt dabei erhalten.
+Jedes Fragezeichen verwendet `Help`. Es öffnet ein kleines Popover mit dem
+Kurztext. Gibt es Details, steht darunter der Button „Mehr erfahren“, sonst
+enthält das Popover kein Bedienelement. Ein eigener Button neben jedem
+Fragezeichen stünde in jeder Überschrift und jedem Feld und wäre genau der
+Text, den die Arbeitsansicht vermeiden soll.
 
-`summary` ist der Kurztext. `children` enthält die Details; `onMore` öffnet bei
-Bedarf einen eigenen Dialog mit Tabellen oder Beispielen. `Field`, `Section`
+Über den Tastaturfokus geöffnet, bleibt der Fokus am Fragezeichen; Enter führt
+zu „Mehr erfahren“, Escape schließt. Der Detaildialog gibt den Fokus beim
+Schließen an das Fragezeichen zurück. Das funktioniert auch innerhalb eines
+Eingabedialogs. Eine begonnene Eingabe bleibt dabei erhalten.
+
+Der Kurztext ist `summary`, die Details sind `children` oder öffnen über
+`onMore` einen eigenen Dialog mit Tabellen oder Beispielen. `Field`, `Section`
 und `PageHeader` reichen `helpSummary` und `explain` an dieselbe Hilfe weiter.
-Das Zeichen steht hinter der Beschriftung. Zusammengehörige Inhalte haben ein
-Fragezeichen, das Layout darf bei langen Beschriftungen umbrechen.
+Das Zeichen steht hinter der Beschriftung.
 
 `LegalText.tsx` verlinkt erkannte Gesetzesverweise in Dialogen mit Gesetze im
 Internet, GoBD mit dem amtlichen Handbuch und DSGVO-Verweise mit EUR-Lex.

@@ -178,13 +178,6 @@ func TestReversedProvisionCannotBeReleasedOrConsumed(t *testing.T) {
 		t.Error("eine stornierte Rückstellung darf nicht aufgelöst werden")
 	}
 
-	if _, err := m.provisions.BookConsumption(ctx, ProvisionChangeRequest{
-		ProvisionID: provision.ID, Amount: 100_000, Date: "2027-03-31",
-		PaymentAccount: domain.AccountBank, Reason: "Rechnung der Kanzlei",
-	}); err == nil {
-		t.Error("eine stornierte Rückstellung darf nicht verbraucht werden")
-	}
-
 	if _, _, err := m.provisions.ConsumptionSplit(ctx, provision.ID, 100_000); err == nil {
 		t.Error("der Belegweg darf nicht gegen eine stornierte Rückstellung buchen")
 	}
@@ -302,19 +295,13 @@ func TestClosingModulesReturnEmptyListsNotNull(t *testing.T) {
 	}
 	assertNoNilSlices(t, "Zinsmonate", months)
 
-	inventory, err := m.bookings.InventoryAccounts(ctx, 2026)
-	if err != nil {
-		t.Fatalf("Vorratskonten: %v", err)
-	}
-	assertNoNilSlices(t, "Vorratskonten", inventory)
-
 	settlement, err := m.bookings.PreviewVatSettlement(ctx, 2026)
 	if err != nil {
 		t.Fatalf("Umsatzsteuer-Verrechnung: %v", err)
 	}
 	assertNoNilSlices(t, "Umsatzsteuer-Verrechnung", settlement)
 
-	taxProvision, err := m.bookings.PreviewTaxProvision(ctx, 2026)
+	taxProvision, err := m.bookings.PreviewTaxProvision(ctx, 2026, TaxProvisionOptions{TradeTaxRatePercent: 400})
 	if err != nil {
 		t.Fatalf("Steuerrückstellung: %v", err)
 	}
@@ -358,14 +345,6 @@ func TestClosingPreviewsReturnEmptyListsNotNull(t *testing.T) {
 	env := newTestEnv(t)
 	m := env.closingModules(t)
 	ctx := context.Background()
-
-	inventory, err := m.bookings.PreviewInventory(ctx, InventoryRequest{
-		Account: "1140", FiscalYear: 2026,
-	})
-	if err != nil {
-		t.Fatalf("Vorschau Inventurwert: %v", err)
-	}
-	assertNoNilSlices(t, "Vorschau Inventurwert", inventory)
 
 	appropriation, err := m.appropriation.PreviewAppropriation(ctx, 2026, AppropriationRequest{})
 	if err != nil {

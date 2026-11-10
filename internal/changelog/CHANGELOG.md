@@ -10,6 +10,98 @@ Das Format ist Teil der Schnittstelle: `internal/changelog` liest die
 Zusammenfassung und jeden Strichpunkt als Änderung. Der Text einer Fassung ist
 zugleich der Text ihrer Veröffentlichung.
 
+## v0.3.0 — 2026-11-10
+
+Ab dieser Fassung führt ein KI-Agent die Bücher über MCP; die App zeigt den
+Stand und nimmt die Freigaben an. Claude Code, Claude Desktop, OpenCode, Codex
+und Pi verbinden sich mit der laufenden App. Buchfink führt nur noch GmbH und
+UG. Mandanten aus v0.1 und v0.2 öffnet diese Fassung nicht, auch nicht aus
+einer Sicherung; ein Unternehmen wird neu angelegt.
+
+- Der MCP-Server läuft mit der App auf 127.0.0.1, Port 7465. Apps melden sich
+  über den OAuth-Server von Buchfink an und werden im Fenster von Buchfink je
+  Mandant zugelassen, mit den Rechten Lesen oder Buchen. Zulassung und Entzug
+  stehen im Änderungsprotokoll. Für Claude Desktop gibt es die Brücke
+  buchfink-mcp als Erweiterung (.mcpb).
+- App und Agent schreiben über denselben Kern. Jeder Schreibvorgang läuft mit
+  seinem Protokolleintrag in einer Transaktion; mit einem Idempotenzschlüssel
+  bucht eine Wiederholung nicht doppelt. Jede Buchung speichert den
+  Erfassungsweg: App, Hintergrundlauf oder verbundene App. Festschreibung,
+  Übermittlungsvermerk, Aufstellung, Feststellung, Offenlegung,
+  Pflichtbestätigungen, Unternehmensdaten und Prüfermodus nimmt Buchfink nur in
+  der App an. Was sich per Storno korrigieren lässt, bucht ein verbundener
+  Agent nach Zustimmung im Chat auf jedem Konto, auch Darlehensverträge mit
+  Gesellschaftern, die Ergebnisverwendung nach der Feststellung und die
+  Organisationstexte der Verfahrensdokumentation.
+- Belege, E-Rechnungen und Kontoauszüge kommen in einen Eingang je
+  Unternehmen, voreingestellt im Datenordner, auf Wunsch auch in einem
+  Cloud-Ordner. Dateien lassen sich ins Fenster ziehen. Der Agent legt sie ab,
+  wenn der Mensch es sagt; danach verschiebt Buchfink sie in den Unterordner
+  Übernommen. Liegt der Datenordner in einem synchronisierten Ordner, warnt die
+  Einrichtung.
+- Der Pflichtenkalender führt 23 Pflichtarten einer GmbH mit Frist und
+  Nachweis, darunter Aufstellung und E-Bilanz der Eröffnungsbilanz einer
+  Gründung. Die Fristen richten sich nach Bundesland, Dauerfristverlängerung
+  und steuerlicher Beratung.
+- Unternehmensdaten, Gesellschafter, Bankkonten und steuerliche Beratung
+  schlägt der Agent vor, etwa aus einem Schreiben des Finanzamts; der Mensch
+  übernimmt sie nach einer Vorschau in der App. Den ersten Kontoauszug eines
+  Kontos liest der Mensch ein, danach gelten die weiteren als geprüft, wenn die
+  Salden anschließen.
+- Eingangsbelege: Gutschriften von Lieferanten stehen als Guthaben in den
+  offenen Posten und lassen sich mit Rechnung oder Erstattung ausgleichen. Eine
+  reine XRechnung ist ohne PDF buchbar; die App zeigt sie als Ansicht aus dem
+  Datensatz. Kleinbetragsrechnung und Fahrausweis lassen sich mit
+  Bruttobeträgen buchen, die Steuer wird je Satz herausgerechnet
+  (§ 35 UStDV). Posten ohne Umsatzsteuer wie Trinkgeld oder Kurtaxe stehen mit
+  Grund im selben Beleg. Ein Schreiben ohne Buchung wird als Brief abgelegt,
+  der Vertrag eines Gesellschafterdarlehens gehört zum Darlehen. Die
+  Fälligkeit laut Beleg geht in den offenen Posten ein.
+- Fremdwährung: Die Umsatzsteuer rechnet Buchfink mit dem amtlichen
+  Monatskurs des Leistungsmonats um, den die App einliest, sonst mit dem
+  EZB-Kurs (§ 16 Abs. 6 UStG). Die realisierte Kursdifferenz beim Ausgleich
+  eines Postens und bei der Kartenabrechnung bucht Buchfink selbst auf
+  6880/4840 (§ 277 Abs. 5 Satz 2 HGB). Eine Kartenzahlung übernimmt den
+  tatsächlich belasteten Euro-Betrag.
+- Erhaltenes Skonto mindert das Konto, auf dem der Aufwand steht. Eine
+  Ausgangsrechnung bucht Buchfink zum Tag der Leistung. Bilanz, GuV und
+  Summen und Salden gibt es zu jedem Stichtag im Jahr.
+- Beteiligungen und Fonds: Kapitalerträge werden am Bankumsatz mit dem
+  Anlagegut gebucht und gehen mit § 8b KStG und der Teilfreistellung in die
+  Körperschaftsteuererklärung ein. Die Vorabpauschale eines Investmentanteils
+  hält Buchfink mit dem Basiszins fest.
+- Gründung: Die Eröffnungsbilanz gibt es als PDF zum Unterzeichnen und als
+  E-Bilanz; eine Unterbilanz zeigt Buchfink in den Stammdaten und dem Agenten.
+- KSt 1, GewSt 1 A und USt 2 A stellt Buchfink formularnah als Eingabehilfe für
+  Mein ELSTER zusammen, mit Herkunft je Wert und Export als JSON. Der
+  Zeilenkatalog gilt für das Vordruckjahr 2025. Die Zeilen von USt 2 A sind am
+  amtlichen Vordruck geprüft, die von KSt und GewSt nicht.
+- Die E-Bilanz entsteht als XBRL nach der amtlichen Taxonomie 6.9 oder 6.10,
+  mit Kontennachweis und Überleitung. Übermittelt wird sie über einen Dienst
+  wie ebilanzplus.de oder ebilanzonline.de. Ersatzweise schreibt Buchfink eine
+  Summen- und Saldenliste, die eBilanz+ einliest.
+- Neue Buchungswege: Bankumsatz aufteilen, Firmenkreditkarte, Auslagen,
+  Gesellschafterdarlehen mit Zinsen, Lohnjournal als Summenbuchung. Bei Zahlung
+  vor der Leistung rechnet Buchfink die Umsatzsteuer dem Zeitraum der Zahlung
+  zu (Mindest-Istversteuerung). Die Voranmeldung folgt dem Vordruck 2026.
+- Neue Abschlussbausteine: Wertberichtigung auf Forderungen, unfertige
+  Leistungen und eine Steuerrückstellung mit dem Körperschaftsteuersatz des
+  Jahres. Abschlussbuchungen gehören zu einer Abschlussperiode zwischen
+  Dezember- und Jahresfestschreibung.
+- Entfallen sind Verschlüsselung, Warenlieferungen ins Ausland samt
+  Belegnachweis, Vorräte, Kasse, Mahnschreiben, Dokumentenablage, die
+  Gründungsoberfläche und andere Rechtsformen; die buchhalterischen
+  Gründungsschritte bleiben. Den Schutz am Rechner übernimmt die
+  Festplattenverschlüsselung des Betriebssystems.
+- Bekannte Grenzen: Die Texte des Anhangs lassen sich noch nicht erfassen,
+  deshalb lässt sich ein Jahresabschluss nicht aufstellen. Die Zahlung auf
+  eine Abschlagsrechnung ordnet nur die App zu.
+- Die Veröffentlichung enthält die App für macOS, Windows und Linux, die Brücke
+  buchfink-mcp, die Erweiterung für Claude Desktop, die Skill-Pakete und
+  Prüfsummen. Nichts davon ist signiert. Buchfink übermittelt nichts selbst an
+  die Finanzverwaltung. Diese Vorschau ist keine Freigabe für den produktiven
+  Einsatz.
+
 ## v0.2 — 2026-09-13
 
 Diese Vorabversion verbessert Einrichtung, Bankimport und Jahresabschluss.

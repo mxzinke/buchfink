@@ -1,0 +1,6 @@
+{
+  "code": "nicht_gefunden",
+  "nachricht": "kontakt_id 999 gibt es nicht",
+  "naechster_schritt": "Die Kennung mit kontakte_suchen neu ermitteln.",
+  "werkzeug": "kontakte_suchen"
+}

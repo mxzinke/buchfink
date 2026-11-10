@@ -40,7 +40,7 @@ type BackupRun struct {
 	FinishedAt time.Time `json:"finishedAt"`
 
 	// Target ist der Pfad der erzeugten oder geprüften ZIP-Datei.
-	Target string `gorm:"size:500;serializer:encrypted" json:"target"`
+	Target string `gorm:"size:500" json:"target"`
 
 	FileCount int   `json:"fileCount"`
 	Bytes     int64 `json:"bytes"`
@@ -82,9 +82,6 @@ type BackupRunRepository interface {
 
 // FileCheckIssue ist ein Befund des Belegprüflaufs.
 type FileCheckIssue struct {
-	// Kind ist "receipt" für eine Belegdatei und "document" für ein
-	// Anlagendokument.
-	Kind          string `json:"kind"`
 	ReceiptNumber string `json:"receiptNumber,omitempty"`
 	FileName      string `json:"fileName"`
 	Path          string `json:"path"`

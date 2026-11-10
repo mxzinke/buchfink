@@ -1,13 +1,6 @@
 import React from 'react';
 import { Browser, System } from '@wailsio/runtime';
-
-/** Gesetzeskürzel und ihre Verzeichnisse bei Gesetze im Internet. */
-const STATUTES: Record<string, string> = {
-  AO: 'ao_1977', HGB: 'hgb', EStG: 'estg', EStDV: 'estdv_1955',
-  UStG: 'ustg_1980', UStDV: 'ustdv_1980', GmbHG: 'gmbhg', AktG: 'aktg',
-  BGB: 'bgb', KStG: 'kstg_1977', GewStG: 'gewstg', InvStG: 'invstg_2018',
-  SolZG: 'solzg_1995', InsO: 'inso', GwG: 'gwg_2017', GewO: 'gewo',
-};
+import { REFERENCE_SOURCE, STATUTES } from '../../utils/norms';
 
 export const GOBD_URL = 'https://amtliche-handbuecher.bundesfinanzministerium.de/ao/2025/Anhaenge/BMF-Schreiben-und-gleichlautende-Laendererlasse/Anhang-33/anhang-33.html';
 
@@ -29,11 +22,7 @@ export const SourceLink: React.FC<{ href: string; children: React.ReactNode }> =
   </a>
 );
 
-/** Erfasst nur Normverweise, keine normalen Sätze zwischen Paragraph und Kürzel. */
-const REFERENCE = new RegExp(
-  `§{1,2}\\s*(\\d+[a-z]?)(?:\\s*(?:Abs\\.|Absatz|Nr\\.|Satz|Sätze|S\\.|Buchst\\.|bis|und|ff\\.|[,–-]|\\d+[a-z]?|[a-e](?![a-z])|[IVX]+(?![a-z])))*\\s+(${Object.keys(STATUTES).join('|')})\\b|GoBD(?:\\s+Rz\\.?\\s*\\d+(?:\\s*ff\\.)?)?|Art\\.\\s*(\\d+)(?:\\s*(?:Abs\\.|Buchst\\.|\\d+|[a-z](?![a-z])))*\\s+DSGVO`,
-  'g',
-);
+const REFERENCE = new RegExp(REFERENCE_SOURCE, 'g');
 
 function linkText(value: string): React.ReactNode {
   const parts: React.ReactNode[] = [];

@@ -4,9 +4,10 @@
 
 ## 2. Leitidee: Stilles Kontor
 
-Buchfink ist Werkzeug, keine Bühne. Wer damit arbeitet, sitzt vier Stunden am
-Stück vor Journal und Kontenabgleich und sucht Abweichungen. Die Oberfläche hat
-dabei eine Aufgabe: nicht im Weg zu stehen.
+Buchfink ist Werkzeug, keine Bühne. Die Erfassung leistet meist ein KI-Agent;
+der Mensch kommt in die App, um den Stand zu sehen, Abweichungen zu suchen und
+freizugeben, was sich nicht rückgängig machen lässt. Die Oberfläche hat dabei
+eine Aufgabe: nicht im Weg zu stehen.
 
 **1. Ruhe ist Funktion, nicht Geschmack.**
 Jedes Element, das Aufmerksamkeit zieht, ohne sie zu verdienen, verlängert die
@@ -37,6 +38,14 @@ Die GoBD verlangt sichtbare Korrekturen. Das ist ein Gestaltungsprinzip, keine
 Last. Stornierte Buchungen werden markiert, nicht versteckt, und
 nie durchgestrichen.
 
+**6. Erst das Nötige, der Rest auf Anforderung.**
+Jede Ansicht beantwortet zuerst eine Frage: Was ist zu tun, stimmt der Stand?
+Die Antwort steht oben, als Zahl, Status oder Aufgabe. Einzelheiten wie
+Buchungszeilen, Prüfprotokoll, Rechtsgrundlage oder seltene Einstellungen
+liegen eine Ebene tiefer: aufklappbar, hinter einem Reiter, in einem Dialog
+oder hinter dem Erklärzeichen. Was der Mensch nicht entscheiden muss, steht
+nicht im Weg. Was er freigeben muss, steht nie in einer zugeklappten Ebene.
+
 ---
 
 ## 3. Farbe
@@ -44,33 +53,33 @@ nie durchgestrichen.
 ### 3.1 Papier und Tinte
 
 Warme Neutraltöne statt Grau. Grau wirkt technisch, warmes Papier passt zu
-Belegen und ermüdet bei langer Nutzung weniger.
+Belegen und ermüdet bei langer Nutzung weniger. Die Werte stehen in
+[`index.css`](../../frontend/src/index.css).
 
-| Token | Wert | Einsatz |
-|---|---|---|
-| `paper` | `#FAF8F5` | Standardgrund: Seiten, Tabellen, Abschnitte |
-| `surface` | `#FFFFFF` | Eingabefelder, Overlays, Belegvorschau |
-| `sunken` | `#F4F1EB` | Zeilen-Hover, gesperrte Perioden |
-| `line` | `#E9E4DC` | Haarlinie, Standardtrennung |
-| `line-strong` | `#D8D1C6` | Tabellenkopf, Summenlinie |
-| `control-border` | `#948E85` | Rahmen bedienbarer Elemente, 3,1:1 auf Papier |
-| `ink` | `#1C1917` | Primärtext, Primärbutton, 16,5:1 |
-| `ink-muted` | `#57514A` | Sekundärtext, 7,4:1 |
-| `ink-subtle` | `#756E65` | Labels, Metadaten, Tabellenkopf, 4,8:1 |
-| `ink-faint` | `#A79F94` | Deaktiviert, dekorative Icons, **nie Fließtext** |
+| Token | Einsatz |
+|---|---|
+| `paper` | Standardgrund: Seiten, Tabellen, Abschnitte |
+| `surface` | Eingabefelder, Overlays, Belegvorschau |
+| `sunken` | Zeilen-Hover, gesperrte Perioden |
+| `line` | Haarlinie, Standardtrennung |
+| `line-strong` | Tabellenkopf, Summenlinie |
+| `control-border` | Rahmen bedienbarer Elemente |
+| `ink` | Primärtext, Primärbutton |
+| `ink-muted` | Sekundärtext |
+| `ink-subtle` | Labels, Metadaten, Tabellenkopf |
+| `ink-faint` | Deaktiviert, dekorative Icons, **nie Fließtext** |
 
 `control-border` ist bewusst dunkler als die Haarlinien. Eine Haarlinie erreicht
 die von WCAG 1.4.11 geforderten 3:1 nicht, und ein Eingabefeld muss als bedienbar
 erkennbar sein. Struktur darf hell bleiben, Bedienelemente nicht.
 
-Die dunkle Navigationsspalte hat eine eigene Skala, damit sie als eigener Raum
-lesbar bleibt: `shell` `#24211E`, `shell-raised` `#2E2A26`, `shell-line`
-`#37322D`, `shell-text` `#D8D2CA`, `shell-text-muted` `#968E84`.
-
-Für die Statuszeile im Fuß der Navigation kommen zwei aufgehellte Signalfarben
-dazu, weil die Werte aus [Abschnitt 3.3](#33-die-vier-familien) für helles Papier gerechnet sind und auf der
-dunklen Fläche den Kontrast verlieren: `shell-positive` `#9BCFA6` (9,9:1) und
-`shell-negative` `#E8A79C` (8,7:1).
+Die dunkle Navigationsspalte hat mit `shell`, `shell-raised`, `shell-line`,
+`shell-text` und `shell-text-muted` eine eigene Skala, damit sie als eigener
+Raum lesbar bleibt. Die Signalfarben aus [Abschnitt 3.3](#33-die-vier-familien)
+sind für helles Papier gerechnet und verlieren auf der dunklen Fläche den
+Kontrast. Die Statuszeile im Fuß der Navigation nutzt deshalb `shell-positive`
+und `shell-negative`, ein Hinweis der Einrichtung, der nichts sperrt, etwa zur
+Ablage in einem Cloud-Ordner, `shell-attention`.
 
 ### 3.2 Vier Familien, vier Rollen
 
@@ -87,47 +96,12 @@ nicht pastellig. Die Trennung macht beides möglich.
 
 ### 3.3 Die vier Familien
 
-**Himmelblau** ist die Marke. Es steht für Vertrauen und Weite, und es ist die
-einzige Farbe, die etwas über Buchfink aussagt statt über einen Datensatz.
-
-| Token | Wert | Kontrast |
+| Familie | Token | Bedeutung |
 |---|---|---|
-| `accent` | `#4090C0` | 3,3:1 Marker |
-| `accent-text` | `#1D6A96` | 5,6:1 Text |
-| `accent-soft` | `#E8F2F9` | Fläche |
-| `accent-line` | `#93C1DF` | 1,8:1 Rand |
-| `accent-light` | `#8FC4E4` | 7,6:1 auf `shell-raised` |
-
-Einsatz: Wortmarke, aktiver Navigationseintrag, Fokusring, Links, Auswahl,
-Diagrammlinien.
-
-**Bernstein** heißt offen und zu erledigen. Aus dem Logo abgeleitet.
-
-| Token | Wert | Kontrast |
-|---|---|---|
-| `attention` | `#B37F33` | 3,3:1 |
-| `attention-text` | `#8A5A15` | 5,6:1 |
-| `attention-soft` | `#FBF0DE` | Fläche |
-| `attention-line` | `#D6B575` | 1,9:1 |
-
-**Salbei** heißt geprüft, abgestimmt, festgeschrieben, im Plus. Aus dem Logo
-abgeleitet.
-
-| Token | Wert | Kontrast |
-|---|---|---|
-| `positive` | `#5A9A6B` | 3,2:1 |
-| `positive-text` | `#2E6B3C` | 6,0:1 |
-| `positive-soft` | `#E6F1E8` | Fläche |
-| `positive-line` | `#93BF9F` | 1,9:1 |
-
-**Rosé** heißt Storno, Fehler, Integritätsbruch, im Minus.
-
-| Token | Wert | Kontrast |
-|---|---|---|
-| `negative` | `#C4736A` | 3,3:1 |
-| `negative-text` | `#A0453A` | 5,8:1 |
-| `negative-soft` | `#FAEBE8` | Fläche |
-| `negative-line` | `#DB9E93` | 2,1:1 |
+| Himmelblau | `accent` | die Marke: Wortmarke, aktiver Navigationseintrag, Fokusring, Links, Auswahl, Diagrammlinien. Die einzige Farbe, die etwas über Buchfink aussagt statt über einen Datensatz. `accent-light` gilt auf `shell-raised`. |
+| Bernstein | `attention` | offen und zu erledigen; aus dem Logo abgeleitet |
+| Salbei | `positive` | geprüft, abgestimmt, festgeschrieben, im Plus; aus dem Logo abgeleitet |
+| Rosé | `negative` | Storno, Fehler, Integritätsbruch, im Minus |
 
 ### 3.4 Regeln
 
@@ -150,16 +124,15 @@ abgeleitet.
 
 Das Logo zeigt einen Buchfinken in Bernstein und Grün. Die Marke der Oberfläche
 ist Himmelblau. Das ist kein Widerspruch, solange das Logo eine Illustration
-bleibt und keine Farbfläche. Wenn das Logo später eine blaue Fassung bekommen
-soll, ändert das an diesem Konzept nichts. Die Signalfarben Bernstein und Salbei
-stammen weiter aus dem Logo, ihre Bedeutung ist davon unabhängig.
+bleibt und keine Farbfläche. Bernstein und Salbei stammen aus dem Logo, ihre
+Bedeutung ist davon unabhängig.
 
 ---
 
 ## 4. Typografie
 
-Manrope ist die Schrift der Oberfläche, in sechs Stufen. Was nicht in diese Skala passt,
-ist ein Layoutproblem.
+Manrope ist die Schrift der Oberfläche, in sechs Stufen (Tokens in `index.css`).
+Was nicht in diese Skala passt, ist ein Layoutproblem.
 
 | Token | Größe / Zeilenhöhe | Gewicht | Einsatz |
 |---|---|---|---|
@@ -170,9 +143,8 @@ ist ein Layoutproblem.
 | `text-caption` | 11 / 15 px | 400 | Hilfstexte, Metadaten, Zeitstempel |
 | `text-overline` | 10 / 14 px | 600, 0,08 em, Versalien | Gruppenlabels in der Navigation |
 
-Bisher war `text-xs` (12 px) der Standard für fast alles. 13 px im Fließtext ist
-bei stundenlanger Arbeit spürbar angenehmer, ohne dass die Dichte leidet. 9 px
-entfällt ersatzlos.
+13 px im Fließtext bleibt bei langer Arbeit angenehm, ohne dass die Dichte
+leidet. Kleiner als 10 px wird nichts gesetzt.
 
 Gewichte: 400 für Text, 500 für Labels, 600 für Überschriften und Summen. 700 und
 800 kommen nicht vor, Manrope wird in diesen Schnitten laut.
@@ -213,12 +185,12 @@ Alles ist ein Vielfaches von 4 px. Erlaubt: 4, 8, 12, 16, 24, 32, 48, 64.
 Da Abschnitte keine Rahmen mehr haben, übernimmt der Abstand die Gliederung allein.
 Zu knapper Weißraum fällt sofort auf. Im Zweifel die nächstgrößere Stufe.
 
-Dichte, umschaltbar in den Einstellungen und pro Mandant gespeichert:
+Die `Table` kennt zwei Dichten (`density`):
 
 | Stufe | Zeilenhöhe | Einsatz |
 |---|---|---|
-| Kompakt | 32 px | Journal, Kontenabgleich, SuSa |
-| Komfortabel | 40 px | Standard, Stammdaten, alles mit Bearbeitungsaktionen |
+| `kompakt` | 32 px | Journal, Kontenabgleich, SuSa |
+| `komfortabel` | 40 px | Standard, Stammdaten, alles mit Bearbeitungsaktionen |
 
 Berührungsziele bleiben mindestens 32 mal 32 px, auf Touch-Geräten 44 mal 44 px.
 Eine Ausnahme: das Erklärzeichen aus [Abschnitt 15.2](hilfetexte.md#152-tooltip-und-detaildialog) hat auf dem Desktop 24 mal 24 px. Es
@@ -290,7 +262,7 @@ ist das leiseste Trennmittel und deshalb das erste.
 | Token | Wert | Einsatz |
 |---|---|---|
 | `rounded-control` | 6 px | Buttons, Felder, Chips, Badges, Hinweise |
-| `rounded-card` | 10 px | Datentabellen, Belegvorschau |
+| `rounded-card` | 10 px | Datentabellen, Belegvorschau, Leerzustand |
 | `rounded-overlay` | 14 px | Dialoge, Popover, Dropdowns |
 | `rounded-full` | | Avatare, Zähler-Pills |
 
@@ -311,7 +283,7 @@ Pseudo-Element.
 | `shadow-popover` | Dropdowns, Popover, Tooltips, Kontextmenüs |
 | `shadow-dialog` | modale Dialoge |
 
-`shadow-xs`, `shadow-sm` und `shadow-xl` verschwinden aus dem Code. Ein Schatten
+Die Tailwind-Schatten `shadow-xs`, `shadow-sm` und `shadow-xl` kommen nicht vor. Ein Schatten
 bedeutet, dass ein Element über der Seite schwebt, nicht dass es wichtig ist.
 
 ---
@@ -350,20 +322,10 @@ umgesetzt. Der Ladeindikator wird dann zu einem statischen Text.
 
 ## 16. Dunkelmodus
 
-Vorbereitet, nicht Teil der ersten Umsetzung. Da alle Farben über Tokens laufen,
-genügt ein zweiter Wertesatz unter `[data-theme="dark"]`. `paper` wird `#1B1917`,
-`surface` wird `#24211E`, die Tinte-Skala kehrt sich um.
-
-Die vier Familien brauchen aufgehellte Werte, weil die dunklen Töne auf dunklem
-Grund den Kontrast verlieren:
-
-| Familie | `-text` | Basis | `-soft` | `-line` |
-|---|---|---|---|---|
-| Himmelblau | `#8FC4E4` | `#5FA5CE` | `#1B2F3C` | `#2E4A5C` |
-| Bernstein | `#E3B77E` | `#C89043` | `#322718` | `#4C3A1F` |
-| Salbei | `#9BCFA6` | `#6FAE80` | `#1D2C21` | `#33513A` |
-| Rosé | `#E8A79C` | `#C6837A` | `#32211E` | `#56342E` |
-
-Bedingung für den Start: kein Hex-Literal mehr im Komponentencode.
+Es gibt keinen Dunkelmodus. Da alle Farben über Tokens laufen, genügt später ein
+zweiter Wertesatz unter `[data-theme="dark"]`; die Familien brauchen dann
+aufgehellte Werte, weil die dunklen Töne auf dunklem Grund den Kontrast
+verlieren. Bedingung dafür: kein Hex-Literal im Komponentencode. `task
+check:design` erzwingt das.
 
 ---

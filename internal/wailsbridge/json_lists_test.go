@@ -25,7 +25,7 @@ import (
 // Netz.
 func TestNoBridgeMethodReturnsANilList(t *testing.T) {
 	methods := bridgeListMethods(t)
-	if len(methods) < 50 {
+	if len(methods) < 30 {
 		t.Fatalf("nur %d listenliefernde Bridge-Methoden gefunden — der Test liest den Quelltext offenbar nicht mehr richtig",
 			len(methods))
 	}

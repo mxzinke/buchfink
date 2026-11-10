@@ -9,7 +9,14 @@ import (
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/ebilanz"
 )
+
+// TaxRegisterPeriods liefert die benötigten Jahresdaten.
+type TaxRegisterPeriods interface {
+	PeriodSource
+	FiscalYears(context.Context) ([]domain.FiscalYear, error)
+}
 
 // TaxRegisterService führt das Verzeichnis nach § 5 Abs. 1 Satz 2 EStG und die
 // Überleitungsrechnung zur Steuerbilanz.
@@ -32,16 +39,15 @@ import (
 // Gebucht wird in beiden Fällen nichts. Die Überleitung ist eine Rechnung neben
 // der Bilanz, keine zweite Buchführung.
 type TaxRegisterService struct {
+	fiscalCalendar
 	assetRepo     domain.AssetRepository
 	provisionRepo domain.ProvisionRepository
 	// journalRepo wird nur gelesen, und nur für eine Frage: ob die Buchung
 	// einer Rückstellungsbewegung per Generalumkehr zurückgenommen wurde. Eine
 	// stornierte Bildung gehört in keine Überleitung — sie steht auch in keiner
 	// Bilanz mehr.
-	journalRepo  domain.JournalRepository
-	settingsRepo domain.SettingsRepository
-	closingSvc   *ClosingService
-	fiscalYear   int
+	journalRepo domain.JournalRepository
+	periods     TaxRegisterPeriods
 }
 
 // NewTaxRegisterService wires das Verzeichnis und die Überleitung.
@@ -50,17 +56,14 @@ func NewTaxRegisterService(
 	provisionRepo domain.ProvisionRepository,
 	journalRepo domain.JournalRepository,
 	settingsRepo domain.SettingsRepository,
-	closingSvc *ClosingService,
-	fiscalYear int,
+	periods TaxRegisterPeriods,
 ) *TaxRegisterService {
 	return &TaxRegisterService{
 		assetRepo: assetRepo, provisionRepo: provisionRepo, journalRepo: journalRepo,
-		settingsRepo: settingsRepo, closingSvc: closingSvc, fiscalYear: fiscalYear,
+		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo},
+		periods:        periods,
 	}
 }
-
-// SetFiscalYear schaltet das aktive Geschäftsjahr um.
-func (s *TaxRegisterService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // TaxElectionYear ist ein Jahr im Verzeichnis: handelsrechtliche und
 // steuerliche Abschreibung nebeneinander.
@@ -109,8 +112,8 @@ type TaxElectionRegister struct {
 
 // Register stellt das Verzeichnis bis zum Ende eines Geschäftsjahres zusammen.
 func (s *TaxRegisterService) Register(ctx context.Context, year int) (*TaxElectionRegister, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	assets, err := s.assetRepo.FindAll(ctx)
 	if err != nil {
@@ -214,17 +217,6 @@ func (s *TaxRegisterService) Register(ctx context.Context, year int) (*TaxElecti
 	return register, nil
 }
 
-func (s *TaxRegisterService) fiscalYearStartMonth(ctx context.Context) int {
-	if s.settingsRepo == nil {
-		return 1
-	}
-	settings, err := s.settingsRepo.GetCompanySettings(ctx)
-	if err != nil || settings == nil || settings.FiscalYearStartMonth <= 0 {
-		return 1
-	}
-	return settings.FiscalYearStartMonth
-}
-
 // RegisterCSV gibt das Verzeichnis als CSV aus — eine Zeile je Wirtschaftsgut
 // und Jahr, weil das Verzeichnis „laufend zu führen" ist und der Prüfer die
 // Jahre nebeneinander sehen will.
@@ -266,10 +258,10 @@ type (
 
 // Reconcile stellt die Überleitungsrechnung zusammen.
 func (s *TaxRegisterService) Reconcile(ctx context.Context, year int) (*Reconciliation, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
-	fy, err := s.closingSvc.PeriodOf(ctx, year)
+	fy, err := s.periods.PeriodOf(ctx, year)
 	if err != nil {
 		return nil, err
 	}
@@ -355,6 +347,115 @@ func (s *TaxRegisterService) Reconcile(ctx context.Context, year int) (*Reconcil
 	return out, nil
 }
 
+// Adjustments liefert die Abweichungen der Steuerbilanz je Konto für die
+// Überleitungsrechnung der E-Bilanz (§ 5b Abs. 1 Satz 2 EStG): dieselben drei
+// Fälle wie Reconcile, am Stichtag des Jahres und des Vorjahres.
+func (s *TaxRegisterService) Adjustments(ctx context.Context, year int) ([]ebilanz.Adjustment, error) {
+	if err := requireYear(year); err != nil {
+		return nil, err
+	}
+	current, err := s.adjustmentsAt(ctx, year)
+	if err != nil {
+		return nil, err
+	}
+	// Ein Vorjahr, das es nicht gibt, hat keine Abweichung.
+	prior, _ := s.adjustmentsAt(ctx, year-1)
+	keys := map[string]bool{}
+	for key := range current {
+		keys[key] = true
+	}
+	for key := range prior {
+		keys[key] = true
+	}
+	out := make([]ebilanz.Adjustment, 0, len(keys))
+	for key := range keys {
+		adj := current[key]
+		if adj.Account == "" {
+			adj = prior[key]
+			adj.Current = 0
+		}
+		adj.Prior = prior[key].Current
+		if adj.Current != 0 || adj.Prior != 0 {
+			out = append(out, adj)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Account != out[j].Account {
+			return out[i].Account < out[j].Account
+		}
+		return out[i].Reason < out[j].Reason
+	})
+	return out, nil
+}
+
+// adjustmentsAt sind die Abweichungen am Ende eines Jahres als Sollsaldo
+// (steuerlich minus handelsrechtlich), je Anlass und Konto zusammengefasst.
+func (s *TaxRegisterService) adjustmentsAt(ctx context.Context, year int) (map[string]ebilanz.Adjustment, error) {
+	if year < 1 {
+		return nil, nil
+	}
+	fy, err := s.periods.PeriodOf(ctx, year)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]ebilanz.Adjustment{}
+	add := func(reason, account, income string, diff domain.Cents) {
+		if diff == 0 || account == "" {
+			return
+		}
+		key := reason + "|" + account + "|" + income
+		adj := out[key]
+		adj.Reason, adj.Account, adj.IncomeAccount = reason, account, income
+		adj.Current += diff
+		out[key] = adj
+	}
+
+	register, err := s.Register(ctx, year)
+	if err != nil {
+		return nil, err
+	}
+	if len(register.Rows) > 0 {
+		assets, err := s.assetRepo.FindAll(ctx)
+		if err != nil {
+			return nil, err
+		}
+		byID := map[uint]*domain.FixedAsset{}
+		for i := range assets {
+			byID[assets[i].ID] = &assets[i]
+		}
+		for _, row := range register.Rows {
+			if asset := byID[row.AssetID]; asset != nil {
+				add("Sonderabschreibung § 7g Abs. 5 EStG", asset.Account, asset.SpecialAccount, row.TaxBookValue-row.BookValue)
+			}
+		}
+	}
+
+	stored, err := s.provisionRepo.FindAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	provisions, err := liveProvisions(ctx, s.journalRepo, stored)
+	if err != nil {
+		return nil, err
+	}
+	for i := range provisions {
+		p := &provisions[i]
+		balance := p.BalanceAt(year)
+		if balance <= 0 {
+			continue
+		}
+		// Als Sollsaldo: eine niedrigere Rückstellung ist ein höheres
+		// steuerliches Vermögen.
+		if p.Kind == domain.ProvisionPendingLoss {
+			add("Drohverlustrückstellung § 5 Abs. 4a EStG", p.BalanceAccount, p.ExpenseAccount, balance)
+			continue
+		}
+		add("Abzinsung § 6 Abs. 1 Nr. 3a Buchst. e EStG", p.BalanceAccount, p.ExpenseAccount,
+			balance-s.taxValueOf(p, fy.EndDate, balance))
+	}
+	return out, nil
+}
+
 // taxValueOf ist der steuerliche Wert einer Rückstellung: derselbe Betrag, aber
 // mit 5,5 % abgezinst, wo die Restlaufzeit ein Jahr übersteigt.
 func (s *TaxRegisterService) taxValueOf(p *domain.Provision, cutoff string, balance domain.Cents) domain.Cents {
@@ -396,13 +497,13 @@ func (s *TaxRegisterService) taxValueOf(p *domain.Provision, cutoff string, bala
 }
 
 // fiscalPeriods liest die Zeiträume der angelegten Geschäftsjahre für den
-// Abschreibungsplan. Fehlt der Abschlussdienst, leitet der Plan sie aus dem
+// Abschreibungsplan. Fehlt die Periodensicht, leitet der Plan sie aus dem
 // Beginnmonat ab.
 func (s *TaxRegisterService) fiscalPeriods(ctx context.Context) map[int]accounting.FiscalPeriod {
-	if s.closingSvc == nil {
+	if s.periods == nil {
 		return nil
 	}
-	years, err := s.closingSvc.FiscalYears(ctx)
+	years, err := s.periods.FiscalYears(ctx)
 	if err != nil || len(years) == 0 {
 		return nil
 	}

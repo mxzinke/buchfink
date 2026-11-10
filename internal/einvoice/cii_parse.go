@@ -202,6 +202,7 @@ func ciiMapSettlement(inv *Invoice, doc *ciiDocument) {
 	inv.Currency = trim(s.Currency)
 	inv.TaxCurrency = trim(s.TaxCurrency)
 	inv.AccountingCost = trim(s.AccountingReference.ID)
+	inv.CreditorReference = trim(s.CreditorReference)
 
 	if s.Period != nil {
 		inv.Period = &Period{Start: s.Period.Start.date(), End: s.Period.End.date()}
@@ -264,6 +265,12 @@ func ciiMapSettlement(inv *Invoice, doc *ciiDocument) {
 		}
 		if !attached && len(inv.PaymentMeans) > 0 {
 			inv.PaymentMeans[0].DirectDebit = &DirectDebit{MandateReference: trim(term.MandateID)}
+		}
+	}
+	// BT-90 steht im Kopf der Abrechnung, nicht beim Zahlungsmittel.
+	for i := range inv.PaymentMeans {
+		if debit := inv.PaymentMeans[i].DirectDebit; debit != nil {
+			debit.CreditorID = inv.CreditorReference
 		}
 	}
 

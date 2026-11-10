@@ -35,8 +35,9 @@
 //
 // Es kennt auch keine nationalen Erweiterungen. XRechnung (BR-DE-*) und Peppol
 // legen eigene Regeln über EN 16931; die prüft dieses Paket nicht. Ob ein
-// Dokument eine XRechnung zu sein behauptet, sagt [Invoice.IsXRechnung] — damit
-// ein Aufrufer weiß, dass Bestehen hier nicht die ganze Geschichte ist.
+// Dokument eine XRechnung oder Peppol zu sein behauptet, sagen
+// [Invoice.IsXRechnung] und [Invoice.IsPeppol] — damit ein Aufrufer weiß, dass
+// Bestehen hier nicht die ganze Geschichte ist.
 //
 // # Umfang der Prüfung
 //

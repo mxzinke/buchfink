@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -235,7 +236,7 @@ type InvoiceItem struct {
 	ID          uint   `gorm:"primaryKey" json:"id"`
 	InvoiceID   uint   `gorm:"index;not null" json:"invoiceId"`
 	Position    int    `gorm:"not null" json:"position"`
-	Description string `gorm:"type:text;not null;serializer:encrypted_v2" json:"description"`
+	Description string `gorm:"type:text;not null" json:"description"`
 	// QuantityMilli holds the quantity with three decimal places (1500 = 1,5).
 	// An integer keeps 0,1 h × 3 exact, which a float quantity would not.
 	QuantityMilli int64   `gorm:"not null" json:"quantityMilli"`
@@ -264,35 +265,23 @@ type Invoice struct {
 	DueDate         string `gorm:"size:10;not null" json:"dueDate"`
 
 	ContactID   uint   `gorm:"index;not null" json:"contactId"`
-	ContactName string `gorm:"size:255;not null;serializer:encrypted" json:"contactName"`
+	ContactName string `gorm:"size:255;not null" json:"contactName"`
 
 	Items []InvoiceItem `gorm:"foreignKey:InvoiceID;constraint:OnDelete:CASCADE" json:"items"`
 
 	// TaxTreatment applies to the invoice as a whole: an invoice is either a
-	// domestic taxable supply, an exempt intra-community supply, an export or a
-	// § 13b case — never a mixture.
+	// domestic taxable supply, a § 13b case or one of the exempt or non-taxable
+	// treatments — never a mixture.
 	TaxTreatment TaxTreatment `gorm:"size:40;not null;default:'domestic'" json:"taxTreatment"`
 
-	// VatIDOverrideReason hält den Grund fest, mit dem eine steuerfreie
-	// innergemeinschaftliche Lieferung ohne Bestätigung der USt-IdNr. ausgestellt
-	// wurde.
+	// VatIDOverrideReason hält den Grund fest, mit dem eine Leistung an einen
+	// Unternehmer im übrigen Gemeinschaftsgebiet ohne Bestätigung der USt-IdNr.
+	// ausgestellt wurde.
 	//
-	// Er steht an der Rechnung und nicht nur im Protokoll: die Frage, ob die
-	// Befreiung trägt, wird später an dieser Rechnung gestellt, und die Antwort
-	// muss dort stehen, wo sie gestellt wird.
-	VatIDOverrideReason string `gorm:"size:500;serializer:encrypted" json:"vatIdOverrideReason,omitempty"`
-
-	// TransportKind sagt, wer den Gegenstand befördert hat: „supplier" der
-	// Lieferer, „customer" der Abnehmer (Abholfall). Leer wird als Regelfall
-	// gelesen — Beförderung durch den Lieferer.
-	//
-	// Die Angabe gehört an die Rechnung und nicht an den einzelnen Nachweisbeleg:
-	// sie beschreibt die Lieferung und entscheidet darüber, ob Art. 45a Abs. 1
-	// Buchst. b MwStVO zusätzlich die Gelangensbestätigung des Abnehmers
-	// verlangt. Ohne sie bewertete der Jahresbericht jede Lieferung als
-	// Regelfall, und ein Abholfall ohne Gelangensbestätigung erschien als
-	// nachgewiesen, obwohl er es nicht ist.
-	TransportKind string `gorm:"size:20" json:"transportKind,omitempty"`
+	// Er steht an der Rechnung und nicht nur im Protokoll: die Frage, ob der
+	// Leistungsort im Ausland liegt, wird später an dieser Rechnung gestellt, und
+	// die Antwort muss dort stehen, wo sie gestellt wird.
+	VatIDOverrideReason string `gorm:"size:500" json:"vatIdOverrideReason,omitempty"`
 
 	NetAmount   Cents  `gorm:"not null" json:"netAmount"`
 	TaxAmount   Cents  `gorm:"not null" json:"taxAmount"`
@@ -304,11 +293,10 @@ type Invoice struct {
 	// JournalEntryID links the invoice to the booking it produced.
 	JournalEntryID *uint `gorm:"index" json:"journalEntryId,omitempty"`
 
-	ZUGFeRDXML string `gorm:"type:text;serializer:encrypted" json:"zugferdXml,omitempty"`
+	ZUGFeRDXML string `gorm:"type:text" json:"zugferdXml,omitempty"`
 
 	// ReceiptID points at the Beleg holding the issued document: the hybrid PDF
-	// as the received form and the XML as the structured part. It replaces the
-	// former PDFPath, which was never set — a path to a file nothing produced.
+	// as the received form and the XML as the structured part.
 	ReceiptID *uint     `gorm:"index" json:"receiptId,omitempty"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
@@ -316,8 +304,7 @@ type Invoice struct {
 	// PaidAmount is the settled part, computed on read.
 	PaidAmount Cents `gorm:"-" json:"paidAmount"`
 
-	// Kind ist die Dokumentart und bestimmt BT-3. Leer heißt „Rechnung" —
-	// Bestandsdaten aus der Zeit vor dieser Welle enthalten nichts.
+	// Kind ist die Dokumentart und bestimmt BT-3. Leer heißt „Rechnung".
 	Kind InvoiceKind `gorm:"size:20;not null;default:'invoice';index" json:"kind"`
 
 	// Terms sind die im Voraus vereinbarten Zahlungsbedingungen
@@ -325,8 +312,8 @@ type Invoice struct {
 	Terms PaymentTerms `gorm:"embedded;embeddedPrefix:terms_" json:"terms"`
 
 	// SmallAmount markiert die Kleinbetragsrechnung nach § 33 UStDV: bis zur
-	// datierten Grenze genügen die verkürzten Angaben, und ein Empfänger ist
-	// nicht nötig.
+	// datierten Grenze genügen die verkürzten Angaben. Einen Empfänger hat sie
+	// trotzdem, weil jede Rechnung gegen ein Personenkonto gebucht wird.
 	SmallAmount bool `gorm:"not null;default:false" json:"smallAmount"`
 
 	// ConsumerNoticePrinted hält fest, dass diese Rechnung den Verzugshinweis
@@ -335,21 +322,10 @@ type Invoice struct {
 	// Gegenüber einem Verbraucher tritt der Verzug dreißig Tage nach
 	// Fälligkeit nur dann von selbst ein, wenn die Rechnung darauf besonders
 	// hingewiesen hat. Das Kennzeichen steht an der Rechnung und nicht an den
-	// Einstellungen: es ist eine Aussage über dieses Dokument, und für die
-	// Rechnungen aus der Zeit vor dem Hinweis wäre jede spätere Einstellung
-	// eine Behauptung über einen Text, der dort nie stand. Das Mahnwesen liest
-	// es, bevor es Verzugszinsen ansetzt.
+	// Einstellungen: es ist eine Aussage über dieses Dokument, und eine später
+	// geänderte Einstellung wäre eine Behauptung über einen Text, der dort nie
+	// stand. Die Verzugsrechnung liest es, bevor sie Verzugszinsen ansetzt.
 	ConsumerNoticePrinted bool `gorm:"not null;default:false" json:"consumerNoticePrinted"`
-
-	// PaymentAccount ist das Zahlungsmittelkonto einer Rechnung ohne
-	// Empfänger.
-	//
-	// Ohne erfassten Kunden gibt es kein Personenkonto, gegen das eine
-	// Forderung liefe — und es gibt auch keine: der Barverkauf ist im selben
-	// Augenblick bezahlt. Gebucht wird deshalb gegen Kasse oder Bank. Leer
-	// heißt Kasse; bei einer Rechnung mit Empfänger bleibt das Feld ohne
-	// Bedeutung.
-	PaymentAccount string `gorm:"size:20" json:"paymentAccount,omitempty"`
 
 	// EInvoiceProfile ist das Format, in dem das Dokument erzeugt wurde. Es
 	// steht an der Rechnung und nicht nur am Kontakt, weil ein späterer Wechsel
@@ -418,8 +394,7 @@ func (inv *Invoice) EnsureLists() {
 	}
 }
 
-// ResolvedKind fills in the default for records written before the field
-// existed.
+// ResolvedKind is the document type, with an empty Kind read as an invoice.
 func (inv *Invoice) ResolvedKind() InvoiceKind {
 	if inv.Kind == "" {
 		return InvoiceKindInvoice
@@ -483,10 +458,7 @@ func (inv *Invoice) Recalculate() {
 
 // Validate checks the mandatory content of an invoice.
 func (inv *Invoice) Validate() error {
-	// § 33 UStDV lässt die Angabe des Leistungsempfängers bei einer
-	// Kleinbetragsrechnung weg — das ist der ganze Sinn der Vorschrift, und ein
-	// Barverkauf hat keinen erfassten Kunden.
-	if inv.ContactID == 0 && !inv.SmallAmount {
+	if inv.ContactID == 0 {
 		return fmt.Errorf("Rechnungsempfänger fehlt")
 	}
 	if len(inv.Items) == 0 {
@@ -508,8 +480,8 @@ func (inv *Invoice) Validate() error {
 	if inv.TaxAmount != 0 && !inv.TaxTreatment.MayShowTax() {
 		return fmt.Errorf(
 			"die Rechnung weist %s € Umsatzsteuer aus, der Steuerfall %q lässt aber keine entstehen. "+
-				"Ein solcher Ausweis wird nach § 14c UStG trotzdem geschuldet – wähle entweder den "+
-				"steuerpflichtigen Inlandsumsatz oder nimm den Steuerausweis heraus",
+				"Ein solcher Ausweis wird nach § 14c UStG trotzdem geschuldet – richtig ist entweder der "+
+				"steuerpflichtige Inlandsumsatz oder eine Rechnung ohne Steuerausweis",
 			inv.TaxAmount, inv.TaxTreatment)
 	}
 	for i := range inv.Items {
@@ -542,8 +514,8 @@ func (inv *Invoice) ValidateParties(sellerTaxNumber, sellerVatID string, buyer *
 			"auf der Rechnung fehlt die Steuernummer oder die USt-IdNr. des Ausstellers " +
 				"(§ 14 Abs. 4 Nr. 2 UStG). Beides steht in den Unternehmensdaten")
 	}
-	// Die Kleinbetragsrechnung braucht den Empfänger nicht (§ 33 UStDV) — und
-	// ohne erfassten Kontakt gibt es auch nichts zu prüfen.
+	// Die Kleinbetragsrechnung braucht die Anschrift des Empfängers nicht
+	// (§ 33 UStDV).
 	if inv.SmallAmount || buyer == nil {
 		return nil
 	}
@@ -562,10 +534,8 @@ func (inv *Invoice) ValidateParties(sellerTaxNumber, sellerVatID string, buyer *
 			"%s hat keinen Ort hinterlegt. Die vollständige Anschrift des Empfängers ist Pflichtangabe "+
 				"(§ 14 Abs. 4 Nr. 1 UStG)", buyer.Name)
 	}
-	// § 14a Abs. 1 und 3 UStG: bei der innergemeinschaftlichen Lieferung und
-	// bei der Steuerschuldnerschaft des Leistungsempfängers ist dessen
-	// USt-IdNr. anzugeben. Sie ist zugleich materielle Voraussetzung der
-	// Steuerbefreiung (§ 6a Abs. 1 Nr. 4 UStG).
+	// § 14a Abs. 1 UStG: bei der Steuerschuldnerschaft des Leistungsempfängers
+	// ist dessen USt-IdNr. anzugeben.
 	if inv.RequiresBuyerVatID() && buyer.VatID == "" {
 		return fmt.Errorf(
 			"beim Steuerfall %q gehört die USt-IdNr. des Empfängers auf die Rechnung (§ 14a UStG), "+
@@ -577,11 +547,9 @@ func (inv *Invoice) ValidateParties(sellerTaxNumber, sellerVatID string, buyer *
 // RequiresBuyerVatID reports whether the recipient's VAT identification number
 // belongs on the document.
 func (inv *Invoice) RequiresBuyerVatID() bool {
-	switch inv.TaxTreatment {
-	case TaxTreatmentIntraCommunitySupply, TaxTreatmentReverseChargeSupply:
-		return true
-	}
-	return false
+	return slices.ContainsFunc(TaxTreatments(DirectionOutgoing), func(info TaxTreatmentInfo) bool {
+		return info.Treatment == inv.TaxTreatment && info.RequiresVatID
+	})
 }
 
 // Negate turns the invoice into its own Storno: same content, negated amounts.
@@ -610,13 +578,6 @@ type InvoiceRepository interface {
 	FindByGroup(ctx context.Context, groupID uint) ([]Invoice, error)
 	Save(ctx context.Context, invoice *Invoice) error
 	UpdateStatus(ctx context.Context, id uint, status InvoiceStatus) error
-	// UpdateTransportKind hält fest, wer den Gegenstand befördert hat.
-	//
-	// Ein eigener Schreibweg und kein Save der ganzen Rechnung: die Angabe
-	// entsteht beim Ablegen eines Nachweisbelegs, oft lange nach dem Ausstellen,
-	// und eine ausgestellte Rechnung im Ganzen zurückzuschreiben hieße, ihre
-	// Positionen und ihre Beträge anzufassen, an denen sich nichts geändert hat.
-	UpdateTransportKind(ctx context.Context, id uint, kind string) error
 	Count(ctx context.Context, fiscalYear int) (int64, error)
 }
 

@@ -9,10 +9,12 @@ import (
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/actor"
 	"github.com/buchfink/buchfink/internal/buildinfo"
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/changelog"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/procdoc"
 	"github.com/buchfink/buchfink/internal/receiptstore"
+	"github.com/buchfink/buchfink/internal/syncdir"
 	"github.com/buchfink/buchfink/internal/timestamp"
 )
 
@@ -20,11 +22,9 @@ import (
 // der Verfahrensdokumentation liegen.
 const ProcDocCategory = "verfahrensdokumentation"
 
-// ProcDocEnvironment sind die Angaben, die nicht aus der Datenbank kommen.
-//
-// Sie werden übergeben und nicht ermittelt: der Datenordner und das
-// Sicherungsziel kennt die Bridge, nicht der Dienst — und ein Dienst, der sich
-// seine Umgebung selbst zusammensucht, lässt sich nicht prüfen.
+// ProcDocEnvironment sind die Angaben, die nicht aus der Datenbank kommen. Sie
+// gehören zum Aufruf: Datenordner und Sicherungsziel kennt der Kern, nicht der
+// Dienst.
 type ProcDocEnvironment struct {
 	DataDir      string
 	BackupDir    string
@@ -47,6 +47,7 @@ type ProcDocResult struct {
 
 // ProcDocService erzeugt die Verfahrensdokumentation und legt jede Fassung ab.
 type ProcDocService struct {
+	serviceClock
 	settingsRepo  domain.SettingsRepository
 	numberRepo    domain.NumberRangeRepository
 	procDocRepo   domain.ProcedureDocumentationRepository
@@ -54,8 +55,6 @@ type ProcDocService struct {
 	auditRepo     domain.AuditRepository
 	store         *receiptstore.Store
 	renderer      DocumentRenderer
-	env           ProcDocEnvironment
-	fiscalYear    int
 }
 
 // NewProcDocService verdrahtet die Erzeugung der Verfahrensdokumentation.
@@ -66,24 +65,17 @@ func NewProcDocService(
 	migrationRepo domain.MigrationRepository,
 	auditRepo domain.AuditRepository,
 	store *receiptstore.Store,
-	fiscalYear int,
 ) *ProcDocService {
 	return &ProcDocService{
 		settingsRepo: settingsRepo, numberRepo: numberRepo,
 		procDocRepo: procDocRepo, migrationRepo: migrationRepo,
-		auditRepo: auditRepo, store: store, fiscalYear: fiscalYear,
+		auditRepo: auditRepo, store: store,
 	}
 }
-
-// SetEnvironment reicht die Angaben nach, die außerhalb der Datenbank liegen.
-func (s *ProcDocService) SetEnvironment(env ProcDocEnvironment) { s.env = env }
 
 // SetRenderer hängt den Dokumentensetzer an, mit dem die Fassung zusätzlich als
 // PDF entsteht. Ohne ihn bleibt es beim Markdown.
 func (s *ProcDocService) SetRenderer(r DocumentRenderer) { s.renderer = r }
-
-// SetFiscalYear setzt das Geschäftsjahr, für das erzeugt wird.
-func (s *ProcDocService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // OrganisationTexts liest die unternehmensindividuellen Freitexte, mit Mustern
 // dort, wo noch nichts erfasst ist.
@@ -109,8 +101,13 @@ func (s *ProcDocService) OrganisationTexts(ctx context.Context) domain.Organisat
 }
 
 // SaveOrganisationTexts schreibt die Freitexte und protokolliert die Änderung.
+// Ein leerer Text setzt den Abschnitt auf das Muster zurück; ohne Änderung
+// schreibt es nichts.
 func (s *ProcDocService) SaveOrganisationTexts(ctx context.Context, texts domain.OrganisationTexts) error {
 	before := s.OrganisationTexts(ctx)
+	if texts == before {
+		return nil
+	}
 	pairs := []struct {
 		key   string
 		value string
@@ -128,9 +125,9 @@ func (s *ProcDocService) SaveOrganisationTexts(ctx context.Context, texts domain
 			return fmt.Errorf("die Organisationsanweisung konnte nicht gespeichert werden: %w", err)
 		}
 	}
-	if s.auditRepo != nil {
-		_ = s.auditRepo.LogChange(ctx, domain.AuditActionUpdate, "SETTINGS", "ORGANISATION",
-			"Organisationsanweisung der Verfahrensdokumentation geändert", before, texts)
+	if err := logAuditChange(ctx, s.auditRepo, domain.AuditActionUpdate, "SETTINGS", "ORGANISATION",
+		"Organisationsanweisung der Verfahrensdokumentation geändert", before, texts); err != nil {
+		return err
 	}
 	return nil
 }
@@ -151,13 +148,15 @@ func (s *ProcDocService) SaveOrganisationTexts(ctx context.Context, texts domain
 // Scheitert der Satz, gilt die Fassung trotzdem: der Nachweis nach GoBD Rz. 151
 // richtet sich nach dem Inhalt und nicht nach dem Layout. Der Grund steht dann in PDFNote und im
 // Protokoll, statt die Erzeugung an einer Formfrage scheitern zu lassen.
-func (s *ProcDocService) Generate(ctx context.Context, now time.Time) (*ProcDocResult, error) {
+func (s *ProcDocService) Generate(
+	ctx context.Context, year int, env ProcDocEnvironment, now time.Time,
+) (*ProcDocResult, error) {
 	if now.IsZero() {
-		now = time.Now().UTC()
+		now = s.instant()
 	}
 	now = now.UTC()
 
-	input, err := s.buildInput(ctx, now)
+	input, err := s.buildInput(ctx, year, env, now)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +168,7 @@ func (s *ProcDocService) Generate(ctx context.Context, now time.Time) (*ProcDocR
 	doc := domain.ProcedureDocumentation{
 		Version:     input.Version,
 		CreatedAt:   now,
-		FiscalYear:  s.fiscalYear,
+		FiscalYear:  input.FiscalYear,
 		CompanyName: input.CompanyName,
 		AppVersion:  input.AppVersion,
 		RuleVersion: input.RuleVersion,
@@ -205,7 +204,9 @@ func (s *ProcDocService) Generate(ctx context.Context, now time.Time) (*ProcDocR
 		} else if pdfNote != "" {
 			note += "; " + pdfNote
 		}
-		_ = s.auditRepo.Log(ctx, domain.AuditActionCreate, "PROCEDURE_DOC", doc.Version, note)
+		if err := logAudit(ctx, s.auditRepo, domain.AuditActionCreate, "PROCEDURE_DOC", doc.Version, note); err != nil {
+			return nil, err
+		}
 	}
 
 	form := "als Markdown und PDF"
@@ -314,7 +315,9 @@ func (s *ProcDocService) Documentations(ctx context.Context) ([]domain.Procedure
 }
 
 // buildInput sammelt die veränderlichen Angaben.
-func (s *ProcDocService) buildInput(ctx context.Context, now time.Time) (procdoc.Input, error) {
+func (s *ProcDocService) buildInput(
+	ctx context.Context, year int, env ProcDocEnvironment, now time.Time,
+) (procdoc.Input, error) {
 	settings, err := s.settingsRepo.GetCompanySettings(ctx)
 	if err != nil {
 		return procdoc.Input{}, fmt.Errorf("die Stammdaten konnten nicht gelesen werden: %w", err)
@@ -325,16 +328,15 @@ func (s *ProcDocService) buildInput(ctx context.Context, now time.Time) (procdoc
 		return procdoc.Input{}, err
 	}
 
-	year := s.fiscalYear
-	if year == 0 {
-		year = settings.FiscalYear
+	if err := requireYear(year); err != nil {
+		return procdoc.Input{}, err
 	}
 	from, to := fiscalYearBounds(year, settings.FiscalYearStartMonth)
 
 	input := procdoc.Input{
 		CompanyName:      settings.FirmName(),
 		LegalForm:        settings.LegalForm,
-		Street:           settings.Street,
+		Street:           settings.StreetLine(),
 		PostalLine:       settings.PostalLine(),
 		Country:          domain.CountryName(settings.ResolvedCountryCode()),
 		TaxNumber:        settings.TaxNumber,
@@ -343,21 +345,20 @@ func (s *ProcDocService) buildInput(ctx context.Context, now time.Time) (procdoc
 		FiscalYear:       year,
 		FiscalYearFrom:   from,
 		FiscalYearTo:     to,
-		DataDir:          s.env.DataDir,
-		CloudWarning:     domain.CloudFolderWarning(s.env.DataDir),
+		DataDir:          env.DataDir,
+		CloudWarning:     syncNote(syncdir.Detect(env.DataDir)),
 		SKR:              settings.SKR,
 		TaxCases:         coveredTaxCases(),
 		ExcludedCases:    domain.TaxCaseHints(),
 		CaptureDays:      settings.ReceiptCaptureDays,
 		TaxationType:     taxationLabel(settings.TaxationType),
 		VatPeriod:        vatPeriodLabel(settings.VatPeriod),
-		LegalFormNote:    domain.LegalFormLimitationNote(settings.LegalForm),
 		AppVersion:       buildinfo.Version,
 		RuleVersion:      accounting.PostingRuleVersion,
 		TSAName:          timestamp.DefaultTSA,
 		ExportFormats:    exportFormats(),
-		BackupDir:        s.env.BackupDir,
-		BackupRhythm:     s.env.BackupRhythm,
+		BackupDir:        env.BackupDir,
+		BackupRhythm:     env.BackupRhythm,
 		ChangelogSection: changelog.Section(),
 		CheckRules:       checkRuleCatalog(),
 		Version:          version,
@@ -370,8 +371,8 @@ func (s *ProcDocService) buildInput(ctx context.Context, now time.Time) (procdoc
 	input.NumberRanges = s.numberRanges(ctx, settings, year)
 	input.RetentionRows = retentionRows()
 	input.Migrations = s.migrations(ctx)
-	for i := range s.env.BackupRuns {
-		run := &s.env.BackupRuns[i]
+	for i := range env.BackupRuns {
+		run := &env.BackupRuns[i]
 		result := "fehlgeschlagen"
 		if run.Success {
 			result = "erfolgreich"
@@ -388,7 +389,7 @@ func (s *ProcDocService) buildInput(ctx context.Context, now time.Time) (procdoc
 
 // nextVersion bildet die Fassungsbezeichnung "YYYY-MM-DD-n".
 func (s *ProcDocService) nextVersion(ctx context.Context, now time.Time) (string, error) {
-	day := now.Format("2006-01-02")
+	day := calendar.Day(now)
 	count, err := s.procDocRepo.CountForDay(ctx, day)
 	if err != nil {
 		return "", fmt.Errorf("die bisherigen Fassungen ließen sich nicht zählen: %w", err)
@@ -508,8 +509,7 @@ func checkRuleCatalog() []procdoc.CheckRule {
 		{Key: domain.CheckRuleProvisionDiscount, Severity: "Hinweis", Purpose: "Rückstellung ohne Abzinsungssatz des Stichtagsmonats (§ 253 Abs. 2 HGB)."},
 		{Key: domain.CheckRuleClosingStepSkipped, Severity: "Hinweis", Purpose: "Übersprungener Abschlussbaustein mit seinem Grund."},
 		{Key: domain.CheckRuleSizeClassChange, Severity: "Hinweis", Purpose: "Größenklassenwechsel, der sich abzeichnet (§ 267 Abs. 4 Satz 1 HGB)."},
-		{Key: domain.CheckRuleICSupplyEvidenceMissing, Severity: "Blockierend", Purpose: "Innergemeinschaftliche Lieferung ohne Belegnachweis (§§ 17a bis 17c UStDV)."},
-		{Key: domain.CheckRuleICSupplyUnconfirmed, Severity: "Hinweis", Purpose: "USt-IdNr. beim Ausstellen nicht bestätigt (§ 18e UStG)."},
+		{Key: domain.CheckRuleVatIDUnconfirmed, Severity: "Hinweis", Purpose: "USt-IdNr. beim Ausstellen nicht bestätigt (§ 18e UStG)."},
 		{Key: domain.CheckRuleServiceProofMissing, Severity: "Hinweis", Purpose: "Eingangsbeleg über der eingestellten Grenze ohne Leistungsnachweis (RECH-08); beim Buchen ist der Vermerk Pflicht, der Befund findet die Belege aus der Zeit davor. Der erste Abschluss nach dem Setzen der Grenze meldet deshalb auch gebuchte und festgeschriebene Altbelege — sie sind nachzuvermerken, der Vermerk steht außerhalb des Beleg-Hashes."},
 	}
 }
@@ -517,10 +517,10 @@ func checkRuleCatalog() []procdoc.CheckRule {
 // coveredTaxCases sind die Steuerfälle im Funktionsumfang.
 func coveredTaxCases() []string {
 	return []string{
-		"Steuerpflichtige Umsätze zu 19 % und 7 % sowie steuerfreie Umsätze mit und ohne Vorsteuerabzug",
-		"Innergemeinschaftliche Lieferungen und Erwerbe, Zusammenfassende Meldung",
+		"Steuerpflichtige Umsätze zu 19 % und 7 % sowie steuerfreie Umsätze ohne Vorsteuerabzug (§ 4 UStG)",
+		"Innergemeinschaftliche Erwerbe auf der Eingangsseite",
+		"Sonstige Leistungen an Unternehmer im übrigen Gemeinschaftsgebiet, Zusammenfassende Meldung",
 		"Reverse-Charge nach § 13b UStG auf der Eingangs- und der Ausgangsseite",
-		"Ausfuhrlieferungen in das Drittland und Einfuhrumsatzsteuer",
 		"Anzahlungen mit Steuerentstehung nach § 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG",
 		"Vorsteuerberichtigung nach § 15a UStG",
 		"Nicht abziehbare Betriebsausgaben nach § 4 Abs. 5 EStG (Geschenke, Bewirtung)",
@@ -570,4 +570,18 @@ func fiscalYearBounds(year, startMonth int) (string, string) {
 	start := time.Date(year, time.Month(startMonth), 1, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(1, 0, -1)
 	return start.Format("2006-01-02"), end.Format("2006-01-02")
+}
+
+// syncNote ist der Hinweis der Verfahrensdokumentation, wenn ein Dienst den
+// Datenordner synchronisiert (syncdir.Detect); leer ohne Dienst.
+func syncNote(service string) string {
+	if service == "" {
+		return ""
+	}
+	return fmt.Sprintf("Der Datenordner liegt in %s. Ein Synchronisationsdienst kann die Datenbank kopieren, "+
+		"während Buchfink schreibt, und er ist kein Sicherungsziel: er spiegelt auch das Löschen. Wo der Dienst die "+
+		"Daten speichert, lässt sich von hier aus nicht feststellen. In einem anderen EU-Mitgliedstaat ist das "+
+		"zulässig, wenn der Datenzugriff vollständig möglich bleibt (§ 146 Abs. 2a AO); in einem Drittstaat braucht "+
+		"es eine Bewilligung des Finanzamts (§ 146 Abs. 2b AO). Die Daten gehören in einen gewöhnlichen Ordner und "+
+		"werden getrennt gesichert.", service)
 }

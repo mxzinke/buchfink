@@ -82,3 +82,22 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
     </button>
   );
 });
+
+export interface DisabledReasonProps {
+  /** Für `aria-describedby` am gesperrten Knopf. */
+  id?: string;
+  className?: string;
+  children?: React.ReactNode;
+}
+
+/**
+ * Warum der Knopf daneben gesperrt ist. Der Grund steht als Text da und nicht
+ * im `title`: den erreichen weder Tastatur noch Screenreader, und die WebView
+ * zeigt ihn oft gar nicht.
+ */
+export const DisabledReason: React.FC<DisabledReasonProps> = ({ id, className, children }) =>
+  children ? (
+    <p id={id} className={cn('text-caption text-ink-subtle', className)}>
+      {children}
+    </p>
+  ) : null;

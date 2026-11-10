@@ -1,0 +1,9 @@
+{
+  "gruende": [
+    {
+      "schluessel": "datum_in_zukunft",
+      "text": "Beleg- oder Buchungsdatum liegt in der Zukunft."
+    }
+  ],
+  "stufe": "rueckfrage"
+}

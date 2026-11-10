@@ -28,7 +28,8 @@ import (
 // currencyConverter ist der Ausschnitt des Kursdienstes, den die Buchungswege
 // brauchen.
 type currencyConverter interface {
-	Convert(ctx context.Context, currency, date string, foreign domain.Cents) (*Conversion, error)
+	Convert(ctx context.Context, currency, date, vatDate string, foreign domain.Cents) (*Conversion, error)
+	ConvertCharged(ctx context.Context, currency, date, vatDate string, foreign, charged domain.Cents) (*Conversion, error)
 }
 
 // SetCurrencyConverter koppelt den Kursdienst an den Belegweg. Ohne ihn ist ein
@@ -63,9 +64,9 @@ func (f *fxContext) toForeign(euro domain.Cents) domain.Cents {
 // vatBase rechnet eine Bemessungsgrundlage vom Tageskurs auf den
 // Umsatzsteuer-Durchschnittskurs um.
 //
-// Liegt für den Monat kein amtlicher Durchschnittskurs vor, bleibt es nach
-// § 16 Abs. 6 Satz 1 UStG beim Tageskurs — dann gibt diese Rechnung den Wert
-// unverändert zurück, und es entsteht keine Kursdifferenz.
+// Ist für den Monat kein Durchschnittskurs erfasst, bleibt es beim Tageskurs —
+// dann gibt diese Rechnung den Wert unverändert zurück, es entsteht keine
+// Kursdifferenz, und die Umrechnung sagt in ihrem Hinweis, dass der Kurs fehlt.
 func (f *fxContext) vatBase(euroAtDailyRate domain.Cents) domain.Cents {
 	if f.conv.VatRate == nil || f.conv.VatRate.RateMicros <= 0 {
 		return euroAtDailyRate
@@ -94,6 +95,10 @@ func (f *fxContext) splitToEuro(foreign []domain.Cents) []domain.Cents {
 		total += v
 	}
 	euroTotal := f.toEuro(total)
+	// Mit bekannter Belastung ist die Summe genau dieser Betrag.
+	if total == f.conv.ForeignAmount {
+		euroTotal = f.conv.Amount
+	}
 	for i, v := range foreign {
 		if i == len(foreign)-1 {
 			out[i] = euroTotal - assigned
@@ -139,12 +144,59 @@ func (s *PostingService) prepareCurrency(ctx context.Context, req ReceiptRequest
 			"der Kursdienst ist nicht eingerichtet. Ein Beleg in %s ließe sich nur mit einem "+
 				"geratenen Kurs buchen, und geraten wird keiner", code)
 	}
-	conv, err := s.currency.Convert(ctx, code, req.DocumentDate, total)
+	var conv *Conversion
+	var err error
+	switch {
+	case req.ChargedAmount != 0 && !req.Settlement.paidAtReceipt():
+		return nil, fmt.Errorf("einen belasteten Euro-Betrag gibt es nur bei einem Beleg, der mit der " +
+			"Zahlung gebucht wird (Karte, bezahlt, Auslage)")
+	case req.ChargedAmount != 0:
+		conv, err = s.currency.ConvertCharged(ctx, code, req.DocumentDate, req.vatRateDate(), total, req.ChargedAmount)
+	default:
+		conv, err = s.currency.Convert(ctx, code, req.DocumentDate, req.vatRateDate(), total)
+	}
 	if err != nil {
 		return nil, fmt.Errorf(
 			"für den Beleg in %s vom %s: %w", code, req.DocumentDate, err)
 	}
 	return &fxContext{currency: code, conv: conv}, nil
+}
+
+// vatRateDate ist der Tag, dessen Monat den Umsatzsteuer-Umrechnungskurs
+// bestimmt: der Monat, in dem die Leistung ausgeführt oder das Entgelt vor ihrer
+// Ausführung vereinnahmt wird (§ 16 Abs. 6 Satz 1 UStG).
+//
+// Eine Leistung über einen Zeitraum ist mit seinem Ende ausgeführt. Wird der
+// Beleg mit der Zahlung gebucht (bezahlt, Kreditkarte, Auslage, Anzahlung), ist
+// der Buchungstag der Zahlungstag; liegt er vor dem Leistungsende, gilt er.
+func (r ReceiptRequest) vatRateDate() string {
+	return vatRateDateOf(r.ServiceDateFrom, r.ServiceDateTo, r.DocumentDate, r.paymentDate())
+}
+
+// paymentDate ist der Zahlungstag eines Belegs, der mit der Zahlung gebucht
+// wird, sonst leer.
+func (r ReceiptRequest) paymentDate() string {
+	if !r.Settlement.paidAtReceipt() {
+		return ""
+	}
+	if r.BookingDate != "" {
+		return r.BookingDate
+	}
+	return r.DocumentDate
+}
+
+func vatRateDateOf(serviceFrom, serviceTo, documentDate, paid string) string {
+	performed := serviceTo
+	if performed == "" {
+		performed = serviceFrom
+	}
+	if performed == "" {
+		performed = documentDate
+	}
+	if paid != "" && paid < performed {
+		return paid
+	}
+	return performed
 }
 
 // taxLinesInCurrency baut die Steuerzeilen eines Fremdwährungsbelegs samt der

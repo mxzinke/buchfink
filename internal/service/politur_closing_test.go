@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/repository"
@@ -236,28 +237,28 @@ func TestServiceProofFindingStartsAtTheDayTheThresholdWasSet(t *testing.T) {
 	}
 }
 
-// Scheitert die Abschlussbuchung, bleibt kein unversiegelter Eigenbeleg zurück.
-//
-// Der Eigenbeleg entsteht vor der Buchung — sein Hash geht in den Hash der
-// Buchung ein, nachträglich gesetzt wäre er nicht mehr gedeckt. Scheitert die
-// Buchung danach, läge im Belegspeicher ein Beleg, der auf nichts verweist: der
-// Prüflauf meldete ihn dauerhaft als ungebucht, und niemand wüsste, wozu er
-// gehört. Buchfink löscht ihn nicht — die GoBD kennen kein Löschen, sondern das
-// Verwerfen mit Grund.
+// Scheitert die Abschlussbuchung, bleibt kein Eigenbeleg zurück: Beleg und
+// Buchung entstehen in einer Transaktion und fallen zusammen.
 func TestFailedClosingBookingLeavesNoOpenSelfIssuedReceipt(t *testing.T) {
 	env := newTestEnv(t)
 	m := env.closingModules(t)
 	ctx := context.Background()
 	m.rate(t, "2026-12", 3, 15_000)
 
-	before, err := env.receipts.List(ctx, domain.ReceiptStatusFiled)
+	before, err := env.receipts.List(ctx, 2026, "")
 	if err != nil {
 		t.Fatalf("Belege lesen: %v", err)
 	}
 
-	// Der Zeitraum ist festgeschrieben: die Buchung zum 31.12. geht nicht mehr
-	// durch, der Eigenbeleg ist zu diesem Zeitpunkt aber schon abgelegt.
-	env.commitUntil(t, "2026-12-31")
+	// Das Jahr ist festgeschrieben, auch seine Abschlussperiode: die Buchung
+	// zum 31.12. geht nicht mehr durch, der Eigenbeleg ist zu diesem Zeitpunkt
+	// aber schon abgelegt.
+	if err := repository.NewFestschreibungRepository(env.db).Create(ctx, &domain.Festschreibung{
+		FiscalYear: 2026, PeriodType: domain.PeriodTypeYear, PeriodLabel: "Jahresabschluss 2026",
+		CutoffDate: "2026-12-31", ChainHead: domain.GenesisHash, CreatedAt: time.Now(),
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	if _, err := m.provisions.BookFormation(ctx, ProvisionRequest{
 		FiscalYear: 2026, Kind: domain.ProvisionUncertainLiability,
@@ -267,31 +268,12 @@ func TestFailedClosingBookingLeavesNoOpenSelfIssuedReceipt(t *testing.T) {
 		t.Fatal("in einen festgeschriebenen Zeitraum darf nicht gebucht werden")
 	}
 
-	after, err := env.receipts.List(ctx, domain.ReceiptStatusFiled)
+	after, err := env.receipts.List(ctx, 2026, "")
 	if err != nil {
 		t.Fatalf("Belege lesen: %v", err)
 	}
 	if len(after) != len(before) {
-		t.Errorf("nach der gescheiterten Buchung liegen %d offene Belege statt %d: %+v",
+		t.Errorf("nach der gescheiterten Buchung liegen %d Belege statt %d: %+v",
 			len(after), len(before), after)
-	}
-
-	// Der Beleg bleibt erhalten; sein Status wechselt auf verworfen — mit Grund.
-	all, err := env.receipts.List(ctx, "")
-	if err != nil {
-		t.Fatalf("Belege lesen: %v", err)
-	}
-	discarded := 0
-	for _, r := range all {
-		if r.Status != domain.ReceiptStatusDiscarded {
-			continue
-		}
-		discarded++
-		if r.DiscardReason == "" {
-			t.Errorf("der Beleg %s wurde ohne Begründung verworfen", r.ReceiptNumber)
-		}
-	}
-	if discarded != 1 {
-		t.Errorf("erwartet einen verworfenen Eigenbeleg, gefunden %d", discarded)
 	}
 }

@@ -75,7 +75,7 @@ type NumberGap struct {
 	Reason     NumberGapReason `gorm:"size:20;not null" json:"reason"`
 	// Detail is the free-text explanation, e.g. the error the failed attempt
 	// produced. A reason code alone answers "why" only in the coarsest way.
-	Detail string `gorm:"size:500;serializer:encrypted" json:"detail,omitempty"`
+	Detail string `gorm:"size:500" json:"detail,omitempty"`
 	// RecordedAt ist der Zeitpunkt in ISO-8601, an dem die Lücke vermerkt wurde.
 	RecordedAt string `gorm:"size:25;not null" json:"recordedAt"`
 }

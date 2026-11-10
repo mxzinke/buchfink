@@ -17,7 +17,9 @@ import { fileURLToPath } from 'node:url';
 const here = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 
 export default defineConfig({
-  server: { host: '127.0.0.1', port: 9246, strictPort: true },
+  // Eigener Port je Lauf über SCREENSHOT_PORT, damit zwei Arbeitskopien
+  // gleichzeitig aufnehmen können.
+  server: { host: '127.0.0.1', port: Number(process.env.SCREENSHOT_PORT ?? 9246), strictPort: true },
   resolve: {
     alias: [{ find: /^\.\/bridge$/, replacement: here('../scripts/site-screenshots/mock-bridge.ts') }],
   },

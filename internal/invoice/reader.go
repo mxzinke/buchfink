@@ -55,19 +55,21 @@ func (r *Reader) ValidateOnly(data []byte) (domain.ReceiptValidation, error) {
 
 func convert(inv *einvoice.Invoice, result einvoice.Result) *domain.IncomingInvoice {
 	out := &domain.IncomingInvoice{
-		Syntax:         string(inv.Syntax),
-		Profile:        inv.Profile(),
-		ProfileLabel:   zugferd.ProfileOf(inv).Label(),
-		Kind:           documentKind(inv.Kind()),
-		Number:         inv.Number,
-		IssueDate:      inv.IssueDate.ISO(),
-		DueDate:        inv.DueDate.ISO(),
-		Currency:       inv.Currency,
-		Supplier:       party(inv.Seller),
-		Buyer:          party(inv.Buyer),
-		BuyerReference: inv.BuyerReference,
-		OrderReference: inv.OrderReference,
-		Validation:     validationOf(inv, result),
+		Syntax:       string(inv.Syntax),
+		Profile:      inv.Profile(),
+		ProfileLabel: zugferd.ProfileOf(inv).Label(),
+		Kind:         documentKind(inv.Kind()),
+		Number:       inv.Number,
+		IssueDate:    inv.IssueDate.ISO(),
+		DueDate:      inv.DueDate.ISO(),
+		Currency:     inv.Currency,
+		Supplier:     party(inv.Seller),
+		Buyer:        party(inv.Buyer),
+
+		PaymentAccounts: paymentAccounts(inv),
+		BuyerReference:  inv.BuyerReference,
+		OrderReference:  inv.OrderReference,
+		Validation:      validationOf(inv, result),
 	}
 
 	out.DeliveryDate = deliveryDate(inv)
@@ -121,12 +123,38 @@ func deliveryDate(inv *einvoice.Invoice) string {
 }
 
 func party(p einvoice.Party) domain.InvoiceParty {
-	return domain.InvoiceParty{
+	out := domain.InvoiceParty{
 		Name:        p.Name,
 		VatID:       p.VATIdentifier,
 		TaxID:       p.TaxRegistration,
 		CountryCode: p.CountryCode(),
 	}
+	if p.Address != nil {
+		out.PostCode, out.City = strings.TrimSpace(p.Address.PostCode), strings.TrimSpace(p.Address.City)
+	}
+	return out
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// paymentAccounts sind die Konten für eine Überweisung (BT-84).
+func paymentAccounts(inv *einvoice.Invoice) []string {
+	var out []string
+	for _, means := range inv.PaymentMeans {
+		for _, ct := range means.CreditTransfer {
+			if id := domain.NormalizeIBAN(ct.AccountID); id != "" {
+				out = append(out, id)
+			}
+		}
+	}
+	return out
 }
 
 func documentKind(kind einvoice.DocumentKind) domain.EInvoiceKind {
@@ -277,19 +305,22 @@ func validationOf(inv *einvoice.Invoice, result einvoice.Result) domain.ReceiptV
 		Coverage: coverage(inv),
 		Errors:   result.ErrorCount(),
 		Findings: findings,
+
+		InvoiceNumber: strings.TrimSpace(inv.Number),
+		Issuer:        domain.NormalizeTaxIdentifier(firstNonEmpty(inv.Seller.VATIdentifier, inv.Seller.TaxRegistration)),
 	}
 }
 
 // coverage says how far the check reached.
 //
 // EN 16931 is covered completely, so a plain invoice is fully checked. An
-// XRechnung is not: its extension rules concern business terms the semantic
-// model does not carry, and saying "geprüft" without that caveat would be the
-// one failure worse than the gap.
+// XRechnung or a Peppol BIS Billing 3.0 invoice is not: both add their own
+// rules (BR-DE-*, PEPPOL-EN16931-R*) that Buchfink does not check, and saying
+// "geprüft" without that caveat would be the one failure worse than the gap.
 //
 // xrechnung.UncheckedRules benennt die nicht geprüften Extension- und Syntaxregeln.
 func coverage(inv *einvoice.Invoice) string {
-	if inv.IsXRechnung() {
+	if inv.IsXRechnung() || inv.IsPeppol() {
 		return "partial"
 	}
 	return "full"

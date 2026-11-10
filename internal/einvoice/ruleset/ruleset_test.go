@@ -66,6 +66,57 @@ func TestDescribeSeparatesTheQuestions(t *testing.T) {
 	if !d.IsXRechnung || d.UsesExtension {
 		t.Errorf("XRechnung=%v, Extension=%v", d.IsXRechnung, d.UsesExtension)
 	}
+
+	peppol := &einvoice.Invoice{
+		Syntax:          einvoice.SyntaxUBL,
+		SpecificationID: einvoice.ProfilePeppolBIS3,
+		TypeCode:        "380",
+	}
+	d = Describe(peppol)
+	if d.Profile != zugferd.ProfilePeppolBIS || !d.BookableAsInvoice || !d.FollowsEN16931 || d.IsXRechnung {
+		t.Errorf("Peppol BIS ist eine vollständige Rechnung nach EN 16931 und keine XRechnung: %+v", d)
+	}
+}
+
+// Im Prüfmaterial der Norm und von KoSIT hat keine Rechnung den Code 59
+// (SEPA-Lastschrift). Die beiden Dateien unter testdata/ sind Buchfinks
+// eigene: dieselbe XRechnung mit SEPA-Lastschrift, einmal in CII und einmal in
+// UBL. Sie müssen über alle Schichten ohne Befund durchlaufen, und Mandat
+// (BT-89), Gläubiger-ID (BT-90) und belastetes Konto (BT-91) müssen im Modell
+// ankommen.
+func TestDirectDebitInvoicesPassEveryLayer(t *testing.T) {
+	want := einvoice.DirectDebit{
+		MandateReference: "M-2026-0042",
+		CreditorID:       "DE98ZZZ09999999999",
+		DebitedAccount:   "DE02120300000000202051",
+	}
+	for _, name := range []string{"lastschrift-cii.xml", "lastschrift-ubl.xml"} {
+		t.Run(name, func(t *testing.T) {
+			data, err := os.ReadFile(filepath.Join("testdata", name))
+			if err != nil {
+				t.Fatalf("Datei lesen: %v", err)
+			}
+			inv, err := einvoice.ParseAny(data)
+			if err != nil {
+				t.Fatalf("lesen: %v", err)
+			}
+
+			result := Validate(inv)
+			if !strings.Contains(strings.Join(result.Rulesets, " "), xrechnung.Version) {
+				t.Errorf("gelaufen sind %v, erwartet auch XRechnung", result.Rulesets)
+			}
+			for _, f := range result.Findings {
+				t.Errorf("%s [%s] %s: %s", f.Rule, f.Severity, f.Where, f.Message)
+			}
+
+			if len(inv.PaymentMeans) != 1 || inv.PaymentMeans[0].DirectDebit == nil {
+				t.Fatalf("keine Lastschrift gelesen: %+v", inv.PaymentMeans)
+			}
+			if got := *inv.PaymentMeans[0].DirectDebit; got != want {
+				t.Errorf("Lastschrift = %+v, erwartet %+v", got, want)
+			}
+		})
+	}
 }
 
 // Der Durchstich: eine echte XRechnung von KoSIT, gelesen und über alle

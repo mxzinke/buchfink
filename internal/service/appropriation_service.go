@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"unicode"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -18,15 +17,14 @@ import (
 // die Kapitalertragsteuer auf die Ausschüttung und hält den Beschluss fest.
 // Die Pflichtrücklage der UG entsteht bereits im Abschluss des Gewinnjahres.
 type AppropriationService struct {
+	auditor[int]
 	appropriationRepo domain.AppropriationRepository
 	notesRepo         domain.NotesTextRepository
 	journalRepo       domain.JournalRepository
 	journalSvc        *JournalService
 	settingsRepo      domain.SettingsRepository
-	auditRepo         domain.AuditRepository
 	closingSvc        *ClosingService
 	receipts          closingReceiptFiler
-	fiscalYear        int
 }
 
 // NewAppropriationService wires die Ergebnisverwendung.
@@ -38,17 +36,13 @@ func NewAppropriationService(
 	settingsRepo domain.SettingsRepository,
 	auditRepo domain.AuditRepository,
 	closingSvc *ClosingService,
-	fiscalYear int,
 ) *AppropriationService {
 	return &AppropriationService{
 		appropriationRepo: appropriationRepo, notesRepo: notesRepo, journalRepo: journalRepo,
-		journalSvc: journalSvc, settingsRepo: settingsRepo, auditRepo: auditRepo,
-		closingSvc: closingSvc, fiscalYear: fiscalYear,
+		journalSvc: journalSvc, settingsRepo: settingsRepo, auditor: auditor[int]{auditRepo: auditRepo},
+		closingSvc: closingSvc,
 	}
 }
-
-// SetFiscalYear schaltet das aktive Geschäftsjahr um.
-func (s *AppropriationService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // SetReceiptService gibt dem Dienst den Belegspeicher für den Eigenbeleg der
 // Ergebnisverwendung und für das Beschlussdokument.
@@ -93,8 +87,8 @@ type AppropriationPreview struct {
 func (s *AppropriationService) PreviewAppropriation(
 	ctx context.Context, year int, req AppropriationRequest,
 ) (*AppropriationPreview, error) {
-	if year == 0 {
-		year = s.fiscalYear - 1
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	bookingYear := year + 1
 	fy, err := s.closingSvc.PeriodOf(ctx, bookingYear)
@@ -170,8 +164,7 @@ func (s *AppropriationService) PreviewAppropriation(
 		}
 		appropriation.WithholdingTax = domain.MulRound(
 			appropriation.Distribution, params.WithholdingTaxPermille, 1000)
-		appropriation.SolidarityOnWithholding = domain.MulRound(
-			appropriation.WithholdingTax, params.SolidarityPermille, 1000)
+		appropriation.SolidarityOnWithholding = accounting.SolidarityOn(appropriation.WithholdingTax, params)
 	}
 	if err := appropriation.Validate(); err != nil {
 		return nil, err
@@ -215,6 +208,8 @@ func (s *AppropriationService) PreviewAppropriation(
 					"des Zuflusses anzumelden und abzuführen (§ 44 Abs. 1 Satz 5, § 45a Abs. 1 EStG). "+
 					"Maßgeblich ist grundsätzlich der im Beschluss bestimmte Auszahlungstag; fehlt er, "+
 					"gilt grundsätzlich der Tag nach dem Beschluss (§ 44 Abs. 2 EStG). "+
+					fmt.Sprintf("Abzuführen sind %s € Kapitalertragsteuer, auf volle Euro abgerundet "+
+						"(§ 44 Abs. 1 Satz 6 EStG). ", accounting.WithholdingTaxPayable(appropriation.WithholdingTax))+
 					"Buchfink erstellt die Steueranmeldung nicht.")
 		}
 	}
@@ -225,27 +220,8 @@ func (s *AppropriationService) PreviewAppropriation(
 
 // isEntrepreneurialCompany meldet, ob die Rechtsform eine Unternehmergesellschaft
 // ist.
-//
-// Zuerst über den Katalog, denn dort steht die Schreibweise, die die
-// Einstellungen anbieten. Für die freie Eingabe kommt der ausgeschriebene Name
-// dazu und das Kürzel als eigenes Wort — „UG" als Teilzeichenkette zu suchen
-// träfe irgendwann eine Rechtsform, die nichts damit zu tun hat.
 func isEntrepreneurialCompany(legalForm string) bool {
-	if form, ok := domain.LookupLegalForm(legalForm); ok {
-		return form.Name == domain.LegalFormUG
-	}
-	lower := strings.ToLower(legalForm)
-	if strings.Contains(lower, "unternehmergesellschaft") {
-		return true
-	}
-	for _, word := range strings.FieldsFunc(lower, func(r rune) bool {
-		return !unicode.IsLetter(r)
-	}) {
-		if word == "ug" {
-			return true
-		}
-	}
-	return false
+	return legalForm == domain.LegalFormUG
 }
 
 func appropriationExplanation(a *domain.Appropriation) string {
@@ -269,8 +245,20 @@ func appropriationExplanation(a *domain.Appropriation) string {
 	return strings.TrimSpace(b.String())
 }
 
-// BookAppropriation hält den Beschluss fest und bucht ihn.
+// BookAppropriation hält den Beschluss fest und bucht ihn. Die Gesellschafter
+// beschließen über die Verwendung des Ergebnisses, das der festgestellte
+// Jahresabschluss ausweist (§ 42a Abs. 2, § 46 Nr. 1 GmbHG). Gebucht wird
+// deshalb erst, wenn die Feststellung erfasst ist, und nicht mit einem
+// Beschluss, der vor ihr liegt.
 func (s *AppropriationService) BookAppropriation(
+	ctx context.Context, year int, req AppropriationRequest,
+) (*domain.Appropriation, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.Appropriation, error) {
+		return s.bookAppropriation(ctx, year, req)
+	})
+}
+
+func (s *AppropriationService) bookAppropriation(
 	ctx context.Context, year int, req AppropriationRequest,
 ) (*domain.Appropriation, error) {
 	preview, err := s.PreviewAppropriation(ctx, year, req)
@@ -278,6 +266,9 @@ func (s *AppropriationService) BookAppropriation(
 		return nil, err
 	}
 	if err := s.closingSvc.EnsureLegalReserve(ctx, preview.Year); err != nil {
+		return nil, err
+	}
+	if err := s.ensureAdopted(ctx, preview.Year, preview.BookingDate); err != nil {
 		return nil, err
 	}
 	// Ein zweiter Beschluss zum selben Jahr überschriebe den ersten, während
@@ -295,7 +286,7 @@ func (s *AppropriationService) BookAppropriation(
 		if stored.JournalEntryID != nil && !voided {
 			return nil, fmt.Errorf(
 				"für das Geschäftsjahr %d ist am %s bereits ein Beschluss erfasst und gebucht. "+
-					"Storniere zuerst seine Buchung", preview.Year, stored.DecisionDate)
+					"Zuerst ist seine Buchung zu stornieren", preview.Year, stored.DecisionDate)
 		}
 		// Ein Beschluss ohne Buchung — der reine Vortrag auf neue Rechnung —
 		// wird fortgeschrieben: der Schlüssel ist das Geschäftsjahr, und es
@@ -359,26 +350,67 @@ func (s *AppropriationService) BookAppropriation(
 		// sonst bliebe er als offener Beleg im Belegspeicher liegen.
 		if appropriation.ReceiptID != nil && s.receipts != nil {
 			if err := s.receipts.Seal(ctx, *appropriation.ReceiptID, created.ID); err != nil {
-				return nil, fmt.Errorf(
-					"die Buchung %s wurde geschrieben, das Beschlussdokument aber nicht mit ihr "+
-						"verbunden: %w", created.EntryNumber, err)
+				return nil, fmt.Errorf("das Beschlussdokument ließ sich nicht mit der Buchung verbinden: %w", err)
 			}
 		}
 	}
 	if err := s.appropriationRepo.Save(ctx, &appropriation); err != nil {
 		return nil, fmt.Errorf("der Beschluss konnte nicht gespeichert werden: %w", err)
 	}
-	s.audit(ctx, "APPROPRIATION", preview.Year, fmt.Sprintf(
-		"Ergebnisverwendung %d: %s", preview.Year, preview.Explanation))
+	if err := s.auditEntity(ctx, domain.AuditActionUpdate, "APPROPRIATION", preview.Year, fmt.Sprintf(
+		"Ergebnisverwendung %d: %s", preview.Year, preview.Explanation)); err != nil {
+		return nil, err
+	}
 	return &appropriation, nil
+}
+
+// ensureAdopted verlangt den festgestellten Abschluss des verwendeten Jahres
+// und einen Beschluss, der nicht vor der Feststellung liegt. Beide dürfen auf
+// denselben Tag fallen: meist beschließt dieselbe Versammlung über beides.
+// CheckAdopted prüft ohne zu buchen, ob ein Beschluss vom decisionDate über das
+// Ergebnis des Jahres gebucht werden kann: der Abschluss ist festgestellt, und
+// der Beschluss liegt nicht vor der Feststellung.
+func (s *AppropriationService) CheckAdopted(ctx context.Context, year int, decisionDate string) error {
+	return s.ensureAdopted(ctx, year, decisionDate)
+}
+
+func (s *AppropriationService) ensureAdopted(ctx context.Context, year int, decisionDate string) error {
+	fy, err := s.closingSvc.YearOf(ctx, year)
+	if err != nil {
+		return err
+	}
+	if !fy.IsAdopted() {
+		return fmt.Errorf(
+			"der Jahresabschluss %d ist nicht festgestellt (Stand: %s). Über die Verwendung des Ergebnisses "+
+				"beschließen die Gesellschafter auf Grundlage des festgestellten Abschlusses (§ 42a Abs. 2, "+
+				"§ 46 Nr. 1 GmbHG); die Feststellung erfasst der Mensch in der App", year, fy.Status.Label())
+	}
+	if decisionDate < fy.AdoptedOn {
+		return fmt.Errorf("der Beschluss vom %s liegt vor der Feststellung des Abschlusses %d am %s",
+			domain.GermanDate(decisionDate), year, domain.GermanDate(fy.AdoptedOn))
+	}
+	return nil
 }
 
 // Appropriation liefert den gespeicherten Beschluss eines Jahres, oder nil.
 func (s *AppropriationService) Appropriation(ctx context.Context, year int) (*domain.Appropriation, error) {
-	if year == 0 {
-		year = s.fiscalYear - 1
+	return s.DecisionSource().Appropriation(ctx, year)
+}
+
+// DecisionSource liest den Beschluss ohne Zugriff auf Abschlussbuchungen.
+func (s *AppropriationService) DecisionSource() ObligationAppropriationSource {
+	return appropriationReader{repo: s.appropriationRepo}
+}
+
+type appropriationReader struct {
+	repo domain.AppropriationRepository
+}
+
+func (s appropriationReader) Appropriation(ctx context.Context, year int) (*domain.Appropriation, error) {
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
-	return s.appropriationRepo.FindByYear(ctx, year)
+	return s.repo.FindByYear(ctx, year)
 }
 
 // -------------------------------------------------------------------------
@@ -389,34 +421,24 @@ func (s *AppropriationService) Appropriation(ctx context.Context, year int) (*do
 // internal/domain, weil der Jahresabschluss den Anhang mitträgt.
 type NotesTextView = domain.NotesSectionText
 
-// NotesTexts liefert alle Abschnitte eines Jahres, auch die leeren: der Anhang
-// ist eine Gliederung, und ein Abschnitt, der nur erscheint, wenn er gefüllt
-// ist, wird nie gefüllt.
 func (s *AppropriationService) NotesTexts(ctx context.Context, year int) ([]NotesTextView, error) {
-	if year == 0 {
-		year = s.fiscalYear
-	}
-	stored, err := s.notesRepo.FindByYear(ctx, year)
-	if err != nil {
-		return nil, err
-	}
-	bySection := map[domain.NotesSection]string{}
-	for _, text := range stored {
-		bySection[text.Section] = text.Text
-	}
-	out := make([]NotesTextView, 0, len(domain.AllNotesSections()))
-	for _, def := range domain.AllNotesSections() {
-		out = append(out, NotesTextView{NotesSectionDefinition: def, Text: bySection[def.Section]})
-	}
-	return out, nil
+	return s.NotesSource().NotesTexts(ctx, year)
 }
 
 // SaveNotesText schreibt einen Abschnitt fort.
 func (s *AppropriationService) SaveNotesText(
 	ctx context.Context, year int, section domain.NotesSection, text string,
 ) ([]NotesTextView, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) ([]NotesTextView, error) {
+		return s.saveNotesText(ctx, year, section, text)
+	})
+}
+
+func (s *AppropriationService) saveNotesText(
+	ctx context.Context, year int, section domain.NotesSection, text string,
+) ([]NotesTextView, error) {
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	fy, err := s.closingSvc.YearOf(ctx, year)
 	if err != nil {
@@ -433,55 +455,17 @@ func (s *AppropriationService) SaveNotesText(
 		return nil, err
 	}
 	def, _ := domain.NotesSectionDefinitionFor(section)
-	s.audit(ctx, "NOTES", year, fmt.Sprintf("Anhangabschnitt %q im Geschäftsjahr %d geändert", def.Label, year))
+	if err := s.auditEntity(ctx, domain.AuditActionUpdate, "NOTES", year, fmt.Sprintf("Anhangabschnitt %q im Geschäftsjahr %d geändert", def.Label, year)); err != nil {
+		return nil, err
+	}
 	return s.NotesTexts(ctx, year)
 }
 
-// CopyNotesInto übernimmt die Anhangtexte des Vorjahres als Vorlage.
-//
-// Die Bilanzierungs- und Bewertungsmethoden ändern sich selten, und ein leerer
-// Anhang im neuen Jahr führt dazu, dass die Angaben schlicht fehlen. Kopiert
-// wird nur, was noch nicht dasteht: eine bereits geschriebene Fassung darf eine
-// Vorlage nicht überschreiben.
 func (s *AppropriationService) CopyNotesInto(ctx context.Context, toYear int) (int, error) {
-	if toYear <= 1 {
-		return 0, nil
-	}
-	source, err := s.notesRepo.FindByYear(ctx, toYear-1)
-	if err != nil || len(source) == 0 {
-		return 0, err
-	}
-	target, err := s.notesRepo.FindByYear(ctx, toYear)
-	if err != nil {
-		return 0, err
-	}
-	present := map[domain.NotesSection]bool{}
-	for _, text := range target {
-		if strings.TrimSpace(text.Text) != "" {
-			present[text.Section] = true
-		}
-	}
-	copied := 0
-	for _, text := range source {
-		if present[text.Section] || strings.TrimSpace(text.Text) == "" {
-			continue
-		}
-		entry := &domain.NotesText{Year: toYear, Section: text.Section, Text: text.Text}
-		if err := s.notesRepo.Save(ctx, entry); err != nil {
-			return copied, err
-		}
-		copied++
-	}
-	if copied > 0 {
-		s.audit(ctx, "NOTES", toYear, fmt.Sprintf(
-			"%d Anhangtexte aus dem Geschäftsjahr %d als Vorlage übernommen", copied, toYear-1))
-	}
-	return copied, nil
+	return s.NotesSource().CopyNotesInto(ctx, toYear)
 }
 
-func (s *AppropriationService) audit(ctx context.Context, entity string, year int, details string) {
-	if s.auditRepo == nil {
-		return
-	}
-	_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, entity, fmt.Sprintf("%d", year), details)
+// NotesSource liefert Anhangtexte und ihre Übernahme ohne Ergebnisverwendung.
+func (s *AppropriationService) NotesSource() ClosingNotes {
+	return &notesStore{notesRepo: s.notesRepo, journalSvc: s.journalSvc, auditor: s.auditor}
 }

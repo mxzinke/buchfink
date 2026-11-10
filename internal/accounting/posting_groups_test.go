@@ -74,7 +74,6 @@ func TestStandardAccountsMatchDATEV(t *testing.T) {
 
 	want := map[string]string{
 		domain.AccountForderungenLuL:            "Forderungen aus Lieferungen und Leistungen",
-		domain.AccountKasse:                     "Kasse",
 		domain.AccountBank:                      "Bank",
 		domain.AccountGeldtransit:               "Geldtransit",
 		domain.AccountVerbindlichkeitenLuL:      "Verbindlichkeiten aus Lieferungen und Leistungen",

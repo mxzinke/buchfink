@@ -9,52 +9,114 @@ import (
 
 // Die Schätzung der Ertragsteuern zum Bilanzstichtag.
 //
-// Sie ist eine Schätzung und keine Steuererklärung. Was Buchfink rechnen kann,
-// ist die Regel: Körperschaftsteuer auf das handelsrechtliche Ergebnis zuzüglich
-// der nicht abziehbaren Betriebsausgaben, der Solidaritätszuschlag darauf und
-// die Gewerbesteuer nach Messzahl und Hebesatz. Was Buchfink nicht kennt, sind
-// Verlustvorträge (§ 10d EStG, § 10a GewStG), Hinzurechnungen und Kürzungen
-// (§§ 8 und 9 GewStG) und verdeckte Gewinnausschüttungen. Deshalb ist das
-// Ergebnis ein Vorschlag, der geändert werden darf, und der Erklärtext sagt das.
+// Sie ist keine Steuererklärung. Gerechnet wird der Regelweg einer GmbH: das
+// Ergebnis vor Ertragsteuern, zuzüglich der nicht abziehbaren Aufwendungen,
+// abzüglich der steuerfreien Beteiligungserträge (zuzüglich 5 % davon), der
+// Spendenabzug in den Höchstbeträgen, der Verlustvortrag mit
+// Mindestbesteuerung, darauf Körperschaftsteuer, Solidaritätszuschlag und
+// Gewerbesteuer. Hinzurechnungen und Kürzungen der Gewerbesteuer (§§ 8, 9
+// GewStG), verdeckte Gewinnausschüttungen und Verlustvorträge sind Angaben, die
+// nicht in den Büchern stehen; sie kommen als Eingabe. Rundung, Höchstbeträge
+// und Anrechnung teilt die Schätzung mit den Steuererklärungen (income_tax.go).
 
 // TaxProvisionInput sind die Größen, aus denen der Vorschlag entsteht.
 type TaxProvisionInput struct {
-	// ProfitBeforeTax ist das Ergebnis vor Steuern aus der GuV.
+	// ProfitBeforeTax ist das Ergebnis vor Ertragsteuern aus der GuV.
 	ProfitBeforeTax domain.Cents `json:"profitBeforeTax"`
-	// NonDeductible sind die nicht abziehbaren Betriebsausgaben, die dem
-	// Ergebnis wieder hinzuzurechnen sind (§ 4 Abs. 5 EStG, § 10 KStG).
+	// NonDeductible sind die nicht abziehbaren Aufwendungen, die dem Ergebnis
+	// wieder hinzuzurechnen sind (§ 4 Abs. 5 EStG, § 10 KStG, § 8b Abs. 3
+	// Satz 3 KStG).
 	NonDeductible domain.Cents `json:"nonDeductible"`
+	// ExemptDividends sind Bezüge nach § 8b Abs. 1 KStG, ExemptGains Gewinne
+	// nach § 8b Abs. 2 KStG; beide bleiben außer Ansatz, 5 % davon gelten als
+	// nicht abziehbar (§ 8b Abs. 3 Satz 1, Abs. 5 Satz 1 KStG).
+	ExemptDividends domain.Cents `json:"exemptDividends"`
+	ExemptGains     domain.Cents `json:"exemptGains"`
+	// Donations sind die gebuchten Zuwendungen, die in den Höchstbeträgen des
+	// § 9 Abs. 1 Satz 1 Nr. 2 KStG abziehbar sind; TurnoverAndWages ist die
+	// Summe aus Umsätzen und Löhnen für den Höchstbetrag von 4 ‰.
+	Donations        domain.Cents `json:"donations"`
+	TurnoverAndWages domain.Cents `json:"turnoverAndWages"`
+	// LossCarryforwardCorporate ist der verbleibende Verlustvortrag zur
+	// Körperschaftsteuer laut letztem Feststellungsbescheid (§ 10d Abs. 4
+	// EStG), LossCarryforwardTrade der vortragsfähige Gewerbeverlust
+	// (§ 10a Satz 6 GewStG).
+	LossCarryforwardCorporate domain.Cents `json:"lossCarryforwardCorporate"`
+	LossCarryforwardTrade     domain.Cents `json:"lossCarryforwardTrade"`
+	// TradeAdditions und TradeDeductions sind die Hinzurechnungen nach § 8
+	// GewStG und die Kürzungen nach § 9 GewStG.
+	TradeAdditions  domain.Cents `json:"tradeAdditions"`
+	TradeDeductions domain.Cents `json:"tradeDeductions"`
 	// TradeTaxRatePercent ist der Hebesatz der Gemeinde in Prozent (400 = 400 %).
 	TradeTaxRatePercent int64 `json:"tradeTaxRatePercent"`
-	// PrepaidCorporate und PrepaidTrade sind die bereits gebuchten
-	// Vorauszahlungen. Sie mindern die Rückstellung, nicht die Steuer.
-	PrepaidCorporate domain.Cents `json:"prepaidCorporate"`
-	PrepaidTrade     domain.Cents `json:"prepaidTrade"`
-	// Date ist der Bilanzstichtag; er wählt den Satz aus der datierten Tabelle.
+	// PrepaidCorporate, PrepaidSolidarity und PrepaidTrade sind die
+	// Vorauszahlungen für dieses Jahr (Konten 7600, 7608, 7610).
+	PrepaidCorporate  domain.Cents `json:"prepaidCorporate"`
+	PrepaidSolidarity domain.Cents `json:"prepaidSolidarity"`
+	PrepaidTrade      domain.Cents `json:"prepaidTrade"`
+	// CreditableWithholding und CreditableSolidarity sind die einbehaltene
+	// Kapitalertragsteuer und der Solidaritätszuschlag darauf (Konten 7630,
+	// 7633). Sie werden angerechnet (§ 36 Abs. 2 Nr. 2 EStG).
+	CreditableWithholding domain.Cents `json:"creditableWithholding"`
+	CreditableSolidarity  domain.Cents `json:"creditableSolidarity"`
+	// Date ist der Bilanzstichtag; sein Kalenderjahr ist der
+	// Veranlagungszeitraum (§ 7 Abs. 4 Satz 2 KStG) und wählt die Werte aus der
+	// datierten Tabelle.
 	Date string `json:"date"`
 }
 
 // TaxProvisionResult ist die aufgeschlüsselte Rechnung.
 type TaxProvisionResult struct {
+	// ExemptIncome sind die steuerfreien Beteiligungserträge, ExemptAddBack
+	// die 5 % davon, die als nicht abziehbar gelten.
+	ExemptIncome  domain.Cents `json:"exemptIncome"`
+	ExemptAddBack domain.Cents `json:"exemptAddBack"`
+	// IncomeBeforeDonations ist das Einkommen vor Spenden- und Verlustabzug
+	// (§ 9 Abs. 2 Satz 1 KStG).
+	IncomeBeforeDonations domain.Cents `json:"incomeBeforeDonations"`
+	// DonationsDeducted ist der abziehbare Teil der Zuwendungen,
+	// DonationsCarried der Rest, der vorgetragen wird (§ 9 Abs. 1 Satz 1 Nr. 2
+	// Satz 9 KStG).
+	DonationsDeducted domain.Cents `json:"donationsDeducted"`
+	DonationsCarried  domain.Cents `json:"donationsCarried"`
+	// IncomeBeforeLoss ist der Gesamtbetrag vor dem Verlustabzug.
+	IncomeBeforeLoss domain.Cents `json:"incomeBeforeLoss"`
+	// LossDeducted ist der abgezogene Verlustvortrag, LossRemaining der
+	// Vortrag danach, um einen Verlust dieses Jahres erhöht.
+	LossDeducted  domain.Cents `json:"lossDeducted"`
+	LossRemaining domain.Cents `json:"lossRemaining"`
+	// TaxableIncome ist das zu versteuernde Einkommen; negativ bei einem
+	// Verlust.
 	TaxableIncome domain.Cents `json:"taxableIncome"`
 	CorporateTax  domain.Cents `json:"corporateTax"`
 	Solidarity    domain.Cents `json:"solidarity"`
+
+	// TradeIncomeBeforeLoss ist der Gewerbeertrag vor dem Abzug der
+	// Fehlbeträge, TradeLossDeducted und TradeLossRemaining wie bei der
+	// Körperschaftsteuer.
+	TradeIncomeBeforeLoss domain.Cents `json:"tradeIncomeBeforeLoss"`
+	TradeLossDeducted     domain.Cents `json:"tradeLossDeducted"`
+	TradeLossRemaining    domain.Cents `json:"tradeLossRemaining"`
 	// TradeIncome ist der auf volle 100 Euro abgerundete Gewerbeertrag
 	// (§ 11 Abs. 1 Satz 3 GewStG), TradeBase der Steuermessbetrag.
 	TradeIncome domain.Cents `json:"tradeIncome"`
 	TradeBase   domain.Cents `json:"tradeBase"`
 	TradeTax    domain.Cents `json:"tradeTax"`
 
+	// CorporateDue und SolidarityDue sind Körperschaftsteuer und
+	// Solidaritätszuschlag nach Vorauszahlungen und Anrechnung; negativ bei
+	// einer Überzahlung.
+	CorporateDue  domain.Cents `json:"corporateDue"`
+	SolidarityDue domain.Cents `json:"solidarityDue"`
 	// IncomeProvision ist die Rückstellung für Körperschaftsteuer und
-	// Solidaritätszuschlag, TradeProvision die für die Gewerbesteuer — jeweils
-	// nach Abzug der Vorauszahlungen und nie negativ: eine Überzahlung ist eine
-	// Forderung und keine Rückstellung.
+	// Solidaritätszuschlag, TradeProvision die für die Gewerbesteuer.
+	// IncomeRefund und TradeRefund sind die Erstattungsansprüche, wo die
+	// Vorauszahlungen und die anrechenbaren Beträge die Steuer übersteigen.
+	// Je Steuerart ist nur eines von beiden größer als null.
 	IncomeProvision domain.Cents `json:"incomeProvision"`
 	TradeProvision  domain.Cents `json:"tradeProvision"`
-	// IncomeRefund und TradeRefund sind die Überzahlungen, die stattdessen
-	// entstehen. Buchfink bucht sie nicht, sondern weist sie aus.
-	IncomeRefund domain.Cents `json:"incomeRefund"`
-	TradeRefund  domain.Cents `json:"tradeRefund"`
+	IncomeRefund    domain.Cents `json:"incomeRefund"`
+	TradeRefund     domain.Cents `json:"tradeRefund"`
 
 	RatesUsed string `json:"ratesUsed"`
 }
@@ -68,51 +130,128 @@ func CalculateTaxProvision(in TaxProvisionInput) (*TaxProvisionResult, error) {
 	if in.TradeTaxRatePercent <= 0 {
 		return nil, fmt.Errorf(
 			"ohne Gewerbesteuer-Hebesatz lässt sich die Gewerbesteuer nicht rechnen. " +
-				"Der Hebesatz steht in den Einstellungen und ist eine Angabe der Gemeinde")
+				"Der Hebesatz ist eine Angabe der Gemeinde (§ 16 Abs. 1 GewStG); er steht im " +
+				"Gewerbesteuerbescheid und wird in den Abschluss-Einstellungen hinterlegt")
+	}
+	if in.TradeTaxRatePercent < params.TradeTaxMinRatePercent {
+		return nil, fmt.Errorf(
+			"der Hebesatz von %d %% liegt unter dem gesetzlichen Mindesthebesatz von %d %% "+
+				"(§ 16 Abs. 4 Satz 2 GewStG); bitte den Hebesatz aus dem Gewerbesteuerbescheid angeben",
+			in.TradeTaxRatePercent, params.TradeTaxMinRatePercent)
+	}
+	for _, v := range []struct {
+		label string
+		value domain.Cents
+	}{
+		{"Verlustvortrag zur Körperschaftsteuer", in.LossCarryforwardCorporate},
+		{"Gewerbeverlust", in.LossCarryforwardTrade},
+		{"Hinzurechnungen nach § 8 GewStG", in.TradeAdditions},
+		{"Kürzungen nach § 9 GewStG", in.TradeDeductions},
+		{"steuerfreie Bezüge", in.ExemptDividends},
+		{"steuerfreie Veräußerungsgewinne", in.ExemptGains},
+		{"Zuwendungen", in.Donations},
+	} {
+		if v.value < 0 {
+			return nil, fmt.Errorf("%s kann nicht negativ sein (%s €)", v.label, v.value)
+		}
 	}
 
-	base := in.ProfitBeforeTax + in.NonDeductible
 	result := &TaxProvisionResult{
-		TaxableIncome: base,
 		RatesUsed: fmt.Sprintf(
 			"KSt %s %%, SolZ %s %%, Messzahl %s %%, Hebesatz %d %%",
 			taxRateText(params.CorporateTaxPermille), taxRateText(params.SolidarityPermille),
 			taxRateText(params.TradeTaxBasePermille), in.TradeTaxRatePercent),
 	}
-	if base <= 0 {
-		// Ein Verlust erzeugt keine Steuer. Er erzeugt auch keine Erstattung —
-		// die entstünde erst aus einem Verlustrücktrag, und der ist ein Antrag.
-		result.IncomeRefund = in.PrepaidCorporate
-		result.TradeRefund = in.PrepaidTrade
-		return result, nil
+
+	// Einkommen vor Spenden und Verlustabzug.
+	exempt := in.ExemptDividends + in.ExemptGains
+	result.ExemptIncome = exempt
+	result.ExemptAddBack = ExemptAddBack(in.ExemptDividends, params) + ExemptAddBack(in.ExemptGains, params)
+	result.IncomeBeforeDonations = in.ProfitBeforeTax + in.NonDeductible + in.Donations -
+		exempt + result.ExemptAddBack
+
+	// § 9 Abs. 1 Satz 1 Nr. 2 KStG: abziehbar bis zum höheren der beiden
+	// Höchstbeträge, der Rest wird vorgetragen (Satz 9).
+	if in.Donations > 0 {
+		limit, _, _ := DonationCap(result.IncomeBeforeDonations, in.TurnoverAndWages, params)
+		result.DonationsDeducted = minCents(in.Donations, limit)
+		result.DonationsCarried = in.Donations - result.DonationsDeducted
+	}
+	result.IncomeBeforeLoss = result.IncomeBeforeDonations - result.DonationsDeducted
+
+	result.LossDeducted = LossDeduction(result.IncomeBeforeLoss, in.LossCarryforwardCorporate,
+		params.LossDeductionBase, params.LossDeductionExcessPermille)
+	result.TaxableIncome = result.IncomeBeforeLoss - result.LossDeducted
+	result.LossRemaining = in.LossCarryforwardCorporate - result.LossDeducted
+	if result.IncomeBeforeLoss < 0 {
+		result.LossRemaining += -result.IncomeBeforeLoss
 	}
 
-	result.CorporateTax = domain.MulRound(base, params.CorporateTaxPermille, 1000)
-	result.Solidarity = domain.MulRound(result.CorporateTax, params.SolidarityPermille, 1000)
+	result.CorporateTax = CorporateTaxOn(result.TaxableIncome, params)
+	result.Solidarity = SolidarityOn(result.CorporateTax, params)
 
-	// § 11 Abs. 1 Satz 3 GewStG: der Gewerbeertrag wird auf volle 100 Euro nach
-	// unten abgerundet.
-	result.TradeIncome = base - base%10000
-	result.TradeBase = domain.MulRound(result.TradeIncome, params.TradeTaxBasePermille, 1000)
-	// Kaufmännisch gerundet wie jeder andere Rechenschritt: bei einem Hebesatz,
-	// der kein Vielfaches von 100 ist (415 % kommt vor), und einem Messbetrag
-	// mit ungeraden Cents schnitte die Ganzzahldivision den Rest ab und ergäbe
-	// eine um bis zu einen Cent zu niedrige Steuer.
-	result.TradeTax = domain.MulRound(result.TradeBase, in.TradeTaxRatePercent, 100)
+	// Gewerbeertrag: der Gewinn nach den Vorschriften des KStG (§ 7 Satz 1
+	// GewStG), vermehrt und vermindert um §§ 8, 9 GewStG, gekürzt um die
+	// Fehlbeträge (§ 10a GewStG).
+	result.TradeIncomeBeforeLoss = result.IncomeBeforeLoss + in.TradeAdditions - in.TradeDeductions
+	result.TradeLossDeducted = LossDeduction(result.TradeIncomeBeforeLoss, in.LossCarryforwardTrade,
+		params.LossDeductionBase, params.TradeLossExcessPermille)
+	result.TradeLossRemaining = in.LossCarryforwardTrade - result.TradeLossDeducted
+	if result.TradeIncomeBeforeLoss < 0 {
+		result.TradeLossRemaining += -result.TradeIncomeBeforeLoss
+	}
+	trade := TradeTaxOn(result.TradeIncomeBeforeLoss-result.TradeLossDeducted, in.TradeTaxRatePercent, params)
+	result.TradeIncome, result.TradeBase, result.TradeTax = trade.Rounded, trade.Base, trade.Tax
 
-	income := result.CorporateTax + result.Solidarity - in.PrepaidCorporate
-	if income >= 0 {
+	result.CorporateDue = result.CorporateTax - in.PrepaidCorporate - CreditableWithholding(in.CreditableWithholding)
+	result.SolidarityDue = result.Solidarity - in.PrepaidSolidarity - in.CreditableSolidarity
+	if income := result.CorporateDue + result.SolidarityDue; income >= 0 {
 		result.IncomeProvision = income
 	} else {
 		result.IncomeRefund = -income
 	}
-	trade := result.TradeTax - in.PrepaidTrade
-	if trade >= 0 {
+	if trade := result.TradeTax - in.PrepaidTrade; trade >= 0 {
 		result.TradeProvision = trade
 	} else {
 		result.TradeRefund = -trade
 	}
 	return result, nil
+}
+
+// SplitIncomeTax verteilt einen Betrag für Körperschaftsteuer und
+// Solidaritätszuschlag auf die beiden Konten. Haben die Teile verschiedene
+// Vorzeichen, nimmt der eine den anderen auf; die Summe bleibt der Betrag.
+func SplitIncomeTax(corporate, solidarity domain.Cents) (domain.Cents, domain.Cents) {
+	total := corporate + solidarity
+	switch {
+	case total >= 0 && corporate < 0:
+		return 0, total
+	case total >= 0 && solidarity < 0:
+		return total, 0
+	case total < 0 && corporate > 0:
+		return 0, total
+	case total < 0 && solidarity > 0:
+		return total, 0
+	}
+	return corporate, solidarity
+}
+
+func truncPermille(amount domain.Cents, permille int64) domain.Cents {
+	return domain.Cents(int64(amount) * permille / 1000)
+}
+
+func minCents(a, b domain.Cents) domain.Cents {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func maxCents(a, b domain.Cents) domain.Cents {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // taxRateText schreibt einen Promillewert als Prozentzahl in deutscher

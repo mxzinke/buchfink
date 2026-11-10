@@ -1,0 +1,14 @@
+{
+  "name": "buchfink-buchhaltung",
+  "displayName": "Buchfink Buchhaltung",
+  "version": "0.3.0",
+  "description": "Skill und MCP-Anbindung für Buchfink, die lokale Buchhaltungs-App für GmbH und UG. Buchfink muss auf diesem Rechner laufen.",
+  "author": {
+    "name": "Buchfink",
+    "url": "https://github.com/mxzinke/buchfink"
+  },
+  "homepage": "https://github.com/mxzinke/buchfink",
+  "repository": "https://github.com/mxzinke/buchfink",
+  "license": "EUPL-1.2",
+  "keywords": ["buchhaltung", "gobd", "skr04", "ustva", "e-rechnung", "jahresabschluss"]
+}

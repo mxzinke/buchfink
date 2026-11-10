@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -14,38 +15,11 @@ import (
 
 // SchemaVersion ist der Stand des Datenbankschemas, den dieser Code erwartet.
 //
-// Sie wird bei jeder Welle erhöht, die Tabellen oder Spalten hinzufügt. Ihr
-// Zweck ist nicht die Migration selbst — AutoMigrate erkennt fehlende Spalten
-// von allein —, sondern die Frage, ob überhaupt migriert werden musste: eine
-// Anpassung, die bei jedem Start läuft und nichts protokolliert, lässt sich
-// später nicht von einer unterscheiden, die etwas verändert hat (ARC-05, GoBD
-// Rz. 34).
-//
-//	1–5  Wellen 1 bis 5c (rückwirkend vergeben; Dateien aus dieser Zeit haben
-//	     keine Versionszeile und werden mit 0 gelesen)
-//	6    Welle 6: Änderungsprotokoll mit Kette, Aufbewahrungsfristen,
-//	     Belegkopfdaten, Migrationsprotokoll
-//	7    Welle 7: Mahnwesen (Schreiben, Posten, Basiszinssatz), gelernte
-//	     Bankregeln, Bestellbezug und Leistungsnachweis am Beleg
-//	8    Welle 8: überschriebene Aufbewahrungsfrist am Beleg, Kennzeichen des
-//	     selbst angelegten Kontos
-//	9    Bankkonten, zusätzliche Feldverschlüsselung und Offenlegungsnachweis
-//	10   Beschreibungstexte im Änderungsprotokoll verschlüsseln
-//	11   Gegliederte Anschrift, Gründungsdaten und Gesellschafterliste in den
-//	     Stammdaten, Konto für Rechnungen am Bankkonto
-const SchemaVersion = 11
-
-// migratedTables benennt die Tabellen, die dieser Stand anlegt oder ändert.
-// Sie steht im Protokoll, damit sich später beantworten lässt, was ein Lauf
-// angefasst hat.
-var migratedTables = []string{
-	"audit_log_entries", "journal_entries", "receipts", "contacts",
-	"festschreibungen", "asset_documents", "retention_holds", "schema_migrations",
-	"migration_records",
-	"bank_rules", "base_rates", "dunning_notices", "dunning_notice_items",
-	"accounts", "bank_transactions", "invoice_items", "bank_accounts", "fiscal_years",
-	"setting_items", "company_shareholders",
-}
+// Sie steigt mit jeder Änderung an Tabellen oder Spalten. Ihr Zweck ist die
+// Frage, ob überhaupt migriert werden musste: eine Anpassung, die bei jedem
+// Start läuft und nichts protokolliert, lässt sich später nicht von einer
+// unterscheiden, die etwas verändert hat (ARC-05, GoBD Rz. 34).
+const SchemaVersion = 3
 
 // ApplyMigrations bringt das Schema auf den Stand des Codes und protokolliert
 // den Lauf.
@@ -66,7 +40,11 @@ func ApplyMigrations(ctx context.Context, db *gorm.DB) (*domain.SchemaMigration,
 	if err != nil {
 		return nil, err
 	}
-	if current >= SchemaVersion {
+	if current > SchemaVersion {
+		return nil, fmt.Errorf(
+			"die Datenbank hat Schemaversion %d, diese Programmfassung kennt nur bis %d", current, SchemaVersion)
+	}
+	if current == SchemaVersion {
 		return nil, nil
 	}
 
@@ -75,24 +53,12 @@ func ApplyMigrations(ctx context.Context, db *gorm.DB) (*domain.SchemaMigration,
 		AppVersion:  buildinfo.Version,
 		FromVersion: current,
 		ToVersion:   SchemaVersion,
-		Tables:      strings.Join(migratedTables, ", "),
 		Actor:       actor.Actor(),
 	}
 
-	// Enable before table rebuilds and backfills, which can otherwise leave
-	// plaintext in freed SQLite pages.
-	migrateErr := db.Exec("PRAGMA secure_delete = ON").Error
-	if migrateErr == nil {
-		migrateErr = AutoMigrate(db)
-	}
-	if migrateErr == nil {
-		migrateErr = BackfillAddedEncryption(db)
-	}
-	if migrateErr == nil {
-		migrateErr = runBackfills(db)
-	}
-	if migrateErr == nil && vaultFor(db.Statement.Context) != nil {
-		migrateErr = compactEncryptedMigration(db)
+	migrateErr := AutoMigrate(db)
+	if migrateErr == nil && current > 0 && current < 3 {
+		migrateErr = assignLoanContracts(ctx, db)
 	}
 	if migrateErr != nil {
 		record.Result = domain.SchemaMigrationResultFailed
@@ -104,18 +70,34 @@ func ApplyMigrations(ctx context.Context, db *gorm.DB) (*domain.SchemaMigration,
 	}
 
 	record.Result = domain.SchemaMigrationResultOK
-	record.Message = fmt.Sprintf(
-		"Schema von Version %d auf %d gebracht.", current, SchemaVersion)
+	record.Message = fmt.Sprintf("Schema von Version %d auf %d gebracht.", current, SchemaVersion)
 	if current == 0 {
-		record.Message = fmt.Sprintf(
-			"Schema auf Version %d gebracht. Die Datei hatte noch keine Versionsangabe — "+
-				"entweder ist sie neu oder sie stammt aus der Zeit vor dem Migrationsprotokoll.",
-			SchemaVersion)
+		record.Message = fmt.Sprintf("Schema in Version %d angelegt.", SchemaVersion)
+	}
+	if tables, err := db.Migrator().GetTables(); err == nil {
+		own := make([]string, 0, len(tables))
+		for _, table := range tables {
+			if !strings.HasPrefix(table, "sqlite_") {
+				own = append(own, table)
+			}
+		}
+		sort.Strings(own)
+		record.Tables = strings.Join(own, ", ")
 	}
 	if err := db.WithContext(ctx).Create(record).Error; err != nil {
 		return nil, fmt.Errorf("der Migrationslauf ließ sich nicht protokollieren: %w", err)
 	}
 	return record, nil
+}
+
+// assignLoanContracts ordnet Schema 3 die Verträge zu, die ein
+// Gesellschafterdarlehen schon nennt. Vorher blieben sie abgelegt und galten
+// im Prüflauf als ungebucht.
+func assignLoanContracts(ctx context.Context, db *gorm.DB) error {
+	return db.WithContext(ctx).Exec(`UPDATE receipts SET status = ?, assigned_kind = ?,
+		assigned_id = (SELECT l.id FROM shareholder_loans l WHERE l.contract_receipt_id = receipts.id ORDER BY l.id LIMIT 1)
+		WHERE status = ? AND id IN (SELECT contract_receipt_id FROM shareholder_loans WHERE contract_receipt_id IS NOT NULL)`,
+		domain.ReceiptStatusAssigned, domain.AssignmentShareholderLoan, domain.ReceiptStatusFiled).Error
 }
 
 // storedSchemaVersion liest die höchste erfolgreich protokollierte Zielversion.
@@ -135,23 +117,6 @@ func storedSchemaVersion(ctx context.Context, db *gorm.DB) (int, error) {
 		return 0, nil
 	}
 	return *version, nil
-}
-
-// runBackfills füllt Spalten, die AutoMigrate nur anlegt.
-func runBackfills(db *gorm.DB) error {
-	if err := BackfillReceiptKinds(db); err != nil {
-		return fmt.Errorf("die Belegarten ließen sich nicht ergänzen: %w", err)
-	}
-	if err := BackfillContactAddresses(db); err != nil {
-		return fmt.Errorf("die Anschriften ließen sich nicht zerlegen: %w", err)
-	}
-	if err := BackfillRetention(db); err != nil {
-		return fmt.Errorf("die Aufbewahrungsfristen ließen sich nicht nachtragen: %w", err)
-	}
-	if err := BackfillCompanyProfile(db); err != nil {
-		return fmt.Errorf("die Stammdaten ließen sich nicht überführen: %w", err)
-	}
-	return nil
 }
 
 // --- Repository -----------------------------------------------------------
@@ -198,7 +163,7 @@ func (r *migrationRepositoryGorm) FindMigrationRecords(ctx context.Context) ([]d
 // nicht mehr aufgeht (ARC-05).
 func CountForMigration(ctx context.Context, db *gorm.DB) (domain.MigrationCounts, error) {
 	var counts domain.MigrationCounts
-	tx := db.WithContext(ctx)
+	tx := dbFrom(ctx, db)
 
 	count := func(model any, into *int) error {
 		var n int64

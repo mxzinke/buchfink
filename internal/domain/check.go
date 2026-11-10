@@ -61,16 +61,11 @@ const (
 	// Stichtag eintreten —, aber Prüferbestellung und Gliederungsumstellung
 	// brauchen Vorlauf.
 	CheckRuleSizeClassChange = "size_class_change"
-	// CheckRuleICSupplyEvidenceMissing meldet eine steuerfreie
-	// innergemeinschaftliche Lieferung ohne vollständigen Belegnachweis
-	// (§§ 17a bis 17c UStDV). Der Nachweis ist bis zur Abgabe der Voranmeldung
-	// des Zeitraums zu führen, in dem die Lieferung ausgeführt wurde; fehlt er,
-	// droht die Steuerpflicht der Lieferung.
-	CheckRuleICSupplyEvidenceMissing = "ic_supply_evidence_missing"
-	// CheckRuleICSupplyUnconfirmed meldet eine steuerfreie ig. Lieferung, deren
-	// USt-IdNr. beim Ausstellen nicht bestätigt werden konnte — der Folgebefund
-	// zu jeder dokumentierten Übersteuerung.
-	CheckRuleICSupplyUnconfirmed = "ic_supply_unconfirmed"
+	// CheckRuleVatIDUnconfirmed meldet eine Leistung an einen Unternehmer im
+	// übrigen Gemeinschaftsgebiet, deren USt-IdNr. beim Ausstellen nicht
+	// bestätigt werden konnte — der Folgebefund zu jeder dokumentierten
+	// Übersteuerung.
+	CheckRuleVatIDUnconfirmed = "vat_id_unconfirmed"
 	// CheckRuleServiceProofMissing meldet einen Eingangsbeleg über der
 	// eingestellten Grenze (CompanySettings.InvoiceCheckThreshold), an dem der
 	// Leistungsnachweis fehlt (RECH-08).

@@ -1,0 +1,24 @@
+{
+  "audit": [],
+  "blocked": false,
+  "checks": [],
+  "commitments": [],
+  "entries": [
+    {
+      "commitment": null,
+      "date": "2026-03-15",
+      "stamped": false
+    },
+    {
+      "commitment": null,
+      "date": "2026-04-15",
+      "stamped": false
+    },
+    {
+      "commitment": null,
+      "date": "2026-12-31",
+      "stamped": false
+    }
+  ],
+  "error": "die gesetzliche UG-Rücklage für 2026 ist noch nicht vollständig im Abschluss gebucht: erforderlich 75,00 €, gebucht 0,00 €. Bitte unter Jahresabschluss die Rücklage bilden bzw. anpassen"
+}

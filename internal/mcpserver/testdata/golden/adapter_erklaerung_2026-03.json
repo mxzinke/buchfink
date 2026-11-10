@@ -1,0 +1,20 @@
+{
+  "abgabereif": false,
+  "art": "ustva",
+  "befunde": [
+    {
+      "code": "zeitraum_passt_nicht",
+      "schwere": "warnung",
+      "text": "Der Mandant meldet vierteljährlich, 2026-03 ist ein anderer Zeitraum. Den passenden Schlüssel nennt fristen."
+    }
+  ],
+  "ergebnis": [],
+  "faellig": "2026-04-10",
+  "formulare": [],
+  "kennzahlen": [],
+  "naechster_schritt": "Kennzahlen in Mein ELSTER übertragen lassen; Festschreibung und Transferticket erfasst nur der Mensch in der App. Danach pflicht_vorbereitet.",
+  "status": "entwurf",
+  "zahllast": "0.00",
+  "zeitraum": "2026-03",
+  "zm_zeilen": []
+}

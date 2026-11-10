@@ -49,7 +49,7 @@ func DifferenceKinds() []DifferenceKindInfo {
 		{Kind: DifferenceSkonto, Label: "Skonto",
 			Hint: "Der Rabatt für schnelle Zahlung mindert auch die Umsatz- bzw. Vorsteuer (§ 17 UStG)."},
 		{Kind: DifferenceBankFee, Label: "Bankgebühr",
-			Hint: "Die Bank hat zusätzlich zum Rechnungsbetrag ein Entgelt abgebucht."},
+			Hint: "Ein Entgelt der Bank: beim Zahlungsausgang zusätzlich abgebucht, beim Zahlungseingang vom Betrag abgezogen."},
 		{Kind: DifferenceRounding, Label: "Rundungsdifferenz",
 			Hint: "Kleinbetrag, der als Aufwand oder Ertrag ausgebucht wird."},
 		{Kind: DifferenceCurrency, Label: "Kursdifferenz",
@@ -123,9 +123,18 @@ type OpenItem struct {
 	DocumentNumber   string      `json:"documentNumber"`
 	DocumentDate     string      `json:"documentDate"`
 	DueDate          string      `json:"dueDate"`
-	GrossAmount      Cents       `json:"grossAmount"`
-	SettledAmount    Cents       `json:"settledAmount"`
-	OpenAmount       Cents       `json:"openAmount"`
+	// DueFromTerms sagt, dass die Fälligkeit nicht vom Beleg stammt, sondern
+	// aus dem Zahlungsziel des Kontakts errechnet ist.
+	DueFromTerms  bool  `json:"dueFromTerms,omitempty"`
+	GrossAmount   Cents `json:"grossAmount"`
+	SettledAmount Cents `json:"settledAmount"`
+	OpenAmount    Cents `json:"openAmount"`
+	// Currency ist die Währung der Rechnung hinter dem Posten, leer bei Euro.
+	// Gebucht ist der Posten in Euro; beim Ausgleich entsteht eine Kursdifferenz.
+	Currency string `json:"currency,omitempty"`
+	// Side ist die Seite, auf der der Posten auf dem Personenkonto steht: Soll
+	// beim Debitor, Haben beim Kreditor — und umgekehrt bei einer Gutschrift.
+	Side Side `json:"side"`
 	// TaxRate of the original document, needed to correct the VAT base when a
 	// Skonto is granted. Zero when the document carried no VAT.
 	TaxRate TaxRate `json:"taxRate"`
@@ -153,9 +162,10 @@ func (o *OpenItem) Status() string {
 	}
 }
 
-// IsOverdue reports whether the due date has passed for a still-open item.
+// IsOverdue reports whether the due date has passed for a still-open item. A
+// credit note is never overdue: it is not owed in the usual direction.
 func (o *OpenItem) IsOverdue(today string) bool {
-	return o.OpenAmount != 0 && o.DueDate != "" && o.DueDate < today
+	return !o.IsCredit() && o.OpenAmount != 0 && o.DueDate != "" && o.DueDate < today
 }
 
 // PaymentAllocationRepository persists the settlement links.
@@ -225,12 +235,38 @@ func (o *OpenItem) Direction() Direction {
 }
 
 // SettleSide is the side the Personenkonto is booked on when the item is
-// settled: a credit on a Debitorenkonto, a debit on a Kreditorenkonto.
+// settled: the opposite of the side it stands on. That is a credit on a
+// Debitorenkonto and a debit on a Kreditorenkonto, and the reverse for a
+// credit note.
 func (o *OpenItem) SettleSide() Side {
+	if o.Side != "" {
+		return o.Side.Opposite()
+	}
 	if o.ContactType == ContactTypeCustomer {
 		return SideCredit
 	}
 	return SideDebit
+}
+
+// IsCredit meldet einen Posten gegen die übliche Richtung seines Kontos: die
+// Gutschrift eines Lieferanten (Guthaben beim Kreditor) oder eine an den
+// Kunden. Er ist keine Forderung oder Schuld der üblichen Art; gemahnt,
+// verzinst oder ausgebucht wird er nicht.
+func (o *OpenItem) IsCredit() bool {
+	normal := SideCredit
+	if o.ContactType == ContactTypeCustomer {
+		normal = SideDebit
+	}
+	return o.Side != "" && o.Side != normal
+}
+
+// SignedOpen ist der offene Betrag aus Sicht des Kontos: positiv für eine
+// Forderung oder Schuld, negativ für eine Gutschrift.
+func (o *OpenItem) SignedOpen() Cents {
+	if o.IsCredit() {
+		return -o.OpenAmount
+	}
+	return o.OpenAmount
 }
 
 // SkontoAccount returns the SKR04 account for a Skonto at a given VAT rate.

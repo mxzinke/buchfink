@@ -1,0 +1,9 @@
+{
+  "gruende": [
+    {
+      "schluessel": "sonderangaben",
+      "text": "Die Buchung trägt Sonderangaben: [bewirtung]."
+    }
+  ],
+  "stufe": "rueckfrage"
+}

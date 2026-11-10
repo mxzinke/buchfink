@@ -68,15 +68,6 @@ func TestMonthsInWindowWeighsTheFirstAndLastYear(t *testing.T) {
 		}
 	}
 
-	// Ein Eintrag aus der Zeit vor dem gespeicherten Ende leitet es ab, statt
-	// den Zeitraum still um ein Jahr zu kürzen.
-	legacy := &InputTaxCorrection{AcquisitionDate: "2026-07-01", CorrectionPeriodYears: 5}
-	if got := legacy.PeriodEndDate(); got != "2031-06-30" {
-		t.Errorf("abgeleitetes Ende %s — erwartet 2031-06-30", got)
-	}
-	if got := legacy.MonthsInWindow("2031-01-01", "2031-12-31"); got != 6 {
-		t.Errorf("Monate 2031 ohne gespeichertes Ende: %d — erwartet 6", got)
-	}
 }
 
 // Das Jahr der erstmaligen Verwendung und das letzte Jahr des Zeitraums
@@ -147,44 +138,4 @@ func TestMonthsOfTheWholePeriodAreExactlySixtyOrHundredTwenty(t *testing.T) {
 func fmtYear(year int) string {
 	return string(rune('0'+year/1000)) + string(rune('0'+year/100%10)) +
 		string(rune('0'+year/10%10)) + string(rune('0'+year%10))
-}
-
-// Ein Altbestand ohne gespeichertes Ende des Zeitraums fällt nicht ein Jahr zu
-// früh aus der Berichtigung.
-//
-// LastFiscalYear stammt bei ihm aus der Zeit, in der Buchfink den Zeitraum in
-// vollen Wirtschaftsjahren führte: er endete bis zu ein Jahr zu früh. Das letzte
-// Jahr des Zeitraums muss deshalb aus dem abgeleiteten Ende kommen — sonst
-// bliebe es lautlos unberichtigt.
-func TestCoversYearUsesTheDerivedPeriodEndForLegacyEntries(t *testing.T) {
-	legacy := &InputTaxCorrection{
-		AcquisitionDate:       "2026-07-01",
-		CorrectionPeriodYears: 5,
-		FirstFiscalYear:       2026,
-		// Der alte Stand: fünf volle Wirtschaftsjahre, Ende 2030.
-		LastFiscalYear: 2030,
-	}
-	if !legacy.CoversYear(2031) {
-		t.Errorf("der Zeitraum endet am %s und deckt 2031; gemeldet wird das Gegenteil",
-			legacy.PeriodEndDate())
-	}
-	if legacy.CoversYear(2032) {
-		t.Error("2032 liegt nach dem Zeitraum")
-	}
-	if legacy.CoversYear(2025) {
-		t.Error("2025 liegt vor dem Zugang")
-	}
-
-	// Ein Eintrag mit gespeichertem Ende bleibt, wie er ist: einen laufenden
-	// Zeitraum nachträglich zu verschieben wäre die Änderung eines Bestands.
-	stored := &InputTaxCorrection{
-		AcquisitionDate:       "2026-07-01",
-		CorrectionPeriodYears: 5,
-		PeriodEnd:             "2031-06-30",
-		FirstFiscalYear:       2026,
-		LastFiscalYear:        2031,
-	}
-	if !stored.CoversYear(2031) || stored.CoversYear(2032) {
-		t.Error("der gespeicherte Zeitraum reicht bis 2031 und nicht weiter")
-	}
 }

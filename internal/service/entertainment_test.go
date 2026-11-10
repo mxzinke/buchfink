@@ -147,11 +147,11 @@ func TestEntertainmentDoesNotChangeTheInputTaxFigure(t *testing.T) {
 		t.Fatalf("Vergleichsbeleg: %v", err)
 	}
 
-	withEntertainment, err := env.vat().Summary(ctx, "", "")
+	withEntertainment, err := env.vat().Summary(ctx, 2026, "", "")
 	if err != nil {
 		t.Fatalf("USt-Auswertung: %v", err)
 	}
-	comparison, err := plain.vat().Summary(ctx, "", "")
+	comparison, err := plain.vat().Summary(ctx, 2026, "", "")
 	if err != nil {
 		t.Fatalf("USt-Auswertung Vergleich: %v", err)
 	}

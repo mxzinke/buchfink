@@ -57,7 +57,7 @@ func allocateNumber(tx *gorm.DB, key domain.NumberRangeKey, fiscalYear int) (int
 
 	var current domain.NumberRange
 	if err := tx.Where("key = ? AND fiscal_year = ?", key, fiscalYear).First(&current).Error; err != nil {
-		return 0, fmt.Errorf("Nummernkreis %s konnte nicht gelesen werden: %w", key, err)
+		return 0, fmt.Errorf("Nummernkreis %s konnte nicht gelesen werden: %w", key, mapError(err))
 	}
 
 	seq := current.Next

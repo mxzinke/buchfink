@@ -3,12 +3,11 @@ package wailsbridge
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/buildinfo"
+	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/export"
 	"github.com/buchfink/buchfink/internal/service"
@@ -24,119 +23,33 @@ import (
 // programVersion ist die Fassung, die in jeden Export und jede Sicherung geht.
 func programVersion() string { return buildinfo.Version }
 
-// exportService ist der Schnappschuss des Exportdienstes.
-//
-// Die Sperre schützt die Verdrahtung der Dienste und nicht ihre Laufzeit. Ein
-// Export über ein ganzes Geschäftsjahr mit Belegdateien läuft Sekunden bis
-// Minuten; wird die Lesesperre die ganze Zeit gehalten, wartet jede schreibende
-// Bridge-Methode auf sie — der Anwender kann während des Exports nicht buchen,
-// und der Mandantenwechsel steht ebenfalls. Eingesammelt wird deshalb unter der
-// Sperre, gearbeitet wird ohne (dasselbe Vorgehen wie bei der Sicherung).
-func (b *BuchfinkBridge) exportService() (*service.ExportService, error) {
-	b.mu.RLock()
-	svc := b.exportSvc
-	b.mu.RUnlock()
-	if svc == nil {
-		return nil, fmt.Errorf("der Export ist noch nicht initialisiert")
-	}
-	return svc, nil
-}
+// Die Exporte laufen als Lesevorgang: ohne Schreibsperre, auf einem in sich
+// stimmigen Stand der Datei. Ein Export über ein ganzes Geschäftsjahr dauert
+// Sekunden bis Minuten, und währenddessen bleibt das Buchen möglich.
 
 // ExportZ3 schreibt die Datenüberlassung eines Geschäftsjahres in einen Ordner.
 func (b *BuchfinkBridge) ExportZ3(year int, targetDir string) (*export.Result, error) {
-	svc, err := b.exportService()
-	if err != nil {
-		return nil, err
-	}
-	return svc.ExportZ3(context.Background(), year, targetDir)
+	year = b.yearOr(year)
+	return read(b, func(ctx context.Context, s *core.Services) (*export.Result, error) {
+		return s.Export.ExportZ3(ctx, year, targetDir)
+	})
 }
 
 // ExportArchive schreibt die Datenüberlassung samt Belegdateien.
 func (b *BuchfinkBridge) ExportArchive(year int, targetDir string) (*export.Result, error) {
-	svc, err := b.exportService()
-	if err != nil {
-		return nil, err
-	}
-	return svc.ExportArchive(context.Background(), year, targetDir)
+	year = b.yearOr(year)
+	return read(b, func(ctx context.Context, s *core.Services) (*export.Result, error) {
+		return s.Export.ExportArchive(ctx, year, targetDir)
+	})
 }
 
 // ExportAuditPackage schreibt das Prüferpaket: Archiv, Integritätsnachweis und
 // Verfahrensdokumentation in einem Ordner.
 func (b *BuchfinkBridge) ExportAuditPackage(year int, targetDir string) (*export.Result, error) {
-	svc, err := b.exportService()
-	if err != nil {
-		return nil, err
-	}
-	return svc.ExportAuditPackage(context.Background(), year, targetDir)
-}
-
-// ExportJournalCSV schreibt das Journal eines Zeitraums als CSV und liefert den
-// Pfad. Leere Grenzen bedeuten: keine Grenze.
-func (b *BuchfinkBridge) ExportJournalCSV(from, to string) (string, error) {
-	// Erst den Pfad wählen, dann sperren. Der Speichern-Dialog ist modal und
-	// steht offen, solange der Anwender überlegt; jede schreibende
-	// Bridge-Methode wartete währenddessen auf die Sperre.
-	name := fmt.Sprintf("buchfink-journal-%s-bis-%s.csv", orDefault(from, "anfang"), orDefault(to, "heute"))
-	path, err := b.saveFileDialog("Journal als CSV speichern", name)
-	if err != nil || path == "" {
-		return "", err
-	}
-
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.exportSvc == nil {
-		return "", fmt.Errorf("der Export ist noch nicht initialisiert")
-	}
-	return b.exportSvc.ExportJournalCSV(context.Background(), from, to, path)
-}
-
-// ExportKeyDirectory schreibt das Schlüsselverzeichnis als CSV.
-func (b *BuchfinkBridge) ExportKeyDirectory() (string, error) {
-	path, err := b.saveFileDialog("Schlüsselverzeichnis speichern", "buchfink-schluesselverzeichnis.csv")
-	if err != nil || path == "" {
-		return "", err
-	}
-
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.exportSvc == nil {
-		return "", fmt.Errorf("der Export ist noch nicht initialisiert")
-	}
-	return b.exportSvc.ExportKeyDirectory(context.Background(), path)
-}
-
-// KeyDirectoryEntry ist eine Zeile des Schlüsselverzeichnisses für die Anzeige.
-type KeyDirectoryEntry struct {
-	Category    string `json:"category"`
-	Key         string `json:"key"`
-	Label       string `json:"label"`
-	Description string `json:"description"`
-}
-
-// GetKeyDirectory liefert das Schlüsselverzeichnis zur Anzeige.
-//
-// Dieselbe Tabelle, die auch exportiert wird: der Anwender sieht auf dem Schirm,
-// was der Prüfer auf dem Datenträger bekommt.
-func (b *BuchfinkBridge) GetKeyDirectory() ([]KeyDirectoryEntry, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	entries := make([]KeyDirectoryEntry, 0)
-	if b.exportSvc == nil {
-		return emptyList(entries, nil)
-	}
-	table, err := b.exportSvc.KeyDirectory()
-	if err != nil {
-		return emptyList(entries, err)
-	}
-	for _, row := range table.Rows {
-		if len(row) < 4 {
-			continue
-		}
-		entries = append(entries, KeyDirectoryEntry{
-			Category: row[0], Key: row[1], Label: row[2], Description: row[3],
-		})
-	}
-	return emptyList(entries, nil)
+	year = b.yearOr(year)
+	return read(b, func(ctx context.Context, s *core.Services) (*export.Result, error) {
+		return s.Export.ExportAuditPackage(ctx, year, targetDir)
+	})
 }
 
 // SelectExportDirectoryDialog öffnet den Ordnerdialog für einen Export.
@@ -185,17 +98,11 @@ func (b *BuchfinkBridge) saveFileDialog(title, suggestedName string) (string, er
 // Die Prüfsumme wird beim Lesen geprüft — wer eine beschädigte Datei
 // weitergibt, soll das erfahren.
 func (b *BuchfinkBridge) SaveReceiptFileAs(receiptID, fileID uint) (string, error) {
-	// Die Datei wird unter der Sperre gelesen, der Dialog steht ohne sie offen:
-	// er ist modal, und solange er offen ist, käme sonst keine andere
-	// Bridge-Methode mehr durch.
-	content, err := func() (*service.FileContent, error) {
-		b.mu.RLock()
-		defer b.mu.RUnlock()
-		if b.receiptSvc == nil {
-			return nil, fmt.Errorf("die Belegablage ist noch nicht initialisiert")
-		}
-		return b.receiptSvc.Content(context.Background(), receiptID, fileID)
-	}()
+	// Gelesen wird vor dem Dialog: er ist modal und steht offen, solange der
+	// Anwender überlegt.
+	content, err := read(b, func(ctx context.Context, s *core.Services) (*service.FileContent, error) {
+		return s.Receipts.Content(ctx, receiptID, fileID)
+	})
 	if err != nil {
 		return "", err
 	}
@@ -215,102 +122,50 @@ func (b *BuchfinkBridge) SaveReceiptFileAs(receiptID, fileID uint) (string, erro
 	return path, nil
 }
 
-// writeReceiptFileTo schreibt die Belegdatei und protokolliert die Herausgabe.
-//
-// Getrennt vom Dialog, weil die Herausgabe die Handlung ist, die ins Protokoll
-// gehört (QUE-02 K2): die Verfahrensdokumentation sagt zu, dass die „Herausgabe
-// einzelner Dateien" als Zugriff festgehalten wird, und eine Zusage, die nur im
-// Dialogweg steht, lässt sich nicht prüfen.
+// writeReceiptFileTo schreibt die Belegdatei und protokolliert die Herausgabe
+// (QUE-02 K2). Getrennt vom Dialog, weil die Herausgabe die Handlung ist, die
+// ins Protokoll gehört.
 func (b *BuchfinkBridge) writeReceiptFileTo(
 	receiptID uint, content *service.FileContent, path string,
 ) error {
-	if err := os.WriteFile(path, content.Data, 0o600); err != nil {
-		return fmt.Errorf("%s konnte nicht geschrieben werden: %w", filepath.Base(path), err)
-	}
-	b.mu.RLock()
-	auditRepo := b.auditRepo
-	b.mu.RUnlock()
-	if auditRepo == nil {
-		return nil
-	}
-	_ = auditRepo.Log(context.Background(), domain.AuditActionExport, "RECEIPT",
-		strconv.FormatUint(uint64(receiptID), 10), fmt.Sprintf(
-			"Belegdatei %s aus Beleg %d nach %s herausgegeben",
-			content.FileName, receiptID, path))
-	return nil
+	return b.handOut(path, content.Data, "RECEIPT", strconv.FormatUint(uint64(receiptID), 10), fmt.Sprintf(
+		"Belegdatei %s aus Beleg %d nach %s herausgegeben", content.FileName, receiptID, path))
 }
 
 // -------------------------------------------------------------
 // INTEGRITÄT
 // -------------------------------------------------------------
 
-// VerifyReceiptFiles prüft jede Belegdatei und jedes Anlagendokument gegen
-// seine Prüfsumme.
+// VerifyReceiptFiles prüft jede Belegdatei gegen ihre Prüfsumme.
 func (b *BuchfinkBridge) VerifyReceiptFiles() (*domain.FileCheckResult, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.receiptSvc == nil {
+	return readOr(b, func() (*domain.FileCheckResult, error) {
 		return &domain.FileCheckResult{
 			Issues:    make([]domain.FileCheckIssue, 0),
 			IsValid:   true,
 			Message:   "Die Belegablage ist noch nicht initialisiert.",
 			CheckedAt: time.Now().UTC().Format(time.RFC3339),
 		}, nil
-	}
-	return b.receiptSvc.VerifyReceiptFiles(context.Background())
+	}, func(ctx context.Context, s *core.Services) (*domain.FileCheckResult, error) {
+		return s.Receipts.VerifyReceiptFiles(ctx)
+	})
 }
 
 // -------------------------------------------------------------
 // STICHTAGSAUSWERTUNGEN
 // -------------------------------------------------------------
 
-// GetSuSaOverviewAt liefert die Summen- und Saldenliste zu einem Stichtag.
-// Leerer Stichtag heißt: das ganze Geschäftsjahr.
-func (b *BuchfinkBridge) GetSuSaOverviewAt(cutoff string) (*domain.SuSaOverview, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.accountingSvc == nil {
-		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
-	}
-	return b.accountingSvc.GetSuSaOverviewAt(context.Background(), cutoff)
-}
-
-// GetAccountLedgerRange liefert das Kontoblatt eines Zeitraums über alle
-// Geschäftsjahre hinweg.
-func (b *BuchfinkBridge) GetAccountLedgerRange(accountNumber, from, to string) (*domain.AccountLedger, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.accountingSvc == nil {
-		return nil, fmt.Errorf("Buchhaltung ist noch nicht initialisiert")
-	}
-	return b.accountingSvc.GetAccountLedgerRange(context.Background(), accountNumber, from, to)
-}
-
 // GetOpenItemsAt liefert die offenen Posten zu einem Stichtag.
 func (b *BuchfinkBridge) GetOpenItemsAt(cutoff string) ([]domain.OpenItem, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.paymentSvc == nil {
-		return make([]domain.OpenItem, 0), nil
-	}
-	items, err := b.paymentSvc.OpenItemsAt(context.Background(), cutoff)
-	if err != nil {
-		return make([]domain.OpenItem, 0), err
-	}
-	if items == nil {
-		items = make([]domain.OpenItem, 0)
-	}
-	return emptyList(items, nil)
+	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.OpenItem, error) {
+		return s.Payments.OpenItemsAt(ctx, cutoff)
+	})
 }
 
 // GetPaymentAllocations liefert die Einzelposten einer Zahlungsbuchung.
 func (b *BuchfinkBridge) GetPaymentAllocations(entryID uint) ([]domain.PaymentAllocationDetail, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.paymentSvc == nil {
-		return make([]domain.PaymentAllocationDetail, 0), nil
-	}
-	return emptyList(b.paymentSvc.Allocations(context.Background(), entryID))
+	return readList(b, func(ctx context.Context, s *core.Services) ([]domain.PaymentAllocationDetail, error) {
+		return s.Payments.Allocations(ctx, entryID)
+	})
 }
 
 // -------------------------------------------------------------
@@ -318,20 +173,18 @@ func (b *BuchfinkBridge) GetPaymentAllocations(entryID uint) ([]domain.PaymentAl
 // -------------------------------------------------------------
 
 // ImportCAMT053File legt die Kontoauszugsdatei als Beleg ab und importiert die
-// Umsätze daraus.
-//
-// Sie tritt an die Stelle von ImportCAMT053XML: die alte Methode bekam den
-// Inhalt und konnte die Datei deshalb gar nicht archivieren.
+// Umsätze daraus. Sie bekommt den Pfad und nicht den Inhalt, damit die Datei
+// selbst archiviert wird. Kam sie aus dem Eingang, geht sie danach nach
+// Übernommen/<JJJJ-MM>.
 func (b *BuchfinkBridge) ImportCAMT053File(path, ledgerAccount string) (int, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return 0, err
+	imported, err := operate(b, func(ctx context.Context, t *core.Tenant) (int, error) {
+		return t.ImportBankStatement(ctx, path, ledgerAccount)
+	})
+	if err != nil {
+		return imported, err
 	}
-	if b.bankSvc == nil {
-		return 0, fmt.Errorf("Bankimport ist noch nicht initialisiert")
-	}
-	return b.bankSvc.ImportCAMT053File(context.Background(), path, ledgerAccount)
+	b.settleInbox([]string{path})
+	return imported, nil
 }
 
 // SelectStatementFileDialog öffnet den Dateidialog für eine CAMT.053-Datei.
@@ -349,37 +202,4 @@ func (b *BuchfinkBridge) SelectStatementFileDialog(title string) (string, error)
 		AddFilter("Kontoauszüge (*.xml)", "*.xml").
 		SetTitle(title).
 		PromptForSingleSelection()
-}
-
-func orDefault(v, fallback string) string {
-	if v == "" {
-		return fallback
-	}
-	return v
-}
-
-// integrityChecks bündelt die beiden Prüfläufe für den Export.
-//
-// Der Exportdienst soll weder den Journaldienst noch die Belegablage kennen —
-// er braucht von beiden je eine Frage. Zwei Methoden statt zweier Dienste.
-type integrityChecks struct {
-	journal  *service.JournalService
-	receipts *service.ReceiptService
-}
-
-func (c integrityChecks) VerifyIntegrity(ctx context.Context) (domain.IntegrityCheckResult, error) {
-	if c.journal == nil {
-		return domain.IntegrityCheckResult{IsValid: true, Message: "Keine Buchhaltung geöffnet."}, nil
-	}
-	return c.journal.VerifyIntegrity(ctx)
-}
-
-func (c integrityChecks) VerifyReceiptFiles(ctx context.Context) (*domain.FileCheckResult, error) {
-	if c.receipts == nil {
-		return &domain.FileCheckResult{
-			Issues: make([]domain.FileCheckIssue, 0), IsValid: true,
-			Message: "Keine Belegablage geöffnet.",
-		}, nil
-	}
-	return c.receipts.VerifyReceiptFiles(ctx)
 }

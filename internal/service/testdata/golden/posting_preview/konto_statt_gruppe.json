@@ -1,0 +1,55 @@
+{
+  "balanced": true,
+  "dueDate": "2026-03-24",
+  "gross": 119000,
+  "inputTaxFindings": [],
+  "lines": [
+    {
+      "account": "6815",
+      "accountName": "Bürobedarf",
+      "amount": 100000,
+      "entryId": 0,
+      "id": 0,
+      "position": 1,
+      "side": "S"
+    },
+    {
+      "account": "1406",
+      "accountName": "Abziehbare Vorsteuer 19 %",
+      "amount": 19000,
+      "entryId": 0,
+      "id": 0,
+      "position": 2,
+      "side": "S",
+      "taxBase": 100000,
+      "taxKey": "VST19"
+    },
+    {
+      "account": "70000",
+      "accountName": "70000",
+      "amount": 119000,
+      "contactId": 1,
+      "entryId": 0,
+      "id": 0,
+      "position": 3,
+      "side": "H"
+    }
+  ],
+  "net": 100000,
+  "tax": 19000,
+  "warnings": [
+    {
+      "code": "einvoice_missing",
+      "detail": "Für diesen Umsatz gilt die E-Rechnungspflicht, der Lieferant darf nach der Übergangsregelung des § 27 Abs. 38 Nr. 1 UStG aber noch bis zum 31.12.2026 eine sonstige Rechnung ausstellen. Der Vorsteuerabzug ist nicht gefährdet. Ab 2027 ändert sich das — ein Hinweis an den Lieferanten lohnt sich jetzt.",
+      "severity": "info",
+      "supplierNote": "Für Umsätze zwischen inländischen Unternehmern besteht seit dem 01.01.2025 die Pflicht zur E-Rechnung (§ 14 Abs. 2 Satz 2 Nr. 1 UStG). Wir bitten darum, künftige Rechnungen als ZUGFeRD oder XRechnung zu übermitteln. Ein eigenes Postfach ist dafür nicht nötig; die Übermittlung per E-Mail genügt (Beleg \u003cBeleg\u003e).",
+      "title": "Keine E-Rechnung — bis Ende 2026 noch zulässig"
+    },
+    {
+      "code": "faelligkeit_aus_zahlungsziel",
+      "detail": "Nennt der Beleg eine andere Fälligkeit, gehört sie in die Buchung; sonst stehen offener Posten und Zahlungsvorschläge auf dem falschen Tag.",
+      "severity": "info",
+      "title": "Fällig am 24.03.2026 nach dem Zahlungsziel des Lieferanten"
+    }
+  ]
+}

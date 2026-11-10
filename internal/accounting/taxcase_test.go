@@ -1,0 +1,202 @@
+package accounting
+
+import (
+	"reflect"
+	"testing"
+
+	"github.com/buchfink/buchfink/internal/domain"
+)
+
+func TestTaxCaseCatalog(t *testing.T) {
+	type leg struct{ account, key, code string }
+	rows := []struct {
+		treatment domain.TaxTreatment
+		direction domain.Direction
+		legs      []leg
+		date      string
+		code      string
+		skonto    string
+	}{
+		{domain.TaxTreatmentDomestic, domain.DirectionIncoming, []leg{{"1406", "VST19", "66"}}, "2026-04-01", "", "5736"},
+		{domain.TaxTreatmentDomestic, domain.DirectionOutgoing, []leg{{"3806", "UST19", "81"}}, "2026-01-31", "", "4736"},
+		{domain.TaxTreatmentReverseChargeEU, domain.DirectionIncoming, []leg{{"1407", "RCEU19_VST", "67"}, {"3837", "RCEU19_UST", "46"}}, "2026-01-31", "", "5730"},
+		{domain.TaxTreatmentReverseCharge, domain.DirectionIncoming, []leg{{"1407", "RC19_VST", "67"}, {"3837", "RC19_UST", "84"}}, "2026-02-28", "", "5730"},
+		{domain.TaxTreatmentIntraCommunityAcquisition, domain.DirectionIncoming, []leg{{"1404", "IG19_VST", "61"}, {"3804", "IG19_UST", "89"}}, "2026-02-28", "", "5730"},
+		{domain.TaxTreatmentReverseChargeSupply, domain.DirectionOutgoing, nil, "2026-01-31", "45", "4741"},
+		{domain.TaxTreatmentZeroRated, domain.DirectionIncoming, nil, "2026-01-31", "87", "5730"},
+		{domain.TaxTreatmentZeroRated, domain.DirectionOutgoing, nil, "2026-01-31", "87", "4734"},
+		{domain.TaxTreatmentExempt, domain.DirectionIncoming, nil, "2026-01-31", "48", "5730"},
+		{domain.TaxTreatmentExempt, domain.DirectionOutgoing, nil, "2026-01-31", "48", "4734"},
+		{domain.TaxTreatmentNotTaxable, domain.DirectionIncoming, nil, "2026-01-31", "45", "5730"},
+		{domain.TaxTreatmentNotTaxable, domain.DirectionOutgoing, nil, "2026-01-31", "45", "4734"},
+	}
+	covered := map[domain.TaxTreatment]bool{}
+	entry := &domain.JournalEntry{BookingDate: "2026-05-10", DocumentDate: "2026-03-10", ServiceDateTo: "2026-01-31"}
+	for _, row := range rows {
+		t.Run(string(row.treatment)+"/"+string(row.direction), func(t *testing.T) {
+			covered[row.treatment] = true
+			c := TaxCaseFor(row.treatment)
+			legs, err := c.Legs(row.direction, domain.TaxRateStandard, 10000)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []leg
+			for _, l := range legs {
+				got = append(got, leg{l.Account, l.Key, c.VatCode(l.Key).Code})
+				if l.Amount != 1900 || l.Base != 10000 {
+					t.Fatalf("Steuerzeile: %+v", l)
+				}
+				if date := c.Timing(entry, domain.JournalLine{TaxKey: l.Key}, "2026-04-01"); date != row.date {
+					t.Errorf("Datum %s: %s, erwartet %s", l.Key, date, row.date)
+				}
+			}
+			if !reflect.DeepEqual(got, row.legs) {
+				t.Errorf("Steuerzeilen: %+v, erwartet %+v", got, row.legs)
+			}
+			if len(legs) == 0 && c.Timing(entry, domain.JournalLine{}, "2026-04-01") != row.date {
+				t.Error("Datum der Erlöszeile stimmt nicht")
+			}
+			if c.VatCode("").Code != row.code || c.MayShowTax() != (row.treatment == domain.TaxTreatmentDomestic) {
+				t.Errorf("Eigenschaften: Kennzahl %+v, Steuerausweis %t", c.VatCode(""), c.MayShowTax())
+			}
+			skonto, err := c.Skonto(row.direction, domain.TaxRateStandard, 1190)
+			if err != nil {
+				t.Fatal(err)
+			}
+			wantNet := domain.Cents(1190)
+			if row.treatment == domain.TaxTreatmentDomestic {
+				wantNet = 1000
+			}
+			if skonto.Account != row.skonto || skonto.Net != wantNet || len(skonto.Legs) != len(legs) {
+				t.Errorf("Skonto: %+v", skonto)
+			}
+			for i, l := range skonto.Legs {
+				if l.Account != legs[i].Account || l.Side != legs[i].Side.Opposite() || l.Key != "SKONTO_"+legs[i].Key || l.Base != wantNet || l.Amount != domain.TaxRateStandard.Tax(wantNet) {
+					t.Errorf("Skonto-Steuerzeile: %+v", l)
+				}
+			}
+		})
+	}
+	for _, treatment := range domain.AllTaxTreatments() {
+		if !covered[treatment] {
+			t.Errorf("Steuerfall %s fehlt in der Tabelle", treatment)
+		}
+	}
+}
+
+func TestTaxCaseReportingRules(t *testing.T) {
+	for _, row := range []struct {
+		key, code string
+		side      domain.Side
+		base      bool
+		payment   TaxPrepayment
+		longTerm  bool
+		badDebt   bool
+	}{
+		{"UST19", "81", domain.SideCredit, true, TaxPrepaymentOnPayment, false, true},
+		{"UST7", "86", domain.SideCredit, true, TaxPrepaymentOnPayment, false, true},
+		{"VST19", "66", domain.SideDebit, false, TaxPrepaymentWithInvoice, false, false},
+		{"VST7", "66", domain.SideDebit, false, TaxPrepaymentWithInvoice, false, false},
+		{"IG19_UST", "89", domain.SideCredit, true, TaxPrepaymentNone, false, false},
+		{"IG7_UST", "93", domain.SideCredit, true, TaxPrepaymentNone, false, false},
+		{"IG7_VST", "61", domain.SideDebit, false, TaxPrepaymentNone, false, false},
+		{"RC7_UST", "84", domain.SideCredit, true, TaxPrepaymentOnPayment, true, false},
+		{"RCEU7_UST", "46", domain.SideCredit, true, TaxPrepaymentOnPayment, true, false},
+		{"RC7_VST", "67", domain.SideDebit, false, TaxPrepaymentOnPayment, true, false},
+		{"RCEU7_VST", "67", domain.SideDebit, false, TaxPrepaymentOnPayment, true, false},
+		{"UST14C", "69", domain.SideCredit, false, TaxPrepaymentNone, false, false},
+		{"VST15A", "64", domain.SideDebit, false, TaxPrepaymentNone, false, false},
+		{"RC05_UST", "84", domain.SideCredit, true, TaxPrepaymentOnPayment, true, false},
+		{"RCEU0_VST", "67", domain.SideDebit, false, TaxPrepaymentOnPayment, true, false},
+		{"RCEU_UST", "", "", false, TaxPrepaymentNone, false, false},
+		{"UNBEKANNT", "", "", false, TaxPrepaymentNone, false, false},
+		{"SKONTO_UST19", "81", domain.SideCredit, true, TaxPrepaymentOnPayment, false, false},
+		{"SKONTO_SKONTO_UST19", "", "", false, TaxPrepaymentNone, false, false},
+	} {
+		t.Run(row.key, func(t *testing.T) {
+			want := TaxCaseVAT{Code: row.code, TaxSide: row.side, HasBase: row.base, Prepayment: row.payment, LongTerm: row.longTerm, BadDebtBase: row.badDebt}
+			want.AllowClosing = row.key == "VST15A"
+			if got := TaxCaseFor("").VatCode(row.key); got != want {
+				t.Errorf("Melderegel: %+v, erwartet %+v", got, want)
+			}
+		})
+	}
+}
+
+func TestTaxCaseSpecialKeysAndRecipients(t *testing.T) {
+	for _, key := range []string{TaxKeyUnlawful, TaxKeyInputTaxCorrection} {
+		if _, err := TaxCaseFor(domain.TaxTreatment(key)).Legs(domain.DirectionOutgoing, 1900, 10000); err == nil {
+			t.Errorf("%s darf kein automatischer Steuerfall sein", key)
+		}
+	}
+	for _, row := range []struct{ key, code string }{{"UST14C", "69"}, {"VST15A", "64"}} {
+		if got := TaxCaseFor("").VatCode(row.key); got.Code != row.code || got.HasBase {
+			t.Errorf("manueller Schlüssel %s: %+v", row.key, got)
+		}
+	}
+	c := TaxCaseFor(domain.TaxTreatmentReverseChargeSupply)
+	for _, row := range []struct {
+		eu, domestic bool
+		code, zm     string
+	}{{false, false, "45", ""}, {false, true, "60", ""}, {true, false, "21", "S"}, {true, true, "21", "S"}} {
+		got := c.VatCode("").ForRecipient(row.eu, row.domestic)
+		if got.Code != row.code || string(got.ZMKind) != row.zm {
+			t.Errorf("Empfänger EU=%t, Inland=%t: %+v", row.eu, row.domestic, got)
+		}
+	}
+}
+
+func TestTaxCasePartnerChecks(t *testing.T) {
+	allowed := TaxPartnerCheck{Allowed: true}
+	eu := TaxPartnerCheck{Allowed: true, RequiresVatID: true, RequiresEU: true}
+	for _, row := range []struct {
+		treatment          domain.TaxTreatment
+		incoming, outgoing TaxPartnerCheck
+	}{
+		{domain.TaxTreatmentDomestic, allowed, allowed},
+		{domain.TaxTreatmentReverseChargeEU, eu, TaxPartnerCheck{}},
+		{domain.TaxTreatmentReverseCharge, TaxPartnerCheck{Allowed: true, RequiresVatIDForEU: true}, TaxPartnerCheck{}},
+		{domain.TaxTreatmentIntraCommunityAcquisition, eu, TaxPartnerCheck{}},
+		{domain.TaxTreatmentReverseChargeSupply, TaxPartnerCheck{}, TaxPartnerCheck{Allowed: true, RequiresVatID: true, ConfirmEUVatID: true}},
+		{domain.TaxTreatmentZeroRated, allowed, allowed},
+		{domain.TaxTreatmentExempt, allowed, allowed},
+		{domain.TaxTreatmentNotTaxable, allowed, allowed},
+		{"unbekannt", TaxPartnerCheck{}, TaxPartnerCheck{}},
+		{"", TaxPartnerCheck{}, TaxPartnerCheck{}},
+	} {
+		for _, direction := range []struct {
+			value domain.Direction
+			want  TaxPartnerCheck
+		}{{domain.DirectionIncoming, row.incoming}, {domain.DirectionOutgoing, row.outgoing}, {"", TaxPartnerCheck{}}, {"unbekannt", TaxPartnerCheck{}}} {
+			t.Run(string(row.treatment)+"/"+string(direction.value), func(t *testing.T) {
+				if got := TaxCaseFor(row.treatment).CheckPartner(direction.value); got != direction.want {
+					t.Errorf("Partnerprüfung: %+v, erwartet %+v", got, direction.want)
+				}
+			})
+		}
+	}
+}
+
+func TestTaxCaseInvoiceCategories(t *testing.T) {
+	for _, row := range []struct {
+		treatment domain.TaxTreatment
+		category  string
+	}{
+		{domain.TaxTreatmentDomestic, "S"},
+		{domain.TaxTreatmentReverseChargeEU, "S"},
+		{domain.TaxTreatmentReverseCharge, "S"},
+		{domain.TaxTreatmentIntraCommunityAcquisition, "S"},
+		{domain.TaxTreatmentReverseChargeSupply, "AE"},
+		{domain.TaxTreatmentZeroRated, "Z"},
+		{domain.TaxTreatmentExempt, "E"},
+		{domain.TaxTreatmentNotTaxable, "O"},
+		{"", "S"},
+		{"unbekannt", "S"},
+	} {
+		t.Run(string(row.treatment), func(t *testing.T) {
+			if got := TaxCaseFor(row.treatment).InvoiceCategory(); got != row.category {
+				t.Errorf("Rechnungskategorie: %q, erwartet %q", got, row.category)
+			}
+		})
+	}
+}

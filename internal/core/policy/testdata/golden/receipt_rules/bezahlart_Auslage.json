@@ -1,0 +1,9 @@
+{
+  "gruende": [
+    {
+      "schluessel": "bezahlart",
+      "text": "Direkt gebucht wird nur offen oder mit der Firmenkreditkarte."
+    }
+  ],
+  "stufe": "rueckfrage"
+}

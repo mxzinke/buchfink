@@ -56,7 +56,7 @@ func (r *invoiceGroupRepositoryGorm) FindAll(ctx context.Context, fiscalYear int
 func (r *invoiceGroupRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.InvoiceGroup, error) {
 	var group domain.InvoiceGroup
 	if err := dbFrom(ctx, r.db).First(&group, id).Error; err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	advances, err := r.advancesOf(ctx, group.ID)
 	if err != nil {

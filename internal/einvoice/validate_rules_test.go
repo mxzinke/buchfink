@@ -207,6 +207,29 @@ func TestSplitPaymentIsBoundToItaly(t *testing.T) {
 	})
 }
 
+// BR-61 verlangt das Zahlungskonto (BT-84) nur bei Überweisung (30, 58). Eine
+// SEPA-Lastschrift (59) zieht der Zahlungsempfänger ein; meldete Buchfink
+// sie als fehlerhaft, wäre keine Lastschrift-E-Rechnung direkt buchbar. Die
+// Regelsuite der Norm hat keinen Fall mit 59 und fängt das nicht.
+func TestDirectDebitNeedsNoPayeeAccount(t *testing.T) {
+	mustNotReport(t, "BR-61", func(i *Invoice) {
+		i.CreditorReference = "DE98ZZZ09999999999"
+		i.PaymentMeans = []PaymentMeans{{
+			TypeCode: "59",
+			DirectDebit: &DirectDebit{
+				MandateReference: "M-2026-01",
+				CreditorID:       "DE98ZZZ09999999999",
+				DebitedAccount:   "DE02120300000000202051",
+			},
+		}}
+	})
+	for _, code := range []string{"30", "58"} {
+		mustReport(t, "BR-61", func(i *Invoice) {
+			i.PaymentMeans = []PaymentMeans{{TypeCode: code}}
+		})
+	}
+}
+
 // Fehlt bei einer innergemeinschaftlichen Lieferung der Befreiungsgrund, ist die
 // Rechnung nach § 14 Abs. 4 Nr. 8 UStG unvollständig — und EN 16931 verlangt ihn
 // ebenso.

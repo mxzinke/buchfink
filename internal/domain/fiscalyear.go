@@ -2,9 +2,14 @@ package domain
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 )
+
+// ErrFiscalYearRequired: ein Vorgang nennt kein Geschäftsjahr. Die Dienste
+// rechnen nie mit einem Jahr, das gerade jemand ansieht.
+var ErrFiscalYearRequired = errors.New("der Vorgang nennt kein Geschäftsjahr")
 
 // FiscalYearStatus ist der Stand des Jahresabschlusses.
 //
@@ -95,7 +100,7 @@ type FiscalYear struct {
 	DisclosedOn string           `gorm:"size:10" json:"disclosedOn,omitempty"`
 	// AdoptionNote hält den Beschlussbezug fest: welcher
 	// Gesellschafterbeschluss den Abschluss festgestellt hat.
-	DisclosureNote string `gorm:"type:text;serializer:encrypted" json:"disclosureNote,omitempty"`
+	DisclosureNote string `gorm:"type:text" json:"disclosureNote,omitempty"`
 	AdoptionNote   string `gorm:"size:500" json:"adoptionNote,omitempty"`
 
 	// AverageEmployees ist die durchschnittliche Zahl der Arbeitnehmer des

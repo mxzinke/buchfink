@@ -2,24 +2,30 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
-
-	"github.com/buchfink/buchfink/internal/receiptstore"
+	"github.com/buchfink/buchfink/internal/ebilanz"
+	"github.com/buchfink/buchfink/internal/procdoc"
 	"github.com/buchfink/buchfink/internal/repository"
 )
 
-// openingEnv verdrahtet die Gründung mit Gliederung und Dokumentenablage, wie es
-// die Anwendung tut.
-func openingEnv(t *testing.T, env *testEnv) (*FoundationService, *DocumentService) {
+// openingEnv verdrahtet die Gründung mit Gliederung und Satz, wie es die
+// Anwendung tut.
+func openingEnv(t *testing.T, env *testEnv) *FoundationService {
 	t.Helper()
-	documents := NewDocumentService(
-		repository.NewDocumentRepository(env.db),
-		receiptstore.New(env.dataDir),
-		repository.NewAuditRepository(env.db),
-	)
+	svc := env.foundations(t)
+	wireOpening(t, env, svc)
+	return svc
+}
+
+// wireOpening gibt der Gründung Sitz, Gliederung und Satz.
+func wireOpening(t *testing.T, env *testEnv, svc *FoundationService) {
+	t.Helper()
 	// Der Sitz ist Pflichtangabe im Kopf (§ 264 Abs. 1a Nr. 2 HGB). Die
 	// Testumgebung setzt ihn nicht — hier steht er, damit die Prüfung auf
 	// fehlende Angaben nicht jede Aufstellung beanstandet.
@@ -29,17 +35,15 @@ func openingEnv(t *testing.T, env *testEnv) (*FoundationService, *DocumentServic
 		t.Fatalf("Unternehmensdaten: %v", err)
 	}
 	cfg.Seat = "München"
+	cfg.ManagingDirectors = "Anna Bauer und Ben Conrad"
 	if err := settings.UpdateCompanySettings(context.Background(), cfg); err != nil {
 		t.Fatalf("Sitz setzen: %v", err)
 	}
 
-	svc := env.foundations(t)
 	svc.SetStatementSource(env.statements(t))
-	svc.SetDocumentStore(documents)
-	// Der echte Satz: die Eröffnungsbilanz und das Datenblatt entstehen als PDF,
-	// und ein Attrappen-Renderer prüfte nur die Verkabelung.
+	// Der echte Satz: die Eröffnungsbilanz entsteht als PDF, und ein
+	// Attrappen-Renderer prüfte nur die Verkabelung.
 	svc.SetRenderer(sharedRenderer())
-	return svc, documents
 }
 
 // Die Eröffnungsbilanz steht auf den Tag der Beurkundung (§ 242 Abs. 1 HGB) und
@@ -47,7 +51,7 @@ func openingEnv(t *testing.T, env *testEnv) (*FoundationService, *DocumentServic
 // Stammkapitals und die geleistete Einlage.
 func TestOpeningBalanceIsDrawnOnTheNotarizationDay(t *testing.T) {
 	env := newTestEnv(t)
-	svc, _ := openingEnv(t, env)
+	svc := openingEnv(t, env)
 	ctx := context.Background()
 
 	env.saveFoundation(t, svc, gmbhFoundation()) // Beurkundung 15.01.2026
@@ -91,7 +95,7 @@ func TestOpeningBalanceIsDrawnOnTheNotarizationDay(t *testing.T) {
 // Bilanz auszuweisen.
 func TestOpeningBalanceNamesTheMissingPosting(t *testing.T) {
 	env := newTestEnv(t)
-	svc, _ := openingEnv(t, env)
+	svc := openingEnv(t, env)
 	ctx := context.Background()
 	env.saveFoundation(t, svc, gmbhFoundation())
 
@@ -111,7 +115,7 @@ func TestOpeningBalanceNamesTheMissingPosting(t *testing.T) {
 // ihnen zu fragen hieße, etwas zu verlangen, das es noch nicht geben kann.
 func TestOpeningBalanceDoesNotAskForTheRegisterBeforeRegistration(t *testing.T) {
 	env := newTestEnv(t)
-	svc, _ := openingEnv(t, env)
+	svc := openingEnv(t, env)
 	ctx := context.Background()
 	env.saveFoundation(t, svc, gmbhFoundation())
 	if _, err := svc.BookPostings(ctx); err != nil {
@@ -129,7 +133,7 @@ func TestOpeningBalanceDoesNotAskForTheRegisterBeforeRegistration(t *testing.T) 
 	}
 }
 
-// Eine Bilanz, die nicht aufgeht, wird nicht abgelegt.
+// Eine Bilanz, die nicht aufgeht, wird nicht gesetzt.
 type unbalancedOpeningSource struct{ StatementAtSource }
 
 func (s unbalancedOpeningSource) StatementAt(ctx context.Context, cutoff string, depth domain.StatementDepth) (*domain.Statement, error) {
@@ -142,180 +146,24 @@ func (s unbalancedOpeningSource) StatementAt(ctx context.Context, cutoff string,
 	return stmt, nil
 }
 
-func TestFileOpeningBalanceRefusesAnUnbalancedSheet(t *testing.T) {
+func TestOpeningBalancePDFRefusesAnUnbalancedSheet(t *testing.T) {
 	env := newTestEnv(t)
-	svc, _ := openingEnv(t, env)
+	svc := openingEnv(t, env)
 	ctx := context.Background()
 	env.saveFoundation(t, svc, gmbhFoundation())
 	// Eine Aufwandsbuchung bleibt über das Jahresergebnis bilanziell
 	// ausgeglichen. Nur ein tatsächlich unausgeglichener Bericht prüft die Sperre.
 	svc.SetStatementSource(unbalancedOpeningSource{env.statements(t)})
 
-	if _, err := svc.FileOpeningBalance(ctx); err == nil {
-		t.Fatal("eine Bilanz, die nicht aufgeht, darf nicht abgelegt werden")
+	if _, err := svc.OpeningBalancePDF(ctx); err == nil {
+		t.Fatal("eine Bilanz, die nicht aufgeht, darf nicht gesetzt werden")
 	}
 }
 
-// Der Gründungsweg zählt seinen Fortschritt selbst und nennt den nächsten
-// Schritt. Wartende Schritte zählen nicht als offen: zu tun ist an ihnen gerade
-// nichts.
-func TestFoundationGuideCountsProgressAndNamesTheNextStep(t *testing.T) {
+// Die Eröffnungsbilanz entsteht als PDF auf den Beurkundungstag.
+func TestOpeningBalancePDFIsSetOnTheNotarizationDay(t *testing.T) {
 	env := newTestEnv(t)
-	svc, _ := openingEnv(t, env)
-	ctx := context.Background()
-	env.saveFoundation(t, svc, gmbhFoundation())
-
-	state, err := svc.GetState(ctx)
-	if err != nil {
-		t.Fatalf("GetState: %v", err)
-	}
-	guide := state.Guide
-	if guide.Total != len(state.Duties) || guide.Total == 0 {
-		t.Fatalf("der Weg zählt %d von %d Schritten", guide.Total, len(state.Duties))
-	}
-	if guide.Done+guide.Open+guide.Waiting != guide.Total {
-		t.Errorf("die Zählung geht nicht auf: %d erledigt, %d offen, %d wartend von %d",
-			guide.Done, guide.Open, guide.Waiting, guide.Total)
-	}
-	// Registerabhängige Aufgaben warten auf die Eintragung.
-	if guide.Waiting < 2 {
-		t.Errorf("%d wartende Schritte, erwartet mindestens zwei vor der Eintragung", guide.Waiting)
-	}
-	// Die Checkliste beginnt mit der Ergänzung der Stammdaten.
-	if guide.NextKey != "stammdaten" {
-		t.Errorf("nächster Schritt %q, erwartet die Ergänzung der Stammdaten", guide.NextKey)
-	}
-	if guide.NextTitle == "" {
-		t.Error("der nächste Schritt hat keinen Titel")
-	}
-
-	// Erledigt verschiebt den nächsten Schritt.
-	env.completeFoundationMasterData(t)
-	if err := svc.CompleteDuty(ctx, "stammdaten", "2026-02-01", ""); err != nil {
-		t.Fatalf("Pflicht quittieren: %v", err)
-	}
-	state, err = svc.GetState(ctx)
-	if err != nil {
-		t.Fatalf("GetState: %v", err)
-	}
-	if state.Guide.Done != 1 {
-		t.Errorf("%d erledigt, erwartet 1", state.Guide.Done)
-	}
-	if state.Guide.NextKey == "stammdaten" {
-		t.Error("der erledigte Schritt darf nicht mehr der nächste sein")
-	}
-}
-
-// Jeder Schritt sagt, wo er zu erledigen ist und was zu tun ist. Ohne das wäre
-// die Liste eine Aufzählung von Pflichten und keine Anleitung.
-func TestFoundationDutiesCarryInstructions(t *testing.T) {
-	env := newTestEnv(t)
-	svc, _ := openingEnv(t, env)
-	ctx := context.Background()
-	env.saveFoundation(t, svc, gmbhFoundation())
-
-	state, err := svc.GetState(ctx)
-	if err != nil {
-		t.Fatalf("GetState: %v", err)
-	}
-	for _, duty := range state.Duties {
-		if duty.Order == 0 {
-			t.Errorf("%s hat keinen Platz im Weg", duty.Key)
-		}
-		if strings.TrimSpace(duty.Where) == "" {
-			t.Errorf("%s sagt nicht, wo es zu erledigen ist", duty.Key)
-		}
-		if len(duty.Todo) == 0 {
-			t.Errorf("%s nennt keine Handgriffe", duty.Key)
-		}
-	}
-	// Die Reihenfolge ist die des Weges und nicht die der Fälligkeit.
-	for i := 1; i < len(state.Duties); i++ {
-		if state.Duties[i-1].Order > state.Duties[i].Order {
-			t.Errorf("die Schritte stehen nicht in ihrer Reihenfolge: %d vor %d",
-				state.Duties[i-1].Order, state.Duties[i].Order)
-		}
-	}
-}
-
-// Ein abgelegter Nachweis hängt an seinem Schritt.
-func TestFoundationDutyCarriesItsProof(t *testing.T) {
-	env := newTestEnv(t)
-	svc, documents := openingEnv(t, env)
-	ctx := context.Background()
-	env.saveFoundation(t, svc, gmbhFoundation())
-
-	if _, err := documents.Attach(ctx, DocumentRequest{
-		Kind:     domain.DocSonstiges,
-		Title:    "Übermittlungsprotokoll",
-		DutyKey:  "fragebogen",
-		FileName: "auszug.pdf",
-		Content:  []byte("%PDF-1.4 Auszug"),
-	}); err != nil {
-		t.Fatalf("Nachweis ablegen: %v", err)
-	}
-
-	state, err := svc.GetState(ctx)
-	if err != nil {
-		t.Fatalf("GetState: %v", err)
-	}
-	found := false
-	for _, duty := range state.Duties {
-		if duty.Key != "fragebogen" {
-			if len(duty.Proof) != 0 {
-				t.Errorf("%s trägt einen fremden Nachweis", duty.Key)
-			}
-			continue
-		}
-		found = true
-		if len(duty.Proof) != 1 || duty.Proof[0].Title != "Übermittlungsprotokoll" {
-			t.Errorf("der Nachweis hängt nicht am Schritt: %+v", duty.Proof)
-		}
-	}
-	if !found {
-		t.Fatal("die Aufgabe zum Fragebogen fehlt")
-	}
-}
-
-// Ein selbst erzeugtes Dokument sagt, dass es selbst erzeugt wurde.
-//
-// Der Unterschied zählt in der Ablage: eine Eröffnungsbilanz lässt sich
-// jederzeit neu herstellen, ein Registerauszug nicht. Wer beide für gleich
-// unersetzlich hält, sichert das Falsche.
-func TestGeneratedDocumentsAreMarkedAsSuch(t *testing.T) {
-	env := newTestEnv(t)
-	svc, documents := openingEnv(t, env)
-	ctx := context.Background()
-
-	// Was von außen kommt, trägt die Marke nicht.
-	uploaded, err := documents.Attach(ctx, DocumentRequest{
-		Kind:     domain.DocHandelsregister,
-		Title:    "Eintragungsnachricht",
-		FileName: "auszug.pdf",
-		Content:  []byte("%PDF-1.4 Auszug"),
-	})
-	if err != nil {
-		t.Fatalf("Unterlage ablegen: %v", err)
-	}
-	if uploaded.GeneratedBy != "" {
-		t.Errorf("eine hochgeladene Unterlage trägt %q als Erzeuger", uploaded.GeneratedBy)
-	}
-
-	env.saveFoundation(t, svc, gmbhFoundation())
-	filed, err := svc.FileFragebogen(ctx)
-	if err != nil {
-		t.Fatalf("Datenblatt: %v", err)
-	}
-	if filed.GeneratedBy != "fragebogen" {
-		t.Errorf("Erzeuger %q, erwartet „fragebogen“", filed.GeneratedBy)
-	}
-}
-
-// Die Eröffnungsbilanz entsteht als PDF und liegt danach in der Ablage — unter
-// ihrer Prüfsumme, mit ihrer Aufbewahrungsfrist, und die Pflicht ist quittiert.
-func TestFileOpeningBalanceProducesAFiledDocument(t *testing.T) {
-	env := newTestEnv(t)
-	svc, documents := openingEnv(t, env)
+	svc := openingEnv(t, env)
 	ctx := context.Background()
 
 	env.saveFoundation(t, svc, gmbhFoundation())
@@ -323,54 +171,187 @@ func TestFileOpeningBalanceProducesAFiledDocument(t *testing.T) {
 		t.Fatalf("Gründungsbuchungen: %v", err)
 	}
 
-	doc, err := svc.FileOpeningBalance(ctx)
+	file, err := svc.OpeningBalancePDF(ctx)
 	if err != nil {
-		t.Fatalf("Eröffnungsbilanz ablegen: %v", err)
+		t.Fatalf("Eröffnungsbilanz setzen: %v", err)
 	}
-	if doc.Kind != domain.DocEroeffnungsbilanz {
-		t.Errorf("Dokumentart %q", doc.Kind)
+	if file.FileName != "Eroeffnungsbilanz_2026-01-15.pdf" {
+		t.Errorf("Dateiname %q, erwartet den Beurkundungstag", file.FileName)
 	}
-	if doc.GeneratedBy != "eroeffnungsbilanz" {
-		t.Errorf("Erzeuger %q, erwartet „eroeffnungsbilanz“", doc.GeneratedBy)
+	if len(file.Data) < 4 || !strings.HasPrefix(string(file.Data[:4]), "%PDF") {
+		t.Error("die Eröffnungsbilanz ist kein PDF")
 	}
-	if doc.DocumentDate != "2026-01-15" {
-		t.Errorf("Datum %q, erwartet den Beurkundungstag", doc.DocumentDate)
-	}
-	if len(doc.SHA256) != 64 || doc.Size == 0 {
-		t.Errorf("Prüfsumme %q, Größe %d — die Datei ist nicht abgelegt", doc.SHA256, doc.Size)
-	}
-	// Organisationsunterlagen: zehn Jahre ab dem Schluss des Jahres (§ 147 Abs. 1
-	// Nr. 1 AO).
-	if doc.RetentionUntil != "2036-12-31" {
-		t.Errorf("Aufbewahrung bis %q, erwartet 2036-12-31", doc.RetentionUntil)
+}
+
+// Unter der Eröffnungsbilanz steht je Geschäftsführer eine Zeile für Ort und
+// Datum und eine für die Unterschrift (§ 245 HGB); die Namen kommen aus den
+// Unternehmensdaten. Ohne Geschäftsführung entsteht kein PDF.
+func TestOpeningBalancePDFHasASignatureLineForEveryDirector(t *testing.T) {
+	env := newTestEnv(t)
+	svc := openingEnv(t, env)
+	ctx := context.Background()
+	env.saveFoundation(t, svc, gmbhFoundation())
+	if _, err := svc.BookPostings(ctx); err != nil {
+		t.Fatalf("Gründungsbuchungen: %v", err)
 	}
 
-	// Herausgegeben wird sie erst, nachdem die Prüfsumme stimmt.
-	back, data, err := documents.Content(ctx, doc.ID)
+	sheet, err := svc.OpeningBalance(ctx)
 	if err != nil {
-		t.Fatalf("Unterlage lesen: %v", err)
+		t.Fatalf("Eröffnungsbilanz: %v", err)
 	}
-	if back.ID != doc.ID || len(data) == 0 {
-		t.Error("die abgelegte Datei kommt nicht zurück")
+	if strings.Join(sheet.Signatories, "|") != "Anna Bauer|Ben Conrad" {
+		t.Errorf("Unterzeichner %q", sheet.Signatories)
 	}
-	if !strings.HasPrefix(string(data[:4]), "%PDF") {
-		t.Errorf("die abgelegte Datei ist kein PDF: %q", data[:4])
+	typst := procdoc.Typst(openingBalanceMarkdown(sheet, "2026-01-20"), "Eröffnungsbilanz", time.Time{})
+	if strings.Count(typst, "#line(length: 100%") != 4 || !strings.Contains(typst, "[Anna Bauer]") ||
+		!strings.Contains(typst, "[Ben Conrad]") {
+		t.Errorf("Unterschriftsblock im Satz: %s", typst)
+	}
+	if _, err := svc.OpeningBalancePDF(ctx); err != nil {
+		t.Fatalf("Eröffnungsbilanz setzen: %v", err)
 	}
 
-	// Die Pflicht gilt mit der Aufstellung als erledigt.
-	state, err := svc.GetState(ctx)
-	if err != nil {
-		t.Fatalf("GetState: %v", err)
+	env.setSettings(t, func(c *domain.CompanySettings) { c.ManagingDirectors = "" })
+	if _, err := svc.OpeningBalancePDF(ctx); err == nil || !strings.Contains(err.Error(), "Geschäftsführung") {
+		t.Errorf("ohne Geschäftsführung: %v", err)
 	}
-	for _, duty := range state.Duties {
-		if duty.Key != DutyKeyEroeffnungsbilanz {
-			continue
+}
+
+// openingEBilanz erzeugt die E-Bilanz der Eröffnungsbilanz wie die App und
+// ebilanz_exportieren und liest Stichtag und Bilanzsummen aus der Instanz.
+func openingEBilanz(t *testing.T, env *testEnv, year int) (closing, assets, equity string) {
+	t.Helper()
+	svc := NewEBilanzService(env.statements(t), repository.NewSettingsRepository(env.db),
+		repository.NewAuditRepository(env.db))
+	res, err := svc.Generate(context.Background(), year, EBilanzOptions{Kind: ebilanz.KindOpening})
+	if err != nil {
+		t.Fatalf("E-Bilanz der Eröffnungsbilanz: %v", err)
+	}
+	if err := res.Report.BlockingError(); err != nil {
+		t.Fatalf("E-Bilanz der Eröffnungsbilanz blockiert: %v", err)
+	}
+	fact := func(element string) string {
+		m := regexp.MustCompile(`<de-[\w-]+:` + regexp.QuoteMeta(element) + ` [^>]*>([^<]*)<`).FindSubmatch(res.Instance)
+		if m == nil {
+			t.Fatalf("die Instanz enthält %s nicht", element)
 		}
-		if !duty.IsDone {
-			t.Error("die aufgestellte Eröffnungsbilanz quittiert ihre Pflicht nicht")
+		return string(m[1])
+	}
+	return fact("genInfo.report.period.balSheetClosingDate"), fact("bs.ass"), fact("bs.eqLiab")
+}
+
+// xbrlAmount schreibt einen Betrag wie die Instanz: Euro mit Punkt.
+func xbrlAmount(c domain.Cents) string { return fmt.Sprintf("%d.%02d", c/100, c%100) }
+
+// Das PDF zum Unterzeichnen und die E-Bilanz der Eröffnungsbilanz zeigen
+// denselben Stichtag und dieselben Summen. Was nach dem Stichtag gebucht ist,
+// steht in keinem von beiden.
+func TestOpeningBalancePDFAndEBilanzShowTheSameBalance(t *testing.T) {
+	env := newTestEnv(t)
+	svc := openingEnv(t, env)
+	ctx := context.Background()
+	withElsterTaxNumber(t, env)
+
+	env.saveFoundation(t, svc, gmbhFoundation()) // Beurkundung 15.01.2026
+	if _, err := svc.BookPostings(ctx); err != nil {
+		t.Fatalf("Gründungsbuchungen: %v", err)
+	}
+	env.book(t, "2026-01-15", "Einzahlung Anna Bauer", "1800", "1298", 750_000)
+	env.book(t, "2026-01-20", "Notarkosten Gründung", "6825", "1800", 300_000)
+
+	sheet, err := svc.OpeningBalance(ctx)
+	if err != nil {
+		t.Fatalf("Eröffnungsbilanz: %v", err)
+	}
+	file, err := svc.OpeningBalancePDF(ctx)
+	if err != nil {
+		t.Fatalf("Eröffnungsbilanz setzen: %v", err)
+	}
+	closing, assets, equity := openingEBilanz(t, env, 2026)
+
+	if sheet.AsOf != "2026-01-15" || closing != sheet.AsOf || file.FileName != "Eroeffnungsbilanz_"+closing+".pdf" {
+		t.Errorf("Stichtag: Aufstellung %s, PDF %s, E-Bilanz %s", sheet.AsOf, file.FileName, closing)
+	}
+	if assets != xbrlAmount(sheet.Assets) || equity != xbrlAmount(sheet.Equity) {
+		t.Errorf("Summen: PDF Aktiva %s, Passiva %s; E-Bilanz Aktiva %s, Passiva %s",
+			xbrlAmount(sheet.Assets), xbrlAmount(sheet.Equity), assets, equity)
+	}
+	if sheet.Assets != 2_500_000 {
+		t.Errorf("Aktiva %s €, erwartet 25.000,00 ohne die Notarkosten", sheet.Assets)
+	}
+}
+
+// Der Tag der Beurkundung hat eine Quelle: das Gründungsdatum der
+// Unternehmensdaten. Die Gründung schreibt es, die Stammdaten berichtigen es,
+// und Geschäftsjahr, Gründungsbuchung, Eröffnungsbilanz als PDF und E-Bilanz
+// sowie die Pflichten stehen danach auf demselben Tag.
+func TestFoundingDateIsTheSameForYearOpeningBalanceAndObligations(t *testing.T) {
+	env := newTestEnv(t)
+	closing, svc := alignEnv(t, env)
+	wireOpening(t, env, svc)
+	ctx := context.Background()
+	withElsterTaxNumber(t, env)
+	if err := closing.EnsureFiscalYears(ctx, 2026); err != nil {
+		t.Fatalf("Geschäftsjahre anlegen: %v", err)
+	}
+
+	env.saveFoundationOn(t, svc, "2026-03-10", gmbhFoundation())
+	settings := NewSettingsService(repository.NewSettingsRepository(env.db), repository.NewAuditRepository(env.db))
+	settings.SetFoundingYearAligner(closing)
+	cfg, err := settings.GetCompanySettings(ctx)
+	if err != nil {
+		t.Fatalf("Unternehmensdaten: %v", err)
+	}
+	if cfg.FoundedOn != "2026-03-10" {
+		t.Fatalf("Gründungsdatum %q, erwartet den Beurkundungstag der Gründung", cfg.FoundedOn)
+	}
+	cfg.FoundedOn = "2026-03-12"
+	if err := settings.UpdateCompanySettings(ctx, cfg); err != nil {
+		t.Fatalf("Gründungsdatum berichtigen: %v", err)
+	}
+
+	preview, err := svc.PreviewPostings(ctx)
+	if err != nil || len(preview.Postings) == 0 {
+		t.Fatalf("Gründungsbuchungen: %+v (%v)", preview, err)
+	}
+	if _, err := svc.BookPostings(ctx); err != nil {
+		t.Fatalf("Gründungsbuchungen: %v", err)
+	}
+	fy, err := closing.PeriodOf(ctx, 2026)
+	if err != nil {
+		t.Fatalf("Geschäftsjahr 2026: %v", err)
+	}
+	sheet, err := svc.OpeningBalance(ctx)
+	if err != nil {
+		t.Fatalf("Eröffnungsbilanz: %v", err)
+	}
+	file, err := svc.OpeningBalancePDF(ctx)
+	if err != nil {
+		t.Fatalf("Eröffnungsbilanz setzen: %v", err)
+	}
+	ebilanzDay, _, _ := openingEBilanz(t, env, 2026)
+	obligations := env.obligations(t)
+	var obligationDays []string
+	for _, key := range []string{"eroeffnungsbilanz.gruendung", "e-bilanz-eroeffnung.gruendung"} {
+		o, err := obligations.Get(ctx, key, "2026-10-17")
+		if err != nil {
+			t.Fatalf("Pflicht %s: %v", key, err)
 		}
-		if len(duty.Proof) != 1 {
-			t.Errorf("%d Nachweise am Schritt, erwartet den einen", len(duty.Proof))
+		obligationDays = append(obligationDays, o.PeriodFrom)
+	}
+
+	const want = "2026-03-12"
+	for label, got := range map[string]string{
+		"Beginn des Geschäftsjahres": fy.StartDate,
+		"Gründungsbuchung":           preview.Postings[0].Date,
+		"Eröffnungsbilanz":           sheet.AsOf,
+		"PDF":                        strings.TrimSuffix(strings.TrimPrefix(file.FileName, "Eroeffnungsbilanz_"), ".pdf"),
+		"E-Bilanz":                   ebilanzDay,
+		"Pflicht Eröffnungsbilanz":   obligationDays[0],
+		"Pflicht E-Bilanz":           obligationDays[1],
+	} {
+		if got != want {
+			t.Errorf("%s steht auf %q, erwartet %s", label, got, want)
 		}
 	}
 }

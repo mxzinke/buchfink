@@ -9,6 +9,13 @@ vars:
   # by `wails3 build GOOS=...` (or the GOOS env var) for cross-compilation. The
   # tasks below dispatch to the matching platform Taskfile via this variable.
   GOOS: '{{.GOOS | default OS}}'
+  # Programmfassung für -ldflags (internal/buildinfo.Version, main.version der
+  # Brücke). Sie steht an jeder Buchung, in jedem Export, jeder Sicherung und
+  # jeder Voranmeldung. Auf einem sauberen Stand mit Tag vX.Y.Z ist sie X.Y.Z,
+  # sonst dev+<Commit>, bei ungesicherten Änderungen mit -dirty; ohne Git „dev“.
+  # scripts/release.sh setzt sie ausdrücklich: task linux:build VERSION=0.3.0.
+  VERSION:
+    sh: v=$(git describe --tags --exact-match --match 'v[0-9]*.[0-9]*.[0-9]*' --dirty 2>/dev/null) || v=; case "$v" in v*-dirty|"") c=$(git describe --always --dirty --abbrev=12 --exclude='*' 2>/dev/null) && echo "dev+$c" || echo dev ;; *) echo "${v#v}" ;; esac
 
 includes:
   common: ./build/Taskfile.yml
@@ -20,38 +27,62 @@ tasks:
   test:
     summary: Runs the Go test suite
     # Not `go test ./...`: main.go embeds frontend/dist, which only exists after a
-    # frontend build. Listing the packages that have tests keeps the suite
-    # runnable from a plain checkout.
+    # frontend build. Every package under internal/ and cmd/ runs, so a new
+    # package cannot drop out of the suite.
     #
-    # internal/wailsbridge is not in this list: it pulls in Wails v3 with its
-    # GTK and WebKit headers, and `task test` must stay runnable on a machine
-    # that has none. Those tests live in `test:bridge` and run wherever the app
-    # itself can be built.
+    # internal/wailsbridge is left out: it pulls in Wails v3 with its GTK and
+    # WebKit headers, and `task test` must stay runnable on a machine that has
+    # none. Those tests live in `test:bridge` and run wherever the app itself
+    # can be built.
+    vars:
+      PACKAGES:
+        sh: go list ./internal/... ./cmd/...
     cmds:
-      - go test ./internal/accounting/... ./internal/bank/... ./internal/domain/...
-        ./internal/ebilanz/... ./internal/einvoice/... ./internal/export/... ./internal/invoice/...
-        ./internal/receiptstore/... ./internal/repository/... ./internal/security/...
-        ./internal/service/... ./internal/timestamp/... ./internal/vatid/... ./internal/actor/...
-        ./internal/procdoc/... ./internal/changelog/... {{.CLI_ARGS}}
+      - go test {{without (splitLines .PACKAGES) "github.com/buchfink/buchfink/internal/wailsbridge" | join " "}} {{.CLI_ARGS}}
+
+  test:timezones:
+    summary: Prüft die Go-Tests unter extremen Zeitzonen ohne Testcache
+    cmds:
+      - TZ=Pacific/Kiritimati task test -- -count=1
+      - TZ=America/Los_Angeles task test -- -count=1
 
   vet:
     summary: Runs go vet over the same packages as the test suite
+    vars:
+      PACKAGES:
+        sh: go list ./internal/... ./cmd/...
     cmds:
-      - go vet ./internal/accounting/... ./internal/bank/... ./internal/domain/...
-        ./internal/ebilanz/... ./internal/einvoice/... ./internal/export/... ./internal/invoice/...
-        ./internal/receiptstore/... ./internal/repository/... ./internal/security/...
-        ./internal/service/... ./internal/timestamp/... ./internal/vatid/... ./internal/actor/...
-        ./internal/procdoc/... ./internal/changelog/...
+      - go vet {{without (splitLines .PACKAGES) "github.com/buchfink/buchfink/internal/wailsbridge" | join " "}}
 
   test:bridge:
     summary: Runs vet and the tests of the Wails bridge (needs the GTK/WebKit headers)
-    # The read-only audit mode lives in the bridge, and a source-level test holds
-    # every bridge method to a classification of "reads" or "writes". A test that
-    # never runs holds nothing — so run this task wherever the app can be built,
-    # which is anywhere `task build` works.
+    # A source-level test holds every bridge method to a classification of
+    # "reads" or "writes" — the read-only audit mode in internal/core only sees
+    # what the bridge routes through Tenant.Write. A test that never runs holds
+    # nothing — so run this task wherever the app can be built, which is
+    # anywhere `task build` works.
     cmds:
       - go vet ./internal/wailsbridge/...
       - go test ./internal/wailsbridge/... {{.CLI_ARGS}}
+
+  test:ebilanz-xsd:
+    summary: Validates the E-Bilanz instances against the official XBRL schemas
+    # Die Schemata der Taxonomie liegen nicht im Repository, nur der Auszug,
+    # aus dem die Instanzen entstehen. scripts/ebilanz_schemas.sh lädt die
+    # amtlichen Pakete 6.9 und 6.10 mit Prüfsumme nach .cache/ebilanz-xsd und
+    # legt Wrapper-Schemata und einen XML-Katalog an. Geprüft wird mit Java
+    # (scripts/XsdValidate.java, ab Java 11); xmllint braucht für das Schema von
+    # de-gaap-ci zu lange. Fehlt ein Schema, scheitert die Aufgabe, statt den
+    # Test zu überspringen. Braucht bash, curl, unzip und java.
+    env:
+      EBILANZ_XSD_REQUIRED: "1"
+      EBILANZ_XSD_6_9: '{{.ROOT_DIR}}/.cache/ebilanz-xsd/6.9.xsd'
+      EBILANZ_XSD_6_10: '{{.ROOT_DIR}}/.cache/ebilanz-xsd/6.10.xsd'
+      XML_CATALOG_FILES: '{{.ROOT_DIR}}/.cache/ebilanz-xsd/catalog.xml'
+      EBILANZ_XSD_VALIDATOR: 'java {{.ROOT_DIR}}/scripts/XsdValidate.java'
+    cmds:
+      - bash scripts/ebilanz_schemas.sh .cache/ebilanz-xsd
+      - go test -count=1 -run TestInstancesAreSchemaValid ./internal/ebilanz/ {{.CLI_ARGS}}
 
   check:design:
     summary: Checks the frontend against the token layer of docs/gestaltung/grundlagen.md
@@ -62,6 +93,14 @@ tasks:
     summary: Checks that frontend/src/services/bridge.ts matches the Go bridge
     cmds:
       - python3 scripts/check_bridge_bindings.py
+
+  check:services:
+    summary: Checks that every exported service method has a caller outside the tests
+    # Ein Dienst ohne Aufrufer ist eine Fähigkeit, die weder App noch Agent
+    # erreicht. Die Prüfung typisiert das Modul mit go/types; was bleiben soll,
+    # steht mit Grund in den Ausnahmen des Skripts.
+    cmds:
+      - go run ./scripts/check_service_callers
 
   check:text:
     summary: Checks that the Arbeitsansichten name no Norm outside the Erklärstufen
@@ -81,11 +120,27 @@ tasks:
     cmds:
       - python3 scripts/check_closing_steps.py
 
+  check:links:
+    summary: Checks relative links and heading anchors in the Markdown files
+    cmds:
+      - python3 scripts/check_doc_links.py
+
+  check:skills:
+    summary: Checks the skills under skills/ and the Claude Code plugin (symlinks, manifests)
+    cmds:
+      - python3 -I scripts/check_skills.py skills
+      - python3 -I scripts/package_skills.py --check-only
+
+  package:skills:
+    summary: Packs the skill as buchfink.zip with SHA256SUMS into dist/skills
+    cmds:
+      - python3 -I scripts/package_skills.py --out dist/skills
+
   check:clicks:
     summary: Walks the Prüfszenario from the Bilanz to the Beleg and counts the clicks
-    # GOB-02, Entscheidung 8 der Welle 7: „Keine Buchung ohne Beleg" ist erst
-    # dann eine Aussage über die Bedienung, wenn der Weg vom Abschluss zurück
-    # zum Papier begehbar ist. Der Lauf braucht einen Chromium für Playwright
+    # GOB-02: „Keine Buchung ohne Beleg" ist erst dann eine Aussage über die
+    # Bedienung, wenn der Weg vom Abschluss zurück zum Papier begehbar ist
+    # (docs/entwicklung/pruefszenarien.md). Der Lauf braucht einen Chromium für Playwright
     # und steht deshalb neben `check` und nicht darin.
     cmds:
       - node scripts/site-screenshots/four-clicks.mjs
@@ -96,18 +151,72 @@ tasks:
     # headers, and `task check` has to work on a plain checkout. On a machine
     # that can build the app, run `task test:bridge` alongside it.
     cmds:
-      - gofmt -l internal main.go
+      - task: check:gofmt
       - task: vet
       - task: test
       - task: check:design
       - task: check:bridge
+      - task: check:services
       - task: check:text
       - task: check:steps
+      - task: check:links
+      - task: check:skills
+      - task: check:version
+
+  check:gofmt:
+    summary: Fails if a Go file is not formatted with gofmt
+    cmds:
+      - |
+        files=$(git ls-files -z '*.go' | xargs -0 gofmt -l)
+        if [ -n "$files" ]; then
+          echo "Nicht mit gofmt formatiert:"
+          echo "$files"
+          exit 1
+        fi
+
+  check:version:
+    summary: Checks that the package files carry the version from build/config.yml
+    cmds:
+      - python3 scripts/version.py check
+
+  release:check:
+    summary: "Runs every check before tagging a release: task release:check VERSION=X.Y.Z"
+    # Alles, was vor einem Release grün sein muss, auch die langsamen Läufe
+    # (Bridge, Zeitzonen, amtliche E-Bilanz-Schemata). Ablauf in
+    # docs/entwicklung/README.md.
+    cmds:
+      - bash scripts/release.sh check {{.VERSION}}
+
+  release:build:
+    summary: "Builds the macOS and Windows apps, the bridge, the extension and the skill on macOS: task release:build VERSION=X.Y.Z"
+    cmds:
+      - bash scripts/release.sh build {{.VERSION}}
+
+  release:build:linux:
+    summary: "Builds the Linux app on Linux amd64 or in Docker: task release:build:linux VERSION=X.Y.Z"
+    cmds:
+      - bash scripts/release.sh build-linux {{.VERSION}}
+
+  release:publish:
+    summary: "Writes SHA256SUMS and publishes the GitHub release: task release:publish VERSION=X.Y.Z"
+    cmds:
+      - bash scripts/release.sh publish {{.VERSION}}
 
   build:
     summary: Builds the application
     cmds:
       - task: "{{.GOOS}}:build"
+
+  build:mcp:
+    summary: Builds the stdio bridge cmd/buchfink-mcp for Claude Desktop
+    # Ohne CGO und ohne Wails: GOOS und GOARCH aus der Umgebung wählen das Ziel,
+    # gebaut wird von jedem Rechner aus.
+    cmds:
+      - go build -trimpath -buildvcs=false -ldflags="-s -w -X main.version={{.VERSION}}" -o "{{.OUTPUT}}" ./cmd/buchfink-mcp
+    vars:
+      OUTPUT: '{{.OUTPUT | default "bin/buchfink-mcp"}}'
+    env:
+      CGO_ENABLED: 0
 
   package:
     summary: Packages a production build of the application
@@ -123,31 +232,6 @@ tasks:
     summary: Runs the application in development mode
     cmds:
       - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
-
-  setup:docker:
-    summary: Builds Docker image for cross-compilation (~800MB download)
-    cmds:
-      - task: common:setup:docker
-
-  build:server:
-    summary: Builds the application in server mode (no GUI, HTTP server only)
-    cmds:
-      - task: common:build:server
-
-  run:server:
-    summary: Runs the application in server mode
-    cmds:
-      - task: common:run:server
-
-  build:docker:
-    summary: Builds a Docker image for server mode deployment
-    cmds:
-      - task: common:build:docker
-
-  run:docker:
-    summary: Builds and runs the Docker image
-    cmds:
-      - task: common:run:docker
 
   notices:
     summary: Regenerates THIRD-PARTY-NOTICES.md from the actual dependencies
@@ -165,11 +249,14 @@ tasks:
     summary: Publishes website/ to the gh-pages branch
     # Schiebt den Inhalt von website/ als Wurzel des Zweigs gh-pages. In den
     # Repository-Einstellungen steht Pages auf „Deploy from a branch", Zweig
-    # gh-pages, Ordner „/ (root)" — die Veröffentlichung läuft damit von Hand
-    # und ohne CI. Nach jeder Änderung an der Seite ausführen.
+    # gh-pages, Ordner „/ (root)" — die Veröffentlichung läuft damit von Hand.
+    # Nach jeder Änderung an der Seite ausführen.
     #
     # Weist der Push zurück, weil gh-pages auseinandergelaufen ist, hilft die
     # ausdrückliche Form:
     #   git push origin $(git subtree split --prefix website HEAD):gh-pages --force
+    preconditions:
+      - sh: 'for f in $(grep -ho "assets/screenshots/[A-Za-z0-9_-]*\.png" website/*.html | sort -u); do test -f "website/$f" || exit 1; done'
+        msg: Ein Bild unter website/assets/screenshots/ fehlt, auf das eine Seite verweist (website/README.md, Screenshots).
     cmds:
       - git subtree push --prefix website origin gh-pages

@@ -45,6 +45,10 @@ type lineDef struct {
 	Note          string
 	Fallback      bool
 	Subtotal      bool
+	// Remark ist der Davon-Vermerk, mit dem die Position an ihrer
+	// übergeordneten Zeile erscheint, wenn die Gliederungstiefe sie nicht zeigt.
+	Remark          string
+	RemarkReference string
 }
 
 // IsExpensePosition sagt, ob eine Position der Staffel ein Aufwandsposten ist
@@ -60,6 +64,9 @@ func IsExpensePosition(key string) bool {
 	}
 	return false
 }
+
+// shareholderNote erklärt die Posten gegenüber Gesellschaftern.
+const shareholderNote = "Gesondert auszuweisen nach § 42 Abs. 3 GmbHG; § 265 Abs. 5 Satz 2 HGB lässt den zusätzlichen Posten zu."
 
 // balanceLines ist die Bilanz in Kontoform nach § 266 Abs. 2 und 3 HGB.
 // Die Bezeichnungen folgen dem Gesetzeswortlaut.
@@ -86,6 +93,8 @@ var balanceLines = []lineDef{
 	{Key: "aktiva.A.III.4", Ordinal: "4.", Label: "Ausleihungen an Unternehmen, mit denen ein Beteiligungsverhältnis besteht", Level: 3, Parent: "aktiva.A.III", Section: domain.SectionAssets},
 	{Key: "aktiva.A.III.5", Ordinal: "5.", Label: "Wertpapiere des Anlagevermögens", Level: 3, Parent: "aktiva.A.III", Section: domain.SectionAssets},
 	{Key: "aktiva.A.III.6", Ordinal: "6.", Label: "sonstige Ausleihungen", Level: 3, Parent: "aktiva.A.III", Section: domain.SectionAssets, Fallback: true},
+	{Key: "aktiva.A.III.gesellschafter", Ordinal: "7.", Label: "Ausleihungen an Gesellschafter", Level: 3, Parent: "aktiva.A.III", Section: domain.SectionAssets,
+		Note: shareholderNote, Remark: "davon Ausleihungen an Gesellschafter", RemarkReference: "§ 42 Abs. 3 GmbHG"},
 
 	{Key: "aktiva.B", Ordinal: "B.", Label: "Umlaufvermögen", Level: 1, Section: domain.SectionAssets},
 	{Key: "aktiva.B.I", Ordinal: "I.", Label: "Vorräte", Level: 2, Parent: "aktiva.B", Section: domain.SectionAssets},
@@ -93,11 +102,17 @@ var balanceLines = []lineDef{
 	{Key: "aktiva.B.I.2", Ordinal: "2.", Label: "unfertige Erzeugnisse, unfertige Leistungen", Level: 3, Parent: "aktiva.B.I", Section: domain.SectionAssets},
 	{Key: "aktiva.B.I.3", Ordinal: "3.", Label: "fertige Erzeugnisse und Waren", Level: 3, Parent: "aktiva.B.I", Section: domain.SectionAssets},
 	{Key: "aktiva.B.I.4", Ordinal: "4.", Label: "geleistete Anzahlungen", Level: 3, Parent: "aktiva.B.I", Section: domain.SectionAssets},
+	{Key: "aktiva.B.I.anzahlungen", Label: "erhaltene Anzahlungen auf Bestellungen", Level: 3, Parent: "aktiva.B.I", Section: domain.SectionAssets,
+		Note: "Von den Vorräten offen abgesetzt (§ 268 Abs. 5 Satz 2 HGB)."},
 	{Key: "aktiva.B.II", Ordinal: "II.", Label: "Forderungen und sonstige Vermögensgegenstände", Level: 2, Parent: "aktiva.B", Section: domain.SectionAssets},
+	{Key: "aktiva.B.II.einlagen", Label: "eingeforderte, noch nicht eingezahlte Einlagen auf das gezeichnete Kapital", Level: 3, Parent: "aktiva.B.II", Section: domain.SectionAssets,
+		Note: "Unter den Forderungen gesondert auszuweisen (§ 272 Abs. 1 Satz 2 HGB)."},
 	{Key: "aktiva.B.II.1", Ordinal: "1.", Label: "Forderungen aus Lieferungen und Leistungen", Level: 3, Parent: "aktiva.B.II", Section: domain.SectionAssets},
 	{Key: "aktiva.B.II.2", Ordinal: "2.", Label: "Forderungen gegen verbundene Unternehmen", Level: 3, Parent: "aktiva.B.II", Section: domain.SectionAssets},
 	{Key: "aktiva.B.II.3", Ordinal: "3.", Label: "Forderungen gegen Unternehmen, mit denen ein Beteiligungsverhältnis besteht", Level: 3, Parent: "aktiva.B.II", Section: domain.SectionAssets},
 	{Key: "aktiva.B.II.4", Ordinal: "4.", Label: "sonstige Vermögensgegenstände", Level: 3, Parent: "aktiva.B.II", Section: domain.SectionAssets, Fallback: true},
+	{Key: "aktiva.B.II.gesellschafter", Ordinal: "5.", Label: "Forderungen gegen Gesellschafter", Level: 3, Parent: "aktiva.B.II", Section: domain.SectionAssets,
+		Note: shareholderNote, Remark: "davon gegen Gesellschafter", RemarkReference: "§ 42 Abs. 3 GmbHG"},
 	{Key: "aktiva.B.III", Ordinal: "III.", Label: "Wertpapiere", Level: 2, Parent: "aktiva.B", Section: domain.SectionAssets},
 	{Key: "aktiva.B.III.1", Ordinal: "1.", Label: "Anteile an verbundenen Unternehmen", Level: 3, Parent: "aktiva.B.III", Section: domain.SectionAssets},
 	{Key: "aktiva.B.III.2", Ordinal: "2.", Label: "sonstige Wertpapiere", Level: 3, Parent: "aktiva.B.III", Section: domain.SectionAssets, Fallback: true},
@@ -140,6 +155,8 @@ var balanceLines = []lineDef{
 	{Key: "passiva.C.6", Ordinal: "6.", Label: "Verbindlichkeiten gegenüber verbundenen Unternehmen", Level: 3, Parent: "passiva.C", Section: domain.SectionLiabilities, Credit: true},
 	{Key: "passiva.C.7", Ordinal: "7.", Label: "Verbindlichkeiten gegenüber Unternehmen, mit denen ein Beteiligungsverhältnis besteht", Level: 3, Parent: "passiva.C", Section: domain.SectionLiabilities, Credit: true},
 	{Key: "passiva.C.8", Ordinal: "8.", Label: "sonstige Verbindlichkeiten", Level: 3, Parent: "passiva.C", Section: domain.SectionLiabilities, Credit: true, Fallback: true},
+	{Key: "passiva.C.gesellschafter", Ordinal: "9.", Label: "Verbindlichkeiten gegenüber Gesellschaftern", Level: 3, Parent: "passiva.C", Section: domain.SectionLiabilities, Credit: true,
+		Note: shareholderNote, Remark: "davon gegenüber Gesellschaftern", RemarkReference: "§ 42 Abs. 3 GmbHG"},
 
 	{Key: "passiva.D", Ordinal: "D.", Label: "Rechnungsabgrenzungsposten", Level: 1, Section: domain.SectionLiabilities, Credit: true},
 	{Key: "passiva.E", Ordinal: "E.", Label: "Passive latente Steuern", Level: 1, Section: domain.SectionLiabilities, Credit: true},
@@ -263,12 +280,35 @@ type positionTarget struct {
 	AltKey string
 	// Deduction kennzeichnet Positionen, die das Gesetz offen von einer anderen
 	// absetzen lässt: die nicht eingeforderten ausstehenden Einlagen (§ 272
-	// Abs. 1 Satz 3 HGB) und die erworbenen eigenen Anteile (§ 272 Abs. 1a HGB)
+	// Abs. 1 Satz 2 HGB) und die erworbenen eigenen Anteile (§ 272 Abs. 1a HGB)
 	// stehen mit Sollsaldo auf einer Passivposition. Das ist dort der
 	// vorgeschriebene Normalfall und kein Befund; ohne diesen Merker bekäme
 	// jede GmbH mit ausstehenden Einlagen eine Warnung, die keine ist.
 	Deduction bool
 	Note      string
+}
+
+// targetFor ist das Ziel eines Kontos in der Gliederung.
+//
+// Die Wertberichtigungen auf Forderungen teilen ihre SKR04-Position mit den
+// Forderungen und stehen im Haben. Über die Gegenposition fielen sie unter die
+// sonstigen Verbindlichkeiten; § 266 HGB kennt sie auf der Passivseite nicht,
+// sie mindern die Forderungen (§ 253 Abs. 4 Satz 2 HGB).
+func targetFor(acc domain.Account) (positionTarget, bool) {
+	target, ok := positionTargets[acc.PositionID]
+	if ok && allowanceAccount[acc.Number] {
+		target.AltKey, target.Deduction = "", true
+		target.Note = "Wertberichtigung, von den Forderungen abgesetzt (§ 253 Abs. 4 Satz 2 HGB)."
+	}
+	return target, ok
+}
+
+// allowanceAccount sind die Wertberichtigungen auf Forderungen aus
+// Lieferungen und Leistungen, gegen verbundene Unternehmen und gegen
+// Beteiligungsunternehmen (SKR04).
+var allowanceAccount = map[string]bool{
+	"1246": true, "1247": true, "1248": true, "1249": true,
+	"1276": true, "1277": true, "1296": true, "1297": true,
 }
 
 // balance ist der Saldo eines Kontos in Sollrichtung: positiv heißt Sollsaldo.
@@ -323,6 +363,7 @@ func BuildStatement(current, prior []domain.Account, depth domain.StatementDepth
 
 	balanceSheet := b.lines(balanceLines, depth.MaxBalanceLevel())
 	balanceSheet = combineAppropriatedResult(balanceSheet)
+	labelCalledCapital(balanceSheet)
 	for _, line := range balanceSheet {
 		switch line.Section {
 		case domain.SectionAssets:
@@ -335,9 +376,7 @@ func BuildStatement(current, prior []domain.Account, depth domain.StatementDepth
 				// nicht eingeforderten ausstehenden Einlagen (aktiva.0, § 272
 				// Abs. 1 Satz 3 HGB) und ein auf der Aktivseite ausgewiesener
 				// Fehlbetrag nach § 268 Abs. 3 HGB. Die aktiven latenten
-				// Steuern (aktiva.D) gehören dazu — die Spezifikation der
-				// Welle 2 nimmt sie aus, das trifft den Gesetzeswortlaut nicht,
-				// und die Größenklasse folgt hier dem Gesetz.
+				// Steuern (aktiva.D) gehören dazu.
 				//
 				// Der Fehlbetrag des § 268 Abs. 3 HGB kommt in dieser
 				// Gliederung nicht als Aktivposition vor; negatives
@@ -447,7 +486,7 @@ func (b *builder) collect(current, prior []domain.Account) {
 // Verbindlichkeiten und gehört jetzt unter die flüssigen Mittel. Beides
 // zusammen in eine Zeile zu zwingen hieße, eine der beiden Bilanzen zu fälschen.
 func (b *builder) assign(item *accountBalances) {
-	target, known := positionTargets[item.account.PositionID]
+	target, known := targetFor(item.account)
 	if !known {
 		entry := b.accountEntry(item, "", item.current, item.prior)
 		b.report.Unassigned = append(b.report.Unassigned, entry)
@@ -598,7 +637,36 @@ func (b *builder) lines(defs []lineDef, maxLevel int) []domain.StatementLine {
 		line.Omitted = !line.IsSubtotal && !b.hasValue(def.Key)
 		out = append(out, line)
 	}
+	b.attachRemarks(defs, out, maxLevel)
 	return out
+}
+
+// attachRemarks hängt die Davon-Vermerke der Posten, die diese Tiefe nicht
+// zeigt, an die nächste gezeigte übergeordnete Zeile. § 42 Abs. 3 GmbHG
+// verlangt den Vermerk, wenn die Beträge gegenüber Gesellschaftern unter
+// anderen Posten stehen.
+func (b *builder) attachRemarks(defs []lineDef, out []domain.StatementLine, maxLevel int) {
+	index := make(map[string]int, len(out))
+	for i := range out {
+		index[out[i].Key] = i
+	}
+	for _, def := range defs {
+		if def.Remark == "" || def.Level <= maxLevel || !b.hasValue(def.Key) {
+			continue
+		}
+		parent := def.Parent
+		for parent != "" && lineIndex[parent].Level > maxLevel {
+			parent = lineIndex[parent].Parent
+		}
+		i, ok := index[parent]
+		if !ok {
+			continue
+		}
+		out[i].Remarks = append(out[i].Remarks, domain.StatementRemark{
+			Key: def.Key, Label: def.Remark, Reference: def.RemarkReference,
+			Amount: b.total(def.Key, b.own), PriorAmount: b.total(def.Key, b.ownPrior),
+		})
+	}
 }
 
 // hasValue meldet, ob auf der Position selbst oder auf einer ihrer
@@ -725,7 +793,7 @@ func AccountsWithBalance(accounts []domain.Account) []domain.Account {
 // sich aus seinem Saldo ergibt. Die E-Bilanz braucht dieselbe Entscheidung wie
 // die Bilanz — nicht eine zweite, die anders ausfallen könnte.
 func StatementKeyForAccount(acc domain.Account) (string, bool) {
-	target, ok := positionTargets[acc.PositionID]
+	target, ok := targetFor(acc)
 	if !ok {
 		return "", false
 	}
@@ -789,4 +857,43 @@ func combineAppropriatedResult(lines []domain.StatementLine) []domain.StatementL
 		}
 	}
 	return out
+}
+
+// Die SKR04-Positionen des gezeichneten Kapitals (2900) und der nicht
+// eingeforderten ausstehenden Einlagen (2910).
+const (
+	subscribedCapitalPosition = "bilanz.passiva_b.gezeichnetes_kapital"
+	uncalledCapitalPosition   = "bilanz.passiva_b.nicht_eingeforderte_ausstehende_einlagen"
+)
+
+// labelCalledCapital benennt das gezeichnete Kapital um, wenn nicht
+// eingeforderte Einlagen davon abgesetzt sind: der verbleibende Betrag ist als
+// „Eingefordertes Kapital" in der Hauptspalte auszuweisen (§ 272 Abs. 1 Satz 2
+// HGB). Die Konten unter der Zeile zeigen beide Beträge.
+func labelCalledCapital(lines []domain.StatementLine) {
+	for i := range lines {
+		if lines[i].Key != "passiva.A.I" {
+			continue
+		}
+		var subscribed, subscribedPrior, uncalled, uncalledPrior domain.Cents
+		for _, acc := range lines[i].Accounts {
+			switch acc.PositionID {
+			case subscribedCapitalPosition:
+				subscribed += acc.Amount
+				subscribedPrior += acc.PriorAmount
+			case uncalledCapitalPosition:
+				uncalled -= acc.Amount
+				uncalledPrior -= acc.PriorAmount
+			}
+		}
+		if uncalled == 0 && uncalledPrior == 0 {
+			return
+		}
+		lines[i].Label = "Eingefordertes Kapital"
+		lines[i].Note = fmt.Sprintf(
+			"Gezeichnetes Kapital %s € abzüglich nicht eingeforderter ausstehender Einlagen %s € "+
+				"(§ 272 Abs. 1 Satz 2 HGB); Vorjahr %s € abzüglich %s €.",
+			subscribed, uncalled, subscribedPrior, uncalledPrior)
+		return
+	}
 }

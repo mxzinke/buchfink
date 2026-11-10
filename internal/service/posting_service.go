@@ -12,10 +12,8 @@ import (
 
 // SettlementKind separates *when* something is paid from *how* it is paid.
 //
-// The concept originally called an immediately settled receipt "bar", which
-// silently implied the bank account. Cash is Kasse (1600) and has its own rules;
-// a card payment is a different account again. Payment timing and payment means
-// are therefore two independent inputs.
+// Payment timing and payment means are two independent inputs: a receipt paid
+// on the spot names the bank account it was paid from.
 type SettlementKind string
 
 const (
@@ -24,16 +22,36 @@ const (
 	SettlementOpen SettlementKind = "open"
 	// SettlementPaid books directly against a liquid account.
 	SettlementPaid SettlementKind = "paid"
+	// SettlementCreditCard ist die Zahlung mit der Firmenkreditkarte: der
+	// Betrag steht auf 3610, bis die Monatsabrechnung vom Bankkonto abgebucht
+	// wird.
+	SettlementCreditCard SettlementKind = "credit_card"
+	// SettlementShareholderExpense ist die Auslage: ein Gesellschafter oder
+	// Geschäftsführer hat privat bezahlt und bekommt den Betrag erstattet.
+	// Aussteller bleibt der Lieferant, Gläubiger der Erstattung ist er.
+	SettlementShareholderExpense SettlementKind = "shareholder_expense"
 )
+
+// paidAtReceipt meldet die Zahlungswege, bei denen das Entgelt mit dem Beleg
+// entrichtet ist.
+func (k SettlementKind) paidAtReceipt() bool {
+	return k == SettlementPaid || k == SettlementCreditCard || k == SettlementShareholderExpense
+}
 
 // ReceiptPosition is one net amount of an incoming document, classified by a
 // fachliche Gruppe (or a directly chosen account) and a VAT rate.
 type ReceiptPosition struct {
-	PostingGroup string         `json:"postingGroup"`
-	Account      string         `json:"account,omitempty"` // direkte Kontowahl statt Gruppe
-	Net          domain.Cents   `json:"net"`
-	TaxRate      domain.TaxRate `json:"taxRate"`
-	Text         string         `json:"text,omitempty"`
+	PostingGroup string       `json:"postingGroup"`
+	Account      string       `json:"account,omitempty"` // direkte Kontowahl statt Gruppe
+	Net          domain.Cents `json:"net"`
+	// Gross ersetzt Net, wo der Beleg nur den Bruttobetrag je Steuersatz nennt
+	// (Kleinbetragsrechnung, Fahrausweis); Net ergibt sich dann daraus.
+	Gross   domain.Cents   `json:"gross,omitempty"`
+	TaxRate domain.TaxRate `json:"taxRate"`
+	// NotTaxableReason kennzeichnet einen Posten ohne Umsatzsteuer auf einem
+	// steuerpflichtigen Beleg und sagt, warum: Trinkgeld, Kurtaxe.
+	NotTaxableReason string `json:"notTaxableReason,omitempty"`
+	Text             string `json:"text,omitempty"`
 
 	// InputTaxShare ist der abziehbare Anteil der Vorsteuer in Promille — der
 	// Vorsteuerschlüssel der gemischten Nutzung.
@@ -68,11 +86,19 @@ type GiftInput struct {
 // by the type), partner, Belegdatum, Leistungszeitraum, net amounts per VAT
 // rate, Steuerfall, fachliche Gruppe and how it is settled.
 type ReceiptRequest struct {
-	ContactID       uint   `json:"contactId"`
+	ContactID uint `json:"contactId"`
+	// CreditNoteFor macht den Beleg zur Gutschrift des Lieferanten und nennt die
+	// Rechnung, die sie mindert. Die Beträge stehen positiv wie auf der
+	// Gutschrift; gebucht wird mit getauschten Seiten: Aufwand und Vorsteuer
+	// sinken (§ 17 Abs. 1 UStG), beim Lieferanten entsteht ein Guthaben.
+	CreditNoteFor   string `json:"creditNoteFor,omitempty"`
 	BookingDate     string `json:"bookingDate"`
 	DocumentDate    string `json:"documentDate"`
 	ServiceDateFrom string `json:"serviceDateFrom"`
 	ServiceDateTo   string `json:"serviceDateTo"`
+	// DueDate ist die Fälligkeit laut Beleg. Leer folgt sie aus dem
+	// Zahlungsziel des Lieferanten; sie zählt nur bei offener Zahlung.
+	DueDate string `json:"dueDate,omitempty"`
 
 	// ReceiptID names the Beleg this booking belongs to. It replaces the former
 	// pair of document hash and path: a Beleg is several files, and the
@@ -84,6 +110,9 @@ type ReceiptRequest struct {
 	Positions      []ReceiptPosition   `json:"positions"`
 	Settlement     SettlementKind      `json:"settlement"`
 	PaymentAccount string              `json:"paymentAccount,omitempty"`
+	// CreditorContactID ist bei einer Auslage der Gesellschafter oder
+	// Geschäftsführer, dem der Betrag zu erstatten ist.
+	CreditorContactID uint `json:"creditorContactId,omitempty"`
 
 	// Currency ist die Währung des Belegs. Leer oder „EUR" heißt: es wird in der
 	// Buchwährung abgerechnet und nichts umgerechnet.
@@ -103,6 +132,10 @@ type ReceiptRequest struct {
 	// gehalten. Ein Zahlendreher in einer Position ergibt sonst eine Buchung,
 	// die in sich aufgeht und mit der Rechnung daneben nicht übereinstimmt.
 	ForeignAmount domain.Cents `json:"foreignAmount,omitempty"`
+	// ChargedAmount ist bei einem Fremdwährungsbeleg, der mit der Zahlung
+	// gebucht wird, der Euro-Betrag, mit dem Karte oder Bank belastet haben.
+	// Gebucht wird dann dieser Betrag statt der Umrechnung zum Tageskurs.
+	ChargedAmount domain.Cents `json:"chargedAmount,omitempty"`
 
 	// Entertainment carries the record § 4 Abs. 5 Satz 1 Nr. 2 EStG requires
 	// whenever entertainment expenses are booked. Without it the deduction is
@@ -170,6 +203,7 @@ type ReceiptRequest struct {
 // computation in the frontend is a second truth that drifts the moment a
 // Steuerfall is added — and the one in the frontend is the one nobody tests.
 type PostingPreview struct {
+	specials        []string
 	IssuingFindings []string             `json:"issuingFindings,omitempty"`
 	Lines           []domain.JournalLine `json:"lines"`
 	// Net is the sum of the expense or revenue lines, Gross what is actually
@@ -186,6 +220,11 @@ type PostingPreview struct {
 	// They are computed on demand rather than stored: a conserved legal
 	// assessment goes stale, and every input it depends on is still there.
 	Warnings []PostingWarning `json:"warnings,omitempty"`
+
+	// BookingDate ist der Buchungstag, DueDate die Fälligkeit des offenen
+	// Postens, soweit die Vorschau sie schon kennt.
+	BookingDate string `json:"bookingDate,omitempty"`
+	DueDate     string `json:"dueDate,omitempty"`
 
 	// SmallAmountLimit ist die Bruttogrenze der Kleinbetragsrechnung am
 	// Rechnungsdatum (§ 33 UStDV), null außerhalb der Ausgangsrechnung.
@@ -225,21 +264,9 @@ type PostingService struct {
 	// vendorAdvances ist ebenso optional: ohne sie kennt der Belegweg keine
 	// geleisteten Anzahlungen.
 	vendorAdvances domain.VendorAdvanceRepository
-	// txRunner klammert die Buchung mit dem Vermerk der Anzahlungen. Fehlt er,
-	// läuft alles wie zuvor, nur ohne die Klammer.
-	txRunner domain.TxRunner
 	// gifts ist die Geschenkkartei. Ohne sie kennt der Belegweg die Freigrenze
 	// des § 4 Abs. 5 Satz 1 Nr. 1 EStG nicht.
 	gifts giftRegister
-	// fiscalStartMonth ist der Beginn des Geschäftsjahres. Null heißt Januar.
-	//
-	// Er wird über einen Leser geführt und nicht als Zahl gehalten: der Anwender
-	// kann den Beginn des Geschäftsjahres ändern, und eine einmal beim
-	// Einrichten gelesene Zahl rechnete danach bis zum Neustart mit dem alten
-	// Wirtschaftsjahr.
-	fiscalStartMonth  int
-	fiscalStartReader func() int
-
 	// currency ist der Kursdienst. Ohne ihn ist ein Beleg in Fremdwährung nicht
 	// buchbar.
 	currency currencyConverter
@@ -248,6 +275,9 @@ type PostingService struct {
 	// (RECH-08). Ohne ihn kennt der Belegweg keine Grenze und bucht wie zuvor —
 	// gesetzt wird er deshalb überall dort, wo es Einstellungen gibt.
 	settingsRepo domain.SettingsRepository
+
+	// kinds erkennt eine Gutschrift am Rechnungsdatensatz.
+	kinds documentKinds
 }
 
 // SetSettingsSource koppelt die Unternehmenseinstellungen an den Belegweg. Aus
@@ -256,21 +286,22 @@ func (s *PostingService) SetSettingsSource(repo domain.SettingsRepository) {
 	s.settingsRepo = repo
 }
 
-// SetTxRunner koppelt die Transaktionsklammer an den Belegweg.
-func (s *PostingService) SetTxRunner(r domain.TxRunner) { s.txRunner = r }
-
-// runInTx runs fn inside a transaction where one is wired, and plainly where it
-// is not.
 func (s *PostingService) runInTx(ctx context.Context, fn func(context.Context) error) error {
-	if s.txRunner == nil {
-		return fn(ctx)
-	}
-	return s.txRunner.RunInTx(ctx, fn)
+	return s.journalSvc.InTx(ctx, fn)
 }
 
 // SetReceiptService wires in the Beleg service. Without it a booking cannot
 // reference a Beleg, which is what the manual journal entry path relies on.
 func (s *PostingService) SetReceiptService(receiptSvc *ReceiptService) { s.receiptSvc = receiptSvc }
+
+// documentKinds liest, was der Rechnungsdatensatz eines Belegs zu sein angibt.
+type documentKinds interface {
+	DocumentKind(ctx context.Context, receiptID uint) (domain.EInvoiceKind, error)
+}
+
+// SetDocumentKinds lässt den Buchungsweg eine Gutschrift am Rechnungsdatensatz
+// erkennen. Ohne ihn verlässt er sich auf die Angabe der Anfrage.
+func (s *PostingService) SetDocumentKinds(k documentKinds) { s.kinds = k }
 
 // ProvisionConsumer ist der Ausschnitt der Rückstellungen, den der Belegweg
 // braucht: wie viel eine Rückstellung von einer Rechnung deckt, und der
@@ -307,426 +338,23 @@ func NewPostingService(journalSvc *JournalService, contactRepo domain.ContactRep
 	}
 }
 
-// PostIncomingReceipt books an Eingangsbeleg and seals its Beleg.
-//
-// The order is deliberate: the Beleg is checked for bookability first, then the
-// journal writes, then the Beleg is sealed. Sealing belongs *behind* the journal
-// write — if the booking fails the Beleg has to stay open so it can be corrected
-// and booked again, whereas the other order would leave an unchangeable Beleg
-// with no booking.
+// PostIncomingReceipt plant und bucht einen Eingangsbeleg samt Belegsiegel.
+// Die Planung liegt vor der Transaktion; Kurse werden im Kern vor Write geholt.
 func (s *PostingService) PostIncomingReceipt(ctx context.Context, req ReceiptRequest) (*domain.JournalEntry, error) {
-	built, err := s.buildIncomingLines(ctx, req)
+	plan, err := s.planIncomingReceipt(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	if err := built.blockingError(req); err != nil {
-		return nil, err
-	}
-	// Der Leistungsnachweis ist ab der eingestellten Grenze Pflicht (RECH-08):
-	// geprüft wird vor der Buchung, weil ein gebuchter Beleg den Vermerk zwar
-	// noch aufnimmt, die Prüfung gegen die Bestellung dann aber niemand mehr
-	// vornimmt. Geprüft wird gegen den Beleg *und* gegen den mitgeschickten
-	// Vermerk; geschrieben wird der mitgeschickte erst in der Transaktion.
-	if err := s.requireServiceProof(ctx, built.receipt, req); err != nil {
-		return nil, err
-	}
-	lines, contact, receipt := built.lines, built.contact, built.receipt
-
-	description := req.Description
-	if description == "" {
-		description = fmt.Sprintf("Eingangsbeleg %s, %s", receipt.ReceiptNumber, contact.Name)
-	}
-
-	// Die Quelle „advance" ist die Bedingung der Periodenzuordnung und keine
-	// bloße Etikettierung: accounting.VatPeriodFor legt die Steuer einer
-	// Anzahlung in den Zeitraum der Zahlung. Ohne sie entschiede der
-	// Leistungszeitraum — und geleistet ist bei einer Anzahlung noch nichts.
-	source := domain.EntrySourceReceipt
-	if req.AdvanceTarget != "" {
-		source = domain.EntrySourceAdvance
-		if req.Description == "" {
-			description = fmt.Sprintf("Geleistete Anzahlung %s an %s", receipt.ReceiptNumber, contact.Name)
-		}
-	}
-
-	entry := &domain.JournalEntry{
-		BookingDate:        req.BookingDate,
-		DocumentDate:       req.DocumentDate,
-		ServiceDateFrom:    req.ServiceDateFrom,
-		ServiceDateTo:      req.ServiceDateTo,
-		Description:        description,
-		Source:             source,
-		DocumentNumber:     receipt.ReceiptNumber,
-		TaxTreatment:       req.TaxTreatment,
-		ReceiptID:          &receipt.ID,
-		ReceiptHash:        receipt.ReceiptHash,
-		ContactID:          &contact.ID,
-		PostingRuleVersion: accounting.PostingRuleVersion,
-		Lines:              lines,
-		Entertainment:      req.Entertainment,
-		Gifts:              built.gifts,
-	}
-	// Währung, Kurs, Quelle und Kurstag gehören zusammen an den Kopf. Die
-	// Währung allein — so stand es hier vorher — ließ den Kurs auf 1,000000
-	// stehen: eine Buchung, die USD behauptet und Euro rechnet.
-	if built.fx != nil {
-		built.fx.head(entry)
-	}
-
-	// Buchung und der Vermerk der Anzahlungen gehören in eine Transaktion.
-	//
-	// Der Vermerk ist es, der eine geleistete Anzahlung als verrechnet ausweist
-	// und sie aus der Liste der offenen nimmt. Bliebe er hinter der Buchung
-	// aus, stünde die Schlussrechnung des Lieferanten im Journal, während die
-	// Anzahlung weiter als offen gälte — und der zweite Versuch setzte sie ein
-	// zweites Mal ab.
-	var created *domain.JournalEntry
-	if err := s.runInTx(ctx, func(ctx context.Context) error {
-		// Der mitgeschickte Leistungsnachweis steht in derselben Klammer wie
-		// die Buchung: scheitert sie — festgeschriebener Zeitraum, ein Fehler
-		// im Journal, der Anzahlungsvermerk —, dann darf am Beleg kein Vermerk
-		// zurückbleiben. Er behauptete sonst samt Protokolleintrag eine
-		// Prüfung, zu der es keine Buchung gibt, und niemand käme darauf, ihn
-		// vor dem zweiten Versuch noch einmal anzusehen.
-		if err := s.saveServiceProof(ctx, built, req); err != nil {
-			return err
-		}
-		posted, err := s.journalSvc.Post(ctx, entry)
-		if err != nil {
-			return err
-		}
-		created = posted
-
-		// Die geleistete Anzahlung wird vermerkt, sobald die Zahlung gebucht
-		// ist: die Schlussrechnung des Lieferanten muss sie absetzen können,
-		// und ohne diesen Vermerk stünde sie nur als Saldo auf 1180 — ohne die
-		// Angabe, aus welchem Vorgang er stammt.
-		if req.AdvanceTarget != "" {
-			if err := s.recordVendorAdvance(ctx, req, receipt, posted); err != nil {
-				return fmt.Errorf("die Anzahlung ließ sich nicht vermerken: %w", err)
-			}
-		}
-		for _, id := range req.SettledAdvanceIDs {
-			advance, err := s.vendorAdvances.FindByID(ctx, id)
-			if err != nil {
-				return err
-			}
-			advance.SettledByEntryID = &posted.ID
-			if err := s.vendorAdvances.Save(ctx, advance); err != nil {
-				return fmt.Errorf("die Anzahlung %s bleibt als offen vermerkt: %w", advance.DocumentNumber, err)
-			}
-		}
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-
-	// Der Verbrauch wird in der Rückstellungskartei vermerkt, sobald die
-	// Buchung steht: der Rückstellungsspiegel liest ihn dort und nicht aus dem
-	// Journal, weil er die Bewegungsart braucht und nicht nur das Konto.
-	if req.ProvisionID != 0 && s.provisions != nil {
-		var consumed domain.Cents
-		for _, l := range created.Lines {
-			if l.Side == domain.SideDebit && l.Text == "Verbrauch der Rückstellung" {
-				consumed += l.Amount
-			}
-		}
-		if consumed > 0 {
-			if err := s.provisions.RecordConsumption(
-				ctx, req.ProvisionID, consumed, req.BookingDate, created.ID,
-				fmt.Sprintf("Rechnung %s", receipt.ReceiptNumber),
-			); err != nil {
-				return created, fmt.Errorf(
-					"die Buchung %s wurde geschrieben, der Verbrauch der Rückstellung aber nicht "+
-						"vermerkt: %w", created.EntryNumber, err)
-			}
-		}
-	}
-
-	// Der Grund der Übersteuerung gehört an den Beleg und ins Protokoll — vor
-	// der Versiegelung, weil ein versiegelter Beleg nichts mehr aufnimmt.
-	if strings.TrimSpace(req.OverrideReason) != "" && len(built.findings) > 0 {
-		if err := s.receiptSvc.SaveInputTaxOverride(ctx, receipt.ID, req.OverrideReason); err != nil {
-			return created, fmt.Errorf(
-				"die Buchung %s wurde geschrieben, der Grund der Übersteuerung aber nicht am Beleg "+
-					"vermerkt: %w", created.EntryNumber, err)
-		}
-	}
-
-	if err := s.receiptSvc.Seal(ctx, receipt.ID, created.ID); err != nil {
-		// The booking stands; only the seal is missing. Saying so beats
-		// pretending the booking failed, and ReceiptService repairs the state
-		// when the Beleg is read again.
-		return created, fmt.Errorf(
-			"die Buchung %s wurde geschrieben, der Beleg %s konnte aber nicht versiegelt werden: %w",
-			created.EntryNumber, receipt.ReceiptNumber, err)
-	}
-	return created, nil
+	return s.bookIncomingReceipt(ctx, plan)
 }
 
-// PreviewIncomingReceipt computes the booking of an Eingangsbeleg without
-// writing it.
+// PreviewIncomingReceipt zeigt denselben Plan, den die Buchung verwendet.
 func (s *PostingService) PreviewIncomingReceipt(ctx context.Context, req ReceiptRequest) (*PostingPreview, error) {
-	built, err := s.buildIncomingLines(ctx, req)
+	plan, err := s.planIncomingReceipt(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	preview := s.preview(ctx, built.lines)
-	if notice := eInvoiceNotice(
-		built.contact, built.receipt, req.TaxTreatment, req.DocumentDate, preview.Gross); notice != nil {
-		preview.Warnings = append(preview.Warnings, *notice)
-	}
-	preview.Warnings = append(preview.Warnings, built.warnings...)
-	// Der fehlende Leistungsnachweis steht schon in der Vorschau: die Maske soll
-	// das Feld verlangen, bevor jemand auf „Buchen" drückt.
-	if notice := s.serviceProofNotice(ctx, built.receipt); notice != nil {
-		preview.Warnings = append(preview.Warnings, *notice)
-	}
-	preview.InputTaxFindings = built.findings
-	if built.fx != nil {
-		preview.Conversion = built.fx.conv
-	}
-	return preview, nil
-}
-
-// buildIncomingLines produces the journal lines of an Eingangsbeleg. It is the
-// single implementation both the booking and its preview run through, so the two
-// cannot disagree.
-func (s *PostingService) buildIncomingLines(ctx context.Context, req ReceiptRequest) (*incomingLines, error) {
-	if len(req.Positions) == 0 {
-		return nil, fmt.Errorf("der Beleg hat keine Positionen")
-	}
-	// Kein stiller Vorgabewert: ein steuerfreier, ein nullbesteuerter und ein
-	// dem Reverse-Charge unterliegender Einkauf sehen im Betrag gleich aus und
-	// werden verschieden gebucht. Wo der Steuerfall fehlt — etwa weil der
-	// Rechnungsdatensatz Kategorien mischt —, ist er zu wählen, nicht zu raten.
-	if req.TaxTreatment == "" {
-		return nil, fmt.Errorf(
-			"der Steuerfall fehlt. Er ist anzugeben und lässt sich nicht aus den Beträgen erschließen")
-	}
-
-	contact, err := s.contactRepo.FindByID(ctx, req.ContactID)
-	if err != nil {
-		return nil, fmt.Errorf("Lieferant konnte nicht geladen werden: %w", err)
-	}
-	if contact.Type != domain.ContactTypeVendor {
-		return nil, fmt.Errorf("%s ist als Kunde angelegt und kann keinen Eingangsbeleg stellen", contact.Name)
-	}
-	if err := ensureNotBlocked(contact); err != nil {
-		return nil, err
-	}
-	if err := validateIncomingTreatment(req.TaxTreatment, contact); err != nil {
-		return nil, err
-	}
-
-	receipt, err := s.loadBookableReceipt(ctx, req.ReceiptID)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := s.validateAdvanceRequest(req); err != nil {
-		return nil, err
-	}
-
-	// Die Geschenke des Wirtschaftsjahres, einmal gelesen: die Freigrenze des
-	// § 4 Abs. 5 Satz 1 Nr. 1 EStG läuft je Empfänger über das Jahr, und ohne
-	// den bisherigen Stand ließe sich nicht sagen, ob dieses Geschenk sie reißt.
-	giftTotals, err := s.giftTotals(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-
-	// Die Umrechnung steht vor allem anderen: ab hier rechnet der ganze
-	// Belegweg in Euro. Die Freigrenze für Geschenke, die 70/30-Aufteilung der
-	// Bewirtung und jede Wertgrenze sind Eurobeträge, und sie gegen einen
-	// Dollarbetrag zu halten wäre die stillste Art, sie falsch anzuwenden.
-	fx, err := s.prepareCurrency(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	euroNet := make([]domain.Cents, len(req.Positions))
-	for i := range req.Positions {
-		euroNet[i] = req.Positions[i].Net
-	}
-	if fx != nil {
-		foreign := make([]domain.Cents, len(req.Positions))
-		for i := range req.Positions {
-			foreign[i] = req.Positions[i].Net
-		}
-		euroNet = fx.splitToEuro(foreign)
-	}
-
-	out := &incomingLines{
-		contact:  contact,
-		receipt:  receipt,
-		fx:       fx,
-		gifts:    make([]domain.GiftRecord, 0, 1),
-		warnings: make([]PostingWarning, 0, 2),
-	}
-	var lines []domain.JournalLine
-
-	// 1. Aufwands- bzw. Anschaffungszeilen aus den fachlichen Gruppen.
-	//
-	// In zwei Durchgängen: erst stehen Konto, abziehbarer Vorsteueranteil und
-	// die Aufzeichnung zum Geschenk je Position fest, dann entstehen die Zeilen.
-	// Der Umweg ist die nicht abziehbare Vorsteuer eines geteilten Abzugs — sie
-	// wird je Steuersatzgruppe einmal gerundet wie die Steuerzeile selbst, und
-	// dafür müssen alle Positionen der Gruppe bekannt sein
-	// (siehe nonDeductibleTaxByPosition).
-	netByRate := map[domain.TaxRate]domain.Cents{}
-	// owedByRate ist die volle Bemessungsgrundlage. Sie geht auseinander mit
-	// netByRate, sobald ein Vorsteuerschlüssel greift: beim § 13b-Umsatz und
-	// beim innergemeinschaftlichen Erwerb kürzt der abziehbare Anteil nur die
-	// Vorsteuerzeile, während die geschuldete Steuer voll entsteht (UST-07 K2).
-	owedByRate := map[domain.TaxRate]domain.Cents{}
-	needsEntertainmentRecord := false
-	prepared := make([]preparedPosition, 0, len(req.Positions))
-	for i, p := range req.Positions {
-		if p.Net <= 0 {
-			return nil, fmt.Errorf("Position %d: der Nettobetrag muss größer als null sein", i+1)
-		}
-		foreignNet := domain.Cents(0)
-		if fx != nil {
-			foreignNet, p.Net = p.Net, euroNet[i]
-			if p.Net <= 0 {
-				return nil, fmt.Errorf(
-					"Position %d: %s %s ergeben zum Kurs %s keinen Betrag über null",
-					i+1, foreignNet, fx.currency, fx.conv.Rate.Source)
-			}
-		}
-		// Die geleistete Anzahlung geht nicht durch die fachlichen Gruppen: sie
-		// ist ein Posten des Vermögens und kein Aufwand, und welcher, entscheidet
-		// die Verwendung und nicht die Art der Leistung.
-		if req.AdvanceTarget != "" {
-			prepared = append(prepared, preparedPosition{
-				position: p, foreignNet: foreignNet, advance: true})
-			continue
-		}
-		resolved, err := s.resolvePosition(ctx, req, p, giftTotals)
-		if err != nil {
-			return nil, fmt.Errorf("Position %d: %w", i+1, err)
-		}
-		if resolved.gift != nil {
-			out.gifts = append(out.gifts, *resolved.gift)
-			giftTotals[resolved.gift.RecipientKey()] += resolved.gift.NetAmount
-		}
-		out.warnings = append(out.warnings, resolved.warnings...)
-		prepared = append(prepared, preparedPosition{
-			position: p, foreignNet: foreignNet, resolved: resolved})
-	}
-
-	nonDeductibleTax := nonDeductibleTaxByPosition(prepared)
-	for i, pp := range prepared {
-		if pp.advance {
-			account, err := accounting.VendorAdvanceAccountFor(req.AdvanceTarget)
-			if err != nil {
-				return nil, err
-			}
-			text := pp.position.Text
-			if text == "" {
-				text = "Geleistete Anzahlung"
-			}
-			lines = append(lines, domain.JournalLine{
-				Side: domain.SideDebit, Account: account, Amount: pp.position.Net,
-				ForeignAmount: pp.foreignNet, Text: text,
-			})
-			netByRate[pp.position.TaxRate] += pp.position.Net
-			owedByRate[pp.position.TaxRate] += pp.position.Net
-			continue
-		}
-		positionLines, quota, taxableNet, err := s.expenseLines(
-			pp.resolved, nonDeductibleTax[i], req.TaxTreatment, req.DocumentDate)
-		if err != nil {
-			return nil, fmt.Errorf("Position %d: %w", i+1, err)
-		}
-		spreadForeign(positionLines, pp.foreignNet)
-		lines = append(lines, positionLines...)
-		if quota == accounting.QuotaEntertainment {
-			needsEntertainmentRecord = true
-		}
-		// In die Bemessungsgrundlage geht der abziehbare Teil. Beim ungeteilten
-		// Vorsteuerabzug ist das der volle Nettobetrag — auch dort, wo der
-		// *Aufwand* geteilt wird: § 15 Abs. 1a Satz 2 UStG nimmt
-		// Bewirtungsaufwendungen vom Vorsteuerausschluss ausdrücklich aus. Nur
-		// ein Vorsteuerschlüssel oder ein Ausschluss nach § 15 Abs. 1a UStG
-		// mindert sie.
-		netByRate[pp.position.TaxRate] += taxableNet
-		owedByRate[pp.position.TaxRate] += pp.position.Net
-	}
-
-	if needsEntertainmentRecord {
-		if req.Entertainment == nil {
-			return nil, fmt.Errorf(
-				"zu einer Bewirtung gehören Ort, Tag, Teilnehmer und Anlass (§ 4 Abs. 5 Satz 1 Nr. 2 EStG). Ohne diese Aufzeichnung ist der Abzug auch für die abziehbaren 70 %% verloren")
-		}
-		if err := req.Entertainment.Validate(); err != nil {
-			return nil, err
-		}
-	}
-
-	// 2. Die abgesetzten Anzahlungen. Sie stehen vor den Steuerzeilen, weil sie
-	// deren Bemessungsgrundlage mindern: die Vorsteuer auf den angezahlten Teil
-	// ist mit der Zahlung schon gezogen worden, und ein zweites Mal gäbe es sie
-	// nicht.
-	// Die abgesetzte Anzahlung mindert beide Bemessungsgrundlagen: die
-	// geschuldete Steuer entsteht auf den angezahlten Teil schon mit der
-	// Zahlung, nicht ein zweites Mal mit der Schlussrechnung. Abgezogen wird
-	// deshalb dieselbe Minderung, die advanceDeductionLines an netByRate
-	// vornimmt — sonst stünde die volle Bemessungsgrundlage weiter in der
-	// geschuldeten Steuer.
-	beforeDeduction := make(map[domain.TaxRate]domain.Cents, len(netByRate))
-	for rate, value := range netByRate {
-		beforeDeduction[rate] = value
-	}
-	deductions, err := s.advanceDeductionLines(ctx, req, netByRate)
-	if err != nil {
-		return nil, err
-	}
-	lines = append(lines, deductions...)
-	for rate, before := range beforeDeduction {
-		owedByRate[rate] -= before - netByRate[rate]
-	}
-
-	// 3. Steuerzeilen, einmal je Steuersatzgruppe gerundet. In Fremdwährung
-	// kommt die Kursdifferenz zwischen Tages- und Umsatzsteuerkurs hinzu.
-	taxLines, err := s.taxLinesForShare(
-		domain.DirectionIncoming, req.TaxTreatment, netByRate, owedByRate, fx)
-	if err != nil {
-		return nil, err
-	}
-	lines = append(lines, taxLines...)
-
-	// 4. Ist der Beleg einer Rückstellung zugeordnet, tritt das
-	// Rückstellungskonto an die Stelle des Aufwands — bis zur Höhe ihres
-	// Bestands.
-	if req.ProvisionID != 0 {
-		lines, err = s.applyProvision(ctx, req.ProvisionID, lines)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// 5. Gegenzeile: was tatsächlich an den Lieferanten zu zahlen ist.
-	settlementLine, err := s.settlementLine(lines, req.Settlement, req.PaymentAccount, contact)
-	if err != nil {
-		return nil, err
-	}
-	if fx != nil {
-		settlementLine.ForeignAmount = fx.toForeign(settlementLine.Amount)
-	}
-	lines = append(lines, settlementLine)
-
-	// Zuletzt die Rechnungsprüfung: sie braucht die fertigen Zeilen, weil erst
-	// aus ihnen hervorgeht, ob überhaupt Vorsteuer gezogen wird. Ein Beleg ohne
-	// Vorsteuerabzug hat keine Pflichtangaben zu erfüllen, für die er gesperrt
-	// werden müsste.
-	findings, err := s.inputTaxFindings(ctx, req, contact, receipt, lines)
-	if err != nil {
-		return nil, err
-	}
-	out.findings = findings
-	out.lines = lines
-	return out, nil
+	return plan.preview, nil
 }
 
 // validateAdvanceRequest prüft die beiden Bedingungen des Anzahlungsfalls auf
@@ -755,11 +383,11 @@ func (s *PostingService) validateAdvanceRequest(req ReceiptRequest) error {
 	if _, err := accounting.VendorAdvanceAccountFor(req.AdvanceTarget); err != nil {
 		return err
 	}
-	if req.Settlement != SettlementPaid {
+	if !req.Settlement.paidAtReceipt() {
 		return fmt.Errorf(
 			"eine Anzahlungsrechnung wird mit der Zahlung gebucht, nicht mit ihrem Eingang: " +
 				"der Vorsteuerabzug setzt nach § 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG die Entrichtung des " +
-				"Entgelts voraus. Buche sie mit dem Zahlungstag und dem Zahlungsmittel")
+				"Entgelts voraus. Sie wird mit dem Zahlungstag und dem Zahlungsmittel gebucht")
 	}
 	if req.ProvisionID != 0 {
 		return fmt.Errorf("eine geleistete Anzahlung verbraucht keine Rückstellung: sie ist kein Aufwand")
@@ -1002,18 +630,16 @@ func (s *PostingService) PostOutgoingInvoice(ctx context.Context, inv *domain.In
 		return nil, err
 	}
 
+	bookingDate, _ := s.realizationDate(ctx, inv)
 	entry := &domain.JournalEntry{
-		FiscalYear:      inv.FiscalYear,
-		BookingDate:     inv.Date,
+		BookingDate:     bookingDate,
 		DocumentDate:    inv.Date,
 		ServiceDateFrom: inv.ServiceDateFrom,
 		ServiceDateTo:   inv.ServiceDateTo,
+		DueDate:         inv.DueDate,
 		Description:     fmt.Sprintf("Rechnung %s an %s", inv.InvoiceNumber, contact.Name),
-		// Der Ausgangsbeleg entsteht vor der Buchung (siehe InvoiceService.Issue)
-		// und wird hier an ihr vermerkt. Die Gegenrichtung — der Beleg zeigt nach
-		// dem Versiegeln auf die Buchung — genügt nicht: der Prüflauf fragt die
-		// Buchung, ob sie einen Beleg hat, und ohne diese Zeile hätte jede
-		// Ausgangsrechnung keinen.
+		// Der Ausgangsbeleg entsteht vor der Buchung (siehe
+		// InvoiceService.issueDocument); die Buchung verweist auf ihn.
 		ReceiptID:          inv.ReceiptID,
 		Source:             domain.EntrySourceInvoice,
 		DocumentNumber:     inv.InvoiceNumber,
@@ -1030,76 +656,6 @@ func (s *PostingService) PostOutgoingInvoice(ctx context.Context, inv *domain.In
 	return s.journalSvc.Post(ctx, entry)
 }
 
-// PostCashSale bucht eine Rechnung ohne Empfänger gegen das Zahlungsmittel.
-//
-// Der Fall ist die Kleinbetragsrechnung des § 33 UStDV, die ohne
-// Leistungsempfänger auskommt. Ohne Empfänger gibt es kein Personenkonto — und
-// es gibt auch nichts, was darauf stehen könnte: der Barverkauf ist bezahlt,
-// wenn die Rechnung entsteht. Ein Sammel-Debitor wäre die Alternative gewesen;
-// er trüge einen offenen Posten, den niemand ausgleicht, und die OP-Liste
-// verlöre ihre Aussage.
-func (s *PostingService) PostCashSale(ctx context.Context, inv *domain.Invoice, account string) (*domain.JournalEntry, error) {
-	if account == "" {
-		account = domain.AccountKasse
-	}
-	lines, fx, err := s.outgoingContentLines(ctx, inv)
-	if err != nil {
-		return nil, err
-	}
-	settlement, err := settlementLineFor(lines, SettlementPaid, account, nil)
-	if err != nil {
-		return nil, err
-	}
-	if fx != nil {
-		settlement.ForeignAmount = fx.toForeign(settlement.Amount)
-	}
-	lines = append(lines, settlement)
-
-	entry := &domain.JournalEntry{
-		FiscalYear:         inv.FiscalYear,
-		BookingDate:        inv.Date,
-		DocumentDate:       inv.Date,
-		ServiceDateFrom:    inv.ServiceDateFrom,
-		ServiceDateTo:      inv.ServiceDateTo,
-		Description:        fmt.Sprintf("Kleinbetragsrechnung %s (Barverkauf)", inv.InvoiceNumber),
-		ReceiptID:          inv.ReceiptID,
-		Source:             domain.EntrySourceInvoice,
-		DocumentNumber:     inv.InvoiceNumber,
-		TaxTreatment:       inv.TaxTreatment,
-		Currency:           inv.Currency,
-		PostingRuleVersion: accounting.PostingRuleVersion,
-		Lines:              lines,
-	}
-	if fx != nil {
-		fx.head(entry)
-	}
-	return s.journalSvc.Post(ctx, entry)
-}
-
-// PreviewCashSale computes the booking of a Kleinbetragsrechnung without a
-// recipient.
-func (s *PostingService) PreviewCashSale(ctx context.Context, inv *domain.Invoice, account string) (*PostingPreview, error) {
-	if account == "" {
-		account = domain.AccountKasse
-	}
-	lines, fx, err := s.outgoingContentLines(ctx, inv)
-	if err != nil {
-		return nil, err
-	}
-	settlement, err := settlementLineFor(lines, SettlementPaid, account, nil)
-	if err != nil {
-		return nil, err
-	}
-	if fx != nil {
-		settlement.ForeignAmount = fx.toForeign(settlement.Amount)
-	}
-	preview := s.preview(ctx, append(lines, settlement))
-	if fx != nil {
-		preview.Conversion = fx.conv
-	}
-	return preview, nil
-}
-
 // PreviewOutgoingInvoice computes the booking of an Ausgangsrechnung without
 // writing it. The invoice form shows this instead of doing the arithmetic again.
 func (s *PostingService) PreviewOutgoingInvoice(ctx context.Context, inv *domain.Invoice, contact *domain.Contact) (*PostingPreview, error) {
@@ -1111,7 +667,59 @@ func (s *PostingService) PreviewOutgoingInvoice(ctx context.Context, inv *domain
 	if fx != nil {
 		preview.Conversion = fx.conv
 	}
+	date, locked := s.realizationDate(ctx, inv)
+	preview.BookingDate, preview.DueDate = date, inv.DueDate
+	switch {
+	case locked:
+		preview.Warnings = append(preview.Warnings, PostingWarning{
+			Code: warningServiceDayLocked, Severity: "warning",
+			Title: "Leistung im festgeschriebenen Zeitraum",
+			Detail: fmt.Sprintf("Die Leistung endete am %s, dieser Tag ist nicht mehr bebuchbar. Erlös und Forderung "+
+				"bucht Buchfink deshalb zum Rechnungsdatum %s. Die Umsatzsteuer gehört trotzdem in den "+
+				"Voranmeldungszeitraum der Leistung (§ 13 Abs. 1 Nr. 1 Buchst. a UStG); ist dessen Voranmeldung "+
+				"übermittelt, ist sie zu berichtigen.", domain.GermanDate(serviceEnd(inv)), domain.GermanDate(inv.Date)),
+		})
+	case date != inv.Date:
+		preview.Warnings = append(preview.Warnings, PostingWarning{
+			Code: warningBookedOnServiceDay, Severity: "info",
+			Title: "Gebucht zum Leistungstag " + domain.GermanDate(date),
+			Detail: "Erlös und Forderung entstehen mit der Leistung, nicht mit dem Rechnungsdatum " +
+				"(§ 252 Abs. 1 Nr. 4 HGB).",
+		})
+	}
 	return preview, nil
+}
+
+const (
+	warningBookedOnServiceDay = "buchung_zum_leistungstag"
+	warningServiceDayLocked   = "leistungstag_festgeschrieben"
+)
+
+// serviceEnd ist der letzte Tag der Leistung einer Rechnung, leer ohne Angabe.
+func serviceEnd(inv *domain.Invoice) string {
+	if inv.ServiceDateTo != "" {
+		return inv.ServiceDateTo
+	}
+	return inv.ServiceDateFrom
+}
+
+// realizationDate ist der Buchungstag einer Ausgangsrechnung: der Tag, an dem
+// die Leistung erbracht und der Ertrag realisiert ist (§ 252 Abs. 1 Nr. 4 HGB),
+// also das Ende des Leistungszeitraums. Eine Rechnung vor dem Ende der Leistung
+// bucht am Rechnungsdatum. Ist der Leistungstag nicht mehr bebuchbar, ebenfalls;
+// locked sagt das.
+func (s *PostingService) realizationDate(ctx context.Context, inv *domain.Invoice) (date string, locked bool) {
+	day := serviceEnd(inv)
+	if day == "" || day >= inv.Date {
+		return inv.Date, false
+	}
+	if periods := s.journalSvc.periods; periods != nil {
+		state, err := periods.State(ctx, day)
+		if err != nil || !state.Open {
+			return inv.Date, true
+		}
+	}
+	return day, false
 }
 
 // buildOutgoingLines produces the journal lines of an Ausgangsrechnung, shared by
@@ -1229,183 +837,12 @@ func (s *PostingService) prepareInvoiceCurrency(
 			"der Kursdienst ist nicht eingerichtet. Eine Rechnung über %s ließe sich nur mit einem "+
 				"geratenen Kurs buchen, und geraten wird keiner", code)
 	}
-	conv, err := s.currency.Convert(ctx, code, inv.Date, total)
+	conv, err := s.currency.Convert(ctx, code, inv.Date,
+		vatRateDateOf(inv.ServiceDateFrom, inv.ServiceDateTo, inv.Date, ""), total)
 	if err != nil {
 		return nil, fmt.Errorf("für die Rechnung %s in %s: %w", inv.InvoiceNumber, code, err)
 	}
 	return &fxContext{currency: code, conv: conv}, nil
-}
-
-// expenseLines turns one position into its expense lines.
-//
-// Most positions produce exactly one. An expense that is only partly deductible
-// produces two: the deductible share on the group's account and the rest on the
-// non-deductible one. Booking both to one account would leave the Steuerbilanz
-// wrong, and splitting it later is not possible — the information which part was
-// which is gone by then.
-func (s *PostingService) expenseLines(
-	r resolvedPosition, nonDeductibleTax domain.Cents,
-	treatment domain.TaxTreatment, documentDate string,
-) ([]domain.JournalLine, accounting.DeductibleQuota, domain.Cents, error) {
-	p := r.position
-
-	// Was von der Vorsteuer nicht abziehbar ist, gehört zum Aufwand
-	// (§ 9b Abs. 1 EStG). Der Betrag kommt von außen: er wird je
-	// Steuersatzgruppe gerechnet und nicht je Position — siehe
-	// nonDeductibleTaxByPosition.
-	taxableNet := taxableNetOf(r)
-	// Der Anteil steht nur an der Zeile, wo er nicht der volle ist. Der
-	// Ausschluss des § 15 Abs. 1a UStG bekommt seinen eigenen Wert: null
-	// Promille abziehbar ist etwas anderes als „kein Vorsteuerschlüssel", und
-	// die Zahl null bedeutet an dieser Stelle das Zweite.
-	share := 0
-	switch {
-	case r.permille == 0:
-		share = domain.InputTaxExcluded
-	case r.permille < 1000:
-		share = int(r.permille)
-	}
-	text := appendText(p.Text, r.note)
-
-	if r.account != "" {
-		// Ein unmittelbar gewähltes Konto durchläuft weiter die Prüfungen des
-		// Journals; es ist der Notausgang für Fälle, die der Gruppenkatalog nicht
-		// abdeckt — und für das Geschenk über der Freigrenze, dessen Konto der
-		// Belegweg selbst gesetzt hat.
-		return []domain.JournalLine{{
-			Side: domain.SideDebit, Account: r.account, Amount: p.Net + nonDeductibleTax,
-			InputTaxShare: share, Text: text,
-		}}, "", taxableNet, nil
-	}
-	if !r.hasGroup {
-		return nil, "", 0, fmt.Errorf("weder eine Buchungsgruppe noch ein Konto angegeben")
-	}
-	group := r.group
-
-	account := group.ResolveAccount(treatment, p.TaxRate)
-	if group.NonDeductibleAccount == "" || group.DeductibleQuota == "" {
-		return []domain.JournalLine{{
-			Side: domain.SideDebit, Account: account, Amount: p.Net + nonDeductibleTax,
-			InputTaxShare: share, Text: text,
-		}}, "", taxableNet, nil
-	}
-
-	params, err := accounting.TaxParametersFor(documentDate)
-	if err != nil {
-		return nil, "", 0, err
-	}
-	permille := deductiblePermille(group.DeductibleQuota, params)
-	if permille <= 0 || permille >= 1000 {
-		return nil, "", 0, fmt.Errorf("für %q ist kein abziehbarer Anteil hinterlegt", group.Label)
-	}
-
-	base := p.Net + nonDeductibleTax
-	deductible := domain.MulRound(base, permille, 1000)
-	// Der Rest ergibt sich als Differenz und wird nicht ein zweites Mal
-	// gerundet — sonst summierten sich die beiden Zeilen an einem Cent vorbei.
-	nonDeductible := base - deductible
-
-	lines := []domain.JournalLine{
-		{Side: domain.SideDebit, Account: account, Amount: deductible,
-			InputTaxShare: share, Text: text},
-	}
-	if nonDeductible > 0 {
-		lines = append(lines, domain.JournalLine{
-			Side: domain.SideDebit, Account: group.NonDeductibleAccount,
-			Amount: nonDeductible, InputTaxShare: share, Text: text,
-		})
-	}
-	return lines, group.DeductibleQuota, taxableNet, nil
-}
-
-// preparedPosition ist eine Belegposition, nachdem Umrechnung, Konto und
-// abziehbarer Vorsteueranteil feststehen und bevor ihre Zeilen entstehen.
-type preparedPosition struct {
-	// position hat den Nettobetrag bereits in Euro; foreignNet den Betrag der
-	// Fremdwährung, aus dem er entstanden ist.
-	position   ReceiptPosition
-	foreignNet domain.Cents
-	// advance kennzeichnet die Position eines Anzahlungsbelegs. Sie geht nicht
-	// durch die fachlichen Gruppen und hat keinen geteilten Vorsteuerabzug.
-	advance  bool
-	resolved resolvedPosition
-}
-
-// taxableNetOf liefert den Teil des Nettobetrags, auf den Vorsteuer gezogen
-// wird — bei ungeteiltem Abzug der ganze.
-func taxableNetOf(r resolvedPosition) domain.Cents {
-	if r.permille >= 1000 {
-		return r.position.Net
-	}
-	return domain.MulRound(r.position.Net, r.permille, 1000)
-}
-
-// nonDeductibleTaxByPosition verteilt die nicht abziehbare Vorsteuer des
-// geteilten Abzugs auf die Positionen.
-//
-// Gerundet wird einmal je Steuersatzgruppe — genau wie die Steuerzeile, die aus
-// derselben Gruppe entsteht (§ 9b Abs. 1 EStG macht den nicht abziehbaren Teil
-// zum Aufwand, sagt aber nichts über die Reihenfolge der Rundung). Wird je
-// Position gerundet, gehen Sollzeilen und Steuerzeile an unterschiedlichen Cents
-// vorbei: die Summe der Buchung weicht dann um ein bis zwei Cent vom
-// Bruttobetrag der Rechnung ab, die Gegenzeile gleicht das still aus, und die
-// Verbindlichkeit gegenüber dem Lieferanten stimmt mit seiner Rechnung nicht
-// mehr überein. Der Rest der Gruppe liegt auf ihrer letzten geteilten Position —
-// dieselbe Regel wie beim Ausgleich der Umrechnung.
-func nonDeductibleTaxByPosition(prepared []preparedPosition) []domain.Cents {
-	out := make([]domain.Cents, len(prepared))
-	netByRate := map[domain.TaxRate]domain.Cents{}
-	taxableByRate := map[domain.TaxRate]domain.Cents{}
-	assignedByRate := map[domain.TaxRate]domain.Cents{}
-	lastSplit := map[domain.TaxRate]int{}
-
-	for i, pp := range prepared {
-		if pp.advance {
-			continue
-		}
-		rate := pp.position.TaxRate
-		taxable := taxableNetOf(pp.resolved)
-		netByRate[rate] += pp.position.Net
-		taxableByRate[rate] += taxable
-		if pp.resolved.permille >= 1000 {
-			continue
-		}
-		// Die Aufteilung je Position ist der Vorschlag; sie hält die Verteilung
-		// nah an den Beträgen, aus denen sie stammt.
-		out[i] = rate.Tax(pp.position.Net) - rate.Tax(taxable)
-		assignedByRate[rate] += out[i]
-		lastSplit[rate] = i
-	}
-
-	for rate, idx := range lastSplit {
-		// Was auf die Gruppe insgesamt entfällt: die Differenz der beiden einmal
-		// gerundeten Steuerbeträge. Der Unterschied zur Summe der Vorschläge
-		// liegt auf der letzten geteilten Position.
-		total := rate.Tax(netByRate[rate]) - rate.Tax(taxableByRate[rate])
-		out[idx] += total - assignedByRate[rate]
-	}
-	return out
-}
-
-// appendText hängt einen Zusatz an den Buchungstext.
-func appendText(text, addition string) string {
-	switch {
-	case addition == "":
-		return text
-	case text == "":
-		return addition
-	default:
-		return text + " — " + addition
-	}
-}
-
-func deductiblePermille(quota accounting.DeductibleQuota, params accounting.TaxParameters) int64 {
-	switch quota {
-	case accounting.QuotaEntertainment:
-		return params.EntertainmentDeductiblePermille
-	default:
-		return 0
-	}
 }
 
 // taxLines produces the tax legs, rounding once per rate group.
@@ -1538,9 +975,8 @@ func (s *PostingService) settlementLine(content []domain.JournalLine, kind Settl
 }
 
 // settlementLineFor is the same computation without a service around it. Die
-// Anlagenbuchhaltung bucht Erhaltungsaufwand und laufende Erträge nach derselben
-// Regel; eine zweite Fassung davon wäre die, die beim nächsten Steuerfall
-// vergessen wird.
+// Anlagenbuchhaltung bucht laufende Erträge nach derselben Regel; eine zweite
+// Fassung davon wäre die, die beim nächsten Steuerfall vergessen wird.
 func settlementLineFor(content []domain.JournalLine, kind SettlementKind, paymentAccount string, contact *domain.Contact) (domain.JournalLine, error) {
 	var debit, credit domain.Cents
 	for _, l := range content {
@@ -1572,15 +1008,69 @@ func settlementLineFor(content []domain.JournalLine, kind SettlementKind, paymen
 		}, nil
 	case SettlementPaid:
 		if paymentAccount == "" {
-			return domain.JournalLine{}, fmt.Errorf("bei sofortiger Zahlung muss das Zahlungsmittel angegeben werden (Kasse, Bank, Kreditkarte)")
+			return domain.JournalLine{}, fmt.Errorf("bei sofortiger Zahlung muss das Bankkonto angegeben werden")
 		}
 		if !isLiquidAccount(paymentAccount) {
-			return domain.JournalLine{}, fmt.Errorf("Konto %s ist kein Zahlungsmittelkonto", paymentAccount)
+			return domain.JournalLine{}, fmt.Errorf("Konto %s ist kein Zahlungsmittelkonto (Bank 1800 bis 1850 oder Geldtransit 1460)", paymentAccount)
 		}
 		return domain.JournalLine{Side: side, Account: paymentAccount, Amount: difference}, nil
+	case SettlementCreditCard:
+		return domain.JournalLine{
+			Side: side, Account: domain.AccountKreditkartenabrechnung, Amount: difference, Text: "Firmenkreditkarte",
+		}, nil
+	case SettlementShareholderExpense:
+		// Konto und Gläubiger setzt expenseCreditor.
+		return domain.JournalLine{Side: side, Amount: difference}, nil
 	default:
 		return domain.JournalLine{}, fmt.Errorf("unbekannte Zahlungsart %q", kind)
 	}
+}
+
+// expenseCreditor setzt die Gegenzeile einer Auslage: die Erstattungsschuld
+// gegenüber dem Gesellschafter (3640) oder dem Geschäftsführer, der kein
+// Gesellschafter ist (3500), mit ihm als Kontakt. Der Lieferant bleibt
+// Aussteller des Belegs und Kontakt der Buchung.
+func (s *PostingService) expenseCreditor(
+	ctx context.Context, req ReceiptRequest, supplier *domain.Contact, line *domain.JournalLine,
+) error {
+	if req.CreditorContactID == 0 {
+		return fmt.Errorf("bei einer Auslage fehlt der Gesellschafter oder Geschäftsführer, der bezahlt hat")
+	}
+	if req.CreditorContactID == supplier.ID {
+		return fmt.Errorf(
+			"%s ist Aussteller des Belegs und kann nicht zugleich die Auslage erstattet bekommen; "+
+				"eine Rechnung des Gesellschafters wird offen gebucht", supplier.Name)
+	}
+	creditor, err := s.contactRepo.FindByID(ctx, req.CreditorContactID)
+	if err != nil {
+		return fmt.Errorf("der Gläubiger der Auslage wurde nicht gefunden: %w", err)
+	}
+	if err := ensureNotBlocked(creditor); err != nil {
+		return err
+	}
+	if s.settingsRepo == nil {
+		return fmt.Errorf("ohne Unternehmensdaten lässt sich der Gläubiger einer Auslage nicht zuordnen")
+	}
+	cfg, err := s.settingsRepo.GetCompanySettings(ctx)
+	if err != nil {
+		return fmt.Errorf("die Unternehmensdaten ließen sich nicht lesen: %w", err)
+	}
+	role := companyRoleOf(cfg, creditor)
+	switch {
+	case role.shareholder:
+		line.Account = domain.AccountVerbindlichkeitenGesellschafter
+	case role.director:
+		line.Account = domain.AccountSonstigeVerbindlichkeiten
+	default:
+		return fmt.Errorf(
+			"%s steht weder in der Gesellschafterliste noch in der Geschäftsführung der Unternehmensdaten. "+
+				"Eine Auslage erstattet Buchfink Gesellschaftern und Geschäftsführern; die Auslage eines "+
+				"Arbeitnehmers läuft über die Lohnabrechnung", creditor.Name)
+	}
+	cid := creditor.ID
+	line.ContactID = &cid
+	line.Text = "Auslage von " + creditor.LegalName()
+	return nil
 }
 
 func isLiquidAccount(account string) bool {
@@ -1592,34 +1082,50 @@ func isLiquidAccount(account string) bool {
 	return false
 }
 
-// validateIncomingTreatment blocks Steuerfälle the partner's master data does
-// not support. Reverse Charge without a VAT identification number on file is the
-// single most common source of a wrong Umsatzsteuer-Voranmeldung.
 func validateIncomingTreatment(treatment domain.TaxTreatment, contact *domain.Contact) error {
-	switch treatment {
-	case domain.TaxTreatmentIntraCommunityAcquisition:
-		if !contact.IsEUCounterparty() {
+	check := accounting.TaxCaseFor(treatment).CheckPartner(domain.DirectionIncoming)
+	if check.RequiresEU && !contact.IsEUCounterparty() {
+		if treatment == domain.TaxTreatmentIntraCommunityAcquisition {
 			return fmt.Errorf("ein innergemeinschaftlicher Erwerb setzt einen Lieferanten in einem anderen EU-Land voraus, %s ist in %q erfasst", contact.Name, contact.CountryCode)
 		}
-		if contact.VatID == "" {
+		return fmt.Errorf(
+			"§ 13b Abs. 1 UStG gilt nur für die sonstige Leistung eines Unternehmers aus einem anderen EU-Staat, "+
+				"%s ist in %q erfasst. Für einen Lieferanten aus dem Drittland gilt § 13b Abs. 2 UStG",
+			contact.Name, contact.CountryCode)
+	}
+	if (check.RequiresVatID || check.RequiresVatIDForEU && contact.IsEUCounterparty()) && contact.VatID == "" {
+		if treatment == domain.TaxTreatmentIntraCommunityAcquisition {
 			return fmt.Errorf("für einen innergemeinschaftlichen Erwerb braucht %s eine USt-IdNr.", contact.Name)
 		}
-	case domain.TaxTreatmentReverseCharge:
-		// § 13b UStG hat zwei getrennte Fälle. Bei einer sonstigen Leistung eines
-		// im übrigen Gemeinschaftsgebiet ansässigen Unternehmers (Abs. 1) belegt
-		// die USt-IdNr. die Unternehmereigenschaft im Ausland. Bei einer
-		// inländischen Bauleistung (Abs. 2 Nr. 4) hängt die Steuerschuld dagegen
-		// am *Leistungsempfänger* – er muss selbst nachhaltig Bauleistungen
-		// erbringen (Abs. 5). Das steht nicht in den Lieferantenstammdaten, also
-		// darf eine fehlende USt-IdNr. des inländischen Lieferanten den Fall auch
-		// nicht blockieren.
-		if contact.IsEUCounterparty() && contact.VatID == "" {
-			return fmt.Errorf(
-				"für § 13b UStG braucht der ausländische Lieferant %s eine USt-IdNr., die seine Unternehmereigenschaft belegt",
-				contact.Name)
-		}
+		return fmt.Errorf(
+			"für § 13b UStG braucht der ausländische Lieferant %s eine USt-IdNr., die seine Unternehmereigenschaft belegt",
+			contact.Name)
 	}
 	return nil
+}
+
+// warningReverseChargeEU ist der Hinweis auf § 13b Abs. 1 bei einem
+// EU-Lieferanten, für den Abs. 2 gewählt wurde.
+const warningReverseChargeEU = "reverse_charge_eu_supplier"
+
+// reverseChargeParagraphWarning weist darauf hin, dass für die sonstige
+// Leistung eines EU-Unternehmers § 13b Abs. 1 gilt. Abs. 2 bleibt für dessen
+// Werklieferung richtig, deshalb sperrt der Hinweis nicht.
+func reverseChargeParagraphWarning(treatment domain.TaxTreatment, contact *domain.Contact) *PostingWarning {
+	if treatment != domain.TaxTreatmentReverseCharge || contact == nil || !contact.IsEUCounterparty() {
+		return nil
+	}
+	return &PostingWarning{
+		Code:     warningReverseChargeEU,
+		Severity: "warning",
+		Title:    "Lieferant aus einem anderen EU-Staat",
+		Detail: fmt.Sprintf(
+			"%s sitzt in %s. Ist die Leistung eine sonstige Leistung nach § 3a Abs. 2 UStG (etwa Software, "+
+				"Werbung, Beratung), gilt § 13b Abs. 1 UStG: Kennzahl 46/47, Steuer im Zeitraum der Leistung. "+
+				"§ 13b Abs. 2 (Kennzahl 84/85) passt nur für eine Werklieferung oder eine Leistung, deren Ort "+
+				"sich nicht nach § 3a Abs. 2 UStG richtet.",
+			contact.Name, contact.CountryCode),
+	}
 }
 
 // PostAdvanceSettlement bucht die Vereinnahmung einer Anzahlung.
@@ -1645,6 +1151,7 @@ func (s *PostingService) PostAdvanceSettlement(
 	paymentDate string,
 	paymentAccount string,
 	bankTxID *uint,
+	receiptID *uint,
 ) (*domain.JournalEntry, error) {
 	account, err := accounting.AdvanceAccountFor(advance.TaxRate)
 	if err != nil {
@@ -1680,6 +1187,7 @@ func (s *PostingService) PostAdvanceSettlement(
 			advance.InvoiceNumber, contact.Name),
 		Source:             domain.EntrySourceAdvance,
 		DocumentNumber:     advance.InvoiceNumber,
+		ReceiptID:          receiptID,
 		TaxTreatment:       domain.TaxTreatmentDomestic,
 		ContactID:          &contact.ID,
 		BankTxID:           bankTxID,
@@ -1783,7 +1291,7 @@ func (s *PostingService) PostFinalInvoice(
 		// nicht ab und sagt es, statt eine Zahl zu erfinden.
 		return nil, fmt.Errorf(
 			"die Schlussrechnung %s lautet auf %s, die verrechneten Anzahlungen stehen in Euro. "+
-				"Dieser Fall ist in Buchfink nicht abgebildet — stelle die Schlussrechnung in Euro aus",
+				"Dieser Fall ist in Buchfink nicht abgebildet — die Schlussrechnung ist in Euro auszustellen",
 			inv.InvoiceNumber, fx.currency)
 	}
 
@@ -1828,15 +1336,17 @@ func (s *PostingService) PostFinalInvoice(
 	}
 	lines = append(lines, settlement)
 
+	bookingDate, _ := s.realizationDate(ctx, inv)
 	return s.journalSvc.Post(ctx, &domain.JournalEntry{
-		FiscalYear:         inv.FiscalYear,
-		BookingDate:        inv.Date,
+		BookingDate:        bookingDate,
 		DocumentDate:       inv.Date,
 		ServiceDateFrom:    inv.ServiceDateFrom,
 		ServiceDateTo:      inv.ServiceDateTo,
+		DueDate:            inv.DueDate,
 		Description:        fmt.Sprintf("Schlussrechnung %s an %s", inv.InvoiceNumber, contact.Name),
 		Source:             domain.EntrySourceInvoice,
 		DocumentNumber:     inv.InvoiceNumber,
+		ReceiptID:          inv.ReceiptID,
 		TaxTreatment:       inv.TaxTreatment,
 		ContactID:          &contact.ID,
 		Currency:           inv.Currency,

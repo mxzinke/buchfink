@@ -30,7 +30,7 @@ func (r *contactRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.
 	var contact domain.Contact
 	err := dbFrom(ctx, r.db).First(&contact, id).Error
 	if err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	return &contact, nil
 }

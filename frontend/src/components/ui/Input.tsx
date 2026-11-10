@@ -1,7 +1,6 @@
 import React from 'react';
 import { Input as Base } from '@base-ui/react/input';
-import { NumberField } from '@base-ui/react/number-field';
-import { Minus, Plus, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { cn } from './cn';
 
 /**
@@ -24,54 +23,6 @@ export interface InputProps extends React.ComponentProps<typeof Base> {
 
 export const Input: React.FC<InputProps> = ({ align = 'left', className, ...props }) => (
   <Base className={cn(CONTROL, align === 'right' && 'text-right num', className)} {...props} />
-);
-
-export interface AmountInputProps
-  extends Omit<React.ComponentProps<typeof NumberField.Root>, 'format'> {
-  /** Ohne Währung, etwa für Mengen oder Prozentsätze. */
-  currency?: string | null;
-  className?: string;
-}
-
-/**
- * Betragsfeld. Deckt §8.6 ab: Pfeiltasten erhöhen um 1,00 €, mit Shift um
- * 100,00 €. Die Formatierung ist de-DE, dieselbe Schreibweise wie in
- * `utils/formatters.ts`.
- */
-export const AmountInput: React.FC<AmountInputProps> = ({
-  currency = 'EUR',
-  className,
-  ...props
-}) => (
-  <NumberField.Root
-    step={1}
-    largeStep={100}
-    smallStep={0.01}
-    locale="de-DE"
-    format={
-      currency
-        ? { style: 'currency', currency, minimumFractionDigits: 2 }
-        : { minimumFractionDigits: 2, maximumFractionDigits: 2 }
-    }
-    className={cn('min-w-0', className)}
-    {...props}
-  >
-    <NumberField.Group className="relative flex">
-      <NumberField.Decrement
-        className="absolute left-0 top-0 h-9 w-7 grid place-items-center text-ink-faint hover:text-ink-muted transition-colors duration-120 ease-quiet"
-        aria-label="Betrag verringern"
-      >
-        <Minus className="w-3.5 h-3.5" strokeWidth={1.5} />
-      </NumberField.Decrement>
-      <NumberField.Input className={cn(CONTROL, 'px-7 text-right num')} />
-      <NumberField.Increment
-        className="absolute right-0 top-0 h-9 w-7 grid place-items-center text-ink-faint hover:text-ink-muted transition-colors duration-120 ease-quiet"
-        aria-label="Betrag erhöhen"
-      >
-        <Plus className="w-3.5 h-3.5" strokeWidth={1.5} />
-      </NumberField.Increment>
-    </NumberField.Group>
-  </NumberField.Root>
 );
 
 export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}

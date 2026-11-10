@@ -24,29 +24,16 @@ import (
 // der Anteil, zu dem er gezogen wurde, und schon gar nicht der Anteil des
 // dritten Jahres. § 22 Abs. 4 UStG verlangt diese Aufzeichnungen.
 type InputTaxService struct {
-	repo         domain.InputTaxCorrectionRepository
-	journalSvc   *JournalService
-	journalRepo  domain.JournalRepository
-	settingsRepo domain.SettingsRepository
-	closingSvc   *ClosingService
-	auditRepo    domain.AuditRepository
-	fiscalYear   int
-	// txRunner klammert die Buchung der Berichtigung und den Vermerk am
-	// Verzeichnis. Fehlt er, laufen beide nacheinander — die Suche nach einer
-	// stehenden Buchung darunter fängt den halben Zustand auch dann ab, sie kann
-	// ihn nur nicht mehr zurückrollen.
-	txRunner domain.TxRunner
+	auditor[uint]
+	fiscalCalendar
+	repo        domain.InputTaxCorrectionRepository
+	journalSvc  *JournalService
+	journalRepo domain.JournalRepository
+	periods     PeriodSource
 }
 
-// SetTxRunner koppelt die Transaktionsklammer an die Jahresbuchung.
-func (s *InputTaxService) SetTxRunner(r domain.TxRunner) { s.txRunner = r }
-
-// runInTx führt fn in einer Transaktion aus, wo eine eingerichtet ist.
 func (s *InputTaxService) runInTx(ctx context.Context, fn func(context.Context) error) error {
-	if s.txRunner == nil {
-		return fn(ctx)
-	}
-	return s.txRunner.RunInTx(ctx, fn)
+	return s.journalSvc.InTx(ctx, fn)
 }
 
 // NewInputTaxService wires das Verzeichnis.
@@ -55,19 +42,15 @@ func NewInputTaxService(
 	journalSvc *JournalService,
 	journalRepo domain.JournalRepository,
 	settingsRepo domain.SettingsRepository,
-	closingSvc *ClosingService,
+	periods PeriodSource,
 	auditRepo domain.AuditRepository,
-	fiscalYear int,
 ) *InputTaxService {
 	return &InputTaxService{
 		repo: repo, journalSvc: journalSvc, journalRepo: journalRepo,
-		settingsRepo: settingsRepo, closingSvc: closingSvc, auditRepo: auditRepo,
-		fiscalYear: fiscalYear,
+		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo, limitMonth: true},
+		periods:        periods, auditor: auditor[uint]{auditRepo: auditRepo, entity: "INPUT_TAX_CORRECTION"},
 	}
 }
-
-// SetFiscalYear schaltet das aktive Geschäftsjahr um.
-func (s *InputTaxService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // -------------------------------------------------------------------------
 // Aufnahme ins Verzeichnis
@@ -106,6 +89,14 @@ type RegisterInputTaxRequest struct {
 // nachvollziehen will, muss den Betrag im Verzeichnis finden — sonst steht dort
 // eine Lücke, die wie ein Versäumnis aussieht.
 func (s *InputTaxService) Register(
+	ctx context.Context, req RegisterInputTaxRequest,
+) (*domain.InputTaxCorrection, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.InputTaxCorrection, error) {
+		return s.register(ctx, req)
+	})
+}
+
+func (s *InputTaxService) register(
 	ctx context.Context, req RegisterInputTaxRequest,
 ) (*domain.InputTaxCorrection, error) {
 	if s.repo == nil {
@@ -171,12 +162,14 @@ func (s *InputTaxService) Register(
 	if err := s.repo.Save(ctx, correction); err != nil {
 		return nil, fmt.Errorf("der Eintrag ließ sich nicht speichern: %w", err)
 	}
-	s.audit(ctx, correction.ID, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionUpdate, correction.ID, fmt.Sprintf(
 		"Ins Verzeichnis nach § 15a UStG aufgenommen: %s, Vorsteuer %s €, Anteil %s, Zeitraum "+
 			"%d Jahre bis zum %s",
 		correction.Label, correction.InputTaxAmount,
 		accounting.PermilleLabel(int64(correction.OriginalPermille)), period,
-		germanDay(correction.PeriodEnd)))
+		germanDay(correction.PeriodEnd))); err != nil {
+		return nil, err
+	}
 	correction.EnsureLists()
 	return correction, nil
 }
@@ -184,6 +177,12 @@ func (s *InputTaxService) Register(
 // Close schließt einen Eintrag vorzeitig ab — Abgang, Entnahme oder eine
 // Aufnahme, die nicht hätte sein sollen.
 func (s *InputTaxService) Close(ctx context.Context, id uint, reason, date string) (*domain.InputTaxCorrection, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.InputTaxCorrection, error) {
+		return s.close(ctx, id, reason, date)
+	})
+}
+
+func (s *InputTaxService) close(ctx context.Context, id uint, reason, date string) (*domain.InputTaxCorrection, error) {
 	if strings.TrimSpace(reason) == "" {
 		return nil, fmt.Errorf("zum vorzeitigen Abschluss eines Eintrags gehört sein Grund")
 	}
@@ -196,7 +195,9 @@ func (s *InputTaxService) Close(ctx context.Context, id uint, reason, date strin
 	if err := s.repo.Save(ctx, correction); err != nil {
 		return nil, err
 	}
-	s.audit(ctx, id, "Eintrag abgeschlossen: "+reason)
+	if err := s.audit(ctx, domain.AuditActionUpdate, id, "Eintrag abgeschlossen: "+reason); err != nil {
+		return nil, err
+	}
 	correction.EnsureLists()
 	return correction, nil
 }
@@ -247,8 +248,8 @@ func (y *InputTaxCorrectionYear) EnsureLists() {
 
 // Year stellt das Verzeichnis für ein Geschäftsjahr zusammen.
 func (s *InputTaxService) Year(ctx context.Context, year int) (*InputTaxCorrectionYear, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	out := &InputTaxCorrectionYear{FiscalYear: year}
 	out.EnsureLists()
@@ -336,7 +337,7 @@ func (s *InputTaxService) Year(ctx context.Context, year int) (*InputTaxCorrecti
 		return out.Rows[i].Correction.AcquisitionDate < out.Rows[j].Correction.AcquisitionDate
 	})
 	out.Note = fmt.Sprintf(
-		"Bestätige für jedes Wirtschaftsgut den Verwendungsanteil des Jahres %d oder ändere ihn. "+
+		"Für jedes Wirtschaftsgut ist der Verwendungsanteil des Jahres %d zu bestätigen oder zu ändern. "+
 			"Berichtigt wird die Differenz zum ursprünglichen Anteil, verteilt auf den "+
 			"Berichtigungszeitraum. Gebucht wird zum %s mit dem Steuerschlüssel %s; er läuft in die "+
 			"Kennziffer %s der Voranmeldung. Der Zeitraum läuft ab der erstmaligen Verwendung "+
@@ -383,7 +384,7 @@ func (s *InputTaxService) outOfPeriodReason(c *domain.InputTaxCorrection, year i
 	default:
 		return fmt.Sprintf(
 			"Der Berichtigungszeitraum lief vom %s bis zum %s und ist abgelaufen.",
-			germanDay(c.AcquisitionDate), germanDay(c.PeriodEndDate()))
+			germanDay(c.AcquisitionDate), germanDay(c.PeriodEnd))
 	}
 }
 
@@ -400,6 +401,14 @@ type SaveInputTaxUsageRequest struct {
 func (s *InputTaxService) SaveUsage(
 	ctx context.Context, req SaveInputTaxUsageRequest,
 ) (*InputTaxCorrectionYear, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*InputTaxCorrectionYear, error) {
+		return s.saveUsage(ctx, req)
+	})
+}
+
+func (s *InputTaxService) saveUsage(
+	ctx context.Context, req SaveInputTaxUsageRequest,
+) (*InputTaxCorrectionYear, error) {
 	if s.repo == nil {
 		return nil, fmt.Errorf("das Verzeichnis nach § 15a UStG ist nicht eingerichtet")
 	}
@@ -408,14 +417,14 @@ func (s *InputTaxService) SaveUsage(
 		return nil, fmt.Errorf("der Eintrag %d wurde nicht gefunden: %w", req.CorrectionID, err)
 	}
 	year := req.FiscalYear
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	if !correction.CoversYear(year) {
 		return nil, fmt.Errorf(
 			"das Jahr %d liegt nicht im Berichtigungszeitraum von %s (%s bis %s)",
 			year, correction.Label, germanDay(correction.AcquisitionDate),
-			germanDay(correction.PeriodEndDate()))
+			germanDay(correction.PeriodEnd))
 	}
 	if req.Permille < 0 || req.Permille > 1000 {
 		return nil, fmt.Errorf("der Verwendungsanteil liegt zwischen 0 und 100 %%")
@@ -430,8 +439,8 @@ func (s *InputTaxService) SaveUsage(
 		}
 		if stands {
 			return nil, fmt.Errorf(
-				"die Berichtigung des Jahres %d ist für %s bereits gebucht. Nimm die Buchung zurück, "+
-					"bevor du den Anteil änderst", year, correction.Label)
+				"die Berichtigung des Jahres %d ist für %s bereits gebucht. Die Buchung ist zurückzunehmen, "+
+					"bevor sich der Anteil ändern lässt", year, correction.Label)
 		}
 	}
 
@@ -467,9 +476,11 @@ func (s *InputTaxService) SaveUsage(
 	}); err != nil {
 		return nil, fmt.Errorf("der Verwendungsanteil ließ sich nicht speichern: %w", err)
 	}
-	s.audit(ctx, correction.ID, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionUpdate, correction.ID, fmt.Sprintf(
 		"Verwendungsanteil %d für %s bestätigt: %s (%s)",
-		year, correction.Label, accounting.PermilleLabel(int64(req.Permille)), assessment.Reason))
+		year, correction.Label, accounting.PermilleLabel(int64(req.Permille)), assessment.Reason)); err != nil {
+		return nil, err
+	}
 	return s.Year(ctx, year)
 }
 
@@ -481,11 +492,17 @@ func (s *InputTaxService) SaveUsage(
 // klarer. Welches Wirtschaftsgut welchen Anteil beisteuert, steht im
 // Verzeichnis — dafür gibt es das Verzeichnis.
 func (s *InputTaxService) BookYear(ctx context.Context, year int) (*InputTaxCorrectionYear, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*InputTaxCorrectionYear, error) {
+		return s.bookYear(ctx, year)
+	})
+}
+
+func (s *InputTaxService) bookYear(ctx context.Context, year int) (*InputTaxCorrectionYear, error) {
 	if s.journalSvc == nil {
 		return nil, fmt.Errorf("der Buchungsweg ist nicht eingerichtet")
 	}
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	view, err := s.Year(ctx, year)
 	if err != nil {
@@ -549,8 +566,8 @@ func (s *InputTaxService) BookYear(ctx context.Context, year int) (*InputTaxCorr
 		return nil, err
 	} else if standing != nil {
 		return nil, fmt.Errorf(
-			"die Berichtigung des Vorsteuerabzugs %d ist mit der Buchung %s bereits gebucht. Nimm "+
-				"sie zurück, bevor du sie neu rechnest — zweimal gebucht stünde sie doppelt in "+
+			"die Berichtigung des Vorsteuerabzugs %d ist mit der Buchung %s bereits gebucht. Sie ist "+
+				"zurückzunehmen, bevor sie neu gerechnet wird — zweimal gebucht stünde sie doppelt in "+
 				"Kennziffer 64", year, standing.EntryNumber)
 	}
 
@@ -590,9 +607,11 @@ func (s *InputTaxService) BookYear(ctx context.Context, year int) (*InputTaxCorr
 	if err != nil {
 		return nil, err
 	}
-	s.audit(ctx, 0, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionUpdate, 0, fmt.Sprintf(
 		"Vorsteuerberichtigung %d gebucht: %s € über %d Wirtschaftsgüter (%s)",
-		year, total, len(todo), entry.EntryNumber))
+		year, total, len(todo), entry.EntryNumber)); err != nil {
+		return nil, err
+	}
 	return s.Year(ctx, year)
 }
 
@@ -629,8 +648,8 @@ func (s *InputTaxService) bookingDate(ctx context.Context, year int) (string, er
 // Berichtigungszeitraum bemisst sich nach den Monaten, die in beides fallen,
 // und ein Rumpfgeschäftsjahr hat weniger als zwölf davon.
 func (s *InputTaxService) fiscalYearWindow(ctx context.Context, year int) (string, string) {
-	if s.closingSvc != nil {
-		if fy, err := s.closingSvc.PeriodOf(ctx, year); err == nil && fy != nil {
+	if s.periods != nil {
+		if fy, err := s.periods.PeriodOf(ctx, year); err == nil && fy != nil {
 			return fy.StartDate, fy.EndDate
 		}
 	}
@@ -658,28 +677,6 @@ func (s *InputTaxService) entryNumbers(ctx context.Context, year int) (map[uint]
 		out[entries[i].ID] = entries[i].EntryNumber
 	}
 	return out, nil
-}
-
-func (s *InputTaxService) fiscalYearStartMonth(ctx context.Context) int {
-	if s.settingsRepo == nil {
-		return 1
-	}
-	settings, err := s.settingsRepo.GetCompanySettings(ctx)
-	if err != nil || settings == nil {
-		return 1
-	}
-	if settings.FiscalYearStartMonth < 1 || settings.FiscalYearStartMonth > 12 {
-		return 1
-	}
-	return settings.FiscalYearStartMonth
-}
-
-func (s *InputTaxService) audit(ctx context.Context, id uint, details string) {
-	if s.auditRepo == nil {
-		return
-	}
-	_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "INPUT_TAX_CORRECTION",
-		fmt.Sprintf("%d", id), details)
 }
 
 // standingCorrectionEntry sucht die Buchung der Berichtigung eines Jahres, die

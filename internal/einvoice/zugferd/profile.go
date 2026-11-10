@@ -26,6 +26,11 @@ const (
 	ProfileExtended Profile = "extended"
 	// ProfileXRechnung is the German CIUS carried as a ZUGFeRD profile.
 	ProfileXRechnung Profile = "xrechnung"
+	// ProfilePeppolBIS ist Peppol BIS Billing 3.0, die CIUS des Peppol-Netzes,
+	// die es nur in UBL gibt. Ein ZUGFeRD-Profil ist sie nicht. Sie steht hier,
+	// weil ProfileOf jede Kennung aus BT-24 einordnet, und eine Peppol-Rechnung
+	// ist eine vollständige Rechnung nach EN 16931.
+	ProfilePeppolBIS Profile = "peppol-bis-3"
 	// ProfileZUGFeRD1 is any of the ZUGFeRD 1.x profiles. They predate
 	// EN 16931 and do not follow it — which since 2025 makes such a document a
 	// sonstige Rechnung rather than an E-Rechnung. Recognising them anyway
@@ -54,6 +59,9 @@ func (p Profile) Identifier() string {
 		// Buchfink schreibt ZUGFeRD 1 nicht. Es zu erzeugen hieße, ein Format
 		// auszustellen, das seit 2025 keine E-Rechnung mehr ist.
 		return ""
+	case ProfilePeppolBIS:
+		// Peppol BIS gibt es nur in UBL; Buchfink schreibt CII.
+		return ""
 	}
 	return ""
 }
@@ -73,6 +81,8 @@ func (p Profile) Label() string {
 		return "EXTENDED"
 	case ProfileXRechnung:
 		return "XRECHNUNG"
+	case ProfilePeppolBIS:
+		return "Peppol BIS Billing 3.0"
 	case ProfileZUGFeRD1:
 		return "ZUGFeRD 1.x"
 	}
@@ -89,7 +99,7 @@ func (p Profile) rank() int {
 		return 2
 	case ProfileBasic:
 		return 3
-	case ProfileXRechnung, ProfileEN16931:
+	case ProfileXRechnung, ProfilePeppolBIS, ProfileEN16931:
 		return 4
 	case ProfileExtended:
 		return 5
@@ -148,7 +158,7 @@ func (p Profile) Can() Capabilities {
 	case ProfileBasic:
 		return Capabilities{Lines: true, VATBreakdown: true, AllowanceCharge: true,
 			ItemDetails: true, Contact: true}
-	case ProfileEN16931, ProfileExtended, ProfileXRechnung:
+	case ProfileEN16931, ProfileExtended, ProfileXRechnung, ProfilePeppolBIS:
 		return Capabilities{Lines: true, VATBreakdown: true, AllowanceCharge: true,
 			Attachments: true, ItemDetails: true, Contact: true}
 	}
@@ -184,6 +194,8 @@ var identifiers = map[string]Profile{
 	"urn:cen.eu:en16931:2017#conformant#urn:factur-x.eu:1p0:extended": ProfileExtended,
 	"urn:cen.eu:en16931:2017#conformant#urn:zugferd.de:2p0:extended":  ProfileExtended,
 	"urn:cen.eu:en16931:2017:compliant:factur-x.eu:1p0:extended":      ProfileExtended,
+
+	einvoice.ProfilePeppolBIS3: ProfilePeppolBIS,
 }
 
 // ProfileOf returns the profile a document declares.

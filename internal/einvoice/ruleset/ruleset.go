@@ -32,10 +32,10 @@ func For(inv *einvoice.Invoice) []einvoice.Ruleset {
 	}
 	var layers []einvoice.Ruleset
 
-	// Die Profilprüfung läuft für jedes Dokument, das eine ZUGFeRD-Kennung
-	// hat — auch für XRechnung, die als ZUGFeRD-Profil ausgeliefert werden
-	// kann. Ein unbekanntes Profil ist kein Grund, nicht zu prüfen: dass die
-	// Kennung unbekannt ist, ist selbst das Ergebnis.
+	// Die Profilprüfung läuft für jedes Dokument — auch für XRechnung, die als
+	// ZUGFeRD-Profil ausgeliefert werden kann, und für Peppol BIS, die sie als
+	// CIUS kennt. Ein unbekanntes Profil ist kein Grund, nicht zu prüfen: dass
+	// die Kennung unbekannt ist, ist selbst das Ergebnis.
 	layers = append(layers, zugferd.Ruleset())
 
 	if xrechnung.Applies(inv) {
@@ -58,7 +58,7 @@ func Validate(inv *einvoice.Invoice) einvoice.Result {
 // decides whether input tax may be deducted.
 type Description struct {
 	Syntax      einvoice.Syntax       // CII oder UBL
-	Profile     zugferd.Profile       // die ZUGFeRD-Stufe, falls erkennbar
+	Profile     zugferd.Profile       // die ZUGFeRD-Stufe oder CIUS, falls erkennbar
 	Identifier  string                // BT-24, wie das Dokument es schreibt
 	Kind        einvoice.DocumentKind // Rechnung, Gutschrift, Korrektur …
 	IsXRechnung bool

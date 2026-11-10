@@ -1,0 +1,9 @@
+{
+  "gruende": [
+    {
+      "schluessel": "keine_bestaetigte_standardgruppe",
+      "text": "Der Lieferant hat keine vom Menschen bestätigte Standard-Buchungsgruppe."
+    }
+  ],
+  "stufe": "rueckfrage"
+}

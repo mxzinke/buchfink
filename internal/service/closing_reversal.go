@@ -39,8 +39,7 @@ func newReversalIndex(repo domain.JournalRepository) *reversalIndex {
 
 // reversed meldet, ob zu der Buchung eine Generalumkehr steht. Eine fehlende
 // Buchungs-ID ist keine stornierte Buchung: ein Karteisatz ohne Buchung — der
-// reine Vortrag auf neue Rechnung, der Inventurwert ohne Veränderung — bleibt
-// gültig.
+// reine Vortrag auf neue Rechnung — bleibt gültig.
 func (x *reversalIndex) reversed(ctx context.Context, entryID *uint) (bool, error) {
 	if x == nil || x.repo == nil || entryID == nil || *entryID == 0 {
 		return false, nil

@@ -2,105 +2,98 @@
  * Wohin ein Befund des Prüflaufs führt.
  *
  * Ein Befund ohne Adresse ist eine Hausaufgabe ohne Ort: „Beleg 2026-014 ist
- * nicht gebucht" sagt, was zu tun ist, aber nicht, wo. Die Zuordnung steht hier
- * und nicht in den Ansichten, weil sie inzwischen an drei Stellen gebraucht
- * wird — Fristenliste, Monatsabschluss und Aufgabenliste — und drei Kopien
- * auseinanderlaufen, sobald das Backend einen Objekttyp ergänzt.
+ * nicht gebucht" sagt, was zu tun ist, aber nicht, wo. Die Zuordnung steht
+ * hier, weil Monatsabschluss, Festschreibung und Übersicht sie brauchen.
  */
 
-import type { NavigationParams, TabType } from '../components/Sidebar';
+import type { Route } from '../navigation';
 import type { CheckFinding } from '../types';
 
 /**
- * Die Beschriftung des Knopfes, der zum Ziel führt.
- *
- * Der Knopf nennt das Ziel, statt auf sich selbst zu zeigen: „Zum Beleg" sagt
- * vor dem Klick, wo man landet, „Öffnen" erst danach. Für Reiter ohne
- * naheliegenden Namen bleibt „Öffnen" der Rückfall.
+ * Die Beschriftung des Knopfes, der zum Ziel führt. Sie nennt das Ziel, damit
+ * man vor dem Klick weiß, wo man landet.
  */
-export function targetLabel(tab: TabType | null): string {
-  switch (tab) {
-    case 'journal':
-      return 'Zur Buchung';
-    case 'receipts':
-      return 'Zum Beleg';
-    case 'bank':
-      return 'Zum Bankumsatz';
-    case 'accounts':
-      return 'Zum Konto';
-    case 'invoices':
-      return 'Zur Rechnung';
-    case 'advances':
-      return 'Zur Anzahlung';
-    case 'assets':
-      return 'Zum Anlagegut';
-    case 'contacts':
-      return 'Zum Kontakt';
-    case 'vat':
-      return 'Zur Voranmeldung';
-    case 'deadlines':
-      return 'Zur Frist';
-    case 'closing':
-    case 'closingmodules':
-      return 'Zum Jahresabschluss';
-    case 'obligations':
-      return 'Zu den Nebenpflichten';
-    case 'audit':
-      return 'Zur Prüfübersicht';
-    case 'backup':
-      return 'Zur Datensicherung';
-    case 'taxaudit':
-      return 'Zur Betriebsprüfung';
+export function targetLabel(route: Route | null): string {
+  if (!route) return 'Öffnen';
+  switch (route.area) {
+    case 'books': {
+      // Mit Kennung führt der Knopf zu einem Objekt, ohne Kennung zur Liste.
+      const one = Boolean(route.id);
+      switch (route.tab) {
+        case 'journal':
+          return one ? 'Zur Buchung' : 'Zum Journal';
+        case 'receipts':
+          return one ? 'Zum Beleg' : 'Zu den Belegen';
+        case 'bank':
+          return one ? 'Zum Bankumsatz' : 'Zu den Bankumsätzen';
+        case 'accounts':
+          return one ? 'Zum Konto' : 'Zu den Konten';
+        case 'invoices':
+          return one ? 'Zur Rechnung' : 'Zu den Rechnungen';
+        case 'assets':
+          return one ? 'Zum Anlagegut' : 'Zu den Anlagen';
+        case 'statements':
+          return 'Zur Bilanz';
+        default:
+          return 'Zu den Büchern';
+      }
+    }
+    case 'closings':
+      switch (route.tab) {
+        case 'month':
+          return 'Zum Monatsabschluss';
+        case 'declarations':
+          return 'Zur Erklärung';
+        default:
+          return 'Zum Jahresabschluss';
+      }
+    case 'company':
+      if (route.tab === 'contacts') return route.id ? 'Zum Kontakt' : 'Zu den Kontakten';
+      return 'Zu den Stammdaten';
     case 'settings':
-      return 'Zu den Einstellungen';
+      switch (route.tab) {
+        case 'backup':
+          return 'Zur Sicherung';
+        case 'inbox':
+          return 'Zum Eingang';
+        case 'audit':
+          return 'Zur Prüfung';
+        default:
+          return 'Zu den Einstellungen';
+      }
     default:
       return 'Öffnen';
   }
 }
 
-/** Die Ansicht, in der ein Befund zu beheben ist; null heißt: keine bekannte. */
-export function findingTarget(objectType?: string): TabType | null {
-  switch (objectType) {
-    case 'JOURNAL_ENTRY':
-      return 'journal';
-    case 'RECEIPT':
-      return 'receipts';
-    case 'BANK_TX':
-      return 'bank';
-    case 'ACCOUNT':
-      return 'accounts';
-    case 'VAT_PERIOD':
-      return 'vat';
-    default:
-      return null;
-  }
-}
-
 /**
- * Der Parameter, mit dem die Zielansicht öffnet.
+ * Die Stelle, an der ein Befund zu beheben ist; null heißt: keine bekannte.
  *
- * Ohne ihn landete der Anwender auf einer Liste und müsste die Buchung, von der
- * er kommt, dort erneut suchen.
+ * Mit der Kennung des Objekts, damit die Ansicht es gleich aufschlägt und man
+ * es nicht in der Liste suchen muss.
  */
-export function findingParams(finding: CheckFinding): NavigationParams {
+export function findingRoute(finding: CheckFinding): Route | null {
   switch (finding.objectType) {
     case 'JOURNAL_ENTRY':
-      return { entryNumber: finding.objectName };
-    case 'ACCOUNT':
-      return { account: finding.objectId };
+      return { area: 'books', tab: 'journal', id: finding.objectName || undefined };
     case 'RECEIPT': {
-      // Der Beleg selbst und nicht der Zustandsfilter: „Leistungsnachweis
-      // fehlt" trifft gerade den gebuchten Beleg (siehe checkServiceProof in
-      // internal/service/check_service.go), und die Liste „zu buchen" zeigt
-      // ihn nicht — der Sprung endete auf einer Liste ohne den gemeinten
-      // Beleg. Die Belegseite stellt den Filter selbst auf „alle", sobald sie
-      // einen Beleg aufschlägt. Nur wenn der Befund keine Beleg-Kennung hat,
-      // bleibt der Filter die beste verfügbare Auskunft.
+      // Der Beleg selbst und nicht ein Zustandsfilter: „Leistungsnachweis
+      // fehlt" trifft gerade den gebuchten Beleg, den die Liste „zu buchen"
+      // nicht zeigt.
       const receiptId = Number(finding.objectId);
-      if (Number.isInteger(receiptId) && receiptId > 0) return { receiptId };
-      return { receiptStatus: 'filed' };
+      return {
+        area: 'books',
+        tab: 'receipts',
+        id: Number.isInteger(receiptId) && receiptId > 0 ? String(receiptId) : undefined,
+      };
     }
+    case 'BANK_TX':
+      return { area: 'books', tab: 'bank', id: finding.objectId || undefined };
+    case 'ACCOUNT':
+      return { area: 'books', tab: 'accounts', id: finding.objectId || undefined };
+    case 'VAT_PERIOD':
+      return { area: 'closings', tab: 'month' };
     default:
-      return {};
+      return null;
   }
 }

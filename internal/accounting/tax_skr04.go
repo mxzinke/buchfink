@@ -44,6 +44,14 @@ var taxAccounts = map[string]bool{
 // das Konto 3851 — nicht als Automatik, weil es nichts zu automatisieren gibt.
 const TaxKeyUnlawful = "UST14C"
 
+// Die Steuerschlüssel des § 13b UStG als Leistungsempfänger: „RC19_UST" für
+// Abs. 2 (Kz 84/85), „RCEU19_UST" für Abs. 1 (Kz 46/47), jeweils mit der
+// Vorsteuer „…_VST" (Kz 67).
+const (
+	TaxKeyReverseChargePrefix   = "RC"
+	TaxKeyReverseChargeEUPrefix = "RCEU"
+)
+
 // TaxKeySkontoPrefix kennzeichnet die Steuerkorrektur einer Entgeltminderung
 // (§ 17 Abs. 1 UStG). Der Rest des Schlüssels ist der Schlüssel der Zeile, die
 // berichtigt wird — „SKONTO_UST19" mindert also die Kennziffer 81.
@@ -118,7 +126,7 @@ func (r *SKR04TaxResolver) Resolve(dir domain.Direction, treatment domain.TaxTre
 			Key: fmt.Sprintf("UST%d", int(rate)/100),
 		}}, nil
 
-	case domain.TaxTreatmentReverseCharge:
+	case domain.TaxTreatmentReverseCharge, domain.TaxTreatmentReverseChargeEU:
 		if dir != domain.DirectionIncoming {
 			return nil, fmt.Errorf("§ 13b als Leistungsempfänger ist nur bei Eingangsbelegen möglich")
 		}
@@ -130,9 +138,15 @@ func (r *SKR04TaxResolver) Resolve(dir domain.Direction, treatment domain.TaxTre
 		if rate == domain.TaxRateStandard {
 			vst, ust = domain.AccountVorsteuer13b19, domain.AccountUmsatzsteuer13b19
 		}
+		// Beide Absätze buchen auf dieselben Steuerkonten; der Schlüssel trennt
+		// sie, weil Kennzahl (46 oder 84) und Entstehung verschieden sind.
+		prefix := TaxKeyReverseChargePrefix
+		if treatment == domain.TaxTreatmentReverseChargeEU {
+			prefix = TaxKeyReverseChargeEUPrefix
+		}
 		return []domain.TaxLeg{
-			{Account: vst, Side: domain.SideDebit, Amount: amount, Base: net, Key: fmt.Sprintf("RC%d_VST", int(rate)/100)},
-			{Account: ust, Side: domain.SideCredit, Amount: amount, Base: net, Key: fmt.Sprintf("RC%d_UST", int(rate)/100)},
+			{Account: vst, Side: domain.SideDebit, Amount: amount, Base: net, Key: fmt.Sprintf("%s%d_VST", prefix, int(rate)/100)},
+			{Account: ust, Side: domain.SideCredit, Amount: amount, Base: net, Key: fmt.Sprintf("%s%d_UST", prefix, int(rate)/100)},
 		}, nil
 
 	case domain.TaxTreatmentIntraCommunityAcquisition:
@@ -161,9 +175,7 @@ func (r *SKR04TaxResolver) Resolve(dir domain.Direction, treatment domain.TaxTre
 		// auf der Ausgangsseite zusätzlich am eigenen Erlöskonto 4290.
 		return nil, nil
 
-	case domain.TaxTreatmentIntraCommunitySupply,
-		domain.TaxTreatmentExport,
-		domain.TaxTreatmentReverseChargeSupply,
+	case domain.TaxTreatmentReverseChargeSupply,
 		domain.TaxTreatmentExempt,
 		domain.TaxTreatmentNotTaxable:
 		// Steuerfrei, nicht steuerbar oder Steuerschuld beim Empfänger: die

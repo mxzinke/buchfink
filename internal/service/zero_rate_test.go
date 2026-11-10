@@ -81,7 +81,7 @@ func TestZeroRatedRevenueIsReportedSeparatelyFromExempt(t *testing.T) {
 		t.Fatalf("Rechnung steuerfrei: %v", err)
 	}
 
-	summary, err := env.vat().Summary(ctx, "", "")
+	summary, err := env.vat().Summary(ctx, 2026, "", "")
 	if err != nil {
 		t.Fatalf("USt-Auswertung: %v", err)
 	}

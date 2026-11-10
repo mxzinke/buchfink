@@ -1,0 +1,29 @@
+{
+  "buchung": {
+    "beleg_nr": "ER-2026-0001",
+    "datum": "2026-03-31",
+    "id": 1,
+    "nummer": "2026-000001",
+    "text": "Eingangsbeleg ER-2026-0001, Netzwerk GmbH",
+    "zeilen": [
+      {
+        "betrag": "100.00",
+        "konto": "6495",
+        "seite": "S"
+      },
+      {
+        "betrag": "19.00",
+        "konto": "1406",
+        "seite": "S",
+        "steuerschluessel": "VST19"
+      },
+      {
+        "betrag": "119.00",
+        "kontakt_id": 1,
+        "konto": "70000",
+        "seite": "H"
+      }
+    ]
+  },
+  "einstufung": "rueckfrage"
+}

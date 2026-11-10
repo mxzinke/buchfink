@@ -1,45 +1,29 @@
 package wailsbridge
 
 import (
-	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
-	"github.com/buchfink/buchfink/internal/repository"
-	"github.com/buchfink/buchfink/internal/security"
-	"github.com/zalando/go-keyring"
 )
 
 func TestCreateTenantPreservesExistingCompany(t *testing.T) {
-	keyring.MockInit()
-	t.Cleanup(func() { repository.SetActiveVault(nil) })
 	base := t.TempDir()
-	b := &BuchfinkBridge{appCfgRepo: repository.NewAppConfigRepository(filepath.Join(base, "config")), currentYear: 2026}
+	b := newBridge(t)
 	dir := filepath.Join(base, "company")
-	first, err := b.CreateTenant("Erste Firma", dir, domain.CompanySettings{CompanyName: "Erste Firma", FiscalYear: 2026})
+	first, err := b.createTenant("Erste Firma", dir, domain.CompanySettings{CompanyName: "Erste Firma", FiscalYear: 2026})
 	if err != nil {
 		t.Fatal(err)
 	}
-	keyPath := filepath.Join(dir, security.KeyfileName)
-	before, err := os.ReadFile(keyPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, createErr := b.CreateTenant("Zweite Firma", dir, domain.CompanySettings{CompanyName: "Zweite Firma", FiscalYear: 2026})
-	after, err := os.ReadFile(keyPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(before, after) {
-		t.Error("a second company overwrote the original encryption keyfile")
-	}
+	_, createErr := b.createTenant("Zweite Firma", dir, domain.CompanySettings{CompanyName: "Zweite Firma", FiscalYear: 2026})
 	if createErr == nil {
 		t.Error("an occupied company directory must be rejected")
 	}
-	if _, err := security.OpenTenantVault(dir, first.ID); err != nil {
-		t.Errorf("original company can no longer be unlocked: %v", err)
+	if settings, err := b.GetCompanySettings(); err != nil || settings.CompanyName != "Erste Firma" {
+		t.Errorf("original company data changed: %v %+v", err, settings)
 	}
 	if len(b.GetTenants()) != 1 {
 		t.Error("failed creation changed the tenant list")
@@ -50,7 +34,6 @@ func TestCreateTenantPreservesExistingCompany(t *testing.T) {
 }
 
 func TestCreateTenantRejectsNonemptyDirectoryBeforeProvisioning(t *testing.T) {
-	keyring.MockInit()
 	base := t.TempDir()
 	dir := filepath.Join(base, "existing")
 	if err := os.MkdirAll(dir, 0700); err != nil {
@@ -59,12 +42,15 @@ func TestCreateTenantRejectsNonemptyDirectoryBeforeProvisioning(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "buchfink.sqlite"), []byte("existing database"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	b := &BuchfinkBridge{appCfgRepo: repository.NewAppConfigRepository(filepath.Join(base, "config")), currentYear: 2026}
-	if _, err := b.CreateTenant("Neue Firma", dir, domain.CompanySettings{FiscalYear: 2026}); err == nil {
+	b := newBridge(t)
+	if _, err := b.createTenant("Neue Firma", dir, domain.CompanySettings{FiscalYear: 2026}); err == nil {
 		t.Fatal("nonempty directory accepted")
 	}
-	if security.KeyfileExists(dir) {
-		t.Error("a keyfile was created before rejecting existing data")
+	if entries, err := os.ReadDir(dir); err != nil || len(entries) != 1 {
+		t.Errorf("files were created before rejecting existing data: %v %v", err, entries)
+	}
+	if data, err := os.ReadFile(filepath.Join(dir, "buchfink.sqlite")); err != nil || string(data) != "existing database" {
+		t.Error("existing database was changed")
 	}
 }
 
@@ -92,9 +78,8 @@ func TestValidateTenantDirectory(t *testing.T) {
 }
 
 func TestCreateTenantRechecksPreviouslyValidDirectory(t *testing.T) {
-	keyring.MockInit()
 	dir := t.TempDir()
-	b := &BuchfinkBridge{}
+	b := newBridge(t)
 	if err := b.ValidateTenantDirectory(dir); err != nil {
 		t.Fatal(err)
 	}
@@ -102,11 +87,11 @@ func TestCreateTenantRechecksPreviouslyValidDirectory(t *testing.T) {
 	if err := os.WriteFile(path, []byte("Nach der Vorprüfung erstellt"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := b.SetupApplication(dir, domain.CompanySettings{CompanyName: "Neue Firma", FiscalYear: 2026}); err == nil {
+	if err := b.SetupApplication(dir, "", domain.CompanySettings{CompanyName: "Neue Firma", FiscalYear: 2026}); err == nil {
 		t.Fatal("Abschluss akzeptiert einen inzwischen belegten Ordner")
 	}
-	if security.KeyfileExists(dir) {
-		t.Error("Schlüsseldatei trotz belegtem Ordner angelegt")
+	if _, err := os.Stat(filepath.Join(dir, "buchfink.sqlite")); !os.IsNotExist(err) {
+		t.Error("Datenbank trotz belegtem Ordner angelegt")
 	}
 	if len(b.GetTenants()) != 0 {
 		t.Error("Mandant trotz belegtem Ordner angelegt")
@@ -119,11 +104,34 @@ func TestTenantDirectoryExpandsHomePath(t *testing.T) {
 		t.Fatal(err)
 	}
 	suffix := filepath.Base(t.TempDir()) + "-buchfink-directory-check"
-	got, err := checkedTenantDirectory("~/" + suffix)
+	got, err := core.CheckTenantDirectory("~/" + suffix)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if want := filepath.Join(homeDir, suffix); got != want {
 		t.Fatalf("Pfad = %q, erwartet %q", got, want)
 	}
+}
+
+func TestCreateTenantRollsBackWhenConfigurationCannotBeSaved(t *testing.T) {
+	base := t.TempDir()
+	b := newBridge(t, func(o *core.HostOptions) { o.Config = unsavableConfig{} })
+	dir := filepath.Join(base, "company")
+	if _, err := b.createTenant("Fehlerfall", dir, domain.CompanySettings{FiscalYear: 2025}); err == nil {
+		t.Fatal("creation succeeded without saving configuration")
+	}
+	if cfg := b.GetAppConfig(); cfg.IsConfigured || len(cfg.Tenants) != 0 {
+		t.Fatalf("partial tenant remains active: %+v", cfg)
+	}
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Fatalf("partial data directory remains: %v", err)
+	}
+}
+
+// unsavableConfig lädt eine leere Konfiguration und kann nicht speichern.
+type unsavableConfig struct{}
+
+func (unsavableConfig) Load() (*domain.AppConfig, error) { return &domain.AppConfig{}, nil }
+func (unsavableConfig) Save(*domain.AppConfig) error {
+	return errors.New("Datenträger schreibgeschützt")
 }

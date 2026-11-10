@@ -1,0 +1,9 @@
+{
+  "gruende": [
+    {
+      "schluessel": "dublettenverdacht",
+      "text": "Beleg ER-2026-0003 hat denselben Aussteller und dieselbe Rechnungsnummer oder denselben Betrag am selben Tag."
+    }
+  ],
+  "stufe": "rueckfrage"
+}

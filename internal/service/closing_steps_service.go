@@ -10,11 +10,6 @@ import (
 
 // ClosingStepsService führt den Abschlussassistenten.
 //
-// Der Jahresabschluss besteht aus elf Arbeiten in fester Reihenfolge, und keine
-// von ihnen ist neu — sie lagen bisher nur über die Oberfläche verstreut. Der
-// Assistent fügt nichts hinzu, was nicht ohnehin zu tun wäre; er sagt, was
-// getan ist und was nicht.
-//
 // Der Zustand ist zur Hälfte abgeleitet und zur Hälfte gespeichert. Abgeleitet
 // ist, was sich aus den Daten ergibt: eine AfA, die nicht mehr offen ist, ist
 // gebucht; ein festgestellter Abschluss ist festgestellt. Gespeichert ist, was
@@ -22,18 +17,18 @@ import (
 // Ein Jahr ohne Rückstellungen sieht sonst aus wie ein Jahr, in dem sie
 // vergessen wurden.
 type ClosingStepsService struct {
+	serviceClock
+	derivers map[domain.ClosingStepKey]closingStepDeriver
+	auditor[int]
 	stepRepo          domain.ClosingStepRepository
 	accrualRepo       domain.AccrualRepository
 	provisionRepo     domain.ProvisionRepository
-	inventoryRepo     domain.InventoryRepository
 	appropriationRepo domain.AppropriationRepository
 	checkRunRepo      domain.CheckRunRepository
 	journalRepo       domain.JournalRepository
-	auditRepo         domain.AuditRepository
 	closingSvc        *ClosingService
 	depreciation      PendingDepreciationSource
-	fiscalYear        int
-	// Welle 5c: die beiden Bausteine, deren Zustand aus einer eigenen Kartei
+	// Die beiden Bausteine, deren Zustand aus einer eigenen Kartei
 	// folgt. Beide sind optional — ohne sie bleibt ihr Schritt schlicht offen.
 	writeUps WriteUpSource
 	inputTax InputTaxCorrectionSource
@@ -44,24 +39,21 @@ func NewClosingStepsService(
 	stepRepo domain.ClosingStepRepository,
 	accrualRepo domain.AccrualRepository,
 	provisionRepo domain.ProvisionRepository,
-	inventoryRepo domain.InventoryRepository,
 	appropriationRepo domain.AppropriationRepository,
 	checkRunRepo domain.CheckRunRepository,
 	journalRepo domain.JournalRepository,
 	auditRepo domain.AuditRepository,
 	closingSvc *ClosingService,
-	fiscalYear int,
 ) *ClosingStepsService {
-	return &ClosingStepsService{
+	s := &ClosingStepsService{
 		stepRepo: stepRepo, accrualRepo: accrualRepo, provisionRepo: provisionRepo,
-		inventoryRepo: inventoryRepo, appropriationRepo: appropriationRepo,
-		checkRunRepo: checkRunRepo, journalRepo: journalRepo, auditRepo: auditRepo,
-		closingSvc: closingSvc, fiscalYear: fiscalYear,
+		appropriationRepo: appropriationRepo,
+		checkRunRepo:      checkRunRepo, journalRepo: journalRepo, auditor: auditor[int]{auditRepo: auditRepo, entity: "CLOSING_STEP"},
+		closingSvc: closingSvc,
 	}
+	s.derivers = s.stepDerivers()
+	return s
 }
-
-// SetFiscalYear schaltet das aktive Geschäftsjahr um.
-func (s *ClosingStepsService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // SetDepreciationSource gibt dem Assistenten die Anlagenkartei, soweit er sie
 // braucht: er will nur wissen, ob die AfA des Jahres noch offen ist.
@@ -139,8 +131,8 @@ func (s *ClosingSteps) EnsureLists() {
 
 // Steps stellt die Schrittliste eines Geschäftsjahres zusammen.
 func (s *ClosingStepsService) Steps(ctx context.Context, year int) (*ClosingSteps, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	fy, err := s.closingSvc.PeriodOf(ctx, year)
 	if err != nil {
@@ -177,7 +169,7 @@ func (s *ClosingStepsService) Steps(ctx context.Context, year int) (*ClosingStep
 		// aus. Der gefundene Rest steht im Detail, und daran ist er zu
 		// erkennen.
 		if view.State != domain.ClosingStepSkipped {
-			state, detail := s.derive(ctx, def.Key, year, fy)
+			state, detail := s.derivers[def.Key](ctx, year, fy)
 			view.Detail = detail
 			switch {
 			case state == domain.ClosingStepDone, view.State == domain.ClosingStepOpen, detail != "":
@@ -239,223 +231,6 @@ func (s *ClosingStepsService) reopenState(
 				"und neu gebucht.", year)
 	}
 	return true, ""
-}
-
-// derive liest den Zustand eines Bausteins aus den Daten.
-func (s *ClosingStepsService) derive(
-	ctx context.Context, key domain.ClosingStepKey, year int, fy *domain.FiscalYear,
-) (domain.ClosingStepState, string) {
-	switch key {
-	case domain.ClosingStepDepreciation:
-		if s.depreciation == nil {
-			return domain.ClosingStepOpen, ""
-		}
-		due, err := s.depreciation.PendingDepreciation(ctx, year)
-		if err != nil {
-			return domain.ClosingStepOpen, ""
-		}
-		if len(due) == 0 {
-			return domain.ClosingStepDone, "keine Abschreibung offen"
-		}
-		return domain.ClosingStepOpen, fmt.Sprintf("AfA für %d Anlagegüter offen", len(due))
-
-	case domain.ClosingStepWriteUp:
-		if s.writeUps == nil {
-			return domain.ClosingStepOpen, ""
-		}
-		report, err := s.writeUps.WriteUpReport(ctx, year)
-		if err != nil {
-			return domain.ClosingStepOpen, ""
-		}
-		if len(report.Candidates) == 0 {
-			return domain.ClosingStepDone, "kein Anlagegut mit außerplanmäßiger Abschreibung"
-		}
-		if report.Open == 0 {
-			return domain.ClosingStepDone, fmt.Sprintf(
-				"%d Anlagegüter geprüft", len(report.Candidates))
-		}
-		return domain.ClosingStepOpen, fmt.Sprintf(
-			"%d von %d Anlagegütern noch nicht beantwortet", report.Open, len(report.Candidates))
-
-	case domain.ClosingStepCurrencyValuation:
-		// Die Bewertung wird an ihrer Belegnummer erkannt und nicht an einer
-		// eigenen Kartei: sie hinterlässt genau zwei Buchungen, und ob sie
-		// stehen, weiß das Journal.
-		standing, reversed := s.hasClosingReference(ctx, year, foreignCurrencyDocument(year))
-		if standing {
-			return domain.ClosingStepDone, "Fremdwährungsposten bewertet"
-		}
-		if reversed {
-			return domain.ClosingStepOpen, "die Bewertungsbuchung wurde storniert"
-		}
-		return domain.ClosingStepOpen, ""
-
-	case domain.ClosingStepInputTaxCorrection:
-		standing, reversed := s.hasClosingReference(ctx, year, inputTaxCorrectionDocument(year))
-		if standing {
-			return domain.ClosingStepDone, "Vorsteuerberichtigung gebucht"
-		}
-		if reversed {
-			return domain.ClosingStepOpen, "die Berichtigungsbuchung wurde storniert"
-		}
-		if s.inputTax == nil {
-			return domain.ClosingStepOpen, ""
-		}
-		view, err := s.inputTax.Year(ctx, year)
-		if err != nil {
-			return domain.ClosingStepOpen, ""
-		}
-		pending := 0
-		for _, row := range view.Rows {
-			if row.InPeriod && row.Assessment.Required && !row.Booked {
-				pending++
-			}
-		}
-		switch {
-		case view.Unconfirmed > 0:
-			return domain.ClosingStepOpen, fmt.Sprintf(
-				"%d Verwendungsanteile noch nicht bestätigt", view.Unconfirmed)
-		case pending == 0:
-			return domain.ClosingStepDone, "nichts zu berichtigen"
-		default:
-			return domain.ClosingStepOpen, fmt.Sprintf("%d Berichtigungen offen", pending)
-		}
-
-	case domain.ClosingStepAccruals:
-		// Gezählt wird, was noch steht: ein Posten, dessen Bildungsbuchung per
-		// Generalumkehr zurückgenommen wurde, ist nicht gebildet, und der
-		// Schritt wäre sonst durch eine Buchung erledigt, die es nicht mehr
-		// gibt.
-		accruals, err := s.liveAccruals(ctx, year)
-		if err != nil || len(accruals) == 0 {
-			return domain.ClosingStepOpen, ""
-		}
-		return domain.ClosingStepDone, fmt.Sprintf("%d Abgrenzungsposten gebildet", len(accruals))
-
-	case domain.ClosingStepProvisions:
-		provisions, err := s.liveProvisions(ctx, year)
-		if err != nil {
-			return domain.ClosingStepOpen, ""
-		}
-		// Die Steuerrückstellung ist ein eigener Schritt. Zählte sie hier mit,
-		// wäre der Schritt „Rückstellungen" allein durch sie erledigt — obwohl
-		// niemand nach ungewissen Verbindlichkeiten gesehen hat.
-		count := 0
-		for _, p := range provisions {
-			if !p.Kind.IsTax() {
-				count++
-			}
-		}
-		if count == 0 {
-			return domain.ClosingStepOpen, ""
-		}
-		return domain.ClosingStepDone, fmt.Sprintf("%d Rückstellungen erfasst", count)
-
-	case domain.ClosingStepInventory:
-		counts, err := s.inventoryRepo.FindByYear(ctx, year)
-		if err != nil || len(counts) == 0 {
-			return domain.ClosingStepOpen, ""
-		}
-		open := 0
-		for i := range counts {
-			voided, err := entryIsReversed(ctx, s.journalRepo, counts[i].JournalEntryID)
-			if err != nil {
-				return domain.ClosingStepOpen, ""
-			}
-			if !voided {
-				open++
-			}
-		}
-		if open == 0 {
-			return domain.ClosingStepOpen, ""
-		}
-		return domain.ClosingStepDone, fmt.Sprintf("%d Vorratskonten aufgenommen", open)
-
-	case domain.ClosingStepVatSettlement:
-		standing, reversed := s.hasClosingReference(ctx, year, VatSettlementReference(year))
-		if standing {
-			return domain.ClosingStepDone, "Steuerkonten verrechnet"
-		}
-		if reversed {
-			return domain.ClosingStepOpen, "die Verrechnungsbuchung wurde storniert"
-		}
-		return domain.ClosingStepOpen, ""
-
-	case domain.ClosingStepTaxProvision:
-		provisions, err := s.liveProvisions(ctx, year)
-		if err != nil {
-			return domain.ClosingStepOpen, ""
-		}
-		for _, p := range provisions {
-			if p.Kind.IsTax() {
-				return domain.ClosingStepDone, "Steuerrückstellung gebildet"
-			}
-		}
-		return domain.ClosingStepOpen, ""
-
-	case domain.ClosingStepCheckRun:
-		if s.checkRunRepo == nil {
-			return domain.ClosingStepOpen, ""
-		}
-		run, err := s.checkRunRepo.Latest(ctx, year)
-		if err != nil || run == nil {
-			return domain.ClosingStepOpen, ""
-		}
-		// Ein Prüflauf mit blockierendem Befund ist gelaufen, aber nicht
-		// erledigt: der Befund steht der Festschreibung im Weg, und ein Haken
-		// an dieser Stelle führte den Anwender an ihm vorbei.
-		if blocking := len(run.Blocking()); blocking > 0 {
-			return domain.ClosingStepOpen, fmt.Sprintf(
-				"Prüflauf vom %s: %d blockierende Befunde", run.CutoffDate, blocking)
-		}
-		return domain.ClosingStepDone, fmt.Sprintf(
-			"Prüflauf vom %s ohne blockierenden Befund", run.CutoffDate)
-
-	case domain.ClosingStepStatement, domain.ClosingStepAdoption:
-		if fy.IsAdopted() {
-			return domain.ClosingStepDone, "festgestellt am " + fy.AdoptedOn
-		}
-		if fy.Status == domain.FiscalYearPrepared && key == domain.ClosingStepStatement {
-			return domain.ClosingStepDone, "aufgestellt am " + fy.PreparedOn
-		}
-		return domain.ClosingStepOpen, ""
-
-	case domain.ClosingStepDisclosure:
-		if fy.Status == domain.FiscalYearDisclosed {
-			return domain.ClosingStepDone, "offengelegt am " + fy.DisclosedOn
-		}
-		return domain.ClosingStepOpen, ""
-
-	case domain.ClosingStepAppropriation:
-		// Der Schritt hat zwei Hälften: den Saldenvortrag ins Folgejahr und den
-		// Beschluss über das Ergebnis. Erledigt ist er erst mit beiden — ein
-		// Beschluss ohne Vortrag hätte kein Vortragskonto, aus dem er verteilt.
-		carried := false
-		if preview, err := s.closingSvc.CarryForwardState(ctx, year+1); err == nil && preview != nil {
-			carried = preview.AlreadyCarried
-		}
-		appropriation, err := s.appropriationRepo.FindByYear(ctx, year)
-		decided := err == nil && appropriation != nil
-		if decided {
-			// Ein Beschluss, dessen Buchung storniert wurde, ist wieder offen.
-			voided, err := entryIsReversed(ctx, s.journalRepo, appropriation.JournalEntryID)
-			decided = err == nil && !voided
-		}
-		switch {
-		case carried && decided:
-			return domain.ClosingStepDone, fmt.Sprintf(
-				"vorgetragen nach %d, beschlossen am %s", year+1, appropriation.DecisionDate)
-		case decided:
-			return domain.ClosingStepOpen, fmt.Sprintf(
-				"beschlossen am %s; der Saldenvortrag nach %d fehlt noch",
-				appropriation.DecisionDate, year+1)
-		case carried:
-			return domain.ClosingStepOpen, fmt.Sprintf(
-				"nach %d vorgetragen; der Beschluss über das Ergebnis fehlt noch", year+1)
-		}
-		return domain.ClosingStepOpen, ""
-	}
-	return domain.ClosingStepOpen, ""
 }
 
 // liveAccruals sind die Abgrenzungsposten eines Jahres, deren Bildungsbuchung
@@ -520,12 +295,12 @@ func (s *ClosingStepsService) hasClosingReference(
 func (s *ClosingStepsService) SetStep(
 	ctx context.Context, year int, key domain.ClosingStepKey, state domain.ClosingStepState, reason string,
 ) (*ClosingSteps, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	step := &domain.ClosingStep{
 		Year: year, Key: key, State: state, Reason: reason,
-		ChangedOn: todayLocal(),
+		ChangedOn: s.today(),
 	}
 	if err := step.Validate(); err != nil {
 		return nil, err
@@ -534,8 +309,10 @@ func (s *ClosingStepsService) SetStep(
 		return nil, err
 	}
 	def, _ := domain.ClosingStepDefinitionFor(key)
-	s.audit(ctx, year, fmt.Sprintf("Abschlussschritt %q im Geschäftsjahr %d auf %q gesetzt: %s",
-		def.Label, year, state, reason))
+	if err := s.audit(ctx, domain.AuditActionUpdate, year, fmt.Sprintf("Abschlussschritt %q im Geschäftsjahr %d auf %q gesetzt: %s",
+		def.Label, year, state, reason)); err != nil {
+		return nil, err
+	}
 	return s.Steps(ctx, year)
 }
 
@@ -553,8 +330,8 @@ type SkippedClosingStep struct {
 // Auskunft, die sonst nirgends steht — an einem Jahr ohne Rückstellungen ist
 // nicht zu sehen, ob niemand welche brauchte oder niemand hinsah.
 func (s *ClosingStepsService) SkippedSteps(ctx context.Context, year int) ([]SkippedClosingStep, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	stored, err := s.stepRepo.FindByYear(ctx, year)
 	if err != nil {
@@ -606,8 +383,8 @@ func (s *ClosingStepsService) SkipStep(
 func (s *ClosingStepsService) ReopenStep(
 	ctx context.Context, year int, key domain.ClosingStepKey, reason string,
 ) (*ClosingSteps, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	if strings.TrimSpace(reason) == "" {
 		return nil, fmt.Errorf(
@@ -650,7 +427,7 @@ func (s *ClosingStepsService) ReopenStep(
 	// Arbeit wieder aufgenommen wird. Wer später prüft, liest sonst nur, dass
 	// ein Zustand umsprang.
 	step := &domain.ClosingStep{
-		Year: year, Key: key, State: domain.ClosingStepOpen, ChangedOn: todayLocal(),
+		Year: year, Key: key, State: domain.ClosingStepOpen, ChangedOn: s.today(),
 	}
 	if err := step.Validate(); err != nil {
 		return nil, err
@@ -658,15 +435,10 @@ func (s *ClosingStepsService) ReopenStep(
 	if err := s.stepRepo.Save(ctx, step); err != nil {
 		return nil, err
 	}
-	s.audit(ctx, year, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionUpdate, year, fmt.Sprintf(
 		"Abschlussschritt %q im Geschäftsjahr %d wieder aufgenommen: %s (übersprungen war er mit: %s)",
-		def.Label, year, strings.TrimSpace(reason), previous))
-	return s.Steps(ctx, year)
-}
-
-func (s *ClosingStepsService) audit(ctx context.Context, year int, details string) {
-	if s.auditRepo == nil {
-		return
+		def.Label, year, strings.TrimSpace(reason), previous)); err != nil {
+		return nil, err
 	}
-	_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "CLOSING_STEP", fmt.Sprintf("%d", year), details)
+	return s.Steps(ctx, year)
 }

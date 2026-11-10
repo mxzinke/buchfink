@@ -146,6 +146,19 @@ type StatementLine struct {
 	Amount      Cents              `json:"amount"`
 	PriorAmount Cents              `json:"priorAmount"`
 	Accounts    []StatementAccount `json:"accounts,omitempty"`
+	// Remarks sind die Davon-Vermerke für Posten, die die Gliederungstiefe
+	// in diese Zeile zusammenfasst, etwa die Beträge gegenüber Gesellschaftern
+	// (§ 42 Abs. 3 GmbHG).
+	Remarks []StatementRemark `json:"remarks,omitempty"`
+}
+
+// StatementRemark ist ein Davon-Vermerk unter einer Gliederungsposition.
+type StatementRemark struct {
+	Key         string `json:"key"`
+	Label       string `json:"label"`
+	Amount      Cents  `json:"amount"`
+	PriorAmount Cents  `json:"priorAmount"`
+	Reference   string `json:"reference,omitempty"`
 }
 
 // FallbackCount zählt, was in einer Auffangposition gelandet ist.
@@ -264,12 +277,10 @@ type Deadline struct {
 	FiscalYear  int    `json:"fiscalYear"`
 	IsDone      bool   `json:"isDone"`
 	DoneOn      string `json:"doneOn,omitempty"`
-	// WaitingFor benennt das Ereignis, aus dem die Frist erst noch läuft — etwa
-	// „die Eintragung ins Handelsregister". Leer heißt: die Frist läuft bereits,
-	// und ein fehlendes DueDate bedeutet dann, dass das Gesetz keine Tagesfrist
-	// nennt („unverzüglich"). Ohne diese Unterscheidung sähen beide Fälle in der
-	// Liste gleich aus, obwohl der eine zu tun ist und der andere noch nicht.
-	WaitingFor string `json:"waitingFor,omitempty"`
+	// Status ist der Stand im Pflichtenkalender, Confirmable sagt, ob der
+	// Mensch die Pflicht in der App bestätigen kann.
+	Status      string `json:"status,omitempty"`
+	Confirmable bool   `json:"confirmable,omitempty"`
 }
 
 // StatementHeader sind die Pflichtangaben des § 264 Abs. 1a HGB im Kopf des

@@ -18,15 +18,11 @@ import (
 // noch einmal führte, wäre die zweite Wahrheit, die beim ersten Storno von der
 // ersten abweicht.
 type GiftService struct {
-	journalRepo  domain.JournalRepository
-	journalSvc   *JournalService
-	settingsRepo domain.SettingsRepository
-	auditRepo    domain.AuditRepository
-	fiscalYear   int
-	// txRunner klammert Storno und Neubuchung einer Umbuchung. Fehlt er, laufen
-	// beide nacheinander — die Vorprüfung darunter hält den halben Zustand auch
-	// dann fern, sie kann ihn nur nicht mehr zurückrollen.
-	txRunner domain.TxRunner
+	serviceClock
+	auditor[string]
+	fiscalCalendar
+	journalRepo domain.JournalRepository
+	journalSvc  *JournalService
 }
 
 // NewGiftService wires die Auswertung der nicht abziehbaren Betriebsausgaben.
@@ -35,26 +31,16 @@ func NewGiftService(
 	journalSvc *JournalService,
 	settingsRepo domain.SettingsRepository,
 	auditRepo domain.AuditRepository,
-	fiscalYear int,
 ) *GiftService {
 	return &GiftService{
 		journalRepo: journalRepo, journalSvc: journalSvc,
-		settingsRepo: settingsRepo, auditRepo: auditRepo, fiscalYear: fiscalYear,
+		fiscalCalendar: fiscalCalendar{settingsRepo: settingsRepo, limitMonth: true},
+		auditor:        auditor[string]{auditRepo: auditRepo, entity: "GIFT"},
 	}
 }
 
-// SetFiscalYear schaltet das aktive Geschäftsjahr um.
-func (s *GiftService) SetFiscalYear(year int) { s.fiscalYear = year }
-
-// SetTxRunner koppelt die Transaktionsklammer an die Umbuchung.
-func (s *GiftService) SetTxRunner(r domain.TxRunner) { s.txRunner = r }
-
-// runInTx führt fn in einer Transaktion aus, wo eine eingerichtet ist.
 func (s *GiftService) runInTx(ctx context.Context, fn func(context.Context) error) error {
-	if s.txRunner == nil {
-		return fn(ctx)
-	}
-	return s.txRunner.RunInTx(ctx, fn)
+	return s.journalSvc.InTx(ctx, fn)
 }
 
 // giftEntry ist eine Aufzeichnung samt ihrer Buchung und der Frage, ob die
@@ -193,8 +179,8 @@ func (r *NonDeductibleReport) EnsureLists() {
 // zur Steuerbilanz geht. Die Empfänger beantworten „wo ist die Freigrenze
 // gerissen" — die Frage, aus der eine Umbuchung folgt.
 func (s *GiftService) NonDeductibleReport(ctx context.Context, year int) (*NonDeductibleReport, error) {
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 	out := &NonDeductibleReport{FiscalYear: year}
 	out.EnsureLists()
@@ -206,8 +192,7 @@ func (s *GiftService) NonDeductibleReport(ctx context.Context, year int) (*NonDe
 
 	// 1. Die Kategorien: NonDeductibleReport zählt über die Konten, nicht über
 	// die Aufzeichnungen. Eine Bewirtung hat keine Geschenkaufzeichnung, und
-	// eine Buchung aus der Zeit vor dieser Welle hat gar keine — auf den
-	// Konten steht sie trotzdem.
+	// eine Buchung ohne Aufzeichnung steht trotzdem auf den Konten.
 	//
 	// Die Generalumkehr zählt mit und bleibt nicht außen vor: sie trägt
 	// negative Beträge auf derselben Seite und stellt die Verkehrszahlen des
@@ -328,14 +313,7 @@ func (s *GiftService) NonDeductibleReport(ctx context.Context, year int) (*NonDe
 func (s *GiftService) giftLimit(ctx context.Context, year int) (domain.Cents, error) {
 	// Am ersten Tag des Wirtschaftsjahres gemessen: die Grenze gilt für
 	// Wirtschaftsjahre, die nach einem Stichtag beginnen.
-	month := 1
-	if s.settingsRepo != nil {
-		if settings, err := s.settingsRepo.GetCompanySettings(ctx); err == nil && settings != nil {
-			if settings.FiscalYearStartMonth >= 1 && settings.FiscalYearStartMonth <= 12 {
-				month = settings.FiscalYearStartMonth
-			}
-		}
-	}
+	month := s.fiscalYearStartMonth(ctx)
 	params, err := accounting.TaxParametersFor(fmt.Sprintf("%04d-%02d-01", year, month))
 	if err != nil {
 		return 0, err
@@ -379,6 +357,14 @@ type GiftRebooking struct {
 func (s *GiftService) RebookGiftsForRecipient(
 	ctx context.Context, req RebookGiftsRequest,
 ) (*GiftRebooking, error) {
+	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*GiftRebooking, error) {
+		return s.rebookGiftsForRecipient(ctx, req)
+	})
+}
+
+func (s *GiftService) rebookGiftsForRecipient(
+	ctx context.Context, req RebookGiftsRequest,
+) (*GiftRebooking, error) {
 	if s.journalSvc == nil {
 		return nil, fmt.Errorf("der Buchungsweg ist nicht eingerichtet")
 	}
@@ -387,8 +373,8 @@ func (s *GiftService) RebookGiftsForRecipient(
 			"zur Umbuchung gehört ihr Grund. Er steht später als einzige Erklärung im Journal")
 	}
 	year := req.FiscalYear
-	if year == 0 {
-		year = s.fiscalYear
+	if err := requireYear(year); err != nil {
+		return nil, err
 	}
 
 	gifts, err := s.giftEntries(ctx, year)
@@ -455,7 +441,7 @@ func (s *GiftService) RebookGiftsForRecipient(
 	// nur für den Saldenvortrag zu), und eine Neubuchung an einem anderen Tag
 	// wäre die Hälfte des Vorgangs in einem anderen Zeitraum — mit allem, was
 	// davon abhängt: Voranmeldung, Festschreibung, Abschlussstand.
-	today := todayLocal()
+	today := s.today()
 	date := strings.TrimSpace(req.Date)
 	if date == "" {
 		date = today
@@ -523,7 +509,9 @@ func (s *GiftService) RebookGiftsForRecipient(
 			"%s €. %d Buchung(en) wurden zurückgenommen und ohne Vorsteuerabzug neu gebucht "+
 			"(§ 4 Abs. 5 Satz 1 Nr. 1 EStG, § 15 Abs. 1a UStG).",
 		name, year, total, limit, len(pending))
-	s.audit(ctx, fmt.Sprintf("Geschenke an %s umgebucht: %s", name, out.Note))
+	if err := s.audit(ctx, domain.AuditActionUpdate, "", fmt.Sprintf("Geschenke an %s umgebucht: %s", name, out.Note)); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
@@ -575,7 +563,7 @@ func (s *GiftService) buildRebooking(
 				"die Buchung %s ist ein innergemeinschaftlicher Erwerb oder eine Leistung nach "+
 					"§ 13b UStG. Dort steht die Vorsteuer neben der Steuerschuld aus derselben "+
 					"Bemessungsgrundlage, und § 15 Abs. 1a UStG nimmt nur den Abzug — diese "+
-					"Aufteilung rechnet Buchfink nicht. Buche den Beleg von Hand um",
+					"Aufteilung rechnet Buchfink nicht. Die Buchung ist zu stornieren und der Beleg mit einer eigenen Position für das Geschenk neu zu buchen",
 				entry.EntryNumber)
 		}
 		if !deductibleInputTaxKey(l.TaxKey) {
@@ -584,8 +572,8 @@ func (s *GiftService) buildRebooking(
 		if taxIdx >= 0 {
 			return nil, fmt.Errorf(
 				"die Buchung %s hat mehrere Vorsteuerzeilen (verschiedene Steuersätze). Welcher "+
-					"Anteil auf das Geschenk entfällt, ist ihr nicht mehr zu entnehmen — buche diesen "+
-					"Beleg von Hand um", entry.EntryNumber)
+					"Anteil auf das Geschenk entfällt, ist ihr nicht mehr zu entnehmen — die Buchung ist "+
+					"zu stornieren und der Beleg mit einer eigenen Position für das Geschenk neu zu buchen", entry.EntryNumber)
 		}
 		taxIdx = i
 	}
@@ -616,8 +604,8 @@ func (s *GiftService) buildRebooking(
 		if idx < 0 {
 			return nil, fmt.Errorf(
 				"in der Buchung %s ist die Zeile zum Geschenk an %s (%s € auf Konto %s) nicht "+
-					"eindeutig zu finden. Eine Umbuchung nähme sonst fremden Aufwand mit — buche "+
-					"diesen Beleg von Hand um",
+					"eindeutig zu finden. Eine Umbuchung nähme sonst fremden Aufwand mit — die Buchung ist "+
+					"zu stornieren und der Beleg mit einer eigenen Position für das Geschenk neu zu buchen",
 				entry.EntryNumber, record.RecipientName, record.NetAmount, record.Account)
 		}
 		matched[idx] = record
@@ -631,7 +619,8 @@ func (s *GiftService) buildRebooking(
 			if tax.TaxBase <= 0 || record.NetAmount > tax.TaxBase {
 				return nil, fmt.Errorf(
 					"die Vorsteuerzeile der Buchung %s hat keine Bemessungsgrundlage, aus der sich "+
-						"der Anteil des Geschenks rechnen ließe — buche diesen Beleg von Hand um",
+						"der Anteil des Geschenks rechnen ließe. Die Buchung ist zu stornieren und der Beleg "+
+						"mit einer eigenen Position für das Geschenk neu zu buchen",
 					entry.EntryNumber)
 			}
 			share := domain.MulRound(tax.Amount, int64(record.NetAmount), int64(tax.TaxBase))
@@ -720,15 +709,8 @@ func deductibleInputTaxKey(key string) bool {
 // aus derselben Bemessungsgrundlage steht.
 func reverseChargeInputTaxKey(key string) bool {
 	switch key {
-	case "IG19_VST", "IG7_VST", "RC19_VST", "RC7_VST":
+	case "IG19_VST", "IG7_VST", "RC19_VST", "RC7_VST", "RCEU19_VST", "RCEU7_VST":
 		return true
 	}
 	return false
-}
-
-func (s *GiftService) audit(ctx context.Context, details string) {
-	if s.auditRepo == nil {
-		return
-	}
-	_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "GIFT", "", details)
 }

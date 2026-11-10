@@ -44,7 +44,7 @@ func TestCompanySettingsDeriveInGruendungFromTheFoundation(t *testing.T) {
 	}
 
 	foundations := NewFoundationRepository(db)
-	f := &domain.Foundation{NotarizedOn: "2026-03-15", ShareCapital: 2_500_000}
+	f := &domain.Foundation{ShareCapital: 2_500_000}
 	if err := foundations.Save(ctx, f); err != nil {
 		t.Fatalf("Gründung: %v", err)
 	}

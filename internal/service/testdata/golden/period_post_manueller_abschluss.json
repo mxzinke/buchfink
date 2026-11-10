@@ -1,0 +1,19 @@
+{
+  "closing": true,
+  "entryCount": 1,
+  "error": "",
+  "kind": "normal",
+  "lines": [
+    {
+      "account": "6815",
+      "amount": 10000,
+      "side": "S"
+    },
+    {
+      "account": "1800",
+      "amount": 10000,
+      "side": "H"
+    }
+  ],
+  "year": 2026
+}

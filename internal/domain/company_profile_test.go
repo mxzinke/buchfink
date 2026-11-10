@@ -5,24 +5,6 @@ import (
 	"testing"
 )
 
-func TestSplitLegacyPostalLineReadsCommonVariants(t *testing.T) {
-	for _, tc := range []struct{ line, postalCode, city string }{
-		{"80331 München", "80331", "München"},
-		{"D-80331 München", "80331", "München"},
-		{"A-1010 Wien", "1010", "Wien"},
-		{"1012 AB Amsterdam", "1012 AB", "Amsterdam"},
-		{"61118 Bad Vilbel", "61118", "Bad Vilbel"},
-		{"München", "", "München"},
-		{"London SW1A 1AA", "", "London SW1A 1AA"},
-		{"", "", ""},
-	} {
-		postalCode, city := SplitLegacyPostalLine(tc.line)
-		if postalCode != tc.postalCode || city != tc.city {
-			t.Errorf("%q: %q / %q, erwartet %q / %q", tc.line, postalCode, city, tc.postalCode, tc.city)
-		}
-	}
-}
-
 func TestCompanyAddressLinesNameTheCountryOnlyAbroad(t *testing.T) {
 	s := CompanySettings{Street: "Postfach 10 20 30", AddressAddition: "c/o Kanzlei Rot", PostalCode: "80331", City: "München"}
 	if got := strings.Join(s.AddressLines(), " | "); got != "Postfach 10 20 30 | c/o Kanzlei Rot | 80331 München" {

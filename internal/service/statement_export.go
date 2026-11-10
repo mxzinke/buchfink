@@ -57,6 +57,10 @@ func (s *StatementService) ExportCSV(ctx context.Context, year int, depth domain
 			writeRow(&b, string(line.Section), line.Key, line.Ordinal, line.Label,
 				fmt.Sprintf("%d", line.Level), germanAmount(line.Amount), germanAmount(line.PriorAmount),
 				omittedMark(line.Omitted))
+			for _, remark := range line.Remarks {
+				writeRow(&b, string(line.Section), remark.Key, "", remark.Label,
+					fmt.Sprintf("%d", line.Level+1), germanAmount(remark.Amount), germanAmount(remark.PriorAmount), "")
+			}
 		}
 	}
 
@@ -118,7 +122,9 @@ func (s *StatementService) ExportCSV(ctx context.Context, year int, depth domain
 		writeRow(&b, section, string(text.Section), text.Basis, text.Label, "1", text.Text, "", "")
 	}
 
-	s.logExport(ctx, year, "CSV")
+	if err := s.logExport(ctx, year, "CSV"); err != nil {
+		return "", err
+	}
 	return b.String(), nil
 }
 
@@ -166,15 +172,17 @@ func (s *StatementService) ExportPDF(ctx context.Context, year int, depth domain
 	if err != nil {
 		return nil, err
 	}
-	s.logExport(ctx, year, "PDF")
+	if err := s.logExport(ctx, year, "PDF"); err != nil {
+		return nil, err
+	}
 	return pdf, nil
 }
 
-func (s *StatementService) logExport(ctx context.Context, year int, format string) {
+func (s *StatementService) logExport(ctx context.Context, year int, format string) error {
 	if s.auditRepo == nil {
-		return
+		return nil
 	}
-	_ = s.auditRepo.Log(ctx, domain.AuditActionExport, "JAHRESABSCHLUSS",
+	return logAudit(ctx, s.auditRepo, domain.AuditActionExport, "JAHRESABSCHLUSS",
 		fmt.Sprintf("%d", year),
 		fmt.Sprintf("Bilanz und Gewinn- und Verlustrechnung %d als %s ausgegeben", year, format))
 }
@@ -399,6 +407,14 @@ func writeTypstTable(
 			fmt.Fprintf(b, ", [%s]", typstText(line.PriorAmount.String()))
 		}
 		b.WriteString(",\n")
+		for _, remark := range line.Remarks {
+			fmt.Fprintf(b, "  [%s_%s_], [_%s_]", strings.Repeat("#h(1em)", line.Level),
+				typstText(remark.Label), typstText(remark.Amount.String()))
+			if hasPrior {
+				fmt.Fprintf(b, ", [_%s_]", typstText(remark.PriorAmount.String()))
+			}
+			b.WriteString(",\n")
+		}
 	}
 
 	if totalLabel != "" {

@@ -1,0 +1,90 @@
+{
+  "audit": [
+    {
+      "action": "CREATE",
+      "actor": "\u003cactor\u003e",
+      "appVersion": "dev",
+      "channel": "agent:golden",
+      "details": "Buchung 2026-000001: Testbeleg, 1.190,00 € (GJ 2026, 4 Zeilen)",
+      "entityId": "1",
+      "entityType": "JOURNAL",
+      "entryHash": "\u003centryHash\u003e",
+      "id": 4,
+      "previousHash": "\u003cpreviousHash\u003e",
+      "timestamp": "\u003ctimestamp\u003e"
+    }
+  ],
+  "entry": {
+    "actor": "\u003cactor\u003e",
+    "appVersion": "dev",
+    "bookingDate": "2026-03-10",
+    "channel": "agent:golden",
+    "closingPeriod": false,
+    "contactId": 1,
+    "createdAt": "\u003ccreatedAt\u003e",
+    "currency": "EUR",
+    "description": "Testbeleg",
+    "documentDate": "2026-03-10",
+    "documentNumber": "\u003cBeleg\u003e",
+    "entryHash": "\u003centryHash\u003e",
+    "entryNumber": "2026-000001",
+    "exchangeRateMicros": 1000000,
+    "fiscalYear": 2026,
+    "id": 1,
+    "kind": "normal",
+    "lines": [
+      {
+        "account": "5400",
+        "amount": 100000,
+        "entryId": 1,
+        "id": 1,
+        "position": 1,
+        "side": "S"
+      },
+      {
+        "account": "1404",
+        "amount": 19000,
+        "entryId": 1,
+        "id": 2,
+        "position": 2,
+        "side": "S",
+        "taxBase": 100000,
+        "taxKey": "IG19_VST"
+      },
+      {
+        "account": "3804",
+        "amount": 19000,
+        "entryId": 1,
+        "id": 3,
+        "position": 3,
+        "side": "H",
+        "taxBase": 100000,
+        "taxKey": "IG19_UST"
+      },
+      {
+        "account": "70000",
+        "amount": 100000,
+        "contactId": 1,
+        "entryId": 1,
+        "id": 4,
+        "position": 4,
+        "side": "H"
+      }
+    ],
+    "postingRuleVersion": "2026.1",
+    "previousHash": "\u003cpreviousHash\u003e",
+    "receiptHash": "\u003creceiptHash\u003e",
+    "receiptId": 1,
+    "serviceDateFrom": "2026-03-01",
+    "serviceDateTo": "2026-03-31",
+    "source": "receipt",
+    "taxTreatment": "intra_community_acquisition"
+  },
+  "journalEntryId": 1,
+  "newEntries": 1,
+  "override": "",
+  "receiptHashUnchanged": true,
+  "serviceProof": "",
+  "serviceProofAt": "",
+  "status": "sealed"
+}

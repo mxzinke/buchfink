@@ -32,7 +32,7 @@ func (e *testEnv) writeTempFile(t *testing.T, name, content string) string {
 func (e *testEnv) fileIncoming(t *testing.T, name string) *domain.Receipt {
 	t.Helper()
 	receipt, err := e.receipts.File(context.Background(), FileReceiptRequest{
-		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// Die Kopfdaten gehören zu jedem buchbaren Beleg
 		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
 		// ValidateBookable die Buchung zurück.
 		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
@@ -53,7 +53,7 @@ func TestHybridReceiptCarriesBothParts(t *testing.T) {
 	env := newTestEnv(t)
 
 	receipt, err := env.receipts.File(context.Background(), FileReceiptRequest{
-		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// Die Kopfdaten gehören zu jedem buchbaren Beleg
 		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
 		// ValidateBookable die Buchung zurück.
 		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
@@ -89,16 +89,14 @@ func TestHybridReceiptCarriesBothParts(t *testing.T) {
 	}
 }
 
-// Ablegen und Buchen sind zwei Schritte. Eine XRechnung muss sofort ablegbar
-// sein (GoBD Rz. 131), aber erst buchbar, wenn eine Darstellung existiert.
-func TestXRechnungIsFileableButNotBookableWithoutRendering(t *testing.T) {
+// Eine reine XRechnung ist ablegbar und buchbar; die App zeigt sie aus dem
+// Datensatz. Eine Darstellungsdatei des Lieferanten bleibt möglich und wird
+// dann angezeigt.
+func TestXRechnungIsBookableAndTakesAnOptionalRendering(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 
 	receipt, err := env.receipts.File(ctx, FileReceiptRequest{
-		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
-		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
-		// ValidateBookable die Buchung zurück.
 		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
 		Direction: domain.DirectionIncoming,
 		Files: []NewFile{
@@ -109,19 +107,10 @@ func TestXRechnungIsFileableButNotBookableWithoutRendering(t *testing.T) {
 	if err != nil {
 		t.Fatalf("eine XRechnung muss ablegbar sein, wurde aber abgelehnt: %v", err)
 	}
-	if err := receipt.ValidateStructure(); err != nil {
-		t.Fatalf("Strukturprüfung schlug fehl: %v", err)
+	if err := receipt.ValidateBookable(); err != nil {
+		t.Fatalf("eine reine XRechnung muss ohne Darstellung buchbar sein: %v", err)
 	}
 
-	err = receipt.ValidateBookable()
-	if err == nil {
-		t.Fatal("eine XRechnung ohne Darstellung darf nicht buchbar sein")
-	}
-	if !strings.Contains(err.Error(), "Darstellung") {
-		t.Errorf("die Meldung soll die fehlende Darstellung nennen, lautet aber: %v", err)
-	}
-
-	// Mit der erzeugten Darstellung wird derselbe Beleg buchbar.
 	withRendering, err := env.receipts.AddFile(ctx, receipt.ID, NewFile{
 		Role: domain.ReceiptRoleRendering, FileName: "xrechnung.pdf",
 		Content: []byte(minimalPDF), Derived: true,
@@ -129,12 +118,9 @@ func TestXRechnungIsFileableButNotBookableWithoutRendering(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Darstellung konnte nicht ergänzt werden: %v", err)
 	}
-	if err := withRendering.ValidateBookable(); err != nil {
-		t.Fatalf("mit Darstellung muss die XRechnung buchbar sein: %v", err)
-	}
 	display, _ := withRendering.DisplayFile()
 	if display.Role != domain.ReceiptRoleRendering {
-		t.Errorf("angezeigt werden soll die erzeugte Darstellung, bekommen %q", display.Role)
+		t.Errorf("angezeigt werden soll die Darstellung des Lieferanten, bekommen %q", display.Role)
 	}
 }
 
@@ -143,7 +129,7 @@ func TestStructureRejectsTwoOriginals(t *testing.T) {
 	env := newTestEnv(t)
 
 	_, err := env.receipts.File(context.Background(), FileReceiptRequest{
-		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// Die Kopfdaten gehören zu jedem buchbaren Beleg
 		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
 		// ValidateBookable die Buchung zurück.
 		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
@@ -162,7 +148,7 @@ func TestStructureRejectsTwoOriginals(t *testing.T) {
 
 	// Und ein Beleg ohne Original ebenso.
 	_, err = env.receipts.File(context.Background(), FileReceiptRequest{
-		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// Die Kopfdaten gehören zu jedem buchbaren Beleg
 		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
 		// ValidateBookable die Buchung zurück.
 		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
@@ -284,7 +270,7 @@ func TestUnreadableSourceFileIsRejected(t *testing.T) {
 	env := newTestEnv(t)
 
 	_, err := env.receipts.File(context.Background(), FileReceiptRequest{
-		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// Die Kopfdaten gehören zu jedem buchbaren Beleg
 		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
 		// ValidateBookable die Buchung zurück.
 		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
@@ -312,7 +298,7 @@ func TestEmptyFileIsRejected(t *testing.T) {
 	env := newTestEnv(t)
 
 	_, err := env.receipts.File(context.Background(), FileReceiptRequest{
-		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// Die Kopfdaten gehören zu jedem buchbaren Beleg
 		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
 		// ValidateBookable die Buchung zurück.
 		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
@@ -337,7 +323,7 @@ func TestReceiptNumbersAreGaplessPerDirection(t *testing.T) {
 
 	// Ein Ausgangsbeleg hat die Rechnungsnummer, die die Rechnung vergeben hat.
 	outgoing, err := env.receipts.File(context.Background(), FileReceiptRequest{
-		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// Die Kopfdaten gehören zu jedem buchbaren Beleg
 		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
 		// ValidateBookable die Buchung zurück.
 		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,
@@ -478,7 +464,7 @@ func TestMimeTypeComesFromTheContentNotTheName(t *testing.T) {
 	env := newTestEnv(t)
 
 	receipt, err := env.receipts.File(context.Background(), FileReceiptRequest{
-		// Die Kopfdaten gehören seit Welle 6 zu jedem buchbaren Beleg
+		// Die Kopfdaten gehören zu jedem buchbaren Beleg
 		// (BEL-02): ohne Belegdatum, Aussteller und Betrag weist
 		// ValidateBookable die Buchung zurück.
 		DocumentDate: "2026-03-01", IssuerName: "Lieferant GmbH", GrossAmount: 11900,

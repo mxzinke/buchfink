@@ -1,0 +1,399 @@
+{
+  "createdAt": "0001-01-01T00:00:00Z",
+  "figures": [
+    {
+      "base": 100000,
+      "code": "81",
+      "entryIds": [
+        1
+      ],
+      "expectedTax": 19009,
+      "hasBase": true,
+      "hasTax": true,
+      "label": "Steuerpflichtige Umsätze zum Steuersatz von 19 %",
+      "reference": "§ 12 Abs. 1 UStG",
+      "tax": 19009
+    },
+    {
+      "base": 0,
+      "code": "86",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": true,
+      "label": "Steuerpflichtige Umsätze zum Steuersatz von 7 %",
+      "reference": "§ 12 Abs. 2 UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "87",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": false,
+      "label": "Steuerpflichtige Umsätze zum Steuersatz von 0 %",
+      "reference": "§ 12 Abs. 3 UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "35",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": true,
+      "label": "Steuerpflichtige Umsätze zu anderen Steuersätzen",
+      "reference": "§ 12 UStG",
+      "tax": 0,
+      "taxCode": "36"
+    },
+    {
+      "base": 0,
+      "code": "77",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": false,
+      "label": "Lieferungen land- und forstwirtschaftlicher Betriebe an Abnehmer mit USt-IdNr.",
+      "reference": "§ 24 UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "76",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": true,
+      "label": "Umsätze, für die eine Steuer nach § 24 UStG zu entrichten ist",
+      "reference": "§ 24 Abs. 1 Satz 1 Nr. 2 UStG",
+      "tax": 0,
+      "taxCode": "80"
+    },
+    {
+      "base": 0,
+      "code": "41",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": false,
+      "label": "Innergemeinschaftliche Lieferungen an Abnehmer mit USt-IdNr.",
+      "reference": "§ 4 Nr. 1 Buchst. b, § 6a UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "44",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": false,
+      "label": "Innergemeinschaftliche Lieferungen neuer Fahrzeuge an Abnehmer ohne USt-IdNr.",
+      "reference": "§ 6a Abs. 1 Satz 1 Nr. 2 Buchst. c UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "49",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": false,
+      "label": "Innergemeinschaftliche Lieferungen neuer Fahrzeuge außerhalb eines Unternehmens",
+      "reference": "§ 2a UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "43",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": false,
+      "label": "Weitere steuerfreie Umsätze mit Vorsteuerabzug (u. a. Ausfuhrlieferungen)",
+      "reference": "§ 4 Nr. 1 Buchst. a, Nr. 2 bis 7 UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "48",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": false,
+      "label": "Steuerfreie Umsätze ohne Vorsteuerabzug",
+      "reference": "§ 4 Nr. 8 bis 29, § 19 Abs. 1 UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "91",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": false,
+      "label": "Steuerfreie innergemeinschaftliche Erwerbe",
+      "reference": "§§ 4b, 25c UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "89",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": true,
+      "label": "Innergemeinschaftliche Erwerbe zum Steuersatz von 19 %",
+      "reference": "§ 1a, § 12 Abs. 1 UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "93",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": true,
+      "label": "Innergemeinschaftliche Erwerbe zum Steuersatz von 7 %",
+      "reference": "§ 1a, § 12 Abs. 2 UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "90",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": false,
+      "label": "Innergemeinschaftliche Erwerbe zum Steuersatz von 0 %",
+      "reference": "§ 1a, § 12 Abs. 3 UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "95",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": true,
+      "label": "Innergemeinschaftliche Erwerbe zu anderen Steuersätzen",
+      "reference": "§ 1a UStG",
+      "tax": 0,
+      "taxCode": "98"
+    },
+    {
+      "base": 0,
+      "code": "94",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": true,
+      "label": "Innergemeinschaftliche Erwerbe neuer Fahrzeuge von Lieferern ohne USt-IdNr.",
+      "reference": "§ 1b Abs. 2 und 3 UStG",
+      "tax": 0,
+      "taxCode": "96"
+    },
+    {
+      "base": 0,
+      "code": "46",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": true,
+      "label": "Sonstige Leistungen nach § 3a Abs. 2 UStG eines im übrigen Gemeinschaftsgebiet ansässigen Unternehmers",
+      "reference": "§ 13b Abs. 1 UStG",
+      "tax": 0,
+      "taxCode": "47"
+    },
+    {
+      "base": 0,
+      "code": "73",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": true,
+      "label": "Umsätze, die unter das Grunderwerbsteuergesetz fallen",
+      "reference": "§ 13b Abs. 2 Nr. 3 UStG",
+      "tax": 0,
+      "taxCode": "74"
+    },
+    {
+      "base": 0,
+      "code": "84",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": true,
+      "label": "Andere Leistungen, für die der Leistungsempfänger die Steuer schuldet",
+      "reference": "§ 13b Abs. 2 Nr. 1, 2, 4 bis 12 UStG",
+      "tax": 0,
+      "taxCode": "85"
+    },
+    {
+      "base": 0,
+      "code": "42",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": false,
+      "label": "Lieferungen des ersten Abnehmers bei innergemeinschaftlichen Dreiecksgeschäften",
+      "reference": "§ 25b UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "60",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": false,
+      "label": "Steuerpflichtige Umsätze, für die der Leistungsempfänger die Steuer schuldet",
+      "reference": "§ 13b Abs. 5 UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "21",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": false,
+      "label": "Nicht steuerbare sonstige Leistungen im übrigen Gemeinschaftsgebiet",
+      "reference": "§ 18b Satz 1 Nr. 2 UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "45",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": false,
+      "label": "Übrige nicht steuerbare Umsätze (Leistungsort nicht im Inland)",
+      "reference": "§ 1 Abs. 1 Nr. 1 UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "66",
+      "entryIds": [
+        2
+      ],
+      "expectedTax": 0,
+      "hasBase": false,
+      "hasTax": true,
+      "label": "Vorsteuerbeträge aus Rechnungen von anderen Unternehmern",
+      "reference": "§ 15 Abs. 1 Satz 1 Nr. 1 UStG",
+      "tax": 9500
+    },
+    {
+      "base": 0,
+      "code": "61",
+      "expectedTax": 0,
+      "hasBase": false,
+      "hasTax": true,
+      "label": "Vorsteuerbeträge aus dem innergemeinschaftlichen Erwerb",
+      "reference": "§ 15 Abs. 1 Satz 1 Nr. 3 UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "62",
+      "expectedTax": 0,
+      "hasBase": false,
+      "hasTax": true,
+      "label": "Entstandene Einfuhrumsatzsteuer",
+      "reference": "§ 15 Abs. 1 Satz 1 Nr. 2 UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "67",
+      "expectedTax": 0,
+      "hasBase": false,
+      "hasTax": true,
+      "label": "Vorsteuerbeträge aus Leistungen nach § 13b UStG",
+      "reference": "§ 15 Abs. 1 Satz 1 Nr. 4 UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "63",
+      "expectedTax": 0,
+      "hasBase": false,
+      "hasTax": true,
+      "label": "Vorsteuerbeträge nach allgemeinen Durchschnittssätzen",
+      "reference": "§ 23a UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "59",
+      "expectedTax": 0,
+      "hasBase": false,
+      "hasTax": true,
+      "label": "Vorsteuerabzug für innergemeinschaftliche Lieferungen neuer Fahrzeuge außerhalb eines Unternehmens und von Kleinunternehmern",
+      "reference": "§ 2a, § 15 Abs. 4a UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "64",
+      "expectedTax": 0,
+      "hasBase": false,
+      "hasTax": true,
+      "label": "Berichtigung des Vorsteuerabzugs",
+      "reference": "§ 15a UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "65",
+      "expectedTax": 0,
+      "hasBase": false,
+      "hasTax": true,
+      "label": "Steuer infolge Wechsels der Besteuerungsform sowie Nachsteuer wegen Steuersatzänderung",
+      "reference": "§ 19 Abs. 2, § 24 Abs. 4, § 27 Abs. 1 UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "69",
+      "expectedTax": 0,
+      "hasBase": false,
+      "hasTax": true,
+      "label": "Unrichtig oder unberechtigt ausgewiesene Steuerbeträge und weitere geschuldete Beträge",
+      "reference": "§ 14c, § 6a Abs. 4, § 17 Abs. 1 Satz 7, § 25b Abs. 2 UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "39",
+      "expectedTax": 0,
+      "hasBase": false,
+      "hasTax": true,
+      "label": "Abzug der festgesetzten Sondervorauszahlung für Dauerfristverlängerung",
+      "reference": "§ 48 Abs. 4 UStDV",
+      "tax": 10000
+    },
+    {
+      "base": 0,
+      "code": "83",
+      "expectedTax": 0,
+      "hasBase": false,
+      "hasTax": true,
+      "label": "Verbleibende Umsatzsteuer-Vorauszahlung (Überschuss mit Minuszeichen)",
+      "reference": "§ 18 Abs. 1 UStG",
+      "tax": -491
+    },
+    {
+      "base": 0,
+      "code": "50",
+      "expectedTax": 0,
+      "hasBase": true,
+      "hasTax": false,
+      "label": "Minderung der Bemessungsgrundlage wegen Uneinbringlichkeit (in Kz 81, 86, 87, 35, 77 und 76 enthalten)",
+      "reference": "§ 17 Abs. 2 Nr. 1 Satz 1 UStG",
+      "tax": 0
+    },
+    {
+      "base": 0,
+      "code": "37",
+      "expectedTax": 0,
+      "hasBase": false,
+      "hasTax": true,
+      "label": "Minderung der abziehbaren Vorsteuerbeträge wegen Uneinbringlichkeit (in Kz 66, 63 und 59 enthalten)",
+      "reference": "§ 17 Abs. 2 Nr. 1 Satz 1 UStG",
+      "tax": 0
+    }
+  ],
+  "findings": [],
+  "fiscalYear": 2026,
+  "id": 0,
+  "isCorrection": false,
+  "lateEntries": [],
+  "payable": -491,
+  "periodFrom": "2026-03-01",
+  "periodKey": "2026-03",
+  "periodTo": "2026-03-31",
+  "periodType": "month",
+  "status": "draft"
+}

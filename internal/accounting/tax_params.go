@@ -3,6 +3,8 @@ package accounting
 import (
 	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -32,7 +34,11 @@ type TaxParameters struct {
 	SmallAmountInvoiceLimit domain.Cents
 
 	// CorporateTaxPermille ist der Körperschaftsteuersatz in Promille
-	// (150 = 15 %, § 23 Abs. 1 KStG).
+	// (150 = 15 %, § 23 Abs. 1 KStG). Er gilt je Veranlagungszeitraum und kommt
+	// aus corporateTaxRates; TaxParametersFor wählt ihn nach dem Kalenderjahr
+	// des Datums. Für die Körperschaftsteuer ist das Datum deshalb das Ende des
+	// Wirtschaftsjahres: dessen Gewinn gilt als in diesem Kalenderjahr bezogen
+	// (§ 7 Abs. 4 Satz 2 KStG).
 	CorporateTaxPermille int64
 	// SolidarityPermille ist der Solidaritätszuschlag auf die
 	// Körperschaftsteuer (55 = 5,5 %, § 4 SolZG).
@@ -44,6 +50,15 @@ type TaxParameters struct {
 	// WithholdingTaxPermille ist der Kapitalertragsteuersatz auf eine
 	// Ausschüttung (250 = 25 %, § 43a Abs. 1 Satz 1 Nr. 1 EStG).
 	WithholdingTaxPermille int64
+	// LossDeductionExcessPermille ist der Anteil des eine Million Euro
+	// übersteigenden Einkommens, bis zu dem ein Verlustvortrag abgezogen wird
+	// (§ 10d Abs. 2 Satz 1 EStG, für die GmbH über § 8 Abs. 1 KStG). Maßgeblich
+	// ist der Veranlagungszeitraum, also das Kalenderjahr, in dem das
+	// Wirtschaftsjahr endet (§ 7 Abs. 4 Satz 2 KStG).
+	LossDeductionExcessPermille int64
+	// TradeTaxMinRatePercent ist der Hebesatz, unter dem keine Gemeinde liegen
+	// darf (§ 16 Abs. 4 Satz 2 GewStG).
+	TradeTaxMinRatePercent int64
 
 	// GiftDeductibleLimit ist die Freigrenze für Geschenke an Personen, die
 	// nicht Arbeitnehmer sind (§ 4 Abs. 5 Satz 1 Nr. 1 EStG), je Empfänger und
@@ -76,14 +91,22 @@ type TaxParameters struct {
 	// aus dem Voranmeldungszeitraum ans Jahresende.
 	InputTaxCorrectionAnnualAmount domain.Cents
 
-	// NearAcquisitionPermille ist der Anteil der Gebäude-Anschaffungskosten, ab
-	// dem Instandsetzungs- und Modernisierungsaufwendungen der ersten drei Jahre
-	// zu anschaffungsnahen Herstellungskosten werden (§ 6 Abs. 1 Nr. 1a EStG:
-	// 15 %, netto gerechnet).
-	NearAcquisitionPermille int64
-	// NearAcquisitionYears ist der Zeitraum, über den dieser Aufwand summiert
-	// wird: drei Jahre nach der Anschaffung.
-	NearAcquisitionYears int
+	// LossDeductionBase ist der Betrag, bis zu dem ein Verlustvortrag das
+	// Einkommen und den Gewerbeertrag unbeschränkt mindert (§ 10d Abs. 2
+	// Satz 1 EStG, § 10a Satz 1 GewStG: 1 Mio. €).
+	LossDeductionBase domain.Cents
+	// TradeLossExcessPermille ist der Anteil des übersteigenden Gewerbeertrags,
+	// den Fehlbeträge aus Vorjahren kürzen (§ 10a Satz 2 GewStG: 60 %).
+	TradeLossExcessPermille int64
+	// ExemptIncomeNonDeductiblePermille ist der Teil der steuerfreien
+	// Beteiligungserträge, der als nicht abziehbare Betriebsausgabe gilt
+	// (§ 8b Abs. 3 Satz 1 und Abs. 5 Satz 1 KStG: 5 %).
+	ExemptIncomeNonDeductiblePermille int64
+	// DonationIncomePermille und DonationTurnoverPermille sind die beiden
+	// Höchstbeträge des Spendenabzugs (§ 9 Abs. 1 Satz 1 Nr. 2 KStG): 20 % des
+	// Einkommens oder 4 ‰ der Umsätze und Löhne; der höhere gilt.
+	DonationIncomePermille   int64
+	DonationTurnoverPermille int64
 }
 
 // taxParameterSets are ordered by ValidFrom, oldest first.
@@ -96,59 +119,93 @@ var taxParameterSets = []TaxParameters{
 		EntertainmentDeductiblePermille: 700,
 		// § 33 UStDV: 150 € until 2016, 250 € from 2017.
 		SmallAmountInvoiceLimit: 15000,
-		// Bis 2007 betrug der Körperschaftsteuersatz 25 % (§ 23 Abs. 1 KStG
-		// a. F.); die Unternehmensteuerreform 2008 hat ihn auf 15 % gesenkt und
-		// zugleich die Gewerbesteuer-Messzahl von 5 % auf 3,5 % vereinheitlicht.
-		CorporateTaxPermille:   250,
-		SolidarityPermille:     55,
-		TradeTaxBasePermille:   50,
-		WithholdingTaxPermille: 200,
-		GiftDeductibleLimit:    3500,
+		// Die Unternehmensteuerreform 2008 hat die Gewerbesteuer-Messzahl von
+		// 5 % auf 3,5 % vereinheitlicht.
+		SolidarityPermille:          55,
+		TradeTaxBasePermille:        50,
+		WithholdingTaxPermille:      200,
+		GiftDeductibleLimit:         3500,
+		LossDeductionExcessPermille: 600,
+		TradeTaxMinRatePercent:      200,
 	},
 	{
 		ValidFrom:                       "2008-01-01",
 		EntertainmentDeductiblePermille: 700,
 		SmallAmountInvoiceLimit:         15000,
-		CorporateTaxPermille:            150,
 		SolidarityPermille:              55,
 		TradeTaxBasePermille:            35,
 		// Die Abgeltungsteuer von 25 % gilt seit dem 1. Januar 2009
 		// (§ 43a Abs. 1 Satz 1 Nr. 1 EStG i. d. F. des UntStRefG 2008).
-		WithholdingTaxPermille: 200,
-		GiftDeductibleLimit:    3500,
+		WithholdingTaxPermille:      200,
+		GiftDeductibleLimit:         3500,
+		LossDeductionExcessPermille: 600,
+		TradeTaxMinRatePercent:      200,
 	},
 	{
 		ValidFrom:                       "2009-01-01",
 		EntertainmentDeductiblePermille: 700,
 		SmallAmountInvoiceLimit:         15000,
-		CorporateTaxPermille:            150,
 		SolidarityPermille:              55,
 		TradeTaxBasePermille:            35,
 		WithholdingTaxPermille:          250,
 		GiftDeductibleLimit:             3500,
+		LossDeductionExcessPermille:     600,
+		TradeTaxMinRatePercent:          200,
 	},
 	{
 		ValidFrom:                       "2017-01-01",
 		EntertainmentDeductiblePermille: 700,
 		SmallAmountInvoiceLimit:         25000,
-		CorporateTaxPermille:            150,
 		SolidarityPermille:              55,
 		TradeTaxBasePermille:            35,
 		WithholdingTaxPermille:          250,
 		GiftDeductibleLimit:             3500,
+		LossDeductionExcessPermille:     600,
+		TradeTaxMinRatePercent:          200,
 	},
 	{
 		// Das Wachstumschancengesetz hat die Freigrenze des § 4 Abs. 5 Satz 1
 		// Nr. 1 EStG für Wirtschaftsjahre, die nach dem 31.12.2023 beginnen, von
-		// 35 € auf 50 € angehoben. Alles andere blieb, wie es war.
+		// 35 € auf 50 € angehoben und den Verlustvortrag über eine Million Euro
+		// hinaus für die Veranlagungszeiträume 2024 bis 2027 von 60 % auf 70 %
+		// erweitert (Art. 2 Nr. 4, § 52 Abs. 18b Satz 3 EStG).
 		ValidFrom:                       "2024-01-01",
 		EntertainmentDeductiblePermille: 700,
 		SmallAmountInvoiceLimit:         25000,
-		CorporateTaxPermille:            150,
 		SolidarityPermille:              55,
 		TradeTaxBasePermille:            35,
 		WithholdingTaxPermille:          250,
 		GiftDeductibleLimit:             5000,
+		LossDeductionExcessPermille:     700,
+		TradeTaxMinRatePercent:          200,
+	},
+	{
+		// § 16 Abs. 4 Satz 2 GewStG: mindestens 280 % ab dem Erhebungszeitraum
+		// 2027 (§ 36 Abs. 5b GewStG).
+		ValidFrom:                       "2027-01-01",
+		EntertainmentDeductiblePermille: 700,
+		SmallAmountInvoiceLimit:         25000,
+		SolidarityPermille:              55,
+		TradeTaxBasePermille:            35,
+		WithholdingTaxPermille:          250,
+		GiftDeductibleLimit:             5000,
+		LossDeductionExcessPermille:     700,
+		TradeTaxMinRatePercent:          280,
+	},
+	{
+		// Der Verlustvortrag über eine Million Euro hinaus fällt ab dem
+		// Veranlagungszeitraum 2028 auf 60 % zurück (Art. 6
+		// Wachstumschancengesetz, § 52 Abs. 18b EStG). Den ab 2028 sinkenden
+		// Körperschaftsteuersatz führt corporateTaxRates.
+		ValidFrom:                       "2028-01-01",
+		EntertainmentDeductiblePermille: 700,
+		SmallAmountInvoiceLimit:         25000,
+		SolidarityPermille:              55,
+		TradeTaxBasePermille:            35,
+		WithholdingTaxPermille:          250,
+		GiftDeductibleLimit:             5000,
+		LossDeductionExcessPermille:     600,
+		TradeTaxMinRatePercent:          280,
 	},
 }
 
@@ -166,10 +223,14 @@ func withStableParameters(sets []TaxParameters) []TaxParameters {
 		sets[i].InputTaxCorrectionMinorPoints = 10
 		sets[i].InputTaxCorrectionMinorAmount = 100_000
 		sets[i].InputTaxCorrectionAnnualAmount = 600_000
-		// § 6 Abs. 1 Nr. 1a EStG, eingefügt durch das StÄndG 2003 und seither
-		// unverändert.
-		sets[i].NearAcquisitionPermille = 150
-		sets[i].NearAcquisitionYears = 3
+		// § 10d Abs. 2 EStG und § 10a GewStG in der seit 2004 geltenden
+		// Fassung, § 8b Abs. 3 und 5 KStG seit 2004, § 9 Abs. 1 Nr. 2 KStG seit
+		// 2007.
+		sets[i].LossDeductionBase = 100_000_000
+		sets[i].TradeLossExcessPermille = 600
+		sets[i].ExemptIncomeNonDeductiblePermille = 50
+		sets[i].DonationIncomePermille = 200
+		sets[i].DonationTurnoverPermille = 4
 	}
 	return sets
 }
@@ -187,7 +248,42 @@ func TaxParametersFor(date string) (TaxParameters, error) {
 	if idx == 0 {
 		return TaxParameters{}, fmt.Errorf("für den %s sind keine steuerlichen Werte hinterlegt", date)
 	}
-	return taxParameterSets[idx-1], nil
+	params := taxParameterSets[idx-1]
+	year, err := strconv.Atoi(date[:min(4, len(date))])
+	if err != nil {
+		return TaxParameters{}, fmt.Errorf("%q ist kein Datum", date)
+	}
+	if params.CorporateTaxPermille, err = CorporateTaxPermilleFor(year); err != nil {
+		return TaxParameters{}, err
+	}
+	return params, nil
+}
+
+// corporateTaxRates sind die Sätze des § 23 Abs. 1 KStG ab dem genannten
+// Veranlagungszeitraum, aufsteigend: bis 2007 25 % (a. F.), seit der
+// Unternehmensteuerreform 2008 15 % bis 2027, danach ein Punkt weniger je Jahr
+// bis 10 % ab 2032 (Abs. 1 Nr. 1 bis 6).
+var corporateTaxRates = []struct {
+	from     int
+	permille int64
+}{
+	{2007, 250},
+	{2008, 150},
+	{2028, 140},
+	{2029, 130},
+	{2030, 120},
+	{2031, 110},
+	{2032, 100},
+}
+
+// CorporateTaxPermilleFor liefert den Körperschaftsteuersatz eines
+// Veranlagungszeitraums in Promille.
+func CorporateTaxPermilleFor(year int) (int64, error) {
+	idx := sort.Search(len(corporateTaxRates), func(i int) bool { return corporateTaxRates[i].from > year })
+	if idx == 0 {
+		return 0, fmt.Errorf("für den Veranlagungszeitraum %d ist kein Körperschaftsteuersatz hinterlegt", year)
+	}
+	return corporateTaxRates[idx-1].permille, nil
 }
 
 // EInvoiceTransition says whether a sonstige Rechnung — paper or a plain PDF —
@@ -257,23 +353,17 @@ func EInvoiceIssueTransitionFor(documentDate string, priorYearRevenue domain.Cen
 	}
 }
 
-// BaseRatePeriod ist ein Basiszinssatz ab einem Stichtag.
+// BaseRatePeriod ist ein Basiszinssatz ab einem Stichtag. BasisPoints ist der
+// Satz in Hundertsteln eines Prozentpunktes: 127 sind 1,27 %.
 type BaseRatePeriod struct {
 	ValidFrom   string
 	BasisPoints int
 	Source      string
-	// Provisional markiert einen Wert, der fortgeschrieben und nicht aus der
-	// Bekanntgabe übernommen wurde.
-	Provisional bool
 }
 
 // defaultBaseRates ist die Tabelle des Basiszinssatzes nach § 247 BGB, wie die
-// Deutsche Bundesbank sie zum 1. Januar und zum 1. Juli bekannt gibt.
-//
-// Sie ist die Startbelegung der pflegbaren Tabelle und nicht die Wahrheit für
-// alle Zeit: der nächste Termin liegt immer in der Zukunft. Was hier steht, ist
-// bekanntgegeben; fortgeschriebene Werte setzen Provisional und erscheinen in
-// den Einstellungen als „zu prüfen".
+// Deutsche Bundesbank sie zum 1. Januar und zum 1. Juli bekannt gibt. Sie wird
+// mit jeder Bekanntgabe fortgeschrieben, aufsteigend nach Stichtag.
 //
 // Quelle: Deutsche Bundesbank, Basiszinssatz nach § 247 BGB
 // (bundesbank.de/de/bundesbank/organisation/agb-und-regelungen/basiszinssatz-607820),
@@ -290,15 +380,47 @@ var defaultBaseRates = []BaseRatePeriod{
 	{ValidFrom: "2026-07-01", BasisPoints: 152, Source: "Bundesbank, Bekanntgabe zum 1. Juli 2026"},
 }
 
-// DefaultBaseRates liefert die hinterlegte Tabelle als Kopie.
-//
-// Eine Kopie, weil der Dienst sie mit den gepflegten Sätzen des Mandanten
-// mischt: gäbe es die Scheibe unmittelbar heraus, änderte ein Aufrufer die
-// Vorgabe des Programms für alle anderen mit.
+// DefaultBaseRates liefert die hinterlegte Tabelle als Kopie, damit kein
+// Aufrufer die Vorgabe des Programms für alle anderen ändert.
 func DefaultBaseRates() []BaseRatePeriod {
 	out := make([]BaseRatePeriod, len(defaultBaseRates))
 	copy(out, defaultBaseRates)
 	return out
+}
+
+// InvestmentBaseRate ist der Basiszins eines Kalenderjahres für die
+// Vorabpauschale (§ 18 Abs. 4 InvStG) mit dem Schreiben, in dem das
+// Bundesministerium der Finanzen ihn bekanntgegeben hat.
+type InvestmentBaseRate struct {
+	Year        int    `json:"year"`
+	BasisPoints int    `json:"basisPoints"`
+	Source      string `json:"source"`
+}
+
+// investmentBaseRates führt nur Jahre, deren Bekanntgabe gelesen wurde.
+var investmentBaseRates = []InvestmentBaseRate{
+	{Year: 2024, BasisPoints: 229, Source: "BMF-Schreiben vom 5. Januar 2024, IV C 1 - S 1980-1/19/10038 :008, BStBl I S. 154"},
+	{Year: 2025, BasisPoints: 253, Source: "BMF-Schreiben vom 10. Januar 2025, IV C 1 - S 1980/00230/009/002, BStBl I S. 273"},
+	{Year: 2026, BasisPoints: 320, Source: "BMF-Schreiben vom 13. Januar 2026, IV C 1 - S 1980/00230/012/001"},
+}
+
+// InvestmentBaseRateFor liefert den Basiszins eines Kalenderjahres, wenn er
+// hinterlegt ist.
+func InvestmentBaseRateFor(year int) (InvestmentBaseRate, bool) {
+	for _, r := range investmentBaseRates {
+		if r.Year == year {
+			return r, true
+		}
+	}
+	return InvestmentBaseRate{}, false
+}
+
+func investmentBaseRateYears() string {
+	years := make([]string, 0, len(investmentBaseRates))
+	for _, r := range investmentBaseRates {
+		years = append(years, fmt.Sprintf("%d", r.Year))
+	}
+	return strings.Join(years, ", ")
 }
 
 // VatRatePeriod ist das Paar aus Regel- und ermäßigtem Steuersatz, das ab

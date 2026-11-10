@@ -24,6 +24,9 @@ import (
 
 // AdvanceGroupRequest legt einen Rechnungsverbund an.
 type AdvanceGroupRequest struct {
+	// Date ist der Tag des Auftrags; er bestimmt das Geschäftsjahr des
+	// Verbunds. Leer heißt heute.
+	Date      string         `json:"date,omitempty"`
 	ContactID uint           `json:"contactId"`
 	Title     string         `json:"title"`
 	TotalNet  domain.Cents   `json:"totalNet"`
@@ -105,27 +108,34 @@ func (s *InvoiceService) CreateInvoiceGroup(ctx context.Context, req AdvanceGrou
 	if _, err := accounting.AdvanceAccountFor(req.TaxRate); err != nil {
 		return nil, err
 	}
+	date := req.Date
+	if date == "" {
+		date = s.today()
+	}
+	if err := domain.CheckDate("Auftragsdatum", date); err != nil {
+		return nil, err
+	}
 
 	group := &domain.InvoiceGroup{
-		FiscalYear: s.postingSvc.journalSvc.FiscalYear(),
+		FiscalYear: s.postingSvc.journalSvc.FiscalYearOf(ctx, date),
 		ContactID:  req.ContactID,
 		Title:      req.Title,
 		TotalNet:   req.TotalNet,
 		TaxRate:    req.TaxRate,
 	}
-	if err := s.groupRepo.Save(ctx, group); err != nil {
-		return nil, err
-	}
-	// Der Verbund wird protokolliert wie jeder fachliche Schritt: Gesamtbetrag
-	// und Steuersatz sind die Bemessungsgrundlage der Schlussrechnung und die
-	// Obergrenze der Abschläge — wer sie später anders vorfindet, muss sehen
-	// können, womit begonnen wurde.
-	if s.auditRepo != nil {
-		_ = s.auditRepo.Log(ctx, domain.AuditActionCreate, "INVOICE_GROUP", fmt.Sprintf("%d", group.ID),
+	return atomically(ctx, s.postingSvc.journalSvc, func(ctx context.Context) (*domain.InvoiceGroup, error) {
+		if err := s.groupRepo.Save(ctx, group); err != nil {
+			return nil, err
+		}
+		// Gesamtbetrag und Steuersatz sind die Bemessungsgrundlage der
+		// Schlussrechnung und die Obergrenze der Abschläge.
+		if err := logAudit(ctx, s.auditRepo, domain.AuditActionCreate, "INVOICE_GROUP", fmt.Sprintf("%d", group.ID),
 			fmt.Sprintf("Rechnungsverbund %q für %s angelegt: Gesamtbetrag %s € netto, %s",
-				group.Title, contact.Name, group.TotalNet, group.TaxRate.Label()))
-	}
-	return s.groupRepo.FindByID(ctx, group.ID)
+				group.Title, contact.Name, group.TotalNet, group.TaxRate.Label())); err != nil {
+			return nil, err
+		}
+		return s.groupRepo.FindByID(ctx, group.ID)
+	})
 }
 
 // IssueAdvanceInvoice stellt eine Abschlagsrechnung aus.
@@ -168,14 +178,10 @@ func (s *InvoiceService) IssueAdvanceInvoice(ctx context.Context, req AdvanceInv
 			TaxRate:       group.TaxRate,
 		}},
 	}
-	// Der offene Posten entsteht innerhalb der Nummernklammer und nicht hinter
-	// der Dokumenterzeugung.
-	//
-	// Scheitert das Dokument, bleibt die Abschlagsrechnung mit Nummer im Zustand
-	// „Dokument fehlt" stehen und lässt sich nachholen — der offene Posten muss
-	// dann schon da sein. Stünde er dahinter, gäbe es die Rechnung ohne ihn:
-	// sie fehlte in der OP-Liste, ließe sich nicht vereinnahmen und zählte
-	// weder gegen den Gesamtbetrag noch in die Verrechnung der Schlussrechnung.
+	// Der offene Posten entsteht in derselben Transaktion wie die Rechnung:
+	// ohne ihn fehlte sie in der OP-Liste, ließe sich nicht vereinnahmen und
+	// zählte weder gegen den Gesamtbetrag noch in die Verrechnung der
+	// Schlussrechnung.
 	advance := &domain.AdvanceItem{
 		GroupID:   group.ID,
 		ContactID: group.ContactID,
@@ -197,6 +203,12 @@ func (s *InvoiceService) IssueAdvanceInvoice(ctx context.Context, req AdvanceInv
 // Voranmeldungszeitraum folgt dem Zahlungsdatum — siehe
 // accounting.VatPeriodFor.
 func (s *InvoiceService) SettleAdvance(ctx context.Context, req SettleAdvanceRequest) (*domain.AdvanceItem, error) {
+	return atomically(ctx, s.postingSvc.journalSvc, func(ctx context.Context) (*domain.AdvanceItem, error) {
+		return s.settleAdvance(ctx, req)
+	})
+}
+
+func (s *InvoiceService) settleAdvance(ctx context.Context, req SettleAdvanceRequest) (*domain.AdvanceItem, error) {
 	if s.groupRepo == nil {
 		return nil, fmt.Errorf("der Rechnungsverbund ist nicht eingerichtet")
 	}
@@ -255,61 +267,35 @@ func (s *InvoiceService) SettleAdvance(ctx context.Context, req SettleAdvanceReq
 	if err != nil {
 		return nil, fmt.Errorf("Auftraggeber konnte nicht geladen werden: %w", err)
 	}
-	// Buchung, Vermerk und die Zuordnung des Bankumsatzes gehören in eine
-	// Transaktion.
-	//
-	// Scheiterte der Vermerk hinter der Buchung, stünde die Vereinnahmung im
-	// Journal, während der Abschlag weiter als offen gälte — und der zweite
-	// Versuch buchte sie ein zweites Mal, mit der Steuer. Für den Bankumsatz
-	// gilt dasselbe von der anderen Seite: bliebe er unzugeordnet, böte ihn der
-	// Import weiter an.
-	var entry *domain.JournalEntry
-	if err := s.runInTx(ctx, func(ctx context.Context) error {
-		posted, err := s.postingSvc.PostAdvanceSettlement(
-			ctx, advance, contact, req.PaymentDate, account, req.BankTxID)
-		if err != nil {
-			return err
-		}
-		entry = posted
-		advance.SettledAt = req.PaymentDate
-		advance.SettlementEntryID = &posted.ID
-		if err := s.groupRepo.SaveAdvance(ctx, advance); err != nil {
-			return err
-		}
-		if bankTx == nil {
-			return nil
-		}
-		if err := s.bankRepo.SetMatchStatus(ctx, bankTx.ID, domain.MatchStatusMatched); err != nil {
-			return fmt.Errorf("der Bankumsatz konnte nicht als zugeordnet markiert werden: %w", err)
-		}
-		return nil
-	}); err != nil {
-		advance.SettledAt = ""
-		advance.SettlementEntryID = nil
+	// Buchung, Vermerk am Abschlag, Zuordnung des Bankumsatzes, Siegel des
+	// Belegs der Abschlagsrechnung und Protokoll stehen in einer Transaktion.
+	// Der Beleg bekommt erst jetzt seine Buchung: bis hierhin gab es nichts
+	// zu buchen.
+	entry, err := s.postingSvc.PostAdvanceSettlement(
+		ctx, advance, contact, req.PaymentDate, account, req.BankTxID, inv.ReceiptID)
+	if err != nil {
 		return nil, err
 	}
-	// Erst jetzt bekommt der Beleg der Abschlagsrechnung seine Buchung. Bis
-	// hierhin war er abgelegt und ungebucht — richtig, denn es gab nichts zu
-	// buchen; ab hier gibt es sie, und ohne das Siegel meldete der Prüflauf
-	// einen abgelegten, nicht gebuchten Beleg (GoBD Rz. 47) und sperrte die
-	// Festschreibung.
+	advance.SettledAt = req.PaymentDate
+	advance.SettlementEntryID = &entry.ID
+	if err := s.groupRepo.SaveAdvance(ctx, advance); err != nil {
+		return nil, err
+	}
+	if bankTx != nil {
+		if err := s.bankRepo.SetMatchStatus(ctx, bankTx.ID, domain.MatchStatusMatched); err != nil {
+			return nil, fmt.Errorf("der Bankumsatz konnte nicht als zugeordnet markiert werden: %w", err)
+		}
+	}
 	if err := s.sealInvoiceReceipt(ctx, inv, entry.ID); err != nil {
 		return nil, err
 	}
-	// Der Vereinnahmungszeitpunkt wird hier nicht mehr an die Rechnung
-	// geschrieben.
-	//
-	// Er stünde sonst am Datensatz einer Rechnung, deren Dokument längst als
-	// Beleg abgelegt ist und ihn nicht hat: ein erneutes Rendern ergäbe ein
-	// anderes XML als das archivierte, und nach einer Rückzahlung bliebe er
-	// stehen und erschiene auf dem Stornodokument. § 14 Abs. 4 Nr. 6 UStG
-	// verlangt die Angabe ohnehin nur, wenn sie beim Ausstellen feststeht —
-	// dann kommt sie aus AdvanceInvoiceRequest. Geführt wird die Vereinnahmung
-	// am Abschlag (AdvanceItem.SettledAt), und von dort zeigt sie die
-	// Oberfläche an.
-	s.log(ctx, domain.AuditActionCreate, inv, fmt.Sprintf(
+	// Der Vereinnahmungszeitpunkt steht am Abschlag (AdvanceItem.SettledAt) und
+	// nicht an der Rechnung: deren Dokument ist abgelegt und hat ihn nicht.
+	if err := s.log(ctx, domain.AuditActionCreate, inv, fmt.Sprintf(
 		"Anzahlung zu %s über %s € am %s vereinnahmt und als %s gebucht",
-		advance.InvoiceNumber, advance.GrossAmount, domain.GermanDate(req.PaymentDate), entry.EntryNumber))
+		advance.InvoiceNumber, advance.GrossAmount, domain.GermanDate(req.PaymentDate), entry.EntryNumber)); err != nil {
+		return nil, err
+	}
 	return advance, nil
 }
 
@@ -357,17 +343,14 @@ func (s *InvoiceService) bankTxForSettlement(
 
 // sealInvoiceReceipt versiegelt den Beleg einer Rechnung auf ihre Buchung.
 //
-// Der Weg ist derselbe wie in attachDocument, nur nachgelagert: bei einer
-// Abschlagsrechnung entsteht die Buchung erst mit der Vereinnahmung, und bis
-// dahin gibt es nichts, worauf zu versiegeln wäre.
+// Bei einer Abschlagsrechnung entsteht die Buchung erst mit der Vereinnahmung,
+// und bis dahin gibt es nichts, worauf zu versiegeln wäre.
 func (s *InvoiceService) sealInvoiceReceipt(ctx context.Context, inv *domain.Invoice, entryID uint) error {
 	if s.receiptSvc == nil || inv.ReceiptID == nil {
 		return nil
 	}
 	if err := s.receiptSvc.Seal(ctx, *inv.ReceiptID, entryID); err != nil {
-		return fmt.Errorf(
-			"die Buchung zu %s steht, der Beleg konnte aber nicht auf sie versiegelt werden: %w",
-			inv.InvoiceNumber, err)
+		return fmt.Errorf("der Beleg zu %s ließ sich nicht versiegeln: %w", inv.InvoiceNumber, err)
 	}
 	return nil
 }
@@ -393,6 +376,12 @@ type RefundAdvanceRequest struct {
 // Umsatzsteuer an HABEN Zahlungsmittel — im Zeitraum der Rückzahlung
 // (§ 17 Abs. 1 Satz 8 UStG).
 func (s *InvoiceService) RefundAdvance(ctx context.Context, req RefundAdvanceRequest) (*domain.AdvanceItem, error) {
+	return atomically(ctx, s.postingSvc.journalSvc, func(ctx context.Context) (*domain.AdvanceItem, error) {
+		return s.refundAdvance(ctx, req)
+	})
+}
+
+func (s *InvoiceService) refundAdvance(ctx context.Context, req RefundAdvanceRequest) (*domain.AdvanceItem, error) {
 	if s.groupRepo == nil {
 		return nil, fmt.Errorf("der Rechnungsverbund ist nicht eingerichtet")
 	}
@@ -432,28 +421,23 @@ func (s *InvoiceService) RefundAdvance(ctx context.Context, req RefundAdvanceReq
 	if err != nil {
 		return nil, fmt.Errorf("Auftraggeber konnte nicht geladen werden: %w", err)
 	}
-	// Buchung und Vermerk gehören auch hier in eine Transaktion: bliebe der
-	// Vermerk aus, gälte die Anzahlung weiter als vereinnahmt, und der zweite
-	// Versuch buchte die Rückzahlung samt Steuerkorrektur ein zweites Mal.
-	settledAt, entryID := advance.SettledAt, advance.SettlementEntryID
-	if err := s.runInTx(ctx, func(ctx context.Context) error {
-		if _, err := s.postingSvc.PostAdvanceRefund(
-			ctx, advance, contact, req.RefundDate, account, req.Reason); err != nil {
-			return err
-		}
-		// Die Anzahlung ist damit nicht mehr vereinnahmt: sie fällt aus der
-		// Verrechnung der Schlussrechnung heraus und steht wieder als offener
-		// Posten, bis die Abschlagsrechnung storniert ist.
-		advance.SettledAt = ""
-		advance.SettlementEntryID = nil
-		return s.groupRepo.SaveAdvance(ctx, advance)
-	}); err != nil {
-		advance.SettledAt, advance.SettlementEntryID = settledAt, entryID
+	if _, err := s.postingSvc.PostAdvanceRefund(
+		ctx, advance, contact, req.RefundDate, account, req.Reason); err != nil {
 		return nil, err
 	}
-	s.log(ctx, domain.AuditActionUpdate, inv, fmt.Sprintf(
+	// Die Anzahlung ist damit nicht mehr vereinnahmt: sie fällt aus der
+	// Verrechnung der Schlussrechnung heraus und steht wieder als offener
+	// Posten, bis die Abschlagsrechnung storniert ist.
+	advance.SettledAt = ""
+	advance.SettlementEntryID = nil
+	if err := s.groupRepo.SaveAdvance(ctx, advance); err != nil {
+		return nil, err
+	}
+	if err := s.log(ctx, domain.AuditActionUpdate, inv, fmt.Sprintf(
 		"Anzahlung zu %s über %s € am %s zurückgezahlt: %s",
-		advance.InvoiceNumber, advance.GrossAmount, domain.GermanDate(req.RefundDate), req.Reason))
+		advance.InvoiceNumber, advance.GrossAmount, domain.GermanDate(req.RefundDate), req.Reason)); err != nil {
+		return nil, err
+	}
 	return advance, nil
 }
 
@@ -485,7 +469,7 @@ func (s *InvoiceService) IssueFinalInvoice(ctx context.Context, req FinalInvoice
 	if open := openAdvancesOf(group); len(open) > 0 {
 		return nil, fmt.Errorf(
 			"der Verbund %q hat noch offene Abschlagsrechnungen: %s. "+
-				"Vereinnahme sie oder storniere sie, bevor die Schlussrechnung entsteht — sonst stünden "+
+				"Sie sind zu vereinnahmen oder zu stornieren, bevor die Schlussrechnung entsteht — sonst stünden "+
 				"sie als offene Posten neben ihr", group.Title, strings.Join(open, ", "))
 	}
 
@@ -557,39 +541,9 @@ func (s *InvoiceService) issueFinal(
 			inv.PrepaidAmount, inv.GrossAmount)
 	}
 
-	format := s.numberFormat(ctx)
-	var allocated int64
-	err = s.runInTx(ctx, func(ctx context.Context) error {
-		seq, err := s.numberRepo.Allocate(ctx, domain.NumberRangeInvoice, inv.FiscalYear)
-		if err != nil {
-			return fmt.Errorf("Rechnungsnummer konnte nicht vergeben werden: %w", err)
-		}
-		allocated = seq
-		inv.InvoiceNumber = domain.FormatInvoiceNumberWith(format, inv.FiscalYear, seq)
-		inv.Status = domain.InvoiceStatusPendingDocument
-		if err := s.invoiceRepo.Save(ctx, inv); err != nil {
-			return err
-		}
-		entry, err := s.postingSvc.PostFinalInvoice(ctx, inv, contact, advances)
-		if err != nil {
-			return err
-		}
-		inv.JournalEntryID = &entry.ID
-		if err := s.invoiceRepo.Save(ctx, inv); err != nil {
-			return err
-		}
-		return runWithin(ctx, within)
-	})
-	if err != nil {
-		s.recordNumberGap(ctx, inv, allocated, err)
-		resetAfterRollback(inv, allocated)
-		return err
-	}
-	if err := s.attachDocument(ctx, inv, contact); err != nil {
-		return err
-	}
-	s.logIssued(ctx, inv)
-	return nil
+	return s.issueDocument(ctx, inv, contact, func(ctx context.Context) (*domain.JournalEntry, error) {
+		return s.postingSvc.PostFinalInvoice(ctx, inv, contact, advances)
+	}, within)
 }
 
 // OpenAdvanceItems liefert die ausgestellten, noch nicht vereinnahmten

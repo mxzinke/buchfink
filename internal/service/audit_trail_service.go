@@ -2,14 +2,10 @@ package service
 
 import (
 	"context"
-	"encoding/csv"
 	"fmt"
-	"os"
 	"strings"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
-	"github.com/buchfink/buchfink/internal/procdoc"
 )
 
 // Der Prüfpfad eines Belegs (RECH-08).
@@ -72,7 +68,6 @@ type AuditTrailService struct {
 	allocationRepo domain.PaymentAllocationRepository
 	bankRepo       domain.BankRepository
 	auditRepo      domain.AuditRepository
-	renderer       DocumentRenderer
 }
 
 // NewAuditTrailService wires the Prüfpfad.
@@ -88,9 +83,6 @@ func NewAuditTrailService(
 		allocationRepo: allocationRepo, bankRepo: bankRepo, auditRepo: auditRepo,
 	}
 }
-
-// SetRenderer hängt den Dokumentensetzer für die PDF-Ausgabe an.
-func (s *AuditTrailService) SetRenderer(r DocumentRenderer) { s.renderer = r }
 
 // Trail baut den Prüfpfad eines Belegs.
 func (s *AuditTrailService) Trail(ctx context.Context, receiptID uint) (*AuditTrail, error) {
@@ -192,101 +184,4 @@ func entryAmount(entry *domain.JournalEntry) domain.Cents {
 		}
 	}
 	return sum
-}
-
-// ExportCSV schreibt den Prüfpfad als CSV und liefert den Pfad.
-func (s *AuditTrailService) ExportCSV(ctx context.Context, receiptID uint, path string) (string, error) {
-	trail, err := s.Trail(ctx, receiptID)
-	if err != nil {
-		return "", err
-	}
-	file, err := os.Create(path)
-	if err != nil {
-		return "", fmt.Errorf("die Datei %s konnte nicht angelegt werden: %w", path, err)
-	}
-	defer file.Close()
-
-	writer := csv.NewWriter(file)
-	// Semikolon wie in den übrigen Ausgaben: die Tabellenkalkulation im
-	// deutschsprachigen Raum erwartet es, und ein Komma trennt hier die
-	// Nachkommastellen.
-	writer.Comma = ';'
-	rows := [][]string{
-		{"Stufe", "Bezeichnung", "Datum", "Beleg_oder_Nummer", "Betrag", "Erläuterung"},
-	}
-	for _, step := range trail.Steps {
-		rows = append(rows, []string{
-			string(step.Stage), step.Title, step.Date, step.Reference,
-			step.Amount.Decimal(), step.Detail,
-		})
-	}
-	if err := writer.WriteAll(rows); err != nil {
-		return "", fmt.Errorf("der Prüfpfad konnte nicht geschrieben werden: %w", err)
-	}
-	writer.Flush()
-	if err := writer.Error(); err != nil {
-		return "", err
-	}
-	s.log(ctx, trail, path)
-	return path, nil
-}
-
-// ExportPDF setzt den Prüfpfad als PDF und liefert den Pfad.
-func (s *AuditTrailService) ExportPDF(ctx context.Context, receiptID uint, path string) (string, error) {
-	if s.renderer == nil {
-		return "", fmt.Errorf("der Dokumentensetzer ist nicht verfügbar; der Prüfpfad lässt sich als CSV ausgeben")
-	}
-	trail, err := s.Trail(ctx, receiptID)
-	if err != nil {
-		return "", err
-	}
-	title := fmt.Sprintf("Prüfpfad zu Beleg %s", trail.ReceiptNumber)
-	pdf, err := s.renderer.RenderDocumentPDF(ctx,
-		procdoc.Typst(auditTrailMarkdown(trail), title, time.Now()), title)
-	if err != nil {
-		return "", fmt.Errorf("der Prüfpfad konnte nicht gesetzt werden: %w", err)
-	}
-	if err := os.WriteFile(path, pdf, 0o644); err != nil {
-		return "", fmt.Errorf("die Datei %s konnte nicht geschrieben werden: %w", path, err)
-	}
-	s.log(ctx, trail, path)
-	return path, nil
-}
-
-// auditTrailMarkdown schreibt den Prüfpfad als Text.
-func auditTrailMarkdown(trail *AuditTrail) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "# Prüfpfad zu Beleg %s\n\n", trail.ReceiptNumber)
-	fmt.Fprintf(&b, "Aussteller: %s\n\n", orDash(trail.IssuerName))
-	fmt.Fprintf(&b, "Belegdatum: %s, Bruttobetrag %s €\n\n",
-		germanDate(trail.DocumentDate), trail.GrossAmount)
-	if trail.OrderReference != "" {
-		fmt.Fprintf(&b, "Bestellbezug: %s\n\n", trail.OrderReference)
-	}
-	if trail.ServiceProof != "" {
-		fmt.Fprintf(&b, "Leistungsnachweis (%s): %s\n\n",
-			germanDate(trail.ServiceProofAt), trail.ServiceProof)
-	}
-
-	b.WriteString("| Stufe | Datum | Nummer | Betrag | Erläuterung |\n")
-	b.WriteString("|---|---|---|---|---|\n")
-	for _, step := range trail.Steps {
-		fmt.Fprintf(&b, "| %s | %s | %s | %s € | %s |\n",
-			step.Title, germanDate(step.Date), orDash(step.Reference), step.Amount, orDash(step.Detail))
-	}
-	b.WriteString("\n")
-	if trail.Note != "" {
-		fmt.Fprintf(&b, "%s\n", trail.Note)
-	}
-	return b.String()
-}
-
-func (s *AuditTrailService) log(ctx context.Context, trail *AuditTrail, path string) {
-	if s.auditRepo == nil {
-		return
-	}
-	_ = s.auditRepo.Log(ctx, domain.AuditActionExport, "RECEIPT",
-		fmt.Sprintf("%d", trail.ReceiptID),
-		fmt.Sprintf("Prüfpfad zu Beleg %s ausgegeben (%d Stufen) nach %s",
-			trail.ReceiptNumber, len(trail.Steps), path))
 }

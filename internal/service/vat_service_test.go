@@ -8,7 +8,7 @@ import (
 )
 
 func (e *testEnv) vat() *VatService {
-	return NewVatService(e.journalRepo, e.fiscalYear)
+	return NewVatService(e.journalRepo)
 }
 
 // Die Zahllast folgt aus den Steuerzeilen des Journals, nicht aus einer
@@ -37,7 +37,7 @@ func TestVatSummaryFromJournal(t *testing.T) {
 		t.Fatalf("Eingangsbeleg: %v", err)
 	}
 
-	summary, err := env.vat().Summary(ctx, "", "")
+	summary, err := env.vat().Summary(ctx, 2026, "", "")
 	if err != nil {
 		t.Fatalf("USt-Auswertung: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestVatSummaryCountsReverseChargeOnBothSides(t *testing.T) {
 		t.Fatalf("§ 13b-Beleg: %v", err)
 	}
 
-	summary, err := env.vat().Summary(ctx, "", "")
+	summary, err := env.vat().Summary(ctx, 2026, "", "")
 	if err != nil {
 		t.Fatalf("USt-Auswertung: %v", err)
 	}
@@ -105,11 +105,11 @@ func TestVatSummaryNetsOutReversals(t *testing.T) {
 	if err := invoices.Issue(ctx, inv); err != nil {
 		t.Fatalf("Rechnung: %v", err)
 	}
-	if err := invoices.Cancel(ctx, inv.ID, "Leistung nicht erbracht"); err != nil {
+	if _, err := invoices.CancelWithDocument(ctx, inv.ID, "Leistung nicht erbracht"); err != nil {
 		t.Fatalf("Storno: %v", err)
 	}
 
-	summary, err := env.vat().Summary(ctx, "", "")
+	summary, err := env.vat().Summary(ctx, 2026, "", "")
 	if err != nil {
 		t.Fatalf("USt-Auswertung: %v", err)
 	}
@@ -143,7 +143,7 @@ func TestVatSummaryRespectsPeriod(t *testing.T) {
 		t.Fatalf("April-Beleg: %v", err)
 	}
 
-	q1, err := env.vat().Summary(ctx, "2026-01-01", "2026-03-31")
+	q1, err := env.vat().Summary(ctx, 2026, "2026-01-01", "2026-03-31")
 	if err != nil {
 		t.Fatalf("Q1: %v", err)
 	}
@@ -151,7 +151,7 @@ func TestVatSummaryRespectsPeriod(t *testing.T) {
 		t.Errorf("Vorsteuer Q1 = %s, erwartet 190,00", q1.InputTax)
 	}
 
-	year, _ := env.vat().Summary(ctx, "", "")
+	year, _ := env.vat().Summary(ctx, 2026, "", "")
 	if year.InputTax != 28500 {
 		t.Errorf("Vorsteuer Gesamtjahr = %s, erwartet 285,00", year.InputTax)
 	}
@@ -159,14 +159,14 @@ func TestVatSummaryRespectsPeriod(t *testing.T) {
 	// Beide Grenzen zählen mit. Ein Zeitraum, der den ersten oder letzten Tag
 	// ausschlösse, ließe genau die Buchungen fallen, die am Rand einer
 	// Voranmeldung liegen — und niemandem fiele es auf.
-	edges, err := env.vat().Summary(ctx, "2026-01-15", "2026-04-15")
+	edges, err := env.vat().Summary(ctx, 2026, "2026-01-15", "2026-04-15")
 	if err != nil {
 		t.Fatalf("Randzeitraum: %v", err)
 	}
 	if edges.InputTax != 28500 {
 		t.Errorf("Vorsteuer 15.01.–15.04. = %s, erwartet 285,00 (beide Tage einschließlich)", edges.InputTax)
 	}
-	empty, err := env.vat().Summary(ctx, "2026-01-16", "2026-04-14")
+	empty, err := env.vat().Summary(ctx, 2026, "2026-01-16", "2026-04-14")
 	if err != nil {
 		t.Fatalf("Zeitraum ohne Buchungen: %v", err)
 	}
@@ -186,7 +186,7 @@ func TestExemptOtherIncomeReachesTheSummary(t *testing.T) {
 		t.Fatalf("Buchung: %v", err)
 	}
 
-	summary, err := NewVatService(env.journalRepo, env.fiscalYear).Summary(ctx, "", "")
+	summary, err := NewVatService(env.journalRepo).Summary(ctx, 2026, "", "")
 	if err != nil {
 		t.Fatalf("USt-Auswertung: %v", err)
 	}

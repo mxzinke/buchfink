@@ -24,26 +24,17 @@ import (
 // Und er rät nie. Fehlt ein Kurs und ist das Netz nicht da, kommt ein Fehler und
 // kein Wert; der Anwender trägt den Kurs mit seiner Quelle ein.
 type CurrencyService struct {
+	auditor[string]
 	rates      domain.ExchangeRateRepository
 	fetcher    domain.CurrencyFetcher
 	journal    domain.JournalRepository
-	auditLog   domain.AuditRepository
 	openItems  openItemSource
 	journalSvc *JournalService
-	closingSvc *ClosingService
+	periods    PeriodSource
 	// storedOnly schaltet den Dienst auf reines Lesen: kein Abruf beim
 	// Kursdienst, kein Speichern. Für den Prüfermodus — siehe ReadOnly.
 	storedOnly bool
 }
-
-// SettingExchangeRateEndpoint ist der Schlüssel der einstellbaren Adresse des
-// Kursdienstes — das Gegenstück zu SettingVatIDEndpoint.
-//
-// Als Konstante und nicht als Zeichenkette an der einen Stelle, an der sie
-// gelesen wird: die Oberfläche stellt beide Adressen ein, und ein Schlüssel, den
-// sie raten muss, geht irgendwann an der Einstellung vorbei — ohne dass es
-// jemandem auffiele, weil ein fehlender Wert die Voreinstellung bedeutet.
-const SettingExchangeRateEndpoint = "exchange_rate_endpoint"
 
 // ReadOnly liefert denselben Dienst, der keinen Kurs mehr holt und keinen mehr
 // speichert.
@@ -68,7 +59,7 @@ func NewCurrencyService(
 	fetcher domain.CurrencyFetcher,
 	auditLog domain.AuditRepository,
 ) *CurrencyService {
-	return &CurrencyService{rates: rates, fetcher: fetcher, auditLog: auditLog}
+	return &CurrencyService{rates: rates, fetcher: fetcher, auditor: auditor[string]{auditRepo: auditLog, entity: "CURRENCY"}}
 }
 
 // SetJournalRepo gibt dem Dienst das Journal für die Stichtagsbewertung.
@@ -116,9 +107,15 @@ func (s *CurrencyService) RateAt(ctx context.Context, currency, date string) (*d
 				return nil, fmt.Errorf("der Kurs ließ sich nicht speichern: %w", err)
 			}
 			if actual != "" && actual != date {
-				_ = s.rates.SaveRate(ctx, &domain.ExchangeRate{
+				if err := s.rates.SaveRate(ctx, &domain.ExchangeRate{
 					Currency: currency, Date: actual, RateMicros: micros, Source: source,
-				})
+				}); err != nil {
+					return nil, fmt.Errorf("der Kurs ließ sich nicht speichern: %w", err)
+				}
+			}
+			// Kam ein von Hand erfasster Kurs desselben Tages zuvor, gilt er.
+			if stored, err := s.rates.FindRate(ctx, currency, date); err == nil && stored != nil {
+				return stored, nil
 			}
 			return rate, nil
 		}
@@ -143,8 +140,8 @@ func (s *CurrencyService) RateAt(ctx context.Context, currency, date string) (*d
 			currency, date)
 	}
 	return nil, fmt.Errorf(
-		"für %s liegt zum %s kein Kurs vor und es ist kein Kursdienst eingerichtet. Trage den Kurs "+
-			"mit seiner Quelle von Hand ein — Buchfink rät keinen", currency, date)
+		"für %s liegt zum %s kein Kurs vor und es ist kein Kursdienst eingerichtet. Der Kurs ist "+
+			"mit seiner Quelle von Hand einzutragen — Buchfink rät keinen", currency, date)
 }
 
 // SaveRate nimmt einen von Hand erfassten Kurs auf.
@@ -165,9 +162,11 @@ func (s *CurrencyService) SaveRate(ctx context.Context, rate domain.ExchangeRate
 	if err := s.rates.SaveRate(ctx, &rate); err != nil {
 		return nil, fmt.Errorf("der Kurs ließ sich nicht speichern: %w", err)
 	}
-	s.audit(ctx, domain.AuditActionCreate, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionCreate, "", fmt.Sprintf(
 		"Kurs %s zum %s von Hand erfasst: %.6f (%s)",
-		rate.Currency, rate.Date, rate.Rate(), rate.Source))
+		rate.Currency, rate.Date, rate.Rate(), rate.Source)); err != nil {
+		return nil, err
+	}
 	return &rate, nil
 }
 
@@ -185,9 +184,8 @@ func (s *CurrencyService) Rates(ctx context.Context, currency, from, to string) 
 
 // VatRateFor liefert den Durchschnittskurs eines Monats oder nil.
 //
-// Nil ist ein gültiges Ergebnis und kein Fehler: liegt kein amtlicher
-// Durchschnittskurs vor, wird nach § 16 Abs. 6 Satz 1 UStG mit dem Tageskurs
-// gerechnet. Der Aufrufer sagt das dann dazu.
+// Nil ist ein gültiges Ergebnis und kein Fehler: ist kein Kurs erfasst,
+// rechnet Convert mit dem Tageskurs und sagt das dazu.
 func (s *CurrencyService) VatRateFor(ctx context.Context, currency, date string) (*domain.VatExchangeRate, error) {
 	if s.rates == nil {
 		return nil, nil
@@ -207,24 +205,6 @@ func (s *CurrencyService) VatRates(ctx context.Context, from, to string) ([]doma
 	return s.rates.FindVatRates(ctx, from, to)
 }
 
-// SaveVatRate nimmt einen Durchschnittskurs auf.
-func (s *CurrencyService) SaveVatRate(ctx context.Context, rate domain.VatExchangeRate) (*domain.VatExchangeRate, error) {
-	if s.rates == nil {
-		return nil, fmt.Errorf("die Kurstabelle ist nicht eingerichtet")
-	}
-	rate.Currency = strings.ToUpper(strings.TrimSpace(rate.Currency))
-	if strings.TrimSpace(rate.Source) == "" {
-		rate.Source = "BMF-Umsatzsteuer-Umrechnungskurse"
-	}
-	if err := rate.Validate(); err != nil {
-		return nil, err
-	}
-	if err := s.rates.SaveVatRate(ctx, &rate); err != nil {
-		return nil, fmt.Errorf("der Durchschnittskurs ließ sich nicht speichern: %w", err)
-	}
-	return &rate, nil
-}
-
 // VatRateImport ist das Ergebnis eines CSV-Imports.
 type VatRateImport struct {
 	Imported int      `json:"imported"`
@@ -233,9 +213,11 @@ type VatRateImport struct {
 }
 
 // ImportVatRatesCSV liest die Umsatzsteuer-Umrechnungskurse aus einer CSV-Datei.
+// Der Mensch liest sie in der App ein (Einstellungen › Erweitert); ein Kurs
+// ersetzt den gespeicherten derselben Währung und desselben Monats.
 //
-// Erwartet werden drei Spalten: Monat (JJJJ-MM), Währung, Kurs. Eine Kopfzeile
-// wird erkannt und übergangen. Das Format ist absichtlich das einfachste
+// Erwartet werden drei Spalten: Monat (JJJJ-MM), Währung, Kurs in
+// Fremdwährung je Euro. Eine Kopfzeile wird erkannt und übergangen. Das Format ist absichtlich das einfachste
 // mögliche — die amtliche Veröffentlichung ist ein PDF, und was daraus wird,
 // tippt oder kopiert jemand. Ein Importer, der ein Amtsformat zu parsen
 // versucht, das jedes Jahr anders aussieht, ist ein Importer, der jedes Jahr
@@ -305,9 +287,11 @@ func (s *CurrencyService) ImportVatRatesCSV(ctx context.Context, path string) (*
 		}
 		out.Imported++
 	}
-	s.audit(ctx, domain.AuditActionImport, fmt.Sprintf(
+	if err := s.audit(ctx, domain.AuditActionImport, "", fmt.Sprintf(
 		"Umsatzsteuer-Umrechnungskurse importiert: %d übernommen, %d übergangen (%s)",
-		out.Imported, out.Skipped, path))
+		out.Imported, out.Skipped, path)); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
@@ -337,6 +321,9 @@ func parseExchangeRateMicros(text string) (int64, error) {
 type Conversion struct {
 	Currency string `json:"currency"`
 	Date     string `json:"date"`
+	// VatDate ist der Tag, dessen Monat den Umsatzsteuerkurs bestimmt
+	// (vatRateDateOf).
+	VatDate string `json:"vatDate"`
 
 	// Rate ist der Tageskurs, mit dem der Aufwand bewertet wird.
 	Rate domain.ExchangeRate `json:"rate"`
@@ -356,24 +343,29 @@ type Conversion struct {
 	Note       string       `json:"note"`
 }
 
-// Convert rechnet einen Fremdwährungsbetrag zu einem Belegdatum um.
+// Convert rechnet einen Fremdwährungsbetrag um: mit dem Tageskurs von date und
+// für die Umsatzsteuer mit dem Durchschnittskurs des Monats von vatDate.
 func (s *CurrencyService) Convert(
-	ctx context.Context, currency, date string, foreign domain.Cents,
+	ctx context.Context, currency, date, vatDate string, foreign domain.Cents,
 ) (*Conversion, error) {
 	rate, err := s.RateAt(ctx, currency, date)
 	if err != nil {
 		return nil, err
 	}
+	if vatDate == "" {
+		vatDate = date
+	}
 	out := &Conversion{
 		Currency:      strings.ToUpper(strings.TrimSpace(currency)),
 		Date:          date,
+		VatDate:       vatDate,
 		Rate:          *rate,
 		ForeignAmount: foreign,
 		Amount:        domain.ConvertToEuro(foreign, rate.RateMicros),
 	}
 	out.TaxBaseAmount = out.Amount
 
-	vatRate, err := s.VatRateFor(ctx, currency, date)
+	vatRate, err := s.VatRateFor(ctx, currency, vatDate)
 	if err != nil {
 		return nil, err
 	}
@@ -389,9 +381,42 @@ func (s *CurrencyService) Convert(
 		return out, nil
 	}
 	out.Note = fmt.Sprintf(
-		"Für %s liegt im Monat %s kein amtlicher Durchschnittskurs vor. Nach § 16 Abs. 6 Satz 1 UStG "+
-			"wird dann mit dem Tageskurs gerechnet — auch für die Umsatzsteuer.",
-		out.Currency, domain.MonthOf(date))
+		"Für %s ist der Umsatzsteuer-Umrechnungskurs des BMF für den Monat %s nicht erfasst; die "+
+			"Umsatzsteuer ist deshalb mit dem Tageskurs gerechnet. § 16 Abs. 6 UStG verlangt den "+
+			"Durchschnittskurs dieses Monats, den Tageskurs nur, wenn das Finanzamt ihn gestattet.",
+		out.Currency, domain.MonthOf(vatDate))
+	return out, nil
+}
+
+// ConvertCharged rechnet einen Beleg um, den Karte oder Bank schon mit einem
+// bekannten Euro-Betrag belastet haben. Der Geschäftsvorfall ist dieser Betrag:
+// er steht im Aufwand und auf dem Zahlungskonto, und beim Ausgleich der
+// Abrechnung entsteht keine Kursdifferenz mehr. Die Umsatzsteuer rechnet
+// weiter mit dem Durchschnittskurs des Monats (§ 16 Abs. 6 UStG), ohne ihn mit
+// dem Referenzkurs der EZB, nicht mit dem Kurs der Karte.
+func (s *CurrencyService) ConvertCharged(
+	ctx context.Context, currency, date, vatDate string, foreign, charged domain.Cents,
+) (*Conversion, error) {
+	if charged <= 0 || foreign <= 0 {
+		return nil, fmt.Errorf("der belastete Euro-Betrag und der Fremdbetrag müssen größer als null sein")
+	}
+	out, err := s.Convert(ctx, currency, date, vatDate, foreign)
+	if err != nil {
+		return nil, err
+	}
+	if out.VatRate == nil {
+		out.VatRate = &domain.VatExchangeRate{Currency: out.Currency, Month: domain.MonthOf(out.VatDate),
+			RateMicros: out.Rate.RateMicros,
+			Source:     fmt.Sprintf("EZB-Referenzkurs vom %s (%s)", domain.GermanDate(out.Rate.Date), out.Rate.Source)}
+	}
+	out.Rate = domain.ExchangeRate{Currency: out.Currency, Date: date,
+		RateMicros: int64(domain.MulRound(foreign, domain.RateScale, int64(charged))),
+		Source:     "Belastung laut Abrechnung"}
+	out.Amount = charged
+	out.TaxBaseAmount = domain.ConvertToEuro(foreign, out.VatRate.RateMicros)
+	out.Difference = out.TaxBaseAmount - out.Amount
+	out.Note = fmt.Sprintf("Gebucht mit der Belastung von %s €. Die Umsatzsteuer rechnet mit %s.",
+		charged, out.VatRate.Source)
 	return out, nil
 }
 
@@ -448,6 +473,7 @@ type ForeignCurrencyValuation struct {
 	Note      string       `json:"note"`
 	// EntryNumber und ReversalEntryNumber sind nach dem Buchen belegt.
 	EntryNumber         string `json:"entryNumber,omitempty"`
+	EntryID             uint   `json:"entryId,omitempty"`
 	ReversalEntryNumber string `json:"reversalEntryNumber,omitempty"`
 }
 

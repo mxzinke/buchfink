@@ -1,49 +1,35 @@
 import { bridge as Bridge } from './bridge';
-import skr04CatalogData from '../assets/skr04_2026.json';
 import type {
   Account,
   AccountLedger,
   Accrual,
-  AccrualPreview,
-  AccrualProposal,
-  AccrualReport,
-  AccrualRequest,
-  AcquisitionAdvice,
   AcquisitionCandidate,
-  AdvanceGroupRequest,
-  AdvanceInvoiceRequest,
   AdvanceItem,
-  AdvanceTargetOption,
-  AfaRules,
+  AgentBookings,
+  AgentClient,
+  AgentRules,
+  AgentSettings,
   Anlagenspiegel,
   AppConfig,
+  AppConsentRequest,
+  MasterDataProposal,
   Appropriation,
   AppropriationPreview,
   AppropriationRequest,
-  AssetAccountInfo,
   AssetClass,
   AssetDetail,
-  AssetDocumentKind,
-  AssetDocumentKindInfo,
-  AssetRules,
-  AssetScheduleYear,
-  AssetSummary,
   AuditChainResult,
-  AuditTrail,
   AuditFilter,
   AuditLogEntry,
   BackupRun,
   BankAccount,
   Country,
   BankImportPreview,
-  BaseRate,
   BankRule,
   BankSuggestions,
   BankTransaction,
   BlockContactResult,
-  CapitalizeNearAcquisitionCostRequest,
   CarryForwardPreview,
-  Cents,
   ChangelogEntry,
   CheckRun,
   ClosingSettings,
@@ -51,161 +37,90 @@ import type {
   ClosingSteps,
   CompanySettings,
   ComplianceHints,
+  ConnectedApp,
   Contact,
-  CorrectionResult,
-  CustomAccountRequest,
-  CurrencyValuation,
   Deadline,
-  DunningNotice,
-  DunningProposal,
-  DunningRunRequest,
-  DeleteResult,
-  DepreciationMethod,
-  DepreciationResult,
-  DepreciationRun,
-  DifferenceKindInfo,
+  DeclarationExport,
+  DeclarationInput,
+  DeclarationInputRequest,
+  DeclarationKind,
+  DeclarationRecord,
+  DeclarationSubmissionRequest,
+  DeclarationView,
   Direction,
-  DiscountRate,
-  DisposalPreview,
-  DisposalRequest,
-  DisposalResult,
   EInvoiceProfileInfo,
   EInvoiceProposal,
-  EvidenceKindInfo,
-  EvidenceStatus,
-  ExchangeRate,
-  ExemptionCertificateWarning,
-  ExpiringAssetDocument,
   ExportResult,
   Festschreibung,
   FestschreibungVerification,
   FileCheckResult,
-  FinalInvoiceRequest,
   FinancialStatement,
-  FinancialSummary,
   FiscalYear,
   FiscalYearCandidates,
   FiscalYearStatus,
   FixedAsset,
+  FolderCheck,
   ForeignCurrencyValuation,
   Foundation,
-  FoundationPostingPreview,
   FoundationRules,
   FoundationState,
-  FragebogenSheet,
-  CompanyDocument,
-  DocumentKindOption,
-  DocumentRequest,
-  DocumentFileInfo,
-  OpeningBalanceSheet,
-  GiftRebooking,
-  InputTaxCorrection,
+  InboxAdded,
+  InboxFile,
+  InboxInfo,
   InputTaxCorrectionYear,
   IntegrityCheckResult,
-  InventoryCount,
-  InventoryOverview,
-  InventoryPreview,
-  InventoryRequest,
-  InvestmentRules,
-  InvestmentTaxNote,
   Invoice,
-  InvoiceGroup,
-  InvoiceSentVia,
-  InvoiceSentViaOption,
   JournalEntry,
   JournalFilter,
   JournalFilterResult,
-  KeyDirectoryEntry,
-  LegacySpecialDepreciationNotice,
-  LegalFormInfo,
-  MaintenanceResult,
-  ManualEntryRequest,
   MappingReport,
+  MCPServerStatus,
   MigrationRecord,
   MonthCloseState,
-  NearAcquisitionCheck,
-  NonDeductibleCategory,
   NonDeductibleReport,
-  NotesSection,
   NotesSectionText,
   NumberGapReason,
   NumberGapReasonOption,
   NumberGapReport,
-  OpeningBalancePreview,
-  OpeningBalanceRequest,
+  Obligation,
+  ObligationConfirmation,
   OpenItem,
-  OpenItemsAging,
   OrganisationTexts,
   PaymentAllocationDetail,
   PaymentRequest,
-  PoolConsistencyReport,
   PostingGroup,
   PostingPreview,
   ProcDocResult,
   ProcedureDocumentation,
   Provision,
-  ProvisionChangeRequest,
   ProvisionMirror,
-  ProvisionPreview,
-  ProvisionRequest,
-  RebookGiftsRequest,
   Receipt,
   ReceiptFileInput,
-  ReceiptFindings,
-  ReceiptHeader,
   ReceiptPreview,
   ReceiptRequest,
   ReceiptStatus,
   Reconciliation,
-  RefundAdvanceRequest,
-  RegisterInputTaxRequest,
-  RetentionHold,
-  RetentionClass,
-  RetentionHoldReason,
-  RetentionOverview,
-  RetentionYear,
   RetentionRules,
-  SaveInputTaxUsageRequest,
   SchemaMigration,
-  SelfIssuedReceiptRequest,
-  ServiceEndpoints,
   SettleAdvanceRequest,
-  Settlement,
+  ShareholderLoanRequest,
+  ShareholderLoanView,
   SizeClass,
-  SKR04Catalog,
-  SpecialPrepaymentSuggestion,
   StatementDepth,
-  StatementPositionOption,
-  SupplyEvidenceReport,
-  SupplyEvidenceRequest,
-  SupplyEvidenceView,
   SuSaOverview,
   TaxElectionRegister,
   TaxProvisionPreview,
-  TaxProvisionRequest,
-  TaxRate,
   Task,
   TaskList,
-  TaxTreatment,
   TaxTreatmentInfo,
   TenantConfig,
-  TransportKind,
   UnitCode,
-  Units,
-  ValidationResult,
-  VatExchangeRate,
-  VatIDCheck,
   VatIDStatus,
-  VatPeriodStatus,
   VatPeriodProposal,
-  VatRateImport,
-  VatRatePeriod,
   VatReturn,
+  VatExchangeRate,
+  VatRateImport,
   VatSettlement,
-  VatSummary,
-  VendorAdvance,
-  Vorabpauschale,
-  WriteOffRequest,
   WriteUpReport,
   ZMPeriodStatus,
   ZMReturn,
@@ -264,7 +179,40 @@ function list<T>(value: T[] | null | undefined): T[] {
  */
 function normalizeTask(task: Task): Task {
   if (!task) return task;
-  return { ...task, target: { ...task.target, params: task.target?.params ?? {} } };
+  return { ...task, target: task.target ?? { area: '' } };
+}
+
+/** Die Hinweise einer Pflicht und ihr Ziel kommen auch leer als Liste und Ziel an. */
+function normalizeObligation(o: Obligation): Obligation {
+  if (!o) return o;
+  return { ...o, hints: list(o.hints), target: o.target ?? { area: '' } };
+}
+
+/** Die Listen einer Jahreserklärung bis hinunter zur Herkunft einer Zeile. */
+function normalizeDeclaration(view: DeclarationView): DeclarationView {
+  if (!view) return view;
+  const d = view.declaration;
+  return {
+    overview: {
+      ...view.overview,
+      ergebnis: list(view.overview.ergebnis),
+      formulare: list(view.overview.formulare),
+      zu_klaeren: list(view.overview.zu_klaeren),
+    },
+    declaration: {
+      ...d,
+      formulare: list(d.formulare).map((form) => ({
+        ...form,
+        abschnitte: list(form.abschnitte).map((section) => ({
+          ...section,
+          zeilen: list(section.zeilen),
+        })),
+      })),
+      abstimmung: list(d.abstimmung),
+      eingaben: list(d.eingaben),
+      befunde: list(d.befunde),
+    },
+  };
 }
 
 /** Die Listen einer Voranmeldung: Kennziffern mit Drill-down und Nachträge. */
@@ -294,6 +242,20 @@ function normalizeCheckRun(run: CheckRun): CheckRun {
   return { ...run, findings: list(run.findings) };
 }
 
+/** Ohne übergangene Datei kommt die Liste auch leer als Liste an. */
+export function normalizeInboxAdded(added: InboxAdded): InboxAdded {
+  return { ...added, names: list(added?.names), skipped: list(added?.skipped) };
+}
+
+/** Die Leseordner kommen auch ohne Eintrag als Liste an. */
+function normalizeAgentRules(rules: AgentRules): AgentRules {
+  return {
+    ...rules,
+    stored: { ...rules.stored, extraReadFolders: list(rules.stored?.extraReadFolders) },
+    extraReadFolders: list(rules.extraReadFolders),
+  };
+}
+
 /** Die Kette des Änderungsprotokolls: ohne Bruch ist die Liste leer. */
 function normalizeAuditChain(result: AuditChainResult): AuditChainResult {
   if (!result) return result;
@@ -307,7 +269,7 @@ function normalizeIntegrity(result: IntegrityCheckResult): IntegrityCheckResult 
     ...result,
     breaks: list(result.breaks),
     fiscalYears: list(result.fiscalYears),
-    // Die Protokollkette hängt seit Welle 6 am selben Ergebnis. Sie kann
+    // Das Ergebnis enthält auch die Protokollkette. Sie kann
     // fehlen — dann bleibt das Feld leer und behauptet nichts.
     auditChain: result.auditChain ? normalizeAuditChain(result.auditChain) : undefined,
   };
@@ -384,30 +346,8 @@ function normalizeInvoice(invoice: Invoice): Invoice {
   return { ...invoice, items: list(invoice.items), precedingRefs: list(invoice.precedingRefs) };
 }
 
-/** Ein Verbund ohne Abschlagsrechnung ist der Zustand direkt nach dem Anlegen. */
-function normalizeInvoiceGroup(group: InvoiceGroup): InvoiceGroup {
-  if (!group) return group;
-  return {
-    ...group,
-    advances: list(group.advances),
-    // Der Fortschritt kommt aus dem Backend. Fehlt er (ein Verbund aus einem
-    // älteren Aufruf), ist der Stand der eines Verbunds ohne Abschlag: nichts
-    // abgerechnet, alles offen. Ein `undefined` an dieser Stelle würde die
-    // Seite beim ersten Zugriff zerlegen.
-    progress: group.progress ?? {
-      agreedNet: group.totalNet ?? 0,
-      billedNet: 0,
-      receivedNet: 0,
-      receivedTax: 0,
-      receivedGross: 0,
-      openNet: group.totalNet ?? 0,
-      closed: Boolean(group.closed),
-    },
-  };
-}
-
 /**
- * Die Listen der steuerlichen Nebenpflichten (Welle 5c).
+ * Die Listen der steuerlichen Nebenpflichten.
  *
  * Alle vier sind der Regelfall des unbelasteten Jahres: kein Wirtschaftsgut im
  * Verzeichnis, kein Nachweisbeleg, kein Geschenk, kein Posten in Fremdwährung.
@@ -425,21 +365,6 @@ function normalizeInputTaxYear(year: InputTaxCorrectionYear): InputTaxCorrection
         : row.correction,
     })),
   };
-}
-
-/** `missing` ist leer, wo nichts fehlt — und das ist der gute Fall. */
-function normalizeEvidenceStatusHolder<T extends { status: EvidenceStatus }>(holder: T): T {
-  if (!holder || !holder.status) return holder;
-  return { ...holder, status: { ...holder.status, missing: list(holder.status.missing) } };
-}
-
-function normalizeSupplyEvidenceView(view: SupplyEvidenceView): SupplyEvidenceView {
-  if (!view) return view;
-  return normalizeEvidenceStatusHolder({
-    ...view,
-    items: list(view.items),
-    kinds: list(view.kinds),
-  });
 }
 
 function normalizeNonDeductibleReport(report: NonDeductibleReport): NonDeductibleReport {
@@ -490,60 +415,14 @@ function normalizePostingPreview(preview: PostingPreview): PostingPreview {
   };
 }
 
-/**
- * Die Fristenübersicht: ein Geschäftsjahr ohne Daten hat keine Klassenzeile,
- * und ein Mandant ohne Buchung hat kein Jahr. Beides ist der Regelfall am ersten
- * Tag und darf die Ansicht nicht mitreißen.
- */
-function normalizeRetentionOverview(overview: RetentionOverview): RetentionOverview {
-  if (!overview) return overview;
-  return {
-    ...overview,
-    concept: list(overview.concept),
-    years: list(overview.years).map(normalizeRetentionYear),
-  };
-}
-
-function normalizeRetentionYear(year: RetentionYear): RetentionYear {
-  return { ...year, classes: list(year.classes) };
-}
-
-/** Altersstruktur und Restlaufzeiten: ohne offenen Posten sind beide leer. */
-function normalizeOpenItemsAging(aging: OpenItemsAging): OpenItemsAging {
-  if (!aging) return aging;
-  return {
-    ...aging,
-    sides: list(aging.sides).map((side) => ({
-      ...side,
-      buckets: list(side.buckets),
-      maturities: list(side.maturities),
-    })),
-  };
-}
-
-/** Die Eröffnungsbuchungen des Umsteigers samt ihren Hinweisen. */
-function normalizeOpeningBalance(preview: OpeningBalancePreview): OpeningBalancePreview {
-  if (!preview) return preview;
-  return { ...preview, entries: list(preview.entries), messages: list(preview.messages) };
-}
-
-const catalog = skr04CatalogData as unknown as SKR04Catalog;
-
 export const Api = {
-  isBackendAvailable: isWailsRuntime,
-
   // --- Mandanten ---------------------------------------------------------
 
   getTenants: (): Promise<TenantConfig[]> => call(() => Bridge.GetTenants() as Promise<TenantConfig[]>),
   getActiveTenant: (): Promise<TenantConfig | null> =>
     call(() => Bridge.GetActiveTenant() as Promise<TenantConfig | null>),
   switchTenant: (tenantId: string): Promise<void> => call(() => Bridge.SwitchTenant(tenantId) as Promise<void>),
-  createTenant: (name: string, dataDir: string, settings: CompanySettings): Promise<TenantConfig> =>
-    call(() => Bridge.CreateTenant(name, dataDir, settings as any) as Promise<TenantConfig>),
-  importTenant: (dbFilePath: string): Promise<TenantConfig> =>
-    call(() => Bridge.ImportTenant(dbFilePath) as Promise<TenantConfig>),
   deleteTenant: (tenantId: string): Promise<void> => call(() => Bridge.DeleteTenant(tenantId) as Promise<void>),
-  isLocked: (): Promise<boolean> => call(() => Bridge.IsLocked() as Promise<boolean>),
 
   // --- Einrichtung -------------------------------------------------------
 
@@ -551,19 +430,15 @@ export const Api = {
   validateTenantDirectory: (dataDir: string): Promise<void> =>
     call(() => Bridge.ValidateTenantDirectory(dataDir)),
 
-  setupApplication: (dataDir: string, settings: CompanySettings): Promise<void> =>
-    call(() => Bridge.SetupApplication(dataDir, settings as any) as Promise<void>),
+  /** Legt den Mandanten an; ein leerer Eingang heißt `<Datenordner>/Eingang`. */
+  setupApplication: (dataDir: string, inboxDir: string, settings: CompanySettings): Promise<void> =>
+    call(() => Bridge.SetupApplication(dataDir, inboxDir, settings as any) as Promise<void>),
   loadExistingDatabase: (dbFilePath: string): Promise<void> =>
     call(() => Bridge.LoadExistingDatabase(dbFilePath) as Promise<void>),
   selectDirectoryDialog: (title: string): Promise<string> =>
     call(() => Bridge.SelectDirectoryDialog(title) as Promise<string>),
   selectDatabaseFileDialog: (title: string): Promise<string> =>
     call(() => Bridge.SelectDatabaseFileDialog(title) as Promise<string>),
-  selectRecoveryFile: (title: string): Promise<string> =>
-    call(() => Bridge.SelectRecoveryFileDialog(title) as Promise<string>),
-  exportRecoveryKey: (): Promise<string> => call(() => Bridge.ExportRecoveryKey() as Promise<string>),
-  recoverFromFile: (path: string): Promise<void> =>
-    call(() => Bridge.RecoverActiveTenantFromFile(path) as Promise<void>),
 
   // --- Geschäftsjahr & Stammdaten ---------------------------------------
 
@@ -577,25 +452,27 @@ export const Api = {
     await call(() => Bridge.UpdateCompanySettings(settings as any) as Promise<void>);
     window.dispatchEvent(new Event(COMPANY_SETTINGS_CHANGED));
   },
+  /** Offene Vorschläge eines Agenten für die Stammdaten mit Vorschau. */
+  getMasterDataProposals: (): Promise<MasterDataProposal[]> =>
+    call(() => Bridge.GetMasterDataProposals() as Promise<MasterDataProposal[]>).then((proposals) =>
+      list(proposals).map((p) => ({ ...p, lines: list(p.lines) })),
+    ),
+  /** Übernimmt einen Vorschlag so, wie die Vorschau mit diesem Fingerabdruck ihn zeigt. */
+  acceptMasterDataProposal: async (id: number, fingerprint: string): Promise<void> => {
+    await call(() => Bridge.AcceptMasterDataProposal(id, fingerprint));
+    window.dispatchEvent(new Event(COMPANY_SETTINGS_CHANGED));
+  },
+  /** Lehnt einen Vorschlag ab; die Notiz sieht der Agent. */
+  rejectMasterDataProposal: (id: number, note: string): Promise<void> =>
+    call(() => Bridge.RejectMasterDataProposal(id, note)),
 
   // --- Konten ------------------------------------------------------------
 
   getAccounts: (): Promise<Account[]> => call(() => Bridge.GetAccounts() as Promise<Account[]>),
-  getAccountByNumber: (number: string): Promise<Account> =>
-    call(() => Bridge.GetAccountByNumber(number) as Promise<Account>),
   getAccountLedger: (accountNumber: string): Promise<AccountLedger> =>
     call(() => Bridge.GetAccountLedger(accountNumber) as Promise<AccountLedger>),
   getSuSaOverview: (): Promise<SuSaOverview> => call(() => Bridge.GetSuSaOverview() as Promise<SuSaOverview>),
-  /** Summen- und Salden zu einem Stichtag. Leerer Stichtag heißt: ganzes Jahr. */
-  getSuSaOverviewAt: (cutoff = ''): Promise<SuSaOverview> =>
-    call(() => Bridge.GetSuSaOverviewAt(cutoff) as Promise<SuSaOverview>),
-  /** Kontoblatt eines Zeitraums über die Geschäftsjahre hinweg. */
-  getAccountLedgerRange: (accountNumber: string, from = '', to = ''): Promise<AccountLedger> =>
-    call(() => Bridge.GetAccountLedgerRange(accountNumber, from, to) as Promise<AccountLedger>),
   getPaymentAccounts: (): Promise<Account[]> => call(() => Bridge.GetPaymentAccounts() as Promise<Account[]>),
-
-  /** Der SKR04-Katalog ist statisch und liegt dem Frontend als Datei bei. */
-  getSKR04Catalog: (): SKR04Catalog => catalog,
 
   // --- Kontierung --------------------------------------------------------
 
@@ -603,8 +480,6 @@ export const Api = {
     call(() => Bridge.GetPostingGroups(direction) as Promise<PostingGroup[]>),
   getTaxTreatments: (direction: Direction): Promise<TaxTreatmentInfo[]> =>
     call(() => Bridge.GetTaxTreatments(direction) as Promise<TaxTreatmentInfo[]>),
-  getDifferenceKinds: (): Promise<DifferenceKindInfo[]> =>
-    call(() => Bridge.GetDifferenceKinds() as Promise<DifferenceKindInfo[]>),
 
   // --- Journal -----------------------------------------------------------
 
@@ -612,8 +487,6 @@ export const Api = {
     call(() => Bridge.GetJournalEntries() as Promise<JournalEntry[]>).then(list),
   getAllJournalEntries: (): Promise<JournalEntry[]> =>
     call(() => Bridge.GetAllJournalEntries() as Promise<JournalEntry[]>).then(list),
-  postJournalEntry: (entry: Partial<JournalEntry>): Promise<JournalEntry> =>
-    call(() => Bridge.PostJournalEntry(entry as any) as Promise<JournalEntry>),
   postIncomingReceipt: (request: ReceiptRequest): Promise<JournalEntry> =>
     call(() => Bridge.PostIncomingReceipt(request as any) as Promise<JournalEntry>),
   /** Der Buchungssatz, wie er gebucht würde. Das Frontend rechnet ihn nicht nach. */
@@ -626,8 +499,6 @@ export const Api = {
       normalizePostingPreview,
     ),
 
-  // --- Belege ------------------------------------------------------------
-
   // Der Wails-Dateidialog liefert beim Abbruch null; ohne Normalisierung liefe jeder
   // Aufrufer in einen TypeError statt in den leeren Fall.
   selectReceiptFiles: (title = 'Belegdateien auswählen'): Promise<string[]> =>
@@ -638,31 +509,15 @@ export const Api = {
     receivedVia = 'upload',
   ): Promise<Receipt> =>
     call(() => Bridge.FileIncomingReceipt(receivedAt, receivedVia, files) as Promise<Receipt>),
-  addReceiptFile: (receiptId: number, file: ReceiptFileInput): Promise<Receipt> =>
-    call(() => Bridge.AddReceiptFile(receiptId, file) as Promise<Receipt>),
-  removeReceiptFile: (receiptId: number, fileId: number): Promise<Receipt> =>
-    call(() => Bridge.RemoveReceiptFile(receiptId, fileId) as Promise<Receipt>),
   getReceipts: (status: ReceiptStatus | '' = ''): Promise<Receipt[]> =>
     call(() => Bridge.GetReceipts(status) as Promise<Receipt[]>).then(list),
-  getReceipt: (id: number): Promise<Receipt> => call(() => Bridge.GetReceipt(id) as Promise<Receipt>),
-  discardReceipt: (id: number, reason: string): Promise<void> =>
-    call(() => Bridge.DiscardReceipt(id, reason)),
   getReceiptPreview: (receiptId: number): Promise<ReceiptPreview> =>
     call(() => Bridge.GetReceiptPreview(receiptId) as Promise<ReceiptPreview>),
-  /** Zieht den strukturierten Rechnungsdatensatz aus einem abgelegten Beleg. */
-  extractStructuredPart: (receiptId: number): Promise<Receipt> =>
-    call(() => Bridge.ExtractStructuredPart(receiptId) as Promise<Receipt>),
   /** Buchungsvorschlag aus dem strukturierten Teil. Das Konto bleibt offen. */
   proposeFromEInvoice: (receiptId: number): Promise<EInvoiceProposal> =>
     call(() => Bridge.ProposeFromEInvoice(receiptId) as Promise<EInvoiceProposal>),
-  /** Prüft den strukturierten Teil erneut. Das Regelwerk ist versioniert. */
-  validateEInvoice: (receiptId: number): Promise<ValidationResult> =>
-    call(() => Bridge.ValidateEInvoice(receiptId) as Promise<ValidationResult>),
   /** Die Regeln, die Buchfink prüft — der Prüfumfang ist Teil des Ergebnisses. */
   getEInvoiceRules: (): Promise<string[]> => call(() => Bridge.GetEInvoiceRules()),
-  /** Die Regeln, die Buchfink nicht prüft, je mit Begründung. */
-  getUncheckedEInvoiceRules: (): Promise<Record<string, string>> =>
-    call(() => Bridge.GetUncheckedEInvoiceRules()),
   /**
    * Schreibt eine Belegdatei unter ihrem Originalnamen an einen gewählten Ort.
    * Leerer Pfad heißt: der Dialog wurde abgebrochen.
@@ -672,14 +527,8 @@ export const Api = {
   /** Das archivierte Rechnungsdokument — dasselbe PDF, das der Kunde bekommen hat. */
   getInvoiceDocument: (invoiceId: number): Promise<ReceiptPreview> =>
     call(() => Bridge.GetInvoiceDocument(invoiceId) as Promise<ReceiptPreview>),
-  reverseJournalEntry: (entryId: number, reason: string): Promise<JournalEntry> =>
-    call(() => Bridge.ReverseJournalEntry(entryId, reason) as Promise<JournalEntry>),
   verifyIntegrity: (): Promise<IntegrityCheckResult> =>
     call(() => Bridge.VerifyIntegrity() as Promise<IntegrityCheckResult>).then(normalizeIntegrity),
-  getFinancialSummary: (): Promise<FinancialSummary> =>
-    call(() => Bridge.GetFinancialSummary() as Promise<FinancialSummary>),
-  getVatSummary: (from = '', to = ''): Promise<VatSummary> =>
-    call(() => Bridge.GetVatSummary(from, to) as Promise<VatSummary>),
 
   // --- Bank & Zahlungen --------------------------------------------------
 
@@ -706,9 +555,6 @@ export const Api = {
     description: string
   ): Promise<JournalEntry> =>
     call(() => Bridge.BookBankTransactionDirect(bankTxId, counterAccount, description) as Promise<JournalEntry>),
-  ignoreBankTransaction: (bankTxId: number): Promise<void> =>
-    call(() => Bridge.IgnoreBankTransaction(bankTxId) as Promise<void>),
-  getOpenItems: (): Promise<OpenItem[]> => call(() => Bridge.GetOpenItems() as Promise<OpenItem[]>),
   /**
    * Die offenen Posten zu einem Stichtag: Zahlungen nach dem Stichtag zählen
    * nicht. Leerer Stichtag heißt heute.
@@ -727,15 +573,18 @@ export const Api = {
     call(() => Bridge.GetContacts() as Promise<Contact[]>).then(list),
   saveContact: (contact: Partial<Contact>): Promise<Contact> =>
     call(() => Bridge.SaveContact(contact as any) as Promise<Contact>),
-  deleteContact: (id: number): Promise<void> => call(() => Bridge.DeleteContact(id) as Promise<void>),
+  /**
+   * Bestätigt die Standard-Buchungsgruppe eines Lieferanten; leer hebt sie
+   * auf. Nur in der App: erst mit ihr bucht ein Agent ohne Rückfrage.
+   */
+  confirmDefaultPostingGroup: (contactId: number, group: string): Promise<Contact> =>
+    call(() => Bridge.ConfirmDefaultPostingGroup(contactId, group) as Promise<Contact>),
   getInvoices: (): Promise<Invoice[]> =>
     call(() => Bridge.GetInvoices() as Promise<Invoice[]>)
       .then(list)
       .then((rows) => rows.map(normalizeInvoice)),
   issueInvoice: (invoice: Partial<Invoice>): Promise<Invoice> =>
     call(() => Bridge.IssueInvoice(invoice as any) as Promise<Invoice>).then(normalizeInvoice),
-  generateInvoiceZUGFeRD: (invoiceId: number): Promise<[string, string]> =>
-    call(() => Bridge.GenerateInvoiceZUGFeRD(invoiceId) as Promise<[string, string]>),
 
   // --- Korrektur, Storno, Versand, Nummernkreis --------------------------
 
@@ -746,30 +595,6 @@ export const Api = {
    */
   regenerateInvoiceDocument: (invoiceId: number): Promise<Invoice> =>
     call(() => Bridge.RegenerateInvoiceDocument(invoiceId) as Promise<Invoice>).then(
-      normalizeInvoice,
-    ),
-  /** Storniert eine Rechnung und stellt die Stornorechnung aus; zurück kommt sie. */
-  cancelInvoiceWithDocument: (invoiceId: number, reason: string): Promise<Invoice> =>
-    call(() => Bridge.CancelInvoiceWithDocument(invoiceId, reason) as Promise<Invoice>).then(
-      normalizeInvoice,
-    ),
-  /** Storniert und stellt die berichtigte Rechnung aus; zurück kommt die neue. */
-  correctInvoice: (
-    invoiceId: number,
-    reason: string,
-    replacement: Partial<Invoice>,
-  ): Promise<Invoice> =>
-    call(() => Bridge.CorrectInvoice(invoiceId, reason, replacement) as Promise<Invoice>).then(
-      normalizeInvoice,
-    ),
-  /** Vermerkt, wann und wie die Rechnung hinausgegangen ist. */
-  markInvoiceSent: (
-    invoiceId: number,
-    date: string,
-    via: InvoiceSentVia,
-    note = '',
-  ): Promise<Invoice> =>
-    call(() => Bridge.MarkInvoiceSent(invoiceId, date, via, note) as Promise<Invoice>).then(
       normalizeInvoice,
     ),
   /** Der Lückenbericht: Zählerstand gegen die vergebenen Nummern. */
@@ -790,276 +615,27 @@ export const Api = {
   /** Die Zielformate, in denen eine Rechnung ausgestellt werden kann. */
   getEInvoiceProfiles: (): Promise<EInvoiceProfileInfo[]> =>
     call(() => Bridge.GetEInvoiceProfiles() as Promise<EInvoiceProfileInfo[]>).then(list),
-  /**
-   * Die Versandwege des Vermerks „Als versendet vermerken".
-   *
-   * Wie Einheiten und Profile aus dem Backend: die Beschriftungen stehen in
-   * `domain.InvoiceSentViaOptions` und nicht ein zweites Mal in der Seite.
-   */
-  getInvoiceSentViaOptions: (): Promise<InvoiceSentViaOption[]> =>
-    call(() => Bridge.GetInvoiceSentViaOptions() as Promise<InvoiceSentViaOption[]>).then(list),
   /** Die Gründe, mit denen eine Lücke im Nummernkreis begründet wird. */
   getNumberGapReasons: (): Promise<NumberGapReasonOption[]> =>
     call(() => Bridge.GetNumberGapReasons() as Promise<NumberGapReasonOption[]>).then(list),
 
   // --- Anzahlungen -------------------------------------------------------
 
-  getInvoiceGroups: (): Promise<InvoiceGroup[]> =>
-    call(() => Bridge.GetInvoiceGroups() as Promise<InvoiceGroup[]>)
-      .then(list)
-      .then((rows) => rows.map(normalizeInvoiceGroup)),
-  createInvoiceGroup: (request: AdvanceGroupRequest): Promise<InvoiceGroup> =>
-    call(() => Bridge.CreateInvoiceGroup(request) as Promise<InvoiceGroup>).then(
-      normalizeInvoiceGroup,
-    ),
-  /** Die Abschlagsrechnung wird beim Ausstellen nicht gebucht — erst bei Zahlung. */
-  issueAdvanceInvoice: (request: AdvanceInvoiceRequest): Promise<Invoice> =>
-    call(() => Bridge.IssueAdvanceInvoice(request) as Promise<Invoice>).then(normalizeInvoice),
   /** Der Zahlungseingang auf einen Abschlag: hier entsteht die Steuer. */
   settleAdvance: (request: SettleAdvanceRequest): Promise<AdvanceItem> =>
     call(() => Bridge.SettleAdvance(request) as Promise<AdvanceItem>),
-  /** Die Rückzahlung einer vereinnahmten Anzahlung (§ 17 Abs. 2 Nr. 2 UStG). */
-  refundAdvance: (request: RefundAdvanceRequest): Promise<AdvanceItem> =>
-    call(() => Bridge.RefundAdvance(request) as Promise<AdvanceItem>),
-  /** Die Schlussrechnung setzt die vereinnahmten Anzahlungen ab (BT-113). */
-  issueFinalInvoice: (request: FinalInvoiceRequest): Promise<Invoice> =>
-    call(() => Bridge.IssueFinalInvoice(request) as Promise<Invoice>).then(normalizeInvoice),
-  /** Die gestellten, noch nicht vereinnahmten Abschläge als offene Posten. */
-  getOpenAdvances: (): Promise<OpenItem[]> =>
-    call(() => Bridge.GetOpenAdvances() as Promise<OpenItem[]>).then(list),
-  /** Die Verwendungen einer geleisteten Anzahlung mit ihrem Konto. */
-  getAdvanceTargets: (): Promise<AdvanceTargetOption[]> =>
-    call(() => Bridge.GetAdvanceTargets() as Promise<AdvanceTargetOption[]>).then(list),
-  /** Die geleisteten Anzahlungen an einen Lieferanten; 0 heißt alle. */
-  getOpenVendorAdvances: (contactId = 0): Promise<VendorAdvance[]> =>
-    call(() => Bridge.GetOpenVendorAdvances(contactId) as Promise<VendorAdvance[]>).then(list),
-  /** Bucht eine uneinbringliche Forderung aus; die Begründung ist Pflicht. */
-  writeOffOpenItem: (request: WriteOffRequest): Promise<JournalEntry> =>
-    call(() => Bridge.WriteOffOpenItem(request) as Promise<JournalEntry>),
 
   // --- Anlagevermögen ----------------------------------------------------
 
   getFixedAssets: (assetClass: AssetClass | '' = ''): Promise<FixedAsset[]> =>
     call(() => Bridge.GetFixedAssets(assetClass) as Promise<FixedAsset[]>),
-  getAssetSummary: (assetClass: AssetClass | '' = ''): Promise<AssetSummary> =>
-    call(() => Bridge.GetAssetSummary(assetClass) as Promise<AssetSummary>),
   getFixedAsset: (id: number): Promise<AssetDetail> =>
     call(() => Bridge.GetFixedAsset(id) as Promise<AssetDetail>),
-  saveFixedAsset: (asset: Partial<FixedAsset>): Promise<FixedAsset> =>
-    call(() => Bridge.SaveFixedAsset(asset as any) as Promise<FixedAsset>),
-  deleteFixedAsset: (id: number): Promise<void> => call(() => Bridge.DeleteFixedAsset(id)),
-  /** Nachträgliche Anschaffungskosten oder eine Minderung — ohne eigene Buchung. */
-  recordAssetCostAdjustment: (request: {
-    assetId: number;
-    date: string;
-    amount: Cents;
-    reduction?: boolean;
-    /** Monate, um die sich die Restnutzungsdauer ab diesem Jahr verlängert. */
-    extendLifeMonths?: number;
-    /** Zugekaufte Stückzahl bei einer Finanzanlage. */
-    quantity?: Units;
-    note?: string;
-    journalEntryId?: number;
-  }): Promise<FixedAsset> =>
-    call(() => Bridge.RecordAssetCostAdjustment(request as any) as Promise<FixedAsset>),
-  /** Der kuratierte Katalog der Anlagekonten, je mit seinem AfA-Konto. */
-  getAssetAccounts: (assetClass: AssetClass | '' = ''): Promise<AssetAccountInfo[]> =>
-    call(() => Bridge.GetAssetAccounts(assetClass) as Promise<AssetAccountInfo[]>),
-  /** Wertgrenzen, Zeitfenster der degressiven AfA und zulässige Methoden. */
-  getAssetRules: (): Promise<AssetRules> =>
-    call(() => Bridge.GetAssetRules() as Promise<AssetRules>).then((rules) =>
-      rules
-        ? {
-            ...rules,
-            degressiveWindows: list(rules.degressiveWindows),
-            electricVehicleWindows: list(rules.electricVehicleWindows),
-            methods: list(rules.methods),
-          }
-        : rules,
-    ),
-  /**
-   * Sofortabzug, Sammelposten oder aktivieren? Die Antwort kommt aus dem
-   * Backend, damit die Wertgrenzen nur an einer Stelle stehen.
-   */
-  classifyAcquisition: (netCost: Cents, date: string, selfUsable: boolean): Promise<AcquisitionAdvice> =>
-    call(() => Bridge.ClassifyAcquisition(netCost, date, selfUsable) as Promise<AcquisitionAdvice>),
-  /** Der Abschreibungsplan für eine Eingabe, die noch kein Anlagegut ist. */
-  previewDepreciationPlan: (request: {
-    acquisitionDate: string;
-    cost: Cents;
-    usefulLifeMonths: number;
-    method: DepreciationMethod;
-    poolYear?: number;
-    /** Sonderabschreibung nach § 7g Abs. 5 EStG, in Promille und über so viele Jahre. */
-    specialPermille?: number;
-    specialYears?: number;
-  }): Promise<AssetScheduleYear[]> =>
-    call(() => Bridge.PreviewDepreciationPlan(request as any) as Promise<AssetScheduleYear[]>),
-  getDepreciationRun: (): Promise<DepreciationRun> =>
-    call(() => Bridge.GetDepreciationRun() as Promise<DepreciationRun>),
-  bookDepreciationRun: (request: {
-    fiscalYear: number;
-    bookingDate?: string;
-    assetIds?: number[];
-  }): Promise<DepreciationResult> =>
-    call(() => Bridge.BookDepreciationRun(request as any) as Promise<DepreciationResult>),
-  bookAssetImpairment: (request: {
-    assetId: number;
-    date: string;
-    amount: Cents;
-    permanent: boolean;
-    reason: string;
-  }): Promise<JournalEntry> =>
-    call(() => Bridge.BookAssetImpairment(request as any) as Promise<JournalEntry>),
-  bookAssetWriteUp: (request: {
-    assetId: number;
-    date: string;
-    amount: Cents;
-    reason: string;
-  }): Promise<JournalEntry> =>
-    call(() => Bridge.BookAssetWriteUp(request as any) as Promise<JournalEntry>),
-  /**
-   * Erhaltungsaufwand: eine Buchung, die zum Anlagegut gehört, seinen Wert aber
-   * nicht ändert. Genau das unterscheidet sie von den nachträglichen
-   * Herstellungskosten (§ 255 Abs. 2 Satz 1 HGB).
-   */
-  bookAssetMaintenance: (request: {
-    assetId: number;
-    date: string;
-    amount: Cents;
-    account?: string;
-    taxTreatment?: TaxTreatment;
-    taxRate?: TaxRate;
-    settlement: Settlement;
-    paymentAccount?: string;
-    contactId?: number;
-    note: string;
-    /**
-     * Nimmt die Maßnahme aus dem 15-%-Rahmen des § 6 Abs. 1 Nr. 1a EStG heraus
-     * — für die jährlich üblicherweise anfallenden Erhaltungsarbeiten. Negativ
-     * formuliert, weil der Regelfall der Vorgabewert sein muss.
-     */
-    notModernisation?: boolean;
-  }): Promise<MaintenanceResult> =>
-    call(() => Bridge.BookAssetMaintenance(request as any) as Promise<MaintenanceResult>),
-  /** Dividende, Ausschüttung oder Zins, verknüpft mit dem Anteil, aus dem sie stammt. */
-  bookAssetIncome: (request: {
-    assetId: number;
-    date: string;
-    amount: Cents;
-    account?: string;
-    taxTreatment?: TaxTreatment;
-    settlement: Settlement;
-    paymentAccount?: string;
-    contactId?: number;
-    /** Einbehaltene Kapitalertragsteuer: sie mindert den Zufluss, nicht den Ertrag. */
-    withholdingTax?: Cents;
-    note?: string;
-  }): Promise<JournalEntry> =>
-    call(() => Bridge.BookAssetIncome(request as any) as Promise<JournalEntry>),
-  /**
-   * Umrechnung zum Devisenkassamittelkurs des Stichtags (§ 256a HGB). Bucht
-   * nichts — es nennt den Betrag, den eine Abschreibung oder Zuschreibung hätte.
-   */
-  valuateAssetCurrency: (request: {
-    assetId: number;
-    date: string;
-    /** Fremdwährungseinheiten je Euro, mal einer Million (RATE_SCALE). */
-    ratePerEuro: number;
-  }): Promise<CurrencyValuation> =>
-    call(() => Bridge.ValuateAssetCurrency(request as any) as Promise<CurrencyValuation>),
-  /** Bucht die Umrechnungsdifferenz auf die Konten der Währungsumrechnung (6880/4840). */
-  bookAssetCurrencyValuation: (request: {
-    assetId: number;
-    date: string;
-    ratePerEuro: number;
-  }): Promise<JournalEntry> =>
-    call(() => Bridge.BookAssetCurrencyValuation(request as any) as Promise<JournalEntry>),
-
-  // --- Dokumente am Anlagegut -------------------------------------------
-
-  /** Öffnet den nativen Dateidialog. Dateien reisen als Pfad, nicht als Inhalt. */
-  selectAssetDocumentsDialog: (title = ''): Promise<string[]> =>
-    call(() => Bridge.SelectAssetDocumentsDialog(title) as Promise<string[]>),
-  attachAssetDocument: (request: {
-    assetId: number;
-    kind: AssetDocumentKind;
-    path: string;
-    title?: string;
-    documentDate?: string;
-    validUntil?: string;
-    note?: string;
-  }): Promise<FixedAsset> =>
-    call(() => Bridge.AttachAssetDocument(request as any) as Promise<FixedAsset>),
-  removeAssetDocument: (assetId: number, documentId: number): Promise<FixedAsset> =>
-    call(() => Bridge.RemoveAssetDocument(assetId, documentId) as Promise<FixedAsset>),
-  getAssetDocumentContent: (documentId: number): Promise<ReceiptPreview> =>
-    call(() => Bridge.GetAssetDocumentContent(documentId) as Promise<ReceiptPreview>),
-  getAssetDocumentKinds: (): Promise<AssetDocumentKindInfo[]> =>
-    call(() => Bridge.GetAssetDocumentKinds() as Promise<AssetDocumentKindInfo[]>),
-  /** Was bis zu einem Stichtag ausläuft. Leer heißt: bis zum Ende des Geschäftsjahres. */
-  getExpiringAssetDocuments: (until = ''): Promise<ExpiringAssetDocument[]> =>
-    call(() => Bridge.GetExpiringAssetDocuments(until) as Promise<ExpiringAssetDocument[]>),
-
-  // --- Investmentanteile ------------------------------------------------
-
-  /** Der Rechtsformkatalog, je mit dem, was die Form steuerlich nach sich zieht. */
-  getLegalForms: (): Promise<LegalFormInfo[]> =>
-    call(() => Bridge.GetLegalForms() as Promise<LegalFormInfo[]>),
-  /** Fondsarten, Anlegerstellungen und der Satz, der sich aus beidem ergibt. */
-  getInvestmentRules: (): Promise<InvestmentRules> =>
-    call(() => Bridge.GetInvestmentRules() as Promise<InvestmentRules>),
-  /**
-   * Rechnet die Vorabpauschale eines Kalenderjahres (§ 18 InvStG) — und hält
-   * sie fest, wenn `record` gesetzt ist. Gebucht wird nichts.
-   */
-  computeVorabpauschale: (request: {
-    assetId: number;
-    year: number;
-    openingPrice: Cents;
-    closingPrice: Cents;
-    distributions?: Cents;
-    /** Basiszins in Basispunkten: 253 sind 2,53 %. */
-    basisPoints: number;
-    record?: boolean;
-    note?: string;
-  }): Promise<Vorabpauschale> =>
-    call(() => Bridge.ComputeVorabpauschale(request as any) as Promise<Vorabpauschale>),
-  /** Die Teilfreistellung einer Ausschüttung, bevor sie gebucht wird. */
-  getInvestmentNoteForIncome: (assetId: number, amount: Cents): Promise<InvestmentTaxNote> =>
-    call(() => Bridge.GetInvestmentNoteForIncome(assetId, amount) as Promise<InvestmentTaxNote>),
-
-  /** Fertigstellung: Umbuchung von der Anlage im Bau auf ihr endgültiges Konto. */
-  transferFixedAsset: (request: {
-    assetId: number;
-    date: string;
-    account: string;
-    depreciationAccount?: string;
-    method: DepreciationMethod;
-    usefulLifeMonths: number;
-    note?: string;
-  }): Promise<FixedAsset> =>
-    call(() => Bridge.TransferFixedAsset(request as any) as Promise<FixedAsset>),
-  previewAssetDisposal: (request: DisposalRequest): Promise<DisposalPreview> =>
-    call(() => Bridge.PreviewAssetDisposal(request as any) as Promise<DisposalPreview>),
-  disposeFixedAsset: (request: DisposalRequest): Promise<DisposalResult> =>
-    call(() => Bridge.DisposeFixedAsset(request as any) as Promise<DisposalResult>),
   getAnlagenspiegel: (): Promise<Anlagenspiegel> =>
     call(() => Bridge.GetAnlagenspiegel() as Promise<Anlagenspiegel>),
-  /**
-   * Sonderabschreibungen, die noch als Buchung im Journal stehen. Seit Welle 5a
-   * entsteht die Sonderabschreibung nur noch als steuerlicher Wert; die alten
-   * Buchungen bleiben stehen und werden hier benannt.
-   */
-  getLegacySpecialDepreciations: (): Promise<LegacySpecialDepreciationNotice> =>
-    call(
-      () => Bridge.GetLegacySpecialDepreciations() as Promise<LegacySpecialDepreciationNotice>,
-    ).then((notice) => (notice ? { ...notice, rows: list(notice.rows) } : notice)),
   /** Buchungen auf Anlagekonten, zu denen noch kein Anlagegut erfasst ist. */
   getAssetAcquisitionCandidates: (): Promise<AcquisitionCandidate[]> =>
     call(() => Bridge.GetAssetAcquisitionCandidates() as Promise<AcquisitionCandidate[]>),
-  getSammelposten: (fiscalYear = 0): Promise<FixedAsset | null> =>
-    call(() => Bridge.GetSammelposten(fiscalYear) as Promise<FixedAsset | null>),
 
   // --- Bilanz und Gewinn- und Verlustrechnung ---------------------------
 
@@ -1077,9 +653,6 @@ export const Api = {
     ),
   getSizeClass: (year: number): Promise<SizeClass> =>
     call(() => Bridge.GetSizeClass(year) as Promise<SizeClass>),
-  /** Aufstellung und Offenlegung mit Datum und Norm (§ 264 Abs. 1, § 325 HGB). */
-  getStatementDeadlines: (year: number): Promise<Deadline[]> =>
-    call(() => Bridge.GetStatementDeadlines(year) as Promise<Deadline[]>).then(list),
   /** Bilanz und GuV als PDF, Base64 wie der Rechnungsexport. */
   exportStatementPDF: (year: number): Promise<string> =>
     call(() => Bridge.ExportStatementPDF(year) as Promise<string>),
@@ -1089,24 +662,29 @@ export const Api = {
   /** Das dritte Merkmal des § 267 Abs. 1 HGB; aus Buchungen nicht ableitbar. */
   setAverageEmployees: (year: number, count: number): Promise<FiscalYear> =>
     call(() => Bridge.SetAverageEmployees(year, count) as Promise<FiscalYear>),
-  /**
-   * Der Gesamtumsatz des Vorjahres. An ihm hängt, ob 2027 noch eine sonstige
-   * Rechnung ohne strukturierten Datensatz ausgestellt werden darf
-   * (§ 27 Abs. 38 Nr. 2 UStG).
-   */
-  setPriorYearRevenue: (year: number, amount: Cents): Promise<FiscalYear> =>
-    call(() => Bridge.SetPriorYearRevenue(year, amount) as Promise<FiscalYear>),
 
   // --- E-Bilanz, Audit & Festschreibung ---------------------------------
 
-  exportEBilanzXBRL: (): Promise<string> => call(() => Bridge.ExportEBilanzXBRL() as Promise<string>),
+  /**
+   * Erzeugt die E-Bilanz als XBRL-Instanz oder als Summen- und Saldenliste
+   * für eBilanz+ und schreibt sie an einen gewählten Ort. Leer heißt: der
+   * Dialog wurde abgebrochen.
+   */
+  saveEBilanzAs: (year: number, format: 'xbrl' | 'susa_csv'): Promise<string> =>
+    call(() => Bridge.SaveEBilanzAs(year, format) as Promise<string>),
+  /**
+   * Erzeugt die E-Bilanz der Eröffnungsbilanz einer in Buchfink gegründeten
+   * Gesellschaft als XBRL-Instanz; `year` ist das Geschäftsjahr der Gründung.
+   * Leer heißt: der Dialog wurde abgebrochen.
+   */
+  saveOpeningEBilanzAs: (year: number): Promise<string> =>
+    call(() => Bridge.SaveOpeningEBilanzAs(year) as Promise<string>),
   /**
    * Welches Konto unter welcher Gliederungsposition und welchem
    * Taxonomie-Element erscheint — und was die Erzeugung verhindert.
    */
   getEBilanzMappingReport: (year: number): Promise<MappingReport> =>
     call(() => Bridge.GetEBilanzMappingReport(year) as Promise<MappingReport>),
-  getAuditLogs: (): Promise<AuditLogEntry[]> => call(() => Bridge.GetAuditLogs() as Promise<AuditLogEntry[]>),
   getFestschreibungen: (): Promise<Festschreibung[]> =>
     call(() => Bridge.GetFestschreibungen() as Promise<Festschreibung[]>).then(list),
   /**
@@ -1197,116 +775,21 @@ export const Api = {
     call(() => Bridge.ReopenClosingStep(year, key, reason) as Promise<ClosingSteps>).then((steps) =>
       steps ? { ...steps, steps: list(steps.steps) } : steps,
     ),
-  markClosingStepDone: (year: number, key: string): Promise<ClosingSteps> =>
-    call(() => Bridge.MarkClosingStepDone(year, key) as Promise<ClosingSteps>).then((steps) =>
-      steps ? { ...steps, steps: list(steps.steps) } : steps,
-    ),
 
-  /** Buchungen, deren Leistung über den Bilanzstichtag hinausreicht (§ 250 HGB). */
-  proposeAccruals: (year: number): Promise<AccrualProposal> =>
-    call(() => Bridge.ProposeAccruals(year) as Promise<AccrualProposal>).then((proposal) =>
-      proposal ? { ...proposal, items: list(proposal.items) } : proposal,
-    ),
-  /** Rechnet den Posten samt Auflösungsplan, ohne ihn zu buchen. */
-  previewAccrual: (request: AccrualRequest): Promise<AccrualPreview> =>
-    call(() => Bridge.PreviewAccrual(request as any) as Promise<AccrualPreview>).then((preview) =>
-      preview
-        ? {
-            ...preview,
-            accrual: normalizeAccrual(preview.accrual),
-            lines: list(preview.lines),
-            releases: list(preview.releases),
-            warnings: list(preview.warnings),
-          }
-        : preview,
-    ),
-  bookAccrual: (request: AccrualRequest): Promise<Accrual> =>
-    call(() => Bridge.BookAccrual(request as any) as Promise<Accrual>).then(normalizeAccrual),
   getAccruals: (year: number): Promise<Accrual[]> =>
     call(() => Bridge.GetAccruals(year) as Promise<Accrual[]>).then((accruals) =>
       list(accruals).map(normalizeAccrual),
-    ),
-  /** Der Bestand aller Abgrenzungen zu einem Stichtag; leer heißt Bilanzstichtag. */
-  getAccrualReport: (cutoff = ''): Promise<AccrualReport> =>
-    call(() => Bridge.GetAccrualReport(cutoff) as Promise<AccrualReport>).then((report) =>
-      report ? { ...report, rows: list(report.rows) } : report,
     ),
 
   getProvisions: (year: number): Promise<Provision[]> =>
     call(() => Bridge.GetProvisions(year) as Promise<Provision[]>).then((provisions) =>
       list(provisions).map(normalizeProvision),
     ),
-  /** Rechnet Abzinsung und Buchungssatz, ohne zu buchen (§ 253 Abs. 2 HGB). */
-  previewProvision: (request: ProvisionRequest): Promise<ProvisionPreview> =>
-    call(() => Bridge.PreviewProvision(request as any) as Promise<ProvisionPreview>).then(
-      (preview) =>
-        preview
-          ? {
-              ...preview,
-              provision: normalizeProvision(preview.provision),
-              lines: list(preview.lines),
-              findings: list(preview.findings),
-            }
-          : preview,
-    ),
-  bookProvisionFormation: (request: ProvisionRequest): Promise<Provision> =>
-    call(() => Bridge.BookProvisionFormation(request as any) as Promise<Provision>).then(
-      normalizeProvision,
-    ),
-  bookProvisionIncrease: (request: ProvisionRequest): Promise<Provision> =>
-    call(() => Bridge.BookProvisionIncrease(request as any) as Promise<Provision>).then(
-      normalizeProvision,
-    ),
-  /** Auflösung nur mit Grund: der Rückstellungsgrund muss entfallen sein. */
-  bookProvisionRelease: (request: ProvisionChangeRequest): Promise<Provision> =>
-    call(() => Bridge.BookProvisionRelease(request as any) as Promise<Provision>).then(
-      normalizeProvision,
-    ),
-  bookProvisionConsumption: (request: ProvisionChangeRequest): Promise<Provision> =>
-    call(() => Bridge.BookProvisionConsumption(request as any) as Promise<Provision>).then(
-      normalizeProvision,
-    ),
-  bookProvisionUnwinding: (request: ProvisionChangeRequest): Promise<Provision> =>
-    call(() => Bridge.BookProvisionUnwinding(request as any) as Promise<Provision>).then(
-      normalizeProvision,
-    ),
-  /** Erledigt die Rückstellung; ein offener Rest wird mit Grund aufgelöst. */
-  settleProvision: (provisionId: number, date: string, reason: string): Promise<Provision> =>
-    call(() => Bridge.SettleProvision(provisionId, date, reason) as Promise<Provision>).then(
-      normalizeProvision,
-    ),
   /** Der Rückstellungsspiegel des Anhangs: er geht per Definition auf. */
   getProvisionMirror: (year: number): Promise<ProvisionMirror> =>
     call(() => Bridge.GetProvisionMirror(year) as Promise<ProvisionMirror>).then((mirror) =>
       mirror ? { ...mirror, rows: list(mirror.rows) } : mirror,
     ),
-  /** Die Abzinsungssätze eines Monats; leerer Monat heißt: die jüngsten. */
-  getDiscountRates: (month = ''): Promise<DiscountRate[]> =>
-    call(() => Bridge.GetDiscountRates(month) as Promise<DiscountRate[]>).then(list),
-  getDiscountRateMonths: (): Promise<string[]> =>
-    call(() => Bridge.GetDiscountRateMonths()).then(list),
-  saveDiscountRates: (rows: DiscountRate[]): Promise<void> =>
-    call(() => Bridge.SaveDiscountRates(rows as any[])),
-  /**
-   * Liest die Veröffentlichung der Bundesbank: zwei Spalten, Restlaufzeit und
-   * Satz. Der Monat gehört dazu — ohne ihn ließe sich der Satz keinem Stichtag
-   * zuordnen. Sieben Jahre Mittelung sind die Rückstellungen, zehn die
-   * Altersversorgung.
-   */
-  importDiscountRatesCSV: (path: string, month: string, average = 7): Promise<number> =>
-    call(() => Bridge.ImportDiscountRatesCSV(path, month, average)),
-
-  /** Die Vorratskonten mit Buchwert und bereits erfasstem Inventurwert. */
-  getInventoryAccounts: (year: number): Promise<InventoryOverview> =>
-    call(() => Bridge.GetInventoryAccounts(year) as Promise<InventoryOverview>).then((overview) =>
-      overview ? { ...overview, accounts: list(overview.accounts) } : overview,
-    ),
-  previewInventory: (request: InventoryRequest): Promise<InventoryPreview> =>
-    call(() => Bridge.PreviewInventory(request as any) as Promise<InventoryPreview>).then(
-      (preview) => (preview ? { ...preview, lines: list(preview.lines) } : preview),
-    ),
-  bookInventory: (request: InventoryRequest): Promise<InventoryCount> =>
-    call(() => Bridge.BookInventory(request as any) as Promise<InventoryCount>),
 
   /** Vorsteuer, Umsatzsteuer und Vorauszahlungen zu einem Saldo verrechnet. */
   previewVatSettlement: (year: number): Promise<VatSettlement> =>
@@ -1315,16 +798,10 @@ export const Api = {
         ? { ...settlement, rows: list(settlement.rows), lines: list(settlement.lines) }
         : settlement,
     ),
-  bookVatSettlement: (year: number): Promise<JournalEntry> =>
-    call(() => Bridge.BookVatSettlement(year) as Promise<JournalEntry>),
   /** Körperschaftsteuer, Solidaritätszuschlag und Gewerbesteuer — eine Schätzung. */
   previewTaxProvision: (year: number): Promise<TaxProvisionPreview> =>
     call(() => Bridge.PreviewTaxProvision(year) as Promise<TaxProvisionPreview>).then((preview) =>
       preview ? { ...preview, lines: list(preview.lines) } : preview,
-    ),
-  bookTaxProvision: (request: TaxProvisionRequest): Promise<Provision[]> =>
-    call(() => Bridge.BookTaxProvision(request as any) as Promise<Provision[]>).then((provisions) =>
-      list(provisions).map(normalizeProvision),
     ),
 
   /**
@@ -1351,8 +828,6 @@ export const Api = {
   /** Die Abschnitte des Anhangs, auch die leeren: der Anhang ist eine Gliederung. */
   getNotesTexts: (year: number): Promise<NotesSectionText[]> =>
     call(() => Bridge.GetNotesTexts(year) as Promise<NotesSectionText[]>).then(list),
-  saveNotesText: (year: number, section: NotesSection, text: string): Promise<NotesSectionText[]> =>
-    call(() => Bridge.SaveNotesText(year, section, text) as Promise<NotesSectionText[]>).then(list),
 
   /**
    * Hebesatz, Abgrenzungsmethode, Vorschlagsschwelle und Auflösungstakt. Ohne
@@ -1376,9 +851,6 @@ export const Api = {
             }
           : register,
     ),
-  /** Dasselbe Verzeichnis als CSV-Text; wohin es gehört, entscheidet der Anwender. */
-  exportTaxElectionRegisterCSV: (year: number): Promise<string> =>
-    call(() => Bridge.ExportTaxElectionRegisterCSV(year)),
   /** Die Überleitung Handelsbilanz → Steuerbilanz (§ 60 Abs. 2 EStDV). */
   getReconciliation: (year: number): Promise<Reconciliation> =>
     call(() => Bridge.GetReconciliation(year) as Promise<Reconciliation>).then((reconciliation) =>
@@ -1387,9 +859,6 @@ export const Api = {
 
   // --- Umsatzsteuer-Voranmeldung ----------------------------------------
 
-  /** Die Zeiträume eines Jahres mit Fälligkeit, Festschreibung und Stand. */
-  getVatPeriods: (year: number): Promise<VatPeriodStatus[]> =>
-    call(() => Bridge.GetVatPeriods(year) as Promise<VatPeriodStatus[]>).then(list),
   /**
    * Das Kennziffernblatt eines Zeitraums, neu gerechnet und nicht gespeichert.
    * Der Entwurf ist immer der heutige Stand des Journals.
@@ -1398,10 +867,6 @@ export const Api = {
     call(() => Bridge.GetVatReturn(periodKey) as Promise<VatReturn>).then(normalizeVatReturn),
   saveVatReturn: (periodKey: string): Promise<VatReturn> =>
     call(() => Bridge.SaveVatReturn(periodKey) as Promise<VatReturn>).then(normalizeVatReturn),
-  getVatReturns: (year: number): Promise<VatReturn[]> =>
-    call(() => Bridge.GetVatReturns(year) as Promise<VatReturn[]>).then((returns) =>
-      list(returns).map(normalizeVatReturn),
-    ),
   /**
    * Bestätigt die Übermittlung in Mein ELSTER. Der Zeitraum muss
    * festgeschrieben sein, und ohne Transferticket gibt es keine Bestätigung.
@@ -1421,11 +886,6 @@ export const Api = {
   /** Das Kennziffernblatt als Text zum Abtippen in Mein ELSTER. */
   exportVatReturnCSV: (id: number): Promise<string> =>
     call(() => Bridge.ExportVatReturnCSV(id)),
-  /** Ein Elftel der Vorauszahlungen des Vorjahres — ein Vorschlag, kein Wert. */
-  getSpecialPrepaymentSuggestion: (year: number): Promise<SpecialPrepaymentSuggestion> =>
-    call(() =>
-      Bridge.GetSpecialPrepaymentSuggestion(year) as Promise<SpecialPrepaymentSuggestion>,
-    ).then((s) => (s ? { ...s, periods: list(s.periods) } : s)),
 
   // --- Zusammenfassende Meldung -----------------------------------------
 
@@ -1436,18 +896,10 @@ export const Api = {
     call(() => Bridge.GetZMReturn(periodKey) as Promise<ZMReturn>).then(normalizeZMReturn),
   saveZMReturn: (periodKey: string): Promise<ZMReturn> =>
     call(() => Bridge.SaveZMReturn(periodKey) as Promise<ZMReturn>).then(normalizeZMReturn),
-  getZMReturns: (year: number): Promise<ZMReturn[]> =>
-    call(() => Bridge.GetZMReturns(year) as Promise<ZMReturn[]>).then((returns) =>
-      list(returns).map(normalizeZMReturn),
-    ),
   confirmZMSubmitted: (id: number, date: string, ticket: string, note = ''): Promise<ZMReturn> =>
     call(() => Bridge.ConfirmZMSubmitted(id, date, ticket, note) as Promise<ZMReturn>).then(
       normalizeZMReturn,
     ),
-  createZMCorrection: (periodKey: string): Promise<ZMReturn> =>
-    call(() => Bridge.CreateZMCorrection(periodKey) as Promise<ZMReturn>).then(normalizeZMReturn),
-  /** Die Meldedatei im Spaltenformat des BZSt-Online-Portals. */
-  exportZMCSV: (id: number): Promise<string> => call(() => Bridge.ExportZMCSV(id)),
 
   // --- Prüfläufe und Fristen --------------------------------------------
 
@@ -1471,86 +923,55 @@ export const Api = {
    */
   getDeadlines: (year: number): Promise<Deadline[]> =>
     call(() => Bridge.GetDeadlines(year) as Promise<Deadline[]>).then(list),
-  /** Der Haken für das, was Buchfink nicht sieht. Leeres Datum nimmt ihn zurück. */
-  markDeadlineDone: (key: string, date: string): Promise<void> =>
-    call(() => Bridge.MarkDeadlineDone(key, date)),
+
+  // --- Pflichtenkalender und Jahreserklärungen ---------------------------
+
+  /** Die Pflichten eines Geschäftsjahres mit Stand, Nachweis und Ziel, die früheste zuerst. */
+  getObligations: (year: number): Promise<Obligation[]> =>
+    call(() => Bridge.GetObligations(year) as Promise<Obligation[]>).then((items) =>
+      list(items).map(normalizeObligation),
+    ),
+  /** Eine Jahreserklärung, gerechnet aus dem heutigen Stand der Bücher. */
+  getDeclaration: (kind: DeclarationKind, year: number): Promise<DeclarationView> =>
+    call(() => Bridge.GetDeclaration(kind, year) as Promise<DeclarationView>).then(
+      normalizeDeclaration,
+    ),
+  setDeclarationInput: (request: DeclarationInputRequest): Promise<DeclarationInput> =>
+    call(() => Bridge.SetDeclarationInput(request) as Promise<DeclarationInput>),
+  /** Bestätigt den Vorschlag eines Agenten. Nur in der App. */
+  confirmDeclarationInput: (
+    kind: DeclarationKind,
+    year: number,
+    key: string,
+  ): Promise<DeclarationInput> =>
+    call(() => Bridge.ConfirmDeclarationInput(kind, year, key) as Promise<DeclarationInput>),
+  deleteDeclarationInput: (kind: DeclarationKind, year: number, key: string): Promise<void> =>
+    call(() => Bridge.DeleteDeclarationInput(kind, year, key)),
+  /** Hält die Übermittlung in Mein ELSTER fest. Nur in der App. */
+  submitDeclaration: (request: DeclarationSubmissionRequest): Promise<DeclarationRecord> =>
+    call(() => Bridge.SubmitDeclaration(request) as Promise<DeclarationRecord>),
+  /** Schreibt die Erklärung als JSON in einen gewählten Ordner; null heißt abgebrochen. */
+  exportDeclarationJSON: (kind: DeclarationKind, year: number): Promise<DeclarationExport | null> =>
+    call(() => Bridge.ExportDeclarationJSON(kind, year) as Promise<DeclarationExport | null>),
 
   // --- Gründung ---------------------------------------------------------
 
-  /**
-   * Regeln, Gründung, Anmeldungsbefund, Unterbilanz und Fristen in einem Aufruf.
-   * `applies` ist falsch, wenn die Rechtsform keine Kapitalgesellschaft ist.
-   */
+  /** Regeln, Gründung, Anmeldungsbefund und Unterbilanz in einem Aufruf. */
   getFoundationState: (): Promise<FoundationState> =>
     call(() => Bridge.GetFoundationState() as Promise<FoundationState>),
-  saveFoundation: (foundation: Partial<Foundation>): Promise<Foundation> =>
-    call(() => Bridge.SaveFoundation(foundation as any) as Promise<Foundation>),
-  /** Die Kapitalaufbringungsregeln der Rechtsformen, die der Gründungsweg abdeckt. */
+  /** Der Tag der Beurkundung wird zum Gründungsdatum der Stammdaten. */
+  saveFoundation: (notarizedOn: string, foundation: Partial<Foundation>): Promise<Foundation> =>
+    call(() => Bridge.SaveFoundation(notarizedOn, foundation as any) as Promise<Foundation>),
+  /**
+   * Setzt die Eröffnungsbilanz einer in Buchfink gegründeten Gesellschaft als
+   * PDF zum Unterzeichnen. Leer heißt: der Dialog wurde abgebrochen.
+   */
+  saveOpeningBalanceAs: (): Promise<string> => call(() => Bridge.SaveOpeningBalanceAs()),
+  /** Die Kapitalaufbringungsregeln der Kapitalgesellschaften. */
   getFoundationRules: (): Promise<FoundationRules[]> =>
     call(() => Bridge.GetFoundationRules() as Promise<FoundationRules[]>),
   /** Die Länder, die für die Geschäftsanschrift wählbar sind. */
   getCountries: (): Promise<Country[]> => call(() => Bridge.GetCountries() as Promise<Country[]>).then(list),
-  /**
-   * Voranmeldungszeitraum einer Gründung in diesem Jahr, mit Begründung.
-   * § 18 Abs. 2 UStG hat dafür ein Stichjahr — deshalb wird gefragt statt geraten.
-   */
-  getRecommendedVatPeriod: (foundingYear: number): Promise<{ period: string; reason: string }> =>
-    call(
-      () =>
-        Bridge.GetRecommendedVatPeriod(foundingYear) as Promise<{ period: string; reason: string }>
-    ),
-  previewFoundationPostings: (): Promise<FoundationPostingPreview> =>
-    call(() => Bridge.PreviewFoundationPostings() as Promise<FoundationPostingPreview>),
-  bookFoundationPostings: (): Promise<JournalEntry[]> =>
-    call(() => Bridge.BookFoundationPostings() as Promise<JournalEntry[]>),
-  /** Die Eintragung ins Handelsregister — sie beendet die Vorgesellschaft. */
-  registerCompany: (date: string, court: string, number: string): Promise<Foundation> =>
-    call(() => Bridge.RegisterCompany(date, court, number) as Promise<Foundation>),
-  /** Erledigte Gründungspflicht mit ihrem Datum; leeres Datum nimmt sie zurück. */
-  setFoundationDutyStatus: (key: string, status: string): Promise<void> => call(() => Bridge.SetFoundationDutyStatus(key, status)),
-
-  completeFoundationDuty: (key: string, doneOn: string, note = ''): Promise<void> =>
-    call(() => Bridge.CompleteFoundationDuty(key, doneOn, note)),
-
-  /** Die Eröffnungsbilanz auf den Beurkundungstag, ohne sie abzulegen. */
-  getOpeningBalance: (): Promise<OpeningBalanceSheet> =>
-    call(() => Bridge.GetOpeningBalance() as Promise<OpeningBalanceSheet>),
-  /** Setzt die Eröffnungsbilanz und legt sie in der Dokumentenablage ab. */
-  fileOpeningBalance: (): Promise<CompanyDocument> =>
-    call(() => Bridge.FileOpeningBalance() as Promise<CompanyDocument>),
-  /** Die E-Bilanz der Eröffnungsbilanz als XBRL-Instanz (§ 5b Abs. 1 EStG). */
-  exportOpeningBalanceXBRL: (): Promise<string> =>
-    call(() => Bridge.ExportOpeningBalanceXBRL()),
-  /** Das Datenblatt zum Fragebogen zur steuerlichen Erfassung. */
-  getFragebogenSheet: (): Promise<FragebogenSheet> =>
-    call(() => Bridge.GetFragebogenSheet() as Promise<FragebogenSheet>),
-  /** Setzt das Datenblatt und legt es ab. */
-  fileFragebogenSheet: (): Promise<CompanyDocument> =>
-    call(() => Bridge.FileFragebogenSheet() as Promise<CompanyDocument>),
-
-  // --- Dokumentenablage des Unternehmens ---------------------------------
-
-  /** Die Unterlagen des Unternehmens, das jüngste Dokument zuerst. */
-  getDocuments: (): Promise<CompanyDocument[]> =>
-    call(() => Bridge.GetDocuments() as Promise<CompanyDocument[]>).then((list) => list ?? []),
-  /** Der Katalog der Dokumentarten für die Auswahl. */
-  getDocumentKinds: (): Promise<DocumentKindOption[]> =>
-    call(() => Bridge.GetDocumentKinds() as Promise<DocumentKindOption[]>).then((l) => l ?? []),
-  /** Eine Unterlage zur Anzeige — erst, nachdem die Prüfsumme stimmt. */
-  getDocumentContent: (id: number): Promise<ReceiptPreview> =>
-    call(() => Bridge.GetDocumentContent(id) as Promise<ReceiptPreview>),
-  /** Dateiauswahl für eine Unterlage. Leere Liste heißt: abgebrochen. */
-  selectDocuments: (): Promise<string[]> =>
-    call(() => Bridge.SelectDocumentsDialog() as Promise<string[]>).then((l) => l ?? []),
-  /** Legt eine Unterlage in der Ablage des Unternehmens ab. */
-  getDocumentFileInfo: (path: string): Promise<DocumentFileInfo> =>
-    call(() => Bridge.GetDocumentFileInfo(path) as Promise<DocumentFileInfo>),
-
-  attachDocument: (request: DocumentRequest): Promise<CompanyDocument> =>
-    call(() => Bridge.AttachDocument(request) as Promise<CompanyDocument>),
-  /** Entfernt eine Unterlage aus der Ablage. */
-  removeDocument: (id: number): Promise<void> => call(() => Bridge.RemoveDocument(id)),
-
   // --- Datenüberlassung nach § 147 Abs. 6 AO -----------------------------
 
   /** Zielordner für einen Export. Leerer Pfad heißt: abgebrochen. */
@@ -1559,7 +980,7 @@ export const Api = {
   /** Die Tabellen eines Geschäftsjahres (Z3): CSV, index.xml, Feldbeschreibung. */
   exportZ3: (year: number, targetDir: string): Promise<ExportResult> =>
     call(() => Bridge.ExportZ3(year, targetDir) as Promise<ExportResult>).then(normalizeExport),
-  /** Dasselbe samt Belegdateien und Anlagendokumenten. */
+  /** Dasselbe samt Belegdateien. */
   exportArchive: (year: number, targetDir: string): Promise<ExportResult> =>
     call(() => Bridge.ExportArchive(year, targetDir) as Promise<ExportResult>).then(normalizeExport),
   /** Das Prüferpaket: Archiv, Integritätsnachweis, Verfahrensdokumentation. */
@@ -1567,18 +988,10 @@ export const Api = {
     call(() => Bridge.ExportAuditPackage(year, targetDir) as Promise<ExportResult>).then(
       normalizeExport,
     ),
-  /** Das Journal eines Zeitraums als CSV. Leerer Pfad heißt: abgebrochen. */
-  exportJournalCSV: (from = '', to = ''): Promise<string> =>
-    call(() => Bridge.ExportJournalCSV(from, to)),
-  /** Das Schlüsselverzeichnis als CSV — dieselbe Tabelle wie im Z3-Export. */
-  exportKeyDirectory: (): Promise<string> => call(() => Bridge.ExportKeyDirectory()),
-  /** Dasselbe Verzeichnis zur Anzeige (GoBD Rz. 95). */
-  getKeyDirectory: (): Promise<KeyDirectoryEntry[]> =>
-    call(() => Bridge.GetKeyDirectory() as Promise<KeyDirectoryEntry[]>).then(list),
 
   // --- Prüfläufe über Kette und Dateien ---------------------------------
 
-  /** Prüft jede Belegdatei und jedes Anlagendokument gegen seine Prüfsumme. */
+  /** Prüft jede Belegdatei gegen ihre Prüfsumme. */
   verifyReceiptFiles: (): Promise<FileCheckResult> =>
     call(() => Bridge.VerifyReceiptFiles() as Promise<FileCheckResult>).then(normalizeFileCheck),
 
@@ -1608,195 +1021,45 @@ export const Api = {
     call(() => Bridge.GetInputTaxCorrections(year) as Promise<InputTaxCorrectionYear>).then(
       normalizeInputTaxYear,
     ),
-  /** Dieselbe Sicht unter dem Namen, unter dem der Abschlussbaustein sie aufruft. */
-  previewInputTaxCorrection: (year: number): Promise<InputTaxCorrectionYear> =>
-    call(() => Bridge.PreviewInputTaxCorrection(year) as Promise<InputTaxCorrectionYear>).then(
-      normalizeInputTaxYear,
-    ),
-  /** Nimmt ein Wirtschaftsgut ins Verzeichnis auf. */
-  registerInputTaxCorrection: (request: RegisterInputTaxRequest): Promise<InputTaxCorrection> =>
-    call(() => Bridge.RegisterInputTaxCorrection(request as any) as Promise<InputTaxCorrection>),
-  /** Schließt einen Eintrag vorzeitig ab — Abgang, Entnahme, Fehleintrag. */
-  closeInputTaxCorrection: (id: number, reason: string, date = ''): Promise<InputTaxCorrection> =>
-    call(() => Bridge.CloseInputTaxCorrection(id, reason, date) as Promise<InputTaxCorrection>),
-  /** Bestätigt oder ändert den Verwendungsanteil eines Jahres. */
-  saveInputTaxUsage: (request: SaveInputTaxUsageRequest): Promise<InputTaxCorrectionYear> =>
-    call(() => Bridge.SaveInputTaxUsage(request as any) as Promise<InputTaxCorrectionYear>).then(
-      normalizeInputTaxYear,
-    ),
-  /** Bucht die Berichtigungen eines Geschäftsjahres; der Betrag geht in Kz 64. */
-  bookInputTaxCorrection: (year: number): Promise<InputTaxCorrectionYear> =>
-    call(() => Bridge.BookInputTaxCorrection(year) as Promise<InputTaxCorrectionYear>).then(
-      normalizeInputTaxYear,
-    ),
 
   // --- Bestätigung der USt-IdNr. (§ 18e UStG) ----------------------------
 
-  /** Der Verlauf der Bestätigungsabfragen eines Kontakts. */
-  getVatIDChecks: (contactId: number): Promise<VatIDCheck[]> =>
-    call(() => Bridge.GetVatIDChecks(contactId) as Promise<VatIDCheck[]>).then(list),
   /** Der Stand der Bestätigung, ohne dass dafür gefragt würde. */
   getVatIDStatus: (contactId: number): Promise<VatIDStatus> =>
     call(() => Bridge.GetVatIDStatus(contactId) as Promise<VatIDStatus>),
-  /** Die qualifizierte Bestätigungsanfrage. Ihr Ergebnis bleibt am Kontakt. */
-  checkVatID: (contactId: number): Promise<VatIDCheck> =>
-    call(() => Bridge.CheckVatID(contactId) as Promise<VatIDCheck>),
-
-  // --- Belegnachweis der innergemeinschaftlichen Lieferung ---------------
-
-  /** Die Belegarten mit ihrer Gruppe nach Art. 45a MwStVO. */
-  getSupplyEvidenceKinds: (): Promise<EvidenceKindInfo[]> =>
-    call(() => Bridge.GetSupplyEvidenceKinds() as Promise<EvidenceKindInfo[]>).then(list),
-  /** Der Nachweisstand einer Rechnung. Leerer Transport heißt Regelfall. */
-  getSupplyEvidence: (invoiceId: number, transport: TransportKind = ''): Promise<SupplyEvidenceView> =>
-    call(() => Bridge.GetSupplyEvidence(invoiceId, transport) as Promise<SupplyEvidenceView>).then(
-      normalizeSupplyEvidenceView,
-    ),
-  /** Legt einen Nachweisbeleg ab; die Datei geht in den Belegspeicher. */
-  addSupplyEvidence: (request: SupplyEvidenceRequest): Promise<SupplyEvidenceView> =>
-    call(() => Bridge.AddSupplyEvidence(request as any) as Promise<SupplyEvidenceView>).then(
-      normalizeSupplyEvidenceView,
-    ),
-  /**
-   * Hält an der Rechnung fest, wer den Gegenstand befördert hat.
-   *
-   * Eigener Aufruf und nicht nur ein Ansichtsparameter: der Abholfall verlangt
-   * zusätzlich die Gelangensbestätigung, und diese Angabe muss die Rechnung
-   * überleben.
-   */
-  setSupplyTransport: (invoiceId: number, transport: TransportKind): Promise<SupplyEvidenceView> =>
-    call(
-      () => Bridge.SetSupplyTransport(invoiceId, transport) as Promise<SupplyEvidenceView>,
-    ).then(normalizeSupplyEvidenceView),
-  /** Nimmt einen Nachweisbeleg zurück. */
-  removeSupplyEvidence: (
-    invoiceId: number,
-    evidenceId: number,
-    transport: TransportKind = '',
-  ): Promise<SupplyEvidenceView> =>
-    call(
-      () =>
-        Bridge.RemoveSupplyEvidence(invoiceId, evidenceId, transport) as Promise<SupplyEvidenceView>,
-    ).then(normalizeSupplyEvidenceView),
-  /** Die steuerfreien ig. Lieferungen eines Jahres mit ihrem Nachweisstand. */
-  getSupplyEvidenceReport: (year: number): Promise<SupplyEvidenceReport> =>
-    call(() => Bridge.GetSupplyEvidenceReport(year) as Promise<SupplyEvidenceReport>).then(
-      (report) =>
-        report
-          ? { ...report, rows: list(report.rows).map(normalizeEvidenceStatusHolder) }
-          : report,
-    ),
 
   // --- Nicht abziehbare Betriebsausgaben (§ 4 Abs. 5 EStG) ---------------
 
-  /** Die Kategorien mit ihren Konten. */
-  getNonDeductibleCategories: (): Promise<NonDeductibleCategory[]> =>
-    call(() => Bridge.GetNonDeductibleCategories() as Promise<NonDeductibleCategory[]>).then(list),
   /** Der Bericht eines Geschäftsjahres: je Kategorie und je Empfänger. */
   getNonDeductibleReport: (year: number): Promise<NonDeductibleReport> =>
     call(() => Bridge.GetNonDeductibleReport(year) as Promise<NonDeductibleReport>).then(
       normalizeNonDeductibleReport,
     ),
-  /** Bucht die noch abziehbar stehenden Geschenke eines Empfängers um. */
-  rebookGiftsForRecipient: (request: RebookGiftsRequest): Promise<GiftRebooking> =>
-    call(() => Bridge.RebookGiftsForRecipient(request as any) as Promise<GiftRebooking>).then(
-      (result) =>
-        result
-          ? { ...result, reversals: list(result.reversals), rebookings: list(result.rebookings) }
-          : result,
-    ),
 
   // --- Fremdwährung ------------------------------------------------------
 
-  /** Der Kurs eines Tages. Fehlt er, wird er geholt und in der Historie abgelegt. */
-  getExchangeRate: (currency: string, date: string): Promise<ExchangeRate> =>
-    call(() => Bridge.GetExchangeRate(currency, date) as Promise<ExchangeRate>),
-  /** Die Kurshistorie einer Währung. */
-  getExchangeRates: (currency: string, from = '', to = ''): Promise<ExchangeRate[]> =>
-    call(() => Bridge.GetExchangeRates(currency, from, to) as Promise<ExchangeRate[]>).then(list),
-  /** Nimmt einen von Hand erfassten Kurs auf. Ohne Quelle ist er eine Behauptung. */
-  saveExchangeRate: (rate: Partial<ExchangeRate>): Promise<ExchangeRate> =>
-    call(() => Bridge.SaveExchangeRate(rate as any) as Promise<ExchangeRate>),
-  /** Die Umsatzsteuer-Durchschnittskurse eines Zeitraums (§ 16 Abs. 6 UStG). */
-  getVatExchangeRates: (from = '', to = ''): Promise<VatExchangeRate[]> =>
-    call(() => Bridge.GetVatExchangeRates(from, to) as Promise<VatExchangeRate[]>).then(list),
-  saveVatExchangeRate: (rate: Partial<VatExchangeRate>): Promise<VatExchangeRate> =>
-    call(() => Bridge.SaveVatExchangeRate(rate as any) as Promise<VatExchangeRate>),
-  /** Liest die Durchschnittskurse aus einer CSV-Datei. */
-  importVatExchangeRatesCSV: (path: string): Promise<VatRateImport> =>
-    call(() => Bridge.ImportVatExchangeRatesCSV(path) as Promise<VatRateImport>).then((result) =>
-      result ? { ...result, problems: list(result.problems) } : result,
-    ),
   /** Die Stichtagsbewertung, ohne sie zu buchen (§ 256a HGB). */
   previewCurrencyValuation: (year: number): Promise<ForeignCurrencyValuation> =>
     call(() => Bridge.PreviewCurrencyValuation(year) as Promise<ForeignCurrencyValuation>).then(
       normalizeCurrencyValuation,
     ),
-  /** Bucht die Bewertung und ihre Auflösung im Folgejahr. */
-  bookCurrencyValuation: (year: number): Promise<ForeignCurrencyValuation> =>
-    call(() => Bridge.BookCurrencyValuation(year) as Promise<ForeignCurrencyValuation>).then(
-      normalizeCurrencyValuation,
-    ),
+  /** Die eingelesenen Umsatzsteuer-Umrechnungskurse, Monate als JJJJ-MM; leer heißt ohne Grenze. */
+  getVatExchangeRates: (from = '', to = ''): Promise<VatExchangeRate[]> =>
+    call(() => Bridge.GetVatExchangeRates(from, to) as Promise<VatExchangeRate[] | null>).then((r) => r ?? []),
+  /** Liest die Umsatzsteuer-Umrechnungskurse des BMF aus einer CSV-Datei (§ 16 Abs. 6 UStG). */
+  importVatExchangeRates: (path: string): Promise<VatRateImport> =>
+    call(() => Bridge.ImportVatExchangeRates(path) as Promise<VatRateImport>).then((r) => ({
+      ...r,
+      problems: r.problems ?? [],
+    })),
+  selectVatRatesFile: (title = 'Umsatzsteuer-Umrechnungskurse (CSV) auswählen'): Promise<string> =>
+    call(() => Bridge.SelectVatRatesFileDialog(title)),
 
-  // --- Anlagen: Regelsätze, Wertaufholung, Sammelposten ------------------
+  // --- Anlagen: Wertaufholung -------------------------------------------
 
-  /** Die Abschreibungsregeln aus der Ressource, aus der auch gerechnet wird. */
-  getAfaRules: (): Promise<AfaRules> =>
-    call(() => Bridge.GetAfaRules() as Promise<AfaRules>).then((rules) =>
-      rules
-        ? {
-            ...rules,
-            parameterSets: list(rules.parameterSets),
-            degressiveWindows: list(rules.degressiveWindows),
-            electricVehicleWindows: list(rules.electricVehicleWindows),
-            buildingRates: list(rules.buildingRates),
-          }
-        : rules,
-    ),
   /** Die Anlagegüter, bei denen die Wertaufholung zu prüfen ist (§ 253 Abs. 5 HGB). */
   getWriteUpReport: (year: number): Promise<WriteUpReport> =>
     call(() => Bridge.GetWriteUpReport(year) as Promise<WriteUpReport>).then(normalizeWriteUpReport),
-  /** Hält fest, dass der Grund einer außerplanmäßigen Abschreibung fortbesteht. */
-  confirmImpairmentPersists: (assetId: number, year: number, note: string): Promise<WriteUpReport> =>
-    call(
-      () => Bridge.ConfirmImpairmentPersists(assetId, year, note) as Promise<WriteUpReport>,
-    ).then(normalizeWriteUpReport),
-  /** Die Einheitlichkeit des Wahlrechts nach § 6 Abs. 2a Satz 5 EStG. */
-  getPoolConsistencyReport: (year: number): Promise<PoolConsistencyReport> =>
-    call(() => Bridge.GetPoolConsistencyReport(year) as Promise<PoolConsistencyReport>).then(
-      (report) =>
-        report
-          ? { ...report, pooled: list(report.pooled), immediate: list(report.immediate) }
-          : report,
-    ),
-  /** Der 15-%-Rahmen des § 6 Abs. 1 Nr. 1a EStG für eine geplante Instandsetzung. */
-  checkNearAcquisitionCost: (
-    assetId: number,
-    date: string,
-    amount: Cents,
-  ): Promise<NearAcquisitionCheck> =>
-    call(
-      () => Bridge.CheckNearAcquisitionCost(assetId, date, amount) as Promise<NearAcquisitionCheck>,
-    ),
-  /** Bucht den Erhaltungsaufwand als nachträgliche Herstellungskosten um. */
-  capitalizeNearAcquisitionCost: (
-    request: CapitalizeNearAcquisitionCostRequest,
-  ): Promise<FixedAsset> =>
-    call(() => Bridge.CapitalizeNearAcquisitionCost(request as any) as Promise<FixedAsset>),
-  /** Freistellungsbescheinigungen § 48b EStG, die ablaufen oder abgelaufen sind. */
-  getExemptionCertificateWarnings: (today = ''): Promise<ExemptionCertificateWarning[]> =>
-    call(
-      () => Bridge.GetExemptionCertificateWarnings(today) as Promise<ExemptionCertificateWarning[]>,
-    ).then(list),
-
-  // --- Adressen der Netzdienste ------------------------------------------
-
-  /** Die eingestellten Adressen samt ihren Voreinstellungen. */
-  getServiceEndpoints: (): Promise<ServiceEndpoints> =>
-    call(() => Bridge.GetServiceEndpoints() as Promise<ServiceEndpoints>),
-  /** Schreibt sie fort. Ein leerer Wert setzt die Voreinstellung wieder in Kraft. */
-  saveServiceEndpoints: (endpoints: ServiceEndpoints): Promise<ServiceEndpoints> =>
-    call(() => Bridge.SaveServiceEndpoints(endpoints as any) as Promise<ServiceEndpoints>),
 
   // --- Änderungsprotokoll, Versionen und Datenübernahme ------------------
 
@@ -1830,38 +1093,6 @@ export const Api = {
   setSystemChangeDate: (date: string): Promise<void> =>
     call(() => Bridge.SetSystemChangeDate(date)),
 
-  // --- Aufbewahrung ------------------------------------------------------
-
-  /** Die Fristenübersicht; Jahr 0 heißt: alle Geschäftsjahre. */
-  getRetentionOverview: (year = 0): Promise<RetentionOverview> =>
-    call(() => Bridge.GetRetentionOverview(year) as Promise<RetentionOverview>).then(
-      normalizeRetentionOverview,
-    ),
-  /** Alle Aussetzungen, die geltenden zuerst. */
-  getRetentionHolds: (): Promise<RetentionHold[]> =>
-    call(() => Bridge.GetRetentionHolds() as Promise<RetentionHold[]>).then(list),
-  /** Setzt die Frist eines Geschäftsjahres aus; bei „other" ist der Text Pflicht. */
-  setRetentionHold: (
-    year: number,
-    reason: RetentionHoldReason,
-    description: string,
-  ): Promise<RetentionHold> =>
-    call(() => Bridge.SetRetentionHold(year, reason, description) as Promise<RetentionHold>),
-  /** Hebt eine Aussetzung auf. Sie bleibt danach im Protokoll stehen. */
-  releaseRetentionHold: (id: number, reason: string): Promise<void> =>
-    call(() => Bridge.ReleaseRetentionHold(id, reason)),
-  /** Die Geschäftsjahre, deren Aufbewahrungsfrist abgelaufen ist. */
-  getExpiredObjects: (): Promise<RetentionYear[]> =>
-    call(() => Bridge.GetExpiredObjects() as Promise<RetentionYear[]>).then((years) =>
-      list(years).map(normalizeRetentionYear),
-    ),
-  /**
-   * Archiviert ein Geschäftsjahr und löscht es. Unumkehrbar: die Bestätigung
-   * ist die ausgeschriebene Jahreszahl, das Archiv entsteht vorher im Backend.
-   */
-  archiveAndDeleteFiscalYear: (year: number, confirmation: string): Promise<DeleteResult> =>
-    call(() => Bridge.ArchiveAndDeleteFiscalYear(year, confirmation) as Promise<DeleteResult>),
-
   // --- Verfahrensdokumentation (PRF-03) ----------------------------------
 
   /** Erzeugt eine neue Fassung und legt sie im Belegspeicher ab. */
@@ -1893,7 +1124,7 @@ export const Api = {
       hints ? { ...hints, taxCaseHints: list(hints.taxCaseHints) } : hints,
     ),
 
-  // --- Kontakte, Belege, Journal und offene Posten der Welle 6 -----------
+  // --- Kontakte, Belege, Journal und offene Posten ----------------------
 
   /**
    * Sperrt einen Geschäftspartner nach einem Löschverlangen und liefert die
@@ -1904,31 +1135,6 @@ export const Api = {
   /** Die Geschäftspartner, die sich noch auswählen lassen — gesperrte fehlen. */
   getSelectableContacts: (): Promise<Contact[]> =>
     call(() => Bridge.GetSelectableContacts() as Promise<Contact[]>).then(list),
-  /** Schreibt die Kopfdaten eines abgelegten Belegs nach (BEL-02). */
-  saveReceiptHeader: (receiptId: number, header: ReceiptHeader): Promise<Receipt> =>
-    call(() => Bridge.SaveReceiptHeader(receiptId, header as any) as Promise<Receipt>),
-  /** Storniert eine Buchung und bucht sie richtig neu, verknüpft (BEL-09). */
-  correctEntry: (
-    entryId: number,
-    reason: string,
-    newEntry: Partial<JournalEntry>,
-  ): Promise<CorrectionResult> =>
-    call(() => Bridge.CorrectEntry(entryId, reason, newEntry as any) as Promise<CorrectionResult>),
-  /** Die Eröffnungsbuchungen des Umsteigers, ohne sie zu schreiben. */
-  previewOpeningBalance: (request: OpeningBalanceRequest): Promise<OpeningBalancePreview> =>
-    call(
-      () => Bridge.PreviewOpeningBalance(request as any) as Promise<OpeningBalancePreview>,
-    ).then(normalizeOpeningBalance),
-  /** Bucht die Eröffnungsbilanz — alles oder nichts. */
-  bookOpeningBalance: (request: OpeningBalanceRequest): Promise<OpeningBalancePreview> =>
-    call(() => Bridge.BookOpeningBalance(request as any) as Promise<OpeningBalancePreview>).then(
-      normalizeOpeningBalance,
-    ),
-  /** Altersstruktur und Restlaufzeiten zum Stichtag; leer heißt heute (BEL-07). */
-  getOpenItemsAging: (cutoff = ''): Promise<OpenItemsAging> =>
-    call(() => Bridge.GetOpenItemsAging(cutoff) as Promise<OpenItemsAging>).then(
-      normalizeOpenItemsAging,
-    ),
 
   // --- Prüfermodus -------------------------------------------------------
 
@@ -1938,9 +1144,98 @@ export const Api = {
   /** Beendet ihn. Der Grund steht danach im Änderungsprotokoll. */
   disableReadOnly: (reason: string): Promise<AppConfig> =>
     call(() => Bridge.DisableReadOnly(reason) as Promise<AppConfig>),
-  getProgramVersion: (): Promise<string> => call(() => Bridge.GetProgramVersion()),
 
-  // --- Die Bedienung: Aufgaben, Monatsabschluss, Mahnwesen, Prüfpfad ------
+  // --- Eingang -----------------------------------------------------------
+
+  /** Pfad, Anzahl und Alter der ältesten Datei im Eingang, dazu Lese- und Exportordner. */
+  getInbox: (): Promise<InboxInfo> =>
+    call(() => Bridge.GetInbox() as Promise<InboxInfo>).then((info) => ({
+      ...info,
+      readFolders: list(info?.readFolders),
+    })),
+  /** Die Dateien im Eingang, die älteste zuerst. */
+  listInbox: (): Promise<InboxFile[]> =>
+    call(() => Bridge.ListInbox() as Promise<InboxFile[]>).then(list),
+  /** Öffnet den Eingang im Dateimanager des Systems. */
+  openInbox: (): Promise<void> => call(() => Bridge.OpenInbox()),
+  /** Kopiert Dateien in den Eingang; abgelegt wird dabei nichts. */
+  addToInbox: (paths: string[]): Promise<InboxAdded> =>
+    call(() => Bridge.AddToInbox(paths) as Promise<InboxAdded>).then(normalizeInboxAdded),
+  /** Wählt den Eingang; leer heißt `<Datenordner>/Eingang`. Nur in der App. */
+  setInboxFolder: (path: string): Promise<InboxInfo> =>
+    call(() => Bridge.SetInboxFolder(path) as Promise<InboxInfo>).then((info) => ({
+      ...info,
+      readFolders: list(info?.readFolders),
+    })),
+  /** Ob ein Ordner synchronisiert wird; geht auch vor der Einrichtung. */
+  checkFolder: (path: string): Promise<FolderCheck> =>
+    call(() => Bridge.CheckFolder(path) as Promise<FolderCheck>),
+
+  // --- Regeln für verbundene Apps ----------------------------------------
+
+  /** Direktgrenze, Mindestzahl früherer Buchungen, Lese- und Exportordner. */
+  getAgentRules: (): Promise<AgentRules> =>
+    call(() => Bridge.GetAgentRules() as Promise<AgentRules>).then(normalizeAgentRules),
+  /** Speichert die Regeln; 0 und leer heißen Voreinstellung. Nur in der App. */
+  saveAgentRules: (settings: AgentSettings): Promise<AgentRules> =>
+    call(() => Bridge.SaveAgentRules(settings) as Promise<AgentRules>).then(normalizeAgentRules),
+
+  // --- Verbundene Apps ---------------------------------------------------
+
+  /** Läuft der MCP-Server, auf welchem Port, und wenn nicht: warum. */
+  getMCPServerStatus: (): Promise<MCPServerStatus> =>
+    call(() => Bridge.GetMCPServerStatus() as Promise<MCPServerStatus>),
+  /** Neuer Port; 0 heißt Vorgabe. Ein belegter Port wird gemeldet, nicht umgangen. */
+  setMCPPort: (port: number): Promise<MCPServerStatus> =>
+    call(() => Bridge.SetMCPPort(port) as Promise<MCPServerStatus>),
+  /** Die Apps, denen je zugestimmt wurde, mit Mandanten und letztem Zugriff. */
+  getConnectedApps: (): Promise<ConnectedApp[]> =>
+    call(() => Bridge.GetConnectedApps() as Promise<ConnectedApp[]>).then((apps) =>
+      list(apps).map((app) => ({
+        ...app,
+        tenants: list(app.tenants).map((t) => ({ ...t, scopes: list(t.scopes) })),
+      })),
+    ),
+  /** Entzieht einer App jeden Zugriff; ihr nächster Aufruf scheitert. */
+  revokeConnectedApp: (clientId: string): Promise<void> =>
+    call(() => Bridge.RevokeConnectedApp(clientId)),
+  /** Offene Zustimmungsanfragen, falls ein Ereignis verpasst wurde. */
+  getPendingAppRequests: (): Promise<AppConsentRequest[]> =>
+    call(() => Bridge.GetPendingAppRequests() as Promise<AppConsentRequest[]>).then((requests) =>
+      list(requests).map((r) => ({ ...r, scopes: list(r.scopes) })),
+    ),
+  /** Entscheidet eine Anfrage; die Nonce stammt aus der Anfrage und gilt einmal. */
+  resolveAppRequest: (id: string, nonce: string, approve: boolean): Promise<void> =>
+    call(() => Bridge.ResolveAppRequest(id, nonce, approve)),
+  /** Öffnet die Anleitung zu einer KI-App im Browser; ohne Angabe die Übersicht. */
+  openAgentGuide: (client: AgentClient | '' = ''): Promise<void> =>
+    call(() => Bridge.OpenAgentGuide(client)),
+
+  // --- Stammdaten: Gesellschafterdarlehen, Steuernummer -------------------
+
+  /** Hält die Eintragung ins Handelsregister fest; damit endet die Vorgesellschaft. */
+  registerCompany: (date: string, court: string, number: string): Promise<Foundation> =>
+    call(() => Bridge.RegisterCompany(date, court, number) as Promise<Foundation>),
+  /** Die Darlehensverträge mit Gesellschaftern und ihrem gebuchten Stand von heute. */
+  getShareholderLoans: (): Promise<ShareholderLoanView[]> =>
+    call(() => Bridge.GetShareholderLoans() as Promise<ShareholderLoanView[]>).then((loans) =>
+      list(loans).map((view) => ({ ...view, findings: list(view.findings) })),
+    ),
+  /** Erfasst einen Darlehensvertrag; Claude kann das auch mit `darlehen_erfassen`. */
+  registerShareholderLoan: (request: ShareholderLoanRequest): Promise<ShareholderLoanView> =>
+    call(() => Bridge.RegisterShareholderLoan(request) as Promise<ShareholderLoanView>),
+  /** Berichtigt einen Darlehensvertrag; der Grund steht im Änderungsprotokoll. */
+  correctShareholderLoan: (
+    id: number,
+    request: ShareholderLoanRequest,
+    reason: string,
+  ): Promise<ShareholderLoanView> =>
+    call(() => Bridge.CorrectShareholderLoan(id, request, reason) as Promise<ShareholderLoanView>),
+  /** Die Steuernummer im 13-stelligen Bundesschema; leer, solange sie unvollständig ist. */
+  formatElsterTaxNumber: (taxNumber: string, federalState: string): Promise<string> =>
+    call(() => Bridge.FormatElsterTaxNumber(taxNumber, federalState)),
+
+  // --- Die Bedienung: Aufgaben, Monatsabschluss, Prüfpfad ----------------
 
   /**
    * Die Aufgabenliste in ihren drei Gruppen (Architektur 6.1).
@@ -1986,74 +1281,42 @@ export const Api = {
     call(() => Bridge.GetBankRules() as Promise<BankRule[]>).then(list),
   /** Entfernt eine gelernte Zuordnung; der nächste Umsatz wird wieder gefragt. */
   deleteBankRule: (id: number): Promise<void> => call(() => Bridge.DeleteBankRule(id)),
-  /** Die Mahnvorschläge je Kunde, mit Posten, Stufe, Zinsen und Gebühr. */
-  getDunningProposals: (): Promise<DunningProposal[]> =>
-    call(() => Bridge.GetDunningProposals() as Promise<DunningProposal[]>).then((proposals) =>
-      list(proposals).map((proposal) => ({ ...proposal, items: list(proposal.items) })),
-    ),
-  /** Erzeugt die Mahnschreiben der ausgewählten Kunden und legt sie ab. */
-  createDunningNotices: (request: DunningRunRequest): Promise<DunningNotice[]> =>
-    call(() => Bridge.CreateDunningNotices(request) as Promise<DunningNotice[]>).then(
-      (notices) => list(notices).map((notice) => ({ ...notice, items: list(notice.items) })),
-    ),
-  /** Die Schreiben eines Kunden, das jüngste zuerst; 0 heißt: alle. */
-  getDunningNotices: (contactId = 0): Promise<DunningNotice[]> =>
-    call(() => Bridge.GetDunningNotices(contactId) as Promise<DunningNotice[]>).then((notices) =>
-      list(notices).map((notice) => ({ ...notice, items: list(notice.items) })),
-    ),
-  /** Die Basiszinssätze, der älteste zuerst. */
-  getBaseRates: (): Promise<BaseRate[]> =>
-    call(() => Bridge.GetBaseRates() as Promise<BaseRate[]>).then(list),
-  /**
-   * Trägt einen bekanntgegebenen Satz nach. `basisPoints` sind Hundertstel
-   * eines Prozentpunktes: 127 sind 1,27 %.
-   */
-  saveBaseRate: (validFrom: string, basisPoints: number): Promise<BaseRate[]> =>
-    call(() => Bridge.SaveBaseRate(validFrom, basisPoints) as Promise<BaseRate[]>).then(list),
-  /** Der Prüfpfad eines Belegs zur Anzeige: Beleg, Buchung, Zahlung, Bankumsatz. */
-  getAuditTrail: (receiptId: number): Promise<AuditTrail> =>
-    call(() => Bridge.GetAuditTrail(receiptId) as Promise<AuditTrail>).then((trail) =>
-      trail ? { ...trail, steps: list(trail.steps) } : trail,
-    ),
-  /** Schreibt denselben Prüfpfad in eine Datei; leerer Pfad heißt: abgebrochen. */
-  exportAuditTrail: (receiptId: number, format: 'csv' | 'pdf' = 'pdf'): Promise<string> =>
-    call(() => Bridge.ExportAuditTrail(receiptId, format)),
-  /** Schreibt den Leistungsnachweis an einen Eingangsbeleg (RECH-08). */
-  saveServiceProof: (receiptId: number, text: string, date: string): Promise<Receipt> =>
-    call(() => Bridge.SaveServiceProof(receiptId, text, date) as Promise<Receipt>),
-  /**
-   * Der Hinweis zu einem langen Zahlungsziel; leer heißt: unauffällig.
-   *
-   * Er kommt aus dem Fachbereich und wird hier nicht nachgebaut: eine Grenze,
-   * die in der Maske ein zweites Mal stünde, wird bei der nächsten Änderung an
-   * einer der beiden Stellen vergessen.
-   */
-  getPaymentTermNotice: (dueDays: number): Promise<string> =>
-    call(() => Bridge.GetPaymentTermNotice(dueDays)),
 
-  // --- Welle 8: keine Buchung ohne Beleg ---------------------------------
+  // --- Übersicht: Pflichten und Buchungen der Apps -----------------------
 
-  /**
-   * Bucht einen von Hand erfassten Buchungssatz mit seinem Beleg (BEL-01).
-   *
-   * Entweder `receiptId` oder `selfIssued`: gibt es keinen fremden Beleg,
-   * entsteht der Eigenbeleg im selben Vorgang. Welche der beiden Angaben fehlt
-   * oder doppelt ist, sagt das Backend — die Maske baut die Regel nicht nach.
-   */
-  postManualEntry: (request: ManualEntryRequest): Promise<JournalEntry> =>
-    call(() => Bridge.PostManualEntry(request as any) as Promise<JournalEntry>),
-  /** Erzeugt einen Eigenbeleg mit PDF und Kopfdaten und legt ihn ab. */
-  createSelfIssuedReceipt: (request: SelfIssuedReceiptRequest): Promise<Receipt> =>
-    call(() => Bridge.CreateSelfIssuedReceipt(request as any) as Promise<Receipt>),
-  /** Verlängert die Aufbewahrungsfrist eines Belegs; nur nach oben (ARC-01). */
-  overrideReceiptRetention: (
-    receiptId: number,
-    retentionClass: RetentionClass,
-    reason: string,
-  ): Promise<Receipt> =>
-    call(
-      () => Bridge.OverrideReceiptRetention(receiptId, retentionClass, reason) as Promise<Receipt>,
+  /** Die Pflichten, die noch etwas verlangen, nach Fälligkeit; 0 heißt alle. */
+  getNextObligations: (limit = 0): Promise<Obligation[]> =>
+    call(() => Bridge.GetNextObligations(limit) as Promise<Obligation[]>).then((items) =>
+      list(items).map(normalizeObligation),
     ),
+  /** Eine Pflicht mit Stand, Vorbereitung und Nachweis. */
+  getObligation: (key: string): Promise<Obligation> =>
+    call(() => Bridge.GetObligation(key) as Promise<Obligation>).then(normalizeObligation),
+  /** Bestätigt eine Pflicht mit Nachweis. Nur in der App. */
+  confirmObligation: (key: string, evidence: ObligationConfirmation): Promise<Obligation> =>
+    call(() => Bridge.ConfirmObligation(key, evidence) as Promise<Obligation>).then(
+      normalizeObligation,
+    ),
+  /** Kennzeichnet eine Pflicht mit Grund als entfallen. */
+  waiveObligation: (key: string, reason: string): Promise<Obligation> =>
+    call(() => Bridge.WaiveObligation(key, reason) as Promise<Obligation>).then(
+      normalizeObligation,
+    ),
+  /** Nimmt Bestätigung oder Entfallen mit Grund zurück. */
+  reopenObligation: (key: string, reason: string): Promise<Obligation> =>
+    call(() => Bridge.ReopenObligation(key, reason) as Promise<Obligation>).then(
+      normalizeObligation,
+    ),
+  /** Was verbundene Apps seit der letzten Festschreibung gebucht haben, die jüngste zuerst. */
+  getAgentBookings: (limit = 0): Promise<AgentBookings> =>
+    call(() => Bridge.GetAgentBookings(limit) as Promise<AgentBookings>).then((result) => ({
+      total: result?.total ?? 0,
+      lastCommit: result?.lastCommit,
+      entries: list(result?.entries).map((entry) => ({ ...entry, lines: list(entry.lines) })),
+    })),
+
+  // --- Belegverweis, Journalfilter, Aufbewahrung ------------------------
+
   /** Die Fristentabelle mit Quelle und Rechtsstand. Anzeige, keine Einstellung. */
   getRetentionRules: (): Promise<RetentionRules> =>
     call(() => Bridge.GetRetentionRules() as Promise<RetentionRules>).then((rules) =>
@@ -2069,48 +1332,14 @@ export const Api = {
     call(() => Bridge.GetEntriesForReceipt(receiptId) as Promise<JournalEntry[]>).then((entries) =>
       list(entries).map((entry) => ({ ...entry, lines: list(entry.lines) })),
     ),
-  /** Die Beanstandungsliste eines Belegs, nach Fehlerklassen getrennt (RECH-02). */
-  getReceiptFindings: (receiptId: number): Promise<ReceiptFindings> =>
-    call(() => Bridge.GetReceiptFindings(receiptId) as Promise<ReceiptFindings>).then((findings) =>
-      findings
-        ? {
-            ...findings,
-            groups: list(findings.groups).map((group) => ({
-              ...group,
-              findings: list(group.findings),
-            })),
-          }
-        : findings,
-    ),
-  /** Legt ein eigenes Konto im freien Bereich des SKR04 an (BEL-06). */
-  createCustomAccount: (request: CustomAccountRequest): Promise<Account> =>
-    call(() => Bridge.CreateCustomAccount(request as any) as Promise<Account>),
-  /**
-   * Sperrt ein eigenes Konto für neue Buchungen oder gibt es wieder frei.
-   * Gesperrt statt gelöscht: die Buchungen zeigen auf die Nummer.
-   */
-  setAccountBlocked: (number: string, blocked: boolean, reason: string): Promise<Account> =>
-    call(() => Bridge.SetAccountBlocked(number, blocked, reason) as Promise<Account>),
-  /** Die selbst angelegten Konten. */
-  getCustomAccounts: (): Promise<Account[]> =>
-    call(() => Bridge.GetCustomAccounts() as Promise<Account[]>).then(list),
-  /** Die Gliederungspositionen, unter denen ein eigenes Konto stehen darf. */
-  getStatementPositions: (): Promise<StatementPositionOption[]> =>
-    call(() => Bridge.GetStatementPositions() as Promise<StatementPositionOption[]>).then(list),
   /** Der Voranmeldungszeitraum, der sich aus der Steuer des Vorjahres ergibt. */
   getVatPeriodProposal: (year: number): Promise<VatPeriodProposal | null> =>
     call(() => Bridge.GetVatPeriodProposal(year) as Promise<VatPeriodProposal>),
-  /** Die datierte Tabelle der Umsatzsteuersätze. */
-  getVatRatePeriods: (): Promise<VatRatePeriod[]> =>
-    call(() => Bridge.GetVatRatePeriods() as Promise<VatRatePeriod[]>).then(list),
   /** Die gefilterte Menge der Journalzeilen mit ihrer Summenzeile (PRF-01). */
   getFilteredJournal: (filter: JournalFilter): Promise<JournalFilterResult> =>
     call(() => Bridge.GetFilteredJournal(filter as any) as Promise<JournalFilterResult>).then(
       (result) => (result ? { ...result, rows: list(result.rows) } : result),
     ),
-  /** Dieselbe Menge als CSV-Text; die Herausgabe steht im Protokoll. */
-  getFilteredJournalCSV: (filter: JournalFilter): Promise<string> =>
-    call(() => Bridge.GetFilteredJournalCSV(filter as any)),
   /** Schreibt dieselbe Menge in eine gewählte Datei; leerer Pfad heißt: abgebrochen. */
   saveFilteredJournalCSV: (filter: JournalFilter, path: string): Promise<string> =>
     call(() => Bridge.SaveFilteredJournalCSV(filter as any, path)),

@@ -1,0 +1,9 @@
+{
+  "gruende": [
+    {
+      "schluessel": "stammdaten_weichen_ab",
+      "text": "Die E-Rechnung widerspricht den Stammdaten des Kontakts: anschrift."
+    }
+  ],
+  "stufe": "rueckfrage"
+}

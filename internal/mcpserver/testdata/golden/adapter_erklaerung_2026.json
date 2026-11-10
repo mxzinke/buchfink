@@ -1,0 +1,31 @@
+{
+  "abgabereif": false,
+  "art": "ustva",
+  "befunde": [
+    {
+      "code": "zeitraum_passt_nicht",
+      "schwere": "warnung",
+      "text": "Der Mandant meldet vierteljährlich, 2026 ist ein anderer Zeitraum. Den passenden Schlüssel nennt fristen."
+    }
+  ],
+  "ergebnis": [],
+  "faellig": "2027-01-11",
+  "formulare": [],
+  "kennzahlen": [
+    {
+      "bezeichnung": "Vorsteuerbeträge aus Rechnungen von anderen Unternehmern",
+      "kz": "66",
+      "steuer": "19.00"
+    },
+    {
+      "bezeichnung": "Verbleibende Umsatzsteuer-Vorauszahlung (Überschuss mit Minuszeichen)",
+      "kz": "83",
+      "steuer": "-19.00"
+    }
+  ],
+  "naechster_schritt": "Kennzahlen in Mein ELSTER übertragen lassen; Festschreibung und Transferticket erfasst nur der Mensch in der App. Danach pflicht_vorbereitet.",
+  "status": "entwurf",
+  "zahllast": "-19.00",
+  "zeitraum": "2026",
+  "zm_zeilen": []
+}

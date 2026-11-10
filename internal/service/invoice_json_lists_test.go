@@ -85,3 +85,32 @@ func TestInvoiceOutputsHaveNoNilLists(t *testing.T) {
 	assertNoNilSlices(t, "Versandwege", domain.InvoiceSentViaOptions())
 	assertNoNilSlices(t, "Lückengründe", domain.NumberGapReasons())
 }
+
+// Kein `null` in den Listen, die an die Oberfläche gehen: die Ansicht liest
+// `gaps.length` und `advances.length` ohne Umweg, und `null.length` nimmt im
+// Render den ganzen Baum mit.
+func TestInvoiceListsMarshalEmptyNotNull(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	customer := env.customer(t, "Kunde GmbH", "DE", "")
+	svc := env.invoicesWired(t)
+
+	report, err := svc.NumberGaps(ctx, 2026)
+	if err != nil {
+		t.Fatalf("Lückenbericht: %v", err)
+	}
+	assertNoNullLists(t, "Lückenbericht", report, "gaps")
+
+	group := env.group(t, svc, customer.ID, 1000000)
+	assertNoNullLists(t, "Rechnungsverbund", group, "advances")
+
+	inv := env.simpleInvoice(customer.ID, "2026-03-01", 100000)
+	if err := svc.Issue(ctx, inv); err != nil {
+		t.Fatalf("Rechnung ausstellen: %v", err)
+	}
+	stored, err := env.invoiceRepoOf(t).FindByID(ctx, inv.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertNoNullLists(t, "Rechnung", stored, "items", "precedingRefs")
+}

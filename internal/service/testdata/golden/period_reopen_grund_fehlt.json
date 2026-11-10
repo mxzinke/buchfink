@@ -1,0 +1,23 @@
+{
+  "audit": [
+    "Geschäftsjahr 2026: Festgestellt am 2027-06-01 (Beschluss 1)",
+    "Geschäftsjahr 2026: Aufgestellt am 2027-03-01",
+    "Geschäftsjahr 2026 angelegt (2026-01-01 bis 2026-12-31)"
+  ],
+  "commitmentCount": 1,
+  "error": "für die Rücksetzung des Jahresabschlusses ist ein Grund anzugeben",
+  "postingError": "Der Jahresabschluss 2026 ist am 2027-06-01 festgestellt. Eine Buchung zum 2026-12-31 ist deshalb nicht mehr möglich. Muss der Abschluss geändert werden, setzen Sie die Feststellung unter Abschlüsse › Jahr mit Angabe des Grundes zurück",
+  "year": {
+    "adoptedOn": "2027-06-01",
+    "adoptionNote": "Beschluss 1",
+    "averageEmployees": 0,
+    "createdAt": "0001-01-01T00:00:00Z",
+    "endDate": "2026-12-31",
+    "isShort": false,
+    "preparedOn": "2027-03-01",
+    "priorYearRevenue": 0,
+    "startDate": "2026-01-01",
+    "status": "adopted",
+    "year": 2026
+  }
+}

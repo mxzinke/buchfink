@@ -52,6 +52,15 @@ type EInvoiceProposal struct {
 	InvoiceNumber  string       `json:"invoiceNumber"`
 	GrossAmount    domain.Cents `json:"grossAmount"`
 	MatchedContact bool         `json:"matchedContact"`
+	// MatchedBy sagt, woran der Kontakt erkannt wurde: "ust_id" oder
+	// "steuernummer" identifizieren, "name" deutet nur an.
+	MatchedBy string `json:"matchedBy,omitempty"`
+
+	// SupplierPostCode, SupplierCity und PaymentAccounts (BT-84) stehen für den
+	// Abgleich mit den Stammdaten des Kontakts.
+	SupplierPostCode string   `json:"supplierPostCode,omitempty"`
+	SupplierCity     string   `json:"supplierCity,omitempty"`
+	PaymentAccounts  []string `json:"paymentAccounts,omitempty"`
 
 	// PrecedingInvoices are the invoices this one refers to (BG-3) — what ties
 	// a correction to what it corrects.
@@ -67,19 +76,15 @@ type EInvoiceService struct {
 	receiptSvc  *ReceiptService
 	contactRepo domain.ContactRepository
 	reader      EInvoiceReader
-	fiscalYear  int
 }
 
 // NewEInvoiceService creates the reader for received E-Rechnungen.
-func NewEInvoiceService(receiptSvc *ReceiptService, contactRepo domain.ContactRepository, reader EInvoiceReader, fiscalYear int) *EInvoiceService {
+func NewEInvoiceService(receiptSvc *ReceiptService, contactRepo domain.ContactRepository, reader EInvoiceReader) *EInvoiceService {
 	return &EInvoiceService{
 		receiptSvc: receiptSvc, contactRepo: contactRepo,
-		reader: reader, fiscalYear: fiscalYear,
+		reader: reader,
 	}
 }
-
-// SetFiscalYear updates the active year.
-func (s *EInvoiceService) SetFiscalYear(year int) { s.fiscalYear = year }
 
 // ExtractStructuredPart pulls the invoice data out of a filed Beleg and attaches
 // it as the file with role `structured`.
@@ -257,26 +262,6 @@ func (s *EInvoiceService) attachEnclosures(ctx context.Context, receipt *domain.
 	return receipt, nil
 }
 
-// Validate re-runs the rule check against the structured part of a Beleg and
-// records the result.
-//
-// Re-running matters because the rule set is versioned: a document checked under
-// an older version can be checked again without being re-filed.
-func (s *EInvoiceService) Validate(ctx context.Context, receiptID uint) (*domain.ReceiptValidation, error) {
-	content, _, err := s.structuredContent(ctx, receiptID)
-	if err != nil {
-		return nil, err
-	}
-	validation, err := s.reader.ValidateOnly(content)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.receiptSvc.SaveValidation(ctx, receiptID, validation); err != nil {
-		return nil, err
-	}
-	return &validation, nil
-}
-
 // structuredContent loads the structured part of a Beleg.
 func (s *EInvoiceService) structuredContent(ctx context.Context, receiptID uint) ([]byte, *domain.Receipt, error) {
 	receipt, err := s.receiptSvc.Get(ctx, receiptID)
@@ -296,6 +281,27 @@ func (s *EInvoiceService) structuredContent(ctx context.Context, receiptID uint)
 	return content.Data, receipt, nil
 }
 
+// DocumentKind sagt, was der Rechnungsdatensatz eines Belegs zu sein angibt
+// (BT-3); ohne Datensatz leer.
+func (s *EInvoiceService) DocumentKind(ctx context.Context, receiptID uint) (domain.EInvoiceKind, error) {
+	receipt, err := s.receiptSvc.Get(ctx, receiptID)
+	if err != nil {
+		return "", err
+	}
+	if _, ok := receipt.FileByRole(domain.ReceiptRoleStructured); !ok {
+		return "", nil
+	}
+	content, _, err := s.structuredContent(ctx, receiptID)
+	if err != nil {
+		return "", err
+	}
+	read, err := s.reader.Read(content)
+	if err != nil {
+		return "", nil
+	}
+	return read.Kind, nil
+}
+
 // Propose turns the structured part of a filed Beleg into a booking proposal.
 func (s *EInvoiceService) Propose(ctx context.Context, receiptID uint) (*EInvoiceProposal, error) {
 	content, receipt, err := s.structuredContent(ctx, receiptID)
@@ -307,11 +313,9 @@ func (s *EInvoiceService) Propose(ctx context.Context, receiptID uint) (*EInvoic
 		return nil, err
 	}
 
-	// Propose schlägt nicht als gewöhnliche Rechnung vor, was keine ist.
-	// Eine Gutschrift mindert Aufwand und Vorsteuer und ist gegen die
-	// ursprüngliche Rechnung zu verrechnen; sie als Eingangsrechnung zu buchen
-	// dreht das Vorzeichen und eröffnet einen offenen Posten, wo einer zu
-	// schließen wäre. Das sähe richtig aus, und darin liegt das Problem.
+	// Propose schlägt nicht als gewöhnliche Rechnung vor, was keine ist. Eine
+	// Gutschrift kommt mit CreditNoteFor zurück: gebucht wird sie mit
+	// getauschten Seiten, nicht als Eingangsrechnung.
 	if !read.Kind.Bookable() {
 		return nil, fmt.Errorf(
 			"Beleg %s ist eine %s (Rechnungstyp aus dem Datensatz). Buchfink schlägt dafür noch keine Buchung vor — Vorzeichen und Zeitpunkt sind andere als bei einer Eingangsrechnung",
@@ -328,6 +332,9 @@ func (s *EInvoiceService) Propose(ctx context.Context, receiptID uint) (*EInvoic
 		SupplierTaxID:     read.Supplier.TaxID,
 		InvoiceNumber:     read.Number,
 		GrossAmount:       read.GrossAmount,
+		SupplierPostCode:  read.Supplier.PostCode,
+		SupplierCity:      read.Supplier.City,
+		PaymentAccounts:   read.PaymentAccounts,
 		PrecedingInvoices: read.PrecedingInvoices,
 		Notes:             append([]string{}, read.Notes...),
 	}
@@ -339,8 +346,18 @@ func (s *EInvoiceService) Propose(ctx context.Context, receiptID uint) (*EInvoic
 		proposal.Notes = append(proposal.Notes, note)
 	}
 
-	contact, matched := s.matchSupplier(ctx, read.Supplier)
-	proposal.MatchedContact = matched
+	contact, matchedBy := s.matchSupplier(ctx, read.Supplier)
+	matched := contact != nil
+	proposal.MatchedContact, proposal.MatchedBy = matched, matchedBy
+	// Der Kategoriecode AE sagt nur „Steuerschuld beim Empfänger". Bei einem
+	// Lieferanten aus einem anderen EU-Staat ist das in aller Regel die
+	// sonstige Leistung nach § 13b Abs. 1 UStG.
+	if treatment == domain.TaxTreatmentReverseCharge && contact != nil && contact.IsEUCounterparty() {
+		treatment = domain.TaxTreatmentReverseChargeEU
+		proposal.Notes = append(proposal.Notes, fmt.Sprintf(
+			"%s sitzt in %s: vorgeschlagen ist § 13b Abs. 1 UStG (sonstige Leistung, Kennzahl 46/47). "+
+				"Für eine Werklieferung gilt § 13b Abs. 2 UStG.", contact.Name, contact.CountryCode))
+	}
 	if !matched {
 		proposal.Notes = append(proposal.Notes, fmt.Sprintf(
 			"Der Lieferant %q ist noch nicht als Kontakt angelegt. Ohne Personenkonto lässt sich der Beleg nicht buchen.",
@@ -368,6 +385,7 @@ func (s *EInvoiceService) Propose(ctx context.Context, receiptID uint) (*EInvoic
 		DocumentDate:    read.IssueDate,
 		ServiceDateFrom: serviceDate,
 		ServiceDateTo:   serviceDate,
+		DueDate:         read.DueDate,
 		TaxTreatment:    treatment,
 		Positions:       positions,
 		Settlement:      SettlementOpen,
@@ -378,6 +396,14 @@ func (s *EInvoiceService) Propose(ctx context.Context, receiptID uint) (*EInvoic
 	}
 	if read.Number != "" {
 		proposal.Request.Description = fmt.Sprintf("Rechnung %s, %s", read.Number, read.Supplier.Name)
+	}
+	if read.Kind == domain.EInvoiceKindCreditNote {
+		proposal.Request.CreditNoteFor = strings.Join(read.PrecedingInvoices, ", ")
+		if proposal.Request.CreditNoteFor == "" {
+			proposal.Request.CreditNoteFor = "ohne Rechnungsbezug"
+			proposal.Notes = append(proposal.Notes, "Die Gutschrift nennt keine Rechnung, die sie mindert (BG-3).")
+		}
+		proposal.Request.Description = fmt.Sprintf("Gutschrift %s, %s", read.Number, read.Supplier.Name)
 	}
 
 	return proposal, nil
@@ -415,28 +441,31 @@ func resolveTreatment(read *domain.IncomingInvoice) (domain.TaxTreatment, string
 
 // matchSupplier finds the contact behind the seller, by VAT id, tax number or
 // name — in that order, because the first two identify and the last only hints.
-func (s *EInvoiceService) matchSupplier(ctx context.Context, supplier domain.InvoiceParty) (*domain.Contact, bool) {
+// The second result names the key that matched.
+func (s *EInvoiceService) matchSupplier(ctx context.Context, supplier domain.InvoiceParty) (*domain.Contact, string) {
 	contacts, err := s.contactRepo.FindAll(ctx)
 	if err != nil {
-		return nil, false
+		return nil, ""
 	}
 
 	for _, key := range []struct {
+		name  string
 		value string
 		field func(domain.Contact) string
 	}{
-		{supplier.VatID, func(c domain.Contact) string { return c.VatID }},
-		{supplier.TaxID, func(c domain.Contact) string { return c.TaxID }},
+		{"ust_id", supplier.VatID, func(c domain.Contact) string { return c.VatID }},
+		{"steuernummer", supplier.TaxID, func(c domain.Contact) string { return c.TaxID }},
 	} {
-		if key.value == "" {
+		value := domain.NormalizeTaxIdentifier(key.value)
+		if value == "" {
 			continue
 		}
 		for i := range contacts {
 			if contacts[i].Type != domain.ContactTypeVendor {
 				continue
 			}
-			if strings.EqualFold(strings.TrimSpace(key.field(contacts[i])), key.value) {
-				return &contacts[i], true
+			if domain.NormalizeTaxIdentifier(key.field(contacts[i])) == value {
+				return &contacts[i], key.name
 			}
 		}
 	}
@@ -444,11 +473,11 @@ func (s *EInvoiceService) matchSupplier(ctx context.Context, supplier domain.Inv
 	if name := strings.TrimSpace(supplier.Name); name != "" {
 		for i := range contacts {
 			if contacts[i].Type == domain.ContactTypeVendor && strings.EqualFold(contacts[i].Name, name) {
-				return &contacts[i], true
+				return &contacts[i], "name"
 			}
 		}
 	}
-	return nil, false
+	return nil, ""
 }
 
 func isXML(mimeType string, data []byte) bool {
@@ -478,7 +507,7 @@ func vatRateMismatchNote(serviceDate string, positions []ReceiptPosition) string
 		}
 		return fmt.Sprintf(
 			"Der Steuersatz %s passt nicht zum Leistungsdatum %s: an diesem Tag galten %s und %s "+
-				"(%s). Prüfe Satz und Leistungsdatum vor dem Buchen.",
+				"(%s). Satz und Leistungsdatum vor dem Buchen prüfen.",
 			p.TaxRate.Label(), serviceDate, period.Standard.Label(), period.Reduced.Label(),
 			period.Source)
 	}

@@ -8,6 +8,10 @@ export interface TabItem<T> {
   label: string;
   /** Zähler rechts der Beschriftung, etwa die Anzahl offener Posten. */
   count?: number;
+  /** `negative` für Überfälliges; neutral zählt offene Arbeit. */
+  countTone?: 'neutral' | 'negative';
+  /** Was der Zähler zählt, für Screenreader, etwa „1 überfällig“. */
+  countLabel?: string;
   disabled?: boolean;
 }
 
@@ -58,7 +62,16 @@ export function Tabs<T extends string | number>({
           >
             {item.label}
             {item.count !== undefined && (
-              <span className="rounded-full bg-sunken px-1.5 text-caption text-ink-subtle num">
+              <span
+                aria-label={item.countLabel}
+                title={item.countLabel}
+                className={cn(
+                  'rounded-full px-1.5 text-caption num',
+                  item.countTone === 'negative'
+                    ? 'bg-negative-soft text-negative-text'
+                    : 'bg-sunken text-ink-subtle',
+                )}
+              >
                 {item.count}
               </span>
             )}

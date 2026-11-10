@@ -1,0 +1,9 @@
+{
+  "gruende": [
+    {
+      "schluessel": "kein_vorschlag",
+      "text": "Aus der E-Rechnung lässt sich kein Buchungsvorschlag bilden: Gutschrift"
+    }
+  ],
+  "stufe": "rueckfrage"
+}

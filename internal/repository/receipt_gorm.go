@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
@@ -25,7 +26,7 @@ func (r *receiptRepositoryGorm) FindByID(ctx context.Context, id uint) (*domain.
 		Preload("Files", func(db *gorm.DB) *gorm.DB { return db.Order("receipt_files.position asc") }).
 		First(&receipt, id).Error
 	if err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	receipt.EnsureLists()
 	return &receipt, nil
@@ -76,13 +77,47 @@ func (r *receiptRepositoryGorm) FindByOriginalHash(ctx context.Context, sha256 s
 	return &receipt, nil
 }
 
+func (r *receiptRepositoryGorm) FindIDsByFileHash(ctx context.Context, sha256s []string) (map[string]uint, error) {
+	out := map[string]uint{}
+	if len(sha256s) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		SHA256    string
+		ReceiptID uint
+	}
+	err := dbFrom(ctx, r.db).Model(&domain.ReceiptFile{}).
+		Select("sha256, MIN(receipt_id) AS receipt_id").
+		Where("sha256 IN ?", sha256s).
+		Group("sha256").Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		out[row.SHA256] = row.ReceiptID
+	}
+	return out, nil
+}
+
+func (r *receiptRepositoryGorm) FindByEInvoiceNumber(ctx context.Context, number string) ([]domain.Receipt, error) {
+	var receipts []domain.Receipt
+	number = strings.TrimSpace(number)
+	if number == "" {
+		return receipts, nil
+	}
+	err := dbFrom(ctx, r.db).
+		Where("e_invoice_number = ? COLLATE NOCASE", number).
+		Order("id asc").Find(&receipts).Error
+	return receipts, err
+}
+
 func (r *receiptRepositoryGorm) FindByJournalEntry(ctx context.Context, entryID uint) (*domain.Receipt, error) {
 	var receipt domain.Receipt
 	err := dbFrom(ctx, r.db).
 		Preload("Files", func(db *gorm.DB) *gorm.DB { return db.Order("receipt_files.position asc") }).
 		Where("journal_entry_id = ?", entryID).First(&receipt).Error
 	if err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	return &receipt, nil
 }
@@ -121,12 +156,6 @@ func (r *receiptRepositoryGorm) Create(ctx context.Context, receipt *domain.Rece
 }
 
 // SaveHeader schreibt die Kopfdaten und rechnet den Beleg-Hash neu.
-//
-// Geschrieben wird über den Datensatz und eine Spaltenauswahl, nicht über eine
-// Map: GORM wendet den Feld-Serializer nur auf dem Struct-Weg an, und ein
-// Map-Update legte Aussteller und Betreff im Klartext in Spalten, die als
-// `serializer:encrypted` deklariert sind — beim nächsten Lesen scheiterte die
-// Entschlüsselung, und der Beleg wäre aus der Liste verschwunden.
 func (r *receiptRepositoryGorm) SaveHeader(
 	ctx context.Context, receiptID uint, header domain.ReceiptHeader, hash domain.ReceiptHashFunc,
 ) (*domain.Receipt, error) {
@@ -134,7 +163,7 @@ func (r *receiptRepositoryGorm) SaveHeader(
 	err := dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		var receipt domain.Receipt
 		if err := tx.Preload("Files").First(&receipt, receiptID).Error; err != nil {
-			return err
+			return mapError(err)
 		}
 		// Ein gebuchter Beleg ist versiegelt: seine Kopfdaten stehen im
 		// Beleg-Hash, der Beleg-Hash in der Buchung und die Buchung in der
@@ -186,7 +215,7 @@ func (r *receiptRepositoryGorm) ReplaceFiles(ctx context.Context, receiptID uint
 	err := dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		var receipt domain.Receipt
 		if err := tx.First(&receipt, receiptID).Error; err != nil {
-			return err
+			return mapError(err)
 		}
 		if receipt.Status != domain.ReceiptStatusFiled {
 			return fmt.Errorf("Beleg %s ist %s und seine Dateien lassen sich nicht mehr ändern",
@@ -223,17 +252,13 @@ func (r *receiptRepositoryGorm) ReplaceFiles(ctx context.Context, receiptID uint
 	return &updated, nil
 }
 
-// Seal marks a Beleg as booked.
-//
-// It is idempotent for the same journal entry on purpose. The seal is written
-// after the journal transaction has committed, so a crash in between leaves an
-// entry pointing at an unsealed Beleg; repeating the seal has to repair that
-// rather than fail.
+// Seal versiegelt den Beleg auf eine Buchung. Wiederholtes Versiegeln auf
+// dieselbe Buchung ist idempotent.
 func (r *receiptRepositoryGorm) Seal(ctx context.Context, receiptID uint, entryID uint) error {
 	return dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		var receipt domain.Receipt
 		if err := tx.First(&receipt, receiptID).Error; err != nil {
-			return err
+			return mapError(err)
 		}
 		if receipt.Status == domain.ReceiptStatusDiscarded {
 			return fmt.Errorf("Beleg %s wurde verworfen und kann nicht gebucht werden", receipt.ReceiptNumber)
@@ -253,12 +278,41 @@ func (r *receiptRepositoryGorm) Seal(ctx context.Context, receiptID uint, entryI
 	})
 }
 
+func (r *receiptRepositoryGorm) Assign(
+	ctx context.Context, receiptID uint, kind domain.ReceiptAssignment, recordID uint,
+) error {
+	return dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		var receipt domain.Receipt
+		if err := tx.First(&receipt, receiptID).Error; err != nil {
+			return mapError(err)
+		}
+		if receipt.Status == domain.ReceiptStatusAssigned && receipt.AssignedKind == kind && receipt.AssignedID == recordID {
+			return nil
+		}
+		if receipt.Status != domain.ReceiptStatusFiled {
+			return fmt.Errorf("Beleg %s ist %s und lässt sich keinem Datensatz zuordnen",
+				receipt.ReceiptNumber, statusLabel(receipt.Status))
+		}
+		return tx.Model(&domain.Receipt{}).Where("id = ?", receiptID).Updates(map[string]any{
+			"status": domain.ReceiptStatusAssigned, "assigned_kind": kind, "assigned_id": recordID,
+			"updated_at": time.Now().UTC(),
+		}).Error
+	})
+}
+
+func (r *receiptRepositoryGorm) Release(
+	ctx context.Context, receiptID uint, kind domain.ReceiptAssignment, recordID uint,
+) error {
+	return dbFrom(ctx, r.db).Model(&domain.Receipt{}).
+		Where("id = ? AND status = ? AND assigned_kind = ? AND assigned_id = ?",
+			receiptID, domain.ReceiptStatusAssigned, kind, recordID).
+		Updates(map[string]any{
+			"status": domain.ReceiptStatusFiled, "assigned_kind": "", "assigned_id": 0,
+			"updated_at": time.Now().UTC(),
+		}).Error
+}
+
 // SaveInputTaxOverride schreibt den Grund der Übersteuerung an den Beleg.
-//
-// Über den Datensatz und nicht über eine Map: der Grund liegt verschlüsselt in
-// der Spalte, und GORM wendet den Feld-Serializer nur auf dem Struct-Weg an. Ein
-// Map-Update legte den Klartext dorthin, wo Geheimtext erwartet wird, und beim
-// nächsten Lesen scheiterte die Entschlüsselung des ganzen Belegs.
 func (r *receiptRepositoryGorm) SaveInputTaxOverride(
 	ctx context.Context, receiptID uint, reason, at string,
 ) error {
@@ -267,13 +321,16 @@ func (r *receiptRepositoryGorm) SaveInputTaxOverride(
 		Select("InputTaxOverride", "InputTaxOverrideAt").Updates(&receipt).Error
 }
 
+func (r *receiptRepositoryGorm) SaveReceivedAt(ctx context.Context, receiptID uint, date string) error {
+	receipt := domain.Receipt{ID: receiptID, ReceivedAt: date}
+	return dbFrom(ctx, r.db).Model(&receipt).Select("ReceivedAt").Updates(&receipt).Error
+}
+
 // SaveRetention schreibt die überschriebene Aufbewahrungsfrist an den Beleg.
 //
-// Auch sie geht über den Datensatz und eine Spaltenauswahl: der Grund liegt
-// verschlüsselt in seiner Spalte, und GORM wendet den Feld-Serializer nur auf
-// dem Struct-Weg an. Ein gebuchter Beleg ist ausdrücklich nicht ausgenommen —
-// die Frist steht außerhalb des Beleg-Hashes, und gerade der gebuchte Beleg ist
-// der, dessen Aufbewahrung ein Rechtsstreit verlängert.
+// Ein gebuchter Beleg ist ausdrücklich nicht ausgenommen — die Frist steht
+// außerhalb des Beleg-Hashes, und gerade der gebuchte Beleg ist der, dessen
+// Aufbewahrung ein Rechtsstreit verlängert.
 func (r *receiptRepositoryGorm) SaveRetention(
 	ctx context.Context, receiptID uint, class domain.RetentionClass, until, reason, at string,
 ) error {
@@ -287,10 +344,6 @@ func (r *receiptRepositoryGorm) SaveRetention(
 }
 
 // SaveAuditTrail schreibt Bestellbezug und Leistungsnachweis an den Beleg.
-//
-// Über den Datensatz und eine Spaltenauswahl wie die Übersteuerung: der
-// Leistungsnachweis liegt verschlüsselt in seiner Spalte, und GORM wendet den
-// Feld-Serializer nur auf dem Struct-Weg an.
 func (r *receiptRepositoryGorm) SaveAuditTrail(
 	ctx context.Context, receiptID uint, orderReference, proof, proofAt string,
 ) error {
@@ -308,7 +361,7 @@ func (r *receiptRepositoryGorm) Discard(ctx context.Context, receiptID uint, rea
 	return dbFrom(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		var receipt domain.Receipt
 		if err := tx.First(&receipt, receiptID).Error; err != nil {
-			return err
+			return mapError(err)
 		}
 		if receipt.Status == domain.ReceiptStatusSealed {
 			return fmt.Errorf("Beleg %s ist gebucht. Eine Korrektur geschieht durch Storno der Buchung, nicht am Beleg",
@@ -339,6 +392,8 @@ func (r *receiptRepositoryGorm) SaveValidation(ctx context.Context, receiptID ui
 			"validation_coverage": v.Coverage,
 			"validation_errors":   v.Errors,
 			"validation_findings": v.Findings,
+			"e_invoice_number":    v.InvoiceNumber,
+			"e_invoice_issuer":    v.Issuer,
 			"updated_at":          time.Now().UTC(),
 		}).Error
 }
@@ -383,10 +438,9 @@ func statusLabel(s domain.ReceiptStatus) string {
 		return "gebucht und versiegelt"
 	case domain.ReceiptStatusDiscarded:
 		return "verworfen"
+	case domain.ReceiptStatusAssigned:
+		return "einem Datensatz zugeordnet"
 	default:
 		return string(s)
 	}
 }
-
-// IsNotFound reports a missing record without leaking GORM into the services.
-func IsNotFound(err error) bool { return errors.Is(err, gorm.ErrRecordNotFound) }

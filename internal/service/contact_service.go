@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -13,14 +12,14 @@ import (
 
 // ContactService manages debtor/creditor master data and their Personenkonten.
 type ContactService struct {
+	serviceClock
 	contactRepo domain.ContactRepository
 	journalRepo domain.JournalRepository
 	numberRepo  domain.NumberRangeRepository
 	auditRepo   domain.AuditRepository
 	// vatIDs ist die Bestätigungsabfrage. Sie ist optional: ohne sie bleibt der
 	// Hinweis beim Speichern allgemein.
-	vatIDs     vatIDStatusSource
-	fiscalYear int
+	vatIDs vatIDStatusSource
 }
 
 // NewContactService creates the master data service.
@@ -29,23 +28,26 @@ func NewContactService(
 	journalRepo domain.JournalRepository,
 	numberRepo domain.NumberRangeRepository,
 	auditRepo domain.AuditRepository,
-	fiscalYear int,
 ) *ContactService {
 	return &ContactService{
 		contactRepo: contactRepo,
 		journalRepo: journalRepo,
 		numberRepo:  numberRepo,
 		auditRepo:   auditRepo,
-		fiscalYear:  fiscalYear,
 	}
 }
 
-// SetFiscalYear updates the year the open item balances are computed for.
-func (s *ContactService) SetFiscalYear(year int) { s.fiscalYear = year }
+// Contact liefert einen Geschäftspartner ohne Saldo.
+func (s *ContactService) Contact(ctx context.Context, id uint) (*domain.Contact, error) {
+	return s.contactRepo.FindByID(ctx, id)
+}
 
-// GetContacts returns all business partners with the balance of their
-// Personenkonto (the open item total) filled in.
-func (s *ContactService) GetContacts(ctx context.Context) ([]domain.Contact, error) {
+// GetContacts returns all business partners with the balance their
+// Personenkonto shows in the fiscal year (the open item total) filled in.
+func (s *ContactService) GetContacts(ctx context.Context, year int) ([]domain.Contact, error) {
+	if err := requireYear(year); err != nil {
+		return nil, err
+	}
 	contacts, err := s.contactRepo.FindAll(ctx)
 	if err != nil {
 		return nil, err
@@ -54,7 +56,7 @@ func (s *ContactService) GetContacts(ctx context.Context) ([]domain.Contact, err
 		return contacts, nil
 	}
 
-	turnovers, err := s.journalRepo.AccountTurnovers(ctx, s.fiscalYear)
+	turnovers, err := s.journalRepo.AccountTurnovers(ctx, year)
 	if err != nil {
 		return contacts, nil
 	}
@@ -99,6 +101,7 @@ func (s *ContactService) SaveContact(ctx context.Context, c *domain.Contact) err
 			before = prev
 		}
 	}
+	keepPostingGroup(ctx, c, before)
 
 	if c.LedgerAccount == "" {
 		account, err := s.allocateLedgerAccount(ctx, c.Type)
@@ -111,12 +114,6 @@ func (s *ContactService) SaveContact(ctx context.Context, c *domain.Contact) err
 	if c.CountryCode == "" {
 		c.CountryCode = "DE"
 	}
-	// Wer nur die alte einzeilige Anschrift schickt, bekommt sie zerlegt: die
-	// Rechnung braucht Straße, PLZ und Ort in Feldern (§ 14 Abs. 4 Nr. 1 UStG,
-	// BT-50/52/53). Was sich nicht sicher zerlegen lässt, bleibt liegen und
-	// fällt auf der Kontaktseite als unvollständig auf — eine geratene Straße
-	// wäre schlechter als eine fehlende.
-	c.MigrateAddress()
 	// Ohne Zielformat gilt der Regelfall. Ein leeres Feld bedeutete einen
 	// Kontakt, an den sich keine Rechnung stellen ließe — nicht „kein Format".
 	if c.EInvoiceProfile == "" {
@@ -139,9 +136,11 @@ func (s *ContactService) SaveContact(ctx context.Context, c *domain.Contact) err
 		// LogChange und nicht Log: „Kontakt 12 geändert" sagt nicht, was sich
 		// geändert hat — GoBD Rz. 34 verlangt diese Angabe. Vorher und
 		// Nachher enthalten nur die Felder, die sich unterscheiden.
-		_ = s.auditRepo.LogChange(ctx, action, "CONTACT", fmt.Sprintf("%d", c.ID),
+		if err := logAuditChange(ctx, s.auditRepo, action, "CONTACT", fmt.Sprintf("%d", c.ID),
 			fmt.Sprintf("Geschäftspartner %s, Personenkonto %s (%s)", c.Name, c.LedgerAccount, c.Type),
-			before, c)
+			before, c); err != nil {
+			return err
+		}
 	}
 	c.VatIDNotice = s.vatIDNotice(ctx, c)
 	return nil
@@ -149,9 +148,9 @@ func (s *ContactService) SaveContact(ctx context.Context, c *domain.Contact) err
 
 // vatIDNotice ist der Hinweis zur Bestätigung einer EU-USt-IdNr.
 //
-// Er hält nichts an. Die Bestätigungsanfrage ist beim Ausstellen einer
-// steuerfreien innergemeinschaftlichen Lieferung zwingend (§ 6a Abs. 1 Satz 1
-// Nr. 4 UStG); beim Erfassen des Kontakts ist sie eine gute Gewohnheit, und ein
+// Er hält nichts an. Die Bestätigungsanfrage ist beim Ausstellen einer Leistung
+// an einen Unternehmer im übrigen Gemeinschaftsgebiet zwingend (§ 3a Abs. 2
+// UStG); beim Erfassen des Kontakts ist sie eine gute Gewohnheit, und ein
 // Netzaufruf, den niemand angefordert hat, gehört nicht in das Speichern von
 // Stammdaten. Der Hinweis sagt deshalb, was ist, und bietet die Abfrage an.
 func (s *ContactService) vatIDNotice(ctx context.Context, c *domain.Contact) string {
@@ -163,15 +162,15 @@ func (s *ContactService) vatIDNotice(ctx context.Context, c *domain.Contact) str
 			if status.Confirmed {
 				return status.Note
 			}
-			return status.Note + " Hole die qualifizierte Bestätigungsanfrage nach § 18e UStG nach: " +
-				"beim Ausstellen einer steuerfreien innergemeinschaftlichen Lieferung ist sie zwingend."
+			return status.Note + " Die qualifizierte Bestätigungsanfrage nach § 18e UStG ist nachzuholen: " +
+				"beim Ausstellen einer Leistung an ein Unternehmen im übrigen Gemeinschaftsgebiet ist sie zwingend."
 		}
 	}
 	return fmt.Sprintf(
-		"%s hat die USt-IdNr. %s aus einem anderen Mitgliedstaat. Lass sie beim Bundeszentralamt "+
-			"bestätigen (§ 18e UStG) — beim Ausstellen einer steuerfreien innergemeinschaftlichen "+
-			"Lieferung ist die gültige Nummer materielle Voraussetzung der Befreiung "+
-			"(§ 6a Abs. 1 Satz 1 Nr. 4 UStG).", c.Name, c.VatID)
+		"%s hat die USt-IdNr. %s aus einem anderen Mitgliedstaat. Sie ist beim Bundeszentralamt "+
+			"bestätigen zu lassen (§ 18e UStG) — bei einer Leistung an ein Unternehmen im übrigen "+
+			"Gemeinschaftsgebiet weist die gültige Nummer den Empfänger als Unternehmer aus "+
+			"(§ 3a Abs. 2 UStG).", c.Name, c.VatID)
 }
 
 // vatIDStatusSource ist der Ausschnitt der Bestätigungsabfrage, den die
@@ -222,10 +221,9 @@ func (s *ContactService) allocateLedgerAccount(ctx context.Context, kind domain.
 //
 // BlockContact löscht nicht: die Buchungen, in denen er steht, sind
 // aufzubewahren (§ 257 HGB, § 147 AO), und Art. 17 Abs. 3 Buchst. b DSGVO
-// nimmt diese Verarbeitung vom Löschanspruch aus. Was bleibt, ist die
-// Einschränkung der Verarbeitung nach Art. 18 DSGVO — der Kontakt
-// verschwindet aus jeder Auswahl und bleibt in Buchungen und Exporten
-// sichtbar.
+// nimmt diese Verarbeitung vom Löschanspruch aus. Der Kontakt verschwindet aus
+// jeder Auswahl und bleibt in Buchungen und Exporten sichtbar. Nach Ablauf der
+// Frist löscht das Unternehmen als Verantwortlicher, nicht Buchfink.
 //
 // BlockContact gibt die Antwort an die betroffene Person zurück, mit den
 // Normen, auf die sie sich stützt.
@@ -243,16 +241,16 @@ func (s *ContactService) BlockContact(ctx context.Context, id uint, reason strin
 
 	before := *contact
 	contact.Blocked = true
-	contact.BlockedAt = time.Now().UTC().Format("2006-01-02")
+	contact.BlockedAt = s.today()
 	contact.BlockedReason = strings.TrimSpace(reason)
 	if err := s.contactRepo.Save(ctx, contact); err != nil {
 		return nil, "", err
 	}
-	if s.auditRepo != nil {
-		_ = s.auditRepo.LogChange(ctx, domain.AuditActionUpdate, "CONTACT", fmt.Sprintf("%d", id),
-			fmt.Sprintf("Geschäftspartner %s (Personenkonto %s) gesperrt: %s",
-				contact.Name, contact.LedgerAccount, contact.BlockedReason),
-			&before, contact)
+	if err := logAuditChange(ctx, s.auditRepo, domain.AuditActionUpdate, "CONTACT", fmt.Sprintf("%d", id),
+		fmt.Sprintf("Geschäftspartner %s (Personenkonto %s) gesperrt: %s",
+			contact.Name, contact.LedgerAccount, contact.BlockedReason),
+		&before, contact); err != nil {
+		return nil, "", err
 	}
 	return contact, accounting.BlockedContactAnswer(contact.Name), nil
 }
@@ -263,8 +261,8 @@ func (s *ContactService) BlockContact(ctx context.Context, id uint, reason strin
 // nicht — wer die Sperre aufheben oder die Antwort noch einmal lesen will, muss
 // sie finden können —, aber in einer Rechnung oder einer Buchung dürfen sie
 // nicht mehr auftauchen.
-func (s *ContactService) SelectableContacts(ctx context.Context) ([]domain.Contact, error) {
-	contacts, err := s.GetContacts(ctx)
+func (s *ContactService) SelectableContacts(ctx context.Context, year int) ([]domain.Contact, error) {
+	contacts, err := s.GetContacts(ctx, year)
 	if err != nil {
 		return nil, err
 	}
@@ -303,36 +301,6 @@ func ensureNotBlocked(contact *domain.Contact) error {
 		contact.Name, reason)
 }
 
-// DeleteContact removes a business partner that carries no bookings.
-func (s *ContactService) DeleteContact(ctx context.Context, id uint) error {
-	contact, err := s.contactRepo.FindByID(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	if s.journalRepo != nil {
-		entries, err := s.journalRepo.FindByAccount(ctx, contact.LedgerAccount, 0)
-		if err != nil {
-			return err
-		}
-		if len(entries) > 0 {
-			return fmt.Errorf(
-				"%s hat %d Buchungen auf Personenkonto %s und kann nicht gelöscht werden",
-				contact.Name, len(entries), contact.LedgerAccount,
-			)
-		}
-	}
-
-	if err := s.contactRepo.Delete(ctx, id); err != nil {
-		return err
-	}
-	if s.auditRepo != nil {
-		_ = s.auditRepo.Log(ctx, domain.AuditActionUpdate, "CONTACT", fmt.Sprintf("%d", id),
-			fmt.Sprintf("Geschäftspartner %s (Personenkonto %s) gelöscht", contact.Name, contact.LedgerAccount))
-	}
-	return nil
-}
-
 // ExemptionCertificateWarning ist eine ablaufende oder abgelaufene
 // Freistellungsbescheinigung nach § 48b EStG.
 //
@@ -361,7 +329,7 @@ func (s *ContactService) ExemptionCertificateWarnings(
 	ctx context.Context, today string,
 ) ([]ExemptionCertificateWarning, error) {
 	if today == "" {
-		today = todayLocal()
+		today = s.today()
 	}
 	contacts, err := s.contactRepo.FindAll(ctx)
 	if err != nil {

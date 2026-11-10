@@ -39,6 +39,8 @@ type JournalFilter struct {
 	AmountTo   *domain.Cents `json:"amountTo,omitempty"`
 	TaxKey     string        `json:"taxKey,omitempty"`
 	Actor      string        `json:"actor,omitempty"`
+	// Channel ist der Erfassungsweg (ui, system, agent:<kurzname>).
+	Channel string `json:"channel,omitempty"`
 	// HasReceipt: true nur mit Beleg, false nur ohne, nil egal.
 	HasReceipt *bool `json:"hasReceipt,omitempty"`
 	// Text sucht in Buchungstext, Zeilentext, Belegnummer und Buchungsnummer.
@@ -48,7 +50,7 @@ type JournalFilter struct {
 // IsEmpty meldet, ob der Filter nichts einschränkt.
 func (f JournalFilter) IsEmpty() bool {
 	return f.From == "" && f.To == "" && f.Account == "" && f.CounterAccount == "" &&
-		f.AmountFrom == nil && f.AmountTo == nil && f.TaxKey == "" && f.Actor == "" &&
+		f.AmountFrom == nil && f.AmountTo == nil && f.TaxKey == "" && f.Actor == "" && f.Channel == "" &&
 		f.HasReceipt == nil && strings.TrimSpace(f.Text) == ""
 }
 
@@ -62,6 +64,7 @@ type JournalFilterRow struct {
 	Description    string           `json:"description"`
 	Kind           domain.EntryKind `json:"kind"`
 	Actor          string           `json:"actor,omitempty"`
+	Channel        string           `json:"channel,omitempty"`
 	ReceiptID      *uint            `json:"receiptId,omitempty"`
 	Position       int              `json:"position"`
 	Account        string           `json:"account"`
@@ -111,7 +114,7 @@ func FilterJournal(
 				EntryID: entry.ID, EntryNumber: entry.EntryNumber,
 				BookingDate: entry.BookingDate, DocumentDate: entry.DocumentDate,
 				DocumentNumber: entry.DocumentNumber, Description: entry.Description,
-				Kind: entry.Kind, Actor: entry.Actor, ReceiptID: entry.ReceiptID,
+				Kind: entry.Kind, Actor: entry.Actor, Channel: entry.Channel, ReceiptID: entry.ReceiptID,
 				Position: line.Position, Account: line.Account, Side: line.Side,
 				Amount: line.Amount, TaxKey: line.TaxKey, TaxBase: line.TaxBase,
 				Text: line.Text,
@@ -153,6 +156,9 @@ func filterMatchesEntry(entry *domain.JournalEntry, f JournalFilter) bool {
 		return false
 	}
 	if f.Actor != "" && !strings.EqualFold(entry.Actor, f.Actor) {
+		return false
+	}
+	if f.Channel != "" && entry.Channel != f.Channel {
 		return false
 	}
 	if f.HasReceipt != nil {

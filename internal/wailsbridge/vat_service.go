@@ -2,8 +2,8 @@ package wailsbridge
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/buchfink/buchfink/internal/core"
 	"github.com/buchfink/buchfink/internal/domain"
 	"github.com/buchfink/buchfink/internal/service"
 )
@@ -15,102 +15,42 @@ import (
 // BZSt-Online-Portal ein und bestätigt die Übermittlung hier mit dem
 // Transferticket — das ist das Übermittlungsprotokoll.
 
-// GetVatPeriods liefert die Voranmeldungszeiträume eines Jahres mit Fälligkeit,
-// Festschreibungsstand und Stand der Anmeldung.
-func (b *BuchfinkBridge) GetVatPeriods(year int) ([]service.VatPeriodStatus, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.vatReturnSvc == nil {
-		return []service.VatPeriodStatus{}, nil
-	}
-	return emptyList(b.vatReturnSvc.Periods(context.Background(), year))
-}
-
 // GetVatReturn rechnet das Kennziffernblatt eines Zeitraums neu, ohne es zu
 // speichern. Der Entwurf ist immer der heutige Stand des Journals.
 func (b *BuchfinkBridge) GetVatReturn(periodKey string) (*domain.VatReturn, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.vatReturnSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.vatReturnSvc.Draft(context.Background(), periodKey)
+	return read(b, func(ctx context.Context, s *core.Services) (*domain.VatReturn, error) {
+		return s.VatReturns.Draft(ctx, periodKey)
+	})
 }
 
 // SaveVatReturn legt das Blatt als Entwurf ab.
 func (b *BuchfinkBridge) SaveVatReturn(periodKey string) (*domain.VatReturn, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.vatReturnSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.vatReturnSvc.Save(context.Background(), periodKey)
-}
-
-// GetVatReturns liefert die gespeicherten Voranmeldungen eines Jahres.
-func (b *BuchfinkBridge) GetVatReturns(year int) ([]domain.VatReturn, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.vatReturnSvc == nil {
-		return []domain.VatReturn{}, nil
-	}
-	return emptyList(b.vatReturnSvc.List(context.Background(), year))
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.VatReturn, error) {
+		return s.VatReturns.Save(ctx, periodKey)
+	})
 }
 
 // ConfirmVatReturnSubmitted bestätigt die Übermittlung in Mein ELSTER. Der
 // Zeitraum muss festgeschrieben sein, und ohne Transferticket gibt es keine
 // Bestätigung.
 func (b *BuchfinkBridge) ConfirmVatReturnSubmitted(id uint, date, ticket, note string) (*domain.VatReturn, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.vatReturnSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.vatReturnSvc.ConfirmSubmitted(context.Background(), id, date, ticket, note)
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.VatReturn, error) {
+		return s.VatReturns.ConfirmSubmitted(ctx, id, date, ticket, note)
+	}, core.AppOnly())
 }
 
 // CreateVatCorrection legt eine berichtigte Voranmeldung an (Kennziffer 10).
 func (b *BuchfinkBridge) CreateVatCorrection(periodKey string) (*domain.VatReturn, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.vatReturnSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.vatReturnSvc.CreateCorrection(context.Background(), periodKey)
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.VatReturn, error) {
+		return s.VatReturns.CreateCorrection(ctx, periodKey)
+	})
 }
 
 // ExportVatReturnCSV liefert das Kennziffernblatt als Text (Kennziffer;Wert).
 func (b *BuchfinkBridge) ExportVatReturnCSV(id uint) (string, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.vatReturnSvc == nil {
-		return "", fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.vatReturnSvc.ExportCSV(context.Background(), id)
-}
-
-// GetSpecialPrepaymentSuggestion rechnet die Sondervorauszahlung aus den
-// übermittelten Voranmeldungen des Vorjahres (§ 47 Abs. 1 UStDV).
-//
-// Ein Vorschlag, kein Wert: angemeldet und gezahlt wird die Sondervorauszahlung
-// außerhalb von Buchfink, und in den Einstellungen steht, was der Anwender
-// angemeldet hat.
-func (b *BuchfinkBridge) GetSpecialPrepaymentSuggestion(year int) (*service.SpecialPrepaymentSuggestion, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.vatReturnSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.vatReturnSvc.SuggestedSpecialPrepayment(context.Background(), year)
+	return read(b, func(ctx context.Context, s *core.Services) (string, error) {
+		return s.VatReturns.ExportCSV(ctx, id)
+	})
 }
 
 // -------------------------------------------------------------
@@ -120,79 +60,40 @@ func (b *BuchfinkBridge) GetSpecialPrepaymentSuggestion(year int) (*service.Spec
 // GetZMPeriods liefert die Meldezeiträume eines Jahres. Ihre Länge folgt aus den
 // Umsätzen (§ 18a Abs. 1 UStG) und nicht aus einer Einstellung.
 func (b *BuchfinkBridge) GetZMPeriods(year int) ([]service.ZMPeriodStatus, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.zmSvc == nil {
-		return []service.ZMPeriodStatus{}, nil
-	}
-	return emptyList(b.zmSvc.Periods(context.Background(), year))
+	year = b.yearOr(year)
+	return readList(b, func(ctx context.Context, s *core.Services) ([]service.ZMPeriodStatus, error) {
+		return s.ZM.Periods(ctx, year)
+	})
 }
 
 // GetZMReturn rechnet die Meldung eines Zeitraums neu, ohne sie zu speichern.
 func (b *BuchfinkBridge) GetZMReturn(periodKey string) (*domain.ZMReturn, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.zmSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.zmSvc.Draft(context.Background(), periodKey)
+	return read(b, func(ctx context.Context, s *core.Services) (*domain.ZMReturn, error) {
+		return s.ZM.Draft(ctx, periodKey)
+	})
 }
 
 // SaveZMReturn legt die Meldung als Entwurf ab.
 func (b *BuchfinkBridge) SaveZMReturn(periodKey string) (*domain.ZMReturn, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.zmSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.zmSvc.Save(context.Background(), periodKey)
-}
-
-// GetZMReturns liefert die gespeicherten Meldungen eines Jahres.
-func (b *BuchfinkBridge) GetZMReturns(year int) ([]domain.ZMReturn, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.zmSvc == nil {
-		return []domain.ZMReturn{}, nil
-	}
-	return emptyList(b.zmSvc.List(context.Background(), year))
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.ZMReturn, error) {
+		return s.ZM.Save(ctx, periodKey)
+	})
 }
 
 // ConfirmZMSubmitted bestätigt die Übermittlung an das Bundeszentralamt.
 func (b *BuchfinkBridge) ConfirmZMSubmitted(id uint, date, ticket, note string) (*domain.ZMReturn, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.zmSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.zmSvc.ConfirmSubmitted(context.Background(), id, date, ticket, note)
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.ZMReturn, error) {
+		return s.ZM.ConfirmSubmitted(ctx, id, date, ticket, note)
+	}, core.AppOnly())
 }
 
-// CreateZMCorrection legt eine berichtigte Zusammenfassende Meldung an.
-func (b *BuchfinkBridge) CreateZMCorrection(periodKey string) (*domain.ZMReturn, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if err := b.ensureWritable(); err != nil {
-		return nil, err
-	}
-	if b.zmSvc == nil {
-		return nil, fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.zmSvc.CreateCorrection(context.Background(), periodKey)
-}
+// --- Umsatzsteuer ---------------------------------------------------------
 
-// ExportZMCSV liefert die Meldung im Spaltenformat des BZSt-Online-Portals.
-func (b *BuchfinkBridge) ExportZMCSV(id uint) (string, error) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	if b.zmSvc == nil {
-		return "", fmt.Errorf("kein aktiver Mandant")
-	}
-	return b.zmSvc.ExportCSV(context.Background(), id)
+// GetVatPeriodProposal liefert den Voranmeldungszeitraum, der sich aus der
+// Steuer des Vorjahres ergibt (§ 18 Abs. 2 UStG).
+func (b *BuchfinkBridge) GetVatPeriodProposal(year int) (*service.VatPeriodProposal, error) {
+	year = b.yearOr(year)
+	return read(b, func(ctx context.Context, s *core.Services) (*service.VatPeriodProposal, error) {
+		return s.VatReturns.SuggestPeriodType(ctx, year)
+	})
 }

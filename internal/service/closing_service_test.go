@@ -18,6 +18,9 @@ func (e *testEnv) closing(t *testing.T) *ClosingService {
 	t.Helper()
 	e.journal.SetFiscalYearRepo(repository.NewFiscalYearRepository(e.db))
 	e.journal.SetFestschreibungRepo(repository.NewFestschreibungRepository(e.db))
+	periods := NewPeriodService(repository.NewFiscalYearRepository(e.db), e.journalRepo,
+		repository.NewSettingsRepository(e.db), repository.NewFestschreibungRepository(e.db),
+		repository.NewAuditRepository(e.db), e.journal.tx)
 	closing := NewClosingService(
 		repository.NewFiscalYearRepository(e.db),
 		e.journalRepo,
@@ -25,11 +28,11 @@ func (e *testEnv) closing(t *testing.T) *ClosingService {
 		e.contactRepo,
 		repository.NewPaymentAllocationRepository(e.db),
 		repository.NewSettingsRepository(e.db),
-		repository.NewFestschreibungRepository(e.db),
+		periods,
 		repository.NewAuditRepository(e.db),
 		e.journal,
-		e.fiscalYear,
 	)
+	periods.SetAdoptionChecks(closing.AdoptionChecks())
 	closing.SetClock(func() time.Time { return time.Date(2026, 11, 15, 12, 0, 0, 0, time.UTC) })
 	return closing
 }
@@ -212,8 +215,7 @@ func TestCarryForwardReproducesClosingBalances(t *testing.T) {
 	assertOpeningMatchesClosing(t, env, 2026, 2027, 600000, domain.AccountGewinnvortrag)
 
 	// Die Summen- und Saldenliste des neuen Jahres muss aufgehen.
-	env.accounting.SetFiscalYear(2027)
-	susa, err := env.accounting.GetSuSaOverview(ctx)
+	susa, err := env.accounting.GetSuSaOverview(ctx, 2027)
 	if err != nil {
 		t.Fatalf("Summen- und Saldenliste 2027: %v", err)
 	}
@@ -570,8 +572,9 @@ func TestCarryForwardDoesNotDoubleAfterAnOutOfYearReversal(t *testing.T) {
 	// er in einem späteren Kalenderjahr ausgelöst, steht er in einem anderen
 	// Geschäftsjahr als die Vortragsbuchung. Mit vorgegebenem Datum lässt sich
 	// dieser Stand nicht mehr herstellen (ReverseOn hält die Umkehr im Jahr der
-	// Ursprungsbuchung), deshalb wird er hier von Hand gebucht — die Frage ist,
-	// wie der Saldenvortrag mit einem solchen Altbestand umgeht.
+	// Ursprungsbuchung), deshalb wird er hier über den internen Stornoweg mit
+	// eigenem Datum gebucht — die Frage ist, wie der Saldenvortrag mit einem
+	// solchen Bestand umgeht.
 	sv := openingEntry(t, env, 2027)
 	reversal := &domain.JournalEntry{
 		FiscalYear: 2028, BookingDate: "2028-03-01", DocumentDate: sv.DocumentDate,
@@ -589,7 +592,7 @@ func TestCarryForwardDoesNotDoubleAfterAnOutOfYearReversal(t *testing.T) {
 			TaxBase: -l.TaxBase, Text: l.Text,
 		})
 	}
-	if _, err := env.journal.Post(ctx, reversal); err != nil {
+	if _, err := env.journal.post(ctx, reversal, postMode{reversal: true}); err != nil {
 		t.Fatalf("Storno im Folgejahr: %v", err)
 	}
 
@@ -846,7 +849,6 @@ func TestCarryForwardOpenItemsPerDocument(t *testing.T) {
 	}
 
 	// Die OP-Liste des neuen Jahres zeigt denselben Posten, nicht zwei.
-	payments.SetFiscalYear(2027)
 	after, err := payments.OpenItems(ctx)
 	if err != nil {
 		t.Fatalf("offene Posten nach dem Vortrag: %v", err)
@@ -959,7 +961,6 @@ func TestCarryForwardUsesTheBalanceSheetDate(t *testing.T) {
 	vendor := env.vendor(t, "Lieferant", "DE", "")
 	invoice := env.openPayable(t, vendor.ID, 100000, domain.TaxRateStandard)
 
-	payments.SetFiscalYear(2027)
 	if _, err := payments.Settle(ctx, PaymentRequest{
 		PaymentAccount: domain.AccountBank,
 		PaymentDate:    "2027-01-20",
@@ -1005,8 +1006,8 @@ func TestCarryForwardKeepsTaxAccountsOutOfTheVatReturn(t *testing.T) {
 		t.Errorf("die Vorsteuer steht im neuen Jahr auf %s €, erwartet 190,00 im Soll", b)
 	}
 
-	vat := NewVatService(env.journalRepo, 2027)
-	summary, err := vat.Summary(ctx, "", "")
+	vat := NewVatService(env.journalRepo)
+	summary, err := vat.Summary(ctx, 2027, "", "")
 	if err != nil {
 		t.Fatalf("Umsatzsteuer-Auswertung 2027: %v", err)
 	}
@@ -1154,7 +1155,7 @@ func TestEnsureFiscalYearsCreatesEntitiesForBookedYears(t *testing.T) {
 		t.Fatalf("Buchung 2026: %v", err)
 	}
 
-	if err := closing.EnsureFiscalYears(ctx); err != nil {
+	if err := closing.EnsureFiscalYears(ctx, 2026); err != nil {
 		t.Fatalf("Geschäftsjahre anlegen: %v", err)
 	}
 
@@ -1178,7 +1179,7 @@ func TestEnsureFiscalYearsCreatesEntitiesForBookedYears(t *testing.T) {
 	}
 
 	// Ein zweiter Lauf ändert nichts.
-	if err := closing.EnsureFiscalYears(ctx); err != nil {
+	if err := closing.EnsureFiscalYears(ctx, 2026); err != nil {
 		t.Fatalf("zweiter Lauf: %v", err)
 	}
 	if again, _ := closing.FiscalYears(ctx); len(again) != 2 {
@@ -1221,15 +1222,9 @@ func TestEnsureFiscalYearsStartsFoundingYearAtNotarization(t *testing.T) {
 	closing := env.closing(t)
 	ctx := context.Background()
 
-	foundations := repository.NewFoundationRepository(env.db)
-	if err := foundations.Save(ctx, &domain.Foundation{
-		NotarizedOn: "2026-03-15", ShareCapital: 2500000,
-	}); err != nil {
-		t.Fatalf("Gründung: %v", err)
-	}
-	closing.SetFoundationRepo(foundations)
+	env.setSettings(t, func(c *domain.CompanySettings) { c.FoundedOn = "2026-03-15" })
 
-	if err := closing.EnsureFiscalYears(ctx); err != nil {
+	if err := closing.EnsureFiscalYears(ctx, 2026); err != nil {
 		t.Fatalf("Geschäftsjahre anlegen: %v", err)
 	}
 	years, err := closing.FiscalYears(ctx)
@@ -1245,6 +1240,44 @@ func TestEnsureFiscalYearsStartsFoundingYearAtNotarization(t *testing.T) {
 	}
 }
 
+// Bei einer Gründung setzt die Einrichtung nur das Gründungsdatum der
+// Unternehmensdaten; die Gründung selbst wird später erfasst. Das erste
+// Geschäftsjahr beginnt trotzdem mit der Beurkundung.
+func TestEnsureFiscalYearsStartsAtTheFoundingDateOfTheCompany(t *testing.T) {
+	env := newTestEnv(t)
+	closing := env.closing(t)
+	ctx := context.Background()
+
+	settings := repository.NewSettingsRepository(env.db)
+	cfg, err := settings.GetCompanySettings(ctx)
+	if err != nil {
+		t.Fatalf("Unternehmensdaten: %v", err)
+	}
+	cfg.FoundedOn = "2026-05-04"
+	if err := settings.UpdateCompanySettings(ctx, cfg); err != nil {
+		t.Fatalf("Gründungsdatum: %v", err)
+	}
+
+	if err := closing.EnsureFiscalYears(ctx, 2026); err != nil {
+		t.Fatalf("Geschäftsjahre anlegen: %v", err)
+	}
+	years, err := closing.FiscalYears(ctx)
+	if err != nil || len(years) != 1 {
+		t.Fatalf("erwartet ein Geschäftsjahr, erhalten %d (%v)", len(years), err)
+	}
+	if years[0].StartDate != "2026-05-04" || !years[0].IsShort {
+		t.Errorf("Gründungsjahr = %s bis %s (Rumpfjahr %v), erwartet ab 2026-05-04",
+			years[0].StartDate, years[0].EndDate, years[0].IsShort)
+	}
+	candidates, err := closing.FiscalYearCandidates(ctx)
+	if err != nil {
+		t.Fatalf("Kandidaten: %v", err)
+	}
+	if !strings.Contains(candidates.Previous.Blocked, "04.05.2026") {
+		t.Errorf("das Vorjahr muss mit dem Gründungsdatum gesperrt sein, Grund: %q", candidates.Previous.Blocked)
+	}
+}
+
 // Das Folgejahr beginnt am Tag nach dem Ende des Vorjahres — auch nach einem
 // Rumpfgeschäftsjahr.
 func TestCreateFiscalYearFollowsThePreviousPeriod(t *testing.T) {
@@ -1252,14 +1285,8 @@ func TestCreateFiscalYearFollowsThePreviousPeriod(t *testing.T) {
 	closing := env.closing(t)
 	ctx := context.Background()
 
-	foundations := repository.NewFoundationRepository(env.db)
-	if err := foundations.Save(ctx, &domain.Foundation{
-		NotarizedOn: "2026-03-15", ShareCapital: 2500000,
-	}); err != nil {
-		t.Fatalf("Gründung: %v", err)
-	}
-	closing.SetFoundationRepo(foundations)
-	if err := closing.EnsureFiscalYears(ctx); err != nil {
+	env.setSettings(t, func(c *domain.CompanySettings) { c.FoundedOn = "2026-03-15" })
+	if err := closing.EnsureFiscalYears(ctx, 2026); err != nil {
 		t.Fatalf("Geschäftsjahre anlegen: %v", err)
 	}
 
@@ -1315,14 +1342,8 @@ func TestCreateFiscalYearRefusesAYearBeforeTheFounding(t *testing.T) {
 	closing := env.closing(t)
 	ctx := context.Background()
 
-	foundations := repository.NewFoundationRepository(env.db)
-	if err := foundations.Save(ctx, &domain.Foundation{
-		NotarizedOn: "2026-03-01", ShareCapital: 2500000,
-	}); err != nil {
-		t.Fatalf("Gründung: %v", err)
-	}
-	closing.SetFoundationRepo(foundations)
-	if err := closing.EnsureFiscalYears(ctx); err != nil {
+	env.setSettings(t, func(c *domain.CompanySettings) { c.FoundedOn = "2026-03-01" })
+	if err := closing.EnsureFiscalYears(ctx, 2026); err != nil {
 		t.Fatalf("Geschäftsjahre anlegen: %v", err)
 	}
 
@@ -1349,7 +1370,7 @@ func TestCreateFiscalYearOpensTheNextYearInTheLastQuarter(t *testing.T) {
 		t.Fatalf("Geschäftsjahr 2026: %v", err)
 	}
 
-	closing.SetClock(func() time.Time { return time.Date(2026, 9, 30, 23, 0, 0, 0, time.UTC) })
+	closing.SetClock(func() time.Time { return time.Date(2026, 9, 30, 21, 59, 59, 0, time.UTC) })
 	candidates, err := closing.FiscalYearCandidates(ctx)
 	if err != nil {
 		t.Fatalf("Kandidaten: %v", err)
@@ -1361,7 +1382,7 @@ func TestCreateFiscalYearOpensTheNextYearInTheLastQuarter(t *testing.T) {
 		t.Error("das Geschäftsjahr 2027 wurde im dritten Quartal angelegt")
 	}
 
-	closing.SetClock(func() time.Time { return time.Date(2026, 10, 1, 8, 0, 0, 0, time.UTC) })
+	closing.SetClock(func() time.Time { return time.Date(2026, 9, 30, 22, 0, 0, 0, time.UTC) })
 	if _, err := closing.CreateFiscalYear(ctx, 2027); err != nil {
 		t.Errorf("im letzten Quartal muss sich 2027 anlegen lassen: %v", err)
 	}
@@ -1516,7 +1537,7 @@ func TestPriorYearRevenueIsPrefilledAndSettable(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	closing := env.closing(t)
-	closing.SetRevenueSource(env.statements(t))
+	closing.periods.SetRevenueSource(env.statements(t))
 
 	// Umsatzerlöse 2026: 900.000 € netto.
 	env.post(t, "2026-06-30", domain.AccountBank, "4400", 90_000_000)
@@ -1568,7 +1589,6 @@ func alignEnv(t *testing.T, e *testEnv) (*ClosingService, *FoundationService) {
 	t.Helper()
 	closing := e.closing(t)
 	foundations := e.foundations(t)
-	closing.SetFoundationRepo(repository.NewFoundationRepository(e.db))
 	foundations.SetFoundingYearAligner(closing)
 	return closing, foundations
 }
@@ -1582,7 +1602,7 @@ func TestSaveFoundationPullsTheFoundingYearToTheNotarization(t *testing.T) {
 	closing, foundations := alignEnv(t, env)
 	ctx := context.Background()
 
-	if err := closing.EnsureFiscalYears(ctx); err != nil {
+	if err := closing.EnsureFiscalYears(ctx, 2026); err != nil {
 		t.Fatalf("Geschäftsjahre anlegen: %v", err)
 	}
 	before, err := closing.FiscalYears(ctx)
@@ -1590,9 +1610,7 @@ func TestSaveFoundationPullsTheFoundingYearToTheNotarization(t *testing.T) {
 		t.Fatalf("Ausgangslage: erwartet das volle Kalenderjahr, erhalten %+v (%v)", before, err)
 	}
 
-	f := gmbhFoundation()
-	f.NotarizedOn = "2026-03-15"
-	env.saveFoundation(t, foundations, f)
+	env.saveFoundationOn(t, foundations, "2026-03-15", gmbhFoundation())
 
 	fy, err := closing.PeriodOf(ctx, 2026)
 	if err != nil {
@@ -1613,16 +1631,14 @@ func TestAlignFoundingYearKeepsTheRestOfTheYear(t *testing.T) {
 	closing, foundations := alignEnv(t, env)
 	ctx := context.Background()
 
-	if err := closing.EnsureFiscalYears(ctx); err != nil {
+	if err := closing.EnsureFiscalYears(ctx, 2026); err != nil {
 		t.Fatalf("Geschäftsjahre anlegen: %v", err)
 	}
 	if _, err := closing.SetAverageEmployees(ctx, 2026, 7); err != nil {
 		t.Fatalf("Arbeitnehmerzahl: %v", err)
 	}
 
-	f := gmbhFoundation()
-	f.NotarizedOn = "2026-03-15"
-	env.saveFoundation(t, foundations, f)
+	env.saveFoundationOn(t, foundations, "2026-03-15", gmbhFoundation())
 
 	fy, err := closing.PeriodOf(ctx, 2026)
 	if err != nil {
@@ -1643,12 +1659,10 @@ func TestAlignFoundingYearIsIdempotent(t *testing.T) {
 	closing, foundations := alignEnv(t, env)
 	ctx := context.Background()
 
-	if err := closing.EnsureFiscalYears(ctx); err != nil {
+	if err := closing.EnsureFiscalYears(ctx, 2026); err != nil {
 		t.Fatalf("Geschäftsjahre anlegen: %v", err)
 	}
-	f := gmbhFoundation()
-	f.NotarizedOn = "2026-03-15"
-	env.saveFoundation(t, foundations, f)
+	env.saveFoundationOn(t, foundations, "2026-03-15", gmbhFoundation())
 
 	auditRepo := repository.NewAuditRepository(env.db)
 	count := func() int {
@@ -1658,7 +1672,7 @@ func TestAlignFoundingYearIsIdempotent(t *testing.T) {
 		}
 		n := 0
 		for _, log := range logs {
-			if log.EntityType == "FISCAL_YEAR" && strings.Contains(log.Details, "Beurkundungstag") {
+			if log.EntityType == "FISCAL_YEAR" && strings.Contains(log.Details, "Gründungsdatum") {
 				n++
 			}
 		}
@@ -1683,7 +1697,7 @@ func TestAlignFoundingYearRefusesACommittedPeriod(t *testing.T) {
 	closing, foundations := alignEnv(t, env)
 	ctx := context.Background()
 
-	if err := closing.EnsureFiscalYears(ctx); err != nil {
+	if err := closing.EnsureFiscalYears(ctx, 2026); err != nil {
 		t.Fatalf("Geschäftsjahre anlegen: %v", err)
 	}
 	festschreibung := repository.NewFestschreibungRepository(env.db)
@@ -1694,9 +1708,7 @@ func TestAlignFoundingYearRefusesACommittedPeriod(t *testing.T) {
 		t.Fatalf("Festschreibung: %v", err)
 	}
 
-	f := gmbhFoundation()
-	f.NotarizedOn = "2026-03-15"
-	env.saveFoundation(t, foundations, f)
+	env.saveFoundationOn(t, foundations, "2026-03-15", gmbhFoundation())
 
 	fy, err := closing.PeriodOf(ctx, 2026)
 	if err != nil {
@@ -1717,14 +1729,12 @@ func TestAlignFoundingYearRefusesEntriesBeforeTheNotarization(t *testing.T) {
 	closing, foundations := alignEnv(t, env)
 	ctx := context.Background()
 
-	if err := closing.EnsureFiscalYears(ctx); err != nil {
+	if err := closing.EnsureFiscalYears(ctx, 2026); err != nil {
 		t.Fatalf("Geschäftsjahre anlegen: %v", err)
 	}
 	env.book(t, "2026-02-10", "Buchung vor der Beurkundung", "1800", "2900", 100_000)
 
-	f := gmbhFoundation()
-	f.NotarizedOn = "2026-03-15"
-	env.saveFoundation(t, foundations, f)
+	env.saveFoundationOn(t, foundations, "2026-03-15", gmbhFoundation())
 
 	fy, err := closing.PeriodOf(ctx, 2026)
 	if err != nil {
@@ -1741,7 +1751,7 @@ func TestAlignFoundingYearRefusesAnAdoptedYear(t *testing.T) {
 	closing, _ := alignEnv(t, env)
 	ctx := context.Background()
 
-	if err := closing.EnsureFiscalYears(ctx); err != nil {
+	if err := closing.EnsureFiscalYears(ctx, 2026); err != nil {
 		t.Fatalf("Geschäftsjahre anlegen: %v", err)
 	}
 	fy, err := closing.YearOf(ctx, 2026)
@@ -1753,12 +1763,7 @@ func TestAlignFoundingYearRefusesAnAdoptedYear(t *testing.T) {
 		t.Fatalf("Abschlussstand: %v", err)
 	}
 
-	foundations := repository.NewFoundationRepository(env.db)
-	if err := foundations.Save(ctx, &domain.Foundation{
-		NotarizedOn: "2026-03-15", ShareCapital: 2_500_000,
-	}); err != nil {
-		t.Fatalf("Gründung: %v", err)
-	}
+	env.setSettings(t, func(c *domain.CompanySettings) { c.FoundedOn = "2026-03-15" })
 
 	err = closing.AlignFoundingYear(ctx)
 	if err == nil {
