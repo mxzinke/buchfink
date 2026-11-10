@@ -148,6 +148,7 @@
       "belegdatum": "2026-03-31",
       "betrag": "119.00",
       "buchung_id": 1,
+      "einzelwertberichtigung": "0.00",
       "faellig": "2026-04-14",
       "faellig_aus": "zahlungsziel",
       "kontakt": "Netzwerk GmbH",

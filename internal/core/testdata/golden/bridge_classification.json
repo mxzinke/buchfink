@@ -769,6 +769,11 @@
     "ExaminerAllowed": true,
     "Guarded": false
   },
+  "PreviewWriteOff": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
   "ProposeFromEInvoice": {
     "AppOnly": false,
     "ExaminerAllowed": true,
@@ -1091,6 +1096,11 @@
   },
   "WaiveObligation": {
     "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "WriteOffOpenItem": {
+    "AppOnly": false,
     "ExaminerAllowed": false,
     "Guarded": true
   }

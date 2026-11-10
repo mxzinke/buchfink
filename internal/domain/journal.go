@@ -66,6 +66,8 @@ const (
 // entry the amounts are negative on the same side as the original, which is what
 // makes it a Generalumkehr rather than a side swap.
 type JournalLine struct {
+	AllowanceEntryID uint `gorm:"index;default:0" json:"allowanceEntryId,omitempty"`
+
 	ID       uint  `gorm:"primaryKey" json:"id"`
 	EntryID  uint  `gorm:"index;not null" json:"entryId"`
 	Position int   `gorm:"not null" json:"position"`

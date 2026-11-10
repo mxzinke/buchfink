@@ -20,6 +20,9 @@ type offenePostenIn struct {
 }
 
 type offenerPosten struct {
+	Einzelwertberichtigung       Betrag `json:"einzelwertberichtigung"`
+	WertberichtigungUnzugeordnet bool   `json:"wertberichtigung_unzugeordnet,omitempty"`
+
 	BuchungID        uint    `json:"buchung_id"`
 	Nummer           string  `json:"nummer"`
 	BelegNr          string  `json:"beleg_nr,omitempty"`
@@ -92,7 +95,7 @@ func richtungOfItem(item domain.OpenItem) string {
 }
 
 func postenOf(item domain.OpenItem, overdue map[uint]service.OverdueItem, cutoff string) offenerPosten {
-	p := offenerPosten{BuchungID: item.EntryID, Nummer: item.EntryNumber, BelegNr: item.DocumentNumber,
+	p := offenerPosten{Einzelwertberichtigung: betrag(item.SpecificAllowance), WertberichtigungUnzugeordnet: item.AllowanceUnassigned, BuchungID: item.EntryID, Nummer: item.EntryNumber, BelegNr: item.DocumentNumber,
 		Richtung: richtungOfItem(item), KontaktID: item.ContactID, Kontakt: item.ContactName,
 		Belegdatum: item.DocumentDate, Faellig: item.DueDate, Betrag: betrag(item.GrossAmount), Offen: betrag(item.OpenAmount),
 		Gutschrift: item.IsCredit()}
@@ -149,6 +152,7 @@ func bands(buckets []domain.AgingBucket) []altersband {
 }
 
 func registerPosten(tb *Toolbox) {
+	registerForderung(tb)
 	AddRead(tb, Spec{
 		Name:  "offene_posten",
 		Title: "Offene Posten",

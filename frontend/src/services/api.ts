@@ -560,6 +560,8 @@ export const Api = {
    * Die offenen Posten zu einem Stichtag: Zahlungen nach dem Stichtag zählen
    * nicht. Leerer Stichtag heißt heute.
    */
+  writeOffOpenItem: (request: { openItemEntryId: number; receiptId: number; date: string; amount: number; reason: string }, preview: boolean): Promise<JournalEntry> =>
+    call(() => (preview ? Bridge.PreviewWriteOff(request) : Bridge.WriteOffOpenItem(request)) as Promise<JournalEntry>),
   getOpenItemsAt: (cutoff = ''): Promise<OpenItem[]> =>
     call(() => Bridge.GetOpenItemsAt(cutoff) as Promise<OpenItem[]>).then(list),
   /** Die Einzelposten einer Zahlungsbuchung — wogegen die Zahlung lief. */

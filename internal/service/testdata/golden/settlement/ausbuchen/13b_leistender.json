@@ -167,7 +167,7 @@
       "entityId": "2",
       "entityType": "JOURNAL",
       "entryHash": "\u003centryHash\u003e",
-      "id": 5,
+      "id": 6,
       "previousHash": "\u003cpreviousHash\u003e",
       "timestamp": "\u003ctimestamp\u003e"
     },
@@ -176,11 +176,11 @@
       "actor": "\u003cactor\u003e",
       "appVersion": "dev",
       "channel": "agent:golden",
-      "details": "Offener Posten RE-4711 (Kunde GmbH) über 1.000,00 € als uneinbringlich ausgebucht (2026-000002): Insolvenz mangels Masse",
+      "details": "Offener Posten RE-4711 über 1.000,00 € als uneinbringlich ausgebucht (2026-000002): Insolvenz mangels Masse",
       "entityId": "1",
       "entityType": "OPEN_ITEM",
       "entryHash": "\u003centryHash\u003e",
-      "id": 6,
+      "id": 7,
       "previousHash": "\u003cpreviousHash\u003e",
       "timestamp": "\u003ctimestamp\u003e"
     }
@@ -313,6 +313,8 @@
       ],
       "postingRuleVersion": "2026.1",
       "previousHash": "\u003cpreviousHash\u003e",
+      "receiptHash": "\u003creceiptHash\u003e",
+      "receiptId": 1,
       "serviceDateFrom": "2026-03-10",
       "serviceDateTo": "2026-03-10",
       "source": "payment",

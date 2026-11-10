@@ -108,6 +108,8 @@ const (
 
 // OpenItem is one unsettled receivable or payable.
 type OpenItem struct {
+	SpecificAllowance   Cents `json:"specificAllowance,omitempty"`
+	AllowanceUnassigned bool  `json:"allowanceUnassigned,omitempty"`
 	// Source nennt den Weg, auf dem dieser Posten auszugleichen ist. Ein
 	// Abschlag hat keine Buchung und damit keine EntryID.
 	Source OpenItemSource `json:"source"`

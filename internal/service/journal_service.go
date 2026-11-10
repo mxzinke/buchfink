@@ -320,14 +320,15 @@ func (s *JournalService) reverseOn(ctx context.Context, entryID uint, reason, da
 	lines := make([]domain.JournalLine, 0, len(original.Lines))
 	for _, l := range original.Lines {
 		lines = append(lines, domain.JournalLine{
-			Position:  l.Position,
-			Side:      l.Side, // unchanged — this is what makes it a Generalumkehr
-			Account:   l.Account,
-			ContactID: l.ContactID,
-			Amount:    -l.Amount,
-			TaxKey:    l.TaxKey,
-			TaxBase:   -l.TaxBase,
-			Text:      l.Text,
+			Position:         l.Position,
+			AllowanceEntryID: l.AllowanceEntryID,
+			Side:             l.Side, // unchanged — this is what makes it a Generalumkehr
+			Account:          l.Account,
+			ContactID:        l.ContactID,
+			Amount:           -l.Amount,
+			TaxKey:           l.TaxKey,
+			TaxBase:          -l.TaxBase,
+			Text:             l.Text,
 		})
 	}
 

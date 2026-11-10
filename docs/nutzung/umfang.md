@@ -36,6 +36,16 @@
 Welche Teile gebaut und geprüft sind, steht im
 [Umsetzungsstand](../projekt/umsetzungsstand.md).
 
+## Forderungen ausbuchen
+
+Uneinbringliche Forderungen lassen sich unter Bücher › Konten › Offene Posten
+und mit `forderung_ausbuchen` nach Rückfrage ganz oder teilweise ausbuchen.
+Grund, Nachweis und Eintrittsdatum sind Pflicht. Die Vorschau zeigt die
+Steuerkorrektur und die Auflösung einer zugeordneten Einzelwertberichtigung.
+Ein geführter Ablauf für spätere Zahlung auf ausgebuchte Forderungen fehlt.
+Einzelwertberichtigungen ohne Forderungszuordnung sperren die Ausbuchung;
+die Zuordnung muss fachlich geklärt werden.
+
 ## Was Buchfink nicht abdeckt
 
 | Thema | Was gilt |

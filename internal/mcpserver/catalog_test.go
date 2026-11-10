@@ -61,6 +61,7 @@ var writeFixtures = map[string]map[string]any{
 	"buchung_stornieren":  {"buchung_id": 1, "grund": "Fehlbuchung"},
 	"lohnjournal_buchen":  {"monat": "2026-05", "beleg_id": 1, "netto": "1.00"},
 	"rechnung_ausstellen": {"idempotenz_schluessel": "matrix-rechnung"},
+	"forderung_ausbuchen": {"buchung_id": 1, "beleg_id": 1, "datum": "2026-05-04", "grund": "Insolvenz", "idempotenz_schluessel": "matrix-ausbuchung"},
 	"mahnung_vermerken":   {"buchung_id": 1, "datum": "2026-05-04", "idempotenz_schluessel": "matrix-mahnung"},
 	"abschlussbuchung":    {"art": "ust_verrechnung", "nur_vorschau": true, "idempotenz_schluessel": "matrix-abschluss"},
 	"erklaerung_eingabe":  {"art": "kst", "jahr": 2026, "schluessel": "kst.x", "wert": map[string]any{"text": "y"}},
@@ -332,7 +333,7 @@ func TestWriteToolsTakeAnIdempotencyKey(t *testing.T) {
 	flows := map[string]bool{"kontoauszug_importieren": true, "erklaerung_exportieren": true, "ebilanz_exportieren": true,
 		"beleg_datei_exportieren": true}
 	keyed := map[string]bool{"buchung_erfassen": true, "rechnung_ausstellen": true, "abschlussbuchung": true,
-		"mahnung_vermerken": true, "anlass_erfassen": true, "darlehen_erfassen": true, "stammdaten_vorschlagen": true}
+		"forderung_ausbuchen": true, "mahnung_vermerken": true, "anlass_erfassen": true, "darlehen_erfassen": true, "stammdaten_vorschlagen": true}
 	for name, tier := range catalog {
 		if tier == TierRead {
 			continue

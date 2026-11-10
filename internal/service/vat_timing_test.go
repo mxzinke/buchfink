@@ -382,7 +382,7 @@ func TestWriteOffShowsInCode50(t *testing.T) {
 	customer := env.customer(t, "Kunde", "DE", "")
 	inv := env.domesticInvoice(t, customer.ID, "2026-02-10", 100000)
 
-	if _, err := env.payments(t).WriteOffOpenItem(ctx, WriteOffRequest{
+	if _, err := env.payments(t).WriteOffOpenItem(ctx, WriteOffRequest{ReceiptID: writeOffEvidence(t, env),
 		OpenItemEntryID: *inv.JournalEntryID, Date: "2026-05-20", Reason: "Insolvenz des Kunden",
 	}); err != nil {
 		t.Fatalf("ausbuchen: %v", err)

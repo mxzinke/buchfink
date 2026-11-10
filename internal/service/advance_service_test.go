@@ -545,13 +545,13 @@ func TestWriteOffUncollectibleReceivable(t *testing.T) {
 	}
 
 	payments := env.payments(t)
-	if _, err := payments.WriteOffOpenItem(ctx, WriteOffRequest{
+	if _, err := payments.WriteOffOpenItem(ctx, WriteOffRequest{ReceiptID: writeOffEvidence(t, env),
 		OpenItemEntryID: *inv.JournalEntryID, Date: "2026-09-01",
 	}); err == nil {
 		t.Error("eine Ausbuchung ohne Begründung darf nicht durchgehen")
 	}
 
-	entry, err := payments.WriteOffOpenItem(ctx, WriteOffRequest{
+	entry, err := payments.WriteOffOpenItem(ctx, WriteOffRequest{ReceiptID: writeOffEvidence(t, env),
 		OpenItemEntryID: *inv.JournalEntryID, Date: "2026-09-01",
 		Reason: "Insolvenz des Kunden, Forderung nicht durchsetzbar",
 	})
@@ -609,7 +609,7 @@ func TestPartialWriteOffAbsorbsTheRoundingDifference(t *testing.T) {
 	}
 
 	payments := env.payments(t)
-	entry, err := payments.WriteOffOpenItem(ctx, WriteOffRequest{
+	entry, err := payments.WriteOffOpenItem(ctx, WriteOffRequest{ReceiptID: writeOffEvidence(t, env),
 		OpenItemEntryID: *inv.JournalEntryID, Amount: 3, Date: "2026-09-01",
 		Reason: "Restbetrag uneinbringlich",
 	})
@@ -641,7 +641,7 @@ func TestWriteOffRefusesPayables(t *testing.T) {
 	vendor := env.vendor(t, "Lieferant GmbH", "DE", "")
 	entry := env.openPayable(t, vendor.ID, 100000, domain.TaxRateStandard)
 
-	_, err := env.payments(t).WriteOffOpenItem(ctx, WriteOffRequest{
+	_, err := env.payments(t).WriteOffOpenItem(ctx, WriteOffRequest{ReceiptID: writeOffEvidence(t, env),
 		OpenItemEntryID: entry.ID, Date: "2026-09-01", Reason: "verjährt",
 	})
 	if err == nil || !strings.Contains(err.Error(), "Verbindlichkeit") {

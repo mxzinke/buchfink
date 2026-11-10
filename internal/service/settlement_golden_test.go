@@ -348,7 +348,7 @@ func TestGoldenSettlementWriteOff(t *testing.T) {
 				tc = settlementTaxFixtures[0]
 			}
 			invoice, _ := settlementInvoice(t, env, tc)
-			req := WriteOffRequest{OpenItemEntryID: invoice.ID, Date: "2026-03-10", Reason: "Insolvenz mangels Masse"}
+			req := WriteOffRequest{ReceiptID: writeOffEvidence(t, env), OpenItemEntryID: invoice.ID, Date: "2026-03-10", Reason: "Insolvenz mangels Masse"}
 			if name == "teilbetrag" {
 				req.Amount = 3
 			}

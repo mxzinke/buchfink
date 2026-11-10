@@ -84,6 +84,8 @@ export const bridge = {
   GetBankTransactions: <T>() => invoke<T>('GetBankTransactions'),
   BookBankTransactionDirect: <T>(bankTxId: number, counterAccount: string, description: string) =>
     invoke<T>('BookBankTransactionDirect', bankTxId, counterAccount, description),
+  WriteOffOpenItem: <T>(request: unknown) => invoke<T>('WriteOffOpenItem', request),
+  PreviewWriteOff: <T>(request: unknown) => invoke<T>('PreviewWriteOff', request),
   SettlePayment: <T>(request: unknown) => invoke<T>('SettlePayment', request),
 
   // Kontakte & Rechnungen

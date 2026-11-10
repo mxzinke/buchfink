@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/buchfink/buchfink/internal/accounting"
@@ -11,11 +12,6 @@ import (
 
 // Der Abschlussbaustein „Wertberichtigung auf Forderungen" (§ 253 Abs. 4 HGB).
 //
-// Gebucht wird die Veränderung der vier Wertberichtigungskonten auf ihren
-// Sollbestand zum Stichtag: was hinzukommt, über 6923 und 6920, was entfällt,
-// über 4923 und 4920. Eine Einzelwertberichtigung, deren Grund im Folgejahr
-// entfallen ist (Zahlung, Ausbuchung), löst so der nächste Abschluss auf.
-
 // ReceivableAllowanceReference ist die Belegnummer der Buchung.
 func ReceivableAllowanceReference(year int) string { return fmt.Sprintf("WB %d", year) }
 
@@ -105,6 +101,10 @@ func (s *ClosingBookingService) PreviewReceivableAllowance(
 		LossHistory: make([]LossYear, 0, 3), Accounts: make([]AllowanceAccountRow, 0, 4),
 		Lines: make([]domain.JournalLine, 0, 4), Notes: make([]string, 0, 4),
 	}
+	specific, err := specificBalances(ctx, s.journalRepo, fy.EndDate)
+	if err != nil {
+		return nil, err
+	}
 	targets := result.Targets()
 	for _, account := range accounting.AllowanceAccounts() {
 		row := AllowanceAccountRow{
@@ -113,13 +113,49 @@ func (s *ClosingBookingService) PreviewReceivableAllowance(
 		}
 		row.Change = row.Target - row.Current
 		out.Accounts = append(out.Accounts, row)
-		if row.Change == 0 {
+		if row.Change == 0 && account != accounting.AccountEWBShortTerm && account != accounting.AccountEWBLongTerm {
+			continue
+		}
+		if account == accounting.AccountEWBShortTerm || account == accounting.AccountEWBLongTerm {
+			desired := map[uint]domain.Cents{}
+			for _, item := range result.Items {
+				a := accounting.AccountEWBShortTerm
+				if item.LongTerm {
+					a = accounting.AccountEWBLongTerm
+				}
+				if a == account {
+					desired[item.EntryID] = item.Amount
+				}
+			}
+			ids := map[uint]bool{}
+			for id := range desired {
+				ids[id] = true
+			}
+			for id := range specific[account] {
+				if id != 0 {
+					ids[id] = true
+				}
+			}
+			ordered := make([]uint, 0, len(ids))
+			for id := range ids {
+				ordered = append(ordered, id)
+			}
+			sort.Slice(ordered, func(i, j int) bool { return ordered[i] < ordered[j] })
+			for _, id := range ordered {
+				delta := desired[id] - specific[account][id]
+				if delta == 0 {
+					continue
+				}
+				side, counter, opposite := domain.SideCredit, accounting.AccountEWBExpense, domain.SideDebit
+				if delta < 0 {
+					delta = -delta
+					side, counter, opposite = domain.SideDebit, accounting.AccountEWBIncome, domain.SideCredit
+				}
+				out.Lines = append(out.Lines, domain.JournalLine{Side: opposite, Account: counter, Amount: delta, Text: "Einzelwertberichtigung"}, domain.JournalLine{Side: side, Account: account, Amount: delta, AllowanceEntryID: id, Text: "Einzelwertberichtigung"})
+			}
 			continue
 		}
 		expense, income := accounting.AccountPWBExpense, accounting.AccountPWBIncome
-		if account == accounting.AccountEWBShortTerm || account == accounting.AccountEWBLongTerm {
-			expense, income = accounting.AccountEWBExpense, accounting.AccountEWBIncome
-		}
 		if row.Change > 0 {
 			out.Lines = append(out.Lines,
 				domain.JournalLine{Side: domain.SideDebit, Account: expense, Amount: row.Change,

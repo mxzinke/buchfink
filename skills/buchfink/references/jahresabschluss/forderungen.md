@@ -89,7 +89,10 @@ Posten erklärt ist.
 
 ## 6. Folgejahr
 
-Auflösung: [folgejahr.md](folgejahr.md#wertberichtigungen).
+Bei Ausbuchung löst `forderung_ausbuchen` die zugeordnete EWB auf; eine
+Teilausbuchung lässt den übrigen Bestand stehen.
+
+Auflösung bei sonstigen Änderungen: [folgejahr.md](folgejahr.md#wertberichtigungen).
 
 [hgb246]: https://www.gesetze-im-internet.de/hgb/__246.html
 [hgb252]: https://www.gesetze-im-internet.de/hgb/__252.html

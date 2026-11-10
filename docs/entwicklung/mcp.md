@@ -176,6 +176,7 @@ den Schemas nur kurz.
 | `buchung_stornieren` | rueckfrage | Generalumkehr mit Grund, auf Wunsch mit Neubuchung; `datum` nur beim Saldenvortrag |
 | `lohnjournal_buchen` | rueckfrage | Monatssummen des Lohnbüros |
 | `rechnung_ausstellen` | rueckfrage | Rechnung, Abschlagsrechnung, Schlussrechnung; PDF und E-Rechnung im Exportordner; gebucht zum Ende des Leistungszeitraums (§ 252 Abs. 1 Nr. 4 HGB), bei festgeschriebenem Leistungstag zum Rechnungsdatum |
+| `forderung_ausbuchen` | rueckfrage | Uneinbringliche Forderung ganz oder teilweise mit Grund, Nachweis (`beleg_id`) und Eintrittsdatum (`datum`); `nur_vorschau` zeigt Buchung und Steuerkorrektur, bestehende zugeordnete EWB wird aufgelöst |
 | `mahnung_vermerken` | rueckfrage | Zugang einer Mahnung festhalten; daraus folgt der Verzug |
 | `abschlussbuchung` | rueckfrage | AfA-Lauf, Abgrenzung, Rückstellung, USt-Verrechnung, Steuerrückstellung, UG-Rücklage, Wertberichtigung, unfertige Leistungen, Fremdwährung, Anlage aktivieren (`anlage_aktivieren`, bei einem Investmentanteil mit Fondsart), Vorabpauschale eines Investmentanteils (ohne Buchung am Anlagegut festgehalten) |
 | `erklaerung_eingabe` | rueckfrage | Angabe zu einer Zeile einer Jahreserklärung; was der Mensch gesetzt oder bestätigt hat, ändert nur er |
@@ -198,6 +199,9 @@ Bei fünf Arten weicht er ab: `festschreibung` hat den Anker
 Als erledigt gilt eine Vorauszahlung erst mit einer Zahlung, die vom Bankkonto
 kommt oder die der Mensch gebucht hat. Eine Handbuchung eines Agenten belegt
 keine.
+
+`offene_posten` zeigt `einzelwertberichtigung` und warnt mit
+`wertberichtigung_unzugeordnet` vor Beständen ohne Zuordnung.
 
 ## Fehlercodes
 

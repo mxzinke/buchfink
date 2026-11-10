@@ -723,6 +723,8 @@ export interface EInvoiceView {
 export type OpenItemSource = 'journal' | 'advance';
 
 export interface OpenItem {
+  specificAllowance?: number;
+  allowanceUnassigned?: boolean;
   source: OpenItemSource;
   /** Die Abschlagsrechnung hinter einem Posten der Quelle „Abschlag". */
   advanceInvoiceId?: number;

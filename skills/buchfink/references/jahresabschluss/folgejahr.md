@@ -51,9 +51,10 @@ aufgelöst sind.
 
 ## Wertberichtigungen
 
-- Einzelwertberichtigung: Zahlt der Kunde oder fällt die Forderung aus, löst
-  du sie auf (Soll 1246, Haben 4923) und buchst den Ausfall nach
-  [rechnungen/forderungsausfall.md](../rechnungen/forderungsausfall.md).
+- Einzelwertberichtigung: Bei Ausfall löst `forderung_ausbuchen` die
+  zugeordnete Wertberichtigung auf; nicht noch einmal von Hand auflösen
+  ([rechnungen/forderungsausfall.md](../rechnungen/forderungsausfall.md)).
+  Bei Zahlung passt der nächste Abschluss den Bestand an.
 - Pauschalwertberichtigung: zum nächsten Stichtag neu berechnen; die Differenz
   geht auf 6920 oder 4920.
 

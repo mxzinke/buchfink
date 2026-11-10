@@ -78,6 +78,7 @@ var tools = []Operation{
 	Define("kontoauszug_importieren", Direct),
 	Define("lohnjournal_buchen", Confirm),
 	Define("mahnung_vermerken", Confirm),
+	Define("forderung_ausbuchen", Confirm),
 	Define("offene_posten", Read),
 	Define("pflicht_vorbereitet", Direct),
 	Define("rechnung_ausstellen", Confirm),

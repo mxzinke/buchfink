@@ -97,6 +97,9 @@ func canonicalize(e *domain.JournalEntry, prevHash string) []byte {
 		putInt("line_input_tax_share", int64(l.InputTaxShare))
 		putInt("line_foreign_amount", int64(l.ForeignAmount))
 		put("line_text", l.Text)
+		if l.AllowanceEntryID != 0 {
+			putInt("line_allowance_entry", int64(l.AllowanceEntryID))
+		}
 	}
 
 	// Die Aufzeichnungen zu Bewirtung (§ 4 Abs. 5 Satz 1 Nr. 2 EStG) und

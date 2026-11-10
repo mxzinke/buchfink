@@ -705,3 +705,14 @@ func (b *BuchfinkBridge) SaveOpeningBalanceAs() (string, error) {
 	}
 	return path, nil
 }
+
+func (b *BuchfinkBridge) WriteOffOpenItem(req service.WriteOffRequest) (*domain.JournalEntry, error) {
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.JournalEntry, error) {
+		return s.Payments.WriteOffOpenItem(ctx, req)
+	})
+}
+func (b *BuchfinkBridge) PreviewWriteOff(req service.WriteOffRequest) (*domain.JournalEntry, error) {
+	return read(b, func(ctx context.Context, s *core.Services) (*domain.JournalEntry, error) {
+		return s.Payments.PreviewWriteOff(ctx, req)
+	})
+}

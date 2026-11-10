@@ -91,7 +91,6 @@ var exceptions = map[string]string{
 	"JournalService.BookOpeningBalance":    "keine Eröffnungsbuchungen eines Umsteigers",
 	"JournalService.PreviewOpeningBalance": "Vorschau zu BookOpeningBalance",
 
-	"PaymentService.WriteOffOpenItem": "kein Forderungsausfall mit Berichtigung nach § 17 UStG",
 
 	"PostingService.OpenVendorAdvances": "die Kennungen geleisteter Anzahlungen, die beleg_buchen_mit_rueckfrage verrechnet, liefert kein Werkzeug",
 

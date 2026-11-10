@@ -43,10 +43,12 @@ Wertberichtigung zum Stichtag:
 2. Beleg der Uneinbringlichkeit mit `beleg_ablegen` ablegen.
 3. Vorlage an den Menschen: Posten, netto und Steuer, Grund, Beleg, Zeitraum der
    Steuerberichtigung, Wertungsfrage nach Abschnitt 1.
-4. Sag ihm, dass Buchfink die Ausbuchung noch nicht abbildet. Zum Stichtag
-   lässt sich eine Einzelwertberichtigung buchen
-   ([jahresabschluss/forderungen.md](../jahresabschluss/forderungen.md)); die
-   Steuerberichtigung nach § 17 fehlt dann weiter.
+4. `forderung_ausbuchen` mit `buchung_id`, `beleg_id`, `datum`, `grund` und
+   optionalem Bruttoteilbetrag `betrag` zunächst mit `nur_vorschau: true`.
+   Buchungssatz und Steuerwirkung im Chat vorlegen, nach dem Ja buchen.
+   `offene_posten` zeigt die zugeordnete Einzelwertberichtigung. Sie wird bei
+   der Ausbuchung bis zum Nettoausfall aufgelöst, bei Vollausbuchung ganz.
+   Nicht zugeordnete Altbestände sperren den Vorgang; fachlich klären.
 5. Bei Insolvenz: Forderung beim Insolvenzverwalter anmelden (außerhalb von
    Buchfink).
 
@@ -63,9 +65,10 @@ Wertberichtigung zum Stichtag:
 ## 5. Geld kommt doch noch
 
 - Steuer erneut berichtigen ([§ 17 Abs. 2 Nr. 1 Satz 2 UStG][ustg17]).
-- SKR04 4925 Erträge aus abgeschriebenen Forderungen, mit Umsatzsteuer zum
-  ursprünglichen Satz. Leg die Aufteilung vor und buche sie am Bankumsatz mit
-  `bankumsatz_buchen` ([bank/zuordnung.md](../bank/zuordnung.md)).
+- Ein geführter Ablauf für nachträgliche Zahlung fehlt. Keine gewöhnliche
+  Zuordnung auf die geschlossene Forderung und kein Storno des tatsächlichen
+  Ausfalls: Die erneute Steuerberichtigung gehört in den Zahlungszeitraum.
+  Die Buchung mit dem Steuerberater klären.
 
 [ustg17]: https://www.gesetze-im-internet.de/ustg_1980/__17.html
 [ustae171]: https://www.steuerschroeder.de/steuergesetze/ustae/17.1

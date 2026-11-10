@@ -47,7 +47,7 @@ func TestSettleSendsAWriteOffToItsOwnWay(t *testing.T) {
 	}
 
 	// Und dort geht sie durch.
-	entry, err := payments.WriteOffOpenItem(ctx, WriteOffRequest{
+	entry, err := payments.WriteOffOpenItem(ctx, WriteOffRequest{ReceiptID: writeOffEvidence(t, env),
 		OpenItemEntryID: *inv.JournalEntryID, Date: "2026-04-01",
 		Reason: "Insolvenz des Kunden, Quote null",
 	})

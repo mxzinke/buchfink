@@ -41,6 +41,16 @@ einzelne Kriterien im [Anforderungskatalog](../anforderungen/README.md).
 | Nachweise | Hash-Ketten für Journal und Protokoll, Änderungsprotokoll mit Vorher und Nachher, Datenüberlassung (Z3), Belegarchiv, Prüferpaket, Verfahrensdokumentation | `accounting/journalhash.go`, `accounting/audithash.go`, `service.ExportService`, `internal/export`, `internal/procdoc` |
 | Sicherung | ZIP mit Prüfsummen, automatisch bei eingerichtetem Ziel, Wiederherstellungstest, Wiederherstellung mit Prüfung | `service.BackupService`, `core.Host.RunDueBackup`, `core.Host.RestoreBackup` |
 
+## Forderungen ausbuchen
+
+Uneinbringliche Forderungen lassen sich unter Bücher › Konten › Offene Posten
+und mit `forderung_ausbuchen` nach Rückfrage ganz oder teilweise ausbuchen.
+Grund, Nachweis und Eintrittsdatum sind Pflicht. Die Vorschau zeigt die
+Steuerkorrektur und die Auflösung einer zugeordneten Einzelwertberichtigung.
+Ein geführter Ablauf für spätere Zahlung auf ausgebuchte Forderungen fehlt.
+Einzelwertberichtigungen ohne Forderungszuordnung sperren die Ausbuchung;
+die Zuordnung muss fachlich geklärt werden.
+
 ## Bekannte Grenzen
 
 ### Erklärungen und Übermittlung

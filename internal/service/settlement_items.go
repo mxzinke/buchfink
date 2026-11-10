@@ -82,7 +82,21 @@ func (s *openItemReader) OpenItems(ctx context.Context, cutoff string) ([]domain
 	if err != nil {
 		return nil, err
 	}
-	return s.openItemsFrom(ctx, entries, settled)
+	items, err := s.openItemsFrom(ctx, entries, settled)
+	if err != nil {
+		return nil, err
+	}
+	balances, err := readSpecificBalances(ctx, s.journalRepo, cutoff)
+	if err != nil {
+		return nil, err
+	}
+	for i := range items {
+		for _, rows := range balances {
+			items[i].SpecificAllowance += rows[items[i].EntryID]
+			items[i].AllowanceUnassigned = items[i].AllowanceUnassigned || rows[0] != 0
+		}
+	}
+	return items, nil
 }
 
 func (s *openItemReader) openItemsFrom(

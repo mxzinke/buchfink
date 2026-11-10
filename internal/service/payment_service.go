@@ -102,3 +102,7 @@ func (s *PaymentService) CreditCardStatementDate(ctx context.Context, debit doma
 }
 
 func (s *PaymentService) SetClock(now func() time.Time) { s.settlement.openItemReader.SetClock(now) }
+
+func (s *PaymentService) PreviewWriteOff(ctx context.Context, req WriteOffRequest) (*domain.JournalEntry, error) {
+	return s.settlement.previewWriteOff(ctx, req)
+}

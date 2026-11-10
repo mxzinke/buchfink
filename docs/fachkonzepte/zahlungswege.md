@@ -93,3 +93,23 @@ das Lohnbüro. Die Pflichten bleiben beim Arbeitgeber.
 
 [ao146]: https://www.gesetze-im-internet.de/ao_1977/__146.html
 [gmbhg42]: https://www.gesetze-im-internet.de/gmbhg/__42.html
+
+## Uneinbringliche Forderungen
+
+Die Ausbuchung ist ein eigener Vorgang ohne Bankumsatz. Der Bruttobetrag
+mindert den offenen Posten; bei Teilbeträgen bleibt die Restforderung stehen.
+Der Nettobetrag geht auf das Forderungsverlustkonto des Steuersatzes. Eine
+zugeordnete Einzelwertberichtigung wird bis zum Nettoausfall aufgelöst,
+bei Vollausbuchung vollständig, über 1246/1247 an 4923. Ihre Zuordnung steht
+an der Buchungszeile und bleibt bei einer Generalumkehr erhalten.
+
+Nachweis und Grund gehören zur Buchung. Die Steuerberichtigung erfolgt zum
+Eintritt der Uneinbringlichkeit, nicht zum Rechnungsdatum
+([§ 17 Abs. 2 Nr. 1 i. V. m. Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html),
+Wortlaut gelesen am 10.11.2026). Ohne eigene Umsatzsteuer gibt es keine
+Steuerkorrektur. Eine festgeschriebene Periode wird nicht umgangen.
+
+Spätere Vereinnahmung verlangt nach § 17 Abs. 2 Nr. 1 Satz 2 UStG eine erneute
+Berichtigung. Dafür fehlt ein geführter Ablauf; der ursprüngliche Ausfall darf
+nicht allein wegen einer späteren Zahlung storniert werden. Nicht zugeordnete
+EWB-Altbestände werden nicht automatisch auf einzelne Forderungen verteilt.

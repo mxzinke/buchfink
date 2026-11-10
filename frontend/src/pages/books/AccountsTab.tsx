@@ -23,6 +23,7 @@ import {
   Tr,
   cn,
 } from '../../components/ui';
+import { WriteOffDialog } from './WriteOffDialog';
 import { PanelHeading, errorText, todayISO } from './shared';
 
 /** Mehr Treffer zeigt die Suche im Kontenrahmen nicht; wer mehr braucht, tippt weiter. */
@@ -262,15 +263,16 @@ const isCredit = (item: OpenItem) =>
 const signedOpen = (item: OpenItem) => (isCredit(item) ? -item.openAmount : item.openAmount);
 
 const OpenItems: React.FC = () => {
+ const [selected, setSelected] = useState<OpenItem | null>(null);
   const [items, setItems] = useState<OpenItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const today = todayISO();
 
-  useEffect(() => {
-    Api.getOpenItemsAt('')
-      .then(setItems)
-      .catch((e) => setError(errorText(e)));
+  const load = useCallback(() => {
+    void Api.getOpenItemsAt('').then(setItems).catch((e) => setError(errorText(e)));
   }, []);
+  useEffect(load, [load]);
+  useLiveReload(load, ['buchungen', 'abschluss']);
 
   if (error) return <Notice tone="negative" text={error} />;
   if (!items) return <SkeletonRows rows={4} />;
@@ -285,6 +287,7 @@ const OpenItems: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {selected && <WriteOffDialog item={selected} onClose={() => setSelected(null)} onBooked={() => { setSelected(null); void Api.getOpenItemsAt('').then(setItems).catch((e) => setError(errorText(e))); }} />}
       {sides
         .filter((side) => side.rows.length > 0)
         .map((side) => (
@@ -302,6 +305,7 @@ const OpenItems: React.FC = () => {
                     Offen
                   </Th>
                   <Th className="w-44">Stand</Th>
+ <Th>Aktion</Th>
                 </Tr>
               </Thead>
               <Tbody>
@@ -339,6 +343,7 @@ const OpenItems: React.FC = () => {
                           />
                         )}
                       </Td>
+                      <Td>{item.contactType === 'customer' && item.source === 'journal' && !credit && <RowButton onOpen={() => setSelected(item)}>Ausbuchen</RowButton>}</Td>
                     </Tr>
                   );
                 })}

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/buchfink/buchfink/internal/accounting"
 	"github.com/buchfink/buchfink/internal/domain"
@@ -19,7 +20,8 @@ type WriteOffRequest struct {
 	Amount domain.Cents `json:"amount"`
 	Date   string       `json:"date"`
 	// Reason begründet die Uneinbringlichkeit.
-	Reason string `json:"reason"`
+	Reason    string `json:"reason"`
+	ReceiptID uint   `json:"receiptId"`
 }
 
 // WriteOff bucht eine uneinbringliche Forderung aus.
@@ -29,14 +31,17 @@ func (s *settlement) WriteOff(ctx context.Context, req WriteOffRequest) (*domain
 	})
 }
 
-func (s *settlement) writeOff(ctx context.Context, req WriteOffRequest) (*domain.JournalEntry, error) {
-	if req.Reason == "" {
+func (s *settlement) previewWriteOff(ctx context.Context, req WriteOffRequest) (*domain.JournalEntry, error) {
+	if strings.TrimSpace(req.Reason) == "" {
 		return nil, fmt.Errorf(
 			"zu jeder Ausbuchung gehört eine Begründung: woran die Forderung gescheitert ist, entscheidet, " +
 				"ob sie uneinbringlich im Sinne des § 17 Abs. 2 Nr. 1 UStG ist")
 	}
 	if req.Date == "" {
-		req.Date = s.today()
+		return nil, fmt.Errorf("der Tag der Uneinbringlichkeit fehlt")
+	}
+	if req.ReceiptID == 0 {
+		return nil, fmt.Errorf("der Beleg der Uneinbringlichkeit fehlt")
 	}
 
 	openItems, err := s.OpenItems(ctx, "")
@@ -60,6 +65,13 @@ func (s *settlement) writeOff(ctx context.Context, req WriteOffRequest) (*domain
 	}
 	if item.IsCredit() {
 		return nil, fmt.Errorf("%s ist eine Gutschrift an den Kunden und keine Forderung", item.DocumentNumber)
+	}
+	original, err := s.journalRepo.FindByID(ctx, item.EntryID)
+	if err != nil {
+		return nil, err
+	}
+	if original.BookingDate > req.Date {
+		return nil, fmt.Errorf("die Ausbuchung liegt vor der Forderung")
 	}
 	amount := req.Amount
 	if amount == 0 {
@@ -112,6 +124,41 @@ func (s *settlement) writeOff(ctx context.Context, req WriteOffRequest) (*domain
 		lines = append(lines, line)
 	}
 
+	balances, err := specificBalances(ctx, s.journalRepo, req.Date)
+	if err != nil {
+		return nil, err
+	}
+	for _, account := range []string{accounting.AccountEWBShortTerm, accounting.AccountEWBLongTerm} {
+		later, err := s.journalRepo.FindByAccountRange(ctx, account, req.Date, "")
+		if err != nil {
+			return nil, err
+		}
+		for _, entry := range later {
+			if entry.BookingDate <= req.Date {
+				continue
+			}
+			for _, line := range entry.Lines {
+				if line.AllowanceEntryID == item.EntryID {
+					return nil, fmt.Errorf("zur Forderung besteht eine spätere Wertberichtigungsbuchung (%s); zuerst diese berichtigen", entry.EntryNumber)
+				}
+			}
+		}
+	}
+	remaining := net
+	for _, account := range []string{accounting.AccountEWBShortTerm, accounting.AccountEWBLongTerm} {
+		used := balances[account][item.EntryID]
+		if used < 0 {
+			return nil, fmt.Errorf("die Einzelwertberichtigung der Forderung ist negativ")
+		}
+		if used > remaining && amount != item.OpenAmount {
+			used = remaining
+		}
+		if used == 0 {
+			continue
+		}
+		lines = append(lines, domain.JournalLine{Side: domain.SideDebit, Account: account, Amount: used, AllowanceEntryID: item.EntryID, Text: "Auflösung Einzelwertberichtigung"}, domain.JournalLine{Side: domain.SideCredit, Account: accounting.AccountEWBIncome, Amount: used, Text: "Auflösung Einzelwertberichtigung"})
+		remaining -= used
+	}
 	contactID := item.ContactID
 	lines = append(lines, domain.JournalLine{
 		Side:      item.SettleSide(),
@@ -121,7 +168,8 @@ func (s *settlement) writeOff(ctx context.Context, req WriteOffRequest) (*domain
 		Text:      item.DocumentNumber,
 	})
 
-	entry, err := s.journalSvc.Post(ctx, &domain.JournalEntry{
+	entry := &domain.JournalEntry{
+		ReceiptID:       &req.ReceiptID,
 		BookingDate:     req.Date,
 		DocumentDate:    req.Date,
 		ServiceDateFrom: req.Date,
@@ -135,15 +183,37 @@ func (s *settlement) writeOff(ctx context.Context, req WriteOffRequest) (*domain
 		ContactID:          &contactID,
 		PostingRuleVersion: accounting.PostingRuleVersion,
 		Lines:              lines,
-	})
+	}
+	if err := s.journalSvc.ValidatePostable(ctx, entry); err != nil {
+		return nil, err
+	}
+	return entry, nil
+}
+
+func (s *settlement) writeOff(ctx context.Context, req WriteOffRequest) (*domain.JournalEntry, error) {
+	preview, err := s.previewWriteOff(ctx, req)
 	if err != nil {
 		return nil, err
 	}
+	entry, err := s.journalSvc.Post(ctx, preview)
+	if err != nil {
+		return nil, err
+	}
+	receipt, err := s.journalSvc.receiptRepo.FindByID(ctx, req.ReceiptID)
+	if err != nil {
+		return nil, err
+	}
+	if receipt.Status != domain.ReceiptStatusSealed {
+		if err := s.journalSvc.receiptRepo.Seal(ctx, req.ReceiptID, entry.ID); err != nil {
+			return nil, err
+		}
+	}
+	amount := entry.Lines[len(entry.Lines)-1].Amount
 
 	if err := s.allocationRepo.Create(ctx, []domain.PaymentAllocation{{
-		OpenItemEntryID:  item.EntryID,
+		OpenItemEntryID:  req.OpenItemEntryID,
 		PaymentEntryID:   entry.ID,
-		ContactID:        item.ContactID,
+		ContactID:        *entry.ContactID,
 		SettledAmount:    amount,
 		CashAmount:       0,
 		DifferenceKind:   domain.DifferenceWriteoff,
@@ -152,9 +222,9 @@ func (s *settlement) writeOff(ctx context.Context, req WriteOffRequest) (*domain
 		return nil, fmt.Errorf("die Ausbuchung ließ sich dem Posten nicht zuordnen: %w", err)
 	}
 	if err := logAudit(ctx, s.auditRepo, domain.AuditActionUpdate, "OPEN_ITEM",
-		fmt.Sprintf("%d", item.EntryID), fmt.Sprintf(
-			"Offener Posten %s (%s) über %s € als uneinbringlich ausgebucht (%s): %s",
-			item.DocumentNumber, item.ContactName, amount, entry.EntryNumber, req.Reason)); err != nil {
+		fmt.Sprintf("%d", req.OpenItemEntryID), fmt.Sprintf(
+			"Offener Posten %s über %s € als uneinbringlich ausgebucht (%s): %s",
+			entry.DocumentNumber, amount, entry.EntryNumber, req.Reason)); err != nil {
 		return nil, err
 	}
 	return entry, nil

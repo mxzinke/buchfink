@@ -429,12 +429,12 @@ abgeglichen.
 
 | Quelle | Pfad | Wofür |
 |---|---|---|
-| Werkzeugkatalog | `docs/entwicklung/mcp.md` | Felder von `rechnung_vorschau`, `rechnung_ausstellen` (`art` rechnung, abschlag, schlussrechnung), `offene_posten` (`verzugszinsen`, `pauschale`); kein Werkzeug für Storno, Korrektur, Ausbuchung |
+| Werkzeugkatalog | `docs/entwicklung/mcp.md` | Felder von `rechnung_vorschau`, `rechnung_ausstellen` (`art` rechnung, abschlag, schlussrechnung), `offene_posten` (`verzugszinsen`, `pauschale`); `forderung_ausbuchen`; kein Werkzeug für Storno und Korrektur |
 | Rechnungsarten | `internal/domain/invoice.go` | Abschlags-, Schluss-, Korrektur-, Stornorechnung (Typcodes 386/380/384), Zahlungsbedingungen, 60-Tage-Hinweis |
 | Rechnungsverbund | `internal/domain/invoice_group.go`, `internal/service/advance_service.go` | Abschläge, Absetzung in der Schlussrechnung |
 | Ausstellen | `internal/service/invoice_service.go` (`Issue`) | Fälligkeit 14 Tage ohne Angabe, Verbraucherhinweis, USt-IdNr.-Bestätigung, Kleinbetrag |
 | Storno, Korrektur | `internal/service/invoice_correction.go` | Generalumkehr im laufenden Zeitraum; derzeit ohne Aufruf aus App oder Werkzeug |
-| Ausbuchung | `internal/service/settlement_writeoff.go` | Begründungspflicht, Steuerkorrektur; derzeit ohne Aufruf aus App oder Werkzeug |
+| Ausbuchung | `internal/service/settlement_writeoff.go` | Grund und Nachweis, Vorschau, Steuerkorrektur, Auflösung zugeordneter EWB; App und Werkzeug |
 | Konten | `internal/accounting/advance_accounts.go`, `skr04_2026.json` | 3272/3260/3250, 6930/6931/6936, 4925, 4970, 7110 |
 | Verzugsrechnung | `internal/accounting/default_interest.go`, `tax_params.go` | Zuschläge, 365 Tage, Basiszinstabelle |
 | Voranmeldung, ZM | `internal/accounting/ustva.go`, `zm.go` | `reverse_charge_supply` → Kz 21 und ZM bei EU-Kunden, sonst Kz 45 |
@@ -442,8 +442,10 @@ abgeglichen.
 
 ### Offen
 
-- Weder Werkzeug noch App für Stornorechnung, Rechnungskorrektur, Forderung
-  ausbuchen, Versandvermerk und Rückzahlung einer Anzahlung im Verbund; die
+- Ausbuchung: kein geführter Ablauf für spätere Zahlung mit erneuter Steuerberichtigung;
+  Altbestände der EWB ohne Forderungszuordnung müssen fachlich geklärt werden.
+- Weder Werkzeug noch App für Stornorechnung, Rechnungskorrektur,
+  Versandvermerk und Rückzahlung einer Anzahlung im Verbund; die
   Skills sagen das dem Menschen.
 - Skonto übergibt `rechnung_ausstellen` als `skonto_promille` und
   `skonto_tage`. Prüfen, ob der Hinweis in den strukturierten Teil (BT-20)

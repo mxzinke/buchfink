@@ -130,6 +130,8 @@ type AgentServices struct {
 		RecordReminder(context.Context, service.ReminderRequest) (*domain.DunningNote, error)
 	}
 	Payments interface {
+		WriteOffOpenItem(context.Context, service.WriteOffRequest) (*domain.JournalEntry, error)
+		PreviewWriteOff(context.Context, service.WriteOffRequest) (*domain.JournalEntry, error)
 		AgeOpenItems([]domain.OpenItem, string) *domain.OpenItemsAging
 		BookBankSplit(context.Context, service.BankSplitRequest) (*domain.JournalEntry, error)
 		OpenItems(context.Context) ([]domain.OpenItem, error)
