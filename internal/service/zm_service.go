@@ -233,7 +233,7 @@ func (s *ZMService) Save(ctx context.Context, periodKey string) (*domain.ZMRetur
 		fresh.ID = existing.ID
 		fresh.CreatedAt = existing.CreatedAt
 		if existing.IsCorrection {
-			return s.CreateCorrection(ctx, periodKey)
+			return s.CreateCorrection(ctx, periodKey, "")
 		}
 		fresh.IsCorrection = existing.IsCorrection
 		fresh.CorrectsID = existing.CorrectsID
@@ -338,7 +338,10 @@ func (s *ZMService) ConfirmSubmitted(ctx context.Context, id uint, date, ticket,
 }
 
 // CreateCorrection legt eine berichtigte Meldung an (§ 18a Abs. 10 UStG).
-func (s *ZMService) CreateCorrection(ctx context.Context, periodKey string, recognized ...string) (*domain.ZMReturn, error) {
+//
+// recognizedOn ist der Tag, an dem der Unternehmer die Unrichtigkeit erkannt
+// hat; von ihm läuft die Monatsfrist. Leer heißt heute.
+func (s *ZMService) CreateCorrection(ctx context.Context, periodKey, recognizedOn string) (*domain.ZMReturn, error) {
 	period, err := accounting.ParseVatPeriodKey(periodKey)
 	if err != nil {
 		return nil, err
@@ -362,9 +365,9 @@ func (s *ZMService) CreateCorrection(ctx context.Context, periodKey string, reco
 		return nil, fmt.Errorf("für %s sind keine geänderten Meldezeilen vorhanden", periodKey)
 	}
 
-	known := s.today()
-	if len(recognized) > 0 {
-		known = recognized[0]
+	known := recognizedOn
+	if known == "" {
+		known = s.today()
 	}
 	day, err := calendar.Parse(known)
 	if err != nil || known > s.today() {

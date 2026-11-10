@@ -105,7 +105,7 @@ func TestZMCorrectionSubmissionAndContactChange(t *testing.T) {
 	if err := env.invoices(t).Issue(ctx, late); err != nil {
 		t.Fatal(err)
 	}
-	second, err := svc.CreateCorrection(ctx, "2026-Q1")
+	second, err := svc.CreateCorrection(ctx, "2026-Q1", "")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -112,14 +112,14 @@ func TestCreateCorrectionIsIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Berichtigung der Voranmeldung: %v", err)
 	}
-	if _, err := zm.CreateCorrection(ctx, "2026-Q1"); err == nil {
+	if _, err := zm.CreateCorrection(ctx, "2026-Q1", ""); err == nil {
 		t.Fatal("ohne geänderte Zeilen ist keine Berichtigung anzulegen")
 	}
 	customer.VatID = "FR12345678902"
 	if err := env.contactRepo.Save(ctx, customer); err != nil {
 		t.Fatal(err)
 	}
-	firstZM, err := zm.CreateCorrection(ctx, "2026-Q1")
+	firstZM, err := zm.CreateCorrection(ctx, "2026-Q1", "")
 	if err != nil {
 		t.Fatalf("Berichtigung der Meldung: %v", err)
 	}
@@ -135,7 +135,7 @@ func TestCreateCorrectionIsIdempotent(t *testing.T) {
 	if secondVat.ID != firstVat.ID {
 		t.Errorf("die zweite Berichtigung legt die Anmeldung %d neben %d an", secondVat.ID, firstVat.ID)
 	}
-	secondZM, err := zm.CreateCorrection(ctx, "2026-Q1")
+	secondZM, err := zm.CreateCorrection(ctx, "2026-Q1", "")
 	if err != nil {
 		t.Fatalf("zweite Berichtigung der Meldung: %v", err)
 	}

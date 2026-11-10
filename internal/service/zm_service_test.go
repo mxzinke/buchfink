@@ -265,7 +265,7 @@ func TestZMSubmissionIsImmutableAndCorrectable(t *testing.T) {
 	}
 
 	env.euService(t, customer.ID, "2026-03-20", 200000)
-	correction, err := svc.CreateCorrection(ctx, "2026-Q1")
+	correction, err := svc.CreateCorrection(ctx, "2026-Q1", "")
 	if err != nil {
 		t.Fatalf("Berichtigung: %v", err)
 	}
@@ -445,7 +445,7 @@ func TestZMLateEntryAppearsAsNachtrag(t *testing.T) {
 
 	// Die Berichtigung des Quartals nimmt ihn auf und führt ihn dort nicht mehr
 	// als Nachtrag.
-	correction, err := svc.CreateCorrection(ctx, "2026-Q1")
+	correction, err := svc.CreateCorrection(ctx, "2026-Q1", "")
 	if err != nil {
 		t.Fatalf("Berichtigung: %v", err)
 	}
