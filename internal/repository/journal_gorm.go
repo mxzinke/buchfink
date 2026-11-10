@@ -113,7 +113,8 @@ func (r *journalRepositoryGorm) FindServiceEndingFrom(ctx context.Context, befor
 }
 
 func (r *journalRepositoryGorm) FindOpenItemCandidates(ctx context.Context, fiscalYear int) ([]domain.JournalEntry, error) {
-	q := notReversed(r.preloaded(ctx), "journal_entries").
+	q := r.preloaded(ctx).Where("journal_entries.kind <> ?", domain.EntryKindReversal).
+		Where("source = ? OR NOT EXISTS (SELECT 1 FROM journal_entries gu WHERE gu.reversal_of_id = journal_entries.id)", domain.EntrySourceInvoice).
 		// Zahlungen begründen selbst keinen offenen Posten.
 		Where("source <> ?", domain.EntrySourcePayment).
 		// Und nur eine Buchung mit einem Personenkonto hat überhaupt einen.
@@ -138,7 +139,7 @@ func (r *journalRepositoryGorm) FindOpenItemCandidates(ctx context.Context, fisc
 func (r *journalRepositoryGorm) FindOpenItemCandidatesAt(ctx context.Context, cutoff string) ([]domain.JournalEntry, error) {
 	q := r.preloaded(ctx).
 		Where("journal_entries.kind <> ?", domain.EntryKindReversal).
-		Where("NOT EXISTS (SELECT 1 FROM journal_entries gu WHERE gu.reversal_of_id = journal_entries.id AND gu.booking_date <= ?)", cutoff).
+		Where("source = ? OR NOT EXISTS (SELECT 1 FROM journal_entries gu WHERE gu.reversal_of_id = journal_entries.id AND gu.booking_date <= ?)", domain.EntrySourceInvoice, cutoff).
 		Where("source <> ?", domain.EntrySourcePayment).
 		Where("booking_date <= ?", cutoff).
 		Where("EXISTS (SELECT 1 FROM journal_lines l WHERE l.entry_id = journal_entries.id AND length(l.account) = 5)")

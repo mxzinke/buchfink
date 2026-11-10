@@ -15,12 +15,15 @@ Rechnungsdokument und Umsatzsteuer. Die Buchung korrigiert
 
 ## 1. Was Buchfink anbietet
 
-Buchfink stellt weder Stornorechnung noch Rechnungskorrektur aus, weder als
-Werkzeug noch in der App.
+Buchfink stellt Stornorechnungen und Berichtigungen von Euro-Rechnungen
+in der App und über `rechnung_ausstellen` aus. `rechnung_vorschau` zeigt die
+Buchungswirkung mit `art` und `ursprung_id`. Eine Berichtigung braucht zusätzlich
+den vollständigen richtigen Rechnungsinhalt. Reine Textänderungen buchen nichts;
+Betragsänderungen buchen nur die Differenz.
 
 | Dokument | Inhalt |
 |---|---|
-| **Stornorechnung** | hebt die Rechnung vollständig auf, mit negativen Beträgen und Verweis auf sie |
+| **Stornorechnung** | hebt die Rechnung vollständig auf, mit Verweis auf sie; im lesbaren Teil negative Beträge, im XML Typ 381 mit positiven Beträgen |
 | **Rechnungskorrektur** | ersetzt den Inhalt vollständig, mit Verweis auf die berichtigte Rechnung |
 
 - Beide bekommen eine eigene Nummer; die ursprüngliche wird nie
@@ -74,10 +77,17 @@ Meist durch falschen Steuerfall oder Satz.
 1. Rechnung finden: `buchungen_suchen` oder `offene_posten`. Fertig, wenn
    Nummer, Datum, Buchung und Zahlungsstand feststehen.
 2. Fehler nach Abschnitt 2 und 3 einordnen. Fertig, wenn der Weg feststeht.
-3. Vorlage an den Menschen: Fehler, Weg, Fundstelle, neue Positionen, Wirkung
-   auf Voranmeldung und offenen Posten. Sag dazu, dass Buchfink das Dokument
-   noch nicht ausstellt und die Rechnung bis dahin unverändert bleibt. Fertig,
-   wenn er Fehler, Weg und Folgen kennt.
+3. Vorlage an den Menschen: Fehler, Weg, Fundstelle, Vorschau, Wirkung auf
+   Voranmeldung und offenen Posten. Erst nach seinem Ja `rechnung_ausstellen`
+   mit `art: storno` oder `berichtigung`, `ursprung_id` und `grund` aufrufen.
+4. Dateien aus dem Exportordner versenden. Ursprung und Folgedokument bleiben
+   sichtbar miteinander verbunden.
+
+Eine aktive Forderungsausbuchung zuerst stornieren. Ein bezahlter Storno lässt
+ein Kundenguthaben zurück, das verrechnet oder erstattet werden kann.
+Vereinnahmte Abschläge erst nach Rückzahlung stornieren; unbezahlte Abschläge
+ersetzt die Berichtigung ohne Buchung im selben Verbund.
+Eine Schlussrechnung behält ihre abgesetzten Anzahlungen.
 
 [ustg10]: https://www.gesetze-im-internet.de/ustg_1980/__10.html
 [ustg14]: https://www.gesetze-im-internet.de/ustg_1980/__14.html

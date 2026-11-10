@@ -221,11 +221,19 @@ func (s *settlement) allocate(
 			parts.cash -= cash
 		}
 
+		settledAmount := alloc.SettledAmount
+		reversal, err := s.journalRepo.FindReversalOf(ctx, item.EntryID)
+		if err != nil {
+			return nil, err
+		}
+		if reversal != nil {
+			settledAmount = -settledAmount
+		}
 		parts.allocations = append(parts.allocations, domain.PaymentAllocation{
 			OpenItemEntryID:  item.EntryID,
 			BankTxID:         bankTxID,
 			ContactID:        item.ContactID,
-			SettledAmount:    alloc.SettledAmount,
+			SettledAmount:    settledAmount,
 			CashAmount:       cash,
 			DifferenceKind:   alloc.DifferenceKind,
 			DifferenceAmount: alloc.DifferenceAmount,

@@ -44,6 +44,15 @@ func BuildCII(inv *domain.Invoice, seller *domain.CompanySettings, buyer *domain
 				"EN 16931 verlangt den Namen des Erwerbers (BR-07)")
 	}
 
+	// Credit Notes (381) geben die Gutschrift mit positiven Beträgen an.
+	// Im Journal und im lesbaren Stornodokument bleibt die Umkehr negativ.
+	if inv.ResolvedKind() == domain.InvoiceKindCancellation {
+		copyInvoice := *inv
+		copyInvoice.Items = append([]domain.InvoiceItem(nil), inv.Items...)
+		copyInvoice.Negate()
+		inv = &copyInvoice
+	}
+
 	specification := einvoice.ProfileEN16931
 	if profile == domain.EInvoiceProfileXRechnungCII {
 		specification = xrechnung.Current

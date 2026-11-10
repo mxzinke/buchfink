@@ -157,7 +157,7 @@ func TestBuyerVatIDOnReverseChargeSupply(t *testing.T) {
 	}
 }
 
-// Die Stornorechnung hat den Typschlüssel 384, negierte Beträge und den Bezug
+// Die Stornorechnung hat den Typschlüssel 381, positive XML-Beträge und den Bezug
 // auf die Rechnung, die sie storniert (BG-3). Ohne den Bezug kommt sie beim
 // Empfänger als unverbundene zweite Rechnung an.
 func TestCancellationCarriesTypeCodeAndReference(t *testing.T) {
@@ -169,8 +169,8 @@ func TestCancellationCarriesTypeCodeAndReference(t *testing.T) {
 	inv.Negate()
 
 	xml := renderFor(t, inv, testSeller(), testBuyer(), domain.EInvoiceProfileZUGFeRD)
-	if !strings.Contains(xml, "<ram:TypeCode>384</ram:TypeCode>") {
-		t.Error("die Stornorechnung muss BT-3 = 384 tragen")
+	if !strings.Contains(xml, "<ram:TypeCode>381</ram:TypeCode>") {
+		t.Error("die Stornorechnung muss BT-3 = 381 tragen")
 	}
 	if !strings.Contains(xml, "<ram:IssuerAssignedID>RE-2026-0001</ram:IssuerAssignedID>") {
 		t.Error("der Bezug auf die stornierte Rechnung (BT-25) fehlt")
@@ -178,8 +178,8 @@ func TestCancellationCarriesTypeCodeAndReference(t *testing.T) {
 	if !strings.Contains(xml, "20260301") {
 		t.Error("das Datum der stornierten Rechnung (BT-26) fehlt")
 	}
-	if !strings.Contains(xml, "<ram:LineTotalAmount>-1800.00</ram:LineTotalAmount>") ||
-		!strings.Contains(xml, "<ram:GrandTotalAmount>-2142.00</ram:GrandTotalAmount>") {
+	if !strings.Contains(xml, "<ram:LineTotalAmount>1800.00</ram:LineTotalAmount>") ||
+		!strings.Contains(xml, "<ram:GrandTotalAmount>2142.00</ram:GrandTotalAmount>") {
 		t.Errorf("die Beträge der Stornorechnung sind nicht negiert:\n%s", xml)
 	}
 
@@ -344,5 +344,36 @@ func TestFirmNameCarriesTheGruendungSuffix(t *testing.T) {
 	after := renderFor(t, testInvoice(), seller, testBuyer(), domain.EInvoiceProfileZUGFeRD)
 	if strings.Contains(after, "i. G.") {
 		t.Error("nach der Eintragung darf der Zusatz nicht mehr im Datensatz stehen")
+	}
+}
+
+func TestAmendmentProfilesAndEmbeddedRecord(t *testing.T) {
+	for _, profile := range []domain.EInvoiceProfile{domain.EInvoiceProfileZUGFeRD, domain.EInvoiceProfileXRechnungCII} {
+		for _, kind := range []domain.InvoiceKind{domain.InvoiceKindCancellation, domain.InvoiceKindCorrection} {
+			t.Run(string(profile)+"/"+string(kind), func(t *testing.T) {
+				inv := testInvoice()
+				inv.Kind = kind
+				inv.InvoiceNumber = "RE-2026-0002"
+				inv.CorrectsInvoiceNumber, inv.CorrectsInvoiceDate = "RE-2026-0001", "2026-02-01"
+				if kind == domain.InvoiceKindCancellation {
+					inv.Negate()
+				}
+				buyer := testBuyer()
+				buyer.LeitwegID, buyer.Email = "991-12345-67", "rechnung@kunde.example"
+				xml := renderFor(t, inv, testSeller(), buyer, profile)
+				if err := VerifyEmbeddedRecord([]byte(xml), inv); err != nil {
+					t.Fatal(err)
+				}
+				for _, required := range []string{"<ram:TypeCode>" + kind.TypeCode() + "</ram:TypeCode>", "RE-2026-0001", "20260201"} {
+					if !strings.Contains(xml, required) {
+						t.Fatalf("XML enthält %q nicht", required)
+					}
+				}
+				typ := GenerateTypstTemplate(inv, testSeller(), buyer)
+				if !strings.Contains(typ, "RE-2026-0001") || !strings.Contains(typ, "01.02.2026") {
+					t.Fatal("Bezug fehlt im lesbaren Dokument")
+				}
+			})
+		}
 	}
 }

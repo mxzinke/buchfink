@@ -3426,7 +3426,7 @@
       "openWorldHint": false,
       "readOnlyHint": false
     },
-    "description": "Stellt eine Ausgangsrechnung mit fortlaufender Nummer aus, bucht die Forderung und archiviert das Dokument (E-Rechnung nach dem Format des Kunden). art=abschlag stellt eine Anzahlungsrechnung in einem Rechnungsverbund aus (neu mit verbund und kontakt_id, sonst verbund_id); art=schlussrechnung rechnet den Verbund ab. Vorher rechnung_vorschau dem Menschen vorlegen und sein Ja einholen. PDF und E-Rechnung liegen danach im Exportordner (dateien); den Versand übernimmt der Agent oder der Mensch. Stornorechnung und Rechnungskorrektur gibt es nicht; die Zahlung auf einen Abschlag ordnet nur die App zu.",
+    "description": "Stellt Rechnung, Abschlag oder Schlussrechnung aus; PDF/XML liegen in dateien. Abschlag: verbund und kontakt_id oder verbund_id; Schlussrechnung: verbund_id. storno/berichtigung: ursprung_id und grund; Berichtigung zusätzlich rechnung mit vollständigem Inhalt. Vorher rechnung_vorschau vorlegen und Ja einholen; Versand außerhalb der App.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -3457,17 +3457,22 @@
           ]
         },
         "art": {
-          "description": "rechnung (Vorgabe), abschlag (Anzahlungsrechnung) oder schlussrechnung",
+          "description": "rechnung (Vorgabe), abschlag, schlussrechnung, storno oder berichtigung",
           "enum": [
             "rechnung",
             "abschlag",
-            "schlussrechnung"
+            "schlussrechnung",
+            "storno",
+            "berichtigung"
           ],
           "type": "string"
         },
         "datum": {
           "description": "Datum der Abschlagsrechnung",
           "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "grund": {
           "type": "string"
         },
         "idempotenz_schluessel": {
@@ -3485,7 +3490,7 @@
         },
         "rechnung": {
           "additionalProperties": false,
-          "description": "bei rechnung und schlussrechnung",
+          "description": "bei rechnung, schlussrechnung und berichtigung",
           "properties": {
             "kontakt_id": {
               "description": "Kunde",
@@ -3586,15 +3591,14 @@
               "type": "integer"
             }
           },
-          "required": [
-            "kontakt_id",
-            "leistung_von",
-            "positionen"
-          ],
           "type": [
             "null",
             "object"
           ]
+        },
+        "ursprung_id": {
+          "minimum": 0,
+          "type": "integer"
         },
         "verbund": {
           "additionalProperties": false,
@@ -3654,6 +3658,17 @@
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
+        "art": {
+          "description": "Vorgabe rechnung",
+          "enum": [
+            "rechnung",
+            "abschlag",
+            "schlussrechnung",
+            "storno",
+            "berichtigung"
+          ],
+          "type": "string"
+        },
         "kontakt_id": {
           "description": "Kunde",
           "minimum": 0,
@@ -3744,6 +3759,10 @@
           ],
           "type": "string"
         },
+        "ursprung_id": {
+          "minimum": 0,
+          "type": "integer"
+        },
         "ust_id_uebersteuerung_grund": {
           "description": "nur wenn die Bestätigung der USt-IdNr. ausbleibt",
           "type": "string"
@@ -3753,11 +3772,6 @@
           "type": "integer"
         }
       },
-      "required": [
-        "kontakt_id",
-        "leistung_von",
-        "positionen"
-      ],
       "type": "object"
     },
     "name": "rechnung_vorschau",

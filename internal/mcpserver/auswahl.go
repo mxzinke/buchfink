@@ -87,7 +87,7 @@ var choices = map[reflect.Type]choice{
 	reflect.TypeFor[PflichtStatus]():   {choiceKeys(statusFromLabel), "Stand der Pflicht"},
 	reflect.TypeFor[PflichtArt]():      {obligationKindValues(), "Pflichtart wie in fristen; die Anker aus pflichten.md gelten auch"},
 	reflect.TypeFor[AnlassArt]():       {eventKindValues(), "Art des Anlasses"},
-	reflect.TypeFor[RechnungArt]():     {[]string{"rechnung", "abschlag", "schlussrechnung"}, "Vorgabe rechnung"},
+	reflect.TypeFor[RechnungArt]():     {[]string{"rechnung", "abschlag", "schlussrechnung", "storno", "berichtigung"}, "Vorgabe rechnung"},
 	reflect.TypeFor[AbschlussArt]():    {choiceKeys(closingRuns), "Schritt des Abschlusses; die Angaben stehen im gleichnamigen Feld"},
 	reflect.TypeFor[AbgrenzungArt]():   {choiceKeys(accrualKinds), "aktiv (aktiver RAP), passiv (passiver RAP) oder disagio"},
 	reflect.TypeFor[RueckstellungArt](): {choiceKeys(provisionKinds),

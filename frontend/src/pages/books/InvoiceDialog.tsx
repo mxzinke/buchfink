@@ -41,6 +41,7 @@ interface Item {
   unit: string;
   price: string;
   rate: TaxRate;
+  postingGroup?: string;
 }
 
 const emptyItem = (): Item => ({
@@ -58,6 +59,7 @@ function quantityMilli(text: string): number | null {
 }
 
 export interface InvoiceDialogProps {
+  original?: Invoice;
   onClose: () => void;
   onIssued: (invoice: Invoice) => Promise<void>;
 }
@@ -66,22 +68,26 @@ export interface InvoiceDialogProps {
  * Die Notfallmaske für eine Ausgangsrechnung an einen Kunden im Inland:
  * Kunde, Datum, Leistungszeitraum, Positionen, Zahlungsziel. Den Buchungssatz
  * und die Pflichtangaben prüft das Backend vor dem Ausstellen. Rechnungen mit
- * Verlagerung der Steuerschuld, Abschläge und Korrekturen schreibt Claude.
+ * Verlagerung der Steuerschuld und Abschläge schreibt der Agent.
  */
-export const InvoiceDialog: React.FC<InvoiceDialogProps> = ({ onClose, onIssued }) => {
+export const InvoiceDialog: React.FC<InvoiceDialogProps> = ({ onClose, onIssued, original }) => {
   const lock = usePostingLock();
   const today = todayISO();
   const [customers, setCustomers] = useState<Contact[] | null>(null);
   const [treatments, setTreatments] = useState<TaxTreatmentInfo[]>([]);
   const [units, setUnits] = useState<UnitCode[]>([]);
 
-  const [contactId, setContactId] = useState<number | null>(null);
-  const [treatment, setTreatment] = useState<TaxTreatment>('domestic');
+  const [contactId, setContactId] = useState<number | null>(original?.contactId ?? null);
+  const [treatment, setTreatment] = useState<TaxTreatment>(original?.taxTreatment ?? 'domestic');
   const [date, setDate] = useState(today);
-  const [serviceFrom, setServiceFrom] = useState(today);
-  const [serviceTo, setServiceTo] = useState(today);
-  const [items, setItems] = useState<Item[]>([emptyItem()]);
-  const [dueDays, setDueDays] = useState('14');
+  const [serviceFrom, setServiceFrom] = useState(original?.serviceDateFrom ?? today);
+  const [serviceTo, setServiceTo] = useState(original?.serviceDateTo ?? today);
+  const [items, setItems] = useState<Item[]>(original ? original.items.map(item => ({
+    description: item.description, quantity: String(item.quantityMilli / 1000), unit: item.unit,
+    price: (item.unitPrice / 100).toFixed(2).replace('.', ','), rate: item.taxRate, postingGroup: item.postingGroup,
+  })) : [emptyItem()]);
+  const [dueDays, setDueDays] = useState(String(original?.terms?.dueDays ?? 14));
+  const [reason, setReason] = useState('');
 
   const [preview, setPreview] = useState<PostingPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -108,8 +114,8 @@ export const InvoiceDialog: React.FC<InvoiceDialogProps> = ({ onClose, onIssued 
 
   const customer = customers?.find((c) => c.id === contactId);
   useEffect(() => {
-    if (customer?.paymentTermsDays) setDueDays(String(customer.paymentTermsDays));
-  }, [customer]);
+    if (!original && customer?.paymentTermsDays) setDueDays(String(customer.paymentTermsDays));
+  }, [customer, original]);
 
   const draft: Partial<Invoice> | null = useMemo(() => {
     const parsed = items.map((item) => ({
@@ -131,7 +137,7 @@ export const InvoiceDialog: React.FC<InvoiceDialogProps> = ({ onClose, onIssued 
       taxTreatment: treatment,
       currency: 'EUR',
       smallAmount: false,
-      terms: { dueDays: Number.parseInt(dueDays, 10) || 0, discountPermille: 0, discountDays: 0 },
+      terms: { dueDays: Number.parseInt(dueDays, 10) || 0, discountPermille: original?.terms?.discountPermille ?? 0, discountDays: original?.terms?.discountDays ?? 0 },
       items: parsed.map(
         (item, index): InvoiceItem => ({
           position: index + 1,
@@ -140,10 +146,11 @@ export const InvoiceDialog: React.FC<InvoiceDialogProps> = ({ onClose, onIssued 
           unit: item.unit,
           unitPrice: item.cents ?? 0,
           taxRate: item.rate,
+          postingGroup: item.postingGroup,
         }),
       ),
     };
-  }, [contactId, date, serviceFrom, serviceTo, treatment, items, dueDays]);
+  }, [contactId, date, serviceFrom, serviceTo, treatment, items, dueDays, original]);
 
   useEffect(() => {
     if (!draft) {
@@ -153,7 +160,7 @@ export const InvoiceDialog: React.FC<InvoiceDialogProps> = ({ onClose, onIssued 
     }
     let cancelled = false;
     const timer = window.setTimeout(() => {
-      Api.previewOutgoingInvoice(draft)
+      (original ? Api.previewInvoiceAmendment(original.id, draft) : Api.previewOutgoingInvoice(draft))
         .then((result) => {
           if (cancelled) return;
           setPreview(result);
@@ -169,10 +176,10 @@ export const InvoiceDialog: React.FC<InvoiceDialogProps> = ({ onClose, onIssued 
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [draft]);
+  }, [draft, original]);
 
   const findings = preview?.issuingFindings ?? [];
-  const blockedReason = !draft
+  const blockedReason = original && !reason.trim() ? 'Der Grund der Berichtigung fehlt.' : !draft
     ? 'Kunde, Beschreibung, Menge und Preis jeder Position fehlen noch.'
     : !preview
       ? 'Der Buchungssatz steht noch aus.'
@@ -189,7 +196,7 @@ export const InvoiceDialog: React.FC<InvoiceDialogProps> = ({ onClose, onIssued 
     setBusy(true);
     setFailure(null);
     try {
-      const invoice = await Api.issueInvoice(draft);
+      const invoice = original ? await Api.correctInvoice(original.id, reason, draft) : await Api.issueInvoice(draft);
       await onIssued(invoice);
     } catch (e) {
       setFailure(errorText(e));
@@ -209,7 +216,7 @@ export const InvoiceDialog: React.FC<InvoiceDialogProps> = ({ onClose, onIssued 
     <Dialog
       open
       onOpenChange={(next) => !next && onClose()}
-      title="Rechnung schreiben"
+      title={original ? `Rechnung ${original.invoiceNumber} berichtigen` : "Rechnung schreiben"}
       width="max-w-4xl"
       dirty={dirty}
       footer={
@@ -236,6 +243,11 @@ export const InvoiceDialog: React.FC<InvoiceDialogProps> = ({ onClose, onIssued 
         <SkeletonRows rows={6} />
       ) : (
         <>
+          {original && (
+            <Field label="Grund der Berichtigung">
+              <Input value={reason} onChange={e => setReason(e.target.value)} />
+            </Field>
+          )}
           <FormGrid>
             <Field
               label="Kunde"
@@ -363,7 +375,7 @@ export const InvoiceDialog: React.FC<InvoiceDialogProps> = ({ onClose, onIssued 
         open={confirming}
         onOpenChange={setConfirming}
         title="Rechnung ausstellen"
-        description="Buchfink vergibt die nächste Rechnungsnummer und bucht die Forderung. Danach lässt sich die Rechnung nur noch mit einer Stornorechnung zurücknehmen."
+        description={original?.kind === 'advance' ? "Buchfink storniert den unbezahlten Abschlag und stellt den berichtigten Abschlag im selben Verbund aus. Es entsteht keine Buchung." : original ? "Buchfink stellt die Berichtigung mit einer eigenen Nummer aus. Gebucht wird nur die Differenz; reine Textänderungen bleiben ohne Buchung." : "Buchfink vergibt die nächste Rechnungsnummer und bucht die Forderung. Danach lässt sich die Rechnung nur noch mit einer Stornorechnung zurücknehmen."}
         confirmLabel="Ausstellen"
         onConfirm={() => void issue()}
       />

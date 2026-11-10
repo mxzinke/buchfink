@@ -288,6 +288,22 @@ func TestCorrectingTheFinalInvoiceDeductsTheAdvancesAgain(t *testing.T) {
 		t.Errorf("der Verbund zeigt auf %v, erwartet die berichtigte Rechnung %d",
 			groups[0].FinalInvoiceID, corrected.ID)
 	}
+	if _, err := svc.CancelWithDocument(ctx, corrected.ID, "Auftrag entfällt"); err != nil {
+		t.Fatal(err)
+	}
+	groups, err = svc.GetInvoiceGroups(ctx, 2026)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if groups[0].Closed || groups[0].FinalInvoiceID != nil {
+		t.Fatal("Storno der Berichtigung öffnet den Verbund nicht")
+	}
+	if got := env.accountBalance(t, customer.LedgerAccount); got != 0 {
+		t.Fatalf("Restforderung nach Storno: %s", got)
+	}
+	if got := env.accountBalance(t, accounting.AccountErhalteneAnzahlungen19); got != -400000 {
+		t.Fatalf("Anzahlungen nach Storno: %s", got)
+	}
 }
 
 // Ein Regelverstoß verhindert die Ausstellung — vor der Nummernvergabe.

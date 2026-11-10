@@ -46,6 +46,12 @@ func VerifyEmbeddedRecord(data []byte, inv *domain.Invoice) error {
 			inv.InvoiceNumber, err)
 	}
 
+	if inv.ResolvedKind() == domain.InvoiceKindCancellation {
+		if read.Kind != domain.EInvoiceKindCreditNote {
+			return fmt.Errorf("Stornorechnung braucht Typ 381")
+		}
+		read.NetAmount, read.TaxAmount, read.GrossAmount = -read.NetAmount, -read.TaxAmount, -read.GrossAmount
+	}
 	var problems []string
 	compare := func(label, want, got string) {
 		if strings.TrimSpace(want) != strings.TrimSpace(got) {

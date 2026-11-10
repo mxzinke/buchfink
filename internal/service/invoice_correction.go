@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
@@ -111,7 +112,7 @@ func (s *InvoiceService) cancelWithDocument(ctx context.Context, invoiceID uint,
 	if !original.Status.IsIssued() {
 		return nil, fmt.Errorf("Rechnung %s ist nicht ausgestellt und kann nicht storniert werden", original.InvoiceNumber)
 	}
-	if reason == "" {
+	if strings.TrimSpace(reason) == "" {
 		return nil, fmt.Errorf("zu jedem Storno gehört eine Begründung (GoBD Rz. 58)")
 	}
 	if err := s.ensureAdvanceCancellable(ctx, original); err != nil {
@@ -126,21 +127,34 @@ func (s *InvoiceService) cancelWithDocument(ctx context.Context, invoiceID uint,
 		return nil, err
 	}
 
+	state, err := s.postingSvc.journalSvc.periods.State(ctx, s.today())
+	if err != nil {
+		return nil, err
+	}
+	if !state.Open {
+		return nil, fmt.Errorf("der Stornotag %s ist festgeschrieben", s.today())
+	}
+	if err := s.checkInvoiceWriteoffs(ctx, original); err != nil {
+		return nil, err
+	}
 	storno := buildStorno(original, s.today())
 	// Nummer, Stornodokument, Generalumkehr und der Status der
 	// Ursprungsrechnung entstehen in einer Transaktion: entweder alle oder
 	// keines.
 	err = s.issueCorrection(ctx, storno, contact, func(ctx context.Context) (*domain.JournalEntry, error) {
-		if original.JournalEntryID == nil {
-			return nil, nil
-		}
-		entry, err := s.postingSvc.journalSvc.Reverse(ctx, *original.JournalEntryID,
-			fmt.Sprintf("Storno %s zu Rechnung %s: %s", storno.InvoiceNumber, original.InvoiceNumber, reason))
+		entries, err := s.invoiceBookingChain(ctx, original)
 		if err != nil {
-			return nil, fmt.Errorf("die Buchung der Rechnung %s ließ sich nicht zurücknehmen: %w",
-				original.InvoiceNumber, err)
+			return nil, err
 		}
-		return entry, nil
+		var reversal *domain.JournalEntry
+		for _, entry := range entries {
+			reversal, err = s.postingSvc.journalSvc.Reverse(ctx, entry.ID,
+				fmt.Sprintf("Storno %s zu Rechnung %s: %s", storno.InvoiceNumber, original.InvoiceNumber, reason))
+			if err != nil {
+				return nil, err
+			}
+		}
+		return reversal, nil
 	}, func(ctx context.Context) error {
 		original.Status = domain.InvoiceStatusCancelled
 		original.CancelledByInvoiceID = &storno.ID
@@ -231,17 +245,10 @@ func (s *InvoiceService) ensureAdvanceCancellable(ctx context.Context, inv *doma
 	return nil
 }
 
-// CorrectInvoice storniert eine Rechnung und stellt zugleich die berichtigte
-// aus.
-//
-// Zwei Dokumente, nicht eines: die Ursprungsrechnung wird storniert, und die
-// neue Rechnung hat den vollständigen richtigen Inhalt mit Bezug auf die
-// berichtigte. Eine „Korrekturrechnung über die Differenz" wäre die andere
-// Möglichkeit — sie ist zulässig, aber sie lässt den Empfänger zwei Dokumente
-// zusammenrechnen, und in der Praxis rechnet er falsch.
-//
-// Storno und berichtigte Rechnung sind eine Transaktion: lässt sich die
-// berichtigte nicht ausstellen, bleibt auch die Ursprungsrechnung unstorniert.
+// CorrectInvoice stellt den vollständigen berichtigten Inhalt mit eindeutigem
+// Bezug aus (§ 31 Abs. 5 UStDV). Gewöhnliche Rechnungen buchen nur die Differenz.
+// Unbezahlte Abschläge werden in einer Transaktion storniert und ersetzt;
+// die Steuer entsteht dort erst mit der Vereinnahmung.
 func (s *InvoiceService) CorrectInvoice(ctx context.Context, invoiceID uint, reason string, replacement *domain.Invoice) (*domain.Invoice, error) {
 	return atomically(ctx, s.postingSvc.journalSvc, func(ctx context.Context) (*domain.Invoice, error) {
 		return s.correctInvoice(ctx, invoiceID, reason, replacement)
@@ -252,6 +259,9 @@ func (s *InvoiceService) correctInvoice(ctx context.Context, invoiceID uint, rea
 	original, err := s.invoiceRepo.FindByID(ctx, invoiceID)
 	if err != nil {
 		return nil, err
+	}
+	if original.ResolvedKind() != domain.InvoiceKindAdvance && replacement != nil {
+		return s.correctBookedInvoice(ctx, original, reason, replacement)
 	}
 	// Die Erreichbarkeit des Verbunds wird vor dem Storno geprüft und nicht
 	// danach: ohne ihn ließe sich die berichtigte Abschlagsrechnung nicht
@@ -275,11 +285,15 @@ func (s *InvoiceService) correctInvoice(ctx context.Context, invoiceID uint, rea
 	replacement.JournalEntryID = nil
 	replacement.ReceiptID = nil
 	replacement.Status = domain.InvoiceStatusDraft
+	replacement.FiscalYear = 0
+	replacement.SentAt, replacement.SentVia, replacement.SentNote = "", "", ""
+	for i := range replacement.Items {
+		replacement.Items[i].ID, replacement.Items[i].InvoiceID = 0, 0
+	}
 	// Auch hier kommt die Rechnung aus der Oberfläche: Verbund, Anzahlungssumme
 	// und Bezüge werden verworfen und, wo sie hingehören, gleich darauf aus dem
-	// Verbund gesetzt (issueAdvanceReplacement, issueFinalReplacement).
+	// Verbund gesetzt (issueAdvanceReplacement).
 	dropForeignKindFields(replacement)
-	replacement.Kind = domain.InvoiceKindCorrection
 	// Die berichtigte Abschlagsrechnung bleibt eine Abschlagsrechnung.
 	//
 	// Mit dem Typcode 384 liefe sie über den gewöhnlichen Weg: gebucht beim
@@ -319,28 +333,6 @@ func (s *InvoiceService) correctInvoice(ctx context.Context, invoiceID uint, rea
 		return replacement, nil
 	}
 
-	// Die Berichtigung einer Schlussrechnung ist keine gewöhnliche Ausstellung.
-	//
-	// Sie muss die vereinnahmten Anzahlungen wieder absetzen — dieselbe Pflicht
-	// aus § 14 Abs. 5 Satz 2 UStG, die für die stornierte galt. Liefe sie über
-	// den gewöhnlichen Weg, wies sie den vollen Erlös und die volle Steuer aus,
-	// ohne BT-113 und ohne die Auflösung von 3272/3806: doppelter Steuerausweis
-	// (§ 14c Abs. 1 UStG) und eine Forderung über einen längst gezahlten
-	// Betrag.
-	if original.ResolvedKind() == domain.InvoiceKindFinal {
-		if err := s.issueFinalReplacement(ctx, replacement, original); err != nil {
-			return nil, fmt.Errorf(
-				"die berichtigte Schlussrechnung zu %s ließ sich nicht ausstellen, deshalb wurde auch nicht storniert: %w",
-				original.InvoiceNumber, err)
-		}
-		return replacement, nil
-	}
-
-	if err := s.issueAs(ctx, replacement, domain.InvoiceKindCorrection, nil); err != nil {
-		return nil, fmt.Errorf(
-			"die berichtigte Rechnung zu %s ließ sich nicht ausstellen, deshalb wurde auch nicht storniert: %w",
-			original.InvoiceNumber, err)
-	}
 	return replacement, nil
 }
 

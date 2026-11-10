@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FilePlus } from 'lucide-react';
-import type { Invoice, JournalEntry } from '../../types';
+import type { Invoice, JournalEntry, PostingPreview } from '../../types';
 import { useNavigation, useRouteObject } from '../../navigation';
 import { useWorkspace } from '../../workspace';
 import { useLiveReload } from '../../live';
@@ -10,6 +10,8 @@ import { ActorMark } from '../../components/ActorMark';
 import { formatCents, formatDate, formatDateRange, formatQuantity } from '../../utils/formatters';
 import {
   Button,
+  Field,
+  Input,
   DetailList,
   DetailPanel,
   EmptyState,
@@ -28,7 +30,7 @@ import {
   toast,
   type Status,
 } from '../../components/ui';
-import { DocumentPreview, PanelHeading, errorText, todayISO } from './shared';
+import { DocumentPreview, PostingLines, PanelHeading, errorText, todayISO } from './shared';
 import { InvoiceDialog } from './InvoiceDialog';
 
 const KIND_LABEL: Record<Invoice['kind'], string> = {
@@ -298,6 +300,9 @@ const InvoicePanel: React.FC<{
   const { open } = useRouteObject('books', 'invoices');
   const lock = usePostingLock();
   const today = todayISO();
+  const [amendment, setAmendment] = useState<'storno' | 'berichtigung' | null>(null);
+  const [reason, setReason] = useState('');
+  const [preview, setPreview] = useState<PostingPreview | null>(null);
   const [shown, setShown] = useState<Invoice | undefined>(invoice);
   const [busy, setBusy] = useState(false);
 
@@ -348,7 +353,9 @@ const InvoicePanel: React.FC<{
       : []),
     ...(shown.sentAt ? [{ label: 'Versendet', value: formatDate(shown.sentAt), numeric: true }] : []),
     ...(corrects ? [{ label: 'Bezieht sich auf', value: invoiceLink(corrects) }] : []),
-    ...(cancelledBy ? [{ label: 'Storniert durch', value: invoiceLink(cancelledBy) }] : []),
+    ...invoices.filter(i => i.correctsInvoiceId === shown.id && i.id !== cancelledBy?.id)
+      .map(i => ({ label: 'Folgedokument', value: invoiceLink(i) })),
+    ...(cancelledBy ? [{ label: kindOf(cancelledBy) === 'correction' ? 'Berichtigt durch' : 'Storniert durch', value: invoiceLink(cancelledBy) }] : []),
     ...(entry
       ? [
           {
@@ -401,6 +408,31 @@ const InvoicePanel: React.FC<{
       )}
 
       <DetailList items={facts} />
+      {(shown.status === 'issued' || shown.status === 'paid') && kindOf(shown) !== 'cancellation' && (
+        <div className="mt-6 flex gap-2">
+          <Button disabled={lock.locked || busy} onClick={() => {
+            setAmendment('storno'); setPreview(null);
+            Api.previewInvoiceAmendment(shown.id, null).then(setPreview).catch(e => toast.error(errorText(e)));
+          }}>Stornieren</Button>
+          <Button disabled={lock.locked || busy} onClick={() => setAmendment('berichtigung')}>Berichtigen</Button>
+        </div>
+      )}
+      {amendment === 'berichtigung' && <InvoiceDialog original={shown} onClose={() => setAmendment(null)} onIssued={async () => {
+        setAmendment(null); await onChanged();
+      }} />}
+      {amendment === 'storno' && (
+        <div className="mt-6 space-y-4">
+          <Field label="Grund des Stornos"><Input value={reason} onChange={e => setReason(e.target.value)} /></Field>
+          {preview && <PostingLines lines={preview.lines} />}
+          <Button disabled={!preview || !reason.trim() || lock.locked || busy} onClick={async () => {
+            setBusy(true);
+            try { await Api.cancelInvoice(shown.id, reason); setAmendment(null); await onChanged(); }
+            catch (e) { toast.error(errorText(e)); }
+            finally { setBusy(false); }
+          }}>Stornorechnung ausstellen</Button>
+          <Button onClick={() => setAmendment(null)}>Abbrechen</Button>
+        </div>
+      )}
 
       <div className="mt-6">
         <PanelHeading>Positionen</PanelHeading>

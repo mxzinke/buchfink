@@ -103,6 +103,9 @@ type AgentServices struct {
 		Run(context.Context, service.IdempotentCall, func(context.Context) (string, any, error)) (*service.IdempotentOutcome, error)
 	}
 	Invoices interface {
+		CancelWithDocument(context.Context, uint, string) (*domain.Invoice, error)
+		CorrectInvoice(context.Context, uint, string, *domain.Invoice) (*domain.Invoice, error)
+		PreviewInvoiceAmendment(context.Context, uint, *domain.Invoice) (*service.PostingPreview, error)
 		CreateInvoiceGroup(context.Context, service.AdvanceGroupRequest) (*domain.InvoiceGroup, error)
 		Issue(context.Context, *domain.Invoice) error
 		IssueAdvanceInvoice(context.Context, service.AdvanceInvoiceRequest) (*domain.Invoice, error)

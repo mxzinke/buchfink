@@ -58,3 +58,24 @@ func (b *BuchfinkBridge) RefundAdvance(req service.RefundAdvanceRequest) (*domai
 		return s.Invoices.RefundAdvance(ctx, req)
 	})
 }
+
+// CancelInvoice stellt das Stornodokument aus und nimmt die Buchung zurück.
+func (b *BuchfinkBridge) CancelInvoice(invoiceID uint, reason string) (*domain.Invoice, error) {
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.Invoice, error) {
+		return s.Invoices.CancelWithDocument(ctx, invoiceID, reason)
+	})
+}
+
+// CorrectInvoice stellt die berichtigte Rechnung aus.
+func (b *BuchfinkBridge) CorrectInvoice(invoiceID uint, reason string, replacement domain.Invoice) (*domain.Invoice, error) {
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.Invoice, error) {
+		return s.Invoices.CorrectInvoice(ctx, invoiceID, reason, &replacement)
+	})
+}
+
+// PreviewInvoiceAmendment berechnet die Buchungswirkung ohne Ausstellung.
+func (b *BuchfinkBridge) PreviewInvoiceAmendment(invoiceID uint, replacement *domain.Invoice) (*service.PostingPreview, error) {
+	return read(b, func(ctx context.Context, s *core.Services) (*service.PostingPreview, error) {
+		return s.Invoices.PreviewInvoiceAmendment(ctx, invoiceID, replacement)
+	})
+}

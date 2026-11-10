@@ -61,6 +61,41 @@ dasselbe sagen müssen (UStAE 14c.1). Das hybride PDF wird als Ausgangsbeleg
 abgelegt, obwohl GoBD Rz. 76 den Verzicht erlaubt: ein gespeichertes Dokument
 ist greifbarer als die Zusage, es jederzeit neu zu erzeugen.
 
+## Storno und Berichtigung
+
+Eine Stornorechnung hat eine eigene Nummer und verweist mit Nummer und Datum
+auf die Ursprungsrechnung (BG-3, BT-25/BT-26). Im XML ist sie eine Credit Note
+mit Typcode 381 und positiven Beträgen; der lesbare Teil heißt Stornorechnung
+und zeigt die negativen Beträge. Die Buchung kehrt die Rechnung einschließlich
+ihrer Differenzbuchungen um. Erhaltene Zahlungen bleiben als Kundenguthaben in
+den offenen Posten und können verrechnet oder erstattet werden.
+
+Die Berichtigung von Euro-Rechnungen hat Typcode 384 und den vollständigen
+richtigen Inhalt. [§ 31 Abs. 5 UStDV][ustdv31] verlangt nur die fehlenden oder
+unrichtigen Angaben und einen eindeutigen Bezug. Der vollständige Inhalt und die
+eigene Nummer sind eine Produktentscheidung. Eine reine Textberichtigung bucht
+nichts; sonst entsteht eine Differenzbuchung am Änderungstag
+([§ 17 Abs. 1 UStG][ustg17]). Beide Wege lassen festgeschriebene Perioden unberührt.
+Eine bereits ersetzte oder stornierte Rechnung lässt sich nicht erneut bearbeiten.
+Bei einem anderen Kunden wird storniert und neu ausgestellt. Eine aktive
+Forderungsausbuchung muss zuerst storniert werden, damit die Steuer nicht zweimal
+vermindert wird.
+
+Vereinnahmte Abschläge lassen sich erst nach ihrer Rückzahlung stornieren;
+verrechnete Abschläge erst nach der Stornierung der Schlussrechnung. Der Storno
+der Schlussrechnung öffnet den Verbund wieder und nimmt die Absetzung der
+Anzahlungen zurück. Die Berichtigung der Schlussrechnung bucht die Differenz
+und behält die Absetzung der Anzahlungen. Unbezahlte Abschläge werden in einer Transaktion
+storniert und durch einen berichtigten Abschlag im selben Verbund ersetzt;
+es entsteht keine Buchung. Beide Wege haben eine Vorschau.
+
+Die Regeln für 381/384 prüft `internal/einvoice`, insbesondere die Typcodeliste
+und BR-DE-26 in `xrechnung/ruleset.go`. Die Vorzeichen einer Credit Note werden
+an der Dokumentgrenze übersetzt und beim Rücklesen wieder verglichen.
+
+[ustdv31]: https://www.gesetze-im-internet.de/ustdv_1980/__31.html
+[ustg17]: https://www.gesetze-im-internet.de/ustg_1980/__17.html
+
 ## Aufbewahrung
 
 Bei E-Rechnungen genügt der strukturierte Teil; er darf durch keine

@@ -95,6 +95,10 @@ export const bridge = {
   IssueInvoice: <T>(invoice: unknown) => invoke<T>('IssueInvoice', invoice),
   GetInvoiceDocument: <T>(invoiceId: number) => invoke<T>('GetInvoiceDocument', invoiceId),
 
+  CancelInvoice: <T>(id: number, reason: string) => invoke<T>('CancelInvoice', id, reason),
+  CorrectInvoice: <T>(id: number, reason: string, replacement: unknown) => invoke<T>('CorrectInvoice', id, reason, replacement),
+  PreviewInvoiceAmendment: <T>(id: number, replacement: unknown) => invoke<T>('PreviewInvoiceAmendment', id, replacement),
+
   // Korrektur, Storno, Versand und Nummernkreis der Ausgangsrechnungen
   RegenerateInvoiceDocument: <T>(invoiceId: number) =>
     invoke<T>('RegenerateInvoiceDocument', invoiceId),

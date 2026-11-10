@@ -590,6 +590,13 @@ export const Api = {
   issueInvoice: (invoice: Partial<Invoice>): Promise<Invoice> =>
     call(() => Bridge.IssueInvoice(invoice as any) as Promise<Invoice>).then(normalizeInvoice),
 
+  cancelInvoice: (id: number, reason: string): Promise<Invoice> =>
+    call(() => Bridge.CancelInvoice(id, reason) as Promise<Invoice>).then(normalizeInvoice),
+  correctInvoice: (id: number, reason: string, replacement: Partial<Invoice>): Promise<Invoice> =>
+    call(() => Bridge.CorrectInvoice(id, reason, replacement) as Promise<Invoice>).then(normalizeInvoice),
+  previewInvoiceAmendment: (id: number, replacement: Partial<Invoice> | null): Promise<PostingPreview> =>
+    call(() => Bridge.PreviewInvoiceAmendment(id, replacement) as Promise<PostingPreview>),
+
   // --- Korrektur, Storno, Versand, Nummernkreis --------------------------
 
   /**

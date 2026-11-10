@@ -254,12 +254,12 @@ func TestCorrectInvoiceIssuesReplacementWithReference(t *testing.T) {
 		t.Errorf("die berichtigte Rechnung lautet über %s, erwartet 1200,00", corrected.NetAmount)
 	}
 
-	// Drei Dokumente, drei Nummern: Ursprung, Storno, Berichtigung.
+	// Ursprung und Berichtigung haben eigene Nummern.
 	numbers, err := env.invoiceRepoOf(t).FindNumbers(ctx, 2026)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(numbers) != 3 {
-		t.Errorf("erwartet drei Dokumente im Nummernkreis, erhalten %d: %v", len(numbers), numbers)
+	if len(numbers) != 2 {
+		t.Errorf("erwartet zwei Dokumente im Nummernkreis, erhalten %d: %v", len(numbers), numbers)
 	}
 }

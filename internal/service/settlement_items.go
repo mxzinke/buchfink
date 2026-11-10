@@ -82,6 +82,21 @@ func (s *openItemReader) OpenItems(ctx context.Context, cutoff string) ([]domain
 	if err != nil {
 		return nil, err
 	}
+	// Nach der Generalumkehr ist der Rechnungsbetrag null. Erhaltene Zahlungen
+	// bleiben als negativer offener Betrag verrechenbar und erstattbar.
+	for i := range entries {
+		reversal, err := s.journalRepo.FindReversalOf(ctx, entries[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		if reversal == nil || (cutoff != "" && reversal.BookingDate > cutoff) {
+			continue
+		}
+		for j := range entries[i].Lines {
+			entries[i].Lines[j].Amount = 0
+			entries[i].Lines[j].TaxBase = 0
+		}
+	}
 	items, err := s.openItemsFrom(ctx, entries, settled)
 	if err != nil {
 		return nil, err
@@ -138,6 +153,11 @@ func (s *openItemReader) openItemsFrom(
 		gross := line.Amount
 		alreadySettled := settled[entry.ID]
 		open := gross - alreadySettled
+		if open < 0 && gross == 0 {
+			line.Side = line.Side.Opposite()
+			open = -open
+			alreadySettled = -alreadySettled
+		}
 		if open == 0 {
 			continue
 		}

@@ -101,6 +101,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Invoices.SetDocumentPipeline(s.Receipts, renderer)
 	s.Receipts.SetRenderer(renderer)
 	s.Invoices.SetRegistry(service.InvoiceRegistry{
+		Allocations: allocationRepo,
 		Gaps:        numberGapRepo,
 		Groups:      invoiceGroupRepo,
 		FiscalYears: fiscalYearRepo,

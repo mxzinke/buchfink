@@ -159,7 +159,7 @@ den Schemas nur kurz.
 | `anlagen` | lesen | Anlagenverzeichnis mit Beschreibung, Kennung, Kennzeichen, Nutzungsquote und Stückbestand, fällige AfA, Aktivierungskandidaten |
 | `abschluss_status` | lesen | Schritte des Jahresabschlusses mit nächster Aktion |
 | `erklaerung` | lesen | UStVA, ZM, USt-, KSt- und GewSt-Erklärung formularnah mit Herkunft |
-| `rechnung_vorschau` | lesen | Ausgangsrechnung durchrechnen ohne Ausstellen |
+| `rechnung_vorschau` | lesen | Ausgangsrechnung durchrechnen ohne Ausstellen; `art: storno` mit `ursprung_id`, `art: berichtigung` zusätzlich mit den vollständigen Rechnungsangaben |
 | `beleg_ablegen` | direkt | Dateien aus Eingang oder Leseordner ablegen, E-Rechnung auslesen und prüfen, bei einer E-Rechnung Vorschlag und Einstufung wie `beleg_lesen`, fehlende Dateien an einem offenen Beleg ergänzen; `art: brief` legt ein Schreiben ohne Buchung ab, `art: sonstiges` einen Vertrag oder Beschluss für `buchung_erfassen`; danach geht die Datei aus dem Eingang nach `Übernommen/` |
 | `beleg_datei_exportieren` | direkt | Kopie einer Belegdatei in den Exportordner, zum Lesen oder Versenden |
 | `kontakt_anlegen` | direkt | Kontakt anlegen nach Dublettenprüfung; mit `leitweg_id` bekommt ein Kunde XRechnung |
@@ -176,7 +176,7 @@ den Schemas nur kurz.
 | `buchung_erfassen` | rueckfrage | Handbuchung mit Beleg oder Eigenbeleg, auch in der Abschlussperiode und für die Gründung (Zeichnung, Einforderung); ein Kontakt an den Personenkontozeilen macht sie zum offenen Posten, an Gesellschafterkonten ist er Pflicht; Darlehenszinsen nicht hier, sondern mit `darlehen_erfassen` |
 | `buchung_stornieren` | rueckfrage | Generalumkehr mit Grund, auf Wunsch mit Neubuchung; `datum` nur beim Saldenvortrag |
 | `lohnjournal_buchen` | rueckfrage | Monatssummen des Lohnbüros |
-| `rechnung_ausstellen` | rueckfrage | Rechnung, Abschlagsrechnung, Schlussrechnung; PDF und E-Rechnung im Exportordner; gebucht zum Ende des Leistungszeitraums (§ 252 Abs. 1 Nr. 4 HGB), bei festgeschriebenem Leistungstag zum Rechnungsdatum |
+| `rechnung_ausstellen` | rueckfrage | Rechnung, Abschlagsrechnung, Schlussrechnung; `art: storno` oder `berichtigung` mit `ursprung_id` und `grund`, Berichtigung zusätzlich mit `rechnung`; PDF und E-Rechnung im Exportordner; gebucht zum Ende des Leistungszeitraums (§ 252 Abs. 1 Nr. 4 HGB), bei festgeschriebenem Leistungstag zum Rechnungsdatum |
 | `forderung_ausbuchen` | rueckfrage | Uneinbringliche Forderung ganz oder teilweise mit Grund, Nachweis (`beleg_id`) und Eintrittsdatum (`datum`); `nur_vorschau` zeigt Buchung und Steuerkorrektur, bestehende zugeordnete EWB wird aufgelöst |
 | `mahnung_vermerken` | rueckfrage | Zugang einer Mahnung festhalten; daraus folgt der Verzug |
 | `abschlussbuchung` | rueckfrage | AfA-Lauf, Abgrenzung, Rückstellung (Bildung, Zuführung, Auflösung, Aufzinsung mit Vorschau), USt-Verrechnung, Steuerrückstellung, UG-Rücklage, Wertberichtigung, unfertige Leistungen, Fremdwährung, Anlage aktivieren (`anlage_aktivieren`, bei einem Investmentanteil mit Fondsart), Vorabpauschale eines Investmentanteils (ohne Buchung am Anlagegut festgehalten) |
@@ -413,3 +413,15 @@ die Berechnung mit dem gespeicherten Satz. `zinssatz` enthält `rate`
 und `source` als Bundesbank-Fundstelle.
 `abschluss_status` liefert Rückstellungskennungen, Bestände und den Spiegel.
 Verbrauch erfolgt mit `beleg_buchen_mit_rueckfrage.rueckstellung_id`.
+
+### Ausgangsrechnung berichtigen
+
+`rechnung_vorschau` berechnet bei `art: berichtigung` die Differenz zum bisherigen
+Inhalt. `rechnung_ausstellen` stellt den vollständigen korrigierten Inhalt mit
+Bezug auf Nummer und Datum der Rechnung aus. Eine Textberichtigung bucht nichts.
+Die Betragsänderung bucht am Rechnungsdatum der Berichtigung, in einem offenen
+Zeitraum. Eine Minderung wird mit offenen Teilen derselben Rechnung verrechnet;
+ein verbleibendes Guthaben lässt sich über den Zahlungsausgleich erstatten.
+`art: storno` hebt die Rechnung am heutigen Tag auf. Eine aktive Ausbuchung muss
+vorher storniert werden. Vereinnahmte Abschläge brauchen zuerst die Rückzahlung;
+in einer Schlussrechnung verrechnete Abschläge bleiben gesperrt.

@@ -371,10 +371,7 @@ func (s *InvoiceService) IssueFinalInvoice(ctx context.Context, req FinalInvoice
 func (s *InvoiceService) issueFinal(
 	ctx context.Context, inv *domain.Invoice, advances []domain.AdvanceItem, within func(context.Context) error,
 ) error {
-	// Die berichtigte Schlussrechnung hat die Art „Rechnungskorrektur"
-	// (Typcode 384) und geht trotzdem hier entlang: sie muss dieselben
-	// Anzahlungen absetzen wie die stornierte.
-	contact, err := s.prepareForIssue(ctx, inv, domain.InvoiceKindFinal, domain.InvoiceKindCorrection)
+	contact, err := s.prepareForIssue(ctx, inv, domain.InvoiceKindFinal)
 	if err != nil {
 		return err
 	}
@@ -520,7 +517,7 @@ func openAdvancesOf(group *domain.InvoiceGroup) []string {
 // Sie wären damit nie wieder absetzbar, und eine neue Schlussrechnung
 // scheiterte am geschlossenen Verbund.
 func (s *InvoiceService) ensureFinalCancellable(ctx context.Context, inv *domain.Invoice) error {
-	if inv.ResolvedKind() != domain.InvoiceKindFinal {
+	if inv.ResolvedKind() != domain.InvoiceKindFinal && !(inv.Kind == domain.InvoiceKindCorrection && inv.GroupID != nil) {
 		return nil
 	}
 	if s.groupRepo == nil || inv.GroupID == nil {
@@ -542,7 +539,7 @@ func (s *InvoiceService) ensureFinalCancellable(ctx context.Context, inv *domain
 // Transaktion wie die Generalumkehr: sie ist es, die die Auflösung von
 // 3272/3806 zurücknimmt.
 func (s *InvoiceService) reopenFinalGroup(ctx context.Context, inv *domain.Invoice) error {
-	if inv.ResolvedKind() != domain.InvoiceKindFinal || s.groupRepo == nil || inv.GroupID == nil {
+	if (inv.ResolvedKind() != domain.InvoiceKindFinal && inv.Kind != domain.InvoiceKindCorrection) || s.groupRepo == nil || inv.GroupID == nil {
 		return nil
 	}
 	group, err := s.groupRepo.FindByID(ctx, *inv.GroupID)
@@ -567,57 +564,6 @@ func (s *InvoiceService) reopenFinalGroup(ctx context.Context, inv *domain.Invoi
 	group.Closed = false
 	group.FinalInvoiceID = nil
 	return s.groupRepo.Save(ctx, group)
-}
-
-// issueFinalReplacement stellt die berichtigte Schlussrechnung eines wieder
-// geöffneten Verbunds aus.
-//
-// Sie geht denselben Weg wie die erste (issueFinal) und setzt dieselben
-// Anzahlungen ab; sie hat nur zusätzlich den Bezug auf die berichtigte
-// Rechnung (BG-3) und den Typcode 384.
-func (s *InvoiceService) issueFinalReplacement(
-	ctx context.Context, replacement *domain.Invoice, original *domain.Invoice,
-) error {
-	if s.groupRepo == nil || original.GroupID == nil {
-		return fmt.Errorf("der Rechnungsverbund zu %s ist nicht erreichbar", original.InvoiceNumber)
-	}
-	group, err := s.groupRepo.FindByID(ctx, *original.GroupID)
-	if err != nil {
-		return fmt.Errorf("Rechnungsverbund konnte nicht geladen werden: %w", err)
-	}
-	if group.Closed {
-		return fmt.Errorf("der Rechnungsverbund %q hat bereits eine Schlussrechnung", group.Title)
-	}
-
-	advances := group.DeductibleAdvances()
-	var prepaid domain.Cents
-	refs := make([]domain.InvoiceReference, 0, len(advances)+1)
-	for i := range advances {
-		prepaid += advances[i].GrossAmount
-		refs = append(refs, domain.InvoiceReference{
-			Number: advances[i].InvoiceNumber,
-			Date:   advances[i].InvoiceDate,
-		})
-	}
-	replacement.GroupID = &group.ID
-	replacement.PrecedingRefs = refs
-	replacement.PrepaidAmount = prepaid
-
-	return s.issueFinal(ctx, replacement, advances, func(ctx context.Context) error {
-		for i := range advances {
-			original, err := s.groupRepo.FindAdvanceByInvoice(ctx, advances[i].InvoiceID)
-			if err != nil {
-				return err
-			}
-			original.SettledInFinal = true
-			if err := s.groupRepo.SaveAdvance(ctx, original); err != nil {
-				return err
-			}
-		}
-		group.Closed = true
-		group.FinalInvoiceID = &replacement.ID
-		return s.groupRepo.Save(ctx, group)
-	})
 }
 
 // replacementGroupOf liefert den Verbund, in dem die berichtigte
@@ -671,6 +617,13 @@ func (s *InvoiceService) issueAdvanceReplacement(
 					"Position %d %s aus", group.Title, group.TaxRate.Label(), i+1,
 				replacement.Items[i].TaxRate.Label())
 		}
+	}
+	state, err := s.postingSvc.journalSvc.periods.State(ctx, replacement.Date)
+	if err != nil {
+		return err
+	}
+	if !state.Open {
+		return fmt.Errorf("der Berichtigungstag %s ist festgeschrieben", replacement.Date)
 	}
 	replacement.Recalculate()
 	if replacement.NetAmount <= 0 {

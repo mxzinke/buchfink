@@ -116,7 +116,7 @@ func TestInvoiceKindTypeCodes(t *testing.T) {
 		InvoiceKindFinal:        "380",
 		InvoiceKindAdvance:      "386",
 		InvoiceKindCorrection:   "384",
-		InvoiceKindCancellation: "384",
+		InvoiceKindCancellation: "381",
 	}
 	for kind, want := range cases {
 		if got := kind.TypeCode(); got != want {

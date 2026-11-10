@@ -60,7 +60,7 @@ const (
 	// InvoiceKindCorrection ist die Rechnungskorrektur (384): ein vollständig
 	// neuer Inhalt mit Bezug auf die berichtigte Rechnung.
 	InvoiceKindCorrection InvoiceKind = "correction"
-	// InvoiceKindCancellation ist die Stornorechnung (384 mit negierten
+	// InvoiceKindCancellation ist die Stornorechnung (381; intern mit negierten
 	// Beträgen). Das Wort „Gutschrift" steht bewusst nirgends: eine Gutschrift
 	// im Sinne des § 14 Abs. 2 Satz 2 UStG ist die Abrechnung des
 	// Leistungsempfängers, und die stellt Buchfink nicht aus.
@@ -72,7 +72,9 @@ func (k InvoiceKind) TypeCode() string {
 	switch k {
 	case InvoiceKindAdvance:
 		return "386"
-	case InvoiceKindCorrection, InvoiceKindCancellation:
+	case InvoiceKindCancellation:
+		return "381"
+	case InvoiceKindCorrection:
 		return "384"
 	default:
 		return "380"

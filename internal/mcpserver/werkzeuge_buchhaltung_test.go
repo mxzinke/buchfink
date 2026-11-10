@@ -652,6 +652,32 @@ func TestInvoicePreviewAndIssue(t *testing.T) {
 	}
 }
 
+func TestInvoiceAmendmentsThroughTools(t *testing.T) {
+	h := newHarness(t)
+	h.completeCompany()
+	a := h.agent("")
+	var customer kontaktOut
+	a.ok("kontakt_anlegen", a.args(map[string]any{"typ": "kunde", "name": "Kunde AG", "strasse": "Allee 5", "plz": "10115", "ort": "Berlin", "land": "DE"}), &customer)
+	invoice := map[string]any{"kontakt_id": customer.Kontakt.ID, "leistung_von": "2026-04-01", "positionen": []any{map[string]any{"text": "Beratung", "menge": "1", "einzelpreis": "100.00", "satz": "19"}}}
+	h.warmRenderer()
+	var issued, corrected, cancelled rechnungOut
+	a.ok("rechnung_ausstellen", a.args(map[string]any{"rechnung": invoice, "idempotenz_schluessel": "amend-original"}), &issued)
+	invoice["art"], invoice["ursprung_id"] = "berichtigung", issued.RechnungID
+	var preview rechnungVorschauOut
+	a.ok("rechnung_vorschau", invoice, &preview)
+	delete(invoice, "art")
+	delete(invoice, "ursprung_id")
+	a.ok("rechnung_ausstellen", a.args(map[string]any{"art": "berichtigung", "ursprung_id": issued.RechnungID, "grund": "Beschreibung", "rechnung": invoice, "idempotenz_schluessel": "amend-correct"}), &corrected)
+	if corrected.BuchungID != nil {
+		t.Fatal("Berichtigung ohne Betragsänderung bucht")
+	}
+	a.ok("rechnung_vorschau", map[string]any{"art": "storno", "ursprung_id": corrected.RechnungID}, &preview)
+	a.ok("rechnung_ausstellen", a.args(map[string]any{"art": "storno", "ursprung_id": corrected.RechnungID, "grund": "Auftrag entfällt", "idempotenz_schluessel": "amend-cancel"}), &cancelled)
+	if cancelled.BuchungID == nil || len(cancelled.Dateien) == 0 {
+		t.Fatalf("Storno: %+v", cancelled)
+	}
+}
+
 // Kapital, Rücklagen, Ausschüttung und Gesellschafterkonten bucht der Agent
 // von Hand wie jedes andere Konto; ein Fehler lässt sich stornieren. Eine
 // Zeile auf einem Gesellschafterkonto braucht den Gesellschafter.

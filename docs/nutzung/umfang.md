@@ -24,7 +24,7 @@
 |---|---|
 | Belege | Ein Eingang je Unternehmen für Belege, E-Rechnungen und Kontoauszüge, auch per Drag & Drop ins Fenster. Ablage im Original, Kopfdaten, Eigenbeleg. E-Rechnungen (ZUGFeRD, Factur-X, XRechnung in CII und UBL) liest und prüft Buchfink. |
 | Zahlungswege | Bankkonten mit Import von CAMT.053, Firmenkreditkarte, Auslage durch Gesellschafter oder Geschäftsführer, Gesellschafterdarlehen. Ein Bankumsatz lässt sich auf mehrere Gegenkonten aufteilen, etwa eine Dividende mit Kapitalertragsteuer oder eine Darlehensrate mit Zins. |
-| Ausgangsrechnungen | ZUGFeRD und XRechnung im CII-Format, überfällige Posten mit Verzugszinsen. |
+| Ausgangsrechnungen | Stornorechnung und Berichtigung mit Vorschau in App und Werkzeug; ZUGFeRD und XRechnung im CII-Format, überfällige Posten mit Verzugszinsen. |
 | Lohn | Das Lohnjournal eines externen Lohnbüros als Monatssumme buchen und die Lohnkonten abstimmen. |
 | Umsatzsteuer | Voranmeldung mit Rückverfolgung bis zur Buchung, Dauerfristverlängerung, Sondervorauszahlung, Zusammenfassende Meldung für sonstige Leistungen, Mindest-Istversteuerung bei Zahlung vor der Leistung, Verzeichnis nach § 15a UStG, Bestätigung von USt-IdNrn. |
 | Anlagen | Beschreibende Stammdaten mit Grund und Änderungsprotokoll in der App pflegen; Stückzahlen nur vor Buchung und Folgebewegungen in offener Periode. Anlagenkartei, lineare und degressive Abschreibung, geringwertige Wirtschaftsgüter, Sammelposten, Sonderabschreibung nach § 7g EStG. |

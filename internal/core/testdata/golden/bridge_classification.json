@@ -39,6 +39,11 @@
     "ExaminerAllowed": false,
     "Guarded": true
   },
+  "CancelInvoice": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
   "CarryForward": {
     "AppOnly": false,
     "ExaminerAllowed": false,
@@ -86,6 +91,11 @@
   },
   "ConfirmZMSubmitted": {
     "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "CorrectInvoice": {
+    "AppOnly": false,
     "ExaminerAllowed": false,
     "Guarded": true
   },
@@ -760,6 +770,11 @@
     "Guarded": false
   },
   "PreviewIncomingReceipt": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "PreviewInvoiceAmendment": {
     "AppOnly": false,
     "ExaminerAllowed": true,
     "Guarded": false

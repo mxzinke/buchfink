@@ -25,9 +25,10 @@ type InvoiceService struct {
 	renderer    *invoice.Renderer
 
 	// Lückenbericht und Rechnungsverbund sind optionale Ergänzungen zur Ausstellung.
-	gapRepo   domain.NumberGapRepository
-	groupRepo domain.InvoiceGroupRepository
-	bankRepo  domain.BankRepository
+	gapRepo        domain.NumberGapRepository
+	groupRepo      domain.InvoiceGroupRepository
+	bankRepo       domain.BankRepository
+	allocationRepo domain.PaymentAllocationRepository
 
 	// vatIDs ergänzt die Ausstellung um die optionale Bestätigungsabfrage der USt-IdNr.
 	vatIDs vatIDConfirmer
@@ -37,6 +38,8 @@ type InvoiceService struct {
 type InvoiceRegistry struct {
 	// Gaps hält die Gründe verbrauchter, aber nicht belegter Nummern fest.
 	Gaps domain.NumberGapRepository
+	// Allocations prüft Ausbuchungen vor einer Rechnungskorrektur.
+	Allocations domain.PaymentAllocationRepository
 	// Groups ist der Rechnungsverbund aus Abschlägen und Schlussrechnung.
 	Groups domain.InvoiceGroupRepository
 	// FiscalYears liefert den Vorjahresumsatz für § 27 Abs. 38 UStG.
@@ -50,6 +53,7 @@ type InvoiceRegistry struct {
 // SetRegistry verbindet die Dienste und Repositories des Rechnungswesens.
 func (s *InvoiceService) SetRegistry(r InvoiceRegistry) {
 	s.gapRepo = r.Gaps
+	s.allocationRepo = r.Allocations
 	s.groupRepo = r.Groups
 	s.fiscalYearRepo = r.FiscalYears
 	s.bankRepo = r.Bank

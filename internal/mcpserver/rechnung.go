@@ -26,12 +26,12 @@ type RechnungPosition struct {
 
 // Rechnung sind die Angaben einer Ausgangsrechnung.
 type Rechnung struct {
-	KontaktID                uint               `json:"kontakt_id" jsonschema:"Kunde"`
+	KontaktID                uint               `json:"kontakt_id,omitempty" jsonschema:"Kunde"`
 	Rechnungsdatum           Datum              `json:"rechnungsdatum,omitempty" jsonschema:"Vorgabe heute"`
-	LeistungVon              Datum              `json:"leistung_von" jsonschema:"Leistungszeitpunkt oder -beginn"`
+	LeistungVon              Datum              `json:"leistung_von,omitempty" jsonschema:"Leistungszeitpunkt oder -beginn"`
 	LeistungBis              Datum              `json:"leistung_bis,omitempty"`
 	Steuerfall               Steuerfall         `json:"steuerfall,omitempty" jsonschema:"Vorgabe domestic"`
-	Positionen               []RechnungPosition `json:"positionen"`
+	Positionen               []RechnungPosition `json:"positionen,omitempty"`
 	ZahlungszielTage         int                `json:"zahlungsziel_tage,omitempty" jsonschema:"Vorgabe aus dem Kontakt"`
 	SkontoPromille           int                `json:"skonto_promille,omitempty"`
 	SkontoTage               int                `json:"skonto_tage,omitempty"`
@@ -101,6 +101,8 @@ func invoiceItems(positions []RechnungPosition) ([]domain.InvoiceItem, error) {
 }
 
 type rechnungVorschauIn struct {
+	Art        RechnungArt `json:"art,omitempty"`
+	UrsprungID uint        `json:"ursprung_id,omitempty"`
 	Rechnung
 }
 
@@ -122,9 +124,11 @@ type abschlagIn struct {
 }
 
 type rechnungAusstellenIn struct {
+	UrsprungID uint   `json:"ursprung_id,omitempty"`
+	Grund      string `json:"grund,omitempty"`
 	KeyedWriteArgs
-	Art       RechnungArt `json:"art,omitempty" jsonschema:"rechnung (Vorgabe), abschlag (Anzahlungsrechnung) oder schlussrechnung"`
-	Rechnung  *Rechnung   `json:"rechnung,omitempty" jsonschema:"bei rechnung und schlussrechnung"`
+	Art       RechnungArt `json:"art,omitempty" jsonschema:"rechnung (Vorgabe), abschlag, schlussrechnung, storno oder berichtigung"`
+	Rechnung  *Rechnung   `json:"rechnung,omitempty" jsonschema:"bei rechnung, schlussrechnung und berichtigung"`
 	VerbundID uint        `json:"verbund_id,omitempty" jsonschema:"Rechnungsverbund aus einer früheren Abschlagsrechnung"`
 	Verbund   *verbundIn  `json:"verbund,omitempty" jsonschema:"neuer Verbund für die erste Abschlagsrechnung"`
 	KontaktID uint        `json:"kontakt_id,omitempty" jsonschema:"Kunde eines neuen Verbunds"`
@@ -194,11 +198,23 @@ func registerRechnung(tb *Toolbox) {
 		Description: "Rechnet eine Ausgangsrechnung durch, ohne sie auszustellen: Buchungssatz, Netto, Steuer, Brutto " +
 			"und fehlende Pflichtangaben. Vor rechnung_ausstellen aufrufen und dem Menschen vorlegen.",
 	}, func(ctx context.Context, c *Call, s core.AgentServices, in rechnungVorschauIn) (rechnungVorschauOut, error) {
-		inv, err := in.Rechnung.invoice()
+		var inv *domain.Invoice
+		var err error
+		if in.Art != "storno" {
+			inv, err = in.Rechnung.invoice()
+		}
 		if err != nil {
 			return rechnungVorschauOut{}, err
 		}
-		p, err := s.Invoices.Preview(ctx, inv)
+		var p *service.PostingPreview
+		switch in.Art {
+		case "storno", "berichtigung":
+			p, err = s.Invoices.PreviewInvoiceAmendment(ctx, in.UrsprungID, inv)
+		case "", "rechnung":
+			p, err = s.Invoices.Preview(ctx, inv)
+		default:
+			return rechnungVorschauOut{}, inputError("art", "für diese Art gibt es keine Vorschau")
+		}
 		if err != nil {
 			return rechnungVorschauOut{}, err
 		}
@@ -212,12 +228,10 @@ func registerRechnung(tb *Toolbox) {
 	AddWritePrepared(tb, Spec{
 		Name:  "rechnung_ausstellen",
 		Title: "Rechnung ausstellen",
-		Description: "Stellt eine Ausgangsrechnung mit fortlaufender Nummer aus, bucht die Forderung und archiviert " +
-			"das Dokument (E-Rechnung nach dem Format des Kunden). art=abschlag stellt eine Anzahlungsrechnung " +
-			"in einem Rechnungsverbund aus (neu mit verbund und kontakt_id, sonst verbund_id); art=schlussrechnung " +
-			"rechnet den Verbund ab. Vorher rechnung_vorschau dem Menschen vorlegen und sein Ja einholen. PDF und " +
-			"E-Rechnung liegen danach im Exportordner (dateien); den Versand übernimmt der Agent oder der Mensch. " +
-			"Stornorechnung und Rechnungskorrektur gibt es nicht; die Zahlung auf einen Abschlag ordnet nur die App zu.",
+		Description: "Stellt Rechnung, Abschlag oder Schlussrechnung aus; PDF/XML liegen in dateien. " +
+			"Abschlag: verbund und kontakt_id oder verbund_id; Schlussrechnung: verbund_id. " +
+			"storno/berichtigung: ursprung_id und grund; Berichtigung zusätzlich rechnung mit vollständigem Inhalt. " +
+			"Vorher rechnung_vorschau vorlegen und Ja einholen; Versand außerhalb der App.",
 	}, func(ctx context.Context, c *Call, t *core.Tenant, in rechnungAusstellenIn) error {
 		if (in.Art == "" || in.Art == "rechnung") && in.Rechnung != nil {
 			inv, err := in.Rechnung.invoice()
@@ -229,6 +243,28 @@ func registerRechnung(tb *Toolbox) {
 		return nil
 	}, func(ctx context.Context, c *Call, s core.AgentServices, in rechnungAusstellenIn) (rechnungOut, error) {
 		switch in.Art {
+		case "storno", "berichtigung":
+			if in.UrsprungID == 0 || strings.TrimSpace(in.Grund) == "" {
+				return rechnungOut{}, inputError("ursprung_id", "Ursprungsrechnung und Grund fehlen")
+			}
+			var inv *domain.Invoice
+			var err error
+			if in.Art == "storno" {
+				inv, err = s.Invoices.CancelWithDocument(ctx, in.UrsprungID, in.Grund)
+			} else {
+				if in.Rechnung == nil {
+					return rechnungOut{}, inputError("rechnung", "der vollständige Ersatzinhalt fehlt")
+				}
+				replacement, e := in.Rechnung.invoice()
+				if e != nil {
+					return rechnungOut{}, e
+				}
+				inv, err = s.Invoices.CorrectInvoice(ctx, in.UrsprungID, in.Grund, replacement)
+			}
+			if err != nil {
+				return rechnungOut{}, err
+			}
+			return withFiles(ctx, c, s, rechnungOutOf(inv))
 		case "", "rechnung":
 			if in.Rechnung == nil {
 				return rechnungOut{}, inputError("rechnung", "die Angaben der Rechnung fehlen")
