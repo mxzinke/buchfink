@@ -85,4 +85,4 @@ Meist durch falschen Steuerfall oder Satz.
 [ustg17]: https://www.gesetze-im-internet.de/ustg_1980/__17.html
 [ustdv31]: https://www.gesetze-im-internet.de/ustdv_1980/__31.html
 [ao153]: https://www.gesetze-im-internet.de/ao_1977/__153.html
-[bmf2025]: https://www.steuerschroeder.de/blog/wp-content/uploads/2025/10/2025-10-15-einfuehrung-obligatorische-e-rechnung.pdf
+[bmf2025]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/2025-10-15-einfuehrung-obligatorische-e-rechnung.html

@@ -1,8 +1,8 @@
 # E-Rechnung auf der Ausgangsseite
 
 Rechtsstand: 17. Oktober 2026. Verwaltungsauffassung:
-[BMF 15.10.2024][bmf2024], geändert durch BMF 15.10.2025
-([Kanzleispiegel][bmf2025]), mit UStAE.
+[BMF 15.10.2024][bmf2024], geändert durch [BMF 15.10.2025][bmf2025], mit
+UStAE.
 
 Empfang: [belege/e-rechnung-empfang.md](../belege/e-rechnung-empfang.md).
 
@@ -127,4 +127,4 @@ E-Rechnung aus. Ein reines PDF nur, wenn der Mensch es ausdrücklich will, die
 [ustg27]: https://www.gesetze-im-internet.de/ustg_1980/__27.html
 [ustdv33]: https://www.gesetze-im-internet.de/ustdv_1980/__33.html
 [bmf2024]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/E-Rechnung/2024-10-15-einfuehrung-e-rechnung.pdf
-[bmf2025]: https://www.steuerschroeder.de/blog/wp-content/uploads/2025/10/2025-10-15-einfuehrung-obligatorische-e-rechnung.pdf
+[bmf2025]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/2025-10-15-einfuehrung-obligatorische-e-rechnung.html

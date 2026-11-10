@@ -37,8 +37,9 @@ Handelsrechtlich ist die kurze Dauer eine Wertungsfrage.
 ## 4. Andere Güter
 
 Erfahrungswerte in den AfA-Tabellen des BMF, etwa für allgemein verwendbare
-Anlagegüter (BMF vom 15.12.2000, BStBl I S. 1532; hier nicht am Wortlaut
-gelesen). Die Nutzungsdauer entscheidet der Mensch.
+Anlagegüter, die nach dem 31.12.2000 angeschafft sind
+([BMF vom 15.12.2000, BStBl I S. 1532][afaav]): Pkw 6, Lkw 9, Ladeneinbauten 8,
+Büromöbel 13 Jahre. Die Nutzungsdauer entscheidet der Mensch.
 
 ## 5. Vorschläge von Buchfink
 
@@ -48,4 +49,5 @@ Büroeinrichtung (156 Monate), 0520 Pkw (72 Monate), 0670 GWG (Sofortabzug über
 Bau (keine Abschreibung bis zur Fertigstellung).
 
 [estg7]: https://www.gesetze-im-internet.de/estg/__7.html
-[bmfnd]: https://www.steuerschroeder.de/blog/wp-content/uploads/2022/02/Nutzungsdauer-von-Computerhardware-und-Software-zur-Dateneingabe-und-verarbeitung.pdf
+[bmfnd]: https://esth.bundesfinanzministerium.de/esth/2025/B-Anhaenge/Anhang-01/V/inhalt.html
+[afaav]: https://www.bundesfinanzministerium.de/Content/DE/Standardartikel/Themen/Steuern/Weitere_Steuerthemen/Betriebspruefung/AfA-Tabellen/Ergaenzende-AfA-Tabellen/AfA-Tabelle_AV.html

@@ -90,4 +90,4 @@ abbildet; leg den Fall dem Menschen als Grenze vor.
 [ustg14a]: https://www.gesetze-im-internet.de/ustg_1980/__14a.html
 [ustg18e]: https://www.gesetze-im-internet.de/ustg_1980/__18e.html
 [ustg18j]: https://www.gesetze-im-internet.de/ustg_1980/__18j.html
-[ustae3a2]: https://www.steuerschroeder.de/steuergesetze/ustae/3a.2
+[ustae3a2]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html

@@ -1,8 +1,8 @@
 # E-Rechnung empfangen
 
 Rechtsstand: 17. Oktober 2026. Gesetz am Wortlaut gelesen. BMF-Schreiben vom
-15.10.2024 und 15.10.2025 über Spiegel gelesen, Abgleich mit dem Original
-offen ([Quellenverzeichnis][quellen]).
+15.10.2024 über den Spiegel des Bayerischen Landesamts für Steuern, vom
+15.10.2025 am Original gelesen ([Quellenverzeichnis][quellen]).
 
 ## Inhalt
 
@@ -103,4 +103,4 @@ Form; Einzelheiten in [grundlagen/aufbewahrung.md](../grundlagen/aufbewahrung.md
 [ustdv34]: https://www.gesetze-im-internet.de/ustdv_1980/__34.html
 [ustdv34a]: https://www.gesetze-im-internet.de/ustdv_1980/__34a.html
 [bmf2024]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/E-Rechnung/2024-10-15-einfuehrung-e-rechnung.pdf
-[bmf2025]: https://www.steuerschroeder.de/blog/wp-content/uploads/2025/10/2025-10-15-einfuehrung-obligatorische-e-rechnung.pdf
+[bmf2025]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/2025-10-15-einfuehrung-obligatorische-e-rechnung.html

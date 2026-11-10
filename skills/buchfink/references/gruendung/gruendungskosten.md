@@ -81,5 +81,5 @@ nach [belege/ablauf.md](../belege/ablauf.md).
 [bfh1287]: https://www.haufe.de/id/entscheidung/bfh-urteil-vom-11101989-i-r-1287-HI62976.html
 [gmbhganl1]: https://www.gesetze-im-internet.de/normengrafiken/bgbl1_2021/j3364_0010.pdf
 [hgb248]: https://www.gesetze-im-internet.de/hgb/__248.html
-[ksth11]: https://www.steuerschroeder.de/steuergesetze/ksth/1.1
-[ksth85]: https://www.steuerschroeder.de/steuergesetze/ksth/8.5
+[ksth11]: https://ksth.bundesfinanzministerium.de/ksth/2026/A-Koerperschaftsteuergesetz/I-Steuerpflicht/Paragraf-1/inhalt.html
+[ksth85]: https://ksth.bundesfinanzministerium.de/ksth/2026/A-Koerperschaftsteuergesetz/II-Einkommen/1-Allgemeine-Vorschriften/Paragraf-8/inhalt.html

@@ -493,7 +493,7 @@ Weg, Fälligkeit und Nachweis kennt.
 [ao149]: https://www.gesetze-im-internet.de/ao_1977/__149.html
 [ao150]: https://www.gesetze-im-internet.de/ao_1977/__150.html
 [ao224]: https://www.gesetze-im-internet.de/ao_1977/__224.html
-[aeao108]: https://www.steuerschroeder.de/steuergesetze/aeao/108
+[aeao108]: https://ao.bundesfinanzministerium.de/ao/2026/Abgabenordnung/Dritter-Teil/Erster-Abschnitt/Vierter-Unterabschnitt/Paragraf-108/inhalt.html
 [bgb121]: https://www.gesetze-im-internet.de/bgb/__121.html
 [estdv60]: https://www.gesetze-im-internet.de/estdv_1955/__60.html
 [estg5b]: https://www.gesetze-im-internet.de/estg/__5b.html

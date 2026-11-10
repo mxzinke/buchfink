@@ -18,10 +18,14 @@ Konten und Buchungen: [darlehen.md](darlehen.md).
   Unterschied aktiv abgegrenzt werden ([§ 250 Abs. 3 Satz 1 HGB][hgb250]).
   Buchfink führt eine Einheitsbilanz
   ([grundlagen/grenzen.md](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet));
-  Vorschlag: aktivieren (1940). Ob die Steuerbilanz das verlangt, bestätigt
-  der Steuerberater (hier nicht am Wortlaut geprüft). Wertungsfrage.
-- Bearbeitungsentgelte: Frag, ob sie laufzeitabhängig sind; Aufwand oder
-  Abgrenzung ist eine Wertungsfrage.
+  Vorschlag: aktivieren (1940). Für die Steuerbilanz verlangt die
+  Finanzverwaltung, den Unterschied als Rechnungsabgrenzungsposten auf die
+  Laufzeit zu verteilen, bei kürzerer Zinsfestschreibung auf diesen Zeitraum
+  ([H 6.10 EStH „Damnum“, „Zinsfestschreibung“][esth610]).
+- Bearbeitungsentgelte, um die die Bank den Auszahlungsbetrag kürzt, zählt
+  die Verwaltung zu diesem Unterschied ([H 6.10 EStH „Damnum“][esth610]).
+  Bei anderen: Frag, ob sie laufzeitabhängig sind; Aufwand oder Abgrenzung
+  ist eine Wertungsfrage.
 - Abschreibung über die Laufzeit:
   [jahresabschluss/abgrenzung.md, Abschnitt 6](../jahresabschluss/abgrenzung.md#6-disagio).
 
@@ -57,6 +61,7 @@ Die Zinsschranke greift erst ab 3 Mio. € Nettozinsaufwand
 Oktober 2026): Sonderfall, Steuerberater.
 
 [hgb250]: https://www.gesetze-im-internet.de/hgb/__250.html
+[esth610]: https://esth.bundesfinanzministerium.de/esth/2025/A-Einkommensteuergesetz/II-Einkommen-2-24b/3-Gewinn-4-7i/Paragraf-6/inhalt.html
 [estg4h]: https://www.gesetze-im-internet.de/estg/__4h.html
 [estg5]: https://www.gesetze-im-internet.de/estg/__5.html
 [estg43]: https://www.gesetze-im-internet.de/estg/__43.html

@@ -77,4 +77,4 @@ Mein ELSTER berechnete Zahllast oder Erstattung mit `erklaerung` ab.
 [ustg16]: https://www.gesetze-im-internet.de/ustg_1980/__16.html
 [ustg18]: https://www.gesetze-im-internet.de/ustg_1980/__18.html
 [ustdv44]: https://www.gesetze-im-internet.de/ustdv_1980/__44.html
-[ustae181]: https://datenbank.nwb.de/Dokument/378652_18___1/
+[ustae181]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html

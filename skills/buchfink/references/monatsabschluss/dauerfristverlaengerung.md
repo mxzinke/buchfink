@@ -40,10 +40,11 @@ Nur bei monatlicher Voranmeldung ([§ 47 Abs. 1 UStDV][ustdv47]):
 
 - Im ersten Jahr berechnet, meldet und zahlt die GmbH sie mit dem Antrag
   (§ 48 Abs. 1 Satz 4, 5), danach zum Abgabetag der ersten Voranmeldung.
-- Wertungsfrage: Wie Überschussmonate und die Sondervorauszahlung des Vorjahres
-  in die Summe eingehen, regelt der Wortlaut nicht. Zeig die Zeiträume deiner
-  Summe, deine Behandlung dieser Fälle und verweise auf die Anleitung zu
-  USt 1 H.
+- Summe: die verbleibenden Vorauszahlungen der Voranmeldungen des Vorjahres
+  (Kennzahl 83) zuzüglich der im Dezember angerechneten Sondervorauszahlung.
+  Ergibt die Rechnung einen Überschuss, beträgt die Sondervorauszahlung 0 €
+  ([Vordruck USt 1 H, Zeile 8, und Anleitung USt 5 E 2026][ust1h2026]). Zeig
+  die Zeiträume deiner Summe.
 
 ## 4. Anrechnung im Dezember
 
@@ -79,3 +80,4 @@ Zahlung gebucht ist.
 [ustdv46]: https://www.gesetze-im-internet.de/ustdv_1980/__46.html
 [ustdv47]: https://www.gesetze-im-internet.de/ustdv_1980/__47.html
 [ustdv48]: https://www.gesetze-im-internet.de/ustdv_1980/__48.html
+[ust1h2026]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/2025-12-29-vordruckmuster-USt-voranmeldung-2026.html

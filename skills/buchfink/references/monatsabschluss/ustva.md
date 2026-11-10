@@ -1,7 +1,7 @@
 # Umsatzsteuer-Voranmeldung
 
 Rechtsstand: 17. Oktober 2026. Kennziffern nach Vordruck USt 1 A 2026
-([Wiedergabe][ust1a2026], Stand Dezember 2025).
+([BMF vom 29.12.2025][ust1a2026], Stand Dezember 2025).
 
 Frist, Weg, Nachweis und Folgen:
 [grundlagen/pflichten.md#ustva](../grundlagen/pflichten.md#ustva).
@@ -114,4 +114,4 @@ bestätigt hat.
 [ustg18]: https://www.gesetze-im-internet.de/ustg_1980/__18.html
 [ao152]: https://www.gesetze-im-internet.de/ao_1977/__152.html
 [ao168]: https://www.gesetze-im-internet.de/ao_1977/__168.html
-[ust1a2026]: https://www.buhl.de/steuer/wp-content/uploads/sites/31/2026/03/formular-dauerfristverlaengerung-2026.pdf
+[ust1a2026]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/2025-12-29-vordruckmuster-USt-voranmeldung-2026.html

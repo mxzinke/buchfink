@@ -67,4 +67,4 @@ Auszahlungsbetrag.
   ([bank/darlehen.md](../bank/darlehen.md#11-insolvenz-nachrang-rangrücktritt));
   weise darauf hin.
 
-[kstr85]: https://www.steuerschroeder.de/steuergesetze/kstr/8.5
+[kstr85]: https://ksth.bundesfinanzministerium.de/ksth/2026/A-Koerperschaftsteuergesetz/II-Einkommen/1-Allgemeine-Vorschriften/Paragraf-8/inhalt.html

@@ -95,5 +95,5 @@ Vermerk: [ablauf.md, Abschnitt 7](ablauf.md#7-überfällige-forderungen-und-mahn
 [bgb199]: https://www.gesetze-im-internet.de/bgb/__199.html
 [bgb286]: https://www.gesetze-im-internet.de/bgb/__286.html
 [bgb288]: https://www.gesetze-im-internet.de/bgb/__288.html
-[ustae13]: https://www.steuerschroeder.de/steuergesetze/ustae/1.3
+[ustae13]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html
 [bgb247]: https://www.gesetze-im-internet.de/bgb/__247.html

@@ -112,4 +112,4 @@ Buchfink führt Bücher ab der Beurkundung.
 [gmbhg8]: https://www.gesetze-im-internet.de/gmbhg/__8.html
 [gmbhg11]: https://www.gesetze-im-internet.de/gmbhg/__11.html
 [gmbhg13]: https://www.gesetze-im-internet.de/gmbhg/__13.html
-[ksth11]: https://www.steuerschroeder.de/steuergesetze/ksth/1.1
+[ksth11]: https://ksth.bundesfinanzministerium.de/ksth/2026/A-Koerperschaftsteuergesetz/I-Steuerpflicht/Paragraf-1/inhalt.html

@@ -101,4 +101,4 @@ eine Wertungsfrage; Folgen in
 [estg9b]: https://www.gesetze-im-internet.de/estg/__9b.html
 [estg12]: https://www.gesetze-im-internet.de/estg/__12.html
 [kstg10]: https://www.gesetze-im-internet.de/kstg_1977/__10.html
-[bmf2025]: https://www.steuerschroeder.de/blog/wp-content/uploads/2025/10/2025-10-15-einfuehrung-obligatorische-e-rechnung.pdf
+[bmf2025]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/2025-10-15-einfuehrung-obligatorische-e-rechnung.html

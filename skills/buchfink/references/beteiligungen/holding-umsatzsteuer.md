@@ -1,9 +1,8 @@
 # Umsatzsteuer der Holding
 
 Rechtsstand: 17. Oktober 2026. Wortlaut des UStG am 17.10.2026 auf
-gesetze-im-internet.de gelesen. UStAE Abschnitte 2.3 und 15.22 in der Fassung
-„VZ 2010–2026 (aktuell)“ über die NWB-Datenbank gelesen; der amtliche UStAE
-war nicht abrufbar.
+gesetze-im-internet.de gelesen. UStAE Abschnitte 2.3 und 15.22 am 10.11.2026
+in der konsolidierten Fassung des BMF (Stand 19.10.2026) gelesen.
 
 Ob eine GmbH mit Beteiligungen Unternehmerin ist und Vorsteuer abziehen darf,
 ist eine **Wertungsfrage**: Leg die Formen aus Abschnitt 2 mit ihrer Folge
@@ -108,8 +107,8 @@ zwischen beiden sind Innenleistungen ([§ 2 Abs. 2 Nr. 2 UStG][ustg2]).
 Buchfink bildet die Organschaft nicht ab. Bei einer Führungsholding mit
 Mehrheitsbeteiligung: weise darauf hin und empfiehl den Steuerberater.
 
-[ustae23]: https://datenbank.nwb.de/Dokument/378652_2___3/
-[ustae1522]: https://datenbank.nwb.de/Dokument/378652_15___22/
+[ustae23]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html
+[ustae1522]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html
 [ustg2]: https://www.gesetze-im-internet.de/ustg_1980/__2.html
 [ustg4]: https://www.gesetze-im-internet.de/ustg_1980/__4.html
 [ustg9]: https://www.gesetze-im-internet.de/ustg_1980/__9.html

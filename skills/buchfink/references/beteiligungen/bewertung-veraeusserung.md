@@ -47,8 +47,8 @@ frühere Abschreibungen und ob ihr Grund noch besteht.
   ([§ 6 Abs. 1 Nr. 2 Satz 3 mit Nr. 1 Satz 4 EStG][estg6]).
 - Teilwert einer Beteiligung: beim Erwerb die Anschaffungskosten, danach nach
   Ertragslage und -aussichten, Vermögenswert und funktionaler Bedeutung
-  ([H 6.7 EStH „Teilwertvermutungen“][esth67], BFH vom 06.11.2003, BStBl 2004
-  II S. 416; Kanzleispiegel).
+  ([H 6.7 EStH „Teilwertvermutungen“][esth67], BFH vom 06.11.2003,
+  IV R 10/01, BStBl II 2004 S. 416).
 - Buchfink führt eine Einheitsbilanz. Eine Abschreibung bei nur
   vorübergehender Minderung (§ 253 Abs. 3 Satz 6 HGB) wirkt bei Wertpapieren
   ohne § 8b-Schutz (Anleihen, Fonds) auf die Steuer. Wertungsfrage;
@@ -135,7 +135,7 @@ Depotauszug B-2027-0003“) und die Konten vor:
 - **Fondsanteile:** Konten der anderen Finanzanlagen; Steuer in
   [investmentfonds.md, Abschnitt 6](investmentfonds.md#6-verkauf-und-verlust).
 
-[esth67]: https://www.steuerschroeder.de/steuergesetze/esth/6.7
+[esth67]: https://esth.bundesfinanzministerium.de/esth/2025/A-Einkommensteuergesetz/II-Einkommen-2-24b/3-Gewinn-4-7i/Paragraf-6/inhalt.html
 [estg6]: https://www.gesetze-im-internet.de/estg/__6.html
 [estg43]: https://www.gesetze-im-internet.de/estg/__43.html
 [gmbhg15]: https://www.gesetze-im-internet.de/gmbhg/__15.html

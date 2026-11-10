@@ -104,5 +104,5 @@ Die Eingangsseite prüft [belege/pflichtangaben.md](../belege/pflichtangaben.md)
 [ustdv33]: https://www.gesetze-im-internet.de/ustdv_1980/__33.html
 [hgb238]: https://www.gesetze-im-internet.de/hgb/__238.html
 [bgb271a]: https://www.gesetze-im-internet.de/bgb/__271a.html
-[bmf2025]: https://www.steuerschroeder.de/blog/wp-content/uploads/2025/10/2025-10-15-einfuehrung-obligatorische-e-rechnung.pdf
-[ustae131]: https://www.steuerschroeder.de/steuergesetze/ustae/13.1
+[bmf2025]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/2025-10-15-einfuehrung-obligatorische-e-rechnung.html
+[ustae131]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html

@@ -32,8 +32,8 @@ Anlagenverzeichnis, Anhang, Lage- und Prüfungsbericht
 | Wirtschaftsjahr beginnt | Taxonomie | Fundstelle |
 |---|---|---|
 | 2025 | 6.8; 6.9 wird nicht beanstandet | [BMF 27.05.2024][bmf68], [BMF 10.06.2025][bmf69] |
-| 2026 | 6.9; 6.10 wird nicht beanstandet | [BMF 10.06.2025][bmf69]; Schreiben vom 08.06.2026 laut Sekundärquelle |
-| 2027 | 6.10 | BMF vom 08.06.2026, IV C 6 - S 2133-b/00067/002/023, laut Sekundärquelle |
+| 2026 | 6.9; 6.10 wird nicht beanstandet | [BMF 10.06.2025][bmf69], [BMF 08.06.2026][bmf610] |
+| 2027 | 6.10 | [BMF vom 08.06.2026][bmf610], IV C 6 - S 2133-b/00067/002/023 |
 
 Mussfelder füllt Buchfink mit Wert oder ohne Wert (NIL)
 ([BMF 27.05.2024][bmf68]).
@@ -107,6 +107,7 @@ weiter wie Abschnitt 5. Zahlen:
 [estdv84]: https://www.gesetze-im-internet.de/estdv_1955/__84.html
 [estg5b]: https://www.gesetze-im-internet.de/estg/__5b.html
 [estg52]: https://www.gesetze-im-internet.de/estg/__52.html
-[bmf68]: https://betriebs-berater.ruw.de/news/media/2/BMF-Schreiben-16701.pdf
-[bmf69]: https://betriebs-berater.ruw.de/news/media/2/BMF-Schreiben-17367.pdf
+[bmf68]: https://www.esteuer.de/download/taxonomie/BMF-Schreiben_2026.zip
+[bmf69]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Einkommensteuer/2025-06-10-ebilanz-taxonomien-6-9.html
+[bmf610]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Einkommensteuer/2026-06-08-ebilanz-taxonomien-6-10.html
 [elsterformulare]: https://www.elster.de/eportal/formulare-leistungen/alleformulare

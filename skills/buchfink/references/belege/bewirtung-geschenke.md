@@ -61,9 +61,10 @@ Ablauf:
    drei Empfänger.
 2. Frag, ob der Empfänger in diesem Wirtschaftsjahr schon etwas bekam, auch
    über andere Belege.
-3. Nur betrieblich nutzbare Gegenstände: Gruppe `geschenke_betrieblich`,
-   außerhalb der Freigrenze. Wertungsfrage nach einer hier nicht am Wortlaut
-   geprüften Verwaltungsregel; im Zweifel Steuerberater.
+3. Kann der Empfänger den Gegenstand ausschließlich betrieblich nutzen, greift
+   das Abzugsverbot nicht ([R 4.10 Abs. 2 Satz 4 EStR][estr410]): Gruppe
+   `geschenke_betrieblich`, außerhalb der Freigrenze. Ob das zutrifft, ist
+   eine Wertungsfrage; im Zweifel Steuerberater.
 
 Wertungsfragen: Geschenk oder Gegenleistung (Provision in Sachform); Kunde
 oder Arbeitnehmer; Streuartikel mit Werbeaufdruck.
@@ -108,4 +109,5 @@ Aufzeichnung und Freigrenze fest.
 [ustg15]: https://www.gesetze-im-internet.de/ustg_1980/__15.html
 [ustg17]: https://www.gesetze-im-internet.de/ustg_1980/__17.html
 [ustdv33]: https://www.gesetze-im-internet.de/ustdv_1980/__33.html
-[ustae156]: https://datenbank.nwb.de/Dokument/378652_15___6/
+[ustae156]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html
+[estr410]: https://esth.bundesfinanzministerium.de/esth/2025/A-Einkommensteuergesetz/II-Einkommen-2-24b/3-Gewinn-4-7i/Paragraf-4/inhalt.html

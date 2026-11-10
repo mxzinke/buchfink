@@ -19,17 +19,30 @@ die Liste von oben nach unten durch.
   „Werte mit Stand“.
 - Nicht verifizierbare Angaben kommen unter „Offen“, nicht in einen Skill.
 
-## Zugang zu den Quellen (Stand 17.10.2026)
+## Zugang zu den Quellen (Stand 10.11.2026)
 
 - gesetze-im-internet.de ist per `curl` und WebFetch erreichbar; einzelne
   Abrufe brechen ab und gelingen beim zweiten Versuch. Paragraphen-URL:
   `https://www.gesetze-im-internet.de/<gesetz>/__<paragraph>.html`. Umlaute im
   Kürzel werden zu `_` (z. B. `r_ckabzinsv`).
-- bundesfinanzministerium.de und amtliche-handbuecher.bundesfinanzministerium.de
-  antworten auf `curl` und WebFetch mit 503 („Security Check“). BMF-Schreiben
-  deshalb über den Spiegel des Bayerischen Landesamts für Steuern
-  (lfst.bayern.de) oder anderer Landesfinanzbehörden lesen und im Skill diesen
-  Link angeben. Die BMF-Fundstelle (Datum, GZ, BStBl) steht trotzdem dabei.
+- bundesfinanzministerium.de und die amtlichen Handbücher
+  (`ksth.`, `esth.`, `ao.`, `usth.bundesfinanzministerium.de`) antworten auf
+  WebFetch und auf `curl` ohne Browser-Kennung mit 503. Mit
+  `curl --compressed -A '<User-Agent eines Browsers>'` liefern sie den Text.
+  Ein BMF-Schreiben hat eine Seite `…/<name>.html`; das PDF steht dort unter
+  `<name>.pdf?__blob=publicationFile&v=<n>`. Skills verlinken die Seite.
+- Das BMF führt ein Schreiben nur für eine Übergangszeit. Ältere Schreiben
+  stehen in den Anhängen der amtlichen Handbücher (EStH, KStH), die
+  E-Bilanz-Schreiben gesammelt auf esteuer.de
+  (`download/taxonomie/BMF-Schreiben_2026.zip`), einzelne beim Bayerischen
+  Landesamt für Steuern (lfst.bayern.de). Die BMF-Fundstelle (Datum, GZ, BStBl)
+  steht immer dabei.
+- Der UStAE steht als konsolidierte Fassung in einem PDF beim BMF
+  (`Umsatzsteuer-Anwendungserlass-aktuell`); die Fußnoten nennen das ändernde
+  Schreiben je Satz.
+- esteuer.de liefert das Zwischenzertifikat nicht mit; `curl` braucht es aus
+  dem Aussteller-Link des Zertifikats (`--cacert`).
+- Bundesgesetzblatt ab 2023: `https://www.recht.bund.de/bgbl/1/<jahr>/<nr>/VO.html`.
 
 ## 1. Gesetze
 
@@ -105,7 +118,7 @@ die Liste von oben nach unten durch.
 |---|---|---|---|---|
 | GoBD, BMF-Schreiben vom 28.11.2019, IV A 4 - S 0316/19/10003 :001, BStBl I S. 1269 | https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf | Rz. 21 (Verantwortung), 30–35 (Nachvollziehbarkeit), 36–43 (Vollständigkeit), 44 (Richtigkeit), 45–52 (zeitgerecht, 10 Tage, Folgemonat), 53–57 (Ordnung), 58–60, 107–112 (Unveränderbarkeit, Festschreibung), 61–81 (Belegwesen, Eigenbeleg, Rz. 77 Mindestinhalt), 85–99 (Grundaufzeichnung, Journal, Konten), 100–106 (IKS, Datensicherheit), 113–144 (Aufbewahrung, Scannen, Systemwechsel), 151–155 (Verfahrensdokumentation), 158 ff. (Datenzugriff) | Text 17.10.2026 (PDF über LfSt Bayern) | grundlagen/aufbewahrung, gobd |
 | 1. Änderung der GoBD, BMF-Schreiben vom 11.03.2024, IV D 2 - S 0316/21/10001 :002, BStBl I S. 374 | https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2024-03-11-aenderung-gobd.pdf | geänderte Rz. 6, 11, 15, 39, 43, 94, 124 (aufgehoben), 128, 136, 159, 160, 161, 167–169, 176–178, 182–184 | Text 17.10.2026 | grundlagen/aufbewahrung, gobd |
-| 2. Änderung der GoBD, BMF-Schreiben vom 14.07.2025, IV D 2 - S 0316/00128/005/088 | https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2025-07-14-GoBD-2-aenderung.pdf (BMF-Seite: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Weitere_Steuerthemen/Abgabenordnung/2025-07-14-GoBD-2-aenderung.html, nicht abrufbar) | E-Rechnung: strukturierter Teil genügt (Rz. 119, 131), Kontoauszug/E-Rechnung als strukturierte Datei (Rz. 76), Beispiel ZUGFeRD (Rz. 125), Z2 (Rz. 166), Anwendung ab 14.07.2025 (Rz. 185) | Text 17.10.2026 | grundlagen/aufbewahrung, gobd |
+| 2. Änderung der GoBD, BMF-Schreiben vom 14.07.2025, IV D 2 - S 0316/00128/005/088, BStBl I S. 1502 | https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2025-07-14-GoBD-2-aenderung.pdf (BMF-Seite: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Weitere_Steuerthemen/Abgabenordnung/2025-07-14-GoBD-2-aenderung.html) | E-Rechnung: strukturierter Teil genügt (Rz. 119, 131), Kontoauszug/E-Rechnung als strukturierte Datei (Rz. 76), Beispiel ZUGFeRD (Rz. 125), Z2 (Rz. 166), Anwendung ab 14.07.2025 (Rz. 185) | Text 17.10.2026 (LfSt Bayern); 10.11.2026 am BMF-Original abgeglichen (Rz. 76, 119, 125, 131, 166, 185); BStBl-Fundstelle laut BMF vom 19.11.2025, Rn. 22 | grundlagen/aufbewahrung, gobd |
 
 ## 3. Werte mit Stand
 
@@ -130,12 +143,6 @@ die Liste von oben nach unten durch.
 
 ## 5. Offen
 
-- BMF-Originallinks (bundesfinanzministerium.de) ließen sich am 17.10.2026
-  nicht abrufen (503, auch beim zweiten Prüfgang). Ein Prüfer mit
-  Browserzugang gleicht die Spiegel mit den BMF-PDFs ab. Die Pfade der
-  Schreiben vom 15.10.2025 (E-Rechnung) und 19.11.2025 (Bewirtung) nennt der
-  PwC-Steuerblog gleichlautend; der Pfad `2025-07-14-GoBD-2-aenderung.html` ist
-  nirgends bestätigt. Skills verlinken nur die Spiegel.
 - Prüfgang 17.10.2026, zweiter Teil: Die 13 Gesetzes-URLs ohne frühere Kopie
   (Art. 97 § 19a und § 36 EGAO, §§ 640, 641 BGB, § 84 EStDV, §§ 251, 270, 276,
   277, 285 HGB, Art. 93, 95 EGHGB, PDF der Anlage 1 GmbHG) sind live abgerufen
@@ -201,13 +208,14 @@ Aussage abgeglichen.
 |---|---|---|---|---|
 | GoBD, BMF vom 28.11.2019 (bestehender Eintrag oben) | https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf | Rz. 52 (Folgemonat), 55 (getrennte Verbuchung steuerpflichtig/steuerfrei/nicht steuerbar), 67 (Belegsicherung), 77 (Mindestinhalt, Währung und Kurs) | Text 17.10.2026 | belege/fremdwaehrung-auslagen, steuerfaelle |
 | BMF vom 15.10.2024, III C 2 - S 7287-a/23/10001 :007, BStBl I S. 1320 (Einführung E-Rechnung) | https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/E-Rechnung/2024-10-15-einfuehrung-e-rechnung.pdf | Rn. 7 (sonstige Rechnung, PDF ohne Datensatz), 23 (Gesamtbetrag 250 €), 40 (Empfang, E-Mail-Postfach), 42 (Annahmeverweigerung), 55–59 (Vorsteuer bei falschem Format, Berichtigung wirkt zurück, objektive Nachweise, Vertrauensschutz), 62–65 (Übergangsregeln, kein Übergang beim Empfang) | Text 17.10.2026 (PDF über LfSt Bayern) | belege/e-rechnung-empfang |
-| BMF vom 15.10.2025, III C 2 - S 7287-a/00019/007/243 (Änderung des Schreibens vom 15.10.2024 und des UStAE) | https://www.steuerschroeder.de/blog/wp-content/uploads/2025/10/2025-10-15-einfuehrung-obligatorische-e-rechnung.pdf (Kanzleispiegel; BMF: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/2025-10-15-einfuehrung-obligatorische-e-rechnung.pdf, 503) | Rn. 6a (Formatfehler), 6b (Geschäftsregelfehler), 17 (Gutschrift, § 13b zwischen Inländern), 35 (Pflichtangaben im strukturierten Teil), 35a (Inhaltsfehler, Validierung), 51a (keine Berichtigung bei § 17-Minderung); UStAE 14.1 Abs. 5 (Empfangspflicht), 14c.1 Abs. 4a (hybride Rechnung, Vorsteuer nur aus strukturiertem Teil), 15.2a Abs. 1 Satz 3, 4 | Text 17.10.2026 (Kanzleispiegel; LfSt Bayern verlinkt nur auf das BMF) | belege/e-rechnung-empfang, vorsteuer |
-| BMF vom 22.02.2022, IV C 3 - S 2190/21/10002 :025 (Nutzungsdauer Computerhardware und Software) | https://www.steuerschroeder.de/blog/wp-content/uploads/2022/02/Nutzungsdauer-von-Computerhardware-und-Software-zur-Dateneingabe-und-verarbeitung.pdf (Kanzleispiegel) | Rz. 1 (ein Jahr), 1.1 (keine Sofortabschreibung, kein Wahlrecht § 5 Abs. 1 EStG), 1.2 (Beginn, Bestandsverzeichnis, Abweichung möglich), 1.4 (volle AfA im Anschaffungsjahr nicht beanstandet), 2–5 (Begriffe), 6 (Anwendung ab Wj. nach 31.12.2020); ersetzt BMF vom 26.02.2021 (BStBl I S. 298) | Text 17.10.2026 (Kanzleispiegel; BStBl-Fundstelle nicht geprüft) | belege/anlagen-nutzungsdauer |
-| AfA-Tabelle für die allgemein verwendbaren Anlagegüter, BMF vom 15.12.2000, BStBl I S. 1532 | – | Erfahrungswerte Nutzungsdauer | Titel (Fundstelle aus BMF vom 22.02.2022, Rz. 8) | belege/anlagen-nutzungsdauer |
-| UStAE 15.6 Abs. 2 Satz 5 (Vorsteuer bei Bewirtung trotz Verstoß gegen § 4 Abs. 7 EStG) | https://datenbank.nwb.de/Dokument/378652_15___6/ (NWB-Datenbank, Fassung „VZ 2010–2026 (aktuell)“) | Verstoß nur gegen die einzelne und getrennte Aufzeichnung schließt die Vorsteuer für angemessene Bewirtungsaufwendungen nicht aus | Text 17.10.2026 (Verlagsdatenbank; amtlicher UStAE 503) | belege/bewirtung-geschenke |
-| FG Berlin-Brandenburg vom 09.04.2019, 5 K 5119/18 | https://www.haufe.de/steuern/rechtsprechung/vorsteuerabzug-aus-bewirtungsaufwendungen-trotz-fehlendem-beleg_166_496064.html | Vorsteuer aus Bewirtung trotz fehlender Angaben, Nachholung im Einspruch | Text der Besprechung 17.10.2026 (Sekundärquelle) | belege/bewirtung-nachweis |
-| FG Münster vom 27.04.2020, 5 K 1722/18 U | https://datenbank.nwb.de/Dokument/831949/ | Leitsatz 2: Nachweis der Bewirtungsaufwendungen für die Vorsteuer in der Form des § 4 Abs. 5 Satz 1 Nr. 2 Satz 2, 3 EStG | Leitsatz 17.10.2026 (Volltext kostenpflichtig) | belege/bewirtung-nachweis |
-| BMF vom 19.11.2025, IV C 6 - S 2145/00026/005/033 (Bewirtungsaufwendungen) | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Einkommensteuer/2025-11-19-bewirtungskosten-als-betriebsausgaben.pdf (503) | nur Existenz und GZ genannt; Inhalt siehe Offen | Titel über Sekundärquellen (Deloitte Tax-News, PwC-Blog) | belege/bewirtung-nachweis |
+| BMF vom 15.10.2025, III C 2 - S 7287-a/00019/007/243, BStBl I S. 1806 (Änderung des Schreibens vom 15.10.2024 und des UStAE) | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/2025-10-15-einfuehrung-obligatorische-e-rechnung.html | Rn. 6a (Formatfehler), 6b (Geschäftsregelfehler), 17 (Gutschrift, § 13b zwischen Inländern), 35 (Pflichtangaben im strukturierten Teil), 35a (Inhaltsfehler, Validierung), 51a (keine Berichtigung bei § 17-Minderung); UStAE 14.1 Abs. 5 (Empfangspflicht), 14c.1 Abs. 4a (hybride Rechnung, Vorsteuer nur aus strukturiertem Teil), 15.2a Abs. 1 Satz 3, 4 | Text 10.11.2026 (BMF-Original; UStAE-Stellen an der konsolidierten Fassung vom 19.10.2026; BStBl-Fundstelle laut BMF vom 15.10.2026) | belege/e-rechnung-empfang, vorsteuer |
+| BMF vom 22.02.2022, IV C 3 - S 2190/21/10002 :025, BStBl I S. 187 (Nutzungsdauer Computerhardware und Software) | https://esth.bundesfinanzministerium.de/esth/2025/B-Anhaenge/Anhang-01/V/inhalt.html | Rz. 1 (ein Jahr), 1.1 (keine Sofortabschreibung, kein Wahlrecht § 5 Abs. 1 EStG), 1.2 (Beginn, Bestandsverzeichnis, Abweichung möglich), 1.4 (volle AfA im Anschaffungsjahr nicht beanstandet), 2–5 (Begriffe), 6 (Anwendung für Wj., die nach dem 31.12.2020 enden); ersetzt BMF vom 26.02.2021 (BStBl I S. 298) | Text 10.11.2026 (amtliches EStH 2025, Anhang 1 V) | belege/anlagen-nutzungsdauer |
+| AfA-Tabelle für die allgemein verwendbaren Anlagegüter, BMF vom 15.12.2000, BStBl I S. 1532 | https://www.bundesfinanzministerium.de/Content/DE/Standardartikel/Themen/Steuern/Weitere_Steuerthemen/Betriebspruefung/AfA-Tabellen/Ergaenzende-AfA-Tabellen/AfA-Tabelle_AV.html | Erfahrungswerte Nutzungsdauer für Anschaffungen nach dem 31.12.2000: Ladeneinbauten 8 (Nr. 3.7), Pkw 6 (4.2.1), Lkw 9 (4.2.3), Büromöbel 13 Jahre (6.15) | Text 10.11.2026 (BMF-Original) | belege/anlagen-nutzungsdauer |
+| UStAE 15.6 Abs. 2 Satz 5 (Vorsteuer bei Bewirtung trotz Verstoß gegen § 4 Abs. 7 EStG) | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html | Verstoß nur gegen die einzelne und getrennte Aufzeichnung schließt die Vorsteuer für angemessene Bewirtungsaufwendungen nicht aus | Text 10.11.2026 (amtliche konsolidierte Fassung des BMF, Stand 19.10.2026) | belege/bewirtung-geschenke |
+| FG Berlin-Brandenburg vom 09.04.2019, 5 K 5119/18 | https://www.haufe.de/steuern/rechtsprechung/vorsteuerabzug-aus-bewirtungsaufwendungen-trotz-fehlendem-beleg_166_496064.html | Vorsteuer aus Bewirtung trotz fehlender Angaben, Nachholung im Einspruch | Text der Besprechung 17.10.2026 (Sekundärquelle); 10.11.2026: Volltext in der Entscheidungsdatenbank gerichtsentscheidungen.brandenburg.de nicht gefunden | belege/bewirtung-nachweis |
+| FG Münster vom 27.04.2020, 5 K 1722/18 U | https://datenbank.nwb.de/Dokument/831949/ | Leitsatz 2: Nachweis der Bewirtungsaufwendungen für die Vorsteuer in der Form des § 4 Abs. 5 Satz 1 Nr. 2 Satz 2, 3 EStG | Leitsatz 17.10.2026 (Volltext kostenpflichtig); 10.11.2026: in der Rechtsprechungsdatenbank NRWE nicht gefunden | belege/bewirtung-nachweis |
+| BMF vom 19.11.2025, IV C 6 - S 2145/00026/005/033, BStBl I S. 1938 (Bewirtungsaufwendungen) | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Einkommensteuer/2025-11-19-bewirtungskosten-als-betriebsausgaben.html | ersetzt BMF vom 30.06.2021, das für Bewirtungen bis 31.12.2024 weiter gilt (Einleitung); Rn. 1 (Eigenbeleg, Rechnung maschinell erstellt und elektronisch aufgezeichnet), 6 (Leistungsbeschreibung), 7 (Tag der Bewirtung), 8 (Trinkgeld), 9–12 (über 250 €: Steuernummer oder USt-IdNr., Rechnungsnummer, Name des Bewirtenden), 13–16 (Kassensystem mit TSE, unbare Zahlung), 18–22 (digitale Rechnung, digitaler Eigenbeleg), 23 (Ausland) | Text 10.11.2026 (BMF-Original; BStBl-Fundstelle laut H 4.10 (5–9) EStH 2025) | belege/bewirtung-geschenke, bewirtung-nachweis |
+| R 4.10 Abs. 2 Satz 4 EStR 2012 (Geschenke) | https://esth.bundesfinanzministerium.de/esth/2025/A-Einkommensteuergesetz/II-Einkommen-2-24b/3-Gewinn-4-7i/Paragraf-4/inhalt.html | Abzugsverbot greift nicht, wenn das Wirtschaftsgut beim Empfänger ausschließlich betrieblich genutzt werden kann (Gruppe `geschenke_betrieblich`) | Text 10.11.2026 (amtliches EStH 2025) | belege/bewirtung-geschenke |
 
 ### Werte mit Stand
 
@@ -245,22 +253,11 @@ Aussage abgeglichen.
 
 ### Offen
 
-- BMF-Schreiben vom 15.10.2025 und vom 22.02.2022 nur über Kanzleispiegel
-  (steuerschroeder.de) gelesen; mit dem BMF-Original abgleichen.
-- BMF-Schreiben Bewirtung vom 19.11.2025: Wortlaut nicht abrufbar. Nach Deloitte
-  Tax-News (https://www.deloitte-tax-news.de/steuern/unternehmensteuer/bmf-steuerliche-anerkennung-von-bewirtungsaufwendungen.html)
-  und PwC-Blog (https://blogs.pwc.de/de/steuern-und-recht/article/251895/): ersetzt
-  das Schreiben vom 30.06.2021 (bleibt für Bewirtungen bis 31.12.2024);
-  Rechnung maschinell erstellt und elektronisch aufgezeichnet, bei Kassensystem
-  mit TSE; über 250 € Name des Bewirtenden; „Speisen und Getränke“ als
-  Leistungsbeschreibung genügt nicht; digitaler Eigenbeleg zulässig, mit der
-  Rechnung verknüpft; Trinkgeld nachzuweisen. Nach Prüfung in
-  `bewirtung-geschenke.md` übernehmen.
-- AfA-Tabelle AV (BMF vom 15.12.2000) nicht gelesen; die Vorschläge in
-  `asset_accounts.go` (Pkw 6, Lkw 9, Ladeneinbauten 8, Büromöbel 13 Jahre) am
-  Original prüfen.
-- Gruppe `geschenke_betrieblich`: Grundlage (Verwaltungsregel, vermutlich R 4.10
-  EStR) nicht am Wortlaut geprüft.
+- FG Berlin-Brandenburg 5 K 5119/18 und FG Münster 5 K 1722/18 U (Vorsteuer aus
+  Bewirtung ohne Teilnehmer oder Anlass): amtliche Volltexte am 10.11.2026
+  weder in gerichtsentscheidungen.brandenburg.de noch in NRWE gefunden. Der
+  Skill kennzeichnet beide als Sekundärquelle und legt die Frage als
+  Wertungsfrage vor.
 - Buchfink: Eine Zahlung vor der Leistung erkennt Buchfink nur, wenn der Beleg
   mit ihr gebucht wird.
 - Werkzeug: Wie eine Gutschrift eines Lieferanten (negative Beträge) mit
@@ -316,7 +313,8 @@ Quellen des Bereichs `references/bank/` (ablauf.md und Referenzen). Alle Links a
 | Schreiben | Link | Wofür | Geprüft | Genutzt in |
 |---|---|---|---|---|
 | GoBD, BMF vom 28.11.2019 (bestehender Eintrag oben) | https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf | Rz. 36, 41 (vollständig, einmal), 44 (richtig), 47 (zehn Tage), 61 (Belegprinzip), 76 (Kontoauszug als strukturierte Datei), 81 (Dauersachverhalt) | Text 17.10.2026 | bank/darlehen, skonto-differenzen |
-| BMF vom 15.10.2025 (Eintrag unter Bereich belege) | siehe oben | Rn. 51a: keine Rechnungsberichtigung bei Skonto | Text 17.10.2026 (Kanzleispiegel) | bank/skonto-differenzen |
+| BMF vom 15.10.2025 (Eintrag unter Bereich belege) | siehe oben | Rn. 51a: keine Rechnungsberichtigung bei Skonto | Text 10.11.2026 (BMF-Original) | bank/skonto-differenzen |
+| H 6.10 EStH 2025 „Damnum“, „Zinsfestschreibung“ | https://esth.bundesfinanzministerium.de/esth/2025/A-Einkommensteuergesetz/II-Einkommen-2-24b/3-Gewinn-4-7i/Paragraf-6/inhalt.html | Unterschied zwischen Ausgabe- und Rückzahlungsbetrag (Agio, Disagio, Damnum, Abschluss-, Bearbeitungs- oder Verwaltungsgebühren) als Rechnungsabgrenzungsposten auf die Laufzeit verteilen (BFH IV R 153/72); bei kürzerer Zinsfestschreibung auf diesen Zeitraum (BFH IV R 47/85) | Text 10.11.2026 (amtliches EStH 2025) | bank/darlehen-sonderfaelle |
 
 ### Werte mit Stand
 
@@ -349,8 +347,6 @@ Quellen des Bereichs `references/bank/` (ablauf.md und Referenzen). Alle Links a
   `bankumsatz_buchen` nach Rücklastschrift oder Überzahlung einen offenen
   Posten bildet, ist nicht beschrieben; der Skill lässt es mit
   `offene_posten` prüfen.
-- Disagio: steuerliche Aktivierungspflicht (nach Sekundärquellen H 6.10 EStH,
-  BFH I R 46/05) nicht am Wortlaut geprüft; Skill nennt nur Wertungsfrage.
 - Zinserträge: Steuerfall nicht steuerbar oder steuerfrei (§ 4 Nr. 8 Buchst. a
   UStG) für die Voranmeldung nicht geklärt.
 - Erstattungszinsen nach § 233a AO: Wahl zwischen 7105, 7106, 7107 nicht
@@ -400,14 +396,15 @@ abgeglichen.
 | Quelle | Link | Wofür | Geprüft | Genutzt in |
 |---|---|---|---|---|
 | BMF vom 15.10.2024, III C 2 - S 7287-a/23/10001 :007, BStBl I S. 1320 (E-Rechnung) | https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/E-Rechnung/2024-10-15-einfuehrung-e-rechnung.pdf | Rn. 48 (Endrechnung als E-Rechnung, Restrechnung, Anhang bis 31.12.2027 nicht beanstandet), Rn. 62 (kein Übergang beim Empfang) | Text 17.10.2026 (Spiegel LfSt Bayern) | rechnungen/anzahlungen, e-rechnung-ausgang |
-| BMF vom 15.10.2025, III C 2 - S 7287-a/00019/007/243 (E-Rechnung, Änderung UStAE) | https://www.steuerschroeder.de/blog/wp-content/uploads/2025/10/2025-10-15-einfuehrung-obligatorische-e-rechnung.pdf (Kanzleispiegel) | Rn. 6a, 17 (Gutschrift, § 13b zwischen Inländern), 35, 60; UStAE n. F.: 14.1 Abs. 2, Abs. 3 Satz 4, Abs. 4 Satz 1, 4, 6–8, Abs. 5 Satz 4–5, Abs. 6 Satz 1–5, Abs. 7 Satz 1, 4–8, Abs. 14 (ZUGFeRD ab 2.0.1 ohne MINIMUM/BASIC-WL); 14.4 Abs. 3 (strukturierter Teil führt); 14.11 Abs. 1 Satz 7–9, Abs. 4; 14c.1 Abs. 4 Satz 7 | Text 17.10.2026 (Kanzleispiegel) | rechnungen/e-rechnung-ausgang, pflichtangaben-ausgang, storno-berichtigung |
-| UStAE Abschnitt 1.3 Abs. 6 | https://www.steuerschroeder.de/steuergesetze/ustae/1.3 | Verzugszinsen, Mahngebühren, Mahnverfahrenskosten sind Schadensersatz | Text 17.10.2026 (Kanzleispiegel) | rechnungen/mahnen-verzug |
-| UStAE Abschnitt 3a.2 Abs. 9, 11, 11a | https://www.steuerschroeder.de/steuergesetze/ustae/3a.2 | USt-IdNr. als Nachweis mit qualifizierter Bestätigung (Abs. 9 Satz 4, 5); Drittland-Nachweis (Abs. 11); private Nutzung wahrscheinlich (Abs. 11a) | Text 17.10.2026 (Kanzleispiegel) | rechnungen/ausland |
-| UStAE Abschnitt 13.1 Abs. 3 | https://www.steuerschroeder.de/steuergesetze/ustae/13.1 | sonstige Leistung mit Vollendung ausgeführt, Dauerleistung | Text 17.10.2026 (Kanzleispiegel) | rechnungen/pflichtangaben-ausgang |
-| UStAE Abschnitt 13.4 | https://www.steuerschroeder.de/steuergesetze/ustae/13.4 | Teilleistungen | Text 17.10.2026 (Kanzleispiegel) | rechnungen/anzahlungen |
-| UStAE Abschnitt 13.5 Abs. 1, 3, 4 | https://www.steuerschroeder.de/steuergesetze/ustae/13.5 | Anzahlung: Entstehung, bestimmte Leistung, voraussichtlich steuerfrei/nicht steuerbar | Text 17.10.2026 (Kanzleispiegel) | rechnungen/anzahlungen |
-| UStAE Abschnitt 14.8 Abs. 1, 2, 4, 5, 7, 9, 10, 11 | https://www.steuerschroeder.de/steuergesetze/ustae/14.8 | Anzahlungsrechnung, Endrechnung, § 14c bei fehlender Absetzung, Restrechnung | Text 17.10.2026 (Kanzleispiegel; Abs. 3 zeigt noch alte Satzzählung, also Stand vor 15.10.2025) | rechnungen/anzahlungen |
-| UStAE Abschnitt 17.1 Abs. 5, 7 | https://www.steuerschroeder.de/steuergesetze/ustae/17.1 | Uneinbringlichkeit (Abs. 5), Rückzahlung einer Anzahlung im Zeitraum der Rückgewähr (Abs. 7) | Text 17.10.2026 (Kanzleispiegel) | rechnungen/anzahlungen, forderungsausfall |
+| BMF vom 15.10.2025, III C 2 - S 7287-a/00019/007/243, BStBl I S. 1806 (E-Rechnung, Änderung UStAE) | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/2025-10-15-einfuehrung-obligatorische-e-rechnung.html | Rn. 6a, 17 (Gutschrift, § 13b zwischen Inländern), 35, 60; UStAE n. F.: 14.1 Abs. 2, Abs. 3 Satz 4, Abs. 4 Satz 1, 4, 6–8, Abs. 5 Satz 4–5, Abs. 6 Satz 1–5, Abs. 7 Satz 1, 4–8, Abs. 14 (ZUGFeRD ab 2.0.1 ohne MINIMUM/BASIC-WL); 14.4 Abs. 3 (strukturierter Teil führt); 14.11 Abs. 1 Satz 7–9, Abs. 4; 14c.1 Abs. 4 Satz 7 | Text 10.11.2026 (BMF-Original; UStAE-Stellen an der konsolidierten Fassung vom 19.10.2026) | rechnungen/e-rechnung-ausgang, pflichtangaben-ausgang, storno-berichtigung |
+| BMF vom 15.10.2026, III C 5 - S 7287-a/00019/021/017 (E-Rechnung, ergänzende Regelungen) | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/2026-10-15-obligatorische-elektronische-rechnung.html | Rn. 3: Endrechnung als E-Rechnung bis 30.06.2030 nicht beanstandet, wenn die vereinnahmten Teilentgelte als Summe in BT-113 abgesetzt und die Einzelheiten nach UStAE 14.8 Abs. 7, 8 in BT-22 angegeben werden | Text 10.11.2026 (BMF-Original) | – (nicht im Skill, siehe Offen) |
+| UStAE Abschnitt 1.3 Abs. 6 | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html | Verzugszinsen, Mahngebühren, Mahnverfahrenskosten sind Schadensersatz | Text 10.11.2026 (amtliche konsolidierte Fassung des BMF, Stand 19.10.2026) | rechnungen/mahnen-verzug |
+| UStAE Abschnitt 3a.2 Abs. 9, 11, 11a | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html | USt-IdNr. als Nachweis mit qualifizierter Bestätigung (Abs. 9 Satz 4, 5); Drittland-Nachweis (Abs. 11); private Nutzung wahrscheinlich (Abs. 11a) | Text 10.11.2026 (amtliche konsolidierte Fassung des BMF, Stand 19.10.2026) | rechnungen/ausland |
+| UStAE Abschnitt 13.1 Abs. 3 | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html | sonstige Leistung mit Vollendung ausgeführt, Dauerleistung | Text 10.11.2026 (amtliche konsolidierte Fassung des BMF, Stand 19.10.2026) | rechnungen/pflichtangaben-ausgang |
+| UStAE Abschnitt 13.4 | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html | Teilleistungen: in Teilen geschuldet und bewirkt, Entgelt für bestimmte Teile gesondert vereinbart (Satz 1, 2); kontinuierlicher oder wiederkehrender Charakter, keine Teilleistung bei einmaliger Leistung gegen Ratenzahlung (Satz 4, 5) | Text 10.11.2026 (amtliche konsolidierte Fassung des BMF, Stand 19.10.2026) | rechnungen/anzahlungen |
+| UStAE Abschnitt 13.5 Abs. 1, 3, 4 | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html | Anzahlung: Entstehung, bestimmte Leistung, voraussichtlich steuerfrei/nicht steuerbar | Text 10.11.2026 (amtliche konsolidierte Fassung des BMF, Stand 19.10.2026) | rechnungen/anzahlungen |
+| UStAE Abschnitt 14.8 Abs. 1, 2, 4, 5, 7, 9, 10, 11 | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html | Anzahlungsrechnung, Endrechnung, § 14c bei fehlender Absetzung, Restrechnung | Text 10.11.2026 (amtliche konsolidierte Fassung des BMF, Stand 19.10.2026) | rechnungen/anzahlungen |
+| UStAE Abschnitt 17.1 Abs. 5, 7 | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html | Uneinbringlichkeit (Abs. 5), Rückzahlung einer Anzahlung im Zeitraum der Rückgewähr (Abs. 7) | Text 10.11.2026 (amtliche konsolidierte Fassung des BMF, Stand 19.10.2026) | rechnungen/anzahlungen, forderungsausfall |
 | BFH 02.09.2010, V R 34/09 | https://www.bundesfinanzhof.de/de/entscheidung/entscheidungen-online/detail/pdf/STRE201010349?type=1646225765 | Steuerberichtigung erst bei tatsächlicher Rückgewähr der Anzahlung, Leitsatz 1 und Rz. 19–21 | Text 10.11.2026 | rechnungen/anzahlungen |
 | Deutsche Bundesbank, Basiszinssatz nach § 247 BGB | https://www.bundesbank.de/de/bundesbank/organisation/agb-und-regelungen/basiszinssatz-607820 | Tabelle der Basiszinssätze | Text 17.10.2026 | rechnungen/verzugszinsen-rechnung |
 
@@ -451,16 +448,24 @@ abgeglichen.
   `skonto_tage`. Prüfen, ob der Hinweis in den strukturierten Teil (BT-20)
   gelangt.
 - Code: `validateSmallAmount` (`invoice_service.go`) nennt „§ 33 Satz 2 UStDV“;
-  nach dem Wortlaut ist es Satz 3.
-- Code: Der Hinweistext zu `reverse_charge_supply` (`internal/domain/tax.go`)
-  beschreibt § 13b Abs. 2 Nr. 1 UStG (im Ausland ansässiger Leistender); genutzt
-  wird der Steuerfall für Leistungen an Unternehmen im übrigen EU-Gebiet
-  (§ 3a Abs. 2, § 14a Abs. 1 UStG). Der Text in der E-Rechnung lautet
-  „… nach § 13b UStG“. Fachlich prüfen.
-- Endrechnung als E-Rechnung (BMF 15.10.2024, Rn. 48): ob die Angabe der
-  Anzahlungen in BT-113 genügt.
-- UStAE nur über Kanzleispiegel gelesen; Abgleich mit dem amtlichen UStAE
-  (BMF) durch einen Prüfer mit Browser.
+  nach dem Wortlaut ist es Satz 3 (geprüft am 10.11.2026).
+- Code: `exemptionReason` (`internal/invoice/zugferd.go`) schreibt in die
+  E-Rechnung „Steuerschuldnerschaft des Leistungsempfängers nach § 13b UStG“,
+  auch bei Leistungen an Unternehmen im Ausland. § 14a Abs. 1 Satz 1 und
+  Abs. 5 Satz 1 UStG verlangen die Angabe ohne Paragraphen; im Ausland
+  schuldet der Empfänger die Steuer nach dem Recht seines Staates. Der
+  Hinweistext zu `reverse_charge_supply` (`internal/domain/tax.go`) nennt die
+  drei Fälle richtig (geprüft am 10.11.2026).
+- Endrechnung als E-Rechnung: Nach BMF vom 15.10.2026, Rn. 3, genügt BT-113
+  bis 30.06.2030 nur zusammen mit den Einzelheiten der Teilentgelte in BT-22.
+  Buchfink schreibt BT-113 und den Bezug auf die Abschlagsrechnungen (BG-3),
+  aber keine Entgelte und Steuerbeträge der Abschläge in BT-22
+  (`internal/invoice/cii.go`).
+- BMF vom 15.10.2026 (E-Rechnung, ergänzende Regelungen) ist nicht in den
+  Skill eingearbeitet: Leistungsbeschreibung im strukturierten Teil
+  (Rn. 10–12), Berichtigung als E-Rechnung (Rn. 20, 21),
+  Geschäftsregelfehler (Rn. 22, 23). Für bis 31.12.2026 ausgestellte
+  E-Rechnungen beanstandet die Verwaltung Abweichungen davon nicht.
 
 ## Bereich gesellschafter
 
@@ -511,10 +516,10 @@ Links am 17.10.2026 mit HTTP 200 geprüft.
 
 | Quelle | Link | Wofür | Geprüft | Genutzt in |
 |---|---|---|---|---|
-| R 8.5 KStR 2022 (Verdeckte Gewinnausschüttungen) | https://www.steuerschroeder.de/steuergesetze/kstr/8.5 | Begriff vGA, nahestehende Person (Abs. 1 Satz 1, 3); beherrschender Gesellschafter, klare Vereinbarung im Voraus (Abs. 2) | Text 17.10.2026 (Kanzleispiegel; KSt-Handbuch des BMF nicht abrufbar) | bank/darlehen; gesellschafter/verrechnungskonto, vga-einlage |
-| R 8.9 KStR 2022 (Verdeckte Einlage) | https://www.steuerschroeder.de/steuergesetze/kstr/8.9 | Begriff (Abs. 1, 3), Teilwert (Abs. 4 Satz 1) | Text 17.10.2026 (Kanzleispiegel) | gesellschafter/vga-einlage |
-| UStAE Abschnitt 15.23 Abs. 8 | https://www.steuerschroeder.de/steuergesetze/ustae/15.23 | Fahrzeugüberlassung an Personal und Gesellschafter-Geschäftsführer entgeltlich (Satz 1, 4) | Text 17.10.2026 (Kanzleispiegel) | lohn/sonderfaelle |
-| BMF vom 16.05.2025, IV C 1 - S 2401/00008/014/051 (Steuerbescheinigungen nach § 45a Abs. 2 und 3 EStG) | https://www.steuerschroeder.de/blog/wp-content/uploads/2025/05/2025-05-16-kapitalertragSt-steuerbescheinigung.pdf (Kanzleispiegel) | Pflicht auch ohne Abzug (Einleitung), Muster verbindlich (Rn. 1), Muster II für GmbH (Rn. 43), erst nach Zahlung (Rn. 47), auch vGA (Rn. 48), Muster für Zuflüsse ab 01.01.2026 (Rn. 71) | Text 17.10.2026 (Kanzleispiegel; BStBl-Fundstelle nicht geprüft) | gesellschafter/steuerbescheinigung; beteiligungen/dividenden, investmentfonds |
+| R 8.5 KStR 2022 (Verdeckte Gewinnausschüttungen) | https://ksth.bundesfinanzministerium.de/ksth/2026/A-Koerperschaftsteuergesetz/II-Einkommen/1-Allgemeine-Vorschriften/Paragraf-8/inhalt.html | Begriff vGA, nahestehende Person (Abs. 1 Satz 1, 3); beherrschender Gesellschafter, klare Vereinbarung im Voraus (Abs. 2) | Text 10.11.2026 (amtliches KStH 2026) | bank/darlehen; gesellschafter/verrechnungskonto, vga-einlage |
+| R 8.9 KStR 2022 (Verdeckte Einlage) | https://ksth.bundesfinanzministerium.de/ksth/2026/A-Koerperschaftsteuergesetz/II-Einkommen/1-Allgemeine-Vorschriften/Paragraf-8/inhalt.html | Begriff (Abs. 1, 3), Teilwert (Abs. 4 Satz 1) | Text 10.11.2026 (amtliches KStH 2026) | gesellschafter/vga-einlage |
+| UStAE Abschnitt 15.23 Abs. 8, 11 | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html | Fahrzeugüberlassung an Personal und Gesellschafter-Geschäftsführer entgeltlich (Satz 1, 4); Bemessungsgrundlage aus den lohnsteuerlichen Werten als Bruttowerte, bei der 1-%-Regelung ohne Kürzung des Listenpreises für Elektro- und Hybridelektrofahrzeuge (Abs. 11 Satz 1, 2, Nr. 1 Satz 1) | Text 10.11.2026 (amtliche konsolidierte Fassung des BMF, Stand 19.10.2026) | lohn/sonderfaelle |
+| BMF vom 16.05.2025, IV C 1 - S 2401/00008/014/051 (Steuerbescheinigungen nach § 45a Abs. 2 und 3 EStG) | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Abgeltungsteuer/2025-05-16-kapitalertragSt-steuerbescheinigung.html | Pflicht auch ohne Abzug (Einleitung), Muster verbindlich (Rn. 1), Muster II für GmbH (Rn. 43), erst nach Zahlung (Rn. 47), auch vGA (Rn. 48), Muster für Zuflüsse ab 01.01.2026 (Rn. 71) | Text 10.11.2026 (BMF-Original; BStBl-Fundstelle nicht geprüft) | gesellschafter/steuerbescheinigung; beteiligungen/dividenden, investmentfonds |
 | ELSTER, Liste aller Formulare | https://www.elster.de/eportal/formulare-leistungen/alleformulare | Formular „Kapitalertragsteuer-Anmeldung nach Einkommensteuergesetz“ | Text 17.10.2026 | gesellschafter/ausschuettung |
 
 ### Werte mit Stand
@@ -543,11 +548,6 @@ Links am 17.10.2026 mit HTTP 200 geprüft.
 
 ### Offen
 
-- BMF-Schreiben vom 14.10.2002 zur Angemessenheit der Gesamtausstattung von
-  Gesellschafter-Geschäftsführern (BStBl I S. 972 laut Sekundärquellen) war
-  nicht abrufbar und ist im Skill nicht zitiert.
-- KStR und UStAE nur über Kanzleispiegel gelesen; Abgleich mit dem amtlichen
-  KSt-Handbuch und UStAE.
 - Parameter von `darlehen_erfassen` und `ergebnisverwendung_buchen` mit dem
   Werkzeugschema abgleichen, sobald die Werkzeuge im Katalog stehen.
 - Buchfink bildet Kirchensteuer, NV-Bescheinigung und Einlagenrückgewähr nicht
@@ -601,7 +601,7 @@ Quellen des Bereichs `references/lohn/` (ablauf.md und Referenzen). Alle Links a
 | Quelle | Link | Wofür | Geprüft | Genutzt in |
 |---|---|---|---|---|
 | GoBD vom 28.11.2019 (Eintrag oben) | https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf | verdichtete Buchung aufgliederbar (Rz. 42), Einzelaufzeichnungen der Vorsysteme bleiben (Rz. 99), Datenzugriff auf Lohnbuchhaltung (Rz. 159; 2024 um einen Satz ergänzt) | Text 17.10.2026 | lohn/abstimmung |
-| UStAE Abschnitt 15.23 Abs. 8 | Zeile unter Bereich gesellschafter | Firmenwagen an Personal | Text 17.10.2026 | lohn/sonderfaelle |
+| UStAE Abschnitt 15.23 Abs. 8, 11 | Zeile unter Bereich gesellschafter | Firmenwagen an Personal; Bemessungsgrundlage | Text 10.11.2026 (amtliche konsolidierte Fassung des BMF, Stand 19.10.2026) | lohn/sonderfaelle |
 
 ### Werte mit Stand
 
@@ -632,8 +632,6 @@ Quellen des Bereichs `references/lohn/` (ablauf.md und Referenzen). Alle Links a
   und Minijobs (6035, 6036, 6171) getrennt gebucht werden, ist offen.
 - Sonderzeilen (Vorschuss, Pfändung, vermögenswirksame Leistung, Sachbezug)
   haben keine Felder; der Skill bucht sie per `buchung_erfassen` um.
-- Umsatzsteuer auf Firmenwagenüberlassung: Bemessungsgrundlage nicht im Skill
-  (UStAE 15.23 Abs. 11 ff. nicht gelesen).
 
 ## Bereich monatsabschluss
 
@@ -671,7 +669,7 @@ Aussage abgeglichen.
 | BZSt, ZM: Elektronische Abgabe | https://www.bzst.de/DE/Unternehmen/Umsatzsteuer/ZusammenfassendeMeldung/ElektronischeAbgabe/elektronischeabgabe_zm_node.html | Übermittlung über ELSTER oder BOP; ELSTER ohne, BOP mit Anmeldung zum Fachverfahren ZM; CSV-Import; bis 1.500 Meldezeilen je Formular | Text 17.10.2026 (erneut geprüft) | grundlagen/pflichten |
 | BZSt, ZM: Berichtigung | https://www.bzst.de/DE/Unternehmen/Umsatzsteuer/ZusammenfassendeMeldung/BerichtigungZM/berichtigung_node.html | Abgleich mit VA; je Meldezeitraum eigene Berichtigung; korrekte Zeilen nicht wiederholen; Storno mit Bemessungsgrundlage 0 (die Seite nennt § 26a Abs. 1 Nr. 5; nach Wortlaut Abs. 2 Nr. 5) | Text 17.10.2026 | monatsabschluss/zm |
 | BZSt, ZM: Fristen | https://www.bzst.de/DE/Unternehmen/Umsatzsteuer/ZusammenfassendeMeldung/Fristen/fristen_node.html | 25. Tag; Dauerfristverlängerung gilt nicht für die ZM | Text 17.10.2026 | grundlagen/pflichten |
-| Vordruck USt 1 A 2026 (Formular-ID 2026USt1A561, „Dezember 2025“) mit Anleitung, Wiedergabe durch Buhl Data | https://www.buhl.de/steuer/wp-content/uploads/sites/31/2026/03/formular-dauerfristverlaengerung-2026.pdf | Zeile 30: Kz 46/47 nur sonstige Leistungen nach § 3a Abs. 2 eines im übrigen Gemeinschaftsgebiet ansässigen Unternehmers (§ 13b Abs. 1); Zeile 31: Kz 73/74 GrEStG-Umsätze (§ 13b Abs. 2 Nr. 3); Zeile 32: Kz 84/85 andere Leistungen (§ 13b Abs. 2 Nr. 1, 2, 4 bis 12), laut Anleitung u. a. Werklieferungen und sonstige Leistungen eines im Ausland ansässigen Unternehmers; Zeile 55: Kz 500 mit Schlüsseln 1–4 | Text 17.10.2026 (Wiedergabe eines Softwareherstellers, nicht amtlich; BMF-Original 503) | monatsabschluss/ustva |
+| Vordrucke USt 1 A und USt 1 H 2026 mit den Anleitungen USt 1 E und USt 5 E (Formular-ID 2026USt1A561, „Dezember 2025“), BMF vom 29.12.2025, III C 3 - S 7344/00039/007/036 | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/2025-12-29-vordruckmuster-USt-voranmeldung-2026.html | Zeile 30: Kz 46/47 nur sonstige Leistungen nach § 3a Abs. 2 eines im übrigen Gemeinschaftsgebiet ansässigen Unternehmers (§ 13b Abs. 1); Zeile 31: Kz 73/74 GrEStG-Umsätze (§ 13b Abs. 2 Nr. 3); Zeile 32: Kz 84/85 andere Leistungen (§ 13b Abs. 2 Nr. 1, 2, 4 bis 12), laut Anleitung u. a. Werklieferungen und sonstige Leistungen eines im Ausland ansässigen Unternehmers; Zeile 55: Kz 500 mit Schlüsseln 1–4; USt 1 E: Bemessungsgrundlagen in vollen Euro, Steuerbeträge mit Cent; USt 1 H Zeile 8 und USt 5 E: Summe der verbleibenden Vorauszahlungen (Kz 83) zuzüglich der angerechneten Sondervorauszahlung, bei einem Überschuss Sondervorauszahlung 0 € | Text 10.11.2026 (BMF-Original mit vier Anlagen) | monatsabschluss/dauerfristverlaengerung, ustva |
 
 ### Sonstige Quellen
 
@@ -710,12 +708,9 @@ Aussage abgeglichen.
 
 - Amtlicher Datensatz: Ob ELSTER die Steuer zu Kz 81/86 aus der
   Bemessungsgrundlage selbst rechnet und Kz 83 dann um Cent von der gebuchten
-  Steuer abweicht, ist nicht geprüft (Anleitung USt 1 E 2026 nicht lesbar,
-  bundesfinanzministerium.de 503).
-- BMF-Schreiben vom 29.12.2025 (Vordrucke 2026, Kz 500) nur über
-  Sekundärquellen; den Vordruck selbst gibt die Buhl-Datei wieder.
-- Summe der Vorauszahlungen für die Sondervorauszahlung: Behandlung von
-  Überschussmonaten und der Vorjahres-SVZ im Wortlaut offen.
+  Steuer abweicht, sagt die Anleitung USt 1 E 2026 nicht (gelesen am
+  10.11.2026): Sie verlangt Bemessungsgrundlagen in vollen Euro und
+  Steuerbeträge mit Cent.
 - Buchfink: Ohne Angabe des Kenntnisdatums ist die datierte Berichtigungsfrist
   offen. Die App fragt es beim Anlegen ab. Die Erzeugung aus Buchungen bleibt
   auf sonstige Leistungen beschränkt; der Berichtigungsvergleich trennt L/D/S.
@@ -866,7 +861,8 @@ Aussage abgeglichen.
 | § 4 EStG | https://www.gesetze-im-internet.de/estg/__4.html | Geschenke, Bewirtung, Gästehaus/Jagd/Jacht, Geldbußen (Abs. 5 Satz 1 Nr. 1–4, 8), GewSt keine Betriebsausgabe (Abs. 5b), Parteispenden (Abs. 6) | Text | steuererklaerungen/kst, kst-abzugsposten |
 | § 5 EStG | https://www.gesetze-im-internet.de/estg/__5.html | Drohverlustrückstellung steuerlich verboten (Abs. 4a Satz 1) | Text | steuererklaerungen/kst |
 | § 5b EStG | https://www.gesetze-im-internet.de/estg/__5b.html | E-Bilanz mit Kontennachweisen, Anlagenspiegel, -verzeichnis (Abs. 1 Satz 1), Überleitung/Steuerbilanz (Satz 2, 3), Eröffnungsbilanz (Satz 4), Anhang u. a. (Satz 5), Härtefall (Abs. 2) | Text | grundlagen/pflichten; steuererklaerungen/ablauf, ebilanz, kst |
-| § 10d EStG | https://www.gesetze-im-internet.de/estg/__10d.html | Rücktrag 1 Mio. €, zwei Jahre, Verzicht (Abs. 1 Satz 1, 2, 6), Vortrag 1 Mio. € + 70 % (Abs. 2 Satz 1), Feststellung (Abs. 4 Satz 1) | Text | steuererklaerungen/bescheide, kst |
+| § 10d EStG | https://www.gesetze-im-internet.de/estg/__10d.html | Rücktrag 1 Mio. €, zwei Jahre, Verzicht (Abs. 1 Satz 1, 2, 6), Vortrag 1 Mio. € + 70 % (Abs. 2 Satz 1, VZ 2024 bis 2027), Feststellung (Abs. 4 Satz 1) | Text | steuererklaerungen/bescheide, kst |
+| Art. 6, Art. 35 Abs. 9 des Wachstumschancengesetzes vom 27.03.2024, BGBl. 2024 I Nr. 108 | https://www.recht.bund.de/bgbl/1/2024/108/VO.html | § 10d Abs. 2 Satz 1 EStG: „60 Prozent“ statt „70 Prozent“, erstmals für den VZ 2028 (neuer § 52 Abs. 18b Satz 4 EStG); Art. 6 tritt am 01.01.2028 in Kraft | Text 10.11.2026 (Verkündungsfassung; gesetze-im-internet.de zeigt § 10d und § 52 Abs. 18b noch ohne diese Änderung) | steuererklaerungen/kst |
 | § 36 EStG | https://www.gesetze-im-internet.de/estg/__36.html | Anrechnung Vorauszahlungen und Abzugsteuer, Bescheinigung nötig (Abs. 2 Nr. 1, 2 Satz 2) | Text | steuererklaerungen/kst |
 | § 37 EStG | https://www.gesetze-im-internet.de/estg/__37.html | Vorauszahlungstermine (Abs. 1 Satz 1), Bemessung und Anpassung bis 15. Monat (Abs. 3 Satz 2, 3) | Text | steuererklaerungen/bescheide |
 | § 52 EStG | https://www.gesetze-im-internet.de/estg/__52.html | § 5b: Kontennachweise ab Wj nach 31.12.2024, Anlagenspiegel/-verzeichnis und Satz 5, 6 ab Wj nach 31.12.2027 (Abs. 11 Satz 2, 3); § 10d Abs. 2 ab VZ 2024 (Abs. 18b Satz 3) | Text (Abs. 11, 18b) | steuererklaerungen/ebilanz, kst |
@@ -883,6 +879,7 @@ Aussage abgeglichen.
 | § 14 GewStG | https://www.gesetze-im-internet.de/gewstg/__14.html | Erhebungszeitraum Kalenderjahr, abgekürzt (Satz 2, 3) | Text | steuererklaerungen/gewst |
 | § 14a GewStG | https://www.gesetze-im-internet.de/gewstg/__14a.html | Erklärung und Zerlegungserklärung elektronisch (Satz 1) | Text | grundlagen/pflichten; steuererklaerungen/ablauf, gewst |
 | § 16 GewStG | https://www.gesetze-im-internet.de/gewstg/__16.html | Hebesatz der Gemeinde (Abs. 1), mindestens 280 % (Abs. 4 Satz 2, ab EZ 2027) | Text | steuererklaerungen/bescheide, gewst; gruendung/steuerliche-erfassung |
+| Art. 7 Nr. 1 des Gesetzes vom 29.06.2026, BGBl. 2026 I Nr. 197 | https://www.recht.bund.de/bgbl/1/2026/197/VO.html | § 16 Abs. 4 Satz 2 GewStG: „280“ statt „200“; Vorfassung also 200 % bis EZ 2026 | Text 10.11.2026 (Verkündungsfassung) | – (Vorfassung im Skill nicht genannt) |
 | § 19 GewStG | https://www.gesetze-im-internet.de/gewstg/__19.html | Vorauszahlungen 15.02./05./08./11., Viertel, Anpassung bis 15. Monat (Abs. 1–3) | Text | grundlagen/pflichten; steuererklaerungen/bescheide |
 | § 20 GewStG | https://www.gesetze-im-internet.de/gewstg/__20.html | Abschlusszahlung binnen eines Monats, Überzahlung (Abs. 2, 3) | Text | steuererklaerungen/gewst |
 | § 28 GewStG | https://www.gesetze-im-internet.de/gewstg/__28.html | Zerlegung bei mehreren Gemeinden (Abs. 1) | Text | steuererklaerungen/gewst |
@@ -916,11 +913,11 @@ Aussage abgeglichen.
 
 | Quelle | Link | Wofür | Geprüft | Genutzt in |
 |---|---|---|---|---|
-| BMF vom 27.05.2024, IV C 6 - S 2133-b/24/10001 :002, DOK 2024/0473233 (E-Bilanz, Taxonomien 6.8) | https://betriebs-berater.ruw.de/news/media/2/BMF-Schreiben-16701.pdf (Verlagsspiegel; BMF nicht abrufbar) | Taxonomie 6.8 für Wj ab 2025, 2024 nicht beanstandet; Mussfelder und NIL, ab 6.9 je Rechtsform | Text 17.10.2026 | steuererklaerungen/ebilanz |
-| BMF vom 10.06.2025, IV C 6 - S 2133-b/00064/002/006, DOK COO.7005.100.3.12167045 (E-Bilanz, Taxonomien 6.9) | https://betriebs-berater.ruw.de/news/media/2/BMF-Schreiben-17367.pdf (Verlagsspiegel) | Taxonomie 6.9 für Wj ab 2026 und Eröffnungsbilanzen nach 31.12.2025, 2025 nicht beanstandet; Kontennachweis-Inhalt; Nichtbeanstandung ohne Kontennachweise; Anlagenspiegel Mussfeld seit Wj 2017 | Text 17.10.2026 | steuererklaerungen/ebilanz |
-| BMF vom 08.06.2026, IV C 6 - S 2133-b/00067/002/023 (E-Bilanz, Taxonomien 6.10) | https://www.steuerschroeder.de/blog/?p=79671 (Sekundärquelle) | Taxonomie 6.10 für Wj ab 2027, 2026 nicht beanstandet | Titel über Sekundärquellen (Kanzleiblog, Ecovis, DATEV-Magazin-Titel) | steuererklaerungen/ebilanz |
-| H 10.1 KStH „Erstattungs- und Nachzahlungszinsen“ | https://www.steuerschroeder.de/steuergesetze/ksth/10.1 | Verweis auf BFH I R 43/08 und I B 97/11 | Text (Kanzleispiegel); Urteile nicht gelesen | steuererklaerungen/kst |
-| UStAE 18.1 Abs. 4 Satz 1, 2 | https://datenbank.nwb.de/Dokument/378652_18___1/ (NWB-Datenbank, Fassung „VZ 2010–2026 (aktuell)“) | Satz 1: Jahreserklärung „in der Regel bis zum 31. Juli“ (§ 149 Abs. 2 AO); Satz 2: gilt „abweichend von § 18 Abs. 3 Satz 2 UStG“ auch bei Beginn im Lauf des Jahres | Text 17.10.2026 (Verlagsdatenbank; amtlicher UStAE und Umsatzsteuer-Handausgabe 503; Kanzleispiegel steuerschroeder.de veraltet, nennt „31. Mai“) | steuererklaerungen/ust-jahr |
+| BMF vom 27.05.2024, IV C 6 - S 2133-b/24/10001 :002, DOK 2024/0473233, BStBl I S. 928 (E-Bilanz, Taxonomien 6.8) | https://www.esteuer.de/download/taxonomie/BMF-Schreiben_2026.zip (Sammlung der BMF-Schreiben auf esteuer.de; das BMF führt das Schreiben nicht mehr) | Taxonomie 6.8 für Wj ab 2025, 2024 nicht beanstandet; Mussfelder und NIL, ab 6.9 je Rechtsform | Text 10.11.2026 (esteuer.de; BStBl-Fundstelle laut BMF vom 08.06.2026) | steuererklaerungen/ebilanz |
+| BMF vom 10.06.2025, IV C 6 - S 2133-b/00064/002/006, DOK COO.7005.100.3.12167045, BStBl I S. 1450 (E-Bilanz, Taxonomien 6.9) | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Einkommensteuer/2025-06-10-ebilanz-taxonomien-6-9.html | Taxonomie 6.9 für Wj ab 2026 und Eröffnungsbilanzen nach 31.12.2025, 2025 nicht beanstandet; Kontennachweis-Inhalt; Nichtbeanstandung ohne Kontennachweise; Anlagenspiegel Mussfeld seit Wj 2017 | Text 10.11.2026 (BMF-Original; BStBl-Fundstelle laut BMF vom 08.06.2026) | steuererklaerungen/ebilanz |
+| BMF vom 08.06.2026, IV C 6 - S 2133-b/00067/002/023 (E-Bilanz, Taxonomien 6.10) | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Einkommensteuer/2026-06-08-ebilanz-taxonomien-6-10.html | Taxonomie 6.10 für Wj, die nach dem 31.12.2026 beginnen, und für Eröffnungsbilanzen nach 31.12.2026; für 2026 oder 2026/2027 nicht beanstandet; Echtfälle ab Mai 2027 | Text 10.11.2026 (BMF-Original; gleichlautend esteuer.de) | steuererklaerungen/ebilanz |
+| R 10.1 Abs. 2 KStR 2022, H 10.1 KStH 2026 „Erstattungs- und Nachzahlungszinsen, Aussetzungszinsen“ | https://ksth.bundesfinanzministerium.de/ksth/2026/A-Koerperschaftsteuergesetz/II-Einkommen/1-Allgemeine-Vorschriften/Paragraf-10/inhalt.html | Erstattungszinsen nach § 233a AO sind steuerpflichtige Einnahmen, zurückgezahlte Nachzahlungszinsen erfolgsneutral (R 10.1 Abs. 2 Satz 2, 3); Verweis auf BFH I R 43/08 (BStBl II 2012 S. 688) und I B 97/11 (BStBl II S. 697) | Text 10.11.2026 (amtliches KStH 2026); Urteile nicht gelesen | steuererklaerungen/kst |
+| UStAE 18.1 Abs. 4 Satz 1, 2 | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html | Satz 1: Jahreserklärung „in der Regel bis zum 31. Juli“ (§ 149 Abs. 2 AO); Satz 2: gilt „abweichend von § 18 Abs. 3 Satz 2 UStG“ auch bei Beginn im Lauf des Jahres | Text 10.11.2026 (amtliche konsolidierte Fassung des BMF, Stand 19.10.2026) | steuererklaerungen/ust-jahr |
 | ELSTER, Liste aller Formulare | https://www.elster.de/eportal/formulare-leistungen/alleformulare | KSt 1, GewSt 1 A, GewSt 1 D, Umsatzsteuererklärung, Fragebogen Kapitalgesellschaft; kein Formular für E-Bilanz | Text 17.10.2026 (über WebFetch) | steuererklaerungen/ebilanz, ebilanz-dienste |
 | LfSt Rheinland-Pfalz, Leitfaden Registrierung mit Zertifikatsdatei, Stand 09.2025 | https://lfst.rlp.de/fileadmin/lfst.rlp.de/ELSTER/Klickanleitungen/Leitfaden_Registrierung_mit_Zertifikatsdatei_Stand_09.2025.pdf | Zertifikat „für eine Organisation“ auf Basis der Steuernummer (Abschnitt 2.2); der übrige Ablauf (Aktivierung per Brief) beschreibt nur die Privatperson | Text 17.10.2026 | steuererklaerungen/abgabe |
 | Freistaat Sachsen (luft.sachsen.de), Schritt-für-Schritt-Anleitung ELSTER-Organisationszertifikate (für ELiA-Online), Stand 31.03.2025 | https://www.luft.sachsen.de/download/Schritt-fuer-Schritt-Anleitung-ELSTER-Organisationszertifikate-SN-2025.pdf | Organisationszertifikat: Steuernummer der Organisation; Aktivierungs-ID per E-Mail, Aktivierungs-Code per Brief an die zur Steuernummer gespeicherte Anschrift (Abschnitte 1.1, 1.2). Keine Anleitung der Steuerverwaltung; gleicher Ablauf im älteren Faltblatt der Finanzverwaltung NRW (https://www.finanzverwaltung.nrw.de/sites/default/files/asset/document/flyer_elster_registrierung_nrw_barrierefrei_09-07-13.pdf, „ElsterOnline-Portal“, veraltet) | Text 17.10.2026 | steuererklaerungen/abgabe |
@@ -935,9 +932,9 @@ Aussage abgeglichen.
 | Hinzurechnung: ein Viertel der Summe über 200.000 €; Miete beweglich 1/5, unbeweglich 1/2, Lizenzen 1/4; Elektrofahrzeuge zur Hälfte bis EZ 2030 | 17.10.2026 | § 8 Nr. 1 GewStG, § 36 Abs. 4 GewStG | steuererklaerungen/gewst |
 | Kürzung um die als Betriebsausgabe erfasste Grundsteuer (ab EZ 2025); Schachtelkürzung ab 15 % zu Beginn des EZ | 17.10.2026 | § 9 Nr. 1 Satz 1, Nr. 2a, § 36 Abs. 4b GewStG | steuererklaerungen/gewst |
 | Spenden: 20 % des Einkommens oder 4 ‰ der Umsätze und Löhne (KSt und GewSt) | 17.10.2026 | § 9 Abs. 1 Satz 1 Nr. 2 KStG, § 9 Nr. 5 GewStG | steuererklaerungen/gewst, kst |
-| Verlustrücktrag 1 Mio. € in zwei Vorjahre; Verlustvortrag 1 Mio. € + 70 % (ab VZ 2024; ab 2028 laut Sekundärquellen wieder 60 %) | 17.10.2026 | § 10d Abs. 1, 2 EStG, § 52 Abs. 18b Satz 3 EStG | steuererklaerungen/kst |
+| Verlustrücktrag 1 Mio. € in zwei Vorjahre; Verlustvortrag 1 Mio. € + 70 % (VZ 2024 bis 2027; ab VZ 2028 wieder 60 %) | 10.11.2026 | § 10d Abs. 1, 2 EStG, § 52 Abs. 18b Satz 3 EStG; Art. 6, Art. 35 Abs. 9 des Gesetzes vom 27.03.2024 (BGBl. 2024 I Nr. 108) | steuererklaerungen/kst |
 | Gewerbeverlust 1 Mio. € + 60 % | 17.10.2026 | § 10a Satz 1, 2 GewStG | steuererklaerungen/gewst |
-| Mindesthebesatz 280 % ab EZ 2027 | 17.10.2026 | § 16 Abs. 4 Satz 2, § 36 Abs. 5b GewStG | steuererklaerungen/gewst |
+| Mindesthebesatz 280 % ab EZ 2027 (bis EZ 2026: 200 %) | 10.11.2026 | § 16 Abs. 4 Satz 2, § 36 Abs. 5b GewStG; Art. 7 Nr. 1 des Gesetzes vom 29.06.2026 (BGBl. 2026 I Nr. 197) | steuererklaerungen/gewst |
 | Vorauszahlungen KSt 10.03./10.06./10.09./10.12., GewSt 15.02./15.05./15.08./15.11.; Anpassung bis Ende des 15. Folgemonats | 17.10.2026 | § 37 Abs. 1, 3 EStG, § 31 KStG, § 19 GewStG | steuererklaerungen/bescheide, gewst, kst |
 | Abgabefrist sieben Monate; mit Berater letzter Februartag des zweiten Folgejahres; 2024: 31.07.2025/30.04.2026; 2025: 31.07.2026/01.03.2027; 2026: 02.08.2027/29.02.2028 | 17.10.2026 | § 149 Abs. 2, 3 AO, Art. 97 § 36 Abs. 3 EGAO, § 108 Abs. 3 AO | steuererklaerungen/ablauf, fristen-zuschlaege |
 | Verspätungszuschlag zwingend nach 14 Monaten (2024: 16, 2023: 17); 0,25 % je Monat, mind. 25 €; 25 € je Monat bei Messbetrag und Feststellungen; höchstens 25.000 € | 17.10.2026 | § 152 Abs. 2, 5, 6, 10 AO, Art. 97 § 36 Abs. 3 Nr. 5 EGAO | steuererklaerungen/ablauf, fristen-zuschlaege |
@@ -945,7 +942,7 @@ Aussage abgeglichen.
 | Bekanntgabe am vierten Tag; Einspruch ein Monat | 17.10.2026 | §§ 122 Abs. 2, 2a, 122a Abs. 4, 355 Abs. 1 AO | steuererklaerungen/ablauf, bescheide |
 | USt-Abschlusszahlung einen Monat nach Eingang der Jahreserklärung | 17.10.2026 | § 18 Abs. 4 Satz 1 UStG | steuererklaerungen/ust-jahr |
 | § 15a-Berichtigung bis 6.000 € je Wirtschaftsgut und Jahr in der Jahreserklärung | 17.10.2026 | § 44 Abs. 3 UStDV | steuererklaerungen/ust-jahr |
-| E-Bilanz: Kontennachweise ab Wj nach 31.12.2024; Anlagenspiegel/-verzeichnis, Anhang, Lagebericht ab Wj nach 31.12.2027; Taxonomie 6.8 (Wj 2025), 6.9 (Wj 2026), 6.10 (Wj 2027, Sekundärquelle) | 17.10.2026; Taxonomie wechselt jährlich | § 52 Abs. 11 EStG, BMF 27.05.2024, 10.06.2025, 08.06.2026 | steuererklaerungen/ebilanz |
+| E-Bilanz: Kontennachweise ab Wj nach 31.12.2024; Anlagenspiegel/-verzeichnis, Anhang, Lagebericht ab Wj nach 31.12.2027; Taxonomie 6.8 (Wj 2025), 6.9 (Wj 2026), 6.10 (Wj 2027) | 10.11.2026; Taxonomie wechselt jährlich | § 52 Abs. 11 EStG, BMF 27.05.2024, 10.06.2025, 08.06.2026 | steuererklaerungen/ebilanz |
 
 ### Buchfink-eigene Quellen
 
@@ -970,27 +967,18 @@ Aussage abgeglichen.
   übernehmen, dokumentiert keiner; ein Probeimport im kostenlosen Konto klärt
   es. Rückfallweg: Summen- und Saldenliste mit Elementnamen der Taxonomie
   (`ebilanz_exportieren`, `format: susa_csv`).
-- Taxonomie 6.10 (BMF 08.06.2026) nur über Sekundärquellen; esteuer.de
-  antwortet mit 503.
-- § 10d Abs. 2 EStG: Rückkehr auf 60 % ab VZ 2028 nur Sekundärquellen; die
-  künftige Fassung steht noch nicht auf gesetze-im-internet.de.
-- § 16 Abs. 4 Satz 2 GewStG: Vorfassung (bis EZ 2026, laut Sekundärquellen
-  200 %) nicht am Wortlaut gelesen; im Skill nicht genannt.
 - KSt-Anlagen nur über Haufe-Leitfaden (Paywall); im Formular des Jahres
   prüfen.
 - Erstattungszinsen auf KSt/GewSt: BFH I R 43/08, I B 97/11 nicht gelesen;
-  im Skill Wertungsfrage.
-- **UStAE-Spiegel steuerschroeder.de ist teils veraltet:** UStAE 18.1 Abs. 4
-  nennt „31. Mai“, UStAE 19.1 die Grenze 17.500 €. ust-jahr.md zitiert 18.1
-  deshalb über die NWB-Datenbank. Andere Skills, die UStAE über diesen Spiegel
-  zitieren, sollten ihre Abschnitte gegen den amtlichen UStAE prüfen.
+  die Verwaltungsregel steht in R 10.1 Abs. 2 KStR (gelesen am 10.11.2026).
+  Welches Konto Buchfink nimmt, bleibt Wertungsfrage.
 - Jahreserklärung USt im Gründungsjahr: § 18 Abs. 3 Satz 2 UStG verlangt nach
   dem Wortlaut einen Monat nach Ablauf des kürzeren Zeitraums (§ 16 Abs. 3);
   UStAE 18.1 Abs. 4 Satz 2 lässt abweichend die Regelfrist gelten. Im Skill
   als Hinweis an den Menschen.
-- § 108 Abs. 3 AO auf die Monatsgrenzen des § 152 Abs. 2 AO: nicht geprüft
-  (AEAO zu § 152 auf ao.bundesfinanzministerium.de 503). Skill rechnet mit dem
-  Kalenderdatum und rät zur Abgabe davor.
+- § 108 Abs. 3 AO auf die Monatsgrenzen des § 152 Abs. 2 AO: Der AEAO zu
+  § 152 (AO-Handbuch 2026, gelesen am 10.11.2026) sagt dazu nichts. Skill
+  rechnet mit dem Kalenderdatum und rät zur Abgabe davor.
 - Feiertage je Land für § 108 Abs. 3 AO stehen im Code
   (`internal/calendar/holidays.go`); gegen die Feiertagsgesetze der Länder
   nicht geprüft.
@@ -1056,12 +1044,13 @@ Bereich steuererklaerungen stehen (§§ 7 KStG, 5b, 16, 18 UStG, §§ 20, 108,
 
 | Quelle | Link | Wofür | Geprüft | Genutzt in |
 |---|---|---|---|---|
-| H 1.1 KStH „Beginn der Steuerpflicht“, „Vorgründungsgesellschaft“ | https://www.steuerschroeder.de/steuergesetze/ksth/1.1 | Steuerpflicht ab Vorgesellschaft (BFH I R 98-99/86, I R 17/92); Vorgründungsgesellschaft nicht identisch, i. d. R. nicht kstpfl. (BFH I R 174/86) | Text (Kanzleispiegel) | steuererklaerungen/kst; gruendung/ablauf, gruendungskosten |
-| BFH vom 11.10.1989, I R 12/87, BStBl II 1990, 89 | https://www.haufe.de/id/entscheidung/bfh-urteil-vom-11101989-i-r-1287-HI62976.html | Gründungskosten, die die GmbH ohne Festsetzung im Gesellschaftsvertrag trägt, sind keine Betriebsausgabe (Ausschüttung); Lücke des GmbHG durch entsprechende Anwendung von § 26 Abs. 2 AktG geschlossen, mit Verweis auf BGH II ZB 10/88 | Text 17.10.2026 (Haufe-Wiedergabe) | gruendung/gruendungskosten |
+| H 1.1 KStH „Beginn der Steuerpflicht“, „Vorgründungsgesellschaft“ | https://ksth.bundesfinanzministerium.de/ksth/2026/A-Koerperschaftsteuergesetz/I-Steuerpflicht/Paragraf-1/inhalt.html | Steuerpflicht ab Vorgesellschaft (BFH I R 98-99/86, I R 17/92); Vorgründungsgesellschaft nicht identisch, i. d. R. nicht kstpfl. (BFH I R 174/86) | Text 10.11.2026 (amtliches KStH 2026) | steuererklaerungen/kst; gruendung/ablauf, gruendungskosten |
+| BFH vom 11.10.1989, I R 12/87, BStBl II 1990, 89 | https://www.haufe.de/id/entscheidung/bfh-urteil-vom-11101989-i-r-1287-HI62976.html | Gründungskosten, die die GmbH ohne Festsetzung im Gesellschaftsvertrag trägt, sind keine Betriebsausgabe (Ausschüttung); Lücke des GmbHG durch entsprechende Anwendung von § 26 Abs. 2 AktG geschlossen, mit Verweis auf BGH II ZB 10/88 | Text 17.10.2026 (Haufe-Wiedergabe); 10.11.2026: kein amtlicher Volltext gefunden (Websuche auf bundesfinanzhof.de) | gruendung/gruendungskosten |
 | UStAE 18.7 Abs. 5 (Amtliche Umsatzsteuer-Handausgabe 2023) | https://usth.bundesfinanzministerium.de/usth/2023/A-Umsatzsteuergesetz/V-Besteuerung/Paragraf-18/ae-18-7.html | Neugründungen 2021–2026: Zeitraum nach § 18 Abs. 2 Sätze 1 und 2 UStG, keine Befreiung (Satz 3), Gründungsjahr nach voraussichtlicher Steuer, Folgejahr nach umgerechneter Steuer (Satz 4), Vorratsgesellschaften und Firmenmäntel unberührt (Satz 8) | Text 19.10.2026 | gruendung/steuerliche-erfassung |
-| BGH vom 20.02.1989, II ZB 10/88, GmbHR 1989, 250 | – (Volltext nicht gelesen) | § 26 Abs. 2 AktG entsprechend für die GmbH | nur über BFH I R 12/87 und Sekundärquellen (Haufe „Gründungsaufwand bei UG und GmbH“); Fundstelle BGHZ 107, 1 nicht bestätigt | gruendung/gruendungskosten |
-| H 8.5 KStH „Gründungskosten“ → BMF vom 25.06.1991, IV B 7 - S 2741 - 4/91, BStBl I S. 661 | https://www.steuerschroeder.de/steuergesetze/ksth/8.5 | Verweis der Verwaltung; Inhalt (vGA bei Übernahme ohne Satzungsregel) nur über Sekundärquellen (NWB-Vorschau, Suchergebnisse zu BFH I R 42/96) | Titel; Wortlaut des BMF-Schreibens nicht gelesen | gruendung/gruendungskosten |
-| BGH vom 09.03.1981, II ZR 54/80, BGHZ 80, 129 (Vorbelastungs-/Unterbilanzhaftung) | https://www.haufe.de/id/entscheidung/bgh-urteil-vom-09031981-ii-zr-5480-veroeffentlicht-am-09031981-HI609498.html | Grundlage der Unterbilanzhaftung (laut späterer Rechtsprechung, II ZR 123/94, II ZR 115/81) | Titel über Sekundärquellen | gruendung/kapitalaufbringung |
+| BGH vom 20.02.1989, II ZB 10/88, GmbHR 1989, 250 | – (Volltext nicht gelesen) | § 26 Abs. 2 AktG entsprechend für die GmbH | nur über BFH I R 12/87 und Sekundärquellen (Haufe „Gründungsaufwand bei UG und GmbH“); Fundstelle BGHZ 107, 1 nicht bestätigt; 10.11.2026: kein amtlicher Volltext gefunden (Websuche auf bundesgerichtshof.de) | gruendung/gruendungskosten |
+| H 8.5 KStH „Gründungskosten“ → BMF vom 25.06.1991, IV B 7 - S 2741 - 4/91, BStBl I S. 661 | https://ksth.bundesfinanzministerium.de/ksth/2026/A-Koerperschaftsteuergesetz/II-Einkommen/1-Allgemeine-Vorschriften/Paragraf-8/inhalt.html | Verweis der Verwaltung; Inhalt (vGA bei Übernahme ohne Satzungsregel) nur über Sekundärquellen (NWB-Vorschau, Suchergebnisse zu BFH I R 42/96) | Verweis: Text 10.11.2026 (amtliches KStH 2026); Wortlaut des BMF-Schreibens nicht gelesen (im KStH nicht abgedruckt) | gruendung/gruendungskosten |
+| UStAE Abschnitt 19.1 Abs. 3 | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html | Beginn der Tätigkeit im laufenden Kalenderjahr: allein der tatsächliche Gesamtumsatz dieses Jahres zählt, maßgebend ist die Grenze von 25.000 € | Text 10.11.2026 (amtliche konsolidierte Fassung des BMF, Stand 19.10.2026) | gruendung/steuerliche-erfassung |
+| BGH vom 09.03.1981, II ZR 54/80, BGHZ 80, 129 (Vorbelastungs-/Unterbilanzhaftung) | https://www.haufe.de/id/entscheidung/bgh-urteil-vom-09031981-ii-zr-5480-veroeffentlicht-am-09031981-HI609498.html | Grundlage der Unterbilanzhaftung (laut späterer Rechtsprechung, II ZR 123/94, II ZR 115/81) | Titel über Sekundärquellen; 10.11.2026: kein amtlicher Volltext gefunden (Websuche auf bundesgerichtshof.de) | gruendung/kapitalaufbringung |
 | Finanzverwaltung NRW, Merkblatt für Existenzgründerinnen und Existenzgründer (ELSTER-Registrierung) | https://www.finanzverwaltung.nrw.de/sites/default/files/asset/document/merkblatt_fuer_existenzgruenderinnen_und_existenzgruender.pdf | Fragebogen elektronisch seit 01.01.2021; Registrierung nur mit E-Mail für Fragebögen; Umwandlung nach Steuernummer; bis zu zwei Wochen | Text 17.10.2026 (ohne Datum) | gruendung/steuerliche-erfassung |
 | ELSTER, Liste aller Formulare | (Zeile oben) | „Fragebogen zur steuerlichen Erfassung: Gründung einer Kapitalgesellschaft beziehungsweise Genossenschaft“ | Text 17.10.2026 | gruendung/steuerliche-erfassung |
 
@@ -1106,15 +1095,14 @@ Bereich steuererklaerungen stehen (§§ 7 KStG, 5b, 16, 18 UStG, §§ 20, 108,
   Gründungsjahres in eine Jahressteuer (Satz 6) regelt der Wortlaut nicht;
   Buchfink rechnet mit vollen Monaten ab dem Gründungsmonat.
 - **Kleinunternehmer:** Seit der Neufassung ist eine GmbH unter den Grenzen
-  des § 19 Abs. 1 UStG ohne Verzicht Kleinunternehmerin; die Anwendung im
-  Gründungsjahr (aktueller UStAE 19.1) ist nicht gelesen. Buchfink bildet
+  des § 19 Abs. 1 UStG ohne Verzicht Kleinunternehmerin. Buchfink bildet
   Kleinunternehmer nicht ab; das Onboarding sollte darauf hinweisen.
 - **Fachkonzept falsch:** `docs/fachkonzepte/gruendung.md` nennt für die
   Gewerbeanmeldung „einen Monat“; § 14 Abs. 1 GewO verlangt die Anzeige
   „gleichzeitig“.
 - Anker der Monatsfrist (§§ 137, 138 AO): Skill rechnet ab Beurkundung wie das
   Fachkonzept; nicht durch Verwaltungsanweisung belegt.
-- Unterbilanzhaftung nur über Sekundärquellen; Gründungskosten-vGA über BFH I R 12/87 (Haufe-Wiedergabe), Volltext des BGH-Beschlusses II ZB 10/88 nicht gelesen.
+- Unterbilanzhaftung nur über Sekundärquellen; Gründungskosten-vGA über BFH I R 12/87 (Haufe-Wiedergabe), Volltext des BGH-Beschlusses II ZB 10/88 nicht gelesen. Versuch 10.11.2026: Für BGH II ZR 54/80 (1981), BGH II ZB 10/88 (1989), BFH I R 12/87 (1989) und das BMF-Schreiben vom 25.06.1991 fand sich kein amtlicher Volltext.
 - Felder des Fragebogens zur steuerlichen Erfassung nicht am aktuellen Formular
   geprüft.
 - Vorsteuer aus Gründungs- und Vorgründungskosten: im Skill Wertungsfrage, keine
@@ -1186,14 +1174,14 @@ nennt nur die hier genutzten Stellen.
 
 | Quelle | Link | Wofür | Geprüft | Genutzt in |
 |---|---|---|---|---|
-| BMF vom 05.01.2024, IV C 1 - S 1980-1/19/10038 :008, BStBl I S. 154 (Fundstelle auch laut Bezugszeile des Schreibens vom 10.01.2025), Basiszins zum 02.01.2024 | https://datenbank.nwb.de/Dokument/1033913/ (Wiedergabe in der NWB-Datenbank; BMF-Original nicht gefunden) | 2,29 % | Text 19.10.2026 (NWB-Wiedergabe) | beteiligungen/investmentfonds |
+| BMF vom 05.01.2024, IV C 1 - S 1980-1/19/10038 :008, BStBl I S. 154 (Fundstelle auch laut Bezugszeile des Schreibens vom 10.01.2025), Basiszins zum 02.01.2024 | https://datenbank.nwb.de/Dokument/1033913/ (Wiedergabe in der NWB-Datenbank; BMF-Original nicht gefunden) | 2,29 % | Text 19.10.2026 (NWB-Wiedergabe); 10.11.2026: auf bundesfinanzministerium.de nicht mehr geführt, amtlicher Wortlaut nicht prüfbar | beteiligungen/investmentfonds |
 | BMF vom 10.01.2025, IV C 1 - S 1980/00230/009/002, BStBl I S. 273 (Fundstelle laut Bezugszeile des Schreibens vom 13.01.2026), Basiszins zum 02.01.2025 | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Investmentsteuer/2025-01-10-basiszins-vorabpauschale-zum-2-1-2025.pdf | 2,53 %; Vorabpauschale 2025 gilt am 02.01.2026 als zugeflossen | Text 19.10.2026 (BMF-Original) | beteiligungen/investmentfonds |
 | BMF vom 13.01.2026, IV C 1 - S 1980/00230/012/001, Basiszins zum 02.01.2026; BStBl-Fundstelle nicht geprüft | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Investmentsteuer/2026-01-13-basiszins-berechnung-vorabpauschale.pdf | 3,20 %; Vorabpauschale 2026 gilt am 04.01.2027 als zugeflossen | Text 19.10.2026 (BMF-Original) | beteiligungen/investmentfonds |
-| BMF vom 16.05.2025, IV C 1 - S 2401/00008/014/051 (Steuerbescheinigungen) | (Zeile unter gesellschafter) | Rn. 43 (Muster II der leistenden GmbH), 47 (erst nach Zahlung), 57 (Muster III für Körperschaften), 59 (nur Privat-Teilfreistellung beim Abzug; nachrichtlicher Teil mit Vorabpauschalen), 71 (Muster ab 01.01.2026) | Text 17.10.2026 (Kanzleispiegel) | beteiligungen/dividenden, investmentfonds |
-| UStAE Abschnitt 2.3 Abs. 2–4 | https://datenbank.nwb.de/Dokument/378652_2___3/ (NWB-Datenbank, Fassung „VZ 2010–2026 (aktuell)“) | Halten von Beteiligungen keine unternehmerische Tätigkeit, Dividenden kein Entgelt; Finanz-, Führungs-, gemischte Holding; Eingriff durch entgeltliche Leistungen; Zuordnung zum Unternehmen | Text 17.10.2026 (Verlagsdatenbank; amtlicher UStAE 503) | beteiligungen/holding-umsatzsteuer |
-| UStAE Abschnitt 15.22 Abs. 1, 2 | https://datenbank.nwb.de/Dokument/378652_15___22/ (NWB-Datenbank, Fassung „VZ 2010–2026 (aktuell)“) | Vorsteuer bei Beteiligungen im Unternehmen, Aufteilung bei gemischter Holding, Ausschluss bei Leistungen für Umsätze der Töchter (BFH XI R 24/22), Veräußerung | Text 17.10.2026 (Verlagsdatenbank) | beteiligungen/holding-umsatzsteuer |
+| BMF vom 16.05.2025, IV C 1 - S 2401/00008/014/051 (Steuerbescheinigungen) | (Zeile unter gesellschafter) | Rn. 43 (Muster II der leistenden GmbH), 47 (erst nach Zahlung), 57 (Muster III für Körperschaften), 59 (nur Privat-Teilfreistellung beim Abzug; nachrichtlicher Teil mit Vorabpauschalen), 71 (Muster ab 01.01.2026) | Text 10.11.2026 (BMF-Original) | beteiligungen/dividenden, investmentfonds |
+| UStAE Abschnitt 2.3 Abs. 2–4 | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html | Halten von Beteiligungen keine unternehmerische Tätigkeit, Dividenden kein Entgelt; Finanz-, Führungs-, gemischte Holding; Eingriff durch entgeltliche Leistungen; Zuordnung zum Unternehmen | Text 10.11.2026 (amtliche konsolidierte Fassung des BMF, Stand 19.10.2026) | beteiligungen/holding-umsatzsteuer |
+| UStAE Abschnitt 15.22 Abs. 1, 2 | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html | Vorsteuer bei Beteiligungen im Unternehmen, Aufteilung bei gemischter Holding, Ausschluss bei Leistungen für Umsätze der Töchter (BFH XI R 24/22), Veräußerung | Text 10.11.2026 (amtliche konsolidierte Fassung des BMF, Stand 19.10.2026) | beteiligungen/holding-umsatzsteuer |
 | BFH vom 20.12.2000, I R 50/95 (mit Verweis auf GrS 2/99 vom 07.08.2000, BStBl II 2000, 632) | https://datenbank.nwb.de/Dokument/97545/ | keine phasengleiche Aktivierung von Dividendenansprüchen ohne objektiv belegten, endgültigen Ausschüttungswillen am Stichtag | Text 17.10.2026 (Verlagsdatenbank; Beschluss GrS 2/99 selbst nicht gelesen) | beteiligungen/dividenden |
-| H 6.7 EStH „Teilwertvermutungen“ (BFH vom 06.11.2003, BStBl 2004 II S. 416) | https://www.steuerschroeder.de/steuergesetze/esth/6.7 | Teilwert einer Beteiligung: Anschaffungskosten beim Erwerb; Ertragslage, Ertragsaussichten, Vermögenswert, funktionale Bedeutung | Text 17.10.2026 (Kanzleispiegel; der Spiegel verweist zur Teilwertabschreibung noch auf BMF vom 16.07.2014, ist also nicht aktuell) | beteiligungen/bewertung-veraeusserung |
+| H 6.7 EStH „Teilwertvermutungen“ (BFH vom 06.11.2003, BStBl 2004 II S. 416) | https://esth.bundesfinanzministerium.de/esth/2025/A-Einkommensteuergesetz/II-Einkommen-2-24b/3-Gewinn-4-7i/Paragraf-6/inhalt.html | Teilwert einer Beteiligung: Anschaffungskosten beim Erwerb; Ertragslage, Ertragsaussichten, Vermögenswert, funktionale Bedeutung | Text 10.11.2026 (amtliches EStH 2025) | beteiligungen/bewertung-veraeusserung |
 
 ### Werte mit Stand
 
@@ -1250,8 +1238,11 @@ nennt nur die hier genutzten Stellen.
   der Kapitalertragsteuer nach dem Wortlaut von § 36 Abs. 2 Nr. 2 EStG; keine
   Verwaltungsanweisung gelesen.
 - **Teilwertabschreibung börsennotierter Aktien:** BMF vom 02.09.2016
-  (BStBl I S. 995) nicht gelesen (BMF 503, Kanzleispiegel veraltet); im Skill
-  nicht verwendet.
+  (BStBl I S. 995) steht im amtlichen EStH 2025, Anhang 9; nicht gelesen und im
+  Skill nicht verwendet.
+- **Basiszins zum 02.01.2024 (2,29 %):** BMF vom 05.01.2024 nur über die
+  NWB-Wiedergabe gelesen; das BMF führt das Schreiben nicht mehr (Versuch
+  10.11.2026). Der Skill verlinkt die Wiedergabe und kennzeichnet sie.
 - **Phasengleiche Vereinnahmung im Handelsrecht:** BGH- und EuGH-Rechtsprechung
   nicht gelesen; Skill rät wegen der Einheitsbilanz zur Buchung mit dem
   Beschluss.
@@ -1276,8 +1267,6 @@ nennt nur die hier genutzten Stellen.
     Basiszinsen vor 2024 sind nicht hinterlegt; die BMF-Schreiben dazu sind
     nicht gelesen.
   - Anteiliges Abzugsverbot (§ 21 InvStG) wird nicht gerechnet.
-- UStAE nur über die NWB-Datenbank, KStH/EStH nur über Kanzleispiegel gelesen;
-  Abgleich mit den amtlichen Handbüchern.
 
 ## pflichten
 
@@ -1369,9 +1358,9 @@ ein Abschnitt je Pflichtart mit Anker `<a id="<art>"></a>`). Alle Links am
 
 | Quelle | Link | Wofür | Geprüft | Genutzt in |
 |---|---|---|---|---|
-| AEAO zu § 108 Nr. 1 (Kanzleispiegel) | https://www.steuerschroeder.de/steuergesetze/aeao/108 | „Fälligkeitstermine geben das Ende einer Frist an“, also gilt § 108 Abs. 3 AO für Zahlungstermine; im Skill wörtlich zitiert und als Spiegel gekennzeichnet | Text 17.10.2026 (erneut abgerufen, 200); der Spiegel antwortet bei parallelen Abrufen mit 500/503; amtliche Fassung auf bundesfinanzministerium.de nicht erreichbar | grundlagen/pflichten |
+| AEAO zu § 108 Nr. 1 | https://ao.bundesfinanzministerium.de/ao/2026/Abgabenordnung/Dritter-Teil/Erster-Abschnitt/Vierter-Unterabschnitt/Paragraf-108/inhalt.html | „Fälligkeitstermine“ geben das Ende einer Frist an, also gilt § 108 Abs. 3 AO für Zahlungstermine | Text 10.11.2026 (amtliches AO-Handbuch 2026) | grundlagen/pflichten |
 | GoBD, BMF vom 28.11.2019 in der Fassung vom 14.07.2025 | https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf; Änderungen 2024 und 2025 wie Abschnitt 2 | Rz. 52, 87 (Buchung bis Ablauf des Folgemonats), Rz. 107–110 (Unveränderbarkeit, Vorerfassungen, Festschreibung); von den Änderungen 2024 und 2025 nicht berührt | Text 17.10.2026 | grundlagen/aufbewahrung, gobd |
-| BMF vom 10.06.2025 (E-Bilanz, Taxonomien 6.9) | https://betriebs-berater.ruw.de/news/media/2/BMF-Schreiben-17367.pdf (Verlagsspiegel) | Kontennachweise ab Wj nach 31.12.2024; Nichtbeanstandung für 6.9 ohne Kontennachweise mit Begründung in der Position „Erläuterung, warum …“; Anlagenspiegel Mussfeld | Text 17.10.2026 | steuererklaerungen/ebilanz |
+| BMF vom 10.06.2025 (E-Bilanz, Taxonomien 6.9) | https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Einkommensteuer/2025-06-10-ebilanz-taxonomien-6-9.html | Kontennachweise ab Wj nach 31.12.2024; Nichtbeanstandung für 6.9 ohne Kontennachweise mit Begründung in der Position „Erläuterung, warum …“; Anlagenspiegel Mussfeld | Text 10.11.2026 (BMF-Original) | steuererklaerungen/ebilanz |
 | ELSTER, Alle Formulare | https://www.elster.de/eportal/formulare-leistungen/alleformulare | Formularnamen und Gruppen: Umsatzsteuer-Voranmeldung, Dauerfristverlängerung/Sondervorauszahlung (monatlich), Zusammenfassende Meldung, Umsatzsteuererklärung, Körperschaftsteuererklärung (KSt 1), Gewerbesteuererklärung (GewSt 1 A), GewSt 1 D, Lohnsteuer-Anmeldung, Kapitalertragsteuer-Anmeldung nach Einkommensteuergesetz, Fragebogen Gründung Kapitalgesellschaft, Antrag auf Fristverlängerung, Antrag auf Anpassung von Vorauszahlungen; kein Formular für Bilanz oder E-Bilanz | Text | gesellschafter/ausschuettung; grundlagen/pflichten; steuererklaerungen/ebilanz, ebilanz-dienste |
 | eBilanz+, Hilfe XBRL-Import | https://ebilanzplus.de/hilfe/xbrl | Import „XBRL-Datei“ in fünf Schritten; nicht alle Berichtsbestandteile, etwa der Anlagenspiegel | Text 17.10.2026 | steuererklaerungen/ebilanz-dienste |
 | eBilanz+, Hilfe Import | https://ebilanzplus.de/hilfe/import | Saldenliste als CSV/Excel, Layout mit Taxonomie-Elementnamen | Text 17.10.2026 | steuererklaerungen/ebilanz-dienste |

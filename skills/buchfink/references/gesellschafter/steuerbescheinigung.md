@@ -49,4 +49,4 @@ Rechtsstand: 17. Oktober 2026. Verwaltungsauffassung:
 
 [estg45a]: https://www.gesetze-im-internet.de/estg/__45a.html
 [kstg27]: https://www.gesetze-im-internet.de/kstg_1977/__27.html
-[bmf2025]: https://www.steuerschroeder.de/blog/wp-content/uploads/2025/05/2025-05-16-kapitalertragSt-steuerbescheinigung.pdf
+[bmf2025]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Abgeltungsteuer/2025-05-16-kapitalertragSt-steuerbescheinigung.html

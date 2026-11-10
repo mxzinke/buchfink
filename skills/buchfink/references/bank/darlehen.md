@@ -148,4 +148,4 @@ Das Konto des Darlehens legt `darlehen_erfassen` aus dem Vertrag fest.
 [kstg8]: https://www.gesetze-im-internet.de/kstg_1977/__8.html
 [gewstg8]: https://www.gesetze-im-internet.de/gewstg/__8.html
 [ustg4]: https://www.gesetze-im-internet.de/ustg_1980/__4.html
-[kstr85]: https://www.steuerschroeder.de/steuergesetze/kstr/8.5
+[kstr85]: https://ksth.bundesfinanzministerium.de/ksth/2026/A-Koerperschaftsteuergesetz/II-Einkommen/1-Allgemeine-Vorschriften/Paragraf-8/inhalt.html

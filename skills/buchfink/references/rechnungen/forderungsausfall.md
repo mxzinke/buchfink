@@ -71,4 +71,4 @@ Wertberichtigung zum Stichtag:
   Die Buchung mit dem Steuerberater klären.
 
 [ustg17]: https://www.gesetze-im-internet.de/ustg_1980/__17.html
-[ustae171]: https://www.steuerschroeder.de/steuergesetze/ustae/17.1
+[ustae171]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html

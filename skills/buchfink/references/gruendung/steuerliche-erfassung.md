@@ -39,8 +39,9 @@ der Mensch in der App.
 | Gewerbesteuer-Hebesatz | bestimmt die Gemeinde ([§ 16 Abs. 1 GewStG][gewstg16]) | Einstellungen |
 
 Wertungsfrage, Kleinunternehmer: Unter den Grenzen braucht Buchfink den
-Verzicht; nenne die Bindung. Wie die Grenzen im Gründungsjahr gelten, klärt
-der Mensch mit Finanzamt oder Steuerberater.
+Verzicht; nenne die Bindung. Im Gründungsjahr zählt allein der tatsächliche
+Gesamtumsatz des laufenden Kalenderjahres, und es gilt die Grenze von
+25.000 € ([UStAE 19.1 Abs. 3][ustae191]).
 
 ## 3. Voranmeldungszeitraum
 
@@ -81,3 +82,4 @@ Zahlen und nenne die Folgen.
 [ustg27a]: https://www.gesetze-im-internet.de/ustg_1980/__27a.html
 [nrwmerkblatt]: https://www.finanzverwaltung.nrw.de/sites/default/files/asset/document/merkblatt_fuer_existenzgruenderinnen_und_existenzgruender.pdf
 [usth187]: https://usth.bundesfinanzministerium.de/usth/2023/A-Umsatzsteuergesetz/V-Besteuerung/Paragraf-18/ae-18-7.html
+[ustae191]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html

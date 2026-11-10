@@ -1,9 +1,8 @@
 # Dividenden und andere Bezüge
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von EStG, KStG, SolZG, GmbHG und HGB
-am 17.10.2026 gelesen. Steuerbescheinigung: BMF-Schreiben vom 16.05.2025,
-IV C 1 - S 2401/00008/014/051, gelesen über einen
-[nichtamtlichen Spiegel][bmf2025].
+am 17.10.2026 gelesen. Steuerbescheinigung:
+[BMF-Schreiben vom 16.05.2025][bmf2025], IV C 1 - S 2401/00008/014/051.
 
 Ausschüttungen von Investmentfonds regelt
 [investmentfonds.md](investmentfonds.md).
@@ -138,7 +137,7 @@ Erhebungszeitraums, Konto, Bruttobetrag, Kapitalertragsteuer,
 Solidaritätszuschlag, `beleg_id` der Bescheinigung
 ([ablauf.md, Abschnitt 2](ablauf.md#2-ablauf-für-jeden-vorgang), Schritt 7).
 
-[bmf2025]: https://www.steuerschroeder.de/blog/wp-content/uploads/2025/05/2025-05-16-kapitalertragSt-steuerbescheinigung.pdf
+[bmf2025]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Abgeltungsteuer/2025-05-16-kapitalertragSt-steuerbescheinigung.html
 [bfh150-95]: https://datenbank.nwb.de/Dokument/97545/
 [estg20]: https://www.gesetze-im-internet.de/estg/__20.html
 [estg36]: https://www.gesetze-im-internet.de/estg/__36.html

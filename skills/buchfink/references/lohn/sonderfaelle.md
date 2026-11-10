@@ -38,9 +38,12 @@ Die Umbuchung steht in
 - Die Überlassung eines Fahrzeugs zur Privatnutzung an Beschäftigte, auch an
   den Gesellschafter-Geschäftsführer mit Arbeitsvertrag, ist in der Regel eine
   umsatzsteuerpflichtige entgeltliche sonstige Leistung
-  ([UStAE 15.23 Abs. 8 Satz 1, 4][ustae1523]). Bemessungsgrundlage und Satz
-  klärt der Mensch mit Lohnbüro oder Steuerberater; Buchfink rechnet sie
-  nicht (Wertungsfrage).
+  ([UStAE 15.23 Abs. 8 Satz 1, 4][ustae1523]). Als Bemessungsgrundlage lässt
+  die Verwaltung die lohnsteuerlichen Werte zu, als Bruttowerte, aus denen
+  die Umsatzsteuer herauszurechnen ist; bei der 1-%-Regelung ohne Kürzung
+  des Listenpreises für Elektrofahrzeuge
+  ([UStAE 15.23 Abs. 11][ustae1523]). Buchfink rechnet sie nicht; den Betrag
+  klärt der Mensch mit Lohnbüro oder Steuerberater.
 - Ohne Regelung im Anstellungsvertrag ist die Privatnutzung durch einen
   beherrschenden Gesellschafter vGA-verdächtig
   ([gesellschafter/vga-einlage.md](../gesellschafter/vga-einlage.md)).
@@ -51,4 +54,4 @@ Die Umbuchung steht in
 [sgb4_8]: https://www.gesetze-im-internet.de/sgb_4/__8.html
 [aag1]: https://www.gesetze-im-internet.de/aufag/__1.html
 [milov5]: https://www.gesetze-im-internet.de/milov5/__1.html
-[ustae1523]: https://www.steuerschroeder.de/steuergesetze/ustae/15.23
+[ustae1523]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html

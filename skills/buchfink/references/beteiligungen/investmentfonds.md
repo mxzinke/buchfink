@@ -2,8 +2,8 @@
 
 Rechtsstand: 17. Oktober 2026. Wortlaut von InvStG und EStG am 17.10.2026 auf
 gesetze-im-internet.de gelesen. Basiszins aus den BMF-Schreiben in
-Abschnitt 5, am 19.10.2026 gelesen. Steuerbescheinigung: BMF-Schreiben vom
-16.05.2025, IV C 1 - S 2401/00008/014/051 ([Spiegel][bmf2025]).
+Abschnitt 5, am 19.10.2026 gelesen. Steuerbescheinigung:
+[BMF-Schreiben vom 16.05.2025][bmf2025], IV C 1 - S 2401/00008/014/051.
 
 ## Inhalt
 
@@ -98,7 +98,7 @@ Quote: Wertungsfrage.
 
 | Jahr | Basiszins | gilt als zugeflossen am | Quelle |
 |---|---|---|---|
-| 2024 | 2,29 % | 02.01.2025 | [BMF vom 05.01.2024][bmf2024basis] |
+| 2024 | 2,29 % | 02.01.2025 | [BMF vom 05.01.2024][bmf2024basis], laut Sekundärquelle (Verlagswiedergabe) |
 | 2025 | 2,53 % | 02.01.2026 | [BMF vom 10.01.2025][bmf2025basis] |
 | 2026 | 3,20 % | 04.01.2027 | [BMF vom 13.01.2026][bmf2026basis] |
 
@@ -154,7 +154,7 @@ Spezial-Investmentfonds, vor 2018 erworbene Anteile (§ 56 InvStG),
 Dach-Investmentfonds und ausländische Fonds mit Fragen nach
 Doppelbesteuerungsabkommen: Steuerberater.
 
-[bmf2025]: https://www.steuerschroeder.de/blog/wp-content/uploads/2025/05/2025-05-16-kapitalertragSt-steuerbescheinigung.pdf
+[bmf2025]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Abgeltungsteuer/2025-05-16-kapitalertragSt-steuerbescheinigung.html
 [bmf2024basis]: https://datenbank.nwb.de/Dokument/1033913/
 [bmf2025basis]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Investmentsteuer/2025-01-10-basiszins-vorabpauschale-zum-2-1-2025.pdf
 [bmf2026basis]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Investmentsteuer/2026-01-13-basiszins-berechnung-vorabpauschale.pdf

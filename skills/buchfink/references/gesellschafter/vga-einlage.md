@@ -102,5 +102,5 @@ eines Firmenwagens durch den Gesellschafter-Geschäftsführer:
 [ustg15]: https://www.gesetze-im-internet.de/ustg_1980/__15.html
 [hgb272]: https://www.gesetze-im-internet.de/hgb/__272.html
 [ao69]: https://www.gesetze-im-internet.de/ao_1977/__69.html
-[kstr85]: https://www.steuerschroeder.de/steuergesetze/kstr/8.5
-[kstr89]: https://www.steuerschroeder.de/steuergesetze/kstr/8.9
+[kstr85]: https://ksth.bundesfinanzministerium.de/ksth/2026/A-Koerperschaftsteuergesetz/II-Einkommen/1-Allgemeine-Vorschriften/Paragraf-8/inhalt.html
+[kstr89]: https://ksth.bundesfinanzministerium.de/ksth/2026/A-Koerperschaftsteuergesetz/II-Einkommen/1-Allgemeine-Vorschriften/Paragraf-8/inhalt.html

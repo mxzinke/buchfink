@@ -53,10 +53,12 @@ Reihenfolge ([§ 8 Abs. 1 Satz 1 KStG][kstg8]). Prüfe jede Zeile gegen ihre
 Zeile 4: Die Erstattung einer nicht abziehbaren Steuer erhöht das Einkommen
 nicht; bei wesentlichem Betrag lass das den Steuerberater bestätigen.
 
-Erstattungszinsen nach § 233a AO: Die Behandlung folgt der BFH-Rechtsprechung
-([H 10.1 KStH][ksth101]); Konten je Behandlung in
+Erstattungszinsen nach § 233a AO sind steuerpflichtige Einnahmen;
+zurückgezahlte Nachzahlungszinsen bleiben erfolgsneutral
+([R 10.1 Abs. 2 Satz 2, 3 KStR, H 10.1 KStH][ksth101]). Konten in
 [bank/steuerzahlungen.md, Abschnitt 4](../bank/steuerzahlungen.md#4-säumniszuschläge-zinsen-verspätungszuschläge).
-Wertungsfrage; leg sie mit Empfehlung Steuerberater vor.
+Die Wahl des Kontos ist eine Wertungsfrage; leg sie mit Empfehlung
+Steuerberater vor.
 
 ## 3. Nicht abziehbare Aufwendungen
 
@@ -101,9 +103,10 @@ eine Wertungsfrage für Mensch und Steuerberater.
   ([§ 10d Abs. 1 Satz 1, 2, 6 EStG][estg10d]). Darüber entscheidet der
   Mensch.
 - Vortrag bis 1 Mio. € unbeschränkt, darüber zu 70 % des übersteigenden
-  Gesamtbetrags der Einkünfte ([§ 10d Abs. 2 Satz 1 EStG][estg10d]; ab VZ
-  2024, [§ 52 Abs. 18b Satz 3 EStG][estg52]; ab 2028 laut Sekundärquellen
-  wieder 60 %).
+  Gesamtbetrags der Einkünfte ([§ 10d Abs. 2 Satz 1 EStG][estg10d]; für die
+  VZ 2024 bis 2027, [§ 52 Abs. 18b Satz 3 EStG][estg52]). Ab VZ 2028 sind es
+  wieder 60 %
+  ([Art. 6, Art. 35 Abs. 9 des Gesetzes vom 27.03.2024, BGBl. 2024 I Nr. 108][bgbl2024108]).
 - Der Verlustvortrag wird gesondert festgestellt
   ([§ 10d Abs. 4 Satz 1 EStG][estg10d]); übernimm ihn nur aus dem Bescheid.
 - Schädlicher Beteiligungserwerb: Mehr als 50 % der Anteile binnen fünf Jahren
@@ -165,5 +168,6 @@ jede Abweichung erklärt ist.
 [solzg1]: https://www.gesetze-im-internet.de/solzg_1995/__1.html
 [solzg3]: https://www.gesetze-im-internet.de/solzg_1995/__3.html
 [solzg4]: https://www.gesetze-im-internet.de/solzg_1995/__4.html
-[ksth11]: https://www.steuerschroeder.de/steuergesetze/ksth/1.1
-[ksth101]: https://www.steuerschroeder.de/steuergesetze/ksth/10.1
+[ksth11]: https://ksth.bundesfinanzministerium.de/ksth/2026/A-Koerperschaftsteuergesetz/I-Steuerpflicht/Paragraf-1/inhalt.html
+[ksth101]: https://ksth.bundesfinanzministerium.de/ksth/2026/A-Koerperschaftsteuergesetz/II-Einkommen/1-Allgemeine-Vorschriften/Paragraf-10/inhalt.html
+[bgbl2024108]: https://www.recht.bund.de/bgbl/1/2024/108/VO.html

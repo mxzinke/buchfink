@@ -30,10 +30,13 @@ Geld, das Kunden vor der Leistung zahlen. Anzahlungen an Lieferanten:
 
 ## 2. Teilleistung oder Anzahlung
 
-- Teilleistung: Für einen Teil einer wirtschaftlich teilbaren Leistung ist das
-  Entgelt gesondert vereinbart
-  ([§ 13 Abs. 1 Nr. 1 Buchst. a Satz 2, 3 UStG][ustg13]). Jeder Teil ist mit
-  Vollendung ausgeführt ([UStAE 13.4][ustae134]): `art: rechnung`.
+- Teilleistung: Eine wirtschaftlich teilbare Leistung wird in Teilen
+  geschuldet und bewirkt, das Entgelt für bestimmte Teile ist gesondert
+  vereinbart ([§ 13 Abs. 1 Nr. 1 Buchst. a Satz 2, 3 UStG][ustg13],
+  [UStAE 13.4 Satz 1, 2][ustae134]). Die Leistung muss kontinuierlich oder
+  wiederkehrend sein; eine einmalige Leistung gegen Raten ist keine
+  Teilleistung ([UStAE 13.4 Satz 4, 5][ustae134]). Jeder Teil:
+  `art: rechnung`.
 - Abschlag auf ein Gesamtwerk ohne gesondert vereinbarte Teile: Anzahlung,
   `art: abschlag` im Rechnungsverbund.
 - Wertungsfrage: Ob Meilensteine, Sprints oder Monatspauschalen Teilleistungen
@@ -116,8 +119,9 @@ berechnet Anzahlung und Steuer selbst.
 [hgb266]: https://www.gesetze-im-internet.de/hgb/__266.html
 [hgb268]: https://www.gesetze-im-internet.de/hgb/__268.html
 [bmf2024]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/E-Rechnung/2024-10-15-einfuehrung-e-rechnung.pdf
-[ustae134]: https://www.steuerschroeder.de/steuergesetze/ustae/13.4
-[ustae135]: https://www.steuerschroeder.de/steuergesetze/ustae/13.5
-[ustae148]: https://www.steuerschroeder.de/steuergesetze/ustae/14.8
+[ustae134]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html
+[ustae135]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html
+[ustae148]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html
+[ustae171]: https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/Umsatzsteuer-Anwendungserlass-aktuell.html
 
 [bfh3409]: https://www.bundesfinanzhof.de/de/entscheidung/entscheidungen-online/detail/pdf/STRE201010349?type=1646225765
