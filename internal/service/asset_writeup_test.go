@@ -16,7 +16,7 @@ func TestWriteUpNeedsAReason(t *testing.T) {
 	svc := env.assets(t)
 	asset := env.impairedAsset(t, svc)
 
-	if _, err := svc.BookWriteUp(ctx, WriteUpRequest{
+	if _, err := svc.BookWriteUp(ctx, WriteUpRequest{Evidence: "Wertgutachten",
 		AssetID: asset.ID, Date: "2027-12-31", Amount: 50_000,
 	}); err == nil {
 		t.Fatal("eine Zuschreibung ohne Grund darf nicht gebucht werden")
@@ -24,7 +24,7 @@ func TestWriteUpNeedsAReason(t *testing.T) {
 		t.Errorf("die Meldung muss die Vorschrift nennen: %v", err)
 	}
 
-	if _, err := svc.BookWriteUp(ctx, WriteUpRequest{
+	if _, err := svc.BookWriteUp(ctx, WriteUpRequest{Evidence: "Wertgutachten",
 		AssetID: asset.ID, Date: "2027-12-31", Amount: 50_000,
 		Reason: "Der Wasserschaden ist behoben, der Marktwert liegt wieder über dem Buchwert",
 	}); err != nil {
@@ -63,11 +63,11 @@ func TestWriteUpReportListsAssetsWithRoom(t *testing.T) {
 			report.Open, candidate.Confirmed)
 	}
 
-	if _, err := svc.ConfirmImpairmentPersists(ctx, asset.ID, 2027, ""); err == nil {
+	if _, err := svc.ConfirmImpairmentPersists(ctx, asset.ID, 2027, "", "Gutachten"); err == nil {
 		t.Error("auch das Unterlassen der Zuschreibung braucht eine Begründung")
 	}
 	after, err := svc.ConfirmImpairmentPersists(ctx, asset.ID, 2027,
-		"Der Wasserschaden besteht fort, die Sanierung beginnt erst 2028")
+		"Der Wasserschaden besteht fort, die Sanierung beginnt erst 2028", "Gutachten")
 	if err != nil {
 		t.Fatalf("Bestätigung: %v", err)
 	}
@@ -105,7 +105,7 @@ func (e *testEnv) impairedAsset(t *testing.T, svc *AssetService) *domain.FixedAs
 	if err != nil {
 		t.Fatalf("Anlagegut: %v", err)
 	}
-	if _, err := svc.BookImpairment(ctx, ImpairmentRequest{
+	if _, err := svc.BookImpairment(ctx, ImpairmentRequest{Evidence: "Wertgutachten",
 		AssetID: asset.ID, Date: "2026-12-31", Amount: 300_000, Permanent: true,
 		Reason: "Wasserschaden in der Werkhalle",
 	}); err != nil {

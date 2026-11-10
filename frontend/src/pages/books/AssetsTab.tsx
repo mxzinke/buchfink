@@ -34,6 +34,7 @@ import {
   Tr,
 } from '../../components/ui';
 import { PanelHeading, errorText } from './shared';
+import { AssetValuationForm } from './AssetValuationForm';
 import { AssetTransferForm } from './AssetTransferForm';
 import { AssetDisposalForm, AssetDisposalReversal } from './AssetDisposalForm';
 import { splitNorms } from '../../utils/norms';
@@ -430,6 +431,9 @@ const AssetPanel: React.FC<{ assetId: number | undefined; onClose: () => void }>
           </Disclosure>}
           {!asset.disposalDate && asset.method === 'none' && <Disclosure title="Fertigstellung erfassen">
             <AssetTransferForm asset={asset} onSaved={load} />
+          </Disclosure>}
+          {!asset.disposalDate && <Disclosure title="Wertminderung und Zuschreibung">
+            <AssetValuationForm asset={asset} onSaved={load} />
           </Disclosure>}
           <Disclosure title="Stammdaten ändern">
             <AssetMetadataForm key={asset.id} asset={asset} onSaved={load} />

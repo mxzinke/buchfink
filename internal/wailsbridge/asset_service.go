@@ -305,3 +305,21 @@ func (b *BuchfinkBridge) TransferAsset(req service.TransferRequest) (*domain.Fix
 		return s.Assets.Transfer(ctx, req)
 	})
 }
+
+func (b *BuchfinkBridge) BookAssetImpairment(req service.ImpairmentRequest) (*domain.JournalEntry, error) {
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.JournalEntry, error) {
+		return s.Assets.BookImpairment(ctx, req)
+	})
+}
+
+func (b *BuchfinkBridge) BookAssetWriteUp(req service.WriteUpRequest) (*domain.JournalEntry, error) {
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.JournalEntry, error) {
+		return s.Assets.BookWriteUp(ctx, req)
+	})
+}
+
+func (b *BuchfinkBridge) ConfirmAssetImpairment(assetID uint, year int, reason, evidence string) (*service.WriteUpReport, error) {
+	return write(b, func(ctx context.Context, s *core.Services) (*service.WriteUpReport, error) {
+		return s.Assets.ConfirmImpairmentPersists(ctx, assetID, year, reason, evidence)
+	})
+}

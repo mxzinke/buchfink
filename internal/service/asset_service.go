@@ -222,6 +222,11 @@ type ImpairmentRequest struct {
 	// Reason is mandatory: ein Ermessensvorgang ohne festgehaltene Begründung ist
 	// später von niemandem mehr nachvollziehbar.
 	Reason string `json:"reason"`
+	// Evidence benennt den Nachweis der Bewertung; ReceiptID verknüpft einen abgelegten Beleg.
+	Evidence  string `json:"evidence"`
+	ReceiptID *uint  `json:"receiptId,omitempty"`
+	// Preview prüft die Buchung, ohne Journal oder Kartei zu verändern.
+	Preview bool `json:"preview,omitempty"`
 }
 
 // WriteUpRequest is a Zuschreibung (§ 253 Abs. 5 Satz 1 HGB).
@@ -230,6 +235,11 @@ type WriteUpRequest struct {
 	Date    string       `json:"date"`
 	Amount  domain.Cents `json:"amount"`
 	Reason  string       `json:"reason"`
+	// Evidence benennt den Nachweis der Bewertung; ReceiptID verknüpft einen abgelegten Beleg.
+	Evidence  string `json:"evidence"`
+	ReceiptID *uint  `json:"receiptId,omitempty"`
+	// Preview prüft die Buchung, ohne Journal oder Kartei zu verändern.
+	Preview bool `json:"preview,omitempty"`
 }
 
 // DisposalRequest is the Abgang of an Anlagegut.
@@ -1136,6 +1146,10 @@ func (s *AssetService) BookImpairment(ctx context.Context, req ImpairmentRequest
 }
 
 func (s *AssetService) bookImpairment(ctx context.Context, req ImpairmentRequest) (*domain.JournalEntry, error) {
+	if strings.TrimSpace(req.Evidence) == "" {
+		return nil, fmt.Errorf("der Nachweis der Bewertung fehlt")
+	}
+
 	asset, err := s.assetRepo.FindByID(ctx, req.AssetID)
 	if err != nil {
 		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", req.AssetID, err)
@@ -1152,6 +1166,7 @@ func (s *AssetService) bookImpairment(ctx context.Context, req ImpairmentRequest
 		return nil, fmt.Errorf("das Datum fehlt oder ist unvollständig (erwartet JJJJ-MM-TT)")
 	}
 
+	req.Reason = strings.TrimSpace(req.Reason) + "; Nachweis: " + strings.TrimSpace(req.Evidence)
 	startMonth := s.fiscalYearStartMonth(ctx)
 	s.enrich(asset, domain.GetFiscalYearForDate(req.Date, startMonth), startMonth, s.fiscalPeriods(ctx))
 	if req.Amount <= 0 {
@@ -1181,6 +1196,10 @@ func (s *AssetService) bookImpairment(ctx context.Context, req ImpairmentRequest
 			{Side: domain.SideDebit, Account: expense, Amount: req.Amount, Text: asset.InventoryNumber},
 			{Side: domain.SideCredit, Account: asset.Account, Amount: req.Amount, Text: asset.InventoryNumber},
 		},
+	}
+	entry.ReceiptID = req.ReceiptID
+	if req.Preview {
+		return entry, s.journalSvc.ValidatePostable(ctx, entry)
 	}
 	created, err := s.journalSvc.Post(ctx, entry)
 	if err != nil {
@@ -1220,6 +1239,10 @@ func (s *AssetService) BookWriteUp(ctx context.Context, req WriteUpRequest) (*do
 }
 
 func (s *AssetService) bookWriteUp(ctx context.Context, req WriteUpRequest) (*domain.JournalEntry, error) {
+	if strings.TrimSpace(req.Evidence) == "" {
+		return nil, fmt.Errorf("der Nachweis der Bewertung fehlt")
+	}
+
 	asset, err := s.assetRepo.FindByID(ctx, req.AssetID)
 	if err != nil {
 		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", req.AssetID, err)
@@ -1245,6 +1268,7 @@ func (s *AssetService) bookWriteUp(ctx context.Context, req WriteUpRequest) (*do
 				"welcher das war und wodurch er entfallen ist")
 	}
 
+	req.Reason = strings.TrimSpace(req.Reason) + "; Nachweis: " + strings.TrimSpace(req.Evidence)
 	revenue, err := accounting.WriteUpAccount(asset.Class, asset.Account, asset.TaxPrivileged)
 	if err != nil {
 		return nil, err
@@ -1279,6 +1303,10 @@ func (s *AssetService) bookWriteUp(ctx context.Context, req WriteUpRequest) (*do
 			{Side: domain.SideDebit, Account: asset.Account, Amount: req.Amount, Text: asset.InventoryNumber},
 			{Side: domain.SideCredit, Account: revenue, Amount: req.Amount, Text: asset.InventoryNumber},
 		},
+	}
+	entry.ReceiptID = req.ReceiptID
+	if req.Preview {
+		return entry, s.journalSvc.ValidatePostable(ctx, entry)
 	}
 	created, err := s.journalSvc.Post(ctx, entry)
 	if err != nil {

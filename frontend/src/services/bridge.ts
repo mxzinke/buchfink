@@ -119,6 +119,9 @@ export const bridge = {
   // Anlagevermögen
   PreviewAssetDisposal: <T>(req: unknown) => invoke<T>('PreviewAssetDisposal', req),
   ReverseAssetDisposal: <T>(id: number, movement: number, reason: string) => invoke<T>('ReverseAssetDisposal', id, movement, reason),
+  BookAssetImpairment: <T>(req: unknown) => invoke<T>('BookAssetImpairment', req),
+  BookAssetWriteUp: <T>(req: unknown) => invoke<T>('BookAssetWriteUp', req),
+  ConfirmAssetImpairment: <T>(id: number, year: number, reason: string, evidence: string) => invoke<T>('ConfirmAssetImpairment', id, year, reason, evidence),
   TransferAsset: <T>(req: unknown) => invoke<T>('TransferAsset', req),
   DisposeAsset: <T>(req: unknown) => invoke<T>('DisposeAsset', req),
   UpdateAssetMetadata: <T>(req: unknown) => invoke<T>('UpdateAssetMetadata', req),

@@ -33,6 +33,10 @@ type AgentServices struct {
 		PreviewAppropriation(context.Context, int, service.AppropriationRequest) (*service.AppropriationPreview, error)
 	}
 	Assets interface {
+		BookImpairment(context.Context, service.ImpairmentRequest) (*domain.JournalEntry, error)
+		BookWriteUp(context.Context, service.WriteUpRequest) (*domain.JournalEntry, error)
+		WriteUpReport(context.Context, int) (*service.WriteUpReport, error)
+		ConfirmImpairmentPersists(context.Context, uint, int, string, string) (*service.WriteUpReport, error)
 		Transfer(context.Context, service.TransferRequest) (*domain.FixedAsset, error)
 		Get(context.Context, int, uint) (*service.AssetDetail, error)
 		ReverseDisposal(context.Context, uint, uint, string) (*domain.FixedAsset, error)

@@ -21,7 +21,8 @@ func (s *AssetService) EntryEffect() domain.EntryEffect {
 		for _, asset := range assets {
 			for _, movement := range asset.Movements {
 				if movement.JournalEntryID == nil || *movement.JournalEntryID != original.ID ||
-					(movement.Kind != domain.AssetMovementDepreciation && movement.Kind != domain.AssetMovementDisposal && movement.Kind != domain.AssetMovementTransfer) {
+					(movement.Kind != domain.AssetMovementDepreciation && movement.Kind != domain.AssetMovementDisposal && movement.Kind != domain.AssetMovementTransfer &&
+						movement.Kind != domain.AssetMovementImpairment && movement.Kind != domain.AssetMovementWriteUp) {
 					continue
 				}
 				if movement.Kind == domain.AssetMovementTransfer && movement.TransferBefore != "" {

@@ -430,3 +430,8 @@ in einer Schlussrechnung verrechnete Abschläge bleiben gesperrt.
 
 Beim Storno einer AfA-Buchung über `buchung_stornieren` korrigiert der Kern
 auch die Anlagenkartei durch eine Gegenbewegung am Stornotag.
+
+`abschlussbuchung` mit `art: anlagenbewertung` erfasst im Feld `anlagenbewertung`
+eine `abschreibung`, `zuschreibung` oder `beibehalten`. Grund und Nachweis sind
+Pflicht. `anlagen` mit `wertaufholung: true` liefert die zu prüfenden Anlagen
+und die Obergrenze der Zuschreibung.

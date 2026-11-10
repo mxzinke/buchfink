@@ -25,7 +25,7 @@
       "openWorldHint": false,
       "readOnlyHint": false
     },
-    "description": "Bucht einen Schritt des Jahresabschlusses: afa_lauf, abgrenzung, rueckstellung, ust_verrechnung, steuerrueckstellung, ug_ruecklage, wertberichtigung, unfertige_leistungen, fremdwaehrung, anlage_aktivieren oder vorabpauschale (ohne Buchung), jeweils mit seinen Angaben im gleichnamigen Feld. Erst mit nur_vorschau rechnen, dem Menschen Buchungssatz und Erläuterung vorlegen, nach seinem Ja buchen. Welcher Schritt offen ist, zeigt abschluss_status.",
+    "description": "Bucht einen Schritt des Jahresabschlusses: afa_lauf, abgrenzung, rueckstellung, ust_verrechnung, steuerrueckstellung, ug_ruecklage, wertberichtigung, unfertige_leistungen, fremdwaehrung, anlagenbewertung, anlage_aktivieren oder vorabpauschale (ohne Buchung), jeweils mit seinen Angaben im gleichnamigen Feld. Erst mit nur_vorschau rechnen, dem Menschen Buchungssatz und Erläuterung vorlegen, nach seinem Ja buchen. Welcher Schritt offen ist, zeigt abschluss_status.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
@@ -168,12 +168,62 @@
             "array"
           ]
         },
+        "anlagenbewertung": {
+          "additionalProperties": false,
+          "properties": {
+            "anlage_id": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "art": {
+              "description": "abschreibung, zuschreibung oder beibehalten",
+              "type": "string"
+            },
+            "beleg_id": {
+              "minimum": 0,
+              "type": [
+                "null",
+                "integer"
+              ]
+            },
+            "betrag": {
+              "description": "Euro, z. B. \"119.00\"",
+              "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
+              "type": "string"
+            },
+            "datum": {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+              "type": "string"
+            },
+            "dauerhaft": {
+              "type": "boolean"
+            },
+            "grund": {
+              "type": "string"
+            },
+            "nachweis": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "anlage_id",
+            "art",
+            "datum",
+            "grund",
+            "nachweis"
+          ],
+          "type": [
+            "null",
+            "object"
+          ]
+        },
         "art": {
           "description": "Schritt des Abschlusses; die Angaben stehen im gleichnamigen Feld",
           "enum": [
             "abgrenzung",
             "afa_lauf",
             "anlage_aktivieren",
+            "anlagenbewertung",
             "fremdwaehrung",
             "rueckstellung",
             "steuerrueckstellung",
@@ -818,6 +868,9 @@
         "limit": {
           "description": "1 bis 100, Vorgabe 25",
           "type": "integer"
+        },
+        "wertaufholung": {
+          "type": "boolean"
         }
       },
       "type": "object"

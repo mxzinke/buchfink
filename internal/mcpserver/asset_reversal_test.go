@@ -105,3 +105,52 @@ func TestAssetCompletionThroughTool(t *testing.T) {
 		t.Fatalf("Fertigstellung: %+v", assets)
 	}
 }
+
+func TestAssetValuationAndWriteUpThroughTool(t *testing.T) {
+	h := newHarness(t)
+	h.completeCompany()
+	var id uint
+	h.ui(func(ctx context.Context, s *core.Services) error {
+		asset, err := s.Assets.Save(ctx, &domain.FixedAsset{
+			Name: "Beteiligung", Class: domain.AssetClassFinancial, Account: "0850",
+			AcquisitionDate: "2026-01-01", AcquisitionCost: 1_000_000, Method: domain.DepreciationNone,
+		})
+		if err == nil {
+			id = asset.ID
+		}
+		return err
+	})
+	a := h.agent("")
+	args := func(kind, amount string, preview bool) map[string]any {
+		return a.args(map[string]any{
+			"art": "anlagenbewertung", "geschaeftsjahr": 2026, "nur_vorschau": preview,
+			"idempotenz_schluessel": "bewertung-" + kind,
+			"anlagenbewertung": map[string]any{"anlage_id": id, "art": kind, "datum": "2026-09-30",
+				"betrag": amount, "grund": "Bewertung", "nachweis": "Gutachten vom 30.09.2026"},
+		})
+	}
+	var preview, impaired, restored abschlussAntwort
+	a.ok("abschlussbuchung", args("abschreibung", "2000.00", true), &preview)
+	if len(preview.BuchungIDs) != 0 {
+		t.Fatal("Vorschau hat gebucht")
+	}
+	a.ok("abschlussbuchung", args("abschreibung", "2000.00", false), &impaired)
+	var report anlagenOut
+	a.ok("anlagen", map[string]any{"geschaeftsjahr": 2026, "wertaufholung": true}, &report)
+	if report.Wertaufholung == nil || len(report.Wertaufholung.Candidates) != 1 ||
+		report.Wertaufholung.Candidates[0].MaxWriteUp != 200_000 {
+		t.Fatalf("Wertaufholung: %+v", report)
+	}
+	a.ok("abschlussbuchung", args("zuschreibung", "1000.00", false), &restored)
+	for _, booked := range []abschlussAntwort{restored, impaired} {
+		if len(booked.BuchungIDs) != 1 {
+			t.Fatalf("Bewertung: %+v", booked)
+		}
+		a.ok("buchung_stornieren", a.args(map[string]any{"buchung_id": booked.BuchungIDs[0], "grund": "Bewertung berichtigen"}), nil)
+	}
+	var assets anlagenOut
+	a.ok("anlagen", map[string]any{"geschaeftsjahr": 2026, "anlage_id": id}, &assets)
+	if assets.Detail.Asset.BookValue != 1_000_000 {
+		t.Fatalf("Buchwert: %v", assets.Detail.Asset.BookValue)
+	}
+}

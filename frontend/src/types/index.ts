@@ -4231,3 +4231,13 @@ export interface AssetDisposalPreview {
  gross: number;
  warnings: string[];
 }
+
+export interface AssetValuationRequest {
+ assetId: number;
+ date: string;
+ amount: number;
+ reason: string;
+ evidence: string;
+ permanent: boolean;
+ preview: boolean;
+}

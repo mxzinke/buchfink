@@ -14,6 +14,7 @@ import (
 // --- anlagen ----------------------------------------------------------------
 
 type anlagenIn struct {
+	Wertaufholung  bool         `json:"wertaufholung,omitempty"`
 	AnlageID       uint         `json:"anlage_id,omitempty" jsonschema:"Detail mit Bewegungskennungen"`
 	Geschaeftsjahr int          `json:"geschaeftsjahr,omitempty"`
 	Klasse         AnlageKlasse `json:"klasse,omitempty" jsonschema:"ohne Angabe alle"`
@@ -53,10 +54,11 @@ type kandidat struct {
 }
 
 type anlagenOut struct {
-	Detail     *service.AssetDetail `json:"detail,omitempty"`
-	Anlagen    []anlage             `json:"anlagen"`
-	AfAFaellig Betrag               `json:"afa_faellig_gesamt"`
-	Kandidaten []kandidat           `json:"aktivierungskandidaten" jsonschema:"Buchungen auf Anlagekonten ohne Anlagegut; mit abschlussbuchung art=anlage_aktivieren aufnehmen"`
+	Wertaufholung *service.WriteUpReport `json:"wertaufholung,omitempty"`
+	Detail        *service.AssetDetail   `json:"detail,omitempty"`
+	Anlagen       []anlage               `json:"anlagen"`
+	AfAFaellig    Betrag                 `json:"afa_faellig_gesamt"`
+	Kandidaten    []kandidat             `json:"aktivierungskandidaten" jsonschema:"Buchungen auf Anlagekonten ohne Anlagegut; mit abschlussbuchung art=anlage_aktivieren aufnehmen"`
 	Seitenende
 }
 
@@ -105,7 +107,7 @@ type abschlussStatusOut struct {
 
 var stepActions = map[domain.ClosingStepKey]naechsteAktion{
 	domain.ClosingStepDepreciation:        {Werkzeug: "abschlussbuchung", Parameter: map[string]string{"art": "afa_lauf"}},
-	domain.ClosingStepWriteUp:             {Werkzeug: "nur_app"},
+	domain.ClosingStepWriteUp:             {Werkzeug: "anlagen", Parameter: map[string]string{"wertaufholung": "true"}},
 	domain.ClosingStepCurrencyValuation:   {Werkzeug: "abschlussbuchung", Parameter: map[string]string{"art": "fremdwaehrung"}},
 	domain.ClosingStepReceivableAllowance: {Werkzeug: "abschlussbuchung", Parameter: map[string]string{"art": "wertberichtigung"}},
 	domain.ClosingStepWorkInProgress:      {Werkzeug: "abschlussbuchung", Parameter: map[string]string{"art": "unfertige_leistungen"}},
@@ -215,6 +217,7 @@ type vorabpauschaleIn struct {
 }
 
 type abschlussbuchungIn struct {
+	Anlagenbewertung *anlagenbewertungIn `json:"anlagenbewertung,omitempty"`
 	KeyedWriteArgs
 	Art                 AbschlussArt           `json:"art"`
 	Geschaeftsjahr      int                    `json:"geschaeftsjahr,omitempty"`
@@ -259,6 +262,10 @@ func registerAbschluss(tb *Toolbox) {
 		out := anlagenOut{Anlagen: []anlage{}, Kandidaten: []kandidat{}}
 		year, err := yearOr(ctx, c, in.Geschaeftsjahr)
 		if err != nil {
+			return out, err
+		}
+		if in.Wertaufholung {
+			out.Wertaufholung, err = s.Assets.WriteUpReport(ctx, year)
 			return out, err
 		}
 		if in.AnlageID != 0 {
@@ -364,7 +371,7 @@ func registerAbschluss(tb *Toolbox) {
 		Title: "Abschlussbuchung",
 		Description: "Bucht einen Schritt des Jahresabschlusses: afa_lauf, abgrenzung, rueckstellung, ust_verrechnung, " +
 			"steuerrueckstellung, ug_ruecklage, wertberichtigung, unfertige_leistungen, fremdwaehrung, " +
-			"anlage_aktivieren oder vorabpauschale (ohne Buchung), jeweils mit seinen Angaben im " +
+			"anlagenbewertung, anlage_aktivieren oder vorabpauschale (ohne Buchung), jeweils mit seinen Angaben im " +
 			"gleichnamigen Feld. Erst mit nur_vorschau rechnen, " +
 			"dem Menschen Buchungssatz und Erläuterung vorlegen, nach seinem Ja buchen. Welcher Schritt offen ist, " +
 			"zeigt abschluss_status.",
@@ -399,6 +406,7 @@ type closingRun func(ctx context.Context, s core.AgentServices, year int, in abs
 
 var closingRuns = map[string]closingRun{
 	"afa_lauf":             runDepreciation,
+	"anlagenbewertung":     runAssetValuation,
 	"abgrenzung":           runAccrual,
 	"rueckstellung":        runProvision,
 	"ust_verrechnung":      runVatSettlement,

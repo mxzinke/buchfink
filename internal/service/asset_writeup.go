@@ -156,16 +156,26 @@ func (s *AssetService) WriteUpReport(ctx context.Context, year int) (*WriteUpRep
 // ConfirmImpairmentPersists hält fest, dass der Grund einer außerplanmäßigen
 // Abschreibung im Geschäftsjahr fortbesteht.
 func (s *AssetService) ConfirmImpairmentPersists(
-	ctx context.Context, assetID uint, year int, note string,
+	ctx context.Context, assetID uint, year int, note, evidence string,
 ) (*WriteUpReport, error) {
 	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*WriteUpReport, error) {
-		return s.confirmImpairmentPersists(ctx, assetID, year, note)
+		return s.confirmImpairmentPersists(ctx, assetID, year, note, evidence)
 	})
 }
 
 func (s *AssetService) confirmImpairmentPersists(
-	ctx context.Context, assetID uint, year int, note string,
+	ctx context.Context, assetID uint, year int, note, evidence string,
 ) (*WriteUpReport, error) {
+	if strings.TrimSpace(evidence) == "" {
+		return nil, fmt.Errorf("der Nachweis für die Beibehaltung fehlt")
+	}
+	state, err := s.journalSvc.periods.State(ctx, fiscalYearEndDate(year, s.fiscalYearStartMonth(ctx)))
+	if err != nil {
+		return nil, err
+	}
+	if err := state.ensureOpen(fiscalYearEndDate(year, s.fiscalYearStartMonth(ctx)), true); err != nil {
+		return nil, err
+	}
 	if strings.TrimSpace(note) == "" {
 		return nil, fmt.Errorf(
 			"halte fest, warum der Grund der außerplanmäßigen Abschreibung fortbesteht. Die " +
@@ -180,7 +190,7 @@ func (s *AssetService) confirmImpairmentPersists(
 		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", assetID, err)
 	}
 	asset.ImpairmentPersistsYear = year
-	asset.ImpairmentPersistsNote = strings.TrimSpace(note)
+	asset.ImpairmentPersistsNote = strings.TrimSpace(note) + "; Nachweis: " + strings.TrimSpace(evidence)
 	if err := s.assetRepo.Save(ctx, asset); err != nil {
 		return nil, fmt.Errorf("die Bestätigung ließ sich nicht speichern: %w", err)
 	}

@@ -67,3 +67,54 @@ func TestDepreciationReversalRestoresRegister(t *testing.T) {
 		})
 	}
 }
+
+func TestAssetValuationRejectsCommittedPeriod(t *testing.T) {
+	for _, kind := range []string{"impairment", "writeup", "confirm"} {
+		t.Run(kind, func(t *testing.T) {
+			env := newTestEnv(t)
+			svc := env.assets(t)
+			ctx := context.Background()
+			asset, err := svc.Save(ctx, &domain.FixedAsset{
+				Name: "Beteiligung", Class: domain.AssetClassFinancial, Account: "0850",
+				AcquisitionDate: "2026-01-01", AcquisitionCost: 1_000_000, Method: domain.DepreciationNone,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := svc.BookImpairment(ctx, ImpairmentRequest{
+				AssetID: asset.ID, Date: "2026-09-30", Amount: 200_000, Reason: "Wertverlust", Evidence: "Gutachten",
+			}); err != nil {
+				t.Fatal(err)
+			}
+			repo := repository.NewFestschreibungRepository(env.db)
+			env.journal.SetFestschreibungRepo(repo)
+			if err := repo.Create(ctx, &domain.Festschreibung{
+				FiscalYear: 2026, PeriodType: "year", PeriodLabel: "2026", CutoffDate: "2026-12-31", ChainHead: domain.GenesisHash,
+			}); err != nil {
+				t.Fatal(err)
+			}
+			switch kind {
+			case "impairment":
+				_, err = svc.BookImpairment(ctx, ImpairmentRequest{
+					AssetID: asset.ID, Date: "2026-12-31", Amount: 100_000, Reason: "Wertverlust", Evidence: "Gutachten",
+				})
+			case "writeup":
+				_, err = svc.BookWriteUp(ctx, WriteUpRequest{
+					AssetID: asset.ID, Date: "2026-12-31", Amount: 100_000, Reason: "Erholung", Evidence: "Gutachten",
+				})
+			case "confirm":
+				_, err = svc.ConfirmImpairmentPersists(ctx, asset.ID, 2026, "Unverändert", "Gutachten")
+			}
+			if err == nil {
+				t.Fatal("Bewertung trotz Festschreibung")
+			}
+			detail, err := svc.Get(ctx, 2026, asset.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if detail.Asset.BookValue != 800_000 || len(detail.Movements) != 2 {
+				t.Fatalf("Kartei verändert: %+v", detail.Asset)
+			}
+		})
+	}
+}

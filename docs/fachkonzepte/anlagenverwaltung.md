@@ -8,9 +8,9 @@ Anforderungen: BEW-02 bis BEW-06, BEW-10, JAB-05. Code: `internal/domain/asset.g
 `frontend/src/pages/books/AssetsTab.tsx`) zeigt Verzeichnis,
 Abschreibungsplan und Anlagenspiegel. Beschreibende Stammdaten lassen sich
 in der App ändern; erfasst und abgeschrieben wird über einen verbundenen Agenten.
-Außerplanmäßige
-Abschreibung, Zuschreibung und die Fremdwährungsbewertung der Anlagegüter
-rechnet der Dienst, hat aber keinen Erfassungsweg in App oder MCP.
+Außerplanmäßige Abschreibung und Zuschreibung sind in der Anlagenansicht und
+über `abschlussbuchung` (`anlagenbewertung`) mit Grund und Nachweis erreichbar.
+Die Fremdwährungsbewertung hat noch keinen Erfassungsweg.
 
 ## Stammdaten
 
@@ -74,7 +74,7 @@ zurückzunehmen.
 - Nutzungsdauern schlägt Buchfink für eindeutige Fälle aus den AfA-Tabellen vor;
   jeder Vorschlag ist überschreibbar.
 - Außerplanmäßige Abschreibung bei dauernder Wertminderung (§ 253 Abs. 3 HGB)
-  auf **6230**, nur mit Grund. Fällt der Grund weg, ist zuzuschreiben
+  auf **6230**, nur mit Grund und Nachweis. Fällt der Grund weg, ist zuzuschreiben
   (§ 253 Abs. 5 HGB); der Jahresabschluss fragt das in einem eigenen Baustein.
   Beide Buchungen rechnen `AssetService.BookImpairment` und
   `AssetService.BookWriteUp`.
@@ -162,3 +162,8 @@ ist. Kleine Kapitalgesellschaften sind von ihm im Anhang befreit
 [hgb271]: https://www.gesetze-im-internet.de/hgb/__271.html
 [hgb288]: https://www.gesetze-im-internet.de/hgb/__288.html
 [invstg18]: https://www.gesetze-im-internet.de/invstg_2018/__18.html
+
+Die Prüfung der Wertaufholung im Jahresabschluss verlinkt auf die Anlage.
+Dort lässt sich zuschreiben oder mit Grund und Nachweis bestätigen, dass die
+Wertminderung fortbesteht. Festgeschriebene Perioden lassen sich dadurch nicht
+ändern. Stornos von Wertminderungen und Zuschreibungen erzeugen Gegenbewegungen.

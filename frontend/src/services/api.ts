@@ -642,6 +642,10 @@ export const Api = {
     call(() => Bridge.PreviewAssetDisposal<import('../types').AssetDisposalPreview>(req)),
   reverseAssetDisposal: (id: number, movement: number, reason: string) =>
     call(() => Bridge.ReverseAssetDisposal<FixedAsset>(id, movement, reason)),
+  bookAssetImpairment: (req: import('../types').AssetValuationRequest) => call(() => Bridge.BookAssetImpairment<JournalEntry>(req)),
+  bookAssetWriteUp: (req: import('../types').AssetValuationRequest) => call(() => Bridge.BookAssetWriteUp<JournalEntry>(req)),
+  confirmAssetImpairment: (id: number, year: number, reason: string, evidence: string) =>
+    call(() => Bridge.ConfirmAssetImpairment<WriteUpReport>(id, year, reason, evidence)),
   transferAsset: (req: { assetId: number; date: string; account: string; depreciationAccount: string;
     method: string; usefulLifeMonths: number; note: string }) => call(() => Bridge.TransferAsset<FixedAsset>(req)),
   disposeAsset: (req: import('../types').AssetDisposalRequest) =>

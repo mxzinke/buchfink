@@ -121,3 +121,11 @@ Stückzahl; beim Sammelposten den Zugang des ausgeschiedenen Wirtschaftsguts
 (`pool_zugang_id`). Die Bewegungskennungen liefert `anlagen` mit `anlage_id`. Der Sammelposten wird nicht vermindert
 ([§ 6 Abs. 2a Satz 3 EStG](https://www.gesetze-im-internet.de/estg/__6.html)).
 `art: storno` nimmt einen Abgang anhand seiner `bewegung_id` mit Grund zurück.
+
+Wertminderung und Zuschreibung: `abschlussbuchung`, `art: anlagenbewertung`,
+mit `anlagenbewertung.art: abschreibung` oder `zuschreibung`. Nenne Anlage,
+Datum, Betrag, Grund und Nachweis, bei Abschreibung auch `dauerhaft`.
+Lege die Vorschau vor. Zur Jahresprüfung liefert `anlagen` mit
+`wertaufholung: true` die Kandidaten. Besteht der Grund fort, halte dies nach
+Rückfrage mit `anlagenbewertung.art: beibehalten` samt Grund und Nachweis fest.
+Die Regeln folgen aus [§ 253 Abs. 3 und 5 HGB](https://www.gesetze-im-internet.de/hgb/__253.html).

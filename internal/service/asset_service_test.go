@@ -171,7 +171,7 @@ func TestImpairmentRulesDifferBetweenTangibleAndFinancialAssets(t *testing.T) {
 	ctx := context.Background()
 	machine := env.machine(t, svc)
 
-	_, err := svc.BookImpairment(ctx, ImpairmentRequest{
+	_, err := svc.BookImpairment(ctx, ImpairmentRequest{Evidence: "Wertgutachten",
 		AssetID: machine.ID, Date: "2026-11-30", Amount: 100_000,
 		Permanent: false, Reason: "Marktwert gefallen",
 	})
@@ -179,13 +179,13 @@ func TestImpairmentRulesDifferBetweenTangibleAndFinancialAssets(t *testing.T) {
 		t.Fatal("auf eine Sachanlage darf bei nicht dauernder Wertminderung nicht abgeschrieben werden")
 	}
 
-	if _, err := svc.BookImpairment(ctx, ImpairmentRequest{
+	if _, err := svc.BookImpairment(ctx, ImpairmentRequest{Evidence: "Wertgutachten",
 		AssetID: machine.ID, Date: "2026-11-30", Amount: 100_000, Permanent: true,
 	}); err == nil {
 		t.Error("eine außerplanmäßige Abschreibung ohne Begründung darf nicht durchgehen")
 	}
 
-	entry, err := svc.BookImpairment(ctx, ImpairmentRequest{
+	entry, err := svc.BookImpairment(ctx, ImpairmentRequest{Evidence: "Wertgutachten",
 		AssetID: machine.ID, Date: "2026-11-30", Amount: 100_000, Permanent: true,
 		Reason: "Dauerhafter Schaden am Antrieb",
 	})
@@ -204,7 +204,7 @@ func TestImpairmentRulesDifferBetweenTangibleAndFinancialAssets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Finanzanlage konnte nicht angelegt werden: %v", err)
 	}
-	financial, err := svc.BookImpairment(ctx, ImpairmentRequest{
+	financial, err := svc.BookImpairment(ctx, ImpairmentRequest{Evidence: "Wertgutachten",
 		AssetID: share.ID, Date: "2026-12-01", Amount: 500_000,
 		Permanent: false, Reason: "Kurs unter Anschaffungskosten",
 	})
@@ -232,20 +232,20 @@ func TestWriteUpIsCappedAtContinuedCost(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Finanzanlage: %v", err)
 	}
-	if _, err := svc.BookImpairment(ctx, ImpairmentRequest{
+	if _, err := svc.BookImpairment(ctx, ImpairmentRequest{Evidence: "Wertgutachten",
 		AssetID: share.ID, Date: "2026-06-30", Amount: 500_000,
 		Permanent: true, Reason: "Verlustjahr der Beteiligung",
 	}); err != nil {
 		t.Fatalf("außerplanmäßige Abschreibung: %v", err)
 	}
 
-	if _, err := svc.BookWriteUp(ctx, WriteUpRequest{
+	if _, err := svc.BookWriteUp(ctx, WriteUpRequest{Evidence: "Wertgutachten",
 		AssetID: share.ID, Date: "2026-12-31", Amount: 600_000, Reason: "Erholung",
 	}); err == nil {
 		t.Fatal("über die fortgeführten Anschaffungskosten hinaus darf nicht zugeschrieben werden")
 	}
 
-	entry, err := svc.BookWriteUp(ctx, WriteUpRequest{
+	entry, err := svc.BookWriteUp(ctx, WriteUpRequest{Evidence: "Wertgutachten",
 		AssetID: share.ID, Date: "2026-12-31", Amount: 500_000, Reason: "Grund entfallen",
 	})
 	if err != nil {
@@ -731,7 +731,7 @@ func TestDetailCarriesTheWriteUpCeiling(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Finanzanlage: %v", err)
 	}
-	if _, err := svc.BookImpairment(ctx, ImpairmentRequest{
+	if _, err := svc.BookImpairment(ctx, ImpairmentRequest{Evidence: "Wertgutachten",
 		AssetID: share.ID, Date: "2026-06-30", Amount: 500_000,
 		Permanent: true, Reason: "Verlustjahr",
 	}); err != nil {
@@ -1064,7 +1064,7 @@ func TestPartialDisposalCarriesItsShareOfTheImpairment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Finanzanlage: %v", err)
 	}
-	if _, err := svc.BookImpairment(ctx, ImpairmentRequest{
+	if _, err := svc.BookImpairment(ctx, ImpairmentRequest{Evidence: "Wertgutachten",
 		AssetID: share.ID, Date: "2026-06-30", Amount: 800_000,
 		Permanent: true, Reason: "Dauerhafter Wertverlust",
 	}); err != nil {
@@ -1764,7 +1764,7 @@ func TestCurrencyValuationProposesButNeverExceedsCost(t *testing.T) {
 	}
 
 	// Nach einer außerplanmäßigen Abschreibung ist wieder Luft nach oben.
-	if _, err := svc.BookImpairment(ctx, ImpairmentRequest{
+	if _, err := svc.BookImpairment(ctx, ImpairmentRequest{Evidence: "Wertgutachten",
 		AssetID: asset.ID, Date: "2026-06-30", Amount: 2_000_00,
 		Reason: "Kursverfall des US-Dollars",
 	}); err != nil {

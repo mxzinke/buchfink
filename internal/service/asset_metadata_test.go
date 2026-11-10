@@ -126,7 +126,7 @@ func TestAssetMetadataRejectsQuantityAfterMovement(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.BookImpairment(ctx, ImpairmentRequest{
+	if _, err := svc.BookImpairment(ctx, ImpairmentRequest{Evidence: "Wertgutachten",
 		AssetID: asset.ID, Date: "2026-12-31", Amount: 100000, Reason: "Dauerhafter Wertverlust",
 	}); err != nil {
 		t.Fatal(err)

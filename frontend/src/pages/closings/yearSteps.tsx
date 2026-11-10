@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Api } from '../../services/api';
 import { useWriteLock } from '../../components/WriteLock';
 import { formatCents, formatDate, formatPermille } from '../../utils/formatters';
-import type { Route } from '../../navigation';
+import { useNavigation, type Route } from '../../navigation';
 import type {
   Accrual,
   ClosingStepKey,
@@ -511,6 +511,7 @@ const CurrencyKartei: React.FC<{ year: number }> = ({ year }) => {
 };
 
 const WriteUpKartei: React.FC<{ year: number }> = ({ year }) => {
+  const { navigate } = useNavigation();
   const { data, error } = useKartei<WriteUpReport>(() => Api.getWriteUpReport(year), [year]);
   return (
     <KarteiFrame
@@ -536,7 +537,9 @@ const WriteUpKartei: React.FC<{ year: number }> = ({ year }) => {
           <Tbody>
             {data.candidates.map((c) => (
               <Tr key={c.assetId}>
-                <Td>{`${c.inventoryNumber} · ${c.name}`}</Td>
+                <Td><Button variant="quiet" onClick={() => navigate({ area: 'books', tab: 'assets', id: String(c.assetId) })}>
+                  {`${c.inventoryNumber} · ${c.name}`}
+                </Button></Td>
                 <Td numeric>{formatCents(c.bookValue)}</Td>
                 <Td numeric>{formatCents(c.maxWriteUp)}</Td>
                 <Td>{c.confirmed ? 'bestätigt' : 'offen'}</Td>
