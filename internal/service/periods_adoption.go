@@ -20,7 +20,7 @@ func (s *PeriodService) Adopt(ctx context.Context, year int, status domain.Fisca
 	})
 }
 
-// Reopen nimmt die Feststellung mit protokollierter Begründung zurück.
+// Reopen nimmt Aufstellung oder Feststellung mit protokollierter Begründung zurück.
 // Die Festschreibungen und ihre Buchungsstempel bleiben erhalten.
 func (s *PeriodService) Reopen(ctx context.Context, year int, reason string) (*domain.FiscalYear, error) {
 	if err := requireHuman(ctx, "Das Zurücknehmen der Feststellung"); err != nil {
@@ -176,15 +176,19 @@ func (s *PeriodService) reopenFiscalYear(ctx context.Context, year int, reason s
 	if strings.TrimSpace(reason) == "" {
 		return nil, fmt.Errorf("für die Rücksetzung des Jahresabschlusses ist ein Grund anzugeben")
 	}
-	if fy.Status == domain.FiscalYearOpen || fy.Status == domain.FiscalYearPrepared {
+	if fy.Status == domain.FiscalYearOpen {
 		return nil, fmt.Errorf(
-			"das Geschäftsjahr %d ist nicht festgestellt (Stand: %s); es gibt nichts zurückzusetzen",
+			"das Geschäftsjahr %d ist offen (Stand: %s); es gibt nichts zurückzusetzen",
 			year, fy.Status.Label())
 	}
 
 	previous := fy.Status
 	before := *fy
 	fy.Status = domain.FiscalYearPrepared
+	if previous == domain.FiscalYearPrepared {
+		fy.Status = domain.FiscalYearOpen
+		fy.PreparedOn = ""
+	}
 	fy.AdoptedOn = ""
 	fy.AdoptionNote = ""
 	fy.DisclosedOn = ""
@@ -199,7 +203,7 @@ func (s *PeriodService) reopenFiscalYear(ctx context.Context, year int, reason s
 
 	if err := s.logChange(ctx, domain.AuditActionUpdate, year, fmt.Sprintf(
 		"Geschäftsjahr %d von %q auf %q zurückgesetzt (Grund: %s)",
-		year, previous.Label(), domain.FiscalYearPrepared.Label(), strings.TrimSpace(reason)), &before, fy); err != nil {
+		year, previous.Label(), fy.Status.Label(), strings.TrimSpace(reason)), &before, fy); err != nil {
 		return nil, err
 	}
 	return fy, nil

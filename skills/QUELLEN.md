@@ -742,7 +742,7 @@ Links am 17.10.2026 mit HTTP 200 geprüft.
 | § 253 HGB | https://www.gesetze-im-internet.de/hgb/__253.html | Erfüllungsbetrag (Abs. 1 Satz 2), Kleinst ohne Zeitwert (Abs. 1 Satz 5, 6), Abzinsung 7/10 Jahre, Bundesbank monatlich (Abs. 2 Satz 1, 4), planmäßig und außerplanmäßig (Abs. 3 Satz 1, 2, 5, 6), Umlaufvermögen (Abs. 4), Wertaufholung (Abs. 5) | Text 17.10.2026 | jahresabschluss/abschreibungen, forderungen, groessenklassen-anhang, rueckstellungen, unfertige-leistungen |
 | § 255 HGB | https://www.gesetze-im-internet.de/hgb/__255.html | Herstellungskosten: Pflicht, Wahlrecht, Verbot (Abs. 2), Zinsen (Abs. 3) | Text 17.10.2026 | jahresabschluss/unfertige-leistungen |
 | § 256a HGB | https://www.gesetze-im-internet.de/hgb/__256a.html | Devisenkassamittelkurs; Restlaufzeit bis ein Jahr ohne Höchstwert/Imparität | Text 17.10.2026 | jahresabschluss/forderungen |
-| § 264 HGB | https://www.gesetze-im-internet.de/hgb/__264.html | Anhang (Abs. 1 Satz 1), Frist 3 Monate / kleine bis 6 Monate, kein Lagebericht (Satz 3, 4), Kleinst ohne Anhang (Satz 5), Firma/Sitz/Register (Abs. 1a), zusätzliche Angaben (Abs. 2 Satz 2, 4) | Text 17.10.2026 | jahresabschluss/ablauf, aufstellen-feststellen-offenlegen, groessenklassen-anhang |
+| § 264 HGB | https://www.gesetze-im-internet.de/hgb/__264.html | Anhang (Abs. 1 Satz 1), Frist 3 Monate / kleine bis 6 Monate, kein Lagebericht (Satz 3, 4), Kleinst ohne Anhang (Satz 5), Firma/Sitz/Register (Abs. 1a), zusätzliche Angaben (Abs. 2 Satz 2, 4) | Text 10.11.2026 | jahresabschluss/ablauf, aufstellen-feststellen-offenlegen, groessenklassen-anhang |
 | § 266 HGB | https://www.gesetze-im-internet.de/hgb/__266.html | verkürzte Bilanz kleine/Kleinst (Abs. 1 Satz 3, 4); Posten unfertige Leistungen (Abs. 2 B. I. 2.) | Text 17.10.2026 | jahresabschluss/groessenklassen-anhang, unfertige-leistungen |
 | § 267 HGB | https://www.gesetze-im-internet.de/hgb/__267.html | Schwellen klein 7,5 Mio./15 Mio./50, mittel 25 Mio./50 Mio./250 (Abs. 1, 2); Zweijahresregel, Neugründung (Abs. 4); Bilanzsumme (Abs. 4a); Arbeitnehmerzahl (Abs. 5) | Text 17.10.2026 | jahresabschluss/groessenklassen-anhang |
 | § 267a HGB | https://www.gesetze-im-internet.de/hgb/__267a.html | Kleinst 450.000/900.000/10 (Abs. 1); Regeln für kleine gelten (Abs. 2); reine Beteiligungsholding keine Kleinst (Abs. 3 Nr. 3) | Text 17.10.2026 | jahresabschluss/groessenklassen-anhang |
@@ -752,9 +752,9 @@ Links am 17.10.2026 mit HTTP 200 geprüft.
 | § 275 HGB | https://www.gesetze-im-internet.de/hgb/__275.html | Rücklagenveränderungen nach Jahresüberschuss (Abs. 4); Kleinst-GuV (Abs. 5) | Text 17.10.2026 | jahresabschluss/ergebnisverwendung-ug, groessenklassen-anhang |
 | § 276 HGB | https://www.gesetze-im-internet.de/hgb/__276.html | Rohergebnis für kleine und mittelgroße | Text 17.10.2026 | jahresabschluss/groessenklassen-anhang |
 | § 277 HGB | https://www.gesetze-im-internet.de/hgb/__277.html | außerplanmäßige Abschreibungen gesondert oder Anhang (Abs. 3 Satz 1); Abzinsung unter Zinsen, Währungsumrechnung unter sonstigen betrieblichen Posten (Abs. 5) | Text 17.10.2026 | bank/skonto-differenzen, jahresabschluss/forderungen, groessenklassen-anhang, rueckstellungen |
-| § 284 HGB | https://www.gesetze-im-internet.de/hgb/__284.html | Methoden (Abs. 2 Nr. 1), Abweichungen (Nr. 2), Anlagenspiegel (Abs. 3) | Text 17.10.2026 | jahresabschluss/abschreibungen, groessenklassen-anhang |
-| § 285 HGB | https://www.gesetze-im-internet.de/hgb/__285.html | Nr. 1, 3a, 7, 9 c, 12, 13, 31, 34 | Text 17.10.2026 | jahresabschluss/ergebnisverwendung-ug, groessenklassen-anhang, rueckstellungen; beteiligungen/erwerb-ausweis |
-| § 288 HGB | https://www.gesetze-im-internet.de/hgb/__288.html | Befreiungen kleine (Abs. 1 Nr. 1–3) | Text 17.10.2026 | jahresabschluss/abschreibungen, ergebnisverwendung-ug, groessenklassen-anhang, rueckstellungen; beteiligungen/erwerb-ausweis |
+| § 284 HGB | https://www.gesetze-im-internet.de/hgb/__284.html | Methoden (Abs. 2 Nr. 1), Abweichungen (Nr. 2), Anlagenspiegel (Abs. 3) | Text 10.11.2026 | jahresabschluss/abschreibungen, groessenklassen-anhang |
+| § 285 HGB | https://www.gesetze-im-internet.de/hgb/__285.html | Nr. 1, 3a, 7, 9 c, 12, 13, 31, 34 | Text 10.11.2026 | jahresabschluss/ergebnisverwendung-ug, groessenklassen-anhang, rueckstellungen; beteiligungen/erwerb-ausweis |
+| § 288 HGB | https://www.gesetze-im-internet.de/hgb/__288.html | Befreiungen kleine (Abs. 1 Nr. 1–3) | Text 10.11.2026 | jahresabschluss/abschreibungen, ergebnisverwendung-ug, groessenklassen-anhang, rueckstellungen; beteiligungen/erwerb-ausweis |
 | § 316 HGB | https://www.gesetze-im-internet.de/hgb/__316.html | Prüfungspflicht ab mittelgroß; ohne Prüfung keine Feststellung (Abs. 1) | Text 17.10.2026 | jahresabschluss/groessenklassen-anhang |
 | § 325 HGB | https://www.gesetze-im-internet.de/hgb/__325.html | Offenlegung an Unternehmensregister, deutsch, elektronisch (Abs. 1); ein Jahr (Abs. 1a); Änderungen (Abs. 1b) | Text 17.10.2026 | jahresabschluss/aufstellen-feststellen-offenlegen, rueckstellungen |
 | § 326 HGB | https://www.gesetze-im-internet.de/hgb/__326.html | kleine: Bilanz und Anhang ohne GuV-Angaben; Kleinst: nur Bilanz, Hinterlegung mit Mitteilung | Text 17.10.2026 | jahresabschluss/aufstellen-feststellen-offenlegen |
@@ -824,8 +824,6 @@ Links am 17.10.2026 mit HTTP 200 geprüft.
   Art. 93 Abs. 1 EGHGB (Art. 79 betrifft die Abschlussprüfungsreform).
 - Buchfink: `asset_service.go` begründet die Ablehnung des
   Sammelposten-Abgangs mit „§ 6 Abs. 2a S. 4 EStG“; nach Wortlaut Satz 3.
-- Buchfink: Anhangumfang folgt nicht der Größenklasse; Haftungsverhältnisse als
-  Anhangtext statt unter der Bilanz bei Kleinst.
 - Buchfink: Kein Format für das Unternehmensregister.
 - Konto bei nicht abgerechneter eigener Leistung (Erlös im falschen Jahr)
   nicht festgelegt; Buchungsdatum des Erlöses bei Rechnung im Folgejahr prüfen.

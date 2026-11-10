@@ -162,16 +162,12 @@ func (s *StatementService) Build(ctx context.Context, year int, depth domain.Sta
 		Deadlines:  s.deadlinesFor(ctx, year),
 	}
 	out.Notes.Missing = []string{}
-	required := map[domain.NotesSection]bool{domain.NotesSectionContingent: true, domain.NotesSectionBoardLoans: true, domain.NotesSectionAdditional: true}
-	if sizeClass.Obligations.NotesRequired {
-		required[domain.NotesSectionMethods] = true
-	}
 	values := map[domain.NotesSection]domain.NotesSectionText{}
 	for _, text := range out.Notes.Texts {
 		values[text.Section] = text
 	}
 	for _, def := range domain.AllNotesSections() {
-		if !required[def.Section] {
+		if !def.Section.Required(sizeClass.Obligations.NotesRequired) {
 			continue
 		}
 		text := values[def.Section]

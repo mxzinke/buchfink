@@ -70,7 +70,7 @@ func (b *BuchfinkBridge) SetFiscalYearStatus(year int, status, date, note string
 	}, core.AppOnly())
 }
 
-// ReopenFiscalYear nimmt die Feststellung mit Angabe eines Grundes zurück.
+// ReopenFiscalYear nimmt Aufstellung oder Feststellung mit Angabe eines Grundes zurück.
 func (b *BuchfinkBridge) ReopenFiscalYear(year int, reason string) (*domain.FiscalYear, error) {
 	return write(b, func(ctx context.Context, s *core.Services) (*domain.FiscalYear, error) {
 		return s.Closing.ReopenFiscalYear(ctx, year, reason)

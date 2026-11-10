@@ -63,13 +63,6 @@ einzelne Kriterien im [Anforderungskatalog](../anforderungen/README.md).
 - Offenlegung und Hinterlegung erfasst Buchfink als Stand mit Nachweis. Einen
   Datensatz für das Unternehmensregister erzeugt es nicht.
 - Die Eröffnungsbilanz als PDF gibt nur die App aus, kein Werkzeug.
-- Aufstellen verlangt Text in den Pflichtabschnitten des Anhangs
-  (Haftungsverhältnisse, Vorschüsse und Kredite an Organmitglieder, weitere
-  wesentliche Angaben; ohne Befreiung auch Bilanzierungs- und
-  Bewertungsmethoden). Diese Texte nimmt
-  `service.AppropriationService.SaveNotesText` auf, das weder App noch
-  Werkzeug erreicht. Aufstellen, Feststellen und die Ergebnisverwendung
-  lassen sich deshalb in Buchfink nicht abschließen.
 - Eine Ausschüttung per Handbuchung prüft Buchfink nicht gegen die
   Feststellung und rechnet keine Kapitalertragsteuer; eine zurückgenommene
   Feststellung lässt die gebuchte Ergebnisverwendung stehen. Beides ist

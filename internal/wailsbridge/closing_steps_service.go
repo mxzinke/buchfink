@@ -135,11 +135,18 @@ func (b *BuchfinkBridge) GetAppropriation(year int) (*domain.Appropriation, erro
 	})
 }
 
-// GetNotesTexts liefert die Abschnitte des Anhangs mit ihrem Text.
-func (b *BuchfinkBridge) GetNotesTexts(year int) ([]service.NotesTextView, error) {
+// GetNotesTexts liefert Texte, Pflichtkennzeichen und Bearbeitungssperre.
+func (b *BuchfinkBridge) GetNotesTexts(year int) (*service.NotesEditor, error) {
 	year = b.yearOr(year)
-	return readList(b, func(ctx context.Context, s *core.Services) ([]service.NotesTextView, error) {
-		return s.Appropriation.NotesTexts(ctx, year)
+	return read(b, func(ctx context.Context, s *core.Services) (*service.NotesEditor, error) {
+		return s.Appropriation.NotesEditor(ctx, year)
+	})
+}
+
+func (b *BuchfinkBridge) SaveNotesText(year int, section domain.NotesSection, text string) ([]service.NotesTextView, error) {
+	year = b.yearOr(year)
+	return write(b, func(ctx context.Context, s *core.Services) ([]service.NotesTextView, error) {
+		return s.Appropriation.SaveNotesText(ctx, year, section, text)
 	})
 }
 

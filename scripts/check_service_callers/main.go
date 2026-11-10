@@ -57,7 +57,6 @@ var exceptions = map[string]string{
 	"AccrualService.Propose": "keine Vorschläge zur Rechnungsabgrenzung; der Agent sucht die Buchungen selbst",
 	"AccrualService.Report":  "kein Abgrenzungsspiegel zum Stichtag",
 
-	"AppropriationService.SaveNotesText": "Anhangtexte lassen sich nicht erfassen; mit leerem Pflichtabschnitt scheitert das Aufstellen",
 
 	"AssetService.BookImpairment":            "keine außerplanmäßige Abschreibung",
 	"AssetService.BookWriteUp":               "keine Wertaufholung nach § 253 Abs. 5 HGB",

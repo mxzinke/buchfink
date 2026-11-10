@@ -184,6 +184,7 @@ den Schemas nur kurz.
 | `darlehen_erfassen` | rueckfrage | Darlehensvertrag mit einem Gesellschafter anlegen oder mit Grund berichtigen, Vertrag als `beleg_id`; beim Berichtigen bleibt, was fehlt, und sind Auszahlungen gebucht, bleiben Konto, Gesellschafter und Richtung; `art: zinsen` bucht die Zinsen bis `zinsen_bis` mit Eigenbeleg der Zinsrechnung und vermerkt die Zinsperiode; `vermerk_beleg_id` ordnet einen abgelegten Vermerk zur Zinsentscheidung zu, der den Fremdvergleich ohne Vergleichszins belegt; `nur_vorschau` zeigt Konten, Stand zum heutigen Tag (`stichtag`) und Befunde zum Fremdvergleich |
 | `ergebnisverwendung_buchen` | rueckfrage | Gesellschafterbeschluss über das Ergebnis im Folgejahr buchen: Rücklagen, Ausschüttung mit Kapitalertragsteuer, Vortrag; erst nach der Feststellung durch den Menschen |
 | `verfahrensdoku_text` | rueckfrage | Organisationstexte der Verfahrensdokumentation lesen und ändern; ohne `texte` nur lesen, dafür genügt `buchfink:lesen`, auch im Prüfermodus |
+| `anhang_text` | rueckfrage | Anhangabschnitte je Geschäftsjahr lesen und Entwürfe speichern; ohne `texte` nur lesen mit `buchfink:lesen`. Nach Aufstellung gesperrt bis zur Rücknahme in der App. |
 
 Eine Auslage eines Gesellschafters bucht `beleg_buchen_mit_rueckfrage` mit
 `bezahlung: auslage`; ein eigenes Werkzeug gibt es dafür nicht.

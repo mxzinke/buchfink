@@ -859,6 +859,11 @@
     "ExaminerAllowed": false,
     "Guarded": true
   },
+  "SaveNotesText": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
   "SaveOpeningBalanceAs": {
     "AppOnly": false,
     "ExaminerAllowed": true,

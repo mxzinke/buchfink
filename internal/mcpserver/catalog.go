@@ -21,6 +21,7 @@ func registerTools(tb *Toolbox) {
 	registerAbschluss(tb)
 	registerGesellschaft(tb)
 	registerVerfahrensdoku(tb)
+	registerAnhang(tb)
 	registerErklaerung(tb)
 	registerStammdaten(tb)
 }

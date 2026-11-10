@@ -170,6 +170,7 @@ export const bridge = {
     invoke<T>('BookAppropriation', year, request),
   GetAppropriation: <T>(year: number) => invoke<T>('GetAppropriation', year),
 
+  SaveNotesText: <T>(year: number, section: string, text: string) => invoke<T>('SaveNotesText', year, section, text),
   GetNotesTexts: <T>(year: number) => invoke<T>('GetNotesTexts', year),
 
   GetClosingSettings: <T>() => invoke<T>('GetClosingSettings'),

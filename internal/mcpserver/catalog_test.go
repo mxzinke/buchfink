@@ -69,6 +69,7 @@ var writeFixtures = map[string]map[string]any{
 	"darlehen_erfassen": {"kontakt_id": 1, "richtung": "an_gesellschaft", "betrag": "1.00", "zinssatz": "3",
 		"beginn": "2026-05-04", "idempotenz_schluessel": "matrix-darlehen"},
 	"ergebnisverwendung_buchen": {"geschaeftsjahr": 2025, "beschluss_am": "2026-05-04", "nur_vorschau": true},
+	"anhang_text":               {"jahr": 2026, "texte": map[string]any{"methoden": "Matrix"}},
 	"verfahrensdoku_text":       {"texte": map[string]any{"sonstiges": "Matrix"}},
 	"stammdaten_vorschlagen": {"begruendung": "Schreiben des Finanzamts", "unternehmen": map[string]any{"telefon": "040 1"},
 		"idempotenz_schluessel": "matrix-stammdaten"},

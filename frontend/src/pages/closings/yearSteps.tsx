@@ -24,6 +24,7 @@ import {
   Disclosure,
   Field,
   Input,
+  Textarea,
   Notice,
   SkeletonRows,
   StatusBadge,
@@ -33,7 +34,6 @@ import {
   Th,
   Thead,
   Tr,
-  cn,
 } from '../../components/ui';
 import { message } from './shared';
 
@@ -160,7 +160,7 @@ const KarteiView: React.FC<{ kartei: Kartei; year: number }> = ({ kartei, year }
 };
 
 /** Lädt eine Kartei und zeigt Ladezustand und Fehler gleich. */
-function useKartei<T>(load: () => Promise<T>, deps: unknown[]): { data: T | null; error: string } {
+function useKartei<T>(load: () => Promise<T>, deps: unknown[]): { data: T | null; error: string; setData: React.Dispatch<React.SetStateAction<T | null>> } {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -175,7 +175,7 @@ function useKartei<T>(load: () => Promise<T>, deps: unknown[]): { data: T | null
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
-  return { data, error };
+  return { data, error, setData };
 }
 
 const KarteiFrame: React.FC<{
@@ -505,7 +505,7 @@ const SIZE_LABELS: Record<string, string> = {
 const StatementKartei: React.FC<{ year: number }> = ({ year }) => {
   const writeLock = useWriteLock();
   const [reload, setReload] = useState(0);
-  const { data, error } = useKartei<[SizeClass, NotesSectionText[]]>(
+  const { data, error, setData } = useKartei<[SizeClass, Awaited<ReturnType<typeof Api.getNotesTexts>>]>(
     () => Promise.all([Api.getSizeClass(year), Api.getNotesTexts(year)]),
     [year, reload],
   );
@@ -513,7 +513,7 @@ const StatementKartei: React.FC<{ year: number }> = ({ year }) => {
   const [fieldError, setFieldError] = useState('');
   const [saving, setSaving] = useState(false);
   const size = data?.[0];
-  const notes = data?.[1] ?? [];
+  const notes = data?.[1].texts ?? [];
 
   useEffect(() => {
     if (size) setEmployees(String(size.criteria.employees));
@@ -583,16 +583,18 @@ const StatementKartei: React.FC<{ year: number }> = ({ year }) => {
       {notes.length > 0 && (
         <Disclosure
           title="Anhang"
-          context={`${notes.filter((n) => n.text.trim()).length} von ${notes.length} Abschnitten ausgefüllt`}
+          context={`${notes.filter((n) => n.required && !n.text.trim()).length} Pflichttexte fehlen${data?.[1].locked ? ' · gesperrt' : ''}`}
           className="mt-2"
         >
           <ul className="flex flex-col">
             {notes.map((note) => (
               <li key={note.section} className="py-2 border-t border-line first:border-t-0">
-                <span className="block text-label text-ink-muted">{note.label}</span>
-                <span className={cn('block text-body mt-0.5', note.text.trim() ? 'text-ink' : 'text-ink-subtle')}>
-                  {note.text.trim() || 'noch nicht ausgefüllt'}
-                </span>
+                <NotesTextField key={`${year}-${note.section}`} year={year} note={note}
+                  locked={writeLock.locked || !!data?.[1].locked}
+                  onSaved={(text) => setData((current) => current && [current[0], {
+                    ...current[1],
+                    texts: current[1].texts.map((section) => section.section === note.section ? { ...section, text } : section),
+                  }])} />
               </li>
             ))}
           </ul>
@@ -600,4 +602,29 @@ const StatementKartei: React.FC<{ year: number }> = ({ year }) => {
       )}
     </>
   );
+};
+
+const NotesTextField: React.FC<{
+  year: number;
+  note: NotesSectionText & { required: boolean };
+  locked: boolean;
+  onSaved: (text: string) => void;
+}> = ({ year, note, locked, onSaved }) => {
+  const [text, setText] = useState(note.text);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { setText(note.text); }, [note.text]);
+  return <Field label={`${note.label}${note.required ? ' · Pflicht' : ''}`}
+    hint={locked ? 'Zum Bearbeiten den Abschlussstand zurücksetzen.' : note.required && !note.text.trim() ? 'Pflichttext fehlt' : undefined}
+    error={error || undefined} helpSummary="Erfassen Sie die Angaben für dieses Geschäftsjahr."
+    explain={<><p>{note.hint}</p><p>{note.basis}</p></>}>
+    <Textarea value={text} rows={4} disabled={locked || busy} onChange={(e) => setText(e.target.value)} />
+    <Button variant="secondary" disabled={locked || text === note.text} loading={busy}
+      onClick={async () => {
+        setBusy(true); setError('');
+        try { await Api.saveNotesText(year, note.section, text); onSaved(text); }
+        catch (e) { setError(message(e)); }
+        finally { setBusy(false); }
+      }}>Speichern</Button>
+  </Field>;
 };

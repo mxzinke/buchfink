@@ -344,7 +344,9 @@ export const YearTab: React.FC<YearTabProps> = ({
           due={dueOf.prepared}
           blocked={fy.status === 'open' && !ended ? notEnded : undefined}
           action={
-            fy.status === 'open' && (
+            fy.status === 'prepared' ? (
+              <Button variant="quiet" size="sm" disabled={writeLock.locked} onClick={() => setReopenOpen(true)}>Aufstellung zurücksetzen</Button>
+            ) : fy.status === 'open' && (
               <Button
                 variant={next === 'prepared' ? 'primary' : 'secondary'}
                 size="sm"
@@ -832,7 +834,7 @@ const ReopenDialog: React.FC<{
     <Dialog
       open={open}
       onOpenChange={(next) => !next && onClose()}
-      title={`Feststellung ${year} zurücksetzen`}
+      title={`Abschlussstand ${year} zurücksetzen`}
       width="max-w-lg"
       footer={
         <>
@@ -866,8 +868,8 @@ const ReopenDialog: React.FC<{
       <div className="flex flex-col gap-4">
         <p className="text-body text-ink">
           {committedUntil
-            ? `Der Abschluss gilt danach wieder als aufgestellt und ist neu festzustellen. Die Festschreibung bis ${formatDate(committedUntil)} bleibt: Festgeschriebene Buchungen bleiben unverändert und lassen sich nur per Storno im laufenden Geschäftsjahr korrigieren.`
-            : 'Der Abschluss gilt danach wieder als aufgestellt und ist neu festzustellen. Abschlussbuchungen sind bis dahin wieder möglich.'}
+            ? `Die Feststellung wird auf „aufgestellt“ zurückgesetzt, die Aufstellung auf „offen“. Nach Textänderungen ist der Abschluss erneut aufzustellen und festzustellen. Die Festschreibung bis ${formatDate(committedUntil)} bleibt: Festgeschriebene Buchungen bleiben unverändert und lassen sich nur per Storno im laufenden Geschäftsjahr korrigieren.`
+            : 'Die Feststellung wird auf „aufgestellt“ zurückgesetzt, die Aufstellung auf „offen“. Nach Textänderungen ist der Abschluss erneut aufzustellen und festzustellen. Abschlussbuchungen sind bis dahin wieder möglich.'}
         </p>
         <Field label="Grund" error={error || undefined}>
           <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />

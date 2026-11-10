@@ -458,7 +458,7 @@ func (s *ClosingService) SetFiscalYearStatus(
 	return s.periods.Adopt(ctx, year, status, date, note)
 }
 
-// ReopenFiscalYear nimmt die Feststellung zurück.
+// ReopenFiscalYear nimmt Aufstellung oder Feststellung zurück.
 //
 // Der Grund ist Pflicht und landet im Protokoll: die Rücksetzung ist der einzige
 // Weg, in ein festgestelltes Jahr wieder zu buchen, und wer sie geht, muss sagen

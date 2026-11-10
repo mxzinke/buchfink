@@ -444,8 +444,8 @@ func (s *AppropriationService) saveNotesText(
 	if err != nil {
 		return nil, err
 	}
-	if fy.IsAdopted() {
-		return nil, fmt.Errorf("der Abschluss %d ist festgestellt. Öffnen Sie das Jahr mit Begründung erneut, bevor Sie seine Abschlussangaben ändern", year)
+	if fy.Status != domain.FiscalYearOpen {
+		return nil, fmt.Errorf("der Abschluss %d ist %s. Nehmen Sie zuerst die Feststellung und die Aufstellung mit Begründung in der App zurück", year, fy.Status.Label())
 	}
 	entry := &domain.NotesText{Year: year, Section: section, Text: text}
 	if err := entry.Validate(); err != nil {
@@ -468,4 +468,38 @@ func (s *AppropriationService) CopyNotesInto(ctx context.Context, toYear int) (i
 // NotesSource liefert Anhangtexte und ihre Übernahme ohne Ergebnisverwendung.
 func (s *AppropriationService) NotesSource() ClosingNotes {
 	return &notesStore{notesRepo: s.notesRepo, journalSvc: s.journalSvc, auditor: s.auditor}
+}
+
+// NotesEditor zeigt Pflichtabschnitte und die Bearbeitungssperre des Abschlusses.
+func (s *AppropriationService) NotesEditor(ctx context.Context, year int) (*NotesEditor, error) {
+	texts, err := s.NotesTexts(ctx, year)
+	if err != nil {
+		return nil, err
+	}
+	fy, err := s.closingSvc.YearOf(ctx, year)
+	if err != nil {
+		return nil, err
+	}
+	if s.closingSvc.checks.statementSource == nil {
+		return nil, fmt.Errorf("Abschlussprüfung ist nicht eingerichtet")
+	}
+	fs, err := s.closingSvc.checks.statementSource.Build(ctx, year, domain.DepthFull)
+	if err != nil {
+		return nil, err
+	}
+	out := &NotesEditor{Texts: make([]NotesEditorSection, 0, len(texts)), Locked: fy.Status != domain.FiscalYearOpen}
+	for _, text := range texts {
+		out.Texts = append(out.Texts, NotesEditorSection{NotesSectionText: text, Required: text.Section.Required(fs.SizeClass.Obligations.NotesRequired)})
+	}
+	return out, nil
+}
+
+type NotesEditorSection struct {
+	domain.NotesSectionText
+	Required bool `json:"required"`
+}
+
+type NotesEditor struct {
+	Texts  []NotesEditorSection `json:"texts"`
+	Locked bool                 `json:"locked"`
 }

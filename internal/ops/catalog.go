@@ -86,6 +86,7 @@ var tools = []Operation{
 	Define("standardgruppe_vorschlagen", Direct),
 	Define("status", Read),
 	Define("verfahrensdoku_text", Confirm),
+	Define("anhang_text", Confirm),
 }
 
 var catalog = buildCatalog()

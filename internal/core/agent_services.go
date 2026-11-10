@@ -26,6 +26,8 @@ type AgentServices struct {
 		Preview(context.Context, service.AccrualRequest) (*service.AccrualPreview, error)
 	}
 	Appropriation interface {
+		NotesEditor(context.Context, int) (*service.NotesEditor, error)
+		SaveNotesText(context.Context, int, domain.NotesSection, string) ([]service.NotesTextView, error)
 		BookAppropriation(context.Context, int, service.AppropriationRequest) (*domain.Appropriation, error)
 		CheckAdopted(context.Context, int, string) error
 		PreviewAppropriation(context.Context, int, service.AppropriationRequest) (*service.AppropriationPreview, error)

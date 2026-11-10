@@ -96,14 +96,30 @@ Erleichterung nutzt, bewertet nicht zum beizulegenden Zeitwert
 
 - Buchfink rechnet die Größenklasse mit der Zweijahresregel aus der
   Arbeitnehmerzahl, die der Mensch am Geschäftsjahr einträgt.
-- Die Anhang-Textabschnitte folgen nicht der Größenklasse; filtere selbst nach
-  Abschnitt 4 und 5.
-- Anhangtexte erfassen kann Buchfink nicht. Solange ein Pflichtabschnitt leer
-  ist (Haftungsverhältnisse, Vorschüsse und Kredite an Organmitglieder,
-  weitere wesentliche Angaben, mit Anhangpflicht auch die Methoden), lehnt
-  Buchfink Aufstellen, Feststellung und Ergebnisverwendung ab. Gib dem
-  Menschen den Entwurf als Text und verweise ihn an einen
-  [Steuerberater](../grundlagen/grenzen.md#3-wann-du-einen-steuerberater-empfiehlst).
+- `anhang_text` mit `jahr` und ohne `texte` liest alle Abschnitte, ihre Norm,
+  Pflichtkennzeichen und Bearbeitungssperre; dafür reicht `buchfink:lesen`.
+- Entwirf die Texte anhand der Nachweise. Lege jeden geänderten Wortlaut dem
+  Menschen vor und hole sein Ja ein, bevor du ihn mit `texte` speicherst.
+  Fehlende Felder bleiben unverändert, ein leerer Text löscht den Inhalt.
+- Vor dem Aufstellen verlangt Buchfink Haftungsverhältnisse, Organkredite und
+  weitere wesentliche Angaben, bei Anhangpflicht auch die Methoden
+  ([§ 264 Abs. 1 Satz 5, Abs. 2][hgb264], [§ 284 Abs. 2 Nr. 1][hgb284],
+  [§ 285 Nr. 9 Buchst. c HGB][hgb285]). Bestätige fehlende Sachverhalte nur
+  nach Rückfrage ausdrücklich. Die Pflicht zum Ausfüllen ist eine
+  Vollständigkeitskontrolle von Buchfink; prüfe zusätzlich Abschnitt 4 und 5.
+- Kleine Gesellschaften sind von Organbezügen, Beteiligungsangaben,
+  Nachtragsbericht und Ergebnisverwendungsvorschlag befreit
+  ([§ 288 Abs. 1 HGB][hgb288]); Nr. 3a (sonstige finanzielle Verpflichtungen)
+  bleibt bei entsprechendem Sachverhalt erforderlich.
+- Der Mensch prüft die Texte in Abschlüsse → Bilanz und GuV → Anhang und gibt
+  sie beim Aufstellen frei. Ab dann sind sie gesperrt. Änderungen setzen die
+  begründete Rücknahme der Feststellung und anschließend der Aufstellung in
+  der App voraus. Danach stellt der Mensch erneut auf und fest.
+- PDF und Prüferpaket übernehmen die Texte; bei Kleinst erscheinen die
+  Ersatzangaben unter der Bilanz. Ein Registerdatensatz bleibt außerhalb
+  Buchfinks.
+
+Wortlaut der §§ 264, 284, 285 und 288 HGB geprüft am 10. November 2026.
 
 [hgb251]: https://www.gesetze-im-internet.de/hgb/__251.html
 [hgb253]: https://www.gesetze-im-internet.de/hgb/__253.html

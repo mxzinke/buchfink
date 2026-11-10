@@ -477,6 +477,103 @@
     "name": "abschlussbuchung",
     "title": "Abschlussbuchung"
   },
+  "anhang_text": {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Liest Anhangabschnitte mit Pflichtkennzeichen und schreibt Entwürfe je Geschäftsjahr. Ohne texte nur lesen. Vor Schreiben Wortlaut vorlegen und Ja einholen. Der Mensch gibt die Texte beim Aufstellen in der App frei; danach erst nach Rücknahme änderbar.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "idempotenz_schluessel": {
+          "description": "einer je Vorgang, 8 bis 100 Zeichen A-Z a-z 0-9 - _ . :",
+          "type": "string"
+        },
+        "jahr": {
+          "description": "Geschäftsjahr",
+          "type": "integer"
+        },
+        "mandant_id": {
+          "description": "id aus status",
+          "type": "string"
+        },
+        "texte": {
+          "additionalProperties": false,
+          "description": "nur geänderte Abschnitte; leerer Text löscht den Inhalt",
+          "properties": {
+            "beteiligungen": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "ergebnisverwendung": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "haftungsverhaeltnisse": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "methoden": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "nachtragsbericht": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "organbezuege": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "organkredite": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "verpflichtungen": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "weitere_angaben": {
+              "type": [
+                "null",
+                "string"
+              ]
+            }
+          },
+          "type": [
+            "null",
+            "object"
+          ]
+        }
+      },
+      "required": [
+        "mandant_id",
+        "jahr"
+      ],
+      "type": "object"
+    },
+    "name": "anhang_text",
+    "title": "Anhangtexte"
+  },
   "anlagen": {
     "annotations": {
       "idempotentHint": true,

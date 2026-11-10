@@ -102,8 +102,12 @@ Jahresfestschreibung muss sie gebucht sein.
 Das Geschäftsjahr durchläuft die Stände offen, aufgestellt, festgestellt und
 offengelegt. Jeden Wechsel nimmt der Mensch in der App vor. Das Aufstellen
 lehnt Buchfink ab, solange ein Pflichtabschnitt der Anhangtexte leer ist; die
-Texte nimmt `service.AppropriationService.SaveNotesText` auf, ohne
-Erfassungsweg in App oder MCP. Ab „festgestellt“
+Texte erfasst der Mensch unter Abschlüsse → Bilanz und GuV → Anhang.
+`anhang_text` liest Abschnitte und speichert nach Rückfrage Entwürfe.
+Beim Aufstellen gibt der Mensch die Texte frei. Der Dienst sperrt Änderungen
+ab Aufstellung. Die App nimmt mit Begründung zuerst die Feststellung auf
+„aufgestellt“, dann die Aufstellung auf „offen“ zurück. Nach Änderungen ist
+der Abschluss erneut aufzustellen und festzustellen. Ab „festgestellt“
 nimmt das Jahr keine Buchung mehr an; die Feststellung lässt sich mit Grund
 zurücknehmen, ebenfalls nur in der App. Die Fristen für Aufstellung und
 Feststellung richten sich nach der Größenklasse ([§ 267 HGB][hgb267], zwei
@@ -155,3 +159,29 @@ weist eine Differenz aus.
 [estg44]: https://www.gesetze-im-internet.de/estg/__44.html
 [solzg4]: https://www.gesetze-im-internet.de/solzg_1995/__4.html
 [kstg23]: https://www.gesetze-im-internet.de/kstg_1977/__23.html
+
+
+## Anhangtexte
+
+Die Pflichtkennzeichen der Erfassung und die Aufstellungsprüfung verwenden
+dieselbe Regel. Buchfink verlangt Haftungsverhältnisse, Organkredite und weitere
+wesentliche Angaben; bei Anhangpflicht zusätzlich Bilanzierungs- und
+Bewertungsmethoden. Ohne einschlägigen Sachverhalt ist eine ausdrückliche
+Negativangabe einzutragen. Diese Vollständigkeitskontrolle ist eine Produktregel;
+die gesetzlichen Angaben richten sich nach dem Sachverhalt.
+
+Die Kleinstbefreiung und die Ersatzangaben unter der Bilanz folgen
+[§ 264 Abs. 1 Satz 5 und Abs. 2 HGB](https://www.gesetze-im-internet.de/hgb/__264.html).
+Methoden verlangt [§ 284 Abs. 2 Nr. 1 HGB](https://www.gesetze-im-internet.de/hgb/__284.html).
+Organkredite nennt [§ 285 Nr. 9 Buchst. c HGB](https://www.gesetze-im-internet.de/hgb/__285.html).
+Kleine Gesellschaften sind nach
+[§ 288 Abs. 1 HGB](https://www.gesetze-im-internet.de/hgb/__288.html)
+unter anderem von Organbezügen (Nr. 9 a/b), Beteiligungsangaben (Nr. 11),
+Nachtragsbericht (Nr. 33) und Ergebnisverwendungsvorschlag (Nr. 34) befreit;
+sonstige finanzielle Verpflichtungen nach Nr. 3a bleiben bei entsprechendem
+Sachverhalt erforderlich. Ein ausgefüllter Pflichtabschnitt ersetzt keine
+inhaltliche Prüfung der übrigen Angaben. Wortlaut geprüft am 10. November 2026.
+
+Die gespeicherten Texte gehören zum gemeinsamen Jahresabschluss für PDF, CSV
+und Prüferpaket. Bei Kleinstgesellschaften erscheinen die Ersatzangaben unter
+der Bilanz. Einen Datensatz für das Unternehmensregister erzeugt Buchfink nicht.

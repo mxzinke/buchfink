@@ -747,7 +747,7 @@ export const Api = {
     note = ''
   ): Promise<FiscalYear> =>
     call(() => Bridge.SetFiscalYearStatus(year, status, date, note) as Promise<FiscalYear>),
-  /** Nimmt die Feststellung zurück; der Grund ist Pflicht und wird protokolliert. */
+  /** Nimmt Aufstellung oder Feststellung zurück; der Grund ist Pflicht und wird protokolliert. */
   reopenFiscalYear: (year: number, reason: string): Promise<FiscalYear> =>
     call(() => Bridge.ReopenFiscalYear(year, reason) as Promise<FiscalYear>),
 
@@ -827,8 +827,10 @@ export const Api = {
     call(() => Bridge.GetAppropriation(year) as Promise<Appropriation | null>),
 
   /** Die Abschnitte des Anhangs, auch die leeren: der Anhang ist eine Gliederung. */
-  getNotesTexts: (year: number): Promise<NotesSectionText[]> =>
-    call(() => Bridge.GetNotesTexts(year) as Promise<NotesSectionText[]>).then(list),
+  getNotesTexts: (year: number): Promise<{ texts: (NotesSectionText & { required: boolean })[]; locked: boolean }> =>
+    call(() => Bridge.GetNotesTexts(year)),
+  saveNotesText: (year: number, section: NotesSectionText['section'], text: string): Promise<NotesSectionText[]> =>
+    call(() => Bridge.SaveNotesText(year, section, text)),
 
   /**
    * Hebesatz, Abgrenzungsmethode, Vorschlagsschwelle und Auflösungstakt. Ohne

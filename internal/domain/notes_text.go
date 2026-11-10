@@ -101,3 +101,8 @@ type NotesTextRepository interface {
 	FindByYear(ctx context.Context, year int) ([]NotesText, error)
 	Save(ctx context.Context, text *NotesText) error
 }
+
+// Required benennt die vor Aufstellung auszufüllenden Abschnitte.
+func (s NotesSection) Required(notesRequired bool) bool {
+	return s == NotesSectionContingent || s == NotesSectionBoardLoans || s == NotesSectionAdditional || (notesRequired && s == NotesSectionMethods)
+}
