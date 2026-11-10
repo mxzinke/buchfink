@@ -57,7 +57,6 @@ var exceptions = map[string]string{
 	"AccrualService.Propose": "keine Vorschläge zur Rechnungsabgrenzung; der Agent sucht die Buchungen selbst",
 	"AccrualService.Report":  "kein Abgrenzungsspiegel zum Stichtag",
 
-
 	"AssetService.BookImpairment":            "keine außerplanmäßige Abschreibung",
 	"AssetService.BookWriteUp":               "keine Wertaufholung nach § 253 Abs. 5 HGB",
 	"AssetService.ConfirmImpairmentPersists": "die Beibehaltung einer außerplanmäßigen Abschreibung lässt sich nicht bestätigen",
@@ -87,7 +86,6 @@ var exceptions = map[string]string{
 
 	"JournalService.BookOpeningBalance":    "keine Eröffnungsbuchungen eines Umsteigers",
 	"JournalService.PreviewOpeningBalance": "Vorschau zu BookOpeningBalance",
-
 
 	"PostingService.OpenVendorAdvances": "die Kennungen geleisteter Anzahlungen, die beleg_buchen_mit_rueckfrage verrechnet, liefert kein Werkzeug",
 
