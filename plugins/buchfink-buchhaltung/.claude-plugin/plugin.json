@@ -1,7 +1,7 @@
 {
   "name": "buchfink-buchhaltung",
   "displayName": "Buchfink Buchhaltung",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Skill und MCP-Anbindung für Buchfink, die lokale Buchhaltungs-App für GmbH und UG. Buchfink muss auf diesem Rechner laufen.",
   "author": {
     "name": "Buchfink",

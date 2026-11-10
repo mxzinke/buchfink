@@ -3,7 +3,7 @@
 [Dokumentation](../README.md) · [Roadmap](roadmap.md) ·
 [Umfang und Grenzen](../nutzung/umfang.md)
 
-Stand: Version 0.3, Vorschau. Diese Seite beschreibt, was gebaut ist und wo es
+Stand: Version 0.4, Vorschau. Diese Seite beschreibt, was gebaut ist und wo es
 im Code steht. Sie ist keine Freigabe für den produktiven Einsatz. Welche Fälle
 Buchfink fachlich abdeckt, steht unter [Umfang und Grenzen](../nutzung/umfang.md),
 einzelne Kriterien im [Anforderungskatalog](../anforderungen/README.md).

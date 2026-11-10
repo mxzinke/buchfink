@@ -5,7 +5,7 @@
 Ziel: Eine GmbH oder UG führt ihre Bücher mit einem KI-Agenten vom Beleg bis zu
 Jahresabschluss und Erklärungen, mit oder ohne Steuerberater. Buchfink rechnet
 nach festen Regeln, der Mensch gibt frei, was sich nicht rückgängig machen
-lässt. Was in Version 0.3 gebaut ist, steht im
+lässt. Was in Version 0.4 gebaut ist, steht im
 [Umsetzungsstand](umsetzungsstand.md). Termine gibt es nicht.
 
 ## Bis Version 1

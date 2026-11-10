@@ -5,7 +5,7 @@ license: EUPL-1.2
 compatibility: "Benötigt die laufende Buchfink-App mit eingeschaltetem MCP-Server und einem für den Client zugelassenen Mandanten."
 metadata:
   buchfink-rechtsstand: "2026-10-17"
-  buchfink-werkzeugstand: "Buchfink 0.3.0"
+  buchfink-werkzeugstand: "Buchfink 0.4.0"
 ---
 
 # Buchfink

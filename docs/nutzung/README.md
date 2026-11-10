@@ -3,7 +3,7 @@
 [Dokumentation](../README.md) · [Umfang und Grenzen](umfang.md) ·
 [KI-Agenten](ki-agenten/README.md) · [Datensicherheit](datensicherheit.md)
 
-Buchfink 0.3 ist eine Vorschau. Probieren Sie es zuerst mit einem
+Buchfink 0.4 ist eine Vorschau. Probieren Sie es zuerst mit einem
 Testunternehmen und erfundenen Daten aus.
 
 ## Installieren

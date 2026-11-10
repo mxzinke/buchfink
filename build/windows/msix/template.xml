@@ -17,7 +17,7 @@
         PackageDisplayName="Buchfink"
         PublisherName="CN=Buchfink Open Source"
         PublisherDisplayName="Buchfink Open Source"
-        Version="0.3.0.0"
+        Version="0.4.0.0"
         PackageDescription="Open-Source-Buchhaltung für GmbH und UG">
         <Capabilities>
             <Capability Name="runFullTrust" />

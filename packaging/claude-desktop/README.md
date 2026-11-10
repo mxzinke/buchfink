@@ -16,7 +16,7 @@ Voraussetzungen: Go aus `go.mod`, Node.js und das MCPB-Werkzeug
 Repositorys.
 
 ```sh
-VERSION=0.3.0
+VERSION=0.4.0
 LDFLAGS="-s -w -X main.version=$VERSION"
 OUT=packaging/claude-desktop/server
 mkdir -p "$OUT"

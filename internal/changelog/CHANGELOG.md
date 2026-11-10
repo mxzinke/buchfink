@@ -10,6 +10,99 @@ Das Format ist Teil der Schnittstelle: `internal/changelog` liest die
 Zusammenfassung und jeden Strichpunkt als Änderung. Der Text einer Fassung ist
 zugleich der Text ihrer Veröffentlichung.
 
+## v0.4.0 — 2026-11-10
+
+Diese Fassung schließt Lücken im Jahreslauf: Anhangtexte, Zahlungen auf
+Abschlagsrechnungen, Stornorechnung und Rechnungskorrektur, Ausbuchung
+uneinbringlicher Forderungen, Pflege der Anlagenkartei, Fortführung von
+Rückstellungen, berichtigte Zusammenfassende Meldung und der Umstieg aus einem
+anderen Programm. Buchfink sucht ab jetzt selbst nach neuen Fassungen und
+installiert sie auf einen Klick; diese Fassung installieren Sie noch von Hand.
+Sie passt die Datenbank eines Unternehmens an (Schema 4). Fassung 0.3.0 öffnet
+sie danach nicht mehr; richten Sie vorher einen Sicherungsordner ein.
+
+- Aktualisierung: Buchfink fragt beim Start und danach täglich bei GitHub nach
+  dem neuesten Release und zeigt einen Fund in der Seitenleiste. Auf einen
+  Klick lädt es die Datei, prüft sie gegen die Prüfsumme des Release, ersetzt
+  das Programm und startet neu. Die Suche lässt sich in den Einstellungen
+  abschalten. Ein Werkzeug für Agenten gibt es dafür nicht.
+- Jahresabschluss: Die Texte des Anhangs erfasst der Mensch in der App je
+  Abschnitt und Geschäftsjahr; fehlende Pflichttexte sind vor dem Aufstellen
+  sichtbar. Ab der Aufstellung sind die Texte gesperrt. Die Aufstellung lässt
+  sich mit Begründung zurücknehmen. Aufstellen, Feststellen und
+  Ergebnisverwendung kommen damit zum Ende.
+- Abschlagsrechnungen: Offene Abschläge stehen in den offenen Posten und in den
+  Vorschlägen zu Bankumsätzen. Die Zahlung lässt sich ganz oder in Teilen
+  zuordnen; die Umsatzsteuer entsteht im Monat der Zahlung
+  (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG). Die Rückzahlung einer
+  vereinnahmten Anzahlung berichtigt die Steuer im Monat der Rückzahlung
+  (§ 17 Abs. 2 Nr. 2 UStG).
+- Stornorechnung und Rechnungskorrektur: Eine ausgestellte Rechnung lässt sich
+  stornieren oder berichtigen, mit eigener Nummer und Bezug auf die
+  Ursprungsrechnung (§ 31 Abs. 5 UStDV). Eine Berichtigung ohne Betragsänderung
+  bucht nichts; eine Betragsänderung bucht die Differenz im Zeitraum der
+  Berichtigung (§ 17 Abs. 1 UStG). War die Rechnung bezahlt, steht das Guthaben
+  des Kunden in den offenen Posten. E-Rechnungen entstehen als Typ 381 und 384.
+- Forderungsausfall: Eine uneinbringliche Forderung lässt sich ganz oder in
+  Teilen ausbuchen, mit Grund und Nachweis. Die Umsatzsteuer wird im Zeitraum
+  der Uneinbringlichkeit berichtigt (§ 17 Abs. 2 Nr. 1 UStG). Die
+  Einzelwertberichtigung führt Buchfink je Forderung und löst sie bei der
+  Ausbuchung auf.
+- Anlagen: Verkauf und Verschrottung mit zeitanteiliger Abschreibung bis zum
+  Abgang, auch für einen Teil der Stückzahl; Fertigstellung einer Anlage im
+  Bau; außerplanmäßige Abschreibung und Zuschreibung mit Nachweis
+  (§ 253 Abs. 3 Satz 5, Abs. 5 HGB); Zugang und Bewertung von Finanzanlagen in
+  Fremdwährung. Bezeichnung, Kennung, Kennzeichen und Nutzungsquote ändert der
+  Mensch in der App mit Grund; die Änderung steht im Protokoll.
+- Rückstellungen: Eine gebildete Rückstellung lässt sich in späteren Jahren
+  zuführen, auflösen und aufzinsen. Den Abzinsungssatz der Bundesbank geben Sie
+  mit Monat, Restlaufzeit und Fundstelle ein (§ 253 Abs. 2 HGB). Der
+  Rückstellungsspiegel zeigt die Entwicklung über die Jahre.
+- Zusammenfassende Meldung: Ändern spätere Buchungen einen gemeldeten Zeitraum,
+  zeigt Buchfink die fällige Berichtigung mit der Monatsfrist
+  (§ 18a Abs. 10 UStG). Sie enthält nur die geänderten Zeilen. Meldung und
+  Berichtigung gibt es als CSV-Datei für das BZSt-Online-Portal.
+- Umstieg: Ein Unternehmen mit bestehenden Büchern beginnt zum ersten Tag eines
+  Geschäftsjahres mit der Schlussbilanz des bisherigen Programms: Bestände je
+  Konto, jede offene Rechnung einzeln, jedes Anlagegut mit Anschaffungskosten
+  und bisheriger Abschreibung. Den Umstieg legt der Mensch in der App fest.
+  Eine Abstimmung zeigt jede Differenz zur Schlussbilanz; eine fehlende oder
+  nicht aufgehende Eröffnung hält die Festschreibung des ersten Monats an.
+- Bank: Zu einem Bankumsatz, der direkt auf ein Konto geht, lässt sich der
+  Beleg zum Grund der Zahlung angeben, etwa ein Kaufvertrag; er ist danach mit
+  der Buchung versiegelt.
+- Gesellschafterdarlehen: Der Hinweis auf einen fehlenden Vergleichszins nennt,
+  wer den Zins zahlt und welche Abweichung schadet. Ein abgelegter Vermerk zur
+  Zinsentscheidung belegt den Fremdvergleich.
+- Für Agenten: neue Werkzeuge `anhang_text`, `forderung_ausbuchen`,
+  `anlage_abgehen`, `anlage_fertigstellen` und `eroeffnung_buchen`;
+  `rechnung_ausstellen` kennt Storno und Berichtigung, `bankumsatz_buchen` und
+  `bankumsatz_zuordnen` nehmen Abschläge, `abschlussbuchung` führt
+  Rückstellungen fort. Der Skill nennt Rechtsquellen jetzt nach dem amtlichen
+  Wortlaut.
+- Korrektur: Ein Kontoauszug im Format CAMT.053 ohne Wertstellung wurde als
+  unlesbar abgewiesen. Ab dieser Fassung gilt der Buchungstag als Wertstellung.
+- Korrektur: Nach dem Storno einer Abschreibungsbuchung führte die
+  Anlagenkartei die Abschreibung weiter. Ab dieser Fassung nimmt das Storno
+  auch die Bewegung in der Kartei zurück. Prüfen Sie Anlagen, deren
+  Abschreibung vorher storniert wurde.
+- Korrektur: Die E-Rechnung schrieb bei Leistungen an Unternehmen im Ausland
+  „Steuerschuldnerschaft des Leistungsempfängers nach § 13b UStG“. § 13b gilt
+  dort nicht; ab dieser Fassung steht der Hinweis ohne Paragraph
+  (§ 14a Abs. 1 Satz 1 UStG).
+- Korrektur: Stornierte Buchungen auf Anlagekonten erschienen weiter als
+  Vorschlag zur Aktivierung.
+- Korrektur von Fundstellen in Meldungen und Dokumenten: Kleinbetragsrechnung
+  § 33 Satz 3 UStDV, Größenklassen Art. 93 Abs. 1 EGHGB, Sammelposten
+  § 6 Abs. 2a Satz 3 EStG, Systemwechsel § 147 Abs. 6 Satz 5 AO.
+- Bekannte Grenzen: Tausch und Neustart bei der Aktualisierung sind unter macOS
+  und Windows nicht erprobt; die Dateien sind weiter nicht signiert. Der
+  Umstieg geht nur zum Beginn eines Geschäftsjahres, ohne Posten in
+  Fremdwährung und ohne Vorjahreszahlen. Berichtigungen von Rechnungen in
+  Fremdwährung sind gesperrt. Die Zusammenfassende Meldung entsteht aus
+  Buchungen weiter nur für sonstige Leistungen. Für die unentgeltliche
+  Übertragung einer Anlage an einen Gesellschafter gibt es keinen eigenen Weg.
+
 ## v0.3.0 — 2026-11-10
 
 Ab dieser Fassung führt ein KI-Agent die Bücher über MCP; die App zeigt den

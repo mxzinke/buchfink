@@ -10,7 +10,7 @@ info:
   description: "Open-Source-Buchhaltung für GmbH und UG (SKR04, E-Bilanz)"
   copyright: "Copyright (c) 2026 Maximilian Pfennig - Licensed under the EUPL-1.2"
   comments: "Open-Source-Buchhaltung für kleine Unternehmen"
-  version: "0.3.0"
+  version: "0.4.0"
 
 # Dev mode configuration
 dev_mode:

@@ -15,7 +15,7 @@ darf, etwa Festschreibung, Übermittlung und Jahresabschluss.
 
 ## Stand
 
-Version 0.3 ist eine Vorschau. Die Installationsdateien auf der
+Version 0.4 ist eine Vorschau. Die Installationsdateien auf der
 [Releases-Seite](https://github.com/mxzinke/buchfink/releases) sind nicht
 signiert. Probieren Sie Buchfink mit einem Testunternehmen aus.
 

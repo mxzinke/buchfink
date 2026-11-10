@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "buchfink",
   "display_name": "Buchfink",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Verbindet Claude mit der laufenden Buchfink-App auf diesem Rechner.",
   "long_description": "Buchfink führt die Bücher kleiner GmbHs und UGs (SKR04, E-Bilanz). Über diese Erweiterung arbeitet Claude mit dem in Buchfink geöffneten Mandanten. Die App muss geöffnet sein. Beim ersten Aufruf öffnet sich der Browser mit einem Abgleichcode; zugelassen wird im Fenster von Buchfink. Festschreibung, Übermittlung, Stammdaten und Prüfermodus bleiben der App vorbehalten.",
   "author": {
