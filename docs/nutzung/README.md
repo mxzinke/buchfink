@@ -52,7 +52,7 @@ tar -xzf buchfink-linux-amd64.tar.gz
 
 Die Datei `buchfink` können Sie in einen Ordner im `PATH` legen, etwa
 `~/.local/bin`. Sie ist unter Debian 12 für x86-64 gebaut und braucht
-GTK 3, WebKitGTK 4.1 und glibc ab Version 2.36, etwa Debian 12 oder Ubuntu 24.04. Unter Debian und Ubuntu
+GTK 3, WebKitGTK 4.1 und glibc ab Version 2.34, etwa Ubuntu 22.04 oder Debian 12. Unter Debian und Ubuntu
 installiert `sudo apt install libwebkit2gtk-4.1-0` WebKitGTK samt GTK 3, unter
 Fedora `sudo dnf install webkit2gtk4.1`.
 
