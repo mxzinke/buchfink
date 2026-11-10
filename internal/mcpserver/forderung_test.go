@@ -8,10 +8,13 @@ func TestWriteOffPreviewAndReplay(t *testing.T) {
 	a := h.agent("")
 	var customer kontaktOut
 	a.ok("kontakt_anlegen", a.args(map[string]any{"typ": "kunde", "name": "Insolventer Kunde GmbH", "plz": "10115", "ort": "Berlin"}), &customer)
-	var receipt ablageOut
+	// Die Forderung hat ihren eigenen Beleg; der Nachweis der Insolvenz belegt die
+	// Ausbuchung und nur sie.
+	var invoice, receipt ablageOut
+	a.ok("beleg_ablegen", a.args(map[string]any{"eingang_am": today(), "dateien": []any{map[string]any{"pfad": h.inboxFile("rechnung.pdf", pdf("Rechnung"))}}, "belegdatum": "2026-03-10", "aussteller": "Insolvenzverwalter", "brutto": "119.00"}), &invoice)
 	a.ok("beleg_ablegen", a.args(map[string]any{"eingang_am": today(), "dateien": []any{map[string]any{"pfad": h.inboxFile("insolvenz.pdf", pdf("Nachweis Insolvenz"))}}, "belegdatum": "2026-03-10", "aussteller": "Insolvenzverwalter", "brutto": "119.00"}), &receipt)
 	var booked erfasstOut
-	a.ok("buchung_erfassen", a.args(map[string]any{"buchungsdatum": "2026-03-10", "beschreibung": "Forderung", "steuerfall": "domestic", "beleg_id": receipt.Beleg.ID, "idempotenz_schluessel": "forderung-test", "zeilen": []any{
+	a.ok("buchung_erfassen", a.args(map[string]any{"buchungsdatum": "2026-03-10", "beschreibung": "Forderung", "steuerfall": "domestic", "beleg_id": invoice.Beleg.ID, "idempotenz_schluessel": "forderung-test", "zeilen": []any{
 		map[string]any{"konto": customer.Kontakt.Personenkonto, "kontakt_id": customer.Kontakt.ID, "seite": "S", "betrag": "119.00"},
 		map[string]any{"konto": "4400", "seite": "H", "betrag": "100.00"},
 		map[string]any{"konto": "3806", "seite": "H", "betrag": "19.00", "steuerschluessel": "UST19", "steuerbasis": "100.00"},

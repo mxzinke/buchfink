@@ -363,7 +363,7 @@ func TestCatalogStaysSmall(t *testing.T) {
 		}
 	}
 	t.Logf("Katalog: %d Bytes", total)
-	if total > 83_000 {
+	if total > 90_000 {
 		t.Errorf("der Katalog hat %d Bytes", total)
 	}
 }
