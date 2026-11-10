@@ -81,7 +81,7 @@ var exceptions = map[string]string{
 	"InputTaxService.BookYear":  "keine Vorsteuerberichtigung nach § 15a UStG; gehört zu SaveUsage",
 	"InputTaxService.Close":     "ein Eintrag nach § 15a UStG lässt sich nicht vorzeitig schließen",
 
-	"InvoiceService.MarkSent":       "kein Versandvermerk einer Ausgangsrechnung",
+	"InvoiceService.MarkSent": "kein Versandvermerk einer Ausgangsrechnung",
 
 	"JournalService.BookOpeningBalance":    "keine Eröffnungsbuchungen eines Umsteigers",
 	"JournalService.PreviewOpeningBalance": "Vorschau zu BookOpeningBalance",
