@@ -121,7 +121,12 @@ die Korrektur buchst du nach Klärung mit dem Steuerberater mit
 Eine Ausschüttung vor Feststellung des Abschlusses braucht einen Beschluss der
 Gesellschafter und unterliegt [§ 30 GmbHG][gmbhg30] und dem
 Kapitalertragsteuerabzug wie jede Ausschüttung. Buchfink hat dafür keinen
-Ablauf. Grenze: Steuerberater.
+Ablauf. Grenze: Steuerberater. Buchst du sie nach seinen Angaben mit
+`buchung_erfassen`, rechnet Buchfink keine Kapitalertragsteuer und legt keine
+Anmeldung an: nenne dem Menschen Betrag und Frist der Anmeldung
+([grundlagen/pflichten.md#kapitalertragsteuer](../grundlagen/pflichten.md#kapitalertragsteuer)).
+Eine beschlossene Gewinnausschüttung buchst du nie so, sondern mit
+`ergebnisverwendung_buchen`.
 
 [estg20]: https://www.gesetze-im-internet.de/estg/__20.html
 [estg43]: https://www.gesetze-im-internet.de/estg/__43.html

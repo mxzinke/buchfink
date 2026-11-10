@@ -66,6 +66,10 @@ unterzeichnet. Danach schreibt der Mensch das Jahr fest.
 - Ein festgestelltes Jahr öffnet nur der Mensch wieder (App, mit Grund; Stand
   wieder `aufgestellt`). Die Gesellschafter stellen den geänderten Abschluss
   erneut fest ([§ 46 Nr. 1 GmbHG][gmbhg46]); er ist offenzulegen.
+- Eine gebuchte Ergebnisverwendung bleibt beim Wiederöffnen stehen. Ändert
+  sich das Ergebnis, schlag vor: alte Buchung stornieren
+  (`buchung_stornieren`), nach der neuen Feststellung den neuen Beschluss mit
+  `ergebnisverwendung_buchen` buchen.
 - Wertungsfrage: Korrektur im alten Abschluss oder im laufenden Jahr. Bei
   wesentlichen Fehlern, Steuerfolgen oder geändertem Bescheid: Steuerberater.
 

@@ -123,9 +123,26 @@ Buchfink rechnet 25 % Kapitalertragsteuer auf den Cent und darauf 5,5 %
 Solidaritätszuschlag ohne Bruchteile eines Cents ([§ 4 Satz 3 SolZG][solzg4])
 und bucht beides als Verbindlichkeit auf 3760. Abzuführen ist die
 Kapitalertragsteuer auf volle Euro abgerundet ([§ 44 Abs. 1 Satz 6 EStG][estg44]);
-die Pflicht nennt diesen Betrag. Der
-Saldenvortrag bringt Bestandskonten und offene Posten ins Folgejahr und weist
-eine Differenz aus.
+die Pflicht nennt diesen Betrag.
+
+Zwei Wege lässt Buchfink bewusst offen, weil sich beide per Storno
+korrigieren lassen:
+
+- **Ausschüttung per Handbuchung.** `buchung_erfassen` nimmt auch eine
+  Ausschüttung an. Diese Buchung prüft die Feststellung nicht, rechnet keine
+  Kapitalertragsteuer und legt keine Pflicht zur Anmeldung an. Der Weg für
+  eine beschlossene Gewinnausschüttung ist deshalb die Ergebnisverwendung.
+  Die Handbuchung bleibt für eine Vorabausschüttung, für die Buchfink keinen
+  Ablauf hat; Beträge und Anmeldung verantwortet dann der Mensch mit seiner
+  Beratung.
+- **Zurückgenommene Feststellung.** Die gebuchte Ergebnisverwendung bleibt
+  stehen; Buchfink storniert sie nicht. Ändert sich das Ergebnis, beschließen
+  die Gesellschafter über das Ergebnis des neu festgestellten Abschlusses
+  ([§ 46 Nr. 1 GmbHG][gmbhg46]): die alte Buchung stornieren, nach der neuen
+  Feststellung den neuen Beschluss buchen.
+
+Der Saldenvortrag bringt Bestandskonten und offene Posten ins Folgejahr und
+weist eine Differenz aus.
 
 [hgb252]: https://www.gesetze-im-internet.de/hgb/__252.html
 [hgb253]: https://www.gesetze-im-internet.de/hgb/__253.html

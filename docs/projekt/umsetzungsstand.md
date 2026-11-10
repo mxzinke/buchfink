@@ -69,6 +69,11 @@ einzelne Kriterien im [Anforderungskatalog](../anforderungen/README.md).
   `service.AppropriationService.SaveNotesText` auf, das weder App noch
   Werkzeug erreicht. Aufstellen, Feststellen und die Ergebnisverwendung
   lassen sich deshalb in Buchfink nicht abschließen.
+- Eine Ausschüttung per Handbuchung prüft Buchfink nicht gegen die
+  Feststellung und rechnet keine Kapitalertragsteuer; eine zurückgenommene
+  Feststellung lässt die gebuchte Ergebnisverwendung stehen. Beides ist
+  gewollt; den richtigen Weg beschreibt das
+  [Fachkonzept Jahresabschluss](../fachkonzepte/jahresabschluss.md#aufstellen-feststellen-offenlegen).
 - Kapitalertragsteuer auf eine Ausschüttung rechnet Buchfink auf die ganze
   Ausschüttung und nennt zur Abführung den auf volle Euro abgerundeten Betrag
   ([§ 44 Abs. 1 Satz 6 EStG](https://www.gesetze-im-internet.de/estg/__44.html)).
