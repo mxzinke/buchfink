@@ -16,6 +16,7 @@ func BridgeExaminerAllowed() map[string]bool {
 		"ExportAuditPackage":            true,
 		"ExportStatementCSV":            true,
 		"ExportStatementPDF":            true,
+		"ExportZMReturnCSV":             true,
 		"ExportVatReturnCSV":            true,
 		"ExportZ3":                      true,
 		"FormatElsterTaxNumber":         true,

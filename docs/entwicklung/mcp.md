@@ -165,7 +165,7 @@ den Schemas nur kurz.
 | `kontoauszug_importieren` | direkt | CAMT.053 ablegen, Salden prüfen, Umsätze einlesen; danach geht die Datei aus dem Eingang nach `Übernommen/` |
 | `beleg_buchen` | direkt | Eingangsrechnung buchen, nur Routine; `faellig_am` übernimmt die Fälligkeit vom Beleg, ohne sie meldet die Vorschau `faelligkeit_aus_zahlungsziel` |
 | `bankumsatz_zuordnen` | direkt | Bankumsatz mit genau einem offenen Posten ausgleichen, nur Routine |
-| `erklaerung_exportieren` | direkt | Jahreserklärung als JSON in den Exportordner |
+| `erklaerung_exportieren` | direkt | Jahreserklärung als JSON oder gespeicherte ZM als BOP-CSV in den Exportordner |
 | `ebilanz_exportieren` | direkt | E-Bilanz prüfen und in den Exportordner: `format` `xbrl` (Vorgabe) oder `susa_csv`; bei abweichender Steuerbilanz nennt `ueberleitung`, was die Liste nicht enthält; `bilanzart: eroeffnungsbilanz` schreibt die Eröffnungsbilanz, `jahr` ist dann das Geschäftsjahr der Gründung |
 | `pflicht_vorbereitet` | direkt | Pflicht als vorbereitet melden, nie als erledigt |
 | `stammdaten_vorschlagen` | direkt | Unternehmensdaten, Gründung oder Bankkonten vorschlagen; ändert nichts, der Mensch übernimmt nach der Vorschau in der App |
@@ -369,3 +369,13 @@ betroffene Ansicht nach (`useLiveReload`).
    direkt die Regelverletzung. Die Matrix in `catalog_test.go` braucht eine
    gültige Mindesteingabe des Werkzeugs.
 6. Diese Tabelle ergänzen.
+
+### Berichtigte ZM
+
+`erklaerung` mit `art: zm` vergleicht den aktuellen Zeitraum mit dem aus
+Erstmeldung und bestätigten Berichtigungen zusammengesetzten Meldestand.
+`berichtigung` bezeichnet offene Änderungen; `zm_zeilen` enthält deren neue
+Gesamtbeträge einschließlich Nullzeilen. `meldung_id` bezeichnet einen dazu
+passenden, in der App gespeicherten Entwurf. `erklaerung_exportieren` mit
+`art: zm` und dieser `meldung_id` schreibt BOP-CSV in den Exportordner.
+Anlegen mit Kenntnisdatum und Übermittlungsbestätigung bleiben in der App.

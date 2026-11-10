@@ -2646,16 +2646,17 @@
       "openWorldHint": false,
       "readOnlyHint": false
     },
-    "description": "Schreibt eine Jahreserklärung (ust_jahr, kst, gewst) als JSON (Schema buchfink.erklaerung/1) in den Exportordner und hält den Export fest; liefert Pfad, Hashwerte und Befunde. Die Bücher ändert das nicht. Übermitteln und Transferticket erfassen nur der Mensch.",
+    "description": "Exportiert eine gespeicherte ZM mit meldung_id als BOP-CSV oder eine Jahreserklärung (ust_jahr, kst, gewst) als JSON (Schema buchfink.erklaerung/1) in den Exportordner und hält den Export fest; liefert Pfad, Hashwerte und Befunde. Die Bücher ändert das nicht. Übermitteln und Transferticket erfassen nur der Mensch.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
         "art": {
-          "description": "Jahreserklärung",
+          "description": "Jahreserklärung oder gespeicherte ZM",
           "enum": [
-            "gewst",
+            "ust_jahr",
             "kst",
-            "ust_jahr"
+            "gewst",
+            "zm"
           ],
           "type": "string"
         },
@@ -2665,12 +2666,16 @@
         "mandant_id": {
           "description": "id aus status",
           "type": "string"
+        },
+        "meldung_id": {
+          "description": "ZM: ID des in der App gespeicherten Entwurfs",
+          "minimum": 0,
+          "type": "integer"
         }
       },
       "required": [
         "mandant_id",
-        "art",
-        "jahr"
+        "art"
       ],
       "type": "object"
     },

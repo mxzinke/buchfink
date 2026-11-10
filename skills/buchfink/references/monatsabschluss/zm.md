@@ -58,9 +58,18 @@ und Nachweis: [grundlagen/pflichten.md#zm](../grundlagen/pflichten.md#zm).
 - Je Meldezeitraum eine berichtigte ZM nur mit den geänderten Zeilen; eine
   falsche USt-IdNr. mit Bemessungsgrundlage 0 stornieren und richtig neu melden
   ([BZSt][bzstber]).
-- Buchfink bildet die berichtigte ZM noch nicht ab. `erklaerung` zeigt den
-  ganzen Zeitraum neu; leg dem Menschen nur geänderte und stornierte Zeilen
-  vor. Er trägt sie ein und bewahrt das Transferticket selbst auf.
+- `erklaerung` (`art: zm`, ursprünglicher `zeitraum`) zeigt bei bestätigter
+  Vorabmeldung nur geänderte Zeilen mit dem neuen Gesamtbetrag; weggefallene
+  Zeilen mit 0. `berichtigung` zeigt den Handlungsbedarf.
+- Der Mensch legt die Berichtigung in der App an und gibt das Kenntnisdatum
+  an. Die App berechnet die Monatsfrist. Ein erneutes Anlegen verlängert sie
+  nicht. Ohne Kenntnisdatum bleibt die datierte Frist offen.
+- App und `erklaerung_exportieren` (`art: zm`, `meldung_id` aus `erklaerung`)
+  exportieren gespeicherte Meldungen als BOP-CSV. Im Portal den ursprünglichen
+  Zeitraum und „Berichtigung“ wählen. Die Datei enthält nur die Meldeliste.
+  Danach bestätigt der Mensch die Übermittlung mit dem Transferticket in der App.
+- Eine spätere Entgeltänderung bleibt von der Fehlerberichtigung zu unterscheiden
+  ([BZSt][bzstber]); die Buchung entscheidet über den Meldezeitraum.
 
 [ustg18a]: https://www.gesetze-im-internet.de/ustg_1980/__18a.html
 [ustg18b]: https://www.gesetze-im-internet.de/ustg_1980/__18b.html

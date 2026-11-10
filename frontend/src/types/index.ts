@@ -2244,10 +2244,11 @@ export interface VatReturn {
 }
 
 /** S: sonstige Leistung nach § 3a Abs. 2 UStG — die einzige Meldeart in Buchfink. */
-export type ZMLineKind = 'S';
+export type ZMLineKind = 'S' | 'L' | 'D';
 
 /** Eine Meldezeile: je USt-IdNr. ein Betrag. */
 export interface ZMLine {
+  previousAmount: number;
   id: number;
   zmReturnId: number;
   countryCode: string;
@@ -2307,6 +2308,7 @@ export interface ZMReturn {
 
 /** Ein Meldezeitraum mit Fälligkeit und Stand. */
 export interface ZMPeriodStatus extends VatPeriod {
+  correctionDue: boolean;
   dueDate: string;
   status: VatReturnStatus;
   returnId?: number;

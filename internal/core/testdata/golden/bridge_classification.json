@@ -99,6 +99,11 @@
     "ExaminerAllowed": false,
     "Guarded": true
   },
+  "CreateZMCorrection": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
   "DeleteBankRule": {
     "AppOnly": false,
     "ExaminerAllowed": false,
@@ -155,6 +160,11 @@
     "Guarded": false
   },
   "ExportZ3": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "ExportZMReturnCSV": {
     "AppOnly": false,
     "ExaminerAllowed": true,
     "Guarded": false

@@ -56,6 +56,13 @@ Welche Teile gebaut und geprüft sind, steht im
 Buchfink ersetzt keine steuerliche Beratung. Für Gestaltungsfragen, Bescheide
 und alles außerhalb der Tabelle oben ist ein Steuerberater der richtige Weg.
 
+Die ZM-Ansicht erkennt Änderungen an bestätigten Meldungen, zeigt alte und neue
+Beträge und legt Berichtigungen mit Kenntnisdatum und Monatsfrist an. Erstmeldung
+und Berichtigung lassen sich als BOP-CSV exportieren; die Übermittlung bestätigt
+weiterhin der Mensch. Ohne Kenntnisdatum bleibt die datierte Berichtigungsfrist
+offen. Die Erzeugung aus Buchungen umfasst weiterhin sonstige Leistungen.
+
+
 [ao108]: https://www.gesetze-im-internet.de/ao_1977/__108.html
 [ao149]: https://www.gesetze-im-internet.de/ao_1977/__149.html
 [hgb271]: https://www.gesetze-im-internet.de/hgb/__271.html

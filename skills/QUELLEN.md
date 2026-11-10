@@ -714,12 +714,20 @@ Aussage abgeglichen.
   Sekundärquellen; den Vordruck selbst gibt die Buhl-Datei wieder.
 - Summe der Vorauszahlungen für die Sondervorauszahlung: Behandlung von
   Überschussmonaten und der Vorjahres-SVZ im Wortlaut offen.
-- Buchfink: Eine berichtigte ZM bietet weder App noch Werkzeug
-  (`ZMService.CreateCorrection` ohne Aufruf). `erklaerung` rechnet den ganzen
-  Zeitraum neu; das BZSt verlangt, korrekt gemeldete Zeilen nicht zu
-  wiederholen.
-- Buchfink: Eine CSV-Datei der ZM bietet weder App noch Werkzeug; der Mensch
-  trägt die Zeilen ein.
+- Buchfink: Ohne Angabe des Kenntnisdatums ist die datierte Berichtigungsfrist
+  offen. Die App fragt es beim Anlegen ab. Die Erzeugung aus Buchungen bleibt
+  auf sonstige Leistungen beschränkt; der Berichtigungsvergleich trennt L/D/S.
+
+ZM-Importformat, Wortlaut geprüft am 10.11.2026:
+[BOP-Importhilfe](https://www.elster.de/bportal/helpGlobal?themaGlobal=zmdo_import):
+CSV 3.0, UTF-8, USt-IdNr. einschließlich Präfix, volle Euro, L/D/S,
+maximal 1500 Meldezeilen. Komma als Trenner und Kopfzeile nach Versionszeile.
+[§ 18a Abs. 10 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18a.html)
+am 10.11.2026 im Wortlaut: ein Monat ab Kenntnis, ursprüngliche Meldung.
+[BOP-Formularhilfe](https://www.elster.de/bportal/helpGlobal?themaGlobal=help_zm_bop),
+Wortlaut 10.11.2026: unveränderte Zeilen weglassen, Gesamtbetrag bei Betragsfehler,
+Nullzeile bei falscher USt-IdNr.; die dortige Dreimonatsfrist ist überholt.
+Die direkte BZSt-PDF antwortete mit HTTP 403 (Abschnitt 12 im Suchindex lesbar).
 
 ## Bereich jahresabschluss
 

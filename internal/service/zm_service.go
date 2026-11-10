@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
 	"github.com/buchfink/buchfink/internal/accounting"
+	"github.com/buchfink/buchfink/internal/calendar"
 	"github.com/buchfink/buchfink/internal/domain"
 )
 
@@ -67,9 +69,10 @@ func NewZMService(
 // ZMPeriodStatus ist ein Meldezeitraum mit Fälligkeit und Stand.
 type ZMPeriodStatus struct {
 	accounting.VatPeriod
-	DueDate  string                 `json:"dueDate"`
-	Status   domain.VatReturnStatus `json:"status"`
-	ReturnID uint                   `json:"returnId,omitempty"`
+	DueDate       string                 `json:"dueDate"`
+	Status        domain.VatReturnStatus `json:"status"`
+	CorrectionDue bool                   `json:"correctionDue"`
+	ReturnID      uint                   `json:"returnId,omitempty"`
 	// Committed meldet, ob der Meldezeitraum festgeschrieben ist. Die
 	// Bestätigung setzt das voraus (ensureCommitted) — ohne das Feld erführe es
 	// die Oberfläche erst, wenn der Anwender den Dialog schon ausgefüllt hat.
@@ -138,7 +141,34 @@ func (s *ZMService) Periods(ctx context.Context, year int) ([]ZMPeriodStatus, er
 			st.ReturnID = r.ID
 			st.SubmittedAt = r.SubmittedAt
 		}
-		st.IsOverdue = st.Status != domain.VatReturnSubmitted && st.Total != 0 && st.DueDate < today
+		history, err := s.zmRepo.FindByPeriod(ctx, p.Key)
+		if err != nil {
+			return nil, err
+		}
+		reported := zmReported(history)
+		hasSubmitted := false
+		for _, r := range history {
+			if r.Status == domain.VatReturnSubmitted {
+				hasSubmitted = true
+			}
+		}
+		st.CorrectionDue = hasSubmitted && len(zmChanges(reported, lines)) > 0
+		if !st.CorrectionDue {
+			if r := latest[p.Key]; r != nil && r.IsCorrection && r.Status == domain.VatReturnDraft {
+				for _, old := range history {
+					if old.Status == domain.VatReturnSubmitted {
+						st.Status, st.ReturnID, st.SubmittedAt = old.Status, old.ID, old.SubmittedAt
+					}
+				}
+			}
+		}
+		if st.CorrectionDue {
+			st.DueDate = ""
+			if r := latest[p.Key]; r != nil && r.IsCorrection && r.Status == domain.VatReturnDraft {
+				st.DueDate = r.DueDate
+			}
+		}
+		st.IsOverdue = st.DueDate != "" && st.DueDate < today && (st.CorrectionDue || (st.Status != domain.VatReturnSubmitted && st.Total != 0))
 		out = append(out, st)
 	}
 	return out, nil
@@ -150,7 +180,19 @@ func (s *ZMService) Draft(ctx context.Context, periodKey string) (*domain.ZMRetu
 	if err != nil {
 		return nil, err
 	}
-	return s.build(ctx, period)
+	fresh, err := s.build(ctx, period)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.correctionPreview(ctx, fresh); err != nil {
+		return nil, err
+	}
+	if open, err := s.openDraft(ctx, periodKey); err != nil {
+		return nil, err
+	} else if open != nil && sameZMLines(open.Lines, fresh.Lines) {
+		fresh.ID = open.ID
+	}
+	return fresh, nil
 }
 
 // Save legt die Meldung als Entwurf ab oder schreibt einen bestehenden Entwurf
@@ -190,6 +232,9 @@ func (s *ZMService) Save(ctx context.Context, periodKey string) (*domain.ZMRetur
 	if existing != nil {
 		fresh.ID = existing.ID
 		fresh.CreatedAt = existing.CreatedAt
+		if existing.IsCorrection {
+			return s.CreateCorrection(ctx, periodKey)
+		}
 		fresh.IsCorrection = existing.IsCorrection
 		fresh.CorrectsID = existing.CorrectsID
 		for i := range fresh.Lines {
@@ -264,6 +309,14 @@ func (s *ZMService) ConfirmSubmitted(ctx context.Context, id uint, date, ticket,
 	// Und wie bei der Voranmeldung: bestätigt wird, was übermittelt wurde. Ist
 	// der gespeicherte Entwurf inzwischen überholt, stünde in Buchfink eine
 	// Meldung mit Transferticket, die so nie beim Bundeszentralamt ankam.
+	if rec.IsCorrection {
+		if err := s.correctionPreview(ctx, current); err != nil {
+			return nil, err
+		}
+		if rec.CorrectsID == nil || current.CorrectsID == nil || *rec.CorrectsID != *current.CorrectsID {
+			return nil, fmt.Errorf("die Berichtigungsgrundlage ist überholt")
+		}
+	}
 	if err := ensureZMCurrent(rec, current); err != nil {
 		return nil, err
 	}
@@ -285,7 +338,7 @@ func (s *ZMService) ConfirmSubmitted(ctx context.Context, id uint, date, ticket,
 }
 
 // CreateCorrection legt eine berichtigte Meldung an (§ 18a Abs. 10 UStG).
-func (s *ZMService) CreateCorrection(ctx context.Context, periodKey string) (*domain.ZMReturn, error) {
+func (s *ZMService) CreateCorrection(ctx context.Context, periodKey string, recognized ...string) (*domain.ZMReturn, error) {
 	period, err := accounting.ParseVatPeriodKey(periodKey)
 	if err != nil {
 		return nil, err
@@ -302,12 +355,23 @@ func (s *ZMService) CreateCorrection(ctx context.Context, periodKey string) (*do
 	if err != nil {
 		return nil, err
 	}
-	fresh.IsCorrection = true
-	fresh.CorrectsID = &submitted.ID
-	// Die Berichtigung meldet den Zeitraum vollständig neu; was vorher ein
-	// Nachtrag zu *diesem* Zeitraum war, steht jetzt an seinem Platz.
-	fresh.LateEntries = make([]domain.ZMLateEntry, 0)
+	if err := s.correctionPreview(ctx, fresh); err != nil {
+		return nil, err
+	}
+	if len(fresh.Lines) == 0 {
+		return nil, fmt.Errorf("für %s sind keine geänderten Meldezeilen vorhanden", periodKey)
+	}
 
+	known := s.today()
+	if len(recognized) > 0 {
+		known = recognized[0]
+	}
+	day, err := calendar.Parse(known)
+	if err != nil || known > s.today() {
+		return nil, fmt.Errorf("das Kenntnisdatum muss ein gültiger Tag bis heute sein")
+	}
+	due, _ := calendar.Shift(calendar.AddMonths(day, 1), s.federalState(ctx))
+	fresh.DueDate = calendar.Format(due)
 	// Ein zweiter Aufruf schreibt den bestehenden Berichtigungsentwurf fort und
 	// legt keinen zweiten an. Sonst stünden zwei Entwürfe zu demselben Zeitraum
 	// nebeneinander, und welcher von beiden übermittelt wurde, ließe sich
@@ -317,6 +381,9 @@ func (s *ZMService) CreateCorrection(ctx context.Context, periodKey string) (*do
 		return nil, err
 	} else if open != nil {
 		before := *open
+		if open.DueDate != "" && open.DueDate < fresh.DueDate {
+			fresh.DueDate = open.DueDate
+		}
 		fresh.ID = open.ID
 		fresh.CreatedAt = open.CreatedAt
 		if err := s.zmRepo.Update(ctx, fresh); err != nil {
@@ -324,8 +391,8 @@ func (s *ZMService) CreateCorrection(ctx context.Context, periodKey string) (*do
 		}
 		if err := s.audit(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
 			"Berichtigte Zusammenfassende Meldung %s fortgeschrieben (berichtigt Meldung %d, "+
-				"bisher %s €, jetzt %s €)",
-			fresh.PeriodKey, submitted.ID, before.TotalServices, fresh.TotalServices)); err != nil {
+				"bisher %s €, jetzt %s €, Kenntnisangabe %s, Frist %s)",
+			fresh.PeriodKey, submitted.ID, before.TotalServices, fresh.TotalServices, known, fresh.DueDate)); err != nil {
 			return nil, err
 		}
 		return fresh, nil
@@ -335,7 +402,7 @@ func (s *ZMService) CreateCorrection(ctx context.Context, periodKey string) (*do
 		return nil, fmt.Errorf("die berichtigte Meldung konnte nicht gespeichert werden: %w", err)
 	}
 	if err := s.audit(ctx, domain.AuditActionUpdate, fresh.ID, fmt.Sprintf(
-		"Berichtigte Zusammenfassende Meldung %s angelegt (berichtigt Meldung %d)", fresh.PeriodKey, submitted.ID)); err != nil {
+		"Berichtigte Zusammenfassende Meldung %s angelegt (berichtigt Meldung %d, Kenntnisangabe %s, Frist %s)", fresh.PeriodKey, submitted.ID, known, fresh.DueDate)); err != nil {
 		return nil, err
 	}
 	return fresh, nil
@@ -374,19 +441,43 @@ func sameZMLines(a, b []domain.ZMLine) bool {
 }
 
 // ExportCSV liefert die Meldung im Spaltenformat des BZSt-Online-Portals:
-// Länderkennzeichen, USt-IdNr., Betrag in vollen Euro, Meldeart.
+// USt-IdNr. mit Länderpräfix, volle Euro, Meldeart (CSV-Version 3.0, UTF-8).
 func (s *ZMService) ExportCSV(ctx context.Context, id uint) (string, error) {
 	rec, err := s.zmRepo.FindByID(ctx, id)
 	if err != nil {
 		return "", fmt.Errorf("die Zusammenfassende Meldung %d wurde nicht gefunden: %w", id, err)
 	}
+	if rec.Status == domain.VatReturnDraft {
+		current, err := s.Draft(ctx, rec.PeriodKey)
+		if err != nil {
+			return "", err
+		}
+		if len(current.Findings) > 0 {
+			return "", fmt.Errorf("die Meldung ist unvollständig: %s", strings.Join(current.Findings, "; "))
+		}
+		if err := ensureZMCurrent(rec, current); err != nil {
+			return "", err
+		}
+	}
+
+	vatIDFormat := regexp.MustCompile(`^[A-Z]{2}[A-Z0-9+*]{5,12}$`)
 	var b strings.Builder
-	b.WriteString("Laenderkennzeichen;USt-IdNr.;Betrag;Art\n")
+	if len(rec.Lines) == 0 || len(rec.Lines) > 1500 {
+		return "", fmt.Errorf("der BOP-Import benötigt 1 bis 1500 Meldezeilen")
+	}
+	b.WriteString("#v3.0\nUmsatzsteuer-Identifikationsnummer (USt-IdNr.),Summe (Euro),Art der Leistung\n")
 	for _, line := range rec.Lines {
+		if !vatIDFormat.MatchString(line.VatID) || (line.Kind != "L" && line.Kind != "D" && line.Kind != "S") {
+			return "", fmt.Errorf("ungültige BOP-Meldezeile: %s, Art %s", line.VatID, line.Kind)
+		}
+		euros := int64(accounting.TruncToEuro(line.Amount)) / 100
+		if euros < -99999999999 || euros > 99999999999 {
+			return "", fmt.Errorf("der Betrag für %s überschreitet die elf Stellen des BOP-Imports", line.VatID)
+		}
 		// Gemeldet wird in vollen Euro; die Cent gehören in die Buchführung,
 		// nicht in die Meldung.
-		fmt.Fprintf(&b, "%s;%s;%d;%s\n",
-			line.CountryCode, strings.TrimPrefix(line.VatID, line.CountryCode),
+		fmt.Fprintf(&b, "%s,%d,%s\n",
+			line.VatID,
 			int64(accounting.TruncToEuro(line.Amount))/100, line.Kind)
 	}
 	if err := s.audit(ctx, domain.AuditActionExport, rec.ID, fmt.Sprintf(
@@ -496,30 +587,23 @@ func (s *ZMService) submittedPeriods(ctx context.Context, year int) (map[string]
 	if err != nil {
 		return nil, nil, err
 	}
-	// Je Zeitraum zählt die jüngste bestätigte Meldung: eine Berichtigung tritt
-	// an die Stelle der berichtigten und meldet den Zeitraum vollständig neu.
-	latest := map[string]*domain.ZMReturn{}
-	for i := range saved {
-		r := &saved[i]
+	submitted := map[string]bool{}
+	reported := map[string]map[uint]bool{}
+	for _, r := range saved {
 		if r.Status != domain.VatReturnSubmitted {
 			continue
 		}
-		if cur, ok := latest[r.PeriodKey]; !ok || r.ID > cur.ID {
-			latest[r.PeriodKey] = r
+		submitted[r.PeriodKey] = true
+		if reported[r.PeriodKey] == nil {
+			reported[r.PeriodKey] = map[uint]bool{}
 		}
-	}
-	submitted := map[string]bool{}
-	reported := map[string]map[uint]bool{}
-	for key, r := range latest {
-		submitted[key] = true
-		ids := map[uint]bool{}
 		for _, line := range r.Lines {
 			for _, id := range line.EntryIDs {
-				ids[id] = true
+				reported[r.PeriodKey][id] = true
 			}
 		}
-		reported[key] = ids
 	}
+
 	return submitted, reported, nil
 }
 

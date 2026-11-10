@@ -94,11 +94,12 @@ type kennzahl struct {
 }
 
 type zmZeile struct {
-	Land    string `json:"land"`
-	UstID   string `json:"ust_id"`
-	Art     string `json:"art" jsonschema:"L Lieferung, S sonstige Leistung, D Dreiecksgeschäft"`
-	Betrag  Betrag `json:"betrag"`
-	Kontakt string `json:"kontakt,omitempty"`
+	Bisher  *Betrag `json:"bisher,omitempty"`
+	Land    string  `json:"land"`
+	UstID   string  `json:"ust_id"`
+	Art     string  `json:"art" jsonschema:"L Lieferung, S sonstige Leistung, D Dreiecksgeschäft"`
+	Betrag  Betrag  `json:"betrag"`
+	Kontakt string  `json:"kontakt,omitempty"`
 }
 
 type herkunftKonto struct {
@@ -151,6 +152,8 @@ type erklaerungBefund struct {
 }
 
 type erklaerungOut struct {
+	MeldungID        uint                 `json:"meldung_id,omitempty"`
+	Berichtigung     bool                 `json:"berichtigung,omitempty"`
 	Art              string               `json:"art"`
 	Zeitraum         string               `json:"zeitraum"`
 	Status           string               `json:"status" jsonschema:"entwurf, exportiert oder uebermittelt"`
@@ -248,8 +251,9 @@ func (o erklaerungEingabeOut) Ref() string { return "eingabe:" + o.Schluessel }
 
 type erklaerungExportIn struct {
 	TenantArgs
-	Art  JahrArt `json:"art"`
-	Jahr int     `json:"jahr"`
+	Art       ExportArt `json:"art"`
+	Jahr      int       `json:"jahr,omitempty"`
+	MeldungID uint      `json:"meldung_id,omitempty" jsonschema:"ZM: ID des in der App gespeicherten Entwurfs"`
 }
 
 type exportOut struct {
@@ -333,15 +337,21 @@ func registerErklaerung(tb *Toolbox) {
 			}
 			out.Zeitraum, out.Status, out.Faellig = ret.PeriodKey, statusLabel(string(ret.Status)), ret.DueDate
 			out.Uebermittelt, out.Transferticket = ret.SubmittedAt, ret.TransferTicket
+			out.MeldungID = ret.ID
+			out.Berichtigung = ret.IsCorrection && len(ret.Lines) > 0
 			for _, l := range ret.Lines {
+				var previous *Betrag
+				if ret.IsCorrection {
+					previous = optBetrag(l.PreviousAmount)
+				}
 				out.ZM = append(out.ZM, zmZeile{Land: l.CountryCode, UstID: l.VatID, Art: string(l.Kind), Betrag: betrag(l.Amount),
-					Kontakt: l.ContactName})
+					Kontakt: l.ContactName, Bisher: previous})
 			}
 			for _, f := range ret.Findings {
 				out.Befunde = append(out.Befunde, erklaerungBefund{Schwere: "hinweis", Text: f})
 			}
 			out.Abgabereif = len(ret.Findings) == 0
-			out.NaechsterSchritt = "Zeilen im BZSt-Online-Portal erfassen lassen; das Transferticket erfasst nur der Mensch in der App."
+			out.NaechsterSchritt = "Meldung in der App speichern, mit erklaerung_exportieren (art zm, meldung_id) exportieren. Bei Berichtigung gilt ein Monat ab Kenntnis; Kenntnisdatum und Frist prüfen. Das Transferticket erfasst nur der Mensch in der App."
 			return out, nil
 		}
 		kind, ok := declarationKinds[JahrArt(in.Art)]
@@ -400,12 +410,39 @@ func registerErklaerung(tb *Toolbox) {
 		Name:       "erklaerung_exportieren",
 		Title:      "Erklärung exportieren",
 		Idempotent: true, ExaminerExempt: true,
-		Description: "Schreibt eine Jahreserklärung (ust_jahr, kst, gewst) als JSON (Schema buchfink.erklaerung/1) " +
+		Description: "Exportiert eine gespeicherte ZM mit meldung_id als BOP-CSV oder eine Jahreserklärung (ust_jahr, kst, gewst) als JSON (Schema buchfink.erklaerung/1) " +
 			"in den Exportordner und hält den Export fest; liefert Pfad, Hashwerte und Befunde. Die Bücher ändert " +
 			"das nicht. Übermitteln und Transferticket erfassen nur der Mensch.",
 	}, func(ctx context.Context, c *Call, t *core.Tenant, in erklaerungExportIn) (exportOut, error) {
 		out := exportOut{Format: "json", Befunde: []erklaerungBefund{}}
-		kind, ok := declarationKinds[in.Art]
+		if in.Art == "zm" {
+			var data, path string
+			err := t.ReadAgent(ctx, func(ctx context.Context, s core.AgentServices) error {
+				var err error
+				data, err = s.ZM.ExportCSV(ctx, in.MeldungID)
+				if err != nil {
+					return err
+				}
+				dirs, err := folders(ctx, c, s)
+				if err != nil {
+					return err
+				}
+				path, err = dirs.ExportPath(fmt.Sprintf("zm-%d.csv", in.MeldungID))
+				return err
+			})
+			if err != nil {
+				return out, err
+			}
+			if err := writeExport(path, []byte(data)); err != nil {
+				return out, err
+			}
+			hash := sha256.Sum256([]byte(data))
+			out.Format, out.Pfad, out.SHA256 = "csv", path, hex.EncodeToString(hash[:])
+			out.NaechsterSchritt = "Meldeliste im BZSt-Online-Portal importieren; Zeitraum und Berichtigung dort wählen. Übermittlung anschließend in der App bestätigen."
+			return out, nil
+		}
+
+		kind, ok := declarationKinds[JahrArt(in.Art)]
 		if !ok {
 			return out, inputError("art", "ust_jahr, kst oder gewst, nicht %q", in.Art)
 		}

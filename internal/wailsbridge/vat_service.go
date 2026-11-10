@@ -97,3 +97,12 @@ func (b *BuchfinkBridge) GetVatPeriodProposal(year int) (*service.VatPeriodPropo
 		return s.VatReturns.SuggestPeriodType(ctx, year)
 	})
 }
+
+func (b *BuchfinkBridge) CreateZMCorrection(periodKey, recognized string) (*domain.ZMReturn, error) {
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.ZMReturn, error) {
+		return s.ZM.CreateCorrection(ctx, periodKey, recognized)
+	})
+}
+func (b *BuchfinkBridge) ExportZMReturnCSV(id uint) (string, error) {
+	return read(b, func(ctx context.Context, s *core.Services) (string, error) { return s.ZM.ExportCSV(ctx, id) })
+}

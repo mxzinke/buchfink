@@ -364,8 +364,14 @@ func (r *obligationRun) ecSalesLists(year int, add func(domain.Obligation, *doma
 			continue
 		}
 		r.setDue(&o, statutory)
+		if p.CorrectionDue {
+			o.Title += " – Berichtigung: ein Monat ab Kenntnis"
+			o.DueDate = p.DueDate
+			o.StatutoryDate, o.ShiftReason = "", ""
+			o.Hints = []string{"Berichtigungsfrist nach § 18a Abs. 10 UStG: ein Monat ab Kenntnis. Kenntnisdatum beim Anlegen in der App angeben."}
+		}
 		var proof *domain.ObligationEvidence
-		if p.Status == domain.VatReturnSubmitted {
+		if p.Status == domain.VatReturnSubmitted && !p.CorrectionDue {
 			proof = &domain.ObligationEvidence{
 				Date: p.SubmittedAt, Kind: domain.EvidenceTransferTicket,
 				Reference: r.zmTicket(p.Key), Automatic: true,

@@ -155,3 +155,41 @@ annimmt und die Finanzverwaltung sie akzeptiert, ist nicht belegt.
 [hgb242]: https://www.gesetze-im-internet.de/hgb/__242.html
 [hgb243]: https://www.gesetze-im-internet.de/hgb/__243.html
 [hgb264]: https://www.gesetze-im-internet.de/hgb/__264.html
+
+## Berichtigte Zusammenfassende Meldung
+
+Nach [§ 18a Abs. 10 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18a.html)
+ist die ursprüngliche Meldung innerhalb eines Monats ab Kenntnis zu berichtigen.
+Die App fragt beim Anlegen das Kenntnisdatum ab und berechnet die Monatsfrist
+mit den bestehenden Kalenderregeln. Der Pflichtenkalender zeigt Änderungen
+auch vor dieser Angabe; dann ist die datierte Frist noch offen.
+
+Je USt-IdNr. und Leistungsart ersetzt eine bestätigte Berichtigung nur die darin
+enthaltenen Zeilen. Der Vergleich berücksichtigt alle bestätigten Meldungen in
+ID-Reihenfolge. Unveränderte Zeilen fehlen, geänderte enthalten den neuen
+Gesamtbetrag, weggefallene den Betrag 0. Verglichen wird in vollen Euro.
+Quelle: [BOP-Formularhilfe, Berichtigung der Bemessungsgrundlage](https://www.elster.de/bportal/helpGlobal?themaGlobal=help_zm_bop),
+[BZSt, Berichtigung](https://www.bzst.de/DE/Unternehmen/Umsatzsteuer/ZusammenfassendeMeldung/BerichtigungZM/berichtigung_node.html)
+und [Ausfüllanleitung, Abschnitt 12](https://www.bzst.de/SharedDocs/Downloads/DE/ZM/zm_ausfuellanleitung.pdf?__blob=publicationFile&v=4).
+Eine spätere Entgeltänderung ist gesondert zu behandeln; die vorhandene
+zeitliche Zuordnung der Buchungen bleibt maßgeblich.
+
+Der CSV-Export folgt der aktuellen
+[BOP-Importhilfe](https://www.elster.de/bportal/helpGlobal?themaGlobal=zmdo_import)
+(geprüft 10.11.2026): Versionszeile `#v3.0`, Kopfzeile, Komma, UTF-8;
+Spalten USt-IdNr. einschließlich Länderpräfix, ganzzahliger Eurobetrag ohne
+Tausendertrenner und Leistungsart L/D/S. Cent werden abgeschnitten. Die Datei
+enthält 1 bis 1500 Meldezeilen. Zeitraum und Berichtigungskennzeichen werden
+im Portal gewählt. Die Anleitung von 2015 beschreibt ein überholtes
+Vier-Spalten-Format; maßgeblich ist die aktuelle Online-Hilfe.
+
+Der Agent bereitet die Berichtigung lesend vor und exportiert gespeicherte
+Meldungen. Anlegen bleibt in der App: Ein eigener Lösch- oder Stornoweg für
+Meldungsentwürfe ist nicht vorhanden. Übermittlungsbestätigungen bleiben durch
+`requireHuman` und `core.AppOnly` geschützt.
+
+Die BOP-Formularhilfe nennt noch eine Dreimonatsfrist. Für die Frist gilt der
+am 10.11.2026 gelesene Gesetzeswortlaut (§ 18a Abs. 10 UStG: ein Monat).
+Die BZSt-PDF war direkt mit HTTP 403 gesperrt; Abschnitt 12 war im amtlichen
+Suchindex lesbar. Die Regeln zu Gesamtbetrag, Nullzeilen und Nichtwiederholung
+sind zusätzlich in der oben verlinkten BOP-Formularhilfe im Wortlaut geprüft.

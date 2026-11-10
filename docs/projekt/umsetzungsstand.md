@@ -124,3 +124,9 @@ verstehen. Eine externe fachliche Prüfung hat nicht stattgefunden. Die
 [Prüfszenarien](../entwicklung/pruefszenarien.md) beschreiben, was sich
 wiederholbar prüfen lässt. Behobene Fehler je Version stehen in der
 [Änderungshistorie](../../internal/changelog/CHANGELOG.md).
+
+Die ZM-Ansicht erkennt Änderungen an bestätigten Meldungen, zeigt alte und neue
+Beträge und legt Berichtigungen mit Kenntnisdatum und Monatsfrist an. Erstmeldung
+und Berichtigung lassen sich als BOP-CSV exportieren; die Übermittlung bestätigt
+weiterhin der Mensch. Ohne Kenntnisdatum bleibt die datierte Berichtigungsfrist
+offen. Die Erzeugung aus Buchungen umfasst weiterhin sonstige Leistungen.

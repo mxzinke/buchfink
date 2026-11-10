@@ -257,12 +257,13 @@ const ZMKindService ZMLineKind = "S"
 
 // ZMLine ist eine Meldezeile: je USt-IdNr. ein Betrag.
 type ZMLine struct {
-	ID          uint       `gorm:"primaryKey" json:"id"`
-	ZMReturnID  uint       `gorm:"index;not null" json:"zmReturnId"`
-	CountryCode string     `gorm:"size:2;not null" json:"countryCode"`
-	VatID       string     `gorm:"size:20;not null" json:"vatId"`
-	Kind        ZMLineKind `gorm:"size:1;not null" json:"kind"`
-	Amount      Cents      `gorm:"not null" json:"amount"`
+	PreviousAmount Cents      `gorm:"-" json:"previousAmount"`
+	ID             uint       `gorm:"primaryKey" json:"id"`
+	ZMReturnID     uint       `gorm:"index;not null" json:"zmReturnId"`
+	CountryCode    string     `gorm:"size:2;not null" json:"countryCode"`
+	VatID          string     `gorm:"size:20;not null" json:"vatId"`
+	Kind           ZMLineKind `gorm:"size:1;not null" json:"kind"`
+	Amount         Cents      `gorm:"not null" json:"amount"`
 
 	ContactID   uint   `gorm:"index" json:"contactId"`
 	ContactName string `gorm:"-" json:"contactName,omitempty"`

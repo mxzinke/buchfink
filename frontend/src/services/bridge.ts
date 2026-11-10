@@ -190,6 +190,8 @@ export const bridge = {
   // Zusammenfassende Meldung
   GetZMPeriods: <T>(year: number) => invoke<T>('GetZMPeriods', year),
   GetZMReturn: <T>(periodKey: string) => invoke<T>('GetZMReturn', periodKey),
+  CreateZMCorrection: <T>(periodKey: string, recognized: string) => invoke<T>('CreateZMCorrection', periodKey, recognized),
+  ExportZMReturnCSV: <T>(id: number) => invoke<T>('ExportZMReturnCSV', id),
   SaveZMReturn: <T>(periodKey: string) => invoke<T>('SaveZMReturn', periodKey),
   ConfirmZMSubmitted: <T>(id: number, date: string, ticket: string, note: string) =>
     invoke<T>('ConfirmZMSubmitted', id, date, ticket, note),

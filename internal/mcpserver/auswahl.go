@@ -49,6 +49,7 @@ type (
 	AfaMethode       string
 	ErklaerungArt    string
 	JahrArt          string
+	ExportArt        string
 	EBilanzFormat    string
 	Bilanzart        string
 	Quelle           string
@@ -95,6 +96,7 @@ var choices = map[reflect.Type]choice{
 	reflect.TypeFor[Fondsart]():      {choiceKeys(fundClasses), "Fondsart nach § 2 InvStG"},
 	reflect.TypeFor[AfaMethode]():    {choiceKeys(depreciationMethods), "Abschreibungsmethode"},
 	reflect.TypeFor[ErklaerungArt](): {[]string{"ustva", "zm", "ust_jahr", "kst", "gewst"}, "Art der Anmeldung oder Erklärung"},
+	reflect.TypeFor[ExportArt]():     {[]string{"ust_jahr", "kst", "gewst", "zm"}, "Jahreserklärung oder gespeicherte ZM"},
 	reflect.TypeFor[JahrArt]():       {choiceKeys(declarationKinds), "Jahreserklärung"},
 	reflect.TypeFor[EBilanzFormat](): {[]string{"xbrl", "susa_csv"},
 		"xbrl (Vorgabe): die Instanz zur Übermittlung; susa_csv: Summen- und Saldenliste mit Taxonomie-Position je Konto, etwa für eBilanz+"},

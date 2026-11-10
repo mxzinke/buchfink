@@ -198,6 +198,7 @@ type AgentServices struct {
 		PeriodMismatch(context.Context, string) domain.VatPeriodType
 	}
 	ZM interface {
+		ExportCSV(context.Context, uint) (string, error)
 		Draft(context.Context, string) (*domain.ZMReturn, error)
 	}
 }

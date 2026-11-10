@@ -897,6 +897,9 @@ export const Api = {
     call(() => Bridge.GetZMPeriods(year) as Promise<ZMPeriodStatus[]>).then(list),
   getZMReturn: (periodKey: string): Promise<ZMReturn> =>
     call(() => Bridge.GetZMReturn(periodKey) as Promise<ZMReturn>).then(normalizeZMReturn),
+  createZMCorrection: (periodKey: string, recognized: string): Promise<ZMReturn> =>
+    call(() => Bridge.CreateZMCorrection(periodKey, recognized) as Promise<ZMReturn>).then(normalizeZMReturn),
+  exportZMReturnCSV: (id: number): Promise<string> => call(() => Bridge.ExportZMReturnCSV(id) as Promise<string>),
   saveZMReturn: (periodKey: string): Promise<ZMReturn> =>
     call(() => Bridge.SaveZMReturn(periodKey) as Promise<ZMReturn>).then(normalizeZMReturn),
   confirmZMSubmitted: (id: number, date: string, ticket: string, note = ''): Promise<ZMReturn> =>

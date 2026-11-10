@@ -109,8 +109,6 @@ var exceptions = map[string]string{
 
 	"VatReturnService.SuggestedSpecialPrepayment": "kein Vorschlag zur Sondervorauszahlung",
 	"VatIDService.Checks":                         "kein Verlauf der Bestätigungsanfragen einer USt-IdNr.",
-	"ZMService.CreateCorrection":                  "keine berichtigte ZM, obwohl das Speichern einer übermittelten Meldung darauf verweist",
-	"ZMService.ExportCSV":                         "keine ZM als CSV für das BZSt-Online-Portal",
 }
 
 type listedPackage struct {

@@ -3,7 +3,7 @@ import { ChevronRight, Lock } from 'lucide-react';
 import { Api } from '../../services/api';
 import { useLiveReload } from '../../live';
 import { useWriteLock } from '../../components/WriteLock';
-import { downloadCSV } from '../../utils/download';
+import { downloadCSV, downloadBlob } from '../../utils/download';
 import { formatCents, formatDate } from '../../utils/formatters';
 import type { NavigateFn } from '../../navigation';
 import type {
@@ -17,6 +17,8 @@ import type {
 } from '../../types';
 import {
   Button,
+  Field,
+  Input,
   EmptyState,
   Help,
   Notice,
@@ -157,6 +159,7 @@ export const MonthTab: React.FC<MonthTabProps> = ({
   }, [year]);
 
   const today = todayISO();
+ const [zmKnown, setZmKnown] = useState(todayISO());
   const months = useMemo(() => monthsBetween(span.from, span.to), [span]);
   const commits = useMemo(() => {
     const out = new Map<string, Obligation>();
@@ -219,7 +222,7 @@ export const MonthTab: React.FC<MonthTabProps> = ({
     void load();
   }, [load]);
 
-  useLiveReload(load, ['buchungen', 'belege', 'bank', 'abschluss']);
+  useLiveReload(load, ['buchungen', 'belege', 'bank', 'abschluss', 'stammdaten']);
 
   const zmPeriod = state ? zmPeriods.find((p) => p.to === state.to) ?? null : null;
   useEffect(() => {
@@ -230,7 +233,7 @@ export const MonthTab: React.FC<MonthTabProps> = ({
     Api.getZMReturn(zmPeriod.key)
       .then(setZmReturn)
       .catch(() => setZmReturn(null));
-  }, [zmPeriod?.key, zmPeriod?.status]);
+  }, [zmPeriod]);
 
   const reloadAll = async () => {
     await load();
@@ -246,7 +249,7 @@ export const MonthTab: React.FC<MonthTabProps> = ({
   const showZm =
     zmPeriod !== null &&
     zmReturn !== null &&
-    (zmReturn.lines.length > 0 || zmPeriod.status === 'submitted');
+    (zmReturn.lines.length > 0 || (zmPeriod.status === 'submitted' && !zmPeriod.correctionDue));
 
   const commitObligation = commits.get(month);
   const contextParts: string[] = [];
@@ -301,11 +304,33 @@ export const MonthTab: React.FC<MonthTabProps> = ({
     }
   }
 
+  async function exportZm() {
+    if (!zmPeriod || !zmReturn) return;
+    setBusy('zm-export');
+    try {
+      const saved = zmPeriod.status === 'submitted' && !zmPeriod.correctionDue
+        ? { ...zmReturn, id: zmPeriod.returnId! }
+        : zmReturn.isCorrection
+          ? await Api.createZMCorrection(zmPeriod.key, zmKnown)
+          : await Api.saveZMReturn(zmPeriod.key);
+      const csv = await Api.exportZMReturnCSV(saved.id);
+      downloadBlob(`zm-${zmPeriod.key}.csv`, new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      setZmReturn(saved);
+      await reloadAll();
+      toast.success(`Meldung ${saved.id} exportiert${saved.dueDate ? ` · Frist ${formatDate(saved.dueDate)}` : ''}.`);
+    } catch (e) {
+      toast.error(message(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function confirmZm(date: string, ticket: string) {
     if (!zmPeriod) return;
     setBusy('zm');
     try {
-      const saved = await Api.saveZMReturn(zmPeriod.key);
+      if (!zmReturn?.id) throw new Error('Bitte die Meldung zuerst anlegen und exportieren.');
+      const saved = zmReturn;
       await Api.confirmZMSubmitted(saved.id, date, ticket);
       toast.success(`Zusammenfassende Meldung ${zmPeriod.label} als übermittelt vermerkt.`);
       await reloadAll();
@@ -459,21 +484,32 @@ export const MonthTab: React.FC<MonthTabProps> = ({
               number={4}
               title={`Zusammenfassende Meldung ${zmPeriod.label}`}
               state={
-                zmPeriod.status === 'submitted'
+                zmPeriod.status === 'submitted' && !zmPeriod.correctionDue
                   ? 'done'
                   : zmPeriod.committed
                     ? 'open'
                     : 'blocked'
               }
               summary={
-                zmPeriod.status === 'submitted'
+                zmPeriod.status === 'submitted' && !zmPeriod.correctionDue
                   ? `Übermittelt am ${formatDate(zmPeriod.submittedAt ?? '')}`
-                  : `Fällig am ${formatDate(zmPeriod.dueDate)}`
+                  : zmPeriod.dueDate ? `Fällig am ${formatDate(zmPeriod.dueDate)}` : 'Berichtigung: Kenntnisdatum angeben'
               }
               open
             >
+              {zmPeriod.correctionDue && (
+                <>
+                  <Notice text="Berichtigung erforderlich. Die Frist beträgt einen Monat ab Kenntnis. Bitte Kenntnisdatum und Frist prüfen." />
+                  <Field label="Fehler erkannt am">
+                    <Input type="date" max={today} value={zmKnown} onChange={(e) => setZmKnown(e.target.value)} />
+                  </Field>
+                </>
+              )}
               <ZmSheet zmReturn={zmReturn} />
-              {zmPeriod.status !== 'submitted' && zmPeriod.committed && (
+              <Button disabled={writeLock.locked} loading={busy === 'zm-export'} onClick={() => void exportZm()}>
+                {zmPeriod.status === 'submitted' && !zmPeriod.correctionDue ? 'CSV exportieren' : 'Meldung anlegen und als CSV exportieren'}
+              </Button>
+              {(zmPeriod.status !== 'submitted' || zmPeriod.correctionDue) && zmPeriod.committed && (
                 <div className="mt-5">
                   <TicketForm
                     label="Meldung bestätigen"
@@ -800,37 +836,44 @@ const VatRow: React.FC<{
 /** Die Zeilen der Zusammenfassenden Meldung: je USt-IdNr. ein Betrag. */
 const ZmSheet: React.FC<{ zmReturn: ZMReturn }> = ({ zmReturn }) => (
   <div>
+    {zmReturn.isCorrection && zmReturn.lines.length === 0 && <Notice text="Keine geänderten Meldezeilen." />}
     {(zmReturn.findings ?? []).map((finding) => (
       <Notice key={finding} className="mb-3" text={finding} />
     ))}
-    <Table density="kompakt">
+    {(!zmReturn.isCorrection || zmReturn.lines.length > 0) && <Table density="kompakt">
       <Thead>
         <Tr>
           <Th className="w-20">Land</Th>
           <Th className="w-48">USt-IdNr.</Th>
           <Th>Kunde</Th>
+          <Th>Art</Th>
+          {zmReturn.isCorrection && <Th numeric>Bisher</Th>}
           <Th numeric className="w-40">
-            Sonstige Leistungen
+            Betrag
           </Th>
         </Tr>
       </Thead>
       <Tbody>
         {zmReturn.lines.map((line) => (
-          <Tr key={line.id || `${line.vatId}-${line.amount}`}>
+          <Tr key={line.id || `${line.vatId}-${line.kind}`}>
             <Td code>{line.countryCode}</Td>
             <Td code>{line.vatId}</Td>
             <Td>{line.contactName ?? '—'}</Td>
+            <Td>{line.kind}</Td>
+            {zmReturn.isCorrection && <Td numeric>{formatCents(line.previousAmount)}</Td>}
             <Td numeric>{formatCents(line.amount)}</Td>
           </Tr>
         ))}
         <Tr variant="sum">
-          <Td>Summe</Td>
+          <Td>{zmReturn.isCorrection ? 'Berichtigung' : 'Summe'}</Td>
           <Td />
           <Td />
+          <Td />
+          {zmReturn.isCorrection && <Td />}
           <Td numeric>{formatCents(zmReturn.totalServices)}</Td>
         </Tr>
       </Tbody>
-    </Table>
+    </Table>}
   </div>
 );
 

@@ -48,7 +48,9 @@ Steuerberater.
 5. **Berichtigte Anmeldung.** Der Mensch legt sie in der App an; Buchfink
    rechnet den Zeitraum neu und setzt Kennziffer 10. Weiter wie
    [ablauf.md](ablauf.md#2-ablauf), Schritte 8 bis 10.
-6. **ZM**, wenn Kennziffer 21 betroffen ist ([zm.md](zm.md#5-berichtigung)).
+6. **ZM**: `erklaerung` zeigt die geänderten Zeilen; der Mensch legt die
+   Berichtigung mit Kenntnisdatum in der App an und bestätigt später die
+   Übermittlung. Export mit `erklaerung_exportieren` und `meldung_id`, wenn Kennziffer 21 betroffen ist ([zm.md](zm.md#5-berichtigung)).
 7. **Zahlung** nach
    [bank/steuerzahlungen.md](../bank/steuerzahlungen.md#2-konten-je-steuerart);
    den Termin legt der Mensch fest.

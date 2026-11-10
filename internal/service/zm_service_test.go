@@ -205,16 +205,16 @@ func TestZMCSVFormat(t *testing.T) {
 	}
 
 	lines := strings.Split(strings.TrimSpace(csv), "\n")
-	if lines[0] != "Laenderkennzeichen;USt-IdNr.;Betrag;Art" {
+	if lines[0] != "#v3.0" {
 		t.Errorf("Kopfzeile = %q", lines[0])
 	}
-	if len(lines) != 3 {
+	if len(lines) != 4 {
 		t.Fatalf("erwartet Kopfzeile und zwei Meldezeilen, erhalten %d:\n%s", len(lines), csv)
 	}
-	if !strings.Contains(csv, "FR;12345678901;5000;S\n") {
+	if !strings.Contains(csv, "FR12345678901,5000,S\n") {
 		t.Errorf("die französische Zeile fehlt oder ist falsch gerundet (5.000,49 € → 5000):\n%s", csv)
 	}
-	if !strings.Contains(csv, "IT;00743110157;1000;S\n") {
+	if !strings.Contains(csv, "IT00743110157,1000,S\n") {
 		t.Errorf("die italienische Zeile fehlt:\n%s", csv)
 	}
 }
@@ -238,8 +238,8 @@ func TestZMCSVUsesTheVatIDPrefixForGreece(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Export: %v", err)
 	}
-	if !strings.Contains(csv, "EL;123456789;5000;S\n") {
-		t.Errorf("erwartet die Zeile \"EL;123456789;5000;S\":\n%s", csv)
+	if !strings.Contains(csv, "EL123456789,5000,S\n") {
+		t.Errorf("erwartet die Zeile \"EL123456789,5000,S\":\n%s", csv)
 	}
 }
 
