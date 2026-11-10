@@ -179,7 +179,7 @@ den Schemas nur kurz.
 | `rechnung_ausstellen` | rueckfrage | Rechnung, Abschlagsrechnung, Schlussrechnung; PDF und E-Rechnung im Exportordner; gebucht zum Ende des Leistungszeitraums (§ 252 Abs. 1 Nr. 4 HGB), bei festgeschriebenem Leistungstag zum Rechnungsdatum |
 | `forderung_ausbuchen` | rueckfrage | Uneinbringliche Forderung ganz oder teilweise mit Grund, Nachweis (`beleg_id`) und Eintrittsdatum (`datum`); `nur_vorschau` zeigt Buchung und Steuerkorrektur, bestehende zugeordnete EWB wird aufgelöst |
 | `mahnung_vermerken` | rueckfrage | Zugang einer Mahnung festhalten; daraus folgt der Verzug |
-| `abschlussbuchung` | rueckfrage | AfA-Lauf, Abgrenzung, Rückstellung, USt-Verrechnung, Steuerrückstellung, UG-Rücklage, Wertberichtigung, unfertige Leistungen, Fremdwährung, Anlage aktivieren (`anlage_aktivieren`, bei einem Investmentanteil mit Fondsart), Vorabpauschale eines Investmentanteils (ohne Buchung am Anlagegut festgehalten) |
+| `abschlussbuchung` | rueckfrage | AfA-Lauf, Abgrenzung, Rückstellung (Bildung, Zuführung, Auflösung, Aufzinsung mit Vorschau), USt-Verrechnung, Steuerrückstellung, UG-Rücklage, Wertberichtigung, unfertige Leistungen, Fremdwährung, Anlage aktivieren (`anlage_aktivieren`, bei einem Investmentanteil mit Fondsart), Vorabpauschale eines Investmentanteils (ohne Buchung am Anlagegut festgehalten) |
 | `erklaerung_eingabe` | rueckfrage | Angabe zu einer Zeile einer Jahreserklärung; was der Mensch gesetzt oder bestätigt hat, ändert nur er |
 | `beleg_verwerfen` | rueckfrage | abgelegten Beleg mit Grund verwerfen; er bleibt im Archiv |
 | `anlass_erfassen` | rueckfrage | Gesellschafterwechsel, Änderung der wirtschaftlich Berechtigten, Vorauszahlungsbescheid KSt oder GewSt |
@@ -402,3 +402,14 @@ und ihre Steuer. Die Abschlagsrechnung bleibt bestehen und wird wieder offen;
 entfällt der Auftrag, muss sie anschließend storniert werden. Bereits in einer
 Schlussrechnung verrechnete Anzahlungen lassen sich auf diesem Weg nicht
 zurückzahlen.
+
+
+Bei `abschlussbuchung.art=rueckstellung` wählt `rueckstellung.bewegung`
+`bildung` (Standard), `zufuehrung`, `aufloesung` oder `aufzinsung`.
+Fortführungen nennen `id`, `datum` und `grund` mit Nachweis.
+Bei Auflösung bedeutet ein fehlender Betrag den Restbestand, bei Aufzinsung
+die Berechnung mit dem gespeicherten Satz. `zinssatz` enthält `rate`
+(`month`, `years`, `average`, `rateMicros`, etwa 15000 für 1,5 %)
+und `source` als Bundesbank-Fundstelle.
+`abschluss_status` liefert Rückstellungskennungen, Bestände und den Spiegel.
+Verbrauch erfolgt mit `beleg_buchen_mit_rueckfrage.rueckstellung_id`.

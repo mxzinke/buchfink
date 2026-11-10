@@ -143,18 +143,28 @@ func (s *ClosingStepsService) deriveAccruals(ctx context.Context, year int, fy *
 }
 
 func (s *ClosingStepsService) deriveProvisions(ctx context.Context, year int, fy *domain.FiscalYear) (domain.ClosingStepState, string) {
-	provisions, err := s.liveProvisions(ctx, year)
+	stored, err := s.provisionRepo.FindAll(ctx)
 	if err != nil {
 		return domain.ClosingStepOpen, ""
 	}
-	// Die Steuerrückstellung ist ein eigener Schritt. Zählte sie hier mit,
-	// wäre der Schritt „Rückstellungen" allein durch sie erledigt — obwohl
-	// niemand nach ungewissen Verbindlichkeiten gesehen hat.
-	count := 0
+	provisions, err := liveProvisions(ctx, s.journalRepo, stored)
+	if err != nil {
+		return domain.ClosingStepOpen, ""
+	}
+	count, carried := 0, 0
 	for _, p := range provisions {
-		if !p.Kind.IsTax() {
+		if p.Kind.IsTax() || p.FiscalYear > year {
+			continue
+		}
+		if p.FiscalYear < year && p.BalanceAt(year-1) > 0 && !movedIn(&p, year) {
+			carried++
+		}
+		if p.FiscalYear == year || movedIn(&p, year) {
 			count++
 		}
+	}
+	if carried > 0 {
+		return domain.ClosingStepOpen, fmt.Sprintf("%d fortgeführte Rückstellungen: Verbrauch, Zuführung, Auflösung und Aufzinsung prüfen", carried)
 	}
 	if count == 0 {
 		return domain.ClosingStepOpen, ""

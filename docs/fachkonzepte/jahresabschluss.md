@@ -185,3 +185,27 @@ inhaltliche Prüfung der übrigen Angaben. Wortlaut geprüft am 10. November 202
 Die gespeicherten Texte gehören zum gemeinsamen Jahresabschluss für PDF, CSV
 und Prüferpaket. Bei Kleinstgesellschaften erscheinen die Ersatzangaben unter
 der Bilanz. Einen Datensatz für das Unternehmensregister erzeugt Buchfink nicht.
+
+
+## Rückstellungen fortführen
+
+Im Abschluss lassen sich bestehende Rückstellungen mit Vorschau erhöhen,
+auflösen und aufzinsen. Der Spiegel trennt Zuführung und Aufzinsung und zeigt
+auch Bestände aus Vorjahren. Verbrauch läuft über die Eingangsrechnung mit
+zugeordneter Rückstellung; nur der übersteigende Nettobetrag bleibt Aufwand.
+Steuerrückstellungen haben ihren eigenen Abschlussbaustein.
+
+Ein eingegebener Bundesbank-Satz enthält Stichtagsmonat, ganze Restlaufzeit,
+Mittelungsdauer und HTTPS-Fundstelle. Buchfink prüft diese Angaben gegen die
+Bewertung und hält sie im Eigenbeleg fest; es lädt beim Schreiben keine Sätze.
+Die automatische Aufzinsung verwendet den gespeicherten Satz. Eine Neubewertung
+wegen geänderter Marktzinsen, unterjährige Laufzeiten und steuerliche Ausnahmen
+(verzinsliche Verpflichtung, Anzahlung/Vorausleistung) sind gesondert zu prüfen.
+Die bestehende steuerliche Überleitung rechnet den vereinfachten Vergleichswert
+mit 5,5 %; sie ersetzt diese Einzelfallprüfung nicht.
+
+Quellen: [§ 249 HGB](https://www.gesetze-im-internet.de/hgb/__249.html),
+[§ 253 HGB](https://www.gesetze-im-internet.de/hgb/__253.html),
+[§ 277 Abs. 5 HGB](https://www.gesetze-im-internet.de/hgb/__277.html),
+[§ 7 RückAbzinsV](https://www.gesetze-im-internet.de/r_ckabzinsv/__7.html),
+[§ 6 Abs. 1 Nr. 3a EStG](https://www.gesetze-im-internet.de/estg/__6.html).

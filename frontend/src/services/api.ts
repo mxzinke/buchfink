@@ -787,6 +787,10 @@ export const Api = {
       list(accruals).map(normalizeAccrual),
     ),
 
+  previewProvisionChange: (kind: string, req: unknown) => call(() => Bridge.PreviewProvisionChange<{amount: number; entry: {lines: {account: string; side: string; amount: number}[]}}>(kind, req)),
+  bookProvisionChange: (kind: string, req: unknown) => call(() => Bridge.BookProvisionChange<Provision>(kind, req)),
+  previewProvision: (req: unknown) => call(() => Bridge.PreviewProvision<{amount: number; explanation: string; findings: string[]}>(req)),
+  bookProvision: (req: unknown) => call(() => Bridge.BookProvision<Provision>(req)),
   getProvisions: (year: number): Promise<Provision[]> =>
     call(() => Bridge.GetProvisions(year) as Promise<Provision[]>).then((provisions) =>
       list(provisions).map(normalizeProvision),

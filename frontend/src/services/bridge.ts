@@ -161,6 +161,10 @@ export const bridge = {
 
   GetAccruals: <T>(year: number) => invoke<T>('GetAccruals', year),
 
+  PreviewProvisionChange: <T>(kind: string, req: unknown) => invoke<T>('PreviewProvisionChange', kind, req),
+  BookProvisionChange: <T>(kind: string, req: unknown) => invoke<T>('BookProvisionChange', kind, req),
+  PreviewProvision: <T>(req: unknown) => invoke<T>('PreviewProvision', req),
+  BookProvision: <T>(req: unknown) => invoke<T>('BookProvision', req),
   GetProvisions: <T>(year: number) => invoke<T>('GetProvisions', year),
   GetProvisionMirror: <T>(year: number) => invoke<T>('GetProvisionMirror', year),
 

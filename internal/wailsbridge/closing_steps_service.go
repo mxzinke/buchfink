@@ -169,3 +169,33 @@ func (b *BuchfinkBridge) GetReconciliation(year int) (*service.Reconciliation, e
 		return s.TaxRegister.Reconcile(ctx, year)
 	})
 }
+
+func (b *BuchfinkBridge) PreviewProvisionChange(kind string, req service.ProvisionChangeRequest) (*service.ProvisionChangePreview, error) {
+	return read(b, func(ctx context.Context, s *core.Services) (*service.ProvisionChangePreview, error) {
+		return s.Provisions.PreviewChange(ctx, domain.ProvisionMovementKind(kind), req)
+	})
+}
+func (b *BuchfinkBridge) BookProvisionChange(kind string, req service.ProvisionChangeRequest) (*domain.Provision, error) {
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.Provision, error) {
+		if kind == string(domain.ProvisionRelease) && req.Amount == 0 {
+			return s.Provisions.Settle(ctx, req.ProvisionID, req.Date, req.Reason)
+		}
+		if kind == string(domain.ProvisionUnwinding) {
+			return s.Provisions.BookUnwinding(ctx, req)
+		}
+		return s.Provisions.BookChange(ctx, domain.ProvisionMovementKind(kind), req)
+	})
+}
+func (b *BuchfinkBridge) PreviewProvision(req service.ProvisionRequest) (*service.ProvisionPreview, error) {
+	return read(b, func(ctx context.Context, s *core.Services) (*service.ProvisionPreview, error) {
+		return s.Provisions.Preview(ctx, req)
+	})
+}
+func (b *BuchfinkBridge) BookProvision(req service.ProvisionRequest) (*domain.Provision, error) {
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.Provision, error) {
+		if req.ProvisionID != 0 {
+			return s.Provisions.BookIncrease(ctx, req)
+		}
+		return s.Provisions.BookFormation(ctx, req)
+	})
+}

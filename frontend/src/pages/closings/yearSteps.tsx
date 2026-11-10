@@ -40,7 +40,7 @@ import { message } from './shared';
 /**
  * Was ein Baustein des Jahresabschlusses in der Oberfläche zeigt.
  *
- * Gebucht werden die Bausteine von Claude. Die App zeigt je Baustein die
+ * Die App bietet die Fortführung von Rückstellungen mit Vorschau und zeigt die
  * Kartei, die dahinter steht, damit ein Prüfer sie ohne Claude einsehen kann
  * (§ 147 Abs. 6 AO). Feststellen, Ergebnisverwendung und Offenlegung haben je
  * eine eigene Zeile in der Schrittliste (`row`): Feststellen und Offenlegen
@@ -243,10 +243,66 @@ const AccrualsKartei: React.FC<{ year: number }> = ({ year }) => {
   );
 };
 
+const ProvisionAction: React.FC<{ provision: Provision; year: number; onBooked: () => void }> = ({ provision, year, onBooked }) => {
+  const lock = useWriteLock();
+  const [kind, setKind] = useState('release');
+  const [date, setDate] = useState(`${year}-12-31`);
+  const [amount, setAmount] = useState('');
+  const [reason, setReason] = useState('');
+  const [rate, setRate] = useState('');
+  const [source, setSource] = useState('');
+  const [years, setYears] = useState('');
+  const [preview, setPreview] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const change = { provisionId: provision.id, date, amount: Math.round(Number(amount.replace(',', '.')) * 100), reason };
+  const increase = { ...change, fiscalYear: year, kind: provision.kind, text: provision.text, expectedOn: provision.expectedDate,
+    rateEvidence: rate ? { rate: { month: date.slice(0, 7), years: Number(years), average: 7,
+      rateMicros: Math.round(Number(rate.replace(',', '.')) * 10000) }, source } : undefined };
+  const run = async (book: boolean) => {
+    setBusy(true); setError('');
+    try {
+      if (!Number.isFinite(change.amount) || change.amount < 0) throw new Error('Betrag prüfen.');
+      if (book) {
+        if (kind === 'increase') await Api.bookProvision(increase);
+        else await Api.bookProvisionChange(kind, change);
+        setPreview(null); onBooked();
+      } else if (kind === 'increase') {
+        const result = await Api.previewProvision(increase);
+        setPreview(`${formatCents(result.amount)} · ${result.explanation} ${result.findings.join(' ')}`);
+      } else {
+        const result = await Api.previewProvisionChange(kind, change);
+        setPreview(result.entry.lines.map(line => `${line.side} ${line.account}: ${formatCents(line.amount)}`).join(' · '));
+      }
+    } catch (e) { setError(message(e)); } finally { setBusy(false); }
+  };
+  return <Disclosure title="Rückstellung fortführen">
+    <p className="text-body">Verbrauch wird beim Buchen der Eingangsrechnung der Rückstellung zugeordnet.
+      Die automatische Aufzinsung verwendet den gespeicherten Satz. Änderungen des Marktzinses und
+      steuerliche Ausnahmen müssen gesondert geprüft werden.</p>
+    <div className="flex flex-col gap-3" onChange={() => setPreview(null)}>
+      <div className="flex gap-2">{[['increase', 'Zuführung'], ['release', 'Auflösung'], ['unwinding', 'Aufzinsung']].map(([value, label]) => <Button key={value} disabled={busy || lock.locked} onClick={() => { setKind(value); setPreview(null); }}>{label}{kind === value ? ' ✓' : ''}</Button>)}</div>
+      <Field label="Buchungsdatum"><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></Field>
+      <Field label="Betrag in Euro (leer: berechnen)"><Input value={amount} onChange={e => setAmount(e.target.value)} /></Field>
+      {kind === 'increase' && <>
+        <Field label="Bundesbank-Zinssatz in Prozent"><Input value={rate} onChange={e => setRate(e.target.value)} /></Field>
+        <Field label="Restlaufzeit in Jahren"><Input value={years} onChange={e => setYears(e.target.value)} /></Field>
+        <Field label="Fundstelle der Bundesbank"><Input value={source} onChange={e => setSource(e.target.value)} /></Field>
+      </>}
+      <Field label="Grund und Nachweis"><Input value={reason} onChange={e => setReason(e.target.value)} /></Field>
+      {error && <Notice tone="negative" text={error} />}
+      {preview && <p className="text-body">{preview}</p>}
+      <Button disabled={busy || lock.locked || !reason.trim()} onClick={() => void run(false)}>Vorschau</Button>
+      {preview && <Button disabled={busy || lock.locked} onClick={() => void run(true)}>Buchen</Button>}
+    </div>
+  </Disclosure>;
+};
+
 const ProvisionsKartei: React.FC<{ year: number }> = ({ year }) => {
+  const [revision, setRevision] = useState(0);
   const { data, error } = useKartei<[ProvisionMirror, Provision[]]>(
     () => Promise.all([Api.getProvisionMirror(year), Api.getProvisions(year)]),
-    [year],
+    [year, revision],
   );
   const mirror = data?.[0];
   const provisions = data?.[1] ?? [];
@@ -263,7 +319,8 @@ const ProvisionsKartei: React.FC<{ year: number }> = ({ year }) => {
             <Tr>
               <Th>Art</Th>
               <Th numeric>Anfang</Th>
-              <Th numeric>Zugang</Th>
+              <Th numeric>Zuführung</Th>
+              <Th numeric>Aufzinsung</Th>
               <Th numeric>Verbrauch</Th>
               <Th numeric>Auflösung</Th>
               <Th numeric>Ende</Th>
@@ -274,7 +331,7 @@ const ProvisionsKartei: React.FC<{ year: number }> = ({ year }) => {
               <Tr key={`${row.kind}-${row.account}`}>
                 <Td className="whitespace-normal">{row.label}</Td>
                 <Td numeric className="text-ink-muted">{formatCents(row.opening)}</Td>
-                <Td numeric>{formatCents(row.additions + row.unwinding)}</Td>
+                <Td numeric>{formatCents(row.additions)}</Td><Td numeric>{formatCents(row.unwinding)}</Td>
                 <Td numeric className="text-ink-muted">{formatCents(row.used)}</Td>
                 <Td numeric className="text-ink-muted">{formatCents(row.released)}</Td>
                 <Td numeric>{formatCents(row.closing)}</Td>
@@ -283,7 +340,7 @@ const ProvisionsKartei: React.FC<{ year: number }> = ({ year }) => {
             <Tr variant="sum">
               <Td>Summe</Td>
               <Td numeric>{formatCents(mirror.total.opening)}</Td>
-              <Td numeric>{formatCents(mirror.total.additions + mirror.total.unwinding)}</Td>
+              <Td numeric>{formatCents(mirror.total.additions)}</Td><Td numeric>{formatCents(mirror.total.unwinding)}</Td>
               <Td numeric>{formatCents(mirror.total.used)}</Td>
               <Td numeric>{formatCents(mirror.total.released)}</Td>
               <Td numeric>{formatCents(mirror.total.closing)}</Td>
@@ -297,11 +354,12 @@ const ProvisionsKartei: React.FC<{ year: number }> = ({ year }) => {
             <li key={p.id} className="py-2 border-t border-line first:border-t-0">
               <span className="flex items-baseline justify-between gap-4">
                 <span className="text-body text-ink">{p.text}</span>
-                <span className="text-body num">{formatCents(p.discountedAmount)}</span>
+                <span className="text-body num">{formatCents(p.movements.filter(m => m.fiscalYear <= year).reduce((sum, m) => sum + (m.kind === "release" || m.kind === "consumption" ? -m.amount : m.amount), 0))}</span>
               </span>
               <span className="block text-caption text-ink-subtle">
                 {`${p.reason}${p.expectedDate ? ` · erwartet ${formatDate(p.expectedDate)}` : ''}${p.settledOn ? ` · erledigt ${formatDate(p.settledOn)}` : ''}`}
               </span>
+            {p.kind !== 'tax_income' && p.kind !== 'tax_trade' && <ProvisionAction provision={p} year={year} onBooked={() => setRevision(v => v + 1)} />}
             </li>
           ))}
         </ul>

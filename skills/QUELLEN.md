@@ -813,6 +813,12 @@ Links am 17.10.2026 mit HTTP 200 geprüft.
 
 ### Offen
 
+- Rückstellungen: Fortführung und Bundesbank-Satz mit Fundstelle sind erreichbar.
+  Neubewertung bei verändertem Marktzins, gebrochene Restlaufzeiten und steuerliche
+  Ausnahmen von 5,5 % bleiben gesondert zu prüfen. Wortlaut von § 249, § 253,
+  § 277 HGB, § 6 Abs. 1 Nr. 3a EStG und §§ 1, 7 RückAbzinsV am 10.11.2026 gelesen.
+
+
 - Buchfink: Die UG-Rücklage wird schon bei der Festschreibung eines Zeitraums
   bis Jahresende verlangt (`runPreCommitChecks`); mit Abschlussperiode sollte
   die Prüfung an die Jahresfestschreibung wandern.

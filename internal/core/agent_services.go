@@ -153,6 +153,11 @@ type AgentServices struct {
 		SaveOrganisationTexts(context.Context, domain.OrganisationTexts) error
 	}
 	Provisions interface {
+		PreviewChange(context.Context, domain.ProvisionMovementKind, service.ProvisionChangeRequest) (*service.ProvisionChangePreview, error)
+		BookChange(context.Context, domain.ProvisionMovementKind, service.ProvisionChangeRequest) (*domain.Provision, error)
+		BookIncrease(context.Context, service.ProvisionRequest) (*domain.Provision, error)
+		List(context.Context, int) ([]domain.Provision, error)
+		Mirror(context.Context, int) (*accounting.ProvisionMirror, error)
 		BookFormation(context.Context, service.ProvisionRequest) (*domain.Provision, error)
 		Preview(context.Context, service.ProvisionRequest) (*service.ProvisionPreview, error)
 	}

@@ -41,10 +41,10 @@ aufgelöst sind.
   Höhe der Rechnung.
 - Fiel weniger an: Rest Soll Rückstellung, Haben 4930; fiel mehr an, ist der
   Rest Aufwand des neuen Jahres.
-- Die Auflösung einer Rückstellung aus Buchfinks Kartei, auch eines Rests,
-  bildet Buchfink nicht ab; leg dem Menschen Rückstellung, Betrag und
-  entfallenen Grund vor
-  ([grundlagen/arbeitsweise.md, Abschnitt 9](../grundlagen/arbeitsweise.md#9-vorgänge-ohne-werkzeug)).
+- Einen entfallenen Rest löst `abschlussbuchung` mit `art: rueckstellung`,
+  `bewegung: aufloesung`, Kennung, Datum und begründetem Wegfall auf.
+  Zuerst Vorschau, dann nach Rückfrage buchen.
+  [Fortführung und Satznachweis](rueckstellungen.md#5-buchen).
 - Aufgelöst wird nur bei entfallenem Grund ([§ 249 Abs. 2 Satz 2 HGB][hgb249]);
   prüfe jede bestehende Rückstellung zu jedem Stichtag (Konten 3070 bis
   3096).

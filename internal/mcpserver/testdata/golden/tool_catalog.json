@@ -227,6 +227,14 @@
               "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
               "type": "string"
             },
+            "bewegung": {
+              "description": "bildung, zufuehrung, aufloesung oder aufzinsung; Verbrauch über beleg_buchen mit rueckstellung_id",
+              "type": "string"
+            },
+            "datum": {
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+              "type": "string"
+            },
             "erwartet_am": {
               "description": "voraussichtliche Inanspruchnahme",
               "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
@@ -236,15 +244,55 @@
               "description": "Rechtsgrund und Schätzgrundlage",
               "type": "string"
             },
+            "id": {
+              "minimum": 0,
+              "type": "integer"
+            },
             "text": {
               "type": "string"
+            },
+            "zinssatz": {
+              "additionalProperties": false,
+              "properties": {
+                "rate": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "average": {
+                      "type": "integer"
+                    },
+                    "month": {
+                      "type": "string"
+                    },
+                    "rateMicros": {
+                      "type": "integer"
+                    },
+                    "years": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "month",
+                    "years",
+                    "average",
+                    "rateMicros"
+                  ],
+                  "type": "object"
+                },
+                "source": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "rate",
+                "source"
+              ],
+              "type": [
+                "null",
+                "object"
+              ]
             }
           },
           "required": [
-            "art",
-            "text",
-            "betrag",
-            "erwartet_am",
             "grund"
           ],
           "type": [

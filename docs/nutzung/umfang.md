@@ -76,3 +76,15 @@ offen. Die Erzeugung aus Buchungen umfasst weiterhin sonstige Leistungen.
 [ao108]: https://www.gesetze-im-internet.de/ao_1977/__108.html
 [ao149]: https://www.gesetze-im-internet.de/ao_1977/__149.html
 [hgb271]: https://www.gesetze-im-internet.de/hgb/__271.html
+
+
+## Rückstellungen fortführen
+
+App und `abschlussbuchung` bieten Zuführung, Auflösung und Aufzinsung mit
+Vorschau. `abschluss_status` liefert Bestände und Spiegel über die Jahre.
+Verbrauch ist beim Buchen einer Eingangsrechnung mit Rückstellungszuordnung möglich.
+
+Grenzen: Die automatische Aufzinsung verwendet den gespeicherten Satz.
+Neubewertung bei geändertem Marktzins, gebrochene Laufzeiten und steuerliche
+Ausnahmen sind gesondert zu prüfen. Einzelheiten und Quellen:
+[Rückstellungen fortführen](../fachkonzepte/jahresabschluss.md#rückstellungen-fortführen).

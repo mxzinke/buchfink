@@ -131,6 +131,8 @@ func BridgeExaminerAllowed() map[string]bool {
 		"PreviewCurrencyValuation":      true,
 		"PreviewIncomingReceipt":        true,
 		"PreviewOutgoingInvoice":        true,
+		"PreviewProvision":              true,
+		"PreviewProvisionChange":        true,
 		"PreviewTaxProvision":           true,
 		"PreviewWriteOff":               true,
 		"PreviewVatSettlement":          true,

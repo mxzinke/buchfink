@@ -141,3 +141,39 @@ func TestEveryClosingBookingBooks(t *testing.T) {
 	a.rejected("abschlussbuchung", a.args(map[string]any{"art": "abgrenzung", "idempotenz_schluessel": "abgrenzung-x",
 		"abgrenzung": map[string]any{"art": "active", "text": "x", "gesamtbetrag": "1.00", "von": "2026-01-01", "bis": "2026-12-31", "konto": "6400"}}))
 }
+
+func TestProvisionContinuationViaTool(t *testing.T) {
+	h := newHarness(t)
+	h.completeCompany()
+	a := h.agent("")
+	var formed abschlussAntwort
+	a.ok("abschlussbuchung", a.args(map[string]any{
+		"art": "rueckstellung", "geschaeftsjahr": 2026, "idempotenz_schluessel": "bildung-2026",
+		"rueckstellung": map[string]any{"art": "abschlusskosten", "text": "Abschluss",
+			"betrag": "3000.00", "erwartet_am": "2027-06-30", "grund": "Angebot der Kanzlei"},
+	}), &formed)
+	var status abschlussStatusOut
+	a.ok("abschluss_status", map[string]any{"geschaeftsjahr": 2026}, &status)
+	if len(status.Rueckstellungen) != 1 {
+		t.Fatalf("%+v", status)
+	}
+	args := a.args(map[string]any{
+		"art": "rueckstellung", "geschaeftsjahr": 2027, "idempotenz_schluessel": "aufloesung",
+		"nur_vorschau": true,
+		"rueckstellung": map[string]any{"bewegung": "aufloesung", "id": status.Rueckstellungen[0].ID,
+			"datum": "2027-06-30", "betrag": "500.00", "grund": "Leistung laut Kanzlei entfallen"},
+	})
+	var preview, booked abschlussAntwort
+	a.ok("abschlussbuchung", args, &preview)
+	if len(preview.BuchungIDs) != 0 || preview.Betrag == nil || *preview.Betrag != "500.00" {
+		t.Fatalf("%+v", preview)
+	}
+	args["nur_vorschau"] = false
+	a.ok("abschlussbuchung", args, &booked)
+	a.ok("abschluss_status", map[string]any{"geschaeftsjahr": 2027}, &status)
+	if status.Rueckstellungsspiegel.Total.Opening != 300_000 ||
+		status.Rueckstellungsspiegel.Total.Released != 50_000 ||
+		status.Rueckstellungsspiegel.Total.Closing != 250_000 {
+		t.Fatalf("%+v", status.Rueckstellungsspiegel)
+	}
+}

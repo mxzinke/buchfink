@@ -136,3 +136,15 @@ Beträge und legt Berichtigungen mit Kenntnisdatum und Monatsfrist an. Erstmeldu
 und Berichtigung lassen sich als BOP-CSV exportieren; die Übermittlung bestätigt
 weiterhin der Mensch. Ohne Kenntnisdatum bleibt die datierte Berichtigungsfrist
 offen. Die Erzeugung aus Buchungen umfasst weiterhin sonstige Leistungen.
+
+
+## Rückstellungen fortführen
+
+App und `abschlussbuchung` bieten Zuführung, Auflösung und Aufzinsung mit
+Vorschau. `abschluss_status` liefert Bestände und Spiegel über die Jahre.
+Verbrauch ist beim Buchen einer Eingangsrechnung mit Rückstellungszuordnung möglich.
+
+Grenzen: Die automatische Aufzinsung verwendet den gespeicherten Satz.
+Neubewertung bei geändertem Marktzins, gebrochene Laufzeiten und steuerliche
+Ausnahmen sind gesondert zu prüfen. Einzelheiten und Quellen:
+[Rückstellungen fortführen](../fachkonzepte/jahresabschluss.md#rückstellungen-fortführen).

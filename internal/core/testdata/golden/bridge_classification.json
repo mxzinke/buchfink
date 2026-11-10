@@ -29,6 +29,16 @@
     "ExaminerAllowed": false,
     "Guarded": true
   },
+  "BookProvision": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "BookProvisionChange": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
   "CarryForward": {
     "AppOnly": false,
     "ExaminerAllowed": false,
@@ -755,6 +765,16 @@
     "Guarded": false
   },
   "PreviewOutgoingInvoice": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "PreviewProvision": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "PreviewProvisionChange": {
     "AppOnly": false,
     "ExaminerAllowed": true,
     "Guarded": false

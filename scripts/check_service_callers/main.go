@@ -89,10 +89,7 @@ var exceptions = map[string]string{
 
 	"PostingService.OpenVendorAdvances": "die Kennungen geleisteter Anzahlungen, die beleg_buchen_mit_rueckfrage verrechnet, liefert kein Werkzeug",
 
-	"ProvisionService.BookIncrease":           "keine Zuführung zu einer gebildeten Rückstellung",
-	"ProvisionService.BookUnwinding":          "keine Aufzinsung einer Rückstellung",
-	"ProvisionService.Settle":                 "keine Auflösung einer Rückstellung",
-	"ProvisionService.ImportDiscountRatesCSV": "keine Abzinsungssätze der Bundesbank; Rückstellungen bleiben unabgezinst",
+	"ProvisionService.ImportDiscountRatesCSV": "kein CSV-Import in App oder Werkzeug; einzelne Sätze werden bei der Rückstellung eingegeben",
 	"ProvisionService.DiscountRates":          "gehört zu ImportDiscountRatesCSV",
 	"ProvisionService.DiscountRateMonths":     "gehört zu ImportDiscountRatesCSV",
 

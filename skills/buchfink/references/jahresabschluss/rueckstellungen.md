@@ -83,13 +83,25 @@ Berechnung, Restlaufzeit, Zinssatz mit Monat der Veröffentlichung.
 - Aufzinsung in Folgejahren: Soll 7362, Haben Rückstellungskonto; Ertrag aus
   Abzinsung auf 7142; beides gesondert unter den Zinsen
   ([§ 277 Abs. 5 Satz 1 HGB][hgb277]). Für Rückstellungen aus Buchfinks Kartei
-  bildet Buchfink Zuführung und Aufzinsung nicht ab.
+  bietet `abschlussbuchung` die Bewegungen `zufuehrung`, `aufloesung` und
+  `aufzinsung` mit `id`, `datum` und `grund`. Zuerst `nur_vorschau: true`.
+  Die automatische Aufzinsung verwendet den gespeicherten Satz; geänderte
+  Marktzinsen müssen gesondert geprüft werden.
 - Eine nur mit `buchung_erfassen` gebuchte Rückstellung fehlt im
   Rückstellungsspiegel; trag sie in die Liste Abschlussposten ein.
 
+Ein Satz zur Bildung oder Zuführung wird in `zinssatz.rate` mit `month`,
+`years`, `average: 7` und `rateMicros` eingegeben (15000 = 1,5 %).
+`zinssatz.source` nennt die HTTPS-Fundstelle der Bundesbank.
+Monat und Laufzeit müssen zur Bewertung passen.
+
 ## 6. Verbrauch und Auflösung
 
-Im Folgejahr: [folgejahr.md](folgejahr.md#rückstellungen).
+Beim Buchen einer Eingangsrechnung `rueckstellung_id` mitgeben: gedeckter
+Nettobetrag gegen die Rückstellung, Mehrbetrag gegen Aufwand.
+`abschluss_status` liefert Kennungen und Spiegel einschließlich Vorjahresbestand.
+Auflösung nur mit dokumentiertem Wegfall des Grundes ([§ 249 Abs. 2 HGB][hgb249]).
+Steuerliche Ausnahmen von der Abzinsung bleiben gesondert zu prüfen.
 
 ## 7. Anhang
 

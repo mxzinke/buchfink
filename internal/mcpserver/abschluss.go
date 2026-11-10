@@ -81,6 +81,12 @@ type abschlussSchritt struct {
 	NaechsteAktion naechsteAktion `json:"naechste_aktion"`
 }
 
+type rueckstellungBestand struct {
+	ID      uint   `json:"id"`
+	Text    string `json:"text"`
+	Bestand Betrag `json:"bestand"`
+}
+
 type abschlussStatusOut struct {
 	Geschaeftsjahr int                `json:"geschaeftsjahr"`
 	Stand          string             `json:"stand" jsonschema:"offen, aufgestellt, festgestellt oder offengelegt"`
@@ -90,6 +96,9 @@ type abschlussStatusOut struct {
 	Uebersprungen  int                `json:"uebersprungen"`
 	Schritte       []abschlussSchritt `json:"schritte"`
 	NaechsteAktion *naechsteAktion    `json:"naechste_aktion,omitempty" jsonschema:"des ersten offenen Schritts"`
+	// Rückstellungen und Spiegel enthalten auch fortgeführte Bestände.
+	Rueckstellungen       []rueckstellungBestand  `json:"rueckstellungen"`
+	Rueckstellungsspiegel *domain.ProvisionMirror `json:"rueckstellungsspiegel"`
 }
 
 var stepActions = map[domain.ClosingStepKey]naechsteAktion{
@@ -128,12 +137,16 @@ type abgrenzungIn struct {
 }
 
 type rueckstellungIn struct {
-	Art           RueckstellungArt `json:"art"`
-	Text          string           `json:"text"`
-	Betrag        Betrag           `json:"betrag" jsonschema:"Erfüllungsbetrag"`
-	ErwartetAm    Datum            `json:"erwartet_am" jsonschema:"voraussichtliche Inanspruchnahme"`
-	Grund         string           `json:"grund" jsonschema:"Rechtsgrund und Schätzgrundlage"`
-	Aufwandskonto Konto            `json:"aufwandskonto,omitempty"`
+	Bewegung      string                         `json:"bewegung,omitempty" jsonschema:"bildung, zufuehrung, aufloesung oder aufzinsung; Verbrauch über beleg_buchen mit rueckstellung_id"`
+	ID            uint                           `json:"id,omitempty"`
+	Datum         Datum                          `json:"datum,omitempty"`
+	Zinssatz      *service.ProvisionRateEvidence `json:"zinssatz,omitempty"`
+	Art           RueckstellungArt               `json:"art,omitempty"`
+	Text          string                         `json:"text,omitempty"`
+	Betrag        Betrag                         `json:"betrag,omitempty" jsonschema:"Erfüllungsbetrag"`
+	ErwartetAm    Datum                          `json:"erwartet_am,omitempty" jsonschema:"voraussichtliche Inanspruchnahme"`
+	Grund         string                         `json:"grund" jsonschema:"Rechtsgrund und Schätzgrundlage"`
+	Aufwandskonto Konto                          `json:"aufwandskonto,omitempty"`
 }
 
 type steuerrueckstellungIn struct {
@@ -296,6 +309,20 @@ func registerAbschluss(tb *Toolbox) {
 		}
 		out := abschlussStatusOut{Geschaeftsjahr: year, Stichtag: steps.Cutoff, Offen: steps.OpenCount,
 			Erledigt: steps.DoneCount, Uebersprungen: steps.SkippedCount, Schritte: []abschlussSchritt{}}
+		provisions, err := s.Provisions.List(ctx, year)
+		if err != nil {
+			return out, err
+		}
+		out.Rueckstellungen = make([]rueckstellungBestand, 0, len(provisions))
+		for _, p := range provisions {
+			out.Rueckstellungen = append(out.Rueckstellungen, rueckstellungBestand{
+				ID: p.ID, Text: p.Text, Bestand: Betrag(p.BalanceAt(year).String()),
+			})
+		}
+		out.Rueckstellungsspiegel, err = s.Provisions.Mirror(ctx, year)
+		if err != nil {
+			return out, err
+		}
 		if fy, err := s.Closing.YearOf(ctx, year); err == nil && fy != nil {
 			out.Stand = yearStand[fy.Status]
 		}
@@ -469,20 +496,75 @@ func runProvision(ctx context.Context, s core.AgentServices, year int, in abschl
 	if p == nil {
 		return inputError("rueckstellung", "die Angaben der Rückstellung fehlen")
 	}
+	if p.Bewegung == "aufloesung" || p.Bewegung == "aufzinsung" {
+		kind := domain.ProvisionRelease
+		if p.Bewegung == "aufzinsung" {
+			kind = domain.ProvisionUnwinding
+		}
+		date, err := p.Datum.check("rueckstellung.datum")
+		if err != nil {
+			return err
+		}
+		var amount domain.Cents
+		if p.Betrag != "" {
+			amount, err = p.Betrag.required("rueckstellung.betrag")
+			if err != nil {
+				return err
+			}
+		}
+		req := service.ProvisionChangeRequest{ProvisionID: p.ID, Date: date, Reason: p.Grund, Amount: amount}
+		preview, err := s.Provisions.PreviewChange(ctx, kind, req)
+		if err != nil {
+			return err
+		}
+		out.Zeilen, out.Betrag = zeilenOf(preview.Entry.Lines), optBetrag(preview.Amount)
+		out.Erlaeuterung = kind.Label() + ": " + p.Grund
+		if in.NurVorschau {
+			return nil
+		}
+		result, err := s.Provisions.BookChange(ctx, kind, req)
+		if err != nil {
+			return err
+		}
+		out.BuchungIDs = append(out.BuchungIDs, *result.Movements[len(result.Movements)-1].JournalEntryID)
+		return nil
+	}
+	if p.Bewegung != "" && p.Bewegung != "bildung" && p.Bewegung != "zufuehrung" {
+		return inputError("bewegung", "unbekannte Bewegung")
+	}
 	amount, err := p.Betrag.required("rueckstellung.betrag")
 	if err != nil {
 		return err
 	}
-	kind, err := pick("rueckstellung.art", p.Art, provisionKinds)
+	kind := domain.ProvisionUncertainLiability
+	if p.Bewegung != "zufuehrung" {
+		kind, err = pick("rueckstellung.art", p.Art, provisionKinds)
+	}
 	if err != nil {
 		return err
 	}
-	expected, err := p.ErwartetAm.check("rueckstellung.erwartet_am")
+	expected := ""
+	if p.Bewegung != "zufuehrung" {
+		expected, err = p.ErwartetAm.check("rueckstellung.erwartet_am")
+	}
 	if err != nil {
 		return err
 	}
 	req := service.ProvisionRequest{FiscalYear: year, Kind: kind, Text: p.Text, Amount: amount,
 		ExpectedOn: expected, Reason: p.Grund, ExpenseAccount: string(p.Aufwandskonto)}
+	req.RateEvidence = p.Zinssatz
+	if p.Bewegung == "zufuehrung" {
+		if p.ID == 0 {
+			return inputError("id", "Rückstellung fehlt")
+		}
+		req.ProvisionID = p.ID
+	}
+	if p.Datum != "" {
+		req.Date, err = p.Datum.check("datum")
+		if err != nil {
+			return err
+		}
+	}
 	preview, err := s.Provisions.Preview(ctx, req)
 	if err != nil {
 		return err
@@ -493,7 +575,12 @@ func runProvision(ctx context.Context, s core.AgentServices, year int, in abschl
 	if in.NurVorschau {
 		return nil
 	}
-	provision, err := s.Provisions.BookFormation(ctx, req)
+	var provision *domain.Provision
+	if req.ProvisionID != 0 {
+		provision, err = s.Provisions.BookIncrease(ctx, req)
+	} else {
+		provision, err = s.Provisions.BookFormation(ctx, req)
+	}
 	if err != nil {
 		return err
 	}

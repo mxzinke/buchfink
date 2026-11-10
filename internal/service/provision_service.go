@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
+	"net/url"
 	"os"
 	"sort"
 	"strconv"
@@ -154,6 +155,8 @@ type ProvisionRequest struct {
 	ExpenseAccount string `json:"expenseAccount,omitempty"`
 	// Date ist das Buchungsdatum; leer heißt Bilanzstichtag.
 	Date string `json:"date,omitempty"`
+	// RateEvidence belegt den eingegebenen Bundesbank-Satz zum Bewertungsstichtag.
+	RateEvidence *ProvisionRateEvidence `json:"rateEvidence,omitempty"`
 }
 
 // ProvisionPreview ist die Vorschau vor der Freigabe.
@@ -204,6 +207,13 @@ func (s *ProvisionService) Preview(ctx context.Context, req ProvisionRequest) (*
 		bookingDate = fy.EndDate
 	}
 
+	if err := domain.CheckDate("Buchungsdatum", bookingDate); err != nil {
+		return nil, err
+	}
+	if bookingDate < fy.StartDate || bookingDate > fy.EndDate {
+		return nil, fmt.Errorf("Buchungsdatum und Geschäftsjahr passen nicht zusammen")
+	}
+
 	// Die Zuführung ändert die Rückstellung nicht, sie erhöht sie nur: Art,
 	// Text, Fälligkeit und Konten stammen aus der bestehenden Rückstellung. Aus
 	// dem Antrag eine zweite Rückstellung zu rechnen — mit einem anderen
@@ -214,6 +224,14 @@ func (s *ProvisionService) Preview(ctx context.Context, req ProvisionRequest) (*
 		existing, err = s.load(ctx, req.ProvisionID)
 		if err != nil {
 			return nil, err
+		}
+		if existing.Kind.IsTax() {
+			return nil, fmt.Errorf("Steuerrückstellungen gehören in ihren Abschlussbaustein")
+		}
+		for _, movement := range existing.Movements {
+			if movement.Date > bookingDate {
+				return nil, fmt.Errorf("spätere Bewegungen zuerst stornieren")
+			}
 		}
 		req.Kind = existing.Kind
 		if strings.TrimSpace(req.Text) == "" {
@@ -263,6 +281,27 @@ func (s *ProvisionService) Preview(ctx context.Context, req ProvisionRequest) (*
 		rates, month, err := s.ratesFor(ctx, fy.EndDate)
 		if err != nil {
 			return nil, err
+		}
+		if req.RateEvidence != nil {
+			evidence := req.RateEvidence
+			rate := domain.DiscountRate{
+				Month: evidence.Rate.Month, Years: evidence.Rate.Years,
+				Average: evidence.Rate.Average, RateMicros: evidence.Rate.RateMicros,
+			}
+			if err := rate.Validate(); err != nil {
+				return nil, err
+			}
+			source, err := url.Parse(evidence.Source)
+			if err != nil || source.Scheme != "https" ||
+				(source.Hostname() != "www.bundesbank.de" && source.Hostname() != "bundesbank.de") {
+				return nil, fmt.Errorf("zum Zinssatz gehört die HTTPS-Fundstelle der Bundesbank")
+			}
+			if evidence.Rate.Month != fy.EndDate[:7] || evidence.Rate.Years != years ||
+				evidence.Rate.Average != accounting.DiscountAverageFor(req.Kind) {
+				return nil, fmt.Errorf("Zinssatz, Stichtagsmonat, Restlaufzeit und Mittelungsdauer müssen zur Rückstellung passen")
+			}
+			rates, month = []domain.DiscountRate{rate}, evidence.Rate.Month
+			provision.Reason += fmt.Sprintf("; Bundesbank %s, %s, %d Jahre, Satz %d Millionstel", evidence.Source, evidence.Rate.Month, years, evidence.Rate.RateMicros)
 		}
 		average := accounting.DiscountAverageFor(req.Kind)
 		rate, ok := accounting.DiscountRateFor(rates, years, average)
@@ -337,6 +376,10 @@ func (s *ProvisionService) Preview(ctx context.Context, req ProvisionRequest) (*
 		{Side: domain.SideCredit, Account: balance, Amount: preview.Amount, Text: req.Text},
 	}
 	preview.Explanation = provisionExplanation(preview, req)
+	if req.RateEvidence != nil {
+		preview.Explanation += fmt.Sprintf(" Bundesbank-Fundstelle: %s; Abzinsungsbetrag: %s €.",
+			req.RateEvidence.Source, preview.SettlementAmount-preview.Amount)
+	}
 	return preview, nil
 }
 
@@ -403,6 +446,14 @@ func (s *ProvisionService) bookProvisionMovement(
 	}
 	if kind == domain.ProvisionIncrease && !preview.IsIncrease {
 		return nil, fmt.Errorf("die Rückstellung %d wurde nicht gefunden", req.ProvisionID)
+	}
+	if req.RateEvidence != nil {
+		r := req.RateEvidence.Rate
+		if err := s.SaveDiscountRates(ctx, []domain.DiscountRate{{
+			Month: r.Month, Years: r.Years, Average: r.Average, RateMicros: r.RateMicros,
+		}}); err != nil {
+			return nil, err
+		}
 	}
 	provision := preview.Provision
 
@@ -482,11 +533,11 @@ type ProvisionChangeRequest struct {
 // Grund wäre von einer Ergebnisglättung nicht zu unterscheiden.
 func (s *ProvisionService) BookRelease(ctx context.Context, req ProvisionChangeRequest) (*domain.Provision, error) {
 	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.Provision, error) {
-		return s.bookRelease(ctx, req)
+		return s.BookChange(ctx, domain.ProvisionRelease, req)
 	})
 }
 
-func (s *ProvisionService) bookRelease(ctx context.Context, req ProvisionChangeRequest) (*domain.Provision, error) {
+func (s *ProvisionService) previewRelease(ctx context.Context, req ProvisionChangeRequest) (*ProvisionChangePreview, error) {
 	if strings.TrimSpace(req.Reason) == "" {
 		return nil, fmt.Errorf(
 			"eine Rückstellung darf nur aufgelöst werden, soweit der Grund dafür entfallen ist " +
@@ -528,19 +579,18 @@ func (s *ProvisionService) bookRelease(ctx context.Context, req ProvisionChangeR
 		PostingRuleVersion: accounting.PostingRuleVersion,
 		Lines:              lines,
 	}
-	return s.applyMovement(ctx, provision, entry, domain.ProvisionRelease, amount, date, req.Reason,
-		fmt.Sprintf("Aufgelöst, weil der Grund entfallen ist: %s", req.Reason))
+	return &ProvisionChangePreview{Provision: *provision, Entry: *entry, Kind: domain.ProvisionRelease, Amount: amount, Reason: req.Reason}, nil
 }
 
 // BookUnwinding bucht die Aufzinsung: der Barwert wächst, weil die Fälligkeit
 // näher rückt.
 func (s *ProvisionService) BookUnwinding(ctx context.Context, req ProvisionChangeRequest) (*domain.Provision, error) {
 	return atomically(ctx, s.journalSvc, func(ctx context.Context) (*domain.Provision, error) {
-		return s.bookUnwinding(ctx, req)
+		return s.BookChange(ctx, domain.ProvisionUnwinding, req)
 	})
 }
 
-func (s *ProvisionService) bookUnwinding(ctx context.Context, req ProvisionChangeRequest) (*domain.Provision, error) {
+func (s *ProvisionService) previewUnwinding(ctx context.Context, req ProvisionChangeRequest) (*ProvisionChangePreview, error) {
 	provision, err := s.load(ctx, req.ProvisionID)
 	if err != nil {
 		return nil, err
@@ -548,6 +598,9 @@ func (s *ProvisionService) bookUnwinding(ctx context.Context, req ProvisionChang
 	date := req.Date
 	if err := domain.CheckDate("Buchungsdatum", date); err != nil {
 		return nil, err
+	}
+	if provision.DiscountRateMicros <= 0 || provision.Balance() <= 0 {
+		return nil, fmt.Errorf("keine offene abgezinste Rückstellung")
 	}
 	amount := req.Amount
 	if amount <= 0 {
@@ -585,8 +638,7 @@ func (s *ProvisionService) bookUnwinding(ctx context.Context, req ProvisionChang
 		PostingRuleVersion: accounting.PostingRuleVersion,
 		Lines:              lines,
 	}
-	return s.applyMovement(ctx, provision, entry, domain.ProvisionUnwinding, amount, date, req.Reason,
-		"Aufzinsung nach § 253 Abs. 2 HGB")
+	return &ProvisionChangePreview{Provision: *provision, Entry: *entry, Kind: domain.ProvisionUnwinding, Amount: amount, Reason: req.Reason}, nil
 }
 
 // applyMovement bucht und schreibt die Bewegung fort.
