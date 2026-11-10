@@ -605,7 +605,7 @@ func TestChangingTheMethodKeepsTheImmediateWriteOffInStep(t *testing.T) {
 }
 
 // Der Abgang eines einzelnen Wirtschaftsguts mindert den Sammelposten nicht
-// (§ 6 Abs. 2a Satz 4 EStG). Ein Abgang des Postens selbst wäre deshalb falsch.
+// (§ 6 Abs. 2a Satz 3 EStG). Ein Abgang des Postens selbst wäre deshalb falsch.
 func TestPoolCannotBeDisposed(t *testing.T) {
 	env := newTestEnv(t)
 	svc := env.assets(t)

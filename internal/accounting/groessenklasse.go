@@ -50,7 +50,7 @@ var sizeThresholdSets = []SizeThresholds{
 	},
 	{
 		ValidFrom: "2024-01-01",
-		Reference: "§§ 267, 267a HGB, Art. 79 Abs. 1 EGHGB (Geschäftsjahre, die nach dem 31.12.2023 beginnen)",
+		Reference: "§§ 267, 267a HGB, Art. 93 Abs. 1 EGHGB (Geschäftsjahre, die nach dem 31.12.2023 beginnen)",
 		Micro:     domain.SizeCriteria{BalanceSheetTotal: 45_000_000, Revenue: 90_000_000, Employees: 10},
 		Small:     domain.SizeCriteria{BalanceSheetTotal: 750_000_000, Revenue: 1_500_000_000, Employees: 50},
 		Medium:    domain.SizeCriteria{BalanceSheetTotal: 2_500_000_000, Revenue: 5_000_000_000, Employees: 250},

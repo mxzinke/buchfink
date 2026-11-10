@@ -816,10 +816,6 @@ Links am 17.10.2026 mit HTTP 200 geprüft.
 - Buchfink: Die UG-Rücklage wird schon bei der Festschreibung eines Zeitraums
   bis Jahresende verlangt (`runPreCommitChecks`); mit Abschlussperiode sollte
   die Prüfung an die Jahresfestschreibung wandern.
-- Buchfink: `groessenklasse.go` nennt „Art. 79 Abs. 1 EGHGB“; richtig ist
-  Art. 93 Abs. 1 EGHGB (Art. 79 betrifft die Abschlussprüfungsreform).
-- Buchfink: `asset_service.go` begründet die Ablehnung des
-  Sammelposten-Abgangs mit „§ 6 Abs. 2a S. 4 EStG“; nach Wortlaut Satz 3.
 - Buchfink: Kein Format für das Unternehmensregister.
 - Konto bei nicht abgerechneter eigener Leistung (Erlös im falschen Jahr)
   nicht festgelegt; Buchungsdatum des Erlöses bei Rechnung im Folgejahr prüfen.

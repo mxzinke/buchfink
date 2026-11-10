@@ -2204,7 +2204,7 @@ func (s *AssetService) buildDisposal(
 	if asset.Method == domain.DepreciationPool {
 		return nil, nil, nil, fmt.Errorf(
 			"ein Sammelposten geht nicht ab. Scheidet ein einzelnes Wirtschaftsgut aus dem " +
-				"Betriebsvermögen aus, wird der Sammelposten nicht vermindert (§ 6 Abs. 2a Satz 4 EStG) — " +
+				"Betriebsvermögen aus, wird der Sammelposten nicht vermindert (§ 6 Abs. 2a Satz 3 EStG) — " +
 				"er löst sich weiter mit einem Fünftel je Jahr auf")
 	}
 	if req.Quantity > 0 && asset.Class != domain.AssetClassFinancial {
