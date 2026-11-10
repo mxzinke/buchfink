@@ -29,6 +29,7 @@ func TestExpiringExemptionCertificateShowsUpAmongTheTasks(t *testing.T) {
 	}
 
 	svc := NewTaskService(repository.NewSettingsRepository(env.db))
+	svc.SetClock(testNow)
 	svc.SetExemptionSource(env.contacts)
 	list, err := svc.Tasks(ctx, TaskOptions{})
 	if err != nil {
