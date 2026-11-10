@@ -110,3 +110,7 @@ nutze ihn zur Abstimmung.
 [estg5]: https://www.gesetze-im-internet.de/estg/__5.html
 [estg6]: https://www.gesetze-im-internet.de/estg/__6.html
 [estg7g]: https://www.gesetze-im-internet.de/estg/__7g.html
+
+Eine falsch gebuchte planmäßige AfA lässt sich mit `buchung_stornieren`
+zurücknehmen. Die Kartei erfasst dazu eine Gegenbewegung am Stornotag.
+Lies danach `anlagen` und prüfe die offene Abschreibung vor einem erneuten Lauf.

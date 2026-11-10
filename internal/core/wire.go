@@ -114,6 +114,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 		assetRepo, journalRepo, s.Journal, numberRepo,
 		contactRepo, settingsRepo, auditRepo,
 	)
+	s.Journal.AddEntryEffects(s.Assets.DepreciationEffect())
 	s.Payments.SetAssetRegister(s.Assets)
 	s.Assets.SetFiscalYearRepo(fiscalYearRepo)
 	s.Assets.SetBankTransactions(bankRepo)

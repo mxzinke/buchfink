@@ -77,6 +77,10 @@ Betriebsbereitschaft und startet damit die Abschreibung.
   Beide Buchungen rechnen `AssetService.BookImpairment` und
   `AssetService.BookWriteUp`.
 
+Beim Storno einer AfA-Buchung erfasst die Kartei eine Gegenbewegung am
+Stornotag. Die ursprüngliche Bewegung bleibt mit ihrem Buchungsbezug erhalten;
+Buchwert und offene Abschreibung berücksichtigen die Gegenbewegung.
+
 Die Abschreibung ist eine Abschlussbuchung zum Bilanzstichtag. Fehlt sie für
 ein Anlagegut, blockiert der Prüflauf die Jahresfestschreibung.
 

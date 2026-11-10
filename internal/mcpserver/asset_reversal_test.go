@@ -1,0 +1,40 @@
+package mcpserver
+
+import (
+	"context"
+	"testing"
+
+	"github.com/buchfink/buchfink/internal/core"
+	"github.com/buchfink/buchfink/internal/domain"
+)
+
+func TestAssetDepreciationReversalThroughTool(t *testing.T) {
+	h := newHarness(t)
+	h.completeCompany()
+	h.ui(func(ctx context.Context, s *core.Services) error {
+		_, err := s.Assets.Save(ctx, &domain.FixedAsset{
+			Name: "Fräsmaschine", Class: domain.AssetClassTangible,
+			Account: "0440", DepreciationAccount: "6220",
+			AcquisitionDate: "2026-01-10", AcquisitionCost: 1_200_000,
+			UsefulLifeMonths: 48, Method: domain.DepreciationLinear,
+		})
+		return err
+	})
+	a := h.agent("")
+	var booked abschlussAntwort
+	a.ok("abschlussbuchung", a.args(map[string]any{
+		"art": "afa_lauf", "geschaeftsjahr": 2026, "idempotenz_schluessel": "afa-2026",
+	}), &booked)
+	if len(booked.BuchungIDs) != 1 {
+		t.Fatalf("AfA: %+v", booked)
+	}
+	a.ok("buchung_stornieren", a.args(map[string]any{
+		"buchung_id": booked.BuchungIDs[0], "grund": "AfA berichtigen",
+	}), nil)
+	var assets anlagenOut
+	a.ok("anlagen", map[string]any{"geschaeftsjahr": 2026}, &assets)
+	if len(assets.Anlagen) != 1 || assets.Anlagen[0].Buchwert != Betrag("12000.00") ||
+		assets.Anlagen[0].AfAFaellig != Betrag("3000.00") {
+		t.Fatalf("Kartei nach Storno: %+v", assets)
+	}
+}

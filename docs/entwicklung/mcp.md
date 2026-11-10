@@ -425,3 +425,6 @@ ein verbleibendes Guthaben lässt sich über den Zahlungsausgleich erstatten.
 `art: storno` hebt die Rechnung am heutigen Tag auf. Eine aktive Ausbuchung muss
 vorher storniert werden. Vereinnahmte Abschläge brauchen zuerst die Rückzahlung;
 in einer Schlussrechnung verrechnete Abschläge bleiben gesperrt.
+
+Beim Storno einer AfA-Buchung über `buchung_stornieren` korrigiert der Kern
+auch die Anlagenkartei durch eine Gegenbewegung am Stornotag.
