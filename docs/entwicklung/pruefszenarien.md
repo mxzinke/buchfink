@@ -96,7 +96,7 @@ ein Befund zum Nachsehen, nicht automatisch ein Fehler der App.
 |---|---|---|
 | 1 Nordlicht | Oktober 2026 auf `8cd1f9a` | August und September mit Zeitstempel festgeschrieben. Die Befunde sind behoben, ein Lauf auf dem behobenen Stand steht aus. |
 | 2 Kranich | Oktober 2026 auf `8d4179f` | Juni bis August mit Zeitstempel festgeschrieben. Voranmeldungen Juni bis September und Zusammenfassende Meldung für das dritte Quartal stimmen mit den Kontrollwerten, der Bankbestand bis auf die damals nicht zuordenbare Gutschrift. Die Befunde sind behoben, ein Lauf auf dem behobenen Stand steht aus. |
-| 3 Waldkauz | noch keiner | Bis zum Jahresabschluss kommt der Lauf erst, wenn der Agent Zahlungen auf Abschlagsrechnungen zuordnen kann und sich die Texte des Anhangs erfassen lassen ([Umsetzungsstand](../projekt/umsetzungsstand.md#bekannte-grenzen)). |
+| 3 Waldkauz | noch keiner | Der Lauf steht aus. Der Agent ordnet Zahlungen auf Abschlagsrechnungen zu und bucht die Forderung des insolventen Kunden aus; die Texte des Anhangs erfasst der Mensch in der App oder der Agent als Entwurf. |
 
 ## Vom Abschluss zum Beleg
 
