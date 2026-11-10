@@ -79,7 +79,7 @@ var choices = map[reflect.Type]choice{
 	reflect.TypeFor[AnzahlungZiel]():   {choiceKeys(advanceTargets), "der Beleg ist eine geleistete Anzahlung auf Vorräte, Sachanlagen oder immaterielle Werte"},
 	reflect.TypeFor[Buchungsseite]():   {[]string{"S", "H"}, "S (Soll) oder H (Haben)"},
 	reflect.TypeFor[BankStatus]():      {[]string{"offen", "zugeordnet", "ignoriert", "alle"}, "Stand der Umsätze; Vorgabe offen"},
-	reflect.TypeFor[DifferenzArt]():    {choiceKeys(differenceKinds), "Art der Differenz zum offenen Posten"},
+	reflect.TypeFor[DifferenzArt]():    {choiceKeys(differenceKinds), "skonto (Konto nach Steuerfall), gebuehr (auf 6855; ausgleich bleibt der volle Rechnungsbetrag), rundung, waehrung; die Kursdifferenz beim vollen Ausgleich eines Postens in Fremdwährung bucht Buchfink bis 10 % selbst"},
 	reflect.TypeFor[KartenDifferenz](): {choiceKeys(cardDifferenceKinds), "waehrung: Beleg- gegen Kartenkurs"},
 	reflect.TypeFor[KontaktTyp]():      {[]string{"kunde", "lieferant"}, "kunde oder lieferant"},
 	reflect.TypeFor[PostenRichtung]():  {[]string{"forderung", "verbindlichkeit", "alle"}, "Vorgabe alle"},

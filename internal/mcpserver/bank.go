@@ -213,7 +213,7 @@ func (in kreditkarteIn) request(bankTxID uint) (service.CreditCardSettlementRequ
 }
 
 type kapitalertragIn struct {
-	AnlageID              uint   `json:"anlage_id" jsonschema:"Finanzanlage aus anlagen"`
+	AnlageID              uint   `json:"anlage_id" jsonschema:"Finanzanlage aus anlagen; mit Fondsart in der Kartei rechnet die Erklärung die Teilfreistellung"`
 	Brutto                Betrag `json:"brutto" jsonschema:"Ertrag vor Steuern"`
 	Kapitalertragsteuer   Betrag `json:"kapitalertragsteuer,omitempty" jsonschema:"auf 7630"`
 	Solidaritaetszuschlag Betrag `json:"solidaritaetszuschlag,omitempty" jsonschema:"auf 7633"`
@@ -225,7 +225,7 @@ type bankBuchenIn struct {
 	BankumsatzID uint           `json:"bankumsatz_id"`
 	Aufteilung   []aufteilungIn `json:"aufteilung,omitempty" jsonschema:"1 bis 20 Zeilen; zusammen genau der Umsatz"`
 	Ignorieren   *ignorierenIn  `json:"ignorieren,omitempty"`
-	Kreditkarte  *kreditkarteIn `json:"kreditkartenabrechnung,omitempty" jsonschema:"Lastschrift der Kreditkartenabrechnung gegen 3610"`
+	Kreditkarte  *kreditkarteIn `json:"kreditkartenabrechnung,omitempty" jsonschema:"Lastschrift der Kreditkartenabrechnung gegen 3610; eine Abweichung bis 10 % aus Belegen in Fremdwährung bucht Buchfink als Kursdifferenz selbst"`
 	// Kapitalertrag verknüpft den Ertrag mit dem Anlagegut; daraus liest die
 	// Körperschaftsteuererklärung Bezüge nach § 8b KStG und Fondserträge.
 	Kapitalertrag *kapitalertragIn `json:"kapitalertrag,omitempty" jsonschema:"Ertrag einer Finanzanlage, am Anlagegut"`
@@ -513,12 +513,17 @@ func registerBank(tb *Toolbox) {
 		if in.NurVorschau {
 			return buchungOut{Einstufung: string(verdict.Level), Gruende: verdict.Reasons}, nil
 		}
-		if !verdict.Direct() {
-			return buchungOut{}, errApproval(verdict, "bankumsatz_buchen")
-		}
 		tx, err := s.Bank.Transaction(ctx, in.BankumsatzID)
 		if err != nil {
 			return buchungOut{}, err
+		}
+		if !verdict.Direct() {
+			e := errApproval(verdict, "bankumsatz_buchen")
+			e.NaechsterSchritt = "Dem Menschen Vorgang und Gründe vorlegen; nach seinem Ja bankumsatz_buchen mit argumente " +
+				"aufrufen. Ausgleich und Differenz richten sich nach seiner Entscheidung."
+			e.Argumente = map[string]any{"mandant_id": in.MandantID, "bankumsatz_id": in.BankumsatzID,
+				"aufteilung": []map[string]any{{"buchung_id": in.BuchungID, "ausgleich": betrag(tx.Amount.Abs())}}}
+			return buchungOut{}, e
 		}
 		id := tx.ID
 		entry, err := s.Payments.Settle(ctx, service.PaymentRequest{BankTxID: &id, Allocations: []service.AllocationRequest{{

@@ -36,12 +36,15 @@ const (
 // Werkzeug, mit dem es weitergeht, oder „nur_app". Gruende erklären
 // freigabe_noetig.
 type ToolError struct {
-	Code             string          `json:"code"`
-	Nachricht        string          `json:"nachricht"`
-	NaechsterSchritt string          `json:"naechster_schritt,omitempty"`
-	Werkzeug         string          `json:"werkzeug,omitempty"`
-	Gruende          []policy.Reason `json:"gruende,omitempty"`
-	Wiederholbar     bool            `json:"wiederholbar,omitempty"`
+	Code             string `json:"code"`
+	Nachricht        string `json:"nachricht"`
+	NaechsterSchritt string `json:"naechster_schritt,omitempty"`
+	Werkzeug         string `json:"werkzeug,omitempty"`
+	// Argumente sind die Eingabe für werkzeug, sofern sie sich von der des
+	// gescheiterten Aufrufs unterscheidet; idempotenz_schluessel fehlt.
+	Argumente    map[string]any  `json:"argumente,omitempty"`
+	Gruende      []policy.Reason `json:"gruende,omitempty"`
+	Wiederholbar bool            `json:"wiederholbar,omitempty"`
 }
 
 func (e *ToolError) Error() string { return e.Code + ": " + e.Nachricht }

@@ -205,6 +205,9 @@ func TestBankStatementAndMatching(t *testing.T) {
 	if e.Werkzeug != "bankumsatz_buchen" || !hasReason(e, "kein_exakter_treffer") {
 		t.Errorf("Zuordnung ohne Treffer: %+v", e)
 	}
+	if split, _ := e.Argumente["aufteilung"].([]any); len(split) != 1 || e.Argumente["bankumsatz_id"] != float64(power.ID) {
+		t.Errorf("Folgeaufruf ohne Umsatz und Posten: %+v", e.Argumente)
+	}
 	matchArgs := a.args(map[string]any{"bankumsatz_id": payment.ID, "buchung_id": payable, "idempotenz_schluessel": "bank-119-zuordnen"})
 	var matched, replay buchungAntwort
 	a.ok("bankumsatz_zuordnen", matchArgs, &matched)

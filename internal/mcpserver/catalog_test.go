@@ -133,12 +133,15 @@ func TestCatalogTiersAndAnnotations(t *testing.T) {
 			t.Errorf("%s hat die Stufe %s, erwartet %s", name, specs[name].Tier, tier)
 		}
 		a := tool.Annotations
-		if a == nil || a.Title == "" || tool.Title == "" || len(tool.Description) < 80 {
+		if a == nil || tool.Title == "" || len(tool.Description) < 80 {
 			t.Errorf("%s: Titel oder Beschreibung fehlen: %+v", name, tool)
 			continue
 		}
-		if a.OpenWorldHint == nil || *a.OpenWorldHint {
-			t.Errorf("%s: openWorldHint muss false sein", name)
+		if a.Title != "" {
+			t.Errorf("%s: Titel steht doppelt im Katalog", name)
+		}
+		if a.OpenWorldHint == nil || *a.OpenWorldHint != specs[name].OpenWorld {
+			t.Errorf("%s: openWorldHint muss %v sein", name, specs[name].OpenWorld)
 		}
 		if _, ok := tool.Meta["anthropic/requiresUserInteraction"]; ok {
 			t.Errorf("%s fordert eine zweite Abfrage durch den Client an", name)
@@ -357,7 +360,8 @@ func TestCatalogStaysSmall(t *testing.T) {
 			t.Errorf("%s veröffentlicht ein Ausgabeschema", name)
 		}
 	}
-	if total > 85_000 {
+	t.Logf("Katalog: %d Bytes", total)
+	if total > 83_000 {
 		t.Errorf("der Katalog hat %d Bytes", total)
 	}
 }

@@ -18,15 +18,15 @@ type aufgabenIn struct {
 }
 
 type aufgabe struct {
-	Schluessel  string            `json:"schluessel"`
-	Titel       string            `json:"titel"`
-	Warum       string            `json:"warum"`
-	Anzahl      int               `json:"anzahl,omitempty"`
-	Betrag      *Betrag           `json:"betrag,omitempty"`
-	Faellig     string            `json:"faellig,omitempty"`
-	Rechtsgrund string            `json:"rechtsgrund,omitempty"`
-	Werkzeug    string            `json:"werkzeug" jsonschema:"das Werkzeug, mit dem es weitergeht, oder nur_app"`
-	Parameter   map[string]string `json:"parameter,omitempty" jsonschema:"Vorschlag für die Eingabe des Werkzeugs"`
+	Schluessel  string         `json:"schluessel"`
+	Titel       string         `json:"titel"`
+	Warum       string         `json:"warum"`
+	Anzahl      int            `json:"anzahl,omitempty"`
+	Betrag      *Betrag        `json:"betrag,omitempty"`
+	Faellig     string         `json:"faellig,omitempty"`
+	Rechtsgrund string         `json:"rechtsgrund,omitempty"`
+	Werkzeug    string         `json:"werkzeug" jsonschema:"das Werkzeug, mit dem es weitergeht, oder nur_app"`
+	Parameter   map[string]any `json:"parameter,omitempty" jsonschema:"Vorschlag für die Eingabe des Werkzeugs"`
 }
 
 type aufgabenOut struct {
@@ -40,23 +40,23 @@ type aufgabenOut struct {
 // taskTool übersetzt das Ziel einer Aufgabe in der Oberfläche in einen
 // Werkzeugaufruf. Pflichten führen über ihren Schlüssel zu fristen, gleich
 // welcher Reiter sie in der Oberfläche zeigt.
-func taskTool(t domain.Task) (string, map[string]string) {
+func taskTool(t domain.Task) (string, map[string]any) {
 	if strings.HasPrefix(t.Key, domain.TaskKeyObligation+".") {
-		return "fristen", map[string]string{"schluessel": t.Target.ID}
+		return "fristen", map[string]any{"schluessel": t.Target.ID}
 	}
 	switch t.Target.Area {
 	case domain.AreaBooks:
 		switch t.Target.Tab {
 		case "receipts":
-			return "belege_suchen", map[string]string{"status": "abgelegt"}
+			return "belege_suchen", map[string]any{"status": "abgelegt"}
 		case "bank":
-			return "bankumsaetze", map[string]string{"status": "offen"}
+			return "bankumsaetze", map[string]any{"status": "offen"}
 		case "invoices":
-			return "offene_posten", map[string]string{"richtung": "forderung", "nur_ueberfaellig": "true"}
+			return "offene_posten", map[string]any{"richtung": "forderung", "nur_ueberfaellig": true}
 		}
 	case domain.AreaSettings:
 		if t.Target.Tab == "audit" {
-			return "auswertung", map[string]string{"art": "pruefbericht"}
+			return "auswertung", map[string]any{"art": "pruefbericht"}
 		}
 	case domain.AreaCompany:
 		if t.Target.Tab == "contacts" {
@@ -270,7 +270,8 @@ func registerFristen(tb *Toolbox) {
 		Description: "Pflichtenkalender: je Pflicht Art, Zeitraum, Fälligkeit, Status (offen, vorbereitet, ueberfaellig, " +
 			"erledigt, entfaellt), Kanal, Zuständigkeit und verweis auf den Abschnitt in " +
 			"references/grundlagen/pflichten.md des Skills buchfink. Ohne Filter alles noch nicht Erledigte bis 180 Tage voraus. " +
-			"Nach dem Vorbereiten pflicht_vorbereitet melden; erledigt setzt nur die App oder der Datenstand.",
+			"Nach dem Vorbereiten pflicht_vorbereitet melden; erledigt setzt nur die App oder der Datenstand (eine Zahlung " +
+			"gebucht auf dem Konto der Steuerart). Pflichten aus einem Anlass erscheinen erst nach anlass_erfassen.",
 	}, func(ctx context.Context, c *Call, s core.AgentServices, in fristenIn) (fristenOut, error) {
 		out := fristenOut{Stichtag: c.Tenant.Today(), Pflichten: []pflicht{}}
 		if in.Schluessel != "" {

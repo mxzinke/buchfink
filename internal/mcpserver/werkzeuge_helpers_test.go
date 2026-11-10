@@ -18,14 +18,16 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// agent ist ein verbundener Client mit den Ausgabeschemas der Werkzeuge.
-// Jede erfolgreiche Antwort wird gegen ihr Schema geprüft, wie Claude Code es
-// tut.
+// agent ist ein verbundener Client mit den Ein- und Ausgabeschemas der
+// Werkzeuge. Jede erfolgreiche Antwort wird gegen ihr Schema geprüft, wie
+// Claude Code es tut; jeder vorgeschlagene Folgeaufruf gegen das
+// Eingabeschema seines Werkzeugs.
 type agent struct {
 	t       *testing.T
 	h       *harness
 	cs      *mcp.ClientSession
 	schemas map[string]*jsonschema.Resolved
+	inputs  map[string]*jsonschema.Resolved
 }
 
 func (h *harness) agent(scope string) *agent {
@@ -35,8 +37,18 @@ func (h *harness) agent(scope string) *agent {
 	if err != nil {
 		h.t.Fatal(err)
 	}
-	a := &agent{t: h.t, h: h, cs: cs, schemas: map[string]*jsonschema.Resolved{}}
+	a := &agent{t: h.t, h: h, cs: cs, schemas: map[string]*jsonschema.Resolved{}, inputs: map[string]*jsonschema.Resolved{}}
 	for _, tool := range listed.Tools {
+		raw, _ := json.Marshal(tool.InputSchema)
+		var in jsonschema.Schema
+		if err := json.Unmarshal(raw, &in); err != nil {
+			h.t.Fatalf("%s: Eingabeschema: %v", tool.Name, err)
+		}
+		resolved, err := in.Resolve(nil)
+		if err != nil {
+			h.t.Fatalf("%s: Eingabeschema: %v", tool.Name, err)
+		}
+		a.inputs[tool.Name] = resolved
 		if tool.OutputSchema != nil {
 			h.t.Fatalf("%s veröffentlicht ein Ausgabeschema", tool.Name)
 		}
@@ -44,11 +56,11 @@ func (h *harness) agent(scope string) *agent {
 		if schema == nil {
 			continue
 		}
-		resolved, err := schema.Resolve(nil)
+		out, err := schema.Resolve(nil)
 		if err != nil {
 			h.t.Fatalf("%s: %v", tool.Name, err)
 		}
-		a.schemas[tool.Name] = resolved
+		a.schemas[tool.Name] = out
 	}
 	return a
 }
@@ -82,7 +94,46 @@ func (a *agent) ok(tool string, in map[string]any, out any) map[string]any {
 		}
 	}
 	m, _ := instance.(map[string]any)
+	if tool == "aufgaben" {
+		a.checkTaskCalls(m)
+	}
 	return m
+}
+
+// followUp prüft einen vorgeschlagenen Aufruf gegen das Eingabeschema des
+// Werkzeugs, so wie der Agent ihn absendet.
+func (a *agent) followUp(tool string, args map[string]any) {
+	a.t.Helper()
+	schema, ok := a.inputs[tool]
+	if !ok {
+		a.t.Fatalf("Folgeaufruf an unbekanntes Werkzeug %s", tool)
+	}
+	var instance any
+	raw, _ := json.Marshal(args)
+	_ = json.Unmarshal(raw, &instance)
+	if err := schema.Validate(instance); err != nil {
+		a.t.Fatalf("Folgeaufruf %s passt nicht zum Eingabeschema: %v\n%s", tool, err, raw)
+	}
+}
+
+// checkTaskCalls prüft Werkzeug und Parameter jeder Aufgabe.
+func (a *agent) checkTaskCalls(out map[string]any) {
+	a.t.Helper()
+	for _, list := range []string{"ueberfaellig", "offen", "demnaechst"} {
+		tasks, _ := out[list].([]any)
+		for _, raw := range tasks {
+			task, _ := raw.(map[string]any)
+			tool, _ := task["werkzeug"].(string)
+			if tool == "" || tool == "nur_app" {
+				continue
+			}
+			params, _ := task["parameter"].(map[string]any)
+			if params == nil {
+				params = map[string]any{}
+			}
+			a.followUp(tool, params)
+		}
+	}
 }
 
 // fail ruft ein Werkzeug und erwartet den Fehler code.
@@ -91,6 +142,13 @@ func (a *agent) fail(tool string, in map[string]any, code string) ToolError {
 	e := toolErrorOf(a.t, callTool(a.t, a.cs, tool, in))
 	if e.Code != code {
 		a.t.Fatalf("%s: Fehler %s (%s), erwartet %s", tool, e.Code, e.Nachricht, code)
+	}
+	if e.Argumente != nil {
+		args := map[string]any{"idempotenz_schluessel": "folgeaufruf-" + tool}
+		for k, v := range e.Argumente {
+			args[k] = v
+		}
+		a.followUp(e.Werkzeug, args)
 	}
 	return e
 }

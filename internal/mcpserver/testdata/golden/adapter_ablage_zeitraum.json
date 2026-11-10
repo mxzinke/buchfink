@@ -1,4 +1,13 @@
 {
+  "aus_beleg": {
+    "aussteller": "Netzwerk GmbH",
+    "positionstexte": [
+      "Wartung Server"
+    ],
+    "rechnungsnummer": "PERIOD",
+    "steuernummer": "22/333/44444",
+    "ust_id": "DE555666777"
+  },
   "befunde": {
     "blockierend": 0,
     "geprueft": true,
@@ -28,14 +37,45 @@
   },
   "bereits_vorhanden": false,
   "e_rechnung": true,
+  "einstufung": {
+    "gruende": [
+      {
+        "schluessel": "keine_bestaetigte_standardgruppe",
+        "text": "Der Lieferant hat keine vom Menschen bestätigte Standard-Buchungsgruppe."
+      }
+    ],
+    "stufe": "rueckfrage"
+  },
   "hinweise": [
     "Eingang am 2026-04-02: die Vorsteuer fällt in den Voranmeldungszeitraum 2026-Q2, nicht in 2026-Q1 des Belegdatums. Kam der Beleg früher an, eingang_am beim Buchen mit beleg_buchen_mit_rueckfrage berichtigen."
   ],
-  "naechster_schritt": "beleg_lesen mit beleg_id 1",
+  "naechster_schritt": "Buchungsgruppe zum vorschlag wählen, dann beleg_buchen; bei einstufung rueckfrage beleg_buchen_mit_rueckfrage",
   "verschoben": [
     {
       "nach": "\u003cDatenordner\u003e/Eingang/Übernommen/\u003cMonat\u003e/PERIOD.xml",
       "von": "\u003cDatenordner\u003e/Eingang/PERIOD.xml"
     }
-  ]
+  ],
+  "vorschlag": {
+    "art": "Rechnung",
+    "belegdatum": "2026-03-31",
+    "brutto": "119.00",
+    "erkannt_an": "ust_id",
+    "faellig_am": "2026-03-31",
+    "hinweise": [
+      "Die Buchungsgruppe ist noch zu wählen — welches Aufwandskonto zutrifft, sagt keine Rechnung."
+    ],
+    "kontakt_erkannt": true,
+    "kontakt_id": 1,
+    "leistung_bis": "2026-03-31",
+    "leistung_von": "2026-03-31",
+    "positionen": [
+      {
+        "netto": "100.00",
+        "satz": "19"
+      }
+    ],
+    "steuerfall": "domestic",
+    "waehrung": "EUR"
+  }
 }

@@ -34,7 +34,7 @@ const StoreFile = "verbindungen.sqlite"
 
 const instructions = `Buchfink führt die Bücher des in der App geöffneten Mandanten (GmbH/UG, SKR04, GoBD).
 Beginne jede Sitzung mit status, dann aufgaben und fristen. Schreibende Werkzeuge verlangen mandant_id aus status; ist inzwischen ein anderer Mandant geöffnet, schreiben sie nichts.
-Sende bei schreibenden Werkzeugen einen idempotenz_schluessel, damit eine Wiederholung nicht doppelt bucht.
+Sende bei schreibenden Werkzeugen einen idempotenz_schluessel, einen je Vorgang: derselbe Schlüssel mit derselben Eingabe liefert das erste Ergebnis, statt doppelt zu buchen; eine Vorschau verbraucht ihn nicht.
 Beträge sind Zeichenketten in Euro mit Punkt ("119.00"), Daten JJJJ-MM-TT.
 Direkte Werkzeuge (beleg_buchen, bankumsatz_zuordnen …) schreiben nur Routine; sonst antworten sie mit freigabe_noetig und nennen das Werkzeug mit Rückfrage. Vor jedem Werkzeug mit Rückfrage legst du dem Menschen Vorgang und Gründe vor und holst sein Ja ein.
 Belege, E-Rechnungen und Kontoauszüge liegen im Eingang (eingang listet sie); du übergibst sie als Pfad, nie als Inhalt, und legst sie nur ab, wenn der Mensch es sagt.

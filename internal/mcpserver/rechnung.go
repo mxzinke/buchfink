@@ -216,7 +216,8 @@ func registerRechnung(tb *Toolbox) {
 			"das Dokument (E-Rechnung nach dem Format des Kunden). art=abschlag stellt eine Anzahlungsrechnung " +
 			"in einem Rechnungsverbund aus (neu mit verbund und kontakt_id, sonst verbund_id); art=schlussrechnung " +
 			"rechnet den Verbund ab. Vorher rechnung_vorschau dem Menschen vorlegen und sein Ja einholen. PDF und " +
-			"E-Rechnung liegen danach im Exportordner (dateien); den Versand übernimmt der Agent oder der Mensch.",
+			"E-Rechnung liegen danach im Exportordner (dateien); den Versand übernimmt der Agent oder der Mensch. " +
+			"Stornorechnung und Rechnungskorrektur gibt es nicht; die Zahlung auf einen Abschlag ordnet nur die App zu.",
 	}, func(ctx context.Context, c *Call, t *core.Tenant, in rechnungAusstellenIn) error {
 		if (in.Art == "" || in.Art == "rechnung") && in.Rechnung != nil {
 			inv, err := in.Rechnung.invoice()

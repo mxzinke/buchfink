@@ -53,7 +53,7 @@ type positionRueckfrageIn struct {
 	NichtSteuerbar          string         `json:"nicht_steuerbar,omitempty" jsonschema:"Grund für einen Posten ohne Umsatzsteuer, etwa Trinkgeld oder Kurtaxe; satz 0"`
 	VorsteueranteilPromille int            `json:"vorsteueranteil_promille,omitempty" jsonschema:"abziehbarer Anteil der Vorsteuer in Promille bei gemischter Nutzung; 0 heißt voll"`
 	VorsteueranteilGrund    string         `json:"vorsteueranteil_grund,omitempty"`
-	Geschenk                *geschenkIn    `json:"geschenk,omitempty" jsonschema:"Empfänger, wo die Gruppe ihn verlangt (§ 4 Abs. 7 EStG)"`
+	Geschenk                *geschenkIn    `json:"geschenk,omitempty" jsonschema:"Empfänger, wo die Gruppe ihn verlangt (§ 4 Abs. 7 EStG); Buchfink summiert je Empfänger und Jahr gegen die Freigrenze"`
 }
 
 type bewirtungIn struct {
@@ -523,8 +523,9 @@ func registerBuchen(tb *Toolbox) {
 	})
 
 	AddWritePrepared(tb, Spec{
-		Name:  "beleg_buchen_mit_rueckfrage",
-		Title: "Beleg buchen (mit Rückfrage)",
+		Name:      "beleg_buchen_mit_rueckfrage",
+		Title:     "Beleg buchen (mit Rückfrage)",
+		OpenWorld: true,
 		Description: "Bucht einen Eingangsbeleg in allen Fällen, die keine Routine sind: Foto oder PDF, " +
 			"Abweichung von der E-Rechnung, Fremdwährung, Bewirtung, Geschenk, Vorsteueranteil, Rückstellung, Gutschrift, " +
 			"Anzahlung, Auslage eines Gesellschafters (bezahlung=auslage), bar bezahlt, Konto statt Gruppe, " +

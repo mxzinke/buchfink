@@ -43,7 +43,7 @@ func TestVorabpauschaleIsRecordedAtTheFund(t *testing.T) {
 		return args
 	}
 	var activated abschlussAntwort
-	a.ok("abschlussbuchung", run("anlage_aktivieren", false, map[string]any{"schluessel": "etf", "anlage": map[string]any{
+	a.ok("abschlussbuchung", run("anlage_aktivieren", false, map[string]any{"schluessel": "etf", "anlage_aktivieren": map[string]any{
 		"buchung_id": purchase, "bezeichnung": "Aktien-ETF Welt", "klasse": "finanzanlage", "methode": "keine",
 		"fondsart": "aktienfonds"}}), &activated)
 	if activated.AnlageID == nil {

@@ -257,7 +257,7 @@ func registerKonten(tb *Toolbox) {
 			"laufendem Saldo), bilanz, guv (mit Vorjahr), ust (Umsatzsteuer-Übersicht eines Zeitraums), pruefbericht " +
 			"(Befunde des Prüflaufs, ohne ihn zu speichern), darlehen (Gesellschafterdarlehen mit Stand und Befunden " +
 			"zum Fremdvergleich), unterbilanz (Haftung der Gesellschafter, wenn das Reinvermögen am Eintragungstag " +
-			"unter dem Stammkapital liegt). Listen seitenweise. Für einzelne Buchungen buchung_lesen.",
+			"unter dem Stammkapital liegt; vor der Eintragung zu heute). Listen seitenweise. Für einzelne Buchungen buchung_lesen.",
 	}, func(ctx context.Context, c *Call, s core.AgentServices, in auswertungIn) (auswertungOut, error) {
 		year, err := yearOr(ctx, c, in.Geschaeftsjahr)
 		if err != nil {

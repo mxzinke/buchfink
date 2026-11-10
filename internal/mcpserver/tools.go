@@ -75,6 +75,8 @@ type Spec struct {
 	// ExaminerExempt: das Werkzeug ändert die Bücher nicht (Export) und läuft
 	// deshalb auch im Prüfermodus.
 	ExaminerExempt bool
+	// OpenWorld: das Werkzeug holt Daten aus dem Netz (Wechselkurse).
+	OpenWorld bool
 
 	output *jsonschema.Schema
 }
@@ -91,7 +93,7 @@ func (tb *Toolbox) OutputSchema(name string) *jsonschema.Schema {
 
 // TenantArgs gehören in die Eingabe jedes schreibenden Werkzeugs.
 type TenantArgs struct {
-	MandantID string `json:"mandant_id" jsonschema:"id aus status; ist ein anderer Mandant geöffnet, wird nichts geschrieben"`
+	MandantID string `json:"mandant_id" jsonschema:"id aus status"`
 }
 
 func (a TenantArgs) tenantID() string { return a.MandantID }
@@ -101,8 +103,8 @@ type tenantInput interface{ tenantID() string }
 // WriteArgs gehören in die Eingabe jedes schreibenden Werkzeugs, das in einem
 // Vorgang schreibt.
 type WriteArgs struct {
-	MandantID            string `json:"mandant_id" jsonschema:"id aus status; ist ein anderer Mandant geöffnet, wird nichts geschrieben"`
-	Idempotenzschluessel string `json:"idempotenz_schluessel,omitempty" jsonschema:"8 bis 100 Zeichen (A-Z a-z 0-9 - _ . :); gleicher Schlüssel und gleiche Eingabe liefern das erste Ergebnis"`
+	MandantID            string `json:"mandant_id" jsonschema:"id aus status"`
+	Idempotenzschluessel string `json:"idempotenz_schluessel,omitempty" jsonschema:"einer je Vorgang, 8 bis 100 Zeichen A-Z a-z 0-9 - _ . :"`
 }
 
 func (a WriteArgs) writeArgs() WriteArgs { return a }
@@ -113,8 +115,8 @@ func (a WriteArgs) keyRequired() bool    { return false }
 // Eingabe eines Werkzeugs, dessen Vorgang keinen natürlichen Schlüssel hat:
 // ohne ihn buchte ein nach einem Abbruch wiederholter Aufruf ein zweites Mal.
 type KeyedWriteArgs struct {
-	MandantID            string `json:"mandant_id" jsonschema:"id aus status; ist ein anderer Mandant geöffnet, wird nichts geschrieben"`
-	Idempotenzschluessel string `json:"idempotenz_schluessel" jsonschema:"Pflicht, einer je Vorgang: 8 bis 100 Zeichen (A-Z a-z 0-9 - _ . :); gleicher Schlüssel und gleiche Eingabe liefern das erste Ergebnis; eine Vorschau verbraucht ihn nicht"`
+	MandantID            string `json:"mandant_id" jsonschema:"id aus status"`
+	Idempotenzschluessel string `json:"idempotenz_schluessel" jsonschema:"Pflicht, einer je Vorgang, 8 bis 100 Zeichen A-Z a-z 0-9 - _ . :"`
 }
 
 func (a KeyedWriteArgs) writeArgs() WriteArgs {
@@ -423,8 +425,8 @@ func add[In, Out any](tb *Toolbox, spec Spec, run func(ctx context.Context, c *C
 	if err != nil {
 		panic(fmt.Sprintf("Werkzeug %s: Ausgabeschema: %v", spec.Name, err))
 	}
-	closed := false
-	annotations := &mcp.ToolAnnotations{Title: spec.Title, ReadOnlyHint: spec.Tier == TierRead, OpenWorldHint: &closed}
+	openWorld := spec.OpenWorld
+	annotations := &mcp.ToolAnnotations{ReadOnlyHint: spec.Tier == TierRead, OpenWorldHint: &openWorld}
 	if spec.Tier == TierRead {
 		annotations.IdempotentHint = true
 	} else {

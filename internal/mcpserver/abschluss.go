@@ -204,7 +204,7 @@ type abschlussbuchungIn struct {
 	Steuerrueckstellung *steuerrueckstellungIn `json:"steuerrueckstellung,omitempty"`
 	Wertberichtigung    *wertberichtigungIn    `json:"wertberichtigung,omitempty"`
 	UnfertigeLeistungen *unfertigeIn           `json:"unfertige_leistungen,omitempty"`
-	Anlage              *aktivierenIn          `json:"anlage,omitempty"`
+	Anlage              *aktivierenIn          `json:"anlage_aktivieren,omitempty"`
 	Vorabpauschale      *vorabpauschaleIn      `json:"vorabpauschale,omitempty"`
 }
 
@@ -685,7 +685,7 @@ func runCurrency(ctx context.Context, s core.AgentServices, year int, in abschlu
 func runActivate(ctx context.Context, s core.AgentServices, year int, in abschlussbuchungIn, out *abschlussbuchungOut) error {
 	a := in.Anlage
 	if a == nil || a.BuchungID == 0 || strings.TrimSpace(a.Bezeichnung) == "" {
-		return inputError("anlage", "buchung_id und bezeichnung fehlen")
+		return inputError("anlage_aktivieren", "buchung_id und bezeichnung fehlen")
 	}
 	candidates, err := s.Assets.AcquisitionCandidates(ctx, year)
 	if err != nil {
@@ -706,13 +706,13 @@ func runActivate(ctx context.Context, s core.AgentServices, year int, in abschlu
 	if in.NurVorschau {
 		return nil
 	}
-	inService, err := a.InBetrieb.check("anlage.in_betrieb")
+	inService, err := a.InBetrieb.check("anlage_aktivieren.in_betrieb")
 	if err != nil {
 		return err
 	}
 	// Klasse, Aufwandskonto und ob das Gut abnutzbar ist, sagt das Anlagekonto.
 	account, known := accounting.LookupAssetAccount(found.Account)
-	class, err := pick("anlage.klasse", a.Klasse, assetClasses)
+	class, err := pick("anlage_aktivieren.klasse", a.Klasse, assetClasses)
 	if err != nil {
 		return err
 	}
@@ -722,7 +722,7 @@ func runActivate(ctx context.Context, s core.AgentServices, year int, in abschlu
 	if class == "" {
 		class = domain.AssetClassTangible
 	}
-	method, err := pick("anlage.methode", a.Methode, depreciationMethods)
+	method, err := pick("anlage_aktivieren.methode", a.Methode, depreciationMethods)
 	if err != nil {
 		return err
 	}
@@ -732,12 +732,12 @@ func runActivate(ctx context.Context, s core.AgentServices, year int, in abschlu
 			method = domain.DepreciationNone
 		}
 	}
-	fund, err := pick("anlage.fondsart", a.Fondsart, fundClasses)
+	fund, err := pick("anlage_aktivieren.fondsart", a.Fondsart, fundClasses)
 	if err != nil {
 		return err
 	}
 	if fund.IsFund() && class != domain.AssetClassFinancial {
-		return inputError("anlage.fondsart", "eine Fondsart hat nur eine Finanzanlage")
+		return inputError("anlage_aktivieren.fondsart", "eine Fondsart hat nur eine Finanzanlage")
 	}
 	entryID := found.EntryID
 	asset := &domain.FixedAsset{Name: a.Bezeichnung, Class: class, Account: found.Account, AcquisitionDate: found.BookingDate,

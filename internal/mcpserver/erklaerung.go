@@ -289,7 +289,8 @@ func registerErklaerung(tb *Toolbox) {
 		Description: "Zeigt eine Anmeldung oder Erklärung formularnah als Eingabehilfe für Mein ELSTER: ustva und zm " +
 			"je Zeitraum mit Kennzahlen und Zahllast; ust_jahr, kst und gewst je Jahr mit Formularen, Zeilen, Wert, " +
 			"Status, Zuständigkeit und Herkunft (Konten, Rechnung). nur_offen zeigt, was noch eine Angabe braucht. " +
-			"Danach erklaerung_eingabe und erklaerung_exportieren. Übermitteln kann nur der Mensch.",
+			"ustva: Umsätze nach Leistungstag, Vorsteuer nach dem spätesten Tag aus Leistung, Rechnung und Eingang, " +
+			"Bemessungsgrundlagen in vollen Euro. Danach erklaerung_eingabe und erklaerung_exportieren. Übermitteln kann nur der Mensch.",
 	}, func(ctx context.Context, c *Call, s core.AgentServices, in erklaerungIn) (erklaerungOut, error) {
 		period := strings.TrimPrefix(strings.TrimPrefix(string(in.Zeitraum), "ustva."), "zm.")
 		out := emptyErklaerung(string(in.Art), period)

@@ -53,5 +53,6 @@
       "nach": "\u003cDatenordner\u003e/Eingang/Übernommen/\u003cMonat\u003e/kopf.pdf",
       "von": "\u003cDatenordner\u003e/Eingang/kopf.pdf"
     }
-  ]
+  ],
+  "vorschlag_fehlt": "Der Beleg hat keinen strukturierten Rechnungsdatensatz; die Angaben sind vom Beleg abzulesen."
 }

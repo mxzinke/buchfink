@@ -86,7 +86,7 @@ func TestEveryClosingBookingBooks(t *testing.T) {
 	if len(assets.Kandidaten) != 1 || assets.Kandidaten[0].BuchungID != bought.Buchung.ID {
 		t.Fatalf("Aktivierungskandidat: %+v", assets)
 	}
-	activated := book("anlage_aktivieren", "laptop-aktivieren", map[string]any{"anlage": map[string]any{
+	activated := book("anlage_aktivieren", "laptop-aktivieren", map[string]any{"anlage_aktivieren": map[string]any{
 		"buchung_id": bought.Buchung.ID, "bezeichnung": "Laptop", "nutzungsdauer_monate": 36}})
 	if activated.AnlageID == nil {
 		t.Fatalf("anlage_aktivieren: %+v", activated)
