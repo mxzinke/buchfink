@@ -593,6 +593,7 @@ function receipt(doc: (typeof RECEIPT_DOCS)[number]) {
     direction: 'incoming',
     status: doc.status,
     kind: 'invoice',
+    needsBooking: doc.status === 'filed',
     documentDate: doc.date,
     issuerName: doc.issuer,
     subject: doc.subject,

@@ -28,7 +28,7 @@ export default [
     file: 'abschluesse-monat-festschreiben.png',
     go: async ({ page }) => {
       await page.getByRole('button', { name: 'Juli festschreiben' }).click();
-      await page.getByText('Geprüfte Buchungen').waitFor();
+      await page.getByText(/^Geprüft bis /).waitFor();
       await page.waitForTimeout(400);
     },
     after: async ({ escape }) => escape(),
