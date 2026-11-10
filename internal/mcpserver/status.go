@@ -167,7 +167,7 @@ func registerStatus(tb *Toolbox) {
 				return err
 			}
 			out.Direktregeln = &statusRules{GrenzeBrutto: betrag(limits.MaxGross), Mindestbuchungen: limits.MinBookings}
-			out.Vorschlaege, err = statusProposals(ctx, s, time.Now())
+			out.Vorschlaege, err = statusProposals(ctx, s, t.Now())
 			return err
 		})
 		if err != nil {

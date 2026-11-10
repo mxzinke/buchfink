@@ -181,6 +181,9 @@ func (t *Tenant) Close(ctx context.Context) error {
 }
 
 // ID ist die Kennung des Mandanten in der Mandantenliste.
+// Now ist die Uhr, nach der die Dienste des Mandanten Zeitpunkte stempeln.
+func (t *Tenant) Now() time.Time { return t.clock.Now() }
+
 func (t *Tenant) ID() string { return t.info.ID }
 
 // Name ist der Anzeigename beim Öffnen.
