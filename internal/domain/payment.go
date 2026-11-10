@@ -103,7 +103,8 @@ const (
 	OpenItemSourceJournal OpenItemSource = "journal"
 	// OpenItemSourceAdvance ist die ausgestellte, noch nicht vereinnahmte
 	// Abschlagsrechnung.
-	OpenItemSourceAdvance OpenItemSource = "advance"
+	OpenItemSourceAdvance       OpenItemSource = "advance"
+	OpenItemSourceAdvanceRefund OpenItemSource = "advance_refund"
 )
 
 // OpenItem is one unsettled receivable or payable.

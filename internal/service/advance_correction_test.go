@@ -201,12 +201,10 @@ func TestAdvanceSettlementFromBankTransactionMarksItMatched(t *testing.T) {
 
 	txID := env.bankCredit(t, "2026-04-15", 476000, "E2E-ANZ-1")
 
-	// Ein Umsatz über einen anderen Betrag gehört nicht zu diesem Abschlag:
-	// eine Teilzahlung würde die Steuer des ganzen Abschlags in einen Zeitraum
-	// bringen, in dem nur ein Teil zugeflossen ist.
+	// Eine Zahlung über den Rechnungsbetrag wird abgewiesen.
 	if _, err := svc.SettleAdvance(ctx, SettleAdvanceRequest{
 		AdvanceID: second.ID, BankTxID: &txID,
-	}); err == nil || !strings.Contains(err.Error(), "vollen Betrag") {
+	}); err == nil || !strings.Contains(err.Error(), "übersteigt") {
 		t.Errorf("ein abweichender Betrag muss abgewiesen werden, erhalten: %v", err)
 	}
 
@@ -244,7 +242,7 @@ func TestAdvanceSettlementFromBankTransactionMarksItMatched(t *testing.T) {
 	debitID := env.bankCredit(t, "2026-04-16", -119000, "E2E-ANZ-2")
 	if _, err := svc.SettleAdvance(ctx, SettleAdvanceRequest{
 		AdvanceID: second.ID, BankTxID: &debitID,
-	}); err == nil || !strings.Contains(err.Error(), "Auszahlung") {
+	}); err == nil || !strings.Contains(err.Error(), "Richtung") {
 		t.Errorf("eine Auszahlung darf keine Anzahlung vereinnahmen, erhalten: %v", err)
 	}
 }

@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Upload } from 'lucide-react';
 import type {
   BankAccount,
-  BankSuggestion,
   BankSuggestions,
   BankTransaction,
   JournalEntry,
@@ -14,8 +13,10 @@ import { Api } from '../../services/api';
 import { usePostingLock } from '../../components/WriteLock';
 import { ActorMark } from '../../components/ActorMark';
 import { formatCents, formatDate } from '../../utils/formatters';
+import { bankMatchPlan as plan } from '../../utils/bankMatchPlan';
 import {
   Button,
+  Input,
   DetailList,
   DetailPanel,
   EmptyState,
@@ -39,63 +40,12 @@ import { PanelHeading, errorText } from './shared';
 
 type Filter = 'open' | 'all';
 
-/** Was vom Umsatz noch keinem Posten zugeordnet ist. */
-const remainingOf = (tx: BankTransaction) => Math.max(0, Math.abs(tx.amount) - (tx.matchedAmount || 0));
-
 function matches(tx: BankTransaction, query: string): boolean {
   if (!query) return true;
   const q = query.toLowerCase();
   return [tx.counterpartyName, tx.remittanceInfo, tx.counterpartyIban]
     .filter(Boolean)
     .some((text) => text.toLowerCase().includes(q));
-}
-
-/**
- * Was ein Vorschlag beim Bestätigen bucht, oder warum er sich so nicht
- * bestätigen lässt. Ein Vorschlag aus offenen Posten muss den Umsatz genau
- * decken; eine Anzahlung gilt nur mit dem vollen Betrag als vereinnahmt.
- */
-function plan(
-  tx: BankTransaction,
-  suggestion: BankSuggestion,
-):
-  | { kind: 'direct'; counterAccount: string }
-  | { kind: 'advance'; advanceId: number }
-  | { kind: 'settle'; allocations: { openItemEntryId: number; settledAmount: number }[] }
-  | { kind: 'blocked'; reason: string } {
-  if (suggestion.kind === 'rule' || suggestion.kind === 'credit_card') {
-    return suggestion.counterAccount
-      ? { kind: 'direct', counterAccount: suggestion.counterAccount }
-      : { kind: 'blocked', reason: 'Dem Vorschlag fehlt das Gegenkonto.' };
-  }
-  const items = suggestion.items ?? [];
-  const advance = items.find((item) => item.source === 'advance');
-  if (advance) {
-    return Math.abs(tx.amount) === Math.abs(advance.openAmount)
-      ? { kind: 'advance', advanceId: advance.advanceInvoiceId ?? 0 }
-      : { kind: 'blocked', reason: 'Eine Anzahlung gilt erst mit dem vollen Betrag als vereinnahmt.' };
-  }
-  // Einen Fremdwährungsposten gleicht die Zahlung ganz aus; den Unterschied zum
-  // gebuchten Euro-Betrag bucht das Backend als Kursdifferenz.
-  if (items.length === 1 && items[0].currency) {
-    return { kind: 'settle', allocations: [{ openItemEntryId: items[0].entryId, settledAmount: items[0].openAmount }] };
-  }
-  let remaining = remainingOf(tx);
-  const allocations = items.map((item) => {
-    const amount = Math.min(Math.abs(item.openAmount), remaining);
-    remaining -= amount;
-    return { openItemEntryId: item.entryId, settledAmount: amount };
-  });
-  if (remaining !== 0 || allocations.length === 0) {
-    return {
-      kind: 'blocked',
-      reason: `Die Posten decken ${formatCents(remainingOf(tx) - remaining, tx.currency)} von ${formatCents(
-        remainingOf(tx),
-        tx.currency,
-      )}. Den Rest ordnet Claude zu.`,
-    };
-  }
-  return { kind: 'settle', allocations: allocations.filter((a) => a.settledAmount > 0) };
 }
 
 /**
@@ -334,6 +284,7 @@ const BankPanel: React.FC<{
   const [shown, setShown] = useState<BankTransaction | undefined>(tx);
   const [suggestions, setSuggestions] = useState<BankSuggestions | null>(null);
   const [choice, setChoice] = useState(0);
+  const [refundReason, setRefundReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
 
@@ -344,6 +295,7 @@ const BankPanel: React.FC<{
   useEffect(() => {
     setSuggestions(null);
     setChoice(0);
+    setRefundReason('');
     setFailure(null);
     if (!tx || tx.matchStatus !== 'unmatched') return;
     let cancelled = false;
@@ -372,13 +324,14 @@ const BankPanel: React.FC<{
           action.counterAccount,
           `${shown.counterpartyName} – ${shown.remittanceInfo}`,
         );
+      } else if (action.kind === 'refund') {
+        await Api.refundAdvance({ advanceId: action.advanceId, bankTxId: shown.id,
+          refundDate: shown.bookingDate, paymentAccount: shown.ledgerAccount, reason: refundReason });
       } else if (action.kind === 'advance') {
-        await Api.settleAdvance({
-          advanceId: action.advanceId,
-          bankTxId: shown.id,
-          paymentDate: shown.bookingDate,
-          paymentAccount: shown.ledgerAccount,
-        });
+        await Api.settlePayment({ bankTxId: shown.id, paymentDate: shown.bookingDate,
+          paymentAccount: shown.ledgerAccount, allocations: [{ openItemEntryId: 0,
+            advanceInvoiceId: action.advanceId, settledAmount: Math.abs(shown.amount),
+            differenceKind: 'none', differenceAmount: 0 }] });
       } else if (action.kind === 'settle') {
         await Api.settlePayment({
           bankTxId: shown.id,
@@ -431,7 +384,7 @@ const BankPanel: React.FC<{
           <Button
             variant="primary"
             loading={busy}
-            disabled={lock.locked || action?.kind === 'blocked'}
+            disabled={lock.locked || action?.kind === 'blocked' || (action?.kind === 'refund' && !refundReason.trim())}
             title={lock.hint ?? (action?.kind === 'blocked' ? action.reason : undefined)}
             onClick={() => void confirm()}
           >
@@ -486,6 +439,13 @@ const BankPanel: React.FC<{
                 hint: suggestion.reasons.join(' · '),
               }))}
             />
+          )}
+          {action?.kind === 'refund' && (
+            <label className="mt-3 block text-body">
+              Grund der Rückzahlung
+              <Input value={refundReason} onChange={(event) => setRefundReason(event.target.value)} />
+              <span className="text-caption text-ink-muted">Bestätigen: Die Leistung wurde nicht ausgeführt. Anzahlung und Umsatzsteuer werden zurückgebucht; die Abschlagsrechnung bleibt bestehen.</span>
+            </label>
           )}
           {action?.kind === 'blocked' ? (
             <p className="mt-3 text-caption text-attention-text">{action.reason}</p>

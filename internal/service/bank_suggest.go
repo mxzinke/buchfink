@@ -148,6 +148,17 @@ func (s *BankService) Suggest(ctx context.Context, bankTxID uint) (*BankSuggesti
 // SuggestFor ist Suggest mit schon gelesenen offenen Posten; wer viele Umsätze
 // auf einmal vorschlägt, liest sie so nur einmal.
 func (s *BankService) SuggestFor(ctx context.Context, tx *domain.BankTransaction, open []domain.OpenItem) (*BankSuggestions, error) {
+	if tx.Amount < 0 {
+		if source, ok := s.openItems.(interface {
+			RefundItems(context.Context) ([]domain.OpenItem, error)
+		}); ok {
+			refunds, err := source.RefundItems(ctx)
+			if err != nil {
+				return nil, err
+			}
+			open = append(append([]domain.OpenItem{}, open...), refunds...)
+		}
+	}
 	out := &BankSuggestions{BankTxID: tx.ID, Amount: tx.Amount}
 	out.EnsureLists()
 
@@ -384,6 +395,12 @@ func (s *BankService) partnerRule(
 
 // documentLabel benennt den Beleg eines offenen Postens.
 func documentLabel(item domain.OpenItem) string {
+	if item.Source == domain.OpenItemSourceAdvance {
+		return "Abschlag " + item.DocumentNumber
+	}
+	if item.Source == domain.OpenItemSourceAdvanceRefund {
+		return "Rückzahlung Abschlag " + item.DocumentNumber
+	}
 	if item.DocumentNumber != "" {
 		return "Beleg " + item.DocumentNumber
 	}

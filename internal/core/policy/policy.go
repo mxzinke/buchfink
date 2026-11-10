@@ -260,8 +260,9 @@ func sameAmounts(a, b map[domain.TaxRate]domain.Cents) bool {
 // Bankumsatzes in derselben Richtung. Reference ist die Nummer, die der
 // Verwendungszweck nennt, leer ohne Treffer.
 type BankCandidate struct {
-	EntryID   uint
-	Reference string
+	AdvanceInvoiceID uint
+	EntryID          uint
+	Reference        string
 }
 
 // BankFacts ist, was über eine beabsichtigte Zuordnung bekannt ist.
@@ -270,9 +271,10 @@ type BankFacts struct {
 	Currency string
 	// Trusted: der Mensch hat den Auszug eingelesen, oder seine Salden sind
 	// geprüft (domain.BankTransaction.StatementChecked).
-	Trusted    bool
-	Requested  uint
-	Candidates []BankCandidate
+	Trusted            bool
+	RequestedAdvanceID uint
+	Requested          uint
+	Candidates         []BankCandidate
 }
 
 // ClassifyBankMatch entscheidet, ob ein Bankumsatz ohne Rückfrage einem
@@ -304,7 +306,7 @@ func ClassifyBankMatch(f BankFacts) Verdict {
 		add("kein_exakter_treffer", "Kein offener Posten stimmt im Betrag centgenau überein und steht mit seiner Nummer im Verwendungszweck.")
 	case len(matches) > 1:
 		add("mehrere_treffer", "%d offene Posten passen nach Betrag und Nummer.", len(matches))
-	case matches[0].EntryID != f.Requested:
+	case matches[0].EntryID != f.Requested || matches[0].AdvanceInvoiceID != f.RequestedAdvanceID:
 		add("anderer_posten", "Der exakte Treffer ist Buchung %d, nicht die gewählte.", matches[0].EntryID)
 	}
 	return verdict(r)

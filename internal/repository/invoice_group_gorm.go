@@ -72,7 +72,15 @@ func (r *invoiceGroupRepositoryGorm) advancesOf(ctx context.Context, groupID uin
 	advances := make([]domain.AdvanceItem, 0)
 	err := dbFrom(ctx, r.db).Where("group_id = ?", groupID).
 		Order("invoice_date asc, id asc").Find(&advances).Error
-	return advances, err
+	if err != nil {
+		return nil, err
+	}
+	for i := range advances {
+		if err := r.refreshAdvance(ctx, &advances[i]); err != nil {
+			return nil, err
+		}
+	}
+	return advances, nil
 }
 
 func (r *invoiceGroupRepositoryGorm) Save(ctx context.Context, group *domain.InvoiceGroup) error {
@@ -94,16 +102,61 @@ func (r *invoiceGroupRepositoryGorm) FindAdvanceByInvoice(ctx context.Context, i
 	if err != nil {
 		return nil, err
 	}
+	if err := r.refreshAdvance(ctx, &advance); err != nil {
+		return nil, err
+	}
 	return &advance, nil
 }
 
 // FindOpenAdvances liefert die ausgestellten, weder vereinnahmten noch
 // stornierten Abschläge — die zweite Quelle der Liste offener Posten.
 func (r *invoiceGroupRepositoryGorm) FindOpenAdvances(ctx context.Context) ([]domain.AdvanceItem, error) {
-	advances := make([]domain.AdvanceItem, 0)
-	err := dbFrom(ctx, r.db).
-		Where("cancelled = ?", false).
-		Where("settled_at IS NULL OR settled_at = ''").
-		Order("invoice_date asc, id asc").Find(&advances).Error
-	return advances, err
+	var all []domain.AdvanceItem
+	if err := dbFrom(ctx, r.db).Where("cancelled = ?", false).Order("invoice_date asc, id asc").Find(&all).Error; err != nil {
+		return nil, err
+	}
+	out := []domain.AdvanceItem{}
+	for i := range all {
+		a := &all[i]
+		if err := r.refreshAdvance(ctx, a); err != nil {
+			return nil, err
+		}
+		gross, _ := a.Received()
+		if gross < a.GrossAmount {
+			out = append(out, *a)
+		}
+	}
+	return out, nil
+}
+
+func (r *invoiceGroupRepositoryGorm) AdvancePayments(ctx context.Context, invoiceID uint) ([]domain.AdvancePayment, error) {
+	var out []domain.AdvancePayment
+	err := dbFrom(ctx, r.db).Table("advance_payments AS p").Select("p.*, COALESCE(reversal.booking_date, '') AS reversed_at").Joins("LEFT JOIN journal_entries reversal ON reversal.reversal_of_id = p.entry_id").Where("p.invoice_id = ?", invoiceID).Order("p.date, p.id").Scan(&out).Error
+	return out, err
+}
+
+func (r *invoiceGroupRepositoryGorm) SaveAdvancePayment(ctx context.Context, payment *domain.AdvancePayment) error {
+	return dbFrom(ctx, r.db).Create(payment).Error
+}
+
+func (r *invoiceGroupRepositoryGorm) refreshAdvance(ctx context.Context, a *domain.AdvanceItem) error {
+	payments, err := r.AdvancePayments(ctx, a.InvoiceID)
+	if err != nil || len(payments) == 0 {
+		return err
+	}
+	a.ReceivedGross, a.ReceivedTax, a.SettledAt, a.SettlementEntryID = 0, 0, "", nil
+	for _, p := range payments {
+		if p.ReversedAt != "" {
+			continue
+		}
+		a.ReceivedGross += p.Gross
+		a.ReceivedTax += p.Tax
+		a.SettledAt = p.Date
+		id := p.EntryID
+		a.SettlementEntryID = &id
+	}
+	if a.ReceivedGross == 0 {
+		a.SettledAt, a.SettlementEntryID = "", nil
+	}
+	return nil
 }

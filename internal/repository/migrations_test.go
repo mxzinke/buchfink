@@ -204,3 +204,38 @@ func TestSchema3AssignsLoanContracts(t *testing.T) {
 		t.Errorf("eine Rechnung ohne Darlehen bleibt abgelegt, ist aber %s", invoice.Status)
 	}
 }
+
+func TestAdvancePaymentMigratesFromSchemaThree(t *testing.T) {
+	db, err := rawInMemoryDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = CloseDB(db) })
+	ctx := context.Background()
+	if err := AutoMigrate(db); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&domain.SchemaMigration{ToVersion: 3, Result: domain.SchemaMigrationResultOK}).Error; err != nil {
+		t.Fatal(err)
+	}
+	id := uint(12)
+	a := domain.AdvanceItem{InvoiceID: 3, GroupID: 1, ContactID: 2, InvoiceNumber: "AR-3", InvoiceDate: "2026-03-01", NetAmount: 10000, TaxAmount: 1900, GrossAmount: 11900, TaxRate: domain.TaxRateStandard, SettledAt: "2026-04-15", SettlementEntryID: &id}
+	if err := db.Create(&a).Error; err != nil {
+		t.Fatal(err)
+	}
+	record, err := ApplyMigrations(ctx, db)
+	if err != nil || record == nil || record.FromVersion != 3 {
+		t.Fatalf("Migration: %+v %v", record, err)
+	}
+	payments, err := NewInvoiceGroupRepository(db).AdvancePayments(ctx, 3)
+	if err != nil || len(payments) != 1 || payments[0].Gross != 11900 || payments[0].Tax != 1900 || payments[0].EntryID != 12 {
+		t.Fatalf("Zahlungen: %+v %v", payments, err)
+	}
+	if _, err := ApplyMigrations(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+	payments, err = NewInvoiceGroupRepository(db).AdvancePayments(ctx, 3)
+	if err != nil || len(payments) != 1 {
+		t.Fatalf("Wiederholung: %+v %v", payments, err)
+	}
+}

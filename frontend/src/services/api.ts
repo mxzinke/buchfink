@@ -102,7 +102,7 @@ import type {
   Reconciliation,
   RetentionRules,
   SchemaMigration,
-  SettleAdvanceRequest,
+  RefundAdvanceRequest,
   ShareholderLoanRequest,
   ShareholderLoanView,
   SizeClass,
@@ -625,8 +625,8 @@ export const Api = {
   // --- Anzahlungen -------------------------------------------------------
 
   /** Der Zahlungseingang auf einen Abschlag: hier entsteht die Steuer. */
-  settleAdvance: (request: SettleAdvanceRequest): Promise<AdvanceItem> =>
-    call(() => Bridge.SettleAdvance(request) as Promise<AdvanceItem>),
+  refundAdvance: (request: RefundAdvanceRequest): Promise<AdvanceItem> =>
+    call(() => Bridge.RefundAdvance(request) as Promise<AdvanceItem>),
 
   // --- Anlagevermögen ----------------------------------------------------
 

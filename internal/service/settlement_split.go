@@ -21,6 +21,7 @@ import (
 // Zeile auf der Gegenseite der Bank, negativ auf derselben Seite. So wird ein
 // Abzug geschrieben, etwa die Kapitalertragsteuer einer Zinsgutschrift.
 type BankSplitLine struct {
+	AdvanceInvoiceID uint                  `json:"advanceInvoiceId,omitempty"`
 	OpenItemEntryID  uint                  `json:"openItemEntryId,omitempty"`
 	SettledAmount    domain.Cents          `json:"settledAmount,omitempty"`
 	DifferenceKind   domain.DifferenceKind `json:"differenceKind,omitempty"`
@@ -88,12 +89,40 @@ func (s *settlement) split(ctx context.Context, req BankSplitRequest) (*domain.J
 		bankSide, counterSide = domain.SideCredit, domain.SideDebit
 	}
 
+	var advances []*advancePayment
+	seenAdvances := map[uint]bool{}
 	var allocations []AllocationRequest
 	var accountLines []domain.JournalLine
 	var accountCash domain.Cents
 	contacts := map[uint]bool{}
 	for i, line := range req.Lines {
 		switch {
+		case line.AdvanceInvoiceID != 0:
+			if s.invoices == nil {
+				return nil, fmt.Errorf("Abschläge sind nicht eingerichtet")
+			}
+			if seenAdvances[line.AdvanceInvoiceID] {
+				return nil, fmt.Errorf("ein Abschlag darf nur einmal in der Aufteilung stehen")
+			}
+			seenAdvances[line.AdvanceInvoiceID] = true
+			if line.OpenItemEntryID != 0 || line.Account != "" || line.LoanID != 0 || line.Amount != 0 || line.ContactID != 0 || line.DifferenceAmount != 0 || (line.DifferenceKind != "" && line.DifferenceKind != domain.DifferenceNone) || line.SettledAmount <= 0 {
+				return nil, fmt.Errorf("ein Abschlag braucht einen positiven Ausgleich ohne weitere Kontierung oder Differenz")
+			}
+			if tx.Currency != "" && tx.Currency != "EUR" {
+				return nil, fmt.Errorf("Abschläge benötigen einen Bankumsatz in Euro")
+			}
+			p, err := s.invoices.prepareAdvancePayment(ctx, SettleAdvanceRequest{AdvanceID: line.AdvanceInvoiceID, Amount: line.SettledAmount, PaymentDate: tx.BookingDate, PaymentAccount: tx.LedgerAccount}, !incoming, line.Text)
+			if err != nil {
+				return nil, err
+			}
+			advances = append(advances, p)
+			for _, jl := range p.entry.Lines {
+				if jl.Account != tx.LedgerAccount {
+					accountLines = append(accountLines, jl)
+				}
+			}
+			accountCash += line.SettledAmount
+			contacts[p.advance.ContactID] = true
 		case line.OpenItemEntryID != 0:
 			if line.LoanID != 0 || line.Account != "" || line.Amount != 0 {
 				return nil, fmt.Errorf("Zeile %d gleicht einen offenen Posten aus und nennt zugleich Konto, "+
@@ -192,6 +221,11 @@ func (s *settlement) split(ctx context.Context, req BankSplitRequest) (*domain.J
 	}
 	if err := s.sealEvidence(ctx, receipt, created.ID); err != nil {
 		return nil, err
+	}
+	for _, p := range advances {
+		if err := s.invoices.finishAdvancePayment(ctx, p, created); err != nil {
+			return nil, err
+		}
 	}
 	return created, nil
 }

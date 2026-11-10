@@ -12,6 +12,7 @@ import (
 // Ausbuchung. Die schreibenden Einstiege schließen Journal, Zuordnungen,
 // Anlagenminderung und Protokoll in eine Transaktion ein.
 type settlement struct {
+	invoices   *InvoiceService
 	journalSvc *JournalService
 	*openItemReader
 	bankRepo  domain.BankRepository

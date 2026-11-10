@@ -33,10 +33,12 @@ type bankumsaetzeIn struct {
 }
 
 type vorschlagPosten struct {
-	BuchungID uint   `json:"buchung_id"`
-	BelegNr   string `json:"beleg_nr,omitempty"`
-	Offen     Betrag `json:"offen"`
-	Faellig   string `json:"faellig,omitempty"`
+	Herkunft   string `json:"herkunft,omitempty"`
+	AbschlagID uint   `json:"abschlag_id,omitempty"`
+	BuchungID  uint   `json:"buchung_id"`
+	BelegNr    string `json:"beleg_nr,omitempty"`
+	Offen      Betrag `json:"offen"`
+	Faellig    string `json:"faellig,omitempty"`
 }
 
 type bankVorschlag struct {
@@ -104,11 +106,11 @@ func suggestionsFor(ctx context.Context, s core.AgentServices, tx *domain.BankTr
 			KontaktID: sg.ContactID, Kontakt: sg.ContactName, Betrag: betrag(sg.Amount), Posten: []vorschlagPosten{},
 			Gegenkonto: sg.CounterAccount, Stichtag: sg.StatementDate, Einstufung: string(policy.Confirm)}
 		for _, item := range sg.Items {
-			v.Posten = append(v.Posten, vorschlagPosten{BuchungID: item.EntryID, BelegNr: item.DocumentNumber,
+			v.Posten = append(v.Posten, vorschlagPosten{Herkunft: advanceSource(item), AbschlagID: item.AdvanceInvoiceID, BuchungID: item.EntryID, BelegNr: item.DocumentNumber,
 				Offen: betrag(item.OpenAmount), Faellig: item.DueDate})
 		}
 		if sg.Kind == service.SuggestionOpenItem && len(sg.Items) == 1 {
-			v.Einstufung = string(cls.Classify(ctx, tx, sg.Items[0].EntryID).Level)
+			v.Einstufung = string(cls.Classify(ctx, tx, sg.Items[0].EntryID, sg.Items[0].AdvanceInvoiceID).Level)
 		}
 		out = append(out, v)
 	}
@@ -149,9 +151,10 @@ type kontoauszugOut struct {
 // --- bankumsatz_zuordnen / bankumsatz_buchen ---------------------------------
 
 type zuordnenIn struct {
+	AbschlagID uint `json:"abschlag_id,omitempty" jsonschema:"statt buchung_id: Rechnung des offenen Abschlags"`
 	WriteArgs
 	BankumsatzID uint `json:"bankumsatz_id"`
-	BuchungID    uint `json:"buchung_id" jsonschema:"Buchung des offenen Postens (aus bankumsaetze oder offene_posten)"`
+	BuchungID    uint `json:"buchung_id,omitempty" jsonschema:"Buchung des offenen Postens (aus bankumsaetze oder offene_posten)"`
 	NurVorschau  bool `json:"nur_vorschau,omitempty" jsonschema:"nur einstufen, nicht buchen"`
 }
 
@@ -163,6 +166,7 @@ type differenzIn struct {
 }
 
 type aufteilungIn struct {
+	AbschlagID uint         `json:"abschlag_id,omitempty" jsonschema:"statt buchung_id: Abschlagsrechnung; bei Rückzahlung text mit Grund"`
 	BuchungID  uint         `json:"buchung_id,omitempty" jsonschema:"offener Posten, der ausgeglichen wird"`
 	Ausgleich  Betrag       `json:"ausgleich,omitempty" jsonschema:"um so viel sinkt der offene Posten (bei Skonto der volle Betrag)"`
 	Differenz  *differenzIn `json:"differenz,omitempty"`
@@ -259,10 +263,10 @@ func (in bankBuchenIn) split() (service.BankSplitRequest, error) {
 	}
 	for i, a := range in.Aufteilung {
 		field := fmt.Sprintf("aufteilung[%d]", i)
-		line := service.BankSplitLine{OpenItemEntryID: a.BuchungID, LoanID: a.DarlehenID, Account: string(a.Konto),
+		line := service.BankSplitLine{AdvanceInvoiceID: a.AbschlagID, OpenItemEntryID: a.BuchungID, LoanID: a.DarlehenID, Account: string(a.Konto),
 			ContactID: a.KontaktID, Text: a.Text}
 		var err error
-		if a.BuchungID != 0 {
+		if a.BuchungID != 0 || a.AbschlagID != 0 {
 			if line.SettledAmount, err = a.Ausgleich.required(field + ".ausgleich"); err != nil {
 				return req, err
 			}
@@ -508,7 +512,10 @@ func registerBank(tb *Toolbox) {
 			"die Richtung passt. Sonst freigabe_noetig mit Gründen, nichts gebucht; dann bankumsatz_buchen nach " +
 			"Rückfrage. nur_vorschau stuft nur ein.",
 	}, func(ctx context.Context, c *Call, s core.AgentServices, in zuordnenIn) (buchungOut, error) {
-		verdict, err := policy.ClassifyBankRequest(ctx, s, in.BankumsatzID, in.BuchungID)
+		if (in.BuchungID == 0) == (in.AbschlagID == 0) {
+			return buchungOut{}, inputError("buchung_id", "genau buchung_id oder abschlag_id angeben")
+		}
+		verdict, err := policy.ClassifyBankRequest(ctx, s, in.BankumsatzID, in.BuchungID, in.AbschlagID)
 		if err != nil {
 			return buchungOut{}, err
 		}
@@ -524,12 +531,12 @@ func registerBank(tb *Toolbox) {
 			e.NaechsterSchritt = "Dem Menschen Vorgang und Gründe vorlegen; nach seinem Ja bankumsatz_buchen mit argumente " +
 				"aufrufen. Ausgleich und Differenz richten sich nach seiner Entscheidung."
 			e.Argumente = map[string]any{"mandant_id": in.MandantID, "bankumsatz_id": in.BankumsatzID,
-				"aufteilung": []map[string]any{{"buchung_id": in.BuchungID, "ausgleich": betrag(tx.Amount.Abs())}}}
+				"aufteilung": []map[string]any{{"buchung_id": in.BuchungID, "abschlag_id": in.AbschlagID, "ausgleich": betrag(tx.Amount.Abs())}}}
 			return buchungOut{}, e
 		}
 		id := tx.ID
 		entry, err := s.Payments.Settle(ctx, service.PaymentRequest{BankTxID: &id, Allocations: []service.AllocationRequest{{
-			OpenItemEntryID: in.BuchungID, SettledAmount: tx.Amount.Abs(), DifferenceKind: domain.DifferenceNone,
+			AdvanceInvoiceID: in.AbschlagID, OpenItemEntryID: in.BuchungID, SettledAmount: tx.Amount.Abs(), DifferenceKind: domain.DifferenceNone,
 		}}})
 		if err != nil {
 			return buchungOut{}, err

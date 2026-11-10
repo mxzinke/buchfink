@@ -823,6 +823,11 @@
           "items": {
             "additionalProperties": false,
             "properties": {
+              "abschlag_id": {
+                "description": "statt buchung_id: Abschlagsrechnung; bei Rückzahlung text mit Grund",
+                "minimum": 0,
+                "type": "integer"
+              },
               "ausgleich": {
                 "description": "um so viel sinkt der offene Posten (bei Skonto der volle Betrag)",
                 "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
@@ -1037,6 +1042,11 @@
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
+        "abschlag_id": {
+          "description": "statt buchung_id: Rechnung des offenen Abschlags",
+          "minimum": 0,
+          "type": "integer"
+        },
         "bankumsatz_id": {
           "minimum": 0,
           "type": "integer"
@@ -1061,8 +1071,7 @@
       },
       "required": [
         "mandant_id",
-        "bankumsatz_id",
-        "buchung_id"
+        "bankumsatz_id"
       ],
       "type": "object"
     },

@@ -97,10 +97,6 @@ die Zuordnung muss fachlich geklärt werden.
 - Rechnungskorrektur und Anzahlungsrechnung eines Lieferanten erkennt
   Buchfink beim Empfang einer E-Rechnung. Einen Buchungsvorschlag aus dem
   Datensatz macht es nur für Rechnung und Gutschrift.
-- Den Zahlungseingang auf eine Abschlagsrechnung ordnet nur die App zu. Der
-  Agent stellt die Abschlagsrechnung aus und kann dabei ein schon bekanntes
-  Zahlungsdatum angeben; offene Abschläge sieht er in `offene_posten` nicht
-  (`InvoiceService.SettleAdvance`, `InvoiceService.OpenAdvanceItems`).
 - Die Grenzen bei Rechtsform, Steuerfällen, Warenverkehr, Kasse und Lohn
   stehen unter [Umfang und Grenzen](../nutzung/umfang.md).
 

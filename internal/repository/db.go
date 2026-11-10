@@ -201,6 +201,7 @@ func AutoMigrate(db *gorm.DB) error {
 		// Nummernkreis — beide stehen deshalb hinter ihnen.
 		&domain.InvoiceGroup{},
 		&domain.AdvanceItem{},
+		&domain.AdvancePayment{},
 		&domain.VendorAdvance{},
 		&domain.NumberGap{},
 		// Das Verzeichnis nach § 15a

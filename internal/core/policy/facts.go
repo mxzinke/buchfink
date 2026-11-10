@@ -334,7 +334,7 @@ func bookedTo(ctx context.Context, s core.AgentServices, r *domain.Receipt, cont
 }
 
 // ClassifyBankRequest sammelt die Fakten einer Zuordnung und urteilt.
-func ClassifyBankRequest(ctx context.Context, s core.AgentServices, bankTxID, entryID uint) (Verdict, error) {
+func ClassifyBankRequest(ctx context.Context, s core.AgentServices, bankTxID, entryID uint, advanceID ...uint) (Verdict, error) {
 	tx, err := s.Bank.Transaction(ctx, bankTxID)
 	if err != nil {
 		return Verdict{}, err
@@ -343,7 +343,7 @@ func ClassifyBankRequest(ctx context.Context, s core.AgentServices, bankTxID, en
 	if err != nil {
 		return Verdict{}, err
 	}
-	return b.Classify(ctx, tx, entryID), nil
+	return b.Classify(ctx, tx, entryID, advanceID...), nil
 }
 
 // BankClassifier stuft die Zuordnungen eines Aufrufs ein. Die offenen Posten
@@ -367,8 +367,13 @@ func NewBankClassifier(ctx context.Context, s core.AgentServices) (*BankClassifi
 func (b *BankClassifier) OpenItems() []domain.OpenItem { return b.items }
 
 // Classify stuft die Zuordnung eines Umsatzes zu einem offenen Posten ein.
-func (b *BankClassifier) Classify(ctx context.Context, tx *domain.BankTransaction, entryID uint) Verdict {
-	return ClassifyBankMatch(b.Facts(ctx, tx, entryID))
+func (b *BankClassifier) Classify(ctx context.Context, tx *domain.BankTransaction, entryID uint, advanceID ...uint) Verdict {
+	f := b.Facts(ctx, tx, entryID)
+	if len(advanceID) > 0 {
+		f.RequestedAdvanceID = advanceID[0]
+	}
+
+	return ClassifyBankMatch(f)
 }
 
 // Facts sind die Fakten einer Zuordnung: alle offenen Posten mit genau dem
@@ -387,7 +392,7 @@ func (b *BankClassifier) Facts(ctx context.Context, tx *domain.BankTransaction, 
 			numbers = append(numbers, invoiceNo)
 		}
 		f.Candidates = append(f.Candidates, BankCandidate{
-			EntryID: item.EntryID, Reference: accounting.MatchedReference(tx.RemittanceInfo, numbers...),
+			AdvanceInvoiceID: item.AdvanceInvoiceID, EntryID: item.EntryID, Reference: accounting.MatchedReference(tx.RemittanceInfo, numbers...),
 		})
 	}
 	return f

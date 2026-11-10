@@ -106,6 +106,8 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 		FiscalYears: fiscalYearRepo,
 		Bank:        bankRepo,
 	})
+	s.Payments.SetInvoiceService(s.Invoices)
+	s.Journal.AddEntryEffects(s.Invoices.AdvancePaymentEffect())
 	s.Contacts = service.NewContactService(contactRepo, journalRepo, numberRepo, auditRepo)
 	s.Assets = service.NewAssetService(
 		assetRepo, journalRepo, s.Journal, numberRepo,
@@ -195,14 +197,14 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.ClosingSteps.SetInputTaxSource(s.InputTax)
 
 	s.Statement = service.NewStatementService(s.Accounting, s.Periods.ReadOnly(), settingsRepo, auditRepo)
-	s.Statement.SetOpenItemSource(s.Payments)
+	s.Statement.SetOpenItemSource(s.Payments.OpenItemSource())
 	s.Periods.SetRevenueSource(s.Statement.Figures())
 	s.Statement.SetRenderer(renderer)
 	s.Foundation.SetStatementSource(s.Statement)
 	s.Foundation.SetRenderer(renderer)
 	s.Foundation.SetReceiptService(s.Receipts)
 	s.Closing.SetStatementSource(s.Statement)
-	s.ClosingBookings.SetOpenItemSource(s.Payments)
+	s.ClosingBookings.SetOpenItemSource(s.Payments.OpenItemSource())
 	s.ClosingBookings.SetRevenueSource(s.Statement.Figures())
 	s.Statement.SetNotesSources(service.NotesSources{
 		Provisions:     s.Provisions,
@@ -244,7 +246,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	)
 	s.Checks.SetFiscalYearSource(fiscalYearRepo)
 	s.Checks.SetAccountSource(s.Accounting)
-	s.Checks.SetOpenItemSource(s.Payments)
+	s.Checks.SetOpenItemSource(s.Payments.OpenItemSource())
 	s.Checks.SetDepreciationSource(s.Assets)
 	s.Checks.SetProvisionSource(s.Provisions)
 	s.Checks.SetClosingStepSource(s.ClosingSteps)
@@ -270,7 +272,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 		store, info.DataDir,
 	)
 	s.Export.SetTenantName(info.Name)
-	s.Export.SetOpenItemSource(s.Payments)
+	s.Export.SetOpenItemSource(s.Payments.OpenItemSource())
 	s.Export.SetIntegritySource(integrityChecks{journal: s.Journal, receipts: s.Receipts})
 	s.Export.SetTaxRegisterSource(s.TaxRegister)
 	s.Export.SetProcDocRepo(procDocRepo)

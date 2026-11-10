@@ -70,6 +70,8 @@ type AdvanceItem struct {
 	TaxAmount     Cents   `gorm:"not null" json:"taxAmount"`
 	GrossAmount   Cents   `gorm:"not null" json:"grossAmount"`
 	TaxRate       TaxRate `gorm:"not null" json:"taxRate"`
+	ReceivedGross Cents   `gorm:"not null;default:0" json:"receivedGross"`
+	ReceivedTax   Cents   `gorm:"not null;default:0" json:"receivedTax"`
 
 	// SettledAt und SettlementEntryID halten die Vereinnahmung fest: erst mit
 	// ihr entsteht die Steuer und damit die Buchung.
@@ -90,6 +92,14 @@ type AdvanceItem struct {
 
 // Settled reports whether the advance has been paid.
 func (a *AdvanceItem) Settled() bool { return a.SettledAt != "" }
+
+// Received berücksichtigt auch vollständig vereinnahmte Bestandsdaten.
+func (a *AdvanceItem) Received() (Cents, Cents) {
+	if a.ReceivedGross == 0 && a.Settled() {
+		return a.GrossAmount, a.TaxAmount
+	}
+	return a.ReceivedGross, a.ReceivedTax
+}
 
 // DeductibleInFinal reports whether the final invoice has to deduct this
 // advance.
@@ -127,9 +137,10 @@ func (g *InvoiceGroup) ComputeProgress() GroupProgress {
 		}
 		p.BilledNet += a.NetAmount
 		if a.Settled() {
-			p.ReceivedNet += a.NetAmount
-			p.ReceivedTax += a.TaxAmount
-			p.ReceivedGross += a.GrossAmount
+			gross, tax := a.Received()
+			p.ReceivedNet += gross - tax
+			p.ReceivedTax += tax
+			p.ReceivedGross += gross
 		}
 	}
 	p.OpenNet = g.TotalNet - p.BilledNet
@@ -141,7 +152,10 @@ func (g *InvoiceGroup) DeductibleAdvances() []AdvanceItem {
 	out := make([]AdvanceItem, 0, len(g.Advances))
 	for i := range g.Advances {
 		if g.Advances[i].DeductibleInFinal() {
-			out = append(out, g.Advances[i])
+			a := g.Advances[i]
+			a.GrossAmount, a.TaxAmount = a.Received()
+			a.NetAmount = a.GrossAmount - a.TaxAmount
+			out = append(out, a)
 		}
 	}
 	return out
@@ -174,4 +188,18 @@ type InvoiceGroupRepository interface {
 	// FindOpenAdvances liefert die ausgestellten, noch nicht vereinnahmten
 	// Abschläge — die zweite Quelle der OP-Liste.
 	FindOpenAdvances(ctx context.Context) ([]AdvanceItem, error)
+	AdvancePayments(ctx context.Context, invoiceID uint) ([]AdvancePayment, error)
+	SaveAdvancePayment(ctx context.Context, payment *AdvancePayment) error
+}
+
+// AdvancePayment hält jede Vereinnahmung und Rückzahlung mit ihrer Buchung fest.
+// Beträge sind bei der Rückzahlung negativ.
+type AdvancePayment struct {
+	ID         uint   `gorm:"primaryKey"`
+	InvoiceID  uint   `gorm:"index;not null"`
+	EntryID    uint   `gorm:"index;not null"`
+	Date       string `gorm:"size:10;not null"`
+	Gross      Cents  `gorm:"not null"`
+	Tax        Cents  `gorm:"not null"`
+	ReversedAt string `gorm:"->;-:migration"`
 }

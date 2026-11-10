@@ -720,7 +720,7 @@ export interface EInvoiceView {
  * weil die Steuer erst mit der Vereinnahmung entsteht. Beide stehen in
  * derselben Liste und gehen beim Ausgleich verschiedene Wege.
  */
-export type OpenItemSource = 'journal' | 'advance';
+export type OpenItemSource = 'journal' | 'advance' | 'advance_refund';
 
 export interface OpenItem {
   specificAllowance?: number;
@@ -786,6 +786,7 @@ export interface PaymentAllocationDetail extends PaymentAllocation {
 }
 
 export interface AllocationRequest {
+ advanceInvoiceId?: number;
   openItemEntryId: number;
   settledAmount: Cents;
   differenceKind: DifferenceKind;
@@ -1092,14 +1093,7 @@ export interface AdvanceItem {
   settledInFinal: boolean;
 }
 
-export interface SettleAdvanceRequest {
-  /** Die Abschlagsrechnung, auf die das Geld eingegangen ist. */
-  advanceId: number;
-  /** Der Bankumsatz, aus dem die Vereinnahmung stammt. */
-  bankTxId?: number;
-  paymentDate: string;
-  paymentAccount: string;
-}
+
 
 /** Wofür angezahlt wurde — die Angabe entscheidet über den Bilanzposten. */
 export type AdvanceTarget = 'inventory' | 'tangible' | 'intangible';
@@ -4194,4 +4188,12 @@ export interface ChangeEvent {
   /** Die Erfassungswege: `ui`, `system`, `agent:<kurzname>`. */
   channels: string[];
   kinds: ChangeKind[];
+}
+
+export interface RefundAdvanceRequest {
+ advanceId: number;
+ bankTxId?: number;
+ refundDate: string;
+ paymentAccount: string;
+ reason: string;
 }

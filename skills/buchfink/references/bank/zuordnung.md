@@ -72,6 +72,12 @@ eines Gesellschafterdarlehens gehört zum Darlehen.
   Personenkonto des Kunden (`konto` aus `kontakte_suchen`, `kontakt_id`), nie
   auf Ertrag. Prüf mit `offene_posten`, ob das Guthaben beim Kunden erscheint.
 
+Bei einem Abschlag steht `abschlag_id` anstelle von `buchung_id`. Die Zahlung
+versteuert Buchfink mit ihrem Bankdatum. Für die Rückzahlung einer Anzahlung
+verwende nach Rückfrage den Bankabgang mit `abschlag_id`, `ausgleich` und dem
+Grund in `text`; die Leistung darf noch nicht ausgeführt sein
+([rechnungen/anzahlungen.md](../rechnungen/anzahlungen.md#6-sonderfälle)).
+
 ## 5. Zahlung ohne Rechnung
 
 - **Eingang:** Kann eine Anzahlung sein; dann entsteht die Umsatzsteuer mit

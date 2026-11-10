@@ -63,17 +63,16 @@ Geld, das Kunden vor der Leistung zahlen. Anzahlungen an Lieferanten:
 
 Aufruf: [ablauf.md, Abschnitt 5](ablauf.md#5-abschläge-anzahlungen-schlussrechnung).
 
-Den Zahlungseingang auf einen Abschlag bildet Buchfink noch nicht ab: Er fehlt
-in `offene_posten` und den Bankvorschlägen, die Schlussrechnung lehnt Buchfink
-bis zur Vereinnahmung ab, die Abschlagsrechnung lässt sich nicht stornieren.
-Buche die Zahlung nicht ersatzweise mit `bankumsatz_buchen` oder
-`buchung_erfassen`
-([grundlagen/arbeitsweise.md, Abschnitt 9](../grundlagen/arbeitsweise.md#9-vorgänge-ohne-werkzeug)).
+Offene Abschläge stehen in `offene_posten` mit `abschlag_id` und in den
+Bankvorschlägen. Gib `abschlag_id` statt `buchung_id` an: bei Routine mit
+`bankumsatz_zuordnen`, bei Teilzahlung oder Aufteilung nach Rückfrage mit
+`bankumsatz_buchen`. `ausgleich` nennt den gezahlten Teilbetrag. Buchfink
+berechnet Anzahlung und Steuer selbst.
 
 ## 5. Schlussrechnung und Restrechnung
 
 - Buchfink setzt in der Schlussrechnung alle berechneten und vereinnahmten
-  Abschläge des Verbunds mit Gesamtbetrag und Steuersumme ab
+  Abschläge des Verbunds mit dem vereinnahmten Teilbetrag und dessen Steuer ab
   ([§ 14 Abs. 5 Satz 2 UStG][ustg14], [UStAE 14.8 Abs. 7][ustae148]). Prüfe
   vorher mit dem Menschen, ob jede Zahlung im Verbund steht: Fehlt eine
   Absetzung, wird die zu viel ausgewiesene Steuer nach § 14c Abs. 1 UStG
@@ -90,10 +89,15 @@ Buche die Zahlung nicht ersatzweise mit `bankumsatz_buchen` oder
 - **Anzahlung ohne Rechnung.** Steuer entsteht trotzdem (Abschnitt 1); Frist:
   [pflichtangaben-ausgang.md, Abschnitt 1](pflichtangaben-ausgang.md#1-wann-eine-rechnung-pflicht-ist).
   Stell die Abschlagsrechnung nachträglich im Verbund aus
-  (`zahlung_erhalten_am`); zuordnen kannst du die Zahlung nicht (Abschnitt 4).
+  (`zahlung_erhalten_am`); ordne anschließend die Zahlung zu (Abschnitt 4).
 - **Auftrag fällt weg, Anzahlung zurück.** Steuer im Zeitraum der Rückzahlung
-  berichtigen ([§ 17 Abs. 2 Nr. 2 UStG][ustg17], [UStAE 17.1 Abs. 7][ustae171]).
-  Buchfink bildet das im Verbund noch nicht ab; sag es dem Menschen.
+  berichtigen ([§ 17 Abs. 2 Nr. 2 UStG][ustg17], [BFH V R 34/09, Leitsatz 1][bfh3409]).
+  Frag, ob die Leistung nicht ausgeführt wurde und das Geld tatsächlich
+  zurückgeflossen ist. Nach dem Ja: `bankumsatz_buchen` für den Bankabgang mit
+  `abschlag_id`, `ausgleich` und Grund in `text`. Die Rechnung bleibt danach
+  offen und muss bei weggefallenem Auftrag storniert werden. Zurückgezahlte
+  Beträge werden in der Schlussrechnung nicht abgesetzt. Bereits verrechnete
+  Abschläge erfordern zuerst eine Berichtigung der Schlussrechnung.
 - **EU-Unternehmen.** Keine deutsche Steuer auf die Anzahlung, Steuerfall wie
   die Leistung ([ablauf.md, Abschnitt 3](ablauf.md#3-steuerfall)).
 
@@ -115,4 +119,5 @@ Buche die Zahlung nicht ersatzweise mit `bankumsatz_buchen` oder
 [ustae134]: https://www.steuerschroeder.de/steuergesetze/ustae/13.4
 [ustae135]: https://www.steuerschroeder.de/steuergesetze/ustae/13.5
 [ustae148]: https://www.steuerschroeder.de/steuergesetze/ustae/14.8
-[ustae171]: https://www.steuerschroeder.de/steuergesetze/ustae/17.1
+
+[bfh3409]: https://www.bundesfinanzhof.de/de/entscheidung/entscheidungen-online/detail/pdf/STRE201010349?type=1646225765

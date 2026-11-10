@@ -110,7 +110,7 @@ export const bridge = {
   GetNumberGapReasons: <T>() => invoke<T>('GetNumberGapReasons'),
 
   // Anzahlungen
-  SettleAdvance: <T>(request: unknown) => invoke<T>('SettleAdvance', request),
+  RefundAdvance: <T>(request: unknown) => invoke<T>('RefundAdvance', request),
 
   // Anlagevermögen
   GetFixedAssets: <T>(assetClass: string) => invoke<T>('GetFixedAssets', assetClass),

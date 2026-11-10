@@ -408,6 +408,7 @@ abgeglichen.
 | UStAE Abschnitt 13.5 Abs. 1, 3, 4 | https://www.steuerschroeder.de/steuergesetze/ustae/13.5 | Anzahlung: Entstehung, bestimmte Leistung, voraussichtlich steuerfrei/nicht steuerbar | Text 17.10.2026 (Kanzleispiegel) | rechnungen/anzahlungen |
 | UStAE Abschnitt 14.8 Abs. 1, 2, 4, 5, 7, 9, 10, 11 | https://www.steuerschroeder.de/steuergesetze/ustae/14.8 | Anzahlungsrechnung, Endrechnung, § 14c bei fehlender Absetzung, Restrechnung | Text 17.10.2026 (Kanzleispiegel; Abs. 3 zeigt noch alte Satzzählung, also Stand vor 15.10.2025) | rechnungen/anzahlungen |
 | UStAE Abschnitt 17.1 Abs. 5, 7 | https://www.steuerschroeder.de/steuergesetze/ustae/17.1 | Uneinbringlichkeit (Abs. 5), Rückzahlung einer Anzahlung im Zeitraum der Rückgewähr (Abs. 7) | Text 17.10.2026 (Kanzleispiegel) | rechnungen/anzahlungen, forderungsausfall |
+| BFH 02.09.2010, V R 34/09 | https://www.bundesfinanzhof.de/de/entscheidung/entscheidungen-online/detail/pdf/STRE201010349?type=1646225765 | Steuerberichtigung erst bei tatsächlicher Rückgewähr der Anzahlung, Leitsatz 1 und Rz. 19–21 | Text 10.11.2026 | rechnungen/anzahlungen |
 | Deutsche Bundesbank, Basiszinssatz nach § 247 BGB | https://www.bundesbank.de/de/bundesbank/organisation/agb-und-regelungen/basiszinssatz-607820 | Tabelle der Basiszinssätze | Text 17.10.2026 | rechnungen/verzugszinsen-rechnung |
 
 ### Werte mit Stand
@@ -444,9 +445,8 @@ abgeglichen.
 
 - Ausbuchung: kein geführter Ablauf für spätere Zahlung mit erneuter Steuerberichtigung;
   Altbestände der EWB ohne Forderungszuordnung müssen fachlich geklärt werden.
-- Weder Werkzeug noch App für Stornorechnung, Rechnungskorrektur,
-  Versandvermerk und Rückzahlung einer Anzahlung im Verbund; die
-  Skills sagen das dem Menschen.
+- Weder Werkzeug noch App für Stornorechnung, Rechnungskorrektur und
+  Versandvermerk; die Skills sagen das dem Menschen.
 - Skonto übergibt `rechnung_ausstellen` als `skonto_promille` und
   `skonto_tage`. Prüfen, ob der Hinweis in den strukturierten Teil (BT-20)
   gelangt.

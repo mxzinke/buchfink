@@ -1128,7 +1128,7 @@ func reverseChargeParagraphWarning(treatment domain.TaxTreatment, contact *domai
 	}
 }
 
-// PostAdvanceSettlement bucht die Vereinnahmung einer Anzahlung.
+// advanceSettlementEntry bereitet die Vereinnahmung einer Anzahlung vor.
 //
 // SOLL Zahlungsmittel an HABEN „Erhaltene, versteuerte Anzahlungen" (netto) und
 // HABEN Umsatzsteuer. Hier — und nicht beim Ausstellen der Abschlagsrechnung —
@@ -1144,7 +1144,8 @@ func reverseChargeParagraphWarning(treatment domain.TaxTreatment, contact *domai
 // Vereinnahmung aus dem Kontoauszug kommt. Er gehört an die Buchung wie bei
 // jeder anderen Zahlung: ohne ihn ließe sich die Buchung dem Umsatz nicht mehr
 // zuordnen, und der Import wüsste nicht, dass er erledigt ist.
-func (s *PostingService) PostAdvanceSettlement(
+
+func (s *PostingService) advanceSettlementEntry(
 	ctx context.Context,
 	advance *domain.AdvanceItem,
 	contact *domain.Contact,
@@ -1175,7 +1176,7 @@ func (s *PostingService) PostAdvanceSettlement(
 	}
 	lines = append(lines, settlement)
 
-	return s.journalSvc.Post(ctx, &domain.JournalEntry{
+	return &domain.JournalEntry{
 		BookingDate:  paymentDate,
 		DocumentDate: paymentDate,
 		// Leistungsdatum und Zahlungsdatum fallen hier zusammen: maßgeblich ist
@@ -1193,18 +1194,19 @@ func (s *PostingService) PostAdvanceSettlement(
 		BankTxID:           bankTxID,
 		PostingRuleVersion: accounting.PostingRuleVersion,
 		Lines:              lines,
-	})
+	}, nil
 }
 
-// PostAdvanceRefund bucht die Rückzahlung einer vereinnahmten Anzahlung.
+// advanceRefundEntry bereitet die Rückzahlung einer vereinnahmten Anzahlung vor.
 //
-// Sie ist das Gegenstück zu PostAdvanceSettlement und keine Generalumkehr: eine
+// Sie ist das Gegenstück zur Vereinnahmung und keine Generalumkehr: eine
 // Generalumkehr nähme die Buchung im Zeitraum ihrer Entstehung zurück, die
 // Rückzahlung ist aber ein eigener Vorgang mit eigenem Datum. § 17 Abs. 1
 // Satz 8 UStG legt die Berichtigung in den Zeitraum, in dem sich die
 // Bemessungsgrundlage geändert hat — und das ist der Tag, an dem das Geld
 // zurückgeflossen ist.
-func (s *PostingService) PostAdvanceRefund(
+
+func (s *PostingService) advanceRefundEntry(
 	ctx context.Context,
 	advance *domain.AdvanceItem,
 	contact *domain.Contact,
@@ -1245,7 +1247,7 @@ func (s *PostingService) PostAdvanceRefund(
 	}
 	lines = append(lines, settlement)
 
-	return s.journalSvc.Post(ctx, &domain.JournalEntry{
+	return &domain.JournalEntry{
 		BookingDate:     refundDate,
 		DocumentDate:    refundDate,
 		ServiceDateFrom: refundDate,
@@ -1258,7 +1260,7 @@ func (s *PostingService) PostAdvanceRefund(
 		ContactID:          &contact.ID,
 		PostingRuleVersion: accounting.PostingRuleVersion,
 		Lines:              lines,
-	})
+	}, nil
 }
 
 // PostFinalInvoice bucht die Schlussrechnung samt Auflösung der Anzahlungen.

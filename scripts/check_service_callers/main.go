@@ -82,11 +82,8 @@ var exceptions = map[string]string{
 	"InputTaxService.BookYear":  "keine Vorsteuerberichtigung nach § 15a UStG; gehört zu SaveUsage",
 	"InputTaxService.Close":     "ein Eintrag nach § 15a UStG lässt sich nicht vorzeitig schließen",
 
-	"InvoiceService.CorrectInvoice":   "keine Stornorechnung und keine Berichtigung einer Ausgangsrechnung",
-	"InvoiceService.MarkSent":         "kein Versandvermerk einer Ausgangsrechnung",
-	"InvoiceService.RefundAdvance":    "keine Rückzahlung einer erhaltenen Anzahlung",
-	"InvoiceService.OpenAdvanceItems": "offene Abschlagsrechnungen fehlen in offene_posten und in den Bankvorschlägen",
-	"InvoiceService.GetInvoiceGroups": "kein Stand eines Rechnungsverbunds",
+	"InvoiceService.CorrectInvoice": "keine Stornorechnung und keine Berichtigung einer Ausgangsrechnung",
+	"InvoiceService.MarkSent":       "kein Versandvermerk einer Ausgangsrechnung",
 
 	"JournalService.BookOpeningBalance":    "keine Eröffnungsbuchungen eines Umsteigers",
 	"JournalService.PreviewOpeningBalance": "Vorschau zu BookOpeningBalance",

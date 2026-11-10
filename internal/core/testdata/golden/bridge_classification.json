@@ -784,6 +784,11 @@
     "ExaminerAllowed": false,
     "Guarded": true
   },
+  "RefundAdvance": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
   "RegenerateInvoiceDocument": {
     "AppOnly": false,
     "ExaminerAllowed": false,

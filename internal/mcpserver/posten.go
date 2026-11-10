@@ -20,10 +20,9 @@ type offenePostenIn struct {
 }
 
 type offenerPosten struct {
-	Einzelwertberichtigung       Betrag `json:"einzelwertberichtigung"`
-	WertberichtigungUnzugeordnet bool   `json:"wertberichtigung_unzugeordnet,omitempty"`
-
 	BuchungID        uint    `json:"buchung_id"`
+	AbschlagID       uint    `json:"abschlag_id,omitempty" jsonschema:"bei einem Abschlag statt buchung_id"`
+	Herkunft         string  `json:"herkunft,omitempty" jsonschema:"advance bei einem Abschlag"`
 	Nummer           string  `json:"nummer"`
 	BelegNr          string  `json:"beleg_nr,omitempty"`
 	Richtung         string  `json:"richtung" jsonschema:"forderung oder verbindlichkeit"`
@@ -42,6 +41,9 @@ type offenerPosten struct {
 	Mahnstufe        int     `json:"mahnstufe,omitempty"`
 	Hinweis          string  `json:"hinweis,omitempty"`
 	Gutschrift       bool    `json:"gutschrift,omitempty" jsonschema:"Guthaben aus einer Gutschrift, gegen die übliche Richtung des Kontakts"`
+
+	Einzelwertberichtigung       *Betrag `json:"einzelwertberichtigung,omitempty" jsonschema:"auf diesen Posten gebildet"`
+	WertberichtigungUnzugeordnet bool    `json:"wertberichtigung_unzugeordnet,omitempty" jsonschema:"es gibt Einzelwertberichtigungen ohne Zuordnung zu einer Forderung"`
 }
 
 type altersband struct {
@@ -95,10 +97,14 @@ func richtungOfItem(item domain.OpenItem) string {
 }
 
 func postenOf(item domain.OpenItem, overdue map[uint]service.OverdueItem, cutoff string) offenerPosten {
-	p := offenerPosten{Einzelwertberichtigung: betrag(item.SpecificAllowance), WertberichtigungUnzugeordnet: item.AllowanceUnassigned, BuchungID: item.EntryID, Nummer: item.EntryNumber, BelegNr: item.DocumentNumber,
+	p := offenerPosten{BuchungID: item.EntryID, AbschlagID: item.AdvanceInvoiceID, Herkunft: advanceSource(item),
+		Nummer: item.EntryNumber, BelegNr: item.DocumentNumber, WertberichtigungUnzugeordnet: item.AllowanceUnassigned,
 		Richtung: richtungOfItem(item), KontaktID: item.ContactID, Kontakt: item.ContactName,
 		Belegdatum: item.DocumentDate, Faellig: item.DueDate, Betrag: betrag(item.GrossAmount), Offen: betrag(item.OpenAmount),
 		Gutschrift: item.IsCredit()}
+	if item.SpecificAllowance != 0 {
+		p.Einzelwertberichtigung = optBetrag(item.SpecificAllowance)
+	}
 	if item.DueDate != "" {
 		p.FaelligAus = "beleg"
 		if item.DueFromTerms {
@@ -254,4 +260,11 @@ func maturities(bands []domain.MaturityBand) []altersband {
 		out = append(out, altersband{Schluessel: string(b.Key), Name: b.Label, Betrag: betrag(b.Amount), Posten: b.Items})
 	}
 	return out
+}
+
+func advanceSource(item domain.OpenItem) string {
+	if item.AdvanceInvoiceID == 0 {
+		return ""
+	}
+	return string(item.Source)
 }

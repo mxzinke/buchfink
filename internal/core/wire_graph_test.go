@@ -37,7 +37,7 @@ func TestServiceDependencyGraph(t *testing.T) {
 	s := openTenant(t, h).svc
 	s.Currency.SetOpenItemSource(s.Payments)
 	regression := serviceDependencies(reflect.ValueOf(s).Elem())
-	want := []string{"CurrencyService, PaymentService, PostingService, ShareholderService, settlement"}
+	want := []string{"CurrencyService, InvoiceService, PaymentService, PostingService, ShareholderService, settlement"}
 	if got := dependencyCycles(regression); !slices.Equal(got, want) {
 		t.Fatalf("Kreis durch OpenItemSource: %q; erwartet %q", got, want)
 	}

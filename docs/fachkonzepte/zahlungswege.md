@@ -113,3 +113,33 @@ Spätere Vereinnahmung verlangt nach § 17 Abs. 2 Nr. 1 Satz 2 UStG eine erneute
 Berichtigung. Dafür fehlt ein geführter Ablauf; der ursprüngliche Ausfall darf
 nicht allein wegen einer späteren Zahlung storniert werden. Nicht zugeordnete
 EWB-Altbestände werden nicht automatisch auf einzelne Forderungen verteilt.
+
+## Abschlagsrechnungen
+
+Offene Abschläge sind Merkposten ohne Forderungsbuchung. Bilanz, Bewertung
+und Buchführungsprüfungen lesen weiterhin nur die gebuchten Posten. App und Werkzeuge
+reichen ihre Rechnungskennung an den Zahlungsdienst weiter. Die Vorbereitung
+von `SettleAdvance` und der Bankaufteilung verwendet dieselben Prüfungen und
+Buchungszeilen. Eine Aufteilung erzeugt eine gemeinsame Buchung für den ganzen
+Bankumsatz. Jede Vereinnahmung und Rückzahlung wird mit Betrag, Steuer und
+Buchung am Abschlag gespeichert; ein Stichtag berücksichtigt nur die bis dahin
+wirksamen Zahlungen und Stornos.
+
+Die Steuer entsteht auf den vereinnahmten Teilbetrag im Zahlungsmonat
+([§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG](https://www.gesetze-im-internet.de/ustg_1980/__13.html)).
+Buchfink verteilt die Steuer kumuliert auf Teilzahlungen, damit die vollständige
+Vereinnahmung centgenau den Rechnungsbetrag ergibt. Die Schlussrechnung setzt
+auch einen teilweise vereinnahmten Abschlag nur mit seinem vereinnahmten Betrag
+und der zugehörigen Steuer ab
+([§ 14 Abs. 5 Satz 2 UStG](https://www.gesetze-im-internet.de/ustg_1980/__14.html)).
+Mit der Schlussrechnung entfällt der offene Rest des Abschlags als eigener Posten.
+
+Eine Rückzahlung setzt die Bestätigung voraus, dass die Anzahlung wegen einer
+nicht ausgeführten Leistung zurückgewährt wird. Die Steuerberichtigung erfolgt
+im Rückzahlungszeitraum
+([§ 17 Abs. 2 Nr. 2 in Verbindung mit Abs. 1 Satz 8 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html),
+[BFH vom 02.09.2010, V R 34/09, Leitsatz 1 und Rz. 19–21](https://www.bundesfinanzhof.de/de/entscheidung/entscheidungen-online/detail/pdf/STRE201010349?type=1646225765)).
+Bankabgang und Begründung werden zusammen gebucht. Die Rechnung wird dadurch
+nicht storniert: Ihr Betrag steht wieder offen, bis sie bezahlt oder storniert
+wird. Eine Schlussrechnung setzt zurückgezahlte Beträge nicht ab. Nach der
+Schlussrechnung ist zunächst deren Berichtigung erforderlich.

@@ -164,7 +164,7 @@ den Schemas nur kurz.
 | `kontakt_anlegen` | direkt | Kontakt anlegen nach Dublettenprüfung; mit `leitweg_id` bekommt ein Kunde XRechnung |
 | `kontoauszug_importieren` | direkt | CAMT.053 ablegen, Salden prüfen, Umsätze einlesen; danach geht die Datei aus dem Eingang nach `Übernommen/` |
 | `beleg_buchen` | direkt | Eingangsrechnung buchen, nur Routine; `faellig_am` übernimmt die Fälligkeit vom Beleg, ohne sie meldet die Vorschau `faelligkeit_aus_zahlungsziel` |
-| `bankumsatz_zuordnen` | direkt | Bankumsatz mit genau einem offenen Posten ausgleichen, nur Routine |
+| `bankumsatz_zuordnen` | direkt | Bankumsatz mit genau einem offenen Posten oder Abschlag ausgleichen, nur Routine |
 | `erklaerung_exportieren` | direkt | Jahreserklärung als JSON oder gespeicherte ZM als BOP-CSV in den Exportordner |
 | `ebilanz_exportieren` | direkt | E-Bilanz prüfen und in den Exportordner: `format` `xbrl` (Vorgabe) oder `susa_csv`; bei abweichender Steuerbilanz nennt `ueberleitung`, was die Liste nicht enthält; `bilanzart: eroeffnungsbilanz` schreibt die Eröffnungsbilanz, `jahr` ist dann das Geschäftsjahr der Gründung |
 | `pflicht_vorbereitet` | direkt | Pflicht als vorbereitet melden, nie als erledigt |
@@ -383,3 +383,21 @@ Gesamtbeträge einschließlich Nullzeilen. `meldung_id` bezeichnet einen dazu
 passenden, in der App gespeicherten Entwurf. `erklaerung_exportieren` mit
 `art: zm` und dieser `meldung_id` schreibt BOP-CSV in den Exportordner.
 Anlegen mit Kenntnisdatum und Übermittlungsbestätigung bleiben in der App.
+
+### Zahlungen auf Abschläge
+
+`offene_posten` und die Vorschläge in `bankumsaetze` nennen bei einem Abschlag
+`abschlag_id` und `herkunft: advance`. Statt `buchung_id` wird diese Kennung
+an `bankumsatz_zuordnen` oder eine Zeile von `bankumsatz_buchen.aufteilung`
+übergeben. `ausgleich` ist der tatsächlich gezahlte Teilbetrag. Buchfink
+berechnet Anzahlung und Steuer im Zahlungsmonat; Differenzarten am Abschlag
+sind nicht zulässig. Gemischte Aufteilungen können weitere Posten oder Konten
+enthalten.
+
+Ein Bankabgang kann einen Vorschlag mit `herkunft: advance_refund` erhalten.
+Das ist immer Rückfrage: `bankumsatz_buchen` mit `abschlag_id`, `ausgleich`
+und dem Grund in `text`. Die Rückzahlung mindert die vereinnahmte Anzahlung
+und ihre Steuer. Die Abschlagsrechnung bleibt bestehen und wird wieder offen;
+entfällt der Auftrag, muss sie anschließend storniert werden. Bereits in einer
+Schlussrechnung verrechnete Anzahlungen lassen sich auf diesem Weg nicht
+zurückzahlen.

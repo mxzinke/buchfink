@@ -91,8 +91,9 @@ Regel für deine Wahl: [e-rechnung-ausgang.md, Abschnitt 3](e-rechnung-ausgang.m
 - Abschlagsrechnung: `rechnung_ausstellen` mit `art: abschlag`, die erste mit
   `verbund` und `kontakt_id`, jede weitere mit der `verbund_id` der Antwort.
   Schlussrechnung: `art: schlussrechnung` mit `verbund_id` und `rechnung`.
-- Den Zahlungseingang auf Abschläge bildet Buchfink noch nicht ab; sag das vor
-  der ersten Abschlagsrechnung eines Verbunds.
+- Zahlungen auf Abschläge ordnest du mit `abschlag_id` aus `offene_posten`
+  zu. Teilzahlungen, Aufteilungen und Rückzahlungen brauchen Rückfrage
+  ([anzahlungen.md](anzahlungen.md#4-wie-buchfink-bucht)).
 
 ## 6. Storno und Berichtigung
 

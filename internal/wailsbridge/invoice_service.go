@@ -34,13 +34,6 @@ func (b *BuchfinkBridge) RecordInvoiceNumberGapReason(year int, sequence int64, 
 	})
 }
 
-// SettleAdvance bucht den Zahlungseingang auf eine Abschlagsrechnung.
-func (b *BuchfinkBridge) SettleAdvance(req service.SettleAdvanceRequest) (*domain.AdvanceItem, error) {
-	return write(b, func(ctx context.Context, s *core.Services) (*domain.AdvanceItem, error) {
-		return s.Invoices.SettleAdvance(ctx, req)
-	})
-}
-
 // GetUnitCodes liefert die Mengeneinheiten nach UN/ECE Rec. 20, die eine
 // Rechnungsposition haben kann (BT-130).
 func (b *BuchfinkBridge) GetUnitCodes() []domain.UnitCode {
@@ -57,4 +50,11 @@ func (b *BuchfinkBridge) GetEInvoiceProfiles() []domain.EInvoiceProfileInfo {
 // Nummernkreis begründet werden kann.
 func (b *BuchfinkBridge) GetNumberGapReasons() []domain.NumberGapReasonOption {
 	return domain.NumberGapReasons()
+}
+
+// RefundAdvance bucht die bestätigte Rückzahlung einer Anzahlung.
+func (b *BuchfinkBridge) RefundAdvance(req service.RefundAdvanceRequest) (*domain.AdvanceItem, error) {
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.AdvanceItem, error) {
+		return s.Invoices.RefundAdvance(ctx, req)
+	})
 }

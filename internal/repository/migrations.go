@@ -60,6 +60,12 @@ func ApplyMigrations(ctx context.Context, db *gorm.DB) (*domain.SchemaMigration,
 	if migrateErr == nil && current > 0 && current < 3 {
 		migrateErr = assignLoanContracts(ctx, db)
 	}
+	if migrateErr == nil && current < 4 {
+		migrateErr = db.WithContext(ctx).Exec(`INSERT INTO advance_payments (invoice_id, entry_id, date, gross, tax)
+ SELECT a.invoice_id, a.settlement_entry_id, a.settled_at, a.gross_amount, a.tax_amount
+ FROM advance_items a WHERE a.settlement_entry_id IS NOT NULL AND a.settled_at <> ''
+ AND NOT EXISTS (SELECT 1 FROM advance_payments p WHERE p.invoice_id = a.invoice_id)`).Error
+	}
 	if migrateErr != nil {
 		record.Result = domain.SchemaMigrationResultFailed
 		record.Message = migrateErr.Error()
