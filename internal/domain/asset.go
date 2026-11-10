@@ -439,6 +439,11 @@ type FixedAsset struct {
 	Description string     `gorm:"size:500" json:"description,omitempty"`
 	Class       AssetClass `gorm:"size:20;not null;index" json:"class"`
 
+	// RegistrationNumber ist das amtliche Kennzeichen, etwa eines Fahrzeugs.
+	RegistrationNumber string `gorm:"size:60" json:"registrationNumber,omitempty"`
+	// BusinessUsePermille beschreibt die Nutzung; sie ändert keine Steuer- oder AfA-Buchung.
+	BusinessUsePermille int `gorm:"default:0" json:"businessUsePermille"`
+
 	// Account is the Anlagekonto (Bestandskonto der Klasse 0),
 	// DepreciationAccount the Aufwandskonto of the planmäßigen AfA. Both are
 	// stored on the asset rather than derived at booking time, because the
@@ -645,6 +650,9 @@ func (a *FixedAsset) DepreciationStart() string {
 // be dissolved, and a Finanzanlage with a plan would be depreciated where the
 // HGB forbids it.
 func (a *FixedAsset) Validate() error {
+	if a.BusinessUsePermille < 0 || a.BusinessUsePermille > 1000 {
+		return fmt.Errorf("die betriebliche Nutzungsquote muss zwischen 0 und 1000 Promille liegen")
+	}
 	if strings.TrimSpace(a.Name) == "" {
 		return fmt.Errorf("das Anlagegut braucht eine Bezeichnung")
 	}

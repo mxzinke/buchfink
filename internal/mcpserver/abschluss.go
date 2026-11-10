@@ -20,19 +20,25 @@ type anlagenIn struct {
 }
 
 type anlage struct {
-	ID            uint   `json:"id"`
-	Inventarnr    string `json:"inventarnummer"`
-	Bezeichnung   string `json:"bezeichnung"`
-	Klasse        string `json:"klasse"`
-	Konto         string `json:"konto"`
-	Angeschafft   string `json:"angeschafft"`
-	AK            Betrag `json:"ak" jsonschema:"Anschaffungs- oder Herstellungskosten zum Stichtag"`
-	Buchwert      Betrag `json:"buchwert"`
-	AfAJahr       Betrag `json:"afa_jahr" jsonschema:"im Geschäftsjahr gebuchte Abschreibung"`
-	AfAFaellig    Betrag `json:"afa_faellig" jsonschema:"im Geschäftsjahr noch zu buchen"`
-	Methode       string `json:"methode"`
-	Nutzungsdauer int    `json:"nutzungsdauer_monate,omitempty"`
-	Status        string `json:"status" jsonschema:"im_bestand, abgeschrieben, abgegangen, ohne_zugangsbuchung oder afa_faellig"`
+	ID            uint         `json:"id"`
+	Inventarnr    string       `json:"inventarnummer"`
+	Bezeichnung   string       `json:"bezeichnung"`
+	Beschreibung  string       `json:"beschreibung,omitempty"`
+	Kennung       string       `json:"kennung,omitempty"`
+	Kennzeichen   string       `json:"kennzeichen,omitempty"`
+	Nutzung       int          `json:"betriebliche_nutzung_promille"`
+	Beteiligung   int          `json:"beteiligung_promille"`
+	Stueckzahl    domain.Units `json:"stueckzahl" jsonschema:"Bestand in Zehntausendstel Stück"`
+	Klasse        string       `json:"klasse"`
+	Konto         string       `json:"konto"`
+	Angeschafft   string       `json:"angeschafft"`
+	AK            Betrag       `json:"ak" jsonschema:"Anschaffungs- oder Herstellungskosten zum Stichtag"`
+	Buchwert      Betrag       `json:"buchwert"`
+	AfAJahr       Betrag       `json:"afa_jahr" jsonschema:"im Geschäftsjahr gebuchte Abschreibung"`
+	AfAFaellig    Betrag       `json:"afa_faellig" jsonschema:"im Geschäftsjahr noch zu buchen"`
+	Methode       string       `json:"methode"`
+	Nutzungsdauer int          `json:"nutzungsdauer_monate,omitempty"`
+	Status        string       `json:"status" jsonschema:"im_bestand, abgeschrieben, abgegangen, ohne_zugangsbuchung oder afa_faellig"`
 }
 
 type kandidat struct {
@@ -251,7 +257,10 @@ func registerAbschluss(tb *Toolbox) {
 		var due domain.Cents
 		for _, a := range assets {
 			due += a.DueAmount
-			rows = append(rows, anlage{ID: a.ID, Inventarnr: a.InventoryNumber, Bezeichnung: a.Name,
+			rows = append(rows, anlage{
+				Beschreibung: a.Description, Kennung: a.Identifier, Kennzeichen: a.RegistrationNumber,
+				Nutzung: a.BusinessUsePermille, Beteiligung: a.HoldingPermille, Stueckzahl: a.UnitsHeld,
+				ID: a.ID, Inventarnr: a.InventoryNumber, Bezeichnung: a.Name,
 				Klasse: label(assetClasses, a.Class), Konto: a.Account, Angeschafft: a.AcquisitionDate, AK: betrag(a.Cost),
 				Buchwert: betrag(a.BookValue), AfAJahr: betrag(a.YearAmount), AfAFaellig: betrag(a.DueAmount),
 				Methode: label(depreciationMethods, a.Method), Nutzungsdauer: a.UsefulLifeMonths,

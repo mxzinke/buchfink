@@ -1059,6 +1059,11 @@
     "ExaminerAllowed": true,
     "Guarded": false
   },
+  "UpdateAssetMetadata": {
+    "AppOnly": true,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
   "UpdateCompanySettings": {
     "AppOnly": true,
     "ExaminerAllowed": false,

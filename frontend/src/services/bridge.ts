@@ -113,6 +113,7 @@ export const bridge = {
   RefundAdvance: <T>(request: unknown) => invoke<T>('RefundAdvance', request),
 
   // Anlagevermögen
+  UpdateAssetMetadata: <T>(req: unknown) => invoke<T>('UpdateAssetMetadata', req),
   GetFixedAssets: <T>(assetClass: string) => invoke<T>('GetFixedAssets', assetClass),
   GetFixedAsset: <T>(id: number) => invoke<T>('GetFixedAsset', id),
   GetAnlagenspiegel: <T>() => invoke<T>('GetAnlagenspiegel'),

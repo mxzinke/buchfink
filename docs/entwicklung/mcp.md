@@ -101,6 +101,7 @@ wird angelegt.
 | `sicherungsordner_waehlen` | nur App | Sicherungsordner wählen | Erfassungsweg ui im Kern oder Dienst |
 | `stammdatenvorschlag_entscheiden` | nur App | Vorschlag eines Agenten für die Stammdaten übernehmen oder ablehnen | Erfassungsweg ui im Kern oder Dienst |
 | `standardgruppe_bestaetigen` | nur App | Standardgruppe bestätigen, auch beim Anlegen eines Kontakts | Erfassungsweg ui im Kern oder Dienst |
+| `anlagenstammdaten_aendern` | nur App | Beschreibende Anlagenstammdaten mit Grund ändern | Erfassungsweg ui im Kern oder Dienst |
 | `unternehmensdaten_aendern` | nur App | Unternehmensstammdaten einschließlich Gesellschaftern und steuerlicher Beratung ändern | Erfassungsweg ui im Kern oder Dienst |
 | `ustva_uebermittlung_bestaetigen` | nur App | Übermittlung der UStVA mit Transferticket bestätigen | Erfassungsweg ui im Kern oder Dienst |
 | `zm_uebermittlung_bestaetigen` | nur App | Übermittlung der ZM mit Transferticket bestätigen | Erfassungsweg ui im Kern oder Dienst |
@@ -155,7 +156,7 @@ den Schemas nur kurz.
 | `offene_posten` | lesen | Forderungen und Verbindlichkeiten, Altersstruktur, Verzugszinsen, Mahnstand |
 | `bankumsaetze` | lesen | Bankumsätze mit den besten Zuordnungsvorschlägen, Einstufung und Prüfstand des Auszugs |
 | `auswertung` | lesen | Summen und Salden, Kontoblatt eines Sachkontos, Bilanz, GuV, USt-Übersicht, Prüfbericht, Gesellschafterdarlehen mit Stand und Befunden, Unterbilanz der Gründung (`FoundationService.GetState`) |
-| `anlagen` | lesen | Anlagenverzeichnis, fällige AfA, Aktivierungskandidaten |
+| `anlagen` | lesen | Anlagenverzeichnis mit Beschreibung, Kennung, Kennzeichen, Nutzungsquote und Stückbestand, fällige AfA, Aktivierungskandidaten |
 | `abschluss_status` | lesen | Schritte des Jahresabschlusses mit nächster Aktion |
 | `erklaerung` | lesen | UStVA, ZM, USt-, KSt- und GewSt-Erklärung formularnah mit Herkunft |
 | `rechnung_vorschau` | lesen | Ausgangsrechnung durchrechnen ohne Ausstellen |

@@ -275,3 +275,9 @@ func (b *BuchfinkBridge) GetPoolConsistencyReport(year int) (*service.PoolConsis
 		return s.Assets.PoolConsistency(ctx, year)
 	})
 }
+
+func (b *BuchfinkBridge) UpdateAssetMetadata(req service.AssetMetadata) (*domain.FixedAsset, error) {
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.FixedAsset, error) {
+		return s.Assets.UpdateMetadata(ctx, req)
+	}, core.AppOnly())
+}

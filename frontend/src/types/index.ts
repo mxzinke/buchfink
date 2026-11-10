@@ -1427,11 +1427,24 @@ export interface AssetMovement {
   createdAt: string;
 }
 
+export interface AssetMetadata {
+  id: number;
+  name: string;
+  description: string;
+  identifier: string;
+  registrationNumber: string;
+  businessUsePermille: number;
+  quantity: number;
+  reason: string;
+}
+
 export interface FixedAsset {
   id: number;
   inventoryNumber: string;
   name: string;
   description?: string;
+  registrationNumber?: string;
+  businessUsePermille: number;
   class: AssetClass;
   account: string;
   depreciationAccount?: string;

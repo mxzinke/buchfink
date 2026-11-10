@@ -6,10 +6,23 @@ Anforderungen: BEW-02 bis BEW-06, BEW-10, JAB-05. Code: `internal/domain/asset.g
 `internal/accounting/afa.go`, `internal/accounting/asset_accounts.go`,
 `service.AssetService`. Die Oberfläche (Bücher → Anlagen,
 `frontend/src/pages/books/AssetsTab.tsx`) zeigt Verzeichnis,
-Abschreibungsplan und Anlagenspiegel nur an; erfasst und abgeschrieben wird
-über einen verbundenen Agenten. Fertigstellung, Abgang, außerplanmäßige
+Abschreibungsplan und Anlagenspiegel. Beschreibende Stammdaten lassen sich
+in der App ändern; erfasst und abgeschrieben wird über einen verbundenen Agenten.
+Fertigstellung, Abgang, außerplanmäßige
 Abschreibung, Zuschreibung und die Fremdwährungsbewertung der Anlagegüter
 rechnet der Dienst, hat aber keinen Erfassungsweg in App oder MCP.
+
+## Stammdaten
+
+Beschreibende Anlagenstammdaten ändern Sie unter Bücher → Anlagen → Stammdaten
+ändern mit Pflichtgrund. Das Änderungsprotokoll enthält Vorher und Nachher.
+Kosten, Methode, Nutzungsdauer und Zugangstag bleiben unverändert. Die
+betriebliche Nutzungsquote ist eine beschreibende Angabe ohne automatische
+Steuerkorrektur. Stückzahlen von Finanzanlagen lassen sich nur bei einem
+ungebuchten Zugang ohne Folgebewegungen und in offener Periode korrigieren.
+Eine Rücknahme erfolgt als weitere begründete Änderung. `anlagen` liest den
+aktuellen Stand; Änderungen sind der App vorbehalten. Beschreibende Angaben
+lassen sich auch nach Festschreibung berichtigen; gebuchte Beträge bleiben erhalten.
 
 ## Sofortabzug, Sammelposten oder Aktivierung
 

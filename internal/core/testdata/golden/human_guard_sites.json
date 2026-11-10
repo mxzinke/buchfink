@@ -42,6 +42,9 @@
   "core.Tenant.changeExaminer": [
     "AppOnly"
   ],
+  "service.AssetService.UpdateMetadata": [
+    "requireHuman"
+  ],
   "service.BankService.ConfigureAccounts": [
     "requireHuman"
   ],
@@ -175,6 +178,9 @@
     "AppOnly"
   ],
   "wailsbridge.BuchfinkBridge.SubmitDeclaration": [
+    "AppOnly"
+  ],
+  "wailsbridge.BuchfinkBridge.UpdateAssetMetadata": [
     "AppOnly"
   ],
   "wailsbridge.BuchfinkBridge.UpdateCompanySettings": [

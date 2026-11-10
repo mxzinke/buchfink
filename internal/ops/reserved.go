@@ -8,6 +8,8 @@ func reserve(name, description string, enforcement Enforcement, guards, bridge [
 }
 
 var reserved = []Operation{
+	reserve("anlagenstammdaten_aendern", "Beschreibende Anlagenstammdaten mit Grund ändern", Channel,
+		[]string{"service.AssetService.UpdateMetadata"}, []string{"UpdateAssetMetadata"}),
 	reserve("festschreiben", "Festschreibung", Channel,
 		[]string{"core.Tenant.CommitPeriod", "service.PeriodService.Commit"}, []string{"CommitPeriod"}),
 	reserve("abschlussstatus_setzen", "Jahresabschluss aufstellen, feststellen und offenlegen", Channel,

@@ -83,6 +83,17 @@ Nutzungsdauer vorschlägt: [anlagen-nutzungsdauer.md](anlagen-nutzungsdauer.md).
    ([grundlagen/arbeitsweise.md, Abschnitt 9](../grundlagen/arbeitsweise.md#9-vorgänge-ohne-werkzeug));
    eine Umbuchung der Anzahlung legst du als `buchung_erfassen` vor.
 
+## Stammdaten pflegen
+
+Beschreibende Anlagenstammdaten ändern Sie unter Bücher → Anlagen → Stammdaten
+ändern mit Pflichtgrund. Das Änderungsprotokoll enthält Vorher und Nachher.
+Kosten, Methode, Nutzungsdauer und Zugangstag bleiben unverändert. Die
+betriebliche Nutzungsquote ist eine beschreibende Angabe ohne automatische
+Steuerkorrektur. Stückzahlen von Finanzanlagen lassen sich nur bei einem
+ungebuchten Zugang ohne Folgebewegungen und in offener Periode korrigieren.
+Eine Rücknahme erfolgt als weitere begründete Änderung. `anlagen` liest den
+aktuellen Stand; Änderungen sind der App vorbehalten.
+
 [estg6]: https://www.gesetze-im-internet.de/estg/__6.html
 [estg9b]: https://www.gesetze-im-internet.de/estg/__9b.html
 [hgb253]: https://www.gesetze-im-internet.de/hgb/__253.html

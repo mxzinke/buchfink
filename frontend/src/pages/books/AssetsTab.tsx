@@ -14,6 +14,7 @@ import { useLatestRequest, useLiveReload } from '../../live';
 import { Api } from '../../services/api';
 import { formatCents, formatDate, formatUnits } from '../../utils/formatters';
 import {
+  Button, Field, Input,
   DetailList,
   DetailPanel,
   Disclosure,
@@ -397,6 +398,8 @@ const AssetPanel: React.FC<{ assetId: number | undefined; onClose: () => void }>
           ? [{ label: 'Bestand', value: `${formatUnits(asset.unitsHeld)} Stück`, numeric: true }]
           : []),
         ...(asset.identifier ? [{ label: 'Kennung', value: asset.identifier }] : []),
+        ...(asset.registrationNumber ? [{ label: 'Kennzeichen', value: asset.registrationNumber }] : []),
+        ...(asset.description ? [{ label: 'Beschreibung', value: asset.description }] : []),
         ...(asset.usefulLifeReason ? [{ label: 'Nutzungsdauer', value: asset.usefulLifeReason }] : []),
       ]
     : [];
@@ -417,6 +420,9 @@ const AssetPanel: React.FC<{ assetId: number | undefined; onClose: () => void }>
       ) : (
         <>
           <DetailList items={facts} />
+          <Disclosure title="Stammdaten ändern">
+            <AssetMetadataForm key={asset.id} asset={asset} onSaved={load} />
+          </Disclosure>
 
           {detail.schedule.length > 0 && (
             <div className="mt-6">
@@ -500,5 +506,70 @@ const AssetPanel: React.FC<{ assetId: number | undefined; onClose: () => void }>
         </>
       )}
     </DetailPanel>
+  );
+};
+
+const AssetMetadataForm: React.FC<{
+  asset: FixedAsset;
+  onSaved: () => Promise<void>;
+}> = ({ asset, onSaved }) => {
+  const [values, setValues] = useState({
+    name: asset.name,
+    description: asset.description ?? '',
+    identifier: asset.identifier ?? '',
+    registrationNumber: asset.registrationNumber ?? '',
+    businessUsePermille: asset.businessUsePermille ?? 0,
+    quantity: asset.quantity ?? 0,
+    reason: '',
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <form className="space-y-4" onSubmit={async (event) => {
+      event.preventDefault();
+      if (busy) return;
+      setBusy(true);
+      setError(null);
+      try {
+        await Api.updateAssetMetadata({ id: asset.id, ...values });
+        await onSaved();
+        setValues(v => ({ ...v, reason: '' }));
+      } catch (error) {
+        setError(errorText(error));
+      } finally {
+        setBusy(false);
+      }
+    }}>
+      <p className="text-caption text-ink-subtle">
+        Die Änderung wird mit Grund protokolliert. Anschaffungskosten und Abschreibungsplan bleiben unverändert.
+      </p>
+      {([
+        ['name', 'Bezeichnung'], ['description', 'Beschreibung'],
+        ['identifier', 'Kennung'], ['registrationNumber', 'Kennzeichen'], ['reason', 'Grund'],
+      ] as const).map(([key, label]) => (
+        <Field key={key} label={label} optional={key !== 'name' && key !== 'reason'}>
+          <Input required={key === 'name' || key === 'reason'} value={values[key]} disabled={busy}
+            onChange={e => setValues(v => ({ ...v, [key]: e.target.value }))} />
+        </Field>
+      ))}
+      <Field label="Betriebliche Nutzung in Prozent"
+        hint="Beschreibend, ohne automatische Steuerkorrektur">
+        <Input type="number" min={0} max={100} step={0.1} required disabled={busy}
+          value={values.businessUsePermille / 10}
+          onChange={e => setValues(v => ({
+            ...v, businessUsePermille: Math.round(Number(e.target.value) * 10),
+          }))} />
+      </Field>
+      {asset.class === 'financial' && (
+        <Field label="Stückzahl des Zugangs" hint="Nur vor Buchung und Folgebewegungen">
+          <Input type="number" min={0} step={0.0001} required disabled={busy}
+            value={values.quantity / 10000}
+            onChange={e => setValues(v => ({ ...v, quantity: Math.round(Number(e.target.value) * 10000) }))} />
+        </Field>
+      )}
+      {error && <Notice tone="negative" text={error} />}
+      <Button type="submit" disabled={busy}>Änderung speichern</Button>
+    </form>
   );
 };

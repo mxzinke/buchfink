@@ -82,6 +82,10 @@ func TestAgentsAreRefusedForHumanOnlyOperations(t *testing.T) {
 			_, err := s.ZM.ConfirmSubmitted(ctx, 1, "2026-02-25", "et-123", "")
 			return err
 		}),
+		"service.AssetService.UpdateMetadata": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.Assets.UpdateMetadata(ctx, service.AssetMetadata{})
+			return err
+		}),
 		"service.SettingsService.UpdateCompanySettings": inService(func(ctx context.Context, s *Services) error {
 			return s.Settings.UpdateCompanySettings(ctx, &domain.CompanySettings{CompanyName: "Andere GmbH"})
 		}),

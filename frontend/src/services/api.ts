@@ -59,6 +59,7 @@ import type {
   FiscalYearCandidates,
   FiscalYearStatus,
   FixedAsset,
+  AssetMetadata,
   FolderCheck,
   ForeignCurrencyValuation,
   Foundation,
@@ -630,6 +631,8 @@ export const Api = {
 
   // --- Anlagevermögen ----------------------------------------------------
 
+  updateAssetMetadata: (req: AssetMetadata): Promise<FixedAsset> =>
+    call(() => Bridge.UpdateAssetMetadata(req) as Promise<FixedAsset>),
   getFixedAssets: (assetClass: AssetClass | '' = ''): Promise<FixedAsset[]> =>
     call(() => Bridge.GetFixedAssets(assetClass) as Promise<FixedAsset[]>),
   getFixedAsset: (id: number): Promise<AssetDetail> =>
