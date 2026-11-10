@@ -54,6 +54,11 @@
     "ExaminerAllowed": false,
     "Guarded": true
   },
+  "BookTakeover": {
+    "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
   "CancelInvoice": {
     "AppOnly": false,
     "ExaminerAllowed": false,
