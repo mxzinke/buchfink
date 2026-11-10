@@ -4244,3 +4244,110 @@ export interface AssetValuationRequest {
  permanent: boolean;
  preview: boolean;
 }
+
+// --- Umstieg aus einem Vorsystem (service.TakeoverService) -----------------
+
+/** Der festgelegte Umstieg; `date` ist leer, solange keiner festgelegt ist. */
+export interface TakeoverState {
+  date: string;
+  fiscalYear: number;
+  /** Eröffnungsbuchungen zum Umstieg stehen im Journal. */
+  booked: boolean;
+}
+
+/** Salden: Soll positiv, Haben negativ. */
+export interface TakeoverAccountRow {
+  account: string;
+  accountName: string;
+  statement: Cents;
+  booked: Cents;
+  difference: Cents;
+}
+
+export interface TakeoverSubLedgerRow {
+  kind: 'receivables' | 'payables' | 'assets';
+  account: string;
+  accountName: string;
+  count: number;
+  subLedger: Cents;
+  ledger: Cents;
+  difference: Cents;
+}
+
+/** Die Abstimmung der Eröffnung mit der Schlussbilanz des Vorsystems. */
+export interface TakeoverReconciliation extends TakeoverState {
+  receiptId?: number;
+  legacySystem?: string;
+  accounts: TakeoverAccountRow[];
+  subLedgers: TakeoverSubLedgerRow[];
+  statementAssets: Cents;
+  statementLiabilities: Cents;
+  bookedAssets: Cents;
+  bookedLiabilities: Cents;
+  carryForwardBalance: Cents;
+  differences: string[];
+  reconciled: boolean;
+}
+
+export interface TakeoverLine {
+  account: string;
+  side: Side;
+  amount: Cents;
+}
+
+export interface TakeoverOpenItem {
+  contactId: number;
+  amount: Cents;
+  documentNumber: string;
+  documentDate: string;
+  dueDate?: string;
+  taxRate?: TaxRate;
+  taxTreatment?: TaxTreatment;
+}
+
+export interface TakeoverAsset {
+  name: string;
+  account: string;
+  acquisitionDate: string;
+  /** Historische Anschaffungskosten, nicht der Buchwert. */
+  acquisitionCost: Cents;
+  method?: DepreciationMethod;
+  usefulLifeMonths?: number;
+  /** Bis zum Umstieg im Vorsystem gebuchte Abschreibungen. */
+  accumulatedDepreciation: Cents;
+  legacyRef?: string;
+}
+
+/** Die Schlussbilanz des Vorsystems mit offenen Posten und Anlagen. */
+export interface TakeoverRequest {
+  receiptId?: number;
+  legacySystem?: string;
+  accounts: TakeoverLine[];
+  receivables: TakeoverOpenItem[];
+  payables: TakeoverOpenItem[];
+  assets: TakeoverAsset[];
+}
+
+export interface TakeoverAssetPreview {
+  assetId?: number;
+  inventoryNumber?: string;
+  name: string;
+  account: string;
+  acquisitionCost: Cents;
+  accumulatedDepreciation: Cents;
+  bookValue: Cents;
+  firstYearDepreciation: Cents;
+}
+
+export interface TakeoverPreview {
+  fiscalYear: number;
+  date: string;
+  entries: JournalEntry[];
+  debitTotal: Cents;
+  creditTotal: Cents;
+  balanced: boolean;
+  messages: string[];
+  assets: TakeoverAssetPreview[];
+  /** Was der Buchung entgegensteht. */
+  differences: string[];
+}

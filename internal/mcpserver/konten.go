@@ -68,7 +68,7 @@ func direction(s Richtung) domain.Direction {
 // --- auswertung -------------------------------------------------------------
 
 type auswertungIn struct {
-	Art            AuswertungArt `json:"art" jsonschema:"susa (Summen und Salden), kontoblatt, bilanz, guv, ust (Umsatzsteuer-Übersicht), pruefbericht, darlehen (Gesellschafterdarlehen mit Stand) oder unterbilanz (Gründung: Reinvermögen gegen Stammkapital am Eintragungstag)"`
+	Art            AuswertungArt `json:"art" jsonschema:"susa (Summen und Salden), kontoblatt, bilanz, guv, ust (Umsatzsteuer-Übersicht), pruefbericht, darlehen (Gesellschafterdarlehen mit Stand), unterbilanz (Gründung: Reinvermögen gegen Stammkapital am Eintragungstag) oder umstieg (Eröffnung gegen Schlussbilanz des Vorsystems)"`
 	Geschaeftsjahr int           `json:"geschaeftsjahr,omitempty"`
 	Konto          Konto         `json:"konto,omitempty" jsonschema:"Sachkonto des SKR04 für art=kontoblatt; Buchungen eines Personenkontos liefert buchungen_suchen mit kontakt_id"`
 	Von            Datum         `json:"von,omitempty" jsonschema:"kontoblatt, ust: Beginn; Vorgabe Beginn des Geschäftsjahres"`
@@ -150,6 +150,7 @@ type auswertungOut struct {
 	Befunde        []befundZeile    `json:"befunde"`
 	Darlehen       []darlehenZeile  `json:"darlehen"`
 	Unterbilanz    *unterbilanz     `json:"unterbilanz,omitempty"`
+	Umstieg        *umstieg         `json:"umstieg,omitempty"`
 	Hinweis        string           `json:"hinweis,omitempty"`
 	Seitenende
 }
@@ -257,7 +258,8 @@ func registerKonten(tb *Toolbox) {
 			"laufendem Saldo), bilanz, guv (mit Vorjahr), ust (Umsatzsteuer-Übersicht eines Zeitraums), pruefbericht " +
 			"(Befunde des Prüflaufs, ohne ihn zu speichern), darlehen (Gesellschafterdarlehen mit Stand und Befunden " +
 			"zum Fremdvergleich), unterbilanz (Haftung der Gesellschafter, wenn das Reinvermögen am Eintragungstag " +
-			"unter dem Stammkapital liegt; vor der Eintragung zu heute). Listen seitenweise. Für einzelne Buchungen buchung_lesen.",
+			"unter dem Stammkapital liegt; vor der Eintragung zu heute), umstieg (Abstimmung der Eröffnung). " +
+			"Listen seitenweise. Für einzelne Buchungen buchung_lesen.",
 	}, func(ctx context.Context, c *Call, s core.AgentServices, in auswertungIn) (auswertungOut, error) {
 		year, err := yearOr(ctx, c, in.Geschaeftsjahr)
 		if err != nil {
@@ -428,8 +430,22 @@ func registerKonten(tb *Toolbox) {
 			out.Unterbilanz = unterbilanzOf(state.Unterbilanz)
 			out.Stichtag = state.Unterbilanz.AsOf
 			return out, nil
+		case "umstieg":
+			rec, err := s.Takeover.Reconciliation(ctx)
+			if err != nil {
+				return out, err
+			}
+			if rec.Date == "" {
+				out.Hinweis = "Für das Unternehmen ist kein Umstieg festgelegt. Ob es mit bestehenden Büchern beginnt " +
+					"und zu welchem Tag, legt der Mensch in der App unter Unternehmen › Stammdaten fest."
+				return out, nil
+			}
+			out.Stichtag = rec.Date
+			out.Umstieg, out.Seitenende, err = umstiegOf(rec, in.Seite)
+			return out, err
 		}
-		return out, inputError("art", "unbekannte Art %q (susa, kontoblatt, bilanz, guv, ust, pruefbericht, darlehen, unterbilanz)", in.Art)
+		return out, inputError("art",
+			"unbekannte Art %q (susa, kontoblatt, bilanz, guv, ust, pruefbericht, darlehen, unterbilanz, umstieg)", in.Art)
 	})
 }
 

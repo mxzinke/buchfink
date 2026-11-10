@@ -233,7 +233,8 @@ verlinkt seine Fachreferenzen.
 | Vor dem Notartermin; Behördenwege mit Fristen | [gruendung/gruendungsweg.md](references/gruendung/gruendungsweg.md) |
 | Stammkapital einzahlen, Sacheinlage, Hin- und Herzahlen, Unterbilanz | [gruendung/kapitalaufbringung.md](references/gruendung/kapitalaufbringung.md) |
 | Rechnung aus der Gründungsphase, Kosten vor der Beurkundung | [gruendung/gruendungskosten.md](references/gruendung/gruendungskosten.md) |
-| Eröffnungsbilanz prüfen; bestehende GmbH wechselt zu Buchfink | [gruendung/eroeffnungsbilanz.md](references/gruendung/eroeffnungsbilanz.md) |
+| Eröffnungsbilanz einer Gründung prüfen | [gruendung/eroeffnungsbilanz.md](references/gruendung/eroeffnungsbilanz.md) |
+| Bestehende GmbH wechselt zu Buchfink: Schlussbilanz, offene Posten und Anlagen übernehmen, abstimmen | [gruendung/umstieg.md](references/gruendung/umstieg.md) |
 | Fragebogen zur steuerlichen Erfassung, Ist-Versteuerung, USt-IdNr. | [gruendung/steuerliche-erfassung.md](references/gruendung/steuerliche-erfassung.md) |
 | Rumpfgeschäftsjahr; Fristen des ersten Abschlusses | [gruendung/rumpfjahr.md](references/gruendung/rumpfjahr.md) |
 | Lohnjournal, Lohnsteuer-Anmeldung, Minijob, Geschäftsführergehalt | [lohn/ablauf.md](references/lohn/ablauf.md) |

@@ -75,9 +75,6 @@ var exceptions = map[string]string{
 
 	"InvoiceService.MarkSent": "kein Versandvermerk einer Ausgangsrechnung",
 
-	"JournalService.BookOpeningBalance":    "keine Eröffnungsbuchungen eines Umsteigers",
-	"JournalService.PreviewOpeningBalance": "Vorschau zu BookOpeningBalance",
-
 	"PostingService.OpenVendorAdvances": "die Kennungen geleisteter Anzahlungen, die beleg_buchen_mit_rueckfrage verrechnet, liefert kein Werkzeug",
 
 	"ProvisionService.ImportDiscountRatesCSV": "kein CSV-Import in App oder Werkzeug; einzelne Sätze werden bei der Rückstellung eingegeben",

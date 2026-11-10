@@ -103,6 +103,10 @@ func TestAgentsAreRefusedForHumanOnlyOperations(t *testing.T) {
 			_, err := s.Foundation.Register(ctx, "2026-02-01", "AG Köln", "HRB 4711")
 			return err
 		}),
+		"service.TakeoverService.SetDate": inService(func(ctx context.Context, s *Services) error {
+			_, err := s.Takeover.SetDate(ctx, "2026-01-01")
+			return err
+		}),
 		"service.ClosingSettingsService.Save": inService(func(ctx context.Context, s *Services) error {
 			_, err := s.ClosingSettings.Save(ctx, service.ClosingSettings{
 				TradeTaxRatePercent: 250, AccrualMethod: "monthly", AccrualRelease: "yearly"})

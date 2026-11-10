@@ -2787,13 +2787,20 @@ func (s *AssetService) AcquisitionCandidates(ctx context.Context, year int) ([]A
 		return nil, err
 	}
 	chart, _ := s.journalSvc.Chart(ctx)
+	// Eine im selben Jahr stornierte Buchung ist kein Zugang mehr.
+	reversed := map[uint]bool{}
+	for i := range entries {
+		if entries[i].Kind == domain.EntryKindReversal && entries[i].ReversalOfID != nil {
+			reversed[*entries[i].ReversalOfID] = true
+		}
+	}
 
 	// Belegt statt nil: der Regelfall ist das Journal ohne offenen Zugang,
 	// und die Ansicht läse dort sonst `null`.
 	out := make([]AcquisitionCandidate, 0)
 	for i := range entries {
 		entry := &entries[i]
-		if linked[entry.ID] || entry.Kind == domain.EntryKindReversal {
+		if linked[entry.ID] || reversed[entry.ID] || entry.Kind == domain.EntryKindReversal {
 			continue
 		}
 		// Eine AfA-Buchung steht selbst auf einem Anlagekonto — sie ist aber kein

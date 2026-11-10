@@ -37,7 +37,8 @@ einzelne Kriterien im [Anforderungskatalog](../anforderungen/README.md).
 | Steuererklärungen | KSt 1 mit Anlagen, GewSt 1 A und USt 2 A formularnah mit Herkunft je Wert, Eingaben mit Bestätigung, Export als JSON (`buchfink.erklaerung/1`), Übermittlung mit Transferticket | `internal/declaration`, `service.DeclarationService`, `core.Tenant.ExportDeclaration` |
 | E-Bilanz | XBRL nach Taxonomie 6.9 und 6.10 mit Kontennachweis, Überleitung, Befunden vor dem Export; Eröffnungsbilanz einer Gründung in Buchfink in der App und über `ebilanz_exportieren`; Summen- und Saldenliste mit Taxonomie-Position je Konto für eBilanz+ | `internal/ebilanz`, `ebilanz.SuSaCSV`, `service.EBilanzService` (`EBilanzOptions.Kind`) |
 | Pflichtenkalender | 23 Pflichtarten mit Rechtsgrundlage, Frist und Nachweis, darunter Aufstellung und E-Bilanz der Eröffnungsbilanz einer Gründung; Fristen nach steuerlicher Beratung, Dauerfristverlängerung, Wochenende und Feiertagen des Bundeslands; Stand aus den Daten oder bestätigt in der App | `service/obligation_catalog.go`, `service/obligation_rules.go`, `service.ObligationService`, `internal/calendar` |
-| Gründung | Zeichnung, Einforderung und Einzahlung des Stammkapitals, Halbeinzahlung, Eröffnungsbilanz als PDF zum Unterzeichnen in der App, auf denselben Stichtag wie ihre E-Bilanz | `service.FoundationService`, `service/foundation_capital.go`, `service/foundation_opening.go`, `service/opening_balance.go` |
+| Gründung | Zeichnung, Einforderung und Einzahlung des Stammkapitals, Halbeinzahlung, Eröffnungsbilanz als PDF zum Unterzeichnen in der App, auf denselben Stichtag wie ihre E-Bilanz | `service.FoundationService`, `service/foundation_capital.go`, `service/foundation_opening.go` |
+| Umstieg | Beginn mit bestehenden Büchern zum ersten Tag eines Geschäftsjahres, festgelegt in der App; Eröffnung aus der Schlussbilanz des Vorsystems mit offenen Posten je Rechnung und Anlagen je Anlagegut, in der App und über `eroeffnung_buchen`; Abstimmung je Konto und der Nebenbücher, Prüflaufbefund bei fehlender oder nicht aufgehender Eröffnung | `service.TakeoverService`, `service/opening_balance.go`, `accounting/afa.go` (`AfAPlan.TakeoverYear`) |
 | Nachweise | Hash-Ketten für Journal und Protokoll, Änderungsprotokoll mit Vorher und Nachher, Datenüberlassung (Z3), Belegarchiv, Prüferpaket, Verfahrensdokumentation | `accounting/journalhash.go`, `accounting/audithash.go`, `service.ExportService`, `internal/export`, `internal/procdoc` |
 | Sicherung | ZIP mit Prüfsummen, automatisch bei eingerichtetem Ziel, Wiederherstellungstest, Wiederherstellung mit Prüfung | `service.BackupService`, `core.Host.RunDueBackup`, `core.Host.RestoreBackup` |
 
@@ -87,6 +88,27 @@ die Zuordnung muss fachlich geklärt werden.
   auch für den Solidaritätszuschlag gilt und ob je Gesellschafter statt auf
   die ganze Ausschüttung zu rechnen ist. Den Rest bucht Buchfink nicht aus;
   die Antworten gehören zur steuerlichen Beratung.
+
+### Umstieg
+
+- Ein Umstieg im laufenden Geschäftsjahr ist nicht vorgesehen: die Eröffnung
+  nimmt nur Bestandskonten zum ersten Tag eines Geschäftsjahres an, keine
+  Salden der Aufwands- und Ertragskonten und keine abgegebenen
+  Voranmeldungen.
+- Bilanz und GuV des ersten Jahres zeigen kein Vorjahr
+  ([§ 265 Abs. 2 HGB](https://www.gesetze-im-internet.de/hgb/__265.html));
+  eine Eingabe für die Vorjahreszahlen fehlt.
+- Die Eröffnung übernimmt keine steuerlichen Verlustvorträge; sie sind bei der
+  Steuerrückstellung anzugeben.
+- Übernommene Rückstellungen und Abgrenzungen stehen als Kontobestand, nicht
+  in ihrem Spiegel. Nicht übernommen werden offene Posten in Fremdwährung,
+  Anzahlungen, sofort abgezogene geringwertige Wirtschaftsgüter, die
+  Sonderabschreibung nach § 7g EStG, Stückzahlen und das Verzeichnis nach
+  § 15a UStG. Nach einem Storno der Eröffnung lassen sich die übernommenen
+  Anlagen nicht neu erfassen.
+- Bewegungsdaten des Vorsystems liest Buchfink nicht ein; das Vorsystem bleibt
+  aufzubewahren. Einzelheiten:
+  [Umstieg aus einem Vorsystem](../fachkonzepte/umstieg.md#grenzen).
 
 ### Laufende Buchhaltung
 

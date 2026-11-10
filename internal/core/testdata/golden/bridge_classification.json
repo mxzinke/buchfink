@@ -664,6 +664,11 @@
     "ExaminerAllowed": true,
     "Guarded": false
   },
+  "GetTakeover": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
   "GetTasks": {
     "AppOnly": false,
     "ExaminerAllowed": true,
@@ -820,6 +825,11 @@
     "Guarded": false
   },
   "PreviewProvisionChange": {
+    "AppOnly": false,
+    "ExaminerAllowed": true,
+    "Guarded": false
+  },
+  "PreviewTakeover": {
     "AppOnly": false,
     "ExaminerAllowed": true,
     "Guarded": false
@@ -1096,6 +1106,11 @@
   },
   "SetSystemChangeDate": {
     "AppOnly": false,
+    "ExaminerAllowed": false,
+    "Guarded": true
+  },
+  "SetTakeoverDate": {
+    "AppOnly": true,
     "ExaminerAllowed": false,
     "Guarded": true
   },

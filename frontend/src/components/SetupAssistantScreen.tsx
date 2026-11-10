@@ -7,7 +7,7 @@ import { FEDERAL_STATES, LEGAL_FORMS } from '../utils/companyLabels';
 import { defaultInbox } from '../utils/inbox';
 import { AgentClientCommands } from './AgentClients';
 import { GermanFlag } from './GermanFlag';
-import { Checkbox, Help, SHELL_BUTTON, SHELL_CONTROL, SHELL_PANEL, cn } from './ui';
+import { Checkbox, Help, SHELL_BUTTON, SHELL_CONTROL, SHELL_PANEL, cn, toast } from './ui';
 
 interface SetupAssistantScreenProps {
   onSetupCompleted: () => void;
@@ -294,6 +294,16 @@ export const SetupAssistantScreen: React.FC<SetupAssistantScreenProps> = ({
         inLiquidation,
         fiscalUnity,
       });
+      if (start === 'switch') {
+        // Der Mandant steht schon; scheitert die Festlegung, bleibt sie in den
+        // Stammdaten nachzuholen.
+        await Api.setTakeoverDate(startDate).catch((e) =>
+          toast.error(
+            `Der Umstieg ließ sich nicht festlegen: ${e instanceof Error ? e.message : String(e)} ` +
+              'Holen Sie es unter Unternehmen › Stammdaten nach.',
+          ),
+        );
+      }
       const tenant = await Api.getActiveTenant().catch(() => null);
       setTenantId(tenant?.id ?? '');
       setStep(2);

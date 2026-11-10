@@ -134,6 +134,9 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 		foundationRepo, accountRepo, journalRepo, settingsRepo, s.Journal, auditRepo,
 	)
 	s.Settings.SetFoundationRegistrar(s.Foundation)
+	s.Takeover = service.NewTakeoverService(
+		settingsRepo, foundationRepo, journalRepo, assetRepo, auditRepo, s.Journal, s.Assets,
+	)
 
 	s.Closing = service.NewClosingService(
 		fiscalYearRepo, journalRepo, accountRepo, contactRepo, allocationRepo,
@@ -300,6 +303,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Obligations.SetPayrollSource(payrollRepo)
 	s.Checks.AddFindingSource(s.Shareholders)
 	s.Checks.AddFindingSource(s.Payroll)
+	s.Checks.AddFindingSource(s.Takeover)
 
 	s.MonthClose = service.NewMonthCloseService(s.Checks, s.VatReturns, festschreibungRepo)
 	s.MonthClose.SetFiscalYearSource(fiscalYearRepo)

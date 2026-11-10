@@ -157,6 +157,9 @@ func (s *FoundationService) Save(ctx context.Context, notarizedOn string, f *dom
 }
 
 func (s *FoundationService) save(ctx context.Context, notarizedOn string, f *domain.Foundation) (*domain.Foundation, error) {
+	if err := ensureNoTakeover(ctx, s.settingsRepo); err != nil {
+		return nil, err
+	}
 	settings, err := s.settingsRepo.GetCompanySettings(ctx)
 	if err != nil {
 		return nil, err

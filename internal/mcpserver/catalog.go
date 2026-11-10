@@ -26,4 +26,5 @@ func registerTools(tb *Toolbox) {
 	registerAnhang(tb)
 	registerErklaerung(tb)
 	registerStammdaten(tb)
+	registerEroeffnung(tb)
 }

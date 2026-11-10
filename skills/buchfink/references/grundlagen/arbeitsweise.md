@@ -103,8 +103,7 @@ Rechnungskorrektur, Forderung ausbuchen, Versand vermerken, Rückzahlung von
 Abschlagsrechnungen, Pflege der Anlagenkartei (Kennung, Quote,
 Kennzeichen, Stückzahl; Abgang, Fertigstellung einer Anlage im Bau,
 außerplanmäßige Abschreibung, Zuschreibung, Währung), Verwendungsanteil nach
-§ 15a UStG, Eröffnungsbuchungen eines Umsteigers, berichtigte ZM und
-CSV-Datei der ZM, die Texte des Anhangs zum Jahresabschluss, Zuführung,
+§ 15a UStG, berichtigte ZM und CSV-Datei der ZM, die Texte des Anhangs zum Jahresabschluss, Zuführung,
 Aufzinsung und Auflösung einer gebildeten Rückstellung samt
 Abzinsungssätzen, Löschen nach Ablauf der Aufbewahrungsfrist. Sag dem Menschen, dass Buchfink den Vorgang
 noch nicht kann, leg Sachverhalt, Grundlage und die nötige Buchung vor und

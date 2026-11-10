@@ -1018,12 +1018,12 @@
       "openWorldHint": false,
       "readOnlyHint": true
     },
-    "description": "Zahlen der Bücher: susa (Summen und Salden je Konto), kontoblatt (Buchungen eines Kontos mit laufendem Saldo), bilanz, guv (mit Vorjahr), ust (Umsatzsteuer-Übersicht eines Zeitraums), pruefbericht (Befunde des Prüflaufs, ohne ihn zu speichern), darlehen (Gesellschafterdarlehen mit Stand und Befunden zum Fremdvergleich), unterbilanz (Haftung der Gesellschafter, wenn das Reinvermögen am Eintragungstag unter dem Stammkapital liegt; vor der Eintragung zu heute). Listen seitenweise. Für einzelne Buchungen buchung_lesen.",
+    "description": "Zahlen der Bücher: susa (Summen und Salden je Konto), kontoblatt (Buchungen eines Kontos mit laufendem Saldo), bilanz, guv (mit Vorjahr), ust (Umsatzsteuer-Übersicht eines Zeitraums), pruefbericht (Befunde des Prüflaufs, ohne ihn zu speichern), darlehen (Gesellschafterdarlehen mit Stand und Befunden zum Fremdvergleich), unterbilanz (Haftung der Gesellschafter, wenn das Reinvermögen am Eintragungstag unter dem Stammkapital liegt; vor der Eintragung zu heute), umstieg (Abstimmung der Eröffnung). Listen seitenweise. Für einzelne Buchungen buchung_lesen.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
         "art": {
-          "description": "susa (Summen und Salden), kontoblatt, bilanz, guv, ust (Umsatzsteuer-Übersicht), pruefbericht, darlehen (Gesellschafterdarlehen mit Stand) oder unterbilanz (Gründung: Reinvermögen gegen Stammkapital am Eintragungstag)",
+          "description": "susa (Summen und Salden), kontoblatt, bilanz, guv, ust (Umsatzsteuer-Übersicht), pruefbericht, darlehen (Gesellschafterdarlehen mit Stand), unterbilanz (Gründung: Reinvermögen gegen Stammkapital am Eintragungstag) oder umstieg (Eröffnung gegen Schlussbilanz des Vorsystems)",
           "enum": [
             "susa",
             "kontoblatt",
@@ -1032,7 +1032,8 @@
             "ust",
             "pruefbericht",
             "darlehen",
-            "unterbilanz"
+            "unterbilanz",
+            "umstieg"
           ],
           "type": "string"
         },
@@ -3022,6 +3023,200 @@
     },
     "name": "erklaerung_exportieren",
     "title": "Erklärung exportieren"
+  },
+  "eroeffnung_buchen": {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Umstieg aus einem Vorsystem: Eröffnung zum in der App festgelegten Tag aus der abgelegten Schlussbilanz buchen. Erst nur_vorschau, nach dem Ja buchen; danach auswertung art=umstieg. Nicht für Saldenvortrag oder Gründung.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "anlagen": {
+          "description": "je Anlagegut; Buchwerte je Konto wie in konten",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "afa_bisher": {
+                "description": "bis zum Umstieg",
+                "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
+                "type": "string"
+              },
+              "angeschafft_am": {
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                "type": "string"
+              },
+              "anschaffungskosten": {
+                "description": "historisch",
+                "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
+                "type": "string"
+              },
+              "bezeichnung": {
+                "type": "string"
+              },
+              "gebaeude_stichtag": {
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                "type": "string"
+              },
+              "inventarnummer": {
+                "type": "string"
+              },
+              "konto": {
+                "description": "SKR04-Konto oder Personenkonto",
+                "pattern": "^[0-9]{4,5}$",
+                "type": "string"
+              },
+              "methode": {
+                "description": "Abschreibungsmethode",
+                "enum": [
+                  "degressiv",
+                  "elektrofahrzeug",
+                  "gebaeude",
+                  "keine",
+                  "linear",
+                  "sammelposten",
+                  "sofort"
+                ],
+                "type": "string"
+              },
+              "nutzungsdauer_grund": {
+                "type": "string"
+              },
+              "nutzungsdauer_monate": {
+                "description": "ab Anschaffung",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "bezeichnung",
+              "konto",
+              "angeschafft_am",
+              "anschaffungskosten"
+            ],
+            "type": "object"
+          },
+          "type": [
+            "null",
+            "array"
+          ]
+        },
+        "beleg_id": {
+          "description": "Schlussbilanz oder Summen- und Saldenliste",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "idempotenz_schluessel": {
+          "description": "einer je Vorgang, 8 bis 100 Zeichen A-Z a-z 0-9 - _ . :",
+          "type": "string"
+        },
+        "konten": {
+          "description": "Bilanzkonten; 1200 und 3300 als Summe der offenen Posten",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "betrag": {
+                "description": "Euro, z. B. \"119.00\"",
+                "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
+                "type": "string"
+              },
+              "konto": {
+                "description": "SKR04-Konto oder Personenkonto",
+                "pattern": "^[0-9]{4,5}$",
+                "type": "string"
+              },
+              "seite": {
+                "description": "S (Soll) oder H (Haben)",
+                "enum": [
+                  "S",
+                  "H"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "konto",
+              "seite",
+              "betrag"
+            ],
+            "type": "object"
+          },
+          "type": [
+            "null",
+            "array"
+          ]
+        },
+        "mandant_id": {
+          "description": "id aus status",
+          "type": "string"
+        },
+        "nur_vorschau": {
+          "type": "boolean"
+        },
+        "offene_posten": {
+          "description": "je Rechnung",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "betrag": {
+                "description": "offen, brutto",
+                "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
+                "type": "string"
+              },
+              "faellig_am": {
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                "type": "string"
+              },
+              "kontakt_id": {
+                "description": "Kunde: Forderung; Lieferant: Verbindlichkeit",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "rechnungsdatum": {
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                "type": "string"
+              },
+              "rechnungsnummer": {
+                "type": "string"
+              },
+              "satz": {
+                "description": "wie im Vorsystem erklärt, 0 = nicht steuerbar; ohne Angabe kein Skonto",
+                "enum": [
+                  "19",
+                  "7",
+                  "0"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "kontakt_id",
+              "betrag",
+              "rechnungsnummer",
+              "rechnungsdatum"
+            ],
+            "type": "object"
+          },
+          "type": [
+            "null",
+            "array"
+          ]
+        },
+        "vorsystem": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "mandant_id",
+        "beleg_id",
+        "konten"
+      ],
+      "type": "object"
+    },
+    "name": "eroeffnung_buchen",
+    "title": "Eröffnung buchen"
   },
   "forderung_ausbuchen": {
     "annotations": {

@@ -4,7 +4,7 @@
 
 Anforderungen: GOB-01, GOB-06. Code: `service.FoundationService`,
 `service/foundation_capital.go`, `service/foundation_opening.go`,
-`service/opening_balance.go`, `internal/accounting/gruendung.go`.
+`internal/accounting/gruendung.go`.
 
 Diese Seite beschreibt den buchhalterischen Teil. Behördenwege und Reihenfolge
 der Gründung begleitet der Agent nach
@@ -21,9 +21,9 @@ und ist meist ein Rumpfjahr. Gründungskosten wie Notar und Gericht sind sofort
 Aufwand ([§ 248 Abs. 1 Nr. 1 HGB][hgb248]), etwa auf **6825** Rechts- und
 Beratungskosten.
 
-Wer mit bestehenden Büchern umsteigt, beginnt mit der Eröffnungsbilanz aus dem
-Altsystem. Ihre Eröffnungsbuchungen rechnet
-`service.JournalService.BookOpeningBalance`; weder App noch MCP rufen sie auf.
+Wer mit bestehenden Büchern umsteigt, beginnt mit der Schlussbilanz des
+Vorsystems; eine Gründung erfasst er nicht. Den Weg beschreibt
+[Umstieg aus einem Vorsystem](umstieg.md).
 
 ## Kapitalaufbringung
 
@@ -118,28 +118,6 @@ E-Bilanz des ersten Geschäftsjahres und `ebilanz_exportieren` mit
 `bilanzart: eroeffnungsbilanz` aus. Der Pflichtenkalender führt Aufstellung
 und E-Bilanz der Eröffnungsbilanz als Pflichten
 ([Pflichten und Erklärungen](pflichten-und-erklaerungen.md)).
-
-Der Dienst für den Umstieg erzeugt Eröffnungsbuchungen gegen **9000**
-(Sachkonten), **9008** (Debitoren) und **9009** (Kreditoren). Er nimmt nur
-Bestandskonten zum regulären Geschäftsjahresbeginn an. Die Schlussbilanz des
-Vorsystems muss als Beleg abgelegt sein. Offene Posten werden einzeln mit
-Kontakt, Rechnungsnummer, Rechnungsdatum und gegebenenfalls Fälligkeit
-übernommen. Die Buchungen entstehen alle oder keine; unausgeglichene Bestände
-weist der Dienst ab. Nach vollständigem Storno im selben Geschäftsjahr lässt
-sich die Übernahme berichtigen. Der Nachweis behält dabei sein ursprüngliches
-Siegel.
-
-Übernommene Posten können den ursprünglichen Steuerfall und Steuersatz
-speichern, ohne erneut Steuerumsatz zu buchen. Unterstützt sind inländische
-Rechnungen mit 19 oder 7 Prozent sowie nicht steuerbare Posten. Fehlen die
-Steuerdaten, bleibt der Steuerfall unbekannt: vollständige Zahlungen sind
-möglich, Skonto und Forderungsausfall werden abgewiesen. Bekannte Steuerdaten
-stehen dem Zahlungsausgleich und der Ausbuchung zur Verfügung.
-
-Der Umstiegsdienst hat noch keinen Aufruf in App oder Werkzeug. Es fehlen
-außerdem der menschlich festgelegte Beginn der Bücher, historische
-Anlagenbewegungen und die Abstimmung mit der Schlussbilanz einschließlich
-Prüflauf. Der Umstieg ist deshalb noch kein nutzbarer Einrichtungsweg.
 
 [estg5b]: https://www.gesetze-im-internet.de/estg/__5b.html
 [gmbhg5a]: https://www.gesetze-im-internet.de/gmbhg/__5a.html

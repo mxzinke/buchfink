@@ -121,6 +121,15 @@ func (s *ObligationService) begin(ctx context.Context, today string) (*obligatio
 		r.start = founded
 	}
 	r.foundedHere = r.cfg.FoundedOn != "" && (firstYear == "" || r.cfg.FoundedOn >= addDays(firstYear, -366))
+	// Ein Umsteiger bringt seine Bücher mit: was aus der Gründung folgt, hat er
+	// im Vorsystem erledigt.
+	if r.foundedHere && s.settings != nil {
+		takeover, err := takeoverDate(ctx, s.settings)
+		if err != nil {
+			return nil, err
+		}
+		r.foundedHere = takeover == ""
+	}
 	return r, nil
 }
 

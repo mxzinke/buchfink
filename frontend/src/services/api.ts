@@ -65,6 +65,10 @@ import type {
   Foundation,
   FoundationRules,
   FoundationState,
+  TakeoverPreview,
+  TakeoverReconciliation,
+  TakeoverRequest,
+  TakeoverState,
   InboxAdded,
   InboxFile,
   InboxInfo,
@@ -1008,6 +1012,18 @@ export const Api = {
    * PDF zum Unterzeichnen. Leer heißt: der Dialog wurde abgebrochen.
    */
   saveOpeningBalanceAs: (): Promise<string> => call(() => Bridge.SaveOpeningBalanceAs()),
+
+  // --- Umstieg aus einem Vorsystem --------------------------------------
+
+  /** Der festgelegte Umstieg mit der Abstimmung der Eröffnung. */
+  getTakeover: (): Promise<TakeoverReconciliation> =>
+    call(() => Bridge.GetTakeover() as Promise<TakeoverReconciliation>),
+  /** Legt den Beginn mit bestehenden Büchern fest; leer nimmt ihn zurück. */
+  setTakeoverDate: (date: string): Promise<TakeoverState> =>
+    call(() => Bridge.SetTakeoverDate(date) as Promise<TakeoverState>),
+  /** Rechnet die Eröffnung aus der Schlussbilanz des Vorsystems oder bucht sie. */
+  takeover: (request: TakeoverRequest, preview: boolean): Promise<TakeoverPreview> =>
+    call(() => (preview ? Bridge.PreviewTakeover(request) : Bridge.BookTakeover(request)) as Promise<TakeoverPreview>),
   /** Die Kapitalaufbringungsregeln der Kapitalgesellschaften. */
   getFoundationRules: (): Promise<FoundationRules[]> =>
     call(() => Bridge.GetFoundationRules() as Promise<FoundationRules[]>),

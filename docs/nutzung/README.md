@@ -123,7 +123,8 @@ Danach:
   anderen Datenträger. Ohne Ziel sichert Buchfink nicht. Siehe
   [Datensicherheit](datensicherheit.md#sicherung).
 - Mit dem Agenten die **Eröffnung** vorbereiten: bei einer Gründung Stammkapital
-  und Einzahlung, beim Umstieg die Eröffnungsbilanz aus den bisherigen Büchern.
+  und Einzahlung, beim Umstieg die Bestände aus den bisherigen Büchern
+  ([Einstieg mit bestehenden Büchern](#einstieg-mit-bestehenden-büchern)).
   Nach einer Gründung speichern Sie unter Unternehmen › Stammdaten, Block
   „Gesellschafter & Kapital“, an der Pflicht „Aufstellung der Eröffnungsbilanz“
   mit „Als PDF speichern“ die Eröffnungsbilanz. Alle Geschäftsführer
@@ -133,6 +134,35 @@ Danach:
   Rückfrage ([Was der Agent darf](ki-agenten/README.md#was-der-agent-darf)).
 - Fehlende **Unternehmensdaten** nachtragen, sobald eine Aufgabe danach fragt.
   Das geht nur in der App.
+
+## Einstieg mit bestehenden Büchern
+
+Führen Sie Ihre Bücher bisher in einem anderen Programm, steigen Sie zum
+ersten Tag eines Geschäftsjahres um. Das Vorjahr schließen Sie im bisherigen
+Programm ab.
+
+1. **Umstieg festlegen.** In der Einrichtung wählen Sie „Umstieg“ und den
+   ersten Tag in Buchfink. Später geht das unter Unternehmen › Stammdaten im
+   Block „Umstieg“. Das können nur Sie; ohne diese Angabe nimmt Buchfink keine
+   Bestände an.
+2. **Unterlagen bereitlegen.** Schlussbilanz oder Summen- und Saldenliste zum
+   letzten Tag des Vorjahres, die Listen der offenen Rechnungen Ihrer Kunden
+   und Lieferanten und das Anlagenverzeichnis mit Anschaffungskosten und
+   bisheriger Abschreibung. Legen Sie die Dateien in den Eingang.
+3. **Eröffnung buchen.** Sagen Sie Ihrem Agenten „Übernimm die Eröffnung aus
+   der Schlussbilanz im Eingang.“ Er legt die Schlussbilanz ab, zeigt Ihnen
+   die Vorschau und bucht nach Ihrer Zustimmung. Selbst erfassen Sie die
+   Eröffnung im Block „Umstieg“ mit „Eröffnung erfassen“.
+4. **Abstimmung ansehen.** Der Block „Umstieg“ stellt jedes Konto der
+   Schlussbilanz dem gebuchten Bestand gegenüber, dazu offene Posten und
+   Anlagen. Solange eine Differenz besteht, lässt sich der erste Monat nicht
+   festschreiben.
+
+Buchfink übernimmt die Bestände, keine Buchungen des Vorjahres. Bewahren Sie
+das bisherige Programm und seine Daten auf; den Tag der Umstellung tragen Sie
+unter Einstellungen ein. Was der Umstieg nicht abdeckt, etwa einen Wechsel im
+laufenden Jahr, steht unter
+[Umfang und Grenzen](umfang.md#was-buchfink-nicht-abdeckt).
 
 ## Mit dem Agenten arbeiten
 

@@ -90,6 +90,7 @@ var tools = []Operation{
 	Define("status", Read),
 	Define("verfahrensdoku_text", Confirm),
 	Define("anhang_text", Confirm),
+	Define("eroeffnung_buchen", Confirm),
 }
 
 var catalog = buildCatalog()

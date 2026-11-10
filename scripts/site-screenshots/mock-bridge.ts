@@ -3183,6 +3183,24 @@ export const bridge = {
       }, 80),
     ),
   GetFoundationState: () => later(FOUNDATION_STATE),
+  GetTakeover: () =>
+    later({
+      date: '',
+      fiscalYear: 0,
+      booked: false,
+      accounts: [],
+      subLedgers: [],
+      statementAssets: 0,
+      statementLiabilities: 0,
+      bookedAssets: 0,
+      bookedLiabilities: 0,
+      carryForwardBalance: 0,
+      differences: [],
+      reconciled: false,
+    }),
+  SetTakeoverDate: unsupported('SetTakeoverDate'),
+  PreviewTakeover: unsupported('PreviewTakeover'),
+  BookTakeover: unsupported('BookTakeover'),
 
   // Nachweise, Sicherung und Datenüberlassung
   GetAuditLogsFiltered: () => later(AUDIT_LOGS, 60),

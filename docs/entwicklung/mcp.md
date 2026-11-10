@@ -87,6 +87,7 @@ wird angelegt.
 | `festschreiben` | nur App | Festschreibung | Erfassungsweg ui im Kern oder Dienst |
 | `feststellung_zuruecknehmen` | nur App | Feststellung zurücknehmen | Erfassungsweg ui im Kern oder Dienst |
 | `gruendung_erfassen` | nur App | Gründung mit Gesellschaftern erfassen | Erfassungsweg ui im Kern oder Dienst |
+| `umstieg_festlegen` | nur App | Umstieg festlegen: Beginn mit bestehenden Büchern und sein Tag | Erfassungsweg ui im Kern oder Dienst |
 | `mandant_anlegen` | nur App | Mandant mit Ablage anlegen | Erfassungsweg ui im Kern oder Dienst |
 | `mandant_entfernen` | nur App | Mandant aus der Liste entfernen | Erfassungsweg ui im Kern oder Dienst |
 | `mandant_wechseln` | nur App | Mandant wechseln | Erfassungsweg ui im Kern oder Dienst |
@@ -155,7 +156,7 @@ den Schemas nur kurz.
 | `buchung_lesen` | lesen | eine Buchung mit allen Zeilen und Storno-Bezügen |
 | `offene_posten` | lesen | Forderungen und Verbindlichkeiten, Altersstruktur, Verzugszinsen, Mahnstand |
 | `bankumsaetze` | lesen | Bankumsätze mit den besten Zuordnungsvorschlägen, Einstufung und Prüfstand des Auszugs |
-| `auswertung` | lesen | Summen und Salden, Kontoblatt eines Sachkontos, Bilanz, GuV, USt-Übersicht, Prüfbericht, Gesellschafterdarlehen mit Stand und Befunden, Unterbilanz der Gründung (`FoundationService.GetState`) |
+| `auswertung` | lesen | Summen und Salden, Kontoblatt eines Sachkontos, Bilanz, GuV, USt-Übersicht, Prüfbericht, Gesellschafterdarlehen mit Stand und Befunden, Unterbilanz der Gründung (`FoundationService.GetState`), Abstimmung der Eröffnung eines Umsteigers mit der Schlussbilanz des Vorsystems (`art: umstieg`, `TakeoverService.Reconciliation`) |
 | `anlage_fertigstellen` | rueckfrage | Anlage im Bau umbuchen; AfA ab Fertigstellung |
 | `anlage_abgehen` | rueckfrage | Verkauf oder Verschrottung mit Vorschau; Rücknahme auch ohne Buchung |
 | `anlagen` | lesen | Anlagenverzeichnis mit Beschreibung, Kennung, Kennzeichen, Nutzungsquote und Stückbestand, fällige AfA, Aktivierungskandidaten |
@@ -189,6 +190,7 @@ den Schemas nur kurz.
 | `ergebnisverwendung_buchen` | rueckfrage | Gesellschafterbeschluss über das Ergebnis im Folgejahr buchen: Rücklagen, Ausschüttung mit Kapitalertragsteuer, Vortrag; erst nach der Feststellung durch den Menschen |
 | `verfahrensdoku_text` | rueckfrage | Organisationstexte der Verfahrensdokumentation lesen und ändern; ohne `texte` nur lesen, dafür genügt `buchfink:lesen`, auch im Prüfermodus |
 | `anhang_text` | rueckfrage | Anhangabschnitte je Geschäftsjahr lesen und Entwürfe speichern; ohne `texte` nur lesen mit `buchfink:lesen`. Nach Aufstellung gesperrt bis zur Rücknahme in der App. |
+| `eroeffnung_buchen` | rueckfrage | Umstieg aus einem Vorsystem: Eröffnungsbuchungen zum festgelegten Tag aus der abgelegten Schlussbilanz (`beleg_id`), mit offenen Posten je Rechnung und Anlagen je Anlagegut; `nur_vorschau` zeigt Buchungen, Anlagen und `differenzen`; ohne in der App festgelegten Umstieg abgewiesen (`TakeoverService.Book`) |
 
 Eine Auslage eines Gesellschafters bucht `beleg_buchen_mit_rueckfrage` mit
 `bezahlung: auslage`; ein eigenes Werkzeug gibt es dafür nicht.

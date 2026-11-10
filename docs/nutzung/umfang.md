@@ -17,6 +17,8 @@
   Erklärung erstellt.
 - Geschäftsjahr gleich Kalenderjahr oder abweichend, mit Rumpfjahr bei Gründung
   oder Umstellung.
+- Neu gegründet oder mit bestehenden Büchern: ein Umsteiger beginnt zum ersten
+  Tag eines Geschäftsjahres mit der Schlussbilanz seines bisherigen Programms.
 
 ## Was Buchfink abdeckt
 
@@ -27,6 +29,7 @@
 | Ausgangsrechnungen | Stornorechnung und Berichtigung mit Vorschau in App und Werkzeug; ZUGFeRD und XRechnung im CII-Format, überfällige Posten mit Verzugszinsen. |
 | Lohn | Das Lohnjournal eines externen Lohnbüros als Monatssumme buchen und die Lohnkonten abstimmen. |
 | Umsatzsteuer | Voranmeldung mit Rückverfolgung bis zur Buchung, Dauerfristverlängerung, Sondervorauszahlung, Zusammenfassende Meldung für sonstige Leistungen, Mindest-Istversteuerung bei Zahlung vor der Leistung, Verzeichnis nach § 15a UStG, Bestätigung von USt-IdNrn. |
+| Umstieg | Eröffnung aus der Schlussbilanz des bisherigen Programms: Bestände je Konto, jede offene Rechnung einzeln, jedes Anlagegut mit Anschaffungskosten und bisheriger Abschreibung. Die Abstimmung zeigt jede Differenz zur Schlussbilanz. |
 | Anlagen | Verkauf, Verschrottung, Fertigstellung, Wertminderung, Zuschreibung und Fremdwährungs-Finanzanlagen in App und Werkzeug; Storno stellt die Kartei wieder her. Beschreibende Stammdaten mit Grund und Änderungsprotokoll in der App pflegen; Stückzahlen nur vor Buchung und Folgebewegungen in offener Periode. Anlagenkartei, lineare und degressive Abschreibung, geringwertige Wirtschaftsgüter, Sammelposten, Sonderabschreibung nach § 7g EStG. |
 | Jahresabschluss | Anhangtexte je Geschäftsjahr in der App, Entwürfe durch Agenten nach Rückfrage, Freigabe beim Aufstellen. Abschlussperiode zwischen Dezember- und Jahresfestschreibung, Bausteine von der Abschreibung über Wertberichtigung, unfertige Leistungen, Abgrenzung und Rückstellungen bis zur Steuerrückstellung, Bilanz und GuV nach §§ 266, 275 HGB, gesetzliche Rücklage der UG, Ergebnisverwendung und Saldenvortrag. |
 | Erklärungen | Körperschaftsteuer, Gewerbesteuer und Umsatzsteuer-Jahreserklärung formularnah mit der Herkunft jedes Werts, als Eingabehilfe für Mein ELSTER und als JSON. E-Bilanz als XBRL nach der amtlichen Taxonomie 6.9 oder 6.10, ersatzweise als Summen- und Saldenliste für eBilanz+. |
@@ -56,6 +59,7 @@ die Zuordnung muss fachlich geklärt werden.
 | Steuerfälle | Unterstützt sind Inland mit 19 % und 7 %, Nullsteuersatz nach § 12 Abs. 3 UStG, steuerfrei, nicht steuerbar, § 13b UStG als Empfänger, innergemeinschaftlicher Erwerb und sonstige Leistungen mit Steuerschuld des Empfängers. Nicht unterstützt: eigene Kleinunternehmerregelung, OSS und IOSS, Differenzbesteuerung, Reiseleistungen. |
 | Warenverkehr | Keine innergemeinschaftliche Lieferung, keine Ausfuhr, keine Vorräte und keine Inventur. |
 | Genossenschaftsanteile | Erträge aus Anteilen an einer eingetragenen Genossenschaft, etwa einer Volksbank, bucht Buchfink nicht von selbst und schlägt kein Ertragskonto vor. Die Mitgliedschaft gilt nicht als Beteiligung ([§ 271 Abs. 1 Satz 5 HGB][hgb271]); die Buchung legt der Agent Ihnen zur Rückfrage vor, im Zweifel klären Sie sie mit dem Steuerberater. |
+| Umstieg | Nur zum ersten Tag eines Geschäftsjahres, nicht im laufenden Jahr. Buchfink übernimmt Bestände, keine Buchungen des Vorjahres: Bilanz und GuV des ersten Jahres zeigen kein Vorjahr, und steuerliche Verlustvorträge geben Sie bei der Steuerrückstellung an. Rückstellungen und Abgrenzungen stehen als Kontobestand. Offene Posten in Fremdwährung, Anzahlungen, sofort abgezogene geringwertige Wirtschaftsgüter und die Sonderabschreibung nach § 7g EStG übernimmt die Eröffnung nicht. |
 | Kasse | Kein Kassenbuch. Jede Zahlung läuft über ein Bankkonto, die Firmenkreditkarte oder eine Auslage. |
 | Lohnabrechnung | Buchfink rechnet keine Löhne ab. Lohnsteuer-Anmeldung und Beitragsnachweise kommen vom Lohnbüro. |
 | Übermittlung | Buchfink übermittelt nichts an Finanzamt oder Register. Voranmeldung, Zusammenfassende Meldung und Jahreserklärungen übertragen Sie selbst, etwa in Mein ELSTER. Die E-Bilanz übermitteln Sie über einen E-Bilanz-Dienst wie ebilanzplus.de oder ebilanzonline.de, weil Mein ELSTER kein Formular dafür hat ([E-Bilanz übermitteln](README.md#e-bilanz-übermitteln)). Die Offenlegung geschieht im Unternehmensregister. |

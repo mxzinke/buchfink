@@ -7,6 +7,7 @@ import type {
   Deadline,
   FoundationRules,
   FoundationState,
+  TakeoverReconciliation,
 } from '../../types';
 import { useWorkspace } from '../../workspace';
 import { Button, Notice, SkeletonRows } from '../../components/ui';
@@ -16,12 +17,14 @@ import { BankBlock } from './BankBlock';
 import { CapitalBlock } from './CapitalBlock';
 import { FirmBlock } from './FirmBlock';
 import { COMPANY_OBLIGATIONS } from '../../utils/obligations';
+import { TakeoverBlock } from './TakeoverBlock';
 import { TaxBlock } from './TaxBlock';
 
 interface ProfileData {
   settings: CompanySettings;
   tradeTaxRatePercent: number;
   foundation: FoundationState | null;
+  takeover: TakeoverReconciliation | null;
   rules: FoundationRules[];
   countries: Country[];
   deadlines: Deadline[];
@@ -42,12 +45,12 @@ async function companyDeadlines(years: number[]): Promise<Deadline[]> {
 }
 
 /**
- * Die Stammdaten in fünf Blöcken. Jeder Block zeigt, was fehlt, und die
+ * Die Stammdaten in Blöcken. Jeder Block zeigt, was fehlt, und die
  * wichtigsten Angaben; bearbeitet wird in der Seitenleiste. Firma, Anschrift,
- * Steuern, Gesellschafter und Bankkonten ändert nur der Mensch; Claude schlägt
- * Änderungen vor, die er nach der Vorschau übernimmt. Darlehen mit
- * Gesellschaftern im Block der Gesellschafter erfasst und berichtigt auch
- * Claude.
+ * Steuern, Gesellschafter, Bankkonten und den Umstieg ändert nur der Mensch;
+ * Claude schlägt Änderungen vor, die er nach der Vorschau übernimmt. Darlehen
+ * mit Gesellschaftern im Block der Gesellschafter und die Eröffnung eines
+ * Umsteigers erfasst auch Claude.
  */
 export const ProfilePage: React.FC = () => {
   const workspace = useWorkspace();
@@ -62,8 +65,9 @@ export const ProfilePage: React.FC = () => {
         Api.getFoundationRules(),
         Api.getCountries(),
       ]);
-      const [foundation, deadlines, proposals] = await Promise.all([
+      const [foundation, takeover, deadlines, proposals] = await Promise.all([
         Api.getFoundationState().catch(() => null),
+        Api.getTakeover().catch(() => null),
         companyDeadlines(workspace.availableYears),
         Api.getMasterDataProposals().catch(() => []),
       ]);
@@ -71,6 +75,7 @@ export const ProfilePage: React.FC = () => {
         settings,
         tradeTaxRatePercent: closing?.tradeTaxRatePercent ?? 400,
         foundation,
+        takeover,
         rules,
         countries,
         deadlines,
@@ -164,6 +169,7 @@ export const ProfilePage: React.FC = () => {
         onSave={saveSettings}
         onReload={() => void load()}
       />
+      <TakeoverBlock takeover={data.takeover} foundation={data.foundation} onReload={() => void load()} />
     </div>
   );
 };

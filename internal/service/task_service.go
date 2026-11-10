@@ -352,6 +352,11 @@ func checkRuleTask(rule string) (title, why, reference string) {
 		return "Bestätigung der USt-IdNr. nachholen",
 			"Die gültige Nummer weist den Empfänger als Unternehmer aus; daran hängt der Leistungsort im Ausland.",
 			"§ 3a Abs. 2 UStG, § 18e UStG"
+	case domain.CheckRuleTakeoverOpening:
+		return "Eröffnung aus dem Vorsystem abstimmen",
+			"Die Bücher beginnen mit den Beständen der Schlussbilanz des Vorjahres; die Eröffnung fehlt oder " +
+				"weicht davon ab.",
+			"§ 252 Abs. 1 Nr. 1 HGB"
 	default:
 		return "Prüfbefunde ansehen",
 			"Der Prüflauf hat etwas gefunden, das vor der Festschreibung geklärt sein sollte.",

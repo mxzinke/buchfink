@@ -224,6 +224,11 @@ type AgentServices struct {
 		ExportCSV(context.Context, uint) (string, error)
 		Draft(context.Context, string) (*domain.ZMReturn, error)
 	}
+	Takeover interface {
+		Book(context.Context, service.TakeoverRequest) (*service.TakeoverPreview, error)
+		Preview(context.Context, service.TakeoverRequest) (*service.TakeoverPreview, error)
+		Reconciliation(context.Context) (*service.TakeoverReconciliation, error)
+	}
 }
 
 // AgentServices liefert die begrenzte Sicht innerhalb eines Kernvorgangs.
@@ -263,5 +268,6 @@ func (s *Services) AgentServices() AgentServices {
 		Vat:             s.Vat,
 		VatReturns:      s.VatReturns,
 		ZM:              s.ZM,
+		Takeover:        s.Takeover,
 	}
 }

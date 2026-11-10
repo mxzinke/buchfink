@@ -64,15 +64,9 @@ und 3.
 
 ## 6. Bestehende GmbH wechselt zu Buchfink
 
-Eröffnungsbuchungen eines Umsteigers bildet Buchfink nicht ab; sag das dem
-Menschen, bevor er Daten überträgt. Fachlich wären es Sachkonten gegen 9000
-Saldenvorträge und offene Posten einzeln gegen 9008 (Debitoren) und 9009
-(Kreditoren), Beleg ist die Schlussbilanz des Altsystems.
-
-Dein Teil: Schlussbilanz und Saldenliste des Altsystems mit `beleg_ablegen`
-ablegen, offene Forderungen und Verbindlichkeiten mit Belegnummer,
-Belegdatum, Fälligkeit und Kontakt auflisten, fehlende Kontakte mit
-`kontakt_anlegen` anlegen.
+Ein Umsteiger stellt keine Eröffnungsbilanz auf. Er übernimmt die
+Schlussbilanz des Vorjahres mit offenen Posten und Anlagen:
+[umstieg.md](umstieg.md).
 
 [gmbhg13]: https://www.gesetze-im-internet.de/gmbhg/__13.html
 [hgb6]: https://www.gesetze-im-internet.de/hgb/__6.html

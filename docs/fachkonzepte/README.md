@@ -19,6 +19,7 @@ steht im Skill unter `skills/buchfink/`.
 | Abschlussperiode, Bausteine, Steuerrückstellung, Feststellung | [Jahresabschluss](jahresabschluss.md) |
 | Pflichtenkalender, Jahreserklärungen, E-Bilanz | [Pflichten und Erklärungen](pflichten-und-erklaerungen.md) |
 | Kapitalaufbringung, Unterbilanz, Eröffnungsbilanz | [Gründung und Eröffnung](gruendung.md) |
+| Bestehende Bücher übernehmen: Eröffnung, offene Posten, Anlagen, Abstimmung | [Umstieg aus einem Vorsystem](umstieg.md) |
 
 Alle Kontonummern beziehen sich auf den DATEV-Kontenrahmen SKR04 2026
 (`internal/accounting/skr04_2026.json`).

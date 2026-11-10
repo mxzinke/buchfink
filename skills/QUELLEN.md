@@ -980,8 +980,8 @@ Aussage abgeglichen.
 
 Quellen des Bereichs `references/gruendung/` (ablauf.md und Referenzen
 `gruendungsweg`, `kapitalaufbringung`, `gruendungskosten`,
-`eroeffnungsbilanz`, `steuerliche-erfassung`, `rumpfjahr`). Links am
-17.10.2026 mit HTTP 200 geprüft. Normen, die schon unter
+`eroeffnungsbilanz`, `umstieg`, `steuerliche-erfassung`, `rumpfjahr`). Links am
+17.10.2026 mit HTTP 200 geprüft, die von `umstieg` am 10.11.2026. Normen, die schon unter
 Bereich steuererklaerungen stehen (§§ 7 KStG, 5b, 16, 18 UStG, §§ 20, 108,
 149 AO, § 48 UStDV, § 14, § 16 GewStG), sind dort mit „gruendung“ vermerkt.
 
@@ -1010,7 +1010,11 @@ Bereich steuererklaerungen stehen (§§ 7 KStG, 5b, 16, 18 UStG, §§ 20, 108,
 | § 6 HGB | (Zeile unter grundlagen) | Handelsgesellschaften wie Kaufleute (Abs. 1) | Text | gruendung/eroeffnungsbilanz |
 | § 12 HGB | https://www.gesetze-im-internet.de/hgb/__12.html | Anmeldung elektronisch, öffentlich beglaubigt (Abs. 1) | Text | grundlagen/pflichten; gruendung/gruendungsweg |
 | § 240 HGB | (Zeile unter grundlagen) | Inventar zu Beginn (Abs. 1), höchstens zwölf Monate (Abs. 2) | Text | gruendung/eroeffnungsbilanz, rumpfjahr |
-| § 242 HGB | (Zeile unter grundlagen) | Eröffnungsbilanz, Bilanzvorschriften entsprechend (Abs. 1) | Text | gruendung/eroeffnungsbilanz, rumpfjahr |
+| § 238 HGB | (Zeile unter grundlagen) | Bücher führen, Verfolgbarkeit der Geschäftsvorfälle (Abs. 1) | Text 10.11.2026 | gruendung/umstieg |
+| § 242 HGB | (Zeile unter grundlagen) | Eröffnungsbilanz, Bilanzvorschriften entsprechend (Abs. 1); zu Beginn des Handelsgewerbes, beim Umstieg keine neue | Text; Abs. 1 erneut 10.11.2026 | gruendung/eroeffnungsbilanz, rumpfjahr, umstieg |
+| § 252 HGB | (Zeile unter bank) | Abs. 1 Nr. 1: Wertansätze der Eröffnungsbilanz des Geschäftsjahrs gleich denen der Schlussbilanz des Vorjahres | Text 10.11.2026 | gruendung/umstieg |
+| § 265 HGB | https://www.gesetze-im-internet.de/hgb/__265.html | Abs. 2 Satz 1: Vorjahresbetrag zu jedem Posten von Bilanz und GuV | Text 10.11.2026 | gruendung/umstieg |
+| § 147 AO | (Zeile unter grundlagen) | Abs. 6 Satz 5: Wechsel des Datenverarbeitungssystems, maschinell auswertbarer Datenträger nach Ablauf des fünften Kalenderjahres | Text 10.11.2026 | gruendung/umstieg |
 | § 248 HGB | https://www.gesetze-im-internet.de/hgb/__248.html | kein Aktivposten für Gründung und Eigenkapitalbeschaffung (Abs. 1 Nr. 1, 2) | Text | gruendung/gruendungskosten |
 | § 264 HGB | (Zeile unter grundlagen) | Aufstellung drei bzw. sechs Monate (Abs. 1 Satz 3, 4) | Text | gruendung/rumpfjahr |
 | § 267 HGB | (Zeile unter grundlagen) | Neugründung: erster Stichtag entscheidet (Abs. 4 Satz 2) | Text | gruendung/rumpfjahr |
@@ -1069,7 +1073,8 @@ Bereich steuererklaerungen stehen (§§ 7 KStG, 5b, 16, 18 UStG, §§ 20, 108,
 |---|---|---|
 | Gründungsregeln | `internal/accounting/gruendung.go` | `FoundationRules`, `RequiredPaidIn` (Viertel, 12.500 €, Sacheinlage voll), `RecommendedVatPeriod` |
 | Gründungsdienst | `internal/service/foundation_service.go`, `internal/domain/foundation.go` | Unterbilanz (App: `frontend/src/pages/company/UnterbilanzSection.tsx`; Werkzeug: `auswertung` mit `art: unterbilanz`), `FoundationCostCap`; Gründungsbuchungen aus den Stammdaten im Dienst ohne Erfassungsweg, der Agent bucht sie mit `buchung_erfassen` |
-| Eröffnungsbilanz Gründung und Umsteiger | `internal/service/foundation_opening.go`, `internal/service/opening_balance.go` | Stichtag Beurkundung; Umsteiger gegen 9000, 9008, 9009 mit Schlussbilanz als Beleg |
+| Eröffnungsbilanz der Gründung | `internal/service/foundation_opening.go` | Stichtag Beurkundung |
+| Umstieg | `internal/service/takeover_service.go`, `takeover_booking.go`, `takeover_reconciliation.go`, `opening_balance.go`, `internal/mcpserver/eroeffnung.go` | festgelegter Tag (nur App), `eroeffnung_buchen` gegen 9000, 9008, 9009 mit Schlussbilanz als Beleg, Kontrollsummen 1200 und 3300, Anlagen mit Bewegung `takeover`, `auswertung` mit `art: umstieg`, Prüflaufregel `takeover_opening` |
 | E-Bilanz der Eröffnungsbilanz | `internal/service/ebilanz_service.go` (`EBilanzOptions.Kind`), `internal/mcpserver/erklaerung.go` | `ebilanz_exportieren` mit `bilanzart: eroeffnungsbilanz`: Stichtag Gründungsdatum der Stammdaten, nur im Geschäftsjahr der Gründung und mit Buchungen bis zu diesem Tag |
 | Firmenzusatz | `internal/domain/settings.go` (`FirmName`) | „i. G.“ bis zur Eintragung |
 | Einrichtungsassistent | `frontend/src/components/SetupAssistantScreen.tsx` | Erfassung der Gründungsangaben (nur App) |
@@ -1093,6 +1098,15 @@ Bereich steuererklaerungen stehen (§§ 7 KStG, 5b, 16, 18 UStG, §§ 20, 108,
 - **Fachkonzept falsch:** `docs/fachkonzepte/gruendung.md` nennt für die
   Gewerbeanmeldung „einen Monat“; § 14 Abs. 1 GewO verlangt die Anzeige
   „gleichzeitig“.
+- **Umstieg, nicht abgebildet:** Umstieg im laufenden Geschäftsjahr,
+  Vorjahreszahlen in Bilanz und GuV des ersten Jahres (§ 265 Abs. 2 HGB),
+  Rückstellungsspiegel, § 15a-Verzeichnis, Sonderabschreibung nach § 7g EStG
+  und Stückzahlen übernommener Anlagen, offene Posten in Fremdwährung,
+  Anzahlungen. Nach einem Storno der Eröffnung lassen sich die übernommenen
+  Anlagen nicht neu erfassen.
+- **Umstieg, Satzzählung:** `accounting.SystemChangeNote` nennt § 147 Abs. 6
+  Satz 6 AO. Der Wortlaut am 10.11.2026 hat den Wechsel des
+  Datenverarbeitungssystems in Satz 5.
 - Anker der Monatsfrist (§§ 137, 138 AO): Skill rechnet ab Beurkundung wie das
   Fachkonzept; nicht durch Verwaltungsanweisung belegt.
 - Unterbilanzhaftung nur über Sekundärquellen; Gründungskosten-vGA über BFH I R 12/87 (Haufe-Wiedergabe), Volltext des BGH-Beschlusses II ZB 10/88 nicht gelesen. Versuch 10.11.2026: Für BGH II ZR 54/80 (1981), BGH II ZB 10/88 (1989), BFH I R 12/87 (1989) und das BMF-Schreiben vom 25.06.1991 fand sich kein amtlicher Volltext.

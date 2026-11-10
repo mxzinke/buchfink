@@ -49,6 +49,8 @@ var reserved = []Operation{
 		[]string{"service.FoundationService.Save"}, []string{"SaveFoundation"}),
 	reserve("eintragung_erfassen", "Eintragung ins Handelsregister erfassen", Channel,
 		[]string{"service.FoundationService.Register"}, []string{"RegisterCompany"}),
+	reserve("umstieg_festlegen", "Umstieg festlegen: Beginn mit bestehenden Büchern und sein Tag", Channel,
+		[]string{"service.TakeoverService.SetDate"}, []string{"SetTakeoverDate"}),
 	reserve("abschlusseinstellungen_aendern", "Abschluss-Einstellungen ändern", Channel,
 		[]string{"service.ClosingSettingsService.Save"}, []string{"SaveClosingSettings"}),
 	reserve("agentregeln_aendern", "Regeln für direktes Buchen sowie Export- und Leseordner ändern", Channel,

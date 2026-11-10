@@ -889,8 +889,11 @@ func (s *ClosingService) openItemsAt(ctx context.Context, cutoff string) ([]carr
 	for i := range entries {
 		entry := &entries[i]
 		// Der Vortrag des Vorjahres ist kein offener Posten, sondern seine
-		// Wiederholung. Ihn erneut vorzutragen verdoppelte die Forderung.
-		if entry.Source == domain.EntrySourceOpening {
+		// Wiederholung. Ihn erneut vorzutragen verdoppelte die Forderung. Die
+		// Eröffnung eines Umsteigers begründet dagegen eigene Posten; sie
+		// gehen wie jede Rechnung ins Folgejahr.
+		if entry.Source == domain.EntrySourceOpening &&
+			entry.DocumentNumber == carryForwardReference(entry.FiscalYear) {
 			continue
 		}
 		line, ok := ledgerLine(entry)

@@ -241,6 +241,12 @@ export const bridge = {
     invoke<T>('SaveFoundation', notarizedOn, foundation),
   SaveOpeningBalanceAs: () => invoke<string>('SaveOpeningBalanceAs'),
   GetFoundationRules: <T>() => invoke<T>('GetFoundationRules'),
+
+  // Umstieg aus einem Vorsystem
+  GetTakeover: <T>() => invoke<T>('GetTakeover'),
+  SetTakeoverDate: <T>(date: string) => invoke<T>('SetTakeoverDate', date),
+  PreviewTakeover: <T>(request: unknown) => invoke<T>('PreviewTakeover', request),
+  BookTakeover: <T>(request: unknown) => invoke<T>('BookTakeover', request),
   GetCountries: <T>() => invoke<T>('GetCountries'),
 
   // Datenüberlassung nach § 147 Abs. 6 AO

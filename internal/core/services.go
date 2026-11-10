@@ -39,6 +39,7 @@ type Services struct {
 	Settings        *service.SettingsService
 	Currency        *service.CurrencyService
 	Foundation      *service.FoundationService
+	Takeover        *service.TakeoverService
 	Closing         *service.ClosingService
 	ClosingSettings *service.ClosingSettingsService
 	Statement       *service.StatementService
