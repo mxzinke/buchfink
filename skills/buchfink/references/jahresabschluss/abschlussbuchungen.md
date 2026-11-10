@@ -36,10 +36,6 @@ Fertig, wenn jeder Saldo belegt ist oder der Mensch die offene Lücke kennt.
 ## 2. Abschlussbuchung mit `abschlussbuchung`
 
 Prüfe vor jeder Abschlussbuchung mit `buchungen_suchen`, ob es sie schon gibt.
-Vorschau und Buchung haben denselben `idempotenz_schluessel`, etwa
-`abschluss-2026-rst-abschlusskosten`. `abschlussbuchung` führt
-Anlagenverzeichnis, Rückstellungsspiegel und Auflösungsplan der Abgrenzung
-mit.
 
 Die Fachregeln je `art` stehen in der Referenz des Ablaufschritts
 ([ablauf.md](ablauf.md#3-ablauf)), `anlage_aktivieren` in

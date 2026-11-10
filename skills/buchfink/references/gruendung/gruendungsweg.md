@@ -24,10 +24,7 @@ Rechtsstand: 19. Oktober 2026.
 3. **Anmeldung** durch die Geschäftsführer beim Registergericht, öffentlich
    beglaubigt über den Notar ([§ 7 Abs. 1 GmbHG][gmbhg7],
    [§ 12 Abs. 1 HGB][hgb12]).
-4. **Eintragung**: Das Gericht lehnt ab bei fehlerhafter Errichtung oder
-   Anmeldung oder nicht unwesentlich überbewerteten Sacheinlagen
-   ([§ 9c Abs. 1 GmbHG][gmbhg9c]); eingetragen werden die Angaben nach
-   [§ 10 Abs. 1 GmbHG][gmbhg10].
+4. **Eintragung** nach [§ 9c Abs. 1][gmbhg9c], [§ 10 Abs. 1 GmbHG][gmbhg10].
 
 Die Abschrift der Gründungsurkunde, die der Notar binnen zwei Wochen ans
 Finanzamt schickt ([§ 54 Abs. 1, 2 EStDV][estdv54]), ersetzt den Fragebogen
@@ -35,15 +32,10 @@ zur steuerlichen Erfassung nicht.
 
 ## 2. Gesellschaftsvertrag
 
-- Pflichtinhalt: Firma und Sitz, Gegenstand, Stammkapital, Zahl und
-  Nennbeträge der Geschäftsanteile je Gesellschafter
-  ([§ 3 Abs. 1 GmbHG][gmbhg3]). Nennbeträge lauten auf volle Euro, ihre Summe
-  ist das Stammkapital ([§ 5 Abs. 2, 3 GmbHG][gmbhg5]); Sacheinlagen stehen
-  mit Gegenstand und Nennbetrag darin ([§ 5 Abs. 4 Satz 1 GmbHG][gmbhg5]).
-- Firmenzusatz „Gesellschaft mit beschränkter Haftung“ oder verständliche
-  Abkürzung ([§ 4 GmbHG][gmbhg4]); unter 25.000 € Stammkapital
-  „Unternehmergesellschaft (haftungsbeschränkt)“ oder „UG
-  (haftungsbeschränkt)“ ([§ 5a Abs. 1 GmbHG][gmbhg5a]).
+- Pflichtinhalt: [§ 3 Abs. 1][gmbhg3], [§ 5 Abs. 2–4 GmbHG][gmbhg5]: Firma und
+  Sitz, Gegenstand, Stammkapital, Zahl und Nennbeträge (volle Euro) der
+  Geschäftsanteile je Gesellschafter, Sacheinlagen mit Gegenstand und Nennbetrag.
+- Firmenzusatz: [§ 4][gmbhg4], [§ 5a Abs. 1 GmbHG][gmbhg5a].
 - Für Buchfink lies außerdem die Klausel zum Gründungsaufwand
   ([gruendungskosten.md, Abschnitt 2](gruendungskosten.md#2-wer-die-gründungskosten-trägt))
   und ein abweichendes Geschäftsjahr.

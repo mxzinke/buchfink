@@ -19,8 +19,7 @@ Dividenden und Fonds: [beteiligungen/dividenden.md](../beteiligungen/dividenden.
   Einkünfte sind gewerblich ([§ 8 Abs. 2 KStG][kstg8]), ohne
   Sparer-Pauschbetrag und Freistellungsauftrag ([§ 20 Abs. 8, 9 EStG][estg20],
   [§ 44a Abs. 1, 2 EStG][estg44a]).
-- Zinsen sind Ertrag des Zeitraums, auf den sie entfallen; Zinsen für das alte
-  Jahr, die erst im neuen gutgeschrieben werden, grenzt
+- Zinsen für das alte Jahr, die erst im neuen gutgeschrieben werden, grenzt
   [jahresabschluss/abgrenzung.md](../jahresabschluss/abgrenzung.md) ab.
 
 ## 2. Kapitalertragsteuer und Solidaritätszuschlag
@@ -39,7 +38,7 @@ Bei der GmbH mindert die Kapitalertragsteuer als Steuer vom Einkommen das
 Einkommen nicht ([§ 43 Abs. 1 Satz 1 EStG][estg43], [§ 10 Nr. 2 KStG][kstg10]).
 
 Beispiel: Zinsen 100,00 €; Kapitalertragsteuer 25,00 €; Solidaritätszuschlag
-1,375 €, also 1,37 €; Gutschrift 73,63 €.
+1,37 €; Gutschrift 73,63 €.
 
 ## 3. Buchung
 

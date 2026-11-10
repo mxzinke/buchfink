@@ -55,10 +55,6 @@ rechne dort mit dem Kalenderdatum.
 | Höhe Messbetrag und Feststellungen (GewSt 1 A, Einlagekonto) | 25 € je angefangenem Monat; vom Zwang befreit nur die Fristverlängerung | [§ 152 Abs. 6 AO][ao152] |
 | Höchstbetrag | 25.000 €, auf volle Euro abgerundet | [§ 152 Abs. 10 AO][ao152] |
 
-Beispiel: Körperschaftsteuer 10.000 €, Vorauszahlungen 6.000 €, drei
-angefangene Monate: 0,25 % von 4.000 € = 10 € je Monat, Mindestbetrag 25 €,
-also 75 €.
-
 Buchung:
 [bank/steuerzahlungen.md](../bank/steuerzahlungen.md#4-säumniszuschläge-zinsen-verspätungszuschläge).
 

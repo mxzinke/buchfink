@@ -26,12 +26,12 @@ Rechtsstand: 17. Oktober 2026.
 
 ## 2. Folgen
 
-| Ebene | Folge | Grundlage |
-|---|---|---|
-| GmbH, Körperschaftsteuer | mindert das Einkommen nicht; Erklärung: [steuererklaerungen/kst.md, Abschnitt 4](../steuererklaerungen/kst.md#4-verdeckte-gewinnausschüttung-und-verdeckte-einlage) | [§ 8 Abs. 3 Satz 2 KStG][kstg8] |
-| GmbH, Kapitalertragsteuer | Kapitalertrag; die GmbH behält ein, meldet an und haftet | [§ 20 Abs. 1 Nr. 1 Satz 2][estg20], [§ 43 Abs. 1 Satz 1 Nr. 1][estg43], [§ 44 Abs. 5 EStG][estg44] |
-| Gesellschafter | Einkünfte aus Kapitalvermögen | [§ 20 Abs. 1 Nr. 1 Satz 2 EStG][estg20] |
-| Geschäftsführer | Haftung für nicht abgeführte Steuern bei grober Fahrlässigkeit | [§ 69 AO][ao69] |
+- GmbH: mindert das Einkommen nicht ([§ 8 Abs. 3 Satz 2 KStG][kstg8]; Erklärung:
+  [steuererklaerungen/kst.md, Abschnitt 4](../steuererklaerungen/kst.md#4-verdeckte-gewinnausschüttung-und-verdeckte-einlage)).
+- Kapitalertrag beim Gesellschafter ([§ 20 Abs. 1 Nr. 1 Satz 2 EStG][estg20]);
+  die GmbH behält Kapitalertragsteuer ein, meldet an und haftet
+  ([§ 43 Abs. 1 Satz 1 Nr. 1][estg43], [§ 44 Abs. 5 EStG][estg44]), der
+  Geschäftsführer bei grober Fahrlässigkeit ([§ 69 AO][ao69]).
 
 ## 3. Prüfliste typischer Fälle
 

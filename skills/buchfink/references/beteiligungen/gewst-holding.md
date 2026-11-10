@@ -40,9 +40,6 @@ nur Gewinnanteile.
   abzüglich der nach § 8b Abs. 5 KStG nicht abziehbaren 5 %. Bei 100.000 €
   Dividende: 95.000 € Hinzurechnung, die Dividende ist damit voll
   gewerbesteuerpflichtig.
-- **§ 9 Nr. 2a GewStG** (Satz 1): Weil die 5 % nach Satz 4 keine
-  Gewinnanteile sind, bleibt bei der GmbH nichts zu kürzen; die Wirkung ist,
-  dass § 8 Nr. 5 nicht greift.
 - **Stichtage.** § 8b Abs. 4 Satz 6 KStG lässt einen Erwerb von mindestens
   10 % auf den Beginn des Kalenderjahres zurückwirken
   ([steuerfreistellung.md, Abschnitt 3](steuerfreistellung.md#3-streubesitz-unter-10-));

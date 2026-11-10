@@ -9,8 +9,7 @@ Buchfink führt Bücher ab der Beurkundung.
 1. Phasen
 2. Ablauf
 3. Entscheidungsregeln
-4. Wertungsfragen
-5. Nur der Mensch
+4. Nur der Mensch
 
 ## 1. Phasen
 
@@ -92,29 +91,13 @@ Buchfink führt Bücher ab der Beurkundung.
   ([kapitalaufbringung.md, Abschnitt 4](kapitalaufbringung.md#4-sacheinlage)).
 - Schließt jemand vor der Eintragung größere Verträge im Namen der GmbH,
   erinnere an die Handelndenhaftung ([§ 11 Abs. 2 GmbHG][gmbhg11]).
+- Wertungsfragen der Gründung (Kosten vor der Beurkundung, Gründungskosten
+  über der Klausel, Sacheinlage, Beginn des Handelsgewerbes, Unterdeckung,
+  Voranmeldungszeitraum, Gewerbeanzeige bei freiberuflichem Gegenstand) stehen
+  in den jeweiligen Dateien; Format:
+  [SKILL.md, Abschnitt 3](../../SKILL.md#3-den-menschen-fragen).
 
-## 4. Wertungsfragen
-
-Format: [SKILL.md, Abschnitt 3](../../SKILL.md#3-den-menschen-fragen).
-
-- Kosten vor der Beurkundung
-  ([gruendungskosten.md, Abschnitt 4](gruendungskosten.md#4-kosten-vor-der-beurkundung)).
-- Gründungskosten über der Klausel oder ohne Klausel
-  ([gruendungskosten.md, Abschnitt 2](gruendungskosten.md#2-wer-die-gründungskosten-trägt)).
-- Bewertung einer Sacheinlage
-  ([kapitalaufbringung.md, Abschnitt 4](kapitalaufbringung.md#4-sacheinlage)).
-- Gewerbeanzeige bei rein freiberuflichem Gegenstand
-  ([pflichten.md#gewerbeanmeldung](../grundlagen/pflichten.md#gewerbeanmeldung)).
-- Vorsteuer aus Gründungsrechnungen
-  ([gruendungskosten.md, Abschnitt 3](gruendungskosten.md#3-buchen)).
-- Beginn des Handelsgewerbes für die Eröffnungsbilanz
-  ([eroeffnungsbilanz.md, Abschnitt 2](eroeffnungsbilanz.md#2-stichtag-in-buchfink)).
-- Voranmeldungszeitraum im Jahr nach einer Gründung 2026
-  ([steuerliche-erfassung.md, Abschnitt 3](steuerliche-erfassung.md#3-voranmeldungszeitraum)).
-- Unterdeckung bei der Eintragung aus Gründungsaufwand oder Anlaufverlust
-  ([kapitalaufbringung.md, Abschnitt 6](kapitalaufbringung.md#6-unterbilanz-am-eintragungstag)).
-
-## 5. Nur der Mensch
+## 4. Nur der Mensch
 
 - Beurkundung, Unterschriften, Anmeldung zum Handelsregister über den Notar.
 - Geschäftskonto eröffnen, Einlage einzahlen.

@@ -48,8 +48,6 @@ Die Geschäftsführer sorgen für die ordnungsmäßige Buchführung
   aufgliedern lassen und die Einzelaufzeichnungen erhalten bleiben
   ([GoBD Rz. 42, 99][gobd]); bei der Lohnbuchung aus Summen ist das Lohnjournal
   der Beleg.
-- Buchfink: lückenlose Nummernkreise, Lückenprüfung im Prüflauf,
-  Dublettenprüfung beim Ablegen und Buchen.
 
 ## 4. Richtigkeit
 
@@ -69,9 +67,6 @@ Die Geschäftsführer sorgen für die ordnungsmäßige Buchführung
   Grundaufzeichnungen ([GoBD Rz. 52, 87][gobd]).
 - Jeder Vorgang gehört in die Periode, in der er angefallen ist
   ([GoBD Rz. 51][gobd]).
-- In Buchfink sichert `beleg_ablegen` den Beleg mit Nummer und Hashwert,
-  `kontoauszug_importieren` übernimmt die Bankumsätze unverändert. Der Prüflauf
-  meldet abgelegte, ungebuchte Belege und hält die Festschreibung auf.
 
 ## 6. Ordnung
 
@@ -95,13 +90,11 @@ Die Geschäftsführer sorgen für die ordnungsmäßige Buchführung
   ([GoBD Rz. 85, 110][gobd]).
 - Stammdatenänderungen, die Buchungen beeinflussen, werden protokolliert oder
   historisiert ([GoBD Rz. 111][gobd]).
-- Buchfink: Journal und Protokoll sind nur fortschreibbar und hashverkettet;
-  ein Storno kehrt die Ursprungsbuchung mit Verweis um
-  ([arbeitsweise.md, Abschnitt 11](arbeitsweise.md#11-eine-buchung-korrigieren)).
-  Einen Takt der Festschreibung nennen die GoBD nicht; Buchfink sieht sie
-  monatlich nach Prüflauf und Voranmeldung vor
-  ([monatsabschluss/ablauf.md](../monatsabschluss/ablauf.md)). Auslösen kann
-  sie nur der Mensch; danach nimmt der Zeitraum keine Buchung mehr an.
+- Korrektur in Buchfink: [arbeitsweise.md, Abschnitt 11](arbeitsweise.md#11-eine-buchung-korrigieren).
+  Einen Takt der Festschreibung nennen die GoBD nicht; vorgesehen ist sie
+  monatlich nach Prüflauf und Voranmeldung
+  ([monatsabschluss/ablauf.md](../monatsabschluss/ablauf.md)), ausgelöst nur
+  vom Menschen.
 
 ## 8. Belegwesen und Eigenbeleg
 
@@ -134,12 +127,12 @@ Die Geschäftsführer sorgen für die ordnungsmäßige Buchführung
   Erfassungs- und Plausibilitätskontrollen), übt sie aus, protokolliert sie
   und beschreibt sie in der Verfahrensdokumentation
   ([GoBD Rz. 100, 102][gobd]).
-- Buchfink-Kontrollen, an denen du beteiligt bist: Direktregeln mit Grenze,
-  Rückfrage beim Menschen, Prüflauf vor der Festschreibung, Festschreibung nur
-  durch den Menschen, Erfassungsweg an jeder Buchung.
+- Kontrollen, an denen du beteiligt bist: Direktregeln, Rückfrage beim
+  Menschen, Prüflauf vor der Festschreibung, Festschreibung nur durch den
+  Menschen.
 - Können Daten mangels Sicherung nicht vorgelegt werden, ist die Buchführung
-  formell nicht ordnungsmäßig ([GoBD Rz. 103–104][gobd]). Buchfink sichert,
-  sobald in der App ein Sicherungsziel eingerichtet ist.
+  formell nicht ordnungsmäßig ([GoBD Rz. 103–104][gobd]). Fehlt in der App ein
+  Sicherungsziel, weise den Menschen darauf hin.
 
 ## 10. Verfahrensdokumentation
 
@@ -149,12 +142,11 @@ Die Geschäftsführer sorgen für die ordnungsmäßige Buchführung
   sie oder ist sie ungenügend, ist das nur bei beeinträchtigter
   Nachvollziehbarkeit ein formeller Mangel mit sachlichem Gewicht
   ([GoBD Rz. 155][gobd]).
-- Buchfink erzeugt die technischen Teile und listet die verbundenen Apps. Die
-  organisatorischen Texte entwirfst du auf Bitte mit dem Menschen: wer Belege
-  in den Eingang legt, wie Papier gescannt und aufbewahrt wird, welche Vorgänge
-  du buchst und wer freigibt. Lies die bestehenden Texte mit
-  `verfahrensdoku_text` ohne `texte`; nach dem Ja des Menschen zum Wortlaut
-  schreibst du sie mit demselben Werkzeug.
+- Die technischen Teile erzeugt Buchfink. Die organisatorischen Texte
+  entwirfst du auf Bitte mit dem Menschen: wer Belege in den Eingang legt, wie
+  Papier gescannt und aufbewahrt wird, welche Vorgänge du buchst und wer
+  freigibt; nach seinem Ja zum Wortlaut schreibst du sie mit
+  `verfahrensdoku_text`.
 
 ## 11. Folgen von Verstößen
 

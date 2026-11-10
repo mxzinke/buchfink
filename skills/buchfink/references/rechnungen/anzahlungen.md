@@ -65,9 +65,7 @@ Aufruf: [ablauf.md, Abschnitt 5](ablauf.md#5-abschläge-anzahlungen-schlussrechn
 
 Den Zahlungseingang auf einen Abschlag bildet Buchfink noch nicht ab: Er fehlt
 in `offene_posten` und den Bankvorschlägen, die Schlussrechnung lehnt Buchfink
-bis zur Vereinnahmung ab, und die Abschlagsrechnung lässt sich nicht
-stornieren
-([storno-berichtigung.md, Abschnitt 1](storno-berichtigung.md#1-was-buchfink-anbietet)).
+bis zur Vereinnahmung ab, die Abschlagsrechnung lässt sich nicht stornieren.
 Buche die Zahlung nicht ersatzweise mit `bankumsatz_buchen` oder
 `buchung_erfassen`
 ([grundlagen/arbeitsweise.md, Abschnitt 9](../grundlagen/arbeitsweise.md#9-vorgänge-ohne-werkzeug)).
@@ -84,9 +82,8 @@ Buche die Zahlung nicht ersatzweise mit `bankumsatz_buchen` oder
   ([UStAE 14.8 Abs. 11][ustae148]); Buchfink erzeugt die Endrechnung.
 - E-Rechnung: Das BMF empfiehlt eine Restrechnung und beanstandet bis
   31.12.2027 eine Endrechnung mit unstrukturiertem Anhang nicht
-  ([BMF 15.10.2024, Rn. 48][bmf2024]). Buchfink nennt den Gesamtbetrag der
-  Anzahlungen im Datensatz und verweist auf die Abschlagsrechnungen; beanstandet
-  der Kunde das, leg es dem Menschen vor.
+  ([BMF 15.10.2024, Rn. 48][bmf2024]). Beanstandet der Kunde die Endrechnung,
+  leg es dem Menschen vor.
 
 ## 6. Sonderfälle
 

@@ -40,11 +40,10 @@ Mussfelder füllt Buchfink mit Wert oder ohne Wert (NIL)
 
 ## 3. Was Buchfink liefert
 
-`ebilanz_exportieren` schreibt die XBRL-Instanz mit Kontennachweis für den
-Import in einen Online-Dienst (Abschnitt 5); `taxonomie` wählt eine andere
-zulässige Fassung aus Abschnitt 2. Die Summen- und Saldenliste
-(`format: susa_csv`) ist der Rückfallweg, wenn ein Dienst die XBRL-Datei nicht
-vollständig übernimmt.
+`ebilanz_exportieren` schreibt die XBRL-Instanz für den Import in einen
+Online-Dienst (Abschnitt 5); `taxonomie` wählt eine andere zulässige Fassung
+aus Abschnitt 2. Die Summen- und Saldenliste (`susa_csv`) ist der Rückfallweg,
+wenn ein Dienst die XBRL-Datei nicht vollständig übernimmt.
 
 ## 4. Prüfpunkte
 
@@ -69,10 +68,7 @@ Online-Dienst, der die XBRL-Datei importiert und über ELSTER sendet. Beide
 Dienste erzeugen die Instanz neu und dokumentieren nicht, ob alles übernommen
 wird; daher der Abgleich in Schritt 3.
 
-| Dienst | Import | Kosten netto (Oktober 2026) | Hinweise |
-|---|---|---|---|
-| [eBilanz+][ebilanzplus] | XBRL ohne alle Berichtsteile, etwa Anlagenspiegel ([Hilfe][ebilanzplusxbrl]); Saldenliste ([Import][ebilanzplusimport]) | 35 € je Übermittlung, Eröffnungsbilanz und Korrektur frei ([Kosten][ebilanzpluskosten]) | Zertifikatsdatei oder Personalausweis |
-| [eBilanz-Online][ebilanzonline] | XBRL ([Hilfe][ebilanzonlinexbrl]) | 39 € je Übertragung ([Preise][ebilanzonlinepreis]) | Auftragsverarbeitungsvertrag vorab; Zertifikatsdatei |
+Dienste, Importumfang und Kosten: [ebilanz-dienste.md](ebilanz-dienste.md).
 
 Ablauf mit dem Menschen:
 
@@ -87,14 +83,12 @@ Ablauf mit dem Menschen:
 5. Er speichert das Protokoll mit Transferticket in den Eingang und trägt beides
    in Buchfink ein; du legst das Protokoll mit `beleg_ablegen` ab.
 
-Weitere Wege: Saldenliste (`format: susa_csv`, danach Abgleich wie Schritt 3);
-Übermittlung durch einen Steuerberater; Antrag auf Verzicht bei unbilliger
+Weitere Wege: Saldenliste (`susa_csv`); Übermittlung durch einen Steuerberater; Antrag auf Verzicht bei unbilliger
 Härte ([§ 5b Abs. 2 EStG][estg5b], [§ 150 Abs. 8 AO][ao150]), dann Abschriften
 nach [§ 60 Abs. 1 EStDV][estdv60] und [§ 84 Abs. 3f EStDV][estdv84].
 
-Wertungsfrage: Welcher Dienst? Nenne Kosten, Datenschutz (Auftragsverarbeitung,
-Serverstandort) und Aufwand; der Mensch entscheidet. Ob ein Dienst die
-Taxonomie annimmt, zeigt seine Validierung.
+Wertungsfrage: Welcher Dienst? Der Mensch entscheidet nach Kosten, Datenschutz
+und Aufwand ([ebilanz-dienste.md](ebilanz-dienste.md)).
 
 ## 6. Eröffnungsbilanz
 
@@ -116,10 +110,3 @@ weiter wie Abschnitt 5. Zahlen:
 [bmf68]: https://betriebs-berater.ruw.de/news/media/2/BMF-Schreiben-16701.pdf
 [bmf69]: https://betriebs-berater.ruw.de/news/media/2/BMF-Schreiben-17367.pdf
 [elsterformulare]: https://www.elster.de/eportal/formulare-leistungen/alleformulare
-[ebilanzplus]: https://ebilanzplus.de
-[ebilanzplusxbrl]: https://ebilanzplus.de/hilfe/xbrl
-[ebilanzplusimport]: https://ebilanzplus.de/hilfe/import
-[ebilanzpluskosten]: https://ebilanzplus.de/kosten
-[ebilanzonline]: https://www.ebilanzonline.de
-[ebilanzonlinexbrl]: https://www.ebilanzonline.de/wissen/faq/importmoeglichkeiten/xbrl-datei/
-[ebilanzonlinepreis]: https://www.ebilanzonline.de/preismodell/

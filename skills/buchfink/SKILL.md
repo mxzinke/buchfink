@@ -39,26 +39,20 @@ Menschen in zwei, drei Sätzen gesagt hast, was ansteht.
 ## 2. Stufen der Werkzeuge
 
 - **Lesen**: frei.
-- **Rückfrage**: `beleg_buchen_mit_rueckfrage`, `bankumsatz_buchen`,
-  `buchung_erfassen`, `buchung_stornieren`, `beleg_verwerfen`,
-  `lohnjournal_buchen`, `rechnung_ausstellen`, `mahnung_vermerken`,
-  `abschlussbuchung`, `erklaerung_eingabe`, `anlass_erfassen`,
-  `darlehen_erfassen`, `ergebnisverwendung_buchen`, `verfahrensdoku_text`. Leg
-  den Fall vor und ruf erst nach einem ausdrücklichen Ja auf (Abschnitt 3).
-- **Direkt** (Routine): alle übrigen schreibenden Werkzeuge. `beleg_buchen` und
-  `bankumsatz_zuordnen` buchen nur, was Buchfink als Routine einstuft
-  (`einstufung` aus `beleg_lesen` und `bankumsaetze`;
+- **Rückfrage**: Die Beschreibung des Werkzeugs sagt es. Leg den Fall vor
+  und ruf erst nach einem ausdrücklichen Ja auf (Abschnitt 3).
+- **Direkt** (Routine): `beleg_buchen` und `bankumsatz_zuordnen` buchen nur,
+  was Buchfink als Routine einstuft (`einstufung` aus `beleg_ablegen`,
+  `beleg_lesen` und `bankumsaetze`;
   [arbeitsweise.md, Abschnitt 4](references/grundlagen/arbeitsweise.md#4-wann-der-server-direkt-zulässt)).
-  Meldet ein Werkzeug `freigabe_noetig`, leg den Fall mit den `gruende` vor und
-  ruf nach dem Ja das Werkzeug aus `werkzeug` mit denselben Angaben auf;
-  Angaben ändert nur die Entscheidung des Menschen.
+  Meldet ein Werkzeug `freigabe_noetig`, leg den Fall mit den `gruende` vor
+  und ruf nach dem Ja `werkzeug` auf, mit `argumente`, wenn der Fehler sie
+  nennt, sonst mit denselben Angaben; Angaben ändert nur die Entscheidung des
+  Menschen.
 - **Nur App**: kein Werkzeug (Abschnitt 4).
 
 Bist du unsicher, wie Buchfink bucht, zeig die Vorschau mit
-`nur_vorschau: true`. Jeder schreibende Vorgang bekommt einen eigenen
-`idempotenz_schluessel`
-([arbeitsweise.md, Abschnitt 5](references/grundlagen/arbeitsweise.md#5-idempotenz));
-andere Fehler:
+`nur_vorschau: true`. Fehler:
 [arbeitsweise.md, Abschnitt 7](references/grundlagen/arbeitsweise.md#7-fehler).
 
 ## 3. Den Menschen fragen
@@ -173,21 +167,27 @@ verlinkt seine Fachreferenzen.
 | Werkzeug meldet einen Fehler; Idempotenz, Eingang und Ablage, Erfassungsweg, Vorgänge ohne Werkzeug, Geschäftsjahr und Abschlussstände, Buchung korrigieren | [grundlagen/arbeitsweise.md](references/grundlagen/arbeitsweise.md) |
 | Warum eine Regel gilt; Eigenbeleg, Erfassungsfristen, Storno, Festschreibung, Kontrollsystem, Verfahrensdokumentation | [grundlagen/gobd.md](references/grundlagen/gobd.md) |
 | Pflicht aus `fristen` bearbeiten (Abschnitt unter ihrem `anker`); Fristende, Zahlung, Verlängerung | [grundlagen/pflichten.md](references/grundlagen/pflichten.md) |
+| Pflicht überfällig; Folgen einer Versäumnis | [grundlagen/pflichten-folgen.md](references/grundlagen/pflichten-folgen.md) |
+| Offenlegung oder Transparenzregister: Schritte im Portal | [grundlagen/pflichten-portale.md](references/grundlagen/pflichten-portale.md) |
 | Aufbewahrung, Löschen, Scannen, Dateiformate, Systemwechsel, Betriebsprüfung | [grundlagen/aufbewahrung.md](references/grundlagen/aufbewahrung.md) |
 | Ungewöhnlicher Fall, Buchfink lehnt ab, Zahlen deuten auf eine Krise | [grundlagen/grenzen.md](references/grundlagen/grenzen.md) |
 | Eingang abarbeiten; Eingangsbeleg ablegen, prüfen, buchen | [belege/ablauf.md](references/belege/ablauf.md) |
 | Pflichtangabe fehlt, falscher Steuerausweis, Berichtigung, Kleinbetragsrechnung, Fahrausweis | [belege/pflichtangaben.md](references/belege/pflichtangaben.md) |
 | Befund aus `beleg_lesen`; nur PDF statt E-Rechnung; Übergangsfristen | [belege/e-rechnung-empfang.md](references/belege/e-rechnung-empfang.md) |
 | Steuerfall außer Inland 19 % oder 7 %: Ausland, steuerfrei, nicht steuerbar, Kleinunternehmer, Satz unklar | [belege/steuerfaelle.md](references/belege/steuerfaelle.md) |
+| § 13b: Entstehung der Steuer, Bauleistung, Mobilfunk, Gebäudereinigung | [belege/reverse-charge.md](references/belege/reverse-charge.md) |
 | Vorsteuer: Zeitpunkt, Ausschluss, Aufteilung, § 15a UStG, Minderung des Entgelts | [belege/vorsteuer.md](references/belege/vorsteuer.md) |
 | Bewirtung, Geschenk, § 37b EStG, Repräsentation | [belege/bewirtung-geschenke.md](references/belege/bewirtung-geschenke.md) |
+| Nachweis einer Bewirtung; Vorsteuer ohne Teilnehmer oder Anlass | [belege/bewirtung-nachweis.md](references/belege/bewirtung-nachweis.md) |
 | Anschaffung über 250 € netto, GWG, Sammelposten, Anlage aktivieren | [belege/anlagen-gwg.md](references/belege/anlagen-gwg.md) |
+| Nutzungsdauer, degressive AfA, Computerhardware | [belege/anlagen-nutzungsdauer.md](references/belege/anlagen-nutzungsdauer.md) |
 | Beleg in Fremdwährung; Auslage eines Gesellschafters oder Arbeitnehmers | [belege/fremdwaehrung-auslagen.md](references/belege/fremdwaehrung-auslagen.md) |
 | Kontoauszug (CAMT) importieren, Bankumsätze buchen, Bankabgleich | [bank/ablauf.md](references/bank/ablauf.md) |
 | Aufteilung; Teil-, Sammel-, Über-, Doppelzahlung; Rücklastschrift; Umsatz ohne Beleg; Ignorieren | [bank/zuordnung.md](references/bank/zuordnung.md) |
 | Zahlbetrag weicht vom offenen Posten ab: Skonto, Gebühr, Rundung, Kursdifferenz, Kürzung | [bank/skonto-differenzen.md](references/bank/skonto-differenzen.md) |
 | Zinsgutschrift, Kapitalertragsteuer, Steuerbescheinigung der Bank | [bank/zinsen-kapest.md](references/bank/zinsen-kapest.md) |
 | Jedes Darlehen: Raten, Disagio, Kontokorrent; Gesellschafterdarlehen, Nachrang, Rangrücktritt | [bank/darlehen.md](references/bank/darlehen.md) |
+| Disagio, Insolvenz, Rangrücktritt, Zinsschranke, Kapitalertragsteuer auf Gesellschafterzinsen | [bank/darlehen-sonderfaelle.md](references/bank/darlehen-sonderfaelle.md) |
 | Zahlung an oder von Finanzamt oder Gemeinde; Nebenleistungen, Verrechnung | [bank/steuerzahlungen.md](references/bank/steuerzahlungen.md) |
 | Kreditkarte, Kreditkartenabrechnung, Debitkarte, Übertrag zwischen eigenen Konten | [bank/kreditkarte-geldtransit.md](references/bank/kreditkarte-geldtransit.md) |
 | Ausgangsrechnung schreiben, Zahlungseingang überwachen, mahnen | [rechnungen/ablauf.md](references/rechnungen/ablauf.md) |
@@ -197,9 +197,11 @@ verlinkt seine Fachreferenzen.
 | Kunde außerhalb Deutschlands: Reverse Charge, USt-IdNr., Verbraucher | [rechnungen/ausland.md](references/rechnungen/ausland.md) |
 | Ausgangsrechnung falsch: stornieren, berichtigen, falscher Steuerausweis | [rechnungen/storno-berichtigung.md](references/rechnungen/storno-berichtigung.md) |
 | Mahnung, Verzugszinsen, Verzugspauschale, drohende Verjährung | [rechnungen/mahnen-verzug.md](references/rechnungen/mahnen-verzug.md) |
+| Verzugszinsen selbst rechnen, Basiszinssatz | [rechnungen/verzugszinsen-rechnung.md](references/rechnungen/verzugszinsen-rechnung.md) |
 | Kunde zahlt nicht, Insolvenz, Verjährung der Forderung | [rechnungen/forderungsausfall.md](references/rechnungen/forderungsausfall.md) |
 | Monat oder Quartal abschließen; Voranmeldung, ZM, Sondervorauszahlung oder Monatsfestschreibung fällig | [monatsabschluss/ablauf.md](references/monatsabschluss/ablauf.md) |
 | Voranmeldung: Zeitraum, Kennzahlen, Abgleich, Rundung, Verspätungszuschlag | [monatsabschluss/ustva.md](references/monatsabschluss/ustva.md) |
+| Voranmeldungszeitraum bei Neugründung, Vorratsgesellschaft, Firmenmantel | [monatsabschluss/ustva-neugruendung.md](references/monatsabschluss/ustva-neugruendung.md) |
 | Zusammenfassende Meldung, Leistungen an Unternehmer im EU-Ausland | [monatsabschluss/zm.md](references/monatsabschluss/zm.md) |
 | Dauerfristverlängerung, Sondervorauszahlung, Wechsel des Voranmeldungszeitraums | [monatsabschluss/dauerfristverlaengerung.md](references/monatsabschluss/dauerfristverlaengerung.md) |
 | Befunde des Prüflaufs; was nach der Festschreibung gesperrt ist | [monatsabschluss/festschreibung.md](references/monatsabschluss/festschreibung.md) |
@@ -209,6 +211,8 @@ verlinkt seine Fachreferenzen.
 | Abschreibungslauf, außerplanmäßige Abschreibung, Wertaufholung, Anlagenabgang, Anlagenspiegel | [jahresabschluss/abschreibungen.md](references/jahresabschluss/abschreibungen.md) |
 | Zahlungen über den Stichtag, Leistungen ohne Rechnung, Disagio auflösen | [jahresabschluss/abgrenzung.md](references/jahresabschluss/abgrenzung.md) |
 | Rückstellung bilden, abzinsen, verbrauchen oder auflösen | [jahresabschluss/rueckstellungen.md](references/jahresabschluss/rueckstellungen.md) |
+| Rückstellung steuerlich bewerten, abzinsen, Drohverlust | [jahresabschluss/rueckstellungen-steuerlich.md](references/jahresabschluss/rueckstellungen-steuerlich.md) |
+| Folgejahr: Abgrenzungen, Rückstellungen, Wertberichtigungen auflösen | [jahresabschluss/folgejahr.md](references/jahresabschluss/folgejahr.md) |
 | Zweifelhafte Forderungen, Wertberichtigung, Fremdwährungsposten, Restlaufzeiten zum Stichtag | [jahresabschluss/forderungen.md](references/jahresabschluss/forderungen.md) |
 | Projekte über den Stichtag | [jahresabschluss/unfertige-leistungen.md](references/jahresabschluss/unfertige-leistungen.md) |
 | Umsatzsteuer-Verrechnung und Steuerrückstellung im Abschluss | [jahresabschluss/steuern-im-abschluss.md](references/jahresabschluss/steuern-im-abschluss.md) |
@@ -217,9 +221,11 @@ verlinkt seine Fachreferenzen.
 | Unterzeichnung, Feststellungsbeschluss, Umfang der Offenlegung, Änderung nach der Feststellung | [jahresabschluss/aufstellen-feststellen-offenlegen.md](references/jahresabschluss/aufstellen-feststellen-offenlegen.md) |
 | Jahreserklärungen und E-Bilanz, mit oder ohne Berater; Höhe der Steuerrückstellung | [steuererklaerungen/ablauf.md](references/steuererklaerungen/ablauf.md) |
 | Körperschaftsteuer: Überleitung, nicht abziehbare Ausgaben, Spenden, Verlustabzug, Einlagekonto | [steuererklaerungen/kst.md](references/steuererklaerungen/kst.md) |
+| Nicht abziehbare Aufwendungen, Spenden und ihre Konten | [steuererklaerungen/kst-abzugsposten.md](references/steuererklaerungen/kst-abzugsposten.md) |
 | Gewerbesteuer: Hinzurechnungen, Kürzungen, Gewerbeverlust, Hebesatz, Zerlegung | [steuererklaerungen/gewst.md](references/steuererklaerungen/gewst.md) |
 | Umsatzsteuer-Jahreserklärung, Abgleich mit den Voranmeldungen | [steuererklaerungen/ust-jahr.md](references/steuererklaerungen/ust-jahr.md) |
 | Vor jedem XBRL-Export der E-Bilanz; Übermittlungsweg, Härtefall | [steuererklaerungen/ebilanz.md](references/steuererklaerungen/ebilanz.md) |
+| E-Bilanz-Dienst wählen, Kosten, Importumfang | [steuererklaerungen/ebilanz-dienste.md](references/steuererklaerungen/ebilanz-dienste.md) |
 | Fristende, Fristverlängerung, Verspätungszuschlag, Zinsen nach § 233a AO | [steuererklaerungen/fristen-zuschlaege.md](references/steuererklaerungen/fristen-zuschlaege.md) |
 | Der Mensch überträgt Werte in Mein ELSTER; Organisationszertifikat | [steuererklaerungen/abgabe.md](references/steuererklaerungen/abgabe.md) |
 | Steuer-, Mess- oder Vorauszahlungsbescheid; Einspruch | [steuererklaerungen/bescheide.md](references/steuererklaerungen/bescheide.md) |
@@ -231,6 +237,7 @@ verlinkt seine Fachreferenzen.
 | Fragebogen zur steuerlichen Erfassung, Ist-Versteuerung, USt-IdNr. | [gruendung/steuerliche-erfassung.md](references/gruendung/steuerliche-erfassung.md) |
 | Rumpfgeschäftsjahr; Fristen des ersten Abschlusses | [gruendung/rumpfjahr.md](references/gruendung/rumpfjahr.md) |
 | Lohnjournal, Lohnsteuer-Anmeldung, Minijob, Geschäftsführergehalt | [lohn/ablauf.md](references/lohn/ablauf.md) |
+| Minijob, Geschäftsführer, Sachbezug, Erstattung, Berufsgenossenschaft | [lohn/sonderfaelle.md](references/lohn/sonderfaelle.md) |
 | Erste Lohnbuchung, unklares Feld, Vorschuss, Pfändung, Sachbezug, Firmenwagen | [lohn/lohnjournal.md](references/lohn/lohnjournal.md) |
 | Lohnkonto geht nicht auf null; Lohnunterlagen | [lohn/abstimmung.md](references/lohn/abstimmung.md) |
 | Geld oder Verträge zwischen GmbH und Gesellschafter; Ausschüttung; Gesellschafterwechsel | [gesellschafter/ablauf.md](references/gesellschafter/ablauf.md) |

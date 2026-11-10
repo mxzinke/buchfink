@@ -15,10 +15,9 @@ Der Beleg zeigt Währung und, soweit umgerechnet, den Kurs
 ([GoBD Rz. 77][gobd]).
 
 - Aufwand und Verbindlichkeit rechnet Buchfink mit dem EZB-Referenzkurs des
-  Belegdatums; einen Kurs von Hand bildet es nicht ab. Ist der Beleg mit der
-  Zahlung gebucht (Karte, bezahlt) und nennt die Abrechnung den belasteten
-  Euro-Betrag, gibst du ihn als `belastet` an; dann steht er im Aufwand, und
-  beim Ausgleich bleibt keine Kursdifferenz.
+  Belegdatums. Nennt die Abrechnung bei Karte oder `bezahlt` den belasteten
+  Euro-Betrag, gibst du ihn als `belastet` an; beim Ausgleich bleibt dann keine
+  Kursdifferenz.
 - Umsatzsteuer und Vorsteuer: BMF-Durchschnittskurs des Monats der Leistung
   oder der Vereinnahmung vor der Leistung ([§ 16 Abs. 6 Satz 1 UStG][ustg16]);
   Tageskurs nur mit Gestattung des Finanzamts (Satz 3). Ist der Beleg vor der
@@ -26,8 +25,8 @@ Der Beleg zeigt Währung und, soweit umgerechnet, den Kurs
   nicht; sag es dem Menschen.
 - Die BMF-Kurse liest der Mensch in der App ein (Einstellungen › Erweitert ›
   „Umsatzsteuer-Umrechnungskurse“; CSV mit Monat `JJJJ-MM`, Währung, Kurs je
-  Euro). Fehlt der Monatskurs, nimmt Buchfink den EZB-Tageskurs und die
-  Vorschau sagt es: Bitte dann um die Kurse oder frag, ob das Finanzamt den
+  Euro). Fehlt der Monatskurs, nimmt Buchfink den EZB-Tageskurs, und die
+  Vorschau sagt es: Bitte um die Kurse oder frag, ob das Finanzamt den
   Tageskurs gestattet hat.
 
 Erfasse die Positionen in der Währung des Belegs und zeig vor dem Ja Kurs und

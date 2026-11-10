@@ -25,7 +25,8 @@ Deutsche Umsatzsteuer fällt nur an, wenn der Ort der Leistung im Inland liegt.
 | Juristische Person ohne Unternehmen, aber mit USt-IdNr. | wie Unternehmer | [§ 3a Abs. 2 Satz 3 UStG][ustg3a] |
 | Verbraucher | Ort, von dem aus die GmbH ihr Unternehmen betreibt | [§ 3a Abs. 1 UStG][ustg3a] |
 
-Abschnitt 5 geht dem Grundsatz vor.
+Abschnitt 5 geht dem Grundsatz vor. Wertungsfrage: ob ein Kunde für sein
+Unternehmen bezieht.
 
 ## 2. Unternehmen im übrigen EU-Gebiet
 

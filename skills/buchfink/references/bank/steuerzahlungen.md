@@ -83,9 +83,8 @@ Behandlung; die ist eine Wertungsfrage
 
 - Termine nennt `fristen`; wann eine Zahlung als entrichtet gilt:
   [Fristende, Zahlung, Verlängerung](../grundlagen/pflichten.md#fristende-zahlung-verlängerung).
-- `fristen` erkennt Sondervorauszahlung und Vorauszahlungen an der Buchung auf
-  dem Konto der Steuerart (Abschnitt 2) als bezahlt; ordne jede Zahlung dem
-  richtigen Konto und Jahr zu.
+- `fristen` erkennt Zahlungen an der Buchung auf dem Konto der Steuerart
+  (Abschnitt 2); ordne jede Zahlung dem richtigen Konto und Jahr zu.
 - Fällt dir eine verspätete Zahlung auf, sag es dem Menschen; ein
   Säumniszuschlag folgt meist später.
 

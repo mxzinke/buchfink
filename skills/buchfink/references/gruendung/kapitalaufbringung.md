@@ -34,10 +34,6 @@ Firma darf sie behalten ([§ 5a Abs. 5 GmbHG][gmbhg5a]).
 - Eingezahlt wird nach dem Verhältnis der Geldeinlagen
   ([§ 19 Abs. 1 GmbHG][gmbhg19]).
 
-Beispiel: 100.000 € in vier Anteilen zu 25.000 € verlangen je 6.250 €, also
-25.000 €; 25.000 € in Anteilen zu 15.000 € und 10.000 € verlangen 12.500 €,
-nach Verhältnis 7.500 € und 5.000 €.
-
 **UG**: Stammkapital vor der Anmeldung voll einzahlen; Sacheinlagen sind
 ausgeschlossen ([§ 5a Abs. 2 GmbHG][gmbhg5a]).
 
@@ -93,11 +89,7 @@ gesondert unter den Forderungen ([§ 272 Abs. 1 HGB][hgb272]).
   haften die Gesellschafter anteilig für die Differenz zum Reinvermögen
   (Unterbilanzhaftung, Richterrecht: BGH vom 09.03.1981, II ZR 54/80,
   BGHZ 80, 129).
-- `auswertung` (`art: unterbilanz`) rechnet bis zur Eintragung auf heute
-  (`endgueltig: false`), danach auf den Eintragungstag. `gedeckt` ist das
-  Minimum aus Gründungsaufwand laut Satzung und `unterdeckung`; `haftung` ist
-  der Rest, verteilt nach Geschäftsanteilen. Die App zeigt dieselbe Rechnung
-  unter Unternehmen › Stammdaten.
+- `auswertung` (`art: unterbilanz`) rechnet die Unterdeckung.
 - Prüfauftrag: Buchfink unterstellt, dass die Unterdeckung bis zur Höhe der
   Klausel aus Gründungsaufwand stammt
   ([gruendungskosten.md, Abschnitt 1](gruendungskosten.md#1-bilanz-kein-aktivposten)).

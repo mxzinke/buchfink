@@ -24,9 +24,9 @@ Rechtsstand: 17. Oktober 2026.
 
 Das erste Geschäftsjahr beginnt am Beurkundungstag und endet laut Vertrag;
 prüfe das mit `status` (`geschaeftsjahre[]`). Weicht es ab, berichtigt der
-Mensch das Gründungsdatum in der App. Buchfink zieht den Beginn nach, solange
-der Abschluss nicht festgestellt, kein Zeitraum festgeschrieben und keine
-Buchung vor dem neuen Beginn vorhanden ist.
+Mensch das Gründungsdatum in der App; das geht nur, solange der Abschluss nicht
+festgestellt, kein Zeitraum festgeschrieben ist und keine Buchung vor dem
+neuen Beginn liegt.
 
 ## 3. Pflichten zum Ende des ersten Geschäftsjahres
 

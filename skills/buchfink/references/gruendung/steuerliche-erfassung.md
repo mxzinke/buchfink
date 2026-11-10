@@ -17,9 +17,7 @@ Rechtsstand: 17. Oktober 2026.
   Anzeige an die Gemeinde:
   [gruendungsweg.md, Abschnitt 4](gruendungsweg.md#4-behördenwege-mit-fristen).
 - Für den Fragebogen genügt eine ELSTER-Registrierung nur mit E-Mail-Adresse;
-  nach Erteilung der Steuernummer wird das Konto vollwertig. Die
-  Registrierung kann bis zu zwei Wochen dauern
-  ([Merkblatt NRW][nrwmerkblatt]).
+  sie kann bis zu zwei Wochen dauern ([Merkblatt NRW][nrwmerkblatt]).
 - Den Fragebogen füllt und sendet der Mensch; du bereitest die Angaben vor
   (Abschnitt 4).
 

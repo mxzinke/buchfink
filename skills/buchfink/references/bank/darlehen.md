@@ -55,9 +55,8 @@ Umgliederung zum Stichtag:
   ([§ 8 Nr. 1 GewStG][gewstg8]; Stand: Oktober 2026; Rechnung in
   [steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md)). Buche
   Zinsen deshalb getrennt von Gebühren.
-- **Zinsschranke** erst ab 3 Mio. € Nettozinsaufwand
-  ([§ 4h Abs. 2 Satz 1 Buchst. a EStG][estg4h], [§ 8a KStG][kstg8a]; Stand:
-  Oktober 2026): Sonderfall, Steuerberater.
+- **Zinsschranke** ab 3 Mio. € Zinsaufwand:
+  [darlehen-sonderfaelle.md](darlehen-sonderfaelle.md#4-zinsschranke).
 - **Stichtag:** Zinsen für das alte Jahr, die erst im neuen belastet werden,
   grenzt [jahresabschluss/abgrenzung.md](../jahresabschluss/abgrenzung.md) ab.
 
@@ -81,16 +80,9 @@ Bei mehreren Bankdarlehen frag, wie sie getrennt werden (Text, Konto).
 
 ## 6. Disagio und Bearbeitungsentgelt
 
-- Übersteigt der Rückzahlungsbetrag den Auszahlungsbetrag, darf der
-  Unterschied aktiv abgegrenzt werden ([§ 250 Abs. 3 Satz 1 HGB][hgb250]).
-  Buchfink führt eine Einheitsbilanz
-  ([grundlagen/grenzen.md](../grundlagen/grenzen.md#1-was-buchfink-nicht-abbildet));
-  Vorschlag: aktivieren (1940). Ob die Steuerbilanz das verlangt, bestätigt
-  der Steuerberater (hier nicht am Wortlaut geprüft). Wertungsfrage.
-- Bearbeitungsentgelte: Frag, ob sie laufzeitabhängig sind; Aufwand oder
-  Abgrenzung ist eine Wertungsfrage.
-- Abschreibung über die Laufzeit:
-  [jahresabschluss/abgrenzung.md, Abschnitt 6](../jahresabschluss/abgrenzung.md#6-disagio).
+Disagio aktivieren (1940) und über die Laufzeit abschreiben; Bearbeitungsentgelte
+sind Wertungsfrage. Herleitung und Quellen:
+[darlehen-sonderfaelle.md](darlehen-sonderfaelle.md#1-disagio-und-bearbeitungsentgelt).
 
 ## 7. Kontokorrent
 
@@ -124,28 +116,16 @@ Einen dauerhaft negativen Saldo meldest du als Warnzeichen
 
 - Zinsaufwand: 7316 Zinsen für Gesellschafterdarlehen, bei mehr als 25 %
   Beteiligung 7317; frag nach der Quote. Zinsertrag: 7110.
-- Kapitalertragsteuer behält die GmbH auf Zinsen eines gewöhnlichen Darlehens
-  nicht ein ([§ 43 Abs. 1 Satz 1 Nr. 7 EStG][estg43] erfasst nur registrierte
-  Anleihen und Kreditinstitute). Partiarisches Darlehen oder stille
-  Beteiligung unterliegen dem Abzug
-  ([§ 43 Abs. 1 Satz 1 Nr. 3, § 20 Abs. 1 Nr. 4 EStG][estg43]): Grenze,
-  Steuerberater.
+- Kapitalertragsteuer: keine auf Zinsen eines gewöhnlichen Darlehens; partiarisches
+  Darlehen und stille Beteiligung sind Grenze, Steuerberater
+  ([darlehen-sonderfaelle.md](darlehen-sonderfaelle.md#3-kapitalertragsteuer-auf-gesellschafterzinsen)).
 
 ## 11. Insolvenz, Nachrang, Rangrücktritt
 
-- Gesellschafterdarlehen sind in der Insolvenz nachrangig
-  ([§ 39 Abs. 1 Satz 1 Nr. 5 InsO][inso39]), außer beim nicht
-  geschäftsführenden Gesellschafter mit höchstens 10 % (Abs. 5).
-- Anfechtbar sind eine Rückzahlung im letzten Jahr vor dem Insolvenzantrag und
-  eine Sicherung in den letzten zehn Jahren ([§ 135 Abs. 1 InsO][inso135]).
-  Deuten die Zahlen auf eine Krise, weise vor jeder Tilgung darauf hin
-  ([grundlagen/grenzen.md](../grundlagen/grenzen.md#2-warnzeichen-die-du-sofort-meldest)).
-- Rangrücktritt: Hinter alle Forderungen nach § 39 Abs. 1 Nr. 1 bis 5 InsO
-  nimmt er das Darlehen aus der Überschuldungsprüfung
-  ([§ 19 Abs. 2 Satz 2 InsO][inso19]); ist es nur aus künftigen Gewinnen zu
-  erfüllen, entfällt der Ansatz in der Steuerbilanz
-  ([§ 5 Abs. 2a EStG][estg5]), was Buchfink nicht abbildet. Formulierung und
-  Folgen: Anwalt und Steuerberater.
+Gesellschafterdarlehen sind in der Insolvenz nachrangig, Rückzahlungen
+anfechtbar. Deuten die Zahlen auf eine Krise, weise vor jeder Tilgung darauf
+hin ([grundlagen/grenzen.md](../grundlagen/grenzen.md#2-warnzeichen-die-du-sofort-meldest)).
+Fristen und Rangrücktritt: [darlehen-sonderfaelle.md](darlehen-sonderfaelle.md#2-insolvenz-nachrang-rangrücktritt).
 
 ## 12. Buchungen eines Gesellschafterdarlehens
 
@@ -164,16 +144,8 @@ Das Konto des Darlehens legt `darlehen_erfassen` aus dem Vertrag fest.
 [gmbhg30]: https://www.gesetze-im-internet.de/gmbhg/__30.html
 [gmbhg43a]: https://www.gesetze-im-internet.de/gmbhg/__43a.html
 [hgb247]: https://www.gesetze-im-internet.de/hgb/__247.html
-[hgb250]: https://www.gesetze-im-internet.de/hgb/__250.html
 [hgb253]: https://www.gesetze-im-internet.de/hgb/__253.html
-[estg4h]: https://www.gesetze-im-internet.de/estg/__4h.html
-[estg5]: https://www.gesetze-im-internet.de/estg/__5.html
-[estg43]: https://www.gesetze-im-internet.de/estg/__43.html
 [kstg8]: https://www.gesetze-im-internet.de/kstg_1977/__8.html
-[kstg8a]: https://www.gesetze-im-internet.de/kstg_1977/__8a.html
 [gewstg8]: https://www.gesetze-im-internet.de/gewstg/__8.html
 [ustg4]: https://www.gesetze-im-internet.de/ustg_1980/__4.html
-[inso19]: https://www.gesetze-im-internet.de/inso/__19.html
-[inso39]: https://www.gesetze-im-internet.de/inso/__39.html
-[inso135]: https://www.gesetze-im-internet.de/inso/__135.html
 [kstr85]: https://www.steuerschroeder.de/steuergesetze/kstr/8.5

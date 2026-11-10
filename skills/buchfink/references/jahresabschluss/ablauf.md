@@ -28,15 +28,13 @@ Folgen stehen im Pflichtenkalender:
 | Ergebnisverwendung beschließen; du buchst sie | Gesellschafter | [ergebnisverwendung](../grundlagen/pflichten.md#ergebnisverwendung) |
 | Offenlegen | Geschäftsführung | [offenlegung](../grundlagen/pflichten.md#offenlegung) |
 
-Die Fristen gelten auch mit Steuerberater. Erstellt er den Abschluss, gib ihm
-Saldenliste, Nachweise und die Liste Abschlussposten.
+Die Fristen gelten auch mit Steuerberater; ihm gibst du Saldenliste,
+Nachweise und die Liste Abschlussposten.
 
 ## 2. Weg der Abschlussbuchungen
 
-Abschlussbuchungen haben den Stichtag als Buchungsdatum; Buchfink nimmt sie
-an, bis das Jahr festgeschrieben ist. `abschluss_status` nennt je Schritt das
-Werkzeug oder `nur_app`. Vorgehen, Umbuchungen und die Liste
-**Abschlussposten**: [abschlussbuchungen.md](abschlussbuchungen.md).
+Abschlussbuchungen haben den Stichtag als Buchungsdatum. Vorgehen, Umbuchungen
+und die Liste **Abschlussposten**: [abschlussbuchungen.md](abschlussbuchungen.md).
 
 ## 3. Ablauf
 
@@ -94,7 +92,8 @@ Werkzeug oder `nur_app`. Vorgehen, Umbuchungen und die Liste
     Abschlussbuchungen wiederholt) buchst du die Ergebnisverwendung mit
     `ergebnisverwendung_buchen`
     ([ergebnisverwendung-ug.md](ergebnisverwendung-ug.md#4-buchen-im-folgejahr))
-    und arbeitest die Liste Abschlussposten ab. Fertig, wenn der Vortrag ohne
+    und arbeitest die Liste Abschlussposten ab ([folgejahr.md](folgejahr.md)).
+    Fertig, wenn der Vortrag ohne
     Differenz steht und die Liste leer ist.
 17. **Offenlegen.** Der Mensch übermittelt an das Unternehmensregister und
     setzt `offengelegt` mit dem Beleg aus „Meine Daten“ der Plattform
@@ -106,8 +105,6 @@ Werkzeug oder `nur_app`. Vorgehen, Umbuchungen und die Liste
 - **Wertaufhellung:** Risiken, die am Stichtag bestanden und bis zur
   Aufstellung bekannt werden, gehören in den Abschluss; Gewinne erst, wenn sie
   am Stichtag realisiert sind ([§ 252 Abs. 1 Nr. 4 HGB][hgb252]).
-- Rückstellungen nur für die Zwecke des § 249 HGB
-  ([rueckstellungen.md](rueckstellungen.md#1-wann-eine-rückstellung-zu-bilden-ist)).
 - **Stetigkeit:** Bewertungsmethoden des Vorjahres beibehalten; Abweichung nur
   in begründeten Ausnahmefällen, mit Anhangangabe
   ([§ 252 Abs. 1 Nr. 6, Abs. 2 HGB][hgb252];

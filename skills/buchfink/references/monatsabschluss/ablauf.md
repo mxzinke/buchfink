@@ -3,8 +3,7 @@
 Rechtsstand: 17. Oktober 2026. Werkzeugstand: Buchfink 0.3.0.
 
 Reihenfolge: **Prüflauf → Festschreibung → Übertragung in Mein ELSTER →
-Transferticket**; das Transferticket nimmt Buchfink erst nach der
-Festschreibung an. Du prüfst die Zahlen und legst sie als Tabelle vor; der
+Transferticket**. Du prüfst die Zahlen und legst sie als Tabelle vor; der
 Mensch überträgt und sendet.
 
 ## Inhalt
@@ -18,19 +17,17 @@ Mensch überträgt und sendet.
 
 ## 1. Pflichten und Fristen
 
-`fristen` nennt Fälligkeit, Stand und `anker` je Pflicht (Voranmeldung, ZM,
-Sondervorauszahlung, Monatsfestschreibung); Frist, Weg, Nachweis und Folgen
-stehen unter diesem Anker in [grundlagen/pflichten.md](../grundlagen/pflichten.md).
-
-Die Fälligkeit folgt aus Voranmeldungszeitraum (`status` →
-`mandant.ust_zeitraum`, Regeln in
-[ustva.md](ustva.md#2-voranmeldungszeitraum)), Dauerfristverlängerung und
-Bundesland; diese Stammdaten schlägst du mit `stammdaten_vorschlagen` vor.
+`fristen` nennt Fälligkeit, Stand und `anker` je Pflicht; Frist, Weg,
+Nachweis und Folgen stehen unter diesem Anker in
+[grundlagen/pflichten.md](../grundlagen/pflichten.md). Die Fälligkeit folgt aus
+`mandant.ust_zeitraum` ([Regeln](ustva.md#2-voranmeldungszeitraum)),
+Dauerfristverlängerung und Bundesland; diese Stammdaten schlägst du mit
+`stammdaten_vorschlagen` vor.
 
 Beginne gleich nach Monatsende. Den letzten Monat eines
 Voranmeldungszeitraums muss der Mensch spätestens am Fälligkeitstag der
-Voranmeldung festschreiben; `fristen` nennt für die Monatsfestschreibung ein
-späteres Datum.
+Voranmeldung festschreiben, obwohl `fristen` für die Monatsfestschreibung ein
+späteres Datum nennt.
 
 ## 2. Ablauf
 
@@ -70,8 +67,10 @@ späteres Datum.
    oder der Mensch jeden verbliebenen übergehen will.
 5. **Voranmeldung prüfen** (letzter Monat des Zeitraums). `erklaerung`
    (`art: ustva`, `zeitraum`), Abgleich nach
-   [ustva.md, Abschnitt 5](ustva.md#5-abgleich-vor-der-freigabe). Fertig, wenn
-   der Mensch Kennziffern und Zahllast bestätigt hat.
+   [ustva.md, Abschnitt 5](ustva.md#5-abgleich-vor-der-freigabe). Im Dezember
+   die Anrechnung der Sondervorauszahlung prüfen
+   ([dauerfristverlaengerung.md](dauerfristverlaengerung.md#4-anrechnung-im-dezember)).
+   Fertig, wenn der Mensch Kennziffern und Zahllast bestätigt hat.
 6. **ZM prüfen**, wenn Kennziffer 21 im Quartal belegt ist. `erklaerung`
    (`art: zm`, `zeitraum: <Quartal>`), Abgleich nach
    [zm.md, Abschnitt 3](zm.md#3-inhalt-und-abgleich). Fertig, wenn die Summe
@@ -79,19 +78,18 @@ späteres Datum.
 7. **Festschreiben lassen (nur App).** Nenne Zeitraum, Ergebnis des Prüflaufs
    und den Wortlaut der Begründung für übergangene Befunde. Fertig, wenn
    `status` `mandant.festgeschrieben_bis` am oder nach dem Monatsende zeigt.
-8. **Vorbereitet melden.** `erklaerung` erneut; der `zahlen_hash` muss dem aus
-   Schritt 5 gleichen. Melde jede Pflicht mit `pflicht_vorbereitet`
-   (`schluessel` aus `fristen`, `notiz`). Fertig, wenn der Hash passt und
-   `fristen` die Pflicht als vorbereitet führt.
+8. **Vorbereitet melden.** `erklaerung` erneut aufrufen und Kennziffern und
+   Zahllast mit den in Schritt 5 bestätigten Werten vergleichen. Bei Änderungen
+   erneut prüfen und bestätigen lassen. Melde jede Pflicht mit
+   `pflicht_vorbereitet` (`schluessel` aus `fristen`, `notiz`). Fertig, wenn
+   die Werte übereinstimmen und `fristen` die Pflicht als vorbereitet führt.
 9. **In Mein ELSTER übertragen** nach Abschnitt 3. Fertig, wenn der Mensch
    gesendet hat und Transferticket und Zeitpunkt vorliegen.
 10. **Transferticket erfassen lassen (nur App).** Fertig, wenn `erklaerung`
     `status: uebermittelt` und `fristen` die Pflicht als erledigt zeigt.
 11. **Zahlung** bis zur Fälligkeit; Buchung nach
     [bank/steuerzahlungen.md](../bank/steuerzahlungen.md#2-konten-je-steuerart).
-    Ein Überschuss wirkt erst mit Zustimmung des Finanzamts
-    ([ustva.md](ustva.md#1-pflicht-und-form)). Fertig, wenn die Zahlung
-    gebucht oder vom Menschen terminiert ist.
+    Fertig, wenn die Zahlung gebucht oder vom Menschen terminiert ist.
 
 ## 3. In Mein ELSTER übertragen
 
@@ -123,15 +121,7 @@ senden, auch Dauerfristverlängerung und Sondervorauszahlung
 
 ## 6. Stolperfallen
 
-- Buchfink ordnet Umsätze nach Leistungsdatum zu, Vorsteuer nach dem spätesten
-  Datum aus Leistung, Rechnung und Eingang. Vergleiche Kennziffern über Konten
-  und Belegdaten, nie über das Buchungsdatum.
-- Ein Storno zählt im Zeitraum der Ursprungsbuchung, der Storno einer
-  Ausgangsrechnung im laufenden
-  ([berichtigung.md](berichtigung.md#3-ablauf-in-buchfink)); Minderungen nach
-  § 17 UStG im Zeitraum der Änderung
-  ([berichtigung.md](berichtigung.md#1-berichtigung-oder-laufender-zeitraum)).
-- Dezember: Anrechnung der Sondervorauszahlung prüfen
-  ([dauerfristverlaengerung.md](dauerfristverlaengerung.md#4-anrechnung-im-dezember)).
-- Fälligkeiten nur aus `fristen`; sie hängen an den Feiertagen des Bundeslands
-  ([grundlagen/pflichten.md](../grundlagen/pflichten.md#fristende-zahlung-verlängerung)).
+- Vergleiche Kennziffern über Konten und Belegdaten, nie über das
+  Buchungsdatum; die Zuordnung zum Zeitraum nennt `erklaerung`.
+- In welchem Zeitraum ein Storno zählt:
+  [berichtigung.md](berichtigung.md#1-berichtigung-oder-laufender-zeitraum).

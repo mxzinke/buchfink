@@ -50,12 +50,13 @@ in der Kartei (`anlagen`, `klasse: finanzanlage`), buche am Bankumsatz mit
 `bankumsatz_buchen` und `kapitalertrag`; Buchfink wählt das Dividendenkonto
 aus dem Anlagekonto.
 
-| Zeile | Konto (SKR04) | bei 100.000,00 € brutto |
-|---|---|---|
-| Ertrag brutto | Dividendenkonto nach Tabelle unten | 100.000,00 |
-| Kapitalertragsteuer | 7630 | 25.000,00 (Abzug) |
-| Solidaritätszuschlag | 7633 | 1.375,00 (Abzug) |
-| Summe = Bankumsatz | – | 73.625,00 |
+| Zeile | Konto (SKR04) |
+|---|---|
+| Ertrag brutto | Dividendenkonto nach Tabelle unten |
+| Kapitalertragsteuer | 7630 (Abzug) |
+| Solidaritätszuschlag | 7633 (Abzug) |
+
+Die Summe der Zeilen ist der Bankumsatz.
 
 Ohne Anteil in der Kartei buchst du dieselben Zeilen mit `aufteilung` und
 `konto`: Ertrag positiv, Abzüge negativ

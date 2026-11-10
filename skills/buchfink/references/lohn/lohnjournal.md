@@ -68,22 +68,10 @@ Beschäftigten.
 | Vorschuss, früher ausgezahlt | 3720 an 1340 Forderungen gegen Personal aus Lohn- und Gehaltsabrechnung | Den Vorschuss selbst buchst du am Bankumsatz auf 1340 ([bank/zuordnung.md](../bank/zuordnung.md)) |
 | Pfändung, Abtretung | 3720 an 3725 Verbindlichkeiten für Einbehaltungen von Arbeitnehmern | Zahlung an den Gläubiger gegen 3725 |
 | Sparbetrag vermögenswirksame Leistung | 3720 an 3725 | Zahlung an das Anlageinstitut gegen 3725; der Arbeitgeberzuschuss steckt im Brutto (6080 Vermögenswirksame Leistungen) |
-| Sachbezug, Firmenwagen (Nettoabzug) | 3720 an Ertrag für Sachbezüge (z. B. 4947 Verrechnete sonstige Sachbezüge aus Fahrzeug-Gestellung 19 % USt, 4949 ohne Umsatzsteuer) | Wertungsfrage, siehe unten |
+| Sachbezug, Firmenwagen (Nettoabzug) | 3720 an Ertrag für Sachbezüge (z. B. 4947 Verrechnete sonstige Sachbezüge aus Fahrzeug-Gestellung 19 % USt, 4949 ohne Umsatzsteuer) | Wertungsfrage, siehe [sonderfaelle.md](sonderfaelle.md#2-sachbezug-firmenwagen) |
 | Steuerfreie Erstattung (Reisekosten) über die Abrechnung | Aufwand (z. B. 6650 Reisekosten Arbeitnehmer) an 3720 | Belege der Reise nach [belege/ablauf.md](../belege/ablauf.md); frag, ob sie schon gebucht sind |
 
-Sachbezug und Firmenwagen:
-
-- Der geldwerte Vorteil ist Arbeitslohn ([§ 8 Abs. 2 EStG][estg8]); das
-  Lohnbüro rechnet ihn ins Brutto und zieht ihn vom Netto ab.
-- Die Überlassung eines Fahrzeugs zur Privatnutzung an Beschäftigte, auch an
-  den Gesellschafter-Geschäftsführer mit Arbeitsvertrag, ist in der Regel eine
-  umsatzsteuerpflichtige entgeltliche sonstige Leistung
-  ([UStAE 15.23 Abs. 8 Satz 1, 4][ustae1523]). Bemessungsgrundlage und Satz
-  klärt der Mensch mit Lohnbüro oder Steuerberater; Buchfink rechnet sie
-  nicht (Wertungsfrage).
-- Ohne Regelung im Anstellungsvertrag ist die Privatnutzung durch einen
-  beherrschenden Gesellschafter vGA-verdächtig
-  ([gesellschafter/vga-einlage.md](../gesellschafter/vga-einlage.md)).
+Sachbezug und Firmenwagen: [sonderfaelle.md](sonderfaelle.md#2-sachbezug-firmenwagen).
 
 ## 5. Was Buchfink nicht abbildet
 
@@ -94,11 +82,9 @@ Sachbezug und Firmenwagen:
 - Personalrückstellungen (Urlaub, Überstunden) zum Stichtag:
   [jahresabschluss/rueckstellungen.md](../jahresabschluss/rueckstellungen.md).
 
-[estg8]: https://www.gesetze-im-internet.de/estg/__8.html
 [estg40]: https://www.gesetze-im-internet.de/estg/__40.html
 [estg40a]: https://www.gesetze-im-internet.de/estg/__40a.html
 [estg41a]: https://www.gesetze-im-internet.de/estg/__41a.html
 [sgb4_28e]: https://www.gesetze-im-internet.de/sgb_4/__28e.html
 [sgb3_358]: https://www.gesetze-im-internet.de/sgb_3/__358.html
 [aag7]: https://www.gesetze-im-internet.de/aufag/__7.html
-[ustae1523]: https://www.steuerschroeder.de/steuergesetze/ustae/15.23

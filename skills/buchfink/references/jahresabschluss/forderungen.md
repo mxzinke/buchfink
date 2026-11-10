@@ -89,11 +89,7 @@ Posten erklärt ist.
 
 ## 6. Folgejahr
 
-- Einzelwertberichtigung: Zahlt der Kunde oder fällt die Forderung aus, löst
-  du sie auf (Soll 1246, Haben 4923) und buchst den Ausfall nach
-  [rechnungen/forderungsausfall.md](../rechnungen/forderungsausfall.md).
-- Pauschalwertberichtigung: zum nächsten Stichtag neu berechnen; die Differenz
-  geht auf 6920 oder 4920.
+Auflösung: [folgejahr.md](folgejahr.md#wertberichtigungen).
 
 [hgb246]: https://www.gesetze-im-internet.de/hgb/__246.html
 [hgb252]: https://www.gesetze-im-internet.de/hgb/__252.html

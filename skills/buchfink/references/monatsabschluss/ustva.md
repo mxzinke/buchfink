@@ -35,14 +35,11 @@ Frist, Weg, Nachweis und Folgen:
 | Steuer des Vorjahres über 9.000 € | Kalendermonat | § 18 Abs. 2 Satz 2 |
 | Steuer des Vorjahres nicht über 2.000 € | Finanzamt kann befreien | § 18 Abs. 2 Satz 3 |
 | Überschuss des Vorjahres über 9.000 € | Monat wählbar durch Voranmeldung Januar bis 10. Februar; bindet für das Jahr | [§ 18 Abs. 2a UStG][ustg18] |
-| Neugründung | Kalendermonat im laufenden und folgenden Jahr | § 18 Abs. 2 Satz 4 |
-| Neugründung 2021 bis 2026 | statt Satz 4 die voraussichtliche Steuer des laufenden Jahres, bei Beginn im Vorjahr die hochgerechnete | § 18 Abs. 2 Satz 6 |
-| Vorratsgesellschaft nimmt Tätigkeit auf, Firmenmantel übernommen | Kalendermonat im laufenden und folgenden Jahr | § 18 Abs. 2 Satz 5 |
 
-Die App schlägt einen Zeitraum aus Kennziffer 83 der Vorjahresanmeldungen vor;
-Gründungsjahr, Vorratsgesellschaft und Firmenmantel kennt sie nicht. Den
-Zeitraum, auch eine Befreiung (`keiner`) oder eine Festlegung des Finanzamts,
-schlägst du mit `stammdaten_vorschlagen` (`ust_zeitraum`) vor.
+Bei Neugründung, Vorratsgesellschaft oder Firmenmantel lies
+[ustva-neugruendung.md](ustva-neugruendung.md). Den Zeitraum, auch
+eine Befreiung (`keiner`) oder eine Festlegung des Finanzamts, schlägst du mit
+`stammdaten_vorschlagen` (`ust_zeitraum`) vor.
 
 ## 3. Verspätungszuschlag
 
@@ -83,7 +80,7 @@ richtig ist.
 
 Kennzahl 500 „Ergänzende Angaben zur Steueranmeldung“ nur nach Rückfrage;
 Schlüssel 1 bis 4 und gesonderte Anlage nach dem
-[Vordruck USt 1 A 2026][ust1a2026].
+[Vordruck USt 1 A 2026][ust1a2026]. Kennzahl 10 nur bei Berichtigung.
 
 ## 5. Abgleich vor der Freigabe
 
@@ -110,9 +107,7 @@ bestätigt hat.
 ## 6. Eingabe in Mein ELSTER
 
 - Formular des Jahres, in dem der Zeitraum liegt.
-- Werte aus `erklaerung` unverändert: Bemessungsgrundlagen in vollen Euro
-  (Buchfink schneidet die Cent ab), Steuerbeträge mit Cent.
-- Kennzahl 10 nur bei Berichtigung, Kennzahl 500 nur nach Rückfrage.
+- Werte aus `erklaerung` unverändert übernehmen.
 
 [ustg13]: https://www.gesetze-im-internet.de/ustg_1980/__13.html
 [ustg13b]: https://www.gesetze-im-internet.de/ustg_1980/__13b.html

@@ -98,24 +98,15 @@ Menschen vor; vorhandene Werte liest Buchfink.
 
 ## 5. Wertungsfragen
 
-Format: [SKILL.md, Abschnitt 3](../../SKILL.md#3-den-menschen-fragen).
-
-- Beteiligung oder Wertpapier, Anlage- oder Umlaufvermögen
-  ([erwerb-ausweis.md, Abschnitt 1](erwerb-ausweis.md#1-begriffe))?
-- Ist eine Wertminderung voraussichtlich dauernd
-  ([bewertung-veraeusserung.md, Abschnitte 1 und 2](bewertung-veraeusserung.md#2-teilwert-nach-estg))?
-- Dividende vor dem Beschluss der Tochter vereinnahmen
-  ([dividenden.md, Abschnitt 1](dividenden.md#1-anspruch-und-zeitpunkt))?
-- Ist die Holding Unternehmerin, welcher Anteil der Vorsteuer ist abziehbar
-  ([holding-umsatzsteuer.md](holding-umsatzsteuer.md))?
-- Ist ein Darlehen an die Tochter fremdüblich
-  ([steuerfreistellung.md, Abschnitt 6](steuerfreistellung.md#6-darlehen-an-die-tochter))?
-- In welchem Jahr gilt die Vorabpauschale
-  ([investmentfonds.md, Abschnitt 5](investmentfonds.md#5-vorabpauschale))?
-- Welche Fondsart nennen die Anlagebedingungen
-  ([investmentfonds.md, Abschnitt 1](investmentfonds.md#1-was-ein-investmentfonds-ist))?
-- Beratungskosten vor dem Kauf als Anschaffungskosten
-  ([erwerb-ausweis.md, Abschnitt 3](erwerb-ausweis.md#3-anschaffungskosten))?
+Format: [SKILL.md, Abschnitt 3](../../SKILL.md#3-den-menschen-fragen). Die
+Wertungsfragen stehen in den Dateien des Ordners, jeweils als „Wertungsfrage“:
+Anlage- oder Umlaufvermögen ([erwerb-ausweis.md, Abschnitt 1](erwerb-ausweis.md#1-begriffe)),
+dauernde Wertminderung ([bewertung-veraeusserung.md](bewertung-veraeusserung.md#2-teilwert-nach-estg)),
+phasengleiche Dividende ([dividenden.md](dividenden.md#1-anspruch-und-zeitpunkt)),
+Unternehmerin und Vorsteuer ([holding-umsatzsteuer.md](holding-umsatzsteuer.md)),
+Fremdüblichkeit eines Darlehens ([steuerfreistellung.md](steuerfreistellung.md#6-darlehen-an-die-tochter)),
+Jahr der Vorabpauschale und Fondsart ([investmentfonds.md](investmentfonds.md#5-vorabpauschale)),
+Beratungskosten vor dem Kauf ([erwerb-ausweis.md](erwerb-ausweis.md#3-anschaffungskosten)).
 
 ## 6. Nur der Mensch
 

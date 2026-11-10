@@ -38,20 +38,9 @@ ein:
 ## 2. Verzugszinsen
 
 - Basiszinssatz plus 5 Prozentpunkte; bei Entgeltforderungen ohne Verbraucher
-  plus 9 ([§ 288 Abs. 1, 2 BGB][bgb288]). Der Basiszinssatz ändert sich zum
-  1. Januar und 1. Juli; maßgeblich ist die Bekanntmachung der Bundesbank
-  ([§ 247 BGB][bgb247]).
-
-| gültig ab | Basiszinssatz |
-|---|---|
-| 01.01.2025 | 2,27 % |
-| 01.07.2025 | 1,27 % |
-| 01.01.2026 | 1,27 % |
-| 01.07.2026 | 1,52 % |
-
-Quelle: [Deutsche Bundesbank][bbk], abgerufen am 17.10.2026. Ab 01.01.2027 neu
-nachsehen.
-
+  plus 9 ([§ 288 Abs. 1, 2 BGB][bgb288]). Den Basiszinssatz gibt die
+  Bundesbank bekannt ([§ 247 BGB][bgb247]); `offene_posten` rechnet damit. Die
+  Sätze: [verzugszinsen-rechnung.md](verzugszinsen-rechnung.md).
 - Höhere Zinsen aus Vertrag bleiben möglich ([§ 288 Abs. 3 BGB][bgb288]); ein
   vorab vereinbarter Ausschluss ist gegenüber Unternehmern unwirksam
   ([§ 288 Abs. 6 BGB][bgb288]).
@@ -69,14 +58,9 @@ nachsehen.
 
 `offene_posten` liefert je Posten `verzug_ab`, `verzugszinsen` bis zum
 `stichtag`, `pauschale` und den Mahnstand. Übernimm diese Werte und nenne
-Verzugsbeginn, Zinssatz und Zeitraum. Selbst rechnest du nur, wenn ein Wert
-fehlt (Verzug aus einer Abrede außerhalb von Buchfink) oder bestritten ist: ab
-dem Tag nach Verzugsbeginn ([§ 187 Abs. 1 BGB][bgb187] entsprechend), je
-Abschnitt gleichen Basiszinssatzes offener Betrag × Zinssatz × Tage ÷ 365, auf
-Cent gerundet; nach Teilzahlungen mit dem Rest.
-
-Beispiel: 1.190,00 € B2B, 30 Tage zu 10,52 %: 1.190,00 × 0,1052 × 30 ÷ 365 =
-10,29 €, dazu 40 € Pauschale.
+Verzugsbeginn, Zinssatz und Zeitraum. Nur bei einem fehlenden oder
+bestrittenen Wert rechnest du selbst:
+[verzugszinsen-rechnung.md](verzugszinsen-rechnung.md).
 
 ## 5. Mahnschreiben entwerfen
 
@@ -107,11 +91,9 @@ Vermerk: [ablauf.md, Abschnitt 7](ablauf.md#7-überfällige-forderungen-und-mahn
 - Nenne beim Monatsabschluss Forderungen, deren Verjährung im laufenden Jahr
   endet. Hemmung (Mahnbescheid, Klage) klärt der Mensch mit einem Anwalt.
 
-[bgb187]: https://www.gesetze-im-internet.de/bgb/__187.html
 [bgb195]: https://www.gesetze-im-internet.de/bgb/__195.html
 [bgb199]: https://www.gesetze-im-internet.de/bgb/__199.html
-[bgb247]: https://www.gesetze-im-internet.de/bgb/__247.html
 [bgb286]: https://www.gesetze-im-internet.de/bgb/__286.html
 [bgb288]: https://www.gesetze-im-internet.de/bgb/__288.html
-[bbk]: https://www.bundesbank.de/de/bundesbank/organisation/agb-und-regelungen/basiszinssatz-607820
 [ustae13]: https://www.steuerschroeder.de/steuergesetze/ustae/1.3
+[bgb247]: https://www.gesetze-im-internet.de/bgb/__247.html

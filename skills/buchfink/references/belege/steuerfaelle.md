@@ -50,25 +50,10 @@ den innergemeinschaftlichen Erwerb braucht der Kontakt die USt-IdNr.
   Eintritt zu Messen und Kongressen im Inland und Restauration an Bord
   ([§ 13b Abs. 6 UStG][ustg13b]).
 
-| Fall | Steuer entsteht | Fundstelle |
-|---|---|---|
-| Sonstige Leistung eines Unternehmers aus einem anderen EU-Staat | mit Ablauf des Voranmeldungszeitraums der Leistung | [§ 13b Abs. 1 UStG][ustg13b] |
-| Leistung aus dem Drittland, Werklieferung | mit Ausstellung der Rechnung, spätestens mit Ablauf des Folgemonats der Leistung | [§ 13b Abs. 2 Nr. 1 UStG][ustg13b] |
-| Dauerleistung über mehr als ein Jahr | spätestens mit Ablauf jedes Kalenderjahres | [§ 13b Abs. 3 UStG][ustg13b] |
-| Zahlung vor der Leistung | mit Ablauf des Voranmeldungszeitraums der Zahlung | [§ 13b Abs. 4 Satz 2 UStG][ustg13b] |
-
-Buchfink ordnet die Steuer aus Leistungszeitraum und Rechnungsdatum zu; trag
-den vollen Leistungszeitraum ein.
-
-Diese Voraussetzungen prüft Buchfink nicht; kläre sie mit dem Menschen:
-
-- Eine inländische Bauleistung (Abs. 2 Nr. 4) schuldet die GmbH nur, wenn sie
-  selbst nachhaltig Bauleistungen erbringt (Abs. 5 Satz 2); die
-  Bauabzugsteuer ([§ 48 EStG][estg48]) bildet Buchfink nicht ab.
-- Mobilfunkgeräte, Tablets, Spielekonsolen, Schaltkreise, Metalle erst ab
-  5.000 € je wirtschaftlichem Vorgang (Abs. 2 Nr. 10, 11; Stand: Oktober
-  2026); Gebäudereinigung und Telekommunikation zwischen Inländern nur mit
-  Bescheinigung beim Empfänger (Abs. 2 Nr. 8, 12, Abs. 5 Satz 5, 6).
+Trag den vollen Leistungszeitraum ein; Buchfink ordnet die Steuer aus
+Leistungszeitraum und Rechnungsdatum zu. Bei Bauleistung, Mobilfunkgeräten,
+Gebäudereinigung, Telekommunikation zwischen Inländern oder für den Zeitpunkt
+der Steuerentstehung lies [reverse-charge.md](reverse-charge.md).
 
 ## 3. Waren aus einem anderen EU-Staat (innergemeinschaftlicher Erwerb)
 
@@ -136,7 +121,6 @@ Vorsteuer ist nur die deutsche, für die Leistung gesetzlich geschuldete Steuer
   lass berichtigen; Vorsteuer ist nur die gesetzlich geschuldete Steuer.
 - Maßgeblich ist der Tag der Leistung ([§ 27 Abs. 1 Satz 1 UStG][ustg27]).
 
-[estg48]: https://www.gesetze-im-internet.de/estg/__48.html
 [gobd]: https://www.lfst.bayern.de/fileadmin/RESSOURCEN/INFORMATIONEN/Steuerinfos/Weitere_Themen/Aussenpruefung/2019-11-28-GoBD-1.pdf
 [ustg1a]: https://www.gesetze-im-internet.de/ustg_1980/__1a.html
 [ustg3a]: https://www.gesetze-im-internet.de/ustg_1980/__3a.html

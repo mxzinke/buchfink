@@ -34,7 +34,7 @@ Die Eingangsseite prüft [belege/pflichtangaben.md](../belege/pflichtangaben.md)
 | 1 | Vollständiger Name und Anschrift von Unternehmen und Kunde | Stammdaten, Kontakt |
 | 2 | Steuernummer oder USt-IdNr. des Unternehmens | Stammdaten; fehlt sie, meldet es `rechnung_vorschau` |
 | 3 | Ausstellungsdatum | `rechnungsdatum`: Tag der Ausstellung, nie rückdatieren |
-| 4 | Fortlaufende, einmalige Rechnungsnummer | vergibt Buchfink aus dem Nummernkreis |
+| 4 | Fortlaufende, einmalige Rechnungsnummer | Nummernkreis von Buchfink |
 | 5 | Menge und Art der Lieferung, Umfang und Art der sonstigen Leistung | `positionen[].text`, `menge`, `einheit`; Leistung eindeutig beschreiben |
 | 6 | Zeitpunkt der Leistung; bei Anzahlung Tag der Vereinnahmung, wenn bekannt und abweichend vom Rechnungsdatum | `leistung_von`, `leistung_bis` (Abschnitt 4) |
 | 7 | Entgelt nach Steuersätzen und Befreiungen, jede im Voraus vereinbarte Minderung | Positionen, Zahlungsbedingungen (Abschnitt 5) |

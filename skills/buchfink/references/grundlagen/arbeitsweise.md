@@ -23,9 +23,7 @@ bleibt.
 
 ## 1. Konventionen
 
-Formate (Beträge als Zeichenkette wie `"119.00"`, Datum `JJJJ-MM-TT`),
-Auswahlwerte und Pflichtfelder prüft das Eingabeschema. Ein Verstoß scheitert
-mit einer Meldung, die mit `validating` beginnt.
+Formate, Auswahlwerte und Pflichtfelder prüft das Eingabeschema.
 
 ## 2. Felder von `status`
 
@@ -37,53 +35,34 @@ mit dem Grund einer Ablehnung in `vermerk`.
 
 ## 3. Werkzeuge
 
-Maßgeblich ist die Werkzeugliste, die der Server meldet. Die Stufen lesen,
-direkt und Rückfrage stehen in
+Maßgeblich ist die Werkzeugliste des Servers; Stufen:
 [SKILL.md, Abschnitt 2](../../SKILL.md#2-stufen-der-werkzeuge).
 
 ## 4. Wann der Server „direkt“ zulässt
 
-Ob ein Vorgang Routine ist, entscheidet Buchfink. `beleg_lesen` und
-`bankumsaetze` nennen die `einstufung`, die Beschreibungen von `beleg_buchen`
-und `bankumsatz_zuordnen` die Regeln; `freigabe_noetig` nennt in `gruende` jede
+Ob ein Vorgang Routine ist, entscheidet Buchfink: `beleg_lesen` und
+`bankumsaetze` nennen die `einstufung`, `freigabe_noetig` in `gruende` jede
 verletzte Regel. Die Schwellen (`direktregeln`) und die Standardgruppe eines
-Lieferanten bestätigt nur der Mensch in der App.
-
-Ein Bankumsatz ist nur aus einem geprüften Auszug Routine: aus einem, den der
-Mensch in der App eingelesen hat, oder einem, dessen Salden an den letzten
-geprüften Auszug des Kontos anschließen. Den ersten Auszug eines Kontos liest
-deshalb der Mensch ein; `kontoauszug_importieren` lehnt ihn mit `nur_app` ab.
+Lieferanten bestätigt nur der Mensch in der App. Den ersten Kontoauszug eines
+Kontos liest der Mensch ein (`nur_app`).
 
 ## 5. Idempotenz
 
-Bilde je Vorgang einen sprechenden Schlüssel (`beleg-142-buchen`,
-`bank-9031-split`) und gib ihn bei jedem schreibenden Werkzeug mit, dessen
-Schema `idempotenz_schluessel` kennt. Nach einer Zeitüberschreitung wiederholst
-du mit demselben Schlüssel und denselben Angaben; Buchfink liefert dann das
-erste Ergebnis und bucht nicht doppelt. Scheitert ein Vorgang, speichert
-Buchfink den Schlüssel nicht; nach der Korrektur darfst du ihn wieder
-verwenden.
+Sprechender Schlüssel je Vorgang (`beleg-142-buchen`). Nach einer
+Zeitüberschreitung wiederholst du mit demselben Schlüssel und denselben
+Angaben.
 
 ## 6. Eingang, Ablage, Exportordner
 
-- Der Mensch wählt die **Ablage** (Datenordner der Buchhaltung) und einen
-  **Eingang** für Rechnungen, Quittungen, E-Rechnungen und CAMT-Kontoauszüge.
-  Bei Claude Desktop speichert er Chat-Anhänge in den Eingang oder zieht sie
-  ins Buchfink-Fenster.
 - Was du aus dem Eingang übernimmst, bestimmt der Mensch („arbeite den Eingang
   ab“, „buche die Rechnung von X“). Liegt ein Beleg nur im Chat, bitte ihn, das
-  Original in den Eingang zu speichern.
-- Gelesen wird nur aus dem Eingang und aus Ordnern, die der Mensch in den
-  Einstellungen freigegeben hat; Downloads, Ablage und Sicherungen sind
-  gesperrt.
+  Original in den Eingang zu speichern (bei Claude Desktop: Chat-Anhang in den
+  Eingang oder ins Buchfink-Fenster ziehen).
 - Legst du selbst eine Datei in den Eingang, dann nur das Original, das der
   Mensch dir als Beleg gegeben hat, Byte für Byte; Buchfink prüft die Herkunft
   nicht.
-- Nach der Übernahme verschiebt Buchfink die Datei nach
-  `Eingang/Übernommen/<JJJJ-MM>`; danach arbeitest du mit der `beleg_id`.
 - Die Ablage ist endgültig: Auch ein verworfener Beleg bleibt zehn Jahre im
-  Archiv, in jeder Sicherung und im Prüferexport.
-- Exporte landen im `exportordner` aus `status`.
+  Archiv ([aufbewahrung.md](aufbewahrung.md)).
 
 ## 7. Fehler
 
@@ -96,9 +75,8 @@ nicht.
 
 ## 8. Erfassungsweg und Protokoll
 
-Jede Buchung, jeder Beleg und jede Protokollzeile speichert den Erfassungsweg,
-bei dir `agent:<Kurzname der App>` (`status.verbindung.erfassungsweg`); der
-Prüfer sieht ihn im Datenexport, `buchungen_suchen` filtert mit `kanal` danach.
+Buchfink speichert an jeder Buchung, jedem Beleg und jeder Protokollzeile den
+Erfassungsweg (`status.verbindung.erfassungsweg`); der Prüfer sieht ihn.
 Schreib `beschreibung`, `grund` und `text` so, dass ein Prüfer ohne Rückfrage
 versteht, was gebucht wurde und warum
 ([gobd.md, Abschnitt 2](gobd.md#2-nachvollziehbarkeit)).
@@ -117,17 +95,18 @@ Was nur der Mensch in der App erledigt, steht in
 
 Kein Vorbehalt, aber ohne Werkzeug, deshalb in der App: einen vorhandenen
 Kontakt ändern (USt-IdNr., IBAN, E-Rechnungsformat, Leitweg-ID), den
-Saldenvortrag ausführen.
+Saldenvortrag ausführen, den Zahlungseingang auf eine ausgestellte
+Abschlagsrechnung zuordnen.
 
 Noch nicht abgebildet, weder als Werkzeug noch in der App: Stornorechnung und
-Rechnungskorrektur, Forderung ausbuchen, Versand vermerken, offene Posten und
-Rückzahlung von Abschlagsrechnungen, Pflege der Anlagenkartei (Kennung, Quote,
+Rechnungskorrektur, Forderung ausbuchen, Versand vermerken, Rückzahlung von
+Abschlagsrechnungen, Pflege der Anlagenkartei (Kennung, Quote,
 Kennzeichen, Stückzahl; Abgang, Fertigstellung einer Anlage im Bau,
 außerplanmäßige Abschreibung, Zuschreibung, Währung), Verwendungsanteil nach
 § 15a UStG, Eröffnungsbuchungen eines Umsteigers, berichtigte ZM und
-CSV-Datei der ZM, Anhangtexte des Jahresabschlusses, Zuführung, Aufzinsung
-und Auflösung einer gebildeten Rückstellung samt Abzinsungssätzen, Löschen nach
-Ablauf der Aufbewahrungsfrist. Sag dem Menschen, dass Buchfink den Vorgang
+CSV-Datei der ZM, die Texte des Anhangs zum Jahresabschluss, Zuführung,
+Aufzinsung und Auflösung einer gebildeten Rückstellung samt
+Abzinsungssätzen, Löschen nach Ablauf der Aufbewahrungsfrist. Sag dem Menschen, dass Buchfink den Vorgang
 noch nicht kann, leg Sachverhalt, Grundlage und die nötige Buchung vor und
 weiche nicht auf `buchung_erfassen` aus, wo Buchfink ein Dokument oder eine
 Kartei mitführt.
@@ -157,11 +136,11 @@ Zeitpunkt eines Vorgangs:
 
 | Was | Wann | Fundstelle |
 |---|---|---|
-| Ertrag und Forderung | mit der Leistung, nicht mit der Rechnung; Buchfink bucht eine Ausgangsrechnung zum Ende des Leistungszeitraums, bei festgeschriebenem Leistungstag zum Rechnungsdatum mit Hinweis `leistungstag_festgeschrieben` | [§ 252 Abs. 1 Nr. 4 HGB][hgb252] |
+| Ertrag und Forderung | mit der Leistung, nicht mit der Rechnung | [§ 252 Abs. 1 Nr. 4 HGB][hgb252] |
 | Aufwand | im Geschäftsjahr, in dem die Leistung bezogen wurde, unabhängig von Rechnung und Zahlung; fehlt am Stichtag die Rechnung, Verbindlichkeit oder Rückstellung | [§ 252 Abs. 1 Nr. 5 HGB][hgb252] |
 | Umsatzsteuer | mit Ablauf des Voranmeldungszeitraums der Leistung, bei Anzahlung der Vereinnahmung | [§ 13 Abs. 1 Nr. 1 Buchst. a UStG][ustg13] |
 | Vorsteuer | wenn Leistung und Rechnung vorliegen; maßgeblich ist `eingang_am` | [§ 15 Abs. 1 Satz 1 Nr. 1 UStG][ustg15] |
-| Fälligkeit | am vereinbarten Tag laut Beleg (`faellig_am`); ohne Angabe rechnet Buchfink mit dem Zahlungsziel des Kontakts und meldet `faelligkeit_aus_zahlungsziel` | [§ 271 BGB][bgb271] |
+| Fälligkeit | am vereinbarten Tag laut Beleg (`faellig_am`) | [§ 271 BGB][bgb271] |
 
 ## 11. Eine Buchung korrigieren
 
@@ -172,10 +151,9 @@ Eine Buchung wird nie geändert. Korrigiert wird durch Storno und Neubuchung
 2. Lege vor: was falsch ist, die Stornobuchung und die Neubuchung mit Zeilen.
 3. Nach dem Ja: `buchung_stornieren` mit `buchung_id`, `grund` und
    `neubuchung`.
-4. Der Storno kehrt die Ursprungsbuchung mit Verweis vollständig um.
-   Buchungsdatum ist der Tag der Korrektur; Beleg- und Leistungsdatum
-   übernimmt er, umsatzsteuerlich zählt also der alte Zeitraum (Nachtrag),
-   beim Storno einer Ausgangsrechnung der laufende. Ist für den alten Zeitraum
+4. Buchungsdatum des Storno ist der Tag der Korrektur; Beleg- und
+   Leistungsdatum übernimmt er, umsatzsteuerlich zählt also der alte Zeitraum
+   (Nachtrag), beim Storno einer Ausgangsrechnung der laufende. Ist für den alten Zeitraum
    eine Voranmeldung schon übermittelt, frag den Menschen, ob sie berichtigt
    werden muss
    ([monatsabschluss/berichtigung.md](../monatsabschluss/berichtigung.md)).

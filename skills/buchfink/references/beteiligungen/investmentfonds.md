@@ -14,8 +14,7 @@ Abschnitt 5, am 19.10.2026 gelesen. Steuerbescheinigung: BMF-Schreiben vom
 5. Vorabpauschale
 6. Verkauf und Verlust
 7. Kapitalertragsteuer und Bescheinigung
-8. Beispiel
-9. Grenzen
+8. Grenzen
 
 ## 1. Was ein Investmentfonds ist
 
@@ -149,18 +148,7 @@ ohne Fondsart in der Kartei trägst du beide Zeilen nach Rückfrage mit
   Investmenterträge vor Teilfreistellung und Vorabpauschalen (Rn. 59). Daraus
   nimmst du die Werte für die Erklärung.
 
-## 8. Beispiel
-
-Aktien-ETF im Anlagevermögen, seit Jahren gehalten, Wert 100.000,00 € am
-Jahresanfang 2025, 112.000,00 € am Jahresende, keine Ausschüttung.
-
-| Schritt | Betrag |
-|---|---|
-| Basisertrag 100.000,00 € × 70 % × 2,53 % (Wertzuwachs 12.000,00 € begrenzt nicht) | 1.771,00 € |
-| steuerpflichtig Körperschaftsteuer (20 %) | 354,20 € |
-| steuerpflichtig Gewerbesteuer (60 %) | 1.062,60 € |
-
-## 9. Grenzen
+## 8. Grenzen
 
 Spezial-Investmentfonds, vor 2018 erworbene Anteile (§ 56 InvStG),
 Dach-Investmentfonds und ausländische Fonds mit Fragen nach

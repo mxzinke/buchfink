@@ -26,10 +26,8 @@ einer Unternehmerin aus
 - Erwerben, Halten und Veräußern von Beteiligungen ist keine
   unternehmerische Tätigkeit; Dividenden sind kein Entgelt
   ([UStAE 2.3 Abs. 2 Satz 1 bis 3][ustae23]).
-- Unternehmerisch wird es bei gewerbsmäßigem Handel, wenn die Beteiligung der
-  eigenen unternehmerischen Tätigkeit dient, oder wenn die Holding durch
-  entgeltliche Leistungen (administrativ, finanziell, kaufmännisch, technisch)
-  in die Verwaltung der Tochter eingreift
+- Unternehmerisch wird es bei gewerbsmäßigem Handel, bei dienender
+  Beteiligung oder bei entgeltlichen Leistungen an die Tochter
   ([UStAE 2.3 Abs. 3 Satz 5 ff.][ustae23]).
 - Zum Unternehmen gehört eine Beteiligung nur bei erkennbarem, objektivem
   wirtschaftlichem Zusammenhang mit der unternehmerischen Tätigkeit

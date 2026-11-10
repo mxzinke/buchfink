@@ -16,13 +16,11 @@ Abschnitte 4 und 5 gelten für Voranmeldung, ZM und Jahreserklärungen. Fristen:
 ## 1. Wer welche Erklärung sendet
 
 Der Mensch überträgt und sendet, mit Steuerberater dieser
-([ablauf.md](ablauf.md#3-fristen-und-steuerberater)). Formular und Weg stehen
-im Pflichtenkalender unter
+([ablauf.md](ablauf.md#3-fristen-und-steuerberater)). Formular und Weg:
 [ust-erklaerung](../grundlagen/pflichten.md#ust-erklaerung),
 [gewst-erklaerung](../grundlagen/pflichten.md#gewst-erklaerung) (mit
-Zerlegung) und [kst-erklaerung](../grundlagen/pflichten.md#kst-erklaerung)
-(mit Einlagekonto); die E-Bilanz geht über einen Online-Dienst
-([ebilanz.md](ebilanz.md#5-übermittlungsweg)).
+Zerlegung), [kst-erklaerung](../grundlagen/pflichten.md#kst-erklaerung)
+(mit Einlagekonto); E-Bilanz: [ebilanz.md](ebilanz.md#5-übermittlungsweg).
 
 ## 2. Organisationszertifikat
 
@@ -35,11 +33,10 @@ Zerlegung) und [kst-erklaerung](../grundlagen/pflichten.md#kst-erklaerung)
 
 ## 3. Was Buchfink liefert
 
-`erklaerung` zeigt jede Erklärung formularnah; `erklaerung_exportieren` legt
-Umsatz-, Körperschaft- und Gewerbesteuererklärung als JSON ab, die E-Bilanz
-kommt aus `ebilanz_exportieren` ([ebilanz.md](ebilanz.md#3-was-buchfink-liefert)).
-Exportiere erst nach der Freigabe ([ablauf.md](ablauf.md#2-ablauf), Schritt 8);
-der Transferticket-Dialog vergleicht den `zahlen_hash` mit dem aktuellen Stand.
+Exportiere erst nach der Freigabe ([ablauf.md](ablauf.md#2-ablauf), Schritt 8):
+`erklaerung_exportieren` für Umsatz-, Körperschaft- und
+Gewerbesteuererklärung, `ebilanz_exportieren` für die E-Bilanz
+([ebilanz.md](ebilanz.md#3-was-buchfink-liefert)).
 
 ## 4. Eingabe in Mein ELSTER
 

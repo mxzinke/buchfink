@@ -43,9 +43,6 @@ Rechtsstand: 17. Oktober 2026.
 | Kapitalertragsteuer mit Solidaritätszuschlag | Abzug auf Gewinnanteile; Satz und Bemessung in [bank/zinsen-kapest.md](../bank/zinsen-kapest.md#2-kapitalertragsteuer-und-solidaritätszuschlag) | [§ 43 Abs. 1 Satz 1 Nr. 1 EStG][estg43] |
 | Kirchensteuer | Satz nach Landesrecht; mindert die Kapitalertragsteuer um 25 % der Kirchensteuer | [§ 43a Abs. 1 Satz 2 EStG][estg43a], [§ 51a Abs. 2c EStG][estg51a] |
 
-Beispiel ohne Kirchensteuer: Ausschüttung 10.000,00 € → Kapitalertragsteuer
-2.500,00 €, Solidaritätszuschlag 137,50 €, Auszahlung 7.362,50 €.
-
 - Der Abzug gilt auch gegenüber einer Kapitalgesellschaft als Gesellschafterin
   ([§ 43 Abs. 1 Satz 3 EStG][estg43]).
 - Die GmbH behält für Rechnung des Gesellschafters ein
@@ -67,16 +64,11 @@ Beispiel ohne Kirchensteuer: Ausschüttung 10.000,00 € → Kapitalertragsteuer
 
 ## 4. Zufluss, Anmeldung, Abführung
 
-- **Zufluss** am Auszahlungstag laut Beschluss, sonst am Tag nach der
-  Beschlussfassung ([§ 44 Abs. 2 Satz 1, 2 EStG][estg44]).
-- **Abführung** bei Gewinnausschüttungen im Zeitpunkt des Zuflusses
-  ([§ 44 Abs. 1 Satz 5 Halbsatz 2 EStG][estg44]); „bis zum 10. des
-  Folgemonats“ gilt nur für andere Kapitalerträge.
-- **Anmeldung** innerhalb derselben Frist elektronisch
-  ([§ 45a Abs. 1 Satz 1 EStG][estg45a]), in Mein ELSTER als
-  „Kapitalertragsteuer-Anmeldung nach Einkommensteuergesetz“
-  ([ELSTER-Formularliste][elster]). Auch ohne Abzug ist anzumelden und der
-  Grund anzugeben ([§ 45a Abs. 1 Satz 2, 3 EStG][estg45a]).
+- **Zufluss, Abführung und Anmeldung** am Auszahlungstag laut Beschluss, sonst
+  am Tag nach der Beschlussfassung ([§ 44 Abs. 1 Satz 5 Halbsatz 2, Abs. 2
+  Satz 1, 2][estg44], [§ 45a Abs. 1 EStG][estg45a]); „bis zum 10. des
+  Folgemonats“ gilt nur für andere Kapitalerträge. Auch ohne Abzug ist
+  anzumelden ([§ 45a Abs. 1 Satz 2, 3 EStG][estg45a]).
 - **Rundung:** Einbehalt auf den Cent ([§ 44 Abs. 1 Satz 3 EStG][estg44]),
   Solidaritätszuschlag ohne Bruchteile eines Cents ([§ 4 Satz 3 SolZG][solzg4]).
   Die zu einem Zeitpunkt abzuführende Kapitalertragsteuer wird auf volle Euro
@@ -92,9 +84,9 @@ Beispiel ohne Kirchensteuer: Ausschüttung 10.000,00 € → Kapitalertragsteuer
   Lege die Frage vor, die den Fall betrifft, und rate zur steuerlichen
   Beratung. Den Rest auf 3760 buchst du erst nach der Antwort mit
   `buchung_erfassen` aus.
-- **Säumnis:** Säumniszuschlag nach
-  [grundlagen/pflichten.md](../grundlagen/pflichten.md#fristende-zahlung-verlängerung).
 
+Frist, Weg und Nachweis der Pflicht:
+[grundlagen/pflichten.md#kapitalertragsteuer](../grundlagen/pflichten.md#kapitalertragsteuer).
 Bereite vor: Beschlussdatum, Zuflusstag, je Gesellschafter Bruttobetrag und
 Abzüge, Summen für die Anmeldung.
 
@@ -141,6 +133,5 @@ Ablauf. Grenze: Steuerberater.
 [kstg27]: https://www.gesetze-im-internet.de/kstg_1977/__27.html
 [gmbhg30]: https://www.gesetze-im-internet.de/gmbhg/__30.html
 [ao69]: https://www.gesetze-im-internet.de/ao_1977/__69.html
-[elster]: https://www.elster.de/eportal/formulare-leistungen/alleformulare
 [solzg1]: https://www.gesetze-im-internet.de/solzg_1995/__1.html
 [solzg4]: https://www.gesetze-im-internet.de/solzg_1995/__4.html

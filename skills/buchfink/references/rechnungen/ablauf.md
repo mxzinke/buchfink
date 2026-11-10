@@ -15,10 +15,7 @@ Von der Rechnung bis zum Geldeingang oder Ausfall. Zahlungseingänge:
 5. Abschläge, Anzahlungen, Schlussrechnung
 6. Storno und Berichtigung
 7. Überfällige Forderungen und Mahnung
-8. Kunde zahlt nicht
-9. Wertungsfragen
-10. Nur der Mensch in der App
-11. Stolperfallen
+8. Nur der Mensch in der App
 
 ## 1. Rechnung ausstellen
 
@@ -30,22 +27,21 @@ Von der Rechnung bis zum Geldeingang oder Ausfall. Zahlungseingänge:
 2. **Leistung klären.** Frag nach Art, Umfang, Leistungsdatum oder -zeitraum,
    Menge, Preis, Steuersatz und Zahlungsziel. Rechnungsdatum ist der Tag der
    Ausstellung
-   ([pflichtangaben-ausgang.md, Abschnitt 2](pflichtangaben-ausgang.md#2-pflichtangaben-und-woher-buchfink-sie-nimmt),
+   ([pflichtangaben-ausgang.md](pflichtangaben-ausgang.md#2-pflichtangaben-und-woher-buchfink-sie-nimmt),
    Nr. 3). Fertig, wenn jede Position Text, Menge, Einzelpreis und Satz hat und
    `leistung_von` feststeht.
-3. **Steuerfall** nach Abschnitt 3. Fertig, wenn `steuerfall` und `satz` je
-   Position feststehen.
-4. **Form** nach Abschnitt 4. Fertig, wenn feststeht, ob eine E-Rechnung Pflicht ist und ob der
-   Kunde ein Format verlangt.
-5. **Durchrechnen** mit `rechnung_vorschau` und denselben Angaben wie für
+3. **Steuerfall** nach Abschnitt 3 und **Form** nach Abschnitt 4. Fertig, wenn
+   `steuerfall` und `satz` je Position und die Form (E-Rechnung Pflicht,
+   Wunschformat des Kunden) feststehen.
+4. **Durchrechnen** mit `rechnung_vorschau` und denselben Angaben wie für
    `rechnung_ausstellen`. Fehlende Unternehmensdaten schlägst du mit
    `stammdaten_vorschlagen` vor. Fertig, wenn `hinweise` keinen Eintrag mit
    `code: pflichtangabe` hat und `befunde` leer ist.
-6. **Rückfrage** mit Kunde, Positionen, Netto, Steuer, Brutto, Steuerfall,
+5. **Rückfrage** mit Kunde, Positionen, Netto, Steuer, Brutto, Steuerfall,
    Leistungszeitraum, Fälligkeit, Form und jedem Hinweis der Vorschau.
-7. **Ausstellen** mit `rechnung_ausstellen`. Fertig, wenn die Antwort
+6. **Ausstellen** mit `rechnung_ausstellen`. Fertig, wenn die Antwort
    `nummer`, `buchung_id` und `dateien` enthält.
-8. **Versand.** Gib dem Menschen die Pfade aus `dateien` oder versende sie, wenn
+7. **Versand.** Gib dem Menschen die Pfade aus `dateien` oder versende sie, wenn
    dein Client das kann und er es will. Eine E-Rechnung geht als unveränderte
    Datei hinaus.
 
@@ -61,11 +57,11 @@ EU-Unternehmen [ausland.md, Abschnitt 2](ausland.md#2-unternehmen-im-übrigen-eu
   Rechnungsdatum; ist die Voranmeldung des Leistungszeitraums schon
   übermittelt, sag dem Menschen, dass sie zu berichtigen ist
   ([monatsabschluss/berichtigung.md](../monatsabschluss/berichtigung.md)).
-- Entstehung der Steuer:
-  [pflichtangaben-ausgang.md, Abschnitt 4](pflichtangaben-ausgang.md#4-leistungszeitpunkt),
-  bei Anzahlungen [anzahlungen.md, Abschnitt 1](anzahlungen.md#1-wann-die-steuer-entsteht).
 - Prüfe mindestens beim Monatsabschluss `offene_posten` (`richtung: forderung`,
   `nur_ueberfaellig: true`).
+- Wann die Steuer entsteht:
+  [pflichtangaben-ausgang.md, Abschnitt 4](pflichtangaben-ausgang.md#4-leistungszeitpunkt),
+  bei Anzahlungen [anzahlungen.md, Abschnitt 1](anzahlungen.md#1-wann-die-steuer-entsteht).
 
 ## 3. Steuerfall
 
@@ -77,18 +73,16 @@ EU-Unternehmen [ausland.md, Abschnitt 2](ausland.md#2-unternehmen-im-übrigen-eu
 | Verbraucher im EU-Ausland oder Drittland | jede Leistung | erst [ausland.md](ausland.md) lesen |
 | Leistung im Zusammenhang mit einem Grundstück im Ausland | – | Grenze, [ausland.md, Abschnitt 5](ausland.md#5-ausnahmen-vom-grundsatz) |
 
-- `ust_id_uebersteuerung_grund` (USt-IdNr. nicht bestätigt) setzt du nur mit
-  einem Grund, den der Mensch nennt.
+- `ust_id_uebersteuerung_grund` setzt du nur mit einem Grund, den der Mensch
+  nennt; `exempt` (§ 4 UStG) und `zero_rated` nur, wenn er die Befreiung
+  benennt.
 - Im Zweifel über den Steuerfall frag vor dem Ausstellen; Folgen eines falschen
   Ausweises:
   [storno-berichtigung.md, Abschnitt 3](storno-berichtigung.md#3-falsch-ausgewiesene-umsatzsteuer).
-- `exempt` (§ 4 UStG) und `zero_rated` nur, wenn der Mensch die Befreiung
-  benennt.
 
 ## 4. E-Rechnung oder sonstige Rechnung
 
-[e-rechnung-ausgang.md](e-rechnung-ausgang.md), Regel für deine Wahl in
-Abschnitt 3 dort.
+Regel für deine Wahl: [e-rechnung-ausgang.md, Abschnitt 3](e-rechnung-ausgang.md#3-übergang-bis-ende-2027).
 
 ## 5. Abschläge, Anzahlungen, Schlussrechnung
 
@@ -97,18 +91,16 @@ Abschnitt 3 dort.
 - Abschlagsrechnung: `rechnung_ausstellen` mit `art: abschlag`, die erste mit
   `verbund` und `kontakt_id`, jede weitere mit der `verbund_id` der Antwort.
   Schlussrechnung: `art: schlussrechnung` mit `verbund_id` und `rechnung`.
-- Den Zahlungseingang auf Abschläge bildet Buchfink noch nicht ab
-  ([anzahlungen.md, Abschnitt 4](anzahlungen.md#4-wie-buchfink-bucht)); sag
-  das vor der ersten Abschlagsrechnung eines Verbunds.
+- Den Zahlungseingang auf Abschläge bildet Buchfink noch nicht ab; sag das vor
+  der ersten Abschlagsrechnung eines Verbunds.
 
 ## 6. Storno und Berichtigung
 
 - Eine ausgestellte Rechnung bleibt unverändert. Weg je Fehler:
   [storno-berichtigung.md](storno-berichtigung.md); E-Rechnung zusätzlich
   [e-rechnung-ausgang.md, Abschnitt 8](e-rechnung-ausgang.md#8-berichtigung-und-aufbewahrung).
-- Stornorechnung und Rechnungskorrektur bildet Buchfink noch nicht ab
-  ([storno-berichtigung.md, Abschnitt 1](storno-berichtigung.md#1-was-buchfink-anbietet)).
-  Stell keine zweite Rechnung über dieselbe Leistung aus: Forderung und Steuer
+- Stornorechnung und Rechnungskorrektur bildet Buchfink noch nicht ab. Stell
+  keine zweite Rechnung über dieselbe Leistung aus: Forderung und Steuer
   stünden doppelt in den Büchern.
 - Skonto am Zahlungseingang: [bank/skonto-differenzen.md](../bank/skonto-differenzen.md).
 
@@ -124,35 +116,15 @@ Abschnitt 3 dort.
    ([mahnen-verzug.md, Abschnitt 5](mahnen-verzug.md#5-mahnschreiben-entwerfen)).
 5. Der Mensch prüft und versendet. Leg den Brief mit `beleg_ablegen` ab und
    halte den Zugang nach Rückfrage mit `mahnung_vermerken` fest. Gebucht wird
-   erst der Zahlungseingang
+   erst der Zahlungseingang; Verzugszinsen und Mahngebühren sind kein Umsatz,
+   fordere sie im Mahnschreiben, nie mit `rechnung_ausstellen`
    ([mahnen-verzug.md, Abschnitt 6](mahnen-verzug.md#6-buchen-und-umsatzsteuer)).
 
-## 8. Kunde zahlt nicht
+Zahlt der Kunde nicht: [forderungsausfall.md, Abschnitt 3](forderungsausfall.md#3-ablauf).
 
-[forderungsausfall.md, Abschnitt 3](forderungsausfall.md#3-ablauf).
-
-## 9. Wertungsfragen
-
-Leistungszeitpunkt, der den Voranmeldungszeitraum bestimmt
-([pflichtangaben-ausgang.md, Abschnitt 4](pflichtangaben-ausgang.md#4-leistungszeitpunkt));
-Teilleistung oder Anzahlung
-([anzahlungen.md, Abschnitt 2](anzahlungen.md#2-teilleistung-oder-anzahlung));
-Unternehmer, der für sein Unternehmen bezieht
-([ausland.md, Abschnitt 1](ausland.md#1-erst-den-ort-der-leistung-bestimmen));
-Uneinbringlichkeit
-([forderungsausfall.md, Abschnitt 1](forderungsausfall.md#1-zweifelhaft-oder-uneinbringlich));
-Verzug bei strittigem Zahlungsziel oder Zugang
-([mahnen-verzug.md, Abschnitt 1](mahnen-verzug.md#1-fälligkeit-und-verzug)).
-
-## 10. Nur der Mensch in der App
+## 8. Nur der Mensch in der App
 
 - Unternehmensstammdaten (du schlägst sie vor) und Nummernkreise.
 - E-Rechnungsformat oder Leitweg-ID eines vorhandenen Kontakts.
 - Was Buchfink noch nicht abbildet:
   [grundlagen/arbeitsweise.md, Abschnitt 9](../grundlagen/arbeitsweise.md#9-vorgänge-ohne-werkzeug).
-
-## 11. Stolperfallen
-
-- Verzugszinsen und Mahngebühren sind kein Umsatz
-  ([mahnen-verzug.md, Abschnitt 6](mahnen-verzug.md#6-buchen-und-umsatzsteuer)).
-  Fordere sie im Mahnschreiben, nie mit `rechnung_ausstellen`.

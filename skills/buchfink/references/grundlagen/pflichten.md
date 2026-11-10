@@ -4,9 +4,11 @@ Rechtsstand: 17. Oktober 2026. Wege in Mein ELSTER, im BZSt-Online-Portal, auf
 der Publikations-Plattform und im Transparenzregister nach deren Seiten vom
 selben Tag.
 
-Jeder Abschnitt ergänzt `fristen` um den **Weg**, den **Nachweis**, die Folgen
-**bei Versäumnis** und Wertungsfragen. Den Nachweis erfasst oder bestätigt der
-Mensch in der App.
+Jeder Abschnitt ergänzt `fristen` um den **Weg**, den **Nachweis** und
+Wertungsfragen. Den Nachweis erfasst oder bestätigt der Mensch in der App.
+Folgen bei Versäumnis: [pflichten-folgen.md](pflichten-folgen.md); Schritte in
+Publikations-Plattform und Transparenzregister:
+[pflichten-portale.md](pflichten-portale.md).
 
 ## Inhalt
 
@@ -45,8 +47,8 @@ Dein Teil ist fertig, wenn die Pflicht auf vorbereitet steht und der Mensch
 Weg, Fälligkeit und Nachweis kennt.
 
 - **Überfällig:** Frag, ob der Mensch die Pflicht außerhalb von Buchfink
-  erfüllt hat; dann bestätigt er sie mit Nachweis. Sonst nenne die Folgen und
-  den kürzesten Weg.
+  erfüllt hat; dann bestätigt er sie mit Nachweis. Sonst nenne die Folgen
+  ([pflichten-folgen.md](pflichten-folgen.md)) und den kürzesten Weg.
 - **Entfällt** setzt nur der Mensch, mit Grund.
 - **Anlässe** (Gesellschafterwechsel, Änderung der wirtschaftlich Berechtigten,
   Vorauszahlungsbescheid) kennt `fristen` erst, wenn du sie nach Rückfrage mit
@@ -111,10 +113,6 @@ Weg, Fälligkeit und Nachweis kennt.
   der Festschreibung des Zeitraums an; den letzten Monat schreibt der Mensch
   deshalb spätestens am Fälligkeitstag fest
   ([monatsfestschreibung](#monatsfestschreibung)).
-- **Bei Versäumnis:** Verspätungszuschlag ([§ 152 Abs. 8 Nr. 1 AO][ao152]);
-  Säumniszuschlag ([§ 240 AO][ao240]); Geldbuße bis 30.000 € bei vorsätzlich
-  nicht oder nicht rechtzeitig entrichteter Vorauszahlung
-  ([§ 26a Abs. 1, 3 UStG][ustg26a]).
 - **Vertiefung:** [monatsabschluss/ustva.md](../monatsabschluss/ustva.md)
 
 <a id="sondervorauszahlung"></a>
@@ -136,9 +134,6 @@ Weg, Fälligkeit und Nachweis kennt.
   die Anmeldung nicht ([§ 48 Abs. 2 UStDV][ustdv48]). Buchfink setzt die
   Pflicht schon mit der Buchung auf 3830 auf erledigt; frag dann nach dem
   Transferticket.
-- **Bei Versäumnis:** Verspätungszuschlag, nie zwingend
-  ([§ 152 Abs. 3 Nr. 4, Abs. 8 Nr. 5 AO][ao152]); Festsetzung durch das
-  Finanzamt ([§ 48 Abs. 3 UStDV][ustdv48]); Säumniszuschlag ([§ 240 AO][ao240]).
 - **Vertiefung:** [monatsabschluss/dauerfristverlaengerung.md](../monatsabschluss/dauerfristverlaengerung.md)
 
 <a id="zm"></a>
@@ -152,10 +147,6 @@ Weg, Fälligkeit und Nachweis kennt.
   Fachverfahren ZM ([BZSt, Elektronische Abgabe][bzstzm]). Der Mensch
   vergleicht mit deiner Tabelle und sendet.
 - **Nachweis:** Transferticket an der ZM.
-- **Bei Versäumnis:** kein Verspätungszuschlag ([§ 18a Abs. 11 UStG][ustg18a]);
-  Geldbuße bis 5.000 € bei vorsätzlich oder leichtfertig fehlender, falscher,
-  verspäteter oder nicht binnen eines Monats berichtigter Meldung
-  ([§ 26a Abs. 2 Nr. 5, Abs. 3 UStG][ustg26a], [§ 18a Abs. 10 UStG][ustg18a]).
 - **Vertiefung:** [monatsabschluss/zm.md](../monatsabschluss/zm.md)
 
 <a id="kst-vorauszahlung"></a>
@@ -173,7 +164,6 @@ Weg, Fälligkeit und Nachweis kennt.
   vom Menschen gebucht (deine Handbuchung zählt nicht), oder Bestätigung des
   Menschen. Zuordnung:
   [bank/steuerzahlungen.md](../bank/steuerzahlungen.md#2-konten-je-steuerart).
-- **Bei Versäumnis:** Säumniszuschlag ([§ 240 AO][ao240]).
 - **Vertiefung:** [steuererklaerungen/bescheide.md](../steuererklaerungen/bescheide.md)
 
 <a id="gewst-vorauszahlung"></a>
@@ -189,8 +179,6 @@ Weg, Fälligkeit und Nachweis kennt.
 - **Weg:** Überweisung an die Gemeindekasse mit dem Kassenzeichen oder
   SEPA-Lastschrift bei der Gemeinde.
 - **Nachweis:** wie bei der [kst-vorauszahlung](#kst-vorauszahlung), auf 7610.
-- **Bei Versäumnis:** Säumniszuschlag ([§ 240 AO][ao240] über
-  [§ 1 Abs. 2 Nr. 5 AO][ao1]).
 - **Vertiefung:** [steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md),
   [bank/steuerzahlungen.md](../bank/steuerzahlungen.md)
 
@@ -205,19 +193,13 @@ Weg, Fälligkeit und Nachweis kennt.
   Menschen bei Abweichung Zeitraum und Fälligkeiten.
 - **Entfällt**, wenn die GmbH keine Arbeitnehmer mehr beschäftigt und das dem
   Finanzamt mitteilt ([§ 41a Abs. 1 Satz 4 EStG][estg41a]).
-- **Weg:** Meist übermittelt das Lohnbüro aus der Lohnsoftware; sonst Mein
-  ELSTER, unter „Lohnsteuer Arbeitgeber“ das Formular „Lohnsteuer-Anmeldung“.
-  Zahlung bis zur Fälligkeit.
+- **Weg:** Meist übermittelt das Lohnbüro; sonst Mein ELSTER, „Lohnsteuer
+  Arbeitgeber“ → „Lohnsteuer-Anmeldung“. Zahlung bis zur Fälligkeit.
 - **Nachweis:** Übermittlungsprotokoll mit Transferticket und die gebuchte
   Zahlung; verlangt sind Anmeldung und Abführung
   ([§ 41a Abs. 1 Satz 1 Nr. 1, 2 EStG][estg41a]). Ein gebuchtes Lohnjournal
   meldet den Zeitraum nur als vorbereitet. Bitte das Lohnbüro je Zeitraum um
   das Protokoll und lege es ab.
-- **Bei Versäumnis:** Verspätungszuschlag ([§ 152 Abs. 8 Nr. 1, 2 AO][ao152]);
-  Säumniszuschlag ([§ 240 AO][ao240]); Geldbuße bis 25.000 € bei vorsätzlich
-  oder leichtfertig nicht rechtzeitig abgeführten Steuerabzugsbeträgen
-  ([§ 380 AO][ao380]); Haftung des Geschäftsführers bei grober Fahrlässigkeit
-  ([§ 69 AO][ao69]).
 - **Vertiefung:** [lohn/ablauf.md](../lohn/ablauf.md), Abschnitt 4;
   [lohn/abstimmung.md](../lohn/abstimmung.md)
 
@@ -231,9 +213,8 @@ Weg, Fälligkeit und Nachweis kennt.
   `fristen` zeigt für diesen Monat das spätere Datum.
 - **Weg:** Du klärst die Befunde aus `auswertung` (`art: pruefbericht`); der
   Mensch schreibt fest und übergeht blockierende Befunde nur mit Begründung.
-- **Nachweis:** die Festschreibung.
-- **Bei Versäumnis:** Die Voranmeldung bleibt unbestätigt und wird nach ihrer
-  Fälligkeit überfällig.
+- **Nachweis:** die Festschreibung. Ohne sie bleibt die Voranmeldung
+  unbestätigt und wird nach ihrer Fälligkeit überfällig.
 - **Vertiefung:** [monatsabschluss/festschreibung.md](../monatsabschluss/festschreibung.md)
 
 <a id="bilanzstichtag"></a>
@@ -245,11 +226,6 @@ Weg, Fälligkeit und Nachweis kennt.
   ([jahresabschluss/ablauf.md](../jahresabschluss/ablauf.md)); danach schreibt
   der Mensch das Geschäftsjahr fest.
 - **Nachweis:** die Festschreibung des Geschäftsjahres.
-- **Bei Versäumnis:** Wer Bilanz oder Inventar nicht rechtzeitig aufstellt, ist
-  strafbar, wenn die Gesellschaft ihre Zahlungen einstellt oder ein
-  Insolvenzverfahren eröffnet oder mangels Masse abgelehnt wird
-  ([§ 283b Abs. 1 Nr. 3 Buchst. b, Abs. 3 StGB][stgb283b],
-  [§ 283 Abs. 6 StGB][stgb283]).
 - **Vertiefung:** [jahresabschluss/abschlussbuchungen.md](../jahresabschluss/abschlussbuchungen.md)
 
 <a id="aufstellung"></a>
@@ -262,9 +238,6 @@ Weg, Fälligkeit und Nachweis kennt.
   3. Der Mensch speichert den unterschriebenen Abschluss in den Eingang, du
      legst ihn auf seine Anweisung ab, und er setzt in der App „aufgestellt“.
 - **Nachweis:** der Stand „aufgestellt“.
-- **Bei Versäumnis:** Strafbarkeit wie beim [bilanzstichtag](#bilanzstichtag);
-  das Ordnungsgeldverfahren zur Offenlegung wartet nicht auf die Aufstellung
-  ([§ 335 Abs. 1 Satz 3 HGB][hgb335]).
 - **Vertiefung:** [jahresabschluss/aufstellen-feststellen-offenlegen.md](../jahresabschluss/aufstellen-feststellen-offenlegen.md)
 
 <a id="feststellung"></a>
@@ -282,9 +255,6 @@ Weg, Fälligkeit und Nachweis kennt.
   3. Der Mensch schreibt das Jahr fest und setzt „festgestellt“ mit Datum und
      Bezug auf den Beschluss; du legst den Beschluss ab.
 - **Nachweis:** der Stand „festgestellt“.
-- **Bei Versäumnis:** Ohne Feststellung fehlt der Gegenstand der Offenlegung
-  ([§ 325 Abs. 1 Satz 1 Nr. 1 HGB][hgb325]); das Ordnungsgeld droht trotzdem
-  ([§ 335 Abs. 1 Satz 3 HGB][hgb335]).
 - **Vertiefung:** [jahresabschluss/aufstellen-feststellen-offenlegen.md](../jahresabschluss/aufstellen-feststellen-offenlegen.md)
 
 <a id="ergebnisverwendung"></a>
@@ -296,8 +266,6 @@ Weg, Fälligkeit und Nachweis kennt.
   einer Ausschüttung bestimmt der Beschluss den Auszahlungstag; daraus folgt
   die Pflicht [kapitalertragsteuer](#kapitalertragsteuer).
 - **Nachweis:** der mit `ergebnisverwendung_buchen` erfasste Beschluss.
-- **Bei Versäumnis:** Über die Verwendung bestimmen allein die Gesellschafter
-  ([§ 46 Nr. 1 GmbHG][gmbhg46]); ohne Beschluss keine Ausschüttung.
 - **Vertiefung:** [jahresabschluss/ergebnisverwendung-ug.md](../jahresabschluss/ergebnisverwendung-ug.md),
   [gesellschafter/ausschuettung.md](../gesellschafter/ausschuettung.md)
 
@@ -307,28 +275,14 @@ Weg, Fälligkeit und Nachweis kennt.
 - **Umfang:** der festgestellte Abschluss in deutscher Sprache, auch eine
   spätere Änderung ([§ 325 Abs. 1b HGB][hgb325]); je Größenklasse:
   [jahresabschluss/aufstellen-feststellen-offenlegen.md](../jahresabschluss/aufstellen-feststellen-offenlegen.md#4-offenlegen).
-- **Weg** ([Publikations-Plattform][pp], [So geht's][ppveroeff]):
-  1. Einmal registrieren und vor der ersten Übermittlung je übermittelnder
-     Person elektronisch identifizieren (Video-Verfahren, Online-Ausweis oder
-     Steuerberaterplattform; Gebühr nach JVKostG;
-     [Registrieren/Identifizieren][ppident]).
-  2. „Unternehmensregister“ → „Veröffentlichen“ oder, nur Kleinst,
-     „Hinterlegen“.
-  3. Datei hochladen (XML; PDF oder Office gegen Konvertierungsentgelt) oder,
-     nur kleine Gesellschaften, das Formular ausfüllen. Die Bilanz liefert
-     `auswertung` (`art: bilanz`); eine Datei für die Plattform erzeugt
-     Buchfink nicht.
-  4. Unter „Meine Daten“ den Auftrag verfolgen ([Meine Daten][ppdaten]).
+- **Weg:** Der Mensch veröffentlicht oder hinterlegt über die Publikations-Plattform
+  (Schritte: [pflichten-portale.md](pflichten-portale.md#offenlegung)). Die Bilanz
+  liefert `auswertung` (`art: bilanz`); eine Datei für die Plattform erzeugt
+  Buchfink nicht.
 - **Nachweis:** Beleg der Veröffentlichung oder Hinterlegung aus „Meine Daten“;
   der Mensch setzt damit „offengelegt“, du legst den Beleg ab.
-- **Bei Versäumnis:** Das Bundesamt für Justiz droht ein Ordnungsgeld von
-  2.500 € bis 25.000 € mit sechs Wochen Frist an, wiederholt bis zur
-  Offenlegung, dazu Verfahrenskosten; nach Fristablauf erfüllt, sinkt es auf
-  500 € (hinterlegende Kleinstgesellschaft), 1.000 € (kleine) oder 2.500 €
-  ([§ 335 Abs. 1, 3, 4 HGB][hgb335]). Unverschuldet versäumt: Wiedereinsetzung
-  binnen zwei Wochen nach Wegfall des Hindernisses, Offenlegung binnen sechs
-  Wochen ([§ 335 Abs. 5 HGB][hgb335]). Leg eine Androhung sofort ab und nenne
-  dem Menschen die Sechswochenfrist.
+- **Androhung:** Leg eine Androhung des Ordnungsgelds sofort ab und nenne dem
+  Menschen die Sechswochenfrist ([§ 335 Abs. 3 HGB][hgb335]).
 - **Vertiefung:** [jahresabschluss/aufstellen-feststellen-offenlegen.md](../jahresabschluss/aufstellen-feststellen-offenlegen.md),
   [jahresabschluss/groessenklassen-anhang.md](../jahresabschluss/groessenklassen-anhang.md)
 
@@ -349,9 +303,6 @@ Weg, Fälligkeit und Nachweis kennt.
   Papier ([§ 60 EStDV][estdv60];
   [steuererklaerungen/ebilanz.md, Abschnitt 5](../steuererklaerungen/ebilanz.md#5-übermittlungsweg)).
 - **Nachweis:** Transferticket.
-- **Bei Versäumnis:** Die Körperschaftsteuererklärung ist unvollständig; das
-  Finanzamt kann die Übermittlung mit Zwangsgeld bis 25.000 € je Festsetzung
-  durchsetzen ([§§ 328, 329 AO][ao328]).
 - **Vertiefung:** [steuererklaerungen/ebilanz.md](../steuererklaerungen/ebilanz.md)
 
 <a id="kst-erklaerung"></a>
@@ -367,12 +318,6 @@ Weg, Fälligkeit und Nachweis kennt.
   Werte aus `erklaerung` (`art: kst`; offene Angaben über
   `erklaerung_eingabe`), lässt prüfen und sendet.
 - **Nachweis:** Transferticket.
-- **Bei Versäumnis:** Verspätungszuschlag, auch auf die
-  Feststellungserklärungen (Einlagekonto, Verlustvortrag):
-  [steuererklaerungen/fristen-zuschlaege.md, Abschnitt 4](../steuererklaerungen/fristen-zuschlaege.md#4-verspätungszuschlag).
-  Das Finanzamt kann schätzen, die Abgabepflicht bleibt ([§ 162 AO][ao162],
-  [§ 149 Abs. 1 Satz 4 AO][ao149]), und die Abgabe mit Zwangsgeld durchsetzen
-  ([§§ 328, 329 AO][ao328]).
 - **Vertiefung:** [steuererklaerungen/kst.md](../steuererklaerungen/kst.md),
   [steuererklaerungen/abgabe.md](../steuererklaerungen/abgabe.md)
 
@@ -385,8 +330,6 @@ Weg, Fälligkeit und Nachweis kennt.
   zusätzlich die „Erklärung für die Zerlegung des Gewerbesteuermessbetrages
   (GewSt 1 D)“ ([§ 14a Satz 1 GewStG][gewstg14a]).
 - **Nachweis:** Transferticket.
-- **Bei Versäumnis:** Verspätungszuschlag, Schätzung und Zwangsgeld wie bei der
-  [kst-erklaerung](#kst-erklaerung).
 - **Vertiefung:** [steuererklaerungen/gewst.md](../steuererklaerungen/gewst.md)
 
 <a id="ust-erklaerung"></a>
@@ -400,9 +343,6 @@ Weg, Fälligkeit und Nachweis kennt.
 - **Weg:** Mein ELSTER, unter „Umsatzsteuer“ das Formular
   „Umsatzsteuererklärung“, Werte aus `erklaerung` (`art: ust_jahr`).
 - **Nachweis:** Transferticket.
-- **Bei Versäumnis:** Verspätungszuschlag, Schätzung und Zwangsgeld wie bei der
-  [kst-erklaerung](#kst-erklaerung); Säumniszuschlag auf die Abschlusszahlung
-  ([§ 240 AO][ao240]).
 - **Vertiefung:** [steuererklaerungen/ust-jahr.md](../steuererklaerungen/ust-jahr.md)
 
 <a id="transparenzregister"></a>
@@ -417,29 +357,17 @@ Weg, Fälligkeit und Nachweis kennt.
   mit Grund auf entfallen.
 - **Wirtschaftlich berechtigt** ist jede natürliche Person, die unmittelbar
   oder mittelbar mehr als 25 % der Kapitalanteile hält, mehr als 25 % der
-  Stimmrechte kontrolliert oder auf vergleichbare Weise Kontrolle ausübt;
-  mittelbar über eine Vereinigung, die sie nach § 290 Abs. 2–4 HGB beherrscht
+  Stimmrechte kontrolliert oder vergleichbar Kontrolle ausübt, mittelbar über
+  eine von ihr nach § 290 Abs. 2–4 HGB beherrschte Vereinigung
   ([§ 3 Abs. 2 Satz 1–4 GwG][gwg3]). Prüfe die Kontrolle je Ebene der
   Holdingkette, ohne Quoten zu multiplizieren. Lässt sich niemand ermitteln,
-  gilt der gesetzliche Vertreter als wirtschaftlich Berechtigter
-  ([§ 3 Abs. 2 Satz 5 GwG][gwg3]). Mittelbare Beteiligungen kennt Buchfink
-  nicht; frag danach.
-- **Weg** ([Hilfe-Center][trhilfe]; ohne Browser als [JSON][trhilfeapi]):
-  transparenzregister.de → „Nutzerkonto anlegen“ (Aktivierungslink binnen
-  24 Stunden bestätigen, „Eintragungen vornehmen“ wählen); GmbH suchen, wirtschaftlich Berechtigte angeben, Berechtigung
-  versichern, übermitteln; bei einer Änderung „Erste Mitteilung oder
-  Folgemitteilung“ mit Gültigkeitsdatum. Eine schon eingetragene GmbH i. G.
-  meldet den Wegfall von „in Gründung“ als Änderung. Die Eingangsmitteilung
-  (PDF) sofort herunterladen; sie steht nur 14 Tage im Konto.
-- **Nachweis:** Vorgangsnummer der Eingangsmitteilung; du legst das PDF ab. Die
+  gilt der gesetzliche Vertreter ([§ 3 Abs. 2 Satz 5 GwG][gwg3]). Mittelbare
+  Beteiligungen kennt Buchfink nicht; frag danach.
+- **Weg:** Der Mensch meldet im Transparenzregister (Schritte, Gebühr:
+  [pflichten-portale.md](pflichten-portale.md#transparenzregister)).
+- **Nachweis:** Vorgangsnummer der Eingangsmitteilung; sie steht nur 14 Tage im
+  Konto, der Mensch lädt sie sofort herunter, du legst das PDF ab. Die
   Eintragung belegt erst ein Registerauszug.
-- **Bei Versäumnis:** Geldbuße bis 150.000 € bei Vorsatz, bis 100.000 € bei
-  Leichtfertigkeit, bei schwerwiegenden, wiederholten oder systematischen
-  Verstößen bis 1 Mio. € oder das Zweifache des Vorteils
-  ([§ 56 Abs. 1 Satz 1 Nr. 55, Satz 2, Abs. 3 GwG][gwg56]); Veröffentlichung
-  mit Namen ([§ 57 Abs. 1 GwG][gwg57]).
-- **Gebühr:** jährlich, seit 2024 19,80 € ([§ 24 Abs. 1 GwG][gwg24],
-  [TrGebV, Anlage Nr. 1][trgebv]).
 - **Vertiefung:** Reihenfolge in der Gründung:
   [gruendung/gruendungsweg.md](../gruendung/gruendungsweg.md#4-behördenwege-mit-fristen)
 
@@ -458,10 +386,6 @@ Weg, Fälligkeit und Nachweis kennt.
   klärt der Mensch mit dem Gericht oder lässt einen Notar einreichen.
 - **Nachweis:** Datum der Einreichung und Abschrift oder Bestätigung des
   Notars; du legst die Abschrift ab.
-- **Bei Versäumnis:** Gegenüber der GmbH gilt als Gesellschafter nur, wer in
-  der aufgenommenen Liste steht ([§ 16 Abs. 1 GmbHG][gmbhg16]). Die
-  Geschäftsführer haften den Betroffenen und den Gläubigern als
-  Gesamtschuldner ([§ 40 Abs. 3 GmbHG][gmbhg40]).
 - **Vertiefung:** [gruendung/gruendungsweg.md](../gruendung/gruendungsweg.md#5-nach-der-eintragung)
 
 <a id="fragebogen-steuerliche-erfassung"></a>
@@ -476,9 +400,7 @@ Weg, Fälligkeit und Nachweis kennt.
   ([gruendung/eroeffnungsbilanz.md](../gruendung/eroeffnungsbilanz.md)). Die
   Steuernummer aus dem Antwortschreiben schlägst du mit
   `stammdaten_vorschlagen` vor.
-- **Nachweis:** Transferticket.
-- **Bei Versäumnis:** Zwangsgeld bis 25.000 € je Festsetzung
-  ([§§ 328, 329 AO][ao328]). Ohne Steuernummer oder USt-IdNr. fehlt jeder
+- **Nachweis:** Transferticket. Ohne Steuernummer oder USt-IdNr. fehlt jeder
   Ausgangsrechnung eine Pflichtangabe ([§ 14 Abs. 4 Satz 1 Nr. 2 UStG][ustg14]).
 - **Vertiefung:** [gruendung/steuerliche-erfassung.md](../gruendung/steuerliche-erfassung.md)
 
@@ -497,8 +419,6 @@ Weg, Fälligkeit und Nachweis kennt.
   Berufsgenossenschaft ([§ 192 Abs. 1 Satz 2 SGB VII][sgb7_192]).
 - **Nachweis:** Empfangsbescheinigung, binnen drei Tagen
   ([§ 15 Abs. 1 GewO][gewo15]); du legst sie ab.
-- **Bei Versäumnis:** Geldbuße bis 1.000 €, auch für die übrigen Anlässe
-  ([§ 146 Abs. 2 Nr. 2 Buchst. b, Abs. 3 GewO][gewo146]).
 - **Vertiefung:** [gruendung/gruendungsweg.md](../gruendung/gruendungsweg.md),
   Abschnitt 4
 
@@ -514,19 +434,13 @@ Weg, Fälligkeit und Nachweis kennt.
      meldest `pflicht_vorbereitet`.
   2. Der Mensch speichert sie in der App als PDF (Unternehmen, Stammdaten,
      Block „Gesellschafter & Kapital“, „Als PDF speichern“ an der Pflicht).
-     Die App gibt es erst aus, wenn die Bilanz aufgeht, das Kapital der
-     Gründung entspricht und die Geschäftsführung eingetragen ist; einen
-     Befund klärst du mit dem Menschen.
+     Einen Befund der App klärst du mit dem Menschen.
   3. Die Geschäftsführer unterzeichnen mit Datum
      ([§ 245 HGB][hgb245] über [§ 242 Abs. 1 Satz 2 HGB][hgb242]). Die
      unterzeichnete Fassung legst du auf Anweisung aus dem Eingang ab; das
      Original bewahrt der Mensch auf ([§ 257 Abs. 3 HGB][hgb257]).
   4. Der Mensch bestätigt die Pflicht an derselben Stelle in der App.
 - **Nachweis:** die Bestätigung; die unterzeichnete Fassung liegt im Archiv.
-- **Bei Versäumnis:** Strafbarkeit wie beim [bilanzstichtag](#bilanzstichtag);
-  die Eröffnungsbilanz ist eine solche Bilanz
-  ([§ 242 Abs. 1 Satz 1 HGB][hgb242]). Ohne sie fehlt auch die
-  [ebilanz-eroeffnung](#ebilanz-eroeffnung).
 - **Vertiefung:** [gruendung/eroeffnungsbilanz.md](../gruendung/eroeffnungsbilanz.md)
 
 <a id="ebilanz-eroeffnung"></a>
@@ -540,8 +454,6 @@ Weg, Fälligkeit und Nachweis kennt.
   bei der [ebilanz](#ebilanz) und trägt das Transferticket ein (Abschlüsse,
   Erklärungen, Zeile „E-Bilanz der Eröffnungsbilanz“).
 - **Nachweis:** Transferticket.
-- **Bei Versäumnis:** Zwangsgeld bis 25.000 € je Festsetzung
-  ([§§ 328, 329 AO][ao328]).
 - **Vertiefung:** [steuererklaerungen/ebilanz.md](../steuererklaerungen/ebilanz.md),
   Abschnitt 6
 
@@ -572,26 +484,15 @@ Weg, Fälligkeit und Nachweis kennt.
   4. Auf Verlangen Steuerbescheinigung ausstellen
      ([§ 45a Abs. 2 EStG][estg45a]).
 - **Nachweis:** Transferticket.
-- **Bei Versäumnis:** Die GmbH haftet für die Steuer
-  ([§ 44 Abs. 5 EStG][estg44]), der Geschäftsführer bei grober Fahrlässigkeit
-  ([§ 69 AO][ao69]); Säumnis- und Verspätungszuschlag
-  ([§ 240 AO][ao240], [§ 152 Abs. 1 AO][ao152]); Geldbuße bis 25.000 €
-  ([§ 380 AO][ao380]).
 - **Vertiefung:** [gesellschafter/ausschuettung.md](../gesellschafter/ausschuettung.md),
   [gesellschafter/steuerbescheinigung.md](../gesellschafter/steuerbescheinigung.md)
 
 [ao1]: https://www.gesetze-im-internet.de/ao_1977/__1.html
-[ao69]: https://www.gesetze-im-internet.de/ao_1977/__69.html
 [ao108]: https://www.gesetze-im-internet.de/ao_1977/__108.html
 [ao109]: https://www.gesetze-im-internet.de/ao_1977/__109.html
 [ao149]: https://www.gesetze-im-internet.de/ao_1977/__149.html
 [ao150]: https://www.gesetze-im-internet.de/ao_1977/__150.html
-[ao152]: https://www.gesetze-im-internet.de/ao_1977/__152.html
-[ao162]: https://www.gesetze-im-internet.de/ao_1977/__162.html
 [ao224]: https://www.gesetze-im-internet.de/ao_1977/__224.html
-[ao240]: https://www.gesetze-im-internet.de/ao_1977/__240.html
-[ao328]: https://www.gesetze-im-internet.de/ao_1977/__328.html
-[ao380]: https://www.gesetze-im-internet.de/ao_1977/__380.html
 [aeao108]: https://www.steuerschroeder.de/steuergesetze/aeao/108
 [bgb121]: https://www.gesetze-im-internet.de/bgb/__121.html
 [estdv60]: https://www.gesetze-im-internet.de/estdv_1955/__60.html
@@ -604,12 +505,10 @@ Weg, Fälligkeit und Nachweis kennt.
 [gewanzv2]: https://www.gesetze-im-internet.de/gewanzv_2014/__2.html
 [gewo14]: https://www.gesetze-im-internet.de/gewo/__14.html
 [gewo15]: https://www.gesetze-im-internet.de/gewo/__15.html
-[gewo146]: https://www.gesetze-im-internet.de/gewo/__146.html
 [gewstg14a]: https://www.gesetze-im-internet.de/gewstg/__14a.html
 [gewstg19]: https://www.gesetze-im-internet.de/gewstg/__19.html
 [gmbhg5a]: https://www.gesetze-im-internet.de/gmbhg/__5a.html
 [gmbhg11]: https://www.gesetze-im-internet.de/gmbhg/__11.html
-[gmbhg16]: https://www.gesetze-im-internet.de/gmbhg/__16.html
 [gmbhg40]: https://www.gesetze-im-internet.de/gmbhg/__40.html
 [gmbhg42a]: https://www.gesetze-im-internet.de/gmbhg/__42a.html
 [gmbhg46]: https://www.gesetze-im-internet.de/gmbhg/__46.html
@@ -617,9 +516,6 @@ Weg, Fälligkeit und Nachweis kennt.
 [gwg3]: https://www.gesetze-im-internet.de/gwg_2017/__3.html
 [gwg19]: https://www.gesetze-im-internet.de/gwg_2017/__19.html
 [gwg20]: https://www.gesetze-im-internet.de/gwg_2017/__20.html
-[gwg24]: https://www.gesetze-im-internet.de/gwg_2017/__24.html
-[gwg56]: https://www.gesetze-im-internet.de/gwg_2017/__56.html
-[gwg57]: https://www.gesetze-im-internet.de/gwg_2017/__57.html
 [hgb12]: https://www.gesetze-im-internet.de/hgb/__12.html
 [hgb240]: https://www.gesetze-im-internet.de/hgb/__240.html
 [hgb242]: https://www.gesetze-im-internet.de/hgb/__242.html
@@ -630,22 +526,12 @@ Weg, Fälligkeit und Nachweis kennt.
 [kstg27]: https://www.gesetze-im-internet.de/kstg_1977/__27.html
 [kstg31]: https://www.gesetze-im-internet.de/kstg_1977/__31.html
 [sgb7_192]: https://www.gesetze-im-internet.de/sgb_7/__192.html
-[stgb283]: https://www.gesetze-im-internet.de/stgb/__283.html
-[stgb283b]: https://www.gesetze-im-internet.de/stgb/__283b.html
-[trgebv]: https://www.gesetze-im-internet.de/trgebv_2020/anlage.html
 [ustdv46]: https://www.gesetze-im-internet.de/ustdv_1980/__46.html
 [ustdv47]: https://www.gesetze-im-internet.de/ustdv_1980/__47.html
 [ustdv48]: https://www.gesetze-im-internet.de/ustdv_1980/__48.html
 [ustg14]: https://www.gesetze-im-internet.de/ustg_1980/__14.html
 [ustg18]: https://www.gesetze-im-internet.de/ustg_1980/__18.html
-[ustg18a]: https://www.gesetze-im-internet.de/ustg_1980/__18a.html
-[ustg26a]: https://www.gesetze-im-internet.de/ustg_1980/__26a.html
 [elsterformulare]: https://www.elster.de/eportal/formulare-leistungen/alleformulare
 [bzstzm]: https://www.bzst.de/DE/Unternehmen/Umsatzsteuer/ZusammenfassendeMeldung/ElektronischeAbgabe/elektronischeabgabe_zm_node.html
 [bzstzmfrist]: https://www.bzst.de/DE/Unternehmen/Umsatzsteuer/ZusammenfassendeMeldung/Fristen/fristen_node.html
-[pp]: https://publikations-plattform.de
-[ppveroeff]: https://publikations-plattform.de/order/de/wissenswertes/sogehts/javeroeffentlichung
-[ppident]: https://publikations-plattform.de/order/de/wissenswertes/sogehts/registrierenidentifizeren
-[ppdaten]: https://publikations-plattform.de/order/de/wissenswertes/sogehts/meinedaten
-[trhilfe]: https://www.transparenzregister.de/hilfe-center
-[trhilfeapi]: https://www.transparenzregister.de/connector/api/help-center
+[ao240]: https://www.gesetze-im-internet.de/ao_1977/__240.html

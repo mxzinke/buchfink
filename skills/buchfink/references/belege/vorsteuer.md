@@ -59,8 +59,7 @@ eine Wertungsfrage; Folgen in
 ## 5. Nicht abziehbare Vorsteuer in der Buchung
 
 - Nicht abziehbare Vorsteuer bleibt Teil der Anschaffungskosten oder des
-  Aufwands, abziehbare gehört nicht dazu ([§ 9b Abs. 1 EStG][estg9b]); Buchfink
-  bucht sie so.
+  Aufwands ([§ 9b Abs. 1 EStG][estg9b]); Buchfink bucht sie so.
 - Vorsteuer auf Aufwendungen mit Abzugsverbot nach § 4 Abs. 5 Satz 1 Nr. 1
   bis 4, 7 oder Abs. 7 EStG ist bei der GmbH nicht abziehbar
   ([§ 10 Nr. 2 KStG][kstg10]). Buchfink bucht sie auf das Konto des nicht
@@ -75,10 +74,9 @@ eine Wertungsfrage; Folgen in
   nicht bei höchstens 1.000 € Vorsteuer auf das Wirtschaftsgut
   ([§ 44 Abs. 1 UStDV][ustdv44]; weitere Vereinfachungen Abs. 2, 3; Stand:
   Oktober 2026).
-- Buchfink führt das Verzeichnis dieser Wirtschaftsgüter
-  ([§ 22 Abs. 4 UStG][ustg22]), bucht die Berichtigung aber noch nicht. Ändert
-  sich die Nutzung (Verkauf, steuerfreie Vermietung, private Nutzung), sag es
-  dem Menschen.
+- Buchfink führt das Verzeichnis ([§ 22 Abs. 4 UStG][ustg22]), bucht die
+  Berichtigung aber noch nicht. Ändert sich die Nutzung (Verkauf, steuerfreie
+  Vermietung, private Nutzung), sag es dem Menschen.
 
 ## 7. Minderung des Entgelts
 

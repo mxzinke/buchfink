@@ -30,10 +30,8 @@ als Beleg ab; sie belegt Gebühren, die nur dort stehen.
 - Fehlt sie, frag danach (Kundenkonto des Anbieters, E-Mail); sonst erfasst
   der Mensch einen Eigenbeleg ohne Vorsteuer
   ([grundlagen/gobd.md](../grundlagen/gobd.md#8-belegwesen-und-eigenbeleg)).
-- Fremdwährung: Rechnung nach
-  [belege/fremdwaehrung-auslagen.md](../belege/fremdwaehrung-auslagen.md#1-beleg-in-fremdwährung);
-  den abweichenden Euro-Betrag der Abrechnung klärst du beim Ausgleich
-  (Abschnitt 4).
+- Fremdwährung: [belege/fremdwaehrung-auslagen.md](../belege/fremdwaehrung-auslagen.md#1-beleg-in-fremdwährung)
+  und Abschnitt 4.
 
 ## 3. Monatsabrechnung ausgleichen
 
@@ -44,10 +42,8 @@ als Beleg ab; sie belegt Gebühren, die nur dort stehen.
    frag danach.
 4. Stimmt der Saldo von 3610 zum Stichtag mit der Lastschrift, leg den
    Ausgleich vor und buche nach dem Ja mit `bankumsatz_buchen` und
-   `kreditkartenabrechnung`. Eine Abweichung im Rahmen des Kurses der
-   Fremdwährungsbelege bucht Buchfink selbst als Kursdifferenz; eine
-   Centrundung gibst du als `differenzen` mit `art: rundung` mit. Sonst kläre
-   erst die Differenz (Abschnitt 4).
+   `kreditkartenabrechnung`; eine Centrundung gibst du als `differenzen` mit
+   `art: rundung` mit. Sonst kläre erst die Differenz (Abschnitt 4).
 
 Fertig, wenn 3610 nach der Lastschrift nur noch Zahlungen nach dem Stichtag
 enthält.
@@ -57,7 +53,7 @@ enthält.
 | Ursache | Vorgehen |
 |---|---|
 | Jahresgebühr, Auslandseinsatzentgelt, Zinsen der Kartenbank | `buchung_erfassen` (Rückfrage) gegen 3610, Beleg ist die Abrechnung; Gebühren 6855, Zinsen 7310 |
-| Kartenzahlung in Fremdwährung, Euro-Betrag weicht ab | beim Beleg `belastet` angeben; sonst nimmt Buchfink die Abweichung beim Ausgleich als Kursdifferenz an (6880/4840, bis zu einem Zehntel der Fremdwährungsbelege) |
+| Kartenzahlung in Fremdwährung, Euro-Betrag weicht ab | beim Beleg `belastet` angeben; sonst bucht Buchfink die Abweichung beim Ausgleich als Kursdifferenz (6880/4840, bis zu einem Zehntel der Fremdwährungsbelege) |
 | Erstattung eines Händlers auf die Karte | Gutschrift als Beleg mit `gutschrift_zu` und Bezahlung `kreditkarte` |
 | Zahlung fällt in die nächste Abrechnung | keine Differenz; Stichtag beachten |
 | Zahlung ohne Beleg und erkennbaren Zweck | Mensch fragen; private Nutzung nach [gesellschafter/vga-einlage.md](../gesellschafter/vga-einlage.md) |

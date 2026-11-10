@@ -54,12 +54,8 @@ Pensionszusage: [Steuerberater](../grundlagen/grenzen.md#3-wann-du-einen-steuerb
 - Handelsrecht: der nach vernünftiger kaufmännischer Beurteilung notwendige
   Erfüllungsbetrag, mit Preisen und Kosten im Zeitpunkt der Erfüllung
   ([§ 253 Abs. 1 Satz 2 HGB][hgb253]).
-- Steuerlich höchstens ([§ 6 Abs. 1 Nr. 3a EStG][estg6]): gleichartige
-  Verpflichtungen nach Erfahrung (Buchst. a), Sachleistungen mit Einzel- und
-  angemessenen Gemeinkosten (Buchst. b), gemindert um künftige Vorteile
-  (Buchst. c), nach den Wertverhältnissen am Stichtag ohne Preis- und
-  Kostensteigerungen (Buchst. f).
 - Buchfink bucht den handelsrechtlichen Wert; einen abweichenden steuerlichen
+  Wert ([rueckstellungen-steuerlich.md](rueckstellungen-steuerlich.md#höhe))
   trägst du in die
   [Liste Abschlussposten](abschlussbuchungen.md#4-liste-abschlussposten) ein.
   Rechenweg und Quellen gehören in den Eigenbeleg.
@@ -71,14 +67,8 @@ Pensionszusage: [Steuerberater](../grundlagen/grenzen.md#3-wann-du-einen-steuerb
   ([§ 253 Abs. 2 Satz 1, 4 HGB][hgb253], [§ 1, § 7 RückAbzinsV][rueckabzinsv]);
   Satz der [Bundesbank][bbk7] für den Stichtagsmonat und die Restlaufzeit in
   ganzen Jahren.
-- Steuerrecht: 5,5 % bei einer Laufzeit am Stichtag von mindestens zwölf
-  Monaten; ausgenommen verzinsliche Verpflichtungen und solche aus Anzahlungen
-  oder Vorausleistungen; bei Sachleistungen zählt die Zeit bis zum Beginn der
-  Erfüllung ([§ 6 Abs. 1 Nr. 3a Buchst. e EStG][estg6]).
-- Steuerlich unzulässig, daher in die Liste Abschlussposten:
-  Drohverlustrückstellungen ([§ 5 Abs. 4a Satz 1 EStG][estg5]) und
-  Rückstellungen für künftige Anschaffungs- oder Herstellungskosten (§ 5
-  Abs. 4b Satz 1 EStG).
+- Steuerlich 5,5 % und steuerlich unzulässige Rückstellungen (Drohverlust):
+  [rueckstellungen-steuerlich.md](rueckstellungen-steuerlich.md).
 
 ## 5. Buchen
 
@@ -86,9 +76,9 @@ Rückfrage, dann `abschlussbuchung` mit `art: rueckstellung`: Soll
 Aufwandskonto, Haben Rückstellungskonto. `grund`: Rechtsgrund, Prüffragen,
 Berechnung, Restlaufzeit, Zinssatz mit Monat der Veröffentlichung.
 
-- Buchfink zinst nur mit hinterlegten Sätzen der Bundesbank ab; fehlen sie,
-  bucht es den Erfüllungsbetrag. Sag das dem Menschen und trag den
-  abgezinsten Betrag mit Satz und Quelle in die
+- Fehlt der Bundesbank-Satz (Befund der Vorschau), bucht Buchfink den
+  Erfüllungsbetrag. Sag das dem Menschen und trag den abgezinsten Betrag mit
+  Satz und Quelle in die
   [Liste Abschlussposten](abschlussbuchungen.md#4-liste-abschlussposten) ein.
 - Aufzinsung in Folgejahren: Soll 7362, Haben Rückstellungskonto; Ertrag aus
   Abzinsung auf 7142; beides gesondert unter den Zinsen
@@ -99,20 +89,7 @@ Berechnung, Restlaufzeit, Zinssatz mit Monat der Veröffentlichung.
 
 ## 6. Verbrauch und Auflösung
 
-- Die Rechnung im Folgejahr buchst du als
-  [Eingangsbeleg](../belege/ablauf.md); `beleg_buchen_mit_rueckfrage` mit
-  `rueckstellung_id` verbraucht eine Rückstellung aus Buchfinks Kartei. Sonst
-  löst du sie mit `buchung_erfassen` gegen dasselbe Aufwandskonto auf, bis zur
-  Höhe der Rechnung.
-- Fiel weniger an: Rest Soll Rückstellung, Haben 4930; fiel mehr an, ist der
-  Rest Aufwand des neuen Jahres.
-- Die Auflösung einer Rückstellung aus Buchfinks Kartei, auch eines Rests,
-  bildet Buchfink nicht ab; leg dem Menschen Rückstellung, Betrag und
-  entfallenen Grund vor
-  ([grundlagen/arbeitsweise.md, Abschnitt 9](../grundlagen/arbeitsweise.md#9-vorgänge-ohne-werkzeug)).
-- Aufgelöst wird nur bei entfallenem Grund ([§ 249 Abs. 2 Satz 2 HGB][hgb249]);
-  prüfe jede bestehende Rückstellung zu jedem Stichtag (Konten 3070 bis
-  3096).
+Im Folgejahr: [folgejahr.md](folgejahr.md#rückstellungen).
 
 ## 7. Anhang
 
@@ -126,7 +103,5 @@ Kleine Gesellschaften erläutern sonstige Rückstellungen nicht
 [hgb285]: https://www.gesetze-im-internet.de/hgb/__285.html
 [hgb288]: https://www.gesetze-im-internet.de/hgb/__288.html
 [hgb325]: https://www.gesetze-im-internet.de/hgb/__325.html
-[estg5]: https://www.gesetze-im-internet.de/estg/__5.html
-[estg6]: https://www.gesetze-im-internet.de/estg/__6.html
 [rueckabzinsv]: https://www.gesetze-im-internet.de/r_ckabzinsv/__1.html
 [bbk7]: https://www.bundesbank.de/de/statistiken/geld-und-kapitalmaerkte/zinssaetze-und-renditen/abzinsungszinssaetze-gemaess-253-abs-2-hgb-7-jahresdurchschnitt-650652

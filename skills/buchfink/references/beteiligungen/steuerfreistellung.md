@@ -16,8 +16,7 @@ du kontierst danach und prüfst die Zeilen.
 6. Darlehen an die Tochter
 7. Was nicht unter § 8b fällt
 8. Konten und ihre Wirkung
-9. Beispiel A
-10. Erklärung
+9. Erklärung
 
 ## 1. Übersicht
 
@@ -123,23 +122,7 @@ Buchfink bucht die Zuschreibung eines Anteils an einer Kapitalgesellschaft
 auf 4913, obwohl dessen SKR04-Name § 8b Abs. 3 Satz 9 nennt. Entscheide nach
 dem Gegenstand.
 
-## 9. Beispiel A
-
-**A. Dividende einer 100-%-Tochter** von 100.000,00 €, gebucht auf 7006,
-Kapitalertragsteuer 25.000,00 € auf 7630, Solidaritätszuschlag 1.375,00 € auf
-7633:
-
-| Posten | Betrag |
-|---|---|
-| außer Ansatz nach § 8b Abs. 1 | − 100.000,00 € |
-| nicht abziehbar nach § 8b Abs. 5 | + 5.000,00 € |
-| Kapitalertragsteuer und Solidaritätszuschlag, § 10 Nr. 2 | + 26.375,00 € |
-| Wirkung auf das Einkommen gegenüber dem Jahresüberschuss | − 68.625,00 € |
-
-Anzurechnen sind 25.000,00 € Kapitalertragsteuer und 1.375,00 €
-Solidaritätszuschlag.
-
-## 10. Erklärung
+## 9. Erklärung
 
 `erklaerung` (`art: kst`) führt die Beträge getrennt nach Rechtsgrundlage;
 der Mensch überträgt sie in Mein ELSTER in die Anlage GK, Zeilen 150 bis 195

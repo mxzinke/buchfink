@@ -86,19 +86,7 @@ steuerlich [§ 5 Abs. 5 Satz 1 EStG][estg5]).
 
 ## 7. Folgejahr
 
-Abgrenzungen außerhalb von Buchfinks Kartei löst Buchfink nicht auf. Trag sie
-in die [Liste Abschlussposten](abschlussbuchungen.md#4-liste-abschlussposten)
-ein und buche nach dem Saldenvortrag die Auflösung mit `buchung_erfassen`
-(Rückfrage):
-
-- aktiv: Soll Aufwandskonto, Haben 1900, zum Jahresbeginn oder über die
-  Laufzeit;
-- passiv: Soll 3900, Haben Erlöskonto;
-- sonstige Verbindlichkeit: Soll 3500, Haben Aufwandskonto, sobald die
-  Rechnung gebucht ist.
-
-Fertig, wenn 1900, 3900 und die Abgrenzungen auf 3500 und 1300 aus dem Vorjahr
-aufgelöst sind.
+Auflösung nach dem Saldenvortrag: [folgejahr.md](folgejahr.md#abgrenzungen).
 
 [hgb246]: https://www.gesetze-im-internet.de/hgb/__246.html
 [hgb250]: https://www.gesetze-im-internet.de/hgb/__250.html

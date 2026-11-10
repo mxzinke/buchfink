@@ -21,9 +21,9 @@ gesetze-im-internet.de gelesen.
   Vereinbarung aus ([§ 14 Abs. 2 Satz 5 UStG][ustg14]); ein Dokument
   „Gutschrift“ über einen Preisnachlass ist eine Rechnungskorrektur. Frag,
   welcher Fall vorliegt.
-- Das Kontrollverfahren mit Prüfpfad zwischen Rechnung und Leistung
-  ([§ 14 Abs. 3 Satz 4, 5 UStG][ustg14]) ist in Buchfink der
-  Leistungsnachweis ab der eingestellten Grenze. Den Vermerk gibt der Mensch.
+- Das Kontrollverfahren mit Prüfpfad ([§ 14 Abs. 3 Satz 4, 5 UStG][ustg14])
+  ist in Buchfink der Leistungsnachweis ab der eingestellten Grenze; den
+  Vermerk gibt der Mensch.
 
 ## 2. Die zehn Pflichtangaben
 

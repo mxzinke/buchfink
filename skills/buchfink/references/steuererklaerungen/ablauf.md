@@ -100,7 +100,7 @@ Verlängerung nennen ([fristen-zuschlaege.md](fristen-zuschlaege.md#3-fristverl�
 ## 4. Entscheidungsregeln
 
 - Rechne auf dem Stand des aufgestellten Abschlusses; ändert sich eine
-  Buchung, rechne und exportiere neu (`zahlen_hash`).
+  Buchung, rechne und exportiere neu.
 - Verlustvortrag, Anfangsbestand des Einlagekontos, Hebesatz und
   Vorauszahlungen nur aus Bescheid oder Angabe des Menschen.
 
@@ -109,8 +109,7 @@ Verlängerung nennen ([fristen-zuschlaege.md](fristen-zuschlaege.md#3-fristverl�
 - vGA oder verdeckte Einlage
   ([kst.md](kst.md#4-verdeckte-gewinnausschüttung-und-verdeckte-einlage),
   [gesellschafter/vga-einlage.md](../gesellschafter/vga-einlage.md));
-- nicht abziehbare Ausgaben ([kst.md](kst.md#3-nicht-abziehbare-aufwendungen));
-- Spende begünstigt oder vom Gesellschafter veranlasst ([kst.md](kst.md#6-spenden));
+- nicht abziehbare Ausgaben und Spenden ([kst-abzugsposten.md](kst-abzugsposten.md));
 - Miete, Pacht, Lizenz nach § 8 Nr. 1 GewStG ([gewst.md](gewst.md#3-hinzurechnungen));
 - Betriebsstätten in mehreren Gemeinden ([gewst.md](gewst.md#7-zerlegung));
 - schädlicher Beteiligungserwerb ([kst.md](kst.md#8-verlustabzug));
@@ -128,12 +127,9 @@ Steuerberater beauftragen und „steuerliche Beratung“ pflegen.
 
 - Kapitalertragsteuer nur mit Steuerbescheinigung anrechnen
   ([kst.md](kst.md#9-steuer-rundung-anrechnung-vorauszahlungen)).
-- Gründungsjahr: je Steuer der kürzere Zeitraum
-  ([kst.md](kst.md#1-steuerpflicht-und-zeitraum),
-  [gewst.md](gewst.md#1-steuerpflicht-erklärung-bescheide),
-  [ust-jahr.md](ust-jahr.md#1-pflicht-zeitraum-frist)); die Eröffnungsbilanz
-  geht als E-Bilanz ([ebilanz.md](ebilanz.md#6-eröffnungsbilanz)).
-- Ein Einspruch hält die Zahlung nicht auf ([bescheide.md](bescheide.md)).
+- Gründungsjahr: je Steuer der kürzere Zeitraum (Abschnitt 1 verlinkt die
+  Regeln); die Eröffnungsbilanz geht als E-Bilanz
+  ([ebilanz.md](ebilanz.md#6-eröffnungsbilanz)).
 
 [estg5b]: https://www.gesetze-im-internet.de/estg/__5b.html
 [gewstg14a]: https://www.gesetze-im-internet.de/gewstg/__14a.html

@@ -30,13 +30,13 @@ und `kreditkarte` (aus dem Saldo von 3610) sind Rückfrage.
 
 ## 3. Aufteilung schreiben
 
-Die Zeilen von `aufteilung` ergeben zusammen den Umsatz. Beim Ausgleich eines
-Postens zieht Buchfink Skonto, Rundung und Kursdifferenz vom `ausgleich` ab;
-eine Gebühr rechnet es beim Zahlungsausgang hinzu und beim Eingang ab. Die
-Zeilen enthalten keine Umsatzsteuer; Vorgänge mit Steuer buchst du über ihren
-Beleg ([belege/ablauf.md](../belege/ablauf.md)).
+Beim Ausgleich eines Postens zieht Buchfink Skonto, Rundung und Kursdifferenz
+vom `ausgleich` ab; eine Gebühr rechnet es beim Zahlungsausgang hinzu und beim
+Eingang ab. Die Zeilen enthalten keine Umsatzsteuer; Vorgänge mit Steuer buchst
+du über ihren Beleg ([belege/ablauf.md](../belege/ablauf.md)).
 
-Skonto auf eine Eingangsrechnung über 1.190,00 €, gezahlt 1.166,20 €:
+Skonto auf eine Eingangsrechnung über 1.190,00 €, gezahlt 1.166,20 € (Konten:
+[skonto-differenzen.md](skonto-differenzen.md#1-skonto)):
 
 ```
 aufteilung: [
@@ -44,9 +44,6 @@ aufteilung: [
    differenz: {art: skonto, betrag: "23.80"}}
 ]
 ```
-
-Buchfink bucht daraus Verbindlichkeit 1.190,00 an Bank 1.166,20, erhaltene
-Skonti 20,00 und Vorsteuerkorrektur 3,80.
 
 Schreib `text` je Zeile so, dass ein Prüfer ihn ohne Chat versteht („Zinsen Q3
 2026 Tagesgeld, Abrechnung vom 30.09.2026“).

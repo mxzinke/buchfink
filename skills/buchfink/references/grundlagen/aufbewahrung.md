@@ -36,8 +36,7 @@ Rechtsstand: 17. Oktober 2026. GoBD in der Fassung vom 14.07.2025
   oder der Abschluss aufgestellt wurde ([§ 147 Abs. 4 AO][ao147]); beim
   Jahresabschluss handelsrechtlich mit der Feststellung
   ([§ 257 Abs. 5 HGB][hgb257]). Rechne mit dem späteren Ende. Rechnungen:
-  Schluss des Ausstellungsjahres ([§ 14b Abs. 1 Satz 3 UStG][ustg14b]); eine
-  Rechnung vom 15.03.2026 ist bis zum Ablauf des 31.12.2034 aufzubewahren.
+  Schluss des Ausstellungsjahres ([§ 14b Abs. 1 Satz 3 UStG][ustg14b]).
 - Die steuerliche Frist läuft nicht ab, solange die Unterlagen für eine Steuer
   mit offener Festsetzungsfrist von Bedeutung sind
   ([§ 147 Abs. 3 Satz 5 AO][ao147]; [§§ 169][ao169], [170][ao170],
@@ -64,8 +63,6 @@ Rechtsstand: 17. Oktober 2026. GoBD in der Fassung vom 14.07.2025
 - Eröffnungsbilanz und Jahresabschlüsse genügen nicht als Wiedergabe
   ([§ 257 Abs. 3 HGB][hgb257], [§ 147 Abs. 2 AO][ao147]): Das unterschriebene
   Exemplar ([§ 245 HGB][hgb245]) hebt der Mensch im Original auf.
-- Buchfink legt jede Datei unverändert, mit SHA-256 gesichert und in der
-  Sicherung enthalten ab, die E-Rechnung mit ihrem XML.
 
 ## 4. Papierbelege und Scannen
 
@@ -74,9 +71,8 @@ Rechtsstand: 17. Oktober 2026. GoBD in der Fassung vom 14.07.2025
   (wer, wann, was, Qualitätskontrolle) ist zu dokumentieren
   ([GoBD Rz. 136][gobd]). Danach darf Papier vernichtet werden, soweit nicht
   das Original aufzubewahren ist ([GoBD Rz. 140][gobd]).
-- Buchfink hat kein dokumentiertes Verfahren für das ersetzende Scannen; der
-  Herkunftswert `scan` nennt nur die Herkunft. Rate, Papierbelege aufzuheben,
-  bis ein Verfahren nach Rz. 136 dokumentiert ist.
+- Buchfink hat kein dokumentiertes Verfahren für das ersetzende Scannen. Rate,
+  Papierbelege aufzuheben, bis ein Verfahren nach Rz. 136 dokumentiert ist.
 
 ## 5. Ort der Aufbewahrung
 
@@ -105,8 +101,8 @@ Sicherungen in einen Cloud-Speicher, weise ihn auf den Serverstandort hin.
   begonnene Außenprüfung genügt nach Ablauf des fünften Kalenderjahres nach
   der Umstellung ein maschinell auswertbarer Datenträger
   ([§ 147 Abs. 6 Satz 5 AO][ao147]).
-- Buchfink-Installation, Datenordner und Sicherungen bleiben deshalb nach
-  einem Wechsel lesbar erhalten.
+- Buchfink-Installation, Datenordner und Sicherungen deshalb nach einem Wechsel
+  lesbar aufheben.
 
 ## 8. Was du tust
 

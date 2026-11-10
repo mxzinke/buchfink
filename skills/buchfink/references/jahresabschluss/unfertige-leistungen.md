@@ -53,7 +53,7 @@ beizulegenden Wert (Abschnitt 3):
   Bestand auf den niedrigeren Wert ab ([§ 253 Abs. 4 Satz 2 HGB][hgb253]).
 - Für einen darüber hinausgehenden Verlust ist eine Rückstellung für drohende
   Verluste zu bilden ([§ 249 Abs. 1 Satz 1 HGB][hgb249]); steuerlich ist sie
-  unzulässig ([rueckstellungen.md](rueckstellungen.md#4-abzinsung)) und kommt
+  unzulässig ([rueckstellungen-steuerlich.md](rueckstellungen-steuerlich.md#drohverlust)) und kommt
   in die [Liste Abschlussposten](abschlussbuchungen.md#4-liste-abschlussposten).
 
 ## 4. Erhaltene Anzahlungen

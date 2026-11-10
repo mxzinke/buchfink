@@ -56,27 +56,10 @@ bewegliche, selbständig nutzbare Wirtschaftsgüter des Anlagevermögens.
 
 ## 4. Nutzungsdauer und Methode
 
-- Linear über die betriebsgewöhnliche Nutzungsdauer; im Anschaffungsjahr je
-  vollem Monat vor dem Anschaffungsmonat ein Zwölftel weniger
-  ([§ 7 Abs. 1 Satz 1, 2, 4 EStG][estg7]). Geschäfts- oder Firmenwert:
-  15 Jahre (Satz 3).
-- Degressiv für bewegliche Wirtschaftsgüter, angeschafft nach dem 30.06.2025
-  und vor dem 01.01.2028: höchstens das Dreifache des linearen Satzes und 30 %
-  vom Restwert ([§ 7 Abs. 2 EStG][estg7]). Stand: Oktober 2026. Die Wahl trifft der Mensch.
-- Computerhardware samt Peripherie und Software: Nutzungsdauer ein Jahr
-  zulässig; das Gut kommt ins Bestandsverzeichnis, die volle Abschreibung im
-  Anschaffungsjahr wird nicht beanstandet
-  ([BMF vom 22.02.2022, Rz. 1 bis 1.4][bmfnd]; Geräte in Rz. 2 bis 5).
-  Handelsrechtlich ist die kurze Dauer eine Wertungsfrage.
-- Andere Güter: Erfahrungswerte in den AfA-Tabellen des BMF, etwa für
-  allgemein verwendbare Anlagegüter (BMF vom 15.12.2000, BStBl I S. 1532; hier
-  nicht am Wortlaut gelesen). Die Nutzungsdauer entscheidet der Mensch.
-
-Konten mit Vorschlag von Buchfink: 0135 EDV-Software und 0690 EDV-Hardware
-(12 Monate, Abweichung begründen), 0650 Büroeinrichtung (156 Monate), 0520 Pkw
-(72 Monate), 0670 GWG (Sofortabzug über 6260), 0675 Sammelposten (Fünftel über
-6264), 0700 Anzahlungen und Anlagen im Bau (keine Abschreibung bis zur
-Fertigstellung).
+Nutzungsdauer und Methode (linear oder, für Zugänge 2025 bis 2027, degressiv)
+wählt der Mensch. Vorschlag: linear nach AfA-Tabelle; bei Computerhardware und
+Software ein Jahr. Sätze, Quellen und die Konten, für die Buchfink eine
+Nutzungsdauer vorschlägt: [anlagen-nutzungsdauer.md](anlagen-nutzungsdauer.md).
 
 ## 5. Weg in Buchfink
 
@@ -101,8 +84,7 @@ Fertigstellung).
    eine Umbuchung der Anzahlung legst du als `buchung_erfassen` vor.
 
 [estg6]: https://www.gesetze-im-internet.de/estg/__6.html
-[estg7]: https://www.gesetze-im-internet.de/estg/__7.html
 [estg9b]: https://www.gesetze-im-internet.de/estg/__9b.html
 [hgb253]: https://www.gesetze-im-internet.de/hgb/__253.html
 [hgb255]: https://www.gesetze-im-internet.de/hgb/__255.html
-[bmfnd]: https://www.steuerschroeder.de/blog/wp-content/uploads/2022/02/Nutzungsdauer-von-Computerhardware-und-Software-zur-Dateneingabe-und-verarbeitung.pdf
+[estg7]: https://www.gesetze-im-internet.de/estg/__7.html
