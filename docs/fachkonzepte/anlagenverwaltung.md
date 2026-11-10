@@ -8,7 +8,7 @@ Anforderungen: BEW-02 bis BEW-06, BEW-10, JAB-05. Code: `internal/domain/asset.g
 `frontend/src/pages/books/AssetsTab.tsx`) zeigt Verzeichnis,
 Abschreibungsplan und Anlagenspiegel. Beschreibende Stammdaten lassen sich
 in der App ändern; erfasst und abgeschrieben wird über einen verbundenen Agenten.
-Fertigstellung, außerplanmäßige
+Außerplanmäßige
 Abschreibung, Zuschreibung und die Fremdwährungsbewertung der Anlagegüter
 rechnet der Dienst, hat aber keinen Erfassungsweg in App oder MCP.
 
@@ -54,8 +54,10 @@ und wird nur mit dem Anlagegut verknüpft. Die Abgrenzung ist eine Einschätzung
 Buchfink fragt sie ab.
 
 Anzahlungen und Anlagen im Bau stehen auf **0700**. Die Fertigstellung
-(`service.AssetService.Transfer`) bucht um, setzt das Datum der
-Betriebsbereitschaft und startet damit die Abschreibung.
+(App: Bücher → Anlagen; Werkzeug: `anlage_fertigstellen`) bucht um, setzt das Datum der
+Betriebsbereitschaft und startet damit die Abschreibung. Beim Storno werden
+Konto, Methode und AfA-Beginn wiederhergestellt; Folgebewegungen sind vorher
+zurückzunehmen.
 
 ## Abschreibung
 

@@ -10,7 +10,7 @@ import (
 func TestTangiblePartialDisposalAndReversal(t *testing.T) {
 	env := newTestEnv(t)
 	svc := env.assets(t)
-	env.journal.AddEntryEffects(svc.DepreciationEffect())
+	env.journal.AddEntryEffects(svc.EntryEffect())
 	ctx := context.Background()
 	asset, err := svc.Save(ctx, &domain.FixedAsset{
 		Name: "Vier Maschinen", Class: domain.AssetClassTangible,
@@ -85,5 +85,46 @@ func TestPoolItemDisposalLeavesPoolAndCanBeReversed(t *testing.T) {
 	}
 	if _, err := svc.ReverseDisposal(ctx, pool.ID, disposal, "noch einmal"); err == nil {
 		t.Fatal("doppeltes Storno")
+	}
+}
+
+func TestTransferReversalRestoresDepreciationStart(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	env.journal.AddEntryEffects(svc.EntryEffect())
+	ctx := context.Background()
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Maschine im Bau", Class: domain.AssetClassTangible, Account: "0700",
+		AcquisitionDate: "2026-01-01", AcquisitionCost: 1_200_000, Method: domain.DepreciationNone,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	completed, err := svc.Transfer(ctx, TransferRequest{
+		AssetID: asset.ID, Date: "2026-07-01", Account: "0440", DepreciationAccount: "6220",
+		Method: domain.DepreciationLinear, UsefulLifeMonths: 48, Note: "Abnahme",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if completed.DueAmount != 150_000 {
+		t.Fatalf("AfA: %v", completed.DueAmount)
+	}
+	var entry uint
+	for _, m := range completed.Movements {
+		if m.Kind == domain.AssetMovementTransfer {
+			entry = *m.JournalEntryID
+		}
+	}
+	if _, err := env.journal.Reverse(ctx, entry, "Abnahme berichtigen"); err != nil {
+		t.Fatal(err)
+	}
+	detail, err := svc.Get(ctx, 2026, asset.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail.Asset.Account != "0700" || detail.Asset.Method != domain.DepreciationNone ||
+		detail.Asset.InServiceDate != "" || detail.Asset.DueAmount != 0 || detail.Asset.Cost != 1_200_000 {
+		t.Fatalf("nach Storno: %+v", detail.Asset)
 	}
 }

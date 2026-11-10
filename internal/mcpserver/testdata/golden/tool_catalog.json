@@ -711,6 +711,79 @@
     "name": "anlage_abgehen",
     "title": "Anlage abgehen lassen"
   },
+  "anlage_fertigstellen": {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Anlage im Bau auf das endgültige Konto umbuchen; AfA beginnt mit der Fertigstellung.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "abschreibungskonto": {
+          "description": "SKR04-Konto oder Personenkonto",
+          "pattern": "^[0-9]{4,5}$",
+          "type": "string"
+        },
+        "anlage_id": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "datum": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "grund": {
+          "type": "string"
+        },
+        "idempotenz_schluessel": {
+          "description": "Pflicht, einer je Vorgang, 8 bis 100 Zeichen A-Z a-z 0-9 - _ . :",
+          "type": "string"
+        },
+        "konto": {
+          "description": "SKR04-Konto oder Personenkonto",
+          "pattern": "^[0-9]{4,5}$",
+          "type": "string"
+        },
+        "mandant_id": {
+          "description": "id aus status",
+          "type": "string"
+        },
+        "methode": {
+          "description": "Abschreibungsmethode",
+          "enum": [
+            "degressiv",
+            "elektrofahrzeug",
+            "gebaeude",
+            "keine",
+            "linear",
+            "sammelposten",
+            "sofort"
+          ],
+          "type": "string"
+        },
+        "nutzungsdauer_monate": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "mandant_id",
+        "idempotenz_schluessel",
+        "anlage_id",
+        "datum",
+        "konto",
+        "abschreibungskonto",
+        "methode",
+        "nutzungsdauer_monate",
+        "grund"
+      ],
+      "type": "object"
+    },
+    "name": "anlage_fertigstellen",
+    "title": "Anlage fertigstellen"
+  },
   "anlagen": {
     "annotations": {
       "idempotentHint": true,

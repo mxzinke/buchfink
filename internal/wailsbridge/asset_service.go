@@ -299,3 +299,9 @@ func (b *BuchfinkBridge) ReverseAssetDisposal(assetID, movementID uint, reason s
 		return s.Assets.ReverseDisposal(ctx, assetID, movementID, reason)
 	})
 }
+
+func (b *BuchfinkBridge) TransferAsset(req service.TransferRequest) (*domain.FixedAsset, error) {
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.FixedAsset, error) {
+		return s.Assets.Transfer(ctx, req)
+	})
+}

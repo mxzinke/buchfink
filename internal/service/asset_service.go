@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -1633,6 +1634,16 @@ func (s *AssetService) transfer(ctx context.Context, req TransferRequest) (*doma
 			asset.InventoryNumber, asset.Account)
 	}
 
+	if err := domain.CheckDate("Fertigstellung", req.Date); err != nil {
+		return nil, err
+	}
+	before, err := json.Marshal(assetTransferState{
+		Account: asset.Account, DepreciationAccount: asset.DepreciationAccount,
+		Method: asset.Method, UsefulLifeMonths: asset.UsefulLifeMonths, InServiceDate: asset.InServiceDate,
+	})
+	if err != nil {
+		return nil, err
+	}
 	target := *asset
 	target.Account = req.Account
 	target.DepreciationAccount = req.DepreciationAccount
@@ -1686,6 +1697,7 @@ func (s *AssetService) transfer(ctx context.Context, req TransferRequest) (*doma
 		Date: req.Date, FiscalYear: fiscalYear,
 		CostAmount: -asset.Cost, DepreciationAmount: -asset.Accumulated,
 		JournalEntryID: &created.ID,
+		TransferBefore: string(before),
 		Note:           fmt.Sprintf("Umbuchung auf %s", req.Account),
 	}
 	in := &domain.AssetMovement{

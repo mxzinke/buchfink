@@ -34,6 +34,7 @@ import {
   Tr,
 } from '../../components/ui';
 import { PanelHeading, errorText } from './shared';
+import { AssetTransferForm } from './AssetTransferForm';
 import { AssetDisposalForm, AssetDisposalReversal } from './AssetDisposalForm';
 import { splitNorms } from '../../utils/norms';
 
@@ -426,6 +427,9 @@ const AssetPanel: React.FC<{ assetId: number | undefined; onClose: () => void }>
           </Disclosure>}
           {asset.movements?.some(m => m.kind === 'disposal') && <Disclosure title="Abgang zurücknehmen">
             <AssetDisposalReversal asset={asset} onSaved={load} />
+          </Disclosure>}
+          {!asset.disposalDate && asset.method === 'none' && <Disclosure title="Fertigstellung erfassen">
+            <AssetTransferForm asset={asset} onSaved={load} />
           </Disclosure>}
           <Disclosure title="Stammdaten ändern">
             <AssetMetadataForm key={asset.id} asset={asset} onSaved={load} />

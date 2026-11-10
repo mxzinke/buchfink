@@ -400,6 +400,8 @@ type AssetMovement struct {
 	Quantity Units `gorm:"default:0" json:"quantity,omitempty"`
 	// ReversesMovementID verweist bei einer Gegenbewegung auf die zurückgenommene Bewegung.
 	ReversesMovementID *uint `gorm:"index" json:"reversesMovementId,omitempty"`
+	// TransferBefore enthält die für ein Umbuchungsstorno benötigten Bewertungsstammdaten.
+	TransferBefore string `gorm:"type:text" json:"-"`
 	// DisposedPoolItemID nennt beim Ausscheiden aus einem Sammelposten dessen Zugang.
 	DisposedPoolItemID *uint `gorm:"index" json:"disposedPoolItemId,omitempty"`
 

@@ -156,6 +156,7 @@ den Schemas nur kurz.
 | `offene_posten` | lesen | Forderungen und Verbindlichkeiten, Altersstruktur, Verzugszinsen, Mahnstand |
 | `bankumsaetze` | lesen | Bankumsätze mit den besten Zuordnungsvorschlägen, Einstufung und Prüfstand des Auszugs |
 | `auswertung` | lesen | Summen und Salden, Kontoblatt eines Sachkontos, Bilanz, GuV, USt-Übersicht, Prüfbericht, Gesellschafterdarlehen mit Stand und Befunden, Unterbilanz der Gründung (`FoundationService.GetState`) |
+| `anlage_fertigstellen` | rueckfrage | Anlage im Bau umbuchen; AfA ab Fertigstellung |
 | `anlage_abgehen` | rueckfrage | Verkauf oder Verschrottung mit Vorschau; Rücknahme auch ohne Buchung |
 | `anlagen` | lesen | Anlagenverzeichnis mit Beschreibung, Kennung, Kennzeichen, Nutzungsquote und Stückbestand, fällige AfA, Aktivierungskandidaten |
 | `abschluss_status` | lesen | Schritte des Jahresabschlusses mit nächster Aktion |

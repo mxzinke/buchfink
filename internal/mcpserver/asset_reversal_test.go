@@ -77,3 +77,31 @@ func TestAssetDisposalThroughTool(t *testing.T) {
 		t.Fatalf("Kartei: %+v", assets)
 	}
 }
+
+func TestAssetCompletionThroughTool(t *testing.T) {
+	h := newHarness(t)
+	h.completeCompany()
+	var id uint
+	h.ui(func(ctx context.Context, s *core.Services) error {
+		asset, err := s.Assets.Save(ctx, &domain.FixedAsset{
+			Name: "Maschine im Bau", Class: domain.AssetClassTangible, Account: "0700",
+			AcquisitionDate: "2026-01-01", AcquisitionCost: 1_200_000, Method: domain.DepreciationNone,
+		})
+		if err == nil {
+			id = asset.ID
+		}
+		return err
+	})
+	a := h.agent("")
+	var out anlageFertigOut
+	a.ok("anlage_fertigstellen", a.args(map[string]any{
+		"anlage_id": id, "datum": "2026-07-01", "konto": "0440", "abschreibungskonto": "6220",
+		"methode": "linear", "nutzungsdauer_monate": 48, "grund": "Abnahme",
+		"idempotenz_schluessel": "fertigstellung-2026",
+	}), &out)
+	var assets anlagenOut
+	a.ok("anlagen", map[string]any{"geschaeftsjahr": 2026, "anlage_id": id}, &assets)
+	if assets.Detail == nil || assets.Detail.Asset.DueAmount != 150_000 || assets.Detail.Asset.Account != "0440" {
+		t.Fatalf("Fertigstellung: %+v", assets)
+	}
+}

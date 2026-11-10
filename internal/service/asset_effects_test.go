@@ -17,7 +17,7 @@ func TestDepreciationReversalRestoresRegister(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			env := newTestEnv(t)
 			svc := env.assets(t)
-			env.journal.AddEntryEffects(svc.DepreciationEffect())
+			env.journal.AddEntryEffects(svc.EntryEffect())
 			asset := env.machine(t, svc)
 			ctx := context.Background()
 			booked, err := svc.BookDepreciation(ctx, BookDepreciationRequest{FiscalYear: 2026})

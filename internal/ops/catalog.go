@@ -47,6 +47,7 @@ var tools = []Operation{
 	Define("abschluss_status", Read),
 	Define("abschlussbuchung", Confirm),
 	Define("anlage_abgehen", Confirm),
+	Define("anlage_fertigstellen", Confirm),
 	Define("anlagen", Read),
 	Define("anlass_erfassen", Confirm),
 	Define("aufgaben", Read),

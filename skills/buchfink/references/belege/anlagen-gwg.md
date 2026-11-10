@@ -109,3 +109,8 @@ die Folgen nach [§ 8 Abs. 3 Satz 2 KStG](https://www.gesetze-im-internet.de/kst
 und [§ 3 Abs. 1b UStG](https://www.gesetze-im-internet.de/ustg_1980/__3.html).
 Eine Abgangsart „Entnahme“ gibt es nicht. Ein gewöhnlicher Verkauf an einen
 Gesellschafter wird mit Rechnung erfasst.
+
+Die Fertigstellung einer Anlage im Bau bucht `anlage_fertigstellen` nach
+Rückfrage auf das endgültige Anlagekonto. Nenne Fertigstellungstag, Zielkonto,
+Abschreibungskonto, Methode, Nutzungsdauer und Grund. Die Abschreibung beginnt
+ab der Betriebsbereitschaft. Die App bietet denselben Vorgang unter Bücher → Anlagen.

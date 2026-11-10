@@ -1206,7 +1206,7 @@ nennt nur die hier genutzten Stellen.
 
 ### Offen
 
-- Anlagenpflege: Gebuchte Stückbestände außerhalb von Abgängen, Fertigstellung, Wertminderung, Zuschreibung und Fremdwährungsbewertung sind über App und Werkzeug noch nicht änderbar. Beschreibende Angaben pflegt die App mit Grund; die Nutzungsquote löst keine Steuerkorrektur aus.
+- Anlagenpflege: Gebuchte Stückbestände außerhalb von Abgängen, Wertminderung, Zuschreibung und Fremdwährungsbewertung sind über App und Werkzeug noch nicht änderbar. Beschreibende Angaben pflegt die App mit Grund; die Nutzungsquote löst keine Steuerkorrektur aus.
 
 - **Zeilen der Vordrucke:** Zeilennummern für § 8b KStG in der
   Körperschaftsteuererklärung (Anlage GK) und für § 8 Nr. 5, § 9 Nr. 2a

@@ -33,6 +33,7 @@ type AgentServices struct {
 		PreviewAppropriation(context.Context, int, service.AppropriationRequest) (*service.AppropriationPreview, error)
 	}
 	Assets interface {
+		Transfer(context.Context, service.TransferRequest) (*domain.FixedAsset, error)
 		Get(context.Context, int, uint) (*service.AssetDetail, error)
 		ReverseDisposal(context.Context, uint, uint, string) (*domain.FixedAsset, error)
 		PreviewDisposal(context.Context, service.DisposalRequest) (*service.DisposalPreview, error)
