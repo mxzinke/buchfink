@@ -2991,6 +2991,9 @@ func afaPlanFor(
 		case domain.AssetMovementDisposal:
 			// Der Abgang nimmt die Anschaffungskosten aus den Büchern; für den Plan
 			// bleiben sie die Bemessungsgrundlage.
+		case domain.AssetMovementTakeover:
+			plan.TakeoverYear = m.FiscalYear + 1
+			plan.TakeoverDepreciation += m.DepreciationAmount
 		}
 	}
 	if !hasAcquisition {

@@ -1390,7 +1390,8 @@ export type AssetMovementKind =
   | 'write_up'
   | 'income'
   | 'vorabpauschale'
-  | 'disposal';
+  | 'disposal'
+  | 'takeover';
 
 /**
  * Stückzahl in Zehntausendstel: 100 Anteile sind 1_000_000.

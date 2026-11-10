@@ -299,6 +299,13 @@ const (
 	// Sie entsteht immer paarweise — eine Bewegung ab dem alten Konto, eine auf
 	// das neue —, weil der Anlagenspiegel beide Positionen getrennt ausweist.
 	AssetMovementTransfer AssetMovementKind = "transfer"
+	// AssetMovementTakeover hält die Abschreibungen fest, die ein Vorsystem bis
+	// zum Umstieg gebucht hat. Sie gehört zum letzten Geschäftsjahr vor dem
+	// Umstieg und verweist auf die Eröffnungsbuchung. Der Abschreibungsplan
+	// beginnt im Jahr danach mit dem übernommenen Restbuchwert; der
+	// Anlagenspiegel zeigt Anschaffungskosten und kumulierte Abschreibungen
+	// getrennt.
+	AssetMovementTakeover AssetMovementKind = "takeover"
 )
 
 // Label renders the movement kind for the UI.
@@ -310,6 +317,7 @@ func AllAssetMovementKinds() []AssetMovementKind {
 		AssetMovementSpecialDepreciation,
 		AssetMovementVorabpauschale, AssetMovementIncome,
 		AssetMovementDisposal, AssetMovementTransfer,
+		AssetMovementTakeover,
 	}
 }
 
@@ -337,6 +345,8 @@ func (k AssetMovementKind) Label() string {
 		return "Abgang"
 	case AssetMovementTransfer:
 		return "Umbuchung"
+	case AssetMovementTakeover:
+		return "Abschreibungen bis zum Umstieg"
 	default:
 		return string(k)
 	}

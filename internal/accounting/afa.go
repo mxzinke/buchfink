@@ -322,6 +322,30 @@ type AfAPlan struct {
 	// aufgelöst — die Regel richtet sich nach Wohnzweck und Stichtag, und beides
 	// steht am Anlagegut und nicht am Plan.
 	BuildingPermille int64
+
+	// TakeoverYear ist das erste Geschäftsjahr, das Buchfink abschreibt, wenn
+	// das Anlagegut aus einem Vorsystem übernommen wurde, TakeoverDepreciation
+	// die bis dahin aufgelaufene Abschreibung. Die Jahre davor hat das
+	// Vorsystem gerechnet: der Plan enthält sie nicht und beginnt im
+	// Umstiegsjahr mit dem übernommenen Restbuchwert. Null heißt: kein
+	// übernommenes Anlagegut.
+	TakeoverYear         int
+	TakeoverDepreciation domain.Cents
+}
+
+// inLegacySystem meldet ein Geschäftsjahr, das das Vorsystem abgeschrieben hat.
+func (p AfAPlan) inLegacySystem(year int) bool {
+	return p.TakeoverYear > 0 && year < p.TakeoverYear
+}
+
+// bookValueAt ersetzt zu Beginn des Umstiegsjahres den gerechneten Buchwert
+// durch den übernommenen. Das Vorsystem kann anders gerundet oder
+// außerplanmäßig abgeschrieben haben; maßgeblich ist sein Stand.
+func (p AfAPlan) bookValueAt(year int, computed domain.Cents) domain.Cents {
+	if p.TakeoverYear > 0 && year == p.TakeoverYear {
+		return p.Cost - p.TakeoverDepreciation
+	}
+	return computed
 }
 
 // FiscalPeriod ist der Zeitraum eines Geschäftsjahres, beide Tage
@@ -569,6 +593,13 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 		// wirken zu Beginn ihres Jahres — vor der Rechnung dieses Jahres, aber
 		// ohne die bereits gebuchten davor anzurühren.
 		addedNote = ""
+		if plan.TakeoverYear > 0 && year == plan.TakeoverYear {
+			// Der übernommene Restbuchwert verteilt sich auf die
+			// Restnutzungsdauer; die steuerliche Rechnung beginnt mit ihm.
+			bookValue = plan.bookValueAt(year, bookValue)
+			taxBookValue = bookValue
+			basisChanged = true
+		}
 		if added := later[year]; added != 0 {
 			bookValue += added
 			basisChanged = true
@@ -610,6 +641,15 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 		months := overlapMonths(afaStart, afaEnd, fyStart, fyEnd)
 		if months <= 0 {
 			if !fyStart.Before(afaEnd) {
+				break
+			}
+			continue
+		}
+		if plan.inLegacySystem(year) {
+			// Die Monate des Vorsystems zählen zur Nutzungsdauer, eine Zeile
+			// bekommen sie nicht.
+			remainingMonths -= months
+			if remainingMonths <= 0 || !fyEnd.Before(afaEnd) {
 				break
 			}
 			continue
@@ -787,6 +827,13 @@ func poolSchedule(plan AfAPlan) ([]AfAYear, error) {
 	bookValue := plan.Cost
 	share := domain.MulRound(plan.Cost, 1, int64(years))
 	for i := 0; i < years; i++ {
+		if plan.inLegacySystem(first + i) {
+			continue
+		}
+		bookValue = plan.bookValueAt(first+i, bookValue)
+		if bookValue <= 0 {
+			break
+		}
 		amount := share
 		if i == years-1 || amount > bookValue {
 			amount = bookValue
@@ -845,6 +892,10 @@ func electricVehicleSchedulePlan(
 	bookValue := plan.Cost
 	for i, permille := range window.PermillePerYear {
 		year := acquisitionYear + i
+		if plan.inLegacySystem(year) {
+			continue
+		}
+		bookValue = plan.bookValueAt(year, bookValue)
 		note := ""
 		if added := later[year]; added != 0 {
 			basis += added
@@ -935,6 +986,13 @@ func buildingSchedule(
 	basis := plan.Cost
 	bookValue := plan.Cost
 	for year := acquisitionYear; bookValue > 0; year++ {
+		if plan.inLegacySystem(year) {
+			continue
+		}
+		bookValue = plan.bookValueAt(year, bookValue)
+		if bookValue <= 0 {
+			break
+		}
 		note := ""
 		if added := later[year]; added != 0 {
 			basis += added

@@ -70,6 +70,7 @@ const MOVEMENT_LABEL: Record<string, string> = {
   vorabpauschale: 'Vorabpauschale',
   disposal: 'Abgang',
   transfer: 'Umbuchung',
+  takeover: 'Abschreibungen bis zum Umstieg',
 };
 
 /** Der Zustand eines Anlageguts in einem Wort, mit dem offenen Betrag daneben. */
