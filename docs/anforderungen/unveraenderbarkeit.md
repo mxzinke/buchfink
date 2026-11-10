@@ -47,7 +47,7 @@ in der App, Hintergrundlauf oder verbundene KI-App.
 |---|---|---|
 | Rollen für Erfassen, Freigeben, Festschreiben, Stammdaten | teilweise | Keine Personenrollen. Verbundene Apps erhalten je Mandant die Rechte Lesen oder Buchen. Festschreibung, Abschlussstände, Übermittlungen, Pflichtbestätigungen, Unternehmensdaten und Prüfermodus sind dem Menschen in der App vorbehalten (`core.AppOnly`, `service.requireHuman`) |
 | Vergabe von Rechten protokolliert | erfüllt | Zulassung und Entzug einer App stehen im Änderungsprotokoll des Mandanten |
-| Jede Buchung, Freigabe und Festschreibung trägt Bearbeiter und Erfassungsweg | erfüllt | `actor.Actor` (Benutzer@Rechner), `actor.RecordedChannel` (`ui`, `system`, `agent:<name>`) an Buchung und Protokolleintrag |
+| Jede Buchung, Freigabe und Festschreibung speichert Bearbeiter und Erfassungsweg | erfüllt | `actor.Actor` (Benutzer@Rechner), `actor.RecordedChannel` (`ui`, `system`, `agent:<name>`) an Buchung und Protokolleintrag |
 | Bericht über die aktuelle Rechtevergabe | teilweise | `wailsbridge.BuchfinkBridge.GetConnectedApps` listet die verbundenen Apps mit ihren Rechten; kein Export |
 
 ## UNV-05 Internes Kontrollsystem

@@ -20,7 +20,7 @@ MUSS · § 14 Abs. 4 UStG
 |---|---|---|
 | Jede Rechnung enthält die Pflichtangaben des § 14 Abs. 4 UStG | erfüllt | `domain.Invoice.ValidateParties` |
 | Bei Anzahlungen steht der Zeitpunkt der Vereinnahmung | erfüllt | Abschlagsrechnung, [Anzahlungen](../fachkonzepte/anzahlungen.md) |
-| Bei Gutschriften steht „Gutschrift“ | nicht im Umfang | Buchfink stellt keine Abrechnungsgutschrift nach § 14 Abs. 2 S. 2 UStG aus; Storno und Berichtigung tragen das Wort nicht |
+| Bei Gutschriften steht „Gutschrift“ | nicht im Umfang | Buchfink stellt keine Abrechnungsgutschrift nach § 14 Abs. 2 S. 2 UStG aus; Storno und Berichtigung enthalten das Wort nicht |
 | Ohne vollständige Angaben keine Ausstellung, das fehlende Feld wird benannt | erfüllt | `service.InvoiceService.Issue` |
 | Gleiche Prüfung bei Eingangsrechnungen, mit Klärungsliste | erfüllt | beim Auslesen des strukturierten Teils (`service.EInvoiceService.ExtractStructuredPart`), Befunde am Beleg |
 
@@ -56,7 +56,7 @@ MUSS* · §§ 33, 34, 34a UStDV
 | Grenze datiert und zum Rechnungsdatum gelesen | erfüllt | `accounting.TaxParametersFor` |
 | Reduzierte Mindestangaben | teilweise | Hinweis auf § 33 UStDV, keine Anschrift nötig, Ausgabe als PDF zulässig; ein Empfänger bleibt Pflicht, einen Barverkauf gibt es nicht |
 | Kleinunternehmerrechnung | nicht im Umfang | Der eigene Mandant kann kein Kleinunternehmer sein; bei Lieferanten wird der Status geführt |
-| Eingehende Kleinbetragsrechnungen und Fahrausweise geprüft | erfüllt | Belegprüfung nach §§ 33, 34 UStDV beim Buchen |
+| Eingehende Kleinbetragsrechnungen und Fahrausweise geprüft | erfüllt | Belegprüfung nach §§ 33, 34 UStDV beim Buchen; sie lassen sich aus den Bruttobeträgen je Steuersatz buchen (§ 35 UStDV, `service.PostingService`) |
 
 ## RECH-06 E-Rechnung erzeugen
 
@@ -77,7 +77,7 @@ MUSS · § 14 Abs. 1 UStG, § 15 Abs. 1 UStG, BMF-Schreiben vom 15.10.2025 Rn. 6
 
 | Kriterium | Stand | Fundstelle oder Grund |
 |---|---|---|
-| XRechnung und ZUGFeRD lesen, Buchungsvorschlag erzeugen | erfüllt | `invoice.Reader.Read` (CII und UBL, XML und Hybrid-PDF), `service.EInvoiceService.Propose`; MINIMUM und BASIC WL werden mit Grund abgewiesen |
+| XRechnung und ZUGFeRD lesen, Buchungsvorschlag erzeugen | erfüllt | `invoice.Reader.Read` (CII und UBL, XML und Hybrid-PDF), `service.EInvoiceService.Propose` für Rechnung und Gutschrift; MINIMUM und BASIC WL werden mit Grund abgewiesen. Eine reine XRechnung ist ohne PDF buchbar |
 | Befunde getrennt nach Format-, Geschäftsregel- und Inhaltsfehlern, Ergebnis gespeichert | erfüllt | `domain.ReceiptValidation` |
 | Fehlerhafte Rechnungen archiviert und in einer Klärungsliste | erfüllt | Ablage vor jeder Auswertung |
 | Zurückweisen ohne Archivierung ausgeschlossen | erfüllt | Verwerfen verlangt einen Grund, der Beleg bleibt (`service.ReceiptService.Discard`) |

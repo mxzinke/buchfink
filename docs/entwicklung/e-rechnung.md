@@ -52,8 +52,8 @@ what := ruleset.Describe(inv)         // Syntax, Profil, Rechnungsart
 Keine Abhängigkeit zum übrigen Buchfink. Das Modul bringt seine eigene
 Zahlenschicht mit, weil Beträge in einer Rechnung nicht alle zweistellig sind:
 Einzelpreise (BT-146) und Steuersätze (BT-119) haben legitim mehr
-Nachkommastellen, und ein Satz von 8,375 %, vorher auf zwei Stellen gerundet,
-liegt je Position ein bis zwei Cent daneben.
+Nachkommastellen, und ein auf zwei Stellen gerundeter Satz von 8,375 % liegt je
+Position ein bis zwei Cent daneben.
 
 ## 3. Was jede Schicht prüft
 
@@ -115,24 +115,24 @@ internal/invoice     ← der Adapter: kennt beides
 internal/einvoice    ← kennt nur sich selbst
 ```
 
-Was das einbringt, steht in `internal/service/einvoice_seam_test.go`: in dieser
-Datei kommt kein XML vor. Der Buchungsvorschlag, die Umkehr des Steuerfalls,
-die Zuordnung des Lieferanten, die Ablage der Anlagen — alles geprüft an einer
-`IncomingInvoice`, die von Hand hingeschrieben ist. Umgekehrt kommt in
-`internal/einvoice` kein Konto vor.
+Der Test `internal/service/einvoice_seam_test.go` kommt ohne XML aus: Der
+Buchungsvorschlag, die Umkehr des Steuerfalls, die Zuordnung des Lieferanten und
+die Ablage der Anlagen sind an einer von Hand geschriebenen `IncomingInvoice`
+geprüft. Umgekehrt kommt in `internal/einvoice` kein Konto vor.
 
 Die Umkehr der Perspektive steht in `internal/domain`, nicht im Leser: sie ist
 eine steuerliche Entscheidung, keine Formatfrage. `"K"` heißt beim Lieferanten
 innergemeinschaftliche Lieferung und bei uns innergemeinschaftlicher Erwerb —
-wer den Code übernimmt, bucht den halben Vorgang. Das lässt sich jetzt prüfen,
-ohne dass irgendwo ein Parser läuft.
+wer den Code übernimmt, bucht den halben Vorgang. Die Prüfung braucht keinen
+Parser.
 
 ### Was der Buchungspfad daraus macht
 
 - **Der Rechnungstyp wird ausgewertet.** Eine Gutschrift hat positive Beträge
-  und sagt nur in BT-3, was sie ist. Für Gutschrift, Korrektur, Anzahlungs- und
-  Abschlagsrechnung sowie das Gutschriftverfahren schlägt
-  `service.EInvoiceService.Propose` keine Buchung vor und nennt den Fall.
+  und sagt nur in BT-3, was sie ist; `service.EInvoiceService.Propose` schlägt
+  sie mit getauschten Seiten vor. Für Korrektur, Anzahlungs- und
+  Abschlagsrechnung sowie das Gutschriftverfahren schlägt es keine Buchung vor
+  und nennt den Fall (`domain.EInvoiceKind.Bookable`).
 - **Mitgeschickte Unterlagen landen am Beleg.** Was im Datensatz eingebettet
   ankommt (BG-24), wird als Belegdatei mit der Rolle `attachment` abgelegt.
 - **Der Rechnungsbezug wird geführt.** BG-3 steht im Vorschlag und verbindet
@@ -140,14 +140,10 @@ ohne dass irgendwo ein Parser läuft.
 - **Es gibt einen Prüfer.** Ein empfangener Beleg wird gegen alle 223 Regeln
   der Norm geprüft, eine XRechnung zusätzlich gegen die deutsche Ausprägung.
 
-### Was offen bleibt
-
-Gutschrift, Korrektur und Anzahlungsrechnung werden erkannt und benannt, aber
-nicht gebucht. Jede von ihnen ist ein eigener Geschäftsvorfall. Eine Gutschrift mindert Aufwand und Vorsteuer und verrechnet
-sich gegen die ursprüngliche Rechnung; eine Anzahlungsrechnung wird erst mit
-der Zahlung steuerwirksam und in der Schlussrechnung wieder abgesetzt
-(§ 14 Abs. 5 UStG, siehe [Anzahlungen](../fachkonzepte/anzahlungen.md)). Sie brauchen einen
-eigenen Buchungsweg, keinen Sonderfall im vorhandenen.
+Korrektur und Anzahlungsrechnung brauchen einen eigenen Buchungsweg, keinen
+Sonderfall im vorhandenen: Eine Anzahlungsrechnung wird erst mit der Zahlung
+steuerwirksam und in der Schlussrechnung wieder abgesetzt (§ 14 Abs. 5 UStG,
+siehe [Anzahlungen](../fachkonzepte/anzahlungen.md)).
 
 ## 6. Herkunft und Lizenzen
 
@@ -158,8 +154,9 @@ eigenen Buchungsweg, keinen Sonderfall im vorhandenen.
 | itplr-kosit/validator-configuration-xrechnung | Apache-2.0 | Testinstanzen und die zugesicherten Urteile, unter `internal/einvoice/xrechnung/testdata/` |
 | ZUGFeRD/mustangproject | Apache-2.0 | die Profiltabelle, maschinell aus dem Referenz-Schematron abgeleitet |
 
-Buchfink steht unter EUPL-1.2, derselben Lizenz wie das Validierungsartefakt. Das Prüfmaterial liegt deshalb im Repository, und die
-Prüfungen laufen ohne Netz und ohne Vorbereitung. Die Meldungstexte sind
+Buchfink steht unter EUPL-1.2, derselben Lizenz wie das Validierungsartefakt.
+Das Prüfmaterial liegt deshalb im Repository, und die Prüfungen laufen ohne Netz
+und ohne Vorbereitung. Die Meldungstexte sind
 trotzdem durchgehend eigene: die Texte der Norm sind für einen Prüfbericht
 geschrieben, nicht für jemanden, der entscheiden muss, ob er die Rechnung
 verbucht.

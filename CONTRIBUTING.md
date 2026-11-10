@@ -53,9 +53,9 @@ npm --prefix frontend test
 npm --prefix frontend run build
 ```
 
-Unter Linux mit GTK 3 brauchen Bridge-Tests und Build das Tag `gtk3`
-(`GOFLAGS=-tags=gtk3 task test:bridge`, `task build EXTRA_TAGS=gtk3`). Nennen
-Sie im Pull Request, was Sie geprüft haben und was nicht.
+Unter Linux mit GTK 3 gilt das Tag `gtk3`, siehe
+[Entwicklung](docs/entwicklung/README.md). Nennen Sie im Pull Request, was Sie
+geprüft haben und was nicht.
 
 Buchungslogik, Hash-Ketten, Steuerschlüssel, Parser, Exporte und die Regeln für
 Agenten im Kern brauchen Tests. Bei fachlichen Änderungen gehört in den Pull
@@ -70,20 +70,16 @@ Copyleft-Lizenzen wie GPL, AGPL oder MPL sprechen Sie bitte vorher im Issue an.
 ## Skills
 
 Der Skill unter `skills/buchfink/` gibt dem Agenten Fachwissen und
-Arbeitsschritte: `SKILL.md` mit den Grundregeln und einem Wegweiser, je
-Fachbereich Referenzen unter `references/<bereich>/`. Jede fachliche Aussage
-darin nennt ihre Quelle, etwa Gesetz, BMF-Schreiben oder Vordruck; das
-Quellenregister ist `skills/QUELLEN.md`. Was Buchfink selbst rechnet und
-prüft, steht im Code, nicht im Skill.
+Arbeitsschritte. Jede fachliche Aussage darin nennt ihre Quelle; das
+Quellenregister ist `skills/QUELLEN.md`. Was Buchfink selbst rechnet und prüft,
+steht im Code, nicht im Skill.
 
 ## Dokumentation
 
 Dokumentation und Codekommentare sind deutsch und beschreiben nur den aktuellen
-Stand. Funktionen und Grenzen stehen im
-[Umsetzungsstand](docs/projekt/umsetzungsstand.md), fachliche Einzelheiten im
-[passenden Konzept](docs/fachkonzepte/README.md). Für Formulierungen gilt die
-[Schreibweise](docs/gestaltung/schreibweise.md), für Ablage und Verweise die
-[Dokumentationspflege](docs/entwicklung/dokumentation.md).
+Stand. Wohin was gehört, regelt die
+[Dokumentationspflege](docs/entwicklung/dokumentation.md), für Formulierungen
+gilt die [Schreibweise](docs/gestaltung/schreibweise.md).
 
 ## Commits und Pull Requests
 

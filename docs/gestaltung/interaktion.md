@@ -50,7 +50,7 @@ solange die Buchung nicht abgeschickt ist.
 | unter 200 ms | nichts |
 | 200 ms bis 2 s | Skelettzeilen in der Form des erwarteten Inhalts |
 | über 2 s | Skelett plus ein Satz, was gerade passiert |
-| über 10 s (Import, XBRL-Export) | Fortschritt mit Anzahl, abbrechbar |
+| über 10 s (Import, XBRL-Export) | Fortschritt mit Anzahl |
 
 Ein ausgelöster Button bleibt an seiner Stelle, behält seine Breite und zeigt
 einen Spinner. Er verschwindet nicht und wechselt nicht die Beschriftung.
@@ -76,20 +76,9 @@ mit Grund. Mit dieser zweiten Zeile steht er 8 Sekunden.
 
 Die häufigste Tätigkeit muss ohne Maus funktionieren. Eine Buchung erfassen:
 Datum, Tab, Betrag, Tab, Konto (die Suche öffnet beim Tippen, Enter übernimmt den
-Treffer), Tab, Buchungstext, Enter bucht.
-
-| Kürzel | Wirkung |
-|---|---|
-| `⌘K` | Suche über Belege, Konten, Kontakte |
-| `⌘N` | neuer Datensatz im aktuellen Kontext |
-| `⌘Enter` | Formular abschicken |
-| `Esc` | Dialog schließen, Suche verlassen |
-| `↑` `↓` | Zeile wechseln, in Betragsfeldern 1,00 € (mit Shift 100,00 €) |
-| `Enter` | markierte Zeile öffnen |
-| `Leertaste` | Zeile auswählen |
-
-Jedes Kürzel steht im Tooltip der zugehörigen Schaltfläche. Ein Kürzel, das man
-nur aus der Dokumentation kennt, existiert nicht.
+Treffer), Tab, Buchungstext, Enter bucht. `Esc` schließt Dialog, Popover und
+Menü. Eine Tabellenzeile, die eine Seitenleiste öffnet, enthält einen
+Knopf und ist darüber mit Tab und Enter erreichbar ([Komponenten](komponenten.md#104-regeln-die-der-code-nicht-zeigt)).
 
 ### 8.7 Zustand bewahren
 
@@ -97,12 +86,11 @@ Filter, Sortierung, Scrollposition und Auswahl überleben es, wenn man eine Zeil
 öffnet und zurückkehrt. Ein Wechsel des Geschäftsjahres setzt Filter zurück und
 sagt das.
 
-Eine begonnene Eingabe geht nicht verloren. Wer einen Dialog mit Inhalt schließt,
-wird gefragt. Wer die Anwendung schließt, findet den Entwurf beim nächsten Start.
+Eine begonnene Eingabe geht nicht verloren: Wer einen Dialog mit Inhalt
+schließt, wird gefragt.
 
-Ändert Claude, ein Hintergrundlauf oder die App selbst etwas im geöffneten
-Mandanten, laden die Übersicht und die offene Ansicht neu
-(`useLiveReload` in `frontend/src/live.tsx`). Die Ansicht behält dabei ihren
+Ändert ein Agent, ein Hintergrundlauf oder die App selbst etwas im geöffneten
+Mandanten, laden die Übersicht und die offene Ansicht neu (`useLiveReload`). Die Ansicht behält dabei ihren
 Stand, bis der neue da ist: kein Skelett, offene Dialoge, Seitenleisten und
 begonnene Eingaben bleiben stehen.
 
@@ -147,7 +135,7 @@ lässt Nutzer glauben, ihre Daten seien weg.
 **Lädt.** Skelettzeilen nach [Abschnitt 8.4](#84-warten).
 
 **Fehler.** Was passiert ist, in einem Satz, und was jetzt zu tun ist. Technische
-Details hinter "Details anzeigen". Keine Stack-Traces im Klartext.
+Details gehören nicht in die Meldung, keine Stack-Traces im Klartext.
 
 ---
 
@@ -159,7 +147,7 @@ Details hinter "Details anzeigen". Keine Stack-Traces im Klartext.
 - Fokus überall sichtbar: 2 px `accent`, 2 px Abstand. Nie `outline: none` ohne
   Ersatz.
 - Kein Zustand allein über Farbe. Storno hat Rand, Badge und Text.
-- Tabellen sind mit Pfeiltasten navigierbar, siehe [Abschnitt 8.6](#86-tastatur).
+- Tabellenzeilen sind über ihren Knopf mit der Tastatur erreichbar, siehe [Abschnitt 8.6](#86-tastatur).
 - Dialoge fangen den Fokus und geben ihn zurück.
 - Jede Farbaussage muss einen Schwarz-Weiß-Ausdruck überstehen. Auswertungen
   werden gedruckt.

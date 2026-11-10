@@ -2,19 +2,14 @@
 
 [Dokumentation](../../README.md) · [KI-Agenten](README.md)
 
-Stand: 17. Oktober 2026.
-
-Gilt ab Buchfink 0.3.0. Die Download-Links und die Befehle mit
-`mxzinke/buchfink` funktionieren erst mit diesem Release.
-
 OpenCode spricht Buchfink direkt über `http://127.0.0.1:7465/mcp` an und meldet
-sich selbst an. Die Skills installieren Sie getrennt.
+sich selbst an. Der Skill wird getrennt installiert.
 
 ## Voraussetzungen
 
 - Buchfink läuft auf demselben Rechner, und ein Unternehmen ist geöffnet.
 - OpenCode mit der Konfiguration im Format von <https://opencode.ai/config.json>.
-- Für den Skill-Befehl: Node.js. Ohne Node.js entpacken Sie die Skills von Hand.
+- Für den Skill-Befehl: Node.js. Ohne Node.js entpacken Sie den Skill von Hand.
 
 ## Einrichten
 
@@ -34,34 +29,19 @@ sich selbst an. Die Skills installieren Sie getrennt.
      }
    }
    ```
-3. Melden Sie sich an und bestätigen Sie in Buchfink (siehe unten):
+3. Melden Sie sich an und [lassen Sie die Anmeldung in Buchfink zu](README.md#anmeldung-zulassen):
    ```sh
    opencode mcp auth buchfink
    ```
-4. Installieren Sie die Skills nach `~/.agents/skills/`, wo OpenCode sie findet:
+4. Installieren Sie den [Skill](README.md#skills) nach `~/.agents/skills/`, wo
+   OpenCode ihn findet:
    ```sh
    npx skills add mxzinke/buchfink -g -a opencode --skill '*'
    ```
-   Ohne Node.js: Laden Sie
-   <https://github.com/mxzinke/buchfink/releases/latest/download/buchfink.zip>
-   und entpacken Sie es in denselben Ordner, unter macOS und Linux mit
+   Ohne Node.js entpacken Sie `buchfink.zip` in denselben Ordner, unter macOS
+   und Linux mit
    `mkdir -p ~/.agents/skills && unzip -o buchfink.zip -d ~/.agents/skills`.
 5. Prüfen Sie die Verbindung (siehe unten).
-
-## Was beim ersten Verbinden passiert
-
-`opencode mcp auth` öffnet den Browser. Die Seite zeigt „Bitte in Buchfink
-bestätigen“ und einen Abgleichcode. Buchfink holt gleichzeitig sein Fenster nach
-vorn: „Eine App möchte auf Buchfink zugreifen“, mit dem Namen der App, demselben
-Abgleichcode, der Rücksprungadresse, dem geöffneten Mandanten und den Rechten
-(Lesen, Buchen).
-
-Klicken Sie auf **Zulassen**, wenn beide Codes übereinstimmen und Sie die
-Anmeldung gerade selbst gestartet haben. Sonst klicken Sie auf **Ablehnen**. Die
-Anfrage verfällt nach fünf Minuten. Die Zulassung gilt für den geöffneten
-Mandanten. Für einen weiteren Mandanten öffnen Sie ihn in Buchfink und melden
-sich erneut an. Entziehen können Sie den Zugriff jederzeit in Buchfink unter
-Einstellungen → Apps verbinden.
 
 ## Prüfen, ob es geht
 
@@ -69,9 +49,8 @@ Einstellungen → Apps verbinden.
 opencode mcp list
 ```
 
-Der Eintrag `buchfink` steht dort als verbunden und angemeldet. Bitten Sie
-OpenCode dann: „Rufe das Buchfink-Werkzeug status auf.“ Die Antwort nennt das
-geöffnete Unternehmen und `bereit: true`. In OpenCode heißen die Werkzeuge
+Der Eintrag `buchfink` steht dort als verbunden und angemeldet. Den Rest prüft
+[`status`](README.md#verbindung-prüfen). In OpenCode heißen die Werkzeuge
 `buchfink_status`, `buchfink_…`.
 
 ## Rechte für schreibende Werkzeuge einschränken
@@ -87,38 +66,27 @@ Datei:
 }
 ```
 
-Mit `"deny"` statt `"ask"` sperren Sie Werkzeuge ganz. Buchfink sichert
-Unumkehrbares zusätzlich ab: Festschreiben, Übermitteln, Aufstellen,
-Feststellen, Offenlegen, das Übernehmen von Stammdaten und der Prüfermodus gibt
-es nicht als Werkzeug. Das erledigen Sie in Buchfink.
+Mit `"deny"` statt `"ask"` sperren Sie Werkzeuge ganz. Was Buchfink selbst
+abfängt, steht unter [Rechte einschränken](README.md#rechte-einschränken).
 
 ## Wenn es nicht geht
 
+Zusätzlich zu den [allgemeinen Fällen](README.md#wenn-es-nicht-geht):
+
 | Bild | Ursache | Abhilfe |
 |---|---|---|
-| `opencode mcp list` zeigt `buchfink` als nicht verbunden | Buchfink ist nicht geöffnet, oder der Zugang läuft auf einem anderen Port. | Buchfink starten. `opencode mcp debug buchfink` prüft Verbindung und Anmeldung. |
-| Buchfink meldet unter Einstellungen → Apps verbinden, Port 7465 sei belegt | Ein anderes Programm nutzt den Port. | Prüfen mit `lsof -nP -iTCP:7465 -sTCP:LISTEN` (macOS, Linux) oder `netstat -ano \| findstr :7465` (Windows). In Buchfink einen freien Port wählen, `url` in `opencode.json` anpassen, `opencode mcp logout buchfink` und neu anmelden. |
-| Anmeldung abgelaufen oder in Buchfink entzogen | Die gespeicherte Anmeldung gilt nicht mehr. | `opencode mcp auth buchfink` wiederholen. |
-| `status` antwortet mit `bereit: false` und „In Buchfink ist kein Mandant geöffnet.“; andere Werkzeuge melden `kein_mandant_offen` | In Buchfink ist kein Unternehmen geöffnet. | Unternehmen öffnen, `status` erneut aufrufen. |
-| `status` antwortet mit „Diese App ist für den geöffneten Mandanten nicht freigegeben.“; andere Werkzeuge melden `mandant_nicht_freigegeben` | Die Zulassung gilt für ein anderes Unternehmen. | Anmeldung wiederholen, während das gewünschte Unternehmen geöffnet ist. |
+| `opencode mcp list` zeigt `buchfink` als nicht verbunden | Buchfink ist nicht geöffnet. | Buchfink starten. `opencode mcp debug buchfink` prüft Verbindung und Anmeldung. |
+| Port gewechselt | `url` zeigt auf den alten Port. | `url` in `opencode.json` anpassen, `opencode mcp logout buchfink` und neu anmelden. |
+| Anmeldung abgelaufen oder entzogen | Die gespeicherte Anmeldung gilt nicht mehr. | `opencode mcp auth buchfink` wiederholen. |
 | Skills erscheinen doppelt | Dieselben Skills liegen in `~/.agents/skills/` und `~/.claude/skills/`. OpenCode liest beide Ordner. | Eine der beiden Kopien entfernen. |
-| Neben `buchfink` erscheinen ältere Buchfink-Skills wie `buchfink-grundlagen` oder `buchfink-belege` | Die früheren elf Skills sind noch installiert; beide Fassungen stehen nebeneinander. | In `~/.agents/skills/` und `~/.claude/skills/` alle Ordner entfernen, deren Name mit `buchfink-` beginnt; `buchfink` bleibt. |
-
-Ob Buchfink auf dem Port antwortet, zeigt
-`curl -s http://127.0.0.1:7465/.well-known/oauth-protected-resource`. Buchfink
-antwortet mit JSON, das `"resource"` enthält.
+| Neben `buchfink` erscheinen Skills mit Namen `buchfink-…` | Reste einer älteren Fassung. | In `~/.agents/skills/` und `~/.claude/skills/` alle Ordner entfernen, deren Name mit `buchfink-` beginnt. |
 
 ## Datenschutz
 
-Buchfink läuft auf Ihrem Rechner. Was ein Werkzeug zurückgibt, schickt OpenCode
-an den Anbieter des Sprachmodells, das Sie in OpenCode gewählt haben:
-Buchungen, Beträge, Namen von Kunden, Lieferanten und Beschäftigten, Texte aus
-Belegen und gelesene Belegdateien. Sie entscheiden, welche Daten Sie so
-verarbeiten lassen, und tragen dafür die Verantwortung. Prüfen Sie vor dem
-Einsatz mit echten Daten, ob Ihr Vertrag mit diesem Anbieter die Verarbeitung
-personenbezogener Daten abdeckt, etwa durch eine Vereinbarung zur
-Auftragsverarbeitung nach [Art. 28 DSGVO][dsgvo], und ob Ihre Eingaben zum
-Training genutzt werden.
+OpenCode schickt Werkzeugergebnisse an den Anbieter des Sprachmodells, das Sie
+in OpenCode gewählt haben. Prüfen Sie, ob Ihr Vertrag mit ihm eine
+Auftragsverarbeitung nach [Art. 28 DSGVO][dsgvo] abdeckt, und siehe
+[Datenschutz](README.md#datenschutz).
 
 ## Quellen
 

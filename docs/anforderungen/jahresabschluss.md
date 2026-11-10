@@ -33,7 +33,7 @@ MUSS · §§ 284 bis 289 HGB, §§ 274a, 288 HGB
 
 | Kriterium | Stand | Fundstelle oder Grund |
 |---|---|---|
-| Aus den Daten: Anlagenspiegel, Restlaufzeiten, Rückstellungen, Haftungsverhältnisse, Verpflichtungen, Beteiligungen | teilweise | Aus den Daten: Anlagenspiegel (`service.AssetService.Anlagenspiegel`), Restlaufzeiten und Rückstellungsspiegel (`domain.FinancialStatement`). Haftungsverhältnisse, Verpflichtungen und Beteiligungen sind Freitext |
+| Aus den Daten: Anlagenspiegel, Restlaufzeiten, Rückstellungen, Haftungsverhältnisse, Verpflichtungen, Beteiligungen | teilweise | Anlagenspiegel (`service.AssetService.Anlagenspiegel`), Restlaufzeiten und Rückstellungsspiegel (`domain.FinancialStatement`). Haftungsverhältnisse, Verpflichtungen und Beteiligungen sind Freitext |
 | Freitexte erfassbar und ins Folgejahr übernommen | teilweise | `domain.NotesSection`, Übernahme mit `service.AppropriationService.CopyNotesInto`; die Texte nimmt `service.AppropriationService.SaveNotesText` auf, ohne Erfassungsweg in App oder MCP |
 | Anhangumfang nach Größenklasse | teilweise | `accounting.ObligationsFor` entscheidet über Anhang und Lagebericht; die Größenerleichterungen der einzelnen Angaben sind nicht abgebildet; einen Lagebericht erzeugt Buchfink nicht |
 | Kleinstgesellschaft: Angaben unter der Bilanz | teilweise | eigener Abschnitt in Ansicht und PDF; ob die Angaben vollständig sind, prüft Buchfink nicht |

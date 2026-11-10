@@ -8,9 +8,9 @@ ein Fehler und keine Geschmacksfrage.
 
 Zwei Stellen setzen es um:
 
-- [`frontend/src/index.css`](../../frontend/src/index.css) hält die Tokens als
-  Tailwind-`@theme`. Nutzbar als Utility (`bg-paper`, `text-ink`) und als
-  CSS-Variable (`var(--color-ink)`).
+- [`frontend/src/index.css`](../../frontend/src/index.css) hält die Tokens samt
+  Werten als Tailwind-`@theme`, nutzbar als Utility (`bg-paper`, `text-ink`) und
+  als CSS-Variable (`var(--color-ink)`).
 - [`frontend/src/components/ui/`](../../frontend/src/components/ui) hält die
   Bausteine. Wo dieses Dokument einen Baustein beschreibt, steht dort die
   verbindliche Umsetzung. Klassenketten gehören in die Komponente, nicht in
@@ -42,7 +42,7 @@ Die Abschnittsnummern bleiben als Verweise zwischen den Themenseiten erhalten.
 - [ ] Keine Hex-Farben, keine Klassen aus den Tailwind-Standardpaletten
 - [ ] `-text` für Text, Basis für Marker, `-soft` mit `-line` für Flächen
 - [ ] Schriftgrößen aus der Skala in [Abschnitt 4](grundlagen.md#4-typografie)
-- [ ] Radien nur `control`, `overlay`, `full`
+- [ ] Radien nur `control`, `card`, `overlay`, `full`
 - [ ] Schatten nur an Popover und Dialog
 - [ ] Jede Zahlenspalte hat `.num` und ist rechtsbündig
 - [ ] Nur Bewegungen aus der Tabelle in [Abschnitt 7](grundlagen.md#7-bewegung)

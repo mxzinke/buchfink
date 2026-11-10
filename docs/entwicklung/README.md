@@ -23,8 +23,7 @@ prüft die Umgebung für den Desktop-Build.
 ### Linux: GTK 4 oder GTK 3
 
 Wails baut unter Linux mit CGO gegen GTK 4 und WebKitGTK 6.0. Mit dem Build-Tag
-`gtk3` nimmt es GTK 3 und WebKitGTK 4.1, das auf älteren Distributionen und in
-vielen CI-Umgebungen vorhanden ist.
+`gtk3` nimmt es GTK 3 und WebKitGTK 4.1.
 
 | Stapel | Pakete (Debian, Ubuntu) | Tag |
 |---|---|---|
@@ -67,6 +66,8 @@ Einstellung zu ändern.
 Ein frisches `go build ./...` scheitert, solange `frontend/dist` fehlt, weil
 `main.go` das Frontend einbettet. `npm --prefix frontend run build` legt es an.
 
+Testmandanten und ihre Generatoren stehen unter [Prüfszenarien](pruefszenarien.md).
+
 ## Änderungen prüfen
 
 ```sh
@@ -104,33 +105,8 @@ steht unter [packaging/claude-desktop](../../packaging/claude-desktop/README.md)
 
 ## Release
 
-Es gibt keine CI. Geprüft, gebaut und veröffentlicht wird von Hand mit
-[`scripts/release.sh`](../../scripts/release.sh), aufgerufen über das Taskfile:
-
-1. `python3 scripts/version.py set X.Y.Z` schreibt die Fassung in alle
-   Paketdateien. In [internal/changelog/CHANGELOG.md](../../internal/changelog/CHANGELOG.md)
-   einen Eintrag `## vX.Y.Z — JJJJ-MM-TT` anlegen; er ist der Text des Release.
-   Committen.
-2. `task release:check VERSION=X.Y.Z` prüft Fassung und Eintrag, `go mod tidy`,
-   das Frontend mit TypeScript, `task check`, die Bridge-Tests, die Tests unter
-   extremen Zeitzonen, die E-Bilanz gegen die amtlichen Schemata und das
-   Skill-Paket. Braucht einen sauberen Stand, Java ab 11 und Netz.
-3. `git tag -a vX.Y.Z -m "Buchfink X.Y.Z"`. Eine Fassung wie `X.Y.Z-rc.1` wird
-   Vorabversion.
-4. `task release:build VERSION=X.Y.Z` baut auf macOS
-   `buchfink-darwin-universal.zip` (Ad-hoc-Signatur), `buchfink-windows-amd64.exe`,
-   die Brücke `buchfink-mcp-*` für macOS, Windows und Linux, `buchfink.mcpb`
-   und das Skill-Paket `buchfink.zip` nach `dist/release/vX.Y.Z/`.
-5. `task release:build:linux VERSION=X.Y.Z` baut `buchfink-linux-amd64.tar.gz`,
-   auf Linux amd64 direkt, sonst in einem `linux/amd64`-Container mit Docker aus
-   dem Stand des Tags.
-6. `git push origin master vX.Y.Z`, dann `task release:publish VERSION=X.Y.Z`:
-   prüft, dass jede Datei vorliegt, auch jede, auf die Dokumentation oder
-   Webseite unter `releases/latest/download/` verweisen, schreibt `SHA256SUMS`
-   und legt das GitHub-Release mit `gh` an.
-
-Signiert wird nichts. Die Dateinamen enthalten keine Fassung, damit die Links
-auf `releases/latest/download/<datei>` stabil bleiben.
+Die manuellen Release-Schritte stehen im [Release-Skill](../../.agents/skills/release/SKILL.md)
+und in [`scripts/release.sh`](../../scripts/release.sh).
 
 ## Abhängigkeiten und Webseite
 

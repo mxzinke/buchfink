@@ -23,9 +23,9 @@ Satz ist, gehört in den Detaildialog hinter „Mehr erfahren“.
 | Hinweisstreifen | ein Satz |
 | Tabellenzelle | kein Erklärtext, nie |
 
-Alles darüber gehört in eine Erklärung nach [Abschnitt 15.2](#152-tooltip-und-detaildialog). Wer beim Schreiben merkt, dass
-ein Absatz nötig wäre, hat entweder die Oberfläche zu erklärungsbedürftig gebaut
-oder schreibt gerade Dokumentation an der falschen Stelle.
+Alles darüber gehört in eine Erklärung nach [Abschnitt 15.2](#152-tooltip-und-detaildialog).
+Braucht ein Text einen Absatz, ist die Oberfläche zu erklärungsbedürftig, oder
+der Text gehört in die Dokumentation.
 
 ### 15.2 Tooltip und Detaildialog
 
@@ -49,11 +49,10 @@ zu „Mehr erfahren“, Escape schließt. Der Detaildialog gibt den Fokus beim
 Schließen an das Fragezeichen zurück. Das funktioniert auch innerhalb eines
 Eingabedialogs. Eine begonnene Eingabe bleibt dabei erhalten.
 
-`summary` ist der Kurztext. `children` enthält die Details; `onMore` öffnet bei
-Bedarf einen eigenen Dialog mit Tabellen oder Beispielen. `Field`, `Section`
+Der Kurztext ist `summary`, die Details sind `children` oder öffnen über
+`onMore` einen eigenen Dialog mit Tabellen oder Beispielen. `Field`, `Section`
 und `PageHeader` reichen `helpSummary` und `explain` an dieselbe Hilfe weiter.
-Das Zeichen steht hinter der Beschriftung. Zusammengehörige Inhalte haben ein
-Fragezeichen, das Layout darf bei langen Beschriftungen umbrechen.
+Das Zeichen steht hinter der Beschriftung.
 
 `LegalText.tsx` verlinkt erkannte Gesetzesverweise in Dialogen mit Gesetze im
 Internet, GoBD mit dem amtlichen Handbuch und DSGVO-Verweise mit EUR-Lex.

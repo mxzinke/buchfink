@@ -56,7 +56,14 @@ an der Zeile trennt sie, weil Kennzahl und Entstehung verschieden sind
 
 Der Nullsteuersatz ist ein eigener Steuerfall und kein Steuersatz von null: der
 Umsatz ist steuerpflichtig, der Leistende behält den Vorsteuerabzug. Ein
-steuerpflichtiger Inlandsumsatz ohne Satz wird abgewiesen.
+steuerpflichtiger Inlandsumsatz ohne Satz wird abgewiesen. Ein Posten ohne
+Umsatzsteuer, etwa Trinkgeld oder Kurtaxe, hat einen Grund
+(`nicht_steuerbar`) und bleibt aus der Vorsteuer.
+
+Kleinbetragsrechnungen und Fahrausweise nennen oft nur den Bruttobetrag je
+Steuersatz. Buchfink rechnet die Steuer daraus einmal je Satz heraus
+(§ 35 UStDV, `service/posting_gross.go`); das gilt für einen Inlandsbeleg in
+Euro.
 
 Steuerkonten bebucht nur die Steuerautomatik. Eine Handbuchung darauf würde die
 Voranmeldung vom Journal trennen; der Buchungskern weist sie ab.
@@ -93,10 +100,9 @@ hat eine Rolle:
 Eingehende Belege bleiben in der empfangenen Form ([GoBD Rz. 131][gobd]). Die
 Originaldatei lässt sich nach dem Ablegen nicht mehr entfernen.
 
-**Ablegen und Buchen sind zwei Schritte.** Eine XRechnung ist sofort ablegbar,
-buchbar erst mit einer Darstellung und vollständigen Kopfdaten, etwa
-Belegdatum, Aussteller und Betrag. Bei einer E-Rechnung kommen die Kopfdaten aus dem
-Datensatz; gebucht wird aus dem strukturierten Teil, nie aus dem Bild.
+**Ablegen und Buchen sind zwei Schritte.** Eine XRechnung ist ohne PDF buchbar: Belegdatum, Aussteller
+und Betrag kommen aus dem Datensatz, die App zeigt das XML
+(`service.EInvoiceService.View`), und gebucht wird aus dem strukturierten Teil.
 
 **Eingang.** Vor der Ablage liegen Belege, E-Rechnungen und Kontoauszüge im
 Eingang des Mandanten (`internal/inbox`). Dort ist eine Datei noch kein Beleg:
@@ -115,7 +121,7 @@ Kopfdaten bildet Buchfink einen Hash (`accounting.ReceiptHash`), der in die
 Buchung eingeht. Mit der Buchung ist der Beleg versiegelt. Was später dazukommt,
 etwa ein Zahlungsnachweis, ist ein eigener Beleg. Ein Beleg, der einen Datensatz
 statt einer Buchung belegt, etwa der Vertrag eines Gesellschafterdarlehens, ist
-diesem zugeordnet (`assigned`): er braucht keine Buchung, seine Dateien sind
+diesem zugeordnet (`assigned`, `ReceiptService.AssignToRecord`): er braucht keine Buchung, seine Dateien sind
 ebenso eingefroren. Ob ein Beleg noch gebucht werden muss, sagt
 `Receipt.NeedsBooking`.
 
@@ -125,10 +131,7 @@ Grund und Bearbeiter als PDF (`ReceiptService.CreateSelfIssued`). Folgebuchungen
 wie AfA, Zahlung, Saldenvortrag und Abschlussbuchungen haben ihren Nachweis in
 der Buchung, auf die sie sich beziehen.
 
-**Hinweis auf die E-Rechnungspflicht.** Kommt von einem inländischen
-Unternehmer eine Rechnung ohne Datensatz, zeigt Buchfink einen Hinweis und
-blockiert nicht. Der Text richtet sich nach dem Belegdatum und den Übergangsregeln
-des [§ 27 Abs. 38 UStG][ustg27].
+**Hinweis auf die E-Rechnungspflicht.** Eine Papierrechnung eines inländischen Unternehmers löst einen Hinweis aus, keine Sperre ([E-Rechnung](e-rechnung.md#hinweis-bei-papierrechnungen)).
 
 ## Zahlung zuordnen
 
@@ -146,8 +149,13 @@ Zahlung zählt nicht als Ausgleich.
 |---|---|
 | Skonto | mindert Entgelt und Steuer nach § 17 UStG; bei § 13b und Erwerb werden beide Steuerzeilen berichtigt |
 | Bankgebühr | Aufwand auf 6855; beim Zahlungsausgang zusätzlich zum Rechnungsbetrag abgebucht, beim Zahlungseingang vom Betrag abgezogen |
-| Kursdifferenz | realisierter Gewinn oder Verlust beim Ausgleich |
+| Kursdifferenz | realisierter Verlust auf 6880 oder Gewinn auf 4840 beim Ausgleich, auch bei der Kartenabrechnung; Buchfink bucht sie selbst |
 | Zahlungsausfall | Ausbuchung mit Berichtigung der Umsatzsteuer (`service.PaymentService.WriteOffOpenItem`); weder App noch MCP bieten sie an |
+
+Die Gutschrift eines Lieferanten bucht Buchfink als Rechnung mit getauschten
+Seiten (`gutschrift_zu`): der Lieferant schuldet, Aufwand und Vorsteuer sinken
+(§ 17 Abs. 1 UStG). Der offene Posten kennt seine Seite (`OpenItem.Side`); die
+Erstattung des Lieferanten gleicht ihn aus.
 
 Ein Bankumsatz ohne Beleg, etwa Zinsen oder eine Steuerlastschrift, wird gegen
 ein Konto gebucht oder auf mehrere aufgeteilt. Der Import schlägt dafür kein

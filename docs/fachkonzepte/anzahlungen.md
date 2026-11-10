@@ -31,10 +31,9 @@ das sind, entscheidet der Verbund, nicht die Auswahl des Menschen.
 Den offenen Posten eines Abschlags rechnet `service.InvoiceService.OpenAdvanceItems`,
 die Rückzahlung bucht `service.InvoiceService.RefundAdvance`; weder App noch MCP
 erreichen sie. Ein gestellter Abschlag fehlt deshalb in `offene_posten` und in
-den Bankvorschlägen. Den Zahlungseingang bucht die App
-(`service.InvoiceService.SettleAdvance`) nur aus einem solchen Vorschlag, und
-solange ein Abschlag nicht vereinnahmt ist, lehnt Buchfink die Schlussrechnung
-ab.
+den Bankvorschlägen. Den Zahlungseingang ordnet nur die App zu
+(Bridge `SettleAdvance`); ein Agent kann ihn nicht buchen. Solange ein Abschlag
+nicht vereinnahmt ist, lehnt Buchfink die Schlussrechnung ab.
 
 Die Anzahlungsrechnung ist eine vollwertige Rechnung nach § 14 UStG mit Nummer
 aus demselben Kreis. Statt des Leistungszeitpunkts nennt sie den Zeitpunkt der

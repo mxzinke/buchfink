@@ -13,7 +13,7 @@ Formkaufleute und buchen doppelt, unabhängig von Umsatz und Gewinn.
 | Jeder Buchungssatz hat Soll und Haben, Sollsumme gleich Habensumme ohne Toleranz | erfüllt | `domain.JournalEntry.IsBalanced` |
 | Ein Buchungssatz ohne Ausgleich lässt sich nicht speichern | erfüllt | `service.JournalService.Post` ist der einzige Schreibweg |
 | Summen- und Saldenliste zu jedem Stichtag | erfüllt | `service.AccountingService.GetSuSaOverviewAt` |
-| Bilanz und GuV aus den Kontensalden, ohne Nacherfassung | erfüllt | `accounting.BuildStatement`; Eröffnungswerte als gebuchter Saldenvortrag |
+| Bilanz und GuV aus den Kontensalden, ohne Nacherfassung | erfüllt | `accounting.BuildStatement`, zum Stichtag im Jahr `StatementUntil`; Eröffnungswerte als gebuchter Saldenvortrag |
 
 ## GOB-02 Nachvollziehbarkeit für einen sachverständigen Dritten
 

@@ -74,77 +74,10 @@ Regeln, die diese Schichtung stützen:
    Beim Schreiben in die Mandantendatenbank normalisiert GORM alle
    `time.Time`-Felder in UTC.
 
-`JournalService.check` führt für `Post` und `ValidatePostable` dieselbe
-geordnete Regelliste aus. Ausgleich und Pflichtfelder, bebuchbare Konten nach
-Kontenplan und Rechtsform, die Zuordnung von Personenkonten, Steuerkonten mit
-Steuerschlüssel sowie Feststellung und Periodensperre sind feste Kernregeln
-in `internal/service`. Registrierung kann sie nicht ersetzen.
-
-`core/wire.go` registriert die Regeln aus `internal/taxrules`: Sollversteuerung,
-Bewirtungsaufzeichnung, Sammelkonten, Steuerausweis, Steuerschlüsselkatalog,
-steuerliche Angaben der Handbuchung und Belegkopf. `domain.EntryRule` legt
-Position und Geltung für die Generalumkehr fest. Die feste Reihenfolge der
-Positionen und die Registrierungsreihenfolge darin bestimmen die erste
-Fehlermeldung. Die Sammelkontenregel läuft nach der Kernprüfung jeder einzelnen
-Sachkontozeile; die Handbuchungsregel auch vor der Belegerzeugung.
-
-Die Regeln erhalten die Buchung und eine lesende `EntryRuleView` für
-Besteuerungsart und Beleg. Sie nutzen den Kontext des Aufrufers, ohne eigene
-Schreibzugriffe oder Netzaufrufe. Saldenvortrag und USt-Jahresverrechnung sind
-registrierte Ausnahmen vom Steuerschlüsselzwang; die Bebuchbarkeit des Kontos
-prüft der Kern trotzdem. Nummern, Hash-Kette, Stempel und Audit bleiben im
-Schreibweg des Journals. `TestJournalRuleContract` sichert die Meldungen beider
-Prüfpfade, `TestJournalRuleRegistration` die Verdrahtung.
-
-`PaymentService` delegiert den Ausgleich an das interne Modul `settlement`
-mit `OpenItems`, `Settle`, `Split` und `WriteOff`. Es bündelt offene Posten
-einschließlich Stichtagssicht und Altersstruktur, Zahlungszuordnungen,
-Bankaufteilungen, Differenzen und Forderungsausbuchungen. Die Aufrufer in
-Diensten, Bridge und MCP nutzen die Methoden von `PaymentService`.
-Settlement und Kursbewertung teilen den `openItemReader` für offene Posten.
-Dieser Leser benötigt nur Journal, Zahlungszuordnungen und Kontakte.
-
-Skontokonto, Nettominderung und gegenläufige Steuerzeilen liefert
-`accounting.TaxCase.Skonto`. Bei einer Anlagenrechnung ordnet Settlement die
-Minderung dem Anlagegut zu. Journalbuchung, Zuordnungen, Anlagenbewegung und
-Protokoll stehen in derselben Transaktion. Den Bankumsatz beansprucht der
-in `core/wire.go` registrierte Effekt aus `internal/bankeffects`; die
-Generalumkehr gibt ihn wieder frei. Eine erfasste Anschaffungskostenminderung
-bleibt beim Storno der Zahlung bestehen.
-
-`service.PeriodService` bündelt Geschäftsjahr, Rumpfjahr, Festschreibung,
-Abschlussperiode und Feststellung. Er entsteht eigenständig in `core/wire.go`.
-Journal und lesende Abschlussbausteine verwenden seinen gemeinsamen
-`PeriodReader`. `State(ctx, date)` liefert die Sperren des
-Buchungstags; `FiscalYear` liest oder berechnet den Jahreszeitraum, ohne ihn
-anzulegen. Das Journal fragt den Stand in seinen festen Kernregeln bei jedem
-`Post` und jeder Generalumkehr ab. Gespeicherte Jahresgrenzen halten die Sperren
-auch dann aufrecht, wenn der Beginnmonat abweicht. Die Abschlussperiode bleibt
-nach der letzten Monatsfestschreibung bis zur Jahresfestschreibung offen.
-
-`Periods.Commit` prüft den Stichtag, schreibt fest, stempelt die Buchungen und
-protokolliert in derselben Transaktion. `core/wire.go` registriert dafür die
-`PreCommitCheck`-Liste: gesetzliche Rücklage, dann `EnsureCommittable`. Die erste
-fehlgeschlagene Prüfung beendet die Liste. Ein blockierender Prüflauf bleibt
-gespeichert; andere Fehler rollen den Vorgang zurück. `Periods.Adopt` und
-`Reopen` verwalten die Abschlussstände, ihre Daten und Begründungen. Die
-bisherigen Einstiege in `ClosingService` delegieren dorthin. Beide Dienste
-prüfen den Vorbehalt des Menschen; `Reopen` erhält die Festschreibungen.
-
-`ClosingService` und Periodenverwaltung teilen die lesenden Abschlussprüfungen
-aus `closingChecks`. Die Perioden erhalten sie über `PeriodAdoptionChecks`.
-Der Vorjahresumsatz wird in der Periodenverwaltung vorbelegt.
-`StatementFigures` liefert dafür die Umsatzerlöse und für den Pflichtenkalender
-die Größenklasse. Der vollständige Abschluss ergänzt Anhang und Fristen.
-`notesStore` liest und übernimmt die Anhangtexte für Abschluss, Jahresanlage
-und Ergebnisverwendung.
-
-`TestServiceDependencyGraph` verfolgt die gespeicherten Dienstverweise der
-Verdrahtung auch durch Schnittstellen und eingebettete Module und verlangt
-einen zyklusfreien Graphen. Funktionsrückrufe wie die H8-Vorprüfungen haben
-eigene Registrierungs-, Reihenfolge- und Transaktionstests.
-`TestServiceSetterInventory` gibt alle `Set*`-Methoden und ihre Aufrufe in
-`wire.go` aus. Optionale Setter ermöglichen einen begrenzten Testaufbau.
+Die Journalprüfung und ihre Erweiterungen liegen in `service.JournalService`
+und `internal/taxrules`. `service.PeriodService` verwaltet Periodensperren
+und Festschreibungen, `service.PaymentService` den Zahlungsausgleich.
+Die Dienstverdrahtung und ihre Tests liegen in `internal/core`.
 
 ## 3. Kern
 
@@ -239,30 +172,9 @@ löschen (`core/jobs.go`).
 
 ## 4. MCP-Server und Brücke
 
-`internal/mcpserver` lauscht auf `127.0.0.1:7465` (Streamable HTTP). Den Port
-ändert der Mensch in den Einstellungen; der Server startet dann sofort auf dem
-neuen Port. `BUCHFINK_MCP_PORT` geht dem eingestellten Port vor, für
-Entwicklung und Tests. Buchfink ist selbst
-Autorisierungsserver (`internal/mcpserver/oauth`): dynamische Registrierung
-nur für Rücksprungadressen auf diesem Rechner, PKCE, Tokens nur als Hash
-gespeichert. Die Zustimmung kommt als Ereignis ins Fenster und wird über die
-Bridge mit einer Einmal-Nonce entschieden, nie über HTTP. Zulassen und Entziehen
-von Apps sind im Operationskatalog als strukturell geschützt eingeordnet:
-die privaten Verwaltungs-APIs prüfen keinen Erfassungsweg. Ein Quelltexttest
-begrenzt ihre Aufrufer auf die Kette von der Bridge zum OAuth-Speicher.
-
-Werkzeuge registrieren sich über `AddInfo`, `AddRead`, `AddWrite` und dessen
-Varianten (`internal/mcpserver/tools.go`). Der Rahmen liest die Anmeldung, holt den
-Mandanten, prüft Zulassung und Rechte (`buchfink:lesen`, `buchfink:buchen`),
-setzt den Erfassungsweg und ruft `Tenant.ReadAgent` oder `Tenant.WriteAgent`.
-Diese Einstiege verwenden die Kernvorgänge mit der begrenzten Dienstsicht. Schreibende
-Werkzeuge verlangen `mandant_id` und nehmen einen Idempotenzschlüssel an, der in
-derselben Transaktion gespeichert wird. Der Rahmen liest `Spec.Tier` aus dem
-Operationskatalog und weist unbekannte oder der App vorbehaltene Vorgänge bei
-der Registrierung ab. Daraus folgen die Annotationen. Werkzeuge mit Rückfrage haben
-`destructiveHint: true`; die Rückfrage stellt der Agent im Chat, wie es die
-Skills verlangen. Fehler haben stabile Codes (`internal/mcpserver/errors.go`).
-Die Werkzeuge selbst beschreibt [MCP-Server](mcp.md).
+Der MCP-Server und sein OAuth-Server laufen in `internal/mcpserver`. Die
+[Beschreibung des MCP-Servers](mcp.md) erklärt Zugriff, Freigabestufen und
+Werkzeuge.
 
 `cmd/buchfink-mcp` übersetzt stdio in HTTP für Clients, die lokale
 HTTP-Server nicht einbinden, vor allem Claude Desktop. Die Brücke kennt weder

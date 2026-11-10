@@ -40,7 +40,7 @@ MUSS · § 253 Abs. 3 HGB, § 284 Abs. 3 HGB, § 5b Abs. 1 EStG
 | Je Wirtschaftsgut Bezeichnung, Nummer, Datum, Kosten, Nutzungsdauer, Methode, Abschreibungen, Buchwert, Abgang | teilweise | `domain.FixedAsset`; Abschreibung und Buchwert aus den Bewegungen. Den Abgang bucht `service.AssetService.Dispose`, ohne Erfassungsweg in App oder MCP |
 | Anlagenspiegel mit allen Spalten und Vorjahresvergleich | teilweise | `service.AssetService.Anlagenspiegel`; ein vollständiger Vorjahresspiegel fehlt |
 | Handels- und steuerrechtlicher Anlagenspiegel getrennt | nicht im Umfang | Einheitsbilanz; § 7g über das Verzeichnis nach BEW-06 |
-| Anlagenspiegel in der Struktur der E-Bilanz | offen | Die E-Bilanz enthält noch keinen Anlagenspiegel (Pflicht ab Wirtschaftsjahr 2028) |
+| Anlagenspiegel in der Struktur der E-Bilanz | offen | Die E-Bilanz enthält keinen Anlagenspiegel (Pflicht ab Wirtschaftsjahr 2028) |
 | Anlagen im Bau und Anzahlungen als eigene Position, umbuchbar | teilweise | eigene Konten wie 0700; die Umbuchung bei Fertigstellung bucht `service.AssetService.Transfer`, ohne Erfassungsweg in App oder MCP |
 
 ## BEW-04 Abschreibungen
@@ -119,7 +119,7 @@ MUSS* · §§ 244, 256a HGB
 |---|---|---|
 | Originalbetrag, Währung, Kurs, Quelle und Kursdatum je Buchung | erfüllt | `domain.JournalLine.ForeignAmount`; Teil des Hashs |
 | Kurse aus nachvollziehbarer Quelle, gespeichert | erfüllt | EZB-Referenzkurs (`currency` Paket), `service.CurrencyService.RateAt` |
-| Stichtagsbewertung, realisiert und unrealisiert getrennt | teilweise | offene Posten mit `service.CurrencyService.PreviewCurrencyValuation`, `service.CurrencyService.BookCurrencyValuation`; Anlagegüter in Fremdwährung bewertet `service.AssetService.BookCurrencyValuation`, ohne Erfassungsweg in App oder MCP |
+| Stichtagsbewertung, realisiert und unrealisiert getrennt | teilweise | Die realisierte Kursdifferenz bucht Buchfink beim Ausgleich eines Postens und bei der Kartenabrechnung selbst auf 6880 oder 4840 (`service.CurrencyService`). Unrealisiert: offene Posten mit `service.CurrencyService.PreviewCurrencyValuation`, `service.CurrencyService.BookCurrencyValuation`; Anlagegüter in Fremdwährung bewertet `service.AssetService.BookCurrencyValuation`, ohne Erfassungsweg in App oder MCP |
 | Sonderregel bis ein Jahr Restlaufzeit | erfüllt | Restlaufzeit am Zahlungsziel |
 | Umrechnung nach § 16 Abs. 6 UStG je Beleg | teilweise | Durchschnittskurs des Monats, in dem die Leistung ausgeführt ist, bei Zahlung vor der Ausführung des Zahlungsmonats (`service.vatRateDateOf`, `service.CurrencyService.VatRateFor`, `service.CurrencyService.ImportVatRatesCSV`). Die BMF-Kurse liest der Mensch in der App als CSV-Datei ein (Einstellungen › Erweitert, Bridge `ImportVatExchangeRates`), ein Werkzeug dafür gibt es nicht; ohne Kurs des Monats rechnet Buchfink mit dem Tageskurs und sagt es. Eine Zahlung vor der Leistung erkennt Buchfink nur, wenn der Beleg mit ihr gebucht wird |
 

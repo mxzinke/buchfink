@@ -10,11 +10,14 @@ Anforderungen: GOB-06, BEW-01 bis BEW-09, JAB-01 bis JAB-09.
 Abschlussbuchungen lassen sich erst rechnen, wenn das Jahr gebucht ist. Deshalb
 bleibt nach der Festschreibung des letzten Monats eine Abschlussperiode offen,
 der „13. Monat“, bis das ganze Jahr festgeschrieben ist. Eine Buchung der
-Abschlussperiode trägt den Bilanzstichtag; Abschlussbuchungen und AfA zum
+Abschlussperiode hat den Bilanzstichtag; Abschlussbuchungen und AfA zum
 Stichtag gehören von selbst dazu, eine Handbuchung auf Antrag
 (`JournalEntry.ClosingPeriod`). Das Kennzeichen geht in die Hash-Kette und in
 die Datenüberlassung ein. Eine gewöhnliche Buchung zum Stichtag nimmt der
 festgeschriebene Dezember nicht mehr an.
+
+Bilanz und GuV lassen sich auch zu einem Stichtag im Jahr rechnen
+(`StatementUntil`, Werkzeug `auswertung` mit `bilanz` oder `guv` und Stichtag).
 
 ## Bausteine
 

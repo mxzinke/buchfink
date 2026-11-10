@@ -2,7 +2,8 @@
 
 [Dokumentation](../../README.md) · [Erste Schritte](../README.md)
 
-Gilt ab Buchfink 0.3.0.
+Gilt ab Buchfink 0.3.0. Die Download-Links und die Befehle mit
+`mxzinke/buchfink` in den Anleitungen funktionieren erst mit diesem Release.
 
 Buchfink öffnet beim Start einen Zugang für KI-Apps auf Ihrem Rechner unter
 `http://127.0.0.1:7465/mcp`. Eine App erhält Zugriff erst, wenn Sie ihn im
@@ -38,13 +39,11 @@ nicht zurücknehmen lässt, bleibt bei Ihnen; Stammdaten schlägt der Agent nur 
 **Direkt, ohne Rückfrage:**
 
 - lesen: Bücher, Belege, Bank, offene Posten, Auswertungen, Fristen, Eingang
-- Belege und Kontoauszüge aus dem Eingang oder einem Leseordner ablegen,
-  Kontakte anlegen
+- Belege und Kontoauszüge ablegen, Kontakte anlegen
 - Exporte in den Exportordner schreiben: Belegkopien, Erklärungen, E-Bilanz
 - eine Pflicht als vorbereitet melden und eine Standardgruppe vorschlagen
-- Unternehmensdaten, Gründung und Bankkonten vorschlagen, etwa aus dem
-  Schreiben des Finanzamts mit der Steuernummer. Der Vorschlag ändert nichts:
-  Buchfink zeigt Ihnen die Vorschau mit bisherigem und neuem Wert, und erst
+- Unternehmensdaten, Gründung und Bankkonten vorschlagen. Der Vorschlag ändert
+  nichts: Buchfink zeigt die Vorschau mit bisherigem und neuem Wert, und erst
   wenn Sie „Übernehmen“ wählen, gilt er. Lehnen Sie ab, sieht der Agent Ihren
   Grund.
 - Routinefälle buchen: eine geprüfte E-Rechnung eines bekannten Lieferanten
@@ -56,8 +55,8 @@ Bruttobetrag unter der Betragsgrenze liegt (voreingestellt 1.000 €) und der
 Lieferant schon so oft mit seiner Standardgruppe gebucht wurde wie eingestellt
 (voreingestellt dreimal). Beides stellen Sie unter Einstellungen › „Buchen
 ohne Rückfrage“ ein. Eine Standardgruppe bestätigen Sie unter Unternehmen ›
-Kontakte beim Lieferanten; bis dahin fragt der Agent bei jeder Rechnung
-nach.
+Kontakte beim Lieferanten. Die Regeln im Einzelnen stehen unter
+[Regeln für direkt](../../entwicklung/mcp.md#regeln-für-direkt).
 
 **Mit Rückfrage:** Diese Vorgänge legt der Agent Ihnen im Chat vor und führt
 sie erst aus, wenn Sie zugestimmt haben:
@@ -95,31 +94,88 @@ sie erst aus, wenn Sie zugestimmt haben:
 - Apps zulassen und Zugriff entziehen
 
 Ein Werkzeug für diese Vorgänge gibt es nicht, für Stammdaten nur das
-Vorschlagen. Versucht ein Agent sie über
-einen anderen Weg, weist der Kern von Buchfink den Vorgang ab.
+Vorschlagen. Versucht ein Agent sie über einen anderen Weg, weist der Kern von
+Buchfink den Vorgang ab.
 
-## Eingang und Exporte
+## Ordner des Agenten
 
-Ein Agent übergibt Buchfink Belege und Kontoauszüge als Pfad zu einer Datei.
-Buchfink liest sie aus dem Eingang, den Sie bei der Einrichtung gewählt haben,
-voreingestellt der Ordner `Eingang` im Datenordner. Legen Sie eine Rechnung
-dort ab oder ziehen Sie sie ins Fenster von Buchfink und sagen Sie dann etwa:
-„Buche die Belege im Eingang.“ Nach der Ablage verschiebt Buchfink die Datei
-in den Unterordner `Übernommen/<JJJJ-MM>`. Wie das im Einzelnen geht, steht
-unter [Belege in den Eingang legen](../README.md#belege-in-den-eingang-legen).
-
-Eine Datei aus einem anderen Ordner, etwa aus dem Download-Ordner, weist
-Buchfink mit `pfad_nicht_erlaubt` ab. Soll der Agent auch dort oder in einem
-Ordner mit Verträgen lesen, nehmen Sie ihn unter Einstellungen › „Eingang &
-Ordner“ › „Erweitert“ als Leseordner auf. Aus einem Leseordner verschiebt
-Buchfink nichts. Legen Sie nur echte Belege in Eingang und Leseordner: eine
-abgelegte Datei bleibt im Belegarchiv und in jeder Sicherung, auch wenn der
-Beleg später verworfen wird.
+Belege und Kontoauszüge übergibt ein Agent als Pfad zu einer Datei im Eingang,
+wie unter [Belege in den Eingang legen](../README.md#belege-in-den-eingang-legen)
+beschrieben. Eine Datei aus einem anderen Ordner, etwa dem Download-Ordner,
+weist Buchfink mit `pfad_nicht_erlaubt` ab. Soll der Agent dort lesen, nehmen
+Sie den Ordner unter Einstellungen › „Eingang & Ordner“ › „Erweitert“ als
+Leseordner auf. Aus einem Leseordner verschiebt Buchfink nichts.
 
 Was ein Agent erzeugt, schreibt Buchfink in den Exportordner, voreingestellt
 `Export` im Datenordner: ausgestellte Rechnungen als PDF und E-Rechnung,
 Kopien von Belegdateien, Steuererklärungen und die E-Bilanz. Einen anderen
 Exportordner wählen Sie ebenfalls unter „Eingang & Ordner“.
+
+## Anmeldung zulassen
+
+Das gilt für jeden Client. Er öffnet den Browser; die Seite zeigt „Bitte in
+Buchfink bestätigen“ und einen Abgleichcode. Buchfink holt gleichzeitig sein
+Fenster nach vorn: „Eine App möchte auf Buchfink zugreifen“, mit dem Namen der
+App, demselben Abgleichcode, der Rücksprungadresse, dem geöffneten Mandanten
+und den Rechten (Lesen, Buchen).
+
+Klicken Sie auf **Zulassen**, wenn beide Codes übereinstimmen und Sie die
+Anmeldung gerade selbst gestartet haben. Sonst klicken Sie auf **Ablehnen**.
+Die Anfrage verfällt nach fünf Minuten. Die Zulassung gilt für den geöffneten
+Mandanten. Für einen weiteren Mandanten öffnen Sie ihn in Buchfink und melden
+sich erneut an. Entziehen können Sie den Zugriff jederzeit unter Einstellungen
+› „Apps verbinden“. Die Sicherheitsmerkmale beschreibt
+[Datensicherheit](../datensicherheit.md#verbundene-apps).
+
+## Verbindung prüfen
+
+Bitten Sie den Agenten: „Rufe das Buchfink-Werkzeug status auf.“ Die Antwort
+nennt das geöffnete Unternehmen und `bereit: true`. Jede Anleitung nennt
+zusätzlich den Befehl, der die Verbindung des Clients listet.
+
+## Skills
+
+Die Verbindung stellt die Werkzeuge bereit, der Skill `buchfink` das Fachwissen
+und die Arbeitsschritte. Das Release enthält ihn als `buchfink.zip`
+(<https://github.com/mxzinke/buchfink/releases/latest/download/buchfink.zip>).
+Clients, die Skills aus `~/.agents/skills/` lesen, bekommen ihn mit der
+skills-CLI (braucht Node.js):
+
+```sh
+npx skills add mxzinke/buchfink -g -a <client> --skill '*'
+```
+
+Die Anleitungen nennen den Wert für `<client>` und, wo es abweicht, den Ordner
+für den Handeinbau der ZIP-Datei. Skills mit Namen wie `buchfink-grundlagen`
+oder `buchfink-belege` sind Reste einer älteren Fassung; löschen Sie sie, nur
+`buchfink` bleibt.
+
+## Rechte einschränken
+
+Buchfink kennzeichnet seine Werkzeuge als lesend, direkt buchend oder mit
+Rückfrage ([Freigabestufen](../../entwicklung/mcp.md#freigabestufen)). Vor
+einem Werkzeug mit Rückfrage legt der Agent Ihnen den Vorgang im Chat vor, so
+verlangen es die Skills. Jeder Client kann zusätzlich selbst fragen; die
+Anleitungen zeigen, wie. Festschreiben, Übermitteln, Aufstellen, Feststellen,
+Offenlegen, das Übernehmen von Stammdaten und der Prüfermodus gibt es nicht als
+Werkzeug. Das erledigen Sie in Buchfink.
+
+## Wenn es nicht geht
+
+Diese Fälle gelten für jeden Client. Die Anleitungen ergänzen, was nur ihn
+betrifft.
+
+| Bild | Ursache | Abhilfe |
+|---|---|---|
+| Der Client erreicht Buchfink nicht | Buchfink ist nicht geöffnet, oder der Zugang läuft auf einem anderen Port. | Buchfink starten. |
+| Buchfink meldet unter Einstellungen › „Apps verbinden“, Port 7465 sei belegt | Ein anderes Programm nutzt den Port. | Prüfen mit `lsof -nP -iTCP:7465 -sTCP:LISTEN` (macOS, Linux) oder `netstat -ano \| findstr :7465` (Windows). In Buchfink einen freien Port wählen, die Adresse im Client anpassen und neu anmelden. |
+| Anmeldung abgelaufen oder in Buchfink entzogen | Die gespeicherte Anmeldung gilt nicht mehr. | Erneut anmelden. |
+| `status` antwortet mit `bereit: false` und „In Buchfink ist kein Mandant geöffnet.“; andere Werkzeuge melden `kein_mandant_offen` | In Buchfink ist kein Unternehmen geöffnet. | Unternehmen öffnen, `status` erneut aufrufen. |
+| `status` antwortet mit „Diese App ist für den geöffneten Mandanten nicht freigegeben.“; andere Werkzeuge melden `mandant_nicht_freigegeben` | Die Zulassung gilt für ein anderes Unternehmen. | Anmeldung wiederholen, während das gewünschte Unternehmen geöffnet ist. |
+
+Ob Buchfink auf dem Port antwortet, zeigt
+`curl -s http://127.0.0.1:7465/.well-known/oauth-protected-resource`. Buchfink
+antwortet mit JSON, das `"resource"` enthält.
 
 ## Datenschutz
 
@@ -127,6 +183,8 @@ Buchfink läuft auf Ihrem Rechner. Was ein Werkzeug zurückgibt, schickt die
 KI-App an den Anbieter ihres Sprachmodells. Dazu gehören Buchungen, Beträge,
 Namen von Kunden, Lieferanten und Beschäftigten, Texte aus Belegen und gelesene
 Belegdateien. Sie entscheiden, welche Daten Sie so verarbeiten lassen, und
-tragen dafür die Verantwortung. Jede Anleitung nennt, was Sie vorher mit dem
-Anbieter klären sollten. Mehr dazu unter
-[Datensicherheit](../datensicherheit.md#ki-anbieter).
+tragen dafür die Verantwortung. Klären Sie vor dem Einsatz mit echten Daten mit
+dem Anbieter, ob sein Vertrag die Verarbeitung personenbezogener Daten abdeckt
+und ob Ihre Eingaben zum Training genutzt werden; siehe
+[KI-Anbieter](../datensicherheit.md#ki-anbieter). Welcher Anbieter dahintersteht,
+nennt jede Anleitung.

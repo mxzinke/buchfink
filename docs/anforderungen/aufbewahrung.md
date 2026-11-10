@@ -78,7 +78,7 @@ MUSS · § 14b Abs. 1 UStG, § 14 Abs. 3 UStG, BMF-Schreiben vom 15.10.2025 Rn. 
 | XML byteidentisch, Hybrid vollständig samt eingebettetem XML | erfüllt | Original bleibt `original`, das herausgelöste XML kommt als `structured` dazu |
 | Prüfsumme beim Eingang, Prüfung bei jedem Abruf | erfüllt | `service.ReceiptService.Content` |
 | Validierungsbericht mit der Rechnung gespeichert | erfüllt | `domain.ReceiptValidation` |
-| Bildansicht ergänzt das Original | erfüllt | gebucht wird aus dem strukturierten Teil |
+| Eine Ansicht ergänzt das Original und ersetzt es nicht | erfüllt | `service.EInvoiceService.View` zeigt eine reine XRechnung aus dem XML; gebucht wird aus dem strukturierten Teil |
 
 ## ARC-08 Verfügbarkeit und Wiederherstellbarkeit
 

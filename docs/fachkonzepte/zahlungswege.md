@@ -31,7 +31,10 @@ entsprechen.
 
 Ein mit der Karte bezahlter Beleg gilt am Buchungstag als bezahlt und steht bis
 zur Abbuchung der Monatsabrechnung auf 3610 Kreditkartenabrechnung. Die
-Abbuchung vom Bankkonto gleicht das Konto aus. Für die Umsatzsteuer ist der
+Abbuchung vom Bankkonto gleicht das Konto aus. Ein Beleg in Fremdwährung steht zum
+EZB-Kurs auf dem Konto; die Abweichung zum Kartenkurs bucht Buchfink beim
+Ausgleich der Abrechnung als Kursdifferenz auf 6880 oder 4840. Nennt der Beleg
+den belasteten Euro-Betrag, entsteht keine. Für die Umsatzsteuer ist der
 Beleg mit dem Kartenumsatz bezahlt, was bei Zahlung vor der Leistung die
 Mindest-Istversteuerung auslöst.
 

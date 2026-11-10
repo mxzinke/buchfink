@@ -38,7 +38,7 @@ MUSS · § 18 UStG, §§ 46 bis 48 UStDV
 | Zeitraum im Gründungsjahr und im Folgejahr nach § 18 Abs. 2 Sätze 4 und 6 UStG | teilweise | `accounting.RecommendedVatPeriod`: ab 2027 monatlich; 2021 bis 2026 im Folgejahr aus der umgerechneten Steuer des Gründungsjahres. Die voraussichtliche Steuer des Gründungsjahres und Vorratsgesellschaften (Satz 5) kennt Buchfink nicht |
 | Amtlicher Datensatz per Datenfernübertragung oder Export für Mein ELSTER | teilweise | Kennziffernblatt nach Vordruck 2026 und CSV (`service.VatReturnService.ExportCSV`) zum Übertragen in Mein ELSTER; keine eigene Übermittlung |
 | Übermittlung mit Zeitpunkt, Transferticket und Status gespeichert | erfüllt | `service.VatReturnService.ConfirmSubmitted`, nur in der App |
-| Dauerfristverlängerung mit Sondervorauszahlung und Anrechnung | teilweise | Beides trägt der Mensch in der App ein; die letzte Voranmeldung des Jahres rechnet die Sondervorauszahlung in Kennziffer 39 an. Den Vorschlag des Betrags rechnet `service.VatReturnService.SuggestedSpecialPrepayment`, weder App noch MCP rufen ihn ab |
+| Dauerfristverlängerung mit Sondervorauszahlung und Anrechnung | teilweise | Beides erfasst der Mensch in der App; die letzte Voranmeldung des Jahres rechnet die Sondervorauszahlung in Kennziffer 39 an. Den Vorschlag des Betrags rechnet `service.VatReturnService.SuggestedSpecialPrepayment`, weder App noch MCP rufen ihn ab |
 | Berichtigte Anmeldung gekennzeichnet und verknüpft | erfüllt | `service.VatReturnService.CreateCorrection` |
 | Übermittlung erst nach Festschreibung des Zeitraums | erfüllt | Bestätigung setzt den festgeschriebenen Zeitraum und den aktuellen Journalstand voraus |
 

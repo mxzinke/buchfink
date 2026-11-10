@@ -2,8 +2,6 @@
 
 [Dokumentation](../../README.md) · [KI-Agenten](README.md)
 
-Stand: 19. Oktober 2026. Gilt ab Buchfink 0.3.0.
-
 ChatGPT Desktop kann Buchfink direkt auf Ihrem Rechner erreichen. Sie richten
 die Verbindung in den Einstellungen ein. Dafür brauchen Sie weder eine
 Erweiterung noch einen Terminalbefehl.
@@ -13,8 +11,6 @@ Erweiterung noch einen Terminalbefehl.
 - Buchfink und ChatGPT Desktop sind auf demselben Rechner geöffnet.
 - In Buchfink ist das Unternehmen geöffnet, mit dem Sie arbeiten möchten.
 - ChatGPT Desktop zeigt in den Einstellungen den Bereich „MCP servers“ an.
-- Die Aufgabe läuft auf Ihrem Rechner. Eine reine Cloud-Aufgabe erreicht
-  Buchfink unter der lokalen Adresse nicht.
 
 ## Die Verbindung einrichten
 
@@ -30,67 +26,49 @@ Erweiterung noch einen Terminalbefehl.
 4. Speichern Sie und wählen Sie **Restart**, um die Verbindung zu laden.
 5. Wählen Sie beim Eintrag `buchfink` **Authenticate**, um die Anmeldung zu
    starten. Der Browser öffnet sich und zeigt einen Abgleichcode.
-6. Wechseln Sie zu Buchfink. Dort erscheint die Anfrage „Eine App möchte auf
-   Buchfink zugreifen“. Prüfen Sie den Namen der App, das Unternehmen, die
-   angefragten Rechte und den Code. Stimmen die Codes überein und haben Sie
-   die Anmeldung gerade selbst gestartet, wählen Sie **Zulassen**.
-
-Die Freigabe gilt für das geöffnete Unternehmen. Für ein anderes Unternehmen
-öffnen Sie es in Buchfink und melden sich erneut an. Den Zugriff entziehen
-Sie in Buchfink unter **Einstellungen → Apps verbinden**.
+6. Wechseln Sie zu Buchfink und [lassen Sie die Anmeldung zu](README.md#anmeldung-zulassen).
 
 ChatGPT Desktop und Codex teilen bei lokalen Aufgaben auf demselben Rechner
 ihre MCP-Einstellungen. Haben Sie Buchfink dort schon für Codex eingerichtet,
 prüfen Sie zuerst, ob `buchfink` in der Serverliste vorhanden ist.
 
-## Die Buchhaltungsanleitungen hinzufügen
+## Den Skill hinzufügen
 
-Die Verbindung stellt die Werkzeuge bereit. Die Buchfink-Skills ergänzen
-Fachwissen und Arbeitsschritte für den Agenten.
-
-Laden Sie den [Buchfink-Skill](https://github.com/mxzinke/buchfink/releases/latest/download/buchfink.zip)
-herunter und entpacken Sie ihn in den Ordner `.agents/skills` in Ihrem
-Benutzerordner. Der vollständige Pfad ist unter macOS und Linux
-`~/.agents/skills/`, unter Windows `%USERPROFILE%\.agents\skills\`. Der Skill
-liegt dort im Unterordner `buchfink` mit seiner `SKILL.md`.
-
-Öffnen Sie in ChatGPT Desktop **Skills** und prüfen Sie, ob der
-Buchfink-Skill erscheint. Starten Sie die App neu, falls sie fehlen.
-Alternativ beschreibt die [Codex-Anleitung](codex.md#einrichten), wie Sie
-das Paket mit einem Terminalbefehl installieren.
+Laden Sie den [Skill](README.md#skills) (`buchfink.zip`) herunter und entpacken
+Sie ihn nach `~/.agents/skills/` (Windows: `%USERPROFILE%\.agents\skills\`).
+Er liegt dort im Unterordner `buchfink` mit seiner `SKILL.md`. Öffnen Sie in
+ChatGPT Desktop **Skills** und prüfen Sie, ob er erscheint; sonst starten Sie
+die App neu. Mit Terminal geht es wie in der
+[Codex-Anleitung](codex.md#einrichten).
 
 ## Prüfen, ob es geht
 
 Geben Sie im Eingabefeld `/mcp` ein. Dort sollte `buchfink` als verbundener
-Server erscheinen. Schreiben Sie anschließend:
+Server erscheinen. Den Rest prüft [`status`](README.md#verbindung-prüfen).
+Danach können Sie zum Beispiel fragen: „Welche Belege liegen im Eingang?“
 
-> Rufe das Buchfink-Werkzeug status auf und zeige mir, welches Unternehmen geöffnet ist.
-
-Die Antwort nennt Ihr Unternehmen und `bereit: true`. Danach können Sie zum
-Beispiel fragen: „Welche Belege liegen im Eingang?“
-
-Monate abschließen, den Jahresabschluss bestätigen und Unternehmensdaten
-ändern können Sie nur selbst in Buchfink. Was der Agent übernehmen darf,
-beschreibt [Was der Agent darf](README.md#was-der-agent-darf).
+Was der Agent darf und was nur Sie in Buchfink erledigen, steht unter
+[Was der Agent darf](README.md#was-der-agent-darf).
 
 ## Wenn es nicht geht
 
+Zusätzlich zu den [allgemeinen Fällen](README.md#wenn-es-nicht-geht):
+
 | Problem | Was Sie tun können |
 |---|---|
-| Buchfink ist nicht erreichbar | Öffnen Sie Buchfink und Ihr Unternehmen. Prüfen Sie, ob die Aufgabe lokal auf demselben Rechner läuft. |
+| Buchfink ist nicht erreichbar | Prüfen Sie, ob die Aufgabe lokal auf demselben Rechner läuft. Eine reine Cloud-Aufgabe erreicht die lokale Adresse nicht. |
 | Die Anmeldung wartet | Wechseln Sie zum Fenster von Buchfink und prüfen Sie die Anfrage. |
-| Die Freigabe gilt nicht mehr oder für ein anderes Unternehmen | Öffnen Sie das gewünschte Unternehmen und wählen Sie in ChatGPT Desktop erneut **Authenticate**. |
-| Sie haben in Buchfink den Port geändert | Passen Sie die Zahl `7465` in der Serveradresse an, speichern Sie und melden Sie sich erneut an. |
-| „MCP servers“ fehlt | Prüfen Sie Ihre App-Version und die unten verlinkte OpenAI-Anleitung. Die Weboberfläche liest diese lokale Konfiguration nicht. |
-| Neben `buchfink` erscheinen ältere Buchfink-Skills wie `buchfink-grundlagen` oder `buchfink-belege` | Die früheren elf Skills sind noch installiert, und beide Fassungen stehen nebeneinander. Entfernen Sie in `~/.agents/skills/` alle Ordner, deren Name mit `buchfink-` beginnt; `buchfink` bleibt. |
+| Freigabe abgelaufen oder für ein anderes Unternehmen | Öffnen Sie das gewünschte Unternehmen und wählen Sie erneut **Authenticate**. |
+| Sie haben den Port geändert | Passen Sie `7465` in der Serveradresse an, speichern Sie und melden Sie sich erneut an. |
+| „MCP servers“ fehlt | Prüfen Sie Ihre App-Version und die verlinkte OpenAI-Anleitung. Die Weboberfläche liest diese lokale Konfiguration nicht. |
+| Neben `buchfink` erscheinen Skills mit Namen `buchfink-…` | Entfernen Sie in `~/.agents/skills/` alle Ordner, deren Name mit `buchfink-` beginnt. |
 
-## Daten beim KI-Anbieter
+## Datenschutz
 
-Was ChatGPT aus Buchfink liest, kann zur Verarbeitung an OpenAI gehen,
-einschließlich Beleginhalten, Namen und Beträgen. Die Speicherung in Buchfink
-auf Ihrem Rechner bedeutet keine rein lokale Verarbeitung durch die KI.
-Hinweise zur Wahl des Anbieters und zu personenbezogenen Daten stehen unter
-[Datensicherheit](../datensicherheit.md#ki-anbieter).
+ChatGPT schickt Werkzeugergebnisse zur Verarbeitung an OpenAI, einschließlich
+Beleginhalten, Namen und Beträgen. Dass die Daten in Buchfink lokal liegen,
+macht die Verarbeitung durch die KI nicht lokal. Siehe
+[Datenschutz](README.md#datenschutz).
 
 ## Quellen und Prüfstand
 

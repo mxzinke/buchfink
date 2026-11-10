@@ -40,7 +40,10 @@ Schemas, Annotationen und Stufen.
 | rueckfrage | `destructiveHint: true` | der Agent legt dem Menschen den Vorgang im Chat vor und holt sein Ja ein, bevor er aufruft |
 | nur App | kein Werkzeug | die [vorbehaltenen Vorgänge](#vorgänge-nur-in-der-app) mit ihrer Durchsetzungsart |
 
-Ein `_meta`-Feld `anthropic/requiresUserInteraction` setzt der Server nicht.
+`openWorldHint` ist nur bei `beleg_buchen_mit_rueckfrage` gesetzt, das
+Wechselkurse aus dem Netz holt. Den Titel trägt das Werkzeug selbst, nicht noch
+einmal die Annotation. Ein `_meta`-Feld `anthropic/requiresUserInteraction`
+setzt der Server nicht.
 Der Agent fragt laut Skill selbst; eine zweite Abfrage des Clients wäre doppelt.
 Kern und Dienste behalten ihre Schutzprüfungen (`core.AppOnly`,
 `requireApp`, `service.requireHuman`). Die kanalgeschützten Vorgänge weisen
@@ -55,27 +58,6 @@ keinen Erfassungsweg; die Bridge übergibt `context.Background()`. Ein Test
 begrenzt alle Methodenverweise bis zum OAuth-Speicher auf diese Aufrufkette.
 Weder ein MCP-Werkzeug noch ein HTTP-Handler darf sie erreichen. Der
 OAuth-Endpunkt zum Widerrufen eines Tokens entzieht keine App-Zulassung.
-
-Was sich per Storno korrigieren lässt, darf ein Agent mit Rückfrage, auf jedem
-Konto des Kontenrahmens:
-
-| Vorgang | Werkzeug |
-|---|---|
-| Kapital, Rücklagen, Ausschüttung, Gesellschafterkonten, Gründungsbuchungen (Zeichnung, Einforderung) | `buchung_erfassen`, Zahlungen über `bankumsatz_buchen` |
-| Darlehensvertrag mit einem Gesellschafter anlegen oder berichtigen, seine Zinsen buchen | `darlehen_erfassen` |
-| Ergebnisverwendung nach der Feststellung durch den Menschen | `ergebnisverwendung_buchen` |
-| Organisationstexte der Verfahrensdokumentation | `verfahrensdoku_text` |
-
-Die Gründung selbst mit Gesellschaftern, Anteilen und Eintragung bleibt
-Stammdatum des Menschen (`FoundationService.Save`, `Register`). Ein Agent
-schlägt sie mit `stammdaten_vorschlagen` vor; geschrieben wird erst, wenn der
-Mensch den Vorschlag in der App übernimmt.
-
-Eine Zeile auf einem Konto, das Beträge je Gesellschafter führt (0960, 1307
-bis 1309, 3640 bis 3643 und die übrigen aus `shareholderAccounts`), braucht den
-Gesellschafter als Kontakt, in der Handbuchung, in der Neubuchung beim Storno
-und in der Aufteilung eines Bankumsatzes. Ohne ihn fehlte sie im Stand des
-Darlehens und in der Zinsrechnung.
 
 ### Vorgänge nur in der App
 
@@ -149,8 +131,10 @@ drei Vorschläge und `vorschlaege_gesamt`; alle gibt es mit `bankumsatz_id`.
 Der Katalog veröffentlicht keine Ausgabeschemas. Er liegt in jedem Gespräch im
 Kontext des Agenten, und die Ausgaben machten mehr als die Hälfte davon aus.
 Die Antworten sind trotzdem festgelegt: die Tests prüfen jede gegen das Schema
-aus `Toolbox.OutputSchema`, `TestCatalogStaysSmall` hält den Katalog unter
-84 KB.
+aus `Toolbox.OutputSchema`, `TestCatalogStaysSmall` begrenzt die Größe des
+Katalogs. Was für alle schreibenden Werkzeuge gilt (`mandant_id`,
+`idempotenz_schluessel`), steht einmal in den Anweisungen des Servers und in
+den Schemas nur kurz.
 
 ## Werkzeuge
 
@@ -173,7 +157,7 @@ aus `Toolbox.OutputSchema`, `TestCatalogStaysSmall` hält den Katalog unter
 | `abschluss_status` | lesen | Schritte des Jahresabschlusses mit nächster Aktion |
 | `erklaerung` | lesen | UStVA, ZM, USt-, KSt- und GewSt-Erklärung formularnah mit Herkunft |
 | `rechnung_vorschau` | lesen | Ausgangsrechnung durchrechnen ohne Ausstellen |
-| `beleg_ablegen` | direkt | Dateien aus Eingang oder Leseordner ablegen, E-Rechnung auslesen und prüfen, fehlende Dateien an einem offenen Beleg ergänzen; `art: brief` legt ein Schreiben ohne Buchung ab, `art: sonstiges` einen Vertrag oder Beschluss für `buchung_erfassen`; danach geht die Datei aus dem Eingang nach `Übernommen/` |
+| `beleg_ablegen` | direkt | Dateien aus Eingang oder Leseordner ablegen, E-Rechnung auslesen und prüfen, bei einer E-Rechnung Vorschlag und Einstufung wie `beleg_lesen`, fehlende Dateien an einem offenen Beleg ergänzen; `art: brief` legt ein Schreiben ohne Buchung ab, `art: sonstiges` einen Vertrag oder Beschluss für `buchung_erfassen`; danach geht die Datei aus dem Eingang nach `Übernommen/` |
 | `beleg_datei_exportieren` | direkt | Kopie einer Belegdatei in den Exportordner, zum Lesen oder Versenden |
 | `kontakt_anlegen` | direkt | Kontakt anlegen nach Dublettenprüfung; mit `leitweg_id` bekommt ein Kunde XRechnung |
 | `kontoauszug_importieren` | direkt | CAMT.053 ablegen, Salden prüfen, Umsätze einlesen; danach geht die Datei aus dem Eingang nach `Übernommen/` |
@@ -191,7 +175,7 @@ aus `Toolbox.OutputSchema`, `TestCatalogStaysSmall` hält den Katalog unter
 | `lohnjournal_buchen` | rueckfrage | Monatssummen des Lohnbüros |
 | `rechnung_ausstellen` | rueckfrage | Rechnung, Abschlagsrechnung, Schlussrechnung; PDF und E-Rechnung im Exportordner; gebucht zum Ende des Leistungszeitraums (§ 252 Abs. 1 Nr. 4 HGB), bei festgeschriebenem Leistungstag zum Rechnungsdatum |
 | `mahnung_vermerken` | rueckfrage | Zugang einer Mahnung festhalten; daraus folgt der Verzug |
-| `abschlussbuchung` | rueckfrage | AfA-Lauf, Abgrenzung, Rückstellung, USt-Verrechnung, Steuerrückstellung, UG-Rücklage, Wertberichtigung, unfertige Leistungen, Fremdwährung, Anlage aktivieren (bei einem Investmentanteil mit Fondsart), Vorabpauschale eines Investmentanteils (ohne Buchung am Anlagegut festgehalten) |
+| `abschlussbuchung` | rueckfrage | AfA-Lauf, Abgrenzung, Rückstellung, USt-Verrechnung, Steuerrückstellung, UG-Rücklage, Wertberichtigung, unfertige Leistungen, Fremdwährung, Anlage aktivieren (`anlage_aktivieren`, bei einem Investmentanteil mit Fondsart), Vorabpauschale eines Investmentanteils (ohne Buchung am Anlagegut festgehalten) |
 | `erklaerung_eingabe` | rueckfrage | Angabe zu einer Zeile einer Jahreserklärung; was der Mensch gesetzt oder bestätigt hat, ändert nur er |
 | `beleg_verwerfen` | rueckfrage | abgelegten Beleg mit Grund verwerfen; er bleibt im Archiv |
 | `anlass_erfassen` | rueckfrage | Gesellschafterwechsel, Änderung der wirtschaftlich Berechtigten, Vorauszahlungsbescheid KSt oder GewSt |
@@ -215,8 +199,11 @@ keine.
 ## Fehlercodes
 
 Ein Fehler kommt als `isError` mit `{"fehler": {code, nachricht,
-naechster_schritt, werkzeug, gruende, wiederholbar}}`. `werkzeug` nennt das
-Werkzeug, mit dem es weitergeht, oder `nur_app`. Schemaverstöße (falscher
+naechster_schritt, werkzeug, argumente, gruende, wiederholbar}}`. `werkzeug`
+nennt das Werkzeug, mit dem es weitergeht, oder `nur_app`. `argumente` steht
+da, wenn dessen Eingabe anders aussieht als die des gescheiterten Aufrufs, etwa
+`bankumsatz_buchen` nach `bankumsatz_zuordnen`; die Tests prüfen jeden solchen
+Folgeaufruf und jede Aufgabe aus `aufgaben` gegen das Eingabeschema. Schemaverstöße (falscher
 Auswahlwert, Muster, fehlendes Pflichtfeld) meldet das SDK selbst mit einem
 Text, der mit `validating` beginnt.
 
@@ -289,34 +276,9 @@ lehnt ihn mit `nur_app` ab, bevor er abgelegt ist
 nennt das Werkzeug in `hinweise` (`BankService.checkStatements`). Auszüge in
 zeitlicher Reihenfolge einlesen.
 
-Die Standardgruppe schlägt ein Agent nur vor (`standardgruppe_vorschlagen`,
-`kontakt_anlegen`). Bestätigen kann sie nur der Mensch
-(`ContactService.ConfirmDefaultPostingGroup`, Bridge
-`ConfirmDefaultPostingGroup`), in der App unter Unternehmen › Kontakte in der
-Seitenleiste des Lieferanten. `SaveContact` ändert die Felder nicht. Bis zur
-Bestätigung bucht `beleg_buchen` diesen Lieferanten nicht direkt;
-`beleg_buchen_mit_rueckfrage` geht immer.
-
-Unternehmensdaten, Gründung und Bankkonten schlägt ein Agent ebenfalls nur vor
-(`stammdaten_vorschlagen`, `MasterDataProposalService.Propose`); der Vorschlag
-ändert nichts. Die App zeigt ihn als Vorschau „bisher → neu“ gegen den
-heutigen Stand, in einem Dialog und unter Unternehmen › Stammdaten. Übernehmen
-oder ablehnen kann nur der Mensch (`Accept`, `Reject`, Bridge
-`AcceptMasterDataProposal`, `RejectMasterDataProposal`). Übernommen wird nur
-die Vorschau, die er gesehen hat: die Bridge gibt ihren Fingerabdruck mit, und
-hat sich der Stand inzwischen geändert, weist `Accept` ab. Geschrieben wird in
-einer Transaktion über dieselben Dienstmethoden wie aus den Formularen
-(`FoundationService.Save`, `BankService.ConfigureAccounts` und
-`SetInvoiceAccount`, `SettingsService.UpdateCompanySettings`), mit ihren
-Prüfungen. Rechtsform, Geschäftsjahr, Nummernkreise und Prüfregeln kann ein
-Agent nicht vorschlagen. Die Entscheidung, bei einer Ablehnung mit Grund, steht
-in `status` unter `stammdaten_vorschlaege`.
-
-Betragsgrenze und Mindestzahl früherer Buchungen stellt der Mensch unter
-Einstellungen › „Buchen ohne Rückfrage“ ein, Eingang, Exportordner und weitere
-Leseordner unter Einstellungen › „Eingang & Ordner“
-(`SettingsService.SaveAgentSettings`, Bridge `GetAgentRules`,
-`SaveAgentRules` und `SetInboxFolder`).
+Standardgruppen und Stammdaten kann der Agent vorschlagen. Der Mensch
+bestätigt sie in der App. Die Einstellungen für Routinebuchungen und Ordner
+ändert ebenfalls nur der Mensch.
 
 Restrisiko: Buchfink prüft nicht, woher eine Datei im Eingang oder einem
 Leseordner kommt. Wer dorthin schreiben kann (ein Agent mit Dateizugriff wie
@@ -351,80 +313,27 @@ System der App den Zugriff verweigert, nennt `status` den Grund unter
 `eingang.fehler`, und `aufgaben` führt ihn als Aufgabe für den Menschen; die
 übrigen Werkzeuge arbeiten weiter.
 
-Nach einer gelungenen Ablage mit `beleg_ablegen` oder
-`kontoauszug_importieren` verschiebt Buchfink die Datei außerhalb der
-Schreibsperre nach
-`<Eingang>/Übernommen/<JJJJ-MM>/` (Monat des Ablagetags, bei gleichem Namen
-„Name (2).pdf“), ebenso eine exakte Dublette, deren Inhalt schon im Archiv
-liegt. Verschoben wird nur innerhalb des Eingangs: steht an der Stelle von
-`Übernommen/` oder des Monatsordners ein Symlink oder eine Datei, bleibt die
-Datei liegen, und ein Hinweis nennt den Grund. Eine vorhandene Datei
-überschreibt Buchfink nie, auch nicht bei gleichzeitigen Ablagen. Die Antwort
-nennt den neuen Pfad unter `verschoben`; ein zweites
-Ablegen derselben Datei, etwa mit einem Anhang, nimmt ihn; wer den alten Pfad nennt, bekommt den neuen in der Meldung von
-`datei_ungueltig`. Scheitert das Verschieben, steht ein Hinweis in der Antwort, und
-die Ablage gilt. Dateien in Leseordnern bleiben liegen. Die App verschiebt
-genauso, wenn ein Beleg aus Datei oder ein Kontoauszug aus dem Eingang kommt.
+Nach der Ablage verschiebt Buchfink Dateien aus dem Eingang nach
+`Übernommen/<JJJJ-MM>/`. Dateien aus Leseordnern bleiben liegen. Scheitert
+das Verschieben, bleibt die Ablage bestehen und die Antwort nennt den Grund.
 
-Belege kommen nur als Pfad. `policy.ReadFile` prüft den Pfad zuerst ohne
-Zugriff auf das Dateisystem: er muss bereinigt im Eingang oder einem
-Leseordner liegen, UNC-, Geräte- und Netzwerkpfade weist es ab. Vor diesem
-Treffer antwortet es einheitlich mit `pfad_nicht_erlaubt` und ohne
-Systemmeldung; ob eine Datei außerhalb existiert, erfährt der Agent nicht.
-Danach löst es Symlinks und `..` auf und prüft erneut, öffnet ohne Symlink im
-letzten Glied, weist Dateien mit mehr als einem harten Verweis ab und prüft
-nach dem Öffnen, dass die Datei noch an derselben Stelle liegt. Gelesen wird
-einmal: PDF, PNG, JPEG, TIFF, WebP oder XML bis 50 MB, Inhalt passend zur
-Endung, keine versteckten Dateien. Gesperrt sind der eigene Datenordner bis
-auf den voreingestellten Eingang darin, die Datenordner aller anderen
-Mandanten, auch wenn ein Leseordner sie umschließt oder der Eingang
-inzwischen dorthin zeigt, und alle Sicherungsordner bis auf einen, der den
-Eingang umschließt.
-
-Voreingestellt liest ein Agent nur aus dem Eingang. Den Download-Ordner des
-Systems nimmt Buchfink nicht von sich aus auf: jede Webseite und jeder
-Mailanhang schreibt dorthin, und eine abgelegte Datei lässt sich nicht
-zurücknehmen. Auch ein verworfener Beleg bleibt zehn Jahre im Archiv, in jeder
-Sicherung und im Prüferexport. Wer den Download-Ordner trotzdem freigeben will,
-nimmt ihn in der App als Leseordner auf. Ein Agent ohne eigenen Dateizugriff (Claude Desktop) bekommt
-eine Rechnung, wenn der Mensch sie in den Eingang legt oder ins Fenster von
-Buchfink zieht (`AddToInbox`). Die Beschreibung von `beleg_ablegen` verlangt,
-nur Dateien abzulegen, die der Mensch als Beleg benannt hat.
+`policy.ReadFile` begrenzt den Zugriff auf zugelassene Ordner und prüft Pfad,
+Dateityp und Größe. Ein Agent ohne eigenen Dateizugriff kann Dateien verarbeiten,
+die der Mensch in den Eingang legt oder in die App zieht.
 
 `eingang_am` ist bei `beleg_ablegen` Pflicht: der Tag des Eingangs bestimmt
 den Voranmeldungszeitraum der Vorsteuer (§ 15 Abs. 1 UStG). Liegt er in einem
 späteren Zeitraum als das Belegdatum, nennt ein Hinweis beide Zeiträume;
 berichtigen lässt er sich mit `beleg_buchen_mit_rueckfrage`.
 
-Exporte schreiben nur in den Exportordner, voreingestellt
-`<Datenordner>/Export`. Dorthin legt `beleg_datei_exportieren` die Kopie einer
-Belegdatei und `rechnung_ausstellen` PDF und E-Rechnung zum Versand.
-`ebilanz_exportieren` schreibt die XBRL-Instanz oder mit `format: susa_csv`
-die Summen- und Saldenliste `ebilanz-<Jahr>-susa.csv` (UTF-8 mit BOM,
-Semikolon, Dezimalkomma, CRLF; Spalten `Konto;Bezeichnung;Saldo;Taxonomie`,
-Saldo im Soll positiv). `Taxonomie` ist die Position, unter der das Konto im
-Kontennachweis der Instanz steht; Konten und Salden sind dieselben, Konten
-ohne Saldo entfallen. Weicht die Steuerbilanz ab, hat die Liste die Salden
-der Handelsbilanz; `ueberleitung` und `hinweis` nennen die Abweichungen, die
-der Mensch im Dienst nachträgt. Mit `bilanzart: eroeffnungsbilanz` heißen die
-Dateien `e-bilanz-eroeffnung-<Jahr>-<Hash>.xml` und
-`ebilanz-eroeffnung-<Jahr>-susa.csv`; die Bilanzart steht im Dienst
-(`EBilanzOptions.Kind`), der das Gründungsdatum der Unternehmensdaten als
-Stichtag nimmt und jedes andere Jahr als das der Gründung abweist.
+Exporte schreiben in den Exportordner, voreingestellt `<Datenordner>/Export`.
+Die Übermittlung der E-Bilanz beschreibt die [Anleitung](../nutzung/README.md#e-bilanz-übermitteln).
 
 ## Live-Aktualisierung
 
-Was ein Agent schreibt, sieht der Mensch in der App ohne Neuladen. Nach jedem
-gelungenen `Tenant.Write`, gleich auf welchem Erfassungsweg, und nach einer
-Änderung im Eingang meldet der Kern einen `core.Change` mit Mandant,
-Erfassungsweg und grober Art (`buchungen`, `belege`, `bank`, `stammdaten`,
-`abschluss`, `eingang`); die Art liest er aus den Protokolleinträgen des
-Vorgangs. Der Kern kennt dafür nur den Beobachter `OnChange` in den
-Host-Optionen. Die Bridge bündelt die Meldungen je Mandant und sendet höchstens
-alle 250 ms das Wails-Ereignis `buchfink:geaendert`. Die Oberfläche lädt die
-offene Ansicht nach, wenn der Mandant der aktive ist (`useLiveReload`).
-Werkzeuge und Skills müssen den Menschen deshalb nicht bitten, die Ansicht neu
-zu laden.
+Änderungen eines Agenten erscheinen ohne Neuladen in der App. Der Kern meldet
+`core.Change`; die Bridge bündelt die Meldungen und die Oberfläche lädt die
+betroffene Ansicht nach (`useLiveReload`).
 
 ## Ein Werkzeug ergänzen
 

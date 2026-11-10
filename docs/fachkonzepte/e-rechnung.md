@@ -7,7 +7,7 @@ Anforderungen: RECH-05 bis RECH-07, RECH-10, UST-07, ARC-01, ARC-07.
 
 ## Pflichten
 
-Seit dem 1. Januar 2025 ist zwischen inländischen Unternehmern grundsätzlich
+Ab dem 1. Januar 2025 ist zwischen inländischen Unternehmern grundsätzlich
 per E-Rechnung abzurechnen ([§ 14 Abs. 2 Satz 2 Nr. 1 UStG][ustg14]). Für das
 Ausstellen gelten Übergangsregeln bis Ende 2026 und Ende 2027
 ([§ 27 Abs. 38 UStG][ustg27]), für das Empfangen keine: jeder inländische
@@ -28,8 +28,8 @@ Rechnung gleicht es nicht mit dem XML ab.
   zusätzlich gegen die deutschen Regeln. Ergebnis, Zeitpunkt und Regelstand
   stehen am Beleg. Bei XRechnung und Peppol BIS Billing 3.0 heißt der
   Prüfumfang „teilweise“: Extension- und Syntaxregeln der XRechnung und die
-  Peppol-Regeln (PEPPOL-EN16931-R*) prüft Buchfink nicht. Die Prüfung ändert keine Datei und damit nicht den
-  Beleg-Hash.
+  Peppol-Regeln (PEPPOL-EN16931-R*) prüft Buchfink nicht. Die Prüfung ändert
+  keine Datei und damit nicht den Beleg-Hash.
 - Die Profile MINIMUM und BASIC WL enthalten keine vollständige Rechnung und
   gelten nicht als E-Rechnung (UStAE 14.1 Abs. 14).
 - Aus dem Datensatz entsteht ein Buchungsvorschlag: Lieferant über USt-IdNr. oder
@@ -38,9 +38,13 @@ Rechnung gleicht es nicht mit dem XML ab.
   innergemeinschaftliche Lieferung und beim Empfänger ein Erwerb, „AE“ heißt
   Steuerschuld beim Empfänger. Die Buchungsgruppe wählt der Mensch oder der
   Agent; keine Rechnung sagt, welches Aufwandskonto zutrifft.
-- Gutschrift, Korrektur, Anzahlungs- und Abschlagsrechnung erkennt Buchfink am
-  Rechnungstyp und schlägt dafür keine Buchung vor.
-- Mitgeschickte Anlagen landen als Belegdateien am Beleg.
+- Eine Gutschrift bucht Buchfink als Rechnung mit getauschten Seiten
+  (`gutschrift_zu`, [Belege und Buchungen](beleg-buchungsflow.md)). Korrektur,
+  Anzahlungs- und Abschlagsrechnung erkennt Buchfink am Rechnungstyp und
+  schlägt dafür keine Buchung vor.
+- Eine reine XRechnung ist ohne PDF buchbar; die App zeigt sie aus dem XML
+  (`service.EInvoiceService.View`).
+- Mitgeschickte Anlagen sind Belegdateien am Beleg.
 
 Ein eigenes Postfach braucht es nicht; es genügt, die empfangene Datei
 abzulegen (UStAE 14.1 Abs. 5).
@@ -52,7 +56,7 @@ eingebettetem XML) oder als XRechnung im CII-Format. Gesetzt wird mit Typst als
 WebAssembly im Prozess. Eine Rechnung, die gegen die Regeln verstößt, entsteht
 gar nicht erst; eine XRechnung verlangt die Leitweg-ID des Empfängers. Vor der
 Ablage liest Buchfink den Datensatz aus dem erzeugten Dokument zurück und
-vergleicht ihn mit der Rechnung (`invoice/hybrid_check.go`), weil PDF und XML
+vergleicht ihn mit der Rechnung (`invoice.VerifyEmbeddedRecord`), weil PDF und XML
 dasselbe sagen müssen (UStAE 14c.1). Das hybride PDF wird als Ausgangsbeleg
 abgelegt, obwohl GoBD Rz. 76 den Verzicht erlaubt: ein gespeichertes Dokument
 ist greifbarer als die Zusage, es jederzeit neu zu erzeugen.
@@ -68,7 +72,7 @@ Hash-Kette.
 
 Stellt ein inländischer Unternehmer eine Rechnung ohne strukturierten Teil,
 zeigt die Buchungsvorschau einen Hinweis, der sich nach dem Belegdatum und den
-Übergangsregeln richtet (`service/einvoice_notice.go`). Kein Hinweis erscheint
+Übergangsregeln richtet (`service.eInvoiceNotice`). Kein Hinweis erscheint
 bei ausländischen Lieferanten, Kleinunternehmern, Privatpersonen, Kleinbeträgen
 nach § 33 UStDV und steuerfreien Umsätzen. Blockiert wird nie: ob der
 Vorsteuerabzug trägt, ist eine Rechtsfrage, und den Vorjahresumsatz des

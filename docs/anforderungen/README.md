@@ -6,8 +6,7 @@
 Der Katalog verbindet die gesetzlichen Anforderungen an eine Buchführung mit
 Prüfkriterien und mit der Stelle im Code, an der Buchfink sie erfüllt. Jedes
 Kriterium ist so formuliert, dass es sich an der laufenden Software prüfen
-lässt. Bewertet ist der Stand von Version 0.3. Die IDs sind stabil; Code und
-Tests verweisen auf sie.
+lässt. Die IDs sind stabil; Code und Tests verweisen auf sie.
 
 Der Katalog ist eine Prüfhilfe. Er sagt nicht, dass eine Buchführung mit
 Buchfink ordnungsgemäß ist; das hängt auch davon ab, wie das Unternehmen

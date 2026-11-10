@@ -19,18 +19,9 @@ Version 0.3 ist eine Vorschau. Die Installationsdateien auf der
 [Releases-Seite](https://github.com/mxzinke/buchfink/releases) sind nicht
 signiert. Probieren Sie Buchfink mit einem Testunternehmen aus.
 
-Gebaut sind laufende Buchhaltung im SKR04, Umsatzsteuer-Voranmeldung,
-Jahresabschluss nach HGB, Erklärungen zu KSt, GewSt und USt als Eingabehilfe
-für Mein ELSTER, E-Bilanz, ein Pflichtenkalender und der MCP-Server mit
-Zustimmung im Fenster der App. Buchfink übermittelt nichts selbst an die
-Finanzverwaltung. Funktionen und Grenzen stehen im
-[Umsetzungsstand](docs/projekt/umsetzungsstand.md) und unter
-[Umfang](docs/nutzung/umfang.md).
-
-Die Daten liegen je Unternehmen in einem Ordner und sind nicht verschlüsselt.
-Hash-Ketten und Zeitstempel nach RFC 3161 machen Änderungen erkennbar. Was der
-Agent liest, geht an den Anbieter seines Sprachmodells
-([Datensicherheit](docs/nutzung/datensicherheit.md)).
+Funktionen und Grenzen stehen unter [Umfang](docs/nutzung/umfang.md).
+Hinweise zum Schutz der lokalen Daten und zur Nutzung durch den Agenten stehen
+unter [Datensicherheit](docs/nutzung/datensicherheit.md).
 
 ## Einstieg
 

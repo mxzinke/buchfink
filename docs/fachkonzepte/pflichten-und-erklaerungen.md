@@ -49,7 +49,7 @@ beauftragt ist, ab welchem Jahr und für welche Erklärungen
 (`domain.TaxAdvisor`). Ohne Berater gilt für die Jahreserklärungen die Frist des
 [§ 149 Abs. 2 AO][ao149] (sieben Monate nach Ablauf des Kalenderjahres), mit
 Berater die des § 149 Abs. 3 AO (Ende Februar des zweiten Folgejahres), und die
-Pflicht trägt den Hinweis auf die Vorabanforderung nach Abs. 4. Erklärungen, die
+Pflicht nennt die Vorabanforderung nach Abs. 4. Erklärungen, die
 der Berater erstellt, stehen in seiner Zuständigkeit.
 
 **Stand.** Eine Pflicht ist offen, vorbereitet, erledigt, überfällig oder

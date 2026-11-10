@@ -75,14 +75,25 @@ Belegs bleibt der Lieferant.
 ## Zahlung mit Skonto
 
 Lieferantenrechnung über Werbedrucke, 1.190,00 € brutto, 2 % Skonto. Das
-Skonto mindert den Aufwand, auf dem die Rechnung steht; nur bei
-Materialaufwand nimmt Buchfink das Skontokonto (5736).
+Skonto mindert den Aufwand, auf dem die Rechnung steht.
 
 | Buchung |
 |---|
 | Kreditor 1.190,00 an **6600** Werbekosten 20,00 + **1406** Vorsteuer 3,80 + **1800** Bank 1.166,20 |
 
 Die Vorsteuer sinkt um 3,80 € auf 186,20 € (§ 17 UStG).
+
+## Gutschrift eines Lieferanten
+
+Gutschrift über 100 € netto auf die Lieferantenrechnung oben (`gutschrift_zu`),
+Beträge positiv wie auf der Gutschrift.
+
+| Buchung |
+|---|
+| Kreditor 119,00 an **5906** Fremdleistungen 100,00 + **1406** Vorsteuer 19,00 |
+
+Die Seiten sind die der Rechnung vertauscht; Aufwand und Vorsteuer sinken
+(§ 17 Abs. 1 UStG).
 
 ## Zinsgutschrift mit Kapitalertragsteuer
 

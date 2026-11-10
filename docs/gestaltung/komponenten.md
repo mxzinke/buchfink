@@ -12,7 +12,7 @@ diesem Dokument gepflegt.
 ### 10.1 Verhalten kommt von Base UI
 
 Alles, was Fokus fängt, positioniert oder auf Tasten hört, kommt aus
-[`@base-ui/react`](https://base-ui.com). Selbst gebaut waren diese Teile
+[`@base-ui/react`](https://base-ui.com). Selbst gebaut sind diese Teile
 fehleranfällig, und die Fehler zeigen sich erst spät: ein Tooltip, der am
 Bildschirmrand hinausläuft, ein Dialog, aus dem die Tabulatortaste
 herausspringt, ein Menü ohne Typeahead.
@@ -27,39 +27,15 @@ machen gibt.
 
 ### 10.2 Was es gibt
 
-| Baustein | Datei | Verhalten von |
-|---|---|---|
-| `Button`, `DisabledReason` | `Button.tsx` | eigen |
-| `Input`, `Textarea` | `Input.tsx` | Base UI (Field-Anbindung) |
-| `Select` | `Select.tsx` | Base UI Select |
-| `Combobox` | `Combobox.tsx` | Base UI Combobox |
-| `Checkbox`, `RadioGroup`, `Switch` | `Toggle.tsx` | Base UI |
-| `Field`, `FieldRow`, `FieldValue`, `FormGrid` | `Field.tsx` | Base UI Field |
-| `Dialog`, `ConfirmDialog` | `Dialog.tsx` | Base UI Dialog, AlertDialog |
-| `Menu` und Einträge | `Menu.tsx` | Base UI Menu |
-| `Help` | `Help.tsx` | Base UI Popover und Dialog |
-| `Tabs`, `TabPanel`, `Separator` | `Tabs.tsx` | Base UI |
-| `Notice`, `Progress`, `SkeletonRows`, `toast` | `Feedback.tsx` | Base UI Progress, Sonner |
-| `legalText`, `SourceLink` | `LegalText.tsx` | eigen; verlinkt Normverweise wie „§ 147 AO“ auf Gesetze im Internet |
-| `Section`, `PageHeader` | `Section.tsx` | eigen |
-| `PageFrame` | `PageFrame.tsx` | Base UI Tabs |
-| `DetailPanel`, `DetailList` | `DetailPanel.tsx` | Base UI Dialog |
-| `Disclosure` | `Disclosure.tsx` | Base UI Collapsible |
-| `StatRow`, `Stat` | `StatRow.tsx` | eigen |
-| `Table`, Zellen und `RowButton` | `Table.tsx` | eigen |
-| `StatusBadge` | `StatusBadge.tsx` | eigen |
-| `EmptyState` | `EmptyState.tsx` | eigen |
-| `cn` | `cn.ts` | Klassen zusammenführen, letzte Angabe gewinnt |
-| `POPUP`, `POPUP_ITEM`, `BACKDROP` | `popup.ts` | Klassenbündel für alle Overlays ([Abschnitt 6.6](grundlagen.md#66-höhe), [Abschnitt 7](grundlagen.md#7-bewegung)) |
-| `SHELL_PANEL`, `SHELL_BUTTON`, `SHELL_CONTROL` | `shell.ts` | Klassenbündel für die Vollbild-Schirme ([Abschnitt 12](#12-layout)) |
+[`ui/index.ts`](../../frontend/src/components/ui/index.ts) führt alle Bausteine
+auf. Zwei Klassenbündel gelten für Gruppen von Bausteinen: `popup.ts` (`POPUP`,
+`POPUP_ITEM`, `BACKDROP`) für alle Overlays ([Abschnitt 6.6](grundlagen.md#66-höhe),
+[Abschnitt 7](grundlagen.md#7-bewegung)) und `shell.ts` (`SHELL_PANEL`,
+`SHELL_BUTTON`, `SHELL_CONTROL`) für die Vollbild-Schirme ([Abschnitt 12](#12-layout)).
 
 Bewusst gibt es keine `Card`. Wo eine Fläche nötig ist ([Abschnitt 6.2](grundlagen.md#62-wann-eine-fläche-erlaubt-ist)), steht sie an genau
 dieser Stelle im Code und nicht als Baustein, der sich unbemerkt vermehrt.
-
-### 10.3 Lücken
-
-Ein Datumswähler mit Kalender fehlt. Datumsfelder nutzen `Input type="date"`,
-das native Feld ist im Desktop-WebView brauchbar.
+Ein Datumswähler mit Kalender fehlt; Datumsfelder nutzen `Input type="date"`.
 
 ### 10.4 Regeln, die der Code nicht zeigt
 
@@ -108,8 +84,7 @@ definierte Kanten und eine Achse.
 Sie entsteht über `clip-path`, nicht über `rotate(45deg)`. Eine gedrehte Fläche
 behält ihre ursprüngliche Layoutbox: Bei 5 mal 5 px malt sie 7,07 px, die
 Spitzen ragen über die Box hinaus und verkürzen den Abstand zum Text auf 5 px,
-obwohl 6 px gesetzt sind. Die Geometrie liegt als Utility `mark-diamond` in
-`index.css`. Dieselbe Raute markiert den Integritätszustand im Fuß der
+obwohl 6 px gesetzt sind. Die Geometrie liegt als Utility `mark-diamond` in `index.css`. Dieselbe Raute markiert den Integritätszustand im Fuß der
 Navigation ([Abschnitt 11.4](#114-integrität-der-hash-chain)), andere Statuspunkte gibt es nicht.
 
 **Meldungen.**
@@ -146,7 +121,7 @@ Stornierte Buchungen werden nie durchgestrichen und nie ausgeblendet. Der
 ursprüngliche Betrag muss lesbar bleiben.
 
 ```
-Zeile:  border-l-2 border-negative bg-negative-soft/50
+Zeile:  bg-negative-soft/50 mit Markierungspille in negative (Abschnitt 6.5)
 Badge:  Storniert, auf der Gegenbuchung: Storno zu RE-2024-014
 Betrag: normale Darstellung, kein line-through
 ```
@@ -257,31 +232,26 @@ die Seitenleiste schreibt es aus.
 
 **Navigation.** 240 px, fünf Einträge ohne Gruppen und ohne zweite Ebene:
 
-| Bereich | Frage, die er zuerst beantwortet | Darunter |
-|---|---|---|
-| Übersicht | Was ist jetzt zu tun? | Pflichten, Eingang, Monatsabschluss, Buchungen der Apps, verbundene Apps |
-| Bücher | Stimmt, was gebucht ist? | Belege, Bank, Rechnungen, Journal, Konten, Anlagen, Bilanz & GuV |
-| Abschlüsse | Welcher Monat, welches Jahr ist offen? | Monat, Jahr, Erklärungen mit E-Bilanz |
-| Unternehmen | Sind die Stammdaten vollständig? | Stammdaten, Kontakte |
-| Einstellungen | Wer hat Zugriff, ist gesichert? | Apps verbinden, Eingang & Ordner, Buchen ohne Rückfrage, Sicherung, Mandanten, Prüfung & GoBD, Erweitert |
+| Bereich | Frage, die er zuerst beantwortet |
+|---|---|
+| Übersicht | Was ist jetzt zu tun? |
+| Bücher | Stimmt, was gebucht ist? |
+| Abschlüsse | Welcher Monat, welches Jahr ist offen? |
+| Unternehmen | Sind die Stammdaten vollständig? |
+| Einstellungen | Wer hat Zugriff, ist gesichert? |
+
+Die Reiter je Bereich stehen in `frontend/src/navigation.ts`.
 
 Was unter einem Bereich liegt, erreicht man innerhalb des Bereichs, nicht über
 die Navigation ([Abschnitt 2](grundlagen.md#2-leitidee-stilles-kontor),
 Grundsatz 6). Aktiver Eintrag `bg-shell-raised text-white` mit 2 px Leiste in
 `accent-light` links. Kein farbiger Hintergrund, ein dauerhaft sichtbarer
 Zustand darf nicht laut sein. Ein Ziel besteht aus Bereich, Reiter und der
-Kennung eines Objekts (`frontend/src/navigation.ts`) und steht im Hash der
-Adresse.
+Kennung eines Objekts und steht im Hash der Adresse.
 
 **Mandantenwahl.** Die Firma steht links in der Kopfzeile. Bei mehreren
 Mandanten ist sie ein Auslöser, der die Liste aufklappt; mit einem Mandanten
 steht dort nur der Name, und weitere legt man in den Einstellungen an.
-
-**Zeigefinger.** Was man drücken kann, zeigt ihn. Tailwind 4 setzt
-`cursor: default` auf `button`; die Regel steht deshalb einmal in der
-Basisschicht von `index.css` und nicht in jedem Baustein. Gesperrte Knöpfe
-behalten `cursor-not-allowed`, Einträge in Menü und Auswahlliste `cursor-default`
-— sie sind Listenzeilen, keine Knöpfe.
 
 **Seitenkopf.** Titel in `text-display`, darunter eine Zeile Kontext in
 `text-caption text-ink-subtle`, rechts die Primäraktion, darunter eine Haarlinie
