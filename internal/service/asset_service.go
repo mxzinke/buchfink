@@ -255,7 +255,12 @@ type DisposalRequest struct {
 	Settlement     SettlementKind `json:"settlement"`
 	PaymentAccount string         `json:"paymentAccount,omitempty"`
 	ContactID      uint           `json:"contactId,omitempty"`
-	Note           string         `json:"note,omitempty"`
+	// ReceiptID belegt den Verkauf, BankTxID ordnet einen noch ungebuchten Zahlungseingang zu.
+	ReceiptID *uint `json:"receiptId,omitempty"`
+	BankTxID  uint  `json:"bankTxId,omitempty"`
+	// PoolItemMovementID bestimmt das ausgeschiedene Wirtschaftsgut ohne Minderung des Sammelpostens.
+	PoolItemMovementID uint   `json:"poolItemMovementId,omitempty"`
+	Note               string `json:"note,omitempty"`
 }
 
 // DisposalPreview is what an Abgang would look like before it is written.
@@ -1983,6 +1988,10 @@ func (s *AssetService) PreviewDisposal(ctx context.Context, req DisposalRequest)
 	if err != nil {
 		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", req.AssetID, err)
 	}
+	req, _, err = s.disposalBankRequest(ctx, req)
+	if err != nil {
+		return nil, err
+	}
 	preview, _, _, err := s.buildDisposal(ctx, asset, req)
 	return preview, err
 }
@@ -2005,13 +2014,27 @@ func (s *AssetService) dispose(ctx context.Context, req DisposalRequest) (*Dispo
 	if err != nil {
 		return nil, fmt.Errorf("Anlagegut %d wurde nicht gefunden: %w", req.AssetID, err)
 	}
+	req, bankTx, err := s.disposalBankRequest(ctx, req)
+	if err != nil {
+		return nil, err
+	}
 	preview, _, disposalLines, err := s.buildDisposal(ctx, asset, req)
 	if err != nil {
 		return nil, err
 	}
 
+	if bankTx != nil && (bankTx.Currency != "" && bankTx.Currency != "EUR" || bankTx.Amount != preview.Gross) {
+		return nil, fmt.Errorf("Bankumsatz und Bruttoerlös stimmen nicht überein oder der Umsatz lautet nicht auf EUR")
+	}
 	startMonth := s.fiscalYearStartMonth(ctx)
 	fiscalYear := domain.GetFiscalYearForDate(req.Date, startMonth)
+	state, err := s.journalSvc.periods.State(ctx, req.Date)
+	if err != nil {
+		return nil, err
+	}
+	if err := state.ensureOpen(req.Date, false); err != nil {
+		return nil, err
+	}
 	result := &DisposalResult{}
 
 	// 1. AfA bis zum Abgangsmonat nachholen.
@@ -2040,6 +2063,12 @@ func (s *AssetService) dispose(ctx context.Context, req DisposalRequest) (*Dispo
 			description = fmt.Sprintf("Tilgung %s (%s)", asset.Name, asset.InventoryNumber)
 		}
 		treatment := req.TaxTreatment
+		if treatment == "" && req.Proceeds > 0 && req.Kind == domain.DisposalSale {
+			treatment = domain.TaxTreatmentDomestic
+			if asset.Class == domain.AssetClassFinancial {
+				treatment = domain.TaxTreatmentExempt
+			}
+		}
 		if req.Kind == domain.DisposalRepayment || treatment == "" {
 			// Eine Rückzahlung ist kein Leistungsaustausch: sie ist nicht
 			// steuerbar, nicht bloß steuerfrei. Der Unterschied steht in der
@@ -2060,6 +2089,11 @@ func (s *AssetService) dispose(ctx context.Context, req DisposalRequest) (*Dispo
 			TaxTreatment:       treatment,
 			PostingRuleVersion: accounting.PostingRuleVersion,
 			Lines:              disposalLines,
+		}
+		entry.ReceiptID = req.ReceiptID
+		if bankTx != nil {
+			entry.BankTxID = &bankTx.ID
+			entry.ValueDate = bankTx.ValueDate
 		}
 		if req.ContactID != 0 {
 			contactID := req.ContactID
@@ -2113,6 +2147,10 @@ func (s *AssetService) dispose(ctx context.Context, req DisposalRequest) (*Dispo
 		Quantity:           -quantityShare,
 		Note:               note,
 	}
+	if fresh.Method == domain.DepreciationPool {
+		movement.CostAmount, movement.DepreciationAmount, movement.Quantity = 0, 0, 0
+		movement.DisposedPoolItemID = &req.PoolItemMovementID
+	}
 	if result.DisposalEntry != nil {
 		movement.JournalEntryID = &result.DisposalEntry.ID
 	}
@@ -2123,7 +2161,7 @@ func (s *AssetService) dispose(ctx context.Context, req DisposalRequest) (*Dispo
 	// Nur der Vollabgang schließt das Anlagegut ab. Bei einem Teilabgang bleibt
 	// es im Bestand — mit dem Rest seiner Anschaffungskosten und dem Rest einer
 	// früheren außerplanmäßigen Abschreibung.
-	if !preview.Partial {
+	if !preview.Partial && fresh.Method != domain.DepreciationPool {
 		fresh.DisposalDate = req.Date
 		fresh.DisposalKind = req.Kind
 		fresh.DisposalProceeds = req.Proceeds
@@ -2176,12 +2214,27 @@ func (s *AssetService) buildDisposal(
 	if asset.IsDisposed() {
 		return nil, nil, nil, fmt.Errorf("%s ist bereits am %s abgegangen", asset.InventoryNumber, asset.DisposalDate)
 	}
-	if len(req.Date) != 10 {
-		return nil, nil, nil, fmt.Errorf("das Abgangsdatum fehlt oder ist unvollständig (erwartet JJJJ-MM-TT)")
+	if err := domain.CheckDate("Abgangsdatum", req.Date); err != nil {
+		return nil, nil, nil, err
 	}
+	if req.Kind != domain.DisposalSale && req.Kind != domain.DisposalScrapped && req.Kind != domain.DisposalRepayment {
+		return nil, nil, nil, fmt.Errorf("unbekannte Abgangsart")
+	}
+
 	if req.Date < asset.AcquisitionDate {
 		return nil, nil, nil, fmt.Errorf("der Abgang am %s läge vor der Anschaffung am %s",
 			req.Date, asset.AcquisitionDate)
+	}
+	reversed := map[uint]bool{}
+	for _, m := range asset.Movements {
+		if m.ReversesMovementID != nil {
+			reversed[*m.ReversesMovementID] = true
+		}
+	}
+	for _, m := range asset.Movements {
+		if m.Date > req.Date && m.ReversesMovementID == nil && !reversed[m.ID] {
+			return nil, nil, nil, fmt.Errorf("zuerst die spätere Anlagenbewegung vom %s zurücknehmen", m.Date)
+		}
 	}
 	if req.Proceeds < 0 {
 		return nil, nil, nil, fmt.Errorf("der Erlös kann nicht negativ sein")
@@ -2202,23 +2255,26 @@ func (s *AssetService) buildDisposal(
 		}
 	}
 	if asset.Method == domain.DepreciationPool {
-		return nil, nil, nil, fmt.Errorf(
-			"ein Sammelposten geht nicht ab. Scheidet ein einzelnes Wirtschaftsgut aus dem " +
-				"Betriebsvermögen aus, wird der Sammelposten nicht vermindert (§ 6 Abs. 2a Satz 3 EStG) — " +
-				"er löst sich weiter mit einem Fünftel je Jahr auf")
+		found := false
+		for _, m := range asset.Movements {
+			if m.ID == req.PoolItemMovementID && (m.Kind == domain.AssetMovementAcquisition || m.Kind == domain.AssetMovementSubsequentCost) {
+				found = true
+			}
+			if m.DisposedPoolItemID != nil && *m.DisposedPoolItemID == req.PoolItemMovementID &&
+				m.ReversesMovementID == nil && !reversed[m.ID] {
+				return nil, nil, nil, fmt.Errorf("dieses Wirtschaftsgut ist bereits ausgeschieden")
+			}
+		}
+		if !found {
+			return nil, nil, nil, fmt.Errorf("den Zugang des ausgeschiedenen Wirtschaftsguts im Sammelposten auswählen")
+		}
+		copy := *asset
+		copy.Method, copy.Movements, copy.AcquisitionCost = domain.DepreciationNone, nil, 0
+		asset = &copy
 	}
-	if req.Quantity > 0 && asset.Class != domain.AssetClassFinancial {
-		return nil, nil, nil, fmt.Errorf(
-			"eine Stückzahl wird nur bei Finanzanlagen geführt. %s geht ganz ab oder gar nicht",
-			asset.InventoryNumber)
-	}
-	if (req.CostShare > 0 || req.Quantity > 0) && asset.Class != domain.AssetClassFinancial {
-		// Ein halber Pkw geht nicht ab. Wo ein Abschreibungsplan läuft, müsste ein
-		// Teilabgang ihn aufteilen — das ist bei Sach- und immateriellen Anlagen
-		// die Ausnahme und hier bewusst nicht abgebildet.
-		return nil, nil, nil, fmt.Errorf(
-			"ein Teilabgang ist nur bei Finanzanlagen vorgesehen. %s geht ganz ab oder gar nicht",
-			asset.InventoryNumber)
+
+	if req.CostShare > 0 && asset.Class != domain.AssetClassFinancial {
+		return nil, nil, nil, fmt.Errorf("Teilabgänge von Sachanlagen benötigen eine Stückzahl")
 	}
 
 	startMonth := s.fiscalYearStartMonth(ctx)
@@ -2323,7 +2379,11 @@ func (s *AssetService) buildDisposal(
 	// Die Sonderabschreibung mindert den handelsrechtlichen Buchwert nicht und
 	// darf deshalb hier nicht abgezogen werden; sonst entstünde beim Abgang ein
 	// zu hoher Buchgewinn.
-	preview.BookValue = preview.CostShare - preview.DepreciationShare - preview.CatchUpAmount
+	catchUpShare := preview.CatchUpAmount
+	if preview.Partial {
+		catchUpShare = domain.MulRound(preview.CatchUpAmount, int64(preview.CostShare), int64(asset.Cost))
+	}
+	preview.BookValue = preview.CostShare - preview.DepreciationShare - catchUpShare
 	if preview.BookValue < 0 {
 		preview.BookValue = 0
 	}
@@ -2829,7 +2889,20 @@ func afaPlanFor(
 		SpecialPermille:      asset.SpecialPermille,
 		SpecialYears:         asset.SpecialYears,
 	}
+	plan.Quantity = asset.Quantity
+	reversed := map[uint]bool{}
 	for _, m := range asset.Movements {
+		if m.ReversesMovementID != nil {
+			reversed[*m.ReversesMovementID] = true
+		}
+	}
+	for _, m := range asset.Movements {
+		if m.Kind == domain.AssetMovementDisposal && m.Quantity < 0 && !reversed[m.ID] &&
+			m.ReversesMovementID == nil && asset.Quantity > 0 {
+			plan.PartialDisposals = append(plan.PartialDisposals, accounting.AfAPartialDisposal{
+				Date: m.Date, Quantity: -m.Quantity,
+			})
+		}
 		switch m.Kind {
 		case domain.AssetMovementAcquisition:
 			plan.Cost += m.CostAmount
@@ -3192,4 +3265,23 @@ func permilleLabel(permille int) string {
 		return strconv.Itoa(whole)
 	}
 	return fmt.Sprintf("%d,%d", whole, frac)
+}
+
+func (s *AssetService) disposalBankRequest(ctx context.Context, req DisposalRequest) (DisposalRequest, *domain.BankTransaction, error) {
+	var bankTx *domain.BankTransaction
+	if req.BankTxID != 0 {
+		if s.bankTx == nil {
+			return req, nil, fmt.Errorf("Bankumsätze sind nicht verfügbar")
+		}
+		var err error
+		bankTx, err = s.bankTx.FindByID(ctx, req.BankTxID)
+		if err != nil {
+			return req, nil, err
+		}
+		if bankTx.MatchStatus != domain.MatchStatusUnmatched {
+			return req, nil, fmt.Errorf("der Bankumsatz ist bereits zugeordnet")
+		}
+		req.Date, req.Settlement, req.PaymentAccount = bankTx.BookingDate, SettlementPaid, bankTx.LedgerAccount
+	}
+	return req, bankTx, nil
 }

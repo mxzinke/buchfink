@@ -1199,14 +1199,14 @@ nennt nur die hier genutzten Stellen.
 | Anlagenkonten | `internal/accounting/asset_accounts.go` | Katalog 0800–0990, `AssetIncomeAccount` (§-8b-Konten 7005/7006/7014 für Anteile an Kapitalgesellschaften, sonst 7000/7010/7011/7100), `ImpairmentAccount` (7204/7200/7201), `WriteUpAccount` (4913/4912), `DisposalAccountsFor` (4852/4858, 6892/6898, 4851/4857, 6891/6897), `WithholdingTaxAccount` 7630 |
 | Anlagen-Dienst | `internal/service/asset_service.go` | `BookAssetIncome` (eine Zeile 7630, Ausleihungszinsen steuerfrei, Dividenden nicht steuerbar), `AcquisitionCandidates`, `DisposalRequest` (Verkauf, Tilgung, Verschrottung; Zahlungsmittel oder offener Posten), Hinweise zu Finanzanlagen |
 | Anlagegut | `internal/domain/asset.go`, `internal/domain/legalform.go` | `HoldingPermille`, `TaxPrivileged`, `FundClass`, `Quantity`; Anlegerstellung aus der Rechtsform |
-| Oberfläche | `frontend/src/pages/books/AssetsTab.tsx` | Kartei mit beschreibender Stammdatenpflege in der App und Vorher/Nachher-Protokoll; `anlagen` liest diese Angaben. Wertänderung und Abgang haben keinen Erfassungsweg |
+| Oberfläche | `frontend/src/pages/books/AssetsTab.tsx` | Kartei mit beschreibender Stammdatenpflege in der App und Vorher/Nachher-Protokoll; `anlagen` liest diese Angaben. Verkauf und Verschrottung mit Vorschau und Storno; Wertänderungen haben keinen Erfassungsweg |
 | SKR04 | `internal/accounting/skr04_2026.json` | 0800–0990, 1260–1297, 1500–1530, 4851–4858, 4904–4916, 6891–6898, 7000–7020, 7100–7110, 7200–7255, 7630–7639 mit Kennzeichen G/K und Fußnote 9 |
 | Werkzeugkatalog | `docs/entwicklung/mcp.md` | `bankumsatz_buchen`, `buchung_erfassen`, `abschlussbuchung` (`anlage_aktivieren`) |
 | Abschlusssteuer, Erklärung | `internal/accounting/closing_tax.go`, `internal/declaration/kst.go` (`participations`, `classifyHoldings`, `investments`), `gewst.go` | § 8b Abs. 1 bis 5 aus Konten und Kartei, Streubesitz nach Quote, § 8 Nr. 5 und § 9 Nr. 2a GewStG, Teilfreistellung |
 
 ### Offen
 
-- Anlagenpflege: Gebuchte Stückbestände, Abgang, Fertigstellung, Wertminderung, Zuschreibung und Fremdwährungsbewertung sind über App und Werkzeug noch nicht änderbar. Beschreibende Angaben pflegt die App mit Grund; die Nutzungsquote löst keine Steuerkorrektur aus.
+- Anlagenpflege: Gebuchte Stückbestände außerhalb von Abgängen, Fertigstellung, Wertminderung, Zuschreibung und Fremdwährungsbewertung sind über App und Werkzeug noch nicht änderbar. Beschreibende Angaben pflegt die App mit Grund; die Nutzungsquote löst keine Steuerkorrektur aus.
 
 - **Zeilen der Vordrucke:** Zeilennummern für § 8b KStG in der
   Körperschaftsteuererklärung (Anlage GK) und für § 8 Nr. 5, § 9 Nr. 2a

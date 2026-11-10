@@ -240,8 +240,17 @@ func ClassifyAcquisition(netCost domain.Cents, date string, selfUsable bool) (Ac
 // AfAPlan is everything the schedule of one asset is computed from. It is a
 // value, not a database row: the same computation runs for the preview of an
 // asset that does not exist yet and for the yearly Abschreibungslauf.
+// AfAPartialDisposal begrenzt die Abschreibung einer Teilmenge auf ihren Abgangsmonat.
+type AfAPartialDisposal struct {
+	Date     string
+	Quantity domain.Units
+}
+
 type AfAPlan struct {
-	AcquisitionDate string
+	// Quantity und PartialDisposals teilen den Plan gleichartiger Stücke beim Teilabgang.
+	Quantity         domain.Units
+	PartialDisposals []AfAPartialDisposal
+	AcquisitionDate  string
 	// Cost is the AfA-Bemessungsgrundlage: Anschaffungskosten plus nachträgliche
 	// Anschaffungskosten minus Anschaffungspreisminderungen.
 	Cost             domain.Cents
@@ -398,6 +407,9 @@ func (y AfAYear) TaxDifference() domain.Cents { return y.TaxAmount + y.SpecialAm
 // caught up before a disposal. One computation, one truth — a second one in the
 // user interface would drift the day a rule changes.
 func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
+	if len(plan.PartialDisposals) > 0 {
+		return partialDisposalSchedule(plan)
+	}
 	// Ohne Anschaffungskosten gibt es keinen Plan — aber eine leere Liste und
 	// kein nil: der Plan geht als JSON in die Maske, die ihn beim Tippen liest.
 	if plan.Cost <= 0 {

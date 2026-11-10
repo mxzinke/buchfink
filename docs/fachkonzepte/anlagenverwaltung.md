@@ -8,7 +8,7 @@ Anforderungen: BEW-02 bis BEW-06, BEW-10, JAB-05. Code: `internal/domain/asset.g
 `frontend/src/pages/books/AssetsTab.tsx`) zeigt Verzeichnis,
 Abschreibungsplan und Anlagenspiegel. Beschreibende Stammdaten lassen sich
 in der App ändern; erfasst und abgeschrieben wird über einen verbundenen Agenten.
-Fertigstellung, Abgang, außerplanmäßige
+Fertigstellung, außerplanmäßige
 Abschreibung, Zuschreibung und die Fremdwährungsbewertung der Anlagegüter
 rechnet der Dienst, hat aber keinen Erfassungsweg in App oder MCP.
 
@@ -96,7 +96,13 @@ Finanzanlagen haben eigene Regeln: keine planmäßige Abschreibung, gemildertes
 Niederstwertprinzip, Teilabgang nach Stückzahl und eine Tilgung von
 Ausleihungen ohne Erlös und ohne Steuerfall.
 
-Ein verkauftes Anlagegut bleibt in der Kartei.
+Verkauf und Verschrottung sind unter Bücher → Anlagen sowie über `anlage_abgehen`
+erreichbar. Der Abgang bleibt als Bewegung erhalten; ein Storno ergänzt eine
+Gegenbewegung und stellt den Bestand wieder her. Teilabgänge gleichartiger
+Sachanlagen werden über ihre Stückzahl erfasst. Die verbleibenden Stücke
+werden weiter abgeschrieben. Ein ausgeschiedenes Wirtschaftsgut eines
+Sammelpostens wird über seinen Zugang ausgewählt; Kosten und Auflösung des
+Sammelpostens bleiben unverändert (§ 6 Abs. 2a Satz 3 EStG).
 
 ## Laufende Erträge
 

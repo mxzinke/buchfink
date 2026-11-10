@@ -114,3 +114,10 @@ nutze ihn zur Abstimmung.
 Eine falsch gebuchte planmäßige AfA lässt sich mit `buchung_stornieren`
 zurücknehmen. Die Kartei erfasst dazu eine Gegenbewegung am Stornotag.
 Lies danach `anlagen` und prüfe die offene Abschreibung vor einem erneuten Lauf.
+
+Verkauf und Verschrottung erfasst `anlage_abgehen` auch unterjährig. Lege zunächst
+`nur_vorschau: true` vor und buche nach dem Ja. Bei Teilabgängen nenne die
+Stückzahl; beim Sammelposten den Zugang des ausgeschiedenen Wirtschaftsguts
+(`pool_zugang_id`). Die Bewegungskennungen liefert `anlagen` mit `anlage_id`. Der Sammelposten wird nicht vermindert
+([§ 6 Abs. 2a Satz 3 EStG](https://www.gesetze-im-internet.de/estg/__6.html)).
+`art: storno` nimmt einen Abgang anhand seiner `bewegung_id` mit Grund zurück.

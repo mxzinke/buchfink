@@ -142,6 +142,10 @@
             "nutzungsdauer_monate": {
               "description": "nach AfA-Tabelle",
               "type": "integer"
+            },
+            "stueckzahl": {
+              "description": "Zehntausendstel Stück",
+              "type": "integer"
             }
           },
           "required": [
@@ -622,6 +626,91 @@
     "name": "anhang_text",
     "title": "Anhangtexte"
   },
+  "anlage_abgehen": {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Verkauf oder Verschrottung mit zeitanteiliger AfA. Erst Vorschau vorlegen, nach dem Ja buchen.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "anlage_id": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "art": {
+          "description": "verkauf, verschrottung oder storno",
+          "type": "string"
+        },
+        "bankkonto": {
+          "type": "string"
+        },
+        "bankumsatz_id": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "beleg_id": {
+          "minimum": 0,
+          "type": [
+            "null",
+            "integer"
+          ]
+        },
+        "bewegung_id": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "datum": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "erloes": {
+          "description": "Nettoerlös",
+          "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,2})?$",
+          "type": "string"
+        },
+        "grund": {
+          "type": "string"
+        },
+        "idempotenz_schluessel": {
+          "description": "Pflicht, einer je Vorgang, 8 bis 100 Zeichen A-Z a-z 0-9 - _ . :",
+          "type": "string"
+        },
+        "kontakt_id": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "mandant_id": {
+          "description": "id aus status",
+          "type": "string"
+        },
+        "nur_vorschau": {
+          "type": "boolean"
+        },
+        "pool_zugang_id": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "stueckzahl": {
+          "description": "Zehntausendstel Stück; ohne Angabe Vollabgang",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "mandant_id",
+        "idempotenz_schluessel",
+        "anlage_id",
+        "art",
+        "grund"
+      ],
+      "type": "object"
+    },
+    "name": "anlage_abgehen",
+    "title": "Anlage abgehen lassen"
+  },
   "anlagen": {
     "annotations": {
       "idempotentHint": true,
@@ -632,6 +721,11 @@
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
+        "anlage_id": {
+          "description": "Detail mit Bewegungskennungen",
+          "minimum": 0,
+          "type": "integer"
+        },
         "cursor": {
           "description": "naechste_seite der vorigen Antwort",
           "type": "string"

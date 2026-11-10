@@ -34,6 +34,7 @@ import {
   Tr,
 } from '../../components/ui';
 import { PanelHeading, errorText } from './shared';
+import { AssetDisposalForm, AssetDisposalReversal } from './AssetDisposalForm';
 import { splitNorms } from '../../utils/norms';
 
 const CLASS_ORDER: AssetClass[] = ['intangible', 'tangible', 'financial'];
@@ -420,6 +421,12 @@ const AssetPanel: React.FC<{ assetId: number | undefined; onClose: () => void }>
       ) : (
         <>
           <DetailList items={facts} />
+          {!asset.disposalDate && <Disclosure title="Abgang erfassen">
+            <AssetDisposalForm asset={asset} onSaved={load} />
+          </Disclosure>}
+          {asset.movements?.some(m => m.kind === 'disposal') && <Disclosure title="Abgang zurücknehmen">
+            <AssetDisposalReversal asset={asset} onSaved={load} />
+          </Disclosure>}
           <Disclosure title="Stammdaten ändern">
             <AssetMetadataForm key={asset.id} asset={asset} onSaved={load} />
           </Disclosure>
@@ -561,13 +568,11 @@ const AssetMetadataForm: React.FC<{
             ...v, businessUsePermille: Math.round(Number(e.target.value) * 10),
           }))} />
       </Field>
-      {asset.class === 'financial' && (
-        <Field label="Stückzahl des Zugangs" hint="Nur vor Buchung und Folgebewegungen">
+      <Field label="Stückzahl des Zugangs" hint="Nur vor Buchung und Folgebewegungen">
           <Input type="number" min={0} step={0.0001} required disabled={busy}
             value={values.quantity / 10000}
             onChange={e => setValues(v => ({ ...v, quantity: Math.round(Number(e.target.value) * 10000) }))} />
-        </Field>
-      )}
+      </Field>
       {error && <Notice tone="negative" text={error} />}
       <Button type="submit" disabled={busy}>Änderung speichern</Button>
     </form>

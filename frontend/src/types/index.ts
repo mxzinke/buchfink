@@ -4210,3 +4210,24 @@ export interface RefundAdvanceRequest {
  paymentAccount: string;
  reason: string;
 }
+
+export interface AssetDisposalRequest {
+ poolItemMovementId?: number;
+ assetId: number;
+ date: string;
+ kind: 'sale' | 'scrapped';
+ proceeds: number;
+ quantity: number;
+ contactId: number;
+ note: string;
+ taxTreatment: string;
+ taxRate: number;
+}
+export interface AssetDisposalPreview {
+ bookValue: number;
+ catchUpAmount: number;
+ result: number;
+ tax: number;
+ gross: number;
+ warnings: string[];
+}

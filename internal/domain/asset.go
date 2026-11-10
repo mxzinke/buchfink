@@ -398,6 +398,10 @@ type AssetMovement struct {
 	// weil sich der gehaltene Bestand sonst nach einem Teilabgang nicht mehr
 	// ergäbe.
 	Quantity Units `gorm:"default:0" json:"quantity,omitempty"`
+	// ReversesMovementID verweist bei einer Gegenbewegung auf die zurückgenommene Bewegung.
+	ReversesMovementID *uint `gorm:"index" json:"reversesMovementId,omitempty"`
+	// DisposedPoolItemID nennt beim Ausscheiden aus einem Sammelposten dessen Zugang.
+	DisposedPoolItemID *uint `gorm:"index" json:"disposedPoolItemId,omitempty"`
 
 	// LifeExtensionMonths verlängert die Restnutzungsdauer ab dem Jahr dieser
 	// Bewegung.
@@ -540,6 +544,14 @@ type FixedAsset struct {
 	// Abschreibung ist die Begründung Pflicht.
 	SpecialReason string `gorm:"size:500" json:"specialReason,omitempty"`
 
+	// Quantity ist die Stückzahl des Zugangs — Anteile, Stücke, Nominale.
+	//
+	// Sie ist bei Wertpapieren die natürliche Größe: verkauft wird eine Tranche
+	// von 50 Stück, nicht ein Betrag. Aus ihr rechnet Buchfink den Anteil der
+	// Anschaffungskosten, der mit hinausgeht. Null heißt: dieses Anlagegut wird
+	// nicht in Stück geführt, ein Teilabgang wird dann als Betrag angegeben.
+	Quantity Units `gorm:"default:0" json:"quantity,omitempty"`
+
 	// --- Finanzanlagen -----------------------------------------------------
 
 	// Identifier is the ISIN, WKN or Handelsregisternummer — what identifies a
@@ -550,13 +562,6 @@ type FixedAsset struct {
 	// entscheidet also mit darüber, ob der Anteil unter "Beteiligungen" oder
 	// unter "Wertpapiere des Anlagevermögens" auszuweisen ist.
 	HoldingPermille int `gorm:"default:0" json:"holdingPermille,omitempty"`
-	// Quantity ist die Stückzahl des Zugangs — Anteile, Stücke, Nominale.
-	//
-	// Sie ist bei Wertpapieren die natürliche Größe: verkauft wird eine Tranche
-	// von 50 Stück, nicht ein Betrag. Aus ihr rechnet Buchfink den Anteil der
-	// Anschaffungskosten, der mit hinausgeht. Null heißt: dieses Anlagegut wird
-	// nicht in Stück geführt, ein Teilabgang wird dann als Betrag angegeben.
-	Quantity Units `gorm:"default:0" json:"quantity,omitempty"`
 
 	// Currency ist die Währung, in der das Papier notiert (ISO 4217). Leer heißt
 	// Euro. ForeignCost sind die Anschaffungskosten in dieser Währung.
@@ -756,11 +761,6 @@ func (a *FixedAsset) Validate() error {
 func (a *FixedAsset) validateSecurityFields() error {
 	if a.Quantity < 0 {
 		return fmt.Errorf("die Stückzahl kann nicht negativ sein")
-	}
-	if a.Quantity > 0 && a.Class != AssetClassFinancial {
-		return fmt.Errorf(
-			"eine Stückzahl wird nur bei Finanzanlagen geführt. Sach- und immaterielle Anlagen " +
-				"gehen ganz ab oder gar nicht")
 	}
 	if a.FundClass != "" && a.Class != AssetClassFinancial {
 		return fmt.Errorf(

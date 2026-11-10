@@ -281,3 +281,21 @@ func (b *BuchfinkBridge) UpdateAssetMetadata(req service.AssetMetadata) (*domain
 		return s.Assets.UpdateMetadata(ctx, req)
 	}, core.AppOnly())
 }
+
+func (b *BuchfinkBridge) PreviewAssetDisposal(req service.DisposalRequest) (*service.DisposalPreview, error) {
+	return read(b, func(ctx context.Context, s *core.Services) (*service.DisposalPreview, error) {
+		return s.Assets.PreviewDisposal(ctx, req)
+	})
+}
+
+func (b *BuchfinkBridge) DisposeAsset(req service.DisposalRequest) (*service.DisposalResult, error) {
+	return write(b, func(ctx context.Context, s *core.Services) (*service.DisposalResult, error) {
+		return s.Assets.Dispose(ctx, req)
+	})
+}
+
+func (b *BuchfinkBridge) ReverseAssetDisposal(assetID, movementID uint, reason string) (*domain.FixedAsset, error) {
+	return write(b, func(ctx context.Context, s *core.Services) (*domain.FixedAsset, error) {
+		return s.Assets.ReverseDisposal(ctx, assetID, movementID, reason)
+	})
+}

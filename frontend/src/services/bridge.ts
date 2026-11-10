@@ -117,6 +117,9 @@ export const bridge = {
   RefundAdvance: <T>(request: unknown) => invoke<T>('RefundAdvance', request),
 
   // Anlagevermögen
+  PreviewAssetDisposal: <T>(req: unknown) => invoke<T>('PreviewAssetDisposal', req),
+  ReverseAssetDisposal: <T>(id: number, movement: number, reason: string) => invoke<T>('ReverseAssetDisposal', id, movement, reason),
+  DisposeAsset: <T>(req: unknown) => invoke<T>('DisposeAsset', req),
   UpdateAssetMetadata: <T>(req: unknown) => invoke<T>('UpdateAssetMetadata', req),
   GetFixedAssets: <T>(assetClass: string) => invoke<T>('GetFixedAssets', assetClass),
   GetFixedAsset: <T>(id: number) => invoke<T>('GetFixedAsset', id),

@@ -638,6 +638,12 @@ export const Api = {
 
   // --- Anlagevermögen ----------------------------------------------------
 
+  previewAssetDisposal: (req: import('../types').AssetDisposalRequest) =>
+    call(() => Bridge.PreviewAssetDisposal<import('../types').AssetDisposalPreview>(req)),
+  reverseAssetDisposal: (id: number, movement: number, reason: string) =>
+    call(() => Bridge.ReverseAssetDisposal<FixedAsset>(id, movement, reason)),
+  disposeAsset: (req: import('../types').AssetDisposalRequest) =>
+    call(() => Bridge.DisposeAsset<unknown>(req)),
   updateAssetMetadata: (req: AssetMetadata): Promise<FixedAsset> =>
     call(() => Bridge.UpdateAssetMetadata(req) as Promise<FixedAsset>),
   getFixedAssets: (assetClass: AssetClass | '' = ''): Promise<FixedAsset[]> =>

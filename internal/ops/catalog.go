@@ -46,6 +46,7 @@ func Define(name string, tier Tier) Operation {
 var tools = []Operation{
 	Define("abschluss_status", Read),
 	Define("abschlussbuchung", Confirm),
+	Define("anlage_abgehen", Confirm),
 	Define("anlagen", Read),
 	Define("anlass_erfassen", Confirm),
 	Define("aufgaben", Read),

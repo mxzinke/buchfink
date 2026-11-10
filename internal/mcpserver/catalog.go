@@ -19,6 +19,7 @@ func registerTools(tb *Toolbox) {
 	registerPosten(tb)
 	registerRechnung(tb)
 	registerAbschluss(tb)
+	registerAssetDisposal(tb)
 	registerGesellschaft(tb)
 	registerVerfahrensdoku(tb)
 	registerAnhang(tb)

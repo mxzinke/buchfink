@@ -137,6 +137,15 @@ und Berichtigung lassen sich als BOP-CSV exportieren; die Übermittlung bestäti
 weiterhin der Mensch. Ohne Kenntnisdatum bleibt die datierte Berichtigungsfrist
 offen. Die Erzeugung aus Buchungen umfasst weiterhin sonstige Leistungen.
 
+### Übertragung von Anlagen an Gesellschafter
+
+Für unentgeltliche oder verbilligte Übertragungen von Anlagen an Gesellschafter
+besteht kein eigener Erfassungsweg. Eine mögliche verdeckte Gewinnausschüttung
+([§ 8 Abs. 3 Satz 2 KStG](https://www.gesetze-im-internet.de/kstg_1977/__8.html))
+und eine unentgeltliche Wertabgabe
+([§ 3 Abs. 1b UStG](https://www.gesetze-im-internet.de/ustg_1980/__3.html))
+müssen im Einzelfall beurteilt werden. Ein gewöhnlicher Verkauf an einen
+Gesellschafter wird mit Rechnung erfasst. Eine Abgangsart „Entnahme“ gibt es nicht.
 
 ## Rückstellungen fortführen
 

@@ -14,6 +14,7 @@ import (
 // --- anlagen ----------------------------------------------------------------
 
 type anlagenIn struct {
+	AnlageID       uint         `json:"anlage_id,omitempty" jsonschema:"Detail mit Bewegungskennungen"`
 	Geschaeftsjahr int          `json:"geschaeftsjahr,omitempty"`
 	Klasse         AnlageKlasse `json:"klasse,omitempty" jsonschema:"ohne Angabe alle"`
 	Seite
@@ -52,9 +53,10 @@ type kandidat struct {
 }
 
 type anlagenOut struct {
-	Anlagen    []anlage   `json:"anlagen"`
-	AfAFaellig Betrag     `json:"afa_faellig_gesamt"`
-	Kandidaten []kandidat `json:"aktivierungskandidaten" jsonschema:"Buchungen auf Anlagekonten ohne Anlagegut; mit abschlussbuchung art=anlage_aktivieren aufnehmen"`
+	Detail     *service.AssetDetail `json:"detail,omitempty"`
+	Anlagen    []anlage             `json:"anlagen"`
+	AfAFaellig Betrag               `json:"afa_faellig_gesamt"`
+	Kandidaten []kandidat           `json:"aktivierungskandidaten" jsonschema:"Buchungen auf Anlagekonten ohne Anlagegut; mit abschlussbuchung art=anlage_aktivieren aufnehmen"`
 	Seitenende
 }
 
@@ -191,6 +193,7 @@ type unfertigeIn struct {
 }
 
 type aktivierenIn struct {
+	Stueckzahl          domain.Units `json:"stueckzahl,omitempty" jsonschema:"Zehntausendstel Stück"`
 	BuchungID           uint         `json:"buchung_id" jsonschema:"Buchung aus aktivierungskandidaten (anlagen)"`
 	Bezeichnung         string       `json:"bezeichnung"`
 	Klasse              AnlageKlasse `json:"klasse,omitempty" jsonschema:"Vorgabe aus dem Anlagekonto"`
@@ -256,6 +259,10 @@ func registerAbschluss(tb *Toolbox) {
 		out := anlagenOut{Anlagen: []anlage{}, Kandidaten: []kandidat{}}
 		year, err := yearOr(ctx, c, in.Geschaeftsjahr)
 		if err != nil {
+			return out, err
+		}
+		if in.AnlageID != 0 {
+			out.Detail, err = s.Assets.Get(ctx, year, in.AnlageID)
 			return out, err
 		}
 		class, err := pick("klasse", in.Klasse, assetClasses)
@@ -840,6 +847,7 @@ func runActivate(ctx context.Context, s core.AgentServices, year int, in abschlu
 		FundClass:       string(fund),
 		AcquisitionCost: found.Amount, InServiceDate: inService, Method: method,
 		DepreciationAccount: account.DepreciationAccount,
+		Quantity:            a.Stueckzahl,
 		UsefulLifeMonths:    a.NutzungsdauerMonate, UsefulLifeReason: a.NutzungsdauerGrund, ContactID: found.ContactID,
 		AcquisitionEntryID: &entryID, InputTaxAmount: found.InputTaxAmount, InputTaxPermille: found.InputTaxPermille}
 	saved, err := s.Assets.Save(ctx, asset)

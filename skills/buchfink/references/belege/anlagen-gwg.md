@@ -99,3 +99,13 @@ aktuellen Stand; Änderungen sind der App vorbehalten.
 [hgb253]: https://www.gesetze-im-internet.de/hgb/__253.html
 [hgb255]: https://www.gesetze-im-internet.de/hgb/__255.html
 [estg7]: https://www.gesetze-im-internet.de/estg/__7.html
+
+## Übertragung an Gesellschafter
+
+Unentgeltliche oder verbilligte Übertragungen haben keinen eigenen Abgangsweg.
+Lege den Fall dem Menschen zur Beurteilung vor; prüfe mit
+[Verdeckte Gewinnausschüttung und Einlage](../gesellschafter/vga-einlage.md)
+die Folgen nach [§ 8 Abs. 3 Satz 2 KStG](https://www.gesetze-im-internet.de/kstg_1977/__8.html)
+und [§ 3 Abs. 1b UStG](https://www.gesetze-im-internet.de/ustg_1980/__3.html).
+Eine Abgangsart „Entnahme“ gibt es nicht. Ein gewöhnlicher Verkauf an einen
+Gesellschafter wird mit Rechnung erfasst.

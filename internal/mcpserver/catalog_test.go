@@ -58,6 +58,7 @@ var writeFixtures = map[string]map[string]any{
 	"buchung_erfassen": {"idempotenz_schluessel": "matrix-erfassen", "buchungsdatum": "2026-05-04", "beschreibung": "Umbuchung", "steuerfall": "not_taxable",
 		"zeilen": []any{map[string]any{"konto": "1360", "seite": "S", "betrag": "1.00"},
 			map[string]any{"konto": "1800", "seite": "H", "betrag": "1.00"}}},
+	"anlage_abgehen":      {"anlage_id": 1, "datum": "2026-10-19", "art": "verschrottung", "grund": "Defekt", "nur_vorschau": true},
 	"buchung_stornieren":  {"buchung_id": 1, "grund": "Fehlbuchung"},
 	"lohnjournal_buchen":  {"monat": "2026-05", "beleg_id": 1, "netto": "1.00"},
 	"rechnung_ausstellen": {"idempotenz_schluessel": "matrix-rechnung"},

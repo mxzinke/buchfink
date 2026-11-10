@@ -62,8 +62,6 @@ var exceptions = map[string]string{
 	"AssetService.ConfirmImpairmentPersists": "die Beibehaltung einer außerplanmäßigen Abschreibung lässt sich nicht bestätigen",
 	"AssetService.Transfer":                  "eine Anlage im Bau lässt sich nicht fertigstellen",
 	"AssetService.BookCurrencyValuation":     "keine Stichtagsbewertung eines Anlageguts in Fremdwährung",
-	"AssetService.PreviewDisposal":           "Vorschau zu Dispose",
-	"AssetService.Dispose":                   "kein Abgang: ein verkauftes Anlagegut bleibt in der Kartei",
 
 	"ClosingService.SetPriorYearRevenue": "der vorbelegte Vorjahresumsatz (§ 27 Abs. 38 UStG) lässt sich nicht berichtigen",
 

@@ -63,6 +63,7 @@ func BridgeExaminerAllowed() map[string]bool {
 		"GetFiscalYear":                 true,
 		"GetFiscalYearCandidates":       true,
 		"GetFiscalYears":                true,
+		"PreviewAssetDisposal":          true,
 		"GetFixedAsset":                 true,
 		"GetFixedAssets":                true,
 		"GetFoundationRules":            true,
