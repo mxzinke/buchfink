@@ -154,7 +154,8 @@ func (s *JournalService) BookOpeningBalance(
 
 // ensureFirstOpeningBalance schützt vor doppelten Beständen und einer Übernahme
 // neben dem Saldenvortrag. Vollständig im selben Jahr stornierte Eröffnungen
-// dürfen erneut erfasst werden.
+// dürfen erneut erfasst werden. Die Sperre gehört in den Dienst, weil ein zweiter
+// Aufruf die Bestände bei weiterhin ausgeglichener Bilanz verdoppeln würde.
 func (s *JournalService) ensureFirstOpeningBalance(ctx context.Context, fiscalYear int) error {
 	existing, err := s.journalRepo.FindAll(ctx, fiscalYear)
 	if err != nil {
