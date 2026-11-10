@@ -62,6 +62,42 @@ sind als Go-Tests geschrieben und laufen mit `task test`.
 | Rechnungsdokumente | Pflichtangaben in PDF und XML, Bezüge bei Storno und Berichtigung | `internal/invoice/business_letters_test.go`, `cii_content_test.go` |
 | Sicherung | Sicherung, Wiederherstellungstest, beschädigte Dateien werden erkannt | `internal/service/backup_service_test.go` |
 
+## Testmandanten mit einem Agenten
+
+Drei erfundene Unternehmen prüfen Buchfink mit einem verbundenen Agenten vom
+Beleg bis zur Festschreibung. Der Generator unter
+[`scripts/test-tenants/`](../../scripts/test-tenants/README.md) erzeugt
+Belege, E-Rechnungen und Kontoauszüge. Er schreibt zu jedem Mandanten eine
+README mit Stammdaten, erwarteten Buchungssätzen und Kontrollwerten.
+
+| Mandant | Schwerpunkt | Zeitraum |
+|---|---|---|
+| 1 Nordlicht Digital GmbH | Gründung mit Halbeinzahlung und Einforderung, Auslagen, Foto eines Kassenbons, Ausgangsrechnungen, XRechnung an eine Behörde, § 13b, ausländische Umsatzsteuer | 03.08.–16.10.2026 |
+| 2 Kranich Software GmbH | laufender Betrieb: Direktbuchung, reine XRechnung und UBL, Gutschrift, Dublette, geänderte Bankverbindung, Bewirtung, Geschenke, Skonto, Kreditkarte in USD, § 13b, innergemeinschaftlicher Erwerb, Lohn, Gesellschafterdarlehen, Dauerfristverlängerung | 01.06.–16.10.2026 |
+| 3 Waldkauz Projekte UG | Projektgeschäft mit Abschlägen, Kundeninsolvenz, Mindest-Istversteuerung, Jahresabschluss mit Rückstellungen, UG-Rücklage und Ergebnisverwendung, Geschäftsjahr 01.10.–30.09. | 01.10.2025–16.10.2026 |
+
+Ablauf je Mandant:
+
+1. Testdaten erzeugen und in Buchfink einen Mandanten anlegen, Ablage und
+   Eingang in leeren Ordnern außerhalb der Testdaten.
+2. Den Agenten verbinden und die Stammdaten aus der README vorschlagen lassen
+   (`stammdaten_vorschlagen`); in der App nach der Vorschau übernehmen.
+3. Den ersten Kontoauszug liest der Mensch in der App ein.
+4. Die Schrittordner der Reihe nach: Dateien ins Fenster ziehen, „Buche die
+   Belege im Eingang.“ sagen, Rückfragen beantworten, den Monat in der App
+   festschreiben.
+5. Gegen die Kontrollwerte prüfen: Voranmeldung je Monat, Zusammenfassende
+   Meldung, Bankbestand, Bilanz und GuV zum Stichtag (`auswertung` mit `bis`).
+
+Die README beschreibt die fachlich erwartete Lösung. Weicht Buchfink ab, ist das
+ein Befund zum Nachsehen, nicht automatisch ein Fehler der App.
+
+| Mandant | Letzter Lauf | Ergebnis |
+|---|---|---|
+| 1 Nordlicht | Oktober 2026 auf `8cd1f9a` | August und September mit Zeitstempel festgeschrieben. Die Befunde sind behoben, ein Lauf auf dem behobenen Stand steht aus. |
+| 2 Kranich | Oktober 2026 auf `8d4179f` | Juni bis August mit Zeitstempel festgeschrieben. Voranmeldungen Juni bis September und Zusammenfassende Meldung für das dritte Quartal stimmen mit den Kontrollwerten, der Bankbestand bis auf die damals nicht zuordenbare Gutschrift. Die Befunde sind behoben, ein Lauf auf dem behobenen Stand steht aus. |
+| 3 Waldkauz | noch keiner | Bis zum Jahresabschluss kommt der Lauf erst, wenn der Agent Zahlungen auf Abschlagsrechnungen zuordnen kann und sich die Texte des Anhangs erfassen lassen ([Umsetzungsstand](../projekt/umsetzungsstand.md#bekannte-grenzen)). |
+
 ## Vom Abschluss zum Beleg
 
 Ein sachverständiger Dritter muss sich ohne Erklärung zurechtfinden (GOB-02).
