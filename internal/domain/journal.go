@@ -66,8 +66,6 @@ const (
 // entry the amounts are negative on the same side as the original, which is what
 // makes it a Generalumkehr rather than a side swap.
 type JournalLine struct {
-	AllowanceEntryID uint `gorm:"index;default:0" json:"allowanceEntryId,omitempty"`
-
 	ID       uint  `gorm:"primaryKey" json:"id"`
 	EntryID  uint  `gorm:"index;not null" json:"entryId"`
 	Position int   `gorm:"not null" json:"position"`
@@ -82,6 +80,13 @@ type JournalLine struct {
 	// ContactID is set on Personenkonto lines and links the open item to its
 	// business partner.
 	ContactID *uint `gorm:"index" json:"contactId,omitempty"`
+
+	// AllowanceEntryID ordnet eine Zeile auf einem Konto der
+	// Einzelwertberichtigung der Forderung zu, die sie berichtigt: es nennt die
+	// Buchung des offenen Postens. Null heißt ohne Zuordnung. Erst die
+	// Zuordnung erlaubt, beim Ausfall genau die Wertberichtigung dieser
+	// Forderung aufzulösen.
+	AllowanceEntryID uint `gorm:"index;default:0" json:"allowanceEntryId,omitempty"`
 
 	// TaxKey names the Steuerschlüssel this line was derived from (see tax.go).
 	// It is empty on lines that carry no VAT relevance.

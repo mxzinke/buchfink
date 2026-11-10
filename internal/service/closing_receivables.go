@@ -12,6 +12,13 @@ import (
 
 // Der Abschlussbaustein „Wertberichtigung auf Forderungen" (§ 253 Abs. 4 HGB).
 //
+// Die Pauschalwertberichtigung wird als Veränderung ihrer Konten auf den
+// Sollbestand zum Stichtag gebucht: Zugang über 6920, Wegfall über 4920. Die
+// Einzelwertberichtigung wird je Forderung geführt (JournalLine.AllowanceEntryID)
+// und je Forderung auf ihren Sollbestand gebracht, über 6923 und 4923. Eine
+// Einzelwertberichtigung, deren Forderung bezahlt ist, löst so der nächste
+// Abschluss auf; bei einem Ausfall löst sie die Ausbuchung auf.
+
 // ReceivableAllowanceReference ist die Belegnummer der Buchung.
 func ReceivableAllowanceReference(year int) string { return fmt.Sprintf("WB %d", year) }
 

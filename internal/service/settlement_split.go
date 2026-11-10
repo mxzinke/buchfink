@@ -44,13 +44,6 @@ type BankSplitRequest struct {
 	Lines     []BankSplitLine `json:"lines"`
 }
 
-// splitReceipts ist der Ausschnitt des Belegdienstes für den Beleg einer
-// Aufteilung.
-type splitReceipts interface {
-	Get(ctx context.Context, id uint) (*domain.Receipt, error)
-	Seal(ctx context.Context, receiptID, entryID uint) error
-}
-
 // LoanLineSource liefert Konto und Gesellschafter eines Darlehens für die
 // Aufteilung eines Bankumsatzes.
 type LoanLineSource interface {
@@ -181,7 +174,11 @@ func (s *settlement) split(ctx context.Context, req BankSplitRequest) (*domain.J
 			entry.ContactID = &cid
 		}
 	}
-	receipt, err := s.splitReceipt(ctx, tx, req.ReceiptID)
+	// Nach einem Storno ist der Umsatz wieder offen; der Beleg belegt dann die
+	// erneute Aufteilung desselben Umsatzes.
+	receipt, err := s.evidence(ctx, req.ReceiptID, func(prior *domain.JournalEntry) bool {
+		return prior.BankTxID != nil && *prior.BankTxID == tx.ID
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -193,51 +190,10 @@ func (s *settlement) split(ctx context.Context, req BankSplitRequest) (*domain.J
 	if err != nil {
 		return nil, err
 	}
-	// Versiegelt wird in derselben Transaktion: die Buchung trägt den Hash
-	// des Belegs, danach darf er keine Datei mehr aufnehmen.
-	if receipt != nil && receipt.JournalEntryID == nil {
-		if err := s.receipts.Seal(ctx, receipt.ID, created.ID); err != nil {
-			return nil, err
-		}
-	}
-	return created, nil
-}
-
-// splitReceipt liefert den Beleg, den die Aufteilung nennt, oder nil. Er muss
-// frei sein: abgelegt und weder gebucht noch einem Datensatz zugeordnet. Nach
-// einem Storno ist der Umsatz wieder offen, der Beleg bleibt aber mit der
-// stornierten Buchung versiegelt; für denselben Umsatz gilt er deshalb weiter.
-func (s *settlement) splitReceipt(
-	ctx context.Context, tx *domain.BankTransaction, receiptID uint,
-) (*domain.Receipt, error) {
-	if receiptID == 0 {
-		return nil, nil
-	}
-	if s.receipts == nil {
-		return nil, fmt.Errorf("die Belegablage ist nicht eingerichtet")
-	}
-	receipt, err := s.receipts.Get(ctx, receiptID)
-	if err != nil {
+	if err := s.sealEvidence(ctx, receipt, created.ID); err != nil {
 		return nil, err
 	}
-	switch receipt.Status {
-	case domain.ReceiptStatusDiscarded:
-		return nil, fmt.Errorf("Beleg %s wurde verworfen und kann keine Buchung belegen", receipt.ReceiptNumber)
-	case domain.ReceiptStatusAssigned:
-		return nil, fmt.Errorf("Beleg %s gehört schon zu einem Datensatz, etwa als Vertrag eines "+
-			"Gesellschafterdarlehens, und belegt keine weitere Buchung", receipt.ReceiptNumber)
-	}
-	if receipt.JournalEntryID != nil {
-		prior, err := s.journalRepo.FindByID(ctx, *receipt.JournalEntryID)
-		if err != nil {
-			return nil, fmt.Errorf("die Buchung zu Beleg %s wurde nicht gefunden: %w", receipt.ReceiptNumber, err)
-		}
-		if prior.BankTxID == nil || *prior.BankTxID != tx.ID {
-			return nil, fmt.Errorf("Beleg %s belegt schon Buchung %s; ein Beleg gehört zu einer Buchung",
-				receipt.ReceiptNumber, prior.EntryNumber)
-		}
-	}
-	return receipt, nil
+	return created, nil
 }
 
 // splitAccountLine baut die Zeile eines Gegenkontos oder Darlehens.

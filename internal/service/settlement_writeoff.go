@@ -20,8 +20,18 @@ type WriteOffRequest struct {
 	Amount domain.Cents `json:"amount"`
 	Date   string       `json:"date"`
 	// Reason begründet die Uneinbringlichkeit.
-	Reason    string `json:"reason"`
-	ReceiptID uint   `json:"receiptId"`
+	Reason string `json:"reason"`
+	// ReceiptID ist der abgelegte Nachweis, etwa das Schreiben des
+	// Insolvenzverwalters.
+	ReceiptID uint `json:"receiptId"`
+}
+
+// writeOffPlan ist eine durchgerechnete Ausbuchung.
+type writeOffPlan struct {
+	entry *domain.JournalEntry
+	// amount ist der ausgebuchte Bruttobetrag.
+	amount  domain.Cents
+	receipt *domain.Receipt
 }
 
 // WriteOff bucht eine uneinbringliche Forderung aus.
@@ -31,7 +41,16 @@ func (s *settlement) WriteOff(ctx context.Context, req WriteOffRequest) (*domain
 	})
 }
 
+// previewWriteOff liefert die Buchung der Ausbuchung, ohne zu schreiben.
 func (s *settlement) previewWriteOff(ctx context.Context, req WriteOffRequest) (*domain.JournalEntry, error) {
+	plan, err := s.planWriteOff(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return plan.entry, nil
+}
+
+func (s *settlement) planWriteOff(ctx context.Context, req WriteOffRequest) (*writeOffPlan, error) {
 	if strings.TrimSpace(req.Reason) == "" {
 		return nil, fmt.Errorf(
 			"zu jeder Ausbuchung gehört eine Begründung: woran die Forderung gescheitert ist, entscheidet, " +
@@ -65,6 +84,23 @@ func (s *settlement) previewWriteOff(ctx context.Context, req WriteOffRequest) (
 	}
 	if item.IsCredit() {
 		return nil, fmt.Errorf("%s ist eine Gutschrift an den Kunden und keine Forderung", item.DocumentNumber)
+	}
+	// Nach dem Storno einer Ausbuchung belegt derselbe Nachweis die erneute
+	// Ausbuchung dieser Forderung.
+	receipt, err := s.evidence(ctx, req.ReceiptID, func(prior *domain.JournalEntry) bool {
+		allocations, err := s.allocationRepo.FindByPayment(ctx, prior.ID)
+		if err != nil {
+			return false
+		}
+		for _, a := range allocations {
+			if a.OpenItemEntryID == item.EntryID && a.DifferenceKind == domain.DifferenceWriteoff {
+				return true
+			}
+		}
+		return false
+	})
+	if err != nil {
+		return nil, err
 	}
 	original, err := s.journalRepo.FindByID(ctx, item.EntryID)
 	if err != nil {
@@ -169,7 +205,7 @@ func (s *settlement) previewWriteOff(ctx context.Context, req WriteOffRequest) (
 	})
 
 	entry := &domain.JournalEntry{
-		ReceiptID:       &req.ReceiptID,
+		ReceiptID:       &receipt.ID,
 		BookingDate:     req.Date,
 		DocumentDate:    req.Date,
 		ServiceDateFrom: req.Date,
@@ -187,28 +223,22 @@ func (s *settlement) previewWriteOff(ctx context.Context, req WriteOffRequest) (
 	if err := s.journalSvc.ValidatePostable(ctx, entry); err != nil {
 		return nil, err
 	}
-	return entry, nil
+	return &writeOffPlan{entry: entry, amount: amount, receipt: receipt}, nil
 }
 
 func (s *settlement) writeOff(ctx context.Context, req WriteOffRequest) (*domain.JournalEntry, error) {
-	preview, err := s.previewWriteOff(ctx, req)
+	plan, err := s.planWriteOff(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	entry, err := s.journalSvc.Post(ctx, preview)
+	entry, err := s.journalSvc.Post(ctx, plan.entry)
 	if err != nil {
 		return nil, err
 	}
-	receipt, err := s.journalSvc.receiptRepo.FindByID(ctx, req.ReceiptID)
-	if err != nil {
+	if err := s.sealEvidence(ctx, plan.receipt, entry.ID); err != nil {
 		return nil, err
 	}
-	if receipt.Status != domain.ReceiptStatusSealed {
-		if err := s.journalSvc.receiptRepo.Seal(ctx, req.ReceiptID, entry.ID); err != nil {
-			return nil, err
-		}
-	}
-	amount := entry.Lines[len(entry.Lines)-1].Amount
+	amount := plan.amount
 
 	if err := s.allocationRepo.Create(ctx, []domain.PaymentAllocation{{
 		OpenItemEntryID:  req.OpenItemEntryID,

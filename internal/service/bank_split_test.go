@@ -307,7 +307,6 @@ func TestSplitCarriesTheReceiptOfItsReason(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	payments := env.paymentsWithBank(t)
-	payments.SetReceipts(env.receipts)
 	contract := env.fileIncoming(t, "kaufvertrag-beteiligung.pdf")
 	id := env.bankLine(t, "2026-03-02", -1_250_000, "Notar Dr. Beispiel", "Kaufpreis Geschäftsanteile")
 	split := BankSplitRequest{BankTxID: id, ReceiptID: contract.ID,
@@ -363,7 +362,6 @@ func TestSplitRefusesReceiptsThatAreNotFree(t *testing.T) {
 	env := newTestEnv(t)
 	ctx := context.Background()
 	payments := env.paymentsWithBank(t)
-	payments.SetReceipts(env.receipts)
 	id := env.bankLine(t, "2026-03-02", -50_000, "Vermieter", "Kaution")
 
 	discarded := env.fileIncoming(t, "verworfen.pdf")

@@ -97,6 +97,8 @@ func canonicalize(e *domain.JournalEntry, prevHash string) []byte {
 		putInt("line_input_tax_share", int64(l.InputTaxShare))
 		putInt("line_foreign_amount", int64(l.ForeignAmount))
 		put("line_text", l.Text)
+		// Nur wenn gesetzt: eine Zeile ohne Zuordnung behält den Hash, den sie
+		// vor Einführung des Feldes hatte.
 		if l.AllowanceEntryID != 0 {
 			putInt("line_allowance_entry", int64(l.AllowanceEntryID))
 		}

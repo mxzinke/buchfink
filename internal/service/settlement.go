@@ -18,7 +18,7 @@ type settlement struct {
 	assets    AssetRegister
 	auditRepo domain.AuditRepository
 	loans     LoanLineSource
-	receipts  splitReceipts
+	receipts  evidenceReceipts
 }
 
 // Settle bucht eine Zahlung gegen offene Posten.
@@ -322,4 +322,59 @@ func withCurrencyDifference(
 	out := append([]AllocationRequest(nil), requests...)
 	out[found].DifferenceKind, out[found].DifferenceAmount = domain.DifferenceCurrency, delta
 	return out, true
+}
+
+// evidenceReceipts ist der Ausschnitt des Belegdienstes für den Beleg zum
+// Grund einer Buchung des Zahlungsausgleichs.
+type evidenceReceipts interface {
+	Get(ctx context.Context, id uint) (*domain.Receipt, error)
+	Seal(ctx context.Context, receiptID, entryID uint) error
+}
+
+// evidence liefert den abgelegten Beleg zum Grund einer Buchung, oder nil ohne
+// Angabe. Er muss frei sein: abgelegt und weder verworfen noch einem
+// Datensatz zugeordnet. Nach einem Storno bleibt ein Beleg mit der stornierten
+// Buchung versiegelt; er gilt weiter, wenn sameCase diese Buchung als
+// denselben Vorgang erkennt, damit sich der Vorgang neu buchen lässt.
+func (s *settlement) evidence(
+	ctx context.Context, receiptID uint, sameCase func(prior *domain.JournalEntry) bool,
+) (*domain.Receipt, error) {
+	if receiptID == 0 {
+		return nil, nil
+	}
+	if s.receipts == nil {
+		return nil, fmt.Errorf("die Belegablage ist nicht eingerichtet")
+	}
+	receipt, err := s.receipts.Get(ctx, receiptID)
+	if err != nil {
+		return nil, err
+	}
+	switch receipt.Status {
+	case domain.ReceiptStatusDiscarded:
+		return nil, fmt.Errorf("Beleg %s wurde verworfen und kann keine Buchung belegen", receipt.ReceiptNumber)
+	case domain.ReceiptStatusAssigned:
+		return nil, fmt.Errorf("Beleg %s gehört schon zu einem Datensatz, etwa als Vertrag eines "+
+			"Gesellschafterdarlehens, und belegt keine weitere Buchung", receipt.ReceiptNumber)
+	}
+	if receipt.JournalEntryID != nil {
+		prior, err := s.journalRepo.FindByID(ctx, *receipt.JournalEntryID)
+		if err != nil {
+			return nil, fmt.Errorf("die Buchung zu Beleg %s wurde nicht gefunden: %w", receipt.ReceiptNumber, err)
+		}
+		if !sameCase(prior) {
+			return nil, fmt.Errorf("Beleg %s belegt schon Buchung %s; ein Beleg gehört zu einer Buchung",
+				receipt.ReceiptNumber, prior.EntryNumber)
+		}
+	}
+	return receipt, nil
+}
+
+// sealEvidence versiegelt den Beleg mit seiner Buchung, in derselben
+// Transaktion: die Buchung hat den Hash des Belegs, danach darf er keine Datei
+// mehr aufnehmen.
+func (s *settlement) sealEvidence(ctx context.Context, receipt *domain.Receipt, entryID uint) error {
+	if receipt == nil || receipt.JournalEntryID != nil {
+		return nil
+	}
+	return s.receipts.Seal(ctx, receipt.ID, entryID)
 }

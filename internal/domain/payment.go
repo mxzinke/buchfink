@@ -108,8 +108,6 @@ const (
 
 // OpenItem is one unsettled receivable or payable.
 type OpenItem struct {
-	SpecificAllowance   Cents `json:"specificAllowance,omitempty"`
-	AllowanceUnassigned bool  `json:"allowanceUnassigned,omitempty"`
 	// Source nennt den Weg, auf dem dieser Posten auszugleichen ist. Ein
 	// Abschlag hat keine Buchung und damit keine EntryID.
 	Source OpenItemSource `json:"source"`
@@ -131,6 +129,13 @@ type OpenItem struct {
 	GrossAmount   Cents `json:"grossAmount"`
 	SettledAmount Cents `json:"settledAmount"`
 	OpenAmount    Cents `json:"openAmount"`
+	// SpecificAllowance ist die Einzelwertberichtigung, die auf diesen Posten
+	// gebildet ist.
+	SpecificAllowance Cents `json:"specificAllowance,omitempty"`
+	// AllowanceUnassigned meldet eine Einzelwertberichtigung ohne Zuordnung zu
+	// einer Forderung. Welcher Posten gemeint ist, lässt sich dann nicht sagen;
+	// eine Ausbuchung wartet, bis das geklärt ist.
+	AllowanceUnassigned bool `json:"allowanceUnassigned,omitempty"`
 	// Currency ist die Währung der Rechnung hinter dem Posten, leer bei Euro.
 	// Gebucht ist der Posten in Euro; beim Ausgleich entsteht eine Kursdifferenz.
 	Currency string `json:"currency,omitempty"`

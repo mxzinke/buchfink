@@ -10,13 +10,15 @@ import (
 
 func (e *testEnv) payments(t *testing.T) *PaymentService {
 	t.Helper()
-	return NewPaymentService(
+	payments := NewPaymentService(
 		e.journal,
 		e.journalRepo,
 		repository.NewPaymentAllocationRepository(e.db),
 		e.contactRepo,
 		repository.NewBankRepository(e.db),
 	)
+	payments.SetReceipts(e.receipts)
+	return payments
 }
 
 // openPayable books a supplier invoice on account and returns its open item.
