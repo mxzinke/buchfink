@@ -171,7 +171,7 @@ func (b *BuchfinkBridge) SaveOrganisationTexts(texts domain.OrganisationTexts) e
 
 // SetSystemChangeDate hält den Umstellungszeitpunkt der Datenübernahme fest.
 //
-// An ihm hängt die Fünfjahresfrist des § 147 Abs. 6 Satz 6 AO: so lange ist das
+// An ihm hängt die Fünfjahresfrist des § 147 Abs. 6 Satz 5 AO: so lange ist das
 // Altsystem für den Datenzugriff verfügbar zu halten.
 func (b *BuchfinkBridge) SetSystemChangeDate(date string) error {
 	return b.change(func(ctx context.Context, s *core.Services) error {

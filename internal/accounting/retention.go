@@ -212,7 +212,7 @@ func DeletionConcept() []DeletionConceptRow {
 	}
 }
 
-// SystemChangeNote beschreibt die Fünfjahresfrist des § 147 Abs. 6 Satz 6 AO:
+// SystemChangeNote beschreibt die Fünfjahresfrist des § 147 Abs. 6 Satz 5 AO:
 // so lange ist ein Altsystem nach der Datenübernahme für den Datenzugriff
 // verfügbar zu halten. Leerer Stichtag heißt: heute.
 func SystemChangeNote(changeDate, today string) string {
@@ -225,11 +225,11 @@ func SystemChangeNote(changeDate, today string) string {
 	}
 	if today > end {
 		return fmt.Sprintf(
-			"Die Umstellung aus dem Altsystem war am %s. Die Fünfjahresfrist des § 147 Abs. 6 Satz 6 AO ist am %s abgelaufen; das Altsystem muss für den Datenzugriff nicht mehr verfügbar gehalten werden.",
+			"Die Umstellung aus dem Altsystem war am %s. Die Fünfjahresfrist des § 147 Abs. 6 Satz 5 AO ist am %s abgelaufen; das Altsystem muss für den Datenzugriff nicht mehr verfügbar gehalten werden.",
 			changeDate, end)
 	}
 	return fmt.Sprintf(
-		"Die Umstellung aus dem Altsystem war am %s. Bis zum %s ist das Altsystem für den Datenzugriff verfügbar zu halten (§ 147 Abs. 6 Satz 6 AO).",
+		"Die Umstellung aus dem Altsystem war am %s. Bis zum %s ist das Altsystem für den Datenzugriff verfügbar zu halten (§ 147 Abs. 6 Satz 5 AO).",
 		changeDate, end)
 }
 

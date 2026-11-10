@@ -249,7 +249,7 @@ type JournalEntry struct {
 	// die dort eine Nummer hatten. Ohne dieses Feld wäre die Verbindung zwischen
 	// der Schlussbilanz des Altsystems und der Eröffnungsbilanz in Buchfink nur
 	// über den Buchungstext herzustellen — und die Fünfjahresfrist des § 147
-	// Abs. 6 Satz 6 AO verlangt, dass die übernommenen Daten zuordenbar bleiben.
+	// Abs. 6 Satz 5 AO verlangt, dass die übernommenen Daten zuordenbar bleiben.
 	LegacyRef string `gorm:"size:60;index" json:"legacyRef,omitempty"`
 
 	// DueDate ist die vereinbarte Fälligkeit des offenen Postens, den diese

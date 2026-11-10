@@ -1157,7 +1157,7 @@ export const Api = {
     call(() => Bridge.GetMigrationRecords() as Promise<MigrationRecord[]>).then(list),
   /**
    * Hält den Umstellungszeitpunkt der Übernahme aus einem Altsystem fest.
-   * An ihm hängt die Fünfjahresfrist des § 147 Abs. 6 Satz 6 AO.
+   * An ihm hängt die Fünfjahresfrist des § 147 Abs. 6 Satz 5 AO.
    */
   setSystemChangeDate: (date: string): Promise<void> =>
     call(() => Bridge.SetSystemChangeDate(date)),

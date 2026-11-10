@@ -101,7 +101,7 @@ const (
 	SettingOrgNotes            = "org_notes"
 	// SettingSystemChangeDate ist der Umstellungszeitpunkt bei der Übernahme
 	// aus einem Altsystem. Nach ihm richtet sich die Fünfjahresfrist des § 147
-	// Abs. 6 Satz 6 AO: so lange muss das Altsystem für den Datenzugriff
+	// Abs. 6 Satz 5 AO: so lange muss das Altsystem für den Datenzugriff
 	// verfügbar bleiben.
 	SettingSystemChangeDate = "system_change_date"
 )

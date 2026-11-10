@@ -1104,9 +1104,6 @@ Bereich steuererklaerungen stehen (§§ 7 KStG, 5b, 16, 18 UStG, §§ 20, 108,
   und Stückzahlen übernommener Anlagen, offene Posten in Fremdwährung,
   Anzahlungen. Nach einem Storno der Eröffnung lassen sich die übernommenen
   Anlagen nicht neu erfassen.
-- **Umstieg, Satzzählung:** `accounting.SystemChangeNote` nennt § 147 Abs. 6
-  Satz 6 AO. Der Wortlaut am 10.11.2026 hat den Wechsel des
-  Datenverarbeitungssystems in Satz 5.
 - Anker der Monatsfrist (§§ 137, 138 AO): Skill rechnet ab Beurkundung wie das
   Fachkonzept; nicht durch Verwaltungsanweisung belegt.
 - Unterbilanzhaftung nur über Sekundärquellen; Gründungskosten-vGA über BFH I R 12/87 (Haufe-Wiedergabe), Volltext des BGH-Beschlusses II ZB 10/88 nicht gelesen. Versuch 10.11.2026: Für BGH II ZR 54/80 (1981), BGH II ZB 10/88 (1989), BFH I R 12/87 (1989) und das BMF-Schreiben vom 25.06.1991 fand sich kein amtlicher Volltext.

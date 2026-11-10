@@ -185,7 +185,7 @@ func addYears(iso string, years int) string {
 // String, wenn sich das Datum nicht lesen lässt.
 //
 // Sie steht hier und nicht in einem Hilfspaket, weil sie außer der
-// Altersstruktur nur die Fünfjahresfrist des § 147 Abs. 6 Satz 6 AO braucht —
+// Altersstruktur nur die Fünfjahresfrist des § 147 Abs. 6 Satz 5 AO braucht —
 // zwei Aufrufer rechtfertigen kein Paket, aber sehr wohl eine gemeinsame
 // Funktion.
 func AddYearsISO(iso string, years int) string {

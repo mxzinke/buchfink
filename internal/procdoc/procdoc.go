@@ -250,7 +250,7 @@ Buchfink ab dem Geschäftsjahr {{.FiscalYear}}. Sie gilt, bis eine neue Fassung
 erzeugt wird; die abgelösten Fassungen bleiben im Belegspeicher.
 {{if .SystemChangeDate}}
 Die Daten wurden zum {{.SystemChangeDate}} aus einem Altsystem übernommen. Nach
-§ 147 Abs. 6 Satz 6 AO ist das Altsystem noch fünf Jahre nach der Umstellung für
+§ 147 Abs. 6 Satz 5 AO ist das Altsystem noch fünf Jahre nach der Umstellung für
 den Datenzugriff verfügbar zu halten.
 {{end}}
 ### 1.3 Speicherort und Betriebsform
