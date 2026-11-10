@@ -1029,11 +1029,6 @@
     "ExaminerAllowed": true,
     "Guarded": false
   },
-  "SettleAdvance": {
-    "AppOnly": false,
-    "ExaminerAllowed": false,
-    "Guarded": true
-  },
   "SettlePayment": {
     "AppOnly": false,
     "ExaminerAllowed": false,
