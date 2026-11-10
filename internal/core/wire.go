@@ -93,6 +93,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Bank.SetAccountRegistry(repository.NewBankAccountRepository(db), settingsRepo, txRunner)
 	s.Payments = service.NewPaymentService(s.Journal, journalRepo, allocationRepo, contactRepo, bankRepo)
 	s.Payments.SetAuditRepo(auditRepo)
+	s.Payments.SetReceipts(s.Receipts)
 	s.Posting.SetVendorAdvances(vendorAdvanceRepo)
 	s.Posting.SetSettingsSource(settingsRepo)
 	s.Vat = service.NewVatService(journalRepo)

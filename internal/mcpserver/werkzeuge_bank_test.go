@@ -230,16 +230,34 @@ func TestBankStatementAndMatching(t *testing.T) {
 	if ignored.Status != "ignoriert" {
 		t.Errorf("ignoriert: %+v", ignored)
 	}
+	// Die Zinsabrechnung aus der Ablage belegt den Grund der Gutschrift; sie
+	// steht danach an der Buchung und ist gebucht.
+	var note ablageOut
+	a.ok("beleg_ablegen", a.args(map[string]any{"eingang_am": today(), "art": "sonstiges",
+		"dateien":    []any{map[string]any{"pfad": h.inboxFile("zinsabrechnung.pdf", pdf("Zinsabrechnung Q1"))}},
+		"belegdatum": "2026-04-12", "aussteller": "Hausbank", "betreff": "Zinsabrechnung Q1", "brutto": "10.00"}), &note)
+	a.fail("bankumsatz_buchen", a.args(map[string]any{"bankumsatz_id": interest.ID, "beleg_id": note.Beleg.ID,
+		"ignorieren": map[string]any{"grund": "kein Vorgang"}}), CodeInvalidInput)
 	var split struct {
 		Buchung *struct {
-			ID uint `json:"id"`
+			ID      uint   `json:"id"`
+			BelegNr string `json:"beleg_nr"`
 		} `json:"buchung"`
 		Status string `json:"status"`
 	}
-	a.ok("bankumsatz_buchen", a.args(map[string]any{"bankumsatz_id": interest.ID,
+	a.ok("bankumsatz_buchen", a.args(map[string]any{"bankumsatz_id": interest.ID, "beleg_id": note.Beleg.ID,
 		"aufteilung": []any{map[string]any{"konto": "7100", "betrag": "10.00", "text": "Zinsen Q1"}}}), &split)
-	if split.Buchung == nil || split.Status != "zugeordnet" {
-		t.Errorf("Aufteilung: %+v", split)
+	if split.Buchung == nil || split.Status != "zugeordnet" || split.Buchung.BelegNr == "" {
+		t.Fatalf("Aufteilung: %+v", split)
+	}
+	var withReceipt struct {
+		Buchungen []struct {
+			ID uint `json:"id"`
+		} `json:"buchungen"`
+	}
+	a.ok("buchungen_suchen", map[string]any{"beleg_id": note.Beleg.ID}, &withReceipt)
+	if len(withReceipt.Buchungen) != 1 || withReceipt.Buchungen[0].ID != split.Buchung.ID {
+		t.Errorf("die Buchung ist über ihren Beleg nicht zu finden: %+v", withReceipt)
 	}
 	a.ok("bankumsaetze", nil, &list)
 	if len(list.Umsaetze) != 0 {

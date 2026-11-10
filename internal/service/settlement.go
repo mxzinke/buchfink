@@ -18,6 +18,7 @@ type settlement struct {
 	assets    AssetRegister
 	auditRepo domain.AuditRepository
 	loans     LoanLineSource
+	receipts  splitReceipts
 }
 
 // Settle bucht eine Zahlung gegen offene Posten.

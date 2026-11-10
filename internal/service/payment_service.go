@@ -57,6 +57,7 @@ func (s *PaymentService) OpenItemSource() OpenItemSource { return s.settlement.o
 func (s *PaymentService) SetAuditRepo(repo domain.AuditRepository) { s.settlement.auditRepo = repo }
 func (s *PaymentService) SetAssetRegister(register AssetRegister)  { s.settlement.assets = register }
 func (s *PaymentService) SetLoanSource(source LoanLineSource)      { s.settlement.loans = source }
+func (s *PaymentService) SetReceipts(receipts splitReceipts)       { s.settlement.receipts = receipts }
 
 // OpenItems liefert die aktuell offenen Forderungen und Verbindlichkeiten aller Geschäftsjahre.
 func (s *PaymentService) OpenItems(ctx context.Context) ([]domain.OpenItem, error) {

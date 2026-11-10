@@ -229,6 +229,7 @@ type bankBuchenIn struct {
 	// Kapitalertrag verknüpft den Ertrag mit dem Anlagegut; daraus liest die
 	// Körperschaftsteuererklärung Bezüge nach § 8b KStG und Fondserträge.
 	Kapitalertrag *kapitalertragIn `json:"kapitalertrag,omitempty" jsonschema:"Ertrag einer Finanzanlage, am Anlagegut"`
+	BelegID       uint             `json:"beleg_id,omitempty" jsonschema:"bei aufteilung: abgelegter Beleg zum Grund der Zahlung, etwa ein Vertrag"`
 	Beschreibung  string           `json:"beschreibung,omitempty"`
 }
 
@@ -251,7 +252,8 @@ var differenceKinds = map[DifferenzArt]domain.DifferenceKind{
 }
 
 func (in bankBuchenIn) split() (service.BankSplitRequest, error) {
-	req := service.BankSplitRequest{BankTxID: in.BankumsatzID, Description: strings.TrimSpace(in.Beschreibung)}
+	req := service.BankSplitRequest{BankTxID: in.BankumsatzID, Description: strings.TrimSpace(in.Beschreibung),
+		ReceiptID: in.BelegID}
 	if len(in.Aufteilung) > 20 {
 		return req, inputError("aufteilung", "höchstens 20 Zeilen, nicht %d", len(in.Aufteilung))
 	}
@@ -552,6 +554,9 @@ func registerBank(tb *Toolbox) {
 		if modes != 1 {
 			return bankBuchenOut{}, inputError("aufteilung",
 				"genau eine Angabe: aufteilung, ignorieren, kreditkartenabrechnung oder kapitalertrag")
+		}
+		if in.BelegID != 0 && len(in.Aufteilung) == 0 {
+			return bankBuchenOut{}, inputError("beleg_id", "ein Beleg gehört nur zu einer aufteilung")
 		}
 		switch {
 		case in.Ignorieren != nil:

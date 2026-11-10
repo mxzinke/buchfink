@@ -48,6 +48,15 @@ aufteilung: [
 Schreib `text` je Zeile so, dass ein Prüfer ihn ohne Chat versteht („Zinsen Q3
 2026 Tagesgeld, Abrechnung vom 30.09.2026“).
 
+Der Kontoauszug belegt die Zahlung, nicht ihren Grund. Geht ein Umsatz direkt
+auf ein Konto und gibt es dazu ein Dokument, etwa den Kaufvertrag einer
+Beteiligung, eine Zinsabrechnung oder einen Bescheid, lege es mit
+`beleg_ablegen` (`art: sonstiges`) ab und gib es als `beleg_id` neben der
+`aufteilung` an. Der Beleg ist danach gebucht und über `buchung_lesen` und
+`buchungen_suchen` (`beleg_id`) zu finden. Ein Beleg gehört zu einer Buchung:
+Rechnungen und Gutschriften buchst du weiter über ihren Beleg, und der Vertrag
+eines Gesellschafterdarlehens gehört zum Darlehen.
+
 ## 4. Teilzahlung, Sammelzahlung, Überzahlung
 
 - **Teilzahlung:** Zeile mit `buchung_id` und dem gezahlten Betrag als

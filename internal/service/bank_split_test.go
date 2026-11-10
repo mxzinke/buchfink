@@ -297,3 +297,95 @@ func TestIgnoredTransactionTakesNoBooking(t *testing.T) {
 		t.Error("ein ignorierter Umsatz wurde gebucht")
 	}
 }
+
+// Erwerb einer Beteiligung für 12.500,00 €: der Bankabgang geht auf 0850, der
+// Kaufvertrag aus der Ablage belegt den Grund. Die Buchung trägt Beleg und
+// Hash, der Beleg ist versiegelt. Nach einem Storno ist der Umsatz wieder
+// offen und derselbe Vertrag belegt die erneute Buchung; eine zweite Zahlung
+// belegt er nicht.
+func TestSplitCarriesTheReceiptOfItsReason(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	payments := env.paymentsWithBank(t)
+	payments.SetReceipts(env.receipts)
+	contract := env.fileIncoming(t, "kaufvertrag-beteiligung.pdf")
+	id := env.bankLine(t, "2026-03-02", -1_250_000, "Notar Dr. Beispiel", "Kaufpreis Geschäftsanteile")
+	split := BankSplitRequest{BankTxID: id, ReceiptID: contract.ID,
+		Lines: []BankSplitLine{{Account: "0850", Amount: 1_250_000, Text: "Geschäftsanteile Muster GmbH"}}}
+
+	entry, err := payments.BookBankSplit(ctx, split)
+	if err != nil {
+		t.Fatalf("Aufteilung: %v", err)
+	}
+	assertLines(t, entry, []bookedLine{
+		{domain.SideDebit, "0850", 1_250_000},
+		{domain.SideCredit, domain.AccountBank, 1_250_000},
+	})
+	if entry.ReceiptID == nil || *entry.ReceiptID != contract.ID || entry.ReceiptHash != contract.ReceiptHash ||
+		entry.DocumentNumber != contract.ReceiptNumber {
+		t.Errorf("die Buchung trägt den Vertrag nicht: Beleg %v, Hash %q, Belegnummer %q",
+			entry.ReceiptID, entry.ReceiptHash, entry.DocumentNumber)
+	}
+	sealed, err := env.receiptRepo.FindByID(ctx, contract.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sealed.Status != domain.ReceiptStatusSealed || sealed.JournalEntryID == nil || *sealed.JournalEntryID != entry.ID {
+		t.Errorf("der Vertrag ist %s (Buchung %v), erwartet mit Buchung %d versiegelt",
+			sealed.Status, sealed.JournalEntryID, entry.ID)
+	}
+
+	other := env.bankLine(t, "2026-03-03", -1_250_000, "Notar Dr. Beispiel", "Kaufpreis zweite Rate")
+	second := split
+	second.BankTxID = other
+	if _, err := payments.BookBankSplit(ctx, second); err == nil || !strings.Contains(err.Error(), "belegt schon Buchung") {
+		t.Errorf("derselbe Vertrag belegt eine zweite Zahlung: %v", err)
+	}
+	env.assertMatch(t, other, domain.MatchStatusUnmatched)
+
+	if _, err := env.journal.Reverse(ctx, entry.ID, "falsches Konto"); err != nil {
+		t.Fatalf("Storno: %v", err)
+	}
+	env.assertMatch(t, id, domain.MatchStatusUnmatched)
+	split.Lines[0].Account = "0820"
+	again, err := payments.BookBankSplit(ctx, split)
+	if err != nil {
+		t.Fatalf("erneute Aufteilung nach dem Storno: %v", err)
+	}
+	if again.ReceiptID == nil || *again.ReceiptID != contract.ID {
+		t.Errorf("die erneute Buchung trägt den Vertrag nicht")
+	}
+}
+
+// Ein verworfener Beleg und ein Beleg, der schon zu einem Datensatz gehört,
+// belegen keine Aufteilung; der Umsatz bleibt offen.
+func TestSplitRefusesReceiptsThatAreNotFree(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	payments := env.paymentsWithBank(t)
+	payments.SetReceipts(env.receipts)
+	id := env.bankLine(t, "2026-03-02", -50_000, "Vermieter", "Kaution")
+
+	discarded := env.fileIncoming(t, "verworfen.pdf")
+	if err := env.receipts.Discard(ctx, discarded.ID, "doppelt abgelegt"); err != nil {
+		t.Fatal(err)
+	}
+	assigned := env.fileIncoming(t, "darlehensvertrag.pdf")
+	if err := env.receipts.AssignToRecord(ctx, assigned.ID, domain.AssignmentShareholderLoan, 1, "Vertrag"); err != nil {
+		t.Fatal(err)
+	}
+	for name, c := range map[string]struct {
+		receipt uint
+		want    string
+	}{
+		"verworfen":  {discarded.ID, "verworfen"},
+		"zugeordnet": {assigned.ID, "gehört schon zu einem Datensatz"},
+	} {
+		_, err := payments.BookBankSplit(ctx, BankSplitRequest{BankTxID: id, ReceiptID: c.receipt,
+			Lines: []BankSplitLine{{Account: "1525", Amount: 50_000, Text: "Kaution"}}})
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: erwartet Ablehnung mit %q, erhalten %v", name, c.want, err)
+		}
+	}
+	env.assertMatch(t, id, domain.MatchStatusUnmatched)
+}

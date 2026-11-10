@@ -799,6 +799,11 @@
           "minimum": 0,
           "type": "integer"
         },
+        "beleg_id": {
+          "description": "bei aufteilung: abgelegter Beleg zum Grund der Zahlung, etwa ein Vertrag",
+          "minimum": 0,
+          "type": "integer"
+        },
         "beschreibung": {
           "type": "string"
         },

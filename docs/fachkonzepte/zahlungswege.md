@@ -26,7 +26,10 @@ Vorschlag annimmt. Ein Konto aus dem Verwendungszweck rät Buchfink nicht.
 beliebige Konten. Typische Fälle sind eine Zinsgutschrift mit
 Kapitalertragsteuer, eine Darlehensrate aus Tilgung und Zins und eine
 Steuerlastschrift über mehrere Steuerarten. Die Summe muss dem Umsatz
-entsprechen.
+entsprechen. Der Kontoauszug belegt die Zahlung; den Grund belegt ein
+abgelegter Beleg, den die Aufteilung nennt, etwa ein Kaufvertrag. Er ist danach
+mit der Buchung versiegelt. Nach einem Storno belegt er die erneute Buchung
+desselben Umsatzes.
 
 ## Firmenkreditkarte
 
