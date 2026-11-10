@@ -200,6 +200,13 @@ func ledgerLine(entry *domain.JournalEntry) (domain.JournalLine, bool) {
 
 // documentTaxRate trennt steuerlose Belege von nicht lesbaren Steuerzeilen.
 func documentTaxRate(entry *domain.JournalEntry) (domain.TaxRate, bool) {
+	// Übernommene Steuerdaten beschreiben die Rechnung, ohne sie erneut zu versteuern.
+	if entry.Source == domain.EntrySourceOpening {
+		if entry.OpeningTaxRate != nil {
+			return *entry.OpeningTaxRate, true
+		}
+		return domain.TaxRateNone, false
+	}
 	for _, l := range entry.Lines {
 		if l.TaxKey == "" || l.TaxBase == 0 {
 			continue

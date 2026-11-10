@@ -344,6 +344,7 @@ func (s *JournalService) reverseOn(ctx context.Context, entryID uint, reason, da
 		ReceiptID:          original.ReceiptID,
 		ReceiptHash:        original.ReceiptHash,
 		TaxTreatment:       original.TaxTreatment,
+		OpeningTaxRate:     original.OpeningTaxRate,
 		ContactID:          original.ContactID,
 		BankTxID:           original.BankTxID,
 		Kind:               domain.EntryKindReversal,

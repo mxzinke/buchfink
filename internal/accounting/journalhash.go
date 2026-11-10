@@ -46,6 +46,9 @@ func canonicalize(e *domain.JournalEntry, prevHash string) []byte {
 	// incoming side it is the only thing separating an exempt purchase from one
 	// at the Nullsteuersatz of § 12 Abs. 3 UStG.
 	put("tax_treatment", string(e.TaxTreatment))
+	if e.OpeningTaxRate != nil {
+		putInt("opening_tax_rate", int64(*e.OpeningTaxRate))
+	}
 	put("contact", optUint(e.ContactID))
 	put("bank_tx", optUint(e.BankTxID))
 	put("kind", string(e.Kind))

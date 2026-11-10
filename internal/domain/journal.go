@@ -184,6 +184,10 @@ type JournalEntry struct {
 	// tax deduction and the other does not.
 	TaxTreatment TaxTreatment `gorm:"size:40;index" json:"taxTreatment,omitempty"`
 
+	// OpeningTaxRate hält den ursprünglichen Steuersatz eines übernommenen Postens fest.
+	// Er erzeugt keine Steuerbuchung; nil bedeutet unbekannt.
+	OpeningTaxRate *TaxRate `json:"openingTaxRate,omitempty"`
+
 	ContactID *uint `gorm:"index" json:"contactId,omitempty"`
 	BankTxID  *uint `gorm:"index" json:"bankTxId,omitempty"`
 

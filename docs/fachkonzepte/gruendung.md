@@ -119,10 +119,27 @@ E-Bilanz des ersten Geschäftsjahres und `ebilanz_exportieren` mit
 und E-Bilanz der Eröffnungsbilanz als Pflichten
 ([Pflichten und Erklärungen](pflichten-und-erklaerungen.md)).
 
-Beim Umstieg bucht Buchfink die Eröffnungsbilanz gegen die Saldenvortragskonten
-**9000** (Sachkonten), **9008** (Debitoren) und **9009** (Kreditoren). Offene
-Posten werden einzeln mit Nummer und Fälligkeit übernommen, damit sie sich im
-ersten Jahr ausgleichen lassen. Die Buchungen entstehen alle oder keine.
+Der Dienst für den Umstieg erzeugt Eröffnungsbuchungen gegen **9000**
+(Sachkonten), **9008** (Debitoren) und **9009** (Kreditoren). Er nimmt nur
+Bestandskonten zum regulären Geschäftsjahresbeginn an. Die Schlussbilanz des
+Vorsystems muss als Beleg abgelegt sein. Offene Posten werden einzeln mit
+Kontakt, Rechnungsnummer, Rechnungsdatum und gegebenenfalls Fälligkeit
+übernommen. Die Buchungen entstehen alle oder keine; unausgeglichene Bestände
+weist der Dienst ab. Nach vollständigem Storno im selben Geschäftsjahr lässt
+sich die Übernahme berichtigen. Der Nachweis behält dabei sein ursprüngliches
+Siegel.
+
+Übernommene Posten können den ursprünglichen Steuerfall und Steuersatz
+speichern, ohne erneut Steuerumsatz zu buchen. Unterstützt sind inländische
+Rechnungen mit 19 oder 7 Prozent sowie nicht steuerbare Posten. Fehlen die
+Steuerdaten, bleibt der Steuerfall unbekannt: vollständige Zahlungen sind
+möglich, Skonto und Forderungsausfall werden abgewiesen. Bekannte Steuerdaten
+stehen dem Zahlungsausgleich und der Ausbuchung zur Verfügung.
+
+Der Umstiegsdienst hat noch keinen Aufruf in App oder Werkzeug. Es fehlen
+außerdem der menschlich festgelegte Beginn der Bücher, historische
+Anlagenbewegungen und die Abstimmung mit der Schlussbilanz einschließlich
+Prüflauf. Der Umstieg ist deshalb noch kein nutzbarer Einrichtungsweg.
 
 [estg5b]: https://www.gesetze-im-internet.de/estg/__5b.html
 [gmbhg5a]: https://www.gesetze-im-internet.de/gmbhg/__5a.html

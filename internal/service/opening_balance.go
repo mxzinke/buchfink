@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/buchfink/buchfink/internal/domain"
 )
@@ -32,6 +33,9 @@ type OpenOpeningItem struct {
 	DocumentDate   string       `json:"documentDate"`
 	DueDate        string       `json:"dueDate,omitempty"`
 	LegacyRef      string       `json:"legacyRef,omitempty"`
+	// TaxRate und TaxTreatment beschreiben die im Vorsystem erklärte Rechnung.
+	TaxRate      *domain.TaxRate     `json:"taxRate,omitempty"`
+	TaxTreatment domain.TaxTreatment `json:"taxTreatment,omitempty"`
 }
 
 // OpeningBalanceRequest ist die Eröffnungsbilanz des Umsteigers.
@@ -129,7 +133,16 @@ func (s *JournalService) BookOpeningBalance(
 		// Versiegelt ist die Schlussbilanz des Altsystems das, was sie ist: ein
 		// gebuchter Beleg. Offen bliebe sie im Prüflauf als ungebucht stehen.
 		if s.receiptRepo != nil && len(booked) > 0 {
-			if err := s.receiptRepo.Seal(ctx, *req.ReceiptID, booked[0].ID); err != nil {
+			receipt, err := s.receiptRepo.FindByID(ctx, *req.ReceiptID)
+			if err != nil {
+				return nil, err
+			}
+			sealEntryID := booked[0].ID
+			// Bei einer Berichtigung bleibt das Siegel an der ursprünglichen Buchung.
+			if receipt.JournalEntryID != nil {
+				sealEntryID = *receipt.JournalEntryID
+			}
+			if err := s.receiptRepo.Seal(ctx, *req.ReceiptID, sealEntryID); err != nil {
 				return nil, fmt.Errorf("der Beleg der Schlussbilanz ließ sich nicht versiegeln: %w", err)
 			}
 		}
@@ -139,25 +152,23 @@ func (s *JournalService) BookOpeningBalance(
 	})
 }
 
-// ensureFirstOpeningBalance lässt die Eröffnungsbilanz nur einmal und nur im
-// ersten Geschäftsjahr zu.
-//
-// Beides gehört ins Backend und nicht nur in die Oberfläche: der Baustein wird
-// dort zwar nur im ersten Jahr angeboten, aber eine Regel, die sich nach der
-// Sichtbarkeit eines Knopfes richtet, ist keine. Ein zweiter Aufruf bucht sonst dieselben Werte
-// noch einmal — die Bilanz stimmte weiterhin (jede Buchung ist für sich
-// ausgeglichen), nur eben mit doppelten Beständen, und die Offene-Posten-Liste
-// führte jede übernommene Forderung zweimal.
-//
-// Ein vorhandener Saldenvortrag zählt mit: er hat dieselbe Quelle und dieselben
-// Werte. Ist er da, ist das Jahr nicht das erste, und die Bestände sind schon da.
+// ensureFirstOpeningBalance schützt vor doppelten Beständen und einer Übernahme
+// neben dem Saldenvortrag. Vollständig im selben Jahr stornierte Eröffnungen
+// dürfen erneut erfasst werden.
 func (s *JournalService) ensureFirstOpeningBalance(ctx context.Context, fiscalYear int) error {
 	existing, err := s.journalRepo.FindAll(ctx, fiscalYear)
 	if err != nil {
 		return fmt.Errorf("die vorhandenen Buchungen des Jahres %d ließen sich nicht lesen: %w", fiscalYear, err)
 	}
 	for i := range existing {
-		if existing[i].Source != domain.EntrySourceOpening {
+		if existing[i].Source != domain.EntrySourceOpening || existing[i].Kind == domain.EntryKindReversal {
+			continue
+		}
+		reversal, err := s.journalRepo.FindReversalOf(ctx, existing[i].ID)
+		if err != nil {
+			return err
+		}
+		if reversal != nil && reversal.FiscalYear == fiscalYear {
 			continue
 		}
 		return fmt.Errorf(
@@ -166,16 +177,17 @@ func (s *JournalService) ensureFirstOpeningBalance(ctx context.Context, fiscalYe
 			fiscalYear, existing[i].EntryNumber)
 	}
 
-	prior, err := s.journalRepo.FindAll(ctx, fiscalYear-1)
+	years, err := s.journalRepo.GetAvailableFiscalYears(ctx)
 	if err != nil {
-		return fmt.Errorf("die Buchungen des Vorjahres ließen sich nicht lesen: %w", err)
+		return fmt.Errorf("die Geschäftsjahre konnten nicht gelesen werden: %w", err)
 	}
-	if len(prior) > 0 {
-		return fmt.Errorf(
-			"das Geschäftsjahr %d ist nicht das erste: im Vorjahr stehen %d Buchungen. Die Bestände kommen "+
-				"dann aus dem Saldenvortrag des Jahresabschlusses und nicht aus einer Eröffnungsbilanz",
-			fiscalYear, len(prior))
+	for _, year := range years {
+		if year < fiscalYear {
+			return fmt.Errorf("das Geschäftsjahr %d ist nicht das erste: im Jahr %d stehen Buchungen; "+
+				"verwenden Sie den Saldenvortrag", fiscalYear, year)
+		}
 	}
+
 	return nil
 }
 
@@ -189,6 +201,13 @@ func (s *JournalService) buildOpeningBalance(
 	date := req.Date
 	if date == "" {
 		date = domain.FiscalYearFirstDay(req.FiscalYear, s.fiscalYearStartMonth(ctx))
+	}
+	if date != domain.FiscalYearFirstDay(req.FiscalYear, s.fiscalYearStartMonth(ctx)) {
+		return nil, nil, fmt.Errorf("ein Umstieg beginnt am ersten Tag eines Geschäftsjahres")
+	}
+	chart, err := s.Chart(ctx)
+	if err != nil {
+		return nil, nil, err
 	}
 	if req.ReceiptID == nil {
 		return nil, nil, fmt.Errorf(
@@ -217,6 +236,17 @@ func (s *JournalService) buildOpeningBalance(
 				return nil, nil, fmt.Errorf(
 					"Zeile %d: %s ist ein Saldenvortragskonto. Die Gegenbuchung bildet Buchfink selbst; "+
 						"erfasse nur die Bestände der Schlussbilanz", i+1, line.Account)
+			}
+			if domain.IsLedgerAccount(line.Account) {
+				return nil, nil, fmt.Errorf("Zeile %d: Personenkonten werden als einzelne offene Posten übernommen", i+1)
+			}
+			if err := chart.EnsurePostable(line.Account); err != nil {
+				return nil, nil, err
+			}
+			account, ok := chart.Lookup(line.Account)
+			if !ok || (account.Type != domain.AccountTypeAsset &&
+				account.Type != domain.AccountTypeLiability && account.Type != domain.AccountTypeEquity) {
+				return nil, nil, fmt.Errorf("Zeile %d (%s): nur Bestandskonten können übernommen werden", i+1, line.Account)
 			}
 			if line.Amount <= 0 {
 				return nil, nil, fmt.Errorf("Zeile %d (%s): der Wert der Eröffnungsbilanz muss positiv sein", i+1, line.Account)
@@ -293,6 +323,23 @@ func (s *JournalService) buildOpeningBalance(
 			return nil, nil, fmt.Errorf(
 				"der Beleg %d mit der Schlussbilanz des Altsystems wurde nicht gefunden", *req.ReceiptID)
 		}
+		if receipt.JournalEntryID != nil {
+			original, err := s.journalRepo.FindByID(ctx, *receipt.JournalEntryID)
+			if err != nil {
+				return nil, nil, err
+			}
+			if original == nil || original.Source != domain.EntrySourceOpening || original.FiscalYear != req.FiscalYear {
+				return nil, nil, fmt.Errorf("der Schlussbilanzbeleg gehört zu einer anderen Buchung")
+			}
+			reversal, err := s.journalRepo.FindReversalOf(ctx, original.ID)
+			if err != nil {
+				return nil, nil, err
+			}
+			if reversal == nil || reversal.FiscalYear != req.FiscalYear {
+				return nil, nil, fmt.Errorf("die bisherigen Eröffnungsbuchungen zum Schlussbilanzbeleg " +
+					"müssen zuerst storniert werden")
+			}
+		}
 		for _, entry := range entries {
 			entry.ReceiptHash = receipt.ReceiptHash
 		}
@@ -355,6 +402,27 @@ func (s *JournalService) openingItemEntry(
 	ctx context.Context, req OpeningBalanceRequest, date, source string,
 	item *OpenOpeningItem, kind domain.ContactType,
 ) (*domain.JournalEntry, error) {
+	if strings.TrimSpace(item.DocumentNumber) == "" {
+		return nil, fmt.Errorf("dem offenen Posten fehlt die Rechnungsnummer")
+	}
+	if _, err := time.Parse("2006-01-02", item.DocumentDate); err != nil || item.DocumentDate >= date {
+		return nil, fmt.Errorf("der offene Posten %s braucht ein Rechnungsdatum vor dem Umstieg", item.DocumentNumber)
+	}
+	if item.DueDate != "" {
+		if _, err := time.Parse("2006-01-02", item.DueDate); err != nil {
+			return nil, fmt.Errorf("der offene Posten %s hat eine ungültige Fälligkeit", item.DocumentNumber)
+		}
+	}
+	if item.TaxRate != nil {
+		rate := *item.TaxRate
+		if !((item.TaxTreatment == domain.TaxTreatmentDomestic &&
+			(rate == domain.TaxRateStandard || rate == domain.TaxRateReduced)) ||
+			(item.TaxTreatment == domain.TaxTreatmentNotTaxable && rate == domain.TaxRateNone)) {
+			return nil, fmt.Errorf("der Steuerfall des übernommenen Postens wird nicht unterstützt")
+		}
+	} else if item.TaxTreatment != "" {
+		return nil, fmt.Errorf("zum Steuerfall fehlt der Steuersatz")
+	}
 	if item.Amount <= 0 {
 		return nil, fmt.Errorf("der offene Posten %s hat keinen Betrag", item.DocumentNumber)
 	}
@@ -365,6 +433,9 @@ func (s *JournalService) openingItemEntry(
 	if err != nil {
 		return nil, fmt.Errorf("der Geschäftspartner des offenen Postens %s wurde nicht gefunden: %w",
 			item.DocumentNumber, err)
+	}
+	if contact == nil {
+		return nil, fmt.Errorf("der Geschäftspartner des offenen Postens wurde nicht gefunden")
 	}
 	if contact.Type != kind {
 		return nil, fmt.Errorf("%s ist kein %s und kann den Posten %s nicht tragen",
@@ -382,11 +453,10 @@ func (s *JournalService) openingItemEntry(
 	}
 
 	documentDate := item.DocumentDate
-	if documentDate == "" {
-		documentDate = date
-	}
 	entry := s.newOpeningEntry(req, date, fmt.Sprintf(
 		"Vortrag offener Posten %s (%s) aus %s", item.DocumentNumber, contact.Name, source))
+	entry.TaxTreatment = item.TaxTreatment
+	entry.OpeningTaxRate = item.TaxRate
 	entry.DocumentDate = documentDate
 	entry.ServiceDateFrom = documentDate
 	entry.ServiceDateTo = documentDate

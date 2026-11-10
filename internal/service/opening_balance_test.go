@@ -400,3 +400,203 @@ func TestOpeningBalanceNeedsTheClosingStatementAsReceipt(t *testing.T) {
 		t.Errorf("die Meldung muss sagen, was fehlt: %v", err)
 	}
 }
+
+func TestOpeningBalanceRejectsInvalidImport(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		change func(*OpeningBalanceRequest)
+	}{
+		{"unterjährig", func(r *OpeningBalanceRequest) { r.Date = "2026-02-01" }},
+		{"Aufwand", func(r *OpeningBalanceRequest) { r.Accounts[0].Account = "6815" }},
+		{"Ertrag", func(r *OpeningBalanceRequest) { r.Accounts[1].Account = "4400" }},
+		{"Rechnungsnummer", func(r *OpeningBalanceRequest) { r.Receivables[0].DocumentNumber = "" }},
+		{"Rechnungsdatum", func(r *OpeningBalanceRequest) { r.Receivables[0].DocumentDate = "2026-01-01" }},
+		{"Fälligkeit", func(r *OpeningBalanceRequest) { r.Receivables[0].DueDate = "2026-02-30" }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			env := newTestEnv(t)
+			customer := env.customer(t, "Kunde", "DE", "")
+			receipt := fileClosingStatement(t, env)
+			req := openingRequest(t, env, customer.ID, receipt.ID)
+			tc.change(&req)
+			if _, err := env.journal.BookOpeningBalance(context.Background(), req); err == nil {
+				t.Fatal("ungültige Übernahme angenommen")
+			}
+			entries, err := env.journalRepo.FindAll(context.Background(), 2026)
+			if err != nil || len(entries) != 0 {
+				t.Fatalf("Journal nach Ablehnung: %v, %d Buchungen", err, len(entries))
+			}
+		})
+	}
+}
+
+func TestOpeningBalanceCanBeReplacedAfterCompleteReversal(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	customer := env.customer(t, "Kunde", "DE", "")
+	receipt := fileClosingStatement(t, env)
+	req := openingRequest(t, env, customer.ID, receipt.ID)
+	booked, err := env.journal.BookOpeningBalance(ctx, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, entry := range booked.Entries {
+		if _, err := env.journal.ReverseOn(ctx, entry.ID, "Übernahme berichtigen", "2026-01-01"); err != nil {
+			t.Fatal(err)
+		}
+		if i < len(booked.Entries)-1 {
+			if _, err := env.journal.BookOpeningBalance(ctx, req); err == nil {
+				t.Fatal("teilweise stornierte Übernahme erneut gebucht")
+			}
+		}
+	}
+	if _, err := env.journal.BookOpeningBalance(ctx, req); err != nil {
+		t.Fatal(err)
+	}
+	items, err := env.payments(t).OpenItems(ctx)
+	if err != nil || len(items) != 1 || items[0].OpenAmount != 119000 {
+		t.Fatalf("Posten nach Korrektur: %+v, %v", items, err)
+	}
+}
+
+func TestOpeningItemPaymentAndUnknownTax(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	customer := env.customer(t, "Kunde", "DE", "")
+	receipt := fileClosingStatement(t, env)
+	if _, err := env.journal.BookOpeningBalance(ctx, openingRequest(t, env, customer.ID, receipt.ID)); err != nil {
+		t.Fatal(err)
+	}
+	payments := env.payments(t)
+	items, err := payments.OpenItems(ctx)
+	if err != nil || len(items) != 1 {
+		t.Fatalf("Posten: %+v, %v", items, err)
+	}
+	item := items[0]
+	if item.TaxTreatment != "" {
+		t.Fatalf("unbekannter Steuerfall wurde als %q gedeutet", item.TaxTreatment)
+	}
+	req := PaymentRequest{PaymentAccount: domain.AccountBank, PaymentDate: "2026-03-20",
+		Allocations: []AllocationRequest{{OpenItemEntryID: item.EntryID, SettledAmount: 119000,
+			DifferenceKind: domain.DifferenceSkonto, DifferenceAmount: 2380}}}
+	if _, err := payments.Settle(ctx, req); err == nil {
+		t.Fatal("Skonto ohne Steuerfall zugelassen")
+	}
+	req.Allocations[0].DifferenceKind = domain.DifferenceNone
+	req.Allocations[0].DifferenceAmount = 0
+	entry, err := payments.Settle(ctx, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertLines(t, entry, []bookedLine{
+		{domain.SideDebit, domain.AccountBank, 119000},
+		{domain.SideCredit, customer.LedgerAccount, 119000},
+	})
+	items, err = payments.OpenItems(ctx)
+	if err != nil || len(items) != 0 {
+		t.Fatalf("Posten nach Zahlung: %+v, %v", items, err)
+	}
+}
+
+func TestOpeningBalanceRejectsEarlierBooksWithAYearGap(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	prior := simpleEntry("6815", domain.AccountBank, 10000)
+	prior.BookingDate, prior.DocumentDate = "2024-03-01", "2024-03-01"
+	prior.ServiceDateFrom, prior.ServiceDateTo = "2024-03-01", "2024-03-01"
+	prior.FiscalYear = 2024
+	if _, err := env.journal.Post(ctx, prior); err != nil {
+		t.Fatal(err)
+	}
+	customer := env.customer(t, "Kunde", "DE", "")
+	receipt := fileClosingStatement(t, env)
+	if _, err := env.journal.BookOpeningBalance(ctx, openingRequest(t, env, customer.ID, receipt.ID)); err == nil {
+		t.Fatal("Eröffnung trotz bestehender Bücher zugelassen")
+	}
+}
+
+func TestOpeningItemRetainsDeclaredTaxForDiscount(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	customer := env.customer(t, "Kunde", "DE", "")
+	receipt := fileClosingStatement(t, env)
+	req := openingRequest(t, env, customer.ID, receipt.ID)
+	rate := domain.TaxRateStandard
+	req.Receivables[0].TaxRate = &rate
+	req.Receivables[0].TaxTreatment = domain.TaxTreatmentDomestic
+	booked, err := env.journal.BookOpeningBalance(ctx, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range booked.Entries {
+		for _, line := range entry.Lines {
+			if line.TaxKey != "" || line.TaxBase != 0 {
+				t.Fatal("Übernahme erzeugt Steuerumsatz")
+			}
+		}
+	}
+	payments := env.payments(t)
+	items, err := payments.OpenItems(ctx)
+	if err != nil || len(items) != 1 {
+		t.Fatalf("Posten: %+v, %v", items, err)
+	}
+	if items[0].TaxRate != rate || items[0].TaxTreatment != domain.TaxTreatmentDomestic {
+		t.Fatalf("Steuerdaten verloren: %+v", items[0])
+	}
+	entry, err := payments.Settle(ctx, PaymentRequest{
+		PaymentAccount: domain.AccountBank, PaymentDate: "2026-03-20",
+		Allocations: []AllocationRequest{{OpenItemEntryID: items[0].EntryID, SettledAmount: 119000,
+			DifferenceKind: domain.DifferenceSkonto, DifferenceAmount: 2380}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var tax domain.Cents
+	for _, line := range entry.Lines {
+		if line.TaxKey != "" {
+			tax += line.Amount
+		}
+	}
+	if tax != 380 {
+		t.Fatalf("Steuerberichtigung = %s, erwartet 3,80", tax)
+	}
+}
+
+func TestOpeningItemWriteOffUsesDeclaredTax(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	customer := env.customer(t, "Kunde", "DE", "")
+	receipt := fileClosingStatement(t, env)
+	req := openingRequest(t, env, customer.ID, receipt.ID)
+	rate := domain.TaxRateStandard
+	req.Receivables[0].TaxRate = &rate
+	req.Receivables[0].TaxTreatment = domain.TaxTreatmentDomestic
+	if _, err := env.journal.BookOpeningBalance(ctx, req); err != nil {
+		t.Fatal(err)
+	}
+	payments := env.payments(t)
+	items, err := payments.OpenItems(ctx)
+	if err != nil || len(items) != 1 {
+		t.Fatalf("Posten: %+v, %v", items, err)
+	}
+	entry, err := payments.WriteOffOpenItem(ctx, WriteOffRequest{
+		OpenItemEntryID: items[0].EntryID, ReceiptID: writeOffEvidence(t, env),
+		Date: "2026-09-01", Reason: "Insolvenzverwalter bestätigt vollständigen Ausfall",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var tax domain.Cents
+	for _, line := range entry.Lines {
+		if line.TaxKey != "" {
+			tax += line.Amount
+		}
+	}
+	if tax != 19000 {
+		t.Fatalf("Steuerberichtigung = %s, erwartet 190,00", tax)
+	}
+	items, err = payments.OpenItems(ctx)
+	if err != nil || len(items) != 0 {
+		t.Fatalf("Posten nach Ausfall: %+v, %v", items, err)
+	}
+}
