@@ -447,13 +447,6 @@ abgeglichen.
 - Skonto übergibt `rechnung_ausstellen` als `skonto_promille` und
   `skonto_tage`. Prüfen, ob der Hinweis in den strukturierten Teil (BT-20)
   gelangt.
-- Code: `exemptionReason` (`internal/invoice/zugferd.go`) schreibt in die
-  E-Rechnung „Steuerschuldnerschaft des Leistungsempfängers nach § 13b UStG“,
-  auch bei Leistungen an Unternehmen im Ausland. § 14a Abs. 1 Satz 1 und
-  Abs. 5 Satz 1 UStG verlangen die Angabe ohne Paragraphen; im Ausland
-  schuldet der Empfänger die Steuer nach dem Recht seines Staates. Der
-  Hinweistext zu `reverse_charge_supply` (`internal/domain/tax.go`) nennt die
-  drei Fälle richtig (geprüft am 10.11.2026).
 - Endrechnung als E-Rechnung: Nach BMF vom 15.10.2026, Rn. 3, genügt BT-113
   bis 30.06.2030 nur zusammen mit den Einzelheiten der Teilentgelte in BT-22.
   Buchfink schreibt BT-113 und den Bezug auf die Abschlagsrechnungen (BG-3),

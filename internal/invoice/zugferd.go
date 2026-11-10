@@ -10,10 +10,15 @@ import (
 
 // exemptionReason returns the legal reference EN 16931 requires whenever the
 // category code is not "S".
+//
+// Bei der Steuerschuldnerschaft steht die Angabe ohne Paragraphen: So
+// verlangen sie § 14a Abs. 1 Satz 1 und Abs. 5 Satz 1 UStG, und bei einer
+// Leistung an ein Unternehmen im Ausland schuldet der Empfänger die Steuer
+// nach dem Recht seines Staates, nicht nach § 13b UStG.
 func exemptionReason(t domain.TaxTreatment) string {
 	switch t {
 	case domain.TaxTreatmentReverseChargeSupply:
-		return "Steuerschuldnerschaft des Leistungsempfängers nach § 13b UStG"
+		return "Steuerschuldnerschaft des Leistungsempfängers"
 	case domain.TaxTreatmentExempt:
 		return "Steuerfreier Umsatz nach § 4 UStG"
 	case domain.TaxTreatmentNotTaxable:
