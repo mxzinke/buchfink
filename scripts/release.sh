@@ -62,7 +62,7 @@ cmd_check() {
   need_clean_tree
   local tmp
   tmp=$(mktemp -d)
-  trap 'rm -rf "$tmp"' EXIT
+  trap "rm -rf '$tmp'" EXIT
 
   step "Fassung in den Paketdateien und Eintrag der Änderungshistorie"
   python3 scripts/version.py check "$VERSION"
@@ -107,7 +107,7 @@ cmd_build() {
   local out tmp
   out=$(out_dir)
   tmp=$(mktemp -d)
-  trap 'rm -rf "$tmp"' EXIT
+  trap "rm -rf '$tmp'" EXIT
   mkdir -p "$out"
 
   step "Frontend-Abhängigkeiten"
@@ -205,7 +205,7 @@ cmd_publish() {
   local out tmp missing=0
   out=$(out_dir)
   tmp=$(mktemp -d)
-  trap 'rm -rf "$tmp"' EXIT
+  trap "rm -rf '$tmp'" EXIT
 
   step "Dateien vollständig"
   for file in "${ASSETS[@]}"; do
