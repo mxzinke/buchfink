@@ -431,7 +431,7 @@ func validateRuleset(inv *domain.Invoice, seller *domain.CompanySettings, contac
 	return err
 }
 
-// smallAmountExcludedByLaw nennt die Steuerfälle, die § 33 Satz 2 UStDV
+// smallAmountExcludedByLaw nennt die Steuerfälle, die § 33 Satz 3 UStDV
 // ausdrücklich von der Kleinbetragsrechnung ausnimmt.
 //
 // Die Vorschrift zählt drei auf: den Fernverkauf (§ 3c UStG), die
@@ -450,7 +450,7 @@ var smallAmountExcludedByLaw = map[domain.TaxTreatment]string{
 // den Steuerparametern zum Rechnungsdatum gelesen.
 //
 // Beim Steuerfall trennt die Prüfung zwei Dinge, die vorher eine Meldung waren.
-// Zwei Fälle verbietet das Gesetz (§ 33 Satz 2 UStDV, siehe
+// Zwei Fälle verbietet das Gesetz (§ 33 Satz 3 UStDV, siehe
 // smallAmountExcludedByLaw). Die übrigen — steuerfreier Umsatz, nicht
 // steuerbarer Umsatz, Nullsteuersatz — wären nach dem Wortlaut zulässig;
 // Buchfink bietet sie trotzdem nicht an, und die Meldung sagt das als eigene
@@ -464,7 +464,7 @@ func (s *InvoiceService) validateSmallAmount(inv *domain.Invoice) error {
 	}
 	if excluded, ok := smallAmountExcludedByLaw[inv.TaxTreatment]; ok {
 		return fmt.Errorf(
-			"für %s ist die Kleinbetragsrechnung nicht zulässig (§ 33 Satz 2 UStDV). "+
+			"für %s ist die Kleinbetragsrechnung nicht zulässig (§ 33 Satz 3 UStDV). "+
 				"Die Rechnung braucht die vollständigen Angaben", excluded)
 	}
 	if inv.TaxTreatment != domain.TaxTreatmentDomestic {

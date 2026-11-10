@@ -447,8 +447,6 @@ abgeglichen.
 - Skonto übergibt `rechnung_ausstellen` als `skonto_promille` und
   `skonto_tage`. Prüfen, ob der Hinweis in den strukturierten Teil (BT-20)
   gelangt.
-- Code: `validateSmallAmount` (`invoice_service.go`) nennt „§ 33 Satz 2 UStDV“;
-  nach dem Wortlaut ist es Satz 3 (geprüft am 10.11.2026).
 - Code: `exemptionReason` (`internal/invoice/zugferd.go`) schreibt in die
   E-Rechnung „Steuerschuldnerschaft des Leistungsempfängers nach § 13b UStG“,
   auch bei Leistungen an Unternehmen im Ausland. § 14a Abs. 1 Satz 1 und

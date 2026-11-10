@@ -236,18 +236,18 @@ func TestSmallAmountInvoiceLimits(t *testing.T) {
 	}
 
 	// Bei der Steuerschuldnerschaft des Leistungsempfängers ist sie nicht
-	// wählbar (§ 33 Satz 2 UStDV).
+	// wählbar (§ 33 Satz 3 UStDV).
 	eu := env.customer(t, "Kunde AT", "AT", "ATU12345678")
 	rc := env.simpleInvoice(eu.ID, "2026-03-01", 10000)
 	rc.TaxTreatment = domain.TaxTreatmentReverseChargeSupply
 	rc.Items[0].TaxRate = domain.TaxRateNone
 	rc.SmallAmount = true
 	err = svc.Issue(ctx, rc)
-	if err == nil || !strings.Contains(err.Error(), "§ 33 Satz 2 UStDV") {
+	if err == nil || !strings.Contains(err.Error(), "§ 33 Satz 3 UStDV") {
 		t.Errorf("bei § 13b ist die Kleinbetragsrechnung nicht zulässig, erhalten: %v", err)
 	}
 
-	// Den steuerfreien Umsatz nimmt § 33 Satz 2 UStDV nicht aus — die Vorschrift
+	// Den steuerfreien Umsatz nimmt § 33 Satz 3 UStDV nicht aus — die Vorschrift
 	// zählt nur Fernverkauf, ig. Lieferung und § 13b auf. Buchfink bietet die
 	// Kleinbetragsrechnung trotzdem nur für den steuerpflichtigen Inlandsumsatz
 	// an; die Meldung muss das als eigene Entscheidung sagen und sich nicht auf
@@ -259,8 +259,8 @@ func TestSmallAmountInvoiceLimits(t *testing.T) {
 	err = svc.Issue(ctx, exempt)
 	if err == nil {
 		t.Error("die Kleinbetragsrechnung ist nur für den Inlandsumsatz vorgesehen")
-	} else if strings.Contains(err.Error(), "§ 33 Satz 2 UStDV") {
-		t.Errorf("der steuerfreie Umsatz steht nicht in § 33 Satz 2 UStDV; die Meldung darf sich nicht "+
+	} else if strings.Contains(err.Error(), "§ 33 Satz 3 UStDV") {
+		t.Errorf("der steuerfreie Umsatz steht nicht in § 33 Satz 3 UStDV; die Meldung darf sich nicht "+
 			"darauf stützen: %v", err)
 	} else if !strings.Contains(err.Error(), "Inlandsumsatz") {
 		t.Errorf("die Meldung muss den Grund nennen, erhalten: %v", err)
