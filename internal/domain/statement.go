@@ -355,6 +355,8 @@ type StatementNotes struct {
 	// ProvisionMirror ist der Rückstellungsspiegel; leer, wenn keine
 	// Rückstellungen bestehen.
 	ProvisionMirror ProvisionMirror `json:"provisionMirror"`
+	// Assets zeigt Zugänge, Abgänge, Umbuchungen und Abschreibungen aus der Anlagenkartei.
+	Assets Anlagenspiegel `json:"assets"`
 	// Reconciliation ist die Überleitung zur Steuerbilanz. Sie ist keine Angabe
 	// des Anhangs nach HGB, steht aber an derselben Stelle: sie erklärt, wo
 	// Handels- und Steuerbilanz auseinanderfallen.

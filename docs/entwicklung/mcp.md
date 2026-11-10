@@ -435,3 +435,12 @@ auch die Anlagenkartei durch eine Gegenbewegung am Stornotag.
 eine `abschreibung`, `zuschreibung` oder `beibehalten`. Grund und Nachweis sind
 Pflicht. `anlagen` mit `wertaufholung: true` liefert die zu prüfenden Anlagen
 und die Obergrenze der Zuschreibung.
+
+`abschlussbuchung` mit `art: fremdwaehrungsanlage` verwendet das gleichnamige
+Feld: `art: zugang` verknüpft einen gebuchten Zugang mit der Originalwährung;
+`art: bewertung` bewertet eine Anlage zum Datum. Ohne `kurs_millionstel`
+holt der Kern den Kurs vor dem Schreibvorgang. Ein eigener Zugangskurs braucht
+`kursquelle`. `anlagen` mit `anlage_id` zeigt die Bewegungskennungen.
+
+`anlagen` mit `spiegel: true` liefert die Entwicklung des Anlagevermögens
+mit Zu- und Abgängen für die Anhangangaben.

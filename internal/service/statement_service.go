@@ -37,7 +37,7 @@ type StatementDeadlineSource interface {
 	DeadlinesOf(ctx context.Context, year int, kinds ...domain.ObligationKind) ([]domain.Deadline, error)
 }
 
-// Die drei Quellen des Anhangs. Jede ist der schmalste Ausschnitt des Dienstes,
+// Die Quellen des Anhangs. Jede ist der schmalste Ausschnitt des Dienstes,
 // der sie führt — der Abschluss soll den Rückstellungsspiegel lesen können,
 // ohne die Rückstellungsbuchhaltung mitzubringen.
 type (
@@ -55,12 +55,14 @@ type (
 	}
 )
 
-// NotesSources bündelt sie, damit der Aufbau des Dienstes nicht drei Setzer
+// NotesSources bündelt sie, damit der Aufbau des Dienstes nicht einzelne Setzer
 // braucht. Fehlt eine, bleibt ihr Teil des Anhangs leer statt zu scheitern.
 type NotesSources struct {
 	Provisions     ProvisionMirrorSource
 	Reconciliation ReconciliationSource
 	Texts          NotesTextSource
+	// Assets liefert die Entwicklung des Anlagevermögens aus derselben Kartei wie die Anlagenansicht.
+	Assets *AssetService
 }
 
 // OpenItemSource liefert die offenen Posten für die Restlaufzeitengliederung
@@ -199,6 +201,13 @@ func (s *StatementService) notesFor(ctx context.Context, year int) domain.Statem
 			FiscalYear: year, Rows: make([]domain.ReconciliationRow, 0),
 		},
 		Reference: "§§ 284 und 285 HGB; Überleitung nach § 60 Abs. 2 EStDV",
+	}
+	notes.Assets.FiscalYear = year
+	notes.Assets.EnsureLists()
+	if s.notes.Assets != nil {
+		if assets, err := s.notes.Assets.Anlagenspiegel(ctx, year); err == nil && assets != nil {
+			notes.Assets = *assets
+		}
 	}
 	if s.notes.Texts != nil {
 		if texts, err := s.notes.Texts.NotesTexts(ctx, year); err == nil && texts != nil {

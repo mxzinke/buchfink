@@ -128,6 +128,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.Currency = service.NewCurrencyService(exchangeRateRepo, o.Network.Rates, auditRepo)
 	s.Currency.SetJournalRepo(journalRepo)
 	s.Currency.SetJournalService(s.Journal)
+	s.Assets.SetCurrencyRates(s.Currency.ReadOnly())
 
 	s.Foundation = service.NewFoundationService(
 		foundationRepo, accountRepo, journalRepo, settingsRepo, s.Journal, auditRepo,
@@ -209,6 +210,7 @@ func wire(db *gorm.DB, info TenantInfo, renderer *invoice.Renderer, o Options) (
 	s.ClosingBookings.SetOpenItemSource(s.Payments.OpenItemSource())
 	s.ClosingBookings.SetRevenueSource(s.Statement.Figures())
 	s.Statement.SetNotesSources(service.NotesSources{
+		Assets:         s.Assets,
 		Provisions:     s.Provisions,
 		Reconciliation: s.TaxRegister,
 		Texts:          s.Appropriation.NotesSource(),

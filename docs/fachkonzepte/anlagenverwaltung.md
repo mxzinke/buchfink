@@ -7,10 +7,11 @@ Anforderungen: BEW-02 bis BEW-06, BEW-10, JAB-05. Code: `internal/domain/asset.g
 `service.AssetService`. Die Oberfläche (Bücher → Anlagen,
 `frontend/src/pages/books/AssetsTab.tsx`) zeigt Verzeichnis,
 Abschreibungsplan und Anlagenspiegel. Beschreibende Stammdaten lassen sich
-in der App ändern; erfasst und abgeschrieben wird über einen verbundenen Agenten.
+in der App ändern; die planmäßige Abschreibung bucht ein verbundener Agent.
 Außerplanmäßige Abschreibung und Zuschreibung sind in der Anlagenansicht und
 über `abschlussbuchung` (`anlagenbewertung`) mit Grund und Nachweis erreichbar.
-Die Fremdwährungsbewertung hat noch keinen Erfassungsweg.
+Fremdwährungszugänge und Stichtagsbewertungen von Finanzanlagen sind in der
+Anlagenansicht und über `abschlussbuchung` (`fremdwaehrungsanlage`) erreichbar.
 
 ## Stammdaten
 
@@ -127,8 +128,15 @@ Mensch.
 
 Die Stichtagsbewertung von Anlagegütern in Fremdwährung nach
 [§ 256a HGB][hgb256a], nach oben durch die Anschaffungskosten gedeckelt,
-rechnet `service.AssetService.BookCurrencyValuation` und bucht sie über
-außerplanmäßige Abschreibung oder Zuschreibung.
+rechnet `service.AssetService.BookCurrencyValuation` und bucht sie auf die
+Konten für Kursverluste und Kursgewinne (6880/4840). Bei höchstens einem Jahr
+Restlaufzeit berücksichtigt der Dienst § 256a Satz 2 HGB. Der Kern lädt fehlende
+Kurse vor dem Schreibvorgang; die Bewertung liest nur gespeicherte Kurse.
+Der Zugang verknüpft eine vorhandene Buchung mit Originalwährung, Fremdbetrag
+und Kursquelle. Eurobetrag und Umrechnung müssen übereinstimmen.
+Stornos korrigieren die Kartei. Abhängige Folgebewegungen müssen zuerst
+zurückgenommen werden. Nach einem Teilabgang gelten weitere Wertänderungen
+für den verbliebenen Bestand.
 
 Für Investmentanteile rechnet Buchfink Teilfreistellung (§ 20 InvStG) und
 Vorabpauschale (§ 18 InvStG) als Nebenrechnung. Die Vorabpauschale wird nicht
@@ -167,3 +175,12 @@ Die Prüfung der Wertaufholung im Jahresabschluss verlinkt auf die Anlage.
 Dort lässt sich zuschreiben oder mit Grund und Nachweis bestätigen, dass die
 Wertminderung fortbesteht. Festgeschriebene Perioden lassen sich dadurch nicht
 ändern. Stornos von Wertminderungen und Zuschreibungen erzeugen Gegenbewegungen.
+
+Ein Verkauf lässt sich in der Anlagenansicht mit Beleg und Zahlungseingang
+verknüpfen. Liegen Abgang und Zahlung auf verschiedenen Tagen, wird zuerst
+die offene Rechnung gebucht und danach der Bankumsatz zugeordnet.
+
+Der Jahresabschluss übernimmt den Anlagenspiegel in die Anhangangaben und
+in den CSV- und PDF-Export. Zu- und Abgänge einschließlich der zugehörigen
+Abschreibungen folgen denselben Bewegungen wie die Kartei
+([§ 284 Abs. 3 HGB](https://www.gesetze-im-internet.de/hgb/__284.html)).

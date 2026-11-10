@@ -237,20 +237,30 @@ func ClassifyAcquisition(netCost domain.Cents, date string, selfUsable bool) (Ac
 	return advice, nil
 }
 
-// AfAPlan is everything the schedule of one asset is computed from. It is a
-// value, not a database row: the same computation runs for the preview of an
-// asset that does not exist yet and for the yearly Abschreibungslauf.
 // AfAPartialDisposal begrenzt die Abschreibung einer Teilmenge auf ihren Abgangsmonat.
 type AfAPartialDisposal struct {
 	Date     string
 	Quantity domain.Units
 }
 
+// AfADatedAdjustment ordnet Wertänderungen dem am Buchungstag gehaltenen Bestand zu.
+type AfADatedAdjustment struct {
+	Date             string
+	FiscalYear       int
+	CostAmount       domain.Cents
+	ImpairmentAmount domain.Cents
+}
+
+// AfAPlan is everything the schedule of one asset is computed from. It is a
+// value, not a database row: the same computation runs for the preview of an
+// asset that does not exist yet and for the yearly Abschreibungslauf.
 type AfAPlan struct {
+	AcquisitionDate string
 	// Quantity und PartialDisposals teilen den Plan gleichartiger Stücke beim Teilabgang.
 	Quantity         domain.Units
 	PartialDisposals []AfAPartialDisposal
-	AcquisitionDate  string
+	// DatedAdjustments ersetzt bei Teilabgängen die jahresweise Verteilung auf den ursprünglichen Bestand.
+	DatedAdjustments []AfADatedAdjustment
 	// Cost is the AfA-Bemessungsgrundlage: Anschaffungskosten plus nachträgliche
 	// Anschaffungskosten minus Anschaffungspreisminderungen.
 	Cost             domain.Cents
@@ -280,9 +290,8 @@ type AfAPlan struct {
 	// the Abgang; what is left after that is the Restbuchwert the disposal
 	// booking clears, not a further AfA.
 	DisposalDate string
-	// ImpairmentsByYear lowers the book value the degressive computation works
-	// from. A planmäßige AfA after an außerplanmäßigen Abschreibung is computed
-	// from the reduced value, not from the original one.
+	// ImpairmentsByYear enthält Wertminderungen und negative Zuschreibungen.
+	// Die folgende AfA verteilt den geänderten Buchwert auf die Restnutzungsdauer.
 	ImpairmentsByYear map[int]domain.Cents
 
 	// BasisChangesByYear carries nachträgliche Anschaffungs- oder
@@ -721,7 +730,7 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 		row.TaxAmount = taxAmount
 		bookValue -= row.Amount
 		taxBookValue -= taxAmount + row.SpecialAmount
-		if impair := plan.ImpairmentsByYear[year]; impair > 0 {
+		if impair := plan.ImpairmentsByYear[year]; impair != 0 {
 			bookValue -= impair
 			if bookValue < 0 {
 				bookValue = 0
@@ -731,8 +740,7 @@ func BuildAfASchedule(plan AfAPlan) ([]AfAYear, error) {
 			// Wertminderung des § 253 Abs. 3 Satz 5 HGB.
 			taxBookValue -= impair
 			basisChanged = true
-			row.Note = appendNote(row.Note, fmt.Sprintf(
-				"Zusätzlich außerplanmäßig abgeschrieben: %s €.", impair))
+			row.Note = appendNote(row.Note, impairmentNote(impair))
 		}
 		if taxBookValue < 0 {
 			taxBookValue = 0
@@ -859,12 +867,12 @@ func electricVehicleSchedulePlan(
 		}
 		opening := bookValue
 		bookValue -= amount
-		if impair := plan.ImpairmentsByYear[year]; impair > 0 {
+		if impair := plan.ImpairmentsByYear[year]; impair != 0 {
 			bookValue -= impair
 			if bookValue < 0 {
 				bookValue = 0
 			}
-			note = appendNote(note, fmt.Sprintf("Zusätzlich außerplanmäßig abgeschrieben: %s €.", impair))
+			note = appendNote(note, impairmentNote(impair))
 		}
 		rows = append(rows, AfAYear{
 			FiscalYear: year,
@@ -957,12 +965,12 @@ func buildingSchedule(
 		}
 		opening := bookValue
 		bookValue -= amount
-		if impair := plan.ImpairmentsByYear[year]; impair > 0 {
+		if impair := plan.ImpairmentsByYear[year]; impair != 0 {
 			bookValue -= impair
 			if bookValue < 0 {
 				bookValue = 0
 			}
-			note = appendNote(note, fmt.Sprintf("Zusätzlich außerplanmäßig abgeschrieben: %s €.", impair))
+			note = appendNote(note, impairmentNote(impair))
 		}
 		rows = append(rows, AfAYear{
 			FiscalYear:          year,
@@ -1111,4 +1119,11 @@ func checkSpecialDepreciation(plan AfAPlan) error {
 			plan.SpecialYears)
 	}
 	return nil
+}
+
+func impairmentNote(amount domain.Cents) string {
+	if amount < 0 {
+		return fmt.Sprintf("Zugeschrieben: %s €.", -amount)
+	}
+	return fmt.Sprintf("Zusätzlich außerplanmäßig abgeschrieben: %s €.", amount)
 }

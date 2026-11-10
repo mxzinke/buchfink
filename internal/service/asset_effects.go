@@ -20,31 +20,22 @@ func (s *AssetService) EntryEffect() domain.EntryEffect {
 		}
 		for _, asset := range assets {
 			for _, movement := range asset.Movements {
-				if movement.JournalEntryID == nil || *movement.JournalEntryID != original.ID ||
-					(movement.Kind != domain.AssetMovementDepreciation && movement.Kind != domain.AssetMovementDisposal && movement.Kind != domain.AssetMovementTransfer &&
-						movement.Kind != domain.AssetMovementImpairment && movement.Kind != domain.AssetMovementWriteUp) {
+				if movement.JournalEntryID == nil || *movement.JournalEntryID != original.ID {
 					continue
 				}
+				switch movement.Kind {
+				case domain.AssetMovementDepreciation, domain.AssetMovementDisposal, domain.AssetMovementTransfer,
+					domain.AssetMovementImpairment, domain.AssetMovementWriteUp, domain.AssetMovementAcquisition:
+				default:
+					continue
+				}
+				if movement.Kind == domain.AssetMovementAcquisition && asset.Currency == "" {
+					continue
+				}
+				if err := ensureAssetMovementReversible(&asset, movement); err != nil {
+					return err
+				}
 				if movement.Kind == domain.AssetMovementTransfer && movement.TransferBefore != "" {
-					for _, later := range asset.Movements {
-						if later.ID <= movement.ID || later.JournalEntryID != nil && *later.JournalEntryID == original.ID {
-							continue
-						}
-						if later.JournalEntryID != nil {
-							reversed, err := s.journalRepo.FindReversalOf(ctx, *later.JournalEntryID)
-							if err != nil {
-								return err
-							}
-							entry, err := s.journalRepo.FindByID(ctx, *later.JournalEntryID)
-							if err != nil {
-								return err
-							}
-							if reversed != nil || entry.Kind == domain.EntryKindReversal {
-								continue
-							}
-						}
-						return fmt.Errorf("zuerst die Folgebewegung vom %s zurücknehmen", later.Date)
-					}
 					var before assetTransferState
 					if err := json.Unmarshal([]byte(movement.TransferBefore), &before); err != nil {
 						return err
@@ -86,4 +77,27 @@ type assetTransferState struct {
 	Method              domain.DepreciationMethod
 	UsefulLifeMonths    int
 	InServiceDate       string
+}
+
+// Folgebewegungen verwenden den Buchwert nach der ursprünglichen Bewegung.
+// Ihre Rücknahme muss deshalb zuerst erfolgen.
+func ensureAssetMovementReversible(asset *domain.FixedAsset, movement domain.AssetMovement) error {
+	reversed := map[uint]bool{}
+	for _, m := range asset.Movements {
+		if m.ReversesMovementID != nil {
+			reversed[*m.ReversesMovementID] = true
+		}
+	}
+	for _, later := range asset.Movements {
+		if later.ID <= movement.ID || later.ReversesMovementID != nil || reversed[later.ID] ||
+			later.Kind == domain.AssetMovementIncome {
+			continue
+		}
+		if later.JournalEntryID != nil && movement.JournalEntryID != nil &&
+			*later.JournalEntryID == *movement.JournalEntryID {
+			continue
+		}
+		return fmt.Errorf("zuerst die Folgebewegung vom %s zurücknehmen", later.Date)
+	}
+	return nil
 }

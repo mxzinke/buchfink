@@ -114,3 +114,13 @@ Die Fertigstellung einer Anlage im Bau bucht `anlage_fertigstellen` nach
 Rückfrage auf das endgültige Anlagekonto. Nenne Fertigstellungstag, Zielkonto,
 Abschreibungskonto, Methode, Nutzungsdauer und Grund. Die Abschreibung beginnt
 ab der Betriebsbereitschaft. Die App bietet denselben Vorgang unter Bücher → Anlagen.
+
+Finanzanlage in Fremdwährung: Buche den Zugang zunächst über Beleg oder Bank.
+Nimm den Aktivierungskandidaten mit `abschlussbuchung`,
+`art: fremdwaehrungsanlage`, Feld `fremdwaehrungsanlage` und `art: zugang` auf.
+Nenne Buchung, Konto, Datum, Bezeichnung, Währung und Fremdbetrag. Ohne Kurs
+holt der Kern ihn vor dem Schreiben; ein vorgegebener Kurs braucht seine Quelle.
+Die Umrechnung muss den Eurobetrag der Zugangsbuchung ergeben.
+
+Prüfe die Abgänge im Anlagenspiegel mit `anlagen`, `spiegel: true`. Dieselben
+Bewegungen erscheinen in den Anhangangaben des Jahresabschlusses.

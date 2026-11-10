@@ -10,20 +10,21 @@ import (
 )
 
 type anlageAbgangIn struct {
-	BewegungID   uint `json:"bewegung_id,omitempty"`
-	PoolZugangID uint `json:"pool_zugang_id,omitempty"`
 	KeyedWriteArgs
-	AnlageID     uint         `json:"anlage_id"`
-	Datum        Datum        `json:"datum,omitempty"`
-	Art          string       `json:"art" jsonschema:"verkauf, verschrottung oder storno"`
-	Erloes       Betrag       `json:"erloes,omitempty" jsonschema:"Nettoerlös"`
-	Stueckzahl   domain.Units `json:"stueckzahl,omitempty" jsonschema:"Zehntausendstel Stück; ohne Angabe Vollabgang"`
-	KontaktID    uint         `json:"kontakt_id,omitempty"`
-	Bankkonto    string       `json:"bankkonto,omitempty"`
-	BelegID      *uint        `json:"beleg_id,omitempty"`
-	BankumsatzID uint         `json:"bankumsatz_id,omitempty"`
-	Grund        string       `json:"grund"`
-	NurVorschau  bool         `json:"nur_vorschau,omitempty"`
+	// BewegungID benennt den Abgang zum Storno; PoolZugangID das ausscheidende Sammelpostengut.
+	BewegungID    uint         `json:"bewegung_id,omitempty"`
+	PoolZugangID  uint         `json:"pool_zugang_id,omitempty"`
+	AnlageID      uint         `json:"anlage_id"`
+	Datum         Datum        `json:"datum,omitempty"`
+	Art           string       `json:"art" jsonschema:"verkauf, verschrottung oder storno"`
+	Erloes        Betrag       `json:"erloes,omitempty" jsonschema:"Nettoerlös"`
+	Stueckzahl    domain.Units `json:"stueckzahl,omitempty" jsonschema:"Zehntausendstel Stück; ohne Angabe Vollabgang"`
+	KontaktID     uint         `json:"kontakt_id,omitempty"`
+	Zahlungskonto string       `json:"zahlungskonto,omitempty"`
+	BelegID       *uint        `json:"beleg_id,omitempty"`
+	BankumsatzID  uint         `json:"bankumsatz_id,omitempty"`
+	Grund         string       `json:"grund"`
+	NurVorschau   bool         `json:"nur_vorschau,omitempty"`
 }
 
 func (in anlageAbgangIn) preview() bool { return in.NurVorschau }
@@ -72,10 +73,12 @@ func registerAssetDisposal(tb *Toolbox) {
 			default:
 				return out, fmt.Errorf("art: verkauf, verschrottung oder storno angeben")
 			}
-			req := service.DisposalRequest{PoolItemMovementID: in.PoolZugangID, ReceiptID: in.BelegID, BankTxID: in.BankumsatzID, AssetID: in.AnlageID, Date: date, Kind: kind,
+			req := service.DisposalRequest{
+				PoolItemMovementID: in.PoolZugangID, ReceiptID: in.BelegID, BankTxID: in.BankumsatzID,
+				AssetID: in.AnlageID, Date: date, Kind: kind,
 				Proceeds: proceeds, Quantity: in.Stueckzahl, ContactID: in.KontaktID, Note: in.Grund}
-			if in.Bankkonto != "" {
-				req.Settlement, req.PaymentAccount = service.SettlementPaid, in.Bankkonto
+			if in.Zahlungskonto != "" {
+				req.Settlement, req.PaymentAccount = service.SettlementPaid, in.Zahlungskonto
 			}
 			if in.NurVorschau {
 				out.Vorschau, err = s.Assets.PreviewDisposal(ctx, req)

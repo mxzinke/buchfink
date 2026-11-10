@@ -2852,6 +2852,8 @@ export interface StatementNotes {
   missing?: string[];
   texts: NotesSectionText[];
   provisionMirror: ProvisionMirror;
+  /** Entwicklung des Anlagevermögens mit den Abgängen des Jahres. */
+  assets: Anlagenspiegel;
   reconciliation: Reconciliation;
   reference: string;
 }

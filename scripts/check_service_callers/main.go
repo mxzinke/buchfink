@@ -57,7 +57,6 @@ var exceptions = map[string]string{
 	"AccrualService.Propose": "keine Vorschläge zur Rechnungsabgrenzung; der Agent sucht die Buchungen selbst",
 	"AccrualService.Report":  "kein Abgrenzungsspiegel zum Stichtag",
 
-	"AssetService.BookCurrencyValuation": "keine Stichtagsbewertung eines Anlageguts in Fremdwährung",
 
 	"ClosingService.SetPriorYearRevenue": "der vorbelegte Vorjahresumsatz (§ 27 Abs. 38 UStG) lässt sich nicht berichtigen",
 

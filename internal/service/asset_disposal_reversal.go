@@ -27,6 +27,9 @@ func (s *AssetService) ReverseDisposal(ctx context.Context, assetID, movementID 
 			if m.ID != movementID || m.Kind != domain.AssetMovementDisposal || m.ReversesMovementID != nil {
 				continue
 			}
+			if err := ensureAssetMovementReversible(asset, m); err != nil {
+				return nil, err
+			}
 			if m.JournalEntryID != nil {
 				if _, err := s.journalSvc.Reverse(ctx, *m.JournalEntryID, reason); err != nil {
 					return nil, err

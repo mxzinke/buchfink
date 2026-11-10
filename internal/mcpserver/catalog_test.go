@@ -58,8 +58,8 @@ var writeFixtures = map[string]map[string]any{
 	"buchung_erfassen": {"idempotenz_schluessel": "matrix-erfassen", "buchungsdatum": "2026-05-04", "beschreibung": "Umbuchung", "steuerfall": "not_taxable",
 		"zeilen": []any{map[string]any{"konto": "1360", "seite": "S", "betrag": "1.00"},
 			map[string]any{"konto": "1800", "seite": "H", "betrag": "1.00"}}},
-	"anlage_fertigstellen": {"anlage_id": 1, "datum": "2026-06-01", "konto": "0440", "abschreibungskonto": "6220", "methode": "linear", "nutzungsdauer_monate": 48, "grund": "Betriebsbereit"},
-	"anlage_abgehen":       {"anlage_id": 1, "datum": "2026-10-19", "art": "verschrottung", "grund": "Defekt", "nur_vorschau": true},
+	"anlage_fertigstellen": {"idempotenz_schluessel": "matrix-fertigstellen", "anlage_id": 1, "datum": "2026-06-01", "konto": "0440", "abschreibungskonto": "6220", "methode": "linear", "nutzungsdauer_monate": 48, "grund": "Betriebsbereit"},
+	"anlage_abgehen":       {"idempotenz_schluessel": "matrix-abgang", "anlage_id": 1, "datum": "2026-10-19", "art": "verschrottung", "grund": "Defekt", "nur_vorschau": true},
 	"buchung_stornieren":   {"buchung_id": 1, "grund": "Fehlbuchung"},
 	"lohnjournal_buchen":   {"monat": "2026-05", "beleg_id": 1, "netto": "1.00"},
 	"rechnung_ausstellen":  {"idempotenz_schluessel": "matrix-rechnung"},
@@ -334,7 +334,7 @@ func TestWriteToolsTakeAnIdempotencyKey(t *testing.T) {
 	tools := listTools(t, h.mustSession(h.login("Claude Code", "").access))
 	flows := map[string]bool{"kontoauszug_importieren": true, "erklaerung_exportieren": true, "ebilanz_exportieren": true,
 		"beleg_datei_exportieren": true}
-	keyed := map[string]bool{"buchung_erfassen": true, "rechnung_ausstellen": true, "abschlussbuchung": true,
+	keyed := map[string]bool{"anlage_abgehen": true, "anlage_fertigstellen": true, "buchung_erfassen": true, "rechnung_ausstellen": true, "abschlussbuchung": true,
 		"forderung_ausbuchen": true, "mahnung_vermerken": true, "anlass_erfassen": true, "darlehen_erfassen": true, "stammdaten_vorschlagen": true}
 	for name, tier := range catalog {
 		if tier == TierRead {

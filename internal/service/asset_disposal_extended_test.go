@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/buchfink/buchfink/internal/domain"
+	"github.com/buchfink/buchfink/internal/repository"
 )
 
 func TestTangiblePartialDisposalAndReversal(t *testing.T) {
@@ -126,5 +128,161 @@ func TestTransferReversalRestoresDepreciationStart(t *testing.T) {
 	if detail.Asset.Account != "0700" || detail.Asset.Method != domain.DepreciationNone ||
 		detail.Asset.InServiceDate != "" || detail.Asset.DueAmount != 0 || detail.Asset.Cost != 1_200_000 {
 		t.Fatalf("nach Storno: %+v", detail.Asset)
+	}
+}
+
+func TestImpairmentAfterPartialDisposalAndReversalOrder(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	env.journal.AddEntryEffects(svc.EntryEffect())
+	ctx := context.Background()
+	asset, err := svc.Save(ctx, &domain.FixedAsset{
+		Name: "Vier Maschinen", Class: domain.AssetClassTangible,
+		Account: "0440", DepreciationAccount: "6220", AcquisitionDate: "2026-01-01",
+		AcquisitionCost: 1_200_000, UsefulLifeMonths: 48, Method: domain.DepreciationLinear,
+		Quantity: 40_000,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	disposal, err := svc.Dispose(ctx, DisposalRequest{
+		AssetID: asset.ID, Date: "2026-06-30", Kind: domain.DisposalScrapped, Quantity: 10_000,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	impairment, err := svc.BookImpairment(ctx, ImpairmentRequest{
+		AssetID: asset.ID, Date: "2026-09-30", Amount: 300_000, Permanent: true,
+		Reason: "Schaden am Restbestand", Evidence: "Gutachten",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	detail, err := svc.Get(ctx, 2027, asset.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range detail.Schedule {
+		if row.FiscalYear == 2027 && row.Amount != 125_000 {
+			t.Fatalf("AfA auf 3.750 € Restwert über 36 Monate: %v", row.Amount)
+		}
+	}
+	if _, err := env.journal.Reverse(ctx, disposal.DisposalEntry.ID, "Abgang berichtigen"); err == nil {
+		t.Fatal("Abgang trotz abhängiger Wertminderung storniert")
+	}
+	if _, err := env.journal.Reverse(ctx, impairment.ID, "Wertminderung berichtigen"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.journal.Reverse(ctx, disposal.DisposalEntry.ID, "Abgang berichtigen"); err != nil {
+		t.Fatal(err)
+	}
+	detail, err = svc.Get(ctx, 2026, asset.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail.Asset.Cost != 1_200_000 || detail.Asset.UnitsHeld != 40_000 || detail.Asset.Accumulated != 150_000 {
+		t.Fatalf("Bestand nach beiden Stornos: %+v", detail.Asset)
+	}
+}
+
+func TestDisposalFromBankTransaction(t *testing.T) {
+	env := newTestEnv(t)
+	env.paymentsWithBank(t)
+	svc := env.assets(t)
+	svc.SetBankTransactions(repository.NewBankRepository(env.db))
+	env.journal.AddEntryEffects(svc.EntryEffect())
+	ctx := context.Background()
+	asset := env.machine(t, svc)
+	bankID := env.bankLine(t, "2026-06-30", 1_428_000, "Käufer GmbH", "Maschinenkauf")
+	req := DisposalRequest{
+		AssetID: asset.ID, Date: "2026-06-30", Kind: domain.DisposalSale,
+		Proceeds: 1_200_000, BankTxID: bankID, TaxTreatment: domain.TaxTreatmentDomestic,
+	}
+	wrong := req
+	wrong.Date = "2026-05-31"
+	if _, err := svc.Dispose(ctx, wrong); err == nil {
+		t.Fatal("Abgangsdatum durch Zahlungstag überschrieben")
+	}
+	wrong = req
+	wrong.Proceeds = 1_100_000
+	if _, err := svc.Dispose(ctx, wrong); err == nil {
+		t.Fatal("abweichenden Bruttoerlös angenommen")
+	}
+	result, err := svc.Dispose(ctx, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertLines(t, result.DisposalEntry, []bookedLine{
+		{domain.SideDebit, "1800", 1_428_000},
+		{domain.SideCredit, "4845", 1_200_000},
+		{domain.SideCredit, "3806", 228_000},
+		{domain.SideDebit, "4855", 1_050_000},
+		{domain.SideCredit, "0440", 1_050_000},
+	})
+	env.assertMatch(t, bankID, domain.MatchStatusMatched)
+	statements := env.statements(t)
+	statements.SetNotesSources(NotesSources{Assets: svc})
+	fs, err := statements.Build(ctx, 2026, domain.DepthFull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fs.Notes.Assets.Totals.Disposals != 1_200_000 || fs.Notes.Assets.Totals.DepreciationDisposal != 150_000 {
+		t.Fatalf("Abgang im Anhang: %+v", fs.Notes.Assets.Totals)
+	}
+	csv, err := statements.ExportCSV(ctx, 2026, domain.DepthFull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(csv, "0440.abgaenge") || !strings.Contains(csv, "12000,00") {
+		t.Fatalf("Abgang fehlt im CSV: %s", csv)
+	}
+	var pdfSource strings.Builder
+	writeTypstNotes(&pdfSource, fs)
+	if !strings.Contains(pdfSource.String(), "Abgänge zu Anschaffungskosten") ||
+		!strings.Contains(pdfSource.String(), "12.000,00") {
+		t.Fatalf("Abgang fehlt im PDF-Quelltext: %s", pdfSource.String())
+	}
+
+	if _, err := env.journal.Reverse(ctx, result.DisposalEntry.ID, "Verkauf berichtigen"); err != nil {
+		t.Fatal(err)
+	}
+	env.assertMatch(t, bankID, domain.MatchStatusUnmatched)
+	fs, err = statements.Build(ctx, 2026, domain.DepthFull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fs.Notes.Assets.Totals.Disposals != 0 || fs.Notes.Assets.Totals.BookValueClosing != 1_050_000 {
+		t.Fatalf("Anhang nach Storno: %+v", fs.Notes.Assets.Totals)
+	}
+}
+
+func TestWriteUpRestoresDepreciationBasis(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	asset := env.machine(t, svc)
+	ctx := context.Background()
+	if _, err := svc.BookDepreciation(ctx, BookDepreciationRequest{FiscalYear: 2026}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.BookImpairment(ctx, ImpairmentRequest{
+		AssetID: asset.ID, Date: "2026-12-31", Amount: 300_000, Permanent: true,
+		Reason: "Schaden", Evidence: "Gutachten",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.BookDepreciation(ctx, BookDepreciationRequest{FiscalYear: 2027}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.BookWriteUp(ctx, WriteUpRequest{
+		AssetID: asset.ID, Date: "2027-12-31", Amount: 200_000, Reason: "Erholung", Evidence: "Neues Gutachten",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	detail, err := svc.Get(ctx, 2028, asset.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail.Asset.BookValue != 600_000 || detail.Asset.DueAmount != 300_000 {
+		t.Fatalf("Zuschreibung und folgende AfA: %+v", detail.Asset)
 	}
 }

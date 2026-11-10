@@ -14,10 +14,13 @@ import (
 // --- anlagen ----------------------------------------------------------------
 
 type anlagenIn struct {
-	Wertaufholung  bool         `json:"wertaufholung,omitempty"`
-	AnlageID       uint         `json:"anlage_id,omitempty" jsonschema:"Detail mit Bewegungskennungen"`
 	Geschaeftsjahr int          `json:"geschaeftsjahr,omitempty"`
 	Klasse         AnlageKlasse `json:"klasse,omitempty" jsonschema:"ohne Angabe alle"`
+	// AnlageID wählt die Kartei; Wertaufholung den Prüfbericht zum Abschluss.
+	AnlageID      uint `json:"anlage_id,omitempty" jsonschema:"Detail mit Bewegungskennungen"`
+	Wertaufholung bool `json:"wertaufholung,omitempty"`
+	// Spiegel liefert die Bewegungen für die Anhangangaben.
+	Spiegel bool `json:"spiegel,omitempty"`
 	Seite
 }
 
@@ -54,11 +57,14 @@ type kandidat struct {
 }
 
 type anlagenOut struct {
-	Wertaufholung *service.WriteUpReport `json:"wertaufholung,omitempty"`
+	Anlagen    []anlage   `json:"anlagen"`
+	AfAFaellig Betrag     `json:"afa_faellig_gesamt"`
+	Kandidaten []kandidat `json:"aktivierungskandidaten" jsonschema:"Buchungen auf Anlagekonten ohne Anlagegut; mit abschlussbuchung art=anlage_aktivieren aufnehmen"`
+	// Detail zeigt die Bewegungen einer Anlage; Wertaufholung die jährliche Bewertungsprüfung.
 	Detail        *service.AssetDetail   `json:"detail,omitempty"`
-	Anlagen       []anlage               `json:"anlagen"`
-	AfAFaellig    Betrag                 `json:"afa_faellig_gesamt"`
-	Kandidaten    []kandidat             `json:"aktivierungskandidaten" jsonschema:"Buchungen auf Anlagekonten ohne Anlagegut; mit abschlussbuchung art=anlage_aktivieren aufnehmen"`
+	Wertaufholung *service.WriteUpReport `json:"wertaufholung,omitempty"`
+	// Spiegel entspricht dem Anlagenspiegel des Jahresabschlusses.
+	Spiegel *domain.Anlagenspiegel `json:"spiegel,omitempty"`
 	Seitenende
 }
 
@@ -195,7 +201,6 @@ type unfertigeIn struct {
 }
 
 type aktivierenIn struct {
-	Stueckzahl          domain.Units `json:"stueckzahl,omitempty" jsonschema:"Zehntausendstel Stück"`
 	BuchungID           uint         `json:"buchung_id" jsonschema:"Buchung aus aktivierungskandidaten (anlagen)"`
 	Bezeichnung         string       `json:"bezeichnung"`
 	Klasse              AnlageKlasse `json:"klasse,omitempty" jsonschema:"Vorgabe aus dem Anlagekonto"`
@@ -203,7 +208,9 @@ type aktivierenIn struct {
 	NutzungsdauerMonate int          `json:"nutzungsdauer_monate,omitempty" jsonschema:"nach AfA-Tabelle"`
 	NutzungsdauerGrund  string       `json:"nutzungsdauer_grund,omitempty" jsonschema:"bei Abweichung von der AfA-Tabelle"`
 	InBetrieb           Datum        `json:"in_betrieb,omitempty"`
-	Fondsart            Fondsart     `json:"fondsart,omitempty" jsonschema:"nur bei einem Investmentanteil"`
+	// Stueckzahl ist der gleichartige Bestand für spätere Teilabgänge.
+	Stueckzahl domain.Units `json:"stueckzahl,omitempty" jsonschema:"Zehntausendstel Stück"`
+	Fondsart   Fondsart     `json:"fondsart,omitempty" jsonschema:"nur bei einem Investmentanteil"`
 }
 
 type vorabpauschaleIn struct {
@@ -217,7 +224,6 @@ type vorabpauschaleIn struct {
 }
 
 type abschlussbuchungIn struct {
-	Anlagenbewertung *anlagenbewertungIn `json:"anlagenbewertung,omitempty"`
 	KeyedWriteArgs
 	Art                 AbschlussArt           `json:"art"`
 	Geschaeftsjahr      int                    `json:"geschaeftsjahr,omitempty"`
@@ -230,7 +236,10 @@ type abschlussbuchungIn struct {
 	Wertberichtigung    *wertberichtigungIn    `json:"wertberichtigung,omitempty"`
 	UnfertigeLeistungen *unfertigeIn           `json:"unfertige_leistungen,omitempty"`
 	Anlage              *aktivierenIn          `json:"anlage_aktivieren,omitempty"`
-	Vorabpauschale      *vorabpauschaleIn      `json:"vorabpauschale,omitempty"`
+	// Anlagenbewertung und Fremdwaehrungsanlage erfassen die jeweiligen Einzelvorgänge der Kartei.
+	Anlagenbewertung     *anlagenbewertungIn     `json:"anlagenbewertung,omitempty"`
+	Fremdwaehrungsanlage *fremdwaehrungsanlageIn `json:"fremdwaehrungsanlage,omitempty"`
+	Vorabpauschale       *vorabpauschaleIn       `json:"vorabpauschale,omitempty"`
 }
 
 func (in abschlussbuchungIn) preview() bool { return in.NurVorschau }
@@ -262,6 +271,10 @@ func registerAbschluss(tb *Toolbox) {
 		out := anlagenOut{Anlagen: []anlage{}, Kandidaten: []kandidat{}}
 		year, err := yearOr(ctx, c, in.Geschaeftsjahr)
 		if err != nil {
+			return out, err
+		}
+		if in.Spiegel {
+			out.Spiegel, err = s.Assets.Anlagenspiegel(ctx, year)
 			return out, err
 		}
 		if in.Wertaufholung {
@@ -371,11 +384,14 @@ func registerAbschluss(tb *Toolbox) {
 		Title: "Abschlussbuchung",
 		Description: "Bucht einen Schritt des Jahresabschlusses: afa_lauf, abgrenzung, rueckstellung, ust_verrechnung, " +
 			"steuerrueckstellung, ug_ruecklage, wertberichtigung, unfertige_leistungen, fremdwaehrung, " +
-			"anlagenbewertung, anlage_aktivieren oder vorabpauschale (ohne Buchung), jeweils mit seinen Angaben im " +
+			"fremdwaehrungsanlage, anlagenbewertung, anlage_aktivieren oder vorabpauschale (ohne Buchung), jeweils mit seinen Angaben im " +
 			"gleichnamigen Feld. Erst mit nur_vorschau rechnen, " +
 			"dem Menschen Buchungssatz und Erläuterung vorlegen, nach seinem Ja buchen. Welcher Schritt offen ist, " +
 			"zeigt abschluss_status.",
 	}, func(ctx context.Context, c *Call, t *core.Tenant, in abschlussbuchungIn) error {
+		if in.Art == "fremdwaehrungsanlage" {
+			return prepareForeignAsset(ctx, t, in.Fremdwaehrungsanlage)
+		}
 		if in.Art != "fremdwaehrung" {
 			return nil
 		}
@@ -406,6 +422,7 @@ type closingRun func(ctx context.Context, s core.AgentServices, year int, in abs
 
 var closingRuns = map[string]closingRun{
 	"afa_lauf":             runDepreciation,
+	"fremdwaehrungsanlage": runForeignAsset,
 	"anlagenbewertung":     runAssetValuation,
 	"abgrenzung":           runAccrual,
 	"rueckstellung":        runProvision,

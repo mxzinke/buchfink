@@ -56,7 +56,7 @@ func TestAssetDisposalThroughTool(t *testing.T) {
 	})
 	a := h.agent("")
 	args := a.args(map[string]any{"anlage_id": id, "datum": "2026-06-30", "art": "verkauf",
-		"idempotenz_schluessel": "abgang-2026", "erloes": "12000.00", "bankkonto": "1800", "grund": "Verkauf", "nur_vorschau": true})
+		"idempotenz_schluessel": "abgang-2026", "erloes": "12000.00", "zahlungskonto": "1800", "grund": "Verkauf", "nur_vorschau": true})
 	var preview anlageAbgangOut
 	a.ok("anlage_abgehen", args, &preview)
 	if preview.Vorschau == nil || preview.Vorschau.CatchUpAmount != 150_000 || preview.Vorschau.Tax != 228_000 {
@@ -67,6 +67,11 @@ func TestAssetDisposalThroughTool(t *testing.T) {
 	a.ok("anlage_abgehen", args, &booked)
 	if booked.Ergebnis == nil || booked.Ergebnis.DisposalEntry == nil {
 		t.Fatalf("Abgang: %+v", booked)
+	}
+	var mirror anlagenOut
+	a.ok("anlagen", map[string]any{"geschaeftsjahr": 2026, "spiegel": true}, &mirror)
+	if mirror.Spiegel == nil || mirror.Spiegel.Totals.Disposals != 1_200_000 {
+		t.Fatalf("Anlagenspiegel: %+v", mirror.Spiegel)
 	}
 	a.ok("buchung_stornieren", a.args(map[string]any{
 		"buchung_id": booked.Ergebnis.DisposalEntry.ID, "grund": "Verkauf berichtigen",
@@ -152,5 +157,57 @@ func TestAssetValuationAndWriteUpThroughTool(t *testing.T) {
 	a.ok("anlagen", map[string]any{"geschaeftsjahr": 2026, "anlage_id": id}, &assets)
 	if assets.Detail.Asset.BookValue != 1_000_000 {
 		t.Fatalf("Buchwert: %v", assets.Detail.Asset.BookValue)
+	}
+}
+
+func TestForeignAssetAcquisitionValuationAndReversal(t *testing.T) {
+	h := newHarness(t)
+	h.completeCompany()
+	var purchase uint
+	h.ui(func(ctx context.Context, s *core.Services) error {
+		entry, err := s.Journal.Post(ctx, &domain.JournalEntry{
+			BookingDate: "2026-01-15", Description: "USD-Anteile", Source: domain.EntrySourceManual,
+			TaxTreatment: domain.TaxTreatmentNotTaxable,
+			Lines: []domain.JournalLine{
+				{Side: domain.SideDebit, Account: "0900", Amount: 1_000_000},
+				{Side: domain.SideCredit, Account: "1800", Amount: 1_000_000},
+			},
+		})
+		if err == nil {
+			purchase = entry.ID
+		}
+		return err
+	})
+	a := h.agent("")
+	var acquired abschlussAntwort
+	a.ok("abschlussbuchung", a.args(map[string]any{
+		"art": "fremdwaehrungsanlage", "geschaeftsjahr": 2026, "idempotenz_schluessel": "usd-zugang",
+		"fremdwaehrungsanlage": map[string]any{"art": "zugang", "datum": "2026-01-15", "buchung_id": purchase,
+			"konto": "0900", "bezeichnung": "USD-Anteile", "waehrung": "USD", "fremdbetrag": "12000.00",
+			"kurs_millionstel": 1_200_000, "kursquelle": "Bankabrechnung"},
+	}), &acquired)
+	if acquired.AnlageID == nil {
+		t.Fatalf("Zugang: %+v", acquired)
+	}
+	var valued abschlussAntwort
+	a.ok("abschlussbuchung", a.args(map[string]any{
+		"art": "fremdwaehrungsanlage", "geschaeftsjahr": 2026, "idempotenz_schluessel": "usd-bewertung",
+		"fremdwaehrungsanlage": map[string]any{"art": "bewertung", "datum": "2026-09-30", "anlage_id": *acquired.AnlageID,
+			"kurs_millionstel": 1_500_000},
+	}), &valued)
+	if len(valued.BuchungIDs) != 1 {
+		t.Fatalf("Bewertung: %+v", valued)
+	}
+	var assets anlagenOut
+	a.ok("anlagen", map[string]any{"geschaeftsjahr": 2026, "anlage_id": *acquired.AnlageID}, &assets)
+	if assets.Detail.Asset.BookValue != 800_000 {
+		t.Fatalf("bewertet: %v", assets.Detail.Asset.BookValue)
+	}
+	for _, entry := range []uint{valued.BuchungIDs[0], purchase} {
+		a.ok("buchung_stornieren", a.args(map[string]any{"buchung_id": entry, "grund": "Berichtigung"}), nil)
+	}
+	a.ok("anlagen", map[string]any{"geschaeftsjahr": 2026, "anlage_id": *acquired.AnlageID}, &assets)
+	if assets.Detail.Asset.BookValue != 0 {
+		t.Fatalf("nach Storno: %v", assets.Detail.Asset.BookValue)
 	}
 }

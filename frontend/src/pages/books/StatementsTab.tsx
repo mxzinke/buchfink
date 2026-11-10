@@ -223,6 +223,25 @@ export const StatementsTab: React.FC = () => {
         )}
       </Section>
 
+      {(data.notes?.assets?.rows.length ?? 0) > 0 && (
+        <Disclosure title="Anlagenspiegel im Anhang">
+          <Table><Thead><Tr>
+            <Th>Position</Th><Th numeric>Zugänge</Th><Th numeric>Abgänge</Th>
+            <Th numeric>Abschreibungen des Jahres</Th><Th numeric>Buchwert am Ende</Th>
+          </Tr></Thead><Tbody>
+            {data.notes.assets.rows.map(row => <Tr key={row.account}>
+              <Td>{row.accountName}</Td><Td numeric>{formatCents(row.additions)}</Td>
+              <Td numeric>{formatCents(row.disposals)}</Td>
+              <Td numeric>{formatCents(row.depreciationYear)}</Td>
+              <Td numeric>{formatCents(row.bookValueClosing)}</Td>
+            </Tr>)}
+          </Tbody></Table>
+          <Button variant="quiet" onClick={() => navigate({ area: 'books', tab: 'assets' })}>
+            Vollständiger Anlagenspiegel
+          </Button>
+        </Disclosure>
+      )}
+
       {findings.length > 0 && (
         <Disclosure title="Konten ohne passende Position" context={`${findings.length} Konten`}>
           <AccountList accounts={findings} onOpenAccount={openAccount} />

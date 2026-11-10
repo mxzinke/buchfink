@@ -34,6 +34,7 @@ import {
   Tr,
 } from '../../components/ui';
 import { PanelHeading, errorText } from './shared';
+import { AssetCurrencyForm, ForeignAssetAcquisitionForm } from './AssetCurrencyForm';
 import { AssetValuationForm } from './AssetValuationForm';
 import { AssetTransferForm } from './AssetTransferForm';
 import { AssetDisposalForm, AssetDisposalReversal } from './AssetDisposalForm';
@@ -97,9 +98,8 @@ const AssetState: React.FC<{ asset: FixedAsset }> = ({ asset }) => {
 };
 
 /**
- * Das Anlagevermögen zum Nachlesen: Verzeichnis, Abschreibungsplan je
- * Anlagegut und Anlagenspiegel. Erfasst, abgeschrieben und abgegangen wird
- * über Claude; die App zeigt den Stand.
+ * Verzeichnis, Abschreibungsplan und Anlagenspiegel mit den Vorgängen
+ * der Anlagenkartei.
  */
 export const AssetsTab: React.FC = () => {
   const { year } = useWorkspace();
@@ -165,6 +165,9 @@ export const AssetsTab: React.FC = () => {
           context={due > 0 ? `${formatCents(due)} noch nicht gebucht` : 'vollständig gebucht'}
         />
       </StatRow>
+      {candidates.length > 0 && <Disclosure title="Finanzanlage in Fremdwährung aufnehmen">
+        <ForeignAssetAcquisitionForm candidates={candidates} onSaved={load} />
+      </Disclosure>}
 
       {candidates.length > 0 && (
         <Notice
@@ -434,6 +437,9 @@ const AssetPanel: React.FC<{ assetId: number | undefined; onClose: () => void }>
           </Disclosure>}
           {!asset.disposalDate && <Disclosure title="Wertminderung und Zuschreibung">
             <AssetValuationForm asset={asset} onSaved={load} />
+          </Disclosure>}
+          {!asset.disposalDate && asset.currency && <Disclosure title="Fremdwährung bewerten">
+            <AssetCurrencyForm asset={asset} onSaved={load} />
           </Disclosure>}
           <Disclosure title="Stammdaten ändern">
             <AssetMetadataForm key={asset.id} asset={asset} onSaved={load} />

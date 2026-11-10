@@ -32,6 +32,33 @@ func partialDisposalSchedule(plan AfAPlan) ([]AfAYear, error) {
 		}
 		return result
 	}
+	costChanges := make([]map[int]domain.Cents, len(parts))
+	impairments := make([]map[int]domain.Cents, len(parts))
+	for i := range parts {
+		costChanges[i] = map[int]domain.Cents{}
+		impairments[i] = map[int]domain.Cents{}
+	}
+	for _, change := range plan.DatedAdjustments {
+		var held domain.Units
+		for _, part := range parts {
+			if part.Date == "" || part.Date >= change.Date {
+				held += part.Quantity
+			}
+		}
+		cost, impairment := change.CostAmount, change.ImpairmentAmount
+		for i, part := range parts {
+			if part.Date != "" && part.Date < change.Date {
+				continue
+			}
+			costShare := domain.MulRound(cost, int64(part.Quantity), int64(held))
+			impairmentShare := domain.MulRound(impairment, int64(part.Quantity), int64(held))
+			costChanges[i][change.FiscalYear] += costShare
+			impairments[i][change.FiscalYear] += impairmentShare
+			held -= part.Quantity
+			cost -= costShare
+			impairment -= impairmentShare
+		}
+	}
 	for i, part := range parts {
 		sub := plan
 		sub.Cost = domain.MulRound(plan.Cost, int64(part.Quantity), int64(plan.Quantity))
@@ -42,6 +69,10 @@ func partialDisposalSchedule(plan AfAPlan) ([]AfAYear, error) {
 		sub.DisposalDate = part.Date
 		sub.BasisChangesByYear = splitMap(plan.BasisChangesByYear, part.Quantity)
 		sub.ImpairmentsByYear = splitMap(plan.ImpairmentsByYear, part.Quantity)
+		if len(plan.DatedAdjustments) > 0 {
+			sub.BasisChangesByYear = costChanges[i]
+			sub.ImpairmentsByYear = impairments[i]
+		}
 		rows, err := BuildAfASchedule(sub)
 		if err != nil {
 			return nil, err

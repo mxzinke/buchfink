@@ -37,6 +37,8 @@ type AssetService struct {
 	inputTax inputTaxRegistrar
 	// bankTx liest den Bankumsatz, mit dem ein laufender Ertrag zufließt.
 	bankTx bankTransactionReader
+	// currencyRates liest ausschließlich zuvor gespeicherte Kurse.
+	currencyRates assetRateReader
 }
 
 // bankTransactionReader liest einen Bankumsatz.
@@ -1340,6 +1342,9 @@ func (s *AssetService) writeUpCeiling(
 ) (domain.Cents, error) {
 	plan := s.planWithPeriods(ctx, asset, startMonth)
 	plan.ImpairmentsByYear = nil // genau darum geht es: der Wert ohne die außerplanmäßige Abschreibung
+	for i := range plan.DatedAdjustments {
+		plan.DatedAdjustments[i].ImpairmentAmount = 0
+	}
 
 	rows, err := accounting.BuildAfASchedule(plan)
 	if err != nil {
@@ -1776,6 +1781,7 @@ func (s *AssetService) bookCurrencyValuation(ctx context.Context, req CurrencyVa
 	if err != nil {
 		return nil, err
 	}
+	req.RatePerEuro = valuation.RatePerEuro
 	if valuation.ProposedAmount <= 0 {
 		return nil, fmt.Errorf("zum Kurs des Stichtags ist nichts zu buchen: %s", valuation.Explanation)
 	}
@@ -1788,7 +1794,7 @@ func (s *AssetService) bookCurrencyValuation(ctx context.Context, req CurrencyVa
 
 	reason := fmt.Sprintf(
 		"Umrechnung von %s %s zum Devisenkassamittelkurs %s am %s (§ 256a HGB)",
-		asset.ForeignCost, asset.Currency, rateLabel(req.RatePerEuro), req.Date)
+		valuation.ForeignAmount, asset.Currency, rateLabel(req.RatePerEuro), req.Date)
 
 	var lines []domain.JournalLine
 	movement := &domain.AssetMovement{
@@ -1827,6 +1833,9 @@ func (s *AssetService) bookCurrencyValuation(ctx context.Context, req CurrencyVa
 		PostingRuleVersion: accounting.PostingRuleVersion,
 		Lines:              lines,
 	}
+	if req.Preview {
+		return entry, s.journalSvc.ValidatePostable(ctx, entry)
+	}
 	created, err := s.journalSvc.Post(ctx, entry)
 	if err != nil {
 		return nil, err
@@ -1842,12 +1851,11 @@ func (s *AssetService) bookCurrencyValuation(ctx context.Context, req CurrencyVa
 	return created, nil
 }
 
-// rateLabel renders a Devisenkurs with four decimals, as the Bundesbank
-// publishes it.
+// rateLabel erhält die sechs Nachkommastellen auch im Buchungstext.
 func rateLabel(rate int64) string {
 	whole := rate / RateScale
-	frac := (rate % RateScale) / 100
-	return fmt.Sprintf("%d,%04d", whole, frac)
+	frac := rate % RateScale
+	return fmt.Sprintf("%d,%06d", whole, frac)
 }
 
 // shortTermAt reports whether a maturity is a year or less away from a day.
@@ -1884,6 +1892,8 @@ type CurrencyValuationRequest struct {
 	// RatePerEuro ist der Devisenkassamittelkurs des Abschlussstichtags in
 	// Fremdwährungseinheiten je Euro, mal einer Million.
 	RatePerEuro int64 `json:"ratePerEuro"`
+	// Preview prüft nur den Buchungssatz.
+	Preview bool `json:"preview,omitempty"`
 }
 
 // CurrencyValuation is what the Stichtagskurs would mean for the asset.
@@ -1914,18 +1924,9 @@ type CurrencyValuation struct {
 	Explanation    string       `json:"explanation"`
 }
 
-// ValuateCurrency computes what the Devisenkassamittelkurs of a Stichtag means
-// for a Finanzanlage in fremder Währung (§ 256a HGB).
-//
-// Es bucht nichts. § 256a Satz 1 HGB verlangt die Umrechnung zum
-// Devisenkassamittelkurs des Abschlussstichtags, aber für eine Finanzanlage
-// begrenzt das Anschaffungskostenprinzip das Ergebnis nach oben
-// (§ 253 Abs. 1 Satz 1 HGB): die Ausnahme des § 256a Satz 2 gilt nur für eine
-// Restlaufzeit von höchstens einem Jahr und passt auf ein Anlagegut nicht, das
-// dauernd dem Geschäftsbetrieb dienen soll. Ein gefallener Kurs führt deshalb zu
-// einer außerplanmäßigen Abschreibung, ein gestiegener höchstens zu einer
-// Zuschreibung bis zu den Anschaffungskosten — und beide Buchungen laufen über
-// die Wege, die ihre Grenzen ohnehin prüfen.
+// ValuateCurrency berechnet die Stichtagsbewertung einer Fremdwährungsanlage
+// nach § 256a HGB. Das Anschaffungskostenprinzip begrenzt die Zuschreibung;
+// bei höchstens einem Jahr Restlaufzeit entfällt diese Grenze (§ 256a Satz 2).
 func (s *AssetService) ValuateCurrency(ctx context.Context, req CurrencyValuationRequest) (*CurrencyValuation, error) {
 	asset, err := s.assetRepo.FindByID(ctx, req.AssetID)
 	if err != nil {
@@ -1935,6 +1936,13 @@ func (s *AssetService) ValuateCurrency(ctx context.Context, req CurrencyValuatio
 		return nil, fmt.Errorf(
 			"%s wird in Euro geführt. Eine Umrechnung nach § 256a HGB gibt es nur, wo ein "+
 				"Fremdwährungsbetrag hinterlegt ist", asset.InventoryNumber)
+	}
+	if req.RatePerEuro == 0 && s.currencyRates != nil {
+		rate, err := s.currencyRates.RateAt(ctx, asset.Currency, req.Date)
+		if err != nil {
+			return nil, err
+		}
+		req.RatePerEuro = rate.RateMicros
 	}
 	if req.RatePerEuro <= 0 {
 		return nil, fmt.Errorf(
@@ -1947,9 +1955,16 @@ func (s *AssetService) ValuateCurrency(ctx context.Context, req CurrencyValuatio
 	startMonth := s.fiscalYearStartMonth(ctx)
 	s.enrich(asset, domain.GetFiscalYearForDate(req.Date, startMonth), startMonth, s.fiscalPeriods(ctx))
 
+	if asset.IsDisposed() || asset.Cost <= 0 {
+		return nil, fmt.Errorf("die Anlage hat keinen zu bewertenden Bestand")
+	}
+	foreignAmount := asset.ForeignCost
+	if asset.AcquisitionCost > 0 && asset.Cost != asset.AcquisitionCost {
+		foreignAmount = domain.MulRound(asset.ForeignCost, int64(asset.Cost), int64(asset.AcquisitionCost))
+	}
 	out := &CurrencyValuation{
 		Currency:      asset.Currency,
-		ForeignAmount: asset.ForeignCost,
+		ForeignAmount: foreignAmount,
 		RatePerEuro:   req.RatePerEuro,
 		BookValue:     asset.BookValue,
 	}
@@ -1957,7 +1972,7 @@ func (s *AssetService) ValuateCurrency(ctx context.Context, req CurrencyValuatio
 		out.AcquisitionRate = int64(domain.MulRound(
 			asset.ForeignCost, RateScale, int64(asset.AcquisitionCost)))
 	}
-	out.ValueAtRate = domain.MulRound(asset.ForeignCost, RateScale, req.RatePerEuro)
+	out.ValueAtRate = domain.MulRound(foreignAmount, RateScale, req.RatePerEuro)
 	out.Difference = out.ValueAtRate - out.BookValue
 	out.ShortTerm = shortTermAt(asset.MaturityDate, req.Date)
 
@@ -1969,7 +1984,7 @@ func (s *AssetService) ValuateCurrency(ctx context.Context, req CurrencyValuatio
 			"Zum Kurs des Stichtags sind %s %s noch %s € wert, gebucht stehen %s €. Die Differenz von "+
 				"%s € ist außerplanmäßig abzuschreiben — bei Finanzanlagen auch dann, wenn die "+
 				"Wertminderung voraussichtlich nicht von Dauer ist (§ 253 Abs. 3 Satz 6 HGB).",
-			asset.ForeignCost, asset.Currency, out.ValueAtRate, out.BookValue, out.ProposedAmount)
+			foreignAmount, asset.Currency, out.ValueAtRate, out.BookValue, out.ProposedAmount)
 	case out.Difference > 0:
 		ceiling, err := s.writeUpCeiling(ctx, asset,
 			domain.GetFiscalYearForDate(req.Date, startMonth), startMonth)
@@ -1989,7 +2004,7 @@ func (s *AssetService) ValuateCurrency(ctx context.Context, req CurrencyValuatio
 					"Restlaufzeit beträgt höchstens ein Jahr — § 256a Satz 2 HGB nimmt den Posten damit "+
 					"vom Anschaffungskostenprinzip aus, der Kursgewinn von %s € ist in voller Höhe "+
 					"auszuweisen.",
-				asset.ForeignCost, asset.Currency, out.ValueAtRate, asset.InventoryNumber,
+				foreignAmount, asset.Currency, out.ValueAtRate, asset.InventoryNumber,
 				asset.MaturityDate, out.ProposedAmount)
 			break
 		}
@@ -2003,14 +2018,14 @@ func (s *AssetService) ValuateCurrency(ctx context.Context, req CurrencyValuatio
 					"nichts — über die Anschaffungskosten hinaus darf nicht bewertet werden "+
 					"(§ 253 Abs. 1 Satz 1 HGB). Die Ausnahme des § 256a Satz 2 HGB gilt nur bei einer "+
 					"Restlaufzeit von höchstens einem Jahr und passt auf eine Finanzanlage nicht.",
-				asset.ForeignCost, asset.Currency, out.ValueAtRate)
+				foreignAmount, asset.Currency, out.ValueAtRate)
 			break
 		}
 		out.Proposal = "write_up"
 		out.Explanation = fmt.Sprintf(
 			"Der Kurs ist gestiegen: %s %s sind zum Stichtag %s € wert. Zuzuschreiben sind %s € — "+
 				"höchstens bis zu den fortgeführten Anschaffungskosten (§ 253 Abs. 5 Satz 1 HGB).",
-			asset.ForeignCost, asset.Currency, out.ValueAtRate, out.ProposedAmount)
+			foreignAmount, asset.Currency, out.ValueAtRate, out.ProposedAmount)
 	default:
 		out.Proposal = "none"
 		out.Explanation = "Der Stichtagskurs führt zu genau dem gebuchten Wert; zu buchen ist nichts."
@@ -2929,6 +2944,7 @@ func afaPlanFor(
 		SpecialPermille:      asset.SpecialPermille,
 		SpecialYears:         asset.SpecialYears,
 	}
+	hasAcquisition := false
 	plan.Quantity = asset.Quantity
 	reversed := map[uint]bool{}
 	for _, m := range asset.Movements {
@@ -2945,6 +2961,7 @@ func afaPlanFor(
 		}
 		switch m.Kind {
 		case domain.AssetMovementAcquisition:
+			hasAcquisition = true
 			plan.Cost += m.CostAmount
 		case domain.AssetMovementSubsequentCost, domain.AssetMovementCostReduction:
 			// Nicht in die Anschaffungskosten hineinrechnen: eine Erweiterung im
@@ -2954,23 +2971,29 @@ func afaPlanFor(
 				plan.BasisChangesByYear = map[int]domain.Cents{}
 			}
 			plan.BasisChangesByYear[m.FiscalYear] += m.CostAmount
+			plan.DatedAdjustments = append(plan.DatedAdjustments, accounting.AfADatedAdjustment{
+				Date: m.Date, FiscalYear: m.FiscalYear, CostAmount: m.CostAmount,
+			})
 			if m.LifeExtensionMonths > 0 {
 				if plan.LifeExtensionsByYear == nil {
 					plan.LifeExtensionsByYear = map[int]int{}
 				}
 				plan.LifeExtensionsByYear[m.FiscalYear] += m.LifeExtensionMonths
 			}
-		case domain.AssetMovementImpairment:
+		case domain.AssetMovementImpairment, domain.AssetMovementWriteUp:
 			if plan.ImpairmentsByYear == nil {
 				plan.ImpairmentsByYear = map[int]domain.Cents{}
 			}
 			plan.ImpairmentsByYear[m.FiscalYear] += m.DepreciationAmount
+			plan.DatedAdjustments = append(plan.DatedAdjustments, accounting.AfADatedAdjustment{
+				Date: m.Date, FiscalYear: m.FiscalYear, ImpairmentAmount: m.DepreciationAmount,
+			})
 		case domain.AssetMovementDisposal:
 			// Der Abgang nimmt die Anschaffungskosten aus den Büchern; für den Plan
 			// bleiben sie die Bemessungsgrundlage.
 		}
 	}
-	if plan.Cost == 0 {
+	if !hasAcquisition {
 		plan.Cost = asset.AcquisitionCost
 	}
 	// Der feste Satz des § 7 Abs. 4 EStG wird hier aufgelöst und nicht in der
@@ -3320,6 +3343,10 @@ func (s *AssetService) disposalBankRequest(ctx context.Context, req DisposalRequ
 		}
 		if bankTx.MatchStatus != domain.MatchStatusUnmatched {
 			return req, nil, fmt.Errorf("der Bankumsatz ist bereits zugeordnet")
+		}
+		if req.Date != "" && req.Date != bankTx.BookingDate {
+			return req, nil, fmt.Errorf("bei abweichendem Zahlungstag zuerst den Verkauf als offene Rechnung " +
+				"erfassen und den Bankumsatz anschließend zuordnen")
 		}
 		req.Date, req.Settlement, req.PaymentAccount = bankTx.BookingDate, SettlementPaid, bankTx.LedgerAccount
 	}

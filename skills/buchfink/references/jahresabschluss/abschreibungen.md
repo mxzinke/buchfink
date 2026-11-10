@@ -129,3 +129,9 @@ Lege die Vorschau vor. Zur Jahresprüfung liefert `anlagen` mit
 `wertaufholung: true` die Kandidaten. Besteht der Grund fort, halte dies nach
 Rückfrage mit `anlagenbewertung.art: beibehalten` samt Grund und Nachweis fest.
 Die Regeln folgen aus [§ 253 Abs. 3 und 5 HGB](https://www.gesetze-im-internet.de/hgb/__253.html).
+
+Für die Stichtagsbewertung einer Fremdwährungs-Finanzanlage verwende
+`abschlussbuchung`, `art: fremdwaehrungsanlage`, mit `art: bewertung`,
+`anlage_id` und `datum` im Feld `fremdwaehrungsanlage`. Ohne Kursangabe lädt der
+Kern den Tageskurs vor dem Schreiben. Die Vorschau zeigt Betrag und Begründung.
+Die Umrechnung folgt [§ 256a HGB](https://www.gesetze-im-internet.de/hgb/__256a.html).

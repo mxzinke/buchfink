@@ -118,3 +118,98 @@ func TestAssetValuationRejectsCommittedPeriod(t *testing.T) {
 		})
 	}
 }
+
+func TestAssetOperationsRejectCommittedPeriod(t *testing.T) {
+	for _, operation := range []string{"disposal", "transfer", "currency"} {
+		t.Run(operation, func(t *testing.T) {
+			env := newTestEnv(t)
+			svc := env.assets(t)
+			ctx := context.Background()
+			asset := &domain.FixedAsset{
+				Name: "Anlage", Class: domain.AssetClassTangible, Account: "0440",
+				DepreciationAccount: "6220", AcquisitionDate: "2026-01-01", AcquisitionCost: 1_200_000,
+				Method: domain.DepreciationLinear, UsefulLifeMonths: 48,
+			}
+			if operation == "transfer" {
+				asset.Account, asset.Method, asset.UsefulLifeMonths = "0700", domain.DepreciationNone, 0
+			}
+			if operation == "currency" {
+				asset.Class, asset.Account, asset.Method, asset.UsefulLifeMonths = domain.AssetClassFinancial, "0900", domain.DepreciationNone, 0
+				asset.Currency, asset.ForeignCost = "USD", 1_200_000
+			}
+			asset, err := svc.Save(ctx, asset)
+			if err != nil {
+				t.Fatal(err)
+			}
+			repo := repository.NewFestschreibungRepository(env.db)
+			env.journal.SetFestschreibungRepo(repo)
+			if err := repo.Create(ctx, &domain.Festschreibung{
+				FiscalYear: 2026, PeriodType: "year", PeriodLabel: "2026", CutoffDate: "2026-12-31", ChainHead: domain.GenesisHash,
+			}); err != nil {
+				t.Fatal(err)
+			}
+			switch operation {
+			case "disposal":
+				_, err = svc.Dispose(ctx, DisposalRequest{AssetID: asset.ID, Date: "2026-06-30", Kind: domain.DisposalScrapped})
+			case "transfer":
+				_, err = svc.Transfer(ctx, TransferRequest{AssetID: asset.ID, Date: "2026-06-30", Account: "0440",
+					DepreciationAccount: "6220", Method: domain.DepreciationLinear, UsefulLifeMonths: 48})
+			case "currency":
+				_, err = svc.BookCurrencyValuation(ctx, CurrencyValuationRequest{AssetID: asset.ID, Date: "2026-06-30", RatePerEuro: 1_500_000})
+			}
+			if err == nil {
+				t.Fatal("Vorgang trotz Festschreibung")
+			}
+			detail, err := svc.Get(ctx, 2026, asset.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if detail.Asset.BookValue != 1_200_000 || len(detail.Movements) != 1 {
+				t.Fatalf("Kartei nach fehlgeschlagenem Vorgang: %+v", detail.Asset)
+			}
+		})
+	}
+}
+
+func TestForeignAcquisitionRejectsCommittedPeriod(t *testing.T) {
+	env := newTestEnv(t)
+	svc := env.assets(t)
+	ctx := context.Background()
+	entry, err := env.journal.Post(ctx, &domain.JournalEntry{
+		BookingDate: "2026-06-30", DocumentDate: "2026-06-30", Description: "USD-Anteile",
+		TaxTreatment: domain.TaxTreatmentNotTaxable,
+		Lines: []domain.JournalLine{
+			{Account: "0900", Side: domain.SideDebit, Amount: 1_000_000},
+			{Account: "1800", Side: domain.SideCredit, Amount: 1_000_000},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := ForeignAssetAcquisitionRequest{
+		EntryID: entry.ID, Account: "0900", Name: "USD-Anteile", Date: "2026-06-30",
+		Currency: "USD", ForeignCost: 1_200_000, RatePerEuro: 1_200_000, RateSource: "Kaufabrechnung", Preview: true,
+	}
+	if _, err := svc.RecordForeignAcquisition(ctx, req); err != nil {
+		t.Fatal(err)
+	}
+	repo := repository.NewFestschreibungRepository(env.db)
+	env.journal.SetFestschreibungRepo(repo)
+	if err := repo.Create(ctx, &domain.Festschreibung{
+		FiscalYear: 2026, PeriodType: "year", PeriodLabel: "2026",
+		CutoffDate: "2026-12-31", ChainHead: domain.GenesisHash,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	req.Preview = false
+	if _, err := svc.RecordForeignAcquisition(ctx, req); err == nil {
+		t.Fatal("Zugang trotz Festschreibung erfasst")
+	}
+	assets, err := svc.List(ctx, 2026, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(assets) != 0 {
+		t.Fatal("Anlage nach abgewiesenem Zugang gespeichert")
+	}
+}

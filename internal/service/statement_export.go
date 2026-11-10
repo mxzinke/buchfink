@@ -88,6 +88,12 @@ func (s *StatementService) ExportCSV(ctx context.Context, year int, depth domain
 	// Der Anhang gehört zum Abschluss und damit in den Datenexport: der
 	// Rückstellungsspiegel als Tabelle, die Überleitung als Tabelle, die
 	// Freitexte als Zeilen.
+	for _, row := range fs.Notes.Assets.Rows {
+		for _, value := range assetNoteValues(row) {
+			writeRow(&b, "anlagenspiegel", row.Account+"."+value.key, row.Account,
+				row.AccountName+" — "+value.label, "1", germanAmount(value.amount), "", "")
+		}
+	}
 	for _, row := range fs.Notes.ProvisionMirror.Rows {
 		writeRow(&b, "rueckstellungsspiegel", string(row.Kind), row.Account, row.Label, "1",
 			germanAmount(row.Opening), germanAmount(row.Closing), "")
@@ -265,8 +271,8 @@ func statementTypst(fs *domain.FinancialStatement) string {
 	return b.String()
 }
 
-// writeTypstNotes setzt den Anhang: Freitexte, Rückstellungsspiegel und die
-// Überleitung zur Steuerbilanz.
+// writeTypstNotes setzt den Anhang: Freitexte, Anlagen- und Rückstellungsspiegel
+// sowie die Überleitung zur Steuerbilanz.
 //
 // Er steht im Dokument und nicht nur auf dem Schirm, weil er Bestandteil des
 // Jahresabschlusses ist (§ 264 Abs. 1 Satz 1 HGB). Ein PDF ohne ihn wäre kein
@@ -287,7 +293,7 @@ func writeTypstNotes(b *strings.Builder, fs *domain.FinancialStatement) {
 			texts = append(texts, text)
 		}
 	}
-	if len(texts) == 0 && len(mirror.Rows) == 0 && len(reconciliation.Rows) == 0 {
+	if len(texts) == 0 && len(mirror.Rows) == 0 && len(reconciliation.Rows) == 0 && len(fs.Notes.Assets.Rows) == 0 {
 		return
 	}
 
@@ -298,6 +304,18 @@ func writeTypstNotes(b *strings.Builder, fs *domain.FinancialStatement) {
 		fmt.Fprintf(b, "== %s\n\n", typstText(text.Label))
 		fmt.Fprintf(b, "#text(size: 7pt)[%s]\n\n", typstText(text.Basis))
 		fmt.Fprintf(b, "%s\n\n", typstText(text.Text))
+	}
+
+	if len(fs.Notes.Assets.Rows) > 0 {
+		b.WriteString("== Anlagenspiegel\n\n")
+		for _, row := range fs.Notes.Assets.Rows {
+			fmt.Fprintf(b, "=== %s\n\n", typstText(row.Account+" "+row.AccountName))
+			b.WriteString("#table(columns: (1fr, auto), align: (left, right), stroke: none,\n")
+			for _, value := range assetNoteValues(row) {
+				fmt.Fprintf(b, "  [%s], [%s],\n", typstText(value.label), typstText(value.amount.String()))
+			}
+			b.WriteString(")\n\n")
+		}
 	}
 
 	if len(mirror.Rows) > 0 {
@@ -451,4 +469,29 @@ func typstDate(iso string) string {
 // typstString schreibt einen Wert als Typst-Zeichenkette.
 func typstString(value string) string {
 	return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(value) + `"`
+}
+
+// CSV und PDF enthalten dieselben Bewegungswerte der Anlagenkartei.
+func assetNoteValues(row domain.AnlagenspiegelRow) []struct {
+	key, label string
+	amount     domain.Cents
+} {
+	return []struct {
+		key, label string
+		amount     domain.Cents
+	}{
+		{"ahk_anfang", "Anschaffungskosten am Anfang", row.CostOpening},
+		{"zugaenge", "Zugänge", row.Additions},
+		{"abgaenge", "Abgänge zu Anschaffungskosten", row.Disposals},
+		{"umbuchungen", "Umbuchungen zu Anschaffungskosten", row.Transfers},
+		{"ahk_ende", "Anschaffungskosten am Ende", row.CostClosing},
+		{"afa_anfang", "Abschreibungen am Anfang", row.DepreciationOpening},
+		{"afa_jahr", "Abschreibungen des Jahres", row.DepreciationYear},
+		{"zuschreibungen", "Zuschreibungen des Jahres", row.WriteUpsYear},
+		{"afa_abgang", "Abschreibungen der Abgänge", row.DepreciationDisposal},
+		{"afa_umbuchung", "Abschreibungen der Umbuchungen", row.DepreciationTransfer},
+		{"afa_ende", "Abschreibungen am Ende", row.DepreciationClosing},
+		{"buchwert_anfang", "Buchwert am Anfang", row.BookValueOpening},
+		{"buchwert_ende", "Buchwert am Ende", row.BookValueClosing},
+	}
 }

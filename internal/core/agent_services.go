@@ -33,6 +33,9 @@ type AgentServices struct {
 		PreviewAppropriation(context.Context, int, service.AppropriationRequest) (*service.AppropriationPreview, error)
 	}
 	Assets interface {
+		RecordForeignAcquisition(context.Context, service.ForeignAssetAcquisitionRequest) (*domain.FixedAsset, error)
+		ValuateCurrency(context.Context, service.CurrencyValuationRequest) (*service.CurrencyValuation, error)
+		BookCurrencyValuation(context.Context, service.CurrencyValuationRequest) (*domain.JournalEntry, error)
 		BookImpairment(context.Context, service.ImpairmentRequest) (*domain.JournalEntry, error)
 		BookWriteUp(context.Context, service.WriteUpRequest) (*domain.JournalEntry, error)
 		WriteUpReport(context.Context, int) (*service.WriteUpReport, error)
@@ -42,6 +45,7 @@ type AgentServices struct {
 		ReverseDisposal(context.Context, uint, uint, string) (*domain.FixedAsset, error)
 		PreviewDisposal(context.Context, service.DisposalRequest) (*service.DisposalPreview, error)
 		Dispose(context.Context, service.DisposalRequest) (*service.DisposalResult, error)
+		Anlagenspiegel(context.Context, int) (*domain.Anlagenspiegel, error)
 		AcquisitionCandidates(context.Context, int) ([]service.AcquisitionCandidate, error)
 		BookAssetIncome(context.Context, service.AssetIncomeRequest) (*domain.JournalEntry, error)
 		BookDepreciation(context.Context, service.BookDepreciationRequest) (*service.DepreciationResult, error)

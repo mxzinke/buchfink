@@ -323,3 +323,25 @@ func (b *BuchfinkBridge) ConfirmAssetImpairment(assetID uint, year int, reason, 
 		return s.Assets.ConfirmImpairmentPersists(ctx, assetID, year, reason, evidence)
 	})
 }
+
+func (b *BuchfinkBridge) RecordForeignAsset(req service.ForeignAssetAcquisitionRequest) (*domain.FixedAsset, error) {
+	return prepared(b, func(ctx context.Context, t *core.Tenant) error {
+		if req.RatePerEuro != 0 {
+			return nil
+		}
+		return t.PrefetchRate(ctx, req.Currency, req.Date)
+	}, func(ctx context.Context, s *core.Services) (*domain.FixedAsset, error) {
+		return s.Assets.RecordForeignAcquisition(ctx, req)
+	})
+}
+
+func (b *BuchfinkBridge) BookAssetCurrency(req service.CurrencyValuationRequest) (*domain.JournalEntry, error) {
+	return prepared(b, func(ctx context.Context, t *core.Tenant) error {
+		if req.RatePerEuro != 0 {
+			return nil
+		}
+		return t.PrefetchAssetRate(ctx, req.AssetID, req.Date)
+	}, func(ctx context.Context, s *core.Services) (*domain.JournalEntry, error) {
+		return s.Assets.BookCurrencyValuation(ctx, req)
+	})
+}

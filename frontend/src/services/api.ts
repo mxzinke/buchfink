@@ -327,6 +327,8 @@ function normalizeStatement(statement: FinancialStatement): FinancialStatement {
     notes: {
       ...notes,
       texts: list(notes.texts),
+      assets: notes.assets ? { ...notes.assets, rows: list(notes.assets.rows),
+        classTotals: list(notes.assets.classTotals) } : notes.assets,
       provisionMirror: notes.provisionMirror
         ? { ...notes.provisionMirror, rows: list(notes.provisionMirror.rows) }
         : notes.provisionMirror,
@@ -646,6 +648,11 @@ export const Api = {
   bookAssetWriteUp: (req: import('../types').AssetValuationRequest) => call(() => Bridge.BookAssetWriteUp<JournalEntry>(req)),
   confirmAssetImpairment: (id: number, year: number, reason: string, evidence: string) =>
     call(() => Bridge.ConfirmAssetImpairment<WriteUpReport>(id, year, reason, evidence)),
+  recordForeignAsset: (req: { entryId: number; account: string; name: string; date: string; currency: string;
+    foreignCost: number; quantity: number; ratePerEuro: number; rateSource: string; preview: boolean; maturityDate?: string }) =>
+    call(() => Bridge.RecordForeignAsset<FixedAsset>(req)),
+  bookAssetCurrency: (req: { assetId: number; date: string; ratePerEuro: number; preview: boolean }) =>
+    call(() => Bridge.BookAssetCurrency<JournalEntry>(req)),
   transferAsset: (req: { assetId: number; date: string; account: string; depreciationAccount: string;
     method: string; usefulLifeMonths: number; note: string }) => call(() => Bridge.TransferAsset<FixedAsset>(req)),
   disposeAsset: (req: import('../types').AssetDisposalRequest) =>
