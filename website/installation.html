@@ -295,11 +295,18 @@
           <div class="links links--paired">
             <div>
               <p class="link__title"><a href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/claude-code.md">Claude Code</a></p>
-              <p class="link__body">Das Buchfink-Plugin richtet die Verbindung ein und enthält die Buchhaltungsanleitungen für den Agenten.</p>
+              <p class="link__body">Das Plugin bringt Verbindung und Buchhaltungsanleitungen mit. Im Terminal:</p>
+              <div class="cmd" data-copy>claude plugin install buchfink-buchhaltung --marketplace mxzinke/buchfink</div>
+              <p class="link__body">Dann in Claude Code <code>/mcp</code> öffnen, <code>buchfink</code> wählen und anmelden.</p>
             </div>
             <div>
               <p class="link__title"><a href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/claude-desktop.md">Claude Desktop</a></p>
-              <p class="link__body">Die Buchfink-Erweiterung herunterladen und per Doppelklick installieren. Für macOS und Windows.</p>
+              <p class="link__body">
+                <a href="https://github.com/mxzinke/buchfink/releases/latest/download/buchfink.mcpb">buchfink.mcpb</a>
+                herunterladen und per Doppelklick installieren. Dann
+                <a href="https://github.com/mxzinke/buchfink/releases/latest/download/buchfink.zip">buchfink.zip</a>
+                unter Customize → Skills hochladen, ohne die Datei zu entpacken. Für macOS und Windows.
+              </p>
             </div>
             <div>
               <p class="link__title"><a href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/chatgpt-desktop.md">ChatGPT Desktop</a></p>
@@ -311,7 +318,10 @@
             </div>
             <div>
               <p class="link__title"><a href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/codex.md">Codex</a></p>
-              <p class="link__body">Mit einem Terminalbefehl verbinden, anschließend anmelden und die Buchhaltungsanleitungen hinzufügen.</p>
+              <p class="link__body">Verbinden, anmelden und die Buchhaltungsanleitungen hinzufügen:</p>
+              <div class="cmd" data-copy>codex mcp add buchfink --url http://127.0.0.1:7465/mcp</div>
+              <div class="cmd" data-copy>codex mcp login buchfink</div>
+              <div class="cmd" data-copy>npx skills add mxzinke/buchfink -g -a codex --skill '*'</div>
             </div>
             <div>
               <p class="link__title"><a href="https://github.com/mxzinke/buchfink/blob/master/docs/nutzung/ki-agenten/pi.md">Pi</a></p>
@@ -327,6 +337,51 @@
 
       <!-- ================================================================= -->
       <section class="band band--sunken">
+        <div class="wrap">
+          <p class="overline">Erste Schritte</p>
+          <h2 class="section__title">4. Loslegen</h2>
+          <p class="section__lead">
+            Buchfink muss laufen, solange Ihr Agent arbeitet. Probieren Sie die ersten Schritte am
+            besten mit einem Testunternehmen.
+          </p>
+          <div class="steps">
+            <div class="step">
+              <h3 class="step__title">Fragen, was ansteht</h3>
+              <p class="step__body">
+                Schreiben Sie Ihrem Agenten: „Was steht in Buchfink an?“ Er liest den Stand und nennt
+                offene Aufgaben und die nächste Frist.
+              </p>
+            </div>
+            <div class="step">
+              <h3 class="step__title">Bankkonto und ersten Kontoauszug</h3>
+              <p class="step__body">
+                Legen Sie das Geschäftskonto unter Unternehmen → Stammdaten → Bankkonten an. Den ersten
+                Kontoauszug als CAMT-Datei aus dem Onlinebanking lesen Sie selbst ein, unter Bücher →
+                Bank → „Kontoauszug einlesen“. Die folgenden liest Ihr Agent ein.
+              </p>
+            </div>
+            <div class="step">
+              <h3 class="step__title">Belege buchen lassen</h3>
+              <p class="step__body">
+                Ziehen Sie Rechnungen, Quittungen und E-Rechnungen ins Fenster von Buchfink und sagen
+                Sie: „Buche die Belege im Eingang.“ Routine bucht der Agent direkt, alles andere legt
+                er Ihnen im Chat vor.
+              </p>
+            </div>
+            <div class="step">
+              <h3 class="step__title">Monat abschließen</h3>
+              <p class="step__body">
+                „Bereite den Monatsabschluss vor.“ Der Agent ordnet die Bank zu, prüft offene Punkte
+                und bereitet die Umsatzsteuer-Voranmeldung vor. Sie schreiben den Monat in Buchfink
+                unter Abschlüsse fest und übertragen die Voranmeldung in Mein ELSTER.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <section class="band">
         <div class="wrap">
           <p class="overline">Hilfe</p>
           <h2 class="section__title">Wenn etwas nicht klappt</h2>
